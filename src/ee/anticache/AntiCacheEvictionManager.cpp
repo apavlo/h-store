@@ -286,12 +286,12 @@ bool AntiCacheEvictionManager::removeTuple(PersistentTable* table, int removal_i
     return false; 
 }
 
-Table* AntiCacheEvictionManager::evictBlock(PersistentTable *table, long blockSize) {
+Table* AntiCacheEvictionManager::evictBlock(PersistentTable *table, long blockSize, int numBlocks) {
     int32_t lastTuplesEvicted = table->getTuplesEvicted();
     int32_t lastBlocksEvicted = table->getBlocksEvicted();
     int64_t lastBytesEvicted  = table->getBytesEvicted();
     
-    if (table->evictBlockToDisk(blockSize) == false) {
+    if (table->evictBlockToDisk(blockSize, numBlocks) == false) {
         throwFatalException("Failed to evict tuples from table '%s'", table->name().c_str());
     }
     

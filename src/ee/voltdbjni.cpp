@@ -1213,9 +1213,8 @@ SHAREDLIB_JNIEXPORT jboolean JNICALL Java_org_voltdb_utils_ThreadUtils_setThread
             CPU_SET(ii, &mask);
         }
     }
-	  
-	  int errno= 0; 
-
+      
+    int errno = 0; 
     int result = sched_setaffinity(0, sizeof(mask), &mask);
     if (result == -1) {
         char buff[256];
@@ -1257,7 +1256,8 @@ SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeAntiC
         JNIEnv *env,
         jobject obj,
         jlong engine_ptr,
-        jstring dbDir) {
+        jstring dbDir,
+        jlong blockSize) {
     
     VOLT_DEBUG("nativeAntiCacheInitialize() start");
     VoltDBEngine *engine = castToEngine(engine_ptr);
@@ -1270,7 +1270,7 @@ SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeAntiC
         std::string dbDirString(dbDirChars);
         env->ReleaseStringUTFChars(dbDir, dbDirChars);
         
-        engine->antiCacheInitialize(dbDirString);
+        engine->antiCacheInitialize(dbDirString, static_cast<int64_t>(blockSize));
     } catch (FatalException e) {
         topend->crashVoltDB(e);
     }
@@ -1316,7 +1316,8 @@ SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeAntiC
         jobject obj,
         jlong engine_ptr,
         jint tableId,
-        jlong blockSize) {
+        jlong blockSize,
+        jint numBlocks) {
          
     int retval = -1;
     VOLT_DEBUG("nativeAntiCacheEvictBlocks() start");
@@ -1327,7 +1328,7 @@ SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeAntiC
     engine->resetReusedResultOutputBuffer();
     
     try {
-        retval = engine->antiCacheEvictBlock(static_cast<int32_t>(tableId), static_cast<long>(blockSize));
+        retval = engine->antiCacheEvictBlock(static_cast<int32_t>(tableId), static_cast<long>(blockSize), static_cast<int>(numBlocks));
     } catch (FatalException e) {
         topend->crashVoltDB(e);
     }

@@ -15,46 +15,46 @@
  * along with VoltDB.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef TABLESTATS_H_
-#define TABLESTATS_H_
+#ifndef INDEXSTATS_H_
+#define INDEXSTATS_H_
 
+#include <vector>
+#include <string>
 #include "stats/StatsSource.h"
 #include "common/TupleSchema.h"
 #include "common/ids.h"
-#include "storage/table.h"
-#include <vector>
-#include <string>
 
 namespace voltdb {
+
+class TableIndex;
 
 /**
  * StatsSource extension for tables.
  */
-class TableStats : public voltdb::StatsSource {
+class IndexStats : public voltdb::StatsSource {
 public:
     /**
      * Static method to generate the column names for the tables which
-     * contain persistent table stats.
+     * contain index stats.
      */
-    static std::vector<std::string> generateTableStatsColumnNames();
+    static std::vector<std::string> generateIndexStatsColumnNames();
 
     /**
      * Static method to generate the remaining schema information for
-     * the tables which contain persistent table stats.
+     * the tables which contain index stats.
      */
-    static void populateTableStatsSchema(std::vector<voltdb::ValueType>& types,
+    static void populateIndexStatsSchema(std::vector<voltdb::ValueType>& types,
                                          std::vector<int32_t>& columnLengths,
                                          std::vector<bool>& allowNull);
 
-    /**
-     * Return an empty TableStats table
-     */
-    static Table* generateEmptyTableStatsTable();
+    static Table* generateEmptyIndexStatsTable();
 
     /*
      * Constructor caches reference to the table that will be generating the statistics
      */
-    TableStats(voltdb::Table* table);
+    IndexStats(voltdb::TableIndex* index);
+
+    ~IndexStats();
 
     /**
      * Configure a StatsSource superclass for a set of statistics. Since this class is only used in the EE it can be assumed that
@@ -66,8 +66,9 @@ public:
      * @parameter partitionId this stat source is associated with
      * @parameter databaseId Database this source is associated with
      */
-    virtual void configure(
+    void configure(
             std::string name,
+            std::string tableName,
             voltdb::CatalogId hostId,
             std::string hostname,
             voltdb::CatalogId siteId,
@@ -94,41 +95,22 @@ protected:
      */
     virtual void populateSchema(std::vector<voltdb::ValueType> &types, std::vector<int32_t> &columnLengths, std::vector<bool> &allowNull);
 
-    ~TableStats();
-
 private:
     /**
-     * Table whose stats are being collected.
+     * Index whose stats are being collected.
      */
-    voltdb::Table * m_table;
+    voltdb::TableIndex *m_index;
 
+    voltdb::NValue m_indexName;
     voltdb::NValue m_tableName;
+    voltdb::NValue m_indexType;
 
-    voltdb::NValue m_tableType;
+    int8_t m_isUnique;
 
     int64_t m_lastTupleCount;
-    int64_t m_lastAllocatedTupleMemory;
-    int64_t m_lastOccupiedTupleMemory;
-    int64_t m_lastStringDataMemory;
-    
-    #ifdef ANTICACHE
-    // ACTIVE
-    int32_t m_lastTuplesEvicted;
-    int32_t m_lastBlocksEvicted;
-    int64_t m_lastBytesEvicted;
-    
-    // GLOBAL WRITTEN
-    int32_t m_lastTuplesWritten;
-    int32_t m_lastBlocksWritten;
-    int64_t m_lastBytesWritten;
-    
-    // GLOBAL READ
-    int32_t m_lastTuplesRead;
-    int32_t m_lastBlocksRead;
-    int64_t m_lastBytesRead;
-    #endif
+    int64_t m_lastMemEstimate;
 };
 
 }
 
-#endif /* TABLESTATS_H_ */
+#endif /* INDEXSTATS_H_ */

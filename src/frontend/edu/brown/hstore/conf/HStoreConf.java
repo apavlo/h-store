@@ -543,7 +543,7 @@ public final class HStoreConf {
         
         @ConfigProperty(
             description="Directory for storage of command logging files",
-            defaultString="${global.temp_dir}/wal",
+            defaultString="${global.temp_dir}/cmdlog",
             experimental=true
         )
         public String commandlog_dir;
@@ -587,6 +587,13 @@ public final class HStoreConf {
             experimental=true
         )
         public String anticache_dir;
+        
+        @ConfigProperty(
+            description="The size (in bytes) for the anti-cache's blocks on disk.",
+            defaultLong=524288,
+            experimental=true
+        )
+        public long anticache_block_size;
         
         @ConfigProperty(
             description="Reset the anti-cache database directory for each partition when " +
@@ -1598,10 +1605,19 @@ public final class HStoreConf {
         
         @ConfigProperty(
             description="",
-            defaultBoolean=false,
+            defaultNull=true,
             experimental=false
         )
-        public boolean output_csv;
+        public String output_csv;
+        
+        @ConfigProperty(
+            description="Defines the path where the BenchmarkController will dump a CSV containing " +
+                        "the memory stats information about the cluster. This will periodically invoke " +
+                        "the @Statistics system stored procedure to collect SysProcSelector.MEMORY data.",
+            defaultNull=true,
+            experimental=false
+        )
+        public String output_memory;
         
         @ConfigProperty(
             description="Defines the path where the BenchmarkController will dump a CSV containing " +
@@ -1609,7 +1625,7 @@ public final class HStoreConf {
             defaultNull=true,
             experimental=false
         )
-        public String output_full_csv;
+        public String output_responses;
         
         @ConfigProperty(
             description="Defines the path where the BenchmarkController will dump a CSV containing " +
@@ -1659,7 +1675,18 @@ public final class HStoreConf {
             defaultNull=true,
             experimental=false
         )
-        public String output_anticache_history;
+        public String output_anticache_evictions;
+        
+        @ConfigProperty(
+            description="Defines the path where the BenchmarkController will dump a CSV containing " +
+                        "the transactions that tried to access evicted tuples from the anti-cache. " +
+                        "Note that this will automatically enable ${site.anticache_profiling}, " +
+                        "which will affect the runtime performance. " +
+                        "Any file that exists with the same name as this will be overwritten.",
+            defaultNull=true,
+            experimental=false
+        )
+        public String output_anticache_access;
         
         @ConfigProperty(
             description="Defines the path where the BenchmarkController will dump a CSV containing " +
@@ -1721,6 +1748,15 @@ public final class HStoreConf {
             experimental=false
         )
         public String output_markov_profiling;
+        
+        @ConfigProperty(
+            description="Defines the path where the BenchmarkController will dump a CSV containing " +
+                        "the memory stats information about the cluster. This will periodically invoke " +
+                        "the @Statistics system stored procedure to collect SysProcSelector.TABLE data.",
+            defaultNull=true,
+            experimental=false
+        )
+        public String output_table_stats;
         
         @ConfigProperty(
             description="Defines the path where the BenchmarkController will dump a CSV containing " +

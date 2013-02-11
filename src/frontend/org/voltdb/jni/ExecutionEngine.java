@@ -700,16 +700,17 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
      * Initialize anti-caching at this partition's EE.
      * <B>NOTE:</B> This must be invoked before loadCatalog is invoked
      * @param dbDir
+     * @param blockSize TODO
      * @throws EEException
      */
-    public abstract void antiCacheInitialize(File dbDir) throws EEException;
+    public abstract void antiCacheInitialize(File dbDir, long blockSize) throws EEException;
     
     /**
      * 
      * @param catalog_tbl
      * @param block_ids
      */
-    public abstract void antiCacheReadBlocks(Table catalog_tbl, short block_ids[]);
+    public abstract void antiCacheReadBlocks(Table catalog_tbl, short block_ids[], int tuple_offsets[]);
 
     /**
      * Forcibly tell the EE that it needs to evict a certain number of bytes
@@ -718,7 +719,7 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
      * @param block_size The number of bytes to evict from the target table
      * @return TODO
      */
-    public abstract VoltTable antiCacheEvictBlock(Table catalog_tbl, long block_size);
+    public abstract VoltTable antiCacheEvictBlock(Table catalog_tbl, long block_size, int num_blocks);
     
     /**
      * Instruct the EE to merge in the unevicted blocks into the table's regular data.
@@ -735,9 +736,10 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
      * for dbDir exist and are writable.  
      * @param pointer
      * @param dbDir
+     * @param blockSize TODO
      * @return
      */
-    protected native int nativeAntiCacheInitialize(long pointer, String dbDir);
+    protected native int nativeAntiCacheInitialize(long pointer, String dbDir, long blockSize);
     
     /**
      * 
@@ -746,7 +748,7 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
      * @param block_ids
      * @return
      */
-    protected native int nativeAntiCacheReadBlocks(long pointer, int tableId, short block_ids[]);
+    protected native int nativeAntiCacheReadBlocks(long pointer, int tableId, short block_ids[], int tuple_offsets[]);
     
     /**
      * 
@@ -755,7 +757,7 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
      * @param blockSize
      * @return
      */
-    protected native int nativeAntiCacheEvictBlock(long pointer, int tableId, long blockSize);
+    protected native int nativeAntiCacheEvictBlock(long pointer, int tableId, long blockSize, int num_blocks);
     
     /**
      * 

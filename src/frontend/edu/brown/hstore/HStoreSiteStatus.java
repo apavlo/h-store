@@ -398,11 +398,13 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
             int i = 0;
             for (TransactionPostProcessor tpp : hstore_site.getTransactionPostProcessors()) {
                 pm = tpp.getExecTime();
-                val += String.format("\n[%02d] %d total / %.2fms total / %.2fms avg",
-                                     i++,
-                                     pm.getInvocations(),
-                                     pm.getTotalThinkTimeMS(),
-                                     pm.getAverageThinkTimeMS());
+                if (pm != null) {
+                    val += String.format("\n[%02d] %d total / %.2fms total / %.2fms avg",
+                                         i++,
+                                         pm.getInvocations(),
+                                         pm.getTotalThinkTimeMS(),
+                                         pm.getAverageThinkTimeMS());
+                }
             } // FOR
             
             siteInfo.put("Post-Processing Txns", val);
@@ -651,10 +653,12 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
      */
     private Map<String, String> txnExecInfo() {
         Set<TransactionCounter> cnts_to_include = new TreeSet<TransactionCounter>();
-        Collection<String> procs = TransactionCounter.getAllProcedures();
+        Collection<Procedure> procs = TransactionCounter.getAllProcedures(hstore_site.getCatalogContext());
         if (procs.isEmpty()) return (null);
         for (TransactionCounter tc : TransactionCounter.values()) {
-            if (TXNINFO_ALWAYS_SHOW.contains(tc) || (tc.get() > 0 && TXNINFO_EXCLUDES.contains(tc) == false)) cnts_to_include.add(tc);
+            if (TXNINFO_ALWAYS_SHOW.contains(tc) || (tc.get() > 0 && TXNINFO_EXCLUDES.contains(tc) == false)) {
+                cnts_to_include.add(tc);
+            }
         } // FOR
         
         boolean first = true;
@@ -665,14 +669,14 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
         String row_delimiters[] = new String[rows.length];
         int i = -1;
         int j = 0;
-        for (String proc_name : procs) {
+        for (Procedure proc : procs) {
             j = 0;
             rows[++i] = new String[num_cols];
-            rows[i][j++] = proc_name;
+            rows[i][j++] = proc;
             if (first) header[0] = "";
             for (TransactionCounter tc : cnts_to_include) {
                 if (first) header[j] = tc.toString().replace("partition", "P");
-                Long cnt = tc.getHistogram().get(proc_name);
+                Long cnt = tc.get(proc);
                 rows[i][j++] = (cnt != null ? cnt.toString() : "-");
             } // FOR
             first = false;

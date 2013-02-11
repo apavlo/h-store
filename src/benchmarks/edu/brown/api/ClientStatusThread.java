@@ -30,7 +30,6 @@ public class ClientStatusThread extends Thread {
     private static final Logger LOG = Logger.getLogger(ClientStatusThread.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     static {
-        LoggerUtil.setupLogging();
         LoggerUtil.attachObserver(LOG, debug);
     }
 

@@ -156,6 +156,11 @@ public:
     }
 
     size_t getSize() const { return m_entries.size(); }
+    int64_t getMemoryEstimate() const {
+        return 0;
+        // return m_entries.bytesAllocated();
+    }
+    
     std::string getTypeName() const { return "HashTableMultiMapIndex"; };
 
     // print out info about lookup usage

@@ -24,6 +24,7 @@ public abstract class BenchmarkControllerUtil {
      * site config parameter so that we can collect the proper data
      */
     public static final ProfilingOutput[] PROFILING_OUTPUTS = {
+        new ProfilingOutput(SysProcSelector.TABLE, "client.output_table_stats", null),
         new ProfilingOutput(SysProcSelector.EXECPROFILER, "client.output_exec_profiling", "site.exec_profiling"),
         new ProfilingOutput(SysProcSelector.QUEUEPROFILER, "client.output_queue_profiling", "site.queue_profiling"),
         new ProfilingOutput(SysProcSelector.TXNPROFILER, "client.output_txn_profiling", "site.txn_profiling"),
@@ -33,7 +34,8 @@ public abstract class BenchmarkControllerUtil {
         new ProfilingOutput(SysProcSelector.PLANNERPROFILER, "client.output_planner_profiling", "site.planner_profiling"),
         new ProfilingOutput(SysProcSelector.TXNCOUNTER, "client.output_txn_counters", "site.txn_counters"),
         new ProfilingOutput(SysProcSelector.ANTICACHE, "client.output_anticache_profiling", "site.anticache_profiling"),
-        new ProfilingOutput(SysProcSelector.ANTICACHEHISTORY, "client.output_anticache_history", "site.anticache_profiling"),
+        new ProfilingOutput(SysProcSelector.ANTICACHEEVICTIONS, "client.output_anticache_evictions", "site.anticache_profiling"),
+        new ProfilingOutput(SysProcSelector.ANTICACHEACCESS, "client.output_anticache_access", "site.anticache_profiling"),
     };
     
     

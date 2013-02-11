@@ -93,6 +93,7 @@ import org.voltdb.processtools.ProcessSetManager;
 import org.voltdb.processtools.SSHTools;
 import org.voltdb.sysprocs.DatabaseDump;
 import org.voltdb.sysprocs.EvictHistory;
+import org.voltdb.sysprocs.EvictedAccessHistory;
 import org.voltdb.sysprocs.ExecutorStatus;
 import org.voltdb.sysprocs.GarbageCollection;
 import org.voltdb.sysprocs.MarkovUpdate;
@@ -108,6 +109,7 @@ import edu.brown.api.BenchmarkControllerUtil.ProfilingOutput;
 import edu.brown.api.results.BenchmarkResults;
 import edu.brown.api.results.CSVResultsPrinter;
 import edu.brown.api.results.JSONResultsPrinter;
+import edu.brown.api.results.MemoryStatsPrinter;
 import edu.brown.api.results.ResponseEntries;
 import edu.brown.api.results.ResultsChecker;
 import edu.brown.api.results.ResultsPrinter;
@@ -371,7 +373,7 @@ public class BenchmarkController {
         }
         this.totalNumClients = total_num_clients;
         int num_results = (int)(m_pollCount * this.totalNumClients);
-        if (hstore_conf.client.output_full_csv != null) num_results += this.totalNumClients;
+        if (hstore_conf.client.output_responses != null) num_results += this.totalNumClients;
         this.resultsToRead = new CountDownLatch(num_results);
     }
     
@@ -545,6 +547,8 @@ public class BenchmarkController {
         // For each client output option, we'll enable the corresponding
         // site config parameter so that we can collect the proper data
         for (ProfilingOutput po : BenchmarkControllerUtil.PROFILING_OUTPUTS) {
+            if (po.siteParam == null) continue;
+            
             assert(HStoreConf.isConfParameter(po.clientParam)) : "Invalid Client Param: " + po;
             assert(HStoreConf.isConfParameter(po.siteParam)) : "Invalid Site Param: " + po;
             String clientOptVal = (String)hstore_conf.get(po.clientParam);
@@ -924,15 +928,26 @@ public class BenchmarkController {
         if (hstore_conf.client.output_json) {
             this.registerInterest(new JSONResultsPrinter(hstore_conf));
         }
+        // CSV Output
+        else if (hstore_conf.client.output_csv != null && hstore_conf.client.output_csv.isEmpty() == false) {
+            if (hstore_conf.client.output_csv.equalsIgnoreCase("true")) {
+                LOG.warn("The HStoreConf parameter 'hstore_conf.client.output_csv' should be a file path, not a boolean value");
+            }
+            File f = new File(hstore_conf.client.output_csv);
+            this.registerInterest(new CSVResultsPrinter(f));
+        }
         // Default Table Output
         else {
             this.registerInterest(new ResultsPrinter(hstore_conf));
         }
         
-        // CSV Output
-        if (hstore_conf.client.output_csv) {
-            File f = new File(this.getProjectName() + ".csv");
-            this.registerInterest(new CSVResultsPrinter(f));
+        // Memory Stats Output
+        if (hstore_conf.client.output_memory != null && hstore_conf.client.output_memory.isEmpty() == false) {
+            if (hstore_conf.client.output_memory.equalsIgnoreCase("true")) {
+                LOG.warn("The HStoreConf parameter 'hstore_conf.client.output_memory' should be a file path, not a boolean value");
+            }
+            File f = new File(hstore_conf.client.output_memory);
+            this.registerInterest(new MemoryStatsPrinter(this.getClientConnection(), f));
         }
 
         // Kill Benchmark on Zero Results
@@ -1093,7 +1108,8 @@ public class BenchmarkController {
         
         // Spin on whether all clients are ready
         while (m_clientsNotReady.get() > 0 && this.stop == false) {
-            if (debug.val) LOG.debug(String.format("Waiting for %d clients to come online", m_clientsNotReady.get()));
+            if (debug.val)
+                LOG.debug(String.format("Waiting for %d clients to come online", m_clientsNotReady.get()));
             try {
                 Thread.sleep(500);
             } catch (InterruptedException ex) {
@@ -1101,7 +1117,12 @@ public class BenchmarkController {
                 return;
             }
         } // WHILE
-        if (this.stop) return;
+        if (this.stop) {
+            if (debug.val) LOG.debug("Stop flag is set to true");
+            return;
+        }
+        if (debug.val)
+            LOG.debug("All clients are on-line and ready to go!");
         if (m_clientFilesUploaded.get() > 0) {
             LOG.info(String.format("Uploaded %d files to clients", m_clientFilesUploaded.get()));
         }
@@ -1110,8 +1131,13 @@ public class BenchmarkController {
         this.resetCluster(local_client);
         
         // Start up all the clients
-        for (String clientName : m_clients)
+        if (debug.val)
+            LOG.debug(String.format("Telling %d clients to start executing", m_clients.size()));
+        for (String clientName : m_clients) {
+            if (debug.val)
+                LOG.debug(String.format("Sending %s to %s", ControlCommand.START, clientName)); 
             m_clientPSM.writeToProcess(clientName, ControlCommand.START.name());
+        } // FOR
 
         // Warm-up
         if (hstore_conf.client.warmup > 0) {
@@ -1275,8 +1301,8 @@ public class BenchmarkController {
             String.format("Failed to quiesce cluster!\n%s", cresponse);
         
         // DUMP RESPONSE ENTRIES
-        if (hstore_conf.client.output_full_csv != null) {
-            File outputPath = new File(hstore_conf.client.output_full_csv);
+        if (hstore_conf.client.output_responses != null) {
+            File outputPath = new File(hstore_conf.client.output_responses);
             this.writeResponseEntries(client, outputPath);
         }
         
@@ -1324,7 +1350,11 @@ public class BenchmarkController {
         }
         
         // Merge sort them
-        LOG.info(String.format("Merging %s ClientResponse lists together and sorting...", m_statusThreads.size()));
+        int count = 0;
+        for (ClientStatusThread t : m_statusThreads) {
+            count += t.getResponseEntries().size();
+        } // FOR
+        LOG.info(String.format("Merging %d ClientResponse entries together...", count));
         ResponseEntries fullDump = new ResponseEntries();
         for (ClientStatusThread t : m_statusThreads) {
             fullDump.addAll(t.getResponseEntries());
@@ -1335,24 +1365,32 @@ public class BenchmarkController {
         }
         
         // Convert to a VoltTable and then write out to a CSV file
+        LOG.info(String.format("Writing %d ClientResponse entries to '%s'", fullDump.size(), outputPath));
         String txnNames[] = m_currentResults.getTransactionNames();
         FileWriter out = new FileWriter(outputPath);
         VoltTable vt = ResponseEntries.toVoltTable(fullDump, txnNames);
         VoltTableUtil.csv(out, vt, true);
         out.close();
-        LOG.info(String.format("Wrote %d response entries information to '%s'", fullDump.size(), outputPath));
+        if (debug.val)
+            LOG.debug(String.format("Wrote %d response entries information to '%s'",
+                      fullDump.size(), outputPath));
     }
     
     private void writeProfilingData(Client client, SysProcSelector sps, File outputPath) throws Exception {
         Object params[];
         String sysproc;
         
-        // The AntiCache history is as special case here. We need to use @EvictHistory
-        // instead of @Statistics
-        if (sps == SysProcSelector.ANTICACHEHISTORY) {
+        // The AntiCache history is as special case here.
+        // We need to use the correct sysproc instead of @Statistics
+        if (sps == SysProcSelector.ANTICACHEEVICTIONS) {
             sysproc = VoltSystemProcedure.procCallName(EvictHistory.class);
             params = new Object[]{ };
-        } else {
+        }
+        else if (sps == SysProcSelector.ANTICACHEACCESS) {
+            sysproc = VoltSystemProcedure.procCallName(EvictedAccessHistory.class);
+            params = new Object[]{ };
+        }
+        else {
             sysproc = VoltSystemProcedure.procCallName(Statistics.class);
             params = new Object[]{ sps.name(), 0 };
         }
@@ -1479,6 +1517,9 @@ public class BenchmarkController {
     }
     
     private void resetCluster(Client client) {
+        if (debug.val)
+            LOG.debug("Resetting internal profiling and invoking garbage collection on cluster");
+        
         @SuppressWarnings("unchecked")
         Class<VoltSystemProcedure> sysprocs[] = (Class<VoltSystemProcedure>[])new Class<?>[]{
             ResetProfiling.class,

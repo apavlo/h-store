@@ -85,6 +85,14 @@ Table::Table(int tableAllocationTargetSize) :
     m_tuplesEvicted = 0;
     m_blocksEvicted = 0;
     m_bytesEvicted = 0;
+    
+    m_tuplesWritten = 0;
+    m_blocksWritten = 0;
+    m_bytesWritten = 0;
+    
+    m_tuplesRead = 0;
+    m_blocksRead = 0;
+    m_bytesRead = 0;
     #endif
 }
 

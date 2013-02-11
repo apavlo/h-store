@@ -34,7 +34,6 @@ package edu.brown.benchmark.tm1;
 
 import org.apache.log4j.Logger;
 import org.voltdb.VoltTable;
-import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Table;
 import org.voltdb.utils.Pair;
@@ -73,8 +72,7 @@ public class TM1Loader extends Loader {
         if (d) LOG.debug(String.format("Starting TM1Loader [subscriberSize=%d, scaleFactor=%.2f]",
                          this.subscriberSize, this.getScaleFactor()));
 
-        final Catalog catalog = this.getCatalog();
-        final Database catalog_db = CatalogUtil.getDatabase(catalog);
+        final Database catalog_db = this.getCatalogContext().database;
 
         final Thread threads[] =
         { new Thread() {
@@ -123,8 +121,7 @@ public class TM1Loader extends Loader {
             }
             this.getClientHandle().drain();
         } catch (Exception e) {
-            e.printStackTrace();
-            System.exit(-1);
+            throw new RuntimeException(e);
         } finally {
             if (handler.hasError()) {
                 throw new RuntimeException("Error while generating table data.", handler.getError());

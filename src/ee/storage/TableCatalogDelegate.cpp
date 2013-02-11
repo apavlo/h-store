@@ -68,6 +68,7 @@ TableCatalogDelegate::init(ExecutorContext *executorContext,
                            catalog::Table &catalogTable)
 {
     VOLT_INFO("Initializing table '%s'", catalogTable.name().c_str());
+    int32_t databaseId = catalogDatabase.relativeIndex();
     
     // Create a persistent table for this table in our catalog
     int32_t table_id = catalogTable.relativeIndex();
@@ -258,7 +259,6 @@ TableCatalogDelegate::init(ExecutorContext *executorContext,
 
     // no primary key
     if (pkey_index_id.size() == 0) {
-        int32_t databaseId = catalogDatabase.relativeIndex();
         m_table = TableFactory::getPersistentTable(databaseId, executorContext,
                                                  catalogTable.name(), schema, columnNames,
                                                  indexes, partitionColumnIndex,
@@ -266,66 +266,55 @@ TableCatalogDelegate::init(ExecutorContext *executorContext,
                                                  isTableExportOnly(catalogDatabase, table_id));
         
     } else {
-        int32_t databaseId = catalogDatabase.relativeIndex();
         m_table = TableFactory::getPersistentTable(databaseId, executorContext,
                                                  catalogTable.name(), schema, columnNames,
                                                  pkey_index, indexes, partitionColumnIndex,
                                                  isExportEnabledForTable(catalogDatabase, table_id),
                                                  isTableExportOnly(catalogDatabase, table_id));
-        
-        
-#ifdef ANTICACHE
-        // Create evicted table if anti-caching is enabled and this table is marked as evictable
-        // is not generated from a materialized view
-        if (executorContext->m_antiCacheEnabled && catalogTable.evictable()) {
-            
-            if (catalogTable.materializer() != NULL) {
-                VOLT_ERROR("Trying to use the anti-caching feature on materialized view '%s'",
-                           catalogTable.name().c_str());
-                return (false);
-            }
-            if (catalogTable.mapreduce()) {
-                VOLT_ERROR("Trying to use the anti-caching feature on mapreduce output table '%s'",
-                           catalogTable.name().c_str());
-                return (false);
-            }
-            
-            TableIndex* parentPkey = m_table->primaryKeyIndex(); 
-            assert(parentPkey != NULL);
-            
-            std::ostringstream stream;
-            stream << catalogTable.name() << "__EVICTED";
-            const std::string evictedName = stream.str();
-        
-            TupleSchema *evictedSchema = TupleSchema::createEvictedTupleSchema(parentPkey->getKeySchema()); 
-
-            // Get the column names for the EvictedTable
-            std::vector<int> column_indices = parentPkey->getColumnIndices();
-            string *evictedColumnNames = new string[evictedSchema->columnCount()];
-//            int evictedColumnOffset = 0;
-//            for (std::vector<int>::iterator it = column_indices.begin(); it != column_indices.end(); it++) {
-//                evictedColumnNames[evictedColumnOffset++] = columnNames[*it];
-//            } // FOR
-            evictedColumnNames[0] = std::string("BLOCK_ID");
-            evictedColumnNames[1] = std::string("TUPLE_OFFSET"); 
-            
-            // TODO: Should we construct a primary key index?
-            //       For now I'm going to skip that.
-        
-            voltdb::Table *evicted_table = TableFactory::getEvictedTable(
-                                                            databaseId, 
-                                                            executorContext,
-                                                            evictedName,
-                                                            evictedSchema, 
-                                                            evictedColumnNames);
-            // We'll shove the EvictedTable to the PersistentTable
-            // It will be responsible for deleting it in its deconstructor
-            dynamic_cast<PersistentTable*>(m_table)->setEvictedTable(evicted_table);
-        } else {
-            VOLT_INFO("Not creating EvictedTable for table '%s'", catalogTable.name().c_str());
-        }
-#endif
     }
+    
+    #ifdef ANTICACHE
+    // Create evicted table if anti-caching is enabled and this table is marked as evictable
+    // is not generated from a materialized view
+    if (executorContext->m_antiCacheEnabled && catalogTable.evictable()) {
+        if (catalogTable.materializer() != NULL) {
+            VOLT_ERROR("Trying to use the anti-caching feature on materialized view '%s'",
+                        catalogTable.name().c_str());
+            return (false);
+        }
+        if (catalogTable.mapreduce()) {
+            VOLT_ERROR("Trying to use the anti-caching feature on mapreduce output table '%s'",
+                        catalogTable.name().c_str());
+            return (false);
+        }
+        
+        std::ostringstream stream;
+        stream << catalogTable.name() << "__EVICTED";
+        const std::string evictedName = stream.str();
+        VOLT_INFO("Creating EvictionTable '%s'", evictedName.c_str());
+        TupleSchema *evictedSchema = TupleSchema::createEvictedTupleSchema();
+
+        // Get the column names for the EvictedTable
+        string *evictedColumnNames = new string[evictedSchema->columnCount()];
+        evictedColumnNames[0] = std::string("BLOCK_ID");
+        evictedColumnNames[1] = std::string("TUPLE_OFFSET"); 
+        
+        // TODO: Should we construct a primary key index?
+        //       For now I'm going to skip that.
+    
+        voltdb::Table *evicted_table = TableFactory::getEvictedTable(
+                                                        databaseId, 
+                                                        executorContext,
+                                                        evictedName,
+                                                        evictedSchema, 
+                                                        evictedColumnNames);
+        // We'll shove the EvictedTable to the PersistentTable
+        // It will be responsible for deleting it in its deconstructor
+        dynamic_cast<PersistentTable*>(m_table)->setEvictedTable(evicted_table);
+    } else {
+        VOLT_WARN("Not creating EvictedTable for table '%s'", catalogTable.name().c_str());
+    }
+    #endif
     
     delete[] columnNames;
 

@@ -32,6 +32,8 @@ using namespace std;
 using namespace voltdb;
 using stupidunit::ChTempDir;
 
+#define BLOCK_SIZE 524288
+
 /**
  * AntiCacheDB Tests
  */
@@ -44,7 +46,7 @@ public:
 
 TEST_F(AntiCacheDBTest, NextBlockId) {
     ChTempDir tempdir;
-    AntiCacheDB anticache(NULL, ".");
+    AntiCacheDB anticache(NULL, ".", BLOCK_SIZE);
     
     uint16_t lastBlockId;
     for (int i = 0; i < 1000; i++) {
@@ -59,7 +61,7 @@ TEST_F(AntiCacheDBTest, NextBlockId) {
 TEST_F(AntiCacheDBTest, WriteBlock) {
     // This will create a tempdir that will automatically be cleaned up
     ChTempDir tempdir;
-    AntiCacheDB anticache(NULL, ".");
+    AntiCacheDB anticache(NULL, ".", BLOCK_SIZE);
 
     string tableName("FAKE");
     string payload("Squirrels and Girls!");

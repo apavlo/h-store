@@ -41,6 +41,7 @@ import org.voltdb.utils.Pair;
 import org.voltdb.utils.VoltTableUtil;
 
 import edu.brown.hstore.PartitionExecutor.SystemProcedureExecutionContext;
+import edu.brown.hstore.internal.UtilityWorkMessage.UpdateMemoryMessage;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 
@@ -133,7 +134,10 @@ public class Statistics extends VoltSystemProcedure {
             // ----------------------------------------------------------------------------
             // PROFILER DATA COLLECTION
             // ----------------------------------------------------------------------------
-            case SysProcFragmentId.PF_nodeMemory:
+            case SysProcFragmentId.PF_nodeMemory: {
+                // Tell the PartitionExecutors to update their memory stats
+                this.executor.queueUtilityWork(new UpdateMemoryMessage());
+            }
             case SysProcFragmentId.PF_txnCounterData:
             case SysProcFragmentId.PF_txnProfilerData:
             case SysProcFragmentId.PF_execProfilerData:

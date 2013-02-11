@@ -20,30 +20,31 @@ import org.voltdb.utils.VoltTableUtil;
 import edu.brown.hstore.PartitionExecutor;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.profilers.AntiCacheManagerProfiler;
-import edu.brown.profilers.AntiCacheManagerProfiler.EvictionHistory;
+import edu.brown.profilers.AntiCacheManagerProfiler.AccessHistory;
 
 /** 
  * Gather the eviction history from each partition
  */
 @ProcInfo(singlePartition = false)
-public class EvictHistory extends VoltSystemProcedure {
-    private static final Logger LOG = Logger.getLogger(EvictHistory.class);
+public class EvictedAccessHistory extends VoltSystemProcedure {
+    private static final Logger LOG = Logger.getLogger(EvictedAccessHistory.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
 
-    private static final ColumnInfo ResultsColumns[] = {
+    private static final ColumnInfo ACCESS_HISTORY[] = {
         new ColumnInfo("TIMESTAMP", VoltType.TIMESTAMP),
         new ColumnInfo(VoltSystemProcedure.CNAME_HOST_ID, VoltSystemProcedure.CTYPE_ID),
         new ColumnInfo("HOSTNAME", VoltType.STRING),
         new ColumnInfo("PARTITION", VoltType.INTEGER),
+        new ColumnInfo("TXN_ID", VoltType.BIGINT),
         new ColumnInfo("START", VoltType.BIGINT), // TIMESTAMP (MS)
-        new ColumnInfo("STOP", VoltType.BIGINT), // TIMESTAMP (MS)
-        new ColumnInfo("TUPLES_EVICTED", VoltType.INTEGER),
-        new ColumnInfo("BLOCKS_EVICTED", VoltType.INTEGER),
-        new ColumnInfo("BYTES_EVICTED", VoltType.BIGINT),
+        new ColumnInfo("PROCEDURE", VoltType.STRING),
+        new ColumnInfo("NUM_BLOCKS", VoltType.INTEGER),
+        new ColumnInfo("NUM_TABLES", VoltType.INTEGER),
+        new ColumnInfo("NUM_TUPLES", VoltType.INTEGER),
     };
     
-    private static final int DISTRIBUTE_ID = SysProcFragmentId.PF_anitCacheHistoryDistribute;
-    private static final int AGGREGATE_ID = SysProcFragmentId.PF_anitCacheHistoryAggregate;
+    private static final int DISTRIBUTE_ID = SysProcFragmentId.PF_anitCacheAccessDistribute;
+    private static final int AGGREGATE_ID = SysProcFragmentId.PF_anitCacheAccessAggregate;
 
     @Override
     public void initImpl() {
@@ -59,23 +60,26 @@ public class EvictHistory extends VoltSystemProcedure {
                                              PartitionExecutor.SystemProcedureExecutionContext context) {
         DependencySet result = null;
         switch (fragmentId) {
+            // ----------------------------------------------------------------------------
+            // COLLECT DATA
+            // ----------------------------------------------------------------------------
             case DISTRIBUTE_ID: {
-                VoltTable vt = new VoltTable(ResultsColumns);
+                VoltTable vt = new VoltTable(ACCESS_HISTORY);
                 AntiCacheManagerProfiler profiler = hstore_site.getAntiCacheManager().getDebugContext().getProfiler(this.partitionId);
                 assert(profiler != null);
-                for (EvictionHistory eh : profiler.eviction_history) { 
+                for (AccessHistory eah : profiler.evictedaccess_history) {
                     Object row[] = {
-                        new TimestampType(),
-                        this.hstore_site.getSiteId(),
-                        this.hstore_site.getSiteName(),
-                        this.partitionId,
-                        eh.startTimestamp,
-                        eh.stopTimestamp,
-                        eh.tuplesEvicted,
-                        eh.blocksEvicted,
-                        eh.bytesEvicted,
-                    };
-                    vt.addRow(row);
+                            new TimestampType(),
+                            this.hstore_site.getSiteId(),
+                            this.hstore_site.getSiteName(),
+                            this.partitionId,
+                            eah.txnId,
+                            eah.startTimestamp,
+                            eah.numBlocks,
+                            eah.numTables,
+                            eah.numTuples,
+                        };
+                        vt.addRow(row);
                 } // FOR
                 result = new DependencySet(DISTRIBUTE_ID, vt);
                 if (debug.val)
@@ -83,8 +87,11 @@ public class EvictHistory extends VoltSystemProcedure {
                              m_localTxnState, this.executor.getPartitionId()));
                 break;
             }
-            // Aggregate Results
-            case AGGREGATE_ID:
+            
+            // ----------------------------------------------------------------------------
+            // AGGREGATE RESULTS
+            // ----------------------------------------------------------------------------
+            case AGGREGATE_ID: {
                 List<VoltTable> siteResults = dependencies.get(DISTRIBUTE_ID);
                 if (siteResults == null || siteResults.isEmpty()) {
                     String msg = "Missing site results";
@@ -96,6 +103,7 @@ public class EvictHistory extends VoltSystemProcedure {
                 VoltTable vt = VoltTableUtil.sort(VoltTableUtil.union(siteResults), sortCol);
                 result = new DependencySet(AGGREGATE_ID, vt);
                 break;
+            }
             default:
                 String msg = "Unexpected sysproc fragmentId '" + fragmentId + "'";
                 throw new ServerFaultException(msg, txn_id);
@@ -105,11 +113,11 @@ public class EvictHistory extends VoltSystemProcedure {
     
     public VoltTable[] run() {
         if (hstore_conf.site.anticache_enable == false) {
-            String msg = "Unable to collect eviction history because 'site.anticache_enable' is disabled";
+            String msg = "Unable to collect evicted access history because 'site.anticache_enable' is disabled";
             throw new VoltAbortException(msg);
         }
         else if (hstore_conf.site.anticache_profiling == false) {
-            String msg = "Unable to collect eviction history because 'site.anticache_profiling' is disabled";
+            String msg = "Unable to collect evicted access history because 'site.anticache_profiling' is disabled";
             throw new VoltAbortException(msg);
         }
         

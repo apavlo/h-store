@@ -47,7 +47,7 @@ class AntiCacheBlock {
     public:
         ~AntiCacheBlock();
         
-        inline uint16_t getBlockId() const {
+        inline int16_t getBlockId() const {
             return (m_blockId);
         }
         inline int getSize() const {
@@ -58,9 +58,9 @@ class AntiCacheBlock {
         }
     
     private:
-        AntiCacheBlock(uint16_t blockId, Dbt value);
+        AntiCacheBlock(int16_t blockId, Dbt value);
         
-        uint16_t m_blockId;
+        int16_t m_blockId;
         Dbt m_value;
 }; // CLASS
 
@@ -70,7 +70,7 @@ class AntiCacheBlock {
 class AntiCacheDB {
         
     public: 
-        AntiCacheDB(ExecutorContext *ctx, std::string db_dir); 
+        AntiCacheDB(ExecutorContext *ctx, std::string db_dir, long blockSize);
         ~AntiCacheDB();
 
         /**
@@ -85,22 +85,28 @@ class AntiCacheDB {
         /**
          * Read a block and return its contents
          */
-        AntiCacheBlock readBlock(std::string tableName, uint16_t blockId);
+        AntiCacheBlock readBlock(std::string tableName, int16_t blockId);
+    
+        /**
+         * Flush the buffered blocks to disk.
+         */
+        void flushBlocks();
 
         /**
          * Return the next BlockId to use in the anti-cache database
          * This is guaranteed to be unique per partition
          */
-        inline uint16_t nextBlockId() {
+        inline int16_t nextBlockId() {
             return (++m_nextBlockId);
         }
         
     private:
         ExecutorContext *m_executorContext;
         string m_dbDir;
+        long m_blockSize;
         DbEnv* m_dbEnv;
         Db* m_db; 
-        uint16_t m_nextBlockId;
+        int16_t m_nextBlockId;
 }; // CLASS
 
 }

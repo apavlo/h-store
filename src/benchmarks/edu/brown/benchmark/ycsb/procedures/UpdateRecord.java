@@ -34,7 +34,6 @@ import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 
-import edu.brown.benchmark.ycsb.YCSBUtil; 
 import edu.brown.benchmark.ycsb.YCSBConstants;
 
 @ProcInfo(
@@ -44,7 +43,7 @@ import edu.brown.benchmark.ycsb.YCSBConstants;
 public class UpdateRecord extends VoltProcedure {
 	
 	public final SQLStmt updateAllStmt = new SQLStmt(
-			"UPDATE USERTABLE SET " +
+		"UPDATE USERTABLE SET " +
 			"  FIELD1=?," +
 			"  FIELD2=?," +
 			"  FIELD3=?," +
@@ -55,22 +54,23 @@ public class UpdateRecord extends VoltProcedure {
 	        "  FIELD8=?," +
 	        "  FIELD9=?," +
 	        "  FIELD10=? " +
-	        "WHERE YCSB_KEY=?"
-	    );
+        "WHERE YCSB_KEY=?"
+    );
 
-    public VoltTable[] run(long id) {
+    public VoltTable[] run(long id, String fields[]) {
+        assert(fields.length == YCSBConstants.NUM_COLUMNS);
 		voltQueueSQL(updateAllStmt,
-                  YCSBUtil.astring(YCSBConstants.COLUMN_LENGTH, YCSBConstants.COLUMN_LENGTH), // FIELD1
-                  YCSBUtil.astring(YCSBConstants.COLUMN_LENGTH, YCSBConstants.COLUMN_LENGTH), // FIELD2
-                  YCSBUtil.astring(YCSBConstants.COLUMN_LENGTH, YCSBConstants.COLUMN_LENGTH), // FIELD3
-                  YCSBUtil.astring(YCSBConstants.COLUMN_LENGTH, YCSBConstants.COLUMN_LENGTH), // FIELD4
-                  YCSBUtil.astring(YCSBConstants.COLUMN_LENGTH, YCSBConstants.COLUMN_LENGTH), // FIELD5
-                  YCSBUtil.astring(YCSBConstants.COLUMN_LENGTH, YCSBConstants.COLUMN_LENGTH), // FIELD6
-                  YCSBUtil.astring(YCSBConstants.COLUMN_LENGTH, YCSBConstants.COLUMN_LENGTH), // FIELD7
-                  YCSBUtil.astring(YCSBConstants.COLUMN_LENGTH, YCSBConstants.COLUMN_LENGTH), // FIELD8
-                  YCSBUtil.astring(YCSBConstants.COLUMN_LENGTH, YCSBConstants.COLUMN_LENGTH), // FIELD9
-                  YCSBUtil.astring(YCSBConstants.COLUMN_LENGTH, YCSBConstants.COLUMN_LENGTH), // FIELD10
-                  id
+		             fields[0], // FIELD1
+		             fields[1], // FIELD2
+		             fields[2], // FIELD3
+		             fields[3], // FIELD4
+		             fields[4], // FIELD5
+		             fields[5], // FIELD6
+		             fields[6], // FIELD7
+		             fields[7], // FIELD8
+		             fields[8], // FIELD9
+		             fields[9], // FIELD10
+		             id
         );
         return (voltExecuteSQL(true));
     }

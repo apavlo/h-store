@@ -7,10 +7,8 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
@@ -71,7 +69,6 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
     /**
      * PartitionLock Configuration
      */
-    private int initWaitTime;
     private int initThrottleThreshold;
     private double initThrottleRelease;
     
@@ -142,7 +139,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
         // Initialize internal queues
         for (int partition : this.localPartitions.values()) {
             PartitionLockQueue queue = new PartitionLockQueue(partition,
-                                                              this.initWaitTime,
+                                                              hstore_conf.site.txn_incoming_delay,
                                                               this.initThrottleThreshold,
                                                               this.initThrottleRelease);
             this.lockQueues[partition] = queue;
@@ -173,7 +170,6 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
     
     @Override
     public void updateConf(HStoreConf hstore_conf) {
-        this.initWaitTime = hstore_conf.site.txn_incoming_delay;            
         this.initThrottleThreshold = (int)(hstore_conf.site.network_incoming_limit_txns * hstore_conf.site.queue_threshold_factor);
         this.initThrottleRelease = hstore_conf.site.queue_release_factor;
         for (PartitionLockQueue queue : this.lockQueues) {
@@ -199,7 +195,8 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
     private class Initializer extends ExceptionHandlingRunnable {
         public void runImpl() {
             Thread self = Thread.currentThread();
-            self.setName(HStoreThreadManager.getThreadName(hstore_site, HStoreConstants.THREAD_NAME_QUEUE_MGR));
+            self.setName(HStoreThreadManager.getThreadName(hstore_site,
+                         HStoreConstants.THREAD_NAME_QUEUE_INIT));
             hstore_site.getThreadManager().registerProcessingThread();
             
             if (debug.val)
@@ -220,7 +217,8 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
         @Override
         public void runImpl() {
             Thread self = Thread.currentThread();
-            self.setName(HStoreThreadManager.getThreadName(hstore_site, HStoreConstants.THREAD_NAME_QUEUE_MGR));
+            self.setName(HStoreThreadManager.getThreadName(hstore_site,
+                         HStoreConstants.THREAD_NAME_QUEUE_RESTART));
             hstore_site.getThreadManager().registerProcessingThread();
             
             if (debug.val)
@@ -274,6 +272,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
             t.setDaemon(true);
             t.setUncaughtExceptionHandler(hstore_site.getExceptionHandler());
             t.start();
+            threads.add(t);
         } // FOR
         
         for (Thread t : threads) {
@@ -776,13 +775,9 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
     @Override
     public String toString() {
         @SuppressWarnings("unchecked")
-        Map<String, Object> m[] = (Map<String, Object>[])new Map[2];
+        Map<String, Object> m[] = (Map<String, Object>[])new Map[1];
         int idx = -1;
 
-        // Basic Information
-        m[++idx] = new LinkedHashMap<String, Object>();
-        m[idx].put("Wait Time", this.initWaitTime + " ms");
-        
         // Local Partitions
         m[++idx] = new LinkedHashMap<String, Object>();
         for (int partition = 0; partition < this.lockQueueLastTxns.length; partition++) {

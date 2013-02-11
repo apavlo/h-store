@@ -11,14 +11,14 @@ function onexit() {
 
 # ---------------------------------------------------------------------
 
-ENABLE_ANTICACHE=false
+ENABLE_ANTICACHE=true
 
-SITE_HOST="modis2"
+SITE_HOST="modis"
 
 CLIENT_HOSTS=( \
-        "modis" \
-        "modis" \
         "modis2" \
+        "modis2" \
+        "modis" \
 )
 
 BASE_CLIENT_THREADS=2
@@ -26,9 +26,11 @@ BASE_SITE_MEMORY=8192
 BASE_SITE_MEMORY_PER_PARTITION=1024
 BASE_PROJECT="ycsb"
 BASE_DIR=`pwd`
+OUTPUT_DIR="~/data/ycsb/read-heavy/2/80-20"
 
-ANTICACHE_EVICT_SIZE=268400000
-ANTICACHE_THRESHOLD=.75
+ANTICACHE_BLOCK_SIZE=524288
+#ANTICACHE_EVICT_SIZE=268400000
+ANTICACHE_THRESHOLD=.5
 
 BASE_ARGS=( \
     # SITE DEBUG
@@ -58,26 +60,28 @@ BASE_ARGS=( \
 #    "-Dsite.queue_threshold_factor=0.5" \
     
     # Client Params
-    "-Dclient.scalefactor=.1" \
+    "-Dclient.scalefactor=1" \
     "-Dclient.memory=2048" \
-    "-Dclient.txnrate=50000" \
+    "-Dclient.txnrate=25000" \
     "-Dclient.warmup=120000" \
     "-Dclient.duration=120000" \
     "-Dclient.shared_connection=false" \
     "-Dclient.blocking=false" \
     "-Dclient.blocking_concurrent=100" \
     "-Dclient.throttle_backoff=100" \
+    "-Dclient.output_anticache_evictions=evictions.csv" \
     
     # Anti-Caching Experiments
     "-Dsite.anticache_enable=${ENABLE_ANTICACHE}" \
-    "-Dsite.anticache_check_interval=30000" \
-    "-Dsite.anticache_evict_size=${ANTICACHE_EVICT_SIZE}" \
+    "-Dsite.anticache_block_size=${ANTICACHE_BLOCK_SIZE}"
+    "-Dsite.anticache_check_interval=3000" \
+#    "-Dsite.anticache_evict_size=${ANTICACHE_EVICT_SIZE}" \
     "-Dsite.anticache_threshold=${ANTICACHE_THRESHOLD}" \
 #    "-Dclient.interval=500" \
     "-Dclient.anticache_enable=false" \
-    "-Dclient.anticache_evict_interval=30000" \
+    "-Dclient.anticache_evict_interval=10000" \
     "-Dclient.anticache_evict_size=4194304" \
-    "-Dclient.output_csv=false" \
+    "-Dclient.output_csv=results.csv" \
     "-Dclient.output_interval=true" \
 
     # CLIENT DEBUG
@@ -120,7 +124,7 @@ done
 wait
 
 ant compile
-for i in `seq 4 8`; do
+for i in 6; do
 
     HSTORE_HOSTS="${SITE_HOST}:0:0-"`expr $i - 1`
     NUM_CLIENTS=`expr $i \* $BASE_CLIENT_THREADS`
@@ -155,7 +159,7 @@ for i in `seq 4 8`; do
     # EXECUTE BENCHMARK
     ant hstore-benchmark ${BASE_ARGS[@]} \
         -Dproject=${BASE_PROJECT} \
-        -Dkillonzero=true \
+        -Dkillonzero=false \
         -Dclient.threads_per_host=${NUM_CLIENTS} \
         -Dsite.memory=${SITE_MEMORY} \
         -Dclient.hosts=${CLIENT_HOSTS_STR} \

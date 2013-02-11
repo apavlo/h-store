@@ -47,6 +47,7 @@
 #define HSTOREPERSISTENTTABLE_H
 
 #include <string>
+#include <map>
 #include <vector>
 #include "boost/shared_ptr.hpp"
 #include "boost/scoped_ptr.hpp"
@@ -257,10 +258,10 @@ class PersistentTable : public Table {
     // ------------------------------------------------------------------
     // ANTI-CACHING OPERATIONS
     // ------------------------------------------------------------------
-#ifdef ANTICACHE
+    #ifdef ANTICACHE
     void setEvictedTable(voltdb::Table *evictedTable);
     voltdb::Table* getEvictedTable(); 
-    bool evictBlockToDisk(const long block_size);
+    bool evictBlockToDisk(const long block_size, int num_blocks);
     bool readEvictedBlock(uint16_t block_id);
     bool mergeUnevictedTuples();
     
@@ -271,7 +272,7 @@ class PersistentTable : public Table {
     uint32_t getOldestTupleID(); 
     void setNumTuplesInEvictionChain(int num_tuples);
     int getNumTuplesInEvictionChain(); 
-#endif
+    #endif
 
 protected:
     
@@ -329,10 +330,12 @@ protected:
     int64_t m_tsSeqNo;
     
     // ANTI-CACHE VARIABLES
-#ifdef ANTICACHE
+    #ifdef ANTICACHE
     voltdb::Table *m_evictedTable;
     
-    std::vector<char*> m_unevictedBlocks; 
+    std::vector<char*> m_unevictedBlocks;
+    
+    std::map<int, int> m_unevictedTuplesPerBlocks;
     
     char* m_unevictedTuples; 
     int m_numUnevictedTuples; 
@@ -340,8 +343,12 @@ protected:
     uint32_t m_oldestTupleID; 
     uint32_t m_newestTupleID; 
     
-    int m_numTuplesInEvictionChain; 
-#endif
+    int m_numTuplesInEvictionChain;
+        
+    bool m_blockMerge;
+    
+    
+    #endif
     
     // partition key
     int m_partitionColumn;

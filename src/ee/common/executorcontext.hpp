@@ -48,12 +48,12 @@ namespace voltdb {
     public:
         ~ExecutorContext() {
             
-#ifdef ANTICACHE
+            #ifdef ANTICACHE
             if (m_antiCacheEnabled) {
                 delete m_antiCacheDB;
                 delete m_antiCacheEvictionManager; 
             }
-#endif
+            #endif
         }
         
         ExecutorContext(CatalogId siteId,
@@ -73,10 +73,7 @@ namespace voltdb {
         {
             m_lastCommittedTxnId = 0;
             m_lastTickTime = 0;
-            
-#ifdef ANTICACHE
             m_antiCacheEnabled = false;
-#endif
         }
         
         // not always known at initial construction
@@ -149,7 +146,7 @@ namespace voltdb {
         // ANTI-CACHE
         // ------------------------------------------------------------------ 
         
-#ifdef ANTICACHE
+        #ifdef ANTICACHE
         /**
          * Return the handle to disk-based storage object that we
          * can use to read and write tuples to
@@ -171,24 +168,23 @@ namespace voltdb {
          * The input parameter is the directory where our disk-based storage
          * will write out evicted blocks of tuples for this partition
          */
-        void enableAntiCache(std::string &dbDir) {
+        void enableAntiCache(std::string &dbDir, long blockSize) {
             assert(m_antiCacheEnabled == false);
             m_antiCacheEnabled = true;
-            m_antiCacheDB = new AntiCacheDB(this, dbDir);
+            m_antiCacheDB = new AntiCacheDB(this, dbDir, blockSize);
             m_antiCacheEvictionManager = new AntiCacheEvictionManager(); 
         }
-#endif
+        #endif
         
     private:
         Topend *m_topEnd;
         UndoQuantum *m_undoQuantum;
         int64_t m_txnId;
         
-#ifdef ANTICACHE
+        #ifdef ANTICACHE
         AntiCacheDB *m_antiCacheDB;
-        
         AntiCacheEvictionManager *m_antiCacheEvictionManager; 
-#endif
+        #endif
         
     public:
         int64_t m_lastCommittedTxnId;
@@ -198,10 +194,7 @@ namespace voltdb {
         std::string m_hostname;
         CatalogId m_hostId;
         bool m_exportEnabled;
-        
-#ifdef ANTICACHE
         bool m_antiCacheEnabled;
-#endif
         
         /** local epoch for voltdb, somtime around 2008, pulled from catalog */
         int64_t m_epoch;
