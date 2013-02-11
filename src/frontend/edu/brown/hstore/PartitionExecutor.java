@@ -1210,11 +1210,17 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         // Start Transaction
         // -------------------------------
         if (work instanceof StartTxnMessage) {
-            if (hstore_conf.site.exec_profiling) profiler.txn_time.start();
+            if (hstore_conf.site.exec_profiling) {
+                profiler.txn_time.start();
+                if (ts.isSpeculative()) profiler.specexec_time.start();
+            }
             try {
                 this.executeTransaction((LocalTransaction)ts);
             } finally {
-                if (hstore_conf.site.exec_profiling) profiler.txn_time.stopIfStarted();
+                if (hstore_conf.site.exec_profiling) {
+                    profiler.txn_time.stopIfStarted();
+                    if (ts.isSpeculative()) profiler.specexec_time.stopIfStarted();
+                }
             }
         }
         // -------------------------------

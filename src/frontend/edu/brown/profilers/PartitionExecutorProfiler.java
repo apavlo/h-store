@@ -29,6 +29,11 @@ public class PartitionExecutorProfiler extends AbstractProfiler {
     public final ProfileMeasurement exec_time = new ProfileMeasurement("EXEC");
     
     /**
+     * How much did the PartitionExecutor spend executing speculative txns
+     */
+    public final ProfileMeasurement specexec_time = new ProfileMeasurement("SPECEXEC");
+    
+    /**
      * How much time it takes for this PartitionExecutor to 
      * execute a transaction
      */
