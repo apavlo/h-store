@@ -44,6 +44,9 @@ public class SpecExecScheduler {
     /** Don't reset the iterator if the queue size changes **/
     private boolean ignore_queue_size_change = false;
     
+    /** Don't reset the iterator if the current SpeculationType changes */
+    private boolean ignore_speculation_type_change = false;
+    
     private AbstractTransaction lastDtxn;
     private SpeculationType lastSpecType;
     private Iterator<AbstractTransaction> lastIterator;
@@ -97,8 +100,11 @@ public class SpecExecScheduler {
     protected void setIgnoreAllLocal(boolean ignore_all_local) {
         this.ignore_all_local = ignore_all_local;
     }
-    protected void setIgnoreQueueSizeChanges(boolean ignore_queue_changes) {
+    protected void setIgnoreQueueSizeChange(boolean ignore_queue_changes) {
         this.ignore_queue_size_change = ignore_queue_changes;
+    }
+    protected void setIgnoreSpeculationTypeChange(boolean ignore_speculation_type_change) {
+        this.ignore_speculation_type_change = ignore_speculation_type_change;
     }
     protected void setWindowSize(int window) {
         this.window_size = window;
@@ -184,14 +190,15 @@ public class SpecExecScheduler {
         // Check whether we can use our same iterator from the last call
         if (this.policyType != SpecExecSchedulerPolicyType.FIRST ||
                 this.lastDtxn != dtxn ||
-                this.lastSpecType != specType ||
                 this.lastIterator == null ||
+                (this.ignore_speculation_type_change == false && this.lastSpecType != specType) ||
                 (this.ignore_queue_size_change == false && this.lastSize != this.queue.size())) {
             this.lastIterator = this.queue.iterator();    
         }
         boolean resetIterator = true;
         if (this.profiling) profiler.queue_size.put(this.queue.size());
-        while (this.lastIterator.hasNext()) {
+        boolean lastHasNext;
+        while ((lastHasNext = this.lastIterator.hasNext()) == true) {
             if (this.interrupted) {
                 if (debug.val)
                     LOG.warn(String.format("Search interrupted after %d examinations [%s]",
@@ -231,39 +238,52 @@ public class SpecExecScheduler {
                 continue;
             }
             try {
-                // We can execute anything when we are in 2PC or idle
-                // Otherwise, we have to use our conflict checker
-                if (specType == SpeculationType.IDLE ||
-                    specType == SpeculationType.SP3_LOCAL ||
-                    specType == SpeculationType.SP3_REMOTE ||
-                    this.checker.canExecute(dtxn, localTxn, this.partitionId)) {
-                    
-                    if (next == null) {
-                        next = localTxn;
-                        // Scheduling Policy: FIRST MATCH
-                        if (this.policyType == SpecExecSchedulerPolicyType.FIRST) {
-                            resetIterator = false;
-                            break;
+                switch (specType) {
+                    // We can execute anything when we are in 2PC or idle
+                    case IDLE:
+                    case SP2_REMOTE_BEFORE:
+                    case SP3_LOCAL:
+                    case SP3_REMOTE: {
+                        break;
+                    }
+                    // For SP1 + SP2 we can execute anything if the txn has not
+                    // executed a query at this partition.
+                    case SP1_LOCAL:
+                    case SP2_REMOTE_AFTER: {
+                        examined_ctr++;    
+                        if (this.checker.canExecute(dtxn, localTxn, this.partitionId) == false) {
+                            continue;
                         }
                     }
-                    // Scheduling Policy: Estimated Time Remaining
-                    else {
-                        EstimatorState es = localTxn.getEstimatorState();
-                        if (es != null) {
-                            long remaining = es.getLastEstimate().getRemainingExecutionTime();
-                            if ((this.policyType == SpecExecSchedulerPolicyType.SHORTEST && remaining < best_time) ||
-                                (this.policyType == SpecExecSchedulerPolicyType.LONGEST && remaining > best_time)) {
-                                best_time = remaining;
-                                next = localTxn;
-                                if (debug.val)
-                                    LOG.debug(String.format("[%s schedule %d] New Match -> %s / remaining=%d",
-                                              this.policyType, this.window_size, next, remaining));
-                             }
-                        }
-                    }
-                    // Stop if we've reached our window size
-                    if (++examined_ctr == this.window_size) break;
+                    // BUSTED!
+                    default:
+                        throw new RuntimeException("Unexpected " + specType);
+                } // SWITCH
+                
+                // Scheduling Policy: FIRST MATCH
+                if (this.policyType == SpecExecSchedulerPolicyType.FIRST) {
+                    next = localTxn;
+                    resetIterator = false;
+                    break;
                 }
+                
+                // Estimate the time that remains.
+                EstimatorState es = localTxn.getEstimatorState();
+                if (es != null) {
+                    long remaining = es.getLastEstimate().getRemainingExecutionTime();
+                    if ((this.policyType == SpecExecSchedulerPolicyType.SHORTEST && remaining < best_time) ||
+                        (this.policyType == SpecExecSchedulerPolicyType.LONGEST && remaining > best_time)) {
+                        best_time = remaining;
+                        next = localTxn;
+                        if (debug.val)
+                            LOG.debug(String.format("[%s schedule %d] New Match -> %s / remaining=%d",
+                                      this.policyType, this.window_size, next, remaining));
+                     }
+                }
+                    
+                // Stop if we've reached our window size
+                if (++examined_ctr == this.window_size) break;
+                
             } finally {
                 if (this.profiling) profiler.compute_time.stop();
             }
@@ -294,7 +314,7 @@ public class SpecExecScheduler {
         
         this.lastDtxn = dtxn;
         this.lastSpecType = specType;
-        if (resetIterator || this.lastIterator.hasNext() == false) this.lastIterator = null;
+        if (resetIterator || lastHasNext == false) this.lastIterator = null;
         else if (this.ignore_queue_size_change == false) this.lastSize = this.queue.size();
         if (this.profiling) profiler.total_time.stop();
         return (next);
