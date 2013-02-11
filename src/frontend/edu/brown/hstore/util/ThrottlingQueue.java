@@ -438,6 +438,14 @@ public class ThrottlingQueue<E> implements Queue<E> {
     public boolean isEmpty() {
         return (this.queue.isEmpty());
     }
+    /**
+     * Lock-free approximation of whether the underlying queue is empty
+     * This is not guaranteed to be correct.
+     * @return
+     */
+    public boolean approximateIsEmpty() {
+        return (this.size.get() == 0);
+    }
     @Override
     public Iterator<E> iterator() {
         return (this.queue.iterator());
