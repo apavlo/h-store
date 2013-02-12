@@ -787,7 +787,7 @@ public class ClientInterface implements Shutdownable, Configurable {
      * @param now Current time in milliseconds
      */
     protected final void checkForDeadConnections(final long now) {
-        if (++tickCounter % 20 != 0) {
+        if (++tickCounter % 1000 != 0) {
             return;
         }
         
