@@ -88,12 +88,12 @@ public class slev extends VoltProcedure {
         // FIXME: Something is terribly wrong with this query and it is super slow
         // I've disabled it for the time being until I can figure out what the hell
         // is going on. I think the join order is all out of whack.
-        // voltQueueSQL(GetStockCount, w_id, d_id, o_id, o_id - 20, w_id, threshold);
+        voltQueueSQL(GetStockCount, w_id, d_id, o_id, o_id - 20, w_id, threshold);
         // Return assumes that o_id is a temporary variable, 
         // and that stock_count is a necessarily returned variable.
-        // return voltExecuteSQL(true);
+        return voltExecuteSQL(true);
         
-        results[0].resetRowPosition();
-        return (results);
+        // results[0].resetRowPosition();
+        // return (results);
     }
 }
