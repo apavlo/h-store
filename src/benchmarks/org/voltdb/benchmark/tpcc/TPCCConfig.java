@@ -30,7 +30,7 @@ public final class TPCCConfig {
     public boolean neworder_multip = true;
     public boolean neworder_skew_warehouse = false;
     /** Percentage of neworder txns that are forced to be multi-partitioned */
-    public int neworder_multip_mix = -1;
+    public double neworder_multip_mix = -1;
     /** Whether neworder txns that are forced to be remote or not */
     public boolean neworder_multip_remote = false;
     
@@ -38,7 +38,7 @@ public final class TPCCConfig {
     public boolean payment_multip = true;
     public boolean payment_multip_remote = false;
     /** Percentage of neworder txns that are forced to be multi-partitioned */
-    public int payment_multip_mix = -1;
+    public double payment_multip_mix = -1;
 
     /** If set to true, then we will use temporal skew for generating warehouse ids */
     public boolean temporal_skew = false;
@@ -113,7 +113,7 @@ public final class TPCCConfig {
             }
             // % OF MULTI-PARTITION NEWORDERS
             else if (key.equalsIgnoreCase("neworder_multip_mix") && !val.isEmpty()) {
-                neworder_multip_mix = Integer.parseInt(val);
+                neworder_multip_mix = Double.parseDouble(val);
             }
             // SKEW NEWORDERS W_IDS
             else if (key.equalsIgnoreCase("neworder_skew_warehouse") && !val.isEmpty()) {
@@ -134,7 +134,7 @@ public final class TPCCConfig {
             }
             // PAYMENT DTXN PERCENTAGE
             else if (key.equalsIgnoreCase("payment_multip_mix") && !val.isEmpty()) {
-                payment_multip_mix = Integer.parseInt(val);
+                payment_multip_mix = Double.parseDouble(val);
             }
             
             // TEMPORAL SKEW

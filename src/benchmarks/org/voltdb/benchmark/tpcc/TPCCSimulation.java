@@ -73,7 +73,6 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.rand.RandomDistribution;
 import edu.brown.statistics.FastIntHistogram;
 import edu.brown.statistics.Histogram;
-import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.StringUtil;
 
 public class TPCCSimulation {
@@ -352,14 +351,14 @@ public class TPCCSimulation {
     /** Executes a payment transaction. */
     public void doPayment()  throws IOException {
         boolean allow_remote = (parameters.warehouses > 1 && config.payment_multip != false);
-        int remote_prob = (config.payment_multip_mix >= 0 ? config.payment_multip_mix : 15);
+        double remote_prob = (config.payment_multip_mix >= 0 ? config.payment_multip_mix : 15) * 100d;
         
         short w_id = generateWarehouseId();
         byte d_id = generateDistrict();
 
         short c_w_id;
         byte c_d_id;
-        if (allow_remote == false || generator.number(1, 100) <= (100-remote_prob)) {
+        if (allow_remote == false || generator.number(1, 1000) <= (100-remote_prob)) {
             // 85%: paying through own warehouse (or there is only 1 warehouse)
             c_w_id = w_id;
             c_d_id = d_id;
@@ -395,7 +394,6 @@ public class TPCCSimulation {
     /** Executes a new order transaction. */
     public void doNewOrder() throws IOException {
         boolean allow_rollback = config.neworder_abort;
-        boolean allow_remote = (parameters.warehouses > 1 && config.neworder_multip != false);
         
         short warehouse_id = generateWarehouseId();
         int ol_cnt = generator.number(TPCCConstants.MIN_OL_CNT, TPCCConstants.MAX_OL_CNT);
@@ -418,7 +416,7 @@ public class TPCCSimulation {
             }
 
             // 1% of items are from a remote warehouse
-            boolean remote = allow_remote && (generator.number(1, 100) == 1);
+            boolean remote = config.neworder_multip && (generator.number(1, 100) == 1);
             if (parameters.warehouses > 1 && remote) {
                 short remote_w_id;
                 if (config.warehouse_pairing) {
@@ -438,22 +436,23 @@ public class TPCCSimulation {
             quantity[i] = generator.number(1, TPCCConstants.MAX_OL_QUANTITY);
         }
         // Whether to force this transaction to be multi-partitioned
-        if (allow_remote && remote_warehouses == 0) {
-            if (config.neworder_multip_mix > 0 && (generator.number(1, 100) <= config.neworder_multip_mix)) {
-                if (trace.val) LOG.trace("Forcing Multi-Partition NewOrder Transaction");
-                // Flip a random one
-                int idx = generator.number(0, ol_cnt-1);
-                short remote_w_id;
-                if (config.warehouse_pairing) {
-                    remote_w_id = generatePairedWarehouse(warehouse_id, parameters.starting_warehouse, parameters.last_warehouse);
-                }
-                if (config.neworder_multip_remote) {
-                	remote_w_id = (short)generator.numberRemoteWarehouseId(parameters.starting_warehouse, parameters.last_warehouse, (int) warehouse_id);
-                } else {
-                	remote_w_id = (short)generator.numberExcluding(parameters.starting_warehouse, parameters.last_warehouse, (int) warehouse_id);
-                }
-                supply_w_id[idx] = remote_w_id;
+        if (parameters.warehouses > 1 &&
+                config.neworder_multip == false && 
+                config.neworder_multip_mix > 0 && 
+                (generator.number(1, 1000) <= (config.neworder_multip_mix*100))) {
+            if (trace.val) LOG.trace("Forcing Multi-Partition NewOrder Transaction");
+            // Flip a random one
+            int idx = generator.number(0, ol_cnt-1);
+            short remote_w_id;
+            if (config.warehouse_pairing) {
+                remote_w_id = generatePairedWarehouse(warehouse_id, parameters.starting_warehouse, parameters.last_warehouse);
             }
+            if (config.neworder_multip_remote) {
+            	remote_w_id = (short)generator.numberRemoteWarehouseId(parameters.starting_warehouse, parameters.last_warehouse, (int) warehouse_id);
+            } else {
+            	remote_w_id = (short)generator.numberExcluding(parameters.starting_warehouse, parameters.last_warehouse, (int) warehouse_id);
+            }
+            supply_w_id[idx] = remote_w_id;
         }
 
         if (trace.val)
