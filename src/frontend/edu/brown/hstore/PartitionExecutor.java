@@ -1042,7 +1042,14 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 assert(specTxn.getBasePartition() == this.partitionId) :
                     String.format("Trying to speculatively execute %s at partition %d but its base partition is %d\n%s",
                                   specTxn, this.partitionId, specTxn.getBasePartition(), specTxn.debug());
+                assert(specTxn.isMarkExecuted() == false) :
+                    String.format("Trying to speculatively execute %s at partition %d but was already executed\n%s",
+                                  specTxn, this.partitionId, specTxn.getBasePartition(), specTxn.debug());
+                assert(specTxn.isSpeculative() == false) :
+                    String.format("Trying to speculatively execute %s at partition %d but was already speculative\n%s",
+                                  specTxn, this.partitionId, specTxn.getBasePartition(), specTxn.debug());
                 
+
                 // It's also important that we cancel this txn's init queue callback, otherwise
                 // it will never get cleaned up properly. This is necessary in order to support
                 // sending out client results *before* the dtxn finishes
