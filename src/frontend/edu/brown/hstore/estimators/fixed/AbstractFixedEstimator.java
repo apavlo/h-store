@@ -98,7 +98,7 @@ public abstract class AbstractFixedEstimator extends TransactionEstimator {
             this.addInitialEstimate(next);
             return (next);
         }
-
+        
     } // CLASS
 
     /**

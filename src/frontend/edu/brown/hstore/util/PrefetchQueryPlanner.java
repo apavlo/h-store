@@ -148,7 +148,7 @@ public class PrefetchQueryPlanner {
         // Check if we've used this planner in the past. If not, then create it.
         BatchPlanner planner = this.planners.get(hashcode);
         if (planner == null) {
-            planner = addPlanner(prefetchStmts, catalog_proc, p_estimator, true);
+            planner = this.addPlanner(prefetchStmts, catalog_proc, p_estimator, true);
         }
         
         assert (planner != null) : "Missing BatchPlanner for " + catalog_proc;

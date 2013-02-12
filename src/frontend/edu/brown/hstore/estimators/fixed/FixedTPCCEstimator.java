@@ -1,10 +1,16 @@
 package edu.brown.hstore.estimators.fixed;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
 
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.Statement;
 
+import edu.brown.catalog.CatalogUtil;
+import edu.brown.catalog.special.CountedStatement;
 import edu.brown.hstore.estimators.EstimatorState;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
@@ -29,11 +35,27 @@ public class FixedTPCCEstimator extends AbstractFixedEstimator {
     private int[] neworder_hack_hashes;
     
     /**
+     * NewOrder Prefetchable Query Information
+     */
+    private final Statement[] neworder_prefetchables;
+    private final List<CountedStatement[]> neworder_countedstmts = new ArrayList<CountedStatement[]>(11);
+    
+    /**
      * Constructor
      * @param hstore_site
      */
     public FixedTPCCEstimator(PartitionEstimator p_estimator) {
         super(p_estimator);
+        
+        // Prefetchable Statements
+        if (hstore_conf.site.exec_prefetch_queries) {
+            Procedure catalog_proc = catalogContext.procedures.getIgnoreCase("neworder");
+            Collection<Statement> stmts = CatalogUtil.getPrefetchableStatements(catalog_proc);
+            this.neworder_prefetchables = stmts.toArray(new Statement[0]);
+        } else {
+            this.neworder_prefetchables = null;    
+        }
+        
     }
     
     private int getPartition(short w_id) {
@@ -60,7 +82,7 @@ public class FixedTPCCEstimator extends AbstractFixedEstimator {
         PartitionSet partitions = null;
         PartitionSet readonly = null;
         if (procName.equalsIgnoreCase("neworder")) {
-            partitions = this.newOrder(args);
+            partitions = this.newOrder(ret, args);
             readonly = EMPTY_PARTITION_SET;
         }
         else if (procName.startsWith("payment")) {
@@ -89,7 +111,7 @@ public class FixedTPCCEstimator extends AbstractFixedEstimator {
         return ((T)ret);
     }
     
-    private PartitionSet newOrder(Object args[]) {
+    private PartitionSet newOrder(FixedEstimatorState state, Object args[]) {
         final Short w_id = (Short)args[0];
         assert(w_id != null);
         short s_w_ids[] = (short[])args[5];
@@ -97,12 +119,17 @@ public class FixedTPCCEstimator extends AbstractFixedEstimator {
         int base_partition = this.getPartition(w_id.shortValue());
         PartitionSet touchedPartitions = this.catalogContext.getPartitionSetSingleton(base_partition);
         assert(touchedPartitions != null) : "base_partition = " + base_partition;
-        for (short s_w_id : s_w_ids) {
-            if (s_w_id != w_id) {
+        for (int i = 0; i < s_w_ids.length; i++) {
+            if (s_w_ids[i] != w_id) {
+                if (this.neworder_prefetchables != null) {
+                    for (CountedStatement cntStmt : this.getNewOrderPrefetchables(i)) {
+                        state.addPrefetchableStatement(cntStmt);
+                    } // FOR
+                }
                 if (touchedPartitions.size() == 1) {
                     touchedPartitions = new PartitionSet(base_partition);
                 }
-                touchedPartitions.add(this.getPartition(s_w_id));
+                touchedPartitions.add(this.getPartition(s_w_ids[i]));
             }
         } // FOR
         if (debug.val) 
@@ -110,5 +137,18 @@ public class FixedTPCCEstimator extends AbstractFixedEstimator {
                       w_id, Arrays.toString(s_w_ids), 
                       base_partition, touchedPartitions));
         return (touchedPartitions);        
+    }
+    
+    private CountedStatement[] getNewOrderPrefetchables(int index) {
+        CountedStatement[] ret = this.neworder_countedstmts.get(index);
+        if (ret == null) {
+            // There's a race condition here, but who cares...
+            ret = new CountedStatement[this.neworder_prefetchables.length];
+            for (int i = 0; i < ret.length; i++) {
+                ret[i] = new CountedStatement(this.neworder_prefetchables[i], i);
+            } // FOR
+            this.neworder_countedstmts.set(index, ret);
+        }
+        return (ret);
     }
 }

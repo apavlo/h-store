@@ -520,6 +520,19 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
         } // FOR
         return (ret);
     }
+    
+    /**
+     * Construct a collection of all prefetchable Statements for a Procedure
+     * @param catalog_proc
+     * @return
+     */
+    public static Collection<Statement> getPrefetchableStatements(Procedure catalog_proc) {
+        Collection<Statement> ret = new ArrayList<Statement>();
+        for (Statement catalog_stmt : catalog_proc.getStatements()) {
+            if (catalog_stmt.getPrefetchable()) ret.add(catalog_stmt);
+        } // FOR
+        return (ret);
+    }
 
     /**
      * Returns a set of all of the PlanFragments (both multi-partition and
