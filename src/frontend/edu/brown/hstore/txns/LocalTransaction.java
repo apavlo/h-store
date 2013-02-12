@@ -1395,6 +1395,7 @@ public class LocalTransaction extends AbstractTransaction {
         m = new LinkedHashMap<String, Object>();
         m.put("Status", (this.status != null ? this.status : "null"));
         m.put("Speculative Type", this.getSpeculativeType());
+        m.put("Exec Java", this.exec_controlCode);
         m.put("Exec Read Only", Arrays.toString(this.exec_readOnly));
         m.put("Exec Touched Partitions", this.exec_touchedPartitions.toString(30));
         m.put("Restart Counter", this.restart_ctr);
