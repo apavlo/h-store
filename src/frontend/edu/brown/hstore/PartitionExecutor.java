@@ -1228,7 +1228,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         // Start Transaction
         // -------------------------------
         if (work instanceof StartTxnMessage) {
-            if (hstore_conf.site.specexec_enable) this.specExecScheduler.reset();
+            if (hstore_conf.site.specexec_enable && ts.isPredictSinglePartition()) this.specExecScheduler.reset();
             if (hstore_conf.site.exec_profiling) profiler.txn_time.start();
             try {
                 this.executeTransaction((LocalTransaction)ts);
