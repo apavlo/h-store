@@ -799,7 +799,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             this.specExecScheduler.setIgnoreAllLocal(true);
         }
         if (hstore_conf.site.specexec_unsafe) {
-            this.specExecScheduler.setIgnoreQueueSizeChange(true);
+            // this.specExecScheduler.setIgnoreQueueSizeChange(true);
             // this.specExecScheduler.setIgnoreSpeculationTypeChange(true);
         }
         
@@ -1228,6 +1228,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         // Start Transaction
         // -------------------------------
         if (work instanceof StartTxnMessage) {
+            if (hstore_conf.site.specexec_enable) this.specExecScheduler.reset();
             if (hstore_conf.site.exec_profiling) profiler.txn_time.start();
             try {
                 this.executeTransaction((LocalTransaction)ts);
