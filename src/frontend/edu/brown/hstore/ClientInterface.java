@@ -799,7 +799,7 @@ public class ClientInterface implements Shutdownable, Configurable {
         ArrayList<Connection> connectionsToRemove = null;
         for (final Connection c : connectionsToCheck) {
             final int delta = c.writeStream().calculatePendingWriteDelta(now);
-            if (delta > 4000) {
+            if (delta > 10000) {
                 if (connectionsToRemove == null) 
                     connectionsToRemove = new ArrayList<Connection>();
                 connectionsToRemove.add(c);
