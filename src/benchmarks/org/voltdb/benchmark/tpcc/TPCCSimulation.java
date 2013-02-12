@@ -358,7 +358,7 @@ public class TPCCSimulation {
 
         short c_w_id;
         byte c_d_id;
-        if (allow_remote == false || generator.number(1, 1000) <= (100-remote_prob)) {
+        if (allow_remote == false || generator.number(1, 1000) <= (1000-remote_prob)) {
             // 85%: paying through own warehouse (or there is only 1 warehouse)
             c_w_id = w_id;
             c_d_id = d_id;
@@ -393,13 +393,11 @@ public class TPCCSimulation {
 
     /** Executes a new order transaction. */
     public void doNewOrder() throws IOException {
-        boolean allow_rollback = config.neworder_abort;
-        
         short warehouse_id = generateWarehouseId();
         int ol_cnt = generator.number(TPCCConstants.MIN_OL_CNT, TPCCConstants.MAX_OL_CNT);
 
         // 1% of transactions roll back
-        boolean rollback = (allow_rollback && generator.number(1, 100) == 1);
+        boolean rollback = (config.neworder_abort && generator.number(1, 100) == 1);
         int local_warehouses = 0;
         int remote_warehouses = 0;
 
