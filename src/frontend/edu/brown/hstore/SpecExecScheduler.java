@@ -220,8 +220,8 @@ public class SpecExecScheduler {
             }
             LocalTransaction localTxn = (LocalTransaction)txn;
             
-            // Skip anything already speculatively executed
-            if (localTxn.isSpeculative()) {
+            // Skip anything already executed
+            if (localTxn.isMarkExecuted()) {
                 if (trace.val)
                     LOG.trace(String.format("Skipping %s because it was already executed", txn));
                 continue;
