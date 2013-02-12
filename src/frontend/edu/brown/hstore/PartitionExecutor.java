@@ -188,7 +188,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
 
-    private static final long WORK_QUEUE_POLL_TIME = 500; // 0.5 milliseconds
+    private static final long WORK_QUEUE_POLL_TIME = 10; // 0.5 milliseconds
     private static final TimeUnit WORK_QUEUE_POLL_TIMEUNIT = TimeUnit.MICROSECONDS;
     
     private static final UtilityWorkMessage UTIL_WORK_MSG = new UtilityWorkMessage();
