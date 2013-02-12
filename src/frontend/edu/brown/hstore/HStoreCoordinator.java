@@ -767,8 +767,10 @@ public class HStoreCoordinator implements Shutdownable {
         if (debug.val && ts.getEstimatorState() != null) {
             LOG.debug("ts.getEstimatorState() != null@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
         }
-        if (ts.getProcedure().getPrefetchable() && ts.getEstimatorState() != null && hstore_conf.site.exec_prefetch_queries) {
-            if (debug.val) LOG.debug(String.format("%s - Generating TransactionInitRequests with prefetchable queries", ts));
+        if (hstore_conf.site.exec_prefetch_queries && ts.getProcedure().getPrefetchable() && ts.getEstimatorState() != null) {
+            if (debug.val)
+                LOG.debug(String.format("%s - Generating %s with prefetchable queries",
+                          ts, TransactionInitRequest.class.getSimpleName()));
             
             // Make sure that we initialize our internal PrefetchState for this txn
             ts.initializePrefetch();
@@ -782,7 +784,8 @@ public class HStoreCoordinator implements Shutdownable {
             int sent_ctr = 0;
             int prefetch_ctr = 0;
             assert(requests.length == this.num_sites) :
-                String.format("Expected %d TransactionInitRequests but we got %d", this.num_sites, requests.length); 
+                String.format("Expected %d %s but we got %d",
+                              this.num_sites, TransactionInitRequest.class.getSimpleName(), requests.length); 
             for (int site_id = 0; site_id < this.num_sites; site_id++) {
                 if (requests[site_id] == null) continue;
                 
@@ -805,8 +808,8 @@ public class HStoreCoordinator implements Shutdownable {
             } // FOR
             assert(sent_ctr > 0) : "No TransactionInitRequests available for " + ts;
             if (debug.val)
-                LOG.debug(String.format("%s - Sent %d TransactionInitRequests with %d prefetch WorkFragments",
-                          ts, sent_ctr, prefetch_ctr));
+                LOG.debug(String.format("%s - Sent %d %s with %d prefetch WorkFragments",
+                          ts, sent_ctr, TransactionInitRequest.class.getSimpleName(), prefetch_ctr));
             
         }
         // Otherwise we will send the same TransactionInitRequest to all of the remote sites 

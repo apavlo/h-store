@@ -122,6 +122,11 @@ public class PrefetchQueryPlanner {
         if (this.catalogContext.paramMappings == null) {
             return (null);
         }
+        // Or without queries that can be prefetched.
+        List<CountedStatement> prefetchable = ts.getEstimatorState().getPrefetchableStatements(); 
+        if (prefetchable.isEmpty()) {
+            return (null);
+        }
         
         if (debug.val) LOG.debug(ts + " - Generating prefetch WorkFragments");
         
@@ -130,16 +135,10 @@ public class PrefetchQueryPlanner {
             "Unexpected null ParameterSet for " + ts;
         Object proc_params[] = ts.getProcedureParameters().toArray();
         
-        CountedStatement[] countedStmts = ts.getEstimatorState().getPrefetchableStatements().toArray(new CountedStatement[0]);
-        
-        if (countedStmts.length < 1) {
-            return (null);
-        }
-        
-        SQLStmt[] prefetchStmts = new SQLStmt[countedStmts.length];
+        SQLStmt[] prefetchStmts = new SQLStmt[prefetchable.size()];
         for (int i = 0; i < prefetchStmts.length; ++i) {
-            prefetchStmts[i] = new SQLStmt(countedStmts[i].statement);
-        }
+            prefetchStmts[i] = new SQLStmt(prefetchable.get(i).statement);
+        } // FOR
         
         // Use the StmtParameter mappings for the queries we
         // want to prefetch and extract the ProcParameters
@@ -161,9 +160,10 @@ public class PrefetchQueryPlanner {
         // prefetchable queries
         for (int i = 0; i < prefetchParams.length; i++) {
             Statement catalog_stmt = planner.getStatement(i);
-            CountedStatement counted_stmt = countedStmts[i];
-            if (debug.val) LOG.debug(String.format("%s - Building ParameterSet for prefetchable query %s",
-                                                     ts, catalog_stmt.fullName()));
+            CountedStatement counted_stmt = prefetchable.get(i);
+            if (debug.val)
+                LOG.debug(String.format("%s - Building ParameterSet for prefetchable query %s",
+                          ts, catalog_stmt.fullName()));
             Object stmt_params[] = new Object[catalog_stmt.getParameters().size()];
 
             // Generates a new object array using a mapping from the
@@ -184,8 +184,9 @@ public class PrefetchQueryPlanner {
             } // FOR (StmtParameter)
             prefetchParams[i] = new ParameterSet(stmt_params);
 
-            if (debug.val) LOG.debug(String.format("%s - [%02d] Prefetch %s -> %s",
-                                                     ts, i, catalog_stmt.getName(), prefetchParams[i]));
+            if (debug.val)
+                LOG.debug(String.format("%s - [%02d] Prefetch %s -> %s",
+                          ts, i, catalog_stmt.getName(), prefetchParams[i]));
 
             // Serialize this ParameterSet for the TransactionInitRequests
             try {
