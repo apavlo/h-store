@@ -351,7 +351,7 @@ public class TPCCSimulation {
     /** Executes a payment transaction. */
     public void doPayment()  throws IOException {
         boolean allow_remote = (parameters.warehouses > 1 && config.payment_multip != false);
-        double remote_prob = (config.payment_multip_mix >= 0 ? config.payment_multip_mix : 15) * 100d;
+        double remote_prob = (config.payment_multip_mix >= 0 ? config.payment_multip_mix : 15) * 10d;
         
         short w_id = generateWarehouseId();
         byte d_id = generateDistrict();
