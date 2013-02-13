@@ -134,7 +134,7 @@ public class ParameterMappingsSet extends HashSet<ParameterMapping> implements J
         
         Collection<ParameterMapping> ret = null;
         StatementMappings mappings = this.stmtIndex.get(catalog_stmt);
-        if (mappings != null) {
+        if (mappings != null && mappings.containsKey(catalog_stmt_index)) {
             ret = mappings.get(catalog_stmt_index).get(catalog_stmt_param);
         }
         return (ret);

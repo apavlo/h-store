@@ -103,7 +103,6 @@ public class neworder extends VoltProcedure {
     public final SQLStmt getItemInfo =
         new SQLStmt("SELECT I_PRICE, I_NAME, I_DATA FROM ITEM WHERE I_ID = ?;"); //ol_i_id
 
-    @Prefetchable
     public final SQLStmt getStockInfo = new SQLStmt(
         "SELECT S_QUANTITY, S_DATA, S_YTD, S_ORDER_CNT, S_REMOTE_CNT," +
                "S_DIST_01, S_DIST_02, S_DIST_03, S_DIST_04, S_DIST_05, " +

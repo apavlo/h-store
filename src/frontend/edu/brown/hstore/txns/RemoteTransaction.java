@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.log4j.Logger;
+import org.voltdb.CatalogContext;
 import org.voltdb.ParameterSet;
 import org.voltdb.catalog.Procedure;
 
@@ -90,8 +91,8 @@ public class RemoteTransaction extends AbstractTransaction {
         this.prepare_callback = new RemotePrepareCallback(hstore_site);
         this.finish_callback = new RemoteFinishCallback(hstore_site);
         
-        int num_localPartitions = hstore_site.getLocalPartitionIds().size();
-        this.rpc_transactionPrefetch = new ProtoRpcController[num_localPartitions];
+        CatalogContext catalogContext = hstore_site.getCatalogContext();
+        this.rpc_transactionPrefetch = new ProtoRpcController[catalogContext.numberOfPartitions];
     }
     
     /**

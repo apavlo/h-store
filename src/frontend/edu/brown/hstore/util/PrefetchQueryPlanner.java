@@ -171,8 +171,11 @@ public class PrefetchQueryPlanner {
             // ParameterMapping already being installed in the catalog
             // TODO: Precompute this as arrays (it will be much faster)
             for (StmtParameter catalog_param : catalog_stmt.getParameters().values()) {
-                ParameterMapping pm = CollectionUtil.first(this.catalogContext.paramMappings.get(
-                        counted_stmt.statement, counted_stmt.counter, catalog_param));
+                Collection<ParameterMapping> pmSets = this.catalogContext.paramMappings.get(counted_stmt.statement,
+                                                                                            counted_stmt.counter,
+                                                                                            catalog_param);
+                assert(pmSets != null) : String.format("Unexpected %s for %s", counted_stmt, catalog_param);
+                ParameterMapping pm = CollectionUtil.first(pmSets);
                 if (pm.procedure_parameter.getIsarray()) {
                     stmt_params[catalog_param.getIndex()] = ParametersUtil.getValue(ts.getProcedureParameters(), pm);
                 }

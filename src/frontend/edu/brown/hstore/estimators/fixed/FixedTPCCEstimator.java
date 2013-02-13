@@ -2,14 +2,12 @@ package edu.brown.hstore.estimators.fixed;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.List;
 
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
 
-import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.special.CountedStatement;
 import edu.brown.hstore.estimators.EstimatorState;
 import edu.brown.logging.LoggerUtil;
@@ -38,7 +36,7 @@ public class FixedTPCCEstimator extends AbstractFixedEstimator {
      * NewOrder Prefetchable Query Information
      */
     private final Statement[] neworder_prefetchables;
-    private final List<CountedStatement[]> neworder_countedstmts = new ArrayList<CountedStatement[]>(11);
+    private final List<CountedStatement[]> neworder_countedstmts = new ArrayList<CountedStatement[]>();
     
     /**
      * Constructor
@@ -50,12 +48,21 @@ public class FixedTPCCEstimator extends AbstractFixedEstimator {
         // Prefetchable Statements
         if (hstore_conf.site.exec_prefetch_queries) {
             Procedure catalog_proc = catalogContext.procedures.getIgnoreCase("neworder");
-            Collection<Statement> stmts = CatalogUtil.getPrefetchableStatements(catalog_proc);
-            this.neworder_prefetchables = stmts.toArray(new Statement[0]);
+            String prefetchables[] = { "getStockInfo" };
+            this.neworder_prefetchables = new Statement[prefetchables.length];
+            for (int i = 0; i < this.neworder_prefetchables.length; i++) {
+                Statement catalog_stmt = catalog_proc.getStatements().getIgnoreCase(prefetchables[i]);
+                assert(catalog_stmt != null) :
+                    String.format("Invalid prefetchable Statement %s.%s",
+                                  catalog_proc.getName(), prefetchables[i]);
+                this.neworder_prefetchables[i] = catalog_stmt;
+            } // FOR
         } else {
             this.neworder_prefetchables = null;    
         }
-        
+        for (int i = 0; i < 20; i++) {
+            this.neworder_countedstmts.add(null);
+        } // FOR
     }
     
     private int getPartition(short w_id) {
