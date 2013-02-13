@@ -322,7 +322,9 @@ public class CommandLogWriter extends ExceptionHandlingRunnable implements Shutd
             // Write the entries out to disk
             if (debug.val) LOG.debug("Executing group commit");
             this.flushInProgress.set(true);
-            this.groupCommit(this.entriesFlushing);
+            if (this.groupCommit(this.entriesFlushing) == 0) {
+                next = System.currentTimeMillis() + hstore_conf.site.commandlog_timeout;
+            }
             this.flushInProgress.set(false);
         } // WHILE
     }
@@ -425,7 +427,7 @@ public class CommandLogWriter extends ExceptionHandlingRunnable implements Shutd
      * GroupCommits the given buffer set all at once
      * @param eb
      */
-    public void groupCommit(CircularLogEntryBuffer[] eb) {
+    public int groupCommit(CircularLogEntryBuffer[] eb) {
         if (hstore_conf.site.commandlog_profiling) {
             if (this.profiler == null) this.profiler = new CommandLogWriterProfiler();
             this.profiler.writingTime.start();
@@ -460,7 +462,7 @@ public class CommandLogWriter extends ExceptionHandlingRunnable implements Shutd
         if (txnCounter == 0) {
             if (debug.val)
                 LOG.debug("No transactions are in the current buffers. Not writing anything to disk");  
-            return;
+            return (txnCounter);
         }
         
         // Compress and force out to disk
@@ -513,6 +515,7 @@ public class CommandLogWriter extends ExceptionHandlingRunnable implements Shutd
             if (hstore_conf.site.commandlog_profiling && profiler != null) profiler.networkTime.stop();
         }
         this.commitBatchCounter++;
+        return (txnCounter);
     }
     
     /**
