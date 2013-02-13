@@ -271,14 +271,17 @@ public class CommandLogWriter extends ExceptionHandlingRunnable implements Shutd
         this.usePostProcessor = hstore_site.hasTransactionPostProcessors();
         
         CircularLogEntryBuffer temp[] = null;
+        long next = System.currentTimeMillis() + hstore_conf.site.commandlog_timeout;
         while (this.stop == false) {
             // Sleep until our timeout period, at which point a 
             // flush will be initiated
             try {
-                Thread.sleep(hstore_conf.site.commandlog_timeout);
+                long sleep = Math.max(0, System.currentTimeMillis() - next);
+                Thread.sleep(sleep);
             } catch (InterruptedException e) {
                 if (this.stop) break;
             } finally {
+                next = System.currentTimeMillis() + hstore_conf.site.commandlog_timeout;
                 if (debug.val)
                     LOG.debug("Group commit timeout occurred, writing buffer to disk.");
             }
