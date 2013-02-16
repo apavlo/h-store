@@ -237,6 +237,10 @@ public class FastIntHistogram implements Histogram<Integer> {
             this.histogram[value] += delta;
         }
         this.num_samples += delta;
+        if (this.histogram[value] == 0 && this.keep_zero_entries == false) {
+            this.histogram[value] = NULL_COUNT;
+            this.num_values--;
+        }
         return (this.histogram[value]);
     }
     

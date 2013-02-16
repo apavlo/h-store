@@ -2197,9 +2197,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             // Figure out whether this transaction should be redirected based on what partitions it
             // tried to touch before it was aborted
             FastIntHistogram touched = orig_ts.getTouchedPartitions();
-            Collection<Integer> most_touched = touched.getMaxCountValues();
-            assert(most_touched != null) :
-                "Failed to get most touched partition for " + orig_ts + "\n" + touched;
             
             // XXX: We should probably decrement the base partition by one 
             //      so that we only consider where they actually executed queries
@@ -2207,21 +2204,29 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 LOG.debug(String.format("Touched partitions for mispredicted %s\n%s",
                           orig_ts, touched));
             int redirect_partition = HStoreConstants.NULL_PARTITION_ID;
-            if (most_touched.size() == 1) {
-                redirect_partition = CollectionUtil.first(most_touched);
+            if (touched.getValueCount() == 1) {
+                redirect_partition = touched.getMaxValue();
             }
             // If the original base partition is in our most touched set, then
             // we'll prefer to use that
-            else if (most_touched.isEmpty() == false) {
+            else if (touched.getValueCount() > 0) {
+                Collection<Integer> most_touched = touched.getMaxCountValues();
+                assert(most_touched != null) :
+                    "Failed to get most touched partition for " + orig_ts + "\n" + touched;
+                if (debug.val)
+                    LOG.debug(String.format("Most touched partitions for mispredicted %s: %s",
+                              orig_ts, most_touched));
                 if (most_touched.contains(base_partition)) {
                     redirect_partition = base_partition;
                 } else {
                     redirect_partition = CollectionUtil.random(most_touched);
                 }
-            } else {
+            }
+            else {
                 redirect_partition = base_partition;
             }
-            assert(redirect_partition != HStoreConstants.NULL_PARTITION_ID) : "Redirect partition is null!\n" + orig_ts.debug();
+            assert(redirect_partition != HStoreConstants.NULL_PARTITION_ID) :
+                "Redirect partition is null!\n" + orig_ts.debug();
             if (debug.val) {
                 LOG.debug("Redirect Partition: " + redirect_partition + " -> " + (this.isLocalPartition(redirect_partition) == false));
                 LOG.debug("Local Partitions: " + this.local_partitions);
