@@ -915,29 +915,28 @@ public abstract class BenchmarkComponent {
         if (status == Status.OK || status == Status.ABORT_USER) {
             
             // TRANSACTION COUNTERS
-            boolean is_specexec = cresponse.isSpeculative(); 
+            boolean is_specexec = cresponse.isSpeculative();
+            boolean is_dtxn = cresponse.isSinglePartition(); 
             synchronized (m_txnStats.transactions) {
                 m_txnStats.transactions.put(txn_idx);
-                if (cresponse.isSinglePartition() == false) {
-                    m_txnStats.dtxns.put(txn_idx);
-                }
+                if (is_dtxn == false) m_txnStats.dtxns.put(txn_idx);
                 if (is_specexec) m_txnStats.specexecs.put(txn_idx);
             } // SYNCH
 
             // LATENCIES COUNTERS
-            Histogram<Integer> latencies = m_txnStats.latencies.get(txn_idx);
-            if (latencies == null) {
-                synchronized (m_txnStats.latencies) {
-                    latencies = m_txnStats.latencies.get(txn_idx);
-                    if (latencies == null) {
-                        latencies = new ObjectHistogram<Integer>();
-                        m_txnStats.latencies.put(txn_idx, (ObjectHistogram<Integer>)latencies);
-                    }
-                } // SYNCH
-            }
             // Ignore zero latencies... Not sure why this happens...
             int latency = cresponse.getClusterRoundtrip();
             if (latency > 0) {
+                Histogram<Integer> latencies = m_txnStats.latencies.get(txn_idx);
+                if (latencies == null) {
+                    synchronized (m_txnStats.latencies) {
+                        latencies = m_txnStats.latencies.get(txn_idx);
+                        if (latencies == null) {
+                            latencies = new ObjectHistogram<Integer>();
+                            m_txnStats.latencies.put(txn_idx, (ObjectHistogram<Integer>)latencies);
+                        }
+                    } // SYNCH
+                }
                 synchronized (latencies) {
                     latencies.put(latency);
                 } // SYNCH
