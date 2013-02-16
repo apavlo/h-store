@@ -214,7 +214,9 @@ public class LocalTransaction extends AbstractTransaction {
         super(hstore_site);
         this.init_callback = new LocalInitQueueCallback(hstore_site);
         this.start_msg = new StartTxnMessage(this);
-        this.exec_touchedPartitions = new FastIntHistogram(hstore_site.getCatalogContext().numberOfPartitions);
+        
+        int numPartitions = hstore_site.getCatalogContext().numberOfPartitions;
+        this.exec_touchedPartitions = new FastIntHistogram(false, numPartitions);
     }
 
     /**
