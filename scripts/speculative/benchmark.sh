@@ -15,26 +15,31 @@ function onexit() {
 # ---------------------------------------------------------------------
 
 SITE_HOSTS=( \
-    "modis2"
-    "modis"
-#     "vise5"
+    "istc1"
+    "istc2"
+    "istc3"
+    "istc5"
 )
 CLIENT_HOSTS=( \
-    "saw" \
+    "modis" \
+    "modis2" \
     "vise5" \
-    "vise5" \
-    "vise5" \
-#     "saw" \
-#     "saw" \
+#     "istc1" \
+#     "vise5" \
+#     "vise5" \
 )
 
 LOCALHOST=`hostname`
-BASE_CLIENT_THREADS=10
-BASE_SITE_MEMORY=2048
-BASE_SITE_MEMORY_PER_PARTITION=1024
-BASE_PROJECT="tpcc"
 BASE_DIR=`pwd`
 
+BASE_CLIENT_THREADS=40
+BASE_CLIENT_CONCURRENT=20
+BASE_SITE_MEMORY=1024
+BASE_SITE_MEMORY_PER_PARTITION=2048
+BASE_PROJECT="tpcc"
+PARTITIONS_PER_SITE=8
+
+SPECEXEC_ENABLE=true
 MARKOV_ENABLE=true
 MARKOV_FIXED=${MARKOV_ENABLE}
 MARKOV_DIR="files/markovs/vldb-august2012"
@@ -53,10 +58,10 @@ BASE_ARGS=( \
     # Site Params
     "-Dsite.jvm_asserts=false" \
     "-Dsite.cpu_affinity_one_partition_per_core=true" \
-    "-Dsite.queue_incoming_max_per_partition=10000" \
-    "-Dsite.queue_incoming_increase_max=20000" \
-    "-Dsite.commandlog_enable=false" \
-    "-Dsite.commandlog_timeout=50" \
+    "-Dsite.queue_incoming_max_per_partition=20000" \
+    "-Dsite.queue_incoming_increase_max=30000" \
+    "-Dsite.commandlog_enable=true" \
+    "-Dsite.commandlog_timeout=5" \
     "-Dsite.network_txn_initialization=true" \
     
     # Markov Params
@@ -65,27 +70,31 @@ BASE_ARGS=( \
     "-Dsite.markov_singlep_updates=false" \
     "-Dsite.markov_dtxn_updates=false" \
     "-Dsite.markov_path_caching=true" \
-    "-Dsite.specexec_enable=true" \
-    "-Dsite.specexec_idle=true" \
+    "-Dsite.specexec_enable=${SPECEXEC_ENABLE}" \
+    "-Dsite.specexec_idle=${SPECEXEC_ENABLE}" \
+    "-Dsite.specexec_unsafe=true" \
+    "-Dsite.specexec_unsafe_limit=-1" \
     "-Dsite.exec_mispredict_crash=false" \
 #     "-Dsite.exec_force_localexecution=false" \
     
     # Client Params
-    "-Dclient.scalefactor=1" \
+    "-Dclient.scalefactor=1.0" \
     "-Dclient.memory=4096" \
-    "-Dclient.txnrate=10000" \
+    "-Dclient.txnrate=100000" \
     "-Dclient.warmup=60000" \
     "-Dclient.duration=60000 "\
-    "-Dclient.shared_connection=false" \
+    "-Dclient.shared_connection=true" \
     "-Dclient.blocking=true" \
-    "-Dclient.blocking_concurrent=50" \
+#     "-Dclient.blocking_concurrent=100" \
     "-Dclient.throttle_backoff=100" \
     
     # CLIENT DEBUG
     "-Dclient.profiling=false" \
     "-Dclient.txn_hints=${MARKOV_ENABLE}" \
-    "-Dclient.output_specexec_profiling=${BASE_PROJECT}-specexec.csv" \
-    "-Dclient.output_txn_counters=${BASE_PROJECT}-txncounters.csv" \
+#     "-Dclient.output_specexec_profiling=${BASE_PROJECT}-specexec.csv" \
+#     "-Dclient.output_txn_counters=${BASE_PROJECT}-txncounters.csv" \
+#     "-Dclient.output_exec_profiling=${BASE_PROJECT}-exec.csv" \
+
 #     "-Dclient.output_markov_profiling=markovprofile.csv" \
 #     "-Dclient.output_site_profiling=siteprofile.csv" \
 #     "-Dclient.output_txn_counters_combine=true" \
@@ -120,23 +129,26 @@ for CLIENT_HOST in ${CLIENT_HOSTS[@]}; do
 done
 wait
 
-for i in 8 ; do
+for i in 4 8 16 32 ; do
     if [ "$i" = 4 ]; then
-        HSTORE_HOSTS="modis2:0:0-3"
-#         HSTORE_HOSTS="modis2:0:0-1;modis:1:2-3"
-    fi
-    if [ "$i" = 8 ]; then
-        HSTORE_HOSTS="modis2:0:0-7"
-    fi
-    if [ "$i" = 16 ]; then
-        HSTORE_HOSTS="modis2:0:0-7;modis:1:8-15"
-    fi
-    if [ "$i" = 32 ]; then
-        HSTORE_HOSTS="modis2:0:0-10;modis:1:11-20;vise5:2:21-31"
+        HSTORE_HOSTS="istc1:0:0-3"
+    else
+        HSTORE_HOSTS=""
+        if [ "$i" -ge 8 ]; then
+            HSTORE_HOSTS="istc1:0:0-7"
+        fi
+        if [ "$i" -ge 16 ]; then
+            HSTORE_HOSTS="${HSTORE_HOSTS};istc2:1:8-15"
+        fi
+        if [ "$i" -ge 32 ]; then
+            HSTORE_HOSTS="${HSTORE_HOSTS};istc3:2:16-23;istc4:3:24-31"
+        fi
     fi
     
-    NUM_CLIENTS=`expr $i \* $BASE_CLIENT_THREADS`
-    SITE_MEMORY=`expr $BASE_SITE_MEMORY + \( $i \* $BASE_SITE_MEMORY_PER_PARTITION \)`
+#     NUM_CLIENTS=`expr $i \* $BASE_CLIENT_THREADS`
+    NUM_CLIENTS=$BASE_CLIENT_THREADS
+    CONCURRENT=`expr $i \* $BASE_CLIENT_CONCURRENT`
+    SITE_MEMORY=`expr $BASE_SITE_MEMORY + \( $PARTITIONS_PER_SITE \* $BASE_SITE_MEMORY_PER_PARTITION \)`
     
     # BUILD PROJECT JAR
     ant hstore-prepare \
@@ -157,7 +169,6 @@ for i in 8 ; do
         gzip --force --best $BASE_PROJECT.markov
         mv $BASE_PROJECT.markov.gz $MARKOV_FILE
     fi
-    
     
     for file in ${FILES_TO_COPY[@]}; do
         for SITE_HOST in ${SITE_HOSTS[@]}; do
@@ -193,12 +204,13 @@ for i in 8 ; do
     ant hstore-benchmark ${BASE_ARGS[@]} \
         -Dproject=${BASE_PROJECT} \
         -Dkillonzero=true \
-        -Dmarkov=${MARKOV_FILE} \
         -Dmarkov.recompute_end=${MARKOV_RECOMPUTE} \
         -Dclient.threads_per_host=${NUM_CLIENTS} \
+        -Dclient.blocking_concurrent=${CONCURRENT} \
         -Dsite.memory=${SITE_MEMORY} \
         -Dclient.hosts=${CLIENT_HOSTS_STR} \
         -Dclient.count=${CLIENT_COUNT}
+        #         -Dmarkov=${MARKOV_FILE} \
     result=$?
     if [ $result != 0 ]; then
         exit $result
