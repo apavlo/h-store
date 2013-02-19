@@ -685,9 +685,10 @@ class Distributer {
             else if (!cxn.hadBackPressure() || ignoreBackpressure) {
                 backpressure = false;
             }
-            else {
-                cxn = null;
-            }
+//            else {
+//                LOG.warn("Had to use a non-direct connection to get to the cluster");
+//                cxn = null;
+//            }
         }
         
         if (trace.val) LOG.trace(invocation.toString() + " ::: ignoreBackpressure->" + ignoreBackpressure);
