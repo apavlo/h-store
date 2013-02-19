@@ -211,10 +211,12 @@ public class TM1Client extends BenchmarkComponent {
         ObjectHistogram<Transaction> txns = new ObjectHistogram<Transaction>(); 
         for (Transaction t : Transaction.values()) {
             Integer weight = this.getTransactionWeight(t.callName);
-            if (weight == null) weight = t.weight;
+            if (weight == null) {
+                weight = t.weight;
+            }
             txns.put(t, weight);
         } // FOR
-        assert(txns.getSampleCount() == 100) : txns;
+        assert(txns.getSampleCount() == 100) : "Invalid txn percentage total: " + txns.getSampleCount() + "\n" + txns;
         Random rand = new Random(); // FIXME
         this.txnWeights = new FlatHistogram<Transaction>(rand, txns);
         if (LOG.isDebugEnabled())
