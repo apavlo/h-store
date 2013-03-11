@@ -117,14 +117,18 @@ public class YCSBClient extends BenchmarkComponent {
         } // FOR
         
         // Figure out the # of records that we need
-        if (useFixedSize && fixedSize > 0) {
-            this.init_record_count = fixedSize;
-        }
-        else {
-            this.init_record_count = (int)Math.round(YCSBConstants.NUM_RECORDS * 
-                                                     catalogContext.numberOfPartitions *
-                                                     this.getScaleFactor());
-        }
+//        if (useFixedSize && fixedSize > 0) {
+//            this.init_record_count = fixedSize;
+//        }
+//        else {
+//            //this.init_record_count = (int)Math.round(YCSBConstants.NUM_RECORDS * 
+////                                                     catalogContext.numberOfPartitions *
+////                                                     this.getScaleFactor());
+//            
+//            this.init_record_count = YCSBConstants.NUM_RECORDS; 
+//        }
+        
+        this.init_record_count = YCSBConstants.NUM_RECORDS;
         
         this.rand_gen = new Random(); 
         this.randScan = new ZipfianGenerator(YCSBConstants.MAX_SCAN);
@@ -138,6 +142,7 @@ public class YCSBClient extends BenchmarkComponent {
         this.readRecord = new CustomSkewGenerator(this.rand_gen, this.init_record_count, 
                                             YCSBConstants.HOT_DATA_WORKLOAD_SKEW, YCSBConstants.HOT_DATA_SIZE, 
                                             YCSBConstants.WARM_DATA_WORKLOAD_SKEW, YCSBConstants.WARM_DATA_SIZE);
+        
         
         // Initialize the sampling table
         Histogram<Transaction> txns = new ObjectHistogram<Transaction>(); 
