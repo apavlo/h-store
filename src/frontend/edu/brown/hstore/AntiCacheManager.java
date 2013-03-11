@@ -55,11 +55,11 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
 
-    public static long DEFAULT_MAX_MEMORY_SIZE_MB = 250;
-    //public static final long DEFAULT_MAX_MEMORY_SIZE_MB = 40000;
-    public static final int TOTAL_BLOCKS_TO_EVICT = 5000;
-//    public static final int TOTAL_BLOCKS_TO_EVICT = 3000;
+    public static long DEFAULT_MAX_MEMORY_SIZE_MB = 500;
     public static final int MAX_BLOCKS_TO_EVICT_EACH_EVICTION = 1000;
+
+    public static final int TOTAL_BLOCKS_TO_EVICT = 200000;    
+    public static final int BLOCK_SIZE = 262144; // 256 KB
 
     // ----------------------------------------------------------------------------
     // INTERNAL QUEUE ENTRY
@@ -229,6 +229,8 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         PartitionExecutor executor = hstore_site.getPartitionExecutor(next.partition);
         ExecutionEngine ee = executor.getExecutionEngine();
 
+        boolean merge_needed = true; 
+
         // We can now tell it to read in the blocks that this txn needs
         // Note that we are doing this without checking whether another txn is already
         // running. That's because reading in unevicted tuples is a two-stage process.
@@ -251,20 +253,25 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
             LOG.debug(String.format("Finished reading blocks from partition %d",
                      next.partition));
         } catch (SerializableException ex) {
-            LOG.error("Caught unexpected SerializableException while reading anti-cache block.", ex);
+            LOG.info("Caught unexpected SerializableException while reading anti-cache block.", ex);
+
+            merge_needed = false; 
         } finally {
             if (hstore_conf.site.anticache_profiling) 
                 this.profilers[next.partition].retrieval_time.stopIfStarted();
         }
-
         
         // HACK HACK HACK HACK HACK HACK
         // We need to get a new txnId for ourselves, since the one that we
         // were given before is now probably too far in the past
         this.hstore_site.getTransactionInitializer().resetTransactionId(next.ts, next.partition);
         // Now go ahead and requeue our transaction
-        next.ts.setAntiCacheMergeTable(next.catalog_tbl);
+
+//        if(merge_needed)
+            next.ts.setAntiCacheMergeTable(next.catalog_tbl);
+
         this.hstore_site.transactionInit(next.ts);
+//        this.hstore_site.transactionReject(next.ts, Status.ABORT_GRACEFUL);
     }
 
     @Override
@@ -334,12 +341,6 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
             firstEviction = false;
         }
 
-//        if(total_evicted_blocks < TOTAL_BLOCKS_TO_EVICT)
-//        {
-//            return true;
-//        }
-//
-//        return false;
         return(total_evicted_blocks < TOTAL_BLOCKS_TO_EVICT);
     }
 
@@ -375,7 +376,8 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         // initialize params
         for (Table catalog_tbl : this.evictableTables) {
             tableNames[i] = catalog_tbl.getName();
-            evictBytes[i] = hstore_conf.site.anticache_block_size;
+            //evictBytes[i] = hstore_conf.site.anticache_block_size;
+            evictBytes[i] = BLOCK_SIZE; 
 
             if(blocks_to_evict < hstore_site.getLocalPartitionIds().size()) {  // make sure we evict at least 1 block from each partition
                 evictBlocks[i] = 1;

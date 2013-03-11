@@ -31,7 +31,7 @@ package edu.brown.benchmark.ycsb;
 
 public abstract class YCSBConstants {
 
-    public static final int NUM_RECORDS = 10737418; // .5 GB
+    public static final int NUM_RECORDS = 20000000;  // Note: this should match value in YCSB.properties
 
     public static final int HOT_DATA_WORKLOAD_SKEW = 90;
     public static final int HOT_DATA_SIZE = 10;

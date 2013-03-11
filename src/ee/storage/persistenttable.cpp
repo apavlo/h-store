@@ -79,6 +79,7 @@
 #include "anticache/EvictedTable.h"
 #include "anticache/AntiCacheDB.h"
 #include "anticache/EvictionIterator.h"
+#include "anticache/UnknownBlockAccessException.h"
 #endif
 
 #include <map>
@@ -92,7 +93,6 @@ TableTuple keyTuple;
  * This value has to match the value in CopyOnWriteContext.cpp
  */
 #define TABLE_BLOCKSIZE 2097152
-    
 #define MAX_EVICTED_TUPLE_SIZE 2500
 
 PersistentTable::PersistentTable(ExecutorContext *ctx, bool exportEnabled) :
@@ -193,13 +193,8 @@ bool PersistentTable::evictBlockToDisk(const long block_size, int num_blocks) {
                             "EvictionManager has been initialized", this->name().c_str());
     }
     
-
-    
     for(int i = 0; i < num_blocks; i++)
     {
-//        // dont evict more than half the tuples in any given table
-//        if(m_tuplesEvicted >= .5 * (m_tupleCount + m_tuplesEvicted))
-//            break; 
         
         // get a unique block id from the executorContext
         int16_t block_id = antiCacheDB->nextBlockId();
@@ -217,11 +212,13 @@ bool PersistentTable::evictBlockToDisk(const long block_size, int num_blocks) {
         
         // Iterate through the table and pluck out tuples to put in our block
         TableTuple tuple(m_schema);
-        EvictionIterator evict_itr(this); 
+        EvictionIterator evict_itr(this);         
+        
+        VOLT_INFO("active tuple count: %d", (int)activeTupleCount()); 
         
         #ifdef VOLT_INFO_ENABLED
         boost::timer timer;
-//        int64_t origEvictedTableSize = m_evictedTable->activeTupleCount();
+        int64_t origEvictedTableSize = m_evictedTable->activeTupleCount();
         #endif
 
         size_t current_tuple_start_position;
@@ -292,7 +289,7 @@ bool PersistentTable::evictBlockToDisk(const long block_size, int num_blocks) {
         #endif
         
         // Only write out a bock if there are tuples in it
-        if (num_tuples_evicted > 0) {
+        if (num_tuples_evicted >= 0) {
             antiCacheDB->writeBlock(name(),
                                     block_id,
                                     num_tuples_evicted,
@@ -339,32 +336,46 @@ bool PersistentTable::evictBlockToDisk(const long block_size, int num_blocks) {
     return true;
 }
 
-bool PersistentTable::readEvictedBlock(int16_t block_id) {
+bool PersistentTable::readEvictedBlock(int16_t block_id, int32_t tuple_offset) {
     
-    // make sure we don't read the same block twice
-    if(std::find(m_unevictedBlockIDs.begin(), m_unevictedBlockIDs.end(), block_id) != m_unevictedBlockIDs.end())
-        return true;
+    std::map<int16_t,int16_t>::iterator it;
+    it = m_unevictedBlockIDs.find(block_id); 
+    if(it != m_unevictedBlockIDs.end()) // this block has already been read
+        return true; 
     
     AntiCacheDB* antiCacheDB = m_executorContext->getAntiCacheDB(); 
-    AntiCacheBlock value = antiCacheDB->readBlock(this->name(), block_id);
     
-    // allocate the memory for this block
-    char* unevicted_tuples = new char[value.getSize()]; 
-    memcpy(unevicted_tuples, value.getData(), value.getSize()); 
-    m_unevictedBlocks.push_back(unevicted_tuples); 
-    
-    // Update eviction stats
-    m_bytesEvicted -= value.getSize(); 
-    m_bytesRead += value.getSize();
-    
-    m_unevictedBlockIDs.push_back(block_id);
+    try
+    {
+        AntiCacheBlock value = antiCacheDB->readBlock(this->name(), block_id);
+        
+        // allocate the memory for this block
+        char* unevicted_tuples = new char[value.getSize()]; 
+        memcpy(unevicted_tuples, value.getData(), value.getSize()); 
+        m_unevictedBlocks.push_back(unevicted_tuples);
+        m_mergeTupleOffset.push_back(tuple_offset); 
+        
+        // Update eviction stats
+        m_bytesEvicted -= value.getSize(); 
+        m_bytesRead += value.getSize();
+        
+//        m_unevictedBlockIDs.push_back(block_id);
+        m_unevictedBlockIDs.insert(std::pair<int16_t,int16_t>(block_id, 0)); 
+    }
+    catch(UnknownBlockAccessException exception)
+    {
+        throw exception; 
+        
+        VOLT_INFO("UnknownBlockAccessException caught."); 
+        
+        return false; 
+    }
     
     return true;
 }
     
 /*
  * Merges the unevicted block into the regular data table
- * NOTE: We are assuming there are m_tuplePerBlock tuples in each evicted block
  */
 bool PersistentTable::mergeUnevictedTuples() 
 {        
@@ -373,7 +384,9 @@ bool PersistentTable::mergeUnevictedTuples()
     int tuplesRead = 0;
     
     if(num_blocks == 0)
-        return false; 
+        return false;
+    
+    int32_t merge_tuple_offset = 0; // this is the offset of tuple that caused this block to be unevicted
     
     DefaultTupleSerializer serializer;
     TableTuple unevictedTuple(m_schema);
@@ -382,57 +395,68 @@ bool PersistentTable::mergeUnevictedTuples()
     
     AntiCacheEvictionManager* eviction_manager = m_executorContext->getAntiCacheEvictionManager();
     
-    if(m_blockMerge)
-    {
-        VOLT_INFO("Merging %d blocks for table %s.", num_blocks, name().c_str());
-        for (int i = 0; i < num_blocks; i++)
-        {        
-            // XXX: have to put block size, which we don't know, so just put something large, like 10MB
-            ReferenceSerializeInput in(m_unevictedBlocks[i], 10485760);
-            num_tuples_in_block = in.readInt();
-            
-            VOLT_INFO("Merging %d tuples.", num_tuples_in_block);
-            
-            for (int j = 0; j < num_tuples_in_block; j++)
-            {            
-                // get a free tuple and increment the count of tuples current used
-                nextFreeTuple(&m_tmpTarget1);
-                m_tupleCount++;
-                
-                // deserialize tuple from unevicted block
-                m_tmpTarget1.deserializeWithHeaderFrom(in);
-                m_tmpTarget1.setEvictedFalse();
-                
-                // Note, this goal of the section below is to get a tuple that points to the tuple in the EvictedTable and has the
-                // schema of the evicted tuple. However, the lookup has to be done using the schema of the original (unevicted) version
-                m_tmpTarget2 = lookupTuple(m_tmpTarget1);       // lookup the tuple in the table
-                evicted_tuple.move(m_tmpTarget2.address());
-                static_cast<EvictedTable*>(m_evictedTable)->deleteEvictedTuple(evicted_tuple);             // delete the EvictedTable tuple
-                
-                // update the indexes to point to this newly unevicted tuple
-                setEntryToNewAddressForAllIndexes(&m_tmpTarget1, m_tmpTarget1.address());
-                
-                // re-insert the tuple back into the eviction chain
-                eviction_manager->updateTuple(this, &m_tmpTarget1, true);
-
-                
-                //VOLT_INFO("Successfully unevicted tuple.");
+    VOLT_INFO("Merging %d blocks for table %s.", num_blocks, name().c_str());
+    for (int i = 0; i < num_blocks; i++)
+    {        
+        // XXX: have to put block size, which we don't know, so just put something large, like 10MB
+        ReferenceSerializeInput in(m_unevictedBlocks[i], 10485760);
+        num_tuples_in_block = in.readInt();
+        
+        merge_tuple_offset = m_mergeTupleOffset[i]; 
+        
+        VOLT_INFO("Merging %d tuples.", num_tuples_in_block);
+        
+        for (int j = 0; j < num_tuples_in_block; j++)
+        {
+            // if we're using the tuple-merge strategy, only merge in a single tuple
+            if(!m_blockMerge)  
+            {
+                if(j != merge_tuple_offset)  // don't merge this tuple
+                    continue; 
             }
-            tuplesRead += num_tuples_in_block;
-            delete [] m_unevictedBlocks[i];
+            
+            // get a free tuple and increment the count of tuples current used
+            nextFreeTuple(&m_tmpTarget1);
+            m_tupleCount++;
+            
+            // deserialize tuple from unevicted block
+            m_tmpTarget1.deserializeWithHeaderFrom(in);
+            m_tmpTarget1.setEvictedFalse();
+            m_tmpTarget1.setDeletedFalse(); 
+            
+//                m_tmpTarget1.copyForPersistentInsert(source); // tuple in freelist must be already cleared
+//                m_tmpTarget1.setDeletedFalse();
+            
+            // Note, this goal of the section below is to get a tuple that points to the tuple in the EvictedTable and has the
+            // schema of the evicted tuple. However, the lookup has to be done using the schema of the original (unevicted) version
+            m_tmpTarget2 = lookupTuple(m_tmpTarget1);       // lookup the tuple in the table
+            evicted_tuple.move(m_tmpTarget2.address());
+            static_cast<EvictedTable*>(m_evictedTable)->deleteEvictedTuple(evicted_tuple);             // delete the EvictedTable tuple
+            
+            // update the indexes to point to this newly unevicted tuple
+            setEntryToNewAddressForAllIndexes(&m_tmpTarget1, m_tmpTarget1.address());
+            
+            // re-insert the tuple back into the eviction chain
+            if(j == merge_tuple_offset)  // put it at the back of the chain
+                eviction_manager->updateTuple(this, &m_tmpTarget1, true);
+            else
+                eviction_manager->updateUnevictedTuple(this, &m_tmpTarget1);
         }
-        
-        // Update eviction stats
-        m_tuplesEvicted -= tuplesRead;
-        m_tuplesRead += tuplesRead;
-
-        m_blocksEvicted -= num_blocks; 
-        m_blocksRead += num_blocks;
-        
-        m_unevictedBlocks.clear();
-        m_unevictedBlockIDs.clear(); 
+        tuplesRead += num_tuples_in_block;
+        delete [] m_unevictedBlocks[i];
     }
     
+    // Update eviction stats
+    m_tuplesEvicted -= tuplesRead;
+    m_tuplesRead += tuplesRead;
+
+    m_blocksEvicted -= num_blocks; 
+    m_blocksRead += num_blocks;
+    
+    m_unevictedBlocks.clear();
+    m_mergeTupleOffset.clear(); 
+//        m_unevictedBlockIDs.clear();  // if we uncomment this the benchmark won't end 
+
     return true; 
 }
     
