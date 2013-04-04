@@ -32,7 +32,9 @@ public class NoNetworkClientFlooder implements Runnable {
             // TODO: Get a PhoneCallGenerator.PhoneCall object!
         	PhoneCallGenerator pcg = new PhoneCallGenerator(1000+1, 4);
         	PhoneCallGenerator.PhoneCall call = pcg.receive();
-            StoredProcedureInvocation spi = new StoredProcedureInvocation(1000+1,                                                 "Vote",
+            StoredProcedureInvocation spi = new StoredProcedureInvocation(
+            		1000+1, 
+            		"Vote",
                     call.voteId, 
                     call.phoneNumber,
                     call.contestantNumber,

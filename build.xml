@@ -2184,8 +2184,8 @@ UTILITIES
         <jvmarg value="-Xmx${volt.client.memory}m" />
         <jvmarg value="-server" />
 <!--         <jvmarg value="-verbose:gc" /> -->
-        <jvmarg value="-XX:+UseParNewGC" />
-        <jvmarg value="-XX:+UseConcMarkSweepGC" />
+<!--        <jvmarg value="-XX:+UseParNewGC" /> -->
+<!--        <jvmarg value="-XX:+UseConcMarkSweepGC" /> -->
 <!--         <jvmarg value="-XX:+PrintGCDetails" /> -->
 <!--         <jvmarg value="-XX:+PrintGCTimeStamps" /> -->
 <!--         <jvmarg value="-Xloggc:gc.log" /> -->
