@@ -77,9 +77,9 @@
 <!-- emma build instrumentation location -->
 <property name='build.instr.dir'             location='${build.dir}/instr' />
 
-<!-- JProfiler Parameters -->
-<property name='jprofiler.dir'               location='/home/ubuntu/Programs/jprofiler' />
-<property name='jprofiler.port'              value='8849' />
+
+<property name='jprofiler.dir'                  location='/home/xin/jprofiler7' />
+<property name='jprofiler.port'                 value='8849' />
 
 <taskdef resource="net/sf/antcontrib/antcontrib.properties">
     <classpath>
@@ -2498,7 +2498,7 @@ UTILITIES
         <jvmarg value="-Xmx${site.memory}m" />
 
         <!-- JProfiler -->
-        <!-- <jvmarg value="-agentpath:${jprofiler.dir}/bin/linux-x64/libjprofilerti.so=port=${jprofiler.port}" /> -->
+        <jvmarg value="-agentpath:${jprofiler.dir}/bin/linux-x64/libjprofilerti.so=port=${jprofiler.port}" /> 
 
         <!-- Parallel Garbage Collector (Slower) -->
         <!-- <jvmarg value="-XX:+UseParNewGC" /> -->

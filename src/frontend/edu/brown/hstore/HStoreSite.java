@@ -114,6 +114,7 @@ import edu.brown.hstore.txns.MapReduceTransaction;
 import edu.brown.hstore.txns.RemoteTransaction;
 import edu.brown.hstore.util.MapReduceHelperThread;
 import edu.brown.hstore.util.TransactionCounter;
+import edu.brown.hstore.util.NoNetworkClientFlooder;
 import edu.brown.interfaces.Configurable;
 import edu.brown.interfaces.DebugContext;
 import edu.brown.interfaces.Shutdownable;
@@ -255,6 +256,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     
     private final VoltNetwork voltNetwork;
     private ClientInterface clientInterface;
+    
+    private final NoNetworkClientFlooder clientFlooder;
     
     // ----------------------------------------------------------------------------
     // TRANSACTION COORDINATOR/PROCESSING THREADS
@@ -569,6 +572,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         this.voltNetwork = new VoltNetwork(this);
         this.clientInterface = new ClientInterface(this, this.catalog_site.getProc_port());
+        
+        //
+        this.clientFlooder = new NoNetworkClientFlooder(this);
         
         // -------------------------------
         // TRANSACTION ESTIMATION
@@ -1254,6 +1260,14 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     private synchronized void notifyStartWorkload() {
         if (this.startWorkload == false) {
             this.startWorkload = true;
+            
+            // Start no network test thread
+            Thread t = new Thread(this.clientFlooder);
+            t.setName("No_network_Client_flooder");
+            t.setDaemon(true);
+            t.setUncaughtExceptionHandler(this.exceptionHandler);
+            t.start();
+            
             this.startWorkload_observable.notifyObservers(this);
         }
     }
