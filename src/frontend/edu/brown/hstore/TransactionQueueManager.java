@@ -246,7 +246,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
     }
     
     /**
-     * Every time this thread gets waken up, it locks the queues, loops through the txn_queues,
+     * Every time this thread gets woken up, it locks the queues, loops through the txn_queues,
      * and looks at the lowest id in each queue. If any id is lower than the last_txn id for
      * that partition, it gets rejected and sent back to the caller.
      * Otherwise, the lowest txn_id is popped off and sent to the corresponding partition.
@@ -418,33 +418,37 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
         this.lockQueueBarriers[partition].lock();
         try {
             next_safe_id = this.lockQueues[partition].noteTransactionRecievedAndReturnLastSafeTxnId(txn_id);
-        
-            // The next txnId that we're going to try to execute is already greater
-            // than this new txnId that we were given! Rejection!
-            if (next_safe_id != null && next_safe_id.compareTo(txn_id) > 0) {
-                 if (debug.val)
-                    LOG.warn(String.format("The next safe lockQueue txn for partition #%d is %s but this " +
-                	         "is greater than our new txn %s. Rejecting...",
-                             partition, next_safe_id, ts));
-                 status = Status.ABORT_RESTART;
-            }
-            // Our queue is overloaded. We have to reject the txnId!
-            else {
-                boolean ret = false;
-                if (ts.isPredictSinglePartition() || callback.isAborted() == false) {
-                    ret = this.lockQueues[partition].offer(ts, ts.isSysProc());
-                }
-                if (ret == false) {
-                    if (debug.val)
-                        LOG.debug(String.format("The initQueue for partition #%d is overloaded. " +
-                    	          "Throttling %s until id is greater than %s [queueSize=%d]",
-                                  partition, ts, next_safe_id, this.lockQueues[partition].size()));
-                    status = Status.ABORT_REJECT;
-                }
-            }
         } finally {
             this.lockQueueBarriers[partition].unlock();
         } // SYNCH
+        
+        // The next txnId that we're going to try to execute is already greater
+        // than this new txnId that we were given! Rejection!
+        if (next_safe_id != null && next_safe_id.compareTo(txn_id) > 0) {
+             if (debug.val)
+                LOG.warn(String.format("The next safe lockQueue txn for partition #%d is %s but this " +
+                         "is greater than our new txn %s. Rejecting...",
+                         partition, next_safe_id, ts));
+             status = Status.ABORT_RESTART;
+        }
+        // Our queue is overloaded. We have to reject the txnId!
+        else {
+            boolean ret = false;
+            if (ts.isPredictSinglePartition() || callback.isAborted() == false) {
+                // 2013-04-04
+                // I think that we don't need to hold the lockQueueBarrier for this part here,
+                // because the PartitionLockQueue will already have an internal lock...
+                ret = this.lockQueues[partition].offer(ts, ts.isSysProc());
+            }
+            if (ret == false) {
+                if (debug.val)
+                    LOG.debug(String.format("The initQueue for partition #%d is overloaded. " +
+                              "Throttling %s until id is greater than %s [queueSize=%d]",
+                              partition, ts, next_safe_id, this.lockQueues[partition].size()));
+                status = Status.ABORT_REJECT;
+            }
+        }
+        
 
         // Reject the txn
         if (status != Status.OK) {
@@ -479,46 +483,48 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
         this.lockQueueBarriers[partition].lockInterruptibly();
         try {
             nextTxn = this.lockQueues[partition].poll();
-            if (nextTxn == null) {
-                if (hstore_conf.site.queue_profiling) profilers[partition].lock_time.stopIfStarted();
-                return (nextTxn);
-            }
-
-            PartitionCountingCallback<AbstractTransaction> callback = nextTxn.getInitCallback();
-            assert(callback.isInitialized()) :
-                String.format("Uninitialized %s callback for %s [hashCode=%d]",
-                              callback.getClass().getSimpleName(), nextTxn, callback.hashCode());
-            
-            // HACK
-            if (nextTxn.isAborted()) {
-                if (debug.val)
-                    LOG.warn(String.format("The next txn for partition %d is %s but it is marked as aborted.",
-                              partition, nextTxn));
-                callback.decrementCounter(partition);
-                nextTxn = null;
-            }
-            // If this callback has already been aborted, then there is nothing we need to
-            // do. Somebody else will make sure that this txn is removed from the queue
-            else if (callback.isAborted()) {
-                if (debug.val)
-                    LOG.warn(String.format("The next txn for partition %d is %s but its %s is " +
-                              "marked as aborted. [queueSize=%d]",
-                              partition, nextTxn, callback.getClass().getSimpleName(),
-                              this.lockQueues[partition].size()));
-                callback.decrementCounter(partition);
-                nextTxn = null;
-            }
-            // We have something we can use
-            else {
-                if (trace.val)
-                    LOG.trace(String.format("Good news! Partition %d is ready to execute %s! " +
-                              "Invoking %s.run()",
-                              partition, nextTxn, callback.getClass().getSimpleName()));
-                this.lockQueueLastTxns[partition] = nextTxn.getTransactionId();
-            }
         } finally {
             this.lockQueueBarriers[partition].unlock();
         } // SYNCH
+        
+        if (nextTxn == null) {
+            if (hstore_conf.site.queue_profiling) profilers[partition].lock_time.stopIfStarted();
+            return (nextTxn);
+        }
+
+        PartitionCountingCallback<AbstractTransaction> callback = nextTxn.getInitCallback();
+        assert(callback.isInitialized()) :
+            String.format("Uninitialized %s callback for %s [hashCode=%d]",
+                          callback.getClass().getSimpleName(), nextTxn, callback.hashCode());
+        
+        // HACK
+        if (nextTxn.isAborted()) {
+            if (debug.val)
+                LOG.warn(String.format("The next txn for partition %d is %s but it is marked as aborted.",
+                          partition, nextTxn));
+            callback.decrementCounter(partition);
+            nextTxn = null;
+        }
+        // If this callback has already been aborted, then there is nothing we need to
+        // do. Somebody else will make sure that this txn is removed from the queue
+        else if (callback.isAborted()) {
+            if (debug.val)
+                LOG.warn(String.format("The next txn for partition %d is %s but its %s is " +
+                          "marked as aborted. [queueSize=%d]",
+                          partition, nextTxn, callback.getClass().getSimpleName(),
+                          this.lockQueues[partition].size()));
+            callback.decrementCounter(partition);
+            nextTxn = null;
+        }
+        // We have something we can use
+        else {
+            if (trace.val)
+                LOG.trace(String.format("Good news! Partition %d is ready to execute %s! " +
+                          "Invoking %s.run()",
+                          partition, nextTxn, callback.getClass().getSimpleName()));
+            this.lockQueueLastTxns[partition] = nextTxn.getTransactionId();
+        }
+        
         
         if (nextTxn != null) {
             // Send the init request for the specified partition
