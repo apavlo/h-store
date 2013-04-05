@@ -27,10 +27,10 @@ public class NoNetworkClientFlooder implements Runnable {
     
     @Override
     public void run() {
-        
+    	PhoneCallGenerator pcg = new PhoneCallGenerator(1000+1, 4);
+    	
         while (true) {
             // TODO: Get a PhoneCallGenerator.PhoneCall object!
-        	PhoneCallGenerator pcg = new PhoneCallGenerator(1000+1, 4);
         	PhoneCallGenerator.PhoneCall call = pcg.receive();
             StoredProcedureInvocation spi = new StoredProcedureInvocation(
             		1000+1, 
