@@ -17,7 +17,7 @@ public class NoNetworkClientFlooder implements Runnable {
 	private final AtomicInteger successCounter = new AtomicInteger(0);
 	private final AtomicInteger rejectCounter = new AtomicInteger(0);
 	
-	private int clientId;
+	public int clientId;
 	
     final RpcCallback<ClientResponseImpl> callback = new RpcCallback<ClientResponseImpl>() {
         @Override
@@ -28,13 +28,15 @@ public class NoNetworkClientFlooder implements Runnable {
         	if (status == Status.ABORT_REJECT) {
         		rej = rejectCounter.incrementAndGet();
         		if (rej % 1000 == 0 ) {
-            		System.out.println("Rejected txns counter: " + rej);
+        			System.out.println(String.format("Client Flooder[%d]:Rejected txns counter:%d", 
+        					clientResponse.getClientHandle(), rej));
             	}
         	}
         	if (status == Status.OK) {
         		suc = successCounter.getAndIncrement();
         		if (suc % 1000 == 0 ) {
-            		System.out.println("Finished txns counter: " + suc );
+        			System.out.println(String.format("Client Flooder[%d]:Finished txns counter:%d",
+        					clientResponse.getClientHandle(), suc));
             	}
         	}
         	
@@ -74,7 +76,7 @@ public class NoNetworkClientFlooder implements Runnable {
             
             long ait = this.txnCounter.incrementAndGet();
             if ( ait % 1000 == 0) {
-        		System.out.println("txns total counter: " + txnCounter.longValue() );
+        		System.out.println(String.format("Client Flooder[%d]:Total txns created:%d", this.clientId, ait));
         	}
             // TODO: Sleep for a little...
 //            try {
