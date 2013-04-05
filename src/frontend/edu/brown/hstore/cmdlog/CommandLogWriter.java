@@ -212,8 +212,12 @@ public class CommandLogWriter extends ExceptionHandlingRunnable implements Shutd
         int num_partitions = hstore_site.getLocalPartitionIds().size();
         this.numWritingLocks = num_partitions;
         
+        // Number of log entries per partition
         // hack, set arbitrarily high to avoid contention for log buffer
-        this.group_commit_size = Math.max(10000, (hstore_conf.site.network_incoming_limit_txns * num_partitions)); 
+        int num_entries = Math.max(10000, hstore_conf.site.network_incoming_limit_txns);
+        
+        // The global number of txns we will commit in a batch
+        this.group_commit_size = num_entries * num_partitions; 
         
         if (debug.val) {
             LOG.debug("group_commit_size: " + this.group_commit_size);
@@ -229,8 +233,8 @@ public class CommandLogWriter extends ExceptionHandlingRunnable implements Shutd
             this.entries = new CircularLogEntryBuffer[num_partitions];
             this.entriesFlushing = new CircularLogEntryBuffer[num_partitions];
             for (int partition = 0; partition < num_partitions; partition++) {
-                this.entries[partition] = new CircularLogEntryBuffer(this.group_commit_size);
-                this.entriesFlushing[partition] = new CircularLogEntryBuffer(this.group_commit_size);
+                this.entries[partition] = new CircularLogEntryBuffer(num_entries);
+                this.entriesFlushing[partition] = new CircularLogEntryBuffer(num_entries);
             } // FOR
             this.singletonLogEntry = null;
         } else {
