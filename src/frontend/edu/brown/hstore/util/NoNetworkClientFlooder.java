@@ -50,12 +50,12 @@ public class NoNetworkClientFlooder implements Runnable {
             this.hstore_site.invocationProcess(buffer, this.callback);
             
             // TODO: Sleep for a little...
-            try {
-				Thread.sleep(1);
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
+//            try {
+//				Thread.sleep(1);
+//			} catch (InterruptedException e) {
+//				// TODO Auto-generated catch block
+//				e.printStackTrace();
+//			}
         } // WHILE
     }
     
