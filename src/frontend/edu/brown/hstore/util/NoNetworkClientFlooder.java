@@ -17,6 +17,8 @@ public class NoNetworkClientFlooder implements Runnable {
 	private final AtomicInteger successCounter = new AtomicInteger(0);
 	private final AtomicInteger rejectCounter = new AtomicInteger(0);
 	
+	private int clientId;
+	
     final RpcCallback<ClientResponseImpl> callback = new RpcCallback<ClientResponseImpl>() {
         @Override
         public void run(ClientResponseImpl clientResponse) {
@@ -41,19 +43,20 @@ public class NoNetworkClientFlooder implements Runnable {
     
     final HStoreSite hstore_site;
     
-    public NoNetworkClientFlooder(HStoreSite hstore_site) {
+    public NoNetworkClientFlooder(HStoreSite hstore_site, int clientId) {
         this.hstore_site = hstore_site;
+        this.clientId = clientId;
     }
     
     @Override
     public void run() {
-    	PhoneCallGenerator pcg = new PhoneCallGenerator(1000+1, 4);
+    	PhoneCallGenerator pcg = new PhoneCallGenerator(this.clientId, 4);
     	
         while (true) {
             // TODO: Get a PhoneCallGenerator.PhoneCall object!
         	PhoneCallGenerator.PhoneCall call = pcg.receive();
             StoredProcedureInvocation spi = new StoredProcedureInvocation(
-            		1000+1, 
+            		this.clientId, 
             		"Vote",
                     call.voteId, 
                     call.phoneNumber,

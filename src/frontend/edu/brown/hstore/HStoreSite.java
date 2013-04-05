@@ -257,8 +257,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     private final VoltNetwork voltNetwork;
     private ClientInterface clientInterface;
     
-    private final NoNetworkClientFlooder clientFlooder;
-    
     // ----------------------------------------------------------------------------
     // TRANSACTION COORDINATOR/PROCESSING THREADS
     // ----------------------------------------------------------------------------
@@ -572,9 +570,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         this.voltNetwork = new VoltNetwork(this);
         this.clientInterface = new ClientInterface(this, this.catalog_site.getProc_port());
-        
-        //
-        this.clientFlooder = new NoNetworkClientFlooder(this);
         
         // -------------------------------
         // TRANSACTION ESTIMATION
@@ -1262,8 +1257,14 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             this.startWorkload = true;
             
             // Start no network test thread
-            Thread t = new Thread(this.clientFlooder);
-            t.setName("No_network_Client_flooder");
+            Thread t = new Thread(new NoNetworkClientFlooder(this, 99));
+            t.setName("No_network_Client_flooder_1");
+            t.setDaemon(true);
+            t.setUncaughtExceptionHandler(this.exceptionHandler);
+            t.start();
+            
+            t = new Thread(new NoNetworkClientFlooder(this, 88));
+            t.setName("No_network_Client_flooder_2");
             t.setDaemon(true);
             t.setUncaughtExceptionHandler(this.exceptionHandler);
             t.start();
