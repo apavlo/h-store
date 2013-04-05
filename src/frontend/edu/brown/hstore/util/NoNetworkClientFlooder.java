@@ -2,6 +2,7 @@ package edu.brown.hstore.util;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.voltdb.ClientResponseImpl;
 import org.voltdb.StoredProcedureInvocation;
@@ -9,13 +10,27 @@ import org.voltdb.messaging.FastSerializer;
 
 import com.google.protobuf.RpcCallback;
 import edu.brown.hstore.HStoreSite;
+import edu.brown.hstore.Hstoreservice.Status;
 
 public class NoNetworkClientFlooder implements Runnable {
-    
+	private final AtomicInteger txnCounter = new AtomicInteger(0);
+	private final AtomicInteger rejectCounter = new AtomicInteger(0);
+	
     final RpcCallback<ClientResponseImpl> callback = new RpcCallback<ClientResponseImpl>() {
         @Override
-        public void run(ClientResponseImpl parameter) {
+        public void run(ClientResponseImpl clientResponse) {
             // NOTHING!
+        	final Status status = clientResponse.getStatus();
+        	if (status != Status.ABORT_REJECT) {
+        		rejectCounter.getAndIncrement();
+        	}
+        	if (rejectCounter.longValue() % 1000 == 0) {
+        		System.out.println("Rejected txns counter: " + rejectCounter.longValue() );
+        	}
+        	if (txnCounter.longValue() % 1000 == 0) {
+        		System.out.println("txns total counter: " + txnCounter.longValue() );
+        	}
+        	
         }
     };
     
@@ -49,13 +64,14 @@ public class NoNetworkClientFlooder implements Runnable {
             
             this.hstore_site.invocationProcess(buffer, this.callback);
             
+            this.txnCounter.getAndIncrement();
             // TODO: Sleep for a little...
-//            try {
-//				Thread.sleep(1);
-//			} catch (InterruptedException e) {
-//				// TODO Auto-generated catch block
-//				e.printStackTrace();
-//			}
+            try {
+				Thread.sleep(0, 1);
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
         } // WHILE
     }
     
