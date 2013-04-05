@@ -24,10 +24,10 @@ public class NoNetworkClientFlooder implements Runnable {
         	if (status == Status.ABORT_REJECT) {
         		rejectCounter.getAndIncrement();
         	}
-        	if (rejectCounter.longValue() % 10000 == 0) {
+        	if (rejectCounter.longValue() + 1 % 10000 == 0) {
         		System.out.println("Rejected txns counter: " + rejectCounter.longValue() );
         	}
-        	if (txnCounter.longValue() % 10000 == 0) {
+        	if (txnCounter.longValue() + 1 % 10000 == 0) {
         		System.out.println("txns total counter: " + txnCounter.longValue() );
         	}
         	
@@ -66,12 +66,12 @@ public class NoNetworkClientFlooder implements Runnable {
             
             this.txnCounter.getAndIncrement();
             // TODO: Sleep for a little...
-            try {
-				Thread.sleep(0, 1);
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
+//            try {
+//				Thread.sleep(0, 1);
+//			} catch (InterruptedException e) {
+//				// TODO Auto-generated catch block
+//				e.printStackTrace();
+//			}
         } // WHILE
     }
     
