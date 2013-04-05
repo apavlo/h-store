@@ -21,13 +21,13 @@ public class NoNetworkClientFlooder implements Runnable {
         public void run(ClientResponseImpl clientResponse) {
             // NOTHING!
         	final Status status = clientResponse.getStatus();
-        	if (status != Status.ABORT_REJECT) {
+        	if (status == Status.ABORT_REJECT) {
         		rejectCounter.getAndIncrement();
         	}
-        	if (rejectCounter.longValue() % 1000 == 0) {
+        	if (rejectCounter.longValue() % 10000 == 0) {
         		System.out.println("Rejected txns counter: " + rejectCounter.longValue() );
         	}
-        	if (txnCounter.longValue() % 1000 == 0) {
+        	if (txnCounter.longValue() % 10000 == 0) {
         		System.out.println("txns total counter: " + txnCounter.longValue() );
         	}
         	
