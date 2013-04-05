@@ -13,29 +13,27 @@ import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice.Status;
 
 public class NoNetworkClientFlooder implements Runnable {
-	private final AtomicInteger txnCounter = new AtomicInteger(1);
-	private final AtomicInteger successCounter = new AtomicInteger(1);
-	private final AtomicInteger rejectCounter = new AtomicInteger(1);
+	private final AtomicInteger txnCounter = new AtomicInteger(0);
+	private final AtomicInteger successCounter = new AtomicInteger(0);
+	private final AtomicInteger rejectCounter = new AtomicInteger(0);
 	
     final RpcCallback<ClientResponseImpl> callback = new RpcCallback<ClientResponseImpl>() {
         @Override
         public void run(ClientResponseImpl clientResponse) {
             // NOTHING!
         	final Status status = clientResponse.getStatus();
+        	long rej = 1, suc = 1;
         	if (status == Status.ABORT_REJECT) {
-        		rejectCounter.getAndIncrement();
+        		rej = rejectCounter.incrementAndGet();
+        		if (rej % 1000 == 0 ) {
+            		System.out.println("Rejected txns counter: " + rej);
+            	}
         	}
         	if (status == Status.OK) {
-        		successCounter.getAndIncrement();
-        	}
-        	if (rejectCounter.longValue() % 1000 == 0 ) {
-        		System.out.println("Rejected txns counter: " + rejectCounter.longValue() );
-        	}
-        	if (successCounter.longValue() % 1000 == 0 ) {
-        		System.out.println("Finished txns counter: " + successCounter.longValue() );
-        	}
-        	if (txnCounter.longValue() % 1000 == 0) {
-        		System.out.println("txns total counter: " + txnCounter.longValue() );
+        		suc = successCounter.getAndIncrement();
+        		if (suc % 1000 == 0 ) {
+            		System.out.println("Finished txns counter: " + suc );
+            	}
         	}
         	
         }
@@ -71,7 +69,10 @@ public class NoNetworkClientFlooder implements Runnable {
             
             this.hstore_site.invocationProcess(buffer, this.callback);
             
-            this.txnCounter.getAndIncrement();
+            long ait = this.txnCounter.incrementAndGet();
+            if ( ait % 1000 == 0) {
+        		System.out.println("txns total counter: " + txnCounter.longValue() );
+        	}
             // TODO: Sleep for a little...
 //            try {
 //				Thread.sleep(0, 1);
