@@ -13,8 +13,9 @@ import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice.Status;
 
 public class NoNetworkClientFlooder implements Runnable {
-	private final AtomicInteger txnCounter = new AtomicInteger(0);
-	private final AtomicInteger rejectCounter = new AtomicInteger(0);
+	private final AtomicInteger txnCounter = new AtomicInteger(1);
+	private final AtomicInteger successCounter = new AtomicInteger(1);
+	private final AtomicInteger rejectCounter = new AtomicInteger(1);
 	
     final RpcCallback<ClientResponseImpl> callback = new RpcCallback<ClientResponseImpl>() {
         @Override
@@ -24,10 +25,16 @@ public class NoNetworkClientFlooder implements Runnable {
         	if (status == Status.ABORT_REJECT) {
         		rejectCounter.getAndIncrement();
         	}
-        	if (rejectCounter.longValue() + 1 % 10000 == 0) {
+        	if (status == Status.OK) {
+        		successCounter.getAndIncrement();
+        	}
+        	if (rejectCounter.longValue() % 1000 == 0 ) {
         		System.out.println("Rejected txns counter: " + rejectCounter.longValue() );
         	}
-        	if (txnCounter.longValue() + 1 % 10000 == 0) {
+        	if (successCounter.longValue() % 1000 == 0 ) {
+        		System.out.println("Finished txns counter: " + successCounter.longValue() );
+        	}
+        	if (txnCounter.longValue() % 1000 == 0) {
         		System.out.println("txns total counter: " + txnCounter.longValue() );
         	}
         	
