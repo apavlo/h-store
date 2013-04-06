@@ -15,16 +15,15 @@ function onexit() {
 # ---------------------------------------------------------------------
 
 SITE_HOSTS=( \
-    "istc1"
-    "istc2"
     "istc3"
+    "istc4"
     "istc5"
+    "istc6"
 )
 CLIENT_HOSTS=( \
-    "modis" \
-    "modis2" \
-    "vise5" \
-#     "istc1" \
+    "istc3" \
+#     "istc4" \
+#     "istc5" \
 #     "vise5" \
 #     "vise5" \
 )
@@ -32,15 +31,44 @@ CLIENT_HOSTS=( \
 LOCALHOST=`hostname`
 BASE_DIR=`pwd`
 
-BASE_CLIENT_THREADS=40
-BASE_CLIENT_CONCURRENT=20
+
+PROJECT="tpcc"
+PARTITIONS_PER_SITE=8
+SCALE_FACTOR=1.0
 BASE_SITE_MEMORY=1024
 BASE_SITE_MEMORY_PER_PARTITION=2048
-BASE_PROJECT="tpcc"
-PARTITIONS_PER_SITE=8
+CLIENT_TXNRATE=100000
+CLIENT_BLOCKING=true
+CLIENT_WEIGHTS=""
 
-SPECEXEC_ENABLE=true
-MARKOV_ENABLE=true
+if [ $PROJECT = "tm1" ]; then
+    BASE_SITE_MEMORY=1024
+    BASE_SITE_MEMORY_PER_PARTITION=1024
+    BASE_CLIENT_THREADS=50
+    BASE_CLIENT_CONCURRENT=30
+    CLIENT_BLOCKING=false
+    CLIENT_TXNRATE=3100
+    CLIENT_WEIGHTS="GetAccessData:45,GetNewDestination:10,GetSubscriberData:43,UpdateSubscriberData:2,*:0"
+    
+elif [ $PROJECT = "voter" ]; then
+    BASE_CLIENT_THREADS=4
+    BASE_CLIENT_CONCURRENT=5
+    CLIENT_BLOCKING=false
+    CLIENT_TXNRATE=100000
+elif [ $PROJECT = "tpcc" ]; then
+    BASE_CLIENT_THREADS=50
+    BASE_CLIENT_CONCURRENT=30
+    CLIENT_BLOCKING=true
+    CLIENT_TXNRATE=15000
+else
+    BASE_CLIENT_THREADS=50
+    BASE_CLIENT_CONCURRENT=32
+    CLIENT_BLOCKING=true
+    CLIENT_TXNRATE=10000
+fi
+
+SPECEXEC_ENABLE=false
+MARKOV_ENABLE=false
 MARKOV_FIXED=${MARKOV_ENABLE}
 MARKOV_DIR="files/markovs/vldb-august2012"
 MARKOV_RECOMPUTE=false
@@ -63,6 +91,7 @@ BASE_ARGS=( \
     "-Dsite.commandlog_enable=true" \
     "-Dsite.commandlog_timeout=5" \
     "-Dsite.network_txn_initialization=true" \
+    "-Dsite.pool_txn_enable=false" \
     
     # Markov Params
     "-Dsite.markov_enable=$MARKOV_ENABLE" \
@@ -78,22 +107,23 @@ BASE_ARGS=( \
 #     "-Dsite.exec_force_localexecution=false" \
     
     # Client Params
-    "-Dclient.scalefactor=1.0" \
     "-Dclient.memory=4096" \
-    "-Dclient.txnrate=100000" \
-    "-Dclient.warmup=60000" \
+    "-Dclient.txnrate=$CLIENT_TXNRATE" \
+    "-Dclient.warmup=20000" \
     "-Dclient.duration=60000 "\
     "-Dclient.shared_connection=true" \
-    "-Dclient.blocking=true" \
+    "-Dclient.blocking=$CLIENT_BLOCKING" \
 #     "-Dclient.blocking_concurrent=100" \
     "-Dclient.throttle_backoff=100" \
     
     # CLIENT DEBUG
     "-Dclient.profiling=false" \
     "-Dclient.txn_hints=${MARKOV_ENABLE}" \
-#     "-Dclient.output_specexec_profiling=${BASE_PROJECT}-specexec.csv" \
-#     "-Dclient.output_txn_counters=${BASE_PROJECT}-txncounters.csv" \
-#     "-Dclient.output_exec_profiling=${BASE_PROJECT}-exec.csv" \
+    "-Dclient.weights=$CLIENT_WEIGHTS" \
+#     "-Dclient.output_specexec_profiling=${PROJECT}-specexec.csv" \
+    "-Dclient.output_txn_counters=${PROJECT}-txncounters.csv" \
+    "-Dclient.output_txn_counters_combine=false" \
+#     "-Dclient.output_exec_profiling=${PROJECT}-exec.csv" \
 
 #     "-Dclient.output_markov_profiling=markovprofile.csv" \
 #     "-Dclient.output_site_profiling=siteprofile.csv" \
@@ -103,47 +133,53 @@ BASE_ARGS=( \
 )
 
 FILES_TO_COPY=( \
-    "${BASE_PROJECT}.jar" \
+    "${PROJECT}.jar" \
     "log4j.properties" \
+    "build.xml" \
     "properties/default.properties" \
-    "properties/benchmarks/${BASE_PROJECT}.properties" \
+    "properties/benchmarks/${PROJECT}.properties" \
 )
 
-for SITE_HOST in ${SITE_HOSTS[@]}; do
-    ssh ${SITE_HOST} "cd ${BASE_DIR} && git pull && ant compile" &
-done
+# for SITE_HOST in ${SITE_HOSTS[@]}; do
+#     ssh ${SITE_HOST} "cd ${BASE_DIR} && git pull && ant compile" &
+# done
+# 
+# UPDATED_HOSTS=$SITE_HOSTS
+# for CLIENT_HOST in ${CLIENT_HOSTS[@]}; do
+#     found=0
+#     for H in ${UPDATED_HOSTS[@]}; do
+#         if [ "$H" = "$CLIENT_HOST" ]; then
+#             found=1
+#             break
+#         fi
+#     done
+#     if [ $found = 0 -a $CLIENT_HOST != "localhost" ]; then
+#         ssh ${CLIENT_HOST} "cd ${BASE_DIR} && git pull && ant compile" &
+#         UPDATED_HOSTS=("${UPDATED_HOSTS[@]}" $CLIENT_HOST)
+#     fi
+# done
+# wait
 
-UPDATED_HOSTS=$SITE_HOSTS
-for CLIENT_HOST in ${CLIENT_HOSTS[@]}; do
-    found=0
-    for H in ${UPDATED_HOSTS[@]}; do
-        if [ "$H" = "$CLIENT_HOST" ]; then
-            found=1
-            break
-        fi
-    done
-    if [ $found = 0 ]; then
-        ssh ${CLIENT_HOST} "cd ${BASE_DIR} && git pull && ant compile" &
-        UPDATED_HOSTS=("${UPDATED_HOSTS[@]}" $CLIENT_HOST)
-    fi
-done
-wait
-
-for i in 4 8 16 32 ; do
-    if [ "$i" = 4 ]; then
-        HSTORE_HOSTS="istc1:0:0-3"
+for i in 16 ; do
+    if [ "$i" = 1 ]; then
+        HSTORE_HOSTS="istc3:0:0"
+    elif [ "$i" -le $PARTITIONS_PER_SITE ]; then
+        HSTORE_HOSTS="istc3:0:0-$(expr $i - 1)"
     else
         HSTORE_HOSTS=""
-        if [ "$i" -ge 8 ]; then
-            HSTORE_HOSTS="istc1:0:0-7"
+        if [ "$i" -ge $PARTITIONS_PER_SITE ]; then
+            HSTORE_HOSTS="istc3:0:0-7"
         fi
-        if [ "$i" -ge 16 ]; then
-            HSTORE_HOSTS="${HSTORE_HOSTS};istc2:1:8-15"
+        if [ "$i" -ge $(expr $PARTITIONS_PER_SITE \* 2) ]; then
+            HSTORE_HOSTS="${HSTORE_HOSTS};istc4:1:8-15"
         fi
-        if [ "$i" -ge 32 ]; then
-            HSTORE_HOSTS="${HSTORE_HOSTS};istc3:2:16-23;istc4:3:24-31"
+        if [ "$i" -ge $(expr $PARTITIONS_PER_SITE \* 4) ]; then
+            HSTORE_HOSTS="${HSTORE_HOSTS};istc5:2:16-23;istc6:3:24-31"
         fi
     fi
+#     if [ $PROJECT = "tm1" ]; then
+#         SCALE_FACTOR=$i
+#     fi
     
 #     NUM_CLIENTS=`expr $i \* $BASE_CLIENT_THREADS`
     NUM_CLIENTS=$BASE_CLIENT_THREADS
@@ -152,22 +188,22 @@ for i in 4 8 16 32 ; do
     
     # BUILD PROJECT JAR
     ant hstore-prepare \
-        -Dproject=${BASE_PROJECT} \
+        -Dproject=${PROJECT} \
         -Dhosts=${HSTORE_HOSTS} \
-        -Dpartitionplan=files/designplans/${BASE_PROJECT}.lns.pplan \
-        -Dpartitionplan.ignore_missing=True 
-    test -f ${BASE_PROJECT}.jar || exit -1
+        -Dpartitionplan=files/designplans/${PROJECT}.lns.pplan \
+        -Dpartitionplan.ignore_missing=False 
+    test -f ${PROJECT}.jar || exit -1
     
     # BUILD MARKOVS FILE
-    MARKOV_FILE="$MARKOV_DIR/${BASE_PROJECT}-${i}p.markov.gz"
+    MARKOV_FILE="$MARKOV_DIR/${PROJECT}-${i}p.markov.gz"
     if [ $MARKOV_FIXED != "true" -a $MARKOV_ENABLE = "true" -a ! -f $MARKOV_FILE ]; then
-        ant markov-generate -Dproject=$BASE_PROJECT \
-            -Dworkload=files/workloads/$BASE_PROJECT.100p-1.trace.gz \
+        ant markov-generate -Dproject=$PROJECT \
+            -Dworkload=files/workloads/$PROJECT.100p-1.trace.gz \
             -Dglobal=false \
             -Dvolt.client.memory=10000 \
-            -Doutput=$BASE_PROJECT.markov
-        gzip --force --best $BASE_PROJECT.markov
-        mv $BASE_PROJECT.markov.gz $MARKOV_FILE
+            -Doutput=$PROJECT.markov
+        gzip --force --best $PROJECT.markov
+        mv $PROJECT.markov.gz $MARKOV_FILE
     fi
     
     for file in ${FILES_TO_COPY[@]}; do
@@ -187,7 +223,7 @@ for i in 4 8 16 32 ; do
     CLIENT_COUNT=0
     CLIENT_HOSTS_STR=""
     for CLIENT_HOST in ${CLIENT_HOSTS[@]}; do
-        if [ $CLIENT_HOST != $LOCALHOST ]; then
+        if [ $CLIENT_HOST != $LOCALHOST -a $CLIENT_HOST != "localhost" ]; then
             for file in ${FILES_TO_COPY[@]}; do
                 scp $file ${CLIENT_HOST}:${BASE_DIR}/$file || exit -1
             done
@@ -202,9 +238,10 @@ for i in 4 8 16 32 ; do
     
     # EXECUTE BENCHMARK
     ant hstore-benchmark ${BASE_ARGS[@]} \
-        -Dproject=${BASE_PROJECT} \
+        -Dproject=${PROJECT} \
         -Dkillonzero=true \
         -Dmarkov.recompute_end=${MARKOV_RECOMPUTE} \
+        -Dclient.scalefactor=${SCALE_FACTOR} \
         -Dclient.threads_per_host=${NUM_CLIENTS} \
         -Dclient.blocking_concurrent=${CONCURRENT} \
         -Dsite.memory=${SITE_MEMORY} \
