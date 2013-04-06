@@ -17,15 +17,15 @@ public class TestCustomSkew extends BaseTestCase {
      */
     public void testSkewValues() throws Exception {
 	
-		int hot_data_size = 20; 
-		int warm_data_size = 20;
+		int hot_data_size = 10; 
+		int warm_data_size = 0;
 		
-		int hot_data_skew = 85; 
-		int warm_data_skew = 15; 
+		int hot_data_skew = 90; 
+		int warm_data_skew = 0; 
 		
-		int delta = 5;
+		int delta = 10;
 		
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < 5; i++) {
 	
 			CustomSkewGenerator custom_skew = new CustomSkewGenerator(rand, max, hot_data_skew, hot_data_size, warm_data_skew, warm_data_size); 
             Histogram<Integer> h = new ObjectHistogram<Integer>(); 
@@ -39,7 +39,8 @@ public class TestCustomSkew extends BaseTestCase {
 			System.out.flush(); 
 			
             hot_data_skew -= delta; 
-			warm_data_skew -= delta; 
+            hot_data_size += delta; 
+//			warm_data_skew -= delta; 
 			
 			
         } // FOR

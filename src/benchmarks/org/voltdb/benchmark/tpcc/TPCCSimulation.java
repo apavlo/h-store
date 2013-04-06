@@ -141,8 +141,8 @@ public class TPCCSimulation {
                                                     Math.max(1.001d, this.skewFactor));
 
 			this.custom_skew = new RandomDistribution.HotWarmCold(new Random(), 
-																  parameters.starting_warehouse,
-																  parameters.last_warehouse+1,
+																  parameters.starting_warehouse+1,
+																  parameters.last_warehouse,
 																  TPCCConstants.HOT_DATA_WORKLOAD_SKEW, TPCCConstants.HOT_DATA_SIZE, 
 																  TPCCConstants.WARM_DATA_WORKLOAD_SKEW, TPCCConstants.WARM_DATA_SIZE);
         }

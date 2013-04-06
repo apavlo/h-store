@@ -1283,7 +1283,8 @@ SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeAntiC
         jobject obj,
         jlong engine_ptr,
         jint tableId,
-        jshortArray blockIdsArray) {
+        jshortArray blockIdsArray,
+        jintArray offsetsArray) {
     
     int retval = org_voltdb_jni_ExecutionEngine_ERRORCODE_ERROR;
     VOLT_DEBUG("nativeAntiCacheReadBlocks() start");
@@ -1294,17 +1295,28 @@ SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeAntiC
     try {
         jsize numBlockIds = env->GetArrayLength(blockIdsArray);
         jshort *_blockIds = env->GetShortArrayElements(blockIdsArray, NULL);
+        jint *_tupleOffsets = env->GetIntArrayElements(offsetsArray, NULL); 
         if (_blockIds == NULL) {
             VOLT_ERROR("No evicted blockIds were given to the EE");
             return (retval);
         }
+        if (_tupleOffsets == NULL) {
+            VOLT_ERROR("No evicted tuple offsets were given to the EE");
+            return (retval);
+        }
+        
         // XXX: Is this necessary?
-        uint16_t *blockIds = new uint16_t[numBlockIds];
+        int16_t *blockIds = new int16_t[numBlockIds];
         for (int ii = 0; ii < numBlockIds; ii++) {
             blockIds[ii] = _blockIds[ii];
         } // FOR
         
-        retval = engine->antiCacheReadBlocks(static_cast<int32_t>(tableId), static_cast<int>(numBlockIds), blockIds);
+        int32_t *tupleOffsets = new int32_t[numBlockIds];
+        for(int ii = 0; ii < numBlockIds; ii++) {
+            tupleOffsets[ii] = _tupleOffsets[ii]; 
+        }
+        
+        retval = engine->antiCacheReadBlocks(static_cast<int32_t>(tableId), static_cast<int>(numBlockIds), blockIds, tupleOffsets);
         
     } catch (FatalException e) {
         topend->crashVoltDB(e);

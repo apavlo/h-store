@@ -41,7 +41,8 @@ AntiCacheBlock::AntiCacheBlock(int16_t blockId, Dbt value) :
 
 AntiCacheBlock::~AntiCacheBlock() {
     // we asked BDB to allocate memory for data dynamically, so we must delete
-    delete [] (char*)m_value.get_data(); 
+    if(m_blockId > 0)
+        delete [] (char*)m_value.get_data(); 
 }
     
 AntiCacheDB::AntiCacheDB(ExecutorContext *ctx, std::string db_dir, long blockSize) :
@@ -50,22 +51,16 @@ AntiCacheDB::AntiCacheDB(ExecutorContext *ctx, std::string db_dir, long blockSiz
     m_blockSize(blockSize),
     m_nextBlockId(0) {
         
-//    u_int32_t env_flags =
-//        DB_CREATE       | // Create the environment if it does not exist
-//        DB_AUTO_COMMIT  | // Immediately commit every operation
-//        DB_INIT_MPOOL   | // Initialize the memory pool (in-memory cache)
-//        DB_AUTO_COMMIT  | // Commit all changes immediately
-//        DB_NOLOCKING    | // Disable locks and latches
-//        DB_DIRECT_DB;     // Use O_DIRECT
-        
         u_int32_t env_flags =
         DB_CREATE       | // Create the environment if it does not exist
-        DB_AUTO_COMMIT  | // Immediately commit every operation
+//        DB_AUTO_COMMIT  | // Immediately commit every operation
         DB_INIT_MPOOL   | // Initialize the memory pool (in-memory cache)
-        DB_AUTO_COMMIT  | // Commit all changes immediately
-        DB_TXN_NOSYNC   | // Don't flush to disk every time, we will do that explicitly
-        DB_DIRECT_DB    | // Use O_DIRECT
-        DB_NOLOCKING;     // Disable locks and latches
+//        DB_TXN_NOSYNC   | // Don't flush to disk every time, we will do that explicitly
+//        DB_INIT_LOCK    | // concurrent data store
+        DB_PRIVATE      |
+        DB_THREAD       | // allow multiple threads
+//        DB_INIT_TXN     |
+        DB_DIRECT_DB;     // Use O_DIRECT
         
     try {
         // allocate and initialize Berkeley DB database env
@@ -104,13 +99,13 @@ AntiCacheDB::~AntiCacheDB() {
 }
 
 void AntiCacheDB::writeBlock(const std::string tableName,
-                             uint16_t blockId,
+                             int16_t blockId,
                              const int tupleCount,
                              const char* data,
                              const long size) {
     Dbt key; 
     key.set_data(&blockId);
-    key.set_size(sizeof(uint16_t));
+    key.set_size(sizeof(int16_t));
     
     Dbt value;
     value.set_data(const_cast<char*>(data));
@@ -120,9 +115,6 @@ void AntiCacheDB::writeBlock(const std::string tableName,
                blockId, tupleCount, size);
     // TODO: Error checking
     m_db->put(NULL, &key, &value, 0);
-
-    // I don't think that this is necessary if we're using DB_AUTO_COMMIT
-    // m_db->sync(0); 
 }
     
 void AntiCacheDB::flushBlocks()
@@ -133,19 +125,22 @@ void AntiCacheDB::flushBlocks()
 AntiCacheBlock AntiCacheDB::readBlock(std::string tableName, int16_t blockId) {
     Dbt key;
     key.set_data(&blockId);
-    key.set_size(sizeof(uint16_t));
+    key.set_size(sizeof(int16_t));
 
     Dbt value;
     value.set_flags(DB_DBT_MALLOC);
     
-    VOLT_ERROR("Reading evicted block with id %d", blockId);
+    VOLT_DEBUG("Reading evicted block with id %d", blockId);
     
     int ret_value = m_db->get(NULL, &key, &value, 0);
     if (ret_value != 0) {
         VOLT_ERROR("Invalid anti-cache blockId '%d' for table '%s'", blockId, tableName.c_str());
         throw UnknownBlockAccessException(tableName, blockId);
     }
-    assert(value.get_data() != NULL);
+    else {
+//        m_db->del(NULL, &key, 0);  // if we have this the benchmark won't end
+        assert(value.get_data() != NULL);
+    }
     
     AntiCacheBlock block(blockId, value);
     return (block);
