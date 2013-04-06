@@ -96,10 +96,10 @@ public final class TPCCConstants {
     public static final int MONEY_DECIMALS = 2;
 
 	// skew constants
-	public static final int HOT_DATA_SIZE = 20; 
-	public static final int HOT_DATA_WORKLOAD_SKEW = 80; 
-	public static final int WARM_DATA_SIZE = 20; 
-	public static final int WARM_DATA_WORKLOAD_SKEW = 10;
+    public static final int HOT_DATA_WORKLOAD_SKEW = 50;
+	public static final int HOT_DATA_SIZE = 50;
+	public static final int WARM_DATA_SIZE = 0;
+	public static final int WARM_DATA_WORKLOAD_SKEW = 0;
 
     // Item constants
     public static final int NUM_ITEMS = 100000;

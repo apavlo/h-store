@@ -335,7 +335,7 @@ public class RandomDistribution {
 			min = _min; 
 			max = _max;  
 
-			hot_data_max = (int)(max * (hot_data_size / (double)100)); 
+			hot_data_max = (int)(max * (hot_data_size / (double)100)) + min;
 			warm_data_max = (int)(max * (warm_data_size / (double)100)) + hot_data_max; 
 		}
 		
@@ -347,7 +347,7 @@ public class RandomDistribution {
 
 			if(access_skew_rand < hot_data_access_skew)  // generate a number in the "hot" data range, 0 < x < hot_data_max
 			{
-				key = random.nextInt(hot_data_max); 
+				key = random.nextInt(hot_data_max) + min;
 			}
 			else if(access_skew_rand < hot_data_access_skew + warm_data_access_skew) // generate a key in the "warm" data range, hot_data_max < x < warm_data_max
 			{

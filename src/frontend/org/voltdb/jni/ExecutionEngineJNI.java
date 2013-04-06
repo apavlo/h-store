@@ -155,6 +155,7 @@ public class ExecutionEngineJNI extends ExecutionEngine {
             try {
                 ex = SerializableException.deserializeFromBuffer(exceptionBuffer);
             } catch (Throwable e) {
+                ex = new SerializableException(); 
                 e.printStackTrace();
             }
             throw ex;

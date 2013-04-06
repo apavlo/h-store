@@ -710,6 +710,9 @@ inline void TableTuple::deserializeWithHeaderFrom(voltdb::SerializeInput &tupleI
 
 inline void TableTuple::serializeWithHeaderTo(voltdb::SerializeOutput &output) {
     
+    assert(m_schema);
+    assert(m_data); 
+    
     size_t start = output.position(); 
     output.writeInt(0);  // reserve first 4 bytes for the total tuple size
     

@@ -101,9 +101,16 @@ public class EvictTuples extends VoltSystemProcedure {
         long totalBlocksEvicted = 0;
         long totalBytesEvicted = 0;
         for (int i = 0; i < tableNames.length; i++) {
+            System.err.printf("Evicting %d blocks of blockSize %d", (int)numBlocks[i], blockSizes[i]);
+            
             VoltTable vt = ee.antiCacheEvictBlock(tables[i], blockSizes[i], numBlocks[i]);
             boolean adv = vt.advanceRow();
-            assert(adv);
+            
+            if(!adv) {
+                String msg = String.format("antiCacheEvictBlock failed to return any rows.");
+                throw new VoltAbortException(msg);
+            }
+//            assert(adv);
             long tuplesEvicted = vt.getLong("TUPLES_EVICTED");
             long blocksEvicted = vt.getLong("BLOCKS_EVICTED");
             long bytesEvicted = vt.getLong("BYTES_EVICTED");

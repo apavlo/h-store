@@ -70,6 +70,9 @@ const void* EvictedTable::insertEvictedTuple(TableTuple &source) {
     
 void EvictedTable::deleteEvictedTuple(TableTuple source)
 {
+    if(source.address() == NULL)
+        return; 
+    
     deleteTupleStorage(source);
 }
     

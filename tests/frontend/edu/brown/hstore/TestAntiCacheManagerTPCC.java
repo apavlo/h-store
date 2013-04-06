@@ -24,6 +24,8 @@ import edu.brown.benchmark.AbstractProjectBuilder;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.conf.HStoreConf;
+import edu.brown.profilers.AntiCacheManagerProfiler;
+
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.StringUtil;
@@ -60,7 +62,7 @@ public class TestAntiCacheManagerTPCC extends BaseTestCase {
             this.markTableEvictable(TARGET_TABLE);
             this.addAllDefaults();
             this.addStmtProcedure("GetRecord",
-                                  "SELECT * FROM " + TARGET_TABLE + " LIMIT 1");
+                                  "SELECT * FROM " + TARGET_TABLE + " LIMIT ?");
         }
     };
     
@@ -147,112 +149,117 @@ public class TestAntiCacheManagerTPCC extends BaseTestCase {
     // TEST CASES
     // --------------------------------------------------------------------------------------------
     
+//    /**
+//     * testReadEvictedTuples
+//     */
+//    @Test
+//    public void testReadEvictedTuples() throws Exception {
+//        this.loadData();
+//        
+//        // We should have all of our tuples evicted
+//        VoltTable evictResult = this.evictData();
+//        long evicted = evictResult.getLong("TUPLES_EVICTED");
+//        assertTrue("No tuples were evicted!"+evictResult, evicted > 0);
+//        
+//        // Now execute a query that needs to access data from this block
+//        long expected = 1;
+//        Procedure proc = this.getProcedure("GetRecord"); // Special Single-Stmt Proc
+//        ClientResponse cresponse = this.client.callProcedure(proc.getName(), expected);
+//        assertEquals(Status.OK, cresponse.getStatus());
+//
+//        AntiCacheManagerProfiler profiler = hstore_site.getAntiCacheManager().getDebugContext().getProfiler(0);
+//        assertNotNull(profiler);
+//        assertEquals(1, profiler.evictedaccess_history.size());
+//
+//        VoltTable results[] = cresponse.getResults();
+//        assertEquals(1, results.length);
+//        boolean adv = results[0].advanceRow();
+//        assertTrue(adv);
+//        assertEquals(expected, results[0].getLong(0));
+//    }
+
     /**
-     * testReadEvictedTuples
+     * testEvictTuples
      */
     @Test
-    public void testReadEvictedTuples() throws Exception {
+    public void testEvictTuples() throws Exception {
         this.loadData();
-        
-        // We should have all of our tuples evicted
         VoltTable evictResult = this.evictData();
-        long evicted = evictResult.getLong("TUPLES_EVICTED");
-        assertTrue("No tuples were evicted!"+evictResult, evicted > 0);
-        
-        // Now execute a query that needs to access data from this block
-        long expected = 1;
-        Procedure proc = this.getProcedure("GetRecord"); // Special Single-Stmt Proc
-        ClientResponse cresponse = this.client.callProcedure(proc.getName(), expected);
-        assertEquals(Status.OK, cresponse.getStatus());
-        
-        VoltTable results[] = cresponse.getResults();
+		evictResult.advanceRow(); 
+
+        // Our stats should now come back with at least one block evicted
+        VoltTable results[] = this.ee.getStats(SysProcSelector.TABLE, this.locators, false, 0L);
         assertEquals(1, results.length);
-        boolean adv = results[0].advanceRow();
-        assertTrue(adv);
-        assertEquals(expected, results[0].getLong(0));
+        System.err.println("-------------------------------");
+        System.err.println(VoltTableUtil.format(results));
+
+		results[0].advanceRow(); 
+        for (String col : statsFields) {
+            assertEquals(col, evictResult.getLong(col), results[0].getLong(col));
+            if (col == "BLOCKS_EVICTED") {
+                assertEquals(col, 1, results[0].getLong(col));
+            } else {
+                assertNotSame(col, 0, results[0].getLong(col));
+            }
+        } // FOR
     }
     
-//    /**
-//     * testEvictTuples
-//     */
-//    @Test
-//    public void testEvictTuples() throws Exception {
-//        this.loadData();
-//        VoltTable evictResult = this.evictData();
-//		evictResult.advanceRow(); 
-//
-//        // Our stats should now come back with at least one block evicted
-//        VoltTable results[] = this.ee.getStats(SysProcSelector.TABLE, this.locators, false, 0L);
-//        assertEquals(1, results.length);
-//        System.err.println("-------------------------------");
-//        System.err.println(VoltTableUtil.format(results));
-//
-//		results[0].advanceRow(); 
-//        for (String col : statsFields) {
-//            assertEquals(col, evictResult.getLong(col), results[0].getLong(col));
-//            if (col == "BLOCKS_EVICTED") {
-//                assertEquals(col, 1, results[0].getLong(col));
-//            } else {
-//                assertNotSame(col, 0, results[0].getLong(col));
-//            }
-//        } // FOR
-//    }
-//    
-//    /**
-//     * testMultipleEvictions
-//     */
-//    @Test
-//    public void testEvictTuplesMultiple() throws Exception {
-//        // Just checks whether we can call evictBlock multiple times
-//        this.loadData();
-//
-//        VoltTable results[] = this.ee.getStats(SysProcSelector.TABLE, this.locators, false, 0L);
-//        assertEquals(1, results.length);
-//        System.err.println(VoltTableUtil.format(results));
-//
-//		results[0].advanceRow(); 
-//        for (String col : statsFields) {
-//            int idx = results[0].getColumnIndex(col);
-//            assertEquals(0, results[0].getLong(idx));    
-//        } // FOR
-//        System.err.println(StringUtil.repeat("=", 100));
-//        
-//        // Now force the EE to evict our boys out in multiple rounds
-//        VoltTable evictResult = null;
-//        for (int i = 0; i < 5; i++) {
-//            if (i > 0) {
-//                System.err.println(StringUtil.repeat("-", 100));
-//                ThreadUtil.sleep(1000);
-//            }
-//            System.err.println("Eviction #" + i);
-//            evictResult = this.ee.antiCacheEvictBlock(catalog_tbl, 512);
-//            System.err.println(VoltTableUtil.format(evictResult));
-//            assertNotNull(evictResult);
-//            assertEquals(1, evictResult.getRowCount());
-//            assertNotSame(results[0].getColumnCount(), evictResult.getColumnCount());
-//            evictResult.resetRowPosition();
-//            boolean adv = evictResult.advanceRow();
-//            assertTrue(adv);
-//        } // FOR
-//    }
-//
-//    /**
-//     * testReadNonExistentBlock
-//     */
-//    @Test
-//    public void testReadNonExistentBlock() throws Exception {
-//        short block_ids[] = new short[]{ 1111 };
-//        boolean failed = false;
-//        try {
-//            ee.antiCacheReadBlocks(catalog_tbl, block_ids);   
-//        } catch (UnknownBlockAccessException ex) {
-//            // This is what we want!
-//            assertEquals(catalog_tbl, ex.getTableId(catalog_db));
-//            assertEquals(block_ids[0], ex.getBlockId());
-//            failed = true;
-//            System.err.println(ex);
-//        }
-//        assertTrue(failed);
-//    }
-    
+    /**
+     * testMultipleEvictions
+     */
+    @Test
+    public void testEvictTuplesMultiple() throws Exception {
+        // Just checks whether we can call evictBlock multiple times
+        this.loadData();
+
+        VoltTable results[] = this.ee.getStats(SysProcSelector.TABLE, this.locators, false, 0L);
+        assertEquals(1, results.length);
+        System.err.println(VoltTableUtil.format(results));
+
+		results[0].advanceRow(); 
+        for (String col : statsFields) {
+            int idx = results[0].getColumnIndex(col);
+            assertEquals(0, results[0].getLong(idx));    
+        } // FOR
+        System.err.println(StringUtil.repeat("=", 100));
+        
+        // Now force the EE to evict our boys out in multiple rounds
+        VoltTable evictResult = null;
+        for (int i = 0; i < 5; i++) {
+            if (i > 0) {
+                System.err.println(StringUtil.repeat("-", 100));
+                ThreadUtil.sleep(1000);
+            }
+            System.err.println("Eviction #" + i);
+            evictResult = this.ee.antiCacheEvictBlock(catalog_tbl, 512, 1);
+            System.err.println(VoltTableUtil.format(evictResult));
+            assertNotNull(evictResult);
+            assertEquals(1, evictResult.getRowCount());
+            assertNotSame(results[0].getColumnCount(), evictResult.getColumnCount());
+            evictResult.resetRowPosition();
+            boolean adv = evictResult.advanceRow();
+            assertTrue(adv);
+        } // FOR
+    }
+
+    /**
+     * testReadNonExistentBlock
+     */
+    @Test
+    public void testReadNonExistentBlock() throws Exception {
+        short block_ids[] = new short[]{ 1111 };
+        int offsets[] = new int[]{0};
+        boolean failed = false;
+        try {
+            ee.antiCacheReadBlocks(catalog_tbl, block_ids, offsets);
+        } catch (UnknownBlockAccessException ex) {
+            // This is what we want!
+            assertEquals(catalog_tbl, ex.getTableId(catalog_db));
+            assertEquals(block_ids[0], ex.getBlockId());
+            failed = true;
+            System.err.println(ex);
+        }
+        assertTrue(failed);
+    }
+
 }

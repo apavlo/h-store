@@ -90,14 +90,16 @@ public class TestAntiCacheSuite extends RegressionSuite {
     }
     
     private Map<Integer, VoltTable> evictData(Client client) throws Exception {
+//        System.err.printf("Evicting data..."); 
         String procName = VoltSystemProcedure.procCallName(EvictTuples.class);
         CatalogContext catalogContext = this.getCatalogContext();
         String tableNames[] = { VoterConstants.TABLENAME_VOTES };
         LatchableProcedureCallback callback = new LatchableProcedureCallback(catalogContext.numberOfPartitions);
-        long evictBytes[] = { Integer.MAX_VALUE };
+//        long evictBytes[] = { Integer.MAX_VALUE };
+        long evictBytes[] = {10000};
         int numBlocks[] = { 1 };
         for (int partition : catalogContext.getAllPartitionIds()) {
-            System.err.printf("Evicting data at partition %d...\n", partition);
+//            System.err.printf("Evicting data at partition %d...\n", partition);
             Object params[] = { partition, tableNames, evictBytes, numBlocks };
             boolean result = client.callProcedure(callback, procName, params);
             assertTrue(result);
@@ -115,6 +117,7 @@ public class TestAntiCacheSuite extends RegressionSuite {
             m.put(cr.getBasePartition(), cr.getResults()[0]);
         } // FOR
         assertEquals(catalogContext.numberOfPartitions, m.size());
+//        System.err.printf("Finished evicting data.");
         return (m);
     }
     
@@ -123,122 +126,123 @@ public class TestAntiCacheSuite extends RegressionSuite {
     // --------------------------------------------------------------------------------------------
     
     
-    /**
-     * testEvictEmptyTable
-     */
-    public void testEvictEmptyTable() throws Exception {
-        Client client = this.getClient();
-        this.initializeDatabase(client);
-        
-        // Force an eviction on a table before putting anything in it
-        Map<Integer, VoltTable> evictResults = this.evictData(client);
-        System.err.println(StringUtil.formatMaps(evictResults));
-        System.err.println("-------------------------------");
-    }
+//    /**
+//     * testEvictEmptyTable
+//     */
+//    public void testEvictEmptyTable() throws Exception {
+//        Client client = this.getClient();
+//        this.initializeDatabase(client);
+//                
+//        // Force an eviction on a table before putting anything in it
+//        Map<Integer, VoltTable> evictResults = this.evictData(client);
+//        System.err.println(StringUtil.formatMaps(evictResults));
+//        System.err.println("-------------------------------");
+//    }
+//    
+//    /**
+//     * testProfiling
+//     */
+//    public void testProfiling() throws Exception {
+//        Client client = this.getClient();
+//        this.initializeDatabase(client);
+//        this.loadVotes(client, 100);
+//
+//        // Force an eviction
+//        Map<Integer, VoltTable> evictResults = this.evictData(client);
+//        for (int partition : evictResults.keySet()) {
+//            System.err.println("Partition " + partition);
+//            System.err.println(StringUtil.prefix("  ", VoltTableUtil.format(evictResults.get(partition))));
+//        }
+//        System.err.println("-------------------------------");
+//
+//        // Our stats should now come back with one eviction executed
+//        String procName = VoltSystemProcedure.procCallName(Statistics.class);
+//        Object params[] = { SysProcSelector.ANTICACHE.name(), 0 };
+//        ClientResponse cresponse = client.callProcedure(procName, params);
+//        assertEquals(cresponse.toString(), Status.OK, cresponse.getStatus());
+//        assertEquals(cresponse.toString(), 1, cresponse.getResults().length);
+//        VoltTable statsResult = cresponse.getResults()[0];
+//
+//        System.err.println(VoltTableUtil.format(statsResult));
+//
+//        // We need this just to get the name of the column
+//        AntiCacheManagerProfiler profiler = new AntiCacheManagerProfiler();
+//        String colName = profiler.eviction_time.getName().toUpperCase()+"_CNT";
+//        while (statsResult.advanceRow()) {
+//            System.err.println("colName: " + colName);
+//            int partition = (int)statsResult.getLong("PARTITION");
+//            VoltTable vt = evictResults.get(partition);
+//            boolean adv = vt.advanceRow();
+//            assert(adv);
+//            long expected = vt.getLong("BLOCKS_EVICTED");
+//            assertEquals("Partition "+partition, expected, statsResult.getLong(colName));
+//        } // WHILE
+//    }
+//
+//    /**
+//     * testEvictHistory
+//     */
+//    public void testEvictHistory() throws Exception {
+//        CatalogContext catalogContext = this.getCatalogContext();
+//        Client client = this.getClient();
+//        this.initializeDatabase(client);
+//        this.loadVotes(client, 100);
+//        int num_evicts = 5;
+//        for (int i = 0; i < num_evicts; i++) {
+//            this.evictData(client);
+//        } // FOR
+//        
+//        // Our stats should now come back with one eviction executed
+//        String procName = VoltSystemProcedure.procCallName(EvictHistory.class);
+//        ClientResponse cresponse = client.callProcedure(procName);
+//        assertEquals(cresponse.toString(), Status.OK, cresponse.getStatus());
+//        assertEquals(cresponse.toString(), 1, cresponse.getResults().length);
+//        VoltTable result = cresponse.getResults()[0];
+//        assertEquals(num_evicts * catalogContext.numberOfPartitions, result.getRowCount());
+//        System.err.println(VoltTableUtil.format(result));
+//        
+//        while (result.advanceRow()) {
+//            long start = result.getLong("START");
+//            long stop = result.getLong("STOP");
+//            assert(start <= stop) : start + " <= " + stop;
+//        } // WHILE
+//    }
+//    
+//    /**
+//     * testEvictedAccessHistory
+//     */
+//    public void testEvictedAccessHistory() throws Exception {
+//        Client client = this.getClient();
+//        this.initializeDatabase(client);
+//        this.loadVotes(client, 100);
+//        int num_evicts = 5;
+//        for (int i = 0; i < num_evicts; i++) {
+//            this.evictData(client);
+//        } // FOR
+//        
+//        // Now force the system to fetch the block back in
+//        long expected = 1;
+//        String procName = "GetVote";
+//        Object params[] = { expected };
+//        ClientResponse cresponse = client.callProcedure(procName, params);
+//        assertEquals(cresponse.toString(), Status.OK, cresponse.getStatus());
+//        assertEquals(cresponse.toString(), 1, cresponse.getResults().length);
+//        assertEquals(cresponse.toString(), expected, cresponse.getResults()[0].getLong(0));
+//        
+//        // Our stats should now come back with one evicted access
+//        procName = VoltSystemProcedure.procCallName(EvictedAccessHistory.class);
+//        cresponse = client.callProcedure(procName);
+//        assertEquals(cresponse.toString(), Status.OK, cresponse.getStatus());
+//        assertEquals(cresponse.toString(), 1, cresponse.getResults().length);
+//        VoltTable result = cresponse.getResults()[0];
+//        assertEquals(1, result.getRowCount());
+//        System.err.println(VoltTableUtil.format(result));
+//        
+//        while (result.advanceRow()) {
+//            assertEquals(procName, result.getString("PROCEDURE"));
+//        } // WHILE
+//    }
     
-    /**
-     * testProfiling
-     */
-    public void testProfiling() throws Exception {
-        Client client = this.getClient();
-        this.initializeDatabase(client);
-        this.loadVotes(client, 100);
-
-        // Force an eviction
-        Map<Integer, VoltTable> evictResults = this.evictData(client);
-        for (int partition : evictResults.keySet()) {
-            System.err.println("Partition " + partition);
-            System.err.println(StringUtil.prefix("  ", VoltTableUtil.format(evictResults.get(partition))));
-        }
-        System.err.println("-------------------------------");
-
-        // Our stats should now come back with one eviction executed
-        String procName = VoltSystemProcedure.procCallName(Statistics.class);
-        Object params[] = { SysProcSelector.ANTICACHE.name(), 0 };
-        ClientResponse cresponse = client.callProcedure(procName, params);
-        assertEquals(cresponse.toString(), Status.OK, cresponse.getStatus());
-        assertEquals(cresponse.toString(), 1, cresponse.getResults().length);
-        VoltTable statsResult = cresponse.getResults()[0];
-
-        System.err.println(VoltTableUtil.format(statsResult));
-
-        // We need this just to get the name of the column
-        AntiCacheManagerProfiler profiler = new AntiCacheManagerProfiler();
-        String colName = profiler.eviction_time.getName().toUpperCase()+"_CNT";
-        while (statsResult.advanceRow()) {
-            int partition = (int)statsResult.getLong("PARTITION");
-            VoltTable vt = evictResults.get(partition);
-            boolean adv = vt.advanceRow();
-            assert(adv);
-            long expected = vt.getLong("BLOCKS_EVICTED");
-            assertEquals("Partition "+partition, expected, statsResult.getLong(colName));
-        } // WHILE
-    }
-
-    /**
-     * testEvictHistory
-     */
-    public void testEvictHistory() throws Exception {
-        CatalogContext catalogContext = this.getCatalogContext();
-        Client client = this.getClient();
-        this.initializeDatabase(client);
-        this.loadVotes(client, 100);
-        int num_evicts = 5;
-        for (int i = 0; i < num_evicts; i++) {
-            this.evictData(client);
-        } // FOR
-        
-        // Our stats should now come back with one eviction executed
-        String procName = VoltSystemProcedure.procCallName(EvictHistory.class);
-        ClientResponse cresponse = client.callProcedure(procName);
-        assertEquals(cresponse.toString(), Status.OK, cresponse.getStatus());
-        assertEquals(cresponse.toString(), 1, cresponse.getResults().length);
-        VoltTable result = cresponse.getResults()[0];
-        assertEquals(num_evicts * catalogContext.numberOfPartitions, result.getRowCount());
-        System.err.println(VoltTableUtil.format(result));
-        
-        while (result.advanceRow()) {
-            long start = result.getLong("START");
-            long stop = result.getLong("STOP");
-            assert(start <= stop) : start + " <= " + stop;
-        } // WHILE
-    }
-    
-    /**
-     * testEvictedAccessHistory
-     */
-    public void testEvictedAccessHistory() throws Exception {
-        Client client = this.getClient();
-        this.initializeDatabase(client);
-        this.loadVotes(client, 100);
-        int num_evicts = 5;
-        for (int i = 0; i < num_evicts; i++) {
-            this.evictData(client);
-        } // FOR
-        
-        // Now force the system to fetch the block back in
-        long expected = 1;
-        String procName = "GetVote";
-        Object params[] = { expected };
-        ClientResponse cresponse = client.callProcedure(procName, params);
-        assertEquals(cresponse.toString(), Status.OK, cresponse.getStatus());
-        assertEquals(cresponse.toString(), 1, cresponse.getResults().length);
-        assertEquals(cresponse.toString(), expected, cresponse.getResults()[0].getLong(0));
-        
-        // Our stats should now come back with one evicted access
-        procName = VoltSystemProcedure.procCallName(EvictedAccessHistory.class);
-        cresponse = client.callProcedure(procName);
-        assertEquals(cresponse.toString(), Status.OK, cresponse.getStatus());
-        assertEquals(cresponse.toString(), 1, cresponse.getResults().length);
-        VoltTable result = cresponse.getResults()[0];
-        assertEquals(1, result.getRowCount());
-        System.err.println(VoltTableUtil.format(result));
-        
-        while (result.advanceRow()) {
-            assertEquals(procName, result.getString("PROCEDURE"));
-        } // WHILE
-    }
-        
 
     public static Test suite() {
         VoltServerConfig config = null;

@@ -553,8 +553,7 @@ bool IndexScanExecutor::p_execute(const NValueArray &params)
 				// NOTE: This is necessary because the original table tuple and the evicted tuple do not have the same schema
 				m_evicted_tuple->move(m_tuple.address()); 
         
-			
-				// determine the block id using the evicted tuple
+				// determine the block id and tuple offset in the block using the EvictedTable tuple
 				block_id = peeker.peekSmallInt(m_evicted_tuple->getNValue(0));
                 tuple_id = peeker.peekInteger(m_evicted_tuple->getNValue(1)); 
 
@@ -702,7 +701,6 @@ bool IndexScanExecutor::p_execute(const NValueArray &params)
     }
     
 #ifdef ANTICACHE
-
 	if(m_evicted_tuple != NULL)
 		delete m_evicted_tuple; 
 
@@ -714,10 +712,12 @@ bool IndexScanExecutor::p_execute(const NValueArray &params)
 		int num_block_ids = static_cast<int>(evicted_block_ids.size()); 
 		
 		assert(num_block_ids > 0); 
-		VOLT_INFO("%d evicted blocks to read.", num_block_ids); 
+		VOLT_DEBUG("%d evicted blocks to read.", num_block_ids);
 		
         int16_t* block_ids = new int16_t[num_block_ids];
         int32_t* tuple_ids = new int32_t[num_block_ids];
+        
+        // copy the block ids into an array 
 		int i = 0; 
         for(list<int16_t>::iterator itr = evicted_block_ids.begin(); itr != evicted_block_ids.end(); ++itr, ++i)
         {
@@ -725,15 +725,16 @@ bool IndexScanExecutor::p_execute(const NValueArray &params)
 			VOLT_INFO("Unevicting block %d", *itr); 
         }
 
+        // copy the tuple offsets into an array
 		i = 0; 
 		for(list<int32_t>::iterator itr = evicted_offsets.begin(); itr != evicted_offsets.end(); ++itr, ++i)
         {
             tuple_ids[i] = *itr;
         }
 
-		VOLT_INFO("Throwing EvictedTupleAccessException for table %s (%d)", m_catalogTable->name().c_str(), m_catalogTable->relativeIndex());
+		VOLT_DEBUG("Throwing EvictedTupleAccessException for table %s (%d)", m_catalogTable->name().c_str(), m_catalogTable->relativeIndex());
         
-		//throw EvictedTupleAccessException(m_catalogTable->relativeIndex(), num_block_ids, block_ids, tuple_ids);
+		throw EvictedTupleAccessException(m_catalogTable->relativeIndex(), num_block_ids, block_ids, tuple_ids);
     }
 #endif
     

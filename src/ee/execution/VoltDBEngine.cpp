@@ -1395,7 +1395,7 @@ void VoltDBEngine::antiCacheInitialize(std::string dbDir, long blockSize) const 
     m_executorContext->enableAntiCache(dbDir, blockSize);
 }
 
-int VoltDBEngine::antiCacheReadBlocks(int32_t tableId, int numBlocks, uint16_t blockIds[]) {
+int VoltDBEngine::antiCacheReadBlocks(int32_t tableId, int numBlocks, int16_t blockIds[], int32_t tupleOffsets[]) {
     int retval = ENGINE_ERRORCODE_SUCCESS;
     
     // Grab the PersistentTable referenced by the given tableId
@@ -1410,11 +1410,11 @@ int VoltDBEngine::antiCacheReadBlocks(int32_t tableId, int numBlocks, uint16_t b
     bool finalResult = true;
     try {
         for (int i = 0; i < numBlocks; i++) {
-            finalResult = table->readEvictedBlock(blockIds[i]) && finalResult;
+            finalResult = table->readEvictedBlock(blockIds[i], tupleOffsets[i]) && finalResult;
         } // FOR
     
     } catch (SerializableEEException &e) {
-        VOLT_TRACE("antiCacheReadBlocks: Failed to read %d evicted blocks for table '%s'",
+        VOLT_INFO("antiCacheReadBlocks: Failed to read %d evicted blocks for table '%s'",
                    numBlocks, table->name().c_str());
         // FIXME: This won't work if we execute are executing this operation the
         //        same time that txns are running
