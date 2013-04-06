@@ -686,8 +686,10 @@ class Distributer {
                 backpressure = false;
             }
 //            else {
-//                LOG.warn("Had to use a non-direct connection to get to the cluster");
-//                cxn = null;
+//                LOG.warn(String.format("Had to use a non-direct connection to get to the cluster " +
+//                		 "[ignoreBackpressure=%s / hadBackPressure=%s]",
+//                		 ignoreBackpressure, cxn.hadBackPressure()));
+//                 cxn = null;
 //            }
         }
         
@@ -708,7 +710,7 @@ class Distributer {
                         String msg = String.format("Failed to get connection #%d / %d", idx, totalConnections);
                         throw new RuntimeException(msg, ex);
                     }
-                    if (trace.val)
+                     if (trace.val)
                         LOG.trace("m_nextConnection = " + idx + " / " + totalConnections + " [" + cxn + "]");
                     // queuedInvocations += cxn.m_callbacks.size();
                     if (cxn.hadBackPressure() == false || ignoreBackpressure) {
@@ -720,6 +722,7 @@ class Distributer {
             } // SYNCH
         } 
         if (backpressure) {
+            if (trace.val) LOG.trace("Blocking thread on backpressure from " + cxn);
             cxn = null;
             for (ClientStatusListener s : m_listeners) {
                 s.backpressure(true);
