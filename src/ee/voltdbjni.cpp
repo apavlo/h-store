@@ -829,6 +829,7 @@ Java_org_voltdb_jni_ExecutionEngine_nativeGetStats(JNIEnv *env, jobject obj,
                                                    jintArray locatorsArray,
                                                    jboolean jinterval,
                                                    jlong now) {
+    VOLT_DEBUG("nativeGetStats in C++ called");
     VoltDBEngine *engine = castToEngine(pointer);
     Topend *topend = static_cast<JNITopend*>(engine->getTopend())->updateJNIEnv(env);
     /*
