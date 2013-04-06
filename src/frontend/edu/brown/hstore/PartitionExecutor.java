@@ -1502,7 +1502,12 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         long bytesRead = 0;
 
         // update table stats
-        final VoltTable[] s1 = this.ee.getStats(SysProcSelector.TABLE, tableIds, false, time);
+        VoltTable[] s1 = null;
+        try {
+            s1 = this.ee.getStats(SysProcSelector.TABLE, tableIds, false, time);
+        } catch (RuntimeException ex) {
+            LOG.warn("Unexpected error when trying to retrieve EE stats for partition " + this.partitionId, ex);
+        }
         if (s1 != null) {
             VoltTable stats = s1[0];
             assert(stats != null);
