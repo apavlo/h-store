@@ -126,59 +126,59 @@ public class TestAntiCacheSuite extends RegressionSuite {
     // --------------------------------------------------------------------------------------------
     
     
-//    /**
-//     * testEvictEmptyTable
-//     */
-//    public void testEvictEmptyTable() throws Exception {
-//        Client client = this.getClient();
-//        this.initializeDatabase(client);
-//                
-//        // Force an eviction on a table before putting anything in it
-//        Map<Integer, VoltTable> evictResults = this.evictData(client);
-//        System.err.println(StringUtil.formatMaps(evictResults));
-//        System.err.println("-------------------------------");
-//    }
-//    
-//    /**
-//     * testProfiling
-//     */
-//    public void testProfiling() throws Exception {
-//        Client client = this.getClient();
-//        this.initializeDatabase(client);
-//        this.loadVotes(client, 100);
-//
-//        // Force an eviction
-//        Map<Integer, VoltTable> evictResults = this.evictData(client);
-//        for (int partition : evictResults.keySet()) {
-//            System.err.println("Partition " + partition);
-//            System.err.println(StringUtil.prefix("  ", VoltTableUtil.format(evictResults.get(partition))));
-//        }
-//        System.err.println("-------------------------------");
-//
-//        // Our stats should now come back with one eviction executed
-//        String procName = VoltSystemProcedure.procCallName(Statistics.class);
-//        Object params[] = { SysProcSelector.ANTICACHE.name(), 0 };
-//        ClientResponse cresponse = client.callProcedure(procName, params);
-//        assertEquals(cresponse.toString(), Status.OK, cresponse.getStatus());
-//        assertEquals(cresponse.toString(), 1, cresponse.getResults().length);
-//        VoltTable statsResult = cresponse.getResults()[0];
-//
-//        System.err.println(VoltTableUtil.format(statsResult));
-//
-//        // We need this just to get the name of the column
-//        AntiCacheManagerProfiler profiler = new AntiCacheManagerProfiler();
-//        String colName = profiler.eviction_time.getName().toUpperCase()+"_CNT";
-//        while (statsResult.advanceRow()) {
-//            System.err.println("colName: " + colName);
-//            int partition = (int)statsResult.getLong("PARTITION");
-//            VoltTable vt = evictResults.get(partition);
-//            boolean adv = vt.advanceRow();
-//            assert(adv);
-//            long expected = vt.getLong("BLOCKS_EVICTED");
-//            assertEquals("Partition "+partition, expected, statsResult.getLong(colName));
-//        } // WHILE
-//    }
-//
+    /**
+     * testEvictEmptyTable
+     */
+    public void testEvictEmptyTable() throws Exception {
+        Client client = this.getClient();
+        this.initializeDatabase(client);
+                
+        // Force an eviction on a table before putting anything in it
+        Map<Integer, VoltTable> evictResults = this.evictData(client);
+        System.err.println(StringUtil.formatMaps(evictResults));
+        System.err.println("-------------------------------");
+    }
+    
+    /**
+     * testProfiling
+     */
+    public void testProfiling() throws Exception {
+        Client client = this.getClient();
+        this.initializeDatabase(client);
+        this.loadVotes(client, 100);
+
+        // Force an eviction
+        Map<Integer, VoltTable> evictResults = this.evictData(client);
+        for (int partition : evictResults.keySet()) {
+            System.err.println("Partition " + partition);
+            System.err.println(StringUtil.prefix("  ", VoltTableUtil.format(evictResults.get(partition))));
+        }
+        System.err.println("-------------------------------");
+
+        // Our stats should now come back with one eviction executed
+        String procName = VoltSystemProcedure.procCallName(Statistics.class);
+        Object params[] = { SysProcSelector.ANTICACHE.name(), 0 };
+        ClientResponse cresponse = client.callProcedure(procName, params);
+        assertEquals(cresponse.toString(), Status.OK, cresponse.getStatus());
+        assertEquals(cresponse.toString(), 1, cresponse.getResults().length);
+        VoltTable statsResult = cresponse.getResults()[0];
+
+        System.err.println(VoltTableUtil.format(statsResult));
+
+        // We need this just to get the name of the column
+        AntiCacheManagerProfiler profiler = new AntiCacheManagerProfiler();
+        String colName = profiler.eviction_time.getName().toUpperCase()+"_CNT";
+        while (statsResult.advanceRow()) {
+            System.err.println("colName: " + colName);
+            int partition = (int)statsResult.getLong("PARTITION");
+            VoltTable vt = evictResults.get(partition);
+            boolean adv = vt.advanceRow();
+            assert(adv);
+            long expected = vt.getLong("BLOCKS_EVICTED");
+            assertEquals("Partition "+partition, expected, statsResult.getLong(colName));
+        } // WHILE
+    }
+
 //    /**
 //     * testEvictHistory
 //     */
