@@ -6,6 +6,7 @@ import java.util.Map;
 
 /**
  * Speculative Execution Stall Point Types
+ * This corresponds to where in the distributed txn that the executor is stalling.
  */
 public enum SpeculationType {
     

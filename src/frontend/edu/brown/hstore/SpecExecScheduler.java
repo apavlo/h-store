@@ -18,6 +18,7 @@ import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.profilers.SpecExecProfiler;
 import edu.brown.statistics.FastIntHistogram;
+import edu.brown.utils.StringUtil;
 
 /**
  * Special scheduler that can figure out what the next best single-partition
@@ -36,7 +37,7 @@ public class SpecExecScheduler {
     private final PartitionLockQueue queue;
     private AbstractConflictChecker checker;
     private SpecExecSchedulerPolicyType policyType;
-    private int window_size = 1;
+    private int windowSize = 1;
     
     /** Ignore all LocalTransaction handles **/
     private boolean ignore_all_local = false;
@@ -75,7 +76,7 @@ public class SpecExecScheduler {
         this.queue = queue;
         this.checker = checker;
         this.policyType = schedule_policy;
-        this.window_size = window_size;
+        this.windowSize = window_size;
         
         this.profiling = HStoreConf.singleton().site.specexec_profiling;
         this.profilerExecuteCounter.setKeepZeroEntries(true);
@@ -107,7 +108,7 @@ public class SpecExecScheduler {
         this.ignore_speculation_type_change = ignore_speculation_type_change;
     }
     protected void setWindowSize(int window) {
-        this.window_size = window;
+        this.windowSize = window;
     }
     protected void setPolicyType(SpecExecSchedulerPolicyType policy) {
         this.policyType = policy;
@@ -141,8 +142,8 @@ public class SpecExecScheduler {
         
         if (debug.val) {
             LOG.debug(String.format("%s - Checking queue for transaction to speculatively execute " +
-                      "[specType=%s, queueSize=%d, policy=%s]",
-                      dtxn, specType, this.queue.size(), this.policyType));
+                      "[specType=%s, windowSize=%d, queueSize=%d, policy=%s]",
+                      dtxn, specType, this.windowSize, this.queue.size(), this.policyType));
             if (trace.val)
                 LOG.trace(String.format("%s - Last Invocation [lastDtxn=%s, lastSpecType=%s, lastIterator=%s]",
                           dtxn, this.lastDtxn, this.lastSpecType, this.lastIterator));
@@ -185,7 +186,7 @@ public class SpecExecScheduler {
         LocalTransaction next = null;
         int txn_ctr = 0;
         int examined_ctr = 0;
-        long best_time = (this.policyType == SpecExecSchedulerPolicyType.LONGEST ? Long.MIN_VALUE : Long.MAX_VALUE);
+        long bestTime = (this.policyType == SpecExecSchedulerPolicyType.LONGEST ? Long.MIN_VALUE : Long.MAX_VALUE);
 
         // Check whether we can use our same iterator from the last call
         if (this.policyType != SpecExecSchedulerPolicyType.FIRST ||
@@ -198,6 +199,7 @@ public class SpecExecScheduler {
         boolean resetIterator = true;
         if (this.profiling) profiler.queue_size.put(this.queue.size());
         boolean lastHasNext;
+        if (trace.val) LOG.trace(StringUtil.header("BEGIN QUEUE CHECK :: " + dtxn));
         while ((lastHasNext = this.lastIterator.hasNext()) == true) {
             if (this.interrupted) {
                 if (debug.val)
@@ -229,14 +231,13 @@ public class SpecExecScheduler {
 
             // Let's check it out!
             if (this.profiling) profiler.compute_time.start();
-            if (debug.val)
-                LOG.debug(String.format("Examining whether %s conflicts with current dtxn %s",
-                          localTxn, dtxn));
             if (singlePartition == false) {
                 if (trace.val)
                     LOG.trace(String.format("Skipping %s because it is not single-partitioned", localTxn));
                 continue;
             }
+            if (debug.val)
+                LOG.debug(String.format("Examining whether %s conflicts with current dtxn", localTxn));
             examined_ctr++;
             try {
                 switch (specType) {
@@ -258,7 +259,8 @@ public class SpecExecScheduler {
                     }
                     // BUSTED!
                     default:
-                        throw new RuntimeException("Unexpected " + specType);
+                        String msg = String.format("Unexpected %s.%s", specType.getClass().getSimpleName(), specType);
+                        throw new RuntimeException(msg);
                 } // SWITCH
                 
                 // Scheduling Policy: FIRST MATCH
@@ -271,24 +273,25 @@ public class SpecExecScheduler {
                 // Estimate the time that remains.
                 EstimatorState es = localTxn.getEstimatorState();
                 if (es != null) {
-                    long remaining = es.getLastEstimate().getRemainingExecutionTime();
-                    if ((this.policyType == SpecExecSchedulerPolicyType.SHORTEST && remaining < best_time) ||
-                        (this.policyType == SpecExecSchedulerPolicyType.LONGEST && remaining > best_time)) {
-                        best_time = remaining;
+                    long remainingTime = es.getLastEstimate().getRemainingExecutionTime();
+                    if ((this.policyType == SpecExecSchedulerPolicyType.SHORTEST && remainingTime < bestTime) ||
+                        (this.policyType == SpecExecSchedulerPolicyType.LONGEST && remainingTime > bestTime)) {
+                        bestTime = remainingTime;
                         next = localTxn;
                         if (debug.val)
-                            LOG.debug(String.format("[%s schedule %d] New Match -> %s / remaining=%d",
-                                      this.policyType, this.window_size, next, remaining));
+                            LOG.debug(String.format("[%s %d/%d] New Match -> %s / remainingTime=%d",
+                                      this.policyType, examined_ctr, this.windowSize, next, remainingTime));
                      }
                 }
                     
                 // Stop if we've reached our window size
-                if (++examined_ctr == this.window_size) break;
+                if (examined_ctr == this.windowSize) break;
                 
             } finally {
                 if (this.profiling) profiler.compute_time.stop();
             }
         } // WHILE
+        if (trace.val) LOG.trace(StringUtil.header("END QUEUE CHECK"));
         if (this.profiling) profiler.num_comparisons.put(txn_ctr);
         
         // We found somebody to execute right now!

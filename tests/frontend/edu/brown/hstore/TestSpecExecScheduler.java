@@ -24,7 +24,6 @@ import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.profilers.SpecExecProfiler;
 import edu.brown.utils.CollectionUtil;
-import edu.brown.utils.PartitionSet;
 import edu.brown.utils.ProjectType;
 
 public class TestSpecExecScheduler extends BaseTestCase {
@@ -98,7 +97,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
             ts.testInit(this.idManager.getNextUniqueTransactionId(),
                         BASE_PARTITION,
                         null,
-                        new PartitionSet(BASE_PARTITION),
+                        catalogContext.getPartitionSetSingleton(BASE_PARTITION),
                         proc);
             if (tsWithoutEstimatorState == null)
                 tsWithoutEstimatorState = ts;
@@ -171,7 +170,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
      */
     public void testLongestPolicy() throws Exception {
         LocalTransaction tsWithoutEstimatorState = this.populateQueue(3);
-        LocalTransaction next = this.scheduler.next(this.dtxn, SpeculationType.NULL);
+        LocalTransaction next = this.scheduler.next(this.dtxn, SpeculationType.IDLE);
         // System.err.println(this.dtxn.debug());
         assertNotNull(next);
         assertEquals(tsWithoutEstimatorState, next);
@@ -196,11 +195,11 @@ public class TestSpecExecScheduler extends BaseTestCase {
         assertNotNull(proc);
         
         LocalTransaction ts = new LocalTransaction(this.hstore_site);
-        ts.testInit(this.idManager.getNextUniqueTransactionId(), BASE_PARTITION, null, new PartitionSet(BASE_PARTITION), proc);
+        ts.testInit(this.idManager.getNextUniqueTransactionId(), BASE_PARTITION, null, catalogContext.getPartitionSetSingleton(BASE_PARTITION), proc);
         assertTrue(ts.isPredictSinglePartition());
         this.addToQueue(ts);
         
-        LocalTransaction next = this.scheduler.next(this.dtxn, SpeculationType.NULL);
+        LocalTransaction next = this.scheduler.next(this.dtxn, SpeculationType.IDLE);
         //System.err.println(this.dtxn.debug());
         assertNotNull(next);
         assertEquals(ts, next);
@@ -232,10 +231,10 @@ public class TestSpecExecScheduler extends BaseTestCase {
         
         // First time we should be able to get through
         LocalTransaction ts = new LocalTransaction(this.hstore_site);
-        ts.testInit(this.idManager.getNextUniqueTransactionId(), BASE_PARTITION, null, new PartitionSet(BASE_PARTITION), proc);
+        ts.testInit(this.idManager.getNextUniqueTransactionId(), BASE_PARTITION, null, catalogContext.getPartitionSetSingleton(BASE_PARTITION), proc);
         assertTrue(ts.isPredictSinglePartition());
         this.addToQueue(ts);
-        LocalTransaction next = this.scheduler.next(this.dtxn, SpeculationType.NULL);
+        LocalTransaction next = this.scheduler.next(this.dtxn, SpeculationType.SP2_REMOTE_AFTER);
         assertNotNull(next);
         assertEquals(ts, next);
         assertFalse(this.work_queue.contains(next));
@@ -244,22 +243,22 @@ public class TestSpecExecScheduler extends BaseTestCase {
         // Now have the dtxn "write" to one of the tables in our ConflictSet
         dtxnDebug.clearReadWriteSets();
         dtxn.markTableAsWritten(BASE_PARTITION, CollectionUtil.first(conflictTables));
-        ts.testInit(this.idManager.getNextUniqueTransactionId(), BASE_PARTITION, null, new PartitionSet(BASE_PARTITION), proc);
+        ts.testInit(this.idManager.getNextUniqueTransactionId(), BASE_PARTITION, null, catalogContext.getPartitionSetSingleton(BASE_PARTITION), proc);
         assertTrue(ts.isPredictSinglePartition());
         this.addToQueue(ts);
         
-        next = this.scheduler.next(this.dtxn, SpeculationType.NULL);
+        next = this.scheduler.next(this.dtxn, SpeculationType.SP2_REMOTE_AFTER);
         assertNull(next);
         ts.finish();
         
         // Reads aren't allowed either
         dtxnDebug.clearReadWriteSets();
         dtxn.markTableAsRead(BASE_PARTITION, CollectionUtil.first(conflictTables));
-        ts.testInit(this.idManager.getNextUniqueTransactionId(), BASE_PARTITION, null, new PartitionSet(BASE_PARTITION), proc);
+        ts.testInit(this.idManager.getNextUniqueTransactionId(), BASE_PARTITION, null, catalogContext.getPartitionSetSingleton(BASE_PARTITION), proc);
         assertTrue(ts.isPredictSinglePartition());
         this.addToQueue(ts);
         
-        next = this.scheduler.next(this.dtxn, SpeculationType.NULL);
+        next = this.scheduler.next(this.dtxn, SpeculationType.SP2_REMOTE_AFTER);
         assertNull(next);
         ts.finish();
     }
@@ -290,7 +289,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
         assertFalse(conflictTables.isEmpty());
         
         LocalTransaction ts = new LocalTransaction(this.hstore_site);
-        ts.testInit(this.idManager.getNextUniqueTransactionId(), BASE_PARTITION, null, new PartitionSet(BASE_PARTITION), proc);
+        ts.testInit(this.idManager.getNextUniqueTransactionId(), BASE_PARTITION, null, catalogContext.getPartitionSetSingleton(BASE_PARTITION), proc);
         assertTrue(ts.isPredictSinglePartition());
         this.addToQueue(ts);
         
@@ -303,7 +302,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
         // Reads are allowed!
         dtxnDebug.clearReadWriteSets();
         dtxn.markTableAsRead(BASE_PARTITION, CollectionUtil.first(conflictTables));
-        ts.testInit(this.idManager.getNextUniqueTransactionId(), BASE_PARTITION, null, new PartitionSet(BASE_PARTITION), proc);
+        ts.testInit(this.idManager.getNextUniqueTransactionId(), BASE_PARTITION, null, catalogContext.getPartitionSetSingleton(BASE_PARTITION), proc);
         assertTrue(ts.isPredictSinglePartition());
         this.addToQueue(ts);
         next = this.scheduler.next(this.dtxn, SpeculationType.SP2_REMOTE_AFTER);
@@ -315,7 +314,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
         // But writes are not!
         dtxnDebug.clearReadWriteSets();
         dtxn.markTableAsWritten(BASE_PARTITION, CollectionUtil.first(conflictTables));
-        ts.testInit(this.idManager.getNextUniqueTransactionId(), BASE_PARTITION, null, new PartitionSet(BASE_PARTITION), proc);
+        ts.testInit(this.idManager.getNextUniqueTransactionId(), BASE_PARTITION, null, catalogContext.getPartitionSetSingleton(BASE_PARTITION), proc);
         assertTrue(ts.isPredictSinglePartition());
         this.addToQueue(ts);
         next = this.scheduler.next(this.dtxn, SpeculationType.SP2_REMOTE_AFTER);
