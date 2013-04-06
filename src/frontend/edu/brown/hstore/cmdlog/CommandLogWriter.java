@@ -180,6 +180,7 @@ public class CommandLogWriter extends ExceptionHandlingRunnable implements Shutd
      
     private int commitBatchCounter = 0;
     private boolean stop = false;
+    private Thread self;
 
     /**
      * If set to true, then the WriterThread is in the middle of writing out
@@ -268,9 +269,9 @@ public class CommandLogWriter extends ExceptionHandlingRunnable implements Shutd
      */
     @Override
     public void runImpl() {
-        Thread self = Thread.currentThread();
-        self.setName(HStoreThreadManager.getThreadName(hstore_site, HStoreConstants.THREAD_NAME_COMMANDLOGGER));
-        hstore_site.getThreadManager().registerProcessingThread();
+        this.self = Thread.currentThread();
+        this.self.setName(HStoreThreadManager.getThreadName(hstore_site, HStoreConstants.THREAD_NAME_COMMANDLOGGER));
+        this.hstore_site.getThreadManager().registerProcessingThread();
 
         this.usePostProcessor = hstore_site.hasTransactionPostProcessors();
         
@@ -329,7 +330,7 @@ public class CommandLogWriter extends ExceptionHandlingRunnable implements Shutd
             if (this.groupCommit(this.entriesFlushing) == 0) {
                 next = System.currentTimeMillis() + hstore_conf.site.commandlog_timeout;
             }
-            this.flushInProgress.set(false);
+            this.flushInProgress.lazySet(false);
         } // WHILE
     }
     
@@ -374,24 +375,25 @@ public class CommandLogWriter extends ExceptionHandlingRunnable implements Shutd
     
     @Override
     public void shutdown() {
-        while (this.flushInProgress.get()) {
-            Thread.yield();
-        } // WHILE
+        if (this.self != null) {
+            this.stop = true;
+            while (this.self.isAlive()) {
+                Thread.yield();
+            } // WHILE
         
-        if (debug.val) {
-            Map<String, Object> m = new LinkedHashMap<String, Object>();
-            m.put("Current Buffer", StringUtil.join("\n", this.entries));
-            m.put("Flushing Buffer", StringUtil.join("\n", this.entriesFlushing));
-            LOG.debug("Closing WAL file\n" + StringUtil.formatMaps(m).trim());
+            if (debug.val) {
+                Map<String, Object> m = new LinkedHashMap<String, Object>();
+                m.put("Current Buffer", StringUtil.join("\n", this.entries));
+                m.put("Flushing Buffer", StringUtil.join("\n", this.entriesFlushing));
+                LOG.debug("Closing WAL file\n" + StringUtil.formatMaps(m).trim());
+            }
         }
         try {
-//            this.flushThread.interrupt();
             this.fstream.close();
         } catch (IOException ex) {
             String message = "Failed to close WAL file";
             throw new ServerFaultException(message, ex);
         }
-        
     }
     
     @Override
@@ -484,6 +486,7 @@ public class CommandLogWriter extends ExceptionHandlingRunnable implements Shutd
             this.fstream.write(compressed);
             this.fstream.force(true);
         } catch (IOException ex) {
+            ex.printStackTrace();
             String message = "Failed to group commit for buffer";
             throw new ServerFaultException(message, ex);
         }
