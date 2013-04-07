@@ -458,14 +458,9 @@ public class BatchPlanner {
         this.stmt_is_readonly = new boolean[this.batchSize];
         this.stmt_is_replicatedonly = new boolean[this.batchSize];
 
-<<<<<<< HEAD
-        this.cache_fastLookups = (hstore_conf.site.planner_caching ? new int[this.batchSize][] : null);
-        this.cache_singlePartitionPlans = (hstore_conf.site.planner_caching ? new BatchPlan[this.num_partitions] : null);
-=======
         this.cache_isSinglePartition = (hstore_conf.site.planner_caching ? new boolean[this.batchSize] : null);
         this.cache_fastLookups = (hstore_conf.site.planner_caching ? new int[this.batchSize][] : null);
         this.cache_singlePartitionPlans = (hstore_conf.site.planner_caching ? new BatchPlan[this.catalogContext.numberOfPartitions] : null);
->>>>>>> 58e2630c9677880e3bdf122cf7c355e3816dc788
         int nonReplicatedStmtCnt = 0;
         for (int i = 0; i < this.batchSize; i++) {
             this.catalog_stmts[i] = batchStmts[i].getStatement();
