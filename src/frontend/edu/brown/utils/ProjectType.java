@@ -48,6 +48,7 @@ public enum ProjectType {
     WIKIPEDIA("Wikipedia", "edu.brown.benchmark.wikipedia"),
     YCSB("YCSB", "edu.brown.benchmark.ycsb"), 
     VOTER("Voter", "edu.brown.benchmark.voter"),
+    SMALLBANK("SmallBank", "edu.brown.benchmark.smallbank"),
     EXAMPLE("Example", "edu.brown.benchmark.example"),
     TEST("Test", null),
     ;
