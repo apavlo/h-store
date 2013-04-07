@@ -61,7 +61,7 @@ public class Balance extends VoltProcedure {
         }
         results[0].advanceRow();
         results[1].advanceRow();
-        double total = results[0].getDouble(0) + results[0].getDouble(1); 
+        double total = results[0].getDouble(0) + results[1].getDouble(0); 
         
         final VoltTable finalResult = new VoltTable(RESULT_COLS);
         finalResult.addRow(total);
