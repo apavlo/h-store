@@ -1127,7 +1127,9 @@ public class PartitionEstimator {
                                          final int base_partition) throws Exception {
         // Loop through this Statement's plan fragments and get the partitions
         for (PlanFragment catalog_frag : fragments) {
-            assert(catalog_frag != null) : "Unexpected null PlanFragment";
+            assert(catalog_frag != null) :
+                String.format("Unexpected null PlanFragment [numFragments=%d]\n%s",
+                              fragments.length, CatalogUtil.getDisplayNames(fragments));
             PartitionSet partitions = null;
 
             // If we have a FragPartion map, then use an entry from that

@@ -2572,6 +2572,20 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
         }
         return (ret);
     }
+    
+    /**
+     * Return the list of display names for a collection of CatalogType
+     * 
+     * @param items
+     * @return
+     */
+    public static Collection<String> getDisplayNames(CatalogType...items) {
+        List<String> ret = new ArrayList<String>();
+        for (CatalogType i : items) {
+            ret.add(i != null ? CatalogUtil.getDisplayName(i, false) : null);
+        }
+        return (ret);
+    }
 
     /**
      * @param item
