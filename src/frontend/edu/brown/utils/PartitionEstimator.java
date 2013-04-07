@@ -1108,8 +1108,8 @@ public class PartitionEstimator {
     }
 
     /**
-     * Populate a mapping from PlanFragments to sets of PartitionIds NOTE: This
-     * is the one to use at runtime in the BatchPlanner because it doesn't
+     * Populate a mapping from PlanFragments to PartitionSets.
+     * <B>NOTE:</B> This is the one to use at runtime in the BatchPlanner because it doesn't
      * allocate any new Collections!
      * 
      * @param frag_partitions
@@ -1127,9 +1127,6 @@ public class PartitionEstimator {
                                          final int base_partition) throws Exception {
         // Loop through this Statement's plan fragments and get the partitions
         for (PlanFragment catalog_frag : fragments) {
-            assert(catalog_frag != null) :
-                String.format("Unexpected null PlanFragment [numFragments=%d]\n%s",
-                              fragments.length, CatalogUtil.getDisplayNames(fragments));
             PartitionSet partitions = null;
 
             // If we have a FragPartion map, then use an entry from that
