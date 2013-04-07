@@ -32,7 +32,6 @@ package edu.brown.benchmark.smallbank;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.log4j.Logger;
 import org.voltdb.CatalogContext;
@@ -128,13 +127,13 @@ public class SmallBankLoader extends Loader {
                 
                 // CHECKINGS
                 if (rand.nextInt(100) > SmallBankConstants.PERCENTAGE_NO_CHECKING) {
-                    double balance = this.randBalance.nextDouble();
+                    double balance = this.randBalance.nextInt();
                     this.checkingTable.addRow(acctId, balance);
                 }
                 
                 // SAVINGS
                 if (rand.nextInt(100) > SmallBankConstants.PERCENTAGE_NO_SAVINGS) {
-                    double balance = this.randBalance.nextDouble();
+                    double balance = this.randBalance.nextInt();
                     this.savingsTable.addRow(acctId, balance);
                 }
                 
