@@ -38,10 +38,10 @@ public abstract class SmallBankConstants {
     public static final int BATCH_SIZE              = 1000;
     
     // Percentage of customers that do not have a SAVINGS account [0-100%]
-    public static final int PERCENTAGE_NO_SAVINGS   = 1;
+    public static final int PERCENTAGE_NO_SAVINGS   = 0;
     
     // Percentage of customers that do not have a CHECKING account [0-100%]
-    public static final int PERCENTAGE_NO_CHECKING  = 1;
+    public static final int PERCENTAGE_NO_CHECKING  = 0;
     
     // Default number of customers in bank
     public static final int NUM_ACCOUNTS            = 1000000;
