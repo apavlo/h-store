@@ -42,8 +42,15 @@ import java.util.concurrent.ThreadFactory;
 import org.apache.log4j.Logger;
 import org.voltdb.utils.Pair;
 
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
+
 public abstract class ThreadUtil {
     private static final Logger LOG = Logger.getLogger(ThreadUtil.class);
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug);
+    }
 
     private static final Object lock = new Object();
     private static ExecutorService pool;
@@ -128,7 +135,7 @@ public abstract class ThreadUtil {
         }
         assert (pid != null) : "Failed to get pid for " + p;
 
-        LOG.info("Starting new process with PID " + pid);
+        if (debug.val) LOG.debug("Starting new process with PID " + pid);
         return (Pair.of(pid, p));
     }
 
@@ -148,9 +155,7 @@ public abstract class ThreadUtil {
      * @param print_output
      */
     public static <T> void fork(String command[], final EventObservable<T> stop_observable, final String prefix, final boolean print_output) {
-        final boolean debug = LOG.isDebugEnabled();
-
-        if (debug)
+        if (debug.val)
             LOG.debug("Forking off process: " + Arrays.toString(command));
 
         // Copied from ShellTools
@@ -175,7 +180,7 @@ public abstract class ThreadUtil {
                 @Override
                 public void update(EventObservable<T> arg0, T arg1) {
                     assert (first) : "Trying to stop the process twice??";
-                    if (debug)
+                    if (debug.val)
                         LOG.debug("Stopping Process -> " + prog_name);
                     p.destroy();
                     first = false;
@@ -239,13 +244,11 @@ public abstract class ThreadUtil {
      * @param runnables
      */
     public static <R extends Runnable> void runGlobalPool(final Collection<R> runnables) {
-        final boolean d = LOG.isDebugEnabled();
-
         // Initialize the thread pool the first time that we run
         synchronized (ThreadUtil.lock) {
             if (ThreadUtil.pool == null) {
                 int max_threads = ThreadUtil.getMaxGlobalThreads();
-                if (d)
+                if (debug.val)
                     LOG.debug("Creating new fixed thread pool [num_threads=" + max_threads + "]");
                 ThreadUtil.pool = Executors.newFixedThreadPool(max_threads, factory);
             }
@@ -290,14 +293,12 @@ public abstract class ThreadUtil {
      * @throws Exception
      */
     private static final <R extends Runnable> void run(final Collection<R> runnables, final ExecutorService pool, final boolean stop_pool) {
-        final boolean d = LOG.isDebugEnabled();
         final long start = System.currentTimeMillis();
-
         final int num_threads = runnables.size();
         final CountDownLatch latch = new CountDownLatch(num_threads);
         LatchedExceptionHandler handler = new LatchedExceptionHandler(latch);
 
-        if (d)
+        if (debug.val)
             LOG.debug(String.format("Executing %d threads and blocking until they finish", num_threads));
         for (R r : runnables) {
             pool.execute(new LatchRunnable(r, latch, handler));
@@ -312,12 +313,14 @@ public abstract class ThreadUtil {
             throw new RuntimeException(ex);
         } finally {
             if (handler.hasError()) {
-                throw new RuntimeException("Failed to execute threads", handler.getLastError());
+                String msg = "Failed to execute threads: " + handler.getLastError().getMessage();
+                throw new RuntimeException(msg, handler.getLastError());
             }
         }
-        if (d) {
+        if (debug.val) {
             final long stop = System.currentTimeMillis();
-            LOG.debug(String.format("Finished executing %d threads [time=%.02fs]", num_threads, (stop - start) / 1000d));
+            LOG.debug(String.format("Finished executing %d threads [time=%.02fs]",
+                      num_threads, (stop - start) / 1000d));
         }
         return;
     }
