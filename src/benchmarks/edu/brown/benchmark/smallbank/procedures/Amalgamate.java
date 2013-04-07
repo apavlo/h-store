@@ -80,16 +80,21 @@ public class Amalgamate extends VoltProcedure {
         balResults[1].advanceRow();
         double total = balResults[0].getDouble(0) + balResults[1].getDouble(0);  
 
-                
-        if (balance < 0) {
-            String msg = String.format("Negative %s balance for customer #%d",
-                                       SmallBankConstants.TABLENAME_SAVINGS, 
-                                       acctId);
-            throw new VoltAbortException(msg);
-        }
+        // Update Balance Information
+        voltQueueSQL(UpdateSavingsBalance, acctId0, 0.0);
+        voltQueueSQL(UpdateCheckingBalance, acctId0, 0.0);
         
-        voltQueueSQL(UpdateSavingsBalance, amount);
-        results = voltExecuteSQL(true);
-        return (results[0]);
+                
+//        if (balance < 0) {
+//            String msg = String.format("Negative %s balance for customer #%d",
+//                                       SmallBankConstants.TABLENAME_SAVINGS, 
+//                                       acctId);
+//            throw new VoltAbortException(msg);
+//        }
+//        
+//        voltQueueSQL(UpdateSavingsBalance, amount);
+//        results = voltExecuteSQL(true);
+//        return (results[0]);
+        return (null);
     }
 }
