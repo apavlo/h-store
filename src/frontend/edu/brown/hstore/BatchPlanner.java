@@ -48,7 +48,6 @@ import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
 import org.voltdb.exceptions.MispredictionException;
 
-import edu.brown.hashing.AbstractHasher;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.interfaces.DebugContext;
@@ -108,17 +107,13 @@ public class BatchPlanner {
     private final List<PlanFragment> sorted_multip_fragments[];
     private final int batchSize;
     private final int nonReplicatedStmtCount;
-    private final int maxRoundSize;
     private final PartitionEstimator p_estimator;
-    private final AbstractHasher hasher;
     private final int num_partitions;
-    // private int last_id = FIRST_DEPENDENCY_ID;
     private BatchPlan plan;
     private final Map<Integer, PlanGraph> plan_graphs = new HashMap<Integer, PlanGraph>();
     private final Map<Integer, WorkFragment.Builder> round_builders = new HashMap<Integer, WorkFragment.Builder>();
 
     private final boolean enable_unique_ids;
-    private final boolean enable_caching;
     private final boolean force_singlePartition;
     private boolean prefetch = false;
 
@@ -129,7 +124,6 @@ public class BatchPlanner {
     // FAST SINGLE-PARTITION LOOKUP CACHE
     private final int cache_fastLookups[][];
     private final BatchPlan cache_singlePartitionPlans[];
-
     private Map<Statement, Map<PlanFragment, PartitionSet>> cache_singlePartitionFragmentPartitions;
 
     // PROFILING
@@ -453,11 +447,8 @@ public class BatchPlanner {
         this.catalogContext = p_estimator.getCatalogContext();
         this.num_partitions = this.catalogContext.numberOfPartitions;
         this.batchSize = batchSize;
-        this.maxRoundSize = hstore_conf.site.planner_max_round_size;
         this.p_estimator = p_estimator;
-        this.hasher = p_estimator.getHasher();
-        this.plan = new BatchPlan(this.maxRoundSize);
-        this.enable_caching = hstore_conf.site.planner_caching;
+        this.plan = new BatchPlan(hstore_conf.site.planner_max_round_size);
         this.force_singlePartition = forceSinglePartition;
         this.enable_unique_ids = hstore_conf.site.planner_unique_dependency_ids;
 
@@ -468,8 +459,8 @@ public class BatchPlanner {
         this.stmt_is_readonly = new boolean[this.batchSize];
         this.stmt_is_replicatedonly = new boolean[this.batchSize];
 
-        this.cache_fastLookups = (this.enable_caching ? new int[this.batchSize][] : null);
-        this.cache_singlePartitionPlans = (this.enable_caching ? new BatchPlan[this.num_partitions] : null);
+        this.cache_fastLookups = (hstore_conf.site.planner_caching ? new int[this.batchSize][] : null);
+        this.cache_singlePartitionPlans = (hstore_conf.site.planner_caching ? new BatchPlan[this.num_partitions] : null);
         int nonReplicatedStmtCnt = 0;
         for (int i = 0; i < this.batchSize; i++) {
             this.catalog_stmts[i] = batchStmts[i].getStatement();
@@ -485,7 +476,7 @@ public class BatchPlanner {
             // CACHING
             // Since most batches are going to be single-partition, we will cache the
             // parameter offsets on how to determine whether a Statement is multi-partition or not
-            if (this.enable_caching) {
+            if (hstore_conf.site.planner_caching) {
                 this.cache_fastLookups[i] = p_estimator.getStatementEstimationParameters(this.catalog_stmts[i]);
                 if (trace.val) 
                     LOG.trace(String.format("INIT[%d] %s Cached Fast-Lookup: %s",
@@ -581,7 +572,7 @@ public class BatchPlanner {
         boolean cache_isSinglePartition[] = null;
 
         // OPTIMIZATION: Check whether we can use a cached single-partition BatchPlan
-        if (this.force_singlePartition || this.enable_caching) {
+        if (this.force_singlePartition || this.cache_fastLookups != null) {
             boolean is_allSinglePartition = true;
             cache_isSinglePartition = new boolean[this.batchSize];
 
@@ -615,7 +606,7 @@ public class BatchPlanner {
                         Object params[] = batchArgs[stmt_index].toArray();
                         cache_isSinglePartition[stmt_index] = true;
                         for (int idx : this.cache_fastLookups[stmt_index]) {
-                            int hash = this.hasher.hash(params[idx]); 
+                            int hash = p_estimator.getHasher().hash(params[idx]); 
                             if (hash != base_partition) {
                                 if (debug.val)
                                     LOG.debug(String.format("[#%d-%02d] Failed to match cached partition info for %s at idx=%d: " +
@@ -949,12 +940,12 @@ public class BatchPlanner {
         // If this a single-partition plan and we have caching enabled, we'll
         // add this to our cached listing. We'll mark it as cached so that it is never
         // returned back to the BatchPlan object pool
-        else if (this.enable_caching &&
+        else if (this.cache_singlePartitionPlans != null &&
                  this.cache_singlePartitionPlans[base_partition] == null &&
                  this.plan.isSingledPartitionedAndLocal()) {
             this.cache_singlePartitionPlans[base_partition] = plan;
             this.plan.cached = true;
-            this.plan = new BatchPlan(this.maxRoundSize);
+            this.plan = new BatchPlan(hstore_conf.site.planner_max_round_size);
             return this.cache_singlePartitionPlans[base_partition];
         }
 
