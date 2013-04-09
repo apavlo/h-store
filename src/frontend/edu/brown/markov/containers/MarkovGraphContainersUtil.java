@@ -44,8 +44,8 @@ import edu.brown.workload.TransactionTrace;
 import edu.brown.workload.Workload;
 
 public abstract class MarkovGraphContainersUtil {
-    public static final Logger LOG = Logger.getLogger(MarkovGraphContainersUtil.class);
-    public final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final Logger LOG = Logger.getLogger(MarkovGraphContainersUtil.class);
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
@@ -116,7 +116,8 @@ public abstract class MarkovGraphContainersUtil {
                     }
                     assert(partition != null) : "Failed to get base partition for " + txn_trace + "\n" + txn_trace.debug(catalog_db);
                     queues[ctr % num_threads].add(Pair.of(partition, txn_trace));
-                    if (++ctr % marker == 0) LOG.info(String.format("Queued %d/%d transactions", ctr, num_transactions));
+                    if (++ctr % marker == 0 && debug.val)
+                        LOG.debug(String.format("Queued %d/%d transactions", ctr, num_transactions));
                 } // FOR
                 queued_all.set(true);
                 

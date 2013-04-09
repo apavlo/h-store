@@ -192,6 +192,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
     private static final TimeUnit WORK_QUEUE_POLL_TIMEUNIT = TimeUnit.MICROSECONDS;
     
     private static final UtilityWorkMessage UTIL_WORK_MSG = new UtilityWorkMessage();
+    private static final UpdateMemoryMessage STATS_WORK_MSG = new UpdateMemoryMessage();
     
     // ----------------------------------------------------------------------------
     // INTERNAL EXECUTION STATE
@@ -761,7 +762,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         observable.addObserver(new EventObserver<HStoreSite>() {
             @Override
             public void update(EventObservable<HStoreSite> o, HStoreSite arg) {
-                updateMemoryStats(EstTime.currentTimeMillis());
+                queueUtilityWork(STATS_WORK_MSG);
             }
         });
         
@@ -1502,7 +1503,12 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         long bytesRead = 0;
 
         // update table stats
-        final VoltTable[] s1 = this.ee.getStats(SysProcSelector.TABLE, tableIds, false, time);
+        VoltTable[] s1 = null;
+        try {
+            s1 = this.ee.getStats(SysProcSelector.TABLE, tableIds, false, time);
+        } catch (RuntimeException ex) {
+            LOG.warn("Unexpected error when trying to retrieve EE stats for partition " + this.partitionId, ex);
+        }
         if (s1 != null) {
             VoltTable stats = s1[0];
             assert(stats != null);

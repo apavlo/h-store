@@ -68,6 +68,8 @@ bool EvictionIterator::hasNext()
     
     if(current_tuple_id == ptable->getNewestTupleID())
         return false;
+    if(ptable->usedTupleCount() == 0)
+        return false; 
     if(ptable->getNumTuplesInEvictionChain() == 0) { // there are no tuples in the chain
         VOLT_DEBUG("There are no tuples in the eviction chain.");
         return false; 

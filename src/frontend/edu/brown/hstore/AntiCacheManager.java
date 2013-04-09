@@ -55,10 +55,11 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
 
-    public static final long DEFAULT_MAX_MEMORY_SIZE_MB = 1000000;
-//    public static final int TOTAL_BLOCKS_TO_EVICT = 10000;
-    public static final int TOTAL_BLOCKS_TO_EVICT = 20000;
-    public static final int MAX_BLOCKS_TO_EVICT_EACH_EVICTION = 1500;
+    public static long DEFAULT_MAX_MEMORY_SIZE_MB = 500;
+    public static final int MAX_BLOCKS_TO_EVICT_EACH_EVICTION = 1000;
+
+    public static final int TOTAL_BLOCKS_TO_EVICT = 200000;    
+    public static final int BLOCK_SIZE = 262144; // 256 KB
 
     // ----------------------------------------------------------------------------
     // INTERNAL QUEUE ENTRY
@@ -76,7 +77,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
             this.partition = partition;
             this.catalog_tbl = catalog_tbl;
             this.block_ids = block_ids;
-            this.tuple_offsets = tuple_offsets; 
+            this.tuple_offsets = tuple_offsets;
         }
         @Override
         public String toString() {
@@ -96,6 +97,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
     private final Collection<Table> evictableTables;
     private boolean evicting = false;
     private final AntiCacheManagerProfiler profilers[];
+    private boolean firstEviction = true;
     
     private long totalDataSize = 0; 
 
@@ -109,7 +111,9 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
      */
     private final long partitionSizes[];
     
-    private final long partitionEvictions[]; 
+    private final long partitionEvictions[];
+    
+    private final long partitionFetches[]; 
 
     /**
      * Thread that is periodically executed to check whether the amount of memory used by this HStoreSite is over the
@@ -179,9 +183,11 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
 
         int num_partitions = hstore_site.getCatalogContext().numberOfPartitions;
         this.partitionSizes = new long[num_partitions];
-        this.partitionEvictions = new long[num_partitions]; 
+        this.partitionEvictions = new long[num_partitions];
+        this.partitionFetches = new long[num_partitions];
         Arrays.fill(this.partitionSizes, 0);
-        Arrays.fill(this.partitionEvictions, 0); 
+        Arrays.fill(this.partitionEvictions, 0);
+        Arrays.fill(this.partitionFetches, 0);
 
         this.profilers = new AntiCacheManagerProfiler[num_partitions];
         for (int partition : hstore_site.getLocalPartitionIds().values()) {
@@ -223,6 +229,8 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         PartitionExecutor executor = hstore_site.getPartitionExecutor(next.partition);
         ExecutionEngine ee = executor.getExecutionEngine();
 
+        boolean merge_needed = true; 
+
         // We can now tell it to read in the blocks that this txn needs
         // Note that we are doing this without checking whether another txn is already
         // running. That's because reading in unevicted tuples is a two-stage process.
@@ -245,20 +253,25 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
             LOG.debug(String.format("Finished reading blocks from partition %d",
                      next.partition));
         } catch (SerializableException ex) {
-            LOG.error("Caught unexpected SerializableException while reading anti-cache block.", ex);
+            LOG.info("Caught unexpected SerializableException while reading anti-cache block.", ex);
+
+            merge_needed = false; 
         } finally {
             if (hstore_conf.site.anticache_profiling) 
                 this.profilers[next.partition].retrieval_time.stopIfStarted();
         }
-
         
         // HACK HACK HACK HACK HACK HACK
         // We need to get a new txnId for ourselves, since the one that we
         // were given before is now probably too far in the past
         this.hstore_site.getTransactionInitializer().resetTransactionId(next.ts, next.partition);
         // Now go ahead and requeue our transaction
-        next.ts.setAntiCacheMergeTable(next.catalog_tbl);
+
+//        if(merge_needed)
+            next.ts.setAntiCacheMergeTable(next.catalog_tbl);
+
         this.hstore_site.transactionInit(next.ts);
+//        this.hstore_site.transactionReject(next.ts, Status.ABORT_GRACEFUL);
     }
 
     @Override
@@ -281,15 +294,15 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
      *            - The list of blockIds that need to be read in for the table
      */
     public boolean queue(LocalTransaction ts, int partition, Table catalog_tbl, short block_ids[], int tuple_offsets[]) {
-        if (hstore_conf.site.anticache_profiling) {
+//        if (hstore_conf.site.anticache_profiling) {
             assert(ts.getPendingError() != null) :
                 String.format("Missing original %s for %s", EvictedTupleAccessException.class.getSimpleName(), ts);
             assert(ts.getPendingError() instanceof EvictedTupleAccessException) :
                 String.format("Unexpected error for %s: %s", ts, ts.getPendingError().getClass().getSimpleName());
             this.profilers[partition].restarted_txns++;
             this.profilers[partition].addEvictedAccess(ts, (EvictedTupleAccessException)ts.getPendingError());
-        }
-        
+//        }
+
         QueueEntry e = new QueueEntry(ts, partition, catalog_tbl, block_ids, tuple_offsets);
 
         // TODO: We should check whether there are any other txns that are also blocked waiting
@@ -310,17 +323,25 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
 
         long total_size_kb = MathUtil.sum(this.partitionSizes);
         long total_evicted_blocks = MathUtil.sum(this.partitionEvictions);
+        long total_fetched_blocks = MathUtil.sum(this.partitionFetches);
 
         this.totalDataSize = (int)(total_size_kb / 1024);
 
         LOG.info("Current Memory Usage: " + this.totalDataSize + " MB");
-        LOG.info("Blocks Currently Evicted: " + MathUtil.sum(this.partitionEvictions));
-    
-        // only start eviction once we've passed this threshold 
-        if(this.totalDataSize < DEFAULT_MAX_MEMORY_SIZE_MB)
-            return false; 
+        LOG.info("Blocks Currently Evicted: " + total_evicted_blocks);
+        LOG.info("Total Blocks Fetched: " + total_fetched_blocks);
 
-        return(total_evicted_blocks < TOTAL_BLOCKS_TO_EVICT); 
+        if(firstEviction)
+        {
+            // only start eviction once we've passed this threshold
+            if(this.totalDataSize < DEFAULT_MAX_MEMORY_SIZE_MB)
+            {
+                return false;
+            }
+            firstEviction = false;
+        }
+
+        return(total_evicted_blocks < TOTAL_BLOCKS_TO_EVICT);
     }
 
     protected long blocksToEvict()
@@ -355,8 +376,15 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         // initialize params
         for (Table catalog_tbl : this.evictableTables) {
             tableNames[i] = catalog_tbl.getName();
-            evictBytes[i] = hstore_conf.site.anticache_block_size; // FIXME
-            evictBlocks[i] = (int)blocks_to_evict / hstore_site.getLocalPartitionIds().size(); 
+            //evictBytes[i] = hstore_conf.site.anticache_block_size;
+            evictBytes[i] = BLOCK_SIZE; 
+
+            if(blocks_to_evict < hstore_site.getLocalPartitionIds().size()) {  // make sure we evict at least 1 block from each partition
+                evictBlocks[i] = 1;
+            }
+            else {
+                evictBlocks[i] = (int)blocks_to_evict / hstore_site.getLocalPartitionIds().size();
+            }
             i++;
         } // FOR
 
@@ -393,7 +421,8 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         long totalSizeKb = 0;
         int partition = -1;
         int memory_idx = -1;
-        long num_blocks_evicted = 0; 
+        long num_blocks_evicted = 0;
+        long num_blocks_fetched = 0;
         vt.resetRowPosition();
         while (vt.advanceRow()) {
             if (memory_idx == -1) {
@@ -402,6 +431,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
             }
             assert(memory_idx >= 0);
             num_blocks_evicted += vt.getLong("BLOCKS_EVICTED");
+            num_blocks_fetched += vt.getLong("BLOCKS_READ");
             totalSizeKb += vt.getLong(memory_idx);
         } // WHILE
 
@@ -410,7 +440,8 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         if (debug.val)
             LOG.debug(String.format("Partition #%d Size - New:%dkb / Old:%dkb",
                       partition, totalSizeKb, this.partitionSizes[partition]));
-        this.partitionEvictions[partition] = num_blocks_evicted; 
+        this.partitionEvictions[partition] = num_blocks_evicted;
+        this.partitionFetches[partition] = num_blocks_fetched;
         this.partitionSizes[partition] = totalSizeKb;
     }
 

@@ -1,11 +1,11 @@
 /***************************************************************************
- *  Copyright (C) 2012 by H-Store Project                                  *
+ *  Copyright (C) 2013 by H-Store Project                                  *
  *  Brown University                                                       *
  *  Massachusetts Institute of Technology                                  *
  *  Yale University                                                        *
  *                                                                         *
- *  Coded By:  Justin A. DeBrabant (http://www.cs.brown.edu/~debrabant/)   *								   
- *                                                                         *
+ *  Original By: VoltDB Inc.											   *
+ *  Ported By:  Justin A. DeBrabant (http://www.cs.brown.edu/~debrabant/)  *                                                                      *
  *                                                                         *
  *  Permission is hereby granted, free of charge, to any person obtaining  *
  *  a copy of this software and associated documentation files (the        *
@@ -27,30 +27,27 @@
  *  OTHER DEALINGS IN THE SOFTWARE.                                        *
  ***************************************************************************/
 
-package edu.brown.benchmark.ycsb;
+package edu.brown.benchmark.smallbank;
 
-public abstract class YCSBConstants {
+public abstract class SmallBankConstants {
 
-    public static final int NUM_RECORDS = 20000000;  // Note: this should match value in YCSB.properties
+    public static final String TABLENAME_ACCOUNTS   = "ACCOUNTS";
+    public static final String TABLENAME_SAVINGS    = "SAVINGS";
+    public static final String TABLENAME_CHECKING   = "CHECKING";
+    
+    public static final int BATCH_SIZE              = 1000;
+    
+    // Percentage of customers that do not have a SAVINGS account [0-100%]
+    public static final int PERCENTAGE_NO_SAVINGS   = 0;
+    
+    // Percentage of customers that do not have a CHECKING account [0-100%]
+    public static final int PERCENTAGE_NO_CHECKING  = 0;
+    
+    // Default number of customers in bank
+    public static final int NUM_ACCOUNTS            = 1000000;
+    
+    // Initial balance amount
+    public static final int MIN_BALANCE             = 1;
+    public static final int MAX_BALANCE             = 1000;
 
-    public static final int HOT_DATA_WORKLOAD_SKEW = 90;
-    public static final int HOT_DATA_SIZE = 10;
-
-    public static final int WARM_DATA_SIZE = 0;
-    public static final int WARM_DATA_WORKLOAD_SKEW = 0;
-
-
-    public static final String TABLE_NAME = "USERTABLE"; 
-    public static final int NUM_COLUMNS = 11; 
-    public static final int COLUMN_LENGTH = 100;
-
-    public static final int BATCH_SIZE = 10000; 
-    public static final int MAX_SCAN = 1000; 
-
-    // Transaction frequencies as specified in YCSB
-    public static final int FREQUENCY_INSERT_RECORD = 0; 
-    public static final int FREQUENCY_DELETE_RECORD = 0;
-    public static final int FREQUENCY_READ_RECORD = 100;
-    public static final int FREQUENCY_SCAN_RECORD = 0;
-    public static final int FREQUENCY_UPDATE_RECORD = 0;
 }

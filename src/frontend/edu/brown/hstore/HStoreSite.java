@@ -2091,8 +2091,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                                     int base_partition,
                                     RpcCallback<ClientResponseImpl> clientCallback) {
         if (debug.val)
-            LOG.debug(String.format("Forwarding %s request to partition %d",
-                      catalog_proc.getName(), base_partition));
+            LOG.debug(String.format("Forwarding %s request to partition %d [clientHandle=%d]",
+                     catalog_proc.getName(), base_partition,
+                     StoredProcedureInvocation.getClientHandle(serializedRequest)));
         
         // Make a wrapper for the original callback so that when the result comes back frm the remote partition
         // we will just forward it back to the client. How sweet is that??
@@ -2406,7 +2407,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             short block_ids[] = error.getBlockIds();
             int tuple_offsets[] = error.getTupleOffsets(); 
 						
-            Table evicted_table = error.getTable(this.catalogContext.database); 
+            Table evicted_table = error.getTable(this.catalogContext.database);
+            new_ts.setPendingError(error, false);
 
 			LOG.debug(String.format("Added aborted txn to %s queue. Unevicting %d blocks from %s (%d).",
 			         AntiCacheManager.class.getSimpleName(), block_ids.length, evicted_table.getName(), evicted_table.getRelativeIndex()));

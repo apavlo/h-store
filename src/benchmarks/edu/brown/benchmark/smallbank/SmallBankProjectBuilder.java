@@ -1,5 +1,5 @@
 /***************************************************************************
- *  Copyright (C) 2012 by H-Store Project                                  *
+ *  Copyright (C) 2013 by H-Store Project                                  *
  *  Brown University                                                       *
  *  Massachusetts Institute of Technology                                  *
  *  Yale University                                                        *
@@ -27,30 +27,52 @@
  *  OTHER DEALINGS IN THE SOFTWARE.                                        *
  ***************************************************************************/
 
-package edu.brown.benchmark.ycsb;
+package edu.brown.benchmark.smallbank;
 
-public abstract class YCSBConstants {
+import org.voltdb.VoltProcedure;
 
-    public static final int NUM_RECORDS = 20000000;  // Note: this should match value in YCSB.properties
-
-    public static final int HOT_DATA_WORKLOAD_SKEW = 90;
-    public static final int HOT_DATA_SIZE = 10;
-
-    public static final int WARM_DATA_SIZE = 0;
-    public static final int WARM_DATA_WORKLOAD_SKEW = 0;
+import edu.brown.benchmark.AbstractProjectBuilder;
+import edu.brown.benchmark.smallbank.procedures.Balance;
+import edu.brown.api.BenchmarkComponent;
 
 
-    public static final String TABLE_NAME = "USERTABLE"; 
-    public static final int NUM_COLUMNS = 11; 
-    public static final int COLUMN_LENGTH = 100;
+/**
+ * SmallBank Benchmark
+ * 
+ * @author Mohammad Alomari (miomari@it.usyd.edu.au)  21-04-2007
+ * @author Michael Cahill (mjc@it.usyd.edu.au)  17-07-2007 (cleanup)
+ * @author Andy Pavlo - Ported to H-Store
+ */
+public class SmallBankProjectBuilder extends AbstractProjectBuilder {
 
-    public static final int BATCH_SIZE = 10000; 
-    public static final int MAX_SCAN = 1000; 
+    // REQUIRED: Retrieved via reflection by BenchmarkController
+    public static final Class<? extends BenchmarkComponent> m_clientClass = SmallBankClient.class;
 
-    // Transaction frequencies as specified in YCSB
-    public static final int FREQUENCY_INSERT_RECORD = 0; 
-    public static final int FREQUENCY_DELETE_RECORD = 0;
-    public static final int FREQUENCY_READ_RECORD = 100;
-    public static final int FREQUENCY_SCAN_RECORD = 0;
-    public static final int FREQUENCY_UPDATE_RECORD = 0;
+    // REQUIRED: Retrieved via reflection by BenchmarkController
+    public static final Class<? extends BenchmarkComponent> m_loaderClass = SmallBankLoader.class;
+
+	// a list of procedures implemented in this benchmark
+    @SuppressWarnings("unchecked")
+    public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
+        Balance.class,
+    };
+	
+	{
+		addTransactionFrequency(Balance.class, 100);
+	}
+	
+	// a list of tables used in this benchmark with corresponding partitioning keys
+    public static final String PARTITIONING[][] = new String[][] {
+        { SmallBankConstants.TABLENAME_ACCOUNTS,  "custid" },
+        { SmallBankConstants.TABLENAME_SAVINGS,   "custid" },
+        { SmallBankConstants.TABLENAME_CHECKING,  "custid" },
+    };
+
+    public SmallBankProjectBuilder() {
+        super("smallbank", SmallBankProjectBuilder.class, PROCEDURES, PARTITIONING);
+    }
 }
+
+
+
+

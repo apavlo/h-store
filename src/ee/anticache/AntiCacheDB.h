@@ -77,7 +77,7 @@ class AntiCacheDB {
          * Write a block of serialized tuples out to the anti-cache database
          */
         void writeBlock(const std::string tableName,
-                        uint16_t blockId,
+                        int16_t blockId,
                         const int tupleCount,
                         const char* data,
                         const long size);

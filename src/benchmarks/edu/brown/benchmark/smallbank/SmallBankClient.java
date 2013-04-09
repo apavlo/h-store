@@ -1,10 +1,11 @@
 /***************************************************************************
- *  Copyright (C) 2012 by H-Store Project                                  *
+ *  Copyright (C) 2013 by H-Store Project                                  *
  *  Brown University                                                       *
  *  Massachusetts Institute of Technology                                  *
  *  Yale University                                                        *
  *                                                                         *
- *  Coded By:  Justin A. DeBrabant (http://www.cs.brown.edu/~debrabant/)   *								   
+ *  Original By: VoltDB Inc.											   *
+ *  Ported By:  Justin A. DeBrabant (http://www.cs.brown.edu/~debrabant/)  *								   
  *                                                                         *
  *                                                                         *
  *  Permission is hereby granted, free of charge, to any person obtaining  *
@@ -27,30 +28,52 @@
  *  OTHER DEALINGS IN THE SOFTWARE.                                        *
  ***************************************************************************/
 
-package edu.brown.benchmark.ycsb;
+package edu.brown.benchmark.smallbank;
 
-public abstract class YCSBConstants {
+import java.io.IOException;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 
-    public static final int NUM_RECORDS = 20000000;  // Note: this should match value in YCSB.properties
+import org.voltdb.VoltTable;
+import org.voltdb.client.Client;
+import org.voltdb.client.ClientResponse;
+import org.voltdb.client.ProcedureCallback;
 
-    public static final int HOT_DATA_WORKLOAD_SKEW = 90;
-    public static final int HOT_DATA_SIZE = 10;
+import weka.classifiers.meta.Vote;
 
-    public static final int WARM_DATA_SIZE = 0;
-    public static final int WARM_DATA_WORKLOAD_SKEW = 0;
+import edu.brown.api.BenchmarkComponent;
+import edu.brown.hstore.Hstoreservice.Status;
 
+public class SmallBankClient extends BenchmarkComponent {
 
-    public static final String TABLE_NAME = "USERTABLE"; 
-    public static final int NUM_COLUMNS = 11; 
-    public static final int COLUMN_LENGTH = 100;
+    public static void main(String args[]) {
+        BenchmarkComponent.main(SmallBankClient.class, args, false);
+    }
 
-    public static final int BATCH_SIZE = 10000; 
-    public static final int MAX_SCAN = 1000; 
+    public SmallBankClient(String args[]) {
+        super(args);
 
-    // Transaction frequencies as specified in YCSB
-    public static final int FREQUENCY_INSERT_RECORD = 0; 
-    public static final int FREQUENCY_DELETE_RECORD = 0;
-    public static final int FREQUENCY_READ_RECORD = 100;
-    public static final int FREQUENCY_SCAN_RECORD = 0;
-    public static final int FREQUENCY_UPDATE_RECORD = 0;
+    }
+
+    @Override
+    protected boolean runOnce() throws IOException {
+
+        return (true);
+    }
+
+    @Override
+    public String[] getTransactionDisplayNames() {
+        // Return an array of transaction names
+        String procNames[] = new String[]{
+            Vote.class.getSimpleName()
+        };
+        return (procNames);
+    }
+
+    @Override
+    protected void runLoop() throws IOException {
+        // TODO Auto-generated method stub
+        
+    }
+
 }
