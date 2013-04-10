@@ -9,6 +9,7 @@ import edu.brown.hstore.callbacks.LocalFinishCallback;
 import edu.brown.hstore.callbacks.LocalPrepareCallback;
 import edu.brown.pools.Poolable;
 import edu.brown.protorpc.ProtoRpcController;
+import edu.brown.utils.PartitionSet;
 
 /**
  * Container class for all of the objects needed by a distributed txn
@@ -20,6 +21,11 @@ public class DistributedState implements Poolable {
      * Current txn
      */
     private LocalTransaction ts = null;
+    
+    /**
+     * The partitions that we notified that we are done with them
+     */
+    protected final PartitionSet exec_donePartitions = new PartitionSet();
     
     /**
      * 
@@ -110,6 +116,7 @@ public class DistributedState implements Poolable {
         this.prepare_callback.finish();
         this.finish_callback.finish();
         this.is_all_local = true;
+        this.exec_donePartitions.clear();
         this.notified_prepare.clear();
         this.sent_parameters.clear();
         this.ts = null;
