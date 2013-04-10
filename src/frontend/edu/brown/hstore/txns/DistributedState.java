@@ -25,7 +25,7 @@ public class DistributedState implements Poolable {
     /**
      * The partitions that we notified that we are done with them
      */
-    protected PartitionSet exec_donePartitions;
+    protected final PartitionSet exec_donePartitions = new PartitionSet();
     
     /**
      * 
