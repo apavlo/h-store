@@ -63,6 +63,8 @@ public class CatalogContext {
     public final int numberOfSites;
     /** The total number of unique Partitions in the cluster */
     public final int numberOfPartitions;
+    /** The total number of unique tables in the database */
+    public final int numberOfTables;
     
     // PRIVATE
     public final File jarPath;
@@ -173,7 +175,7 @@ public class CatalogContext {
 
         // count exec sites
         this.numberOfSites = cluster.getSites().size();
-
+        
         // ------------------------------------------------------------
         // PARTITIONS
         // ------------------------------------------------------------
@@ -214,6 +216,9 @@ public class CatalogContext {
                 }
             }
         } // FOR
+        
+        // count tables
+        this.numberOfTables = database.getTables().size();
         
         // PLANFRAGMENTS
         this.initPlanFragments();
