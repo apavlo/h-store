@@ -1520,6 +1520,9 @@ public abstract class BenchmarkComponent {
             if (status == Status.ABORT_CONNECTION_LOST) {
                 return false;
             }
+            if (status == Status.ABORT_REJECT) {
+                return false;
+            }
 
             if (clientResponse.getException() != null) {
                 clientResponse.getException().printStackTrace();
