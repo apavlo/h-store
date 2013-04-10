@@ -1115,7 +1115,7 @@ public abstract class BenchmarkComponent {
      * of the tables
      * @return
      */
-    public final ObjectHistogram<String> getTableTupleCounts() {
+    public final Histogram<String> getTableTupleCounts() {
         return (new ObjectHistogram<String>(m_tableTuples));
     }
     
