@@ -179,11 +179,6 @@ public class LocalTransaction extends AbstractTransaction {
     private ExecutionState state;
     
     /**
-     * The partitions that we notified that we are done with them
-     */
-    private PartitionSet exec_donePartitions;
-    
-    /**
      * Whether this txn was speculatively executed
      */
     private SpeculationType exec_specExecType = SpeculationType.NULL;
@@ -356,7 +351,6 @@ public class LocalTransaction extends AbstractTransaction {
         this.exec_specExecType = SpeculationType.NULL;
         this.exec_touchedPartitions.clear();
         this.predict_touchedPartitions = null;
-        if (this.exec_donePartitions != null) this.exec_donePartitions.clear();
         this.restart_ctr = 0;
 
         this.anticache_table = null;
@@ -786,10 +780,7 @@ public class LocalTransaction extends AbstractTransaction {
     }
     
     public boolean hasDonePartitions() {
-        if (this.exec_donePartitions == null) {
-            return (false);
-        }
-        return (this.exec_donePartitions.isEmpty() == false);
+        return (this.dtxnState.exec_donePartitions.isEmpty() == false);
     }
     
     /**
@@ -797,10 +788,7 @@ public class LocalTransaction extends AbstractTransaction {
      * @return
      */
     public PartitionSet getDonePartitions() {
-        if (this.exec_donePartitions == null) {
-            this.exec_donePartitions = new PartitionSet();
-        }
-        return (this.exec_donePartitions);
+        return (this.dtxnState.exec_donePartitions);
     }
     
     
@@ -1336,10 +1324,7 @@ public class LocalTransaction extends AbstractTransaction {
      * @param ts
      */
     public PartitionSet calculateDonePartitions(EstimationThresholds thresholds) {
-        if (this.exec_donePartitions == null) {
-            this.exec_donePartitions = new PartitionSet();
-        }
-        final int ts_done_partitions_size = this.exec_donePartitions.size();
+        final int ts_done_partitions_size = this.dtxnState.exec_donePartitions.size();
         PartitionSet new_done = null;
 
         EstimatorState t_state = this.getEstimatorState();
@@ -1373,13 +1358,13 @@ public class LocalTransaction extends AbstractTransaction {
 
             // Mark the txn done at this partition if the MarkovEstimate said we were done
             for (Integer p : new_done) {
-                if (this.exec_donePartitions.contains(p.intValue()) == false && ts_touched.contains(p)) {
+                if (this.dtxnState.exec_donePartitions.contains(p.intValue()) == false && ts_touched.contains(p)) {
                     if (trace.val) LOG.trace(String.format("Marking partition %d as done for %s", p, this));
-                    this.exec_donePartitions.add(p.intValue());
+                    this.dtxnState.exec_donePartitions.add(p.intValue());
                 }
             } // FOR
         }
-        return (this.exec_donePartitions.size() != ts_done_partitions_size ? new_done : null);
+        return (this.dtxnState.exec_donePartitions.size() != ts_done_partitions_size ? new_done : null);
     }
     
     // ----------------------------------------------------------------------------
