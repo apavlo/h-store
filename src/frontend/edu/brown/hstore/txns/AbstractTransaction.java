@@ -27,7 +27,6 @@ package edu.brown.hstore.txns;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.BitSet;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -230,7 +229,7 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
      * local partition.
      * PartitionId -> TableId 
      */
-    protected final BitSet readTables[];
+    protected final boolean readTables[][];
     
     /**
      * BitSets for whether this txn has executed a modifying query against a particular table
@@ -238,7 +237,7 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
      * but just we executed a query that targeted that table.
      * PartitionId -> TableId
      */
-    protected final BitSet writeTables[];
+    protected final boolean writeTables[][];
     
     // ----------------------------------------------------------------------------
     // INITIALIZATION
@@ -268,8 +267,8 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
         this.init_task = new InitializeTxnMessage(this);
         this.work_task = new WorkFragmentMessage[numPartitions];
         
-        this.readTables = new BitSet[numPartitions];
-        this.writeTables = new BitSet[numPartitions];
+        this.readTables = new boolean[numPartitions][];
+        this.writeTables = new boolean[numPartitions][];
         
         Arrays.fill(this.exec_firstUndoToken, HStoreConstants.NULL_UNDO_LOGGING_TOKEN);
         Arrays.fill(this.exec_lastUndoToken, HStoreConstants.NULL_UNDO_LOGGING_TOKEN);
@@ -367,8 +366,8 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
             this.exec_lastUndoToken[partition] = HStoreConstants.NULL_UNDO_LOGGING_TOKEN;
             this.exec_noUndoBuffer[partition] = false;
             
-            if (this.readTables[partition] != null) this.readTables[partition].clear();
-            if (this.writeTables[partition] != null) this.writeTables[partition].clear();
+            if (this.readTables[partition] != null) Arrays.fill(this.readTables[partition], false);
+            if (this.writeTables[partition] != null) Arrays.fill(this.writeTables[partition], false);
         } // FOR
 
         if (debug.val)
@@ -928,9 +927,9 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
      */
     public final void markTableAsRead(int partition, Table catalog_tbl) {
         if (this.readTables[partition] == null) {
-            this.readTables[partition] = new BitSet(hstore_site.getCatalogContext().numberOfTables);
+            this.readTables[partition] = new boolean[hstore_site.getCatalogContext().numberOfTables + 1];
         }
-        this.readTables[partition].set(catalog_tbl.getRelativeIndex());
+        this.readTables[partition][catalog_tbl.getRelativeIndex()] = true;
     }
     /**
      * Mark that this txn read from the tableIds at the given partition
@@ -939,10 +938,10 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
      */
     public final void markTableIdsAsRead(int partition, int...tableIds) {
         if (this.readTables[partition] == null) {
-            this.readTables[partition] = new BitSet(hstore_site.getCatalogContext().numberOfTables);
+            this.readTables[partition] = new boolean[hstore_site.getCatalogContext().numberOfTables + 1];
         }
         for (int id : tableIds) {
-            this.readTables[partition].set(id);
+            this.readTables[partition][id] = true;
         } // FOR
     }
     /**
@@ -954,7 +953,7 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
      */
     public final boolean isTableRead(int partition, Table catalog_tbl) {
         if (this.readTables[partition] != null) {
-            return (this.readTables[partition].get(catalog_tbl.getRelativeIndex()));
+            return (this.readTables[partition][catalog_tbl.getRelativeIndex()]);
         }
         return (false);
     }
@@ -968,9 +967,9 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
      */
     public final void markTableAsWritten(int partition, Table catalog_tbl) {
         if (this.writeTables[partition] == null) {
-            this.writeTables[partition] = new BitSet(hstore_site.getCatalogContext().numberOfTables);
+            this.writeTables[partition] = new boolean[hstore_site.getCatalogContext().numberOfTables + 1];
         }
-        this.writeTables[partition].set(catalog_tbl.getRelativeIndex());
+        this.writeTables[partition][catalog_tbl.getRelativeIndex()] = true;
     }
     /**
      * Mark that this txn has executed a modifying query for the tableIds at the given partition.
@@ -981,10 +980,10 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
      */
     public final void markTableIdsAsWritten(int partition, int...tableIds) {
         if (this.writeTables[partition] == null) {
-            this.writeTables[partition] = new BitSet(hstore_site.getCatalogContext().numberOfTables);
+            this.writeTables[partition] = new boolean[hstore_site.getCatalogContext().numberOfTables + 1];
         }
         for (int id : tableIds) {
-            this.writeTables[partition].set(id);
+            this.writeTables[partition][id] = true;
         } // FOR
     }
     /**
@@ -996,7 +995,7 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
      */
     public final boolean isTableWritten(int partition, Table catalog_tbl) {
         if (this.writeTables[partition] != null) {
-            return (this.writeTables[partition].get(catalog_tbl.getRelativeIndex()));
+            return (this.writeTables[partition][catalog_tbl.getRelativeIndex()]);
         }
         return (false);
     }
@@ -1010,10 +1009,10 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
      */
     public final boolean isTableReadOrWritten(int partition, Table catalog_tbl) {
         int tableId = catalog_tbl.getRelativeIndex();
-        if (this.readTables[partition] != null && this.readTables[partition].get(tableId)) {
+        if (this.readTables[partition] != null && this.readTables[partition][tableId]) {
             return (true);
         }
-        if (this.writeTables[partition] != null && this.writeTables[partition].get(tableId)) {
+        if (this.writeTables[partition] != null && this.writeTables[partition][tableId]) {
             return (true);
         }
         return (false);
@@ -1243,8 +1242,8 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
          */
         public final void clearReadWriteSets() {
             for (int i = 0; i < readTables.length; i++) {
-                if (readTables[i] != null) readTables[i].clear();
-                if (writeTables[i] != null) writeTables[i].clear();
+                if (readTables[i] != null) Arrays.fill(readTables[i], false);
+                if (writeTables[i] != null) Arrays.fill(writeTables[i], false);
             } // FOR
         }
     }
