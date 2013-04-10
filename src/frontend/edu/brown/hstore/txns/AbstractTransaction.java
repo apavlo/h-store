@@ -147,7 +147,7 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
     
     private PrepareTxnMessage prepare_task;
     
-    private final FinishTxnMessage finish_task;
+    private FinishTxnMessage finish_task;
     
     private final WorkFragmentMessage work_task[];
     
@@ -267,7 +267,6 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
         this.exec_noUndoBuffer = new boolean[numPartitions];
         
         this.init_task = new InitializeTxnMessage(this);
-        this.finish_task = new FinishTxnMessage(this, Status.OK);
         this.work_task = new WorkFragmentMessage[numPartitions];
         
         this.readTables = new BitSet[numPartitions];
@@ -780,6 +779,13 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
         return (this.prepare_task);
     }
     public final FinishTxnMessage getFinishTxnMessage(Status status) {
+        if (this.finish_task == null) {
+            synchronized (this) {
+                if (this.finish_task == null) {
+                    this.finish_task = new FinishTxnMessage(this, status);            
+                }
+            } // SYNCH
+        }
         this.finish_task.setStatus(status);
         return (this.finish_task);
     }
