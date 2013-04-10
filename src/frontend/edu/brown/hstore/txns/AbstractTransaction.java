@@ -123,7 +123,7 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
      * This cannot be in the ExecutionState because we may have attached inputs for 
      * transactions that aren't running yet.
      */
-    private final Map<Integer, List<VoltTable>> attached_inputs = new HashMap<Integer, List<VoltTable>>();
+    private Map<Integer, List<VoltTable>> attached_inputs;
     
     /**
      * Attached ParameterSets for the current execution round
@@ -150,7 +150,6 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
     private FinishTxnMessage finish_task;
     
     private final WorkFragmentMessage work_task[];
-    
     
     // ----------------------------------------------------------------------------
     // GLOBAL PREDICTIONS FLAGS
@@ -343,7 +342,7 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
         this.pending_error = null;
         this.status = null;
         this.parameters = null;
-        this.attached_inputs.clear();
+        if (this.attached_inputs != null) this.attached_inputs.clear();
         this.attached_parameterSets = null;
 
         // If this transaction handle was keeping track of pre-fetched queries,
@@ -1053,17 +1052,20 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
     // ----------------------------------------------------------------------------
     
     
-    public void attachParameterSets(ParameterSet parameterSets[]) {
+    public final void attachParameterSets(ParameterSet parameterSets[]) {
         this.attached_parameterSets = parameterSets;
     }
     
-    public ParameterSet[] getAttachedParameterSets() {
+    public final ParameterSet[] getAttachedParameterSets() {
         assert(this.attached_parameterSets != null) :
             String.format("The attached ParameterSets for %s is null?", this);
         return (this.attached_parameterSets);
     }
     
-    public void attachInputDependency(int input_dep_id, VoltTable vt) {
+    public final void attachInputDependency(int input_dep_id, VoltTable vt) {
+        if (this.attached_inputs == null) {
+            this.attached_inputs = new HashMap<Integer, List<VoltTable>>();
+        }
         List<VoltTable> l = this.attached_inputs.get(input_dep_id);
         if (l == null) {
             l = new ArrayList<VoltTable>();
@@ -1072,7 +1074,10 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
         l.add(vt);
     }
     
-    public Map<Integer, List<VoltTable>> getAttachedInputDependencies() {
+    public final Map<Integer, List<VoltTable>> getAttachedInputDependencies() {
+        if (this.attached_inputs == null) {
+            this.attached_inputs = new HashMap<Integer, List<VoltTable>>();
+        }
         return (this.attached_inputs);
     }
     
