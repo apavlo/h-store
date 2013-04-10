@@ -164,7 +164,7 @@ public class LocalTransaction extends AbstractTransaction {
     // INTERNAL MESSAGE WRAPPERS
     // ----------------------------------------------------------------------------
     
-    private final StartTxnMessage start_msg;
+    private StartTxnMessage start_msg;
     
     // ----------------------------------------------------------------------------
     // RUN TIME DATA MEMBERS
@@ -213,8 +213,6 @@ public class LocalTransaction extends AbstractTransaction {
     public LocalTransaction(HStoreSite hstore_site) {
         super(hstore_site);
         this.init_callback = new LocalInitQueueCallback(hstore_site);
-        this.start_msg = new StartTxnMessage(this);
-        
         int numPartitions = hstore_site.getCatalogContext().numberOfPartitions;
         this.exec_touchedPartitions = new FastIntHistogram(false, numPartitions);
     }
@@ -669,7 +667,10 @@ public class LocalTransaction extends AbstractTransaction {
     // INTERNAL MESSAGES
     // ----------------------------------------------------------------------------
     
-    public StartTxnMessage getStartTxnMessage() {
+    public final StartTxnMessage getStartTxnMessage() {
+        if (this.start_msg == null) {
+            this.start_msg = new StartTxnMessage(this);
+        }
         return (this.start_msg);
     }
     
