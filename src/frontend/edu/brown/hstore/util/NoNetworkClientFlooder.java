@@ -57,8 +57,8 @@ public class NoNetworkClientFlooder implements Runnable {
         StoredProcedureInvocation spi = new StoredProcedureInvocation(
         		this.clientId, 
         		"Vote",
-                call.voteId, 
-                call.phoneNumber,
+                this.clientId, 
+                this.clientId,
                 call.contestantNumber,
                 1000);
         ByteBuffer buffer = null;
