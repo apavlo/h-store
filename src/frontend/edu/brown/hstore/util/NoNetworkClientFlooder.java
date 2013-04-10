@@ -13,7 +13,7 @@ import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice.Status;
 
 public class NoNetworkClientFlooder implements Runnable {
-	private final AtomicInteger txnCounter = new AtomicInteger(0);
+	private int txnCounter = 0;
 	private final AtomicInteger successCounter = new AtomicInteger(0);
 	private final AtomicInteger rejectCounter = new AtomicInteger(0);
 	
@@ -27,14 +27,14 @@ public class NoNetworkClientFlooder implements Runnable {
         	long rej = 1, suc = 1;
         	if (status == Status.ABORT_REJECT) {
         		rej = rejectCounter.incrementAndGet();
-        		if (rej % 1000 == 0 ) {
+        		if (rej % 100000 == 0 ) {
         			System.out.println(String.format("Client Flooder[%d]:Rejected txns counter:%d", 
         					clientResponse.getClientHandle(), rej));
             	}
         	}
         	if (status == Status.OK) {
         		suc = successCounter.getAndIncrement();
-        		if (suc % 1000 == 0 ) {
+        		if (suc % 100000 == 0 ) {
         			System.out.println(String.format("Client Flooder[%d]:Finished txns counter:%d",
         					clientResponse.getClientHandle(), suc));
             	}
@@ -53,38 +53,38 @@ public class NoNetworkClientFlooder implements Runnable {
     @Override
     public void run() {
     	PhoneCallGenerator pcg = new PhoneCallGenerator(this.clientId, 4);
+    	PhoneCallGenerator.PhoneCall call = pcg.receive();
+        StoredProcedureInvocation spi = new StoredProcedureInvocation(
+        		this.clientId, 
+        		"Vote",
+                call.voteId, 
+                call.phoneNumber,
+                call.contestantNumber,
+                1000);
+        ByteBuffer buffer = null;
+		try {
+			buffer = ByteBuffer.wrap(FastSerializer.serialize(spi));
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
     	
         while (true) {
             // TODO: Get a PhoneCallGenerator.PhoneCall object!
-        	PhoneCallGenerator.PhoneCall call = pcg.receive();
-            StoredProcedureInvocation spi = new StoredProcedureInvocation(
-            		this.clientId, 
-            		"Vote",
-                    call.voteId, 
-                    call.phoneNumber,
-                    call.contestantNumber,
-                    1000);
-            ByteBuffer buffer = null;
-			try {
-				buffer = ByteBuffer.wrap(FastSerializer.serialize(spi));
-			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-            
+        	
             this.hstore_site.invocationProcess(buffer, this.callback);
             
-            long ait = this.txnCounter.incrementAndGet();
-            if ( ait % 1000 == 0) {
-        		System.out.println(String.format("Client Flooder[%d]:Total txns created:%d", this.clientId, ait));
+            if ( this.txnCounter++ % 100000 == 0) {
+        		System.out.println(String.format("Client Flooder[%d]:Total txns created:%d", this.clientId, this.txnCounter));
         	}
             // TODO: Sleep for a little...
-//            try {
+            try {
+//				Thread.sleep(0, 100000);
 //				Thread.sleep(0, 1);
-//			} catch (InterruptedException e) {
-//				// TODO Auto-generated catch block
-//				e.printStackTrace();
-//			}
+				Thread.sleep(1L);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
         } // WHILE
     }
     

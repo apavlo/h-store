@@ -1257,17 +1257,17 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             this.startWorkload = true;
             
             // Start no network test thread
-            Thread t = new Thread(new NoNetworkClientFlooder(this, 99));
-            t.setName("No_network_Client_flooder_1");
-            t.setDaemon(true);
-            t.setUncaughtExceptionHandler(this.exceptionHandler);
-            t.start();
+//            Thread t = new Thread(new NoNetworkClientFlooder(this, 99));
+//            t.setName("No_network_Client_flooder_1");
+//            t.setDaemon(true);
+//            t.setUncaughtExceptionHandler(this.exceptionHandler);
+//            t.start();
             
-            t = new Thread(new NoNetworkClientFlooder(this, 88));
-            t.setName("No_network_Client_flooder_2");
-            t.setDaemon(true);
-            t.setUncaughtExceptionHandler(this.exceptionHandler);
-            t.start();
+//            t = new Thread(new NoNetworkClientFlooder(this, 88));
+//            t.setName("No_network_Client_flooder_2");
+//            t.setDaemon(true);
+//            t.setUncaughtExceptionHandler(this.exceptionHandler);
+//            t.start();
             
             this.startWorkload_observable.notifyObservers(this);
         }
