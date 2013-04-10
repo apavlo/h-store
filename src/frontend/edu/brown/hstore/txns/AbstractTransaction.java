@@ -148,7 +148,7 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
     
     private FinishTxnMessage finish_task;
     
-    private final WorkFragmentMessage work_task[];
+    private WorkFragmentMessage work_task[];
     
     // ----------------------------------------------------------------------------
     // GLOBAL PREDICTIONS FLAGS
@@ -265,7 +265,6 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
         this.exec_noUndoBuffer = new boolean[numPartitions];
         
         this.init_task = new InitializeTxnMessage(this);
-        this.work_task = new WorkFragmentMessage[numPartitions];
         
         this.readTables = new boolean[numPartitions][];
         this.writeTables = new boolean[numPartitions][];
@@ -783,6 +782,9 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
         return (this.finish_task);
     }
     public final WorkFragmentMessage getWorkFragmentMessage(WorkFragment fragment) {
+        if (this.work_task == null) {
+            this.work_task = new WorkFragmentMessage[hstore_site.getCatalogContext().numberOfPartitions];
+        }
         int partition = fragment.getPartitionId();
         if (this.work_task[partition] == null) {
             this.work_task[partition] = new WorkFragmentMessage(this, fragment);
