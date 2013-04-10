@@ -181,7 +181,7 @@ public class LocalTransaction extends AbstractTransaction {
     /**
      * The partitions that we notified that we are done with them
      */
-    private final PartitionSet exec_donePartitions = new PartitionSet();
+    private PartitionSet exec_donePartitions;
     
     /**
      * Whether this txn was speculatively executed
@@ -356,7 +356,7 @@ public class LocalTransaction extends AbstractTransaction {
         this.exec_specExecType = SpeculationType.NULL;
         this.exec_touchedPartitions.clear();
         this.predict_touchedPartitions = null;
-        this.exec_donePartitions.clear();
+        if (this.exec_donePartitions != null) this.exec_donePartitions.clear();
         this.restart_ctr = 0;
 
         this.anticache_table = null;
@@ -786,6 +786,9 @@ public class LocalTransaction extends AbstractTransaction {
     }
     
     public boolean hasDonePartitions() {
+        if (this.exec_donePartitions == null) {
+            return (false);
+        }
         return (this.exec_donePartitions.isEmpty() == false);
     }
     
@@ -794,6 +797,9 @@ public class LocalTransaction extends AbstractTransaction {
      * @return
      */
     public PartitionSet getDonePartitions() {
+        if (this.exec_donePartitions == null) {
+            this.exec_donePartitions = new PartitionSet();
+        }
         return (this.exec_donePartitions);
     }
     
@@ -1330,6 +1336,9 @@ public class LocalTransaction extends AbstractTransaction {
      * @param ts
      */
     public PartitionSet calculateDonePartitions(EstimationThresholds thresholds) {
+        if (this.exec_donePartitions == null) {
+            this.exec_donePartitions = new PartitionSet();
+        }
         final int ts_done_partitions_size = this.exec_donePartitions.size();
         PartitionSet new_done = null;
 
@@ -1338,8 +1347,10 @@ public class LocalTransaction extends AbstractTransaction {
             return (null);
         }
         
-        if (debug.val) LOG.debug(String.format("Checking MarkovEstimate for %s to see whether we can notify any partitions that we're done with them [round=%d]",
-                         this, this.getCurrentRound(this.base_partition)));
+        if (debug.val)
+            LOG.debug(String.format("%s - Checking to see whether we can notify any partitions " +
+            		  "that we're done with them [round=%d]",
+                      this, this.getCurrentRound(this.base_partition)));
         
         Estimate estimate = t_state.getLastEstimate();
         assert(estimate != null) : "Got back null MarkovEstimate for " + this;
