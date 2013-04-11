@@ -2873,15 +2873,20 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         
         // Table Read-Write Sets
         boolean readonly = true;
+        boolean speculative = ts.isSpeculative();
+        boolean singlePartition = ts.isPredictSinglePartition();
         int tableIds[] = null;
         for (int i = 0; i < batchSize; i++) {
             boolean fragReadOnly = PlanFragmentIdGenerator.isPlanFragmentReadOnly(fragmentIds[i]);
-            if (fragReadOnly) {
-                tableIds = catalogContext.getReadTableIds(Long.valueOf(fragmentIds[i]));
-                if (tableIds != null) ts.markTableIdsAsRead(this.partitionId, tableIds);
-            } else {
-                tableIds = catalogContext.getWriteTableIds(Long.valueOf(fragmentIds[i]));
-                if (tableIds != null) ts.markTableIdsAsWritten(this.partitionId, tableIds);
+            // We don't need to maintain read/write sets for non-speculative txns
+            if (speculative || singlePartition == false) {
+                if (fragReadOnly) {
+                    tableIds = catalogContext.getReadTableIds(Long.valueOf(fragmentIds[i]));
+                    if (tableIds != null) ts.markTableIdsAsRead(this.partitionId, tableIds);
+                } else {
+                    tableIds = catalogContext.getWriteTableIds(Long.valueOf(fragmentIds[i]));
+                    if (tableIds != null) ts.markTableIdsAsWritten(this.partitionId, tableIds);
+                }
             }
             readonly = readonly && fragReadOnly;
         }
