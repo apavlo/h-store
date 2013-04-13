@@ -16,13 +16,16 @@ public class TestPlannedHasher extends BaseTestCase {
     private static final int NUM_PARTITIONS = 3;
     private AbstractHasher hasher;
     
+    
+    
+    
     @Override
     protected void setUp() throws Exception {
-        super.setUp(ProjectType.TPCC);
+        super.setUp(ProjectType.YCSB);
         hasher = new PlannedHasher(catalog_db, NUM_PARTITIONS);
         
-        Table catalog_tbl = this.getTable("WAREHOUSE");
-        Column catalog_col = this.getColumn(catalog_tbl, "W_ID");
+        Table catalog_tbl = this.getTable("USERTABLE");
+        Column catalog_col = this.getColumn(catalog_tbl, "YCSB_KEY");
         catalog_tbl.setPartitioncolumn(catalog_col);
     }
     

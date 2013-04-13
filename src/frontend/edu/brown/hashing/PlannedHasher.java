@@ -4,6 +4,7 @@
 package edu.brown.hashing;
 
 import org.voltdb.catalog.CatalogType;
+import org.voltdb.catalog.Column;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Table;
@@ -38,8 +39,9 @@ public class PlannedHasher extends DefaultHasher {
 
   @Override
   public int hash(Object value, CatalogType catalogItem) {
-    if (catalogItem instanceof Table) {
+    if (catalogItem instanceof Column) {
       // TODO
+      //get Table
     } else if (catalogItem instanceof Procedure) {
       // TODO
     }
