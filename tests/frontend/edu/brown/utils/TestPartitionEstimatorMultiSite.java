@@ -20,7 +20,6 @@ import edu.brown.benchmark.tm1.procedures.GetAccessData;
 import edu.brown.benchmark.tm1.procedures.GetNewDestination;
 import edu.brown.benchmark.tm1.procedures.UpdateSubscriberData;
 import edu.brown.catalog.CatalogCloner;
-import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.special.MultiColumn;
 import edu.brown.catalog.special.MultiProcParameter;
 import edu.brown.hashing.AbstractHasher;
@@ -47,7 +46,7 @@ public class TestPartitionEstimatorMultiSite extends BaseTestCase {
         super.setUp(ProjectType.TM1);
         if (hasher == null) {
             this.addPartitions(num_partitions);
-            hasher = new DefaultHasher(catalog_db, CatalogUtil.getNumberOfPartitions(catalog_db));
+            hasher = new DefaultHasher(catalogContext);
         }
     }
     

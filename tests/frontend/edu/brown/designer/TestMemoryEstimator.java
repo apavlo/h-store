@@ -32,7 +32,7 @@ public class TestMemoryEstimator extends BaseTestCase {
             stats.load(stats_file, catalog_db);
         }
         
-        hasher = new DefaultHasher(catalog_db, NUM_PARTITIONS);
+        hasher = new DefaultHasher(catalogContext, NUM_PARTITIONS);
         m_estimator = new MemoryEstimator(stats, hasher);
         assertNotNull(m_estimator);
     }

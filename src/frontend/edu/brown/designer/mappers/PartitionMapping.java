@@ -34,7 +34,7 @@ public class PartitionMapping implements JSONString {
     /**
      * Constructor
      * 
-     * @param catalog_db
+     * @param catalogContext
      * @param pplan
      */
     public PartitionMapping() {

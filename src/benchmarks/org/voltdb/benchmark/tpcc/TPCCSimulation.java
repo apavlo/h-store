@@ -59,14 +59,12 @@ import java.util.Random;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
+import org.voltdb.CatalogContext;
 import org.voltdb.benchmark.Clock;
-import org.voltdb.catalog.Catalog;
-import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Site;
 import org.voltdb.types.TimestampType;
 
-import edu.brown.catalog.CatalogUtil;
 import edu.brown.hashing.DefaultHasher;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
@@ -123,7 +121,8 @@ public class TPCCSimulation {
     private final FastIntHistogram totalWarehouseHistory = new FastIntHistogram(true);
 
     public TPCCSimulation(TPCCSimulation.ProcCaller client, RandomGenerator generator,
-                          Clock clock, ScaleParameters parameters, TPCCConfig config, double skewFactor, Catalog catalog) {
+                          Clock clock, ScaleParameters parameters, TPCCConfig config, double skewFactor,
+                          CatalogContext catalogContext) {
         assert parameters != null;
         this.client = client;
         this.generator = generator;
@@ -163,9 +162,8 @@ public class TPCCSimulation {
                 	remoteWarehouseIds = new HashMap<Integer, List<Integer>>();
                 	HashMap <Integer, Integer> partitionToSite = new HashMap<Integer, Integer>();
                 	
-                	Database catalog_db = CatalogUtil.getDatabase(catalog);
-                	DefaultHasher hasher = new DefaultHasher(catalog_db);
-            		for (Site s: CatalogUtil.getCluster(catalog_db).getSites()) {
+                	DefaultHasher hasher = new DefaultHasher(catalogContext);
+            		for (Site s: catalogContext.sites) {
             			for (Partition p: s.getPartitions())
             				partitionToSite.put(p.getId(), s.getId());
             		} // FOR
