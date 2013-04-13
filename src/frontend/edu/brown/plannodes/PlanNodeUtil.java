@@ -403,7 +403,7 @@ public abstract class PlanNodeUtil {
     /**
      * Get the set of columns
      * 
-     * @param catalog_db
+     * @param catalogContext
      * @param node
      * @return
      */

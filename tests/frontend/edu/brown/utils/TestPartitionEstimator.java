@@ -45,7 +45,7 @@ public class TestPartitionEstimator extends BaseTestCase {
         super.setUp(ProjectType.TPCC);
         this.addPartitions(NUM_PARTITIONS);
         if (hasher == null) {
-            hasher = new DefaultHasher(catalog_db, NUM_PARTITIONS); // CatalogUtil.getNumberOfPartitions(catalog_db));
+            hasher = new DefaultHasher(catalogContext, NUM_PARTITIONS); // CatalogUtil.getNumberOfPartitions(catalog_db));
         }
         
         Table catalog_tbl = this.getTable("WAREHOUSE");

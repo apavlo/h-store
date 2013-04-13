@@ -939,7 +939,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     /**
      * Return the partition ids stored at this Site
      * 
-     * @param catalog_db
+     * @param catalogContext
      * @return
      */
     public static PartitionSet getLocalPartitionIds(Site catalog_site) {
@@ -1925,7 +1925,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
 
     /**
      * @param catalog_stmt
-     * @param catalog_db
+     * @param catalogContext
      * @param cset
      * @param root_node
      * @param tables

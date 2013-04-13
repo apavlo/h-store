@@ -35,7 +35,7 @@ public abstract class FixWorkload {
     
     /**
      * 
-     * @param catalog_db
+     * @param catalogContext
      * @throws Exception
      */
     public static void addZipfianAffinity(ArgumentsParser args, double sigma) throws Exception {

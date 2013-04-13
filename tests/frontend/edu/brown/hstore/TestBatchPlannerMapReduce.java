@@ -16,7 +16,6 @@ import edu.brown.benchmark.mapreduce.procedures.MockMapReduce;
 import edu.brown.hashing.DefaultHasher;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.statistics.FastIntHistogram;
-import edu.brown.statistics.Histogram;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.PartitionSet;
 import edu.brown.utils.ProjectType;
@@ -44,7 +43,7 @@ public class TestBatchPlannerMapReduce extends BaseTestCase {
     protected void setUp() throws Exception {
         super.setUp(ProjectType.MAPREDUCE);
         this.addPartitions(NUM_PARTITIONS);
-        p_estimator = new PartitionEstimator(catalogContext, new DefaultHasher(catalog_db, NUM_PARTITIONS));
+        p_estimator = new PartitionEstimator(catalogContext, new DefaultHasher(catalogContext, NUM_PARTITIONS));
     }
  
     private void init(Class<? extends VoltProcedure> volt_proc, String stmt_name, Object raw_args[]) {

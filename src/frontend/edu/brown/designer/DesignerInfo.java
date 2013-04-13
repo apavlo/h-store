@@ -135,7 +135,7 @@ public class DesignerInfo {
     }
 
     /**
-     * @param catalog_db
+     * @param catalogContext
      * @param workload
      * @param stats
      * @param hints
@@ -158,7 +158,7 @@ public class DesignerInfo {
         this.checkpoint = args.designer_checkpoint;
 
         // Memory Estimator
-        this.m_estimator = new MemoryEstimator(this.stats, new DefaultHasher(this.catalogContext.database, this.num_partitions));
+        this.m_estimator = new MemoryEstimator(this.stats, new DefaultHasher(this.catalogContext, this.num_partitions));
 
         // Correlations (smoke 'em if you got 'em)
         if (args.param_mappings != null) {
@@ -199,7 +199,7 @@ public class DesignerInfo {
     /**
      * Constructor
      * 
-     * @param catalog_db
+     * @param catalogContext
      * @param workload
      */
     public DesignerInfo(CatalogContext catalogContext, Workload workload) {

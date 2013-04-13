@@ -255,7 +255,7 @@ public class SEATSLoader extends Loader {
     /**
      * The fixed tables are those that are generated from the static data files
      * The number of tuples in these tables will not change based on the scale factor.
-     * @param catalog_db
+     * @param catalogContext
      */
     protected void loadFixedTables() {
         Database catalog_db = CatalogUtil.getDatabase(this.getCatalog());
@@ -275,7 +275,7 @@ public class SEATSLoader extends Loader {
     /**
      * The scaling tables are things that we will scale the number of tuples based
      * on the given scaling factor at runtime 
-     * @param catalog_db
+     * @param catalogContext
      */
     protected void loadScalingTables() {
         Database catalog_db = this.getCatalogContext().database;

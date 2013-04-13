@@ -9,6 +9,7 @@ import java.util.Map;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.JSONStringer;
+import org.voltdb.CatalogContext;
 import org.voltdb.TheHashinator;
 import org.voltdb.catalog.CatalogType;
 import org.voltdb.catalog.Database;
@@ -33,12 +34,12 @@ public class MappedHasher extends AbstractHasher {
      * @param catalog_db
      * @param num_partitions
      */
-    public MappedHasher(Database catalog_db, int num_partitions) {
-        super(catalog_db, num_partitions);
+    public MappedHasher(CatalogContext catalogContext, int num_partitions) {
+        super(catalogContext, num_partitions);
     }
     
     @Override
-    public void init(Database catalogDb) {
+    public void init(CatalogContext catalogDb) {
         // TODO Auto-generated method stub
         
     }
