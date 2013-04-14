@@ -205,7 +205,7 @@ public class MarkovCostModel extends AbstractCostModel {
     /**
      * Constructor
      * 
-     * @param catalog_db
+     * @param catalogContext
      * @param p_estimator
      */
     public MarkovCostModel(CatalogContext catalogContext, PartitionEstimator p_estimator, MarkovEstimator t_estimator, EstimationThresholds thresholds) {

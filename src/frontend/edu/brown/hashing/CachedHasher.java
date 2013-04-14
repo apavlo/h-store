@@ -1,7 +1,7 @@
 package edu.brown.hashing;
 
 import org.apache.commons.collections15.map.LRUMap;
-import org.voltdb.catalog.Database;
+import org.voltdb.CatalogContext;
 
 public class CachedHasher extends DefaultHasher {
 
@@ -12,12 +12,12 @@ public class CachedHasher extends DefaultHasher {
      * @param catalog_db
      * @param num_partitions
      */
-    public CachedHasher(Database catalog_db, int num_partitions) {
-        super(catalog_db, num_partitions);
+    public CachedHasher(CatalogContext catalogContext, int num_partitions) {
+        super(catalogContext, num_partitions);
     }
 
     @Override
-    public void init(Database catalogDb) {
+    public void init(CatalogContext catalogDb) {
         super.init(catalogDb);
         this.cache.clear();
     }

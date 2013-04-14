@@ -11,12 +11,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.voltdb.CatalogContext;
 import org.voltdb.catalog.Table;
 import org.voltdb.utils.Pair;
 
 import edu.brown.catalog.CatalogKey;
-import edu.brown.catalog.CatalogUtil;
 import edu.brown.costmodel.SingleSitedCostModel;
 import edu.brown.designer.Designer;
 import edu.brown.designer.DesignerHints;
@@ -87,11 +85,11 @@ public class AffinityMapper extends AbstractMapper {
         cost_model.estimateWorkloadCost(info.catalogContext, this.info.workload);
 
         int num_partitions = info.catalogContext.numberOfPartitions;
-        AbstractHasher hasher = new DefaultHasher(info.catalog_db, num_partitions);
+        AbstractHasher hasher = new DefaultHasher(info.catalogContext, num_partitions);
 
         Collection<Table> roots = pplan.getNonReplicatedRoots();
         Map<Table, List<Integer>> table_partition_values = new HashMap<Table, List<Integer>>();
-        for (Table catalog_tbl : info.catalog_db.getTables()) {
+        for (Table catalog_tbl : info.catalogContext.database.getTables()) {
             table_partition_values.put(catalog_tbl, new ArrayList<Integer>());
             if (roots.contains(catalog_tbl)) {
                 this.table_histogram_xref.put(catalog_tbl, new HashSet<FragmentAffinity>());

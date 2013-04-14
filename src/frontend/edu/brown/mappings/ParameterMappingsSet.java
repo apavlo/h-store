@@ -47,7 +47,7 @@ public class ParameterMappingsSet extends HashSet<ParameterMapping> implements J
     
     /**
      * Constructor
-     * @param catalog_db
+     * @param catalogContext
      */
     public ParameterMappingsSet() {
         super();

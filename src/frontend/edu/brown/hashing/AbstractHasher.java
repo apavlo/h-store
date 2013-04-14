@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.util.Arrays;
 
 import org.apache.log4j.Logger;
+import org.voltdb.CatalogContext;
 import org.voltdb.catalog.CatalogType;
 import org.voltdb.catalog.Database;
 
@@ -15,10 +16,10 @@ public abstract class AbstractHasher implements JSONSerializable {
     protected static final Logger LOG = Logger.getLogger(AbstractHasher.class.getName());
 
     protected final int num_partitions;
-    protected final Database catalog_db;
+    protected final CatalogContext catalogContext;
     
-    public AbstractHasher(Database catalog_db, int num_partitions) {
-        this.catalog_db = catalog_db;
+    public AbstractHasher(CatalogContext catalogContext, int num_partitions) {
+        this.catalogContext = catalogContext;
         this.num_partitions = num_partitions;
     }
     
@@ -56,7 +57,7 @@ public abstract class AbstractHasher implements JSONSerializable {
     // ABSTRACT INTERFACE
     // -----------------------------------------------------------------
     
-    public abstract void init(Database catalog_db);
+    public abstract void init(CatalogContext catalogContext);
     
     /**
      * Hash the given value based on the partition count 

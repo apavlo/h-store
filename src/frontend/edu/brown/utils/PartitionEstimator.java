@@ -299,7 +299,7 @@ public class PartitionEstimator {
      * Convenience constructor that uses DefaultHasher
      */
     public PartitionEstimator(CatalogContext catalogContext) {
-        this(catalogContext, new DefaultHasher(catalogContext.database, catalogContext.numberOfPartitions));
+        this(catalogContext, new DefaultHasher(catalogContext, catalogContext.numberOfPartitions));
     }
 
     /**
@@ -344,7 +344,7 @@ public class PartitionEstimator {
         // Check whether any of our cache partition columns have changed
         // In which cache we know need to invalidate our cache entries
         this.catalogContext = newCatalogContext;
-        this.hasher.init(catalogContext.database);
+        this.hasher.init(catalogContext);
         this.clear();
         this.buildCatalogCache();
     }

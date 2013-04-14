@@ -34,6 +34,7 @@ import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
+import org.apache.log4j.Logger;
 import org.voltdb.VoltTable;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
@@ -43,8 +44,11 @@ import weka.classifiers.meta.Vote;
 
 import edu.brown.api.BenchmarkComponent;
 import edu.brown.hstore.Hstoreservice.Status;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 
 public class VoterClient extends BenchmarkComponent {
+    private static final Logger LOG = Logger.getLogger(VoterClient.class);
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
 
     // Phone number generator
     PhoneCallGenerator switchboard;
@@ -137,8 +141,12 @@ public class VoterClient extends BenchmarkComponent {
                 }
             }
             else if (clientResponse.getStatus() == Status.ABORT_UNEXPECTED) {
-                System.err.println(clientResponse);
-                System.exit(1);
+                if (clientResponse.getException() != null) {
+                    clientResponse.getException().printStackTrace();
+                }
+                if (debug.val && clientResponse.getStatusString() != null) {
+                    LOG.warn(clientResponse.getStatusString());
+                }
             }
         }
     } // END CLASS

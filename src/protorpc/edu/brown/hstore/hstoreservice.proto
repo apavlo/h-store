@@ -102,8 +102,14 @@ message WorkResult {
 
 // Speculative Execution Estimate
 message QueryEstimate {
+    // An ordered list of StatementIds that the transaction might execute
     repeated int32 stmt_ids = 1 [packed=true];
+    // The counter of the number of times that the transaction has executed
+    // these StatementIds in the past.
     repeated int32 stmt_counters = 2 [packed=true];
+    // The estimated amount of time (in milliseconds) until the transaction
+    // is expected to need the results of these queries.
+    optional int32 time_estimate = 3;
 }
 
 // -----------------------------------

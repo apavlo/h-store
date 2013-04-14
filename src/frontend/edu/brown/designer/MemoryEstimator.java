@@ -348,10 +348,9 @@ public class MemoryEstimator {
     public static void main(String[] vargs) throws Exception {
         ArgumentsParser args = ArgumentsParser.load(vargs);
 
-        MemoryEstimator estimator = new MemoryEstimator(args.stats, new DefaultHasher(args.catalog_db, CatalogUtil.getNumberOfPartitions(args.catalog_db)));
-        int partitions = CatalogUtil.getNumberOfPartitions(args.catalog_db);
+        MemoryEstimator estimator = new MemoryEstimator(args.stats, new DefaultHasher(args.catalogContext));
         for (Table catalog_tbl : args.catalog_db.getTables()) {
-            System.out.println(catalog_tbl + ": " + estimator.estimate(catalog_tbl, partitions));
+            System.out.println(catalog_tbl + ": " + estimator.estimate(catalog_tbl, args.catalogContext.numberOfPartitions));
         }
     }
 

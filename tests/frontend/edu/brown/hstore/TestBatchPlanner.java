@@ -64,7 +64,7 @@ public class TestBatchPlanner extends BaseTestCase {
     protected void setUp() throws Exception {
         super.setUp(ProjectType.TM1);
         this.addPartitions(NUM_PARTITIONS);
-        p_estimator = new PartitionEstimator(catalogContext, new DefaultHasher(catalog_db, NUM_PARTITIONS));
+        p_estimator = new PartitionEstimator(catalogContext, new DefaultHasher(catalogContext, NUM_PARTITIONS));
     }
     
     private void init(Class<? extends VoltProcedure> volt_proc, String stmt_name, Object raw_args[]) {

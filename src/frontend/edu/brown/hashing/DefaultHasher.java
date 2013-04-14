@@ -9,11 +9,11 @@ import java.util.Arrays;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.JSONStringer;
+import org.voltdb.CatalogContext;
 import org.voltdb.TheHashinator;
 import org.voltdb.catalog.CatalogType;
 import org.voltdb.catalog.Database;
 
-import edu.brown.catalog.CatalogUtil;
 import edu.brown.utils.ClassUtil;
 
 /**
@@ -23,19 +23,19 @@ import edu.brown.utils.ClassUtil;
 public class DefaultHasher extends AbstractHasher {
 
     /**
-     * @param catalog_db
+     * @param catalogContext
      * @param num_partitions
      */
-    public DefaultHasher(Database catalog_db, int num_partitions) {
-        super(catalog_db, num_partitions);
+    public DefaultHasher(CatalogContext catalogContext, int num_partitions) {
+        super(catalogContext, num_partitions);
     }
 
-    public DefaultHasher(Database catalog_db) {
-        this(catalog_db, CatalogUtil.getNumberOfPartitions(catalog_db));
+    public DefaultHasher(CatalogContext catalogContext) {
+        this(catalogContext, catalogContext.numberOfPartitions);
     }
     
     @Override
-    public void init(Database catalogDb) {
+    public void init(CatalogContext catalogDb) {
         // TODO Auto-generated method stub
         
     }

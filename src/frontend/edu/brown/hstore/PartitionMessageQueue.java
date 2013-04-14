@@ -50,10 +50,10 @@ public class PartitionMessageQueue extends PriorityBlockingQueue<InternalMessage
         return (ctr);
     }
     
-    @Override
-    public InternalMessage poll() {
-        return super.poll();
-    }
+//    @Override
+//    public InternalMessage poll() {
+//        return super.poll();
+//    }
     
     private static final Comparator<InternalMessage> WORK_COMPARATOR = new Comparator<InternalMessage>() {
         @SuppressWarnings("unchecked")
