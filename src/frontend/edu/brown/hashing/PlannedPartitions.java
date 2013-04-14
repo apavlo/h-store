@@ -17,6 +17,7 @@ import org.apache.log4j.Logger;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.JSONStringer;
+import org.voltdb.CatalogContext;
 import org.voltdb.VoltType;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Table;
@@ -25,6 +26,7 @@ import org.voltdb.utils.VoltTypeUtil;
 import edu.brown.hstore.HStoreConstants;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.mappings.ParameterMappingsSet;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.JSONSerializable;
 
@@ -47,28 +49,31 @@ public class PlannedPartitions implements JSONSerializable {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
 
-    private Database catalog_db;
+    private CatalogContext catalog_context;
     private Map<String, VoltType> table_vt_map;
     private Map<String, PartitionPhase> partition_phase_map;
-
-    public PlannedPartitions(Database catalog_db, File planned_partition_json_file) throws Exception {
-        this(catalog_db, new JSONObject(FileUtil.readFile(planned_partition_json_file)));
+    private ParameterMappingsSet paramMappings;
+    private String current_phase;
+    
+    public PlannedPartitions(CatalogContext catalog_context, File planned_partition_json_file) throws Exception {
+        this(catalog_context, new JSONObject(FileUtil.readFile(planned_partition_json_file)));
     }
 
-    public PlannedPartitions(Database catalog_db, JSONObject planned_partition_json) throws Exception {
-        this.catalog_db = catalog_db;
+    public PlannedPartitions(CatalogContext catalog_context, JSONObject planned_partition_json) throws Exception {
+        this.catalog_context = catalog_context;
         this.partition_phase_map = new HashMap<>();
+        
+        this.paramMappings = catalog_context.paramMappings;
         // TODO find catalogContext.getParameter mapping to find statement_colum
         // from project mapping
 
         table_vt_map = new HashMap<>();
-        for (Table table : catalog_db.getTables()) {
-            // LEFTOFF TODO
-
-            // VoltType vt = VoltType.get(catalog_param.getType());
+        for (Table table : catalog_context.getDataTables()) {
+ 
+            VoltType.get(table.getPartitioncolumn().getType());
+            table_vt_map.put(table.getName().toLowerCase(), VoltType.BIGINT);
         }
-        // TODO hack for testing
-        table_vt_map.put("usertable", VoltType.BIGINT);
+        
 
         if (planned_partition_json.has(PLANNED_PARTITIONS)) {
             JSONObject phases = planned_partition_json.getJSONObject(PLANNED_PARTITIONS);
@@ -77,7 +82,7 @@ public class PlannedPartitions implements JSONSerializable {
             while (keys.hasNext()) {
                 String key = keys.next();
                 JSONObject phase = phases.getJSONObject(key);
-                partition_phase_map.put(key, new PartitionPhase(catalog_db, table_vt_map, phase));
+                partition_phase_map.put(key, new PartitionPhase(catalog_context, table_vt_map, phase));
             }
         } else {
             throw new JSONException(String.format("JSON file is missing key \"%s\". ", PLANNED_PARTITIONS));
@@ -91,11 +96,15 @@ public class PlannedPartitions implements JSONSerializable {
      * @author aelmore Holds the phases/epochs/version of a partition plan
      */
     public static class PartitionPhase {
-        protected Map<String, TablePartitions<? extends Comparable<?>>> table_partitions;
+        protected Map<String, PartitionedTable<? extends Comparable<?>>> tables_map;
 
         @SuppressWarnings("unchecked")
         public List<PartitionRange<? extends Comparable<?>>> getPartitions(String table_name) {
-            return (List<PartitionRange<? extends Comparable<?>>>) table_partitions.get(table_name);
+            return (List<PartitionRange<? extends Comparable<?>>>) tables_map.get(table_name);
+        }
+        
+        public PartitionedTable<? extends Comparable<?>> getTable(String table_name) {
+            return tables_map.get(table_name);
         }
 
         /**
@@ -107,17 +116,17 @@ public class PlannedPartitions implements JSONSerializable {
          * @param phase
          *            JSONObject
          */
-        public PartitionPhase(Database catalog_db, Map<String, VoltType> table_vt_map, JSONObject phase) throws Exception {
-            this.table_partitions = new HashMap<String, PlannedPartitions.TablePartitions<? extends Comparable<?>>>();
+        public PartitionPhase(CatalogContext catalog_context, Map<String, VoltType> table_vt_map, JSONObject phase) throws Exception {
+            this.tables_map = new HashMap<String, PlannedPartitions.PartitionedTable<? extends Comparable<?>>>();
             assert (phase.has(TABLES));
-            JSONObject tables = phase.getJSONObject(TABLES);
-            Iterator<String> table_names = tables.keys();
+            JSONObject json_tables = phase.getJSONObject(TABLES);
+            Iterator<String> table_names = json_tables.keys();
             while (table_names.hasNext()) {
                 String table_name = table_names.next();
-                assert (table_vt_map.containsKey(table_name));
-                JSONObject table_json = tables.getJSONObject(table_name);
+                assert (table_vt_map.containsKey(table_name.toLowerCase()));
+                JSONObject table_json = json_tables.getJSONObject(table_name.toLowerCase());
                 //Class<?> c = table_vt_map.get(table_name).classFromType();
-                table_partitions.put(table_name, new TablePartitions<>(table_vt_map.get(table_name), table_name, table_json));
+                tables_map.put(table_name, new PartitionedTable<>(table_vt_map.get(table_name), table_name, table_json));
             }
 
         }
@@ -128,12 +137,12 @@ public class PlannedPartitions implements JSONSerializable {
      * @param <T>
      *            The type of the ID which is partitioned on. Comparable
      */
-    public static class TablePartitions<T extends Comparable<T>> {
+    public static class PartitionedTable<T extends Comparable<T>> {
         protected List<PartitionRange<T>> partitions;
         private String table_name;
         private VoltType vt;
 
-        public TablePartitions(VoltType vt, String table_name, JSONObject table_json) throws Exception{
+        public PartitionedTable(VoltType vt, String table_name, JSONObject table_json) throws Exception{
             this.partitions = new ArrayList<>();
             this.table_name = table_name;
             this.vt = vt;
@@ -226,11 +235,10 @@ public class PlannedPartitions implements JSONSerializable {
 
     // ********End Containers **************************************/
 
-    private Map<String, PartitionPhase> partition_phases;
-    private String current_phase;
 
-    public void getPartitionId(String table_name, Object id){
-        throw new NotImplementedException();
+
+    public void getPartitionId(String table_name, Comparable<?> id){
+        partition_phase_map.get(getCurrent_phase()).getTable(table_name).findPartition(id);
     }
     
     public synchronized void setPartitionPhase(String phase) {

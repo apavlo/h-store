@@ -3,6 +3,7 @@
  */
 package edu.brown.hashing;
 
+import org.voltdb.CatalogContext;
 import org.voltdb.catalog.CatalogType;
 import org.voltdb.catalog.Column;
 import org.voltdb.catalog.Database;
@@ -21,15 +22,15 @@ public class PlannedHasher extends DefaultHasher {
    * @param catalog_db
    * @param num_partitions
    */
-  public PlannedHasher(Database catalog_db, int num_partitions) {
-    super(catalog_db, num_partitions);
+  public PlannedHasher(CatalogContext catalogContext, int num_partitions) {
+    super(catalogContext, num_partitions);
   }
 
   /**
    * @param catalog_db
    */
-  public PlannedHasher(Database catalog_db) {
-    super(catalog_db);
+  public PlannedHasher(CatalogContext catalogContext) {
+    super(catalogContext);
   }
 
   @Override
