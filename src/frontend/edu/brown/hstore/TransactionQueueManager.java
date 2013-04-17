@@ -81,7 +81,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
      */
     private final PartitionLockQueue[] lockQueues;
     
-    private final ReentrantLock lockQueueBarriers[];
+//    private final ReentrantLock lockQueueBarriers[];
     
     /**
      * The last txns that was executed for each partition
@@ -131,7 +131,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
         this.localPartitions = hstore_site.getLocalPartitionIds();
         this.lockQueues = new PartitionLockQueue[catalogContext.numberOfPartitions];
         this.lockQueueLastTxns = new Long[catalogContext.numberOfPartitions];
-        this.lockQueueBarriers = new ReentrantLock[catalogContext.numberOfPartitions];
+//        this.lockQueueBarriers = new ReentrantLock[catalogContext.numberOfPartitions];
         this.initQueue = new LinkedBlockingQueue<AbstractTransaction>();
         this.restartQueue = new LinkedBlockingQueue<Pair<LocalTransaction,Status>>();
         this.profilers = new TransactionQueueManagerProfiler[catalogContext.numberOfPartitions];
@@ -143,7 +143,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
                                                               this.initThrottleThreshold,
                                                               this.initThrottleRelease);
             this.lockQueues[partition] = queue;
-            this.lockQueueBarriers[partition] = new ReentrantLock(true);
+//            this.lockQueueBarriers[partition] = new ReentrantLock(true);
             this.profilers[partition] = new TransactionQueueManagerProfiler();
         } // FOR
         Arrays.fill(this.lockQueueLastTxns, Long.valueOf(-1l));
@@ -415,11 +415,11 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
         Long next_safe_id = null;
         Status status = Status.OK;
         
-        this.lockQueueBarriers[partition].lock();
+//        this.lockQueueBarriers[partition].lock();
         try {
             next_safe_id = this.lockQueues[partition].noteTransactionRecievedAndReturnLastSafeTxnId(txn_id);
         } finally {
-            this.lockQueueBarriers[partition].unlock();
+//            this.lockQueueBarriers[partition].unlock();
         } // SYNCH
         
         // The next txnId that we're going to try to execute is already greater
@@ -480,11 +480,11 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
         
         // Poll the queue and get the next value.
         AbstractTransaction nextTxn = null;
-        this.lockQueueBarriers[partition].lockInterruptibly();
+//        this.lockQueueBarriers[partition].lockInterruptibly();
         try {
-            nextTxn = this.lockQueues[partition].poll();
+            nextTxn = this.lockQueues[partition].take();
         } finally {
-            this.lockQueueBarriers[partition].unlock();
+//            this.lockQueueBarriers[partition].unlock();
         } // SYNCH
         
         if (nextTxn == null) {
@@ -593,7 +593,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
         // If this remove() returns false, then we know that our transaction wasn't
         // sitting in the queue for that partition.
         boolean removed = false;
-        this.lockQueueBarriers[partition].lock();
+//        this.lockQueueBarriers[partition].lock();
         try {
             if (checkQueue) {
                 // If it wasn't running, then we need to make sure that we remove it from
@@ -618,7 +618,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
             PartitionCountingCallback<AbstractTransaction> callback = ts.getInitCallback();
             callback.decrementCounter(partition);
         } finally {
-            this.lockQueueBarriers[partition].unlock();
+//            this.lockQueueBarriers[partition].unlock();
         } // SYNCH
         
         if (debug.val)
