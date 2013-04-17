@@ -1141,7 +1141,7 @@ public final class HStoreConf {
         @ConfigProperty(
             description="Whether to enable object pooling for AbstractTransaction handles. This includes" +
             		    "all local transactions, remote transactions, and MapReduce transactions.",
-            defaultBoolean=true,
+            defaultBoolean=false,
             experimental=false
         )
         public boolean pool_txn_enable;
