@@ -1,8 +1,8 @@
 package edu.brown.hashing;
 
-import org.json.JSONException;
+import java.io.File;
+
 import org.json.JSONObject;
-import org.voltdb.VoltType;
 import org.voltdb.catalog.Column;
 import org.voltdb.catalog.Table;
 
@@ -41,6 +41,7 @@ public class TestPlannedPartitions extends BaseTestCase {
   "          }"+ 
   "        }"+
   "}";
+private File json_path;
   
   @Override
   protected void setUp() throws Exception {
@@ -48,8 +49,24 @@ public class TestPlannedPartitions extends BaseTestCase {
     Table catalog_tbl = this.getTable("USERTABLE");
     Column catalog_col = this.getColumn(catalog_tbl, "YCSB_KEY");
     catalog_tbl.setPartitioncolumn(catalog_col);
+    String tmp_dir = System.getProperty("java.io.tmpdir");
+    json_path = FileUtil.join(tmp_dir,"test1.json");
+    FileUtil.writeStringToFile(json_path, test_json1);
   }
 
+
+  
+  public void testReadJSON() throws Exception {
+      File f = new File(json_path.getAbsolutePath());
+      assertNotNull(f);
+      assert(f.exists());
+      JSONObject test_json = new JSONObject(FileUtil.readFile(f));
+      PlannedPartitions p = new PlannedPartitions(catalogContext, test_json);
+      p.setPartitionPhase("1");
+      assertEquals(1, p.getPartitionId("usertable", new Long(99)));
+      assertEquals(2, p.getPartitionId("usertable", new Long(100)));
+  }
+  
   public void testBuildTablePartitions() throws Exception {
     JSONObject test_json = new JSONObject(test_json1);
     PlannedPartitions p = new PlannedPartitions(catalogContext, test_json);
