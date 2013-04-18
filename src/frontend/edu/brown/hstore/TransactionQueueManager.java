@@ -593,7 +593,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
         // If this remove() returns false, then we know that our transaction wasn't
         // sitting in the queue for that partition.
         boolean removed = false;
-        this.lockQueueBarriers[partition].lock();
+//        this.lockQueueBarriers[partition].lock();
         try {
             if (checkQueue) {
                 // If it wasn't running, then we need to make sure that we remove it from
@@ -618,7 +618,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
             PartitionCountingCallback<AbstractTransaction> callback = ts.getInitCallback();
             callback.decrementCounter(partition);
         } finally {
-            this.lockQueueBarriers[partition].unlock();
+//            this.lockQueueBarriers[partition].unlock();
         } // SYNCH
         
         if (debug.val)
