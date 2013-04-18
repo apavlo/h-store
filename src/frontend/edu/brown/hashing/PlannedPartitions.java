@@ -97,6 +97,19 @@ public class PlannedPartitions implements JSONSerializable {
     }
 
   }
+  
+  /**
+   * Get the partition id for a given table and partition id/key
+   * @param table_name
+   * @param id
+   * @return the partition id, or -1 / null partition if the id/key is not found in the plan
+   * @throws Exception
+   */
+  public int getPartitionId(String table_name, Object id) throws Exception {
+    return partition_phase_map.get(getCurrent_phase()).getTable(table_name).findPartition(id);
+  }
+
+  
 
   // ******** Containers *****************************************/
 
@@ -253,14 +266,18 @@ public class PlannedPartitions implements JSONSerializable {
 
   // ********End Containers **************************************/
 
-  public int getPartitionId(String table_name, Object id) throws Exception {
-    return partition_phase_map.get(getCurrent_phase()).getTable(table_name).findPartition(id);
-  }
 
+  /**
+   * Update the current partition phase (plan/epoch/etc)
+   * @param phase
+   */
   public synchronized void setPartitionPhase(String phase) {
     this.current_phase = phase;
   }
 
+  /**
+   * @return the current partition phase/epoch
+   */
   public synchronized String getCurrent_phase() {
     return current_phase;
   }
