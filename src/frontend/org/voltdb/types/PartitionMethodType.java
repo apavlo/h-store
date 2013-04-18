@@ -32,7 +32,8 @@ public enum PartitionMethodType {
     MAP         (3),
     REPLICATION (4),
     NONE        (5),
-    RANDOM      (6);
+    RANDOM      (6),
+    PLANNED     (7);
 
     PartitionMethodType(int val) {
         assert (this.ordinal() == val) :
