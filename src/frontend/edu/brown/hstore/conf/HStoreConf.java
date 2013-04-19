@@ -96,7 +96,7 @@ public final class HStoreConf {
             defaultString="edu.brown.hashing.DefaultHasher",
             experimental=true
         )
-        public String hasherClass;
+        public String hasher_class;
         
         @ConfigProperty(
             description="How often in milliseconds the log4j refresh thread will check to see " +
