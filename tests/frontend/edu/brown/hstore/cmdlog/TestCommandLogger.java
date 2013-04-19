@@ -42,7 +42,7 @@ import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.MockHStoreSite;
 import edu.brown.hstore.cmdlog.CommandLogReader;
-import edu.brown.hstore.cmdlog.CommandLogWriter;
+import edu.brown.hstore.cmdlog.CircularBufferCommandLogWriter;
 import edu.brown.hstore.cmdlog.LogEntry;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.txns.LocalTransaction;
@@ -71,7 +71,7 @@ public class TestCommandLogger extends BaseTestCase {
     };
     
     HStoreSite hstore_site; 
-    CommandLogWriter logger;
+    CircularBufferCommandLogWriter logger;
     Thread loggerThread;
     Procedure catalog_procs[];
     File outputFile;
@@ -94,7 +94,7 @@ public class TestCommandLogger extends BaseTestCase {
         assert(hstore_site.isLocalPartition(0));
         
         outputFile = FileUtil.getTempFile("log");
-        logger = new CommandLogWriter(hstore_site, outputFile);
+        logger = new CircularBufferCommandLogWriter(hstore_site, outputFile);
         loggerThread = new Thread(this.logger);
         loggerThread.setDaemon(true);
         loggerThread.start();

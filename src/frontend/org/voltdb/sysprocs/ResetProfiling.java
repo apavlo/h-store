@@ -18,6 +18,7 @@ import org.voltdb.types.TimestampType;
 import org.voltdb.utils.VoltTableUtil;
 
 import edu.brown.hstore.PartitionExecutor;
+import edu.brown.hstore.cmdlog.CircularBufferCommandLogWriter;
 import edu.brown.hstore.cmdlog.CommandLogWriter;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.estimators.TransactionEstimator;

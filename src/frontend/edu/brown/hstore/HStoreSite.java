@@ -54,7 +54,6 @@ import org.voltdb.StatsSource;
 import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.SysProcSelector;
 import org.voltdb.TransactionIdManager;
-import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Host;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
@@ -91,7 +90,9 @@ import edu.brown.hstore.callbacks.LocalInitQueueCallback;
 import edu.brown.hstore.callbacks.LocalFinishCallback;
 import edu.brown.hstore.callbacks.PartitionCountingCallback;
 import edu.brown.hstore.callbacks.RedirectCallback;
+import edu.brown.hstore.cmdlog.CircularBufferCommandLogWriter;
 import edu.brown.hstore.cmdlog.CommandLogWriter;
+import edu.brown.hstore.cmdlog.FastCommandLogWriter;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.estimators.EstimatorState;
 import edu.brown.hstore.estimators.TransactionEstimator;
@@ -539,11 +540,19 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             // It would be nice if we could come up with a unique name for this
             // invocation of the system (like the cluster instanceId). But for now
             // we'll just write out to our directory...
-            File logFile = new File(hstore_conf.site.commandlog_dir +
-                                    File.separator +
-                                    this.getSiteName().toLowerCase() +
-                                    CommandLogWriter.LOG_OUTPUT_EXT);
-            this.commandLogger = new CommandLogWriter(this, logFile);
+        	
+//            File logFile = new File(hstore_conf.site.commandlog_dir +
+//                                    File.separator +
+//                                    this.getSiteName().toLowerCase() +
+//                                    CircularBufferCommandLogWriter.LOG_OUTPUT_EXT);
+//        	this.commandLogger = new CircularBufferCommandLogWriter(this, logFile);
+        	
+        	File logFile = new File(hstore_conf.site.commandlog_dir +
+                    File.separator +
+                    this.getSiteName().toLowerCase() +
+                    FastCommandLogWriter.LOG_OUTPUT_EXT);
+        	this.commandLogger = new FastCommandLogWriter(this, logFile);
+            
         } else {
             this.commandLogger = null;
         }
