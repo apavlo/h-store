@@ -45,7 +45,11 @@ public class PlannedHasher extends DefaultHasher {
       "        }"+
       "}";
   
-  PlannedPartitions planned_partitions = null;
+  private PlannedPartitions planned_partitions = null;
+  
+  public void changePartitionPhase(String partition_plan) throws Exception{
+    planned_partitions.setPartitionPhase(partition_plan);
+  }
   /**
    * @param catalog_db
    * @param num_partitions

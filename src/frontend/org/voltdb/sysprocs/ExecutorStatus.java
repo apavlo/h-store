@@ -38,7 +38,7 @@ public class ExecutorStatus extends VoltSystemProcedure {
     
     @Override
     public void initImpl() {
-        executor.registerPlanFragment(SysProcFragmentId.PF_execStatus, this);
+        executor.registerPlanFragment(SysProcFragmentId.PF_changePartitionPlanDistribute, this);
     }
 
     @Override
