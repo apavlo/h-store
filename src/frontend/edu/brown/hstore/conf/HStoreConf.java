@@ -99,6 +99,13 @@ public final class HStoreConf {
         public String hasher_class;
         
         @ConfigProperty(
+            description="The path to a more fine-grained partitioning plan for the database.",
+            defaultNull=true,
+            experimental=true
+        )
+        public String hasher_plan;
+        
+        @ConfigProperty(
             description="How often in milliseconds the log4j refresh thread will check to see " +
             		    "whether the log4j.properties file has changed. We have to do this manually " +
             		    "because Java doesn't have the ability to get a callback when a file changes.",
