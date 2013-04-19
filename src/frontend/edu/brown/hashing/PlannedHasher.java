@@ -21,6 +21,7 @@ import org.voltdb.utils.NotImplementedException;
 public class PlannedHasher extends DefaultHasher {
 
   String ycsb_plan = "{"+
+      "       \"default_table\":\"usertable\"," +        
       "       \"partition_plans\":{"+
       "          \"1\" : {"+
       "            \"tables\":{"+

@@ -32,7 +32,6 @@ import edu.brown.mappings.ParameterMappingsSet;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.JSONSerializable;
 
-
 //       TODO This class likely needs to be relocated (ae)
 /**
  * @author aelmore A container for statically defined partitions plans. Each
@@ -41,10 +40,16 @@ import edu.brown.utils.JSONSerializable;
  *         partitioned. <br>
  *         PlannedPartitions Hierarchy:
  *         <ul>
- *          <li> Map[String, PartitionPhase] partition_phase_map
- *             <ul><li> Map[String, PartitionedTable] tables_map
- *               <ul><li>  List[PartitionRange] partitions
- *                 <ul><li> PartitionRange: min,max,partition_id </ul></ul></ul>
+ *         <li>Map[String, PartitionPhase] partition_phase_map
+ *         <ul>
+ *         <li>Map[String, PartitionedTable] tables_map
+ *         <ul>
+ *         <li>List[PartitionRange] partitions
+ *         <ul>
+ *         <li>PartitionRange: min,max,partition_id
+ *         </ul>
+ *         </ul>
+ *         </ul>
  *         </ul>
  */
 
@@ -55,6 +60,7 @@ public class PlannedPartitions implements JSONSerializable {
   public static final String PLANNED_PARTITIONS = "partition_plans";
   public static final String TABLES = "tables";
   public static final String PARTITIONS = "partitions";
+  private static final String DEFAULT_TABLE = "default_table";
 
   static {
     LoggerUtil.attachObserver(LOG, debug, trace);
@@ -66,6 +72,7 @@ public class PlannedPartitions implements JSONSerializable {
   private Map<CatalogType, String> catalog_to_table_map;
   private ParameterMappingsSet paramMappings;
   private String current_phase;
+  private String default_table = null;
 
   public PlannedPartitions(CatalogContext catalog_context, File planned_partition_json_file) throws Exception {
     this(catalog_context, new JSONObject(FileUtil.readFile(planned_partition_json_file)));
@@ -76,26 +83,32 @@ public class PlannedPartitions implements JSONSerializable {
     this.partition_phase_map = new HashMap<>();
     this.catalog_to_table_map = new HashMap<>();
     this.paramMappings = catalog_context.paramMappings;
-    // TODO find catalogContext.getParameter mapping to find statement_column 
+    // TODO find catalogContext.getParameter mapping to find statement_column
     // from project mapping (ae)
-
+    assert planned_partition_json.has(DEFAULT_TABLE) : "default_table missing from planned partition json";
+    default_table = planned_partition_json.getString(DEFAULT_TABLE);
     table_vt_map = new HashMap<>();
     for (Table table : catalog_context.getDataTables()) {
       table_vt_map.put(table.getName().toLowerCase(), VoltType.get(table.getPartitioncolumn().getType()));
       catalog_to_table_map.put(table.getPartitioncolumn(), table.getName().toLowerCase());
     }
-    
-    for(Procedure proc : catalog_context.procedures) {
-      if (!proc.getSystemproc()){
+
+    for (Procedure proc : catalog_context.procedures) {
+      if (!proc.getSystemproc()) {
         String table_name = catalog_to_table_map.get(proc.getPartitioncolumn());
-        LOG.info(table_name + " adding procedure: " + proc.toString());
+        if ((table_name == null) || (table_name.equals("null")) || (table_name.trim().length() == 0)) {
+          LOG.info(String.format("Using default table %s for procedure: %s ", default_table, proc.toString()));
+          table_name = default_table;
+        } else {
+          LOG.info(table_name + " adding procedure: " + proc.toString());
+        }
         catalog_to_table_map.put(proc, table_name);
-        for(Statement statement: proc.getStatements()) {
+        for (Statement statement : proc.getStatements()) {
           LOG.info(table_name + " adding statement: " + statement.toString());
-          
+
           catalog_to_table_map.put(statement, table_name);
         }
-        
+
       }
     }
 
@@ -105,39 +118,40 @@ public class PlannedPartitions implements JSONSerializable {
       Iterator<String> keys = phases.keys();
       while (keys.hasNext()) {
         String key = keys.next();
-        
-        //Use the first phase by default
-        if(first_key == null){
+
+        // Use the first phase by default
+        if (first_key == null) {
           first_key = key;
           setPartitionPhase(first_key);
         }
         JSONObject phase = phases.getJSONObject(key);
         partition_phase_map.put(key, new PartitionPhase(catalog_context, table_vt_map, phase));
       }
-      
+
     } else {
       throw new JSONException(String.format("JSON file is missing key \"%s\". ", PLANNED_PARTITIONS));
     }
-    
-    //TODO check to make sure partitions exist that are in the plan (ae)
+
+    // TODO check to make sure partitions exist that are in the plan (ae)
 
   }
-  
+
   /**
    * Get the partition id for a given table and partition id/key
+   * 
    * @param table_name
    * @param id
-   * @return the partition id, or -1 / null partition if the id/key is not found in the plan
+   * @return the partition id, or -1 / null partition if the id/key is not found
+   *         in the plan
    * @throws Exception
    */
   public int getPartitionId(String table_name, Object id) throws Exception {
     PartitionPhase phase = partition_phase_map.get(getCurrent_phase());
     PartitionedTable<?> table = phase.getTable(table_name);
-    assert table != null : "Table not found " + table_name; 
+    assert table != null : "Table not found " + table_name;
     return table.findPartition(id);
   }
 
-  
   public int getPartitionId(CatalogType catalog, Object id) throws Exception {
     String table_name = catalog_to_table_map.get(catalog);
     return getPartitionId(table_name, id);
@@ -225,8 +239,8 @@ public class PlannedPartitions implements JSONSerializable {
 
       // TODO I am sure there is a better way to do this... Andy? (ae)
       T cast_id = (T) id;
-      
-      try{
+
+      try {
         for (PartitionRange<T> p : partitions) {
           // if this greater than or equal to the min inclusive val and
           // less than
@@ -236,9 +250,11 @@ public class PlannedPartitions implements JSONSerializable {
             return p.partition;
           }
         }
-      } catch(Exception e){}
-      
-      LOG.error(String.format("Partition not found for ID:%s.  Type:%s  TableType",cast_id, cast_id.getClass().toString(), vt.getClass().toString()) );
+      } catch (Exception e) {
+      }
+
+      LOG.error(String.format("Partition not found for ID:%s.  Type:%s  TableType", cast_id, cast_id.getClass().toString(), vt.getClass()
+          .toString()));
       return HStoreConstants.NULL_PARTITION_ID;
     }
 
@@ -302,9 +318,9 @@ public class PlannedPartitions implements JSONSerializable {
 
   // ********End Containers **************************************/
 
-
   /**
    * Update the current partition phase (plan/epoch/etc)
+   * 
    * @param phase
    */
   public synchronized void setPartitionPhase(String phase) {
