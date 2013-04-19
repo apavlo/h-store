@@ -10,6 +10,7 @@
 <arg value="global.sshprefix=${global.sshprefix}" />
 <arg value="global.defaulthost=${global.defaulthost}" />
 <arg value="global.hasher_class=${global.hasher_class}" />
+<arg value="global.hasher_plan=${global.hasher_plan}" />
 <arg value="global.log_refresh=${global.log_refresh}" />
 <arg value="global.nanosecond_latencies=${global.nanosecond_latencies}" />
 
