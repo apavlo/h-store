@@ -3,6 +3,7 @@
  */
 package edu.brown.hashing;
 
+import org.json.JSONObject;
 import org.voltdb.CatalogContext;
 import org.voltdb.catalog.CatalogType;
 import org.voltdb.catalog.Column;
@@ -18,12 +19,44 @@ import org.voltdb.utils.NotImplementedException;
  */
 public class PlannedHasher extends DefaultHasher {
 
+  String ycsb_plan = "{"+
+      "       \"partition_plans\":{"+
+      "          \"1\" : {"+
+      "            \"tables\":{"+
+      "              \"usertable\":{"+
+      "                \"partitions\":{"+
+      "                  0 : \"0-100000\""+
+      "                }     "+
+      "              }"+
+      "            }"+
+      "          },"+
+      "          \"2\" : {"+
+      "            \"tables\":{"+
+      "              \"usertable\":{"+
+      "                \"partitions\":{"+
+      "                  0 : \"0-50000\","+
+      "                  1 : \"50000-100000\""+
+      "                }     "+
+      "              }"+
+      "            }"+
+      "          }"+ 
+      "        }"+
+      "}";
+  
+  PlannedPartitions planned_partitions = null;
   /**
    * @param catalog_db
    * @param num_partitions
    */
   public PlannedHasher(CatalogContext catalogContext, int num_partitions) {
     super(catalogContext, num_partitions);
+    try{
+      JSONObject partition_json = new JSONObject(ycsb_plan);
+      planned_partitions = new PlannedPartitions(catalogContext,partition_json);
+    }catch(Exception ex){
+      LOG.error("Error intializing planned partitions", ex);
+      throw new RuntimeException(ex);
+    }
   }
 
   /**
@@ -40,12 +73,14 @@ public class PlannedHasher extends DefaultHasher {
 
   @Override
   public int hash(Object value, CatalogType catalogItem) {
-    if (catalogItem instanceof Column) {
-      // TODO
-      //get Table
-    } else if (catalogItem instanceof Procedure) {
-      // TODO
-    }
+    if (catalogItem instanceof Column || catalogItem instanceof Procedure) {
+      try {
+        return planned_partitions.getPartitionId(catalogItem, value);
+      } catch (Exception e) {
+        LOG.error("Error on looking up partitionId from planned partition", e);
+        throw new RuntimeException(e);
+      }
+    } 
     throw new NotImplementedException("TODO");
   }
 

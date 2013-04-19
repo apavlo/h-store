@@ -19,7 +19,10 @@ import org.json.JSONObject;
 import org.json.JSONStringer;
 import org.voltdb.CatalogContext;
 import org.voltdb.VoltType;
+import org.voltdb.catalog.CatalogType;
+import org.voltdb.catalog.Column;
 import org.voltdb.catalog.Database;
+import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Table;
 import org.voltdb.utils.VoltTypeUtil;
 
@@ -61,6 +64,7 @@ public class PlannedPartitions implements JSONSerializable {
   private CatalogContext catalog_context;
   private Map<String, VoltType> table_vt_map;
   private Map<String, PartitionPhase> partition_phase_map;
+  private Map<CatalogType, String> catalog_to_table_map;
   private ParameterMappingsSet paramMappings;
   private String current_phase;
 
@@ -71,30 +75,45 @@ public class PlannedPartitions implements JSONSerializable {
   public PlannedPartitions(CatalogContext catalog_context, JSONObject planned_partition_json) throws Exception {
     this.catalog_context = catalog_context;
     this.partition_phase_map = new HashMap<>();
-
+    this.catalog_to_table_map = new HashMap<>();
     this.paramMappings = catalog_context.paramMappings;
-    // TODO find catalogContext.getParameter mapping to find statement_colum
+    // TODO find catalogContext.getParameter mapping to find statement_column 
     // from project mapping (ae)
 
     table_vt_map = new HashMap<>();
     for (Table table : catalog_context.getDataTables()) {
-
-      VoltType.get(table.getPartitioncolumn().getType());
-      table_vt_map.put(table.getName().toLowerCase(), VoltType.BIGINT);
+      table_vt_map.put(table.getName().toLowerCase(), VoltType.get(table.getPartitioncolumn().getType()));
+      catalog_to_table_map.put(table.getPartitioncolumn(), table.getName().toLowerCase());
+    }
+    
+    for(Procedure proc : catalog_context.procedures) {
+      if (!proc.getSystemproc()){
+        String table_name = catalog_to_table_map.get(proc.getPartitioncolumn());
+        catalog_to_table_map.put(proc, table_name);
+      }
     }
 
     if (planned_partition_json.has(PLANNED_PARTITIONS)) {
       JSONObject phases = planned_partition_json.getJSONObject(PLANNED_PARTITIONS);
-
+      String first_key = null;
       Iterator<String> keys = phases.keys();
       while (keys.hasNext()) {
         String key = keys.next();
+        
+        //Use the first phase by default
+        if(first_key == null){
+          first_key = key;
+          setPartitionPhase(first_key);
+        }
         JSONObject phase = phases.getJSONObject(key);
         partition_phase_map.put(key, new PartitionPhase(catalog_context, table_vt_map, phase));
       }
+      
     } else {
       throw new JSONException(String.format("JSON file is missing key \"%s\". ", PLANNED_PARTITIONS));
     }
+    
+    //TODO check to make sure partitions exist that are in the plan (ae)
 
   }
   
@@ -110,6 +129,10 @@ public class PlannedPartitions implements JSONSerializable {
   }
 
   
+  public int getPartitionId(CatalogType catalog, Object id) throws Exception {
+    String table_name = catalog_to_table_map.get(catalog);
+    return getPartitionId(table_name, id);
+  }
 
   // ******** Containers *****************************************/
 
@@ -193,16 +216,20 @@ public class PlannedPartitions implements JSONSerializable {
 
       // TODO I am sure there is a better way to do this... Andy? (ae)
       T cast_id = (T) id;
-
-      for (PartitionRange<T> p : partitions) {
-        // if this greater than or equal to the min inclusive val and
-        // less than
-        // max_exclusive or equal to both min and max (singleton)
-        if ((p.min_inclusive.compareTo(cast_id) <= 0 && p.max_exclusive.compareTo(cast_id) > 0)
-            || (p.min_inclusive.compareTo(cast_id) == 0 && p.max_exclusive.compareTo(cast_id) == 0)) {
-          return p.partition;
+      
+      try{
+        for (PartitionRange<T> p : partitions) {
+          // if this greater than or equal to the min inclusive val and
+          // less than
+          // max_exclusive or equal to both min and max (singleton)
+          if ((p.min_inclusive.compareTo(cast_id) <= 0 && p.max_exclusive.compareTo(cast_id) > 0)
+              || (p.min_inclusive.compareTo(cast_id) == 0 && p.max_exclusive.compareTo(cast_id) == 0)) {
+            return p.partition;
+          }
         }
-      }
+      } catch(Exception e){}
+      
+      LOG.error(String.format("Partition not found for ID:%s.  Type:%s  TableType",cast_id, cast_id.getClass().toString(), vt.getClass().toString()) );
       return HStoreConstants.NULL_PARTITION_ID;
     }
 
