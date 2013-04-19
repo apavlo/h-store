@@ -32,7 +32,9 @@ import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -75,48 +77,6 @@ public class FastCommandLogWriter extends CommandLogWriter {
      */
     public static final String LOG_OUTPUT_EXT = ".cmdlog"; 
     
-    /**
-     * Circular Buffer of Log Entries
-     */
-    protected class FastLogEntryBuffer {
-        private final LinkedList<WriterLogEntry> buffer;
-        private int next;
-        
-        public FastLogEntryBuffer() {
-            this.buffer = new LinkedList<WriterLogEntry>();
-            this.next = 0;
-        }
-        public LogEntry next(LocalTransaction ts, ClientResponseImpl cresponse) {
-            // Check that they don't try add the same txn twice right after each other
-            LogEntry ret = null; 
-            if (this.buffer.size() > this.next) {
-            	ret = this.buffer.get(this.next).init(ts, cresponse);
-            } else {
-            	WriterLogEntry wle = new WriterLogEntry();
-                ret = wle.init(ts, cresponse);
-                this.buffer.addFirst(wle);
-            }
-        	this.next += 1;
-            
-            return ret;
-        }
-        public void flushCleanup() {
-        	this.next = 0;
-        }
-        public int getStart() {
-            return 0;
-        }
-        public int size() {
-            return (this.next);
-        }
-        
-        @Override
-        public String toString() {
-            return String.format("%s[start=%d / next=%s]@%d", this.getClass().getSimpleName(),
-                                 0, this.next, this.hashCode());
-        }
-    } // CLASS
-    
     private final HStoreSite hstore_site;
     private final HStoreConf hstore_conf;
     private final CatalogContext catalogContext;
@@ -146,8 +106,8 @@ public class FastCommandLogWriter extends CommandLogWriter {
      * The log entry buffers (one per partition) 
      */
     //private FastLogEntryBuffer entries[];
-    private FastLogEntryBuffer entries[];
-    private FastLogEntryBuffer entriesFlushing[];
+    private List< Queue<WriterLogEntry>> entries;
+    private List< Queue<WriterLogEntry>> entriesFlushing;
     
     private CommandLogWriterProfiler profiler;
     
@@ -188,11 +148,11 @@ public class FastCommandLogWriter extends CommandLogWriter {
             
             // Make one entry buffer per partition SO THAT SYNCHRONIZATION ON EACH BUFFER IS NOT REQUIRED
             this.writingEntry = new Semaphore(this.numWritingLocks, false); 
-            this.entries = new FastLogEntryBuffer[num_partitions];
-            this.entriesFlushing = new FastLogEntryBuffer[num_partitions];
+            //this.entriesFlushing = new LinkedList<WriterLogEntry>[num_partitions];
             for (int partition = 0; partition < num_partitions; partition++) {
-                this.entries[partition] = new FastLogEntryBuffer();
-                this.entriesFlushing[partition] = new FastLogEntryBuffer();
+            	Queue<WriterLogEntry> wle = new LinkedList<WriterLogEntry>();
+            	this.entries.add(wle);
+                this.entriesFlushing.add(new LinkedList<WriterLogEntry>());
             } // FOR
             this.singletonLogEntry = null;
         } else {
@@ -233,7 +193,7 @@ public class FastCommandLogWriter extends CommandLogWriter {
 
         this.usePostProcessor = hstore_site.hasTransactionPostProcessors();
         
-        FastLogEntryBuffer temp[] = null;
+        List< Queue<WriterLogEntry>> temp = null;
         long next = System.currentTimeMillis() + hstore_conf.site.commandlog_timeout;
         while (this.stop == false) {
             // Sleep until our timeout period, at which point a 
@@ -322,10 +282,10 @@ public class FastCommandLogWriter extends CommandLogWriter {
      */
     public int getTotalTxnCount() {
         int total = 0;
-        for (FastLogEntryBuffer c : this.entries) {
+        for (Queue <WriterLogEntry> c : this.entries) {
             total += c.size();
         } // FOR
-        for (FastLogEntryBuffer c : this.entriesFlushing) {
+        for (Queue <WriterLogEntry> c : this.entriesFlushing) {
             total += c.size();
         } // FOR
         return (total);
@@ -391,7 +351,7 @@ public class FastCommandLogWriter extends CommandLogWriter {
      * GroupCommits the given buffer set all at once
      * @param eb
      */
-    public int groupCommit(FastLogEntryBuffer[] eb) {
+    public int groupCommit(List< Queue<WriterLogEntry>> eb) {
         if (hstore_conf.site.commandlog_profiling) {
             if (this.profiler == null) this.profiler = new CommandLogWriterProfiler();
             this.profiler.writingTime.start();
@@ -400,14 +360,12 @@ public class FastCommandLogWriter extends CommandLogWriter {
         // Write all to a single FastSerializer buffer
         this.singletonSerializer.clear();
         int txnCounter = 0;
-        for (int i = 0; i < eb.length; i++) {
+        for (int i = 0; i < eb.size(); i++) {
             try {
                 assert(this.singletonSerializer != null);
-                int position = 0;
-                
-                while (position != eb[i].next) {
-                    WriterLogEntry entry = eb[i].buffer.get(position++);
-                    try {
+                Queue <WriterLogEntry> entryQueue = eb.get(i);
+                for (WriterLogEntry entry: entryQueue) {
+                	try {
                         this.singletonSerializer.writeObject(entry);
                         txnCounter++;
                     } catch (Throwable ex) {
@@ -416,7 +374,8 @@ public class FastCommandLogWriter extends CommandLogWriter {
                     if (debug.val)
                         LOG.debug(String.format("Prepared txn #%d for group commit batch #%d",
                                   entry.getTransactionId(), this.commitBatchCounter));
-                } // WHILE
+                	
+                }
             } catch (Exception e) {
                 String message = "Failed to serialize buffer during group commit";
                 throw new ServerFaultException(message, e);
@@ -451,12 +410,10 @@ public class FastCommandLogWriter extends CommandLogWriter {
             ProfileMeasurementUtil.swap(profiler.writingTime, profiler.networkTime);
         try {
             // Send responses
-            for (int i = 0; i < eb.length; i++) {
-                FastLogEntryBuffer buffer = eb[i];
-                int start = buffer.getStart();
-                for (int j = 0, size = buffer.size(); j < size; j++) {
-                    WriterLogEntry entry = buffer.buffer.get(start + j);
-                    if (entry.isInitialized()) {
+            for (int i = 0; i < eb.size(); i++) {
+                Queue <WriterLogEntry> buffer = eb.get(i);
+                for (WriterLogEntry entry: buffer) {
+                	if (entry.isInitialized()) {
                         if (this.usePostProcessor) {
                             hstore_site.responseQueue(entry.cresponse,
                                                       entry.clientCallback,
@@ -472,8 +429,8 @@ public class FastCommandLogWriter extends CommandLogWriter {
                     } else {
                         LOG.warn("Unexpected unintialized " + entry.getClass().getSimpleName());
                     }
-                } // FOR
-                buffer.flushCleanup();
+                }
+                buffer.clear();
             } // FOR
         } finally {
             if (hstore_conf.site.commandlog_profiling && profiler != null) profiler.networkTime.stop();
@@ -505,7 +462,7 @@ public class FastCommandLogWriter extends CommandLogWriter {
 			int offset = this.hstore_site.getLocalPartitionOffset(basePartition);
 
             // get the buffer for the partition of the current transaction
-            FastLogEntryBuffer buffer = this.entries[offset];
+            Queue<WriterLogEntry> buffer = this.entries.get(offset);
             assert(buffer != null) : "Missing log entry buffer for partition " + basePartition;
             try {
                 // acquire semaphore permit to write a transaction to the log
@@ -515,7 +472,9 @@ public class FastCommandLogWriter extends CommandLogWriter {
                 // create an entry for this transaction in the buffer for this partition
                 // NOTE: this is guaranteed to be thread-safe because there is
                 // only one thread per partition
-                LogEntry entry = buffer.next(ts, cresponse);
+                WriterLogEntry wle = new WriterLogEntry();
+                LogEntry entry = wle.init(ts, cresponse);
+                buffer.add(wle);
                 assert(entry != null);
                 if (trace.val)
                     LOG.trace(String.format("New %s %s from %s for partition %d",
