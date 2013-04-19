@@ -9,6 +9,7 @@ import org.voltdb.catalog.CatalogType;
 import org.voltdb.catalog.Column;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.Table;
 import org.voltdb.utils.NotImplementedException;
 
@@ -73,7 +74,7 @@ public class PlannedHasher extends DefaultHasher {
 
   @Override
   public int hash(Object value, CatalogType catalogItem) {
-    if (catalogItem instanceof Column || catalogItem instanceof Procedure) {
+    if (catalogItem instanceof Column || catalogItem instanceof Procedure || catalogItem instanceof Statement) {
       try {
         return planned_partitions.getPartitionId(catalogItem, value);
       } catch (Exception e) {

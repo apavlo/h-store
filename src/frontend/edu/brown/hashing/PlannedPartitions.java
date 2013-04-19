@@ -12,7 +12,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.commons.lang.NotImplementedException;
 import org.apache.log4j.Logger;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -20,9 +19,9 @@ import org.json.JSONStringer;
 import org.voltdb.CatalogContext;
 import org.voltdb.VoltType;
 import org.voltdb.catalog.CatalogType;
-import org.voltdb.catalog.Column;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.Table;
 import org.voltdb.utils.VoltTypeUtil;
 
@@ -89,7 +88,14 @@ public class PlannedPartitions implements JSONSerializable {
     for(Procedure proc : catalog_context.procedures) {
       if (!proc.getSystemproc()){
         String table_name = catalog_to_table_map.get(proc.getPartitioncolumn());
+        LOG.info(table_name + " adding procedure: " + proc.toString());
         catalog_to_table_map.put(proc, table_name);
+        for(Statement statement: proc.getStatements()) {
+          LOG.info(table_name + " adding statement: " + statement.toString());
+          
+          catalog_to_table_map.put(statement, table_name);
+        }
+        
       }
     }
 
@@ -125,7 +131,10 @@ public class PlannedPartitions implements JSONSerializable {
    * @throws Exception
    */
   public int getPartitionId(String table_name, Object id) throws Exception {
-    return partition_phase_map.get(getCurrent_phase()).getTable(table_name).findPartition(id);
+    PartitionPhase phase = partition_phase_map.get(getCurrent_phase());
+    PartitionedTable<?> table = phase.getTable(table_name);
+    assert table != null : "Table not found " + table_name; 
+    return table.findPartition(id);
   }
 
   
