@@ -17,6 +17,7 @@ public class TestPlannedPartitions extends BaseTestCase {
   }
 
   public String test_json1 = "{"+
+  "       \"default_table\":\"usertable\"," +   
   "       \"partition_plans\":{"+
   "          \"1\" : {"+
   "            \"tables\":{"+
