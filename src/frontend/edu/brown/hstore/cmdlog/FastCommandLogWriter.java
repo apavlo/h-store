@@ -148,6 +148,9 @@ public class FastCommandLogWriter extends CommandLogWriter {
             
             // Make one entry buffer per partition SO THAT SYNCHRONIZATION ON EACH BUFFER IS NOT REQUIRED
             this.writingEntry = new Semaphore(this.numWritingLocks, false); 
+            
+            this.entries = new LinkedList< Queue<WriterLogEntry>>();
+            this.entriesFlushing = new LinkedList< Queue<WriterLogEntry>>();
             //this.entriesFlushing = new LinkedList<WriterLogEntry>[num_partitions];
             for (int partition = 0; partition < num_partitions; partition++) {
             	Queue<WriterLogEntry> wle = new LinkedList<WriterLogEntry>();
