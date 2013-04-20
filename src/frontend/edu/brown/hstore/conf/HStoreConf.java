@@ -412,7 +412,7 @@ public final class HStoreConf {
         
         @ConfigProperty(
             description="Timeout in milliseconds before group commit buffer flushes, if it does not fill",
-            defaultInt=500,
+            defaultInt=50,
             replacedBy="site.commandlog_timeout",
             experimental=true
         )
@@ -565,7 +565,7 @@ public final class HStoreConf {
         
         @ConfigProperty(
             description="Timeout in milliseconds before group commit buffer flushes, if it does not fill",
-            defaultInt=100,
+            defaultInt=10,
             experimental=true
         )
         public int commandlog_timeout;
