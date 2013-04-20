@@ -13,6 +13,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import javax.management.RuntimeErrorException;
+
 import org.apache.log4j.Logger;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -227,6 +229,12 @@ public class PlannedPartitions implements JSONSerializable {
       Collections.sort(this.partitions);
     }
 
+    protected PartitionedTable(List<PartitionRange<T>> partitions, String table_name, VoltType vt) {
+      this.partitions = partitions;
+      this.table_name = table_name;
+      this.vt = vt;
+    }
+
     /**
      * Find the partition for a key
      * 
@@ -276,8 +284,105 @@ public class PlannedPartitions implements JSONSerializable {
   }
 
   /**
-   * A defined range of keys and an associated partition id. Sorts by min id, then max id only
-   * first, ie (1-4 < 2-3) and (1-4 < 1-5)
+   * A partition range that holds old and new partition IDs
+   * 
+   * @author aelmore
+   * 
+   * @param <T>
+   */
+  public static class ReconfigurationRange<T extends Comparable<T>> extends PartitionRange<T> {
+    public int old_partition;
+    public int new_partition;
+
+    public ReconfigurationRange(VoltType vt, T min_inclusive, T max_exclusive, int old_partition, int new_partition) throws ParseException {
+      super(vt, min_inclusive, max_exclusive);
+      this.old_partition = old_partition;
+      this.new_partition = new_partition;
+    }
+    
+    @Override
+    public String toString(){
+      return String.format("ReconfigRange [%s,%s) id:%s->%s ",min_inclusive,max_exclusive,old_partition,new_partition);
+    }
+  }
+
+  public static class ReconfigurationTable<T extends Comparable<T>> {
+    List<ReconfigurationRange<T>> reconfigurations;
+
+    public ReconfigurationTable(PartitionedTable<T> old_table, PartitionedTable<T> new_table) throws Exception {
+      reconfigurations = new ArrayList<ReconfigurationRange<T>>();
+      Iterator<PartitionRange<T>> old_ranges = old_table.partitions.iterator();
+      Iterator<PartitionRange<T>> new_ranges = new_table.partitions.iterator();
+
+      PartitionRange<T> new_range = new_ranges.next();
+      T max_old_accounted_for = null;
+      PartitionRange<T> old_range = null;
+      // Iterate through the old partition ranges.
+      // Only move to the next old rang
+      while (old_ranges.hasNext()) {
+        // only move to the next element if first time, or all of the previous
+        // range has been accounted for
+        if (old_range == null || old_range.max_exclusive.compareTo(max_old_accounted_for) <= 0) {
+          old_range = old_ranges.next();
+        }
+
+        if (max_old_accounted_for == null) {
+          // We have not accounted for any range yet
+          max_old_accounted_for = old_range.min_inclusive;
+        }
+        if (old_range.compareTo(new_range) == 0) {
+          if (old_range.partition == new_range.partition) {
+            // No change do nothing
+          } else {
+            // Same range new partition
+            reconfigurations.add(new ReconfigurationRange<T>(old_range.vt, old_range.min_inclusive, old_range.max_exclusive,
+                old_range.partition, new_range.partition));
+          }
+          max_old_accounted_for = old_range.max_exclusive;
+          new_range = new_ranges.next();
+        } else {
+          if (old_range.max_exclusive.compareTo(new_range.max_exclusive) <= 0) {
+            // The old range is a subset of the new range
+            if (old_range.partition == new_range.partition) {
+              // Same partitions no reconfiguration needed here
+              max_old_accounted_for = old_range.max_exclusive;
+            } else {
+              // Need to move the old range to new range
+              reconfigurations.add(new ReconfigurationRange<T>(old_range.vt, max_old_accounted_for, old_range.max_exclusive,
+                  old_range.partition, new_range.partition));
+              max_old_accounted_for = old_range.max_exclusive;
+              if (max_old_accounted_for.compareTo(new_range.max_exclusive)==0){
+                new_range = new_ranges.next();
+              }
+            }
+          } else {
+            // The old range is larger than this new range
+            // keep getting new ranges until old range has been satisfied
+            while (old_range.max_exclusive.compareTo(new_range.max_exclusive) > 0) {
+              if (old_range.partition == new_range.partition) {
+                // No need to move this range
+                max_old_accounted_for = new_range.max_exclusive;
+              } else {
+                // move
+                reconfigurations.add(new ReconfigurationRange<T>(old_range.vt, max_old_accounted_for, new_range.max_exclusive,
+                    old_range.partition, new_range.partition));
+                max_old_accounted_for = new_range.max_exclusive;
+              }
+              if (new_ranges.hasNext() == false) {
+                throw new RuntimeException("Not all ranges accounted for");
+              }
+              new_range = new_ranges.next();
+            }
+          }
+
+        }
+      }
+    }
+  }
+
+  /**
+   * A defined range of keys and an associated partition id. Sorts by min id,
+   * then max id only first, ie (1-4 < 2-3) and (1-4 < 1-5)
    * 
    * 
    * @author aelmore
@@ -289,6 +394,13 @@ public class PlannedPartitions implements JSONSerializable {
     protected T max_exclusive;
     protected int partition;
     protected VoltType vt;
+
+    public PartitionRange(VoltType vt, T min_inclusive, T max_exclusive) {
+      this.vt = vt;
+      this.min_inclusive = min_inclusive;
+      this.max_exclusive = max_exclusive;
+      this.partition = -1;
+    }
 
     @SuppressWarnings("unchecked")
     public PartitionRange(VoltType vt, int partition_id, String range) throws ParseException {
@@ -305,8 +417,8 @@ public class PlannedPartitions implements JSONSerializable {
         min_inclusive = (T) min_obj;
         Object max_obj = VoltTypeUtil.getObjectFromString(vt, vals[1]);
         max_exclusive = (T) max_obj;
-        if(min_inclusive.compareTo(max_exclusive)>0){
-          throw new ParseException("Min cannot be greater than max",-1);
+        if (min_inclusive.compareTo(max_exclusive) > 0) {
+          throw new ParseException("Min cannot be greater than max", -1);
         }
       }
       // x
