@@ -44,21 +44,21 @@ import edu.brown.utils.TableUtil;
  */
 public class ResultsPrinter implements BenchmarkInterest {
     private static final Logger LOG = Logger.getLogger(ResultsPrinter.class);
-//
-//    private static final String COL_HEADERS[] = {
-//        "", // NAME
-//        "", // TOTAL
-//        "", // TOTAL %
-//        "THROUGHPUT",
-//        "LATENCY",
-//    };
-//    
+
+    private static final String COL_HEADERS[] = {
+        "",              // NAME
+        "TXNS EXECUTED", // TOTAL TXNS
+        "DISTRIBUTED",   // TOTAL DTXNS
+        "THROUGHPUT",
+        "LATENCY",
+    };
+    
     private static final String COL_FORMATS[] = {
         "%23s:",
-        "%8d total",
-        "(%5.1f%%)",
+        "%8d (%5.1f%%)",
+        "%8d (%5.1f%%)",
         "%8.2f txn/s",
-        "%8s ms latency",
+        "%8s ms",
     };
     
     private static final String RESULT_FORMAT = "%.2f";
@@ -135,22 +135,26 @@ public class ResultsPrinter implements BenchmarkInterest {
         // -------------------------------
         Collection<String> txnNames = fr.getTransactionNames();
         Collection<String> clientNames = fr.getClientNames();
-        int num_rows = txnNames.size() + (this.output_clients ? clientNames.size() + 1 : 0);
+        int num_rows = txnNames.size() + (this.output_clients ? clientNames.size() + 1 : 0) + 1; // HEADER
         Object rows[][] = new String[num_rows][COL_FORMATS.length];
         int row_idx = 0;
         
-//        rows[row_idx++] = COL_HEADERS;
+        rows[row_idx++] = COL_HEADERS;
         for (String txnName : txnNames) {
             EntityResult er = fr.getTransactionResult(txnName);
             assert(er != null);
             int col_idx = 0;
             rows[row_idx][col_idx++] = String.format(COL_FORMATS[col_idx-1], txnName);
             
-            // TXN COUNT
-            rows[row_idx][col_idx++] = String.format(COL_FORMATS[col_idx-1], er.getTxnCount());
+            // TXN COUNT + PERCENTAGE
+            rows[row_idx][col_idx++] = String.format(COL_FORMATS[col_idx-1],
+                                                     er.getTxnCount(),
+                                                     er.getTxnPercentage());
             
-            // TXN PERCENTAGE
-            rows[row_idx][col_idx++] = String.format(COL_FORMATS[col_idx-1], er.getTxnPercentage());
+            // DTXN COUNT + PERCENTAGE
+            rows[row_idx][col_idx++] = String.format(COL_FORMATS[col_idx-1],
+                                                     er.getDistributedTxnCount(),
+                                                     er.getDistributedTxnPercentage());
             
             // TXN / MS
             rows[row_idx][col_idx++] = String.format(COL_FORMATS[col_idx-1], er.getTxnPerMilli());
