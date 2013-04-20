@@ -35,8 +35,8 @@ import java.util.Map.Entry;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
+import org.voltdb.CatalogContext;
 import org.voltdb.VoltTable;
-import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.Column;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Table;
@@ -129,7 +129,7 @@ public class SEATSProfile {
     /**
      * TableName -> TableCatalog
      */
-    protected transient final Catalog catalog;
+    protected transient final CatalogContext catalogContext;
     
     /**
      * We want to maintain a small cache of FlightIds so that the SEATSClient
@@ -163,8 +163,8 @@ public class SEATSProfile {
     // CONSTRUCTOR
     // ----------------------------------------------------------------
     
-    public SEATSProfile(Catalog catalog, RandomGenerator rng) {
-        this.catalog = catalog;
+    public SEATSProfile(CatalogContext catalogContext, RandomGenerator rng) {
+        this.catalogContext = catalogContext;
         this.rng = rng;
         
         // Tuple Code to Tuple Id Mapping
@@ -189,7 +189,7 @@ public class SEATSProfile {
         // key reference to COUNTRY.CO_ID, then the data file for AIRPORT will have a value
         // 'USA' in the AP_CO_ID column. We can use mapping to get the id number for 'USA'.
         // Long winded and kind of screwy, but hey what else are you going to do?
-        for (Table catalog_tbl : CatalogUtil.getDatabase(catalog).getTables()) {
+        for (Table catalog_tbl : catalogContext.database.getTables()) {
             for (Column catalog_col : catalog_tbl.getColumns()) {
                 Column catalog_fkey_col = CatalogUtil.getForeignKeyParent(catalog_col);
                 if (catalog_fkey_col != null && this.code_id_xref.containsKey(catalog_fkey_col.getName())) {
@@ -327,7 +327,7 @@ public class SEATSProfile {
             if (LOG.isTraceEnabled())
                 LOG.trace("Airport Max Customer Id:\n" + this.airport_max_customer_id);
             
-            cachedProfile = new SEATSProfile(this.catalog, this.rng).copy(this);
+            cachedProfile = new SEATSProfile(this.catalogContext, this.rng).copy(this);
         } // SYNCH
     }
     

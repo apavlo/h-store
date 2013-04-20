@@ -319,8 +319,8 @@ public class SEATSClient extends BenchmarkComponent {
         super(args);
 
         this.rng = new RandomGenerator(0); // FIXME
-        this.config = SEATSConfig.createConfig(this.getCatalog(), m_extraParams);
-        this.profile = new SEATSProfile(this.getCatalog(), this.rng);
+        this.config = SEATSConfig.createConfig(this.getCatalogContext(), m_extraParams);
+        this.profile = new SEATSProfile(this.getCatalogContext(), this.rng);
     
         if (this.noClientConnections() == false) {
             this.profile.loadProfile(this.getClientHandle());
