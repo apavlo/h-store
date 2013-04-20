@@ -3,7 +3,9 @@ package edu.brown.hashing;
 import java.io.File;
 import java.text.ParseException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.json.JSONObject;
 import org.voltdb.VoltType;
@@ -11,10 +13,11 @@ import org.voltdb.catalog.Column;
 import org.voltdb.catalog.Table;
 
 import edu.brown.BaseTestCase;
+import edu.brown.hashing.PlannedPartitions.PartitionPhase;
 import edu.brown.hashing.PlannedPartitions.PartitionRange;
 import edu.brown.hashing.PlannedPartitions.PartitionedTable;
-import edu.brown.hashing.PlannedPartitions.ReconfigurationRange;
-import edu.brown.hashing.PlannedPartitions.ReconfigurationTable;
+import edu.brown.hashing.ReconfigurationPlan.ReconfigurationRange;
+import edu.brown.hashing.ReconfigurationPlan.ReconfigurationTable;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.ProjectType;
 
@@ -200,4 +203,33 @@ public class TestPlannedPartitions extends BaseTestCase {
     assertTrue(range.min_inclusive == 20 && range.max_exclusive == 30 && range.old_partition == 3 && range.new_partition == 1);
   }
   
+  @SuppressWarnings("unchecked")
+public void testReconfigurationPlan() throws Exception {
+      List<PartitionRange<Integer>> olds = new ArrayList<>();
+      List<PartitionRange<Integer>> news = new ArrayList<>();
+
+      olds.add(new PartitionRange<Integer>(VoltType.INTEGER, 1, "1-30"));
+      PartitionedTable<Integer> old_table = new PartitionedTable<>(olds, "table", VoltType.INTEGER);
+      Map<String, PartitionedTable<? extends Comparable<?>>> old_table_map = new HashMap<String, PlannedPartitions.PartitionedTable<? extends Comparable<?>>>();
+      old_table_map.put("table",old_table);
+      PartitionPhase old_phase = new PartitionPhase(old_table_map);
+      
+      news.add(new PartitionRange<Integer>(VoltType.INTEGER, 1, "1-10"));
+      news.add(new PartitionRange<Integer>(VoltType.INTEGER, 2, "10-20"));
+      news.add(new PartitionRange<Integer>(VoltType.INTEGER, 3, "20-30"));
+      PartitionedTable<Integer> new_table = new PartitionedTable<>(news, "table", VoltType.INTEGER);
+      Map<String, PartitionedTable<? extends Comparable<?>>> new_table_map = new HashMap<String, PlannedPartitions.PartitionedTable<? extends Comparable<?>>>();
+      new_table_map.put("table",new_table);
+      PartitionPhase new_phase = new PartitionPhase(new_table_map);
+   
+      ReconfigurationPlan reconfig_plan = new ReconfigurationPlan(old_phase, new_phase);
+      
+      ReconfigurationTable<Integer> reconfig = (ReconfigurationTable<Integer>) reconfig_plan.tables_map.get("table");
+      ReconfigurationRange<Integer> range = null;
+      range = reconfig.reconfigurations.get(0);
+      assertTrue(range.min_inclusive == 10 && range.max_exclusive == 20 && range.old_partition == 1 && range.new_partition == 2);
+
+      range = reconfig.reconfigurations.get(1);
+      assertTrue(range.min_inclusive == 20 && range.max_exclusive == 30 && range.old_partition == 1 && range.new_partition == 3);
+    }
 }
