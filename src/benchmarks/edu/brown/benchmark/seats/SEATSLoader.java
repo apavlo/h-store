@@ -164,7 +164,7 @@ public class SEATSLoader extends Loader {
         }
         
         this.rng = new RandomGenerator(0); // FIXME
-        this.profile = new SEATSProfile(this.getCatalog(), this.rng);
+        this.profile = new SEATSProfile(this.getCatalogContext(), this.rng);
     }
     
     public SEATSProfile getProfile() {
