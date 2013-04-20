@@ -160,6 +160,13 @@ public class SEATSClient extends BenchmarkComponent {
         public final void clientCallback(ClientResponse clientResponse) {
             incrementTransactionCounter(clientResponse, txn.ordinal());
             this.clientCallbackImpl(clientResponse);
+            
+            if (clientResponse.getStatus() == Status.ABORT_UNEXPECTED) {
+                LOG.error(String.format("Unexpected Error in %s: %s",
+                                        this.txn.name(), clientResponse.getStatusString()),
+                          clientResponse.getException());
+            }
+            
         }
         public abstract void clientCallbackImpl(ClientResponse clientResponse);
     }
@@ -283,6 +290,8 @@ public class SEATSClient extends BenchmarkComponent {
             this.flight_id = flight_id;
             this.customer_id = customer_id;
             this.seatnum = seatnum;
+            
+            assert(this.id != VoltType.NULL_BIGINT) : "Null reservation id\n" + this;
             assert(this.seatnum >= 0) : "Invalid seat number\n" + this;
             assert(this.seatnum < SEATSConstants.FLIGHTS_NUM_SEATS) : "Invalid seat number\n" + this;
         }
@@ -436,7 +445,7 @@ public class SEATSClient extends BenchmarkComponent {
                 default:
                     assert(false) : "Unexpected transaction: " + txn; 
             } // SWITCH
-            if (ret != null && debug.get()) LOG.debug("Executed a new invocation of " + txn);
+            if (ret != null && debug.val) LOG.debug("Executed a new invocation of " + txn);
         }
         if (ret != null) {
             Object params[] = ret.getFirst();
@@ -444,7 +453,7 @@ public class SEATSClient extends BenchmarkComponent {
             this.getClientHandle().callProcedure(callback, txn.getExecName(), params);
         }
         
-        if (tries == 0 && debug.get()) LOG.warn("I have nothing to do!");
+        if (tries == 0 && debug.val) LOG.warn("I have nothing to do!");
         return (tries > 0);
     }
     
@@ -672,6 +681,7 @@ public class SEATSClient extends BenchmarkComponent {
             // Store pending reservations in our queue for a later transaction            
             BitSet seats = getSeatsBitSet(element);
             
+            int clientId = getClientId();
             while (results[0].advanceRow()) {
                 int seatnum = (int)results[0].getLong(1);
               
@@ -692,7 +702,7 @@ public class SEATSClient extends BenchmarkComponent {
                 assert(customer_id != null) :
                     String.format("Failed to find a unique Customer to reserve for seat #%d on %s", seatnum, element);
         
-                Reservation r = new Reservation(profile.getNextReservationId(getClientId()),
+                Reservation r = new Reservation(profile.getNextReservationId(clientId),
                                                 element,
                                                 customer_id,
                                                 seatnum);
@@ -836,9 +846,9 @@ public class SEATSClient extends BenchmarkComponent {
                 break;
             }
             
-            seats = getSeatsBitSet(r.flight_id);
+            seats = this.getSeatsBitSet(r.flight_id);
             
-            if (isFlightFull(seats)) {
+            if (this.isFlightFull(seats)) {
                 if (debug.val)
                     LOG.debug(String.format("%s is full", r.flight_id));
                 continue;
@@ -849,7 +859,7 @@ public class SEATSClient extends BenchmarkComponent {
 //                    LOG.debug(String.format("Seat #%d on %s is already booked", r.seatnum, r.flight_id));
 //                continue;
 //            }
-            else if (isCustomerBookedOnFlight(r.customer_id, r.flight_id)) {
+            else if (this.isCustomerBookedOnFlight(r.customer_id, r.flight_id)) {
                 if (debug.val)
                     LOG.debug(String.format("%s is already booked on %s", r.customer_id, r.flight_id));
                 continue;
@@ -872,11 +882,11 @@ public class SEATSClient extends BenchmarkComponent {
             attributes[i] = rng.nextLong();
         } // FOR
         
-        boolean updateCustomer = (rng.nextInt(100) < SEATSConstants.PROB_UPDATE_CUSTOMER_NEW_RESERVATION);
+        // boolean updateCustomer = (rng.nextInt(100) < SEATSConstants.PROB_UPDATE_CUSTOMER_NEW_RESERVATION);
         
         Object params[] = new Object[] {
             reservation.id,
-            (updateCustomer ? reservation.customer_id.encode() : VoltType.NULL_BIGINT),
+            reservation.customer_id.encode(),
             reservation.flight_id.encode(),
             reservation.seatnum,
             price,
