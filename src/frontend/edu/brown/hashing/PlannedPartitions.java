@@ -319,7 +319,7 @@ public class PlannedPartitions implements JSONSerializable {
       PartitionRange<T> old_range = null;
       // Iterate through the old partition ranges.
       // Only move to the next old rang
-      while (old_ranges.hasNext()) {
+      while (old_ranges.hasNext() || (max_old_accounted_for != null && max_old_accounted_for.compareTo(old_range.max_exclusive)!=0) ) {
         // only move to the next element if first time, or all of the previous
         // range has been accounted for
         if (old_range == null || old_range.max_exclusive.compareTo(max_old_accounted_for) <= 0) {
@@ -351,7 +351,9 @@ public class PlannedPartitions implements JSONSerializable {
               reconfigurations.add(new ReconfigurationRange<T>(old_range.vt, max_old_accounted_for, old_range.max_exclusive,
                   old_range.partition, new_range.partition));
               max_old_accounted_for = old_range.max_exclusive;
-              if (max_old_accounted_for.compareTo(new_range.max_exclusive)==0){
+              
+              //Have we satisfied all of the new range and is there another new range to process
+              if (max_old_accounted_for.compareTo(new_range.max_exclusive)==0 && new_ranges.hasNext()){
                 new_range = new_ranges.next();
               }
             }

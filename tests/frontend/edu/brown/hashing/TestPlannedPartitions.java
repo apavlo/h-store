@@ -128,26 +128,17 @@ public class TestPlannedPartitions extends BaseTestCase {
     List<PartitionRange<Integer>> olds = new ArrayList<>();
     List<PartitionRange<Integer>> news = new ArrayList<>();
 
-    PartitionRange<Integer> o1_10 = new PartitionRange<Integer>(VoltType.INTEGER, 1, "1-10");
-    PartitionRange<Integer> o10_20 = new PartitionRange<Integer>(VoltType.INTEGER, 2, "10-20");
-    PartitionRange<Integer> o20_30 = new PartitionRange<Integer>(VoltType.INTEGER, 3, "20-30");
-    olds.add(o1_10);
-    olds.add(o10_20);
-    olds.add(o20_30);
+    olds.add(new PartitionRange<Integer>(VoltType.INTEGER, 1, "1-10"));
+    olds.add(new PartitionRange<Integer>(VoltType.INTEGER, 2, "10-20"));
+    olds.add(new PartitionRange<Integer>(VoltType.INTEGER, 3, "20-30"));
     PartitionedTable<Integer> old_table = new PartitionedTable<>(olds, "table", VoltType.INTEGER);
 
-    PartitionRange<Integer> n1_5 = new PartitionRange<Integer>(VoltType.INTEGER, 1, "1-5");
-    PartitionRange<Integer> n5_7 = new PartitionRange<Integer>(VoltType.INTEGER, 2, "5-7");
-    PartitionRange<Integer> n7_10 = new PartitionRange<Integer>(VoltType.INTEGER, 3, "7-10");
-    PartitionRange<Integer> n10_25 = new PartitionRange<Integer>(VoltType.INTEGER, 2, "10-25");
-    PartitionRange<Integer> n25_26 = new PartitionRange<Integer>(VoltType.INTEGER, 1, "25-26");
-    PartitionRange<Integer> n26_30 = new PartitionRange<Integer>(VoltType.INTEGER, 3, "26-30");
-    news.add(n1_5);
-    news.add(n5_7);
-    news.add(n7_10);
-    news.add(n10_25);
-    news.add(n25_26);
-    news.add(n26_30);
+    news.add(new PartitionRange<Integer>(VoltType.INTEGER, 1, "1-5"));
+    news.add(new PartitionRange<Integer>(VoltType.INTEGER, 2, "5-7"));
+    news.add(new PartitionRange<Integer>(VoltType.INTEGER, 3, "7-10"));
+    news.add(new PartitionRange<Integer>(VoltType.INTEGER, 2, "10-25"));
+    news.add(new PartitionRange<Integer>(VoltType.INTEGER, 1, "25-26"));
+    news.add(new PartitionRange<Integer>(VoltType.INTEGER, 3, "26-30"));
     PartitionedTable<Integer> new_table = new PartitionedTable<>(news, "table", VoltType.INTEGER);
 
     ReconfigurationTable<Integer> reconfig = new ReconfigurationTable<>(old_table, new_table);
@@ -163,6 +154,50 @@ public class TestPlannedPartitions extends BaseTestCase {
 
     range = reconfig.reconfigurations.get(3);
     assertTrue(range.min_inclusive == 25 && range.max_exclusive == 26 && range.old_partition == 3 && range.new_partition == 1);
-
   }
+  
+  
+  public void testReconfigurationTable2() throws Exception {
+    List<PartitionRange<Integer>> olds = new ArrayList<>();
+    List<PartitionRange<Integer>> news = new ArrayList<>();
+
+    olds.add(new PartitionRange<Integer>(VoltType.INTEGER, 1, "1-30"));
+    PartitionedTable<Integer> old_table = new PartitionedTable<>(olds, "table", VoltType.INTEGER);
+
+    news.add(new PartitionRange<Integer>(VoltType.INTEGER, 1, "1-10"));
+    news.add(new PartitionRange<Integer>(VoltType.INTEGER, 2, "10-20"));
+    news.add(new PartitionRange<Integer>(VoltType.INTEGER, 3, "20-30"));
+    PartitionedTable<Integer> new_table = new PartitionedTable<>(news, "table", VoltType.INTEGER);
+
+    ReconfigurationTable<Integer> reconfig = new ReconfigurationTable<>(old_table, new_table);
+    ReconfigurationRange<Integer> range = null;
+    range = reconfig.reconfigurations.get(0);
+    assertTrue(range.min_inclusive == 10 && range.max_exclusive == 20 && range.old_partition == 1 && range.new_partition == 2);
+
+    range = reconfig.reconfigurations.get(1);
+    assertTrue(range.min_inclusive == 20 && range.max_exclusive == 30 && range.old_partition == 1 && range.new_partition == 3);
+  }
+ 
+  public void testReconfigurationTable3() throws Exception {
+    List<PartitionRange<Integer>> olds = new ArrayList<>();
+    List<PartitionRange<Integer>> news = new ArrayList<>();
+
+    olds.add(new PartitionRange<Integer>(VoltType.INTEGER, 1, "1-30"));
+    PartitionedTable<Integer> old_table = new PartitionedTable<>(olds, "table", VoltType.INTEGER);
+
+    news.add(new PartitionRange<Integer>(VoltType.INTEGER, 1, "1-10"));
+    news.add(new PartitionRange<Integer>(VoltType.INTEGER, 2, "10-20"));
+    news.add(new PartitionRange<Integer>(VoltType.INTEGER, 3, "20-30"));
+    PartitionedTable<Integer> new_table = new PartitionedTable<>(news, "table", VoltType.INTEGER);
+
+    //REVERSED OLD <--> NEW 
+    ReconfigurationTable<Integer> reconfig = new ReconfigurationTable<>(new_table, old_table);
+    ReconfigurationRange<Integer> range = null;
+    range = reconfig.reconfigurations.get(0);
+    assertTrue(range.min_inclusive == 10 && range.max_exclusive == 20 && range.old_partition == 2 && range.new_partition == 1);
+
+    range = reconfig.reconfigurations.get(1);
+    assertTrue(range.min_inclusive == 20 && range.max_exclusive == 30 && range.old_partition == 3 && range.new_partition == 1);
+  }
+  
 }
