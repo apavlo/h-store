@@ -47,14 +47,14 @@ public class ResultsPrinter implements BenchmarkInterest {
 
     private static final String COL_HEADERS[] = {
         "",              // NAME
-        "TXNS EXECUTED", // TOTAL TXNS
+        "TOTAL EXECUTED", // TOTAL TXNS
         "DISTRIBUTED",   // TOTAL DTXNS
         "THROUGHPUT",
-        "LATENCY",
+        "AVG LATENCY",
     };
     
     private static final String COL_FORMATS[] = {
-        "%23s:",
+        "%22s:",
         "%8d (%5.1f%%)",
         "%8d (%5.1f%%)",
         "%8.2f txn/s",
