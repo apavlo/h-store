@@ -37,6 +37,7 @@ import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 import org.voltdb.CatalogContext;
 import org.voltdb.VoltTable;
+import org.voltdb.VoltType;
 import org.voltdb.catalog.Column;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Table;
@@ -729,9 +730,13 @@ public class SEATSProfile {
         this.flight_future_days = flight_future_days;
     }
     
-    public long getNextReservationId(int id) {
+    public long getNextReservationId(int clientId) {
         // Offset it by the client id so that we can ensure it's unique
-        return (id | this.num_reservations++<<48);
+        long r_id = this.num_reservations++ | clientId<<52; 
+        assert(r_id != VoltType.NULL_BIGINT) : 
+            String.format("Unexpected null reservation id %d [clientId=%d]\n%s",
+                          r_id, clientId, this);
+        return (r_id);
     }
     
     @Override
