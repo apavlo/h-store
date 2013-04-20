@@ -183,4 +183,8 @@ public class SysProcFragmentId {
     // @ChangePartitionPlan 
     public static final int PF_changePartitionPlanDistribute = 400;
     public static final int PF_changePartitionPlanAggregate = 401;
+    
+    // @Reconfiguration 
+    public static final int PF_reconfigurationDistribute = 402;
+    public static final int PF_reconfigurationAggregate = 403;
 }

@@ -98,6 +98,7 @@ import edu.brown.hstore.estimators.TransactionEstimator;
 import edu.brown.hstore.estimators.remote.RemoteEstimator;
 import edu.brown.hstore.estimators.remote.RemoteEstimatorState;
 import edu.brown.hstore.internal.SetDistributedTxnMessage;
+import edu.brown.hstore.reconfiguration.ReconfigurationConstants.ReconfigurationProtocols;
 import edu.brown.hstore.stats.AntiCacheManagerProfilerStats;
 import edu.brown.hstore.stats.BatchPlannerProfilerStats;
 import edu.brown.hstore.stats.MarkovEstimatorProfilerStats;
@@ -1057,6 +1058,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      */
     public MapReduceHelperThread getMapReduceHelper() {
         return (this.mr_helper);
+    }
+    
+    // ----------------------------------------------------------------------------
+    // RECONFIGURATION METHODS
+    // ----------------------------------------------------------------------------
+    public void initReconfiguration(int coordinator_site_id, String partition_plan, ReconfigurationProtocols protocol){
+      LOG.info(String.format("Initializing reconfiguration. Coordinator:%s To partition plan:%s Protocol: %s",site_id,partition_plan,protocol));
     }
     
     // ----------------------------------------------------------------------------
