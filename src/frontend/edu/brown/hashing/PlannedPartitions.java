@@ -7,6 +7,7 @@ import java.io.File;
 import java.io.IOException;
 import java.text.ParseException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -223,6 +224,7 @@ public class PlannedPartitions implements JSONSerializable {
         int partition_id = Integer.parseInt(partition);
         addPartitionRanges(partition_id, partitions_json.getString(partition));
       }
+      Collections.sort(this.partitions);
     }
 
     /**
@@ -274,11 +276,15 @@ public class PlannedPartitions implements JSONSerializable {
   }
 
   /**
-   * @author aelmore A defined range of keys and an associated partition id
+   * A defined range of keys and an associated partition id. Sorts by min id, then max id only
+   * first, ie (1-4 < 2-3) and (1-4 < 1-5)
+   * 
+   * 
+   * @author aelmore
    * @param <T>
    *          Comparable type of key
    */
-  public static class PartitionRange<T extends Comparable<?>> {
+  public static class PartitionRange<T extends Comparable<T>> implements Comparable<PartitionRange<T>> {
     protected T min_inclusive;
     protected T max_exclusive;
     protected int partition;
@@ -299,6 +305,9 @@ public class PlannedPartitions implements JSONSerializable {
         min_inclusive = (T) min_obj;
         Object max_obj = VoltTypeUtil.getObjectFromString(vt, vals[1]);
         max_exclusive = (T) max_obj;
+        if(min_inclusive.compareTo(max_exclusive)>0){
+          throw new ParseException("Min cannot be greater than max",-1);
+        }
       }
       // x
       else {
@@ -312,6 +321,17 @@ public class PlannedPartitions implements JSONSerializable {
     @Override
     public String toString() {
       return "PartitionRange [" + min_inclusive + "-" + max_exclusive + ") p_id=" + partition + "]";
+    }
+
+    @Override
+    public int compareTo(PartitionRange<T> o) {
+      if (this.min_inclusive.compareTo(o.min_inclusive) < 0) {
+        return -1;
+      } else if (this.min_inclusive.compareTo(o.min_inclusive) == 0) {
+        return (this.max_exclusive.compareTo(o.max_exclusive));
+      } else {
+        return 1;
+      }
     }
 
   }
