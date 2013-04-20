@@ -67,7 +67,9 @@ public class YCSBProjectBuilder extends AbstractProjectBuilder {
     }
 
     // a list of tables used in this benchmark with corresponding partitioning keys
-    public static final String PARTITIONING[][] = new String[][] { { "USERTABLE", "YCSB_KEY" } };
+    public static final String PARTITIONING[][] = new String[][] {
+        { "USERTABLE", "YCSB_KEY" }
+    };
 
     public YCSBProjectBuilder() {
         super("ycsb", YCSBProjectBuilder.class, PROCEDURES, PARTITIONING);

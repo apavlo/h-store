@@ -96,7 +96,14 @@ public final class HStoreConf {
             defaultString="edu.brown.hashing.DefaultHasher",
             experimental=true
         )
-        public String hasherClass;
+        public String hasher_class;
+        
+        @ConfigProperty(
+            description="The path to a more fine-grained partitioning plan for the database.",
+            defaultNull=true,
+            experimental=true
+        )
+        public String hasher_plan;
         
         @ConfigProperty(
             description="How often in milliseconds the log4j refresh thread will check to see " +
