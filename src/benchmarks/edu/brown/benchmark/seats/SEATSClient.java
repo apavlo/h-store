@@ -167,6 +167,12 @@ public class SEATSClient extends BenchmarkComponent {
             incrementTransactionCounter(clientResponse, txn.ordinal());
             this.clientCallbackImpl(clientResponse);
             
+            if (txn == Transaction.UPDATE_RESERVATION && clientResponse.getStatus() == Status.ABORT_USER) {
+                LOG.error(String.format("Unexpected Error in %s: %s",
+                          this.txn.name(), clientResponse.getStatusString()),
+                          clientResponse.getException());
+            }
+            
             if (clientResponse.getStatus() == Status.ABORT_UNEXPECTED) {
                 LOG.error(String.format("Unexpected Error in %s: %s",
                                         this.txn.name(), clientResponse.getStatusString()),
@@ -435,34 +441,39 @@ public class SEATSClient extends BenchmarkComponent {
         while (tries-- > 0 && ret == null) {
             txn = this.xacts.nextValue();
             if (debug.val) LOG.debug("Attempting to execute " + txn);
-            switch (txn) {
-                case DELETE_RESERVATION: {
-                    ret = this.getDeleteReservationParams();
-                    break;
-                }
-                case FIND_FLIGHTS: {
-                    ret = this.getFindFlightsParams();
-                    break;
-                }
-                case FIND_OPEN_SEATS: {
-                    ret = this.getFindOpenSeatsParams(txn);
-                    break;
-                }
-                case NEW_RESERVATION: {
-                    ret = this.getNewReservationParams();
-                    break;
-                }
-                case UPDATE_CUSTOMER: {
-                    ret = this.getUpdateCustomerParams(txn);
-                    break;
-                }
-                case UPDATE_RESERVATION: {
-                    ret = this.getUpdateReservationParams(txn);
-                    break;
-                }
-                default:
-                    assert(false) : "Unexpected transaction: " + txn; 
-            } // SWITCH
+            this.startComputeTime(txn.displayName);
+            try {
+                switch (txn) {
+                    case DELETE_RESERVATION: {
+                        ret = this.getDeleteReservationParams();
+                        break;
+                    }
+                    case FIND_FLIGHTS: {
+                        ret = this.getFindFlightsParams();
+                        break;
+                    }
+                    case FIND_OPEN_SEATS: {
+                        ret = this.getFindOpenSeatsParams(txn);
+                        break;
+                    }
+                    case NEW_RESERVATION: {
+                        ret = this.getNewReservationParams();
+                        break;
+                    }
+                    case UPDATE_CUSTOMER: {
+                        ret = this.getUpdateCustomerParams(txn);
+                        break;
+                    }
+                    case UPDATE_RESERVATION: {
+                        ret = this.getUpdateReservationParams(txn);
+                        break;
+                    }
+                    default:
+                        assert(false) : "Unexpected transaction: " + txn; 
+                } // SWITCH
+            } finally {
+                this.stopComputeTime(txn.displayName);
+            }
             if (ret != null && debug.val) LOG.debug("Executed a new invocation of " + txn);
         }
         if (ret != null) {
@@ -495,7 +506,9 @@ public class SEATSClient extends BenchmarkComponent {
         assert(cache != null);
         cache.add(r);
         if (debug.val)
-            LOG.debug(String.format("Queued %s for %s [cache=%d]", r, ctype, cache.size()));
+            LOG.debug(String.format("Queued %s for %s [cacheSize=%d]\nFlightId: %d\nCustomerId: %d",
+                      r, ctype, cache.size(),
+                      r.flight_id.encode(), r.customer_id.encode()));
     }
 
     // -----------------------------------------------------------------
@@ -530,7 +543,6 @@ public class SEATSClient extends BenchmarkComponent {
     
     protected Pair<Object[], ProcedureCallback> getDeleteReservationParams() {
         Transaction txn = Transaction.DELETE_RESERVATION;
-        this.startComputeTime(txn.displayName);
         
         // Pull off the first cached reservation and drop it on the cluster...
         Buffer<Reservation> cache = CACHE_RESERVATIONS.get(CacheType.PENDING_DELETES);
@@ -540,7 +552,6 @@ public class SEATSClient extends BenchmarkComponent {
             if (cache.isEmpty() == false) r = cache.remove();
         } // SYNCH
         if (r == null) {
-            this.stopComputeTime(txn.displayName);
             return (null);
         }
         int rand;
@@ -583,7 +594,6 @@ public class SEATSClient extends BenchmarkComponent {
         };
         
         if (trace.val) LOG.trace("Calling " + txn.getExecName());
-        this.stopComputeTime(txn.displayName);
 
         return new Pair<Object[], ProcedureCallback>(params, new DeleteReservationCallback(r));
     }
@@ -619,7 +629,6 @@ public class SEATSClient extends BenchmarkComponent {
      */
     protected Pair<Object[], ProcedureCallback> getFindFlightsParams() {
         Transaction txn = Transaction.FIND_FLIGHTS;
-        this.startComputeTime(txn.displayName);
         
         long depart_airport_id;
         long arrive_airport_id;
@@ -667,7 +676,6 @@ public class SEATSClient extends BenchmarkComponent {
             distance
         };
         if (trace.val) LOG.trace("Calling " + txn.getExecName());
-        this.stopComputeTime(txn.displayName);
         return new Pair<Object[], ProcedureCallback>(params, new FindFlightsCallback());
     }
 
@@ -751,7 +759,6 @@ public class SEATSClient extends BenchmarkComponent {
      * @throws IOException
      */
     protected Pair<Object[], ProcedureCallback> getFindOpenSeatsParams(Transaction txn) {
-        this.startComputeTime(txn.displayName);
         FlightId flight_id = profile.getRandomFlightId();
         assert(flight_id != null);
         
@@ -759,7 +766,6 @@ public class SEATSClient extends BenchmarkComponent {
             flight_id.encode()
         };
         if (trace.val) LOG.trace("Calling " + txn.getExecName());
-        this.stopComputeTime(txn.displayName);
         return new Pair<Object[], ProcedureCallback>(params, new FindOpenSeatsCallback(flight_id));
     }
     
@@ -842,7 +848,6 @@ public class SEATSClient extends BenchmarkComponent {
     
     protected Pair<Object[], ProcedureCallback> getNewReservationParams() {
         Transaction txn = Transaction.DELETE_RESERVATION;
-        this.startComputeTime(txn.displayName);
         Reservation reservation = null;
         BitSet seats = null;
         Buffer<Reservation> cache = CACHE_RESERVATIONS.get(CacheType.PENDING_INSERTS);
@@ -884,7 +889,6 @@ public class SEATSClient extends BenchmarkComponent {
         } // WHILE
         if (reservation == null) {
             if (debug.val) LOG.debug("Failed to find a valid pending insert Reservation\n" + this.toString());
-            this.stopComputeTime(txn.displayName);
             return (null);
         }
         
@@ -909,7 +913,6 @@ public class SEATSClient extends BenchmarkComponent {
             attributes
         };
         if (trace.val) LOG.trace("Calling " + txn.getExecName());
-        this.stopComputeTime(txn.displayName);
         return new Pair<Object[], ProcedureCallback>(params, new NewReservationCallback(reservation));
     }
 
@@ -935,8 +938,6 @@ public class SEATSClient extends BenchmarkComponent {
     }
         
     protected Pair<Object[], ProcedureCallback> getUpdateCustomerParams(Transaction txn) {
-        this.startComputeTime(txn.displayName);
-        
         // Pick a random customer and then have at it!
         CustomerId customer_id = profile.getRandomCustomerId();
         
@@ -965,7 +966,6 @@ public class SEATSClient extends BenchmarkComponent {
         };
 
         if (trace.val) LOG.trace("Calling " + txn.getExecName());
-        this.stopComputeTime(txn.displayName);
         return new Pair<Object[], ProcedureCallback>(params, new UpdateCustomerCallback(customer_id));
     }
 
@@ -991,11 +991,8 @@ public class SEATSClient extends BenchmarkComponent {
     }
 
     protected Pair<Object[], ProcedureCallback> getUpdateReservationParams(Transaction txn) {
-        this.startComputeTime(txn.displayName);
-
         if (trace.val)
             LOG.trace("Let's look for a Reservation that we can update");
-
         
         // Pull off the first pending seat change and throw that ma at the server
         Buffer<Reservation> cache = CACHE_RESERVATIONS.get(CacheType.PENDING_UPDATES);
@@ -1005,7 +1002,6 @@ public class SEATSClient extends BenchmarkComponent {
             if (cache.isEmpty() == false) r = cache.remove();
         } // SYNCH
         if (r == null) {
-            this.stopComputeTime(txn.displayName);
             return (null);
         }
         
@@ -1015,15 +1011,14 @@ public class SEATSClient extends BenchmarkComponent {
 
         Object params[] = new Object[] {
             r.id,
-            r.flight_id.encode(),
             r.customer_id.encode(),
+            r.flight_id.encode(),
             seatnum,
             attribute_idx,
             value
         };
         
         if (trace.val) LOG.trace("Calling " + txn.getExecName());
-        this.stopComputeTime(txn.displayName);
         return new Pair<Object[], ProcedureCallback>(params, new UpdateReservationCallback(r));
     }
 

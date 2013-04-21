@@ -69,6 +69,12 @@ public class EntityResult implements JSONSerializable {
     public double getDistributedTxnPercentage() {
         return this.dtxnPercentage;
     }
+    public long getSinglePartitionTxnCount() {
+        return (this.txnCount - this.dtxnCount);
+    }
+    public double getSinglePartitionTxnPercentage() {
+        return (1.0 - this.dtxnPercentage);
+    }
     public double getTxnPerMilli() {
         return this.txnPerMilli;
     }

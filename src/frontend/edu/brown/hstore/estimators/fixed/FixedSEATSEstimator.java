@@ -17,9 +17,8 @@ import edu.brown.utils.PartitionSet;
 public class FixedSEATSEstimator extends AbstractFixedEstimator {
     private static final Logger LOG = Logger.getLogger(FixedSEATSEstimator.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
-        LoggerUtil.attachObserver(LOG, debug, trace);
+        LoggerUtil.attachObserver(LOG, debug);
     }
     
     /**
@@ -30,45 +29,55 @@ public class FixedSEATSEstimator extends AbstractFixedEstimator {
         super(p_estimator);
     }
     
+    @SuppressWarnings("unchecked")
     @Override
     public <T extends EstimatorState> T startTransactionImpl(Long txn_id, int base_partition, Procedure catalog_proc, Object[] args) {
+        FixedEstimatorState ret = new FixedEstimatorState(this.catalogContext, txn_id, base_partition);
         String procName = catalog_proc.getName();
-        long f_id = VoltType.NULL_BIGINT;
-        long c_id = VoltType.NULL_BIGINT;
-        PartitionSet ret = null;
+        Long f_id = null;
+        Long c_id = null;
+        PartitionSet partitions = null;
+        PartitionSet readonly = EMPTY_PARTITION_SET;
         
-        if (procName.equalsIgnoreCase("NewReservation") ||
-            procName.equalsIgnoreCase("UpdateReservation")) {
+        if (procName.equalsIgnoreCase("NewReservation")) {
             c_id = (Long)args[1];
+            f_id = (Long)args[2];
+        }
+        else if (procName.equalsIgnoreCase("FindOpenSeats")) {
+            f_id = (Long)args[0];
+            readonly = this.catalogContext.getPartitionSetSingleton(base_partition);
+        }
+        else if (procName.equalsIgnoreCase("UpdateReservation")) {
             f_id = (Long)args[2];
         }
         else if (procName.equalsIgnoreCase("DeleteReservation")) {
             c_id = (Long)args[1];
             f_id = (Long)args[0];
-        }
-        else if (procName.equalsIgnoreCase("FindOpenSeats")) {
-            f_id = (Long)args[0];
+            if (f_id == VoltType.NULL_BIGINT) {
+                f_id = null;
+            }
         }
         else if (procName.equalsIgnoreCase("UpdateCustomer")) {
             c_id = (Long)args[0];
         }
         
-        // Construct partitions collection!
-        if (f_id != VoltType.NULL_BIGINT && c_id != VoltType.NULL_BIGINT) {
-            ret = new PartitionSet();
-            ret.add(hasher.hash(f_id));
-            ret.add(hasher.hash(c_id));
+        // Construct partition information!
+        if (f_id != null && c_id != null) {
+            partitions = new PartitionSet();
+            partitions.add(hasher.hash(f_id));
+            partitions.add(hasher.hash(c_id));
         }
-        else if (f_id != VoltType.NULL_BIGINT) {
-            ret = this.catalogContext.getPartitionSetSingleton(hasher.hash(f_id));
+        else if (f_id != null) {
+            partitions = this.catalogContext.getPartitionSetSingleton(hasher.hash(f_id));
         }
-        else if (c_id != VoltType.NULL_BIGINT) {
-            ret = this.catalogContext.getPartitionSetSingleton(hasher.hash(c_id));    
+        else if (c_id != null) {
+            partitions = this.catalogContext.getPartitionSetSingleton(hasher.hash(c_id));    
         }
         else {
-            ret = this.catalogContext.getAllPartitionIds();
+            partitions = this.catalogContext.getPartitionSetSingleton(base_partition);
         }
         
-        return null;
+        ret.createInitialEstimate(partitions, readonly, EMPTY_PARTITION_SET);
+        return ((T)ret);
     }
 }
