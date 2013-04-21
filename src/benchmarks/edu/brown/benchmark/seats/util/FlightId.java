@@ -74,7 +74,9 @@ public class FlightId extends CompositeId {
         this.depart_airport_id = (int)depart_airport_id;
         this.arrive_airport_id = (int)arrive_airport_id;
         this.depart_date = FlightId.calculateFlightDate(benchmark_start, flight_date);
-        assert(this.depart_date >= 0) : benchmark_start + " / " + flight_date;
+        assert(this.depart_date >= 0) :
+            String.format("Unexpected departure date offset '%d' [benchmarkStart=%s / flightDate=%s]",
+                          this.depart_date, benchmark_start.getMSTime(), flight_date.getMSTime());
     }
     
     public FlightId() {
@@ -122,7 +124,7 @@ public class FlightId extends CompositeId {
      * @return
      */
     protected static final int calculateFlightDate(TimestampType benchmark_start, TimestampType flight_date) {
-        return (int)(flight_date.getMSTime() - benchmark_start.getMSTime()) / 3600000; // 60s * 60m * 1000
+        return (int)((flight_date.getMSTime() - benchmark_start.getMSTime()) / 3600000d); // 60s * 60m * 1000
     }
     
     /**

@@ -210,10 +210,9 @@ public class SEATSProfile {
      * Save the profile information into the database 
      */
     protected final void saveProfile(BenchmarkComponent baseClient) {
-        Database catalog_db = CatalogUtil.getDatabase(baseClient.getCatalog());
         
         // CONFIG_PROFILE
-        Table catalog_tbl = catalog_db.getTables().get(SEATSConstants.TABLENAME_CONFIG_PROFILE);
+        Table catalog_tbl = catalogContext.database.getTables().get(SEATSConstants.TABLENAME_CONFIG_PROFILE);
         VoltTable vt = CatalogUtil.getVoltTable(catalog_tbl);
         assert(vt != null);
         vt.addRow(
@@ -232,7 +231,7 @@ public class SEATSProfile {
         baseClient.loadVoltTable(catalog_tbl.getName(), vt);
         
         // CONFIG_HISTOGRAMS
-        catalog_tbl = catalog_db.getTables().get(SEATSConstants.TABLENAME_CONFIG_HISTOGRAMS);
+        catalog_tbl = catalogContext.database.getTables().get(SEATSConstants.TABLENAME_CONFIG_HISTOGRAMS);
         vt = CatalogUtil.getVoltTable(catalog_tbl);
         assert(vt != null);
         
