@@ -48,7 +48,7 @@ public class ResultsPrinter implements BenchmarkInterest {
     private static final String COL_HEADERS[] = {
         "",              // NAME
         "TOTAL EXECUTED", // TOTAL TXNS
-        "SINGLE-PARTITION", // TOTAL SINGLE-P
+        "DISTRIBUTED", // TOTAL DISTRIBUTED
         "THROUGHPUT",
         "AVG LATENCY",
     };
@@ -153,8 +153,8 @@ public class ResultsPrinter implements BenchmarkInterest {
             
             // SINGLE-PARTITON COUNT + PERCENTAGE
             rows[row_idx][col_idx++] = String.format(COL_FORMATS[col_idx-1],
-                                                     er.getSinglePartitionTxnCount(),
-                                                     er.getSinglePartitionTxnPercentage());
+                                                     er.getDistributedTxnCount(),
+                                                     er.getDistributedTxnPercentage());
             
             // TXN / MS
             rows[row_idx][col_idx++] = String.format(COL_FORMATS[col_idx-1], er.getTxnPerMilli());
