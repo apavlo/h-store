@@ -75,15 +75,8 @@ public abstract class SEATSConstants {
     
     /**
      * Number of seats available per flight
-     * If you change this then you must also change FindOpenSeats
      */
-    public static final int FLIGHTS_NUM_SEATS = 150;
-    
-    /**
-     * How many First Class seats are on a given flight
-     * These reservations are more expensive
-     */
-    public static final int FLIGHTS_FIRST_CLASS_OFFSET = 10;
+    public static final int FLIGHTS_NUM_SEATS = 200;
     
     /**
      * The rate in which a flight can travel between two airports (miles per hour)
@@ -201,9 +194,9 @@ public abstract class SEATSConstants {
     /**
      * The number of FlightIds we want to keep cached locally at a client
      */
-    public static final int CACHE_LIMIT_FLIGHT_IDS = 10000;
+    public static final int CACHE_LIMIT_FLIGHT_IDS = 5000;
     
-    public static final int CACHE_LIMIT_PENDING_INSERTS = 10000;
+    public static final int CACHE_LIMIT_PENDING_INSERTS = 5000;
     public static final int CACHE_LIMIT_PENDING_UPDATES = 5000;
     public static final int CACHE_LIMIT_PENDING_DELETES = 5000;
     
