@@ -319,14 +319,16 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @return
      */
     public static Catalog loadCatalogFromJar(File jar_path) {
-        Catalog catalog = null;
-        String serializedCatalog = null;
+        assert(jar_path != null) : "Unexpected null jar path";
         if (debug.val)
             LOG.debug("Loading catalog from jar file at '" + jar_path.getAbsolutePath() + "'");
         if (!jar_path.exists()) {
             LOG.error("The catalog jar file '" + jar_path + "' does not exist");
             return (null);
         }
+        
+        Catalog catalog = null;
+        String serializedCatalog = null;
         try {
             serializedCatalog = JarReader.readFileFromJarfile(jar_path.getAbsolutePath(), CatalogUtil.CATALOG_FILENAME);
         } catch (Exception ex) {
