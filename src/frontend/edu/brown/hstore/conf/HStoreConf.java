@@ -734,7 +734,7 @@ public final class HStoreConf {
             description="Enable transaction execution mode counting. This will cause the HStoreSite to keep " +
             		    "track of various properties about tranasctions, such as the number that were speculatively " +
             		    "executed or had to be restarted.",
-            defaultBoolean=false,
+            defaultBoolean=true,
             experimental=false
         )
         public boolean txn_counters;

@@ -35,12 +35,12 @@ public abstract class SEATSConstants {
     // STORED PROCEDURE EXECUTION FREQUENCIES (0% - 100%)
     // ----------------------------------------------------------------
     
-    public static final int FREQUENCY_DELETE_RESERVATION        = 5;
-    public static final int FREQUENCY_FIND_FLIGHTS              = 5;
+    public static final int FREQUENCY_DELETE_RESERVATION        = 4;
+    public static final int FREQUENCY_FIND_FLIGHTS              = 8;
     public static final int FREQUENCY_FIND_OPEN_SEATS           = 50;
     public static final int FREQUENCY_NEW_RESERVATION           = 30;
-    public static final int FREQUENCY_UPDATE_CUSTOMER           = 5;
-    public static final int FREQUENCY_UPDATE_RESERVATION        = 5;
+    public static final int FREQUENCY_UPDATE_CUSTOMER           = 4;
+    public static final int FREQUENCY_UPDATE_RESERVATION        = 4;
 
 //    public static final int FREQUENCY_DELETE_RESERVATION        = 0;
 //    public static final int FREQUENCY_FIND_FLIGHTS              = 0;
@@ -152,7 +152,7 @@ public abstract class SEATSConstants {
      * Probability that a customer will invoke DeleteReservation using the string
      * version of their FrequentFlyer Id (0% - 100%)
      */
-    public static final int PROB_DELETE_WITH_FREQUENTFLYER_ID_STR = 20;
+    public static final int PROB_DELETE_WITH_FREQUENTFLYER_ID_STR = 10;
     
     /**
      * Probability that is a seat is initially occupied (0% - 100%)
@@ -164,16 +164,6 @@ public abstract class SEATSConstants {
      */
     public static final int PROB_UPDATE_FREQUENT_FLYER = 25;
     
-    /**
-     * Probability that a new Reservation will be added to the DeleteReservation queue
-     */
-    public static final int PROB_DELETE_RESERVATION = 50;
-    
-    /**
-     * Probability that a new Reservation will be added to the UpdateReservation queue
-     */
-    public static final int PROB_UPDATE_RESERVATION = 50;
-
     /**
      * Probability that a deleted Reservation will be requeued for another NewReservation call
      */

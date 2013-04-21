@@ -110,7 +110,7 @@ public class UpdateReservation extends VoltProcedure {
         }
         // Check if the Customer already has a seat on this flight
         else if (checkResults[1].advanceRow() == false) {
-            throw new VoltAbortException(ErrorType.CUSTOMER_ALREADY_HAS_SEAT +
+            throw new VoltAbortException(ErrorType.RESERVATION_NOT_FOUND +
                                          String.format(" Customer %d does not have an existing reservation on flight #%d", c_id, f_id));
         }
        
