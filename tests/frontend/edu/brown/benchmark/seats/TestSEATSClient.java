@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Set;
 
 import org.junit.Test;
+import org.voltdb.CatalogContext;
 import org.voltdb.ClientResponseImpl;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
@@ -56,6 +57,10 @@ public class TestSEATSClient extends SEATSBaseTestCase {
             for (Set<FlightId> f_ids : CACHE_CUSTOMER_BOOKED_FLIGHTS.values()) {
                 f_ids.clear();
             } // FOR
+        }
+        @Override
+        public CatalogContext getCatalogContext() {
+            return (BaseTestCase.catalogContext);
         }
         @Override
         public Catalog getCatalog() {

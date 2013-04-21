@@ -33,6 +33,7 @@ import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.voltdb.CatalogContext;
 import org.voltdb.VoltTable;
 import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.Table;
@@ -66,6 +67,10 @@ public class TestSEATSLoader extends SEATSBaseTestCase {
     class MockSEATSLoader extends SEATSLoader {
         public MockSEATSLoader(String[] args) {
             super(args);
+        }
+        @Override
+        public CatalogContext getCatalogContext() {
+            return (BaseTestCase.catalogContext);
         }
         @Override
         public Catalog getCatalog() {

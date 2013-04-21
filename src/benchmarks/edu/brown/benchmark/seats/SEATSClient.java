@@ -478,9 +478,11 @@ public class SEATSClient extends BenchmarkComponent {
         cache.add(r);
         if (debug.val)
             LOG.debug(String.format("Queued %s for %s [cache=%d]", r, ctype, cache.size()));
-        while (cache.size() > ctype.limit) {
-            cache.remove();
-        } // WHILE
+        synchronized (cache) {
+            while (cache.size() > ctype.limit) {
+                cache.remove();
+            } // WHILE
+        } // SYNCH
     }
 
     // -----------------------------------------------------------------
