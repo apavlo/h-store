@@ -50,6 +50,8 @@
 
 package edu.brown.benchmark.seats.procedures;
 
+import java.util.Arrays;
+
 import org.apache.log4j.Logger;
 import org.voltdb.*;
 
@@ -84,18 +86,8 @@ public class FindOpenSeats extends VoltProcedure {
         final boolean debug = LOG.isDebugEnabled();
         
         // 150 seats
-        final long seatmap[] = new long[]
-          {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,     
-           -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-           -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-           -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-           -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-           -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-           -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-           -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-           -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-           -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
-        
+        final long seatmap[] = new long[SEATSConstants.FLIGHTS_NUM_SEATS];
+        Arrays.fill(seatmap, -1);
         
         voltQueueSQL(GetFlight, f_id);
         voltQueueSQL(GetSeats, f_id);
@@ -111,11 +103,12 @@ public class FindOpenSeats extends VoltProcedure {
         long seats_left = results[0].getLong(2);
         double seat_price = results[0].getDouble(3);
         
-        // TODO: Figure out why this doesn't match the SQL
-        double _seat_price = base_price + (base_price * (1.0 - (seats_left/(double)seats_total)));
-        if (debug) 
+        if (debug) {
+            // TODO: Figure out why this doesn't match the SQL
+            double _seat_price = base_price + (base_price * (1.0 - (seats_left/(double)seats_total)));
             LOG.debug(String.format("Flight %d - SQL[%.2f] <-> JAVA[%.2f] [basePrice=%f, total=%d, left=%d]",
                                     f_id, seat_price, _seat_price, base_price, seats_total, seats_left));
+        }
         
         // Then build the seat map of the remaining seats
         while (results[1].advanceRow()) {
@@ -130,9 +123,7 @@ public class FindOpenSeats extends VoltProcedure {
         VoltTable returnResults = new VoltTable(outputColumns);
         for (int i = 0; i < seatmap.length; ++i) {
             if (seatmap[i] == -1) {
-                // Charge more for the first seats
-                double price = seat_price * (i < SEATSConstants.FLIGHTS_FIRST_CLASS_OFFSET ? 2.0 : 1.0);
-                Object[] row = new Object[]{ f_id, i, price };
+                Object[] row = new Object[]{ f_id, i, seat_price };
                 returnResults.addRow(row);
                 if (ctr == SEATSConstants.FLIGHTS_NUM_SEATS) break;
             }
