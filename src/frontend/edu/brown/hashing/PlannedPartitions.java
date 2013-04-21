@@ -212,7 +212,7 @@ public class PlannedPartitions implements JSONSerializable {
      */
     public static class PartitionedTable<T extends Comparable<T>> {
         protected List<PartitionRange<T>> partitions;
-        private String table_name;
+        protected String table_name;
         private VoltType vt;
 
         public PartitionedTable(VoltType vt, String table_name, JSONObject table_json) throws Exception {

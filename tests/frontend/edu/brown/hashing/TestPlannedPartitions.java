@@ -231,5 +231,19 @@ public void testReconfigurationPlan() throws Exception {
 
       range = reconfig.reconfigurations.get(1);
       assertTrue(range.min_inclusive == 20 && range.max_exclusive == 30 && range.old_partition == 1 && range.new_partition == 3);
+      
+      range = (ReconfigurationRange<Integer>) reconfig_plan.incoming_ranges.get(2).get(0);
+      assertTrue(range.min_inclusive == 10 && range.max_exclusive == 20 && range.old_partition == 1 && range.new_partition == 2);
+      
+      range = (ReconfigurationRange<Integer>) reconfig_plan.outgoing_ranges.get(1).get(0);
+      assertTrue(range.min_inclusive == 10 && range.max_exclusive == 20 && range.old_partition == 1 && range.new_partition == 2);
+      
+      range = (ReconfigurationRange<Integer>) reconfig_plan.outgoing_ranges.get(1).get(1);
+      assertTrue(range.min_inclusive == 20 && range.max_exclusive == 30 && range.old_partition == 1 && range.new_partition == 3);
+      
+      range = (ReconfigurationRange<Integer>) reconfig_plan.incoming_ranges.get(3).get(0);
+      assertTrue(range.min_inclusive == 20 && range.max_exclusive == 30 && range.old_partition == 1 && range.new_partition == 3);
+      
+
     }
 }
