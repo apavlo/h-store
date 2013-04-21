@@ -43,7 +43,11 @@ public class EntityResult implements JSONSerializable {
             this.txnPercentage = (txnCount / (double)totalTxnCount) * 100;
             this.txnPerMilli = txnCount / (double)duration * 1000.0;
             this.txnPerSecond = txnCount / (double)duration * 1000.0 * 60.0;
-            this.dtxnPercentage = (dtxnCount / (double)txnCount) * 100;
+            if (txnCount > 0) {
+                this.dtxnPercentage = (dtxnCount / (double)txnCount) * 100;
+            } else {
+                this.dtxnPercentage = 0;
+            }
             
             if (latencies.getMinValue() != null)
                 this.txnMinLatency = latencies.getMinValue().doubleValue();
@@ -73,7 +77,7 @@ public class EntityResult implements JSONSerializable {
         return (this.txnCount - this.dtxnCount);
     }
     public double getSinglePartitionTxnPercentage() {
-        return (1.0 - this.dtxnPercentage);
+        return (100 - this.dtxnPercentage);
     }
     public double getTxnPerMilli() {
         return this.txnPerMilli;
