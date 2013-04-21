@@ -371,12 +371,11 @@ public class PlannedPartitions implements JSONSerializable {
         synchronized (this) {
             current_phase = new_phase;
         }
-        try{
-            if(old_phase == null)
+        try {
+            if (old_phase == null)
                 return null;
             return new ReconfigurationPlan(partition_phase_map.get(old_phase), partition_phase_map.get(new_phase));
-        }
-        catch(Exception ex){
+        } catch (Exception ex) {
             Log.error(ex);
             throw new RuntimeException("Exception building Reconfiguration plan", ex);
         }
