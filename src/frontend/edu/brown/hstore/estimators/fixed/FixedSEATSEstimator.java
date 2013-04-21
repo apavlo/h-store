@@ -53,8 +53,8 @@ public class FixedSEATSEstimator extends AbstractFixedEstimator {
         else if (procName.equalsIgnoreCase("DeleteReservation")) {
             c_id = (Long)args[1];
             f_id = (Long)args[0];
-            if (f_id == VoltType.NULL_BIGINT) {
-                f_id = null;
+            if (c_id == VoltType.NULL_BIGINT) {
+                c_id = null;
             }
         }
         else if (procName.equalsIgnoreCase("UpdateCustomer")) {

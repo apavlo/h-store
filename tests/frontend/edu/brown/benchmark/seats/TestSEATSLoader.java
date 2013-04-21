@@ -200,7 +200,7 @@ public class TestSEATSLoader extends SEATSBaseTestCase {
      * testLoadHistograms
      */
     public void testLoadHistograms() throws Exception {
-        loader.loadHistograms();
+        loader.loadHistograms(catalogContext);
         assertEquals(SEATSConstants.HISTOGRAM_DATA_FILES.length, loader.getHistogramCount());
         for (String histogram_name : SEATSConstants.HISTOGRAM_DATA_FILES) {
             Histogram<String> h = loader.getHistogram(histogram_name);

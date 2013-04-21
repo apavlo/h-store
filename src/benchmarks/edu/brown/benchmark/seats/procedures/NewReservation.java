@@ -32,6 +32,7 @@ import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
+import org.voltdb.types.TimestampType;
 
 import edu.brown.benchmark.seats.SEATSConstants;
 import edu.brown.benchmark.seats.util.ErrorType;
@@ -104,7 +105,9 @@ public class NewReservation extends VoltProcedure {
             "   R_IATTR05, " +
             "   R_IATTR06, " +
             "   R_IATTR07, " +
-            "   R_IATTR08 " +
+            "   R_IATTR08, " +
+            "   R_CREATED, " +
+            "   R_UPDATED " +
             ") VALUES (" +
             "   ?, " +  // R_ID
             "   ?, " +  // R_C_ID
@@ -119,7 +122,9 @@ public class NewReservation extends VoltProcedure {
             "   ?, " +  // R_ATTR05
             "   ?, " +  // R_ATTR06
             "   ?, " +  // R_ATTR07
-            "   ? " +   // R_ATTR08
+            "   ?, " +  // R_ATTR08
+            "   ?, " +  // R_CREATED
+            "   ? " +   // R_UPDATED
             ")");
     
     public VoltTable[] run(long r_id, long c_id, long f_id, long seatnum, double price, long attrs[]) {
@@ -166,10 +171,11 @@ public class NewReservation extends VoltProcedure {
 //            }
 //        }
         
+        TimestampType timestamp = new TimestampType();
         voltQueueSQL(InsertReservation, r_id, c_id, f_id, seatnum, price,
                             attrs[0], attrs[1], attrs[2], attrs[3],
                             attrs[4], attrs[5], attrs[6], attrs[7],
-                            attrs[8]);
+                            attrs[8], timestamp, timestamp);
         voltQueueSQL(UpdateFlight, f_id);
         voltQueueSQL(UpdateCustomer, attrs[0], attrs[1], attrs[2], attrs[3], c_id);
         voltQueueSQL(UpdateFrequentFlyer, attrs[4], attrs[5], attrs[6], attrs[7], c_id, airline_id);

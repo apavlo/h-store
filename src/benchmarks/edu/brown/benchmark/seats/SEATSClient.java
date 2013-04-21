@@ -492,9 +492,11 @@ public class SEATSClient extends BenchmarkComponent {
      * @param r
      */
     protected void requeueReservation(Reservation r) {
-        CacheType ctype = null;
+        int idx = rng.nextInt(100);
+        if (idx > 20) return;
         
-        // Queue this motha trucka up for a deletin'
+        // Queue this motha trucka up for a deletin' or an updatin'
+        CacheType ctype = null;
         if (rng.nextBoolean()) {
             ctype = CacheType.PENDING_DELETES;
         } else {
@@ -711,6 +713,9 @@ public class SEATSClient extends BenchmarkComponent {
             int clientId = getClientId();
             while (results[0].advanceRow()) {
                 int seatnum = (int)results[0].getLong(1);
+                if (seatnum < SEATSConstants.FLIGHTS_RESERVED_SEATS) { 
+                    continue;
+                }
               
                 // We first try to get a CustomerId based at this departure airport
                 if (trace.val)
@@ -733,8 +738,8 @@ public class SEATSClient extends BenchmarkComponent {
                                                 element,
                                                 customer_id,
                                                 seatnum);
-                seats.set(seatnum);
                 tmp_reservations.add(r);
+                seats.set(seatnum);
                 if (trace.val)
                     LOG.trace("QUEUED INSERT: " + element + " / " + element.encode() + " -> " + customer_id);
             } // WHILE
@@ -779,9 +784,8 @@ public class SEATSClient extends BenchmarkComponent {
         }
         @Override
         public void clientCallbackImpl(ClientResponse clientResponse) {
-            VoltTable[] results = clientResponse.getResults();
-            
-            BitSet seats = getSeatsBitSet(element.flight_id);
+            final VoltTable[] results = clientResponse.getResults();
+            final BitSet seats = getSeatsBitSet(element.flight_id);
             
             // Valid NewReservation
             if (clientResponse.getStatus() == Status.OK) {
@@ -802,8 +806,8 @@ public class SEATSClient extends BenchmarkComponent {
                 
                 if (debug.val)
                     LOG.debug(String.format("Client %02d :: NewReservation %s [ErrorType=%s] - %s",
-                                       getClientId(), clientResponse.getStatus(), errorType, clientResponse.getStatusString()),
-                                       clientResponse.getException());
+                              getClientId(), clientResponse.getStatus(), errorType, clientResponse.getStatusString()),
+                              clientResponse.getException());
                 switch (errorType) {
                     case NO_MORE_SEATS: {
                         seats.set(0, SEATSConstants.FLIGHTS_NUM_SEATS);
@@ -1007,7 +1011,10 @@ public class SEATSClient extends BenchmarkComponent {
         
         long value = rng.number(1, 1 << 20);
         long attribute_idx = rng.nextInt(UpdateReservation.NUM_UPDATES);
-        long seatnum = rng.number(0, SEATSConstants.FLIGHTS_NUM_SEATS-1);
+        long seatnum = rng.nextInt(SEATSConstants.FLIGHTS_RESERVED_SEATS);
+        if (debug.val)
+            LOG.debug(String.format("UpdateReservation: FlightId:%d / CustomerId:%d / SeatNum:%d",
+                      r.flight_id.encode(), r.customer_id.encode(), seatnum)); 
 
         Object params[] = new Object[] {
             r.id,
