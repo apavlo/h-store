@@ -52,16 +52,18 @@ package edu.brown.benchmark.seats;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.BitSet;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.apache.commons.collections15.Buffer;
+import org.apache.commons.collections15.buffer.CircularFifoBuffer;
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 import org.voltdb.VoltProcedure;
@@ -91,6 +93,10 @@ import edu.brown.rand.RandomDistribution;
 import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.StringUtil;
 
+/**
+ * SEATS Benchmark Client Driver
+ * @author pavlo
+ */
 public class SEATSClient extends BenchmarkComponent {
     private static final Logger LOG = Logger.getLogger(SEATSClient.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
@@ -187,16 +193,16 @@ public class SEATSClient extends BenchmarkComponent {
         private final int limit;
     }
     
-    protected final Map<CacheType, LinkedList<Reservation>> CACHE_RESERVATIONS = new HashMap<CacheType, LinkedList<Reservation>>();
+    private final Map<CacheType, Buffer<Reservation>> CACHE_RESERVATIONS = new HashMap<CacheType, Buffer<Reservation>>();
     {
         for (CacheType ctype : CacheType.values()) {
-            CACHE_RESERVATIONS.put(ctype, new LinkedList<Reservation>());
+            CACHE_RESERVATIONS.put(ctype, new CircularFifoBuffer<Reservation>(ctype.limit));
         } // FOR
     } 
     
     
-    protected final Map<CustomerId, Set<FlightId>> CACHE_CUSTOMER_BOOKED_FLIGHTS = new HashMap<CustomerId, Set<FlightId>>();
-    protected final Map<FlightId, BitSet> CACHE_BOOKED_SEATS = new HashMap<FlightId, BitSet>();
+    private final Map<CustomerId, Set<FlightId>> CACHE_CUSTOMER_BOOKED_FLIGHTS = new HashMap<CustomerId, Set<FlightId>>();
+    private final Map<FlightId, BitSet> CACHE_BOOKED_SEATS = new HashMap<FlightId, BitSet>();
 
     private static final BitSet FULL_FLIGHT_BITSET = new BitSet(SEATSConstants.FLIGHTS_NUM_SEATS);
     static {
@@ -239,7 +245,7 @@ public class SEATSClient extends BenchmarkComponent {
         return (flights != null && flights.contains(flight_id));
     }
     
-    protected Set<FlightId> getCustomerBookedFlights(CustomerId customer_id) {
+    protected final Set<FlightId> getCustomerBookedFlights(CustomerId customer_id) {
         Set<FlightId> f_ids = CACHE_CUSTOMER_BOOKED_FLIGHTS.get(customer_id);
         if (f_ids == null) {
             f_ids = CACHE_CUSTOMER_BOOKED_FLIGHTS.get(customer_id);
@@ -249,6 +255,18 @@ public class SEATSClient extends BenchmarkComponent {
             }
         }
         return (f_ids);
+    }
+    
+    protected final void clearCache() {
+        for (BitSet seats : CACHE_BOOKED_SEATS.values()) {
+            seats.clear();
+        } // FOR
+        for (Buffer<Reservation> queue : CACHE_RESERVATIONS.values()) {
+            queue.clear();
+        } // FOR
+        for (Set<FlightId> f_ids : CACHE_CUSTOMER_BOOKED_FLIGHTS.values()) {
+            f_ids.clear();
+        } // FOR
     }
     
     @Override
@@ -473,16 +491,11 @@ public class SEATSClient extends BenchmarkComponent {
         }
         assert(ctype != null);
         
-        LinkedList<Reservation> cache = CACHE_RESERVATIONS.get(ctype);
+        Collection<Reservation> cache = CACHE_RESERVATIONS.get(ctype);
         assert(cache != null);
         cache.add(r);
         if (debug.val)
             LOG.debug(String.format("Queued %s for %s [cache=%d]", r, ctype, cache.size()));
-        synchronized (cache) {
-            while (cache.size() > ctype.limit) {
-                cache.remove();
-            } // WHILE
-        } // SYNCH
     }
 
     // -----------------------------------------------------------------
@@ -502,7 +515,7 @@ public class SEATSClient extends BenchmarkComponent {
                 
                 // And then put it up for a pending insert
                 if (rng.nextInt(100) < SEATSConstants.PROB_REQUEUE_DELETED_RESERVATION) {
-                    LinkedList<Reservation> cache = CACHE_RESERVATIONS.get(CacheType.PENDING_INSERTS);
+                    Buffer<Reservation> cache = CACHE_RESERVATIONS.get(CacheType.PENDING_INSERTS);
                     assert(cache != null) : "Unexpected " + CacheType.PENDING_INSERTS;
                     synchronized (cache) {
                         cache.add(element);
@@ -520,7 +533,12 @@ public class SEATSClient extends BenchmarkComponent {
         this.startComputeTime(txn.displayName);
         
         // Pull off the first cached reservation and drop it on the cluster...
-        Reservation r = CACHE_RESERVATIONS.get(CacheType.PENDING_DELETES).poll();
+        Buffer<Reservation> cache = CACHE_RESERVATIONS.get(CacheType.PENDING_DELETES);
+        assert(cache != null) : "Unexpected " + CacheType.PENDING_DELETES;
+        Reservation r = null;
+        synchronized (cache) {
+            if (cache.isEmpty() == false) r = cache.remove();
+        } // SYNCH
         if (r == null) {
             this.stopComputeTime(txn.displayName);
             return (null);
@@ -556,7 +574,6 @@ public class SEATSClient extends BenchmarkComponent {
             c_id = r.customer_id.encode();
         }
         
-        if (trace.val) LOG.trace("Calling " + txn.getExecName());
         Object params[] = new Object[]{
             f_id,           // [0] f_id
             c_id,           // [1] c_id
@@ -715,15 +732,12 @@ public class SEATSClient extends BenchmarkComponent {
             } // WHILE
           
             if (tmp_reservations.isEmpty() == false) {
-                LinkedList<Reservation> cache = CACHE_RESERVATIONS.get(CacheType.PENDING_INSERTS);
+                Buffer<Reservation> cache = CACHE_RESERVATIONS.get(CacheType.PENDING_INSERTS);
                 assert(cache != null) : "Unexpected " + CacheType.PENDING_INSERTS;
                 
                 Collections.shuffle(tmp_reservations);
                 synchronized (cache) {
                     cache.addAll(tmp_reservations);
-                    while (cache.size() > SEATSConstants.CACHE_LIMIT_PENDING_INSERTS) {
-                        cache.remove();
-                    } // WHILE
                 } // SYNCH
                 if (debug.val)
                     LOG.debug(String.format("Stored %d pending inserts for %s [totalPendingInserts=%d]",
@@ -831,7 +845,7 @@ public class SEATSClient extends BenchmarkComponent {
         this.startComputeTime(txn.displayName);
         Reservation reservation = null;
         BitSet seats = null;
-        LinkedList<Reservation> cache = CACHE_RESERVATIONS.get(CacheType.PENDING_INSERTS);
+        Buffer<Reservation> cache = CACHE_RESERVATIONS.get(CacheType.PENDING_INSERTS);
         assert(cache != null) : "Unexpected " + CacheType.PENDING_INSERTS;
         
         if (debug.val)
@@ -840,7 +854,7 @@ public class SEATSClient extends BenchmarkComponent {
         while (reservation == null) {
             Reservation r = null;
             synchronized (cache) {
-                r = cache.poll();
+                if (cache.isEmpty() == false) r = cache.remove();
             } // SYNCH
             if (r == null) {
                 if (debug.val)
@@ -978,20 +992,18 @@ public class SEATSClient extends BenchmarkComponent {
 
     protected Pair<Object[], ProcedureCallback> getUpdateReservationParams(Transaction txn) {
         this.startComputeTime(txn.displayName);
-        
-        LinkedList<Reservation> cache = CACHE_RESERVATIONS.get(CacheType.PENDING_UPDATES);
-        assert(cache != null) : "Unexpected " + CacheType.PENDING_UPDATES;
-        
+
         if (trace.val)
             LOG.trace("Let's look for a Reservation that we can update");
+
         
         // Pull off the first pending seat change and throw that ma at the server
+        Buffer<Reservation> cache = CACHE_RESERVATIONS.get(CacheType.PENDING_UPDATES);
+        assert(cache != null) : "Unexpected " + CacheType.PENDING_UPDATES;
         Reservation r = null;
-        try {
-            r = cache.poll();
-        } catch (Throwable ex) {
-            // Nothing
-        }
+        synchronized (cache) {
+            if (cache.isEmpty() == false) r = cache.remove();
+        } // SYNCH
         if (r == null) {
             this.stopComputeTime(txn.displayName);
             return (null);

@@ -1,8 +1,6 @@
 package edu.brown.benchmark.seats;
 
 import java.util.BitSet;
-import java.util.List;
-import java.util.Set;
 
 import org.junit.Test;
 import org.voltdb.CatalogContext;
@@ -47,16 +45,7 @@ public class TestSEATSClient extends SEATSBaseTestCase {
 
         public MockClient(String[] args) {
             super(args);
-            
-            for (BitSet seats : CACHE_BOOKED_SEATS.values()) {
-                seats.clear();
-            } // FOR
-            for (List<Reservation> queue : CACHE_RESERVATIONS.values()) {
-                queue.clear();
-            } // FOR
-            for (Set<FlightId> f_ids : CACHE_CUSTOMER_BOOKED_FLIGHTS.values()) {
-                f_ids.clear();
-            } // FOR
+            super.clearCache();
         }
         @Override
         public CatalogContext getCatalogContext() {
