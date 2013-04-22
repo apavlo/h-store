@@ -458,6 +458,27 @@ message TimeSyncResponse {
     required int64 t1_s = 4;
 }
 
+//------------------------------------
+// RECONFIGURATION MESSAGE
+//------------------------------------
+
+message ReconfigurationRequest {
+    // The id of the HStoreSite sending this reconfiguration request
+    required int32 sender_site = 1;
+    // The time when the local HStoreSite sent this reconfiguration request
+    required int64 t0_s = 2; 
+}
+
+message ReconfigurationResponse {
+    // The id of the HStoreSite responding to this reconfiguration request
+    required int32 sender_site = 1;
+    // The time when the local HStoreSite sent this request
+    required int64 t0_s = 2;
+    // The time when the remote HStoreSite received this request
+    required int64 t0_r = 3;
+    // The time when the remote HStoreSite sent out the response
+    required int64 t1_s = 4;
+}
 
 // -----------------------------------
 // SERVICE
@@ -478,4 +499,5 @@ service HStoreService {
     rpc ShutdownPrepare(ShutdownPrepareRequest) returns (ShutdownPrepareResponse);
     rpc Shutdown(ShutdownRequest) returns (ShutdownResponse);
     rpc TimeSync(TimeSyncRequest) returns (TimeSyncResponse);
+    rpc Reconfiguration(ReconfigurationRequest) returns (ReconfigurationResponse);
 }

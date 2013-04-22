@@ -35,6 +35,8 @@ import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.Hstoreservice.HStoreService;
 import edu.brown.hstore.Hstoreservice.InitializeRequest;
 import edu.brown.hstore.Hstoreservice.InitializeResponse;
+import edu.brown.hstore.Hstoreservice.ReconfigurationRequest;
+import edu.brown.hstore.Hstoreservice.ReconfigurationResponse;
 import edu.brown.hstore.Hstoreservice.SendDataRequest;
 import edu.brown.hstore.Hstoreservice.SendDataResponse;
 import edu.brown.hstore.Hstoreservice.ShutdownPrepareRequest;
@@ -62,10 +64,10 @@ import edu.brown.hstore.Hstoreservice.TransactionReduceRequest;
 import edu.brown.hstore.Hstoreservice.TransactionReduceResponse;
 import edu.brown.hstore.Hstoreservice.TransactionWorkRequest;
 import edu.brown.hstore.Hstoreservice.TransactionWorkResponse;
-import edu.brown.hstore.callbacks.ShutdownPrepareCallback;
 import edu.brown.hstore.callbacks.LocalFinishCallback;
-import edu.brown.hstore.callbacks.TransactionPrefetchCallback;
 import edu.brown.hstore.callbacks.LocalPrepareCallback;
+import edu.brown.hstore.callbacks.ShutdownPrepareCallback;
+import edu.brown.hstore.callbacks.TransactionPrefetchCallback;
 import edu.brown.hstore.callbacks.TransactionRedirectResponseCallback;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.dispatchers.TransactionFinishDispatcher;
@@ -703,6 +705,20 @@ public class HStoreCoordinator implements Shutdownable {
                           request.getClass().getSimpleName(),
                           HStoreThreadManager.formatSiteName(request.getSenderSite())));
             TimeSyncResponse.Builder builder = TimeSyncResponse.newBuilder()
+                                                    .setT0R(System.currentTimeMillis())
+                                                    .setT0S(request.getT0S())
+                                                    .setSenderSite(local_site_id);
+            ThreadUtil.sleep(10);
+            done.run(builder.setT1S(System.currentTimeMillis()).build());
+        }
+        
+        @Override
+        public void reconfiguration(RpcController controller, ReconfigurationRequest request, RpcCallback<ReconfigurationResponse> done) {
+            if (debug.val)
+                LOG.debug(String.format("Received %s from HStoreSite %s",
+                          request.getClass().getSimpleName(),
+                          HStoreThreadManager.formatSiteName(request.getSenderSite())));
+            ReconfigurationResponse.Builder builder = ReconfigurationResponse.newBuilder()
                                                     .setT0R(System.currentTimeMillis())
                                                     .setT0S(request.getT0S())
                                                     .setSenderSite(local_site_id);
