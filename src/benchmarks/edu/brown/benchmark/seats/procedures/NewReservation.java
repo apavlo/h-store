@@ -32,10 +32,9 @@ import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
-import org.voltdb.VoltType;
+import org.voltdb.types.TimestampType;
 
 import edu.brown.benchmark.seats.SEATSConstants;
-import edu.brown.benchmark.seats.util.CustomerId;
 import edu.brown.benchmark.seats.util.ErrorType;
 
 @ProcInfo(
@@ -106,7 +105,9 @@ public class NewReservation extends VoltProcedure {
             "   R_IATTR05, " +
             "   R_IATTR06, " +
             "   R_IATTR07, " +
-            "   R_IATTR08 " +
+            "   R_IATTR08, " +
+            "   R_CREATED, " +
+            "   R_UPDATED " +
             ") VALUES (" +
             "   ?, " +  // R_ID
             "   ?, " +  // R_C_ID
@@ -121,7 +122,9 @@ public class NewReservation extends VoltProcedure {
             "   ?, " +  // R_ATTR05
             "   ?, " +  // R_ATTR06
             "   ?, " +  // R_ATTR07
-            "   ? " +   // R_ATTR08
+            "   ?, " +  // R_ATTR08
+            "   ?, " +  // R_CREATED
+            "   ? " +   // R_UPDATED
             ")");
     
     public VoltTable[] run(long r_id, long c_id, long f_id, long seatnum, double price, long attrs[]) {
@@ -156,39 +159,40 @@ public class NewReservation extends VoltProcedure {
                                          String.format(" Customer %d already owns on a reservations on flight #%d", c_id, f_id));
         }
         
-        if (c_id != VoltType.NULL_BIGINT) {
-            voltQueueSQL(GetCustomer, c_id);
-            VoltTable[] customerResults = voltExecuteSQL();
-            assert(customerResults.length == 1);
-            
-            // Customer Information
-            if (customerResults[0].advanceRow() == false) {
-                throw new VoltAbortException(ErrorType.INVALID_CUSTOMER_ID + 
-                                             String.format(" Invalid customer id: %d / %s", c_id, new CustomerId(c_id)));
-            }
-        }
+//        if (c_id != VoltType.NULL_BIGINT) {
+//            voltQueueSQL(GetCustomer, c_id);
+//            VoltTable[] customerResults = voltExecuteSQL();
+//            assert(customerResults.length == 1);
+//            
+//            // Customer Information
+//            if (customerResults[0].advanceRow() == false) {
+//                throw new VoltAbortException(ErrorType.INVALID_CUSTOMER_ID + 
+//                                             String.format(" Invalid customer id: %d / %s", c_id, new CustomerId(c_id)));
+//            }
+//        }
         
+        TimestampType timestamp = new TimestampType();
         voltQueueSQL(InsertReservation, r_id, c_id, f_id, seatnum, price,
                             attrs[0], attrs[1], attrs[2], attrs[3],
                             attrs[4], attrs[5], attrs[6], attrs[7],
-                            attrs[8]);
+                            attrs[8], timestamp, timestamp);
         voltQueueSQL(UpdateFlight, f_id);
-        if (c_id != VoltType.NULL_BIGINT) {
-            voltQueueSQL(UpdateCustomer, attrs[0], attrs[1], attrs[2], attrs[3], c_id);
-            voltQueueSQL(UpdateFrequentFlyer, attrs[4], attrs[5], attrs[6], attrs[7], c_id, airline_id);
-        }
+        voltQueueSQL(UpdateCustomer, attrs[0], attrs[1], attrs[2], attrs[3], c_id);
+        voltQueueSQL(UpdateFrequentFlyer, attrs[4], attrs[5], attrs[6], attrs[7], c_id, airline_id);
         
         // We don't care if we updated FrequentFlyer 
         final VoltTable[] results = voltExecuteSQL(true);
         for (int i = 0; i < results.length - 1; i++) {
             if (results[i].getRowCount() != 1) {
-                String msg = String.format("Failed to add reservation for flight #%d - No rows returned for %s", f_id, voltLastQueriesExecuted()[i]);
+                String msg = String.format("Failed to add reservation for flight #%d - No rows returned for %s",
+                                           f_id, voltLastQueriesExecuted()[i]);
                 if (debug) LOG.warn(msg);
                 throw new VoltAbortException(ErrorType.VALIDITY_ERROR + " " + msg);
             }
             long updated = results[i].asScalarLong();
             if (updated != 1) {
-                String msg = String.format("Failed to add reservation for flight #%d - Updated %d records for %s", f_id, updated, voltLastQueriesExecuted()[i]);
+                String msg = String.format("Failed to add reservation for flight #%d - Updated %d records for %s",
+                                           f_id, updated, voltLastQueriesExecuted()[i]);
                 if (debug) LOG.warn(msg);
                 throw new VoltAbortException(ErrorType.VALIDITY_ERROR + " " + msg);
             }

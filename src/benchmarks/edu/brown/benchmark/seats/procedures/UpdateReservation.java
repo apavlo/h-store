@@ -54,6 +54,7 @@ import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
+import org.voltdb.types.TimestampType;
 
 import edu.brown.benchmark.seats.SEATSConstants;
 import edu.brown.benchmark.seats.util.ErrorType;
@@ -75,7 +76,7 @@ public class UpdateReservation extends VoltProcedure {
         " WHERE R_F_ID = ? AND R_C_ID = ?");
 
     private static final String BASE_SQL = "UPDATE " + SEATSConstants.TABLENAME_RESERVATION +
-                                           "   SET R_SEAT = ?, %s = ? " +
+                                           "   SET R_SEAT = ?, R_UPDATED = ?, %s = ? " +
                                            " WHERE R_ID = ? AND R_C_ID = ? AND R_F_ID = ?";
     
     public final SQLStmt ReserveSeat0 = new SQLStmt(String.format(BASE_SQL, "R_IATTR00"));
@@ -110,12 +111,13 @@ public class UpdateReservation extends VoltProcedure {
         }
         // Check if the Customer already has a seat on this flight
         else if (checkResults[1].advanceRow() == false) {
-            throw new VoltAbortException(ErrorType.CUSTOMER_ALREADY_HAS_SEAT +
+            throw new VoltAbortException(ErrorType.RESERVATION_NOT_FOUND +
                                          String.format(" Customer %d does not have an existing reservation on flight #%d", c_id, f_id));
         }
        
         // Update the seat reservation for the customer
-        voltQueueSQL(ReserveSeats[(int)attr_idx], seatnum, attr_val, r_id, c_id, f_id);
+        TimestampType timestamp = new TimestampType();
+        voltQueueSQL(ReserveSeats[(int)attr_idx], seatnum, timestamp, attr_val, r_id, c_id, f_id);
         final VoltTable[] results = voltExecuteSQL(true);
         assert results.length == 1;
         for (int i = 0; i < results.length - 1; i++) {

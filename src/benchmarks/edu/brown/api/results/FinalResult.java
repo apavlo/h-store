@@ -63,12 +63,12 @@ public class FinalResult implements JSONSerializable {
         this.txnMaxCount = 0;
         this.dtxnTotalCount = 0;
         
-        ObjectHistogram<String> clientTxnCounts = new ObjectHistogram<String>(true);
-        ObjectHistogram<String> clientSpecExecCounts = new ObjectHistogram<String>(true);
-        ObjectHistogram<String> clientDtxnCounts = new ObjectHistogram<String>(true);
-        ObjectHistogram<String> txnCounts = new ObjectHistogram<String>(true);
-        ObjectHistogram<String> specexecCounts = new ObjectHistogram<String>(true);
-        ObjectHistogram<String> dtxnCounts = new ObjectHistogram<String>(true);
+        Histogram<String> clientTxnCounts = new ObjectHistogram<String>(true);
+        Histogram<String> clientSpecExecCounts = new ObjectHistogram<String>(true);
+        Histogram<String> clientDtxnCounts = new ObjectHistogram<String>(true);
+        Histogram<String> txnCounts = new ObjectHistogram<String>(true);
+        Histogram<String> specexecCounts = new ObjectHistogram<String>(true);
+        Histogram<String> dtxnCounts = new ObjectHistogram<String>(true);
         
         double intervalTotals[] = results.computeIntervalTotals();
         if (debug.val) LOG.debug("INTERVAL TOTALS: " + Arrays.toString(intervalTotals));
@@ -121,10 +121,12 @@ public class FinalResult implements JSONSerializable {
         // TRANSACTION RESULTS
         Histogram<Integer> latencies = new ObjectHistogram<Integer>();
         for (String txnName : txnCounts.values()) {
-            Histogram<Integer> l = results.getLatenciesForTransaction(txnName);
-            EntityResult er = new EntityResult(this.txnTotalCount, this.duration, txnCounts.get(txnName), l);
+            Histogram<Integer> txnLatencies = results.getLatenciesForTransaction(txnName);
+            EntityResult er = new EntityResult(this.txnTotalCount, this.duration,
+                                               txnCounts.get(txnName), dtxnCounts.get(txnName),
+                                               txnLatencies);
             this.txnResults.put(txnName, er);
-            latencies.put(l);
+            latencies.put(txnLatencies);
         } // FOR
         if (latencies.isEmpty() == false) {
             this.totalMinLatency = latencies.getMinValue().doubleValue();
@@ -135,8 +137,10 @@ public class FinalResult implements JSONSerializable {
         
         // CLIENTS RESULTS
         for (String clientName : results.getClientNames()) {
-            Histogram<Integer> l = results.getLatenciesForClient(clientName);
-            EntityResult er = new EntityResult(this.txnTotalCount, this.duration, clientTxnCounts.get(clientName), l);
+            Histogram<Integer> clientLatencies = results.getLatenciesForClient(clientName);
+            EntityResult er = new EntityResult(this.txnTotalCount, this.duration,
+                                               clientTxnCounts.get(clientName), clientDtxnCounts.get(clientName),
+                                               clientLatencies);
             this.clientResults.put(clientName.replace("client-", ""), er);
         } // FOR
     }
