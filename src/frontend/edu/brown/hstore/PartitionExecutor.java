@@ -197,7 +197,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
     private static final UtilityWorkMessage UTIL_WORK_MSG = new UtilityWorkMessage();
     private static final UpdateMemoryMessage STATS_WORK_MSG = new UpdateMemoryMessage();
     
-    private ReconfigurationStates reconfiguration_state;
+    private ReconfigurationStates reconfig_state;
     
     // ----------------------------------------------------------------------------
     // INTERNAL EXECUTION STATE
@@ -613,7 +613,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         this.partitionId = 0;
         this.procedures = null;
         this.tmp_transactionRequestBuilders = null;
-        this.reconfiguration_state = ReconfigurationStates.NORMAL;
+        this.reconfig_state = ReconfigurationStates.NORMAL;
     }
 
     /**
@@ -645,7 +645,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         this.p_estimator = p_estimator;
         this.localTxnEstimator = t_estimator;
         
-        this.reconfiguration_state = ReconfigurationStates.NORMAL;
+        this.reconfig_state = ReconfigurationStates.NORMAL;
         // Speculative Execution
         this.specExecBlocked = new LinkedList<Pair<LocalTransaction,ClientResponseImpl>>();
         this.specExecModified = false;
@@ -4649,14 +4649,30 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
     }
 
     public ReconfigurationStates getReconfiguration_state() {
-        return reconfiguration_state;
+        return reconfig_state;
     }
 
-    public void setReconfiguration_state(ReconfigurationStates reconfiguration_state) {
-        this.reconfiguration_state = reconfiguration_state;
+    public void setReconfiguration_state(ReconfigurationStates reconfig_state) {
+        if (debug.val) LOG.debug("Setting reconfiguration state to: "+ reconfig_state.toString());
+        
+        this.reconfig_state = reconfig_state;
+        if (reconfig_state == ReconfigurationStates.NORMAL){
+            if (debug.val) LOG.debug("Cleaning up reconfiguration");
+            //Reverting back to normal state clean up
+            this.reconfig_plan = null;
+            this.outgoing_ranges = null;
+            this.incoming_ranges = null;
+        }
     }
 
-    public void setReconfigurationPlan(ReconfigurationPlan reconfig_plan) {
+    public void setReconfigurationPlan(ReconfigurationPlan reconfig_plan) throws Exception{
+        if (this.reconfig_plan != null){
+            String msg= "Reconfiguration plan already set. Cannot set until previous reconfig plan is complete. Current state: " + reconfig_state;
+            LOG.error(msg);
+            throw new Exception(msg);
+            
+        }
+        if (debug.val) LOG.debug("Setting reconfiguration plan.");
         this.reconfig_plan = reconfig_plan;
         this.outgoing_ranges = reconfig_plan.getOutgoing_ranges().get(partitionId);
         this.incoming_ranges = reconfig_plan.getIncoming_ranges().get(partitionId);       

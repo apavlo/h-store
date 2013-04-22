@@ -25,8 +25,8 @@ public class ReconfigurationPlan {
     Map<String,ReconfigurationTable<? extends Comparable<?>>> tables_map;
     
     //Helper map of partition ID and outgoing/incoming ranges for this reconfiguration
-    private Map<Integer, List<ReconfigurationRange<? extends Comparable<?>>>> outgoing_ranges;
-    private Map<Integer, List<ReconfigurationRange<? extends Comparable<?>>>> incoming_ranges;
+    protected Map<Integer, List<ReconfigurationRange<? extends Comparable<?>>>> outgoing_ranges;
+    protected Map<Integer, List<ReconfigurationRange<? extends Comparable<?>>>> incoming_ranges;
     
     /**
      * @throws Exception 
