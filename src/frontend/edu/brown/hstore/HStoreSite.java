@@ -54,7 +54,6 @@ import org.voltdb.StatsSource;
 import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.SysProcSelector;
 import org.voltdb.TransactionIdManager;
-import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Host;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
@@ -440,7 +439,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         this.executor_threads = new Thread[num_partitions];
         
         // Get the hasher we will use for this HStoreSite
-        this.hasher = ClassUtil.newInstance(hstore_conf.global.hasherClass,
+        this.hasher = ClassUtil.newInstance(hstore_conf.global.hasher_class,
                                              new Object[]{ this.catalogContext, num_partitions },
                                              new Class<?>[]{ CatalogContext.class, int.class });
         this.p_estimator = new PartitionEstimator(this.catalogContext, this.hasher);

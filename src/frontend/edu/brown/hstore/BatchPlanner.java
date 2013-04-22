@@ -607,7 +607,7 @@ public class BatchPlanner {
                         Object params[] = batchArgs[stmt_index].toArray();
                         this.cache_isSinglePartition[stmt_index] = true;
                         for (int idx : this.cache_fastLookups[stmt_index]) {
-                            int hash = p_estimator.getHasher().hash(params[idx]); 
+                            int hash = p_estimator.getHasher().hash(params[idx], this.catalog_stmts[stmt_index]); 
                             if (hash != base_partition) {
                                 if (debug.val)
                                     LOG.debug(String.format("[#%d-%02d] Failed to match cached partition info for %s at idx=%d: " +

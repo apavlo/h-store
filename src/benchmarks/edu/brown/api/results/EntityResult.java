@@ -19,14 +19,19 @@ public class EntityResult implements JSONSerializable {
     public double txnPerMilli;
     public double txnPerSecond;
     
+    public long dtxnCount;
+    public double dtxnPercentage;
+    
     public double txnAvgLatency = 0d;
     public double txnStdDevLatency = 0d;
     public double txnMinLatency = 0d;
     public double txnMaxLatency = 0d;
     
-    public EntityResult(long totalTxnCount, long duration, long txnCount, Histogram<Integer> latencies) {
+    public EntityResult(long totalTxnCount, long duration, long txnCount, long dtxnCount, Histogram<Integer> latencies) {
         this.txnCount = txnCount;
+        this.dtxnCount = dtxnCount;
         if (totalTxnCount == 0) {
+            this.dtxnPercentage = 0;
             this.txnPercentage = 0;
             this.txnPerMilli = 0;
             this.txnPerSecond = 0;
@@ -38,6 +43,11 @@ public class EntityResult implements JSONSerializable {
             this.txnPercentage = (txnCount / (double)totalTxnCount) * 100;
             this.txnPerMilli = txnCount / (double)duration * 1000.0;
             this.txnPerSecond = txnCount / (double)duration * 1000.0 * 60.0;
+            if (txnCount > 0) {
+                this.dtxnPercentage = (dtxnCount / (double)txnCount) * 100;
+            } else {
+                this.dtxnPercentage = 0;
+            }
             
             if (latencies.getMinValue() != null)
                 this.txnMinLatency = latencies.getMinValue().doubleValue();
@@ -56,6 +66,18 @@ public class EntityResult implements JSONSerializable {
     }
     public double getTxnPercentage() {
         return this.txnPercentage;
+    }
+    public long getDistributedTxnCount() {
+        return this.dtxnCount;
+    }
+    public double getDistributedTxnPercentage() {
+        return this.dtxnPercentage;
+    }
+    public long getSinglePartitionTxnCount() {
+        return (this.txnCount - this.dtxnCount);
+    }
+    public double getSinglePartitionTxnPercentage() {
+        return (100 - this.dtxnPercentage);
     }
     public double getTxnPerMilli() {
         return this.txnPerMilli;
