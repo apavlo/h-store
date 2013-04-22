@@ -1,4 +1,4 @@
-package edu.brown.hstore;
+package edu.brown.hstore.reconfiguration;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -7,6 +7,8 @@ import org.apache.log4j.Logger;
 
 import edu.brown.hashing.PlannedHasher;
 import edu.brown.hashing.ReconfigurationPlan;
+import edu.brown.hstore.HStoreSite;
+import edu.brown.hstore.PartitionExecutor;
 import edu.brown.hstore.reconfiguration.ReconfigurationConstants.ReconfigurationProtocols;
 import edu.brown.interfaces.Shutdownable;
 import edu.brown.logging.LoggerUtil;
