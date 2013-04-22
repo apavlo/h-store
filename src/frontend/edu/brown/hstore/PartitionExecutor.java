@@ -113,6 +113,8 @@ import com.google.protobuf.RpcCallback;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.PlanFragmentIdGenerator;
 import edu.brown.catalog.special.CountedStatement;
+import edu.brown.hashing.ReconfigurationPlan;
+import edu.brown.hashing.ReconfigurationPlan.ReconfigurationRange;
 import edu.brown.hstore.Hstoreservice.QueryEstimate;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.TransactionPrefetchResult;
@@ -120,6 +122,7 @@ import edu.brown.hstore.Hstoreservice.TransactionWorkRequest;
 import edu.brown.hstore.Hstoreservice.TransactionWorkResponse;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.Hstoreservice.WorkResult;
+import edu.brown.hstore.ReconfigurationCoordinator.ReconfigurationStates;
 import edu.brown.hstore.callbacks.LocalFinishCallback;
 import edu.brown.hstore.callbacks.LocalPrepareCallback;
 import edu.brown.hstore.callbacks.PartitionCountingCallback;
@@ -193,6 +196,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
     
     private static final UtilityWorkMessage UTIL_WORK_MSG = new UtilityWorkMessage();
     private static final UpdateMemoryMessage STATS_WORK_MSG = new UpdateMemoryMessage();
+    
+    private ReconfigurationStates reconfiguration_state;
     
     // ----------------------------------------------------------------------------
     // INTERNAL EXECUTION STATE
@@ -608,6 +613,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         this.partitionId = 0;
         this.procedures = null;
         this.tmp_transactionRequestBuilders = null;
+        this.reconfiguration_state = ReconfigurationStates.NORMAL;
     }
 
     /**
@@ -639,6 +645,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         this.p_estimator = p_estimator;
         this.localTxnEstimator = t_estimator;
         
+        this.reconfiguration_state = ReconfigurationStates.NORMAL;
         // Speculative Execution
         this.specExecBlocked = new LinkedList<Pair<LocalTransaction,ClientResponseImpl>>();
         this.specExecModified = false;
@@ -4624,11 +4631,34 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
     }
     
     private Debug cachedDebugContext;
+    
+    //--------------------------------------
+    //  Reconfiguration  
+    //--------------------------------------
+    
+    private ReconfigurationPlan reconfig_plan;
+    private List<ReconfigurationRange<? extends Comparable<?>>> outgoing_ranges;
+    private List<ReconfigurationRange<? extends Comparable<?>>> incoming_ranges;
+    
     public Debug getDebugContext() {
         if (this.cachedDebugContext == null) {
             // We don't care if we're thread-safe here...
             this.cachedDebugContext = new Debug();
         }
         return this.cachedDebugContext;
+    }
+
+    public ReconfigurationStates getReconfiguration_state() {
+        return reconfiguration_state;
+    }
+
+    public void setReconfiguration_state(ReconfigurationStates reconfiguration_state) {
+        this.reconfiguration_state = reconfiguration_state;
+    }
+
+    public void setReconfigurationPlan(ReconfigurationPlan reconfig_plan) {
+        this.reconfig_plan = reconfig_plan;
+        this.outgoing_ranges = reconfig_plan.getOutgoing_ranges().get(partitionId);
+        this.incoming_ranges = reconfig_plan.getIncoming_ranges().get(partitionId);       
     }
 }
