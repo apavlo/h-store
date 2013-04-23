@@ -632,7 +632,7 @@ if __name__ == '__main__':
             LOG.info("%s - %s - %d Partitions" % (args['exp_type'].upper(), benchmark.upper(), partitions))
             fabric.env["hstore.partitions"] = partitions
             all_results = [ ]
-            updateExperimentEnv(fabric.env, args, benchmark, partitions)
+            updateExperimentEnv(fabric, args, benchmark, partitions)
                 
             # Increase the client.scalefactor based on the number of partitions
             if args['multiply_scalefactor']:
@@ -640,7 +640,7 @@ if __name__ == '__main__':
                 
             if args['start_cluster']:
                 LOG.info("Starting cluster for experiments [noExecute=%s]" % args['no_execute'])
-                fabric.start_cluster(updateSync=needSync)
+                fabric.start_cluster()
                 if args['no_execute']: sys.exit(0)
             ## IF
             

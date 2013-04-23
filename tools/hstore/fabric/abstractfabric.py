@@ -103,6 +103,8 @@ class AbstractFabric(object):
         self.updateEnv(envUpdates)
         
         self.hstore_dir = os.path.join(self.env["hstore.basedir"], "h-store")
+        LOG.debug("HSTORE DIR: %s", self.hstore_dir)
+        
         self.running_instances = [ ]
         self.all_instances = [ ]
         
