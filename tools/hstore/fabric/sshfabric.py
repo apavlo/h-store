@@ -54,7 +54,8 @@ if not os.path.exists(realpath):
     basename = os.path.basename(realpath)
     if os.path.exists(os.path.join(cwd, basename)):
         basedir = cwd
-sys.path.append(os.path.realpath(os.path.join(basedir, "../third_party/python")))
+basedir = os.path.realpath(os.path.join(basedir, "../../../"))
+sys.path.append(os.path.join(basedir, "third_party/python"))
 import boto
 
 ## ==============================================
@@ -74,10 +75,11 @@ LOG.setLevel(logging.INFO)
 ## ==============================================
 
 ENV_DEFAULT = {
-    "ssh.hosts":                [ "istc3", "istc4" ],
+    "ssh.hosts":                [ "istc3.csail.mit.edu", "istc4.csail.mit.edu" ],
+    "key_filename":             os.path.join(os.environ["HOME"], ".ssh/csail.pem"),
     
     # H-Store Options
-    "hstore.basedir":           os.path.realpath(basedir),
+    "hstore.basedir":           os.path.realpath(os.path.join(basedir, "..")),
 }
 
 ## ==============================================
@@ -110,7 +112,6 @@ class SSHFabric(AbstractFabric):
     ## DEF
     
     def start_cluster(self, build=True, update=True):
-        self.__getInstances__()
         for inst in self.running_instances:
             self.__setupInstance__(inst, build, update)
     ## DEF
@@ -120,19 +121,16 @@ class SSHFabric(AbstractFabric):
     ## DEF
     
     def write_conf(self, project, removals=[ ], revertFirst=False):
-        self.__getInstances__()
         for inst in self.running_instances:
             self.__writeConf__(inst, project, removals, revertFirst)
     ## DEF
     
     def enable_debugging(self, debug=[], trace=[]):
-        self.__getInstances__()
         for inst in self.running_instances:
             self.__enableDebugging__(inst, debug, trace)
     ## DEF
     
     def clear_logs(self):
-        self.__getInstances__()
         for inst in self.running_instances:
             self.__clearLogs__(inst)
     ## DEF
@@ -140,7 +138,7 @@ class SSHFabric(AbstractFabric):
     ## ----------------------------------------------
     ## __getInstances__
     ## ----------------------------------------------        
-    def __getInstances__():
+    def __getInstances__(self):
         pass
     ## DEF
 
@@ -148,7 +146,6 @@ class SSHFabric(AbstractFabric):
     ## __getRunningInstances__
     ## ----------------------------------------------        
     def __getRunningInstances__(self, instType):
-        self.__getInstances__()
         instances = [ ]
         for inst in self.env["ec2.running_instances"]:
             if self.__getInstanceType__(inst) == instType:
