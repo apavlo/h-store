@@ -141,23 +141,33 @@ class AbstractFabric(object):
         raise NotImplementedError("Unimplemented %s" % self.__init__.im_class)
     ## DEF
     
-    def __syncTime__(self):
+    def sync_time(self):
         raise NotImplementedError("Unimplemented %s" % self.__init__.im_class)
     ## DEF
     
-    def __getInstances__(self):
-        """Get the instances available for this configurator"""
+    def getInstance(self, public_dns_name):
         raise NotImplementedError("Unimplemented %s" % self.__init__.im_class)
     ## DEF
     
-    def __getRunningSiteInstances__():
+    def getAllInstances(self):
         raise NotImplementedError("Unimplemented %s" % self.__init__.im_class)
     ## DEF
     
-    def __getRunningClientInstances__():
+    def getRunningSiteInstances():
         raise NotImplementedError("Unimplemented %s" % self.__init__.im_class)
     ## DEF
     
+    def getRunningClientInstances():
+        raise NotImplementedError("Unimplemented %s" % self.__init__.im_class)
+    ## DEF
+    
+    def exec_benchmark(self, project, \
+                             removals=[ ], json=False, trace=False, \
+                             updateJar=True, updateConf=True, updateRepo=False, resetLog4j=False, \
+                             extraParams={ } ):
+        raise NotImplementedError("Unimplemented %s" % self.__init__.im_class)
+    ## DEF
+                     
     ## =====================================================================
     ## MAIN API
     ## =====================================================================
@@ -177,22 +187,28 @@ class AbstractFabric(object):
             return (rev_id, rev_date)
         ## WITH
     ## DEF
+
+    def get_file(self, inst, filePath):
+        """Retrieve and print the file from the cluster for the given path"""
+        sio = StringIO()
+        with settings(host_string=inst.public_dns_name):
+            if get(filePath, local_path=sio).failed:
+                raise Exception("Failed to retrieve remote file '%s'" % filePath)
+        return sio.getvalue()
+    ## DEF
+
+    ## ---------------------------------------------------------------------
+    ## INTERNAL API
+    ## ---------------------------------------------------------------------
     
-    ## ----------------------------------------------
-    ## exec_benchmark
-    ## ----------------------------------------------
-    @task
-    def exec_benchmark(self, project, \
+    def exec_benchmark(self, inst, project, \
                              removals=[ ], json=False, trace=False, \
                              updateJar=True, updateConf=True, updateRepo=False, resetLog4j=False, \
                              extraParams={ } ):
-        self.__getInstances__()
-        
         ## Make sure we have enough instances
-        hostCount, siteCount, partitionCount, clientCount = self.__getInstanceTypeCounts__()
-        if (hostCount + clientCount) > len(self.running_instances):
+        if (self.hostCount + self.clientCount) > len(self.running_instances):
             raise Exception("Needed %d host + %d client instances but only %d are currently running" % (\
-                            hostCount, clientCount, len(self.running_instances)))
+                            self.hostCount, self.clientCount, len(self.running_instances)))
 
         hosts = [ ]
         clients = [ ]
@@ -211,7 +227,7 @@ class AbstractFabric(object):
             sites_needed = math.ceil(self.env["hstore.partitions"] / float(partitions_per_site))
             partitions_per_site = math.ceil(self.env["hstore.partitions"] / float(sites_needed))
         
-        for inst in self.__getRunningSiteInstances__():
+        for inst in self.getRunningSiteInstances():
             site_hosts.add(inst.private_dns_name)
             for i in range(self.env["hstore.sites_per_host"]):
                 firstPartition = partition_id
@@ -230,22 +246,22 @@ class AbstractFabric(object):
         LOG.debug("Site Hosts: %s" % hosts)
         
         ## HStore Clients
-        for inst in self.__getRunningClientInstances__():
+        for inst in self.getRunningClientInstances():
             if inst.private_dns_name in site_hosts: continue
             clients.append(inst.private_dns_name)
         ## FOR
-        assert len(clients) > 0, "There are no %s client instances available" % self.env["ec2.client_type"]
+        assert len(clients) > 0
         LOG.debug("Client Hosts: %s" % clients)
 
         ## Make sure the the checkout is up to date
         if updateRepo: 
             LOG.info("Updating H-Store Git checkout")
-            self.deploy_hstore(build=False, update=True)
+            self.__setupInstance__(inst, build=False, update=True)
         ## Update H-Store Conf file
         ## Do this after we update the repository so that we can put in our updates
         if updateConf:
             LOG.info("Updating H-Store configuration files")
-            self.write_conf(project, removals, revertFirst=True)
+            self.__writeConf__(inst, project, removals, revertFirst=True)
 
         ## Construct dict of command-line H-Store options
         hstore_options = {
@@ -269,70 +285,40 @@ class AbstractFabric(object):
         ## a properties file
         workloads = None
         hstore_opts_cmd = " ".join(map(lambda x: "-D%s=%s" % (x, hstore_options[x]), hstore_options.keys()))
-        with cd(self.hstore_dir):
-            prefix = self.env["hstore.exec_prefix"]
-            
-            if resetLog4j:
-                LOG.info("Reverting log4j.properties")
-                run("git checkout %s -- %s" % (self.env["hstore.git_options"], "log4j.properties"))
-            
-            if updateJar:
-                LOG.info("Updating H-Store %s project jar file" % (project.upper()))
-                prefix += " hstore-prepare"
-            cmd = "ant %s hstore-benchmark %s" % (prefix, hstore_opts_cmd)
-            output = run(cmd)
-            
-            ## If they wanted a trace file, then we have to ship it back to ourselves
-            if trace:
-                output = "/tmp/hstore/workloads/%s.trace" % project
-                combine_opts = {
-                    "project":              project,
-                    "volt.server.memory":   5000,
-                    "output":               output,
-                    "workload":             hstore_options["trace"] + "*",
-                }
-                LOG.debug("Combine %s workload traces into '%s'" % (project.upper(), output))
-                combine_opts_cmd = " ".join(map(lambda x: "-D%s=%s" % (x, combine_opts[x]), combine_opts.keys()))
-                run("ant workload-combine %s" % combine_opts_cmd)
-                workloads = get(output + ".gz")
-            ## IF
+        with settings(host_string=inst.public_dns_name):
+            with cd(self.hstore_dir):
+                prefix = self.env["hstore.exec_prefix"]
+                
+                if resetLog4j:
+                    LOG.info("Reverting log4j.properties")
+                    run("git checkout %s -- %s" % (self.env["hstore.git_options"], "log4j.properties"))
+                
+                if updateJar:
+                    LOG.info("Updating H-Store %s project jar file" % (project.upper()))
+                    prefix += " hstore-prepare"
+                cmd = "ant %s hstore-benchmark %s" % (prefix, hstore_opts_cmd)
+                output = run(cmd)
+                
+                ## If they wanted a trace file, then we have to ship it back to ourselves
+                if trace:
+                    output = "/tmp/hstore/workloads/%s.trace" % project
+                    combine_opts = {
+                        "project":              project,
+                        "volt.server.memory":   5000,
+                        "output":               output,
+                        "workload":             hstore_options["trace"] + "*",
+                    }
+                    LOG.debug("Combine %s workload traces into '%s'" % (project.upper(), output))
+                    combine_opts_cmd = " ".join(map(lambda x: "-D%s=%s" % (x, combine_opts[x]), combine_opts.keys()))
+                    run("ant workload-combine %s" % combine_opts_cmd)
+                    workloads = get(output + ".gz")
+                ## IF
+            ## WITH
         ## WITH
 
         assert output
         return output, workloads
     ## DEF
-
-    ## ----------------------------------------------
-    ## get_file
-    ## ----------------------------------------------
-    @task
-    def get_file(self, filePath):
-        """Retrieve and print the file from the cluster for the given path"""
-        sio = StringIO()
-        if get(filePath, local_path=sio).failed:
-            raise Exception("Failed to retrieve remote file '%s'" % filePath)
-        return sio.getvalue()
-    ## DEF
-
-
-    ## ----------------------------------------------
-    ## sync_time
-    ## ----------------------------------------------
-    @task
-    def sync_time(self):
-        """Invoke NTP synchronization on each instance"""
-        self.__getInstances__()
-        for inst in self.running_instances:
-            with settings(host_string=inst.public_dns_name):
-                __syncTime__()
-        ## FOR
-    ## DEF
-    
-    ## ---------------------------------------------------------------------
-    ## INTERNAL API
-    ## ---------------------------------------------------------------------
-    
-
     
     ## ----------------------------------------------
     ## __setupInstance__
@@ -433,41 +419,41 @@ class AbstractFabric(object):
     def __updateConf__(self, inst, conf_file, updates={ }, removals=[ ], noSpaces=False):
         LOG.info("Updating configuration file '%s' - Updates[%d] / Removals[%d]", conf_file, len(updates), len(removals))
         
+        contents = self.get_file(inst, conf_file)
+        assert len(contents) > 0, "Configuration file '%s' is empty" % conf_file
+        
+        first = True
+        space = "" if noSpaces else " "
+        
+        ## Keys we want to update/insert
+        for key in sorted(updates.keys()):
+            val = updates[key]
+            hstore_line = "%s%s=%s%s" % (key, space, space, val)
+            regex = "^(?:#)*[\s]*%s[ ]*=[ ]*.*" % re.escape(key)
+            m = re.search(regex, contents, re.MULTILINE)
+            if not m:
+                if first: contents += "\n"
+                contents += hstore_line + "\n"
+                first = False
+                LOG.debug("Added '%s' in %s with value '%s'" % (key, conf_file, val))
+            else:
+                contents = contents.replace(m.group(0), hstore_line)
+                LOG.debug("Updated '%s' in %s with value '%s'" % (key, conf_file, val))
+            ## IF
+        ## FOR
+        
+        ## Keys we need to completely remove from the file
+        for key in removals:
+            if contents.find(key) != -1:
+                regex = "%s[ ]*=.*" % re.escape(key)
+                contents = re.sub(regex, "", contents)
+                LOG.debug("Removed '%s' in %s" % (key, conf_file))
+            ## FOR
+        ## FOR
+        
+        sio = StringIO()
+        sio.write(contents)
         with settings(host_string=inst.public_dns_name):
-            contents = self.get_file(conf_file)
-            assert len(contents) > 0, "Configuration file '%s' is empty" % conf_file
-            
-            first = True
-            space = "" if noSpaces else " "
-            
-            ## Keys we want to update/insert
-            for key in sorted(updates.keys()):
-                val = updates[key]
-                hstore_line = "%s%s=%s%s" % (key, space, space, val)
-                regex = "^(?:#)*[\s]*%s[ ]*=[ ]*.*" % re.escape(key)
-                m = re.search(regex, contents, re.MULTILINE)
-                if not m:
-                    if first: contents += "\n"
-                    contents += hstore_line + "\n"
-                    first = False
-                    LOG.debug("Added '%s' in %s with value '%s'" % (key, conf_file, val))
-                else:
-                    contents = contents.replace(m.group(0), hstore_line)
-                    LOG.debug("Updated '%s' in %s with value '%s'" % (key, conf_file, val))
-                ## IF
-            ## FOR
-            
-            ## Keys we need to completely remove from the file
-            for key in removals:
-                if contents.find(key) != -1:
-                    regex = "%s[ ]*=.*" % re.escape(key)
-                    contents = re.sub(regex, "", contents)
-                    LOG.debug("Removed '%s' in %s" % (key, conf_file))
-                ## FOR
-            ## FOR
-            
-            sio = StringIO()
-            sio.write(contents)
             put(local_path=sio, remote_path=conf_file)
         ## WITH
     ## DEF

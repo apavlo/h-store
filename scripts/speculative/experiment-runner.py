@@ -284,6 +284,7 @@ def updateExperimentEnv(fabric, args, benchmark, partitions):
             fabric.env["client.threads_per_host"] = 1
         else:
             fabric.env["client.threads_per_host"] = int(partitions/2)
+        fabric.env["client.threads_per_host"] = max(1, fabric.env["client.threads_per_host"])
         fabric.env["benchmark.loadthreads"] = min(16, partitions)
 
     ## ----------------------------------------------
@@ -329,20 +330,20 @@ def updateExperimentEnv(fabric, args, benchmark, partitions):
 ## ==============================================
 ## getCSVOutput
 ## ==============================================
-def getCSVOutput(fabric, args, benchmark, partitions):
+def getCSVOutput(inst, fabric, args, benchmark, partitions):
     """Find all of the output parameters in the env and retrieve the files from the cluster"""
     for k,v in fabric.env.iteritems():
         if k.startswith("client.output_"):
             LOG.debug("Checking whether '%s' is enabled" % (k))
             if not v is None and isinstance(v, str) and v.endswith(".csv"):
-                saveCSVResults(fabric, args, benchmark, partitions, v)
+                saveCSVResults(inst, fabric, args, benchmark, partitions, v)
     ## FOR
 ## DEF
 
 ## ==============================================
 ## saveCSVResults
 ## ==============================================
-def saveCSVResults(fabric, args, benchmark, partitions, filename):
+def saveCSVResults(inst, fabric, args, benchmark, partitions, filename):
     # Create local results directory
     resultsDir = os.path.join(args['results_dir'], args['exp_type'])
     if not os.path.exists(resultsDir):
@@ -352,7 +353,7 @@ def saveCSVResults(fabric, args, benchmark, partitions, filename):
     # Go out and grab the remote file and save it locally in our results dir.
     filename = os.path.join(fabric.hstore_dir, filename)
     LOG.info("Going to retrieve remote CSV file '%s'" % filename)
-    contents = fabric.get_file(filename)
+    contents = fabric.get_file(inst, filename)
     if len(contents) > 0:
         # We'll prefix the name with the number of partitions
         localName = "%s-%02dp-%s" % (benchmark, partitions, os.path.basename(filename))
@@ -368,7 +369,7 @@ def saveCSVResults(fabric, args, benchmark, partitions, filename):
 ## ==============================================
 ## processResults
 ## ==============================================
-def processResults(fabric, args, partitions, output, workloads, results):
+def processResults(inst, fabric, args, partitions, output, workloads, results):
     data = hstore.parseJSONResults(output)
     for key in [ 'TXNTOTALPERSECOND' ]:
         if key in data:
@@ -401,7 +402,7 @@ def processResults(fabric, args, partitions, output, workloads, results):
             last_changed_rev = args["codespeed_revision"][0]
             last_changed_rev, last_changed_date = svnInfo(env["hstore.svn"], last_changed_rev)
         else:
-            last_changed_rev, last_changed_date = fabric.get_version()
+            last_changed_rev, last_changed_date = fabric.get_version(inst)
         LOG.info("last_changed_rev:", last_changed_rev)
         LOG.info("last_changed_date:", last_changed_date)
             
@@ -651,7 +652,7 @@ if __name__ == '__main__':
                         fabric.env[k] = False if isinstance(v, bool) else ""
                 ## FOR
             
-            client_inst = fabric.__getRunningClientInstances__()[0]
+            client_inst = fabric.getRunningClientInstances()[0]
             LOG.debug("Client Instance: " + client_inst.public_dns_name)
             
             ## Synchronize Instance Times
@@ -698,27 +699,26 @@ if __name__ == '__main__':
                             totalAttempts
                 ))
                 try:
-                    with settings(host_string=client_inst.public_dns_name):
-                        output, workloads = fabric.exec_benchmark(
-                                                project=benchmark, \
-                                                removals=conf_remove, \
-                                                json=(args['no_json'] == False), \
-                                                trace=args['workload_trace'], \
-                                                updateJar=updateJar, \
-                                                updateConf=updateConf, \
-                                                updateRepo=needUpdate, \
-                                                resetLog4j=needResetLog4j, \
-                                                extraParams=controllerParams)
-                                                
-                        # Process JSON Output
-                        if args['no_json'] == False:
-                            processResults(args, partitions, output, workloads, results)
-                        else:
-                            results.append(None)
-                        
-                        # CSV RESULT FILES
-                        getCSVOutput(args, env, benchmark, partitions)
-                    ## WITH
+                    output, workloads = fabric.exec_benchmark(
+                                            client_inst, \
+                                            project=benchmark, \
+                                            removals=conf_remove, \
+                                            json=(args['no_json'] == False), \
+                                            trace=args['workload_trace'], \
+                                            updateJar=updateJar, \
+                                            updateConf=updateConf, \
+                                            updateRepo=needUpdate, \
+                                            resetLog4j=needResetLog4j, \
+                                            extraParams=controllerParams)
+                                            
+                    # Process JSON Output
+                    if args['no_json'] == False:
+                        processResults(client_inst, fabric, args, partitions, output, workloads, results)
+                    else:
+                        results.append(None)
+                    
+                    # CSV RESULT FILES
+                    getCSVOutput(client_inst, fabric, args, env, benchmark, partitions)
                 except KeyboardInterrupt:
                     stop = True
                     break
