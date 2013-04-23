@@ -1410,4 +1410,8 @@ public class HStoreCoordinator implements Shutdownable {
         HStoreService channel = HStoreService.newStub(channels[0]);
         return (channel);
     }
+
+    public synchronized HStoreService[] getChannels() {
+      return channels;
+    }
 }

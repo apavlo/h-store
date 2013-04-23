@@ -97,6 +97,7 @@ import edu.brown.hstore.estimators.TransactionEstimator;
 import edu.brown.hstore.estimators.remote.RemoteEstimator;
 import edu.brown.hstore.estimators.remote.RemoteEstimatorState;
 import edu.brown.hstore.internal.SetDistributedTxnMessage;
+import edu.brown.hstore.reconfiguration.ReconfigurationCoordinator;
 import edu.brown.hstore.reconfiguration.ReconfigurationConstants.ReconfigurationProtocols;
 import edu.brown.hstore.stats.AntiCacheManagerProfilerStats;
 import edu.brown.hstore.stats.BatchPlannerProfilerStats;
@@ -335,6 +336,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * threads spawned by this HStoreSite
      */
     private final EventObservableExceptionHandler exceptionHandler = new EventObservableExceptionHandler();
+    
+    /*
+     * Reconfiguration coordinator 
+     */
+    private ReconfigurationCoordinator reconfiguration_coordinator = null;
+
     
     // ----------------------------------------------------------------------------
     // INTERNAL STATE OBSERVABLES
@@ -615,6 +622,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (debug.val)
             LOG.debug("Initializing HStoreSite " + this.getSiteName());
         this.hstore_coordinator = this.initHStoreCoordinator();
+        
+        if(hstore_conf.global.reconfiguration_enable){
+          this.reconfiguration_coordinator = this.initReconfigCoordinator();
+        }
         
         // First we need to tell the HStoreCoordinator to start-up and initialize its connections
         if (debug.val)
@@ -938,6 +949,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         return new HStoreCoordinator(this);        
     }
     
+    protected ReconfigurationCoordinator initReconfigCoordinator() {
+        assert(this.shutdown_state != ShutdownState.STARTED);
+        return new ReconfigurationCoordinator(this);
+    }
+    
     protected void setTransactionIdManagerTimeDelta(long delta) {
         for (TransactionIdManager t : this.txnIdManagers) {
             if (t != null) t.setTimeDelta(delta);
@@ -1064,7 +1080,15 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     // ----------------------------------------------------------------------------
     public void initReconfiguration(int coordinator_site_id, String partition_plan, ReconfigurationProtocols protocol){
       LOG.info(String.format("Initializing reconfiguration. Coordinator:%s To partition plan:%s Protocol: %s",site_id,partition_plan,protocol));
+      
+      //Do not want to do processing in site, need to make this work in another thread
+      this.reconfiguration_coordinator.initReconfiguration(coordinator_site_id,protocol, partition_plan);
     }
+    
+    public ReconfigurationCoordinator getReconfigurationCoordinator(){
+      return this.reconfiguration_coordinator;
+    }
+    
     
     // ----------------------------------------------------------------------------
     // UTILITY METHODS

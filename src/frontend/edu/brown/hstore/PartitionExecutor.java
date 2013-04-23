@@ -113,6 +113,8 @@ import com.google.protobuf.RpcCallback;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.PlanFragmentIdGenerator;
 import edu.brown.catalog.special.CountedStatement;
+import edu.brown.hashing.ReconfigurationPlan;
+import edu.brown.hashing.ReconfigurationPlan.ReconfigurationRange;
 import edu.brown.hstore.Hstoreservice.QueryEstimate;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.TransactionPrefetchResult;
@@ -143,6 +145,8 @@ import edu.brown.hstore.internal.UtilityWorkMessage;
 import edu.brown.hstore.internal.UtilityWorkMessage.TableStatsRequestMessage;
 import edu.brown.hstore.internal.UtilityWorkMessage.UpdateMemoryMessage;
 import edu.brown.hstore.internal.WorkFragmentMessage;
+import edu.brown.hstore.reconfiguration.ReconfigurationCoordinator;
+import edu.brown.hstore.reconfiguration.ReconfigurationCoordinator.ReconfigurationState;
 import edu.brown.hstore.specexec.AbstractConflictChecker;
 import edu.brown.hstore.specexec.MarkovConflictChecker;
 import edu.brown.hstore.specexec.TableConflictChecker;
@@ -193,6 +197,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
     
     private static final UtilityWorkMessage UTIL_WORK_MSG = new UtilityWorkMessage();
     private static final UpdateMemoryMessage STATS_WORK_MSG = new UpdateMemoryMessage();
+    
+    private ReconfigurationState reconfig_state;
     
     // ----------------------------------------------------------------------------
     // INTERNAL EXECUTION STATE
@@ -608,6 +614,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         this.partitionId = 0;
         this.procedures = null;
         this.tmp_transactionRequestBuilders = null;
+        this.reconfig_state = ReconfigurationState.END;
     }
 
     /**
@@ -639,6 +646,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         this.p_estimator = p_estimator;
         this.localTxnEstimator = t_estimator;
         
+        this.reconfig_state = ReconfigurationState.END;
         // Speculative Execution
         this.specExecBlocked = new LinkedList<Pair<LocalTransaction,ClientResponseImpl>>();
         this.specExecModified = false;
@@ -743,6 +751,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         assert(this.hstore_site == null);
         this.hstore_site = hstore_site;
         this.hstore_coordinator = hstore_site.getCoordinator();
+        if(hstore_conf.global.reconfiguration_enable){
+          this.reconfiguration_coordinator = hstore_site.getReconfigurationCoordinator(); 
+        }
         this.thresholds = hstore_site.getThresholds();
         this.txnInitializer = hstore_site.getTransactionInitializer();
         this.queueManager = hstore_site.getTransactionQueueManager();
@@ -850,6 +861,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         assert(this.hstore_coordinator != null);
         assert(this.specExecScheduler != null);
         assert(this.queueManager != null);
+        if(hstore_conf.global.reconfiguration_enable)
+          assert(this.reconfiguration_coordinator != null);
         
         this.self = Thread.currentThread();
         this.self.setName(HStoreThreadManager.getThreadName(this.hstore_site, this.partitionId));
@@ -4624,11 +4637,55 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
     }
     
     private Debug cachedDebugContext;
+    
+    //--------------------------------------
+    //  Reconfiguration  
+    //--------------------------------------
+    
+    private ReconfigurationPlan reconfig_plan;
+    private ReconfigurationCoordinator reconfiguration_coordinator =null;
+    private List<ReconfigurationRange<? extends Comparable<?>>> outgoing_ranges;
+    private List<ReconfigurationRange<? extends Comparable<?>>> incoming_ranges;
+    
     public Debug getDebugContext() {
         if (this.cachedDebugContext == null) {
             // We don't care if we're thread-safe here...
             this.cachedDebugContext = new Debug();
         }
         return this.cachedDebugContext;
+    }
+
+    public ReconfigurationState getReconfiguration_state() {
+        return reconfig_state;
+    }
+
+    public void setReconfiguration_state(ReconfigurationState reconfig_state) {
+        if (debug.val) LOG.debug("Setting reconfiguration state to: "+ reconfig_state.toString());
+        
+        this.reconfig_state = reconfig_state;
+        if (reconfig_state == ReconfigurationState.END){
+            if (debug.val) LOG.debug("Cleaning up reconfiguration");
+            //Reverting back to normal state clean up
+            this.reconfig_plan = null;
+            this.outgoing_ranges = null;
+            this.incoming_ranges = null;
+        }
+    }
+
+    public void setReconfigurationPlan(ReconfigurationPlan reconfig_plan) throws Exception{
+        if (this.reconfig_plan != null){
+            String msg= "Reconfiguration plan already set. Cannot set until previous reconfig plan is complete. Current state: " + reconfig_state;
+            LOG.error(msg);
+            throw new Exception(msg);
+            
+        }
+        if (debug.val) LOG.debug("Setting reconfiguration plan.");
+        this.reconfig_plan = reconfig_plan;
+        this.outgoing_ranges = reconfig_plan.getOutgoing_ranges().get(partitionId);
+        this.incoming_ranges = reconfig_plan.getIncoming_ranges().get(partitionId);       
+    }
+    
+    public void startReconfiguration() {
+      // TODO ae leftoff this.reconfiguration_coordinator.pushTuples(dest_partition,VoltTable[]);
     }
 }
