@@ -46,6 +46,7 @@ import java.util.regex.Matcher;
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.commons.collections15.set.ListOrderedSet;
 import org.apache.log4j.Logger;
+import org.voltdb.CatalogContext;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
 import org.voltdb.catalog.CatalogMap;
@@ -164,7 +165,8 @@ public class SEATSLoader extends Loader {
         }
         
         this.rng = new RandomGenerator(0); // FIXME
-        this.profile = new SEATSProfile(this.getCatalog(), this.rng);
+        this.profile = new SEATSProfile(this.getCatalogContext(), this.rng);
+        this.profile.scale_factor = this.getScaleFactor();
     }
     
     public SEATSProfile getProfile() {
@@ -178,18 +180,19 @@ public class SEATSLoader extends Loader {
     @Override
     public void load() throws IOException {
         if (debug.val) LOG.debug("Begin to load tables...");
+        CatalogContext catalogContext = this.getCatalogContext();
         
         // Load Histograms
         if (debug.val) LOG.debug("Loading data files for histograms");
-        this.loadHistograms();
+        this.loadHistograms(catalogContext);
         
         // Load the first tables from data files
         if (debug.val) LOG.debug("Loading data files for fixed-sized tables");
-        this.loadFixedTables();
+        this.loadFixedTables(catalogContext);
         
         // Once we have those mofos, let's go get make our flight data tables
         if (debug.val) LOG.debug("Loading data files for scaling tables");
-        this.loadScalingTables();
+        this.loadScalingTables(catalogContext);
         
         // Save the benchmark profile out to disk so that we can send it
         // to all of the clients
@@ -201,10 +204,10 @@ public class SEATSLoader extends Loader {
     /**
      * Load all the histograms used in the benchmark
      */
-    protected void loadHistograms() {
+    protected void loadHistograms(CatalogContext catalogContext) {
         if (debug.val) 
             LOG.debug(String.format("Loading in %d histograms from files stored in '%s'",
-                                    SEATSConstants.HISTOGRAM_DATA_FILES.length, this.airline_data_dir));
+                      SEATSConstants.HISTOGRAM_DATA_FILES.length, this.airline_data_dir));
         
         // Now load in the histograms that we will need for generating the flight data
         for (String histogramName : SEATSConstants.HISTOGRAM_DATA_FILES) {
@@ -257,12 +260,11 @@ public class SEATSLoader extends Loader {
      * The number of tuples in these tables will not change based on the scale factor.
      * @param catalogContext
      */
-    protected void loadFixedTables() {
-        Database catalog_db = CatalogUtil.getDatabase(this.getCatalog());
+    protected void loadFixedTables(CatalogContext catalogContext) {
         for (String table_name : SEATSConstants.TABLES_DATAFILES) {
             LOG.debug(String.format("Loading table '%s' from fixed file", table_name));
             try {    
-                Table catalog_tbl = catalog_db.getTables().get(table_name);
+                Table catalog_tbl = catalogContext.database.getTables().getIgnoreCase(table_name);
                 assert(catalog_tbl != null);
                 Iterable<Object[]> iterable = this.getFixedIterable(catalog_tbl);
                 this.loadTable(catalog_tbl, iterable, 5000);
@@ -277,9 +279,7 @@ public class SEATSLoader extends Loader {
      * on the given scaling factor at runtime 
      * @param catalogContext
      */
-    protected void loadScalingTables() {
-        Database catalog_db = this.getCatalogContext().database;
-        
+    protected void loadScalingTables(CatalogContext catalogContext) {
         // Setup the # of flights per airline
         this.flights_per_airline.put(profile.getAirlineCodes(), 0);
 
@@ -288,7 +288,7 @@ public class SEATSLoader extends Loader {
         // create a new FREQUENT_FLYER account for a CUSTOMER 
         for (String table_name : SEATSConstants.TABLES_SCALING) {
             try {
-                Table catalog_tbl = catalog_db.getTables().get(table_name);
+                Table catalog_tbl = catalogContext.database.getTables().get(table_name);
                 assert(catalog_tbl != null);
                 Iterable<Object[]> iterable = this.getScalingIterable(catalog_tbl); 
                 this.loadTable(catalog_tbl, iterable, 5000);
@@ -683,6 +683,10 @@ public class SEATSLoader extends Loader {
                         } else if (types[i] == VoltType.STRING) {
                             int size = catalog_col.getSize();
                             data[i] = rng.astring(rng.nextInt(size - 1), size);
+
+                        // Timestamps
+                        } else if (types[i] == VoltType.TIMESTAMP) {
+                            data[i] = new TimestampType();
                         
                         // Ints/Longs
                         } else {
@@ -1024,7 +1028,7 @@ public class SEATSLoader extends Loader {
             this.flight_times = new FlatHistogram<String>(rng, histogram);
             
             // Figure out how many flights that we want for each day
-            this.today = new TimestampType(System.currentTimeMillis());
+            this.today = new TimestampType();
             
             // Sometimes there are more flights per day, and sometimes there are fewer 
             Gaussian gaussian = new Gaussian(rng, SEATSConstants.FLIGHTS_PER_DAY_MIN,
@@ -1034,13 +1038,13 @@ public class SEATSLoader extends Loader {
             boolean first = true;
             for (long t = this.today.getTime() - (days_past * SEATSConstants.MICROSECONDS_PER_DAY);
                  t < this.today.getTime(); t += SEATSConstants.MICROSECONDS_PER_DAY) {
-                TimestampType TimestampType = new TimestampType(t);
+                TimestampType timestamp = new TimestampType(t);
                 if (first) {
-                    this.start_date = TimestampType;
+                    this.start_date = timestamp;
                     first = false;
                 }
                 int num_flights = gaussian.nextInt();
-                this.flights_per_day.put(TimestampType, num_flights);
+                this.flights_per_day.put(timestamp, num_flights);
                 this.total += num_flights;
             } // FOR
             if (this.start_date == null) this.start_date = this.today;
@@ -1049,11 +1053,11 @@ public class SEATSLoader extends Loader {
             // This is for upcoming flights that we want to be able to schedule
             // new reservations for in the benchmark
             profile.setFlightUpcomingDate(this.today);
-            for (long t = this.today.getTime(), last_date = this.today.getTime() + (days_future * SEATSConstants.MICROSECONDS_PER_MINUTE);
+            for (long t = this.today.getTime(), last_date = this.today.getTime() + (days_future * SEATSConstants.MICROSECONDS_PER_DAY);
                  t <= last_date; t += SEATSConstants.MICROSECONDS_PER_DAY) {
-                TimestampType TimestampType = new TimestampType(t);
+                TimestampType timestamp = new TimestampType(t);
                 int num_flights = gaussian.nextInt();
-                this.flights_per_day.put(TimestampType, num_flights);
+                this.flights_per_day.put(timestamp, num_flights);
                 this.total += num_flights;
             } // FOR
             
@@ -1298,7 +1302,8 @@ public class SEATSLoader extends Loader {
                 
                 // For each flight figure out which customers are returning
                 this.getReturningCustomers(returning_customers, flight_id);
-                int booked_seats = SEATSConstants.FLIGHTS_NUM_SEATS - SEATSLoader.this.getFlightRemainingSeats(flight_id);
+                int booked_seats = SEATSConstants.FLIGHTS_NUM_SEATS - Math.max(SEATSConstants.FLIGHTS_RESERVED_SEATS,
+                                                                               SEATSLoader.this.getFlightRemainingSeats(flight_id));
 
                 if (trace.val) {
                     Map<String, Object> m = new ListOrderedMap<String, Object>();
@@ -1310,7 +1315,7 @@ public class SEATSLoader extends Loader {
                     LOG.trace("Flight Information\n" + StringUtil.formatMaps(m));
                 }
                 
-                for (int seatnum = 0; seatnum < booked_seats; seatnum++) {
+                for (int seatnum = SEATSConstants.FLIGHTS_RESERVED_SEATS; seatnum < booked_seats; seatnum++) {
                     CustomerId customer_id = null;
                     Long airport_customer_cnt = profile.getCustomerIdCount(depart_airport_id);
                     boolean local_customer = airport_customer_cnt != null && (flight_customer_ids.size() < airport_customer_cnt.intValue());

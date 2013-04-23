@@ -35,12 +35,12 @@ public abstract class SEATSConstants {
     // STORED PROCEDURE EXECUTION FREQUENCIES (0% - 100%)
     // ----------------------------------------------------------------
     
-    public static final int FREQUENCY_DELETE_RESERVATION        = 5;
-    public static final int FREQUENCY_FIND_FLIGHTS              = 5;
+    public static final int FREQUENCY_DELETE_RESERVATION        = 1;
+    public static final int FREQUENCY_FIND_FLIGHTS              = 10;
     public static final int FREQUENCY_FIND_OPEN_SEATS           = 50;
-    public static final int FREQUENCY_NEW_RESERVATION           = 30;
-    public static final int FREQUENCY_UPDATE_CUSTOMER           = 5;
-    public static final int FREQUENCY_UPDATE_RESERVATION        = 5;
+    public static final int FREQUENCY_NEW_RESERVATION           = 35;
+    public static final int FREQUENCY_UPDATE_CUSTOMER           = 3;
+    public static final int FREQUENCY_UPDATE_RESERVATION        = 1;
 
 //    public static final int FREQUENCY_DELETE_RESERVATION        = 0;
 //    public static final int FREQUENCY_FIND_FLIGHTS              = 0;
@@ -63,7 +63,7 @@ public abstract class SEATSConstants {
      * The number of days in the past and future that we will generate flight information for
      */
     public static final int FLIGHTS_DAYS_PAST = 1;
-    public static final int FLIGHTS_DAYS_FUTURE = 50;
+    public static final int FLIGHTS_DAYS_FUTURE = 25;
 
     /**
      * Average # of flights per day
@@ -75,15 +75,14 @@ public abstract class SEATSConstants {
     
     /**
      * Number of seats available per flight
-     * If you change this then you must also change FindOpenSeats
      */
-    public static final int FLIGHTS_NUM_SEATS = 150;
+    public static final int FLIGHTS_NUM_SEATS = 200;
     
     /**
-     * How many First Class seats are on a given flight
-     * These reservations are more expensive
+     * Number of seats to leave unreserved to increase the probability that the customer
+     * will succeed when they try to update their reservation. 
      */
-    public static final int FLIGHTS_FIRST_CLASS_OFFSET = 10;
+    public static final int FLIGHTS_RESERVED_SEATS = 50;
     
     /**
      * The rate in which a flight can travel between two airports (miles per hour)
@@ -97,7 +96,7 @@ public abstract class SEATSConstants {
     /**
      * Default number of customers in the database
      */
-    public static final int CUSTOMERS_COUNT = 100000;
+    public static final int CUSTOMERS_COUNT = 1000000;
     
     /**
      * Max Number of FREQUENT_FLYER records per CUSTOMER
@@ -132,27 +131,22 @@ public abstract class SEATSConstants {
     public static final int PROB_SINGLE_FLIGHT_RESERVATION = 10;
     
     /**
-     * Probability that we need to update customer information when booking a flight (0% - 100%);
-     */
-    public static final int PROB_UPDATE_CUSTOMER_NEW_RESERVATION = 10;
-    
-    /**
      * Probability that a customer will invoke DeleteReservation using the string
      * version of their Customer Id (0% - 100%)
      */
-    public static final int PROB_DELETE_WITH_CUSTOMER_ID_STR = 20;
+    public static final int PROB_DELETE_WITH_CUSTOMER_ID_STR = 0;
+
+    /**
+     * Probability that a customer will invoke DeleteReservation using the string
+     * version of their FrequentFlyer Id (0% - 100%)
+     */
+    public static final int PROB_DELETE_WITH_FREQUENTFLYER_ID_STR = 0;
     
     /**
      * Probability that a customer will invoke UpdateCustomer using the string
      * version of their Customer Id (0% - 100%)
      */
-    public static final int PROB_UPDATE_WITH_CUSTOMER_ID_STR = 20;
-    
-    /**
-     * Probability that a customer will invoke DeleteReservation using the string
-     * version of their FrequentFlyer Id (0% - 100%)
-     */
-    public static final int PROB_DELETE_WITH_FREQUENTFLYER_ID_STR = 20;
+    public static final int PROB_UPDATE_WITH_CUSTOMER_ID_STR = 0;
     
     /**
      * Probability that is a seat is initially occupied (0% - 100%)
@@ -164,16 +158,6 @@ public abstract class SEATSConstants {
      */
     public static final int PROB_UPDATE_FREQUENT_FLYER = 25;
     
-    /**
-     * Probability that a new Reservation will be added to the DeleteReservation queue
-     */
-    public static final int PROB_DELETE_RESERVATION = 50;
-    
-    /**
-     * Probability that a new Reservation will be added to the UpdateReservation queue
-     */
-    public static final int PROB_UPDATE_RESERVATION = 50;
-
     /**
      * Probability that a deleted Reservation will be requeued for another NewReservation call
      */
@@ -211,9 +195,9 @@ public abstract class SEATSConstants {
     /**
      * The number of FlightIds we want to keep cached locally at a client
      */
-    public static final int CACHE_LIMIT_FLIGHT_IDS = 10000;
+    public static final int CACHE_LIMIT_FLIGHT_IDS = 5000;
     
-    public static final int CACHE_LIMIT_PENDING_INSERTS = 10000;
+    public static final int CACHE_LIMIT_PENDING_INSERTS = 5000;
     public static final int CACHE_LIMIT_PENDING_UPDATES = 5000;
     public static final int CACHE_LIMIT_PENDING_DELETES = 5000;
     

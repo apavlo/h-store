@@ -1,6 +1,6 @@
 package edu.brown.hstore.specexec;
 
-import java.util.BitSet;
+import java.util.Arrays;
 
 import org.apache.log4j.Logger;
 import org.voltdb.CatalogContext;
@@ -23,48 +23,49 @@ public class TableConflictChecker extends AbstractConflictChecker {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
     
-    private final BitSet hasConflicts;
-    private final BitSet rwConflicts[];
-    private final BitSet wwConflicts[];
+    private final boolean hasConflicts[];
+    private final boolean rwConflicts[][];
+    private final boolean wwConflicts[][];
     
     public TableConflictChecker(CatalogContext catalogContext) {
         super(catalogContext);
         
         int size = this.catalogContext.procedures.size()+1;
-        this.hasConflicts = new BitSet(size);
-        this.rwConflicts = new BitSet[size];
-        this.wwConflicts = new BitSet[size];
+        this.hasConflicts = new boolean[size];
+        this.rwConflicts = new boolean[size][size];
+        this.wwConflicts = new boolean[size][size];
         
+        Arrays.fill(this.hasConflicts, false);
         for (Procedure catalog_proc : this.catalogContext.procedures) {
             if (catalog_proc.getSystemproc() || catalog_proc.getMapreduce()) continue;
            
             // Precompute bitmaps for the conflicts
             int idx = catalog_proc.getId();
             
-            this.rwConflicts[idx] = new BitSet(size);
+            this.rwConflicts[idx] = new boolean[size];
             for (Procedure conflict : ConflictSetUtil.getReadWriteConflicts(catalog_proc)) {
-                this.rwConflicts[idx].set(conflict.getId());
-                this.hasConflicts.set(idx);
+                this.rwConflicts[idx][conflict.getId()] = true;
+                this.hasConflicts[idx] = true;
             } // FOR
             
-            this.wwConflicts[idx] = new BitSet(size);
+            this.wwConflicts[idx] = new boolean[size];
             for (Procedure conflict : ConflictSetUtil.getWriteWriteConflicts(catalog_proc)) {
-                this.wwConflicts[idx].set(conflict.getId());
-                this.hasConflicts.set(idx);
+                this.wwConflicts[idx][conflict.getId()] = true;
+                this.hasConflicts[idx] = true;
             } // FOR
             
             // XXX: Each procedure will conflict with itself if it's not read-only
             if (catalog_proc.getReadonly() == false) {
-                this.rwConflicts[idx].set(idx);
-                this.wwConflicts[idx].set(idx);
-                this.hasConflicts.set(idx);
+                this.rwConflicts[idx][idx] = true;
+                this.wwConflicts[idx][idx] = true;
+                this.hasConflicts[idx] = true;
             }
         } // FOR
     }
 
     @Override
     public boolean shouldIgnoreProcedure(Procedure proc) {
-        return (this.hasConflicts.get(proc.getId()) == false);
+        return (this.hasConflicts[proc.getId()] == false);
     }
 
     @Override
@@ -79,13 +80,13 @@ public class TableConflictChecker extends AbstractConflictChecker {
         final int ts_procId = ts_proc.getId();
         
         // DTXN->TS
-        boolean dtxn_hasRWConflict = this.rwConflicts[dtxn_procId].get(ts_procId);
-        boolean dtxn_hasWWConflict = this.wwConflicts[dtxn_procId].get(ts_procId);
+        boolean dtxn_hasRWConflict = this.rwConflicts[dtxn_procId][ts_procId];
+        boolean dtxn_hasWWConflict = this.wwConflicts[dtxn_procId][ts_procId];
         if (debug.val) LOG.debug(String.format("%s -> %s [R-W:%s / W-W:%s]", dtxn, ts, dtxn_hasRWConflict, dtxn_hasWWConflict));
         
         // TS->DTXN
-        boolean ts_hasRWConflict = this.rwConflicts[ts_procId].get(dtxn_procId);
-        boolean ts_hasWWConflict = this.wwConflicts[ts_procId].get(dtxn_procId);
+        boolean ts_hasRWConflict = this.rwConflicts[ts_procId][dtxn_procId];
+        boolean ts_hasWWConflict = this.wwConflicts[ts_procId][dtxn_procId];
         if (debug.val) LOG.debug(String.format("%s -> %s [R-W:%s / W-W:%s]", ts, dtxn, ts_hasRWConflict, ts_hasWWConflict));
         
         // Sanity Check

@@ -672,7 +672,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
         for (Procedure proc : procs) {
             j = 0;
             rows[++i] = new String[num_cols];
-            rows[i][j++] = proc;
+            rows[i][j++] = proc.getName();
             if (first) header[0] = "";
             for (TransactionCounter tc : cnts_to_include) {
                 if (first) header[j] = tc.toString().replace("partition", "P");

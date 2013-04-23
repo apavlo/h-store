@@ -5,7 +5,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
-import org.voltdb.catalog.Catalog;
+import org.voltdb.CatalogContext;
 
 import edu.brown.utils.StringUtil;
 
@@ -14,7 +14,7 @@ public final class SEATSConfig {
     public boolean force_all_singlepartition = false;
     public boolean force_all_distributed = false;
 
-    private SEATSConfig(Catalog catalog, Map<String, String> params) {
+    private SEATSConfig(CatalogContext catalogContext, Map<String, String> params) {
         for (Entry<String, String> e : params.entrySet()) {
             String key = e.getKey();
             String val = e.getValue();
@@ -30,8 +30,8 @@ public final class SEATSConfig {
         } // FOR
     }
     
-    public static SEATSConfig createConfig(Catalog catalog, Map<String, String> params) {
-        return new SEATSConfig(catalog, params);
+    public static SEATSConfig createConfig(CatalogContext catalogContext, Map<String, String> params) {
+        return new SEATSConfig(catalogContext, params);
     }
     
     @Override
