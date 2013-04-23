@@ -153,7 +153,6 @@ class EC2Fabric(AbstractFabric):
             self.__createPlacementGroup__()
 
         ## Then figure out how many instances we actually need
-        self.hostCount, self.siteCount, self.partitionCount, self.clientCount = self.__getInstanceTypeCounts__()
         instances_needed = self.hostCount + self.clientCount
         instances_count = instances_needed
         if self.env["ec2.cluster_group"]:
@@ -289,7 +288,7 @@ class EC2Fabric(AbstractFabric):
                 for inst in waiting:
                     self.__waitUntilStatus__(inst, 'running')
                     self.running_instances.append(inst)
-                time.sleep(env["ec2.reboot_wait_time"])
+                time.sleep(self.env["ec2.reboot_wait_time"])
         ## IF
         
         ## Otherwise, we need to start some new motha truckas
@@ -407,16 +406,16 @@ class EC2Fabric(AbstractFabric):
         __syncTime__()
         
         # Upgrade and clean up packages
-        if env["ec2.pkg_auto_update"]:
+        if self.env["ec2.pkg_auto_update"]:
             sudo("apt-get --yes dist-upgrade")
             sudo("apt-get --yes autoremove")
         
         first_setup = False
         with settings(warn_only=True):
-            basename = os.path.basename(env.key_filename)
-            files = [ (env.key_filename + ".pub", "/home/%s/.ssh/authorized_keys" % (env.user)),
-                      (env.key_filename + ".pub", "/home/%s/.ssh/id_dsa.pub" % (env.user)),
-                      (env.key_filename,          "/home/%s/.ssh/id_dsa" % (env.user)), ]
+            basename = os.path.basename(self.env.key_filename)
+            files = [ (self.env.key_filename + ".pub", "/home/%s/.ssh/authorized_keys" % (self.env.user)),
+                      (self.env.key_filename + ".pub", "/home/%s/.ssh/id_dsa.pub" % (self.env.user)),
+                      (self.env.key_filename,          "/home/%s/.ssh/id_dsa" % (self.env.user)), ]
             for local_file, remote_file in files:
                 if run("test -f " + remote_file).failed:
                     put(local_file, remote_file, mode=0600)
@@ -432,7 +431,7 @@ class EC2Fabric(AbstractFabric):
         ## FOR
         
         # Bash Aliases
-        log_dir = env.get("site.log_dir", os.path.join(self.hstore_dir, "obj/logs/sites"))
+        log_dir = self.env.get("site.log_dir", os.path.join(self.hstore_dir, "obj/logs/sites"))
         aliases = {
             # H-Store Home
             'hh':  'cd ' + self.hstore_dir,
@@ -470,7 +469,7 @@ class EC2Fabric(AbstractFabric):
             install_dir = os.path.dirname(self.hstore_dir)
             if run("test -d %s" % install_dir).failed:
                 run("mkdir " + install_dir)
-            sudo("chown --quiet %s %s" % (env.user, install_dir))
+            sudo("chown --quiet %s %s" % (self.env.user, install_dir))
         ## WITH
         
         return (first_setup)
@@ -481,7 +480,7 @@ class EC2Fabric(AbstractFabric):
     ## ----------------------------------------------
     def setup_nfshead(rebootInst=True):
         """Deploy the NFS head node"""
-        __getInstances__()
+        self.__getInstances__()
         
         sudo("apt-get --yes remove %s" % " ".join(NFSCLIENT_PACKAGES))
         sudo("apt-get --yes autoremove")
@@ -491,17 +490,17 @@ class EC2Fabric(AbstractFabric):
         sudo("/etc/init.d/portmap start")
         sudo("/etc/init.d/nfs-kernel-server start")
         
-        inst = __getInstance__(env.host_string)
-        assert inst != None, "Failed to find instance for hostname '%s'\n%s" % (env.host_string, "\n".join([inst.public_dns_name for inst in env["ec2.running_instances"]]))
+        inst = self.__getInstance__(self.env.host_string)
+        assert inst != None, "Failed to find instance for hostname '%s'\n%s" % (self.env.host_string, "\n".join([inst.public_dns_name for inst in self.env["ec2.running_instances"]]))
         self.ec2_conn.create_tags([inst.id], {TAG_NFSTYPE: TAG_NFSTYPE_HEAD})
         
         ## Reboot and wait until it comes back online
         if rebootInst:
-            LOG.info("Rebooting " + __getInstanceName__(inst))
-            reboot(env["ec2.reboot_wait_time"])
+            LOG.info("Rebooting " + self.__getInstanceName__(inst))
+            reboot(self.env["ec2.reboot_wait_time"])
             __waitUntilStatus__(inst, 'running')
             ## IF
-        LOG.info("NFS Head '%s' is online and ready" % __getInstanceName__(inst))
+        LOG.info("NFS Head '%s' is online and ready" % self.__getInstanceName__(inst))
     ## DEF
 
     ## ----------------------------------------------
@@ -509,13 +508,13 @@ class EC2Fabric(AbstractFabric):
     ## ----------------------------------------------
     def setup_nfsclient(rebootInst=True):
         """Deploy the NFS client node"""
-        __getInstances__()
+        self.__getInstances__()
         
         nfs_dir = os.path.dirname(self.hstore_dir[:-1])
         
         ## Update the /etc/hosts files to make it easier for us to point
         ## to different NFS head nodes
-        hosts_line = "%s hstore-nfs" % env["ec2.running_instances"][0].private_ip_address
+        hosts_line = "%s hstore-nfs" % self.env["ec2.running_instances"][0].private_ip_address
         if not contains("/etc/hosts", hosts_line):
             if contains("/etc/hosts", "hstore-nfs"):
                 sed("/etc/hosts", ".* hstore-nfs", hosts_line, use_sudo=True)
@@ -528,17 +527,17 @@ class EC2Fabric(AbstractFabric):
             sudo("/etc/init.d/autofs start")
         ## IF
         
-        inst = __getInstance__(env.host_string)
-        assert inst != None, "Failed to find instance for hostname '%s'\n%s" % (env.host_string, "\n".join([inst.public_dns_name for inst in env["ec2.running_instances"]]))
+        inst = self.__getInstance__(self.env.host_string)
+        assert inst != None, "Failed to find instance for hostname '%s'\n%s" % (self.env.host_string, "\n".join([inst.public_dns_name for inst in self.env["ec2.running_instances"]]))
         self.ec2_conn.create_tags([inst.id], {TAG_NFSTYPE: TAG_NFSTYPE_CLIENT})
         
         ## Reboot and wait until it comes back online
         if rebootInst:
-            LOG.info("Rebooting " + __getInstanceName__(inst))
-            reboot(env["ec2.reboot_wait_time"])
+            LOG.info("Rebooting " + self.__getInstanceName__(inst))
+            reboot(self.env["ec2.reboot_wait_time"])
             __waitUntilStatus__(inst, 'running')
         ## IF
-        LOG.info("NFS Client '%s' is online and ready" % __getInstanceName__(inst))
+        LOG.info("NFS Client '%s' is online and ready" % self.__getInstanceName__(inst))
         run("cd %s" % self.hstore_dir)
     ## DEF
     
@@ -548,12 +547,12 @@ class EC2Fabric(AbstractFabric):
     @task
     def stop_cluster(self, terminate=False):
         """Stop all instances in the cluster"""
-        __getInstances__()
+        self.__getInstances__()
         
         waiting = [ ]
-        for inst in env["ec2.running_instances"]:
-            if __getInstanceName__(inst).startswith("hstore-") and inst.state == 'running':
-                LOG.info("%s %s" % ("Terminating" if terminate else "Stopping", __getInstanceName__(inst)))
+        for inst in self.env["ec2.running_instances"]:
+            if self.__getInstanceName__(inst).startswith("hstore-") and inst.state == 'running':
+                LOG.info("%s %s" % ("Terminating" if terminate else "Stopping", self.__getInstanceName__(inst)))
                 if terminate:
                     inst.terminate()
                 else:
@@ -585,7 +584,7 @@ class EC2Fabric(AbstractFabric):
                                         key_name=env["ec2.keypair"],
                                         min_count=instances_count,
                                         max_count=instances_count,
-                                        security_groups=[ env["ec2.security_group"] ],
+                                        security_groups=[ self.env["ec2.security_group"] ],
                                         placement=env["ec2.region"],
                                         placement_group=env["ec2.placement_group"])
         except:
@@ -594,9 +593,9 @@ class EC2Fabric(AbstractFabric):
         LOG.info("Started %d execution nodes. Waiting for them to come online" % len(resv.instances))
         i = 0
         for inst in resv.instances:
-            env["ec2.running_instances"].append(inst)
-            env["ec2.all_instances"].append(inst)
-            time.sleep(env["ec2.reboot_wait_time"])
+            self.env["ec2.running_instances"].append(inst)
+            self.env["ec2.all_instances"].append(inst)
+            time.sleep(self.env["ec2.reboot_wait_time"])
             try:
                 self.ec2_conn.create_tags([inst.id], instance_tags[i])
             except:
@@ -604,10 +603,10 @@ class EC2Fabric(AbstractFabric):
                 logging.error(str(instance_tags))
                 raise
             __waitUntilStatus__(inst, 'running')
-            LOG.info("New Instance '%s' / %s is ready" % (__getInstanceName__(inst), env["ec2.site_type"]))
+            LOG.info("New Instance '%s' / %s is ready" % (self.__getInstanceName__(inst), self.env["ec2.site_type"]))
             i += 1
         ## FOR
-        time.sleep(env["ec2.reboot_wait_time"])
+        time.sleep(self.env["ec2.reboot_wait_time"])
         LOG.info("Started %d instances." % len(resv.instances))
     ## DEF
 
@@ -615,39 +614,39 @@ class EC2Fabric(AbstractFabric):
     ## __getInstances__
     ## ----------------------------------------------        
     def __getInstances__():
-        if env["ec2.running_instances"]: return env["ec2.running_instances"]
+        if self.env["ec2.running_instances"]: return self.env["ec2.running_instances"]
         
         instFilter = { }
         
         ## Virtual Clusters
-        if env["ec2.cluster_group"]:
-            instFilter["tag:" + TAG_CLUSTER] = env["ec2.cluster_group"]
+        if self.env["ec2.cluster_group"]:
+            instFilter["tag:" + TAG_CLUSTER] = self.env["ec2.cluster_group"]
         
-        env["ec2.all_instances"] = [ ]
-        env["ec2.running_instances"] = [ ]
+        self.env["ec2.all_instances"] = [ ]
+        self.env["ec2.running_instances"] = [ ]
         
         reservations = self.ec2_conn.get_all_instances(filters=instFilter)
         instances = [i for r in reservations for i in r.instances]
         for inst in instances:
             ## Cluster Groups
-            if 'Name' in inst.tags and __getInstanceName__(inst).startswith("hstore-"):
-                if inst.state != 'terminated': env["ec2.all_instances"].append(inst)
-                if inst.state == 'running': env["ec2.running_instances"].append(inst)
+            if 'Name' in inst.tags and self.__getInstanceName__(inst).startswith("hstore-"):
+                if inst.state != 'terminated': self.env["ec2.all_instances"].append(inst)
+                if inst.state == 'running': self.env["ec2.running_instances"].append(inst)
         ## FOR
-        sortKey = lambda inst: __getInstanceName__(inst)
-        env["ec2.all_instances"].sort(key=sortKey)
-        env["ec2.running_instances"].sort(key=sortKey)
+        sortKey = lambda inst: self.__getInstanceName__(inst)
+        self.env["ec2.all_instances"].sort(key=sortKey)
+        self.env["ec2.running_instances"].sort(key=sortKey)
         return
     ## DEF
 
     ## ----------------------------------------------
     ## __getRunningInstances__
     ## ----------------------------------------------        
-    def __getRunningInstances__(instType):
-        __getInstances__()
+    def __getRunningInstances__(self, instType):
+        self.__getInstances__()
         instances = [ ]
-        for inst in env["ec2.running_instances"]:
-            if __getInstanceType__(inst) == instType:
+        for inst in self.env["ec2.running_instances"]:
+            if self.__getInstanceType__(inst) == instType:
                 instances.append(inst)
         ## FOR
         if len(instances) == 0:
@@ -658,24 +657,24 @@ class EC2Fabric(AbstractFabric):
     ## ----------------------------------------------
     ## __getRunningSiteInstances__
     ## ----------------------------------------------        
-    def __getRunningSiteInstances__():
-        return __getRunningInstances__(env["ec2.site_type"])
+    def __getRunningSiteInstances__(self):
+        return self.__getRunningInstances__(self.env["ec2.site_type"])
     ## DEF
 
     ## ----------------------------------------------
     ## __getRunningClientInstances__
     ## ----------------------------------------------        
-    def __getRunningClientInstances__():
-        return __getRunningInstances__(env["ec2.client_type"])
+    def __getRunningClientInstances__(self):
+        return self.__getRunningInstances__(self.env["ec2.client_type"])
     ## DEF
 
     ## ----------------------------------------------
     ## __getInstance__
     ## ----------------------------------------------        
-    def __getInstance__(public_dns_name):
+    def __getInstance__(self, public_dns_name):
         LOG.debug("Looking for instance with public_dns_name '%s'" % public_dns_name)
-        __getInstances__()
-        for inst in env["ec2.all_instances"]:
+        self.__getInstances__()
+        for inst in self.env["ec2.all_instances"]:
             LOG.debug("COMPARE '%s' <=> '%s'", inst.public_dns_name, public_dns_name)
             if inst.public_dns_name.strip() == public_dns_name.strip():
                 return (inst)
@@ -685,7 +684,7 @@ class EC2Fabric(AbstractFabric):
     ## ----------------------------------------------
     ## __getInstanceName__
     ## ----------------------------------------------
-    def __getInstanceName__(inst):
+    def __getInstanceName__(self, inst):
         assert inst
         return (inst.tags['Name'] if 'Name' in inst.tags else '???')
     ## DEF
@@ -693,7 +692,7 @@ class EC2Fabric(AbstractFabric):
     ## ----------------------------------------------
     ## __getInstanceType__
     ## ----------------------------------------------        
-    def __getInstanceType__(inst):
+    def __getInstanceType__(self, inst):
         attr = inst.get_attribute("instanceType")
         assert attr != None
         assert "instanceType" in attr
@@ -703,33 +702,31 @@ class EC2Fabric(AbstractFabric):
     ## ----------------------------------------------
     ## __getExpectedInstanceType__
     ## ----------------------------------------------        
-    def __getExpectedInstanceType__(inst):
-        __getInstances__()
-        site_offset = __getInstanceTypeCounts__()[0]
-        assert site_offset > 0
-        if not inst in env["ec2.running_instances"]:
-            inst_offset = 0 if len(env["ec2.running_instances"]) < site_offset else site_offset
+    def __getExpectedInstanceType__(self, inst):
+        self.__getInstances__()
+        if not inst in self.env["ec2.running_instances"]:
+            inst_offset = 0 if len(self.env["ec2.running_instances"]) < self.siteCount else self.siteCount
         else:
-            inst_offset = env["ec2.running_instances"].index(inst)
-        return env["ec2.site_type"] if inst_offset < site_offset else env["ec2.client_type"]
+            inst_offset = self.env["ec2.running_instances"].index(inst)
+        return self.env["ec2.site_type"] if inst_offset < self.siteCount else self.env["ec2.client_type"]
     ## DEF
 
     ## ----------------------------------------------
     ## __checkInstanceType__
     ## ----------------------------------------------        
-    def __checkInstanceType__(inst):
-        expectedType = __getExpectedInstanceType__(inst)
-        LOG.debug("Checking whether the instance type for %s is '%s'" % (__getInstanceName__(inst), expectedType))
+    def __checkInstanceType__(self, inst):
+        expectedType = self.__getExpectedInstanceType__(inst)
+        LOG.debug("Checking whether the instance type for %s is '%s'" % (self.__getInstanceName__(inst), expectedType))
         attr = inst.get_attribute("instanceType")
         assert attr != None
         assert "instanceType" in attr
 
         ## Check whether we need to change the instance type before we restart it
         currentType = attr["instanceType"]
-        if env["ec2.change_type"] == True and currentType != expectedType:
+        if self.env["ec2.change_type"] == True and currentType != expectedType:
             if inst.update() == 'running':
-                raise Exception("Unable to switch instance type from '%s' to '%s' for %s" % (currentType, expectedType, __getInstanceName__(inst)))
-            LOG.info("Switching instance type from '%s' to '%s' for '%s'" % (currentType, expectedType, __getInstanceName__(inst)))
+                raise Exception("Unable to switch instance type from '%s' to '%s' for %s" % (currentType, expectedType, self.__getInstanceName__(inst)))
+            LOG.info("Switching instance type from '%s' to '%s' for '%s'" % (currentType, expectedType, self.__getInstanceName__(inst)))
             inst.modify_attribute("instanceType", expectedType)
             return True
         ### IF
@@ -739,15 +736,15 @@ class EC2Fabric(AbstractFabric):
     ## ----------------------------------------------
     ## __createSecurityGroup__
     ## ----------------------------------------------
-    def __createSecurityGroup__():
+    def __createSecurityGroup__(self):
         security_groups = self.ec2_conn.get_all_security_groups()
         for sg in security_groups:
-            if sg.name == env["ec2.security_group"]:
+            if sg.name == self.env["ec2.security_group"]:
                 return
         ## FOR
         
-        LOG.info("Creating security group '%s'" % env["ec2.security_group"])
-        sg = self.ec2_conn.create_security_group(env["ec2.security_group"], 'H-Store Security Group')
+        LOG.info("Creating security group '%s'" % self.env["ec2.security_group"])
+        sg = self.ec2_conn.create_security_group(self.env["ec2.security_group"], 'H-Store Security Group')
         sg.authorize(src_group=sg)
         sg.authorize('tcp', 22, 22, '0.0.0.0/0')
     ## DEF
@@ -755,8 +752,8 @@ class EC2Fabric(AbstractFabric):
     ## ----------------------------------------------
     ## __createPlacementGroup__
     ## ----------------------------------------------
-    def __createPlacementGroup__():
-        groupName = env["ec2.placement_group"]
+    def __createPlacementGroup__(self):
+        groupName = self.env["ec2.placement_group"]
         assert groupName
         placement_groups = []
         try:
@@ -772,7 +769,7 @@ class EC2Fabric(AbstractFabric):
     ## ----------------------------------------------
     ## __waitUntilStatus__
     ## ----------------------------------------------        
-    def __waitUntilStatus__(inst, status):
+    def __waitUntilStatus__(self, inst, status):
         tries = 10
         while tries > 0 and not inst.update() == status:
             time.sleep(self.env["ec2.status_wait_time"])
@@ -810,7 +807,7 @@ class EC2Fabric(AbstractFabric):
     ## ----------------------------------------------
     ## __syncTime__
     ## ----------------------------------------------
-    def __syncTime__():
+    def __syncTime__(self):
         with settings(warn_only=True):
             sudo("ntpdate-debian -b")
         ## WITH
