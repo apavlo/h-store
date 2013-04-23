@@ -145,6 +145,7 @@ import edu.brown.hstore.internal.UtilityWorkMessage;
 import edu.brown.hstore.internal.UtilityWorkMessage.TableStatsRequestMessage;
 import edu.brown.hstore.internal.UtilityWorkMessage.UpdateMemoryMessage;
 import edu.brown.hstore.internal.WorkFragmentMessage;
+import edu.brown.hstore.reconfiguration.ReconfigurationCoordinator;
 import edu.brown.hstore.reconfiguration.ReconfigurationCoordinator.ReconfigurationStates;
 import edu.brown.hstore.specexec.AbstractConflictChecker;
 import edu.brown.hstore.specexec.MarkovConflictChecker;
@@ -750,6 +751,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         assert(this.hstore_site == null);
         this.hstore_site = hstore_site;
         this.hstore_coordinator = hstore_site.getCoordinator();
+        if(hstore_conf.global.reconfiguration_enable){
+          this.reconfiguration_coordinator = hstore_site.getReconfigurationCoordinator(); 
+        }
         this.thresholds = hstore_site.getThresholds();
         this.txnInitializer = hstore_site.getTransactionInitializer();
         this.queueManager = hstore_site.getTransactionQueueManager();
@@ -857,6 +861,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         assert(this.hstore_coordinator != null);
         assert(this.specExecScheduler != null);
         assert(this.queueManager != null);
+        if(hstore_conf.global.reconfiguration_enable)
+          assert(this.reconfiguration_coordinator != null);
         
         this.self = Thread.currentThread();
         this.self.setName(HStoreThreadManager.getThreadName(this.hstore_site, this.partitionId));
@@ -4637,6 +4643,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
     //--------------------------------------
     
     private ReconfigurationPlan reconfig_plan;
+    private ReconfigurationCoordinator reconfiguration_coordinator =null;
     private List<ReconfigurationRange<? extends Comparable<?>>> outgoing_ranges;
     private List<ReconfigurationRange<? extends Comparable<?>>> incoming_ranges;
     
@@ -4676,5 +4683,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         this.reconfig_plan = reconfig_plan;
         this.outgoing_ranges = reconfig_plan.getOutgoing_ranges().get(partitionId);
         this.incoming_ranges = reconfig_plan.getIncoming_ranges().get(partitionId);       
+    }
+    
+    public void startReconfiguration() {
+      this.reconfiguration_coordinator.pushTuples(dest_partition,VoltTable[]);
     }
 }

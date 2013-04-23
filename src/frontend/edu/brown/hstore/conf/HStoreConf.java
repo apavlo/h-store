@@ -121,7 +121,15 @@ public final class HStoreConf {
         )
         public boolean nanosecond_latencies;
 
+        @ConfigProperty(
+            description="Enable reconfiguration feature.",
+            defaultBoolean=true,
+            experimental=true
+        )
+        public boolean reconfiguration_enable;
     }
+    
+
     
     // ============================================================================
     // SITE

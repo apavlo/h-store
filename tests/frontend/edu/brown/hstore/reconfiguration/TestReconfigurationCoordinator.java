@@ -32,6 +32,10 @@ public class TestReconfigurationCoordinator extends BaseTestCase {
     private final HStoreSite hstore_sites[] = new HStoreSite[NUM_SITES_PER_HOST];
     private final HStoreCoordinator coordinators[] = new HStoreCoordinator[NUM_SITES_PER_HOST];
     
+    public void testDummy() {
+      assertTrue(true);
+    }
+    
     @Before
     public void setUp() throws Exception {
         super.setUp(ProjectType.TM1);

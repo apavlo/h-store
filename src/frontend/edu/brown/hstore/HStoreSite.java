@@ -337,6 +337,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      */
     private final EventObservableExceptionHandler exceptionHandler = new EventObservableExceptionHandler();
     
+    /*
+     * Reconfiguration coordinator 
+     */
+    private ReconfigurationCoordinator reconfiguration_coordinator = null;
+
+    
     // ----------------------------------------------------------------------------
     // INTERNAL STATE OBSERVABLES
     // ----------------------------------------------------------------------------
@@ -406,7 +412,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     // ----------------------------------------------------------------------------
     
     private final String REJECTION_MESSAGE;
-    private ReconfigurationCoordinator reconfiguration_coordinator;
     
     // ----------------------------------------------------------------------------
     // CONSTRUCTOR
@@ -617,7 +622,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (debug.val)
             LOG.debug("Initializing HStoreSite " + this.getSiteName());
         this.hstore_coordinator = this.initHStoreCoordinator();
-        this.reconfiguration_coordinator = this.initReconfigCoordinator();
+        
+        if(hstore_conf.global.reconfiguration_enable){
+          this.reconfiguration_coordinator = this.initReconfigCoordinator();
+        }
         
         // First we need to tell the HStoreCoordinator to start-up and initialize its connections
         if (debug.val)
@@ -1076,6 +1084,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
       //Do not want to do processing in site, need to make this work in another thread
       this.reconfiguration_coordinator.initReconfiguration(coordinator_site_id,partition_plan, protocol);
     }
+    
+    public ReconfigurationCoordinator getReconfigurationCoordinator(){
+      return this.reconfiguration_coordinator;
+    }
+    
     
     // ----------------------------------------------------------------------------
     // UTILITY METHODS
