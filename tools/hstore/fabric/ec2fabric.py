@@ -42,6 +42,7 @@ import socket
 import string 
 from StringIO import StringIO
 from pprint import pformat
+from abstractfabric import AbstractFabric
 
 ## H-Store Third-Party Libraries
 realpath = os.path.realpath(__file__)
@@ -544,7 +545,6 @@ class EC2Fabric(AbstractFabric):
     ## ----------------------------------------------
     ## stop_cluster
     ## ----------------------------------------------
-    @task
     def stop_cluster(self, terminate=False):
         """Stop all instances in the cluster"""
         self.__getInstances__()
