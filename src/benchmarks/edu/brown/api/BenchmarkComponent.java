@@ -1301,6 +1301,13 @@ public abstract class BenchmarkComponent {
     // PROFILING METHODS
     // ----------------------------------------------------------------------------
     
+    /**
+     * Profiling method to keep track of how much time is spent in the client
+     * to compute the input parameters for a new txn invocation.
+     * Must be called before stopComputeTime()
+     * @see BenchmarkComponent.stopComputeTime
+     * @param txnName
+     */
     protected synchronized void startComputeTime(String txnName) {
         ProfileMeasurement pm = this.computeTime.get(txnName);
         if (pm == null) {
@@ -1310,6 +1317,12 @@ public abstract class BenchmarkComponent {
         pm.start();
     }
     
+    /**
+     * Stop recording the compute time for a new txn invocation.
+     * Must be called after startComputeTime()
+     * @see BenchmarkComponent.startComputeTime
+     * @param txnName
+     */
     protected synchronized void stopComputeTime(String txnName) {
         ProfileMeasurement pm = this.computeTime.get(txnName);
         assert(pm != null) : "Unexpected " + txnName;
