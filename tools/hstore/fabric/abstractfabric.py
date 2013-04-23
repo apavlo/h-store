@@ -36,6 +36,7 @@ import time
 import logging
 import paramiko
 import string 
+from datetime import datetime
 from StringIO import StringIO
 from pprint import pformat
 
@@ -115,6 +116,17 @@ class AbstractFabric(object):
             self.hostCount = int(math.ceil(self.siteCount / float(self.env["hstore.sites_per_host"])))
     ## DEF
     
+    def updateEnv(self, envUpdates):
+        for k, v in envUpdates.iteritems():
+            if not k in self.env:
+                self.env[k] = v
+                if v:
+                    t = type(v)
+                    LOG.debug("%s [%s] => %s" % (k, t, self.env[k]))
+                    self.env[k] = t(self.env[k])
+        ## FOR
+    ## DEF
+    
     ## =====================================================================
     ## IMPLEMENTATION API
     ## =====================================================================
@@ -150,65 +162,19 @@ class AbstractFabric(object):
     ## =====================================================================
     
     ## ----------------------------------------------
-    ## deploy_hstore
-    ## ----------------------------------------------
-    @task
-    def deploy_hstore(self, build=True, update=True):
-        need_files = False
-        
-        with settings(warn_only=True):
-            if run("test -d %s" % self.hstore_dir).failed:
-                with cd(os.path.dirname(self.hstore_dir)):
-                    LOG.debug("Initializing H-Store source code directory for branch '%s'" % self.env["hstore.git_branch"])
-                    run("git clone --branch %s %s %s" % (self.env["hstore.git_branch"], \
-                                                         self.env["hstore.git_options"], \
-                                                         self.env["hstore.git"]))
-                    update = True
-                    need_files = True
-        ## WITH
-        with cd(self.hstore_dir):
-            run("git checkout %s" % self.env["hstore.git_branch"])
-            if update:
-                LOG.debug("Pulling in latest changes for branch '%s'" % self.env["hstore.git_branch"])
-                run("git checkout -- properties")
-                run("git pull %s" % self.env["hstore.git_options"])
-            
-            ## Checkout Extra Files
-            with settings(warn_only=True):
-                if run("test -d %s" % "files").failed:
-                    LOG.debug("Initializing H-Store research files directory for branch '%s'" %  self.env["hstore.git_branch"])
-                    run("ant junit-getfiles")
-                elif update:
-                    LOG.debug("Pulling in latest research files for branch '%s'" % self.env["hstore.git_branch"])
-                    run("ant junit-getfiles-update")
-                ## IF
-            ## WITH
-                
-            if build:
-                LOG.debug("Building H-Store from source code")
-                if self.env["hstore.clean"]:
-                    run("ant clean-all")
-                run("ant build")
-            ## WITH
-        ## WITH
-        run("cd %s" % self.hstore_dir)
-    ## DEF
-    
-    ## ----------------------------------------------
     ## get_version
     ## ----------------------------------------------
-    @task
-    def get_version(self):
+    def get_version(self, inst):
         """Get the current Git commit id and date in the deployment directory"""
-        from datetime import datetime
-        
-        with cd(self.hstore_dir):
-            output = run("git log --pretty=format:' %h %at ' -n 1")
-        data = map(string.strip, output.split(" "))
-        rev_id = str(data[1])
-        rev_date = datetime.fromtimestamp(int(data[2])) 
-        LOG.info("Revision: %s / %s" % (rev_id, rev_date))
-        return (rev_id, rev_date)
+        with settings(host_string=inst.public_dns_name):
+            with cd(self.hstore_dir):
+                output = run("git log --pretty=format:' %h %at ' -n 1")
+            data = map(string.strip, output.split(" "))
+            rev_id = str(data[1])
+            rev_date = datetime.fromtimestamp(int(data[2])) 
+            LOG.info("Revision: %s / %s" % (rev_id, rev_date))
+            return (rev_id, rev_date)
+        ## WITH
     ## DEF
     
     ## ----------------------------------------------
@@ -273,12 +239,12 @@ class AbstractFabric(object):
         ## Make sure the the checkout is up to date
         if updateRepo: 
             LOG.info("Updating H-Store Git checkout")
-            deploy_hstore(build=False, update=True)
+            self.deploy_hstore(build=False, update=True)
         ## Update H-Store Conf file
         ## Do this after we update the repository so that we can put in our updates
         if updateConf:
             LOG.info("Updating H-Store configuration files")
-            write_conf(project, removals, revertFirst=True)
+            self.write_conf(project, removals, revertFirst=True)
 
         ## Construct dict of command-line H-Store options
         hstore_options = {
@@ -290,7 +256,6 @@ class AbstractFabric(object):
         }
         if json: hstore_options["client.output_json"] = True
         if trace:
-            import time
             hstore_options["trace"] = "traces/%s-%d" % (project, time.time())
             LOG.debug("Enabling trace files that will be output to '%s'" % hstore_options["trace"])
         LOG.debug("H-Store Config:\n" + pformat(hstore_options))
@@ -337,54 +302,6 @@ class AbstractFabric(object):
     ## DEF
 
     ## ----------------------------------------------
-    ## write_conf
-    ## ----------------------------------------------
-    @task
-    def write_conf(self, project, removals=[ ], revertFirst=False):
-        assert project
-        prefix_include = [ 'site', 'client', 'global', 'benchmark' ]
-        
-        hstoreConf_updates = { }
-        hstoreConf_removals = set()
-        benchmarkConf_updates = { }
-        benchmarkConf_removals = set()
-        
-        for key in self.env.keys():
-            prefix = key.split(".")[0]
-            if not prefix in prefix_include: continue
-            if prefix == "benchmark":
-                benchmarkConf_updates[key.split(".")[-1]] = self.env[key]
-            else:
-                hstoreConf_updates[key] = self.env[key]
-        ## FOR
-        for key in removals:
-            prefix = key.split(".")[0]
-            if not prefix in prefix_include: continue
-            if prefix == "benchmark":
-                key = key.split(".")[-1]
-                assert not key in benchmarkConf_updates, key
-                benchmarkConf_removals.add(key)
-            else:
-                assert not key in hstoreConf_updates, key
-                hstoreConf_removals.add(key)
-        ## FOR
-
-        toUpdate = [
-            ("properties/default.properties", hstoreConf_updates, hstoreConf_removals),
-            ("properties/benchmarks/%s.properties" % project, benchmarkConf_updates, benchmarkConf_removals),
-        ]
-        
-        with cd(self.hstore_dir):
-            for _file, _updates, _removals in toUpdate:
-                if revertFirst:
-                    LOG.info("Reverting '%s'" % _file)
-                    run("git checkout %s -- %s" % (self.env["hstore.git_options"], _file))
-                update_conf(_file, _updates, _removals)
-            ## FOR
-        ## WITH
-    ## DEF
-
-    ## ----------------------------------------------
     ## get_file
     ## ----------------------------------------------
     @task
@@ -396,105 +313,6 @@ class AbstractFabric(object):
         return sio.getvalue()
     ## DEF
 
-    ## ----------------------------------------------
-    ## update_conf
-    ## ----------------------------------------------
-    @task
-    def update_conf(self, conf_file, updates={ }, removals=[ ], noSpaces=False):
-        LOG.info("Updating configuration file '%s' - Updates[%d] / Removals[%d]", conf_file, len(updates), len(removals))
-        contents = self.get_file(conf_file)
-        assert len(contents) > 0, "Configuration file '%s' is empty" % conf_file
-        
-        first = True
-        space = "" if noSpaces else " "
-        
-        ## Keys we want to update/insert
-        for key in sorted(updates.keys()):
-            val = updates[key]
-            hstore_line = "%s%s=%s%s" % (key, space, space, val)
-            regex = "^(?:#)*[\s]*%s[ ]*=[ ]*.*" % re.escape(key)
-            m = re.search(regex, contents, re.MULTILINE)
-            if not m:
-                if first: contents += "\n"
-                contents += hstore_line + "\n"
-                first = False
-                LOG.debug("Added '%s' in %s with value '%s'" % (key, conf_file, val))
-            else:
-                contents = contents.replace(m.group(0), hstore_line)
-                LOG.debug("Updated '%s' in %s with value '%s'" % (key, conf_file, val))
-            ## IF
-        ## FOR
-        
-        ## Keys we need to completely remove from the file
-        for key in removals:
-            if contents.find(key) != -1:
-                regex = "%s[ ]*=.*" % re.escape(key)
-                contents = re.sub(regex, "", contents)
-                LOG.debug("Removed '%s' in %s" % (key, conf_file))
-            ## FOR
-        ## FOR
-        
-        sio = StringIO()
-        sio.write(contents)
-        put(local_path=sio, remote_path=conf_file)
-    ## DEF
-
-    ## ----------------------------------------------
-    ## enable_debugging
-    ## ----------------------------------------------
-    @task
-    def enable_debugging(self, debug=[], trace=[]):
-        conf_file = os.path.join(self.hstore_dir, "log4j.properties")
-        targetLevels = {
-            "DEBUG": debug,
-            "TRACE": trace,
-        }
-        
-        LOG.info("Updating log4j properties - DEBUG[%d] / TRACE[%d]", len(debug), len(trace))
-        contents = self.get_file(conf_file)
-        assert len(contents) > 0, "Configuration file '%s' is empty" % conf_file
-        
-        # Go through the file and update anything that is already there
-        baseRegex = r"(log4j\.logger\.(?:%s))[\s]*=[\s]*(?:INFO|DEBUG|TRACE)(|,[\s]+[\w]+)"
-        for level, clazzes in targetLevels.iteritems():
-            contents = re.sub(baseRegex % "|".join(map(string.strip, clazzes)),
-                              r"\1="+level+r"\2",
-                              contents, flags=re.IGNORECASE)
-        
-        # Then add in anybody that is missing
-        first = True
-        for level, clazzes in targetLevels.iteritems():
-            for clazz in clazzes:
-                if contents.find(clazz) == -1:
-                    if first: contents += "\n"
-                    contents += "\nlog4j.logger.%s=%s" % (clazz, level)
-                    first = False
-        ## FOR
-        
-        sio = StringIO()
-        sio.write(contents)
-        put(local_path=sio, remote_path=conf_file)
-    ## DEF
-
-    ## ----------------------------------------------
-    ## clear_logs
-    ## ----------------------------------------------
-    @task
-    def clear_logs(self):
-        """Remove all of the log files on the remote cluster"""
-        self.__getInstances__()
-        for inst in self.running_instances:
-            if TAG_NFSTYPE in inst.tags and inst.tags[TAG_NFSTYPE] == TAG_NFSTYPE_HEAD:
-                print inst.public_dns_name
-                ## below 'and' changed from comma by ambell
-                with settings(host_string=inst.public_dns_name), settings(warn_only=True):
-                    LOG.info("Clearning H-Store log files [%s]" % self.env["hstore.git_branch"])
-                    log_dir = self.env.get("site.log_dir", os.path.join(self.hstore_dir, "obj/logs/sites"))
-                    run("rm -rf %s/*" % log_dir)
-                break
-            ## IF
-        ## FOR
-    ## DEF
 
     ## ----------------------------------------------
     ## sync_time
@@ -513,15 +331,195 @@ class AbstractFabric(object):
     ## INTERNAL API
     ## ---------------------------------------------------------------------
     
-    def updateEnv(self, envUpdates):
-        for k, v in envUpdates.iteritems():
-            if not k in self.env:
-                self.env[k] = v
-                if v:
-                    t = type(v)
-                    LOG.debug("%s [%s] => %s" % (k, t, self.env[k]))
-                    self.env[k] = t(self.env[k])
-        ## FOR
+
+    
+    ## ----------------------------------------------
+    ## __setupInstance__
+    ## ----------------------------------------------
+    def __setupInstance__(self, inst, build=True, update=True):
+        need_files = False
+        with settings(host_string=inst.public_dns_name):
+            with settings(warn_only=True):
+                if run("test -d %s" % self.hstore_dir).failed:
+                    with cd(os.path.dirname(self.hstore_dir)):
+                        LOG.debug("Initializing H-Store source code directory for branch '%s'" % self.env["hstore.git_branch"])
+                        run("git clone --branch %s %s %s" % (self.env["hstore.git_branch"], \
+                                                            self.env["hstore.git_options"], \
+                                                            self.env["hstore.git"]))
+                        update = True
+                        need_files = True
+            ## WITH
+            with cd(self.hstore_dir):
+                run("git checkout %s" % self.env["hstore.git_branch"])
+                if update:
+                    LOG.debug("Pulling in latest changes for branch '%s'" % self.env["hstore.git_branch"])
+                    run("git checkout -- properties")
+                    run("git pull %s" % self.env["hstore.git_options"])
+                
+                ## Checkout Extra Files
+                with settings(warn_only=True):
+                    if run("test -d %s" % "files").failed:
+                        LOG.debug("Initializing H-Store research files directory for branch '%s'" %  self.env["hstore.git_branch"])
+                        run("ant junit-getfiles")
+                    elif update:
+                        LOG.debug("Pulling in latest research files for branch '%s'" % self.env["hstore.git_branch"])
+                        run("ant junit-getfiles-update")
+                    ## IF
+                ## WITH
+                    
+                if build:
+                    LOG.debug("Building H-Store from source code")
+                    if self.env["hstore.clean"]:
+                        run("ant clean-all")
+                    run("ant build")
+                ## WITH
+            ## WITH
+            run("cd %s" % self.hstore_dir)
+        ## WITH
+    ## DEF
+
+    ## ----------------------------------------------
+    ## __writeConf__
+    ## ----------------------------------------------
+    def __writeConf__(self, inst, project, removals=[ ], revertFirst=False):
+        prefix_include = [ 'site', 'client', 'global', 'benchmark' ]
+        
+        hstoreConf_updates = { }
+        hstoreConf_removals = set()
+        benchmarkConf_updates = { }
+        benchmarkConf_removals = set()
+        
+        with settings(host_string=inst.public_dns_name):
+            for key in self.env.keys():
+                prefix = key.split(".")[0]
+                if not prefix in prefix_include: continue
+                if prefix == "benchmark":
+                    benchmarkConf_updates[key.split(".")[-1]] = self.env[key]
+                else:
+                    hstoreConf_updates[key] = self.env[key]
+            ## FOR
+            for key in removals:
+                prefix = key.split(".")[0]
+                if not prefix in prefix_include: continue
+                if prefix == "benchmark":
+                    key = key.split(".")[-1]
+                    assert not key in benchmarkConf_updates, key
+                    benchmarkConf_removals.add(key)
+                else:
+                    assert not key in hstoreConf_updates, key
+                    hstoreConf_removals.add(key)
+            ## FOR
+
+            toUpdate = [
+                ("properties/default.properties", hstoreConf_updates, hstoreConf_removals),
+                ("properties/benchmarks/%s.properties" % project, benchmarkConf_updates, benchmarkConf_removals),
+            ]
+            
+            with cd(self.hstore_dir):
+                for _file, _updates, _removals in toUpdate:
+                    if revertFirst:
+                        LOG.info("Reverting '%s'" % _file)
+                        run("git checkout %s -- %s" % (self.env["hstore.git_options"], _file))
+                    self.__updateConf__(inst, _file, _updates, _removals)
+                ## FOR
+            ## WITH
+        ## WITH
+    ## DEF
+    
+    ## ----------------------------------------------
+    ## __updateConf__
+    ## ----------------------------------------------
+    def __updateConf__(self, inst, conf_file, updates={ }, removals=[ ], noSpaces=False):
+        LOG.info("Updating configuration file '%s' - Updates[%d] / Removals[%d]", conf_file, len(updates), len(removals))
+        
+        with settings(host_string=inst.public_dns_name):
+            contents = self.get_file(conf_file)
+            assert len(contents) > 0, "Configuration file '%s' is empty" % conf_file
+            
+            first = True
+            space = "" if noSpaces else " "
+            
+            ## Keys we want to update/insert
+            for key in sorted(updates.keys()):
+                val = updates[key]
+                hstore_line = "%s%s=%s%s" % (key, space, space, val)
+                regex = "^(?:#)*[\s]*%s[ ]*=[ ]*.*" % re.escape(key)
+                m = re.search(regex, contents, re.MULTILINE)
+                if not m:
+                    if first: contents += "\n"
+                    contents += hstore_line + "\n"
+                    first = False
+                    LOG.debug("Added '%s' in %s with value '%s'" % (key, conf_file, val))
+                else:
+                    contents = contents.replace(m.group(0), hstore_line)
+                    LOG.debug("Updated '%s' in %s with value '%s'" % (key, conf_file, val))
+                ## IF
+            ## FOR
+            
+            ## Keys we need to completely remove from the file
+            for key in removals:
+                if contents.find(key) != -1:
+                    regex = "%s[ ]*=.*" % re.escape(key)
+                    contents = re.sub(regex, "", contents)
+                    LOG.debug("Removed '%s' in %s" % (key, conf_file))
+                ## FOR
+            ## FOR
+            
+            sio = StringIO()
+            sio.write(contents)
+            put(local_path=sio, remote_path=conf_file)
+        ## WITH
+    ## DEF
+    
+    ## ----------------------------------------------
+    ## __enableDebugging__
+    ## ----------------------------------------------
+    def __enableDebugging__(self, inst, debug=[], trace=[]):
+        LOG.info("Updating log4j properties - DEBUG[%d] / TRACE[%d]", len(debug), len(trace))
+        
+        conf_file = os.path.join(self.hstore_dir, "log4j.properties")
+        targetLevels = {
+            "DEBUG": debug,
+            "TRACE": trace,
+        }
+        with settings(host_string=inst.public_dns_name):
+            contents = self.get_file(conf_file)
+            assert len(contents) > 0, "Configuration file '%s' is empty" % conf_file
+            
+            # Go through the file and update anything that is already there
+            baseRegex = r"(log4j\.logger\.(?:%s))[\s]*=[\s]*(?:INFO|DEBUG|TRACE)(|,[\s]+[\w]+)"
+            for level, clazzes in targetLevels.iteritems():
+                contents = re.sub(baseRegex % "|".join(map(string.strip, clazzes)),
+                                r"\1="+level+r"\2",
+                                contents, flags=re.IGNORECASE)
+            
+            # Then add in anybody that is missing
+            first = True
+            for level, clazzes in targetLevels.iteritems():
+                for clazz in clazzes:
+                    if contents.find(clazz) == -1:
+                        if first: contents += "\n"
+                        contents += "\nlog4j.logger.%s=%s" % (clazz, level)
+                        first = False
+            ## FOR
+            
+            sio = StringIO()
+            sio.write(contents)
+            put(local_path=sio, remote_path=conf_file)
+        ## WITH
+    ## DEF
+    
+    ## ----------------------------------------------
+    ## __clearLogs__
+    ## ----------------------------------------------
+    def __clearLogs__(self, inst):
+        """Remove all of the log files on the remote cluster"""
+        with settings(host_string=inst.public_dns_name):
+            with settings(warn_only=True):
+                LOG.info("Clearing H-Store log files [%s]" % self.env["hstore.git_branch"])
+                log_dir = self.env.get("site.log_dir", os.path.join(self.hstore_dir, "obj/logs/sites"))
+                run("rm -rf %s/*" % log_dir)
+        ## WITH
     ## DEF
 
 ## CLASS
