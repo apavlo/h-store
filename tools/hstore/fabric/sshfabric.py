@@ -75,8 +75,8 @@ LOG.setLevel(logging.INFO)
 ## ==============================================
 
 ENV_DEFAULT = {
-    "ssh.hosts":                [ "istc3.csail.mit.edu", "istc4.csail.mit.edu" ],
-    "key_filename":             os.path.join(os.environ["HOME"], ".ssh/csail.pem"),
+    "ssh.hosts":                [ "istc4.csail.mit.edu", "istc3.csail.mit.edu", ],
+    #"key_filename":             os.path.join(os.environ["HOME"], ".ssh/csail.pem"),
     
     # H-Store Options
     "hstore.basedir":           os.path.realpath(os.path.join(basedir, "..")),
@@ -133,6 +133,11 @@ class SSHFabric(AbstractFabric):
             self.__writeConf__(inst, project, removals, revertFirst)
     ## DEF
     
+    def reset_debugging(self):
+        for inst in self.running_instances:
+            self.__resetDebugging__(inst)
+    ## DEF
+    
     def enable_debugging(self, debug=[], trace=[]):
         for inst in self.running_instances:
             self.__enableDebugging__(inst, debug, trace)
@@ -142,6 +147,14 @@ class SSHFabric(AbstractFabric):
         for inst in self.running_instances:
             self.__clearLogs__(inst)
     ## DEF
+    
+    def distributeFile(self, inst, file):
+        with settings(host_string=inst.public_dns_name):
+            for other in self.running_instances:
+                if other == inst: continue
+                run("scp %s %s:%s" % (file, other.public_dns_name, file))
+        ## WITH
+    ## WITH
 
     def getAllInstances(self):
         return self.all_instances

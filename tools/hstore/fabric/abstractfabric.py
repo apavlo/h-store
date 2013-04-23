@@ -246,9 +246,9 @@ class AbstractFabric(object):
         LOG.debug("Site Hosts: %s" % hosts)
         
         ## HStore Clients
-        for inst in self.getRunningClientInstances():
-            if inst.private_dns_name in site_hosts: continue
-            clients.append(inst.private_dns_name)
+        for clientInst in self.getRunningClientInstances():
+            if clientInst.private_dns_name in site_hosts: continue
+            clients.append(clientInst.private_dns_name)
         ## FOR
         assert len(clients) > 0
         LOG.debug("Client Hosts: %s" % clients)
@@ -256,12 +256,16 @@ class AbstractFabric(object):
         ## Make sure the the checkout is up to date
         if updateRepo: 
             LOG.info("Updating H-Store Git checkout")
-            self.__setupInstance__(inst, build=False, update=True)
+            self.deploy_hstore(build=False, update=True)
         ## Update H-Store Conf file
         ## Do this after we update the repository so that we can put in our updates
         if updateConf:
             LOG.info("Updating H-Store configuration files")
-            self.__writeConf__(inst, project, removals, revertFirst=True)
+            self.write_conf(project, removals, revertFirst=True)
+
+        if resetLog4j:
+            LOG.info("Reverting log4j.properties")
+            self.reset_debugging()
 
         ## Construct dict of command-line H-Store options
         hstore_options = {
@@ -289,13 +293,12 @@ class AbstractFabric(object):
             with cd(self.hstore_dir):
                 prefix = self.env["hstore.exec_prefix"]
                 
-                if resetLog4j:
-                    LOG.info("Reverting log4j.properties")
-                    run("git checkout %s -- %s" % (self.env["hstore.git_options"], "log4j.properties"))
-                
                 if updateJar:
                     LOG.info("Updating H-Store %s project jar file" % (project.upper()))
-                    prefix += " hstore-prepare"
+                    cmd = "ant %s hstore-prepare %s" % (prefix, hstore_opts_cmd)
+                    run(cmd)
+                    self.distributeFile(inst, os.path.join(self.hstore_dir, project+".jar"))
+                    
                 cmd = "ant %s hstore-benchmark %s" % (prefix, hstore_opts_cmd)
                 output = run(cmd)
                 
@@ -458,9 +461,12 @@ class AbstractFabric(object):
         ## WITH
     ## DEF
     
-    ## ----------------------------------------------
-    ## __enableDebugging__
-    ## ----------------------------------------------
+    def __resetDebugging__(self, inst):
+        with settings(host_string=inst.public_dns_name):
+            with cd(self.hstore_dir):
+                run("git checkout %s -- %s" % (self.env["hstore.git_options"], "log4j.properties"))
+    ## DEF
+    
     def __enableDebugging__(self, inst, debug=[], trace=[]):
         LOG.info("Updating log4j properties - DEBUG[%d] / TRACE[%d]", len(debug), len(trace))
         
