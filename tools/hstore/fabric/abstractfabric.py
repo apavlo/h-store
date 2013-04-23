@@ -35,6 +35,21 @@ import math
 import time
 import logging
 import paramiko
+import string 
+from StringIO import StringIO
+from pprint import pformat
+
+## H-Store Third-Party Libraries
+realpath = os.path.realpath(__file__)
+basedir = os.path.dirname(realpath)
+if not os.path.exists(realpath):
+    cwd = os.getcwd()
+    basename = os.path.basename(realpath)
+    if os.path.exists(os.path.join(cwd, basename)):
+        basedir = cwd
+sys.path.append(os.path.realpath(os.path.join(basedir, "../../third_party/python")))
+from fabric.api import *
+from fabric.contrib.files import *
 
 ## =====================================================================
 ## LOGGING CONFIGURATION
@@ -92,7 +107,7 @@ class AbstractFabric(object):
         
         self.partitionCount = self.env["hstore.partitions"]
         self.clientCount = self.env["client.count"] 
-        if "hstore.num_hosts_round_robin" in self.env and self.env["hstore.num_hosts_round_robin"] != None:
+        if not self.env.get("hstore.num_hosts_round_robin", None) is None:
             self.hostCount = int(self.env["hstore.num_hosts_round_robin"])
             self.siteCount = self.hostCount
         else:
@@ -100,9 +115,9 @@ class AbstractFabric(object):
             self.hostCount = int(math.ceil(self.siteCount / float(self.env["hstore.sites_per_host"])))
     ## DEF
     
-    ## ---------------------------------------------------------------------
+    ## =====================================================================
     ## IMPLEMENTATION API
-    ## ---------------------------------------------------------------------
+    ## =====================================================================
     
     def stop_cluster(self, **kwargs):
         """Stop all instances in the cluster"""
@@ -130,9 +145,9 @@ class AbstractFabric(object):
         raise NotImplementedError("Unimplemented %s" % self.__init__.im_class)
     ## DEF
     
-    ## ---------------------------------------------------------------------
+    ## =====================================================================
     ## MAIN API
-    ## ---------------------------------------------------------------------
+    ## =====================================================================
     
     ## ----------------------------------------------
     ## deploy_hstore
@@ -144,34 +159,34 @@ class AbstractFabric(object):
         with settings(warn_only=True):
             if run("test -d %s" % self.hstore_dir).failed:
                 with cd(os.path.dirname(self.hstore_dir)):
-                    LOG.debug("Initializing H-Store source code directory for branch '%s'" % env["hstore.git_branch"])
-                    run("git clone --branch %s %s %s" % (env["hstore.git_branch"], \
-                                                         env["hstore.git_options"], \
-                                                         env["hstore.git"]))
+                    LOG.debug("Initializing H-Store source code directory for branch '%s'" % self.env["hstore.git_branch"])
+                    run("git clone --branch %s %s %s" % (self.env["hstore.git_branch"], \
+                                                         self.env["hstore.git_options"], \
+                                                         self.env["hstore.git"]))
                     update = True
                     need_files = True
         ## WITH
         with cd(self.hstore_dir):
-            run("git checkout %s" % env["hstore.git_branch"])
+            run("git checkout %s" % self.env["hstore.git_branch"])
             if update:
-                LOG.debug("Pulling in latest changes for branch '%s'" % env["hstore.git_branch"])
+                LOG.debug("Pulling in latest changes for branch '%s'" % self.env["hstore.git_branch"])
                 run("git checkout -- properties")
-                run("git pull %s" % env["hstore.git_options"])
+                run("git pull %s" % self.env["hstore.git_options"])
             
             ## Checkout Extra Files
             with settings(warn_only=True):
                 if run("test -d %s" % "files").failed:
-                    LOG.debug("Initializing H-Store research files directory for branch '%s'" %  env["hstore.git_branch"])
+                    LOG.debug("Initializing H-Store research files directory for branch '%s'" %  self.env["hstore.git_branch"])
                     run("ant junit-getfiles")
                 elif update:
-                    LOG.debug("Pulling in latest research files for branch '%s'" % env["hstore.git_branch"])
+                    LOG.debug("Pulling in latest research files for branch '%s'" % self.env["hstore.git_branch"])
                     run("ant junit-getfiles-update")
                 ## IF
             ## WITH
                 
             if build:
                 LOG.debug("Building H-Store from source code")
-                if env["hstore.clean"]:
+                if self.env["hstore.clean"]:
                     run("ant clean-all")
                 run("ant build")
             ## WITH
@@ -208,32 +223,32 @@ class AbstractFabric(object):
         
         ## Make sure we have enough instances
         hostCount, siteCount, partitionCount, clientCount = self.__getInstanceTypeCounts__()
-        if (hostCount + clientCount) > len(env["ec2.running_instances"]):
+        if (hostCount + clientCount) > len(self.running_instances):
             raise Exception("Needed %d host + %d client instances but only %d are currently running" % (\
-                            hostCount, clientCount, len(env["ec2.running_instances"])))
+                            hostCount, clientCount, len(self.running_instances)))
 
         hosts = [ ]
         clients = [ ]
         host_id = 0
         site_id = 0
         partition_id = 0
-        partitions_per_site = env["hstore.partitions_per_site"]
+        partitions_per_site = self.env["hstore.partitions_per_site"]
         
         ## HStore Sites
-        LOG.debug("Partitions Needed: %d" % env["hstore.partitions"])
-        LOG.debug("Partitions Per Site: %d" % env["hstore.partitions_per_site"])
+        LOG.debug("Partitions Needed: %d" % self.env["hstore.partitions"])
+        LOG.debug("Partitions Per Site: %d" % self.env["hstore.partitions_per_site"])
         site_hosts = set()
         
         ## Attempt to assign the same number of partitions to nodes
-        if "hstore.round_robin_partitions" in env and env["hstore.round_robin_partitions"]:
-            sites_needed = math.ceil(env["hstore.partitions"] / float(partitions_per_site))
-            partitions_per_site = math.ceil(env["hstore.partitions"] / float(sites_needed))
+        if self.env.get("hstore.round_robin_partitions", False):
+            sites_needed = math.ceil(self.env["hstore.partitions"] / float(partitions_per_site))
+            partitions_per_site = math.ceil(self.env["hstore.partitions"] / float(sites_needed))
         
         for inst in self.__getRunningSiteInstances__():
             site_hosts.add(inst.private_dns_name)
-            for i in range(env["hstore.sites_per_host"]):
+            for i in range(self.env["hstore.sites_per_host"]):
                 firstPartition = partition_id
-                lastPartition = min(env["hstore.partitions"], firstPartition + partitions_per_site)-1
+                lastPartition = min(self.env["hstore.partitions"], firstPartition + partitions_per_site)-1
                 host = "%s:%d:%d" % (inst.private_dns_name, site_id, firstPartition)
                 if firstPartition != lastPartition:
                     host += "-%d" % lastPartition
@@ -468,7 +483,7 @@ class AbstractFabric(object):
     def clear_logs(self):
         """Remove all of the log files on the remote cluster"""
         self.__getInstances__()
-        for inst in self.env["ec2.running_instances"]:
+        for inst in self.running_instances:
             if TAG_NFSTYPE in inst.tags and inst.tags[TAG_NFSTYPE] == TAG_NFSTYPE_HEAD:
                 print inst.public_dns_name
                 ## below 'and' changed from comma by ambell
@@ -488,7 +503,7 @@ class AbstractFabric(object):
     def sync_time(self):
         """Invoke NTP synchronization on each instance"""
         self.__getInstances__()
-        for inst in self.env["ec2.running_instances"]:
+        for inst in self.running_instances:
             with settings(host_string=inst.public_dns_name):
                 __syncTime__()
         ## FOR
