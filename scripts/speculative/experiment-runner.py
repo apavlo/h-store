@@ -335,7 +335,7 @@ def getCSVOutput(fabric, args, benchmark, partitions):
         if k.startswith("client.output_"):
             LOG.debug("Checking whether '%s' is enabled" % (k))
             if not v is None and isinstance(v, str) and v.endswith(".csv"):
-                saveCSVResults(args, benchmark, partitions, v)
+                saveCSVResults(fabric, args, benchmark, partitions, v)
     ## FOR
 ## DEF
 
@@ -541,7 +541,7 @@ if __name__ == '__main__':
     ## ARGUMENT PROCESSING 
     ## ----------------------------------------------
     
-    fabric = createFabricHandle(args["name"], env)
+    fabric = createFabricHandle(args["fabric"], env)
     for key in fabric.env.iterkeys():
         if not args.get(key, None) is None:
             fabric.env[key] = args[key]

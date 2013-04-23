@@ -42,7 +42,9 @@ import socket
 import string 
 from StringIO import StringIO
 from pprint import pformat
+
 from abstractfabric import AbstractFabric
+from abstractinstance import AbstractInstance
 
 ## H-Store Third-Party Libraries
 realpath = os.path.realpath(__file__)
@@ -79,12 +81,32 @@ ENV_DEFAULT = {
 }
 
 ## ==============================================
+## SSHInstance
+## ==============================================
+class SSHInstance(AbstractInstance):
+    
+    def __init__(self, hostname):
+        super(SSHInstance, self).__init__(hostname)
+        self.id = hostname
+        self.public_dns_name = hostname
+        self.private_dns_name = hostname
+    ## DEF
+        
+## CLASS
+
+## ==============================================
 ## SSHFabric
 ## ==============================================
 class SSHFabric(AbstractFabric):
     
     def __init__(self, env):
         super(SSHFabric, self).__init__(env, ENV_DEFAULT)
+        
+        # Create all of our instance handles
+        for hostname in self.env["ssh.hosts"]:
+            self.running_instances.append(SSHInstance(hostname))
+        self.running_instances.sort(key=lambda inst: inst.name)
+        self.all_instances = self.running_instances
     ## DEF
     
     def start_cluster(self, build=True, update=True):
@@ -100,7 +122,7 @@ class SSHFabric(AbstractFabric):
     def write_conf(self, project, removals=[ ], revertFirst=False):
         self.__getInstances__()
         for inst in self.running_instances:
-            self.__writeConf__(project, removals, revertFirst)
+            self.__writeConf__(inst, project, removals, revertFirst)
     ## DEF
     
     def enable_debugging(self, debug=[], trace=[]):
@@ -115,34 +137,11 @@ class SSHFabric(AbstractFabric):
             self.__clearLogs__(inst)
     ## DEF
 
-
     ## ----------------------------------------------
     ## __getInstances__
     ## ----------------------------------------------        
     def __getInstances__():
-        if self.env["ec2.running_instances"]: return self.env["ec2.running_instances"]
-        
-        instFilter = { }
-        
-        ## Virtual Clusters
-        if self.env["ec2.cluster_group"]:
-            instFilter["tag:" + TAG_CLUSTER] = self.env["ec2.cluster_group"]
-        
-        self.env["ec2.all_instances"] = [ ]
-        self.env["ec2.running_instances"] = [ ]
-        
-        reservations = self.ec2_conn.get_all_instances(filters=instFilter)
-        instances = [i for r in reservations for i in r.instances]
-        for inst in instances:
-            ## Cluster Groups
-            if 'Name' in inst.tags and self.__getInstanceName__(inst).startswith("hstore-"):
-                if inst.state != 'terminated': self.env["ec2.all_instances"].append(inst)
-                if inst.state == 'running': self.env["ec2.running_instances"].append(inst)
-        ## FOR
-        sortKey = lambda inst: self.__getInstanceName__(inst)
-        self.env["ec2.all_instances"].sort(key=sortKey)
-        self.env["ec2.running_instances"].sort(key=sortKey)
-        return
+        pass
     ## DEF
 
     ## ----------------------------------------------
@@ -191,8 +190,7 @@ class SSHFabric(AbstractFabric):
     ## __getInstanceName__
     ## ----------------------------------------------
     def __getInstanceName__(self, inst):
-        assert inst
-        return (inst.tags['Name'] if 'Name' in inst.tags else '???')
+        return inst.name
     ## DEF
 
     ## ----------------------------------------------

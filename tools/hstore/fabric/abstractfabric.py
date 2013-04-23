@@ -118,12 +118,11 @@ class AbstractFabric(object):
     
     def updateEnv(self, envUpdates):
         for k, v in envUpdates.iteritems():
-            if not k in self.env:
-                self.env[k] = v
-                if v:
-                    t = type(v)
-                    LOG.debug("%s [%s] => %s" % (k, t, self.env[k]))
-                    self.env[k] = t(self.env[k])
+            self.env[k] = v
+            if v:
+                t = type(v)
+                LOG.debug("%s [%s] => %s" % (k, t, self.env[k]))
+                self.env[k] = t(self.env[k])
         ## FOR
     ## DEF
     
