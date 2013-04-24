@@ -110,6 +110,7 @@ import org.voltdb.utils.Pair;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.RpcCallback;
 
+import edu.brown.benchmark.ycsb.YCSBConstants;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.PlanFragmentIdGenerator;
 import edu.brown.catalog.special.CountedStatement;
@@ -4780,12 +4781,16 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
 
     public void startReconfiguration() {
         LOG.info(String.format("Starting reconfiguration"));
-        if (reconfig_protocol == ReconfigurationProtocols.STOPCOPY) {
+        if (reconfig_protocol == ReconfigurationProtocols.STOPCOPY) 
+        {
+            Table catalog_tbl = null;
+            VoltTable table = null;
             for (ReconfigurationRange out_range : outgoing_ranges) {
-                VoltTable vt =null;
-                
+
+                catalog_tbl = catalogContext.getTableByName(out_range.table_name);
+                table = CatalogUtil.getVoltTable(catalog_tbl);
                 // TODO ae leftoff                
-                reconfiguration_coordinator.pushTuples(this.partitionId,out_range.new_partition,out_range.table_name,vt);
+                reconfiguration_coordinator.pushTuples(this.partitionId,out_range.new_partition,out_range.table_name,table);
             }
         }
     }
