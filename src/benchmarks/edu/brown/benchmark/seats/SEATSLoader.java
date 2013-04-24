@@ -51,7 +51,6 @@ import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
 import org.voltdb.catalog.CatalogMap;
 import org.voltdb.catalog.Column;
-import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Table;
 import org.voltdb.types.TimestampType;
 import org.voltdb.utils.Pair;
@@ -115,6 +114,7 @@ public class SEATSLoader extends Loader {
      * Counter for the number of tables that we have finished loading
      */
     private final AtomicInteger finished = new AtomicInteger(0);
+    private final int num_data_tables;
 
     /**
      * A histogram of the number of flights in the database per airline code
@@ -167,6 +167,15 @@ public class SEATSLoader extends Loader {
         this.rng = new RandomGenerator(0); // FIXME
         this.profile = new SEATSProfile(this.getCatalogContext(), this.rng);
         this.profile.scale_factor = this.getScaleFactor();
+        
+        CatalogContext catalogContext = this.getCatalogContext();
+        int table_ctr = 0;
+        for (Table catalog_tbl : catalogContext.getDataTables()) {
+            if (catalog_tbl.getName().startsWith("CONFIG_") == false) {
+                table_ctr++;
+            }
+        } // FOR
+        this.num_data_tables = table_ctr;
     }
     
     public SEATSProfile getProfile() {
@@ -325,12 +334,24 @@ public class SEATSLoader extends Loader {
         // Special Case: Airport Locations
         final boolean is_airport = catalog_tbl.getName().equals(SEATSConstants.TABLENAME_AIRPORT);
         final boolean is_flight = catalog_tbl.getName().equals(SEATSConstants.TABLENAME_FLIGHT);
-        final Database catalog_db = CatalogUtil.getDatabase(catalog_tbl.getCatalog()); 
+        final CatalogContext catalogContext = this.getCatalogContext(); 
         
         if (debug.val) LOG.debug(String.format("Generating new records for table %s [batchSize=%d]", catalog_tbl.getName(), batch_size));
         final VoltTable vt = CatalogUtil.getVoltTable(catalog_tbl);
-        final VoltTable vtFilghtInfo = CatalogUtil.getVoltTable(catalog_db.getTables().get(SEATSConstants.TABLENAME_FLIGHT_INFO));
         final CatalogMap<Column> columns = catalog_tbl.getColumns();
+        
+        VoltTable vtFilghtInfo = null;
+        int flightInfoOffsets[] = null;
+        if (is_flight) {
+            Table flightTbl = catalogContext.database.getTables().get(SEATSConstants.TABLENAME_FLIGHT_INFO);
+            vtFilghtInfo = CatalogUtil.getVoltTable(flightTbl);
+            flightInfoOffsets = new int[flightTbl.getColumns().size()];
+            for (Column flightInfoCol : flightTbl.getColumns()) {
+                Column flightCol = catalog_tbl.getColumns().getIgnoreCase(flightInfoCol.getName());
+                assert(flightCol != null) : "Missing " + flightInfoCol.fullName();
+                flightInfoOffsets[flightInfoCol.getIndex()] = flightCol.getIndex(); 
+            } // FOR
+        }
         
         // Check whether we have any special mappings that we need to maintain
         Map<Integer, Integer> code_2_id = new HashMap<Integer, Integer>();
@@ -433,8 +454,8 @@ public class SEATSLoader extends Loader {
                 if (is_flight) {
                 	if (debug.val) LOG.debug(String.format("#1#FlightInfo is adding row...\nVT: %s\nVTFlightINFO:%s", tuple.toString(), vt.toString(), vtFilghtInfo.toString()));
                 	Object[] partTuple = new Object[vtFilghtInfo.getColumnCount()];
-                	for (int i =0 ;i < partTuple.length; i++)
-                		partTuple[i] = tuple[i];
+                	for (int i = 0 ;i < partTuple.length; i++)
+                		partTuple[i] = tuple[flightInfoOffsets[i]];
                 	vtFilghtInfo.addRow(partTuple);
                 }
                 if (row_idx > 0 && (row_idx+1) % batch_size == 0) {
@@ -468,7 +489,14 @@ public class SEATSLoader extends Loader {
         
         LOG.info(String.format("Finished loading all %d tuples for %s [%d / %d]",
                                row_idx, catalog_tbl.getName(),
-                                this.finished.incrementAndGet(), catalog_db.getTables().size()));
+                               this.finished.incrementAndGet(), this.num_data_tables));
+        if (is_flight) {
+            LOG.info(String.format("Finished loading all %d tuples for %s [%d / %d]",
+                    row_idx, SEATSConstants.TABLENAME_FLIGHT_INFO,
+                    this.finished.incrementAndGet(), this.num_data_tables));
+        }
+        
+        
         return;
     }
     
