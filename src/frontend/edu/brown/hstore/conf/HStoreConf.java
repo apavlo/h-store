@@ -778,7 +778,7 @@ public final class HStoreConf {
         // ----------------------------------------------------------------------------
         
         @ConfigProperty(
-            description="Enable profiling in the TransactionQueueManager and TransactionInitPriority " +
+            description="Enable profiling in the TransactionQueueManager and PartitionLockQueue " +
             		    "in the HStoreSite. " +
             		    "The profiling data collected can be retrieved using the @Statistics sysproc.",
             defaultBoolean=false,

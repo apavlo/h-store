@@ -75,7 +75,7 @@ LOG.setLevel(logging.INFO)
 ## ==============================================
 
 ENV_DEFAULT = {
-    "ssh.hosts":                [ "istc4.csail.mit.edu", "istc3.csail.mit.edu", ],
+    "ssh.hosts":                [ "istc4.csail.mit.edu", "istc3.csail.mit.edu", "istc4.csail.mit.edu" ],
     #"key_filename":             os.path.join(os.environ["HOME"], ".ssh/csail.pem"),
     
     # H-Store Options
@@ -105,14 +105,21 @@ class SSHFabric(AbstractFabric):
         super(SSHFabric, self).__init__(env, ENV_DEFAULT)
         
         # Create all of our instance handles
+        hostnames = set()
+        self.unique_hosts = [ ]
         for hostname in self.env["ssh.hosts"]:
-            self.running_instances.append(SSHInstance(hostname))
+            inst = SSHInstance(hostname)
+            self.running_instances.append(inst)
+            if not hostname in hostnames:
+                self.unique_hosts.append(inst)
+                hostnames.add(hostname)
         self.running_instances.sort(key=lambda inst: inst.name)
+        self.unique_hosts.sort(key=lambda inst: inst.name)
         self.all_instances = self.running_instances
     ## DEF
     
     def start_cluster(self, build=True, update=True):
-        for inst in self.running_instances:
+        for inst in self.unique_hosts:
             self.__setupInstance__(inst, build, update)
     ## DEF
     
@@ -129,25 +136,24 @@ class SSHFabric(AbstractFabric):
     ## DEF
     
     def write_conf(self, project, removals=[ ], revertFirst=False):
-        for inst in self.running_instances:
+        for inst in self.unique_hosts:
             self.__writeConf__(inst, project, removals, revertFirst)
     ## DEF
     
     def reset_debugging(self):
-        for inst in self.running_instances:
+        for inst in self.unique_hosts:
             self.__resetDebugging__(inst)
     ## DEF
     
     def enable_debugging(self, debug=[], trace=[]):
-        for inst in self.running_instances:
+        for inst in self.unique_hosts:
             self.__enableDebugging__(inst, debug, trace)
     ## DEF
     
     def clear_logs(self):
-        for inst in self.running_instances:
+        for inst in self.unique_hosts:
             self.__clearLogs__(inst)
     ## DEF
-    
 
     def getAllInstances(self):
         return self.all_instances
@@ -158,11 +164,11 @@ class SSHFabric(AbstractFabric):
     ## DEF
 
     def getRunningSiteInstances(self):
-        return self.running_instances[:self.siteCount]
+        return self.running_instances[:self.siteCount+1]
     ## DEF
 
     def getRunningClientInstances(self):
-        return self.running_instances[self.siteCount:]
+        return self.running_instances[self.siteCount+1:]
     ## DEF
 
     def getInstance(self, public_dns_name):

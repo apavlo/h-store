@@ -19,7 +19,7 @@ public class PartitionExecutorProfiler extends AbstractProfiler {
     public Histogram<String> numMessages = new ObjectHistogram<String>();
     
     /**
-     * The timestamp of when this PartitionExecutor cam on-line (in ms)
+     * The timestamp of when this PartitionExecutor came on-line (in ms)
      */
     public long start_time;
     
