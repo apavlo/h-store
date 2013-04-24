@@ -148,13 +148,6 @@ class SSHFabric(AbstractFabric):
             self.__clearLogs__(inst)
     ## DEF
     
-    def distributeFile(self, inst, file):
-        with settings(host_string=inst.public_dns_name):
-            for other in self.running_instances:
-                if other == inst: continue
-                run("scp %s %s:%s" % (file, other.public_dns_name, file))
-        ## WITH
-    ## WITH
 
     def getAllInstances(self):
         return self.all_instances
