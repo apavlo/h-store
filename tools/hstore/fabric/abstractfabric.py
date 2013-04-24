@@ -89,7 +89,7 @@ ENV_DEFAULT = {
     "hstore.exec_prefix":               "compile",
     "hstore.partitions":                6,
     "hstore.sites_per_host":            1,
-    "hstore.partitions_per_site":       7,
+    "hstore.partitions_per_site":       8,
     "hstore.round_robin_partitions":    True,
 }
 
@@ -297,7 +297,12 @@ class AbstractFabric(object):
                     LOG.info("Updating H-Store %s project jar file" % (project.upper()))
                     cmd = "ant %s hstore-prepare %s" % (prefix, hstore_opts_cmd)
                     run(cmd)
-                    self.distributeFile(inst, os.path.join(self.hstore_dir, project+".jar"))
+                    
+                    projectFile = os.path.join(self.hstore_dir, project+".jar")
+                    for other in self.running_instances:
+                        if other == inst: continue
+                        run("scp %s %s:%s" % (projectFile, other.public_dns_name, projectFile))
+                ## IF
                     
                 cmd = "ant %s hstore-benchmark %s" % (prefix, hstore_opts_cmd)
                 output = run(cmd)

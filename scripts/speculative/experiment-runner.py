@@ -144,8 +144,7 @@ BASE_SETTINGS = {
     "site.jvm_asserts":                         False,
     "site.log_backup":                          False,
     "site.status_enable":                       False,
-    "site.status_show_thread_info":             False,
-    "site.status_exec_info":           False,
+    #"site.status_exec_info":           False,
     "site.coordinator_init_thread":             False,
     "site.coordinator_finish_thread":           False,
     "site.txn_restart_limit":                   5,
@@ -283,8 +282,7 @@ def updateExperimentEnv(fabric, args, benchmark, partitions):
         if args['exp_type'] == 'motivation-oneclient':
             fabric.env["client.threads_per_host"] = 1
         else:
-            fabric.env["client.threads_per_host"] = int(partitions/2)
-        fabric.env["client.threads_per_host"] = max(1, fabric.env["client.threads_per_host"])
+            fabric.env["client.threads_per_host"] = max(1, int(partitions/2))
         fabric.env["benchmark.loadthreads"] = min(16, partitions)
 
     ## ----------------------------------------------
