@@ -86,7 +86,7 @@ OPT_BASE_TXNRATE = 1000
 OPT_BASE_CLIENT_COUNT = 1
 OPT_BASE_CLIENT_THREADS_PER_HOST = 100
 OPT_BASE_SCALE_FACTOR = float(1.0)
-OPT_BASE_PARTITIONS_PER_SITE = 6
+OPT_BASE_PARTITIONS_PER_SITE = 8
 OPT_PARTITION_PLAN_DIR = "files/designplans"
 OPT_MARKOV_DIR = "files/markovs/vldb-august2012"
 OPT_GIT_BRANCH = subprocess.check_output("git rev-parse --abbrev-ref HEAD", shell=True).strip()
@@ -134,7 +134,7 @@ BASE_SETTINGS = {
     "client.threads_per_host":          OPT_BASE_CLIENT_THREADS_PER_HOST,
     "client.interval":                  10000,
     "client.skewfactor":                -1,
-    "client.duration":                  300000,
+    "client.duration":                  60000,
     "client.warmup":                    60000,
     "client.scalefactor":               OPT_BASE_SCALE_FACTOR,
     "client.txn_hints":                 True,
@@ -144,9 +144,7 @@ BASE_SETTINGS = {
     "site.jvm_asserts":                         False,
     "site.log_backup":                          False,
     "site.status_enable":                       False,
-    #"site.status_exec_info":           False,
-    "site.coordinator_init_thread":             False,
-    "site.coordinator_finish_thread":           False,
+    "site.commandlog_enable":                   True,
     "site.txn_restart_limit":                   5,
     "site.txn_restart_limit_sysproc":           100,
     "site.exec_force_singlepartitioned":        True,
@@ -156,22 +154,13 @@ BASE_SETTINGS = {
     "site.cpu_affinity_one_partition_per_core": True,
     
     "site.txn_incoming_delay":                  5,
-    "site.network_incoming_max_per_partition":  400,
+    "site.network_incoming_max_per_partition":  1000,
 }
 
 EXPERIMENT_SETTINGS = {
     "motivation": {
-        # HVM Instances
-        # http://cloud-images.ubuntu.com/desktop/precise/current/
-        #"ec2.site_ami":                         "ami-efa81d86",
-        #"ec2.site_type":                        "cc1.4xlarge",
-        #"ec2.client_type":                      "c1.xlarge",
-        #"ec2.change_type":                      False,
-        #"ec2.cluster_group":                    "hstore-hvm",
-        #"hstore.partitions_per_site":           64,
-        
         "site.specexec_enable":                 False,
-        "site.markov_enable":                   False,
+        "site.markov_enable":                   True,
         "site.markov_fixed":                    True,
         "site.exec_force_singlepartitioned":    False,
         "client.count":                         1,
@@ -179,18 +168,11 @@ EXPERIMENT_SETTINGS = {
         "client.blocking":                      True,
         "client.output_response_status":        True,
         "client.output_exec_profiling":         "execprofile.csv",
-        #"client.output_queue_profiling":        "queueprofile.csv",
-
-        #"client.output_txn_profiling":          "txnprofile.csv",
+        "client.output_txn_profiling":          "txnprofile.csv",
         #"client.output_txn_profiling_combine":  True,
         #"client.output_txn_counters":           "txncounters.csv",
         #"client.output_txn_counters_combine":   False,
-        "client.output_basepartitions":         True,
-        "benchmark.neworder_only":              True,
-        "benchmark.neworder_multip_remote":     True,
-        "benchmark.neworder_abort":             False,
-        "benchmark.neworder_multip_mix":        100,
-        "benchmark.loadthread_per_warehouse":   False,
+        "client.output_basepartitions":         False,
     },
     "remotequery": {
         "site.specexec_enable":                 False,
@@ -282,8 +264,23 @@ def updateExperimentEnv(fabric, args, benchmark, partitions):
         if args['exp_type'] == 'motivation-oneclient':
             fabric.env["client.threads_per_host"] = 1
         else:
-            fabric.env["client.threads_per_host"] = max(1, int(partitions/2))
-        fabric.env["benchmark.loadthreads"] = min(16, partitions)
+            fabric.env["client.threads_per_host"] = partitions # max(1, int(partitions/2))
+        
+        if benchmark == "tpcc":
+            fabric.env["benchmark.neworder_only"] = True
+            fabric.env["benchmark.neworder_multip_remote"] = True
+            fabric.env["benchmark.neworder_abort"] = False
+            fabric.env["benchmark.neworder_multip_mix"] = 100
+            fabric.env["benchmark.loadthread_per_warehouse"] = False
+            fabric.env["benchmark.loadthreads"] = max(16, partitions)
+        elif benchmark == "seats":
+            fabric.env["client.weights"] = "DeleteReservation:25," + \
+                                           "NewReservation:75," + \
+                                           "*:0"
+            fabric.env["benchmark.force_all_distributed"] = True
+            fabric.env["benchmark.force_all_singlepartition"] = False
+        elif benchmark == "smallbank":
+            pass
 
     ## ----------------------------------------------
     ## REMOTE QUERY
@@ -553,7 +550,8 @@ if __name__ == '__main__':
     
     if args['debug']:
         LOG.setLevel(logging.DEBUG)
-        hstore.fabric.LOG.setLevel(logging.DEBUG)
+        hstore.fabric.abstractfabric.LOG.setLevel(logging.DEBUG)
+        hstore.fabric.sshfabric.LOG.setLevel(logging.DEBUG)
     if args['debug_hstore']:
         for k,v in DEBUG_OPTIONS.iteritems():
             BASE_SETTINGS[k] = v
@@ -716,7 +714,7 @@ if __name__ == '__main__':
                         results.append(None)
                     
                     # CSV RESULT FILES
-                    getCSVOutput(client_inst, fabric, args, env, benchmark, partitions)
+                    getCSVOutput(client_inst, fabric, args, benchmark, partitions)
                 except KeyboardInterrupt:
                     stop = True
                     break
