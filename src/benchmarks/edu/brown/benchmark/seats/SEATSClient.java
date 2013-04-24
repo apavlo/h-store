@@ -380,7 +380,8 @@ public class SEATSClient extends BenchmarkComponent {
         
         // Create xact lookup array
         this.xacts = new RandomDistribution.FlatHistogram<Transaction>(rng, weights);
-        assert(weights.getSampleCount() == 100) : "The total weight for the transactions is " + this.xacts.getSampleCount() + ". It needs to be 100";
+        assert(weights.getSampleCount() == 100) :
+            "The total weight for the transactions is " + weights.getSampleCount() + ". It needs to be 100";
         if (debug.val) LOG.debug("Transaction Execution Distribution:\n" + weights);
     }
     
