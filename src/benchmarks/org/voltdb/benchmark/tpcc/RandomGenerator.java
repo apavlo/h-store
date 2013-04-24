@@ -126,6 +126,15 @@ public abstract class RandomGenerator {
         return num;
     }
     
+    /**
+     * Return a WAREHOUSE id that is on a different site than the given localPartition.
+     * If there is only one site, then this just returns a different random W_ID that is
+     * different than the local partition.
+     * @param minimum
+     * @param maximum
+     * @param localPartition
+     * @return
+     */
     public int numberRemoteWarehouseId(int minimum, int maximum, int localPartition) {
     	assert(TPCCSimulation.remoteWarehouseIds != null);
     	List<Integer> remoteList = TPCCSimulation.remoteWarehouseIds.get(localPartition);
