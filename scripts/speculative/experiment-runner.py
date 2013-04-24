@@ -134,7 +134,7 @@ BASE_SETTINGS = {
     "client.threads_per_host":          OPT_BASE_CLIENT_THREADS_PER_HOST,
     "client.interval":                  10000,
     "client.skewfactor":                -1,
-    "client.duration":                  60000,
+    "client.duration":                  300000,
     "client.warmup":                    60000,
     "client.scalefactor":               OPT_BASE_SCALE_FACTOR,
     "client.txn_hints":                 True,
@@ -168,7 +168,7 @@ EXPERIMENT_SETTINGS = {
         "client.blocking":                      True,
         "client.output_response_status":        True,
         "client.output_exec_profiling":         "execprofile.csv",
-        "client.output_txn_profiling":          "txnprofile.csv",
+        #"client.output_txn_profiling":          "txnprofile.csv",
         #"client.output_txn_profiling_combine":  True,
         #"client.output_txn_counters":           "txncounters.csv",
         #"client.output_txn_counters_combine":   False,
@@ -274,8 +274,9 @@ def updateExperimentEnv(fabric, args, benchmark, partitions):
             fabric.env["benchmark.loadthread_per_warehouse"] = False
             fabric.env["benchmark.loadthreads"] = max(16, partitions)
         elif benchmark == "seats":
-            fabric.env["client.weights"] = "DeleteReservation:25," + \
+            fabric.env["client.weights"] = "DeleteReservation:10," + \
                                            "NewReservation:75," + \
+                                           "FindOpenSeats:15," + \
                                            "*:0"
             fabric.env["benchmark.force_all_distributed"] = True
             fabric.env["benchmark.force_all_singlepartition"] = False
