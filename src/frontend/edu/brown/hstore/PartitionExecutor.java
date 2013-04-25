@@ -110,7 +110,6 @@ import org.voltdb.utils.Pair;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.RpcCallback;
 
-import edu.brown.benchmark.ycsb.YCSBConstants;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.PlanFragmentIdGenerator;
 import edu.brown.catalog.special.CountedStatement;
