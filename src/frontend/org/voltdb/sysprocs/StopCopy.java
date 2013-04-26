@@ -14,10 +14,15 @@ import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
 import org.voltdb.VoltTable.ColumnInfo;
+import org.voltdb.catalog.Table;
 import org.voltdb.exceptions.ServerFaultException;
 import org.voltdb.utils.VoltTableUtil;
 
+import edu.brown.benchmark.ycsb.YCSBConstants;
+import edu.brown.benchmark.ycsb.YCSBUtil;
+import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.PartitionExecutor.SystemProcedureExecutionContext;
+import edu.brown.hstore.reconfiguration.ReconfigurationCoordinator;
 import edu.brown.hstore.reconfiguration.ReconfigurationConstants.ReconfigurationProtocols;
 
 /**
@@ -60,6 +65,22 @@ public class StopCopy extends VoltSystemProcedure {
                     //TODO do work
                     LOG.info(String.format("sleeping"));
                     Thread.sleep(1000);
+                    ReconfigurationCoordinator rc =  hstore_site.getReconfigurationCoordinator();
+                    //Set RC to start migration, may not be the first one. get partition plan. 
+                    
+                    final Table catalog_tbl = catalogContext.getTableByName(YCSBConstants.TABLE_NAME);
+                    VoltTable table = CatalogUtil.getVoltTable(catalog_tbl);
+                    Object row[] = new Object[table.getColumnCount()];
+                    int block_size = 100;
+                    for (int i = 0; i < block_size; i++) {
+                      row[0] = i;
+
+                      // randomly generate strings for each column
+                      for (int col = 2; col < YCSBConstants.NUM_COLUMNS; col++) {
+                          row[col] = YCSBUtil.astring(YCSBConstants.COLUMN_LENGTH, YCSBConstants.COLUMN_LENGTH);
+                      } // FOR
+                      table.addRow(row);
+                    }
                 } catch (Exception ex) {
                     throw new ServerFaultException(ex.getMessage(), txn_id);
                 }
