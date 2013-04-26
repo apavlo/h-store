@@ -353,6 +353,18 @@ public class PlannedPartitions implements JSONSerializable {
             }
         }
 
+        public T getMin_inclusive() {
+            return min_inclusive;
+        }
+
+        public T getMax_exclusive() {
+            return max_exclusive;
+        }
+
+        public VoltType getVt() {
+            return vt;
+        }
+
     }
 
     // ********End Containers **************************************/

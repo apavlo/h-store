@@ -5,6 +5,7 @@ package org.voltdb.sysprocs;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 
 import org.apache.log4j.Logger;
 import org.voltdb.DependencySet;
@@ -21,6 +22,8 @@ import org.voltdb.utils.VoltTableUtil;
 import edu.brown.benchmark.ycsb.YCSBConstants;
 import edu.brown.benchmark.ycsb.YCSBUtil;
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.hashing.ReconfigurationPlan;
+import edu.brown.hashing.ReconfigurationPlan.ReconfigurationRange;
 import edu.brown.hstore.PartitionExecutor.SystemProcedureExecutionContext;
 import edu.brown.hstore.reconfiguration.ReconfigurationCoordinator;
 import edu.brown.hstore.reconfiguration.ReconfigurationConstants.ReconfigurationProtocols;
@@ -60,26 +63,38 @@ public class StopCopy extends VoltSystemProcedure {
                 String partition_plan = (String) params.toArray()[1];
                 ReconfigurationProtocols reconfig_protocol = ReconfigurationProtocols.STOPCOPY;
 
-                
                 try {
-                    //TODO do work
-                    LOG.info(String.format("sleeping"));
-                    Thread.sleep(1000);
-                    ReconfigurationCoordinator rc =  hstore_site.getReconfigurationCoordinator();
-                    //Set RC to start migration, may not be the first one. get partition plan. 
-                    
+                    // TODO do work
+                    ReconfigurationCoordinator rc = hstore_site.getReconfigurationCoordinator();
+                    // Set RC to start migration, may not be the first one. get
+                    // partition plan.
+                    ReconfigurationPlan plan = rc.initReconfiguration(coordinator, reconfig_protocol, partition_plan);
+                    List<ReconfigurationRange<? extends Comparable<?>>> outgoing_ranges = plan.getOutgoing_ranges().get(partitionId);
                     final Table catalog_tbl = catalogContext.getTableByName(YCSBConstants.TABLE_NAME);
                     VoltTable table = CatalogUtil.getVoltTable(catalog_tbl);
                     Object row[] = new Object[table.getColumnCount()];
-                    int block_size = 100;
-                    for (int i = 0; i < block_size; i++) {
-                      row[0] = i;
+                    Random rand = new Random();
+                    for (ReconfigurationRange<? extends Comparable<?>> range : outgoing_ranges) {
+                        table.clearRowData();
+                        int sleep_sec = rand.nextInt(10);
+                        LOG.info(String.format("sleeping for %s seconds", sleep_sec));
+                        Thread.sleep(sleep_sec * 1000);
+                        // TODO range.table_name (ae)
 
-                      // randomly generate strings for each column
-                      for (int col = 2; col < YCSBConstants.NUM_COLUMNS; col++) {
-                          row[col] = YCSBUtil.astring(YCSBConstants.COLUMN_LENGTH, YCSBConstants.COLUMN_LENGTH);
-                      } // FOR
-                      table.addRow(row);
+                        // TODO (ae) how to iterate? or do we even need to since
+                        // we will push down range
+                        // to ee to get table
+                        assert (range.getMin_inclusive() instanceof Long);
+                        for (Long i = (Long) range.getMin_inclusive(); i < (Long) range.getMax_exclusive(); i++) {
+                            row[0] = i;
+
+                            // randomly generate strings for each column
+                            for (int col = 2; col < YCSBConstants.NUM_COLUMNS; col++) {
+                                row[col] = YCSBUtil.astring(YCSBConstants.COLUMN_LENGTH, YCSBConstants.COLUMN_LENGTH);
+                            } // FOR
+                            table.addRow(row);
+                        }
+                        rc.pushTuples(range.old_partition, range.new_partition, range.table_name, table);
                     }
                 } catch (Exception ex) {
                     throw new ServerFaultException(ex.getMessage(), txn_id);

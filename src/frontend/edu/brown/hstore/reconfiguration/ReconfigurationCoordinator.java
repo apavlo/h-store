@@ -80,7 +80,7 @@ public class ReconfigurationCoordinator implements Shutdownable {
      */
     public ReconfigurationPlan initReconfiguration(Integer leaderId, ReconfigurationProtocols reconfiguration_protocol, String partitionPlan) {
         if ((reconfigurationInProgress.get() == false) && (this.reconfigurationInProgress.compareAndSet(false, true))) {
-
+            LOG.info("Initializing reconfiguration. New reconfig plan.");
             if (this.hstore_site.getSiteId() == leaderId) {
                 if (debug.val)
                     LOG.debug("Setting site as reconfig leader");
@@ -105,6 +105,8 @@ public class ReconfigurationCoordinator implements Shutdownable {
 
             return reconfig_plan;
         } else {
+            LOG.info("Init reconfiguration returning existing plan");
+            
             return this.currentReconfigurationPlan;
         }
     }
