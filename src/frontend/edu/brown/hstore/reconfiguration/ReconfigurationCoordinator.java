@@ -3,6 +3,7 @@ package edu.brown.hstore.reconfiguration;
 import java.util.ArrayList;
 import java.util.Set;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.log4j.Logger;
 import org.hsqldb.lib.HashSet;
@@ -48,7 +49,8 @@ public class ReconfigurationCoordinator implements Shutdownable {
     private ReconfigurationState reconfigurationState;
     // Hostname of the reconfiguration leader site
     private Integer reconfigurationLeader;
-    private boolean reconfigurationInProgress;
+    private AtomicBoolean reconfigurationInProgress;
+    private ReconfigurationPlan currentReconfigurationPlan;
     private ReconfigurationProtocols reconfigurationProtocol;
     private String desiredPartitionPlan;
     private int localSiteId;
@@ -58,7 +60,8 @@ public class ReconfigurationCoordinator implements Shutdownable {
 
     public ReconfigurationCoordinator(HStoreSite hstore_site) {
         // TODO Auto-generated constructor stub
-        this.reconfigurationInProgress = false;
+        this.reconfigurationInProgress.set(false);
+        currentReconfigurationPlan = null;
         reconfigurationState = ReconfigurationState.END;
         this.hstore_site = hstore_site;
         local_executors = new ArrayList<>();
@@ -75,8 +78,9 @@ public class ReconfigurationCoordinator implements Shutdownable {
      * @param leaderHostname
      * @return
      */
-    public boolean initReconfiguration(Integer leaderId, ReconfigurationProtocols reconfiguration_protocol, String partitionPlan) {
-        if (!this.reconfigurationInProgress) {
+    public ReconfigurationPlan initReconfiguration(Integer leaderId, ReconfigurationProtocols reconfiguration_protocol, String partitionPlan) {
+        if ((reconfigurationInProgress.get() == false) && (this.reconfigurationInProgress.compareAndSet(false, true))) {
+
             if (this.hstore_site.getSiteId() == leaderId) {
                 if (debug.val)
                     LOG.debug("Setting site as reconfig leader");
@@ -84,7 +88,6 @@ public class ReconfigurationCoordinator implements Shutdownable {
             this.reconfigurationState = ReconfigurationState.BEGIN;
             this.reconfigurationLeader = leaderId;
             this.reconfigurationProtocol = reconfiguration_protocol;
-            this.reconfigurationInProgress = true;
             this.desiredPartitionPlan = partitionPlan;
             PlannedHasher hasher = (PlannedHasher) hstore_site.getHasher();
             ReconfigurationPlan reconfig_plan;
@@ -100,9 +103,9 @@ public class ReconfigurationCoordinator implements Shutdownable {
                 throw new RuntimeException(e);
             }
 
-            return true;
+            return reconfig_plan;
         } else {
-            return false;
+            return this.currentReconfigurationPlan;
         }
     }
 
@@ -111,7 +114,7 @@ public class ReconfigurationCoordinator implements Shutdownable {
      * Copy, move reconfiguration into Prepare Mode
      */
     public void prepareReconfiguration() {
-        if (this.reconfigurationInProgress) {
+        if (this.reconfigurationInProgress.get()) {
             if (this.reconfigurationProtocol == ReconfigurationProtocols.LIVEPULL) {
                 // Move the reconfiguration state to data transfer and data will
                 // be
@@ -127,14 +130,14 @@ public class ReconfigurationCoordinator implements Shutdownable {
     }
 
     /**
-     * Send 
+     * Send
+     * 
      * @param partitionId
      * @param new_partition
      * @param vt
      */
     public void pushTuples(int partitionId, int new_partition, String table_name, VoltTable vt) {
         // TODO Auto-generated method stub
-        
 
     }
 
@@ -203,7 +206,7 @@ public class ReconfigurationCoordinator implements Shutdownable {
      * end of reconfiguration
      */
     public void endReconfiguration() {
-        this.reconfigurationInProgress = false;
+        this.reconfigurationInProgress.set(false);
     }
 
     private final RpcCallback<ReconfigurationResponse> reconfigurationRequestCallback = new RpcCallback<ReconfigurationResponse>() {
@@ -211,7 +214,7 @@ public class ReconfigurationCoordinator implements Shutdownable {
         public void run(ReconfigurationResponse msg) {
             int senderId = msg.getSenderSite();
             destinationsReady.add(senderId);
-            if (reconfigurationInProgress && reconfigurationState == ReconfigurationState.PREPARE && destinationsReady.size() == destinationSize) {
+            if (reconfigurationInProgress.get() && reconfigurationState == ReconfigurationState.PREPARE && destinationsReady.size() == destinationSize) {
                 reconfigurationState = ReconfigurationState.DATA_TRANSFER;
                 // bulk data transfer for stop and copy after each destination
                 // is ready
