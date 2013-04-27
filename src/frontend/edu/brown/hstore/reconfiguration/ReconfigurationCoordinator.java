@@ -58,7 +58,7 @@ public class ReconfigurationCoordinator implements Shutdownable {
     private AtomicBoolean reconfigurationInProgress;
     private ReconfigurationPlan currentReconfigurationPlan;
     private ReconfigurationProtocols reconfigurationProtocol;
-    private String desiredPartitionPlan;
+    private String currentPartitionPlan;
     private int localSiteId;
     private HStoreService channels[];
     private Set<Integer> destinationsReady;
@@ -94,9 +94,13 @@ public class ReconfigurationCoordinator implements Shutdownable {
      * @param reconfigurationProtocol
      * @param partitionPlan
      * @param partitionId
-     * @return
+     * @return the reconfiguration plan or null if plan already set
      */
     public ReconfigurationPlan initReconfiguration(Integer leaderId, ReconfigurationProtocols reconfigurationProtocol, String partitionPlan, int partitionId) {
+        if (this.reconfigurationInProgress.get() == false && partitionPlan == this.currentPartitionPlan) {
+           LOG.info("Ignoring initReconfiguration request. Requested plan is already set");
+           return null;
+        }
         if (reconfigurationProtocol == ReconfigurationProtocols.STOPCOPY) {
             if (partitionId != -1) {
                 this.partitionStates.put(partitionId, ReconfigurationState.DATA_TRANSFER);
@@ -109,7 +113,7 @@ public class ReconfigurationCoordinator implements Shutdownable {
         } else {
             throw new NotImplementedException();
         }
-        if ((this.reconfigurationInProgress.get() == false) && (this.reconfigurationInProgress.compareAndSet(false, true))) {
+        if (this.reconfigurationInProgress.compareAndSet(false, true)) {
             LOG.info("Initializing reconfiguration. New reconfig plan.");
             if (this.hstore_site.getSiteId() == leaderId) {
                 if (debug.val) {
@@ -118,7 +122,7 @@ public class ReconfigurationCoordinator implements Shutdownable {
             }
             this.reconfigurationLeader = leaderId;
             this.reconfigurationProtocol = reconfigurationProtocol;
-            this.desiredPartitionPlan = partitionPlan;
+            this.currentPartitionPlan = partitionPlan;
             PlannedHasher hasher = (PlannedHasher) this.hstore_site.getHasher();
             ReconfigurationPlan reconfig_plan;
             try {
@@ -173,11 +177,7 @@ public class ReconfigurationCoordinator implements Shutdownable {
 
             if (allPartitionsFinished()) {
                 LOG.info("Last PE finished reconfiguration");
-                this.reconfigurationInProgress.set(false);
-                this.currentReconfigurationPlan = null;
-                this.reconfigurationLeader = -1;
-                this.reconfigurationProtocol = null;
-                resetPartitionsState();
+                resetReconfigurationInProgress();
             }
         } else {
             throw new NotImplementedException();
@@ -193,8 +193,12 @@ public class ReconfigurationCoordinator implements Shutdownable {
         return true;            
     }
     
-    private void resetPartitionsState(){
+    private void resetReconfigurationInProgress(){
         this.partitionStates.putAll(this.initialPartitionStates);
+        this.currentReconfigurationPlan = null;
+        this.reconfigurationLeader = -1;
+        this.reconfigurationProtocol = null;
+        this.reconfigurationInProgress.set(false);
     }
 
     /**
@@ -324,8 +328,8 @@ public class ReconfigurationCoordinator implements Shutdownable {
         return this.reconfigurationProtocol;
     }
 
-    public String getDesiredPartitionPlan() {
-        return this.desiredPartitionPlan;
+    public String getCurrentPartitionPlan() {
+        return this.currentPartitionPlan;
     }
 
 }

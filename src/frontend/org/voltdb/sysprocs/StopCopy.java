@@ -107,43 +107,47 @@ public class StopCopy extends VoltSystemProcedure {
                     // Set RC to start migration, may not be the first one. get
                     // partition plan.
                     ReconfigurationPlan plan = rc.initReconfiguration(coordinator, reconfig_protocol, partition_plan, this.partitionId);
-                    assert plan != null : "reconfig plan is null";
-                    assert plan.getOutgoing_ranges() != null : "reconfig plan outgoing_ranges is null";
-                    List<ReconfigurationRange<? extends Comparable<?>>> outgoing_ranges = plan.getOutgoing_ranges().get(this.partitionId);
-                    if (outgoing_ranges != null && outgoing_ranges.size() > 0) {
-                        Table catalog_tbl = null;
-                        VoltTable table = null;
-                        Object row[] = null;
-                        for (ReconfigurationRange<? extends Comparable<?>> range : outgoing_ranges) {
-                            catalog_tbl = this.catalogContext.getTableByName(range.table_name);
-                            table = org.voltdb.utils.CatalogUtil.getVoltTable(catalog_tbl);
-                            row = new Object[table.getColumnCount()];
-                            table.clearRowData();
-                            int sleep_sec = rand.nextInt(10);
-                            LOG.info(String.format("sleeping for %s seconds", sleep_sec));
-                            Thread.sleep(sleep_sec * 1000);
-                            // TODO range.table_name (ae)
-
-                            // TODO (ae) how to iterate? or do we even need to
-                            // since
-                            // we will push down range
-                            // to ee to get table
-                            assert (range.getMin_inclusive() instanceof Long);
-                            for (Long i = (Long) range.getMin_inclusive(); i < (Long) range.getMax_exclusive(); i++) {
-                                row[0] = i;
-
-                                // randomly generate strings for each column
-                                for (int col = 2; col < row.length; col++) {
-                                    row[col] = StopCopy.astring(100, 100);
-                                } // FOR
-                                table.addRow(row);
+                    if(plan != null){
+                        assert plan.getOutgoing_ranges() != null : "reconfig plan outgoing_ranges is null";
+                        List<ReconfigurationRange<? extends Comparable<?>>> outgoing_ranges = plan.getOutgoing_ranges().get(this.partitionId);
+                        if (outgoing_ranges != null && outgoing_ranges.size() > 0) {
+                            Table catalog_tbl = null;
+                            VoltTable table = null;
+                            Object row[] = null;
+                            for (ReconfigurationRange<? extends Comparable<?>> range : outgoing_ranges) {
+                                catalog_tbl = this.catalogContext.getTableByName(range.table_name);
+                                table = org.voltdb.utils.CatalogUtil.getVoltTable(catalog_tbl);
+                                row = new Object[table.getColumnCount()];
+                                table.clearRowData();
+                                int sleep_sec = rand.nextInt(10);
+                                LOG.info(String.format("sleeping for %s seconds", sleep_sec));
+                                Thread.sleep(sleep_sec * 1000);
+                                // TODO range.table_name (ae)
+    
+                                // TODO (ae) how to iterate? or do we even need to
+                                // since
+                                // we will push down range
+                                // to ee to get table
+                                assert (range.getMin_inclusive() instanceof Long);
+                                for (Long i = (Long) range.getMin_inclusive(); i < (Long) range.getMax_exclusive(); i++) {
+                                    row[0] = i;
+    
+                                    // randomly generate strings for each column
+                                    for (int col = 2; col < row.length; col++) {
+                                        row[col] = StopCopy.astring(100, 100);
+                                    } // FOR
+                                    table.addRow(row);
+                                }
+                                rc.pushTuples(range.old_partition, range.new_partition, range.table_name, table);
                             }
-                            rc.pushTuples(range.old_partition, range.new_partition, range.table_name, table);
+                        } else {
+                            LOG.info("No outgoing ranges for this partition");
                         }
-                    } else {
-                        LOG.info("No outgoing ranges for this partition");
+                        rc.finishReconfiguration(this.partitionId);
                     }
-                    rc.finishReconfiguration(this.partitionId);
+                    else{
+                        LOG.info("No reconfiguration to initiate");
+                    }
                 } catch (Exception ex) {
                     LOG.error("Failure on stop and copy", ex);
                     throw new ServerFaultException(ex.getMessage(), txn_id);
