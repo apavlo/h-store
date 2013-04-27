@@ -1082,7 +1082,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
       LOG.info(String.format("Initializing reconfiguration. Coordinator:%s To partition plan:%s Protocol: %s",site_id,partition_plan,protocol));
       
       //Do not want to do processing in site, need to make this work in another thread
-      this.reconfiguration_coordinator.initReconfiguration(coordinator_site_id,protocol, partition_plan);
+      this.reconfiguration_coordinator.initReconfiguration(coordinator_site_id,protocol, partition_plan,-1);
     }
     
     public ReconfigurationCoordinator getReconfigurationCoordinator(){
