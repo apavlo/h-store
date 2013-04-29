@@ -33,6 +33,7 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.mappings.ParameterMappingsSet;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.JSONSerializable;
+import edu.brown.utils.StringUtil;
 
 //       TODO This class likely needs to be relocated (ae)
 /**
@@ -89,27 +90,27 @@ public class PlannedPartitions implements JSONSerializable {
         // statement_column
         // from project mapping (ae)
         assert planned_partition_json.has(DEFAULT_TABLE) : "default_table missing from planned partition json";
-        default_table = planned_partition_json.getString(DEFAULT_TABLE);
-        table_vt_map = new HashMap<>();
+        this.default_table = planned_partition_json.getString(DEFAULT_TABLE);
+        this.table_vt_map = new HashMap<>();
         for (Table table : catalog_context.getDataTables()) {
-            table_vt_map.put(table.getName().toLowerCase(), VoltType.get(table.getPartitioncolumn().getType()));
-            catalog_to_table_map.put(table.getPartitioncolumn(), table.getName().toLowerCase());
+            this.table_vt_map.put(table.getName().toLowerCase(), VoltType.get(table.getPartitioncolumn().getType()));
+            this.catalog_to_table_map.put(table.getPartitioncolumn(), table.getName().toLowerCase());
         }
 
         for (Procedure proc : catalog_context.procedures) {
             if (!proc.getSystemproc()) {
-                String table_name = catalog_to_table_map.get(proc.getPartitioncolumn());
+                String table_name = this.catalog_to_table_map.get(proc.getPartitioncolumn());
                 if ((table_name == null) || (table_name.equals("null")) || (table_name.trim().length() == 0)) {
-                    LOG.info(String.format("Using default table %s for procedure: %s ", default_table, proc.toString()));
-                    table_name = default_table;
+                    LOG.info(String.format("Using default table %s for procedure: %s ", this.default_table, proc.toString()));
+                    table_name = this.default_table;
                 } else {
                     LOG.info(table_name + " adding procedure: " + proc.toString());
                 }
-                catalog_to_table_map.put(proc, table_name);
+                this.catalog_to_table_map.put(proc, table_name);
                 for (Statement statement : proc.getStatements()) {
                     LOG.info(table_name + " adding statement: " + statement.toString());
 
-                    catalog_to_table_map.put(statement, table_name);
+                    this.catalog_to_table_map.put(statement, table_name);
                 }
 
             }
@@ -122,13 +123,15 @@ public class PlannedPartitions implements JSONSerializable {
             while (keys.hasNext()) {
                 String key = keys.next();
 
+
+                JSONObject phase = phases.getJSONObject(key);
+                this.partition_phase_map.put(key, new PartitionPhase(catalog_context, this.table_vt_map, phase));
+                
                 // Use the first phase by default
                 if (first_key == null) {
                     first_key = key;
-                    setPartitionPhase(first_key);
+                    this.setPartitionPhase(first_key);
                 }
-                JSONObject phase = phases.getJSONObject(key);
-                partition_phase_map.put(key, new PartitionPhase(catalog_context, table_vt_map, phase));
             }
 
         } else {
@@ -149,15 +152,15 @@ public class PlannedPartitions implements JSONSerializable {
      * @throws Exception
      */
     public int getPartitionId(String table_name, Object id) throws Exception {
-        PartitionPhase phase = partition_phase_map.get(getCurrent_phase());
+        PartitionPhase phase = this.partition_phase_map.get(this.getCurrent_phase());
         PartitionedTable<?> table = phase.getTable(table_name);
         assert table != null : "Table not found " + table_name;
         return table.findPartition(id);
     }
 
     public int getPartitionId(CatalogType catalog, Object id) throws Exception {
-        String table_name = catalog_to_table_map.get(catalog);
-        return getPartitionId(table_name, id);
+        String table_name = this.catalog_to_table_map.get(catalog);
+        return this.getPartitionId(table_name, id);
     }
 
     // ******** Containers *****************************************/
@@ -170,11 +173,11 @@ public class PlannedPartitions implements JSONSerializable {
 
         @SuppressWarnings("unchecked")
         public List<PartitionRange<? extends Comparable<?>>> getPartitions(String table_name) {
-            return (List<PartitionRange<? extends Comparable<?>>>) tables_map.get(table_name);
+            return (List<PartitionRange<? extends Comparable<?>>>) this.tables_map.get(table_name);
         }
 
         public PartitionedTable<? extends Comparable<?>> getTable(String table_name) {
-            return tables_map.get(table_name);
+            return this.tables_map.get(table_name);
         }
 
         /**
@@ -196,7 +199,7 @@ public class PlannedPartitions implements JSONSerializable {
                 assert (table_vt_map.containsKey(table_name.toLowerCase()));
                 JSONObject table_json = json_tables.getJSONObject(table_name.toLowerCase());
                 // Class<?> c = table_vt_map.get(table_name).classFromType();
-                tables_map.put(table_name, new PartitionedTable<>(table_vt_map.get(table_name), table_name, table_json));
+                this.tables_map.put(table_name, new PartitionedTable<>(table_vt_map.get(table_name), table_name, table_json));
             }
         }
 
@@ -228,7 +231,7 @@ public class PlannedPartitions implements JSONSerializable {
                 // as
                 // replicated tables (ae)
                 int partition_id = Integer.parseInt(partition);
-                addPartitionRanges(partition_id, partitions_json.getString(partition));
+                this.addPartitionRanges(partition_id, partitions_json.getString(partition));
             }
             Collections.sort(this.partitions);
         }
@@ -248,15 +251,16 @@ public class PlannedPartitions implements JSONSerializable {
          */
         @SuppressWarnings("unchecked")
         public int findPartition(Object id) throws Exception {
-            if (trace.val)
-                LOG.trace(String.format("Looking up key %s on table %s during phase %s", id, table_name));
+            if (trace.val) {
+                LOG.trace(String.format("Looking up key %s on table %s during phase %s", id, this.table_name));
+            }
             assert (id instanceof Comparable<?>);
 
             // TODO I am sure there is a better way to do this... Andy? (ae)
             T cast_id = (T) id;
 
             try {
-                for (PartitionRange<T> p : partitions) {
+                for (PartitionRange<T> p : this.partitions) {
                     // if this greater than or equal to the min inclusive val
                     // and
                     // less than
@@ -268,7 +272,7 @@ public class PlannedPartitions implements JSONSerializable {
             } catch (Exception e) {
             }
 
-            LOG.error(String.format("Partition not found for ID:%s.  Type:%s  TableType", cast_id, cast_id.getClass().toString(), vt.getClass().toString()));
+            LOG.error(String.format("Partition not found for ID:%s.  Type:%s  TableType", cast_id, cast_id.getClass().toString(), this.vt.getClass().toString()));
             return HStoreConstants.NULL_PARTITION_ID;
         }
 
@@ -282,7 +286,7 @@ public class PlannedPartitions implements JSONSerializable {
          */
         public void addPartitionRanges(int partition_id, String partition_values) throws ParseException {
             for (String range : partition_values.split(",")) {
-                partitions.add(new PartitionRange<T>(vt, partition_id, range));
+                this.partitions.add(new PartitionRange<T>(this.vt, partition_id, range));
             }
         }
     }
@@ -321,25 +325,25 @@ public class PlannedPartitions implements JSONSerializable {
             if (range.contains("-")) {
                 String vals[] = range.split("-", 2);
                 Object min_obj = VoltTypeUtil.getObjectFromString(vt, vals[0]);
-                min_inclusive = (T) min_obj;
+                this.min_inclusive = (T) min_obj;
                 Object max_obj = VoltTypeUtil.getObjectFromString(vt, vals[1]);
-                max_exclusive = (T) max_obj;
-                if (min_inclusive.compareTo(max_exclusive) > 0) {
+                this.max_exclusive = (T) max_obj;
+                if (this.min_inclusive.compareTo(this.max_exclusive) > 0) {
                     throw new ParseException("Min cannot be greater than max", -1);
                 }
             }
             // x
             else {
                 Object obj = VoltTypeUtil.getObjectFromString(vt, range);
-                min_inclusive = (T) obj;
-                max_exclusive = (T) obj;
+                this.min_inclusive = (T) obj;
+                this.max_exclusive = (T) obj;
             }
 
         }
 
         @Override
         public String toString() {
-            return "PartitionRange [" + min_inclusive + "-" + max_exclusive + ") p_id=" + partition + "]";
+            return "PartitionRange [" + this.min_inclusive + "-" + this.max_exclusive + ") p_id=" + this.partition + "]";
         }
 
         @Override
@@ -353,6 +357,18 @@ public class PlannedPartitions implements JSONSerializable {
             }
         }
 
+        public T getMin_inclusive() {
+            return this.min_inclusive;
+        }
+
+        public T getMax_exclusive() {
+            return this.max_exclusive;
+        }
+
+        public VoltType getVt() {
+            return this.vt;
+        }
+
     }
 
     // ********End Containers **************************************/
@@ -364,17 +380,21 @@ public class PlannedPartitions implements JSONSerializable {
      * @return The delta between the plans or null if there is no change
      */
     public ReconfigurationPlan setPartitionPhase(String new_phase) {
-        String old_phase = current_phase;
+        String old_phase = this.current_phase;
         if (old_phase != null && old_phase.equals(new_phase)) {
             return null;
         }
+        if (this.partition_phase_map.containsKey(new_phase) == false) {
+            throw new RuntimeException("Invalid Phase Name: " + new_phase + " phases: " + StringUtil.join(",",this.partition_phase_map.keySet()));
+        }
         synchronized (this) {
-            current_phase = new_phase;
+            this.current_phase = new_phase;
         }
         try {
-            if (old_phase == null)
+            if (old_phase == null) {
                 return null;
-            return new ReconfigurationPlan(partition_phase_map.get(old_phase), partition_phase_map.get(new_phase));
+            }
+            return new ReconfigurationPlan(this.partition_phase_map.get(old_phase), this.partition_phase_map.get(new_phase));
         } catch (Exception ex) {
             Log.error(ex);
             throw new RuntimeException("Exception building Reconfiguration plan", ex);
@@ -386,7 +406,7 @@ public class PlannedPartitions implements JSONSerializable {
      * @return the current partition phase/epoch
      */
     public synchronized String getCurrent_phase() {
-        return current_phase;
+        return this.current_phase;
     }
 
     /*
