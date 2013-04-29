@@ -16,19 +16,24 @@ import org.voltdb.jni.ExecutionEngine;
 import org.voltdb.types.TimestampType;
 
 import edu.brown.hstore.PartitionExecutor;
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.profilers.AntiCacheManagerProfiler;
 import edu.brown.profilers.AntiCacheManagerProfiler.EvictionHistory;
 
 /** 
- * 
+ * Special system procedure for evicting tuples using the anti-cache feature
  */
 @ProcInfo(
     partitionParam = 0,
     singlePartition = true
 )
 public class EvictTuples extends VoltSystemProcedure {
-    @SuppressWarnings("unused")
     private static final Logger LOG = Logger.getLogger(EvictTuples.class);
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug);
+    }
 
     public static final ColumnInfo ResultsColumns[] = {
         new ColumnInfo(VoltSystemProcedure.CNAME_HOST_ID, VoltSystemProcedure.CTYPE_ID),
@@ -101,7 +106,9 @@ public class EvictTuples extends VoltSystemProcedure {
         long totalBlocksEvicted = 0;
         long totalBytesEvicted = 0;
         for (int i = 0; i < tableNames.length; i++) {
-            System.err.printf("Evicting %d blocks of blockSize %d", (int)numBlocks[i], blockSizes[i]);
+            if (debug.val)
+                LOG.debug(String.format("Evicting %d blocks of blockSize %d",
+                          numBlocks[i], blockSizes[i]));
             
             VoltTable vt = ee.antiCacheEvictBlock(tables[i], blockSizes[i], numBlocks[i]);
             boolean adv = vt.advanceRow();
