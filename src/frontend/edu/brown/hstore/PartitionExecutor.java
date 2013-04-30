@@ -4796,8 +4796,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
     
     public void receiveTuples(int sourcePartitionId, int newPartitionId, String tableName, VoltTable vt) throws Exception{
       
+      
       //TODO : Add data processing
       LOG.info(String.format("Received tuples for %s (%s) (from:%s to:%s)",tableName,vt.getRowCount(),sourcePartitionId,newPartitionId));
-      
+      //TODO ae currentTXN and 0 for allowETL?
+      loadTable(currentTxn, this.catalogContext.catalog.getName(), this.catalogContext.database.getName(), tableName, vt, 0);
     }
 }
