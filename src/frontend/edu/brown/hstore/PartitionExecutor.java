@@ -4794,7 +4794,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         }
     }
     
-    public void receiveTuples(String table_name, VoltTable vt) throws Exception{
+    public void receiveTuples(int partitionId2, int newPartitionId, String table_name, VoltTable vt) throws Exception{
       
       //TODO : Add data processing
       LOG.info("Received tuples for table_name "+table_name);

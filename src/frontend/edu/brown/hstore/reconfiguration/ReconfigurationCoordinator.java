@@ -36,6 +36,10 @@ import edu.brown.protorpc.ProtoRpcController;
  * @author vaibhav : Reconfiguration Coordinator at each site, responsible for
  *         maintaining reconfiguration state and sending communication messages
  */
+/**
+ * @author aelmore
+ *
+ */
 public class ReconfigurationCoordinator implements Shutdownable {
     private static final Logger LOG = Logger.getLogger(ReconfigurationCoordinator.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
@@ -224,21 +228,21 @@ public class ReconfigurationCoordinator implements Shutdownable {
         }
     }
 
+
     /**
-     * Send
-     * 
-     * @param partitionId
-     * @param new_partition
+     * @param oldPartitionId
+     * @param newPartitionId
+     * @param table_name
      * @param vt
-     * @throws Exception 
+     * @throws Exception
      */
-    public void pushTuples(int partitionId, int newPartition, String table_name, VoltTable vt) throws Exception {
+    public void pushTuples(int oldPartitionId, int newPartitionId, String table_name, VoltTable vt) throws Exception {
         // TODO Auto-generated method stub
-      int destinationId = this.hstore_site.getCatalogContext().getSiteIdForPartitionId(newPartition);
+      int destinationId = this.hstore_site.getCatalogContext().getSiteIdForPartitionId(newPartitionId);
       
       if(destinationId == localSiteId){
         // Just push the message through local receive Tuples to the PE'S 
-        receiveTuples(destinationId, System.currentTimeMillis(), partitionId, newPartition, table_name, vt);
+        receiveTuples(destinationId, System.currentTimeMillis(), oldPartitionId, newPartitionId, table_name, vt);
         return;
       }
       
@@ -252,8 +256,8 @@ public class ReconfigurationCoordinator implements Shutdownable {
       }
       
       DataTransferRequest dataTransferRequest = DataTransferRequest.newBuilder().
-          setSenderSite(this.localSiteId).setOldPartition(partitionId).
-          setNewPartition(newPartition).setVoltTableName(table_name).
+          setSenderSite(this.localSiteId).setOldPartition(oldPartitionId).
+          setNewPartition(newPartitionId).setVoltTableName(table_name).
           setT0S(System.currentTimeMillis()).setVoltTableData(tableBytes).build();
       
       this.channels[destinationId].dataTransfer(controller, dataTransferRequest, dataTransferRequestCallback);
@@ -262,12 +266,12 @@ public class ReconfigurationCoordinator implements Shutdownable {
     /**
      * Receive the tuples
      * @param partitionId
-     * @param new_partition
+     * @param newPartitionId
      * @param table_name
      * @param vt
      * @throws Exception 
      */
-    public DataTransferResponse receiveTuples(int sourceId, long sentTimeStamp, int partitionId, int new_partition, 
+    public DataTransferResponse receiveTuples(int sourceId, long sentTimeStamp, int partitionId, int newPartitionId, 
         String table_name, VoltTable vt) throws Exception {
       
       if(vt == null){
@@ -276,14 +280,14 @@ public class ReconfigurationCoordinator implements Shutdownable {
       
       for (PartitionExecutor executor : this.local_executors) {
         //TODO : check if we can more efficient here 
-        if(executor.getPartitionId() == new_partition) {
-          executor.receiveTuples(table_name, vt);
+        if(executor.getPartitionId() == newPartitionId) {
+          executor.receiveTuples(partitionId, newPartitionId, table_name, vt);
         }
       }
       
       DataTransferResponse response = null;
 
-      response = DataTransferResponse.newBuilder().setNewPartition(new_partition).setOldPartition(partitionId).
+      response = DataTransferResponse.newBuilder().setNewPartition(newPartitionId).setOldPartition(partitionId).
         setT0S(sentTimeStamp).setSenderSite(sourceId).build();
       
       return response;
