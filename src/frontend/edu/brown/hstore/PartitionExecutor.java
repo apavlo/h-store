@@ -4778,7 +4778,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         this.incoming_ranges = reconfig_plan.getIncoming_ranges().get(partitionId);
     }
 
-    public void startReconfiguration() {
+    public void startReconfiguration() throws Exception {
         LOG.info(String.format("Starting reconfiguration"));
         if (reconfig_protocol == ReconfigurationProtocols.STOPCOPY) 
         {
@@ -4792,5 +4792,12 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 reconfiguration_coordinator.pushTuples(this.partitionId,out_range.new_partition,out_range.table_name,table);
             }
         }
+    }
+    
+    public void receiveTuples(String table_name, VoltTable vt) throws Exception{
+      
+      //TODO : Add data processing
+      LOG.info("Received tuples for table_name "+table_name);
+      
     }
 }

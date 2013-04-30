@@ -5,6 +5,8 @@ import org.apache.log4j.Logger;
 import com.google.protobuf.RpcCallback;
 import com.google.protobuf.RpcController;
 
+import edu.brown.hstore.Hstoreservice.DataTransferRequest;
+import edu.brown.hstore.Hstoreservice.DataTransferResponse;
 import edu.brown.hstore.Hstoreservice.HStoreService;
 import edu.brown.hstore.Hstoreservice.InitializeRequest;
 import edu.brown.hstore.Hstoreservice.InitializeResponse;
@@ -205,6 +207,13 @@ public class MockHStoreCoordinator extends HStoreCoordinator {
         public void transactionDebug(RpcController controller, TransactionDebugRequest request, RpcCallback<TransactionDebugResponse> done) {
             // TODO Auto-generated method stub
             
+        }
+
+        @Override
+        public void dataTransfer(RpcController controller,
+            DataTransferRequest request, RpcCallback<DataTransferResponse> done) {
+          // TODO Auto-generated method stub
+          
         }
     }
 

@@ -1,8 +1,8 @@
 package edu.brown.hstore.reconfiguration;
 
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -12,14 +12,16 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.commons.lang.NotImplementedException;
 import org.apache.log4j.Logger;
 import org.voltdb.VoltTable;
+import org.voltdb.messaging.FastSerializer;
 
-import weka.classifiers.meta.END;
-
+import com.google.protobuf.ByteString;
 import com.google.protobuf.RpcCallback;
 
 import edu.brown.hashing.PlannedHasher;
 import edu.brown.hashing.ReconfigurationPlan;
 import edu.brown.hstore.HStoreSite;
+import edu.brown.hstore.Hstoreservice.DataTransferRequest;
+import edu.brown.hstore.Hstoreservice.DataTransferResponse;
 import edu.brown.hstore.Hstoreservice.HStoreService;
 import edu.brown.hstore.Hstoreservice.ReconfigurationRequest;
 import edu.brown.hstore.Hstoreservice.ReconfigurationResponse;
@@ -116,6 +118,7 @@ public class ReconfigurationCoordinator implements Shutdownable {
         if (this.reconfigurationInProgress.compareAndSet(false, true)) {
             LOG.info("Initializing reconfiguration. New reconfig plan.");
             if (this.hstore_site.getSiteId() == leaderId) {
+              //TODO : Check if more leader logic is needed
                 if (debug.val) {
                     LOG.debug("Setting site as reconfig leader");
                 }
@@ -227,10 +230,63 @@ public class ReconfigurationCoordinator implements Shutdownable {
      * @param partitionId
      * @param new_partition
      * @param vt
+     * @throws Exception 
      */
-    public void pushTuples(int partitionId, int new_partition, String table_name, VoltTable vt) {
+    public void pushTuples(int partitionId, int newPartition, String table_name, VoltTable vt) throws Exception {
         // TODO Auto-generated method stub
+      int destinationId = this.hstore_site.getCatalogContext().getSiteIdForPartitionId(newPartition);
+      
+      if(destinationId == localSiteId){
+        // Just push the message through local receive Tuples to the PE'S 
+        receiveTuples(destinationId, System.currentTimeMillis(), partitionId, newPartition, table_name, vt);
+        return;
+      }
+      
+      ProtoRpcController controller = new ProtoRpcController();
+      ByteString tableBytes = null;
+      try {
+          ByteBuffer b = ByteBuffer.wrap(FastSerializer.serialize(vt));
+          tableBytes = ByteString.copyFrom(b.array()); 
+      } catch (Exception ex) {
+          throw new RuntimeException("Unexpected error when serializing Volt Table", ex);
+      }
+      
+      DataTransferRequest dataTransferRequest = DataTransferRequest.newBuilder().
+          setSenderSite(this.localSiteId).setOldPartition(partitionId).
+          setNewPartition(newPartition).setVoltTableName(table_name).
+          setT0S(System.currentTimeMillis()).setVoltTableData(tableBytes).build();
+      
+      this.channels[destinationId].dataTransfer(controller, dataTransferRequest, dataTransferRequestCallback);
+    }
+    
+    /**
+     * Receive the tuples
+     * @param partitionId
+     * @param new_partition
+     * @param table_name
+     * @param vt
+     * @throws Exception 
+     */
+    public DataTransferResponse receiveTuples(int sourceId, long sentTimeStamp, int partitionId, int new_partition, 
+        String table_name, VoltTable vt) throws Exception {
+      
+      if(vt == null){
+        LOG.error("Volt Table received is null");  
+      }
+      
+      for (PartitionExecutor executor : this.local_executors) {
+        //TODO : check if we can more efficient here 
+        if(executor.getPartitionId() == new_partition) {
+          executor.receiveTuples(table_name, vt);
+        }
+      }
+      
+      DataTransferResponse response = null;
 
+      response = DataTransferResponse.newBuilder().setNewPartition(new_partition).setOldPartition(partitionId).
+        setT0S(sentTimeStamp).setSenderSite(sourceId).build();
+      
+      return response;
     }
 
     /**
@@ -258,7 +314,8 @@ public class ReconfigurationCoordinator implements Shutdownable {
                 // Send a control message to start the reconfiguration
 
                 ProtoRpcController controller = new ProtoRpcController();
-                ReconfigurationRequest reconfigurationRequest = ReconfigurationRequest.newBuilder().setSenderSite(this.localSiteId).setT0S(System.currentTimeMillis()).build();
+                ReconfigurationRequest reconfigurationRequest = ReconfigurationRequest.newBuilder().setSenderSite(this.localSiteId).
+                    setT0S(System.currentTimeMillis()).build();
 
                 this.channels[destinationId].reconfiguration(controller, reconfigurationRequest, this.reconfigurationRequestCallback);
             }
@@ -306,7 +363,8 @@ public class ReconfigurationCoordinator implements Shutdownable {
         public void run(ReconfigurationResponse msg) {
             int senderId = msg.getSenderSite();
             ReconfigurationCoordinator.this.destinationsReady.add(senderId);
-            if (ReconfigurationCoordinator.this.reconfigurationInProgress.get() && ReconfigurationCoordinator.this.reconfigurationState == ReconfigurationState.PREPARE
+            if (ReconfigurationCoordinator.this.reconfigurationInProgress.get() && 
+                ReconfigurationCoordinator.this.reconfigurationState == ReconfigurationState.PREPARE
                     && ReconfigurationCoordinator.this.destinationsReady.size() == ReconfigurationCoordinator.this.destinationSize) {
                 ReconfigurationCoordinator.this.reconfigurationState = ReconfigurationState.DATA_TRANSFER;
                 // bulk data transfer for stop and copy after each destination
@@ -315,6 +373,18 @@ public class ReconfigurationCoordinator implements Shutdownable {
             }
         }
     };
+    
+    private final RpcCallback<DataTransferResponse> dataTransferRequestCallback = new RpcCallback<DataTransferResponse>() {
+      @Override
+      public void run(DataTransferResponse msg) {
+        //TODO : Do the book keeping of received messages 
+        int senderId = msg.getSenderSite();
+        int oldPartition = msg.getOldPartition();
+        int newPartition = msg.getNewPartition();
+        long timeStamp = msg.getT0S();
+          
+      }
+  };
 
     public ReconfigurationState getState() {
         return this.reconfigurationState;
