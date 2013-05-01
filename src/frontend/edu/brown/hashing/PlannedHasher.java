@@ -88,6 +88,7 @@ public class PlannedHasher extends DefaultHasher {
     public int hash(Object value, CatalogType catalogItem) {
         if (catalogItem instanceof Column || catalogItem instanceof Procedure || catalogItem instanceof Statement) {
             try {
+                //LOG.info(String.format("\t Id:%s Partition:%s Phase:%s",value,planned_partitions.getPartitionId(catalogItem, value),planned_partitions.getCurrent_phase()));
                 return planned_partitions.getPartitionId(catalogItem, value);
             } catch (Exception e) {
                 LOG.error("Error on looking up partitionId from planned partition", e);
