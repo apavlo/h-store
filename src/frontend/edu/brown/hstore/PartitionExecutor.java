@@ -4729,6 +4729,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
     private ReconfigurationProtocols reconfig_protocol = null;
     private List<ReconfigurationRange<? extends Comparable<?>>> outgoing_ranges;
     private List<ReconfigurationRange<? extends Comparable<?>>> incoming_ranges;
+    private HashMap<Long, Boolean> to_pull;
+    private HashMap<Long, Integer> pulled_tuples;
 
     public Debug getDebugContext() {
         if (this.cachedDebugContext == null) {
@@ -4759,49 +4761,59 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
 
     public void initReconfiguration(ReconfigurationPlan reconfig_plan, ReconfigurationProtocols reconfig_protocol, ReconfigurationState reconfig_state) throws Exception {
         // FIXME (ae) We need to check with Andy about concurrency issues here
-        LOG.info(String.format("PE %s InitReconfiguration plan  %s %s",this.partitionId, reconfig_protocol,reconfig_state));
+        LOG.info(String.format("PE %s InitReconfiguration plan  %s %s", this.partitionId, reconfig_protocol, reconfig_state));
         if (this.reconfig_plan != null) {
             String msg = "Reconfiguration plan already set. Cannot set until previous reconfig plan is complete. Current state: " + reconfig_state;
             LOG.error(msg);
             throw new Exception(msg);
 
         }
+        if (debug.val) {
+            LOG.debug(String.format("Setting reconfiguration plan. Protocol:%s. State:%s", reconfig_protocol, reconfig_state));
+        }
+        this.reconfig_plan = reconfig_plan;
+
+        this.reconfig_protocol = reconfig_protocol;
+        this.reconfig_state = reconfig_state;
+        this.outgoing_ranges = reconfig_plan.getOutgoing_ranges().get(this.partitionId);
+        this.incoming_ranges = reconfig_plan.getIncoming_ranges().get(this.partitionId);
+
         if (reconfig_protocol == ReconfigurationProtocols.STOPCOPY) {
             LOG.info("Stopping exeuction");
             this.currentExecMode = ExecutionMode.DISABLED_REJECT;
+        } else if (reconfig_protocol == ReconfigurationProtocols.LIVEPULL) {
+            this.to_pull = new HashMap<>();
+            this.pulled_tuples = new HashMap<>();
+            for (ReconfigurationRange range : this.incoming_ranges) {
+                // TODO ae how to iterate? do we need to? same as StopCopy
+                assert (range.getMin_inclusive() instanceof Long);
+                for (Long i = (Long) range.getMin_inclusive(); i < (Long) range.getMax_exclusive(); i++) {
+                    this.to_pull.put(i, true);
+                }
+            }
         }
-        if (debug.val)
-            LOG.debug(String.format("Setting reconfiguration plan. Protocol:%s. State:%s", reconfig_protocol, reconfig_state));
-        this.reconfig_plan = reconfig_plan;
-        
-        this.reconfig_protocol = reconfig_protocol;
-        this.reconfig_state = reconfig_state;
-        this.outgoing_ranges = reconfig_plan.getOutgoing_ranges().get(partitionId);
-        this.incoming_ranges = reconfig_plan.getIncoming_ranges().get(partitionId);
     }
 
     public void startReconfiguration() throws Exception {
         LOG.info(String.format("Starting reconfiguration"));
-        if (reconfig_protocol == ReconfigurationProtocols.STOPCOPY) 
-        {
+        if (reconfig_protocol == ReconfigurationProtocols.STOPCOPY) {
             Table catalog_tbl = null;
             VoltTable table = null;
             for (ReconfigurationRange out_range : outgoing_ranges) {
 
                 catalog_tbl = catalogContext.getTableByName(out_range.table_name);
                 table = CatalogUtil.getVoltTable(catalog_tbl);
-                // TODO ae leftoff                
-                reconfiguration_coordinator.pushTuples(this.partitionId,out_range.new_partition,out_range.table_name,table);
+                // TODO ae leftoff
+                reconfiguration_coordinator.pushTuples(this.partitionId, out_range.new_partition, out_range.table_name, table);
             }
         }
     }
-    
-    public void receiveTuples(int sourcePartitionId, int newPartitionId, String tableName, VoltTable vt) throws Exception{
-      
-      
-      //TODO : Add data processing
-      LOG.info(String.format("Received tuples for %s (%s) (from:%s to:%s)",tableName,vt.getRowCount(),sourcePartitionId,newPartitionId));
-      //TODO ae currentTXN and 0 for allowETL?
-      loadTable(currentTxn, this.catalogContext.catalog.getName(), this.catalogContext.database.getName(), tableName, vt, 0);
+
+    public void receiveTuples(int sourcePartitionId, int newPartitionId, String tableName, VoltTable vt) throws Exception {
+
+        // TODO : Add data processing
+        LOG.info(String.format("Received tuples for %s (%s) (from:%s to:%s)", tableName, vt.getRowCount(), sourcePartitionId, newPartitionId));
+        // TODO ae currentTXN and 0 for allowETL?
+        loadTable(currentTxn, this.catalogContext.catalog.getName(), this.catalogContext.database.getName(), tableName, vt, 0);
     }
 }

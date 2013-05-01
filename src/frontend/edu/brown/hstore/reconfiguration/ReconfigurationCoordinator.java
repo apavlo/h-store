@@ -257,6 +257,10 @@ public class ReconfigurationCoordinator implements Shutdownable {
         }
     }
 
+    public void pullTuples(int currentOwningPartitionId, int destinationPartitionId, String table_name, Long txnId){
+        
+    }
+    
     /**
      * @param oldPartitionId
      * @param newPartitionId
