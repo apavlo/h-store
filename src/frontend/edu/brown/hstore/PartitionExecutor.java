@@ -661,7 +661,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         this.partitionId = 0;
         this.procedures = null;
         this.tmp_transactionRequestBuilders = null;
-        this.reconfig_state = ReconfigurationState.END;
+        this.reconfig_state = ReconfigurationState.NORMAL;
     }
 
     /**
@@ -691,7 +691,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         this.p_estimator = p_estimator;
         this.localTxnEstimator = t_estimator;
 
-        this.reconfig_state = ReconfigurationState.END;
+        this.reconfig_state = ReconfigurationState.NORMAL;
         // Speculative Execution
         this.specExecBlocked = new LinkedList<Pair<LocalTransaction, ClientResponseImpl>>();
         this.specExecModified = false;
@@ -4759,6 +4759,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
 
     public void initReconfiguration(ReconfigurationPlan reconfig_plan, ReconfigurationProtocols reconfig_protocol, ReconfigurationState reconfig_state) throws Exception {
         // FIXME (ae) We need to check with Andy about concurrency issues here
+        LOG.info(String.format("PE %s InitReconfiguration plan  %s %s",this.partitionId, reconfig_protocol,reconfig_state));
         if (this.reconfig_plan != null) {
             String msg = "Reconfiguration plan already set. Cannot set until previous reconfig plan is complete. Current state: " + reconfig_state;
             LOG.error(msg);
@@ -4772,6 +4773,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         if (debug.val)
             LOG.debug(String.format("Setting reconfiguration plan. Protocol:%s. State:%s", reconfig_protocol, reconfig_state));
         this.reconfig_plan = reconfig_plan;
+        
         this.reconfig_protocol = reconfig_protocol;
         this.reconfig_state = reconfig_state;
         this.outgoing_ranges = reconfig_plan.getOutgoing_ranges().get(partitionId);

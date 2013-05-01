@@ -38,7 +38,6 @@ import edu.brown.protorpc.ProtoRpcController;
  */
 /**
  * @author aelmore
- *
  */
 public class ReconfigurationCoordinator implements Shutdownable {
     private static final Logger LOG = Logger.getLogger(ReconfigurationCoordinator.class);
@@ -103,9 +102,11 @@ public class ReconfigurationCoordinator implements Shutdownable {
      * @return the reconfiguration plan or null if plan already set
      */
     public ReconfigurationPlan initReconfiguration(Integer leaderId, ReconfigurationProtocols reconfigurationProtocol, String partitionPlan, int partitionId) {
+        
+        //TODO ae start timing
         if (this.reconfigurationInProgress.get() == false && partitionPlan == this.currentPartitionPlan) {
-           LOG.info("Ignoring initReconfiguration request. Requested plan is already set");
-           return null;
+            LOG.info("Ignoring initReconfiguration request. Requested plan is already set");
+            return null;
         }
         if (reconfigurationProtocol == ReconfigurationProtocols.STOPCOPY) {
             if (partitionId != -1) {
@@ -116,13 +117,19 @@ public class ReconfigurationCoordinator implements Shutdownable {
                 LOG.error(msg);
                 throw new RuntimeException(msg);
             }
+        } else if (reconfigurationProtocol == ReconfigurationProtocols.LIVEPULL) {
+            
         } else {
             throw new NotImplementedException();
         }
+
+        // We may have reconfiguration initialized by PEs so need to ensure
+        // atomic
         if (this.reconfigurationInProgress.compareAndSet(false, true)) {
             LOG.info("Initializing reconfiguration. New reconfig plan.");
             if (this.hstore_site.getSiteId() == leaderId) {
-              //TODO : Check if more leader logic is needed
+                LOG.error("TODO setting as leader");
+                // TODO : Check if more leader logic is needed
                 if (debug.val) {
                     LOG.debug("Setting site as reconfig leader");
                 }
@@ -138,12 +145,18 @@ public class ReconfigurationCoordinator implements Shutdownable {
                 if (reconfigurationProtocol == ReconfigurationProtocols.STOPCOPY) {
                     // Nothing to do for S&C. PE's directly notified by
                     // sysProcedure
-                } else {
+                } else if(reconfigurationProtocol == ReconfigurationProtocols.LIVEPULL) {
                     if (reconfig_plan != null) {
                         for (PartitionExecutor executor : this.local_executors) {
-                            executor.initReconfiguration(reconfig_plan, reconfigurationProtocol, ReconfigurationState.BEGIN);
+                            executor.initReconfiguration(reconfig_plan, reconfigurationProtocol, ReconfigurationState.PREPARE);
+                            this.partitionStates.put(partitionId, ReconfigurationState.PREPARE);
                         }
+                        //Notify leader that this node has been initialized / prepared
+                        notifyReconfigLeader(ReconfigurationState.PREPARE);
+                    } else {
+                        LOG.info("No reconfig plan, nothing to do");
                     }
+                } else { 
                     throw new NotImplementedException();
                 }
             } catch (Exception e) {
@@ -173,6 +186,22 @@ public class ReconfigurationCoordinator implements Shutdownable {
     }
 
     /**
+     * Notify leader of a state change
+     * @param begin
+     */
+    private void notifyReconfigLeader(ReconfigurationState state) {
+        assert(this.reconfigurationLeader != -1 ) : "No reconfiguration leader set";
+        LOG.info("Notifying reconfiguration leader of state:"+state.toString());
+        if (this.hstore_site.getSiteId() == this.reconfigurationLeader){
+            //This node is the leader
+        }
+        else{
+            //TODO send state notification to leader
+        }
+        
+    }
+
+    /**
      * Function called by a PE when its active part of the reconfiguration is
      * complete
      * 
@@ -193,14 +222,14 @@ public class ReconfigurationCoordinator implements Shutdownable {
     }
 
     private boolean allPartitionsFinished() {
-        for(ReconfigurationState state : partitionStates.values()){
+        for (ReconfigurationState state : partitionStates.values()) {
             if (state != ReconfigurationState.END)
                 return false;
         }
-        return true;            
+        return true;
     }
-    
-    private void resetReconfigurationInProgress(){
+
+    private void resetReconfigurationInProgress() {
         this.partitionStates.putAll(this.initialPartitionStates);
         this.currentReconfigurationPlan = null;
         this.reconfigurationLeader = -1;
@@ -228,7 +257,6 @@ public class ReconfigurationCoordinator implements Shutdownable {
         }
     }
 
-
     /**
      * @param oldPartitionId
      * @param newPartitionId
@@ -238,59 +266,56 @@ public class ReconfigurationCoordinator implements Shutdownable {
      */
     public void pushTuples(int oldPartitionId, int newPartitionId, String table_name, VoltTable vt) throws Exception {
         // TODO Auto-generated method stub
-      int destinationId = this.hstore_site.getCatalogContext().getSiteIdForPartitionId(newPartitionId);
-      
-      if(destinationId == localSiteId){
-        // Just push the message through local receive Tuples to the PE'S 
-        receiveTuples(destinationId, System.currentTimeMillis(), oldPartitionId, newPartitionId, table_name, vt);
-        return;
-      }
-      
-      ProtoRpcController controller = new ProtoRpcController();
-      ByteString tableBytes = null;
-      try {
-          ByteBuffer b = ByteBuffer.wrap(FastSerializer.serialize(vt));
-          tableBytes = ByteString.copyFrom(b.array()); 
-      } catch (Exception ex) {
-          throw new RuntimeException("Unexpected error when serializing Volt Table", ex);
-      }
-      
-      DataTransferRequest dataTransferRequest = DataTransferRequest.newBuilder().
-          setSenderSite(this.localSiteId).setOldPartition(oldPartitionId).
-          setNewPartition(newPartitionId).setVoltTableName(table_name).
-          setT0S(System.currentTimeMillis()).setVoltTableData(tableBytes).build();
-      
-      this.channels[destinationId].dataTransfer(controller, dataTransferRequest, dataTransferRequestCallback);
+        int destinationId = this.hstore_site.getCatalogContext().getSiteIdForPartitionId(newPartitionId);
+
+        if (destinationId == localSiteId) {
+            // Just push the message through local receive Tuples to the PE'S
+            receiveTuples(destinationId, System.currentTimeMillis(), oldPartitionId, newPartitionId, table_name, vt);
+            return;
+        }
+
+        ProtoRpcController controller = new ProtoRpcController();
+        ByteString tableBytes = null;
+        try {
+            ByteBuffer b = ByteBuffer.wrap(FastSerializer.serialize(vt));
+            tableBytes = ByteString.copyFrom(b.array());
+        } catch (Exception ex) {
+            throw new RuntimeException("Unexpected error when serializing Volt Table", ex);
+        }
+
+        DataTransferRequest dataTransferRequest = DataTransferRequest.newBuilder().setSenderSite(this.localSiteId).setOldPartition(oldPartitionId).setNewPartition(newPartitionId)
+                .setVoltTableName(table_name).setT0S(System.currentTimeMillis()).setVoltTableData(tableBytes).build();
+
+        this.channels[destinationId].dataTransfer(controller, dataTransferRequest, dataTransferRequestCallback);
     }
-    
+
     /**
      * Receive the tuples
+     * 
      * @param partitionId
      * @param newPartitionId
      * @param table_name
      * @param vt
-     * @throws Exception 
+     * @throws Exception
      */
-    public DataTransferResponse receiveTuples(int sourceId, long sentTimeStamp, int partitionId, int newPartitionId, 
-        String table_name, VoltTable vt) throws Exception {
-      
-      if(vt == null){
-        LOG.error("Volt Table received is null");  
-      }
-      
-      for (PartitionExecutor executor : this.local_executors) {
-        //TODO : check if we can more efficient here 
-        if(executor.getPartitionId() == newPartitionId) {
-          executor.receiveTuples(partitionId, newPartitionId, table_name, vt);
-        }
-      }
-      
-      DataTransferResponse response = null;
+    public DataTransferResponse receiveTuples(int sourceId, long sentTimeStamp, int partitionId, int newPartitionId, String table_name, VoltTable vt) throws Exception {
 
-      response = DataTransferResponse.newBuilder().setNewPartition(newPartitionId).setOldPartition(partitionId).
-        setT0S(sentTimeStamp).setSenderSite(sourceId).build();
-      
-      return response;
+        if (vt == null) {
+            LOG.error("Volt Table received is null");
+        }
+
+        for (PartitionExecutor executor : this.local_executors) {
+            // TODO : check if we can more efficient here
+            if (executor.getPartitionId() == newPartitionId) {
+                executor.receiveTuples(partitionId, newPartitionId, table_name, vt);
+            }
+        }
+
+        DataTransferResponse response = null;
+
+        response = DataTransferResponse.newBuilder().setNewPartition(newPartitionId).setOldPartition(partitionId).setT0S(sentTimeStamp).setSenderSite(sourceId).build();
+
+        return response;
     }
 
     /**
@@ -318,8 +343,7 @@ public class ReconfigurationCoordinator implements Shutdownable {
                 // Send a control message to start the reconfiguration
 
                 ProtoRpcController controller = new ProtoRpcController();
-                ReconfigurationRequest reconfigurationRequest = ReconfigurationRequest.newBuilder().setSenderSite(this.localSiteId).
-                    setT0S(System.currentTimeMillis()).build();
+                ReconfigurationRequest reconfigurationRequest = ReconfigurationRequest.newBuilder().setSenderSite(this.localSiteId).setT0S(System.currentTimeMillis()).build();
 
                 this.channels[destinationId].reconfiguration(controller, reconfigurationRequest, this.reconfigurationRequestCallback);
             }
@@ -367,8 +391,7 @@ public class ReconfigurationCoordinator implements Shutdownable {
         public void run(ReconfigurationResponse msg) {
             int senderId = msg.getSenderSite();
             ReconfigurationCoordinator.this.destinationsReady.add(senderId);
-            if (ReconfigurationCoordinator.this.reconfigurationInProgress.get() && 
-                ReconfigurationCoordinator.this.reconfigurationState == ReconfigurationState.PREPARE
+            if (ReconfigurationCoordinator.this.reconfigurationInProgress.get() && ReconfigurationCoordinator.this.reconfigurationState == ReconfigurationState.PREPARE
                     && ReconfigurationCoordinator.this.destinationsReady.size() == ReconfigurationCoordinator.this.destinationSize) {
                 ReconfigurationCoordinator.this.reconfigurationState = ReconfigurationState.DATA_TRANSFER;
                 // bulk data transfer for stop and copy after each destination
@@ -377,18 +400,18 @@ public class ReconfigurationCoordinator implements Shutdownable {
             }
         }
     };
-    
+
     private final RpcCallback<DataTransferResponse> dataTransferRequestCallback = new RpcCallback<DataTransferResponse>() {
-      @Override
-      public void run(DataTransferResponse msg) {
-        //TODO : Do the book keeping of received messages 
-        int senderId = msg.getSenderSite();
-        int oldPartition = msg.getOldPartition();
-        int newPartition = msg.getNewPartition();
-        long timeStamp = msg.getT0S();
-          
-      }
-  };
+        @Override
+        public void run(DataTransferResponse msg) {
+            // TODO : Do the book keeping of received messages
+            int senderId = msg.getSenderSite();
+            int oldPartition = msg.getOldPartition();
+            int newPartition = msg.getNewPartition();
+            long timeStamp = msg.getT0S();
+
+        }
+    };
 
     public ReconfigurationState getState() {
         return this.reconfigurationState;

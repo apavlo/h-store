@@ -61,11 +61,10 @@ public class Reconfiguration extends VoltSystemProcedure {
       String partition_plan = (String) params.toArray()[1];
       String reconfiguration_protocol_string = (String) params.toArray()[2];
 
-      LOG.info(String.format(""));
 
       try {
         ReconfigurationProtocols reconfig_protocol = ReconfigurationProtocols.valueOf(reconfiguration_protocol_string.toUpperCase());
-        hstore_site.initReconfiguration(coordinator, partition_plan, reconfig_protocol);
+        hstore_site.getReconfigurationCoordinator().initReconfiguration(coordinator, reconfig_protocol, partition_plan, -1);
       } catch (Exception ex) {
         throw new ServerFaultException(ex.getMessage(), txn_id);
       }
