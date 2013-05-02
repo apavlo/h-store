@@ -38,17 +38,17 @@ public class MemoryStats extends StatsSource {
         new VoltTable.ColumnInfo("STRING_MEMORY", VoltType.INTEGER),
         new VoltTable.ColumnInfo("POOLED_MEMORY", VoltType.BIGINT),
         // ACTIVE
-        new VoltTable.ColumnInfo("TUPLES_EVICTED", VoltType.BIGINT),
-        new VoltTable.ColumnInfo("BLOCKS_EVICTED", VoltType.BIGINT),
-        new VoltTable.ColumnInfo("BYTES_EVICTED", VoltType.BIGINT),
+        new VoltTable.ColumnInfo("ANTICACHE_TUPLES_EVICTED", VoltType.BIGINT),
+        new VoltTable.ColumnInfo("ANTICACHE_BLOCKS_EVICTED", VoltType.BIGINT),
+        new VoltTable.ColumnInfo("ANTICACHE_BYTES_EVICTED", VoltType.BIGINT),
         // GLOBAL WRITTEN
-        new VoltTable.ColumnInfo("TUPLES_WRITTEN", VoltType.BIGINT),
-        new VoltTable.ColumnInfo("BLOCKS_WRITTEN", VoltType.BIGINT),
-        new VoltTable.ColumnInfo("BYTES_WRITTEN", VoltType.BIGINT),
+        new VoltTable.ColumnInfo("ANTICACHE_TUPLES_WRITTEN", VoltType.BIGINT),
+        new VoltTable.ColumnInfo("ANTICACHE_BLOCKS_WRITTEN", VoltType.BIGINT),
+        new VoltTable.ColumnInfo("ANTICACHE_BYTES_WRITTEN", VoltType.BIGINT),
         // GLOBAL READ
-        new VoltTable.ColumnInfo("TUPLES_READ", VoltType.BIGINT),
-        new VoltTable.ColumnInfo("BLOCKS_READ", VoltType.BIGINT),
-        new VoltTable.ColumnInfo("BYTES_READ", VoltType.BIGINT),
+        new VoltTable.ColumnInfo("ANTICACHE_TUPLES_READ", VoltType.BIGINT),
+        new VoltTable.ColumnInfo("ANTICACHE_BLOCKS_READ", VoltType.BIGINT),
+        new VoltTable.ColumnInfo("ANTICACHE_BYTES_READ", VoltType.BIGINT),
     };
     
     static class PartitionMemRow {
@@ -165,19 +165,19 @@ public class MemoryStats extends StatsSource {
         rowValues[columnNameToIndex.get("POOLED_MEMORY")] = totals.pooledMem / 1024;
         
         // ACTIVE
-        rowValues[columnNameToIndex.get("TUPLES_EVICTED")] = totals.tuplesEvicted;
-        rowValues[columnNameToIndex.get("BLOCKS_EVICTED")] = totals.blocksEvicted;
-        rowValues[columnNameToIndex.get("BYTES_EVICTED")] = totals.bytesEvicted / 1024;
+        rowValues[columnNameToIndex.get("ANTICACHE_TUPLES_EVICTED")] = totals.tuplesEvicted;
+        rowValues[columnNameToIndex.get("ANTICACHE_BLOCKS_EVICTED")] = totals.blocksEvicted;
+        rowValues[columnNameToIndex.get("ANTICACHE_BYTES_EVICTED")] = totals.bytesEvicted / 1024;
         
         // GLOBAL WRITTEN
-        rowValues[columnNameToIndex.get("TUPLES_WRITTEN")] = totals.tuplesWritten;
-        rowValues[columnNameToIndex.get("BLOCKS_WRITTEN")] = totals.blocksWritten;
-        rowValues[columnNameToIndex.get("BYTES_WRITTEN")] = totals.bytesWritten / 1024;
+        rowValues[columnNameToIndex.get("ANTICACHE_TUPLES_WRITTEN")] = totals.tuplesWritten;
+        rowValues[columnNameToIndex.get("ANTICACHE_BLOCKS_WRITTEN")] = totals.blocksWritten;
+        rowValues[columnNameToIndex.get("ANTICACHE_BYTES_WRITTEN")] = totals.bytesWritten / 1024;
         
         // GLOBAL READ
-        rowValues[columnNameToIndex.get("TUPLES_READ")] = totals.tuplesRead;
-        rowValues[columnNameToIndex.get("BLOCKS_READ")] = totals.blocksRead;
-        rowValues[columnNameToIndex.get("BYTES_READ")] = totals.bytesRead / 1024;
+        rowValues[columnNameToIndex.get("ANTICACHE_TUPLES_READ")] = totals.tuplesRead;
+        rowValues[columnNameToIndex.get("ANTICACHE_BLOCKS_READ")] = totals.blocksRead;
+        rowValues[columnNameToIndex.get("ANTICACHE_BYTES_READ")] = totals.bytesRead / 1024;
         
         super.updateStatsRow(rowKey, rowValues);
     }
