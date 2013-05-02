@@ -222,7 +222,7 @@ public class TestAntiCacheManager extends BaseTestCase {
         assert(adv);
         for (int i = 0; i < statsFields.length; i++) {
             // XXX: Skip the byte counters since it will be kilobytes
-            if (statsFields[i].startsWith("BYTES")) continue;
+            if (statsFields[i].contains("BYTES")) continue;
             
             // ACTIVE
             assertEquals(statsFields[i], newStats[0].getLong(statsFields[i]), results.getLong(statsFields[i]));
