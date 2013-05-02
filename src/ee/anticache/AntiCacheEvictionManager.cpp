@@ -68,20 +68,20 @@ void AntiCacheEvictionManager::initEvictResultTable() {
     colLengths.push_back(4096);
     colAllowNull.push_back(false);
     
-    // TUPLES_EVICTED
-    colNames.push_back("TUPLES_EVICTED");
+    // ANTICACHE_TUPLES_EVICTED
+    colNames.push_back("ANTICACHE_TUPLES_EVICTED");
     colTypes.push_back(VALUE_TYPE_INTEGER);
     colLengths.push_back(NValue::getTupleStorageSize(VALUE_TYPE_INTEGER));
     colAllowNull.push_back(false);
     
-    // BLOCKS_EVICTED
-    colNames.push_back("BLOCKS_EVICTED");
+    // ANTICACHE_BLOCKS_EVICTED
+    colNames.push_back("ANTICACHE_BLOCKS_EVICTED");
     colTypes.push_back(VALUE_TYPE_INTEGER);
     colLengths.push_back(NValue::getTupleStorageSize(VALUE_TYPE_INTEGER));
     colAllowNull.push_back(false);
     
-    // BYTES_EVICTED
-    colNames.push_back("BYTES_EVICTED");
+    // ANTICACHE_BYTES_EVICTED
+    colNames.push_back("ANTICACHE_BYTES_EVICTED");
     colTypes.push_back(VALUE_TYPE_BIGINT);
     colLengths.push_back(NValue::getTupleStorageSize(VALUE_TYPE_BIGINT));
     colAllowNull.push_back(false);
