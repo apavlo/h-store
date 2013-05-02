@@ -108,34 +108,31 @@ public:
         ++m_updates;
         return (deleted && inserted);
     }
-	
-    bool setEntryToNewAddress(const TableTuple *tuple, const void* address)
-    {
+    
+    bool setEntryToNewAddress(const TableTuple *tuple, const void* address) {
         m_tmp1.setFromTuple(tuple, column_indices_, m_keySchema);
-		
-		++m_updates; 
-		
+        ++m_updates; 
+        
         std::pair<MMIter,MMIter> key_iter;
         for (key_iter = m_entries.equal_range(m_tmp1);
              key_iter.first != key_iter.second;
              ++(key_iter.first))
         {
-            if (key_iter.first->second == tuple->address())
-            {
+            if (key_iter.first->second == tuple->address()) {
                 m_entries.erase(key_iter.first);
-				
-				//std::pair<typename MapType::iterator, bool> retval = m_entries.insert(std::pair<KeyType, const void*>(m_tmp1, address));
+                
+                //std::pair<typename MapType::iterator, bool> retval = m_entries.insert(std::pair<KeyType, const void*>(m_tmp1, address));
                 //return retval.second;
 
                 m_entries.insert(std::pair<KeyType, const void*>(m_tmp1, address));
                 return true; 
-				
+                
             }
         }
         
         //key exists, but not this tuple
         return false;
-	}
+    }
 
     bool checkForIndexChange(const TableTuple *lhs, const TableTuple *rhs)
     {

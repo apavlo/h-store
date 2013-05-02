@@ -61,7 +61,7 @@ namespace voltdb {
  */
 class TableIterator : public TupleIterator {
 public:
-    TableIterator(const Table *parent, bool scanAllBlocks = false);
+    TableIterator(Table *parent, bool scanAllBlocks = false);
 
     /**
      * Updates the given tuple so that it points to the next tuple in the table.
@@ -88,7 +88,7 @@ private:
      * all blocks are scanned.
      */
     bool m_scanAllBlocksOrCountFoundTuples;
-    const Table *m_table;
+    Table *m_table;
     char *m_dataPtr;
     uint32_t m_location;
     uint32_t m_activeTuples;
@@ -98,7 +98,7 @@ private:
     uint32_t m_blockIndex;
 };
 
-inline TableIterator::TableIterator(const Table *parent, bool scanAllBlocks)
+inline TableIterator::TableIterator(Table *parent, bool scanAllBlocks)
     : m_scanAllBlocksOrCountFoundTuples(scanAllBlocks),
       m_table(parent), m_dataPtr(NULL), m_location(0),
     m_activeTuples((int) m_table->m_tupleCount),
@@ -153,6 +153,9 @@ inline bool TableIterator::next(TableTuple &out) {
         // Return this tuple only when this tuple is not marked as deleted.
         if (out.isActive()) {
             ++m_foundTuples;
+            m_table->updateTupleAccessCount();
+//             fprintf(stderr, "READ TUPLE: %s [%ld]\n",
+//                     m_table->name().c_str(), m_table->getTupleAccesses());
             //assert(m_foundTuples == m_location);
             return true;
         }
