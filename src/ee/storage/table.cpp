@@ -65,6 +65,7 @@ Table::Table(int tableAllocationTargetSize) :
     m_tempTuple(),
     m_schema(NULL),
     m_tupleCount(0),
+    m_tupleAccesses(0),
     m_usedTuples(0),
     m_allocatedTuples(0),
     m_columnCount(0),
@@ -435,7 +436,7 @@ bool Table::serializeTupleTo(SerializeOutput &serialize_io, voltdb::TableTuple *
     return true;
 }
 
-bool Table::equals(const voltdb::Table *other) const {
+bool Table::equals(voltdb::Table *other) {
     if (!(columnCount() == other->columnCount())) return false;
     if (!(indexCount() == other->indexCount())) return false;
     if (!(activeTupleCount() == other->activeTupleCount())) return false;

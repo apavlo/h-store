@@ -197,6 +197,19 @@ public:
         return m_nonInlinedMemorySize;
     }
     
+    /**
+     * Estimate for the number of times that tuples are accessed (either for a read or write)
+     */
+    inline int64_t getTupleAccessCount() const {
+        return m_tupleAccesses;
+    }
+    
+    inline void updateTupleAccessCount() {
+        m_tupleAccesses++;
+    }
+    
+    
+    
     #ifdef ANTICACHE
     inline int32_t getTuplesEvicted() const { return (m_tuplesEvicted); }
     inline int32_t getBlocksEvicted() const { return (m_blocksEvicted); }
@@ -330,7 +343,7 @@ protected:
     virtual void populateIndexes(int tupleCount) {};
 public:
 
-    virtual bool equals(const voltdb::Table *other) const;
+    virtual bool equals(voltdb::Table *other);
     virtual voltdb::TableStats* getTableStats();
 
 protected:
@@ -357,6 +370,7 @@ protected:
     TableTuple m_tmpTarget1, m_tmpTarget2;
     TupleSchema* m_schema;
     uint32_t m_tupleCount;
+    uint32_t m_tupleAccesses;
     uint32_t m_usedTuples;
     uint32_t m_allocatedTuples;
     uint32_t m_columnCount;

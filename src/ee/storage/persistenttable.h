@@ -347,9 +347,7 @@ protected:
     uint32_t m_newestTupleID; 
     
     int m_numTuplesInEvictionChain;
-        
     bool m_blockMerge;
-    
     
     #endif
     
