@@ -67,13 +67,14 @@ public class TestMarkovConflictChecker extends BaseTestCase {
     
     @Before
     public void setUp() throws Exception {
+        this.reset(ProjectType.TPCC);
         super.setUp(ProjectType.TPCC);
         this.addPartitions(NUM_PARTITIONS);
         
         if (isFirstSetup()) {
             
             File file = this.getWorkloadFile(ProjectType.TPCC);
-            workload = new Workload(catalog);
+            workload = new Workload(catalogContext.catalog);
             ProcParameterValueFilter filter = new ProcParameterValueFilter().include(1, TARGET_DISTRICT_ID);
             for (int w_id : TARGET_WAREHOUSES) {
                 filter.include(0, w_id);
