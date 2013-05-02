@@ -1482,6 +1482,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
 
         // data to aggregate
         long tupleCount = 0;
+        @SuppressWarnings("unused")
+        long tupleAccessCount = 0;
         int tupleDataMem = 0;
         int tupleAllocatedMem = 0;
         int indexMem = 0;
@@ -1517,6 +1519,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             while (stats.advanceRow()) {
                 int idx = 7;
                 tupleCount += stats.getLong(idx++);
+                tupleAccessCount += stats.getLong(idx++);
                 tupleAllocatedMem += (int) stats.getLong(idx++);
                 tupleDataMem += (int) stats.getLong(idx++);
                 stringMem += (int) stats.getLong(idx++);
