@@ -174,7 +174,7 @@ public class TestAntiCacheSuite extends RegressionSuite {
             VoltTable vt = evictResults.get(partition);
             boolean adv = vt.advanceRow();
             assert(adv);
-            long expected = vt.getLong("BLOCKS_EVICTED");
+            long expected = vt.getLong("ANTICACHE_BLOCKS_EVICTED");
             assertEquals("Partition "+partition, expected, statsResult.getLong(colName));
         } // WHILE
     }
