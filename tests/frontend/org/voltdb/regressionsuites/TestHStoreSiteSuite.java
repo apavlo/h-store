@@ -84,10 +84,10 @@ public class TestHStoreSiteSuite extends RegressionSuite {
                 hints.basePartition = p;
                 
                 // Once with a callback
-                client.callProcedure(callbacks[p], "GetItem", hints);
+                client.callProcedure(callbacks[p], "GetItem", hints, 1);
                 
                 // And once without a callback
-                ClientResponse cresponse = client.callProcedure("GetItem", hints);
+                ClientResponse cresponse = client.callProcedure("GetItem", hints, 1);
                 assertNotNull(cresponse);
                 assertEquals(Status.OK, cresponse.getStatus());
                 assertEquals(p, cresponse.getBasePartition());
@@ -106,7 +106,7 @@ public class TestHStoreSiteSuite extends RegressionSuite {
         // build up a project builder for the TPC-C app
         TPCCProjectBuilder project = new TPCCProjectBuilder();
         project.addAllDefaults();
-        project.addStmtProcedure("GetItem", "SELECT * FROM ITEM LIMIT 1");
+        project.addStmtProcedure("GetItem", "SELECT * FROM ITEM WHERE I_ID = ?");
         
         boolean success;
         

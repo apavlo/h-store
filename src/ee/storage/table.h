@@ -208,8 +208,6 @@ public:
         m_tupleAccesses++;
     }
     
-    
-    
     #ifdef ANTICACHE
     inline int32_t getTuplesEvicted() const { return (m_tuplesEvicted); }
     inline int32_t getBlocksEvicted() const { return (m_blocksEvicted); }
@@ -343,7 +341,7 @@ protected:
     virtual void populateIndexes(int tupleCount) {};
 public:
 
-    virtual bool equals(voltdb::Table *other);
+    virtual bool equals(const voltdb::Table *other) const;
     virtual voltdb::TableStats* getTableStats();
 
 protected:
