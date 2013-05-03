@@ -209,7 +209,13 @@ final class ClientImpl implements Client {
               new StoredProcedureInvocation(m_handle.getAndIncrement(), procName, parameters);
 
         Integer site_id = null;
-        if (m_catalog != null && procName.startsWith("@") == false) {
+        if (hints != null && hints.basePartition != HStoreConstants.NULL_PARTITION_ID) {
+            invocation.setBasePartition(hints.basePartition);
+            if (m_partitionSiteXref != null) {
+                site_id = m_partitionSiteXref[hints.basePartition];
+            }
+        }
+        else if (m_catalog != null && procName.startsWith("@") == false) {
             try {
                 int partition = m_pEstimator.getBasePartition(invocation);
                 if (partition != HStoreConstants.NULL_PARTITION_ID) {
