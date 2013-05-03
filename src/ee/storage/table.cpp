@@ -436,7 +436,7 @@ bool Table::serializeTupleTo(SerializeOutput &serialize_io, voltdb::TableTuple *
     return true;
 }
 
-bool Table::equals(voltdb::Table *other) {
+bool Table::equals(const voltdb::Table *other) const {
     if (!(columnCount() == other->columnCount())) return false;
     if (!(indexCount() == other->indexCount())) return false;
     if (!(activeTupleCount() == other->activeTupleCount())) return false;

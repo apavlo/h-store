@@ -537,6 +537,7 @@ bool IndexScanExecutor::p_execute(const NValueArray &params)
            ((m_lookupType != INDEX_LOOKUP_TYPE_EQ || m_numOfSearchkeys == 0) &&
             !(m_tuple = m_index->nextValue()).isNullTuple()))
     {
+        m_targetTable->updateTupleAccessCount();
         
 #ifdef ANTICACHE
         // We are pointing to an entry for an evicted tuple

@@ -149,7 +149,7 @@ TableStats::generateEmptyTableStatsTable()
  * Constructor caches reference to the table that will be generating the statistics
  */
 TableStats::TableStats(Table* table)
-    : StatsSource(), m_table(table), m_lastTupleCount(0), m_lastTupleAccesses(0),
+    : StatsSource(), m_table(table), m_lastTupleCount(0), m_lastTupleAccessCount(0),
       m_lastAllocatedTupleMemory(0), m_lastOccupiedTupleMemory(0),
       m_lastStringDataMemory(0)
 {
@@ -206,7 +206,7 @@ void TableStats::updateStatsTuple(TableTuple *tuple) {
     tuple->setNValue( StatsSource::m_columnName2Index["TABLE_NAME"], m_tableName);
     tuple->setNValue( StatsSource::m_columnName2Index["TABLE_TYPE"], m_tableType);
     int64_t tupleCount = m_table->activeTupleCount();
-    int64_t tupleAccesses = m_table->getTupleAccessCount();
+    int64_t tupleAccessCount = m_table->getTupleAccessCount();
     // This overflow is unlikely (requires 2 terabytes of allocated string memory)
     int64_t allocated_tuple_mem_kb = m_table->allocatedTupleMemory() / 1024;
     int64_t occupied_tuple_mem_kb = m_table->occupiedTupleMemory() / 1024;
@@ -230,8 +230,8 @@ void TableStats::updateStatsTuple(TableTuple *tuple) {
         tupleCount = tupleCount - m_lastTupleCount;
         m_lastTupleCount = m_table->activeTupleCount();
         
-        tupleAccesses = tupleAccesses - m_lastTupleAccesses;
-        m_lastTupleAccesses = m_table->getTupleAccessCount();
+        tupleAccessCount = tupleAccessCount - m_lastTupleAccessCount;
+        m_lastTupleAccessCount = m_table->getTupleAccessCount();
         
         allocated_tuple_mem_kb =
             allocated_tuple_mem_kb - (m_lastAllocatedTupleMemory / 1024);
@@ -295,7 +295,7 @@ void TableStats::updateStatsTuple(TableTuple *tuple) {
             ValueFactory::getBigIntValue(tupleCount));
     tuple->setNValue(
             StatsSource::m_columnName2Index["TUPLE_ACCESSES"],
-            ValueFactory::getBigIntValue(tupleAccesses));
+            ValueFactory::getBigIntValue(tupleAccessCount));
     
     tuple->setNValue(StatsSource::m_columnName2Index["TUPLE_ALLOCATED_MEMORY"],
                      ValueFactory::
