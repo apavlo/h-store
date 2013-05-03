@@ -272,6 +272,7 @@ public class ReconfigurationCoordinator implements Shutdownable {
      * @throws Exception
      */
     public void pushTuples(int oldPartitionId, int newPartitionId, String table_name, VoltTable vt) throws Exception {
+        LOG.info(String.format("pushTuples  keys for %s  partIds %->%s",table_name,oldPartitionId,newPartitionId));
         // TODO Auto-generated method stub
         int destinationId = this.hstore_site.getCatalogContext().getSiteIdForPartitionId(newPartitionId);
 
@@ -308,7 +309,8 @@ public class ReconfigurationCoordinator implements Shutdownable {
      */
     public DataTransferResponse receiveTuples(int sourceId, long sentTimeStamp, int partitionId, int newPartitionId, 
         String table_name, VoltTable vt) throws Exception {
-
+        LOG.info(String.format("receiveTuples  keys for %s  partIds %->%s",table_name,sourceId,newPartitionId));
+        
         if (vt == null) {
             LOG.error("Volt Table received is null");
         }
@@ -345,7 +347,8 @@ public class ReconfigurationCoordinator implements Shutdownable {
     public LivePullResponse sendTuples(int senderId, Long requestTimestamp, Long txnId, 
         int oldPartitionId, int newPartitionId, String table_name, Long min_inclusive, 
         Long max_exclusive){
-      
+      LOG.info(String.format("sendTuples  keys %->%s for %s  partIds %->%s",min_inclusive,max_exclusive, table_name,oldPartitionId,newPartitionId));
+        
       VoltTable vt = null;
       for (PartitionExecutor executor : this.local_executors) {
         // TODO : check if we can more efficient here
@@ -386,7 +389,7 @@ public class ReconfigurationCoordinator implements Shutdownable {
     public void pullTuples(Long txnId, int oldPartitionId, int newPartitionId, String table_name, 
         Long min_inclusive, Long max_exclusive,
         VoltType voltType){
-      
+      LOG.info(String.format("pullTuples  keys %->%s for %s  partIds %->%s",min_inclusive,max_exclusive, table_name,oldPartitionId,newPartitionId));
       //TODO : Check if volt type makes can be used here for generic values or remove it
       int destinationId = this.hstore_site.getCatalogContext().getSiteIdForPartitionId(newPartitionId);
 

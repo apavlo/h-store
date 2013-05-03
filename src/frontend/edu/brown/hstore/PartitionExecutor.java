@@ -4790,10 +4790,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 assert (range.getMin_inclusive() instanceof Long);
                 for (Long i = (Long) range.getMin_inclusive(); i < (Long) range.getMax_exclusive(); i++) {
                     this.to_pull.put(i, true);
-                    //TODO : Test this instance of pulling out a complete range
-                    reconfiguration_coordinator.pullTuples(currentTxnId, this.partitionId, 
-                        range.new_partition, range.table_name, 
-                        i, i, range.getVt());
+                    // TODO : Test this instance of pulling out a complete range
+                    LOG.info("TODO ae force pulling tuples to test");
+                    reconfiguration_coordinator.pullTuples(currentTxnId, this.partitionId, range.new_partition, range.table_name, i, i, range.getVt());
                 }
             }
         }
@@ -4821,40 +4820,37 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         // TODO ae currentTXN and 0 for allowETL?
         loadTable(currentTxn, this.catalogContext.catalog.getName(), this.catalogContext.database.getName(), tableName, vt, 0);
     }
-    
+
     /**
      * Receiving tuples for the asynchronous pull operation made
+     * 
      * @param txnId
      * @param reconfigurationRange
      * @param vt
      * @throws Exception
      */
-    public void receiveTuples(Long txnId,int oldPartitionId, int newPartitionId, 
-        String table_name, Long min_inclusive, Long max_exclusive,
-        VoltTable vt) throws Exception {
+    public void receiveTuples(Long txnId, int oldPartitionId, int newPartitionId, String table_name, Long min_inclusive, Long max_exclusive, VoltTable vt) throws Exception {
 
-      // TODO : Add data processing
-      LOG.info(String.format("Received tuples for %s (%s) (from:%s to:%s) for range, " +
-      		"(from:%s to:%s)", txnId, vt.getRowCount(), 
-      		newPartitionId
-          , oldPartitionId, min_inclusive, max_exclusive));
-      // TODO ae currentTXN and 0 for allowETL?
-      // TODO check the load when it is being executed for a range
-      loadTable(currentTxn, this.catalogContext.catalog.getName(), this.catalogContext.database.getName(), 
-          table_name, vt, 0);
+        // TODO : Add data processing
+        LOG.info(String.format("Received tuples for %s (%s) (from:%s to:%s) for range, " + "(from:%s to:%s)", txnId, vt.getRowCount(), newPartitionId, oldPartitionId, min_inclusive, max_exclusive));
+        // TODO ae currentTXN and 0 for allowETL?
+        // TODO check the load when it is being executed for a range
+        loadTable(currentTxn, this.catalogContext.catalog.getName(), this.catalogContext.database.getName(), table_name, vt, 0);
     }
-    
+
     /**
-     * Call from the Reconfiguration coordinator to pull tuples for replying to a live pull request
+     * Call from the Reconfiguration coordinator to pull tuples for replying to
+     * a live pull request
+     * 
      * @param txnId
      * @param reconfigurationRange
      * @return
      */
-    public VoltTable sendTuples(Long txnId, 
-        int oldPartitionId, int newPartitionId, String table_name, Long min_inclusive, 
-        Long max_exclusive){
-      VoltTable vt = null;
-      //TODO : add logic to extract the data for the specified reconfiguration range
-      return vt;
+    public VoltTable sendTuples(Long txnId, int oldPartitionId, int newPartitionId, String table_name, Long min_inclusive, Long max_exclusive) {
+        LOG.info(String.format("sendTuples keys %->%s for %s  partIds %->%s",min_inclusive,max_exclusive, table_name,oldPartitionId,newPartitionId));
+        VoltTable vt = null;
+        // TODO : add logic to extract the data for the specified
+        // reconfiguration range
+        return vt;
     }
 }
