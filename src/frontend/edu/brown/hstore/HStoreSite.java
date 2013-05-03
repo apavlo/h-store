@@ -1593,8 +1593,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         final long client_handle = StoredProcedureInvocation.getClientHandle(buffer);
         final int procId = StoredProcedureInvocation.getProcedureId(buffer);
         int base_partition = StoredProcedureInvocation.getBasePartition(buffer);
-        if (trace.val)
-            LOG.trace(String.format("Raw Request: clientHandle=%d / procId=%d / basePartition=%d",
+        if (debug.val)
+            LOG.debug(String.format("Raw Request: clientHandle=%d / procId=%d / basePartition=%d",
                       client_handle, procId, base_partition));
         
         // Optimization: We can get the Procedure catalog handle from its procId
