@@ -10,6 +10,8 @@ import edu.brown.hstore.Hstoreservice.DataTransferResponse;
 import edu.brown.hstore.Hstoreservice.HStoreService;
 import edu.brown.hstore.Hstoreservice.InitializeRequest;
 import edu.brown.hstore.Hstoreservice.InitializeResponse;
+import edu.brown.hstore.Hstoreservice.LivePullRequest;
+import edu.brown.hstore.Hstoreservice.LivePullResponse;
 import edu.brown.hstore.Hstoreservice.ReconfigurationRequest;
 import edu.brown.hstore.Hstoreservice.ReconfigurationResponse;
 import edu.brown.hstore.Hstoreservice.SendDataRequest;
@@ -212,6 +214,13 @@ public class MockHStoreCoordinator extends HStoreCoordinator {
         @Override
         public void dataTransfer(RpcController controller,
             DataTransferRequest request, RpcCallback<DataTransferResponse> done) {
+          // TODO Auto-generated method stub
+          
+        }
+
+        @Override
+        public void livePull(RpcController controller, LivePullRequest request,
+            RpcCallback<LivePullResponse> done) {
           // TODO Auto-generated method stub
           
         }
