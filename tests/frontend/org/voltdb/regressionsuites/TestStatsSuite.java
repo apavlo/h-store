@@ -10,7 +10,6 @@ import org.voltdb.benchmark.tpcc.TPCCConstants;
 import org.voltdb.benchmark.tpcc.TPCCProjectBuilder;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
-import org.voltdb.utils.VoltTableUtil;
 
 import edu.brown.hstore.Hstoreservice.Status;
 
