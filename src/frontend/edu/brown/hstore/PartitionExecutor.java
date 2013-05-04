@@ -4785,14 +4785,17 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         } else if (reconfig_protocol == ReconfigurationProtocols.LIVEPULL) {
             this.to_pull = new HashMap<>();
             this.pulled_tuples = new HashMap<>();
-            for (ReconfigurationRange range : this.incoming_ranges) {
-                // TODO ae how to iterate? do we need to? same as StopCopy
-                assert (range.getMin_inclusive() instanceof Long);
-                for (Long i = (Long) range.getMin_inclusive(); i < (Long) range.getMax_exclusive(); i++) {
-                    this.to_pull.put(i, true);
+            if(this.incoming_ranges!= null && this.incoming_ranges.isEmpty()==false){
+                for (ReconfigurationRange range : this.incoming_ranges) {
+                    // TODO ae how to iterate? do we need to? same as StopCopy
+                    assert (range.getMin_inclusive() instanceof Long);
                     // TODO : Test this instance of pulling out a complete range
-                    LOG.info("TODO ae force pulling tuples to test");
-                    reconfiguration_coordinator.pullTuples(currentTxnId, this.partitionId, range.new_partition, range.table_name, i, i, range.getVt());
+                    LOG.info("TODO ae force pulling tuples range to test");
+                    reconfiguration_coordinator.pullTuples(currentTxnId, range.old_partition, range.new_partition, range.table_name, (Long)range.getMin_inclusive(), (Long)range.getMax_exclusive(), range.getVt());
+                    for (Long i = (Long) range.getMin_inclusive(); i < (Long) range.getMax_exclusive(); i++) {
+                        this.to_pull.put(i, true);
+                
+                    }
                 }
             }
         }
@@ -4847,7 +4850,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
      * @return
      */
     public VoltTable sendTuples(Long txnId, int oldPartitionId, int newPartitionId, String table_name, Long min_inclusive, Long max_exclusive) {
-        LOG.info(String.format("sendTuples keys %->%s for %s  partIds %->%s",min_inclusive,max_exclusive, table_name,oldPartitionId,newPartitionId));
+        LOG.info(String.format("sendTuples keys %s->%s for %s  partIds %s->%s",min_inclusive,max_exclusive, table_name,oldPartitionId,newPartitionId));
         VoltTable vt = null;
         // TODO : add logic to extract the data for the specified
         // reconfiguration range
