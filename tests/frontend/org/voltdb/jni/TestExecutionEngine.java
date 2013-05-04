@@ -72,10 +72,6 @@ public class TestExecutionEngine extends TestCase {
         assertFalse(true);
     }
 
-    public void testMultiSiteInSamePhysicalNodeWithExecutionSite() throws Exception {
-        // TODO
-    }
-
     private void loadTestTables(Catalog catalog) throws Exception
     {
         final boolean allowExport = false;
