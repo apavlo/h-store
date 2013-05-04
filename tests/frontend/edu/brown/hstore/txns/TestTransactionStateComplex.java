@@ -114,7 +114,7 @@ public class TestTransactionStateComplex extends BaseTestCase {
             hstore_site.addPartitionExecutor(LOCAL_PARTITION, executor);
             
             BatchPlanner batchPlan = new BatchPlanner(batch, catalog_proc, p_estimator);
-            plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, LOCAL_PARTITION, new PartitionSet(LOCAL_PARTITION), SINGLE_PARTITIONED, this.touched_partitions, args);
+            plan = batchPlan.plan(TXN_ID, LOCAL_PARTITION, new PartitionSet(LOCAL_PARTITION), SINGLE_PARTITIONED, this.touched_partitions, args);
             assertNotNull(plan);
             plan.getWorkFragmentsBuilders(TXN_ID, ftasks);
             assertFalse(ftasks.isEmpty());

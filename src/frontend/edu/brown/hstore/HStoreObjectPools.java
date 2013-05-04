@@ -21,6 +21,7 @@ import edu.brown.interfaces.Configurable;
 import edu.brown.pools.TypedObjectPool;
 import edu.brown.pools.TypedPoolableObjectFactory;
 
+@Deprecated
 public final class HStoreObjectPools implements Configurable {
     private static final Logger LOG = Logger.getLogger(HStoreObjectPools.class);
 

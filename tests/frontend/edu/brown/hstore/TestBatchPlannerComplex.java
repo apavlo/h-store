@@ -78,7 +78,6 @@ public class TestBatchPlannerComplex extends BaseTestCase {
         this.touched_partitions.clear();
         BatchPlan plan = planner.plan(
                             TXN_ID,
-                            CLIENT_HANDLE,
                             0,
                             catalogContext.getAllPartitionIds(),
                             false,
@@ -164,7 +163,6 @@ public class TestBatchPlannerComplex extends BaseTestCase {
         BatchPlanner planner = new BatchPlanner(batch, catalog_proc, p_estimator);
         this.touched_partitions.clear();
         BatchPlan plan = planner.plan(TXN_ID,
-                                      CLIENT_HANDLE,
                                       BASE_PARTITION,
                                       catalogContext.getAllPartitionIds(),
                                       false,

@@ -114,7 +114,9 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
      * This is so that for each test case invocation we don't have to recompile the catalog every time
      */
     protected static CatalogContext catalogContext;
+    @Deprecated
     protected static Catalog catalog;
+    @Deprecated
     protected static Database catalog_db;
     private static final Map<ProjectType, CatalogContext> project_catalogs = new HashMap<ProjectType, CatalogContext>();
     private static final Set<ProjectType> needs_reset = new HashSet<ProjectType>(); 
@@ -245,6 +247,7 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
      * @param type
      */
     protected void reset(ProjectType type) {
+        p_estimator = null;
         project_catalogs.remove(type);
         project_p_estimators.remove(type);
         needs_reset.add(type);

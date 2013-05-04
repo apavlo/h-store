@@ -204,7 +204,6 @@ public class PrefetchQueryPlanner {
         // Generate the WorkFragments that we will need to send in our
         // TransactionInitRequest
         BatchPlan plan = planner.plan(ts.getTransactionId(),
-                                      ts.getClientHandle(),
                                       ts.getBasePartition(),
                                       ts.getPredictTouchedPartitions(),
                                       ts.isPredictSinglePartition(),

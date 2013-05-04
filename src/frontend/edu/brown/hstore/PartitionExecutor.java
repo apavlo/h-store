@@ -1482,6 +1482,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
 
         // data to aggregate
         long tupleCount = 0;
+        @SuppressWarnings("unused")
+        long tupleAccessCount = 0;
         int tupleDataMem = 0;
         int tupleAllocatedMem = 0;
         int indexMem = 0;
@@ -1517,6 +1519,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             while (stats.advanceRow()) {
                 int idx = 7;
                 tupleCount += stats.getLong(idx++);
+                tupleAccessCount += stats.getLong(idx++);
                 tupleAllocatedMem += (int) stats.getLong(idx++);
                 tupleDataMem += (int) stats.getLong(idx++);
                 stringMem += (int) stats.getLong(idx++);
@@ -3058,9 +3061,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         // for this batch. So somehow right now we need to fire this off to either our
         // local executor or to Evan's magical distributed transaction manager
         BatchPlanner.BatchPlan plan = planner.plan(ts.getTransactionId(),
-                                                   ts.getClientHandle(),
-                                                   this.partitionId, 
-                                                   ts.getPredictTouchedPartitions(),
+                                                   this.partitionId,
+                                                   ts.getPredictTouchedPartitions(), 
                                                    ts.isPredictSinglePartition(),
                                                    ts.getTouchedPartitions(),
                                                    batchParams);

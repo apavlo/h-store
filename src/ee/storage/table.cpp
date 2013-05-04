@@ -65,6 +65,7 @@ Table::Table(int tableAllocationTargetSize) :
     m_tempTuple(),
     m_schema(NULL),
     m_tupleCount(0),
+    m_tupleAccesses(0),
     m_usedTuples(0),
     m_allocatedTuples(0),
     m_columnCount(0),
