@@ -25,6 +25,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.apache.log4j.Logger;
 import org.voltdb.CatalogContext;
 import org.voltdb.StoredProcedureInvocation;
+import org.voltdb.StoredProcedureInvocationHints;
 import org.voltdb.VoltTable;
 import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.Procedure;
@@ -184,6 +185,21 @@ final class ClientImpl implements Client {
     public final ClientResponse callProcedure(String procName, Object... parameters)
         throws IOException, NoConnectionsException, ProcCallException
     {
+        return this.callProcedure(procName, null, parameters);
+    }
+    
+    /**
+     * Synchronously invoke a procedure call blocking until a result is available.
+     * @param procName class name (not qualified by package) of the procedure to execute.
+     * @param hints Extra information about what the transaction will do.
+     * @param parameters vararg list of procedure's parameter values.
+     * @return array of VoltTable results.
+     * @throws org.voltdb.client.ProcCallException
+     * @throws NoConnectionsException
+     */
+    public final ClientResponse callProcedure(String procName, StoredProcedureInvocationHints hints, Object... parameters)
+        throws IOException, NoConnectionsException, ProcCallException
+    {
         if (m_isShutdown) {
             throw new NoConnectionsException("Client instance is shutdown");
         }
@@ -193,7 +209,13 @@ final class ClientImpl implements Client {
               new StoredProcedureInvocation(m_handle.getAndIncrement(), procName, parameters);
 
         Integer site_id = null;
-        if (m_catalog != null && procName.startsWith("@") == false) {
+        if (hints != null && hints.basePartition != HStoreConstants.NULL_PARTITION_ID) {
+            invocation.setBasePartition(hints.basePartition);
+            if (m_partitionSiteXref != null) {
+                site_id = m_partitionSiteXref[hints.basePartition];
+            }
+        }
+        else if (m_catalog != null && procName.startsWith("@") == false) {
             try {
                 int partition = m_pEstimator.getBasePartition(invocation);
                 if (partition != HStoreConstants.NULL_PARTITION_ID) {
@@ -241,7 +263,15 @@ final class ClientImpl implements Client {
         if (m_isShutdown) {
             return false;
         }
-        return callProcedure(callback, m_expectedOutgoingMessageSize, procName, parameters);
+        return callProcedure(callback, m_expectedOutgoingMessageSize, procName, null, parameters);
+    }
+    
+    public final boolean callProcedure(ProcedureCallback callback, String procName, StoredProcedureInvocationHints hints, Object... parameters)
+    throws IOException, NoConnectionsException {
+        if (m_isShutdown) {
+            return false;
+        }
+        return callProcedure(callback, m_expectedOutgoingMessageSize, procName, hints, parameters);
     }
 
     @Override
@@ -266,6 +296,7 @@ final class ClientImpl implements Client {
             ProcedureCallback callback,
             int expectedSerializedSize,
             String procName,
+            StoredProcedureInvocationHints hints,
             Object... parameters)
             throws IOException, NoConnectionsException {
         if (m_isShutdown) {
@@ -290,7 +321,8 @@ final class ClientImpl implements Client {
                 
                 // OPTIMIZATION: If this isn't a sysproc, then we can tell them
                 // what the base partition for this request will be
-                if (catalog_proc.getSystemproc() == false) {
+                if ((hints == null || hints.basePartition == HStoreConstants.NULL_PARTITION_ID) &&
+                    catalog_proc.getSystemproc() == false) {
                     try {
                         int partition = m_pEstimator.getBasePartition(invocation);
                         if (partition != HStoreConstants.NULL_PARTITION_ID) {
@@ -302,6 +334,9 @@ final class ClientImpl implements Client {
                     }
                 }
             }
+        }
+        if (hints != null && hints.basePartition != HStoreConstants.NULL_PARTITION_ID) {
+            invocation.setBasePartition(hints.basePartition);
         }
 
         if (m_blockingQueue) {

@@ -109,7 +109,6 @@ public class TestLocalTransaction extends BaseTestCase {
         // We need to get all of our WorkFragments for this batch
         BatchPlanner planner = new BatchPlanner(this.batchStmts, this.catalog_proc, p_estimator);
         BatchPlanner.BatchPlan plan = planner.plan(TXN_ID,
-                                                   CLIENT_HANDLE,
                                                    BASE_PARTITION,
                                                    ts.getPredictTouchedPartitions(),
                                                    false,

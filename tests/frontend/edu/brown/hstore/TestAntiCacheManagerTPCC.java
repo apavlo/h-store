@@ -42,9 +42,9 @@ public class TestAntiCacheManagerTPCC extends BaseTestCase {
     private static final String TARGET_TABLE = TPCCConstants.TABLENAME_HISTORY;
     
     private static final String statsFields[] = {
-        "TUPLES_EVICTED",
-        "BLOCKS_EVICTED",
-        "BYTES_EVICTED"
+        "ANTICACHE_TUPLES_EVICTED",
+        "ANTICACHE_BLOCKS_EVICTED",
+        "ANTICACHE_BYTES_EVICTED"
     };
     
     private HStoreSite hstore_site;
@@ -77,7 +77,7 @@ public class TestAntiCacheManagerTPCC extends BaseTestCase {
          assertTrue(catalog_tbl.getEvictable());
         this.locators = new int[] { catalog_tbl.getRelativeIndex() };
         
-        Site catalog_site = CollectionUtil.first(CatalogUtil.getCluster(catalog).getSites());
+        Site catalog_site = CollectionUtil.first(catalogContext.sites);
         this.hstore_conf = HStoreConf.singleton();
         this.hstore_conf.site.anticache_enable = true;
         this.hstore_conf.site.anticache_profiling = true;
@@ -158,7 +158,7 @@ public class TestAntiCacheManagerTPCC extends BaseTestCase {
 //        
 //        // We should have all of our tuples evicted
 //        VoltTable evictResult = this.evictData();
-//        long evicted = evictResult.getLong("TUPLES_EVICTED");
+//        long evicted = evictResult.getLong("ANTICACHE_TUPLES_EVICTED");
 //        assertTrue("No tuples were evicted!"+evictResult, evicted > 0);
 //        
 //        // Now execute a query that needs to access data from this block
@@ -196,7 +196,7 @@ public class TestAntiCacheManagerTPCC extends BaseTestCase {
 		results[0].advanceRow(); 
         for (String col : statsFields) {
             assertEquals(col, evictResult.getLong(col), results[0].getLong(col));
-            if (col == "BLOCKS_EVICTED") {
+            if (col == "ANTICACHE_BLOCKS_EVICTED") {
                 assertEquals(col, 1, results[0].getLong(col));
             } else {
                 assertNotSame(col, 0, results[0].getLong(col));

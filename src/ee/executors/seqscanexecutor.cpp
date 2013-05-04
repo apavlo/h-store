@@ -205,6 +205,7 @@ bool SeqScanExecutor::p_execute(const NValueArray &params) {
         int tuple_ctr = 0;
         while (iterator.next(tuple))
         {
+            target_table->updateTupleAccessCount();
             VOLT_TRACE("INPUT TUPLE: %s, %d/%d\n",
                        tuple.debug(target_table->name()).c_str(), tuple_ctr,
                        (int)target_table->activeTupleCount());

@@ -8,6 +8,7 @@ import java.net.UnknownHostException;
 import java.util.concurrent.Semaphore;
 
 import org.apache.log4j.Logger;
+import org.voltdb.StoredProcedureInvocationHints;
 import org.voltdb.VoltTable;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
@@ -127,7 +128,12 @@ public class BlockingClient extends Semaphore implements Client {
     @Override
     public ClientResponse callProcedure(String procName, Object... parameters) throws IOException,
             NoConnectionsException, ProcCallException {
-        return this.inner.callProcedure(procName, parameters);
+        return this.inner.callProcedure(procName, null, parameters);
+    }
+    
+    @Override
+    public ClientResponse callProcedure(String procName, StoredProcedureInvocationHints hints, Object... parameters) throws IOException, NoConnectionsException, ProcCallException {
+        return this.inner.callProcedure(procName, hints, parameters);
     }
 
     /* (non-Javadoc)
@@ -136,16 +142,22 @@ public class BlockingClient extends Semaphore implements Client {
     @Override
     public boolean callProcedure(ProcedureCallback callback, String procName, Object... parameters) throws IOException,
             NoConnectionsException {
-        return this.inner.callProcedure(new BlockingCallback(procName, callback), procName, parameters);
+        return this.inner.callProcedure(new BlockingCallback(procName, callback), procName, null, parameters);
     }
+    
+    @Override
+    public boolean callProcedure(ProcedureCallback callback, String procName, StoredProcedureInvocationHints hints, Object... parameters) throws IOException, NoConnectionsException {
+        return this.inner.callProcedure(new BlockingCallback(procName, callback), procName, hints, parameters);
+    }
+
 
     /* (non-Javadoc)
      * @see org.voltdb.client.Client#callProcedure(org.voltdb.client.ProcedureCallback, int, java.lang.String, java.lang.Object[])
      */
     @Override
     public boolean callProcedure(ProcedureCallback callback, int expectedSerializedSize, String procName,
-            Object... parameters) throws IOException, NoConnectionsException {
-        return this.inner.callProcedure(callback, expectedSerializedSize, procName, parameters);
+            StoredProcedureInvocationHints hints, Object... parameters) throws IOException, NoConnectionsException {
+        return this.inner.callProcedure(callback, expectedSerializedSize, procName, hints, parameters);
     }
 
     /* (non-Javadoc)

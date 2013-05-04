@@ -40,9 +40,9 @@ public class EvictTuples extends VoltSystemProcedure {
         new ColumnInfo("HOSTNAME", VoltType.STRING),
         new ColumnInfo("PARTITION", VoltType.INTEGER),
         new ColumnInfo("TABLE", VoltType.STRING),
-        new ColumnInfo("TUPLES_EVICTED", VoltType.INTEGER),
-        new ColumnInfo("BLOCKS_EVICTED", VoltType.INTEGER),
-        new ColumnInfo("BYTES_EVICTED", VoltType.BIGINT),
+        new ColumnInfo("ANTICACHE_TUPLES_EVICTED", VoltType.INTEGER),
+        new ColumnInfo("ANTICACHE_BLOCKS_EVICTED", VoltType.INTEGER),
+        new ColumnInfo("ANTICACHE_BYTES_EVICTED", VoltType.BIGINT),
         new ColumnInfo("CREATED", VoltType.TIMESTAMP),
     };
     
@@ -118,9 +118,9 @@ public class EvictTuples extends VoltSystemProcedure {
                 throw new VoltAbortException(msg);
             }
 //            assert(adv);
-            long tuplesEvicted = vt.getLong("TUPLES_EVICTED");
-            long blocksEvicted = vt.getLong("BLOCKS_EVICTED");
-            long bytesEvicted = vt.getLong("BYTES_EVICTED");
+            long tuplesEvicted = vt.getLong("ANTICACHE_TUPLES_EVICTED");
+            long blocksEvicted = vt.getLong("ANTICACHE_BLOCKS_EVICTED");
+            long bytesEvicted = vt.getLong("ANTICACHE_BYTES_EVICTED");
             Object row[] = {
                     this.hstore_site.getSiteId(),
                     this.hstore_site.getSiteName(),

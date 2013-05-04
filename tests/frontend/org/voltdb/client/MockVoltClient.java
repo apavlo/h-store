@@ -54,6 +54,7 @@ import java.io.IOException;
 import java.net.UnknownHostException;
 
 import org.voltdb.ClientResponseDebug;
+import org.voltdb.StoredProcedureInvocationHints;
 import org.voltdb.VoltTable;
 
 import edu.brown.hstore.Hstoreservice.Status;
@@ -252,6 +253,7 @@ public class MockVoltClient implements Client {
             ProcedureCallback callback,
             int expectedSerializedSize,
             String procName,
+            StoredProcedureInvocationHints hints,
             Object... parameters)
             throws NoConnectionsException {
         // TODO Auto-generated method stub
@@ -314,5 +316,17 @@ public class MockVoltClient implements Client {
     @Override
     public ProfileMeasurement getQueueTime() {
         return null;
+    }
+
+    @Override
+    public ClientResponse callProcedure(String procName, StoredProcedureInvocationHints hints, Object... parameters) throws IOException, NoConnectionsException, ProcCallException {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
+    @Override
+    public boolean callProcedure(ProcedureCallback callback, String procName, StoredProcedureInvocationHints hints, Object... parameters) throws IOException, NoConnectionsException {
+        // TODO Auto-generated method stub
+        return false;
     }
 }

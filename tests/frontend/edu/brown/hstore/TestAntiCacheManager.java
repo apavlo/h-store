@@ -42,9 +42,9 @@ public class TestAntiCacheManager extends BaseTestCase {
     private static final String TARGET_TABLE = YCSBConstants.TABLE_NAME;
     
     private static final String statsFields[] = {
-        "TUPLES_EVICTED",
-        "BLOCKS_EVICTED",
-        "BYTES_EVICTED"
+        "ANTICACHE_TUPLES_EVICTED",
+        "ANTICACHE_BLOCKS_EVICTED",
+        "ANTICACHE_BYTES_EVICTED"
     };
     
     private HStoreSite hstore_site;
@@ -222,7 +222,7 @@ public class TestAntiCacheManager extends BaseTestCase {
         assert(adv);
         for (int i = 0; i < statsFields.length; i++) {
             // XXX: Skip the byte counters since it will be kilobytes
-            if (statsFields[i].startsWith("BYTES")) continue;
+            if (statsFields[i].contains("BYTES")) continue;
             
             // ACTIVE
             assertEquals(statsFields[i], newStats[0].getLong(statsFields[i]), results.getLong(statsFields[i]));
@@ -245,7 +245,7 @@ public class TestAntiCacheManager extends BaseTestCase {
         
         // We should have all of our tuples evicted
         VoltTable evictResult = this.evictData();
-        long evicted = evictResult.getLong("TUPLES_EVICTED");
+        long evicted = evictResult.getLong("ANTICACHE_TUPLES_EVICTED");
         assertTrue("No tuples were evicted!"+evictResult, evicted > 0);
         
         // Now execute a query that needs to access data from this block
@@ -274,7 +274,7 @@ public class TestAntiCacheManager extends BaseTestCase {
         
         // We should have all of our tuples evicted
         VoltTable evictResult = this.evictData();
-        long evicted = evictResult.getLong("TUPLES_EVICTED");
+        long evicted = evictResult.getLong("ANTICACHE_TUPLES_EVICTED");
         assertTrue("No tuples were evicted!"+evictResult, evicted > 0);
         
         // Execute multiple queries that try to access tuples the same block

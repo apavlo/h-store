@@ -1,15 +1,18 @@
 package org.voltdb.regressionsuites;
 
+import java.util.concurrent.CountDownLatch;
+
 import junit.framework.Test;
 
 import org.voltdb.BackendTarget;
+import org.voltdb.CatalogContext;
+import org.voltdb.StoredProcedureInvocationHints;
+import org.voltdb.benchmark.tpcc.TPCCProjectBuilder;
+import org.voltdb.benchmark.tpcc.procedures.neworder;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
+import org.voltdb.client.ProcedureCallback;
 
-import edu.brown.benchmark.tm1.TM1Client;
-import edu.brown.benchmark.tm1.TM1Client.Transaction;
-import edu.brown.benchmark.tm1.TM1Constants;
-import edu.brown.benchmark.tm1.TM1ProjectBuilder;
 import edu.brown.hstore.Hstoreservice.Status;
 
 /**
@@ -19,8 +22,10 @@ import edu.brown.hstore.Hstoreservice.Status;
 public class TestHStoreSiteSuite extends RegressionSuite {
     
     private static final String PREFIX = "hstoresite";
-    private static final double SCALEFACTOR = 0.0001;
-    private static final long NUM_SUBSCRIBERS = (long)(SCALEFACTOR * TM1Constants.SUBSCRIBER_SIZE);
+    private static final double SCALEFACTOR = 0.001;
+    private static final int NUM_WAREHOUSES = 4;
+    private static final int WAREHOUSE_ID = 1;
+    private static final int DISTRICT_ID = 1;
     
     /**
      * Constructor needed for JUnit. Should just pass on parameters to superclass.
@@ -31,10 +36,10 @@ public class TestHStoreSiteSuite extends RegressionSuite {
     }
     
     private void executeTestWorkload(Client client) throws Exception {
-        RegressionSuiteUtil.initializeTM1Database(this.getCatalogContext(), client);
-        TM1Client.Transaction txn = Transaction.UPDATE_LOCATION;
-        Object params[] = txn.generateParams(NUM_SUBSCRIBERS);
-        ClientResponse cresponse = client.callProcedure(txn.callName, params);
+        RegressionSuiteUtil.initializeTPCCDatabase(this.getCatalogContext(), client);
+        Object params[] = RegressionSuiteUtil.generateNewOrder(NUM_WAREHOUSES, false, WAREHOUSE_ID, DISTRICT_ID);
+        String procName = neworder.class.getSimpleName();
+        ClientResponse cresponse = client.callProcedure(procName, params);
         assertNotNull(cresponse);
         assertEquals(Status.OK, cresponse.getStatus());
     }
@@ -50,6 +55,48 @@ public class TestHStoreSiteSuite extends RegressionSuite {
         this.executeTestWorkload(client);
     }
     
+    /**
+     * testStoredProcedureInvocationHints
+     */
+    public void testStoredProcedureInvocationHints() throws Exception {
+        CatalogContext catalogContext = this.getCatalogContext();
+        Client client = this.getClient();
+        RegressionSuiteUtil.initializeTPCCDatabase(catalogContext, client);
+        
+        final int repeat = 100;
+        final StoredProcedureInvocationHints hints = new StoredProcedureInvocationHints();
+        final ProcedureCallback callbacks[] = new ProcedureCallback[catalogContext.numberOfPartitions];
+        final CountDownLatch latch = new CountDownLatch(catalogContext.numberOfPartitions * repeat);
+        for (int p = 0; p < catalogContext.numberOfPartitions; p++) {
+            final int partition = p;
+            callbacks[p] = new ProcedureCallback() {
+                @Override
+                public void clientCallback(ClientResponse cresponse) {
+                    assertEquals(Status.OK, cresponse.getStatus());
+                    assertEquals(partition, cresponse.getBasePartition());
+                    latch.countDown();
+                }
+            };
+        } // FOR
+        
+        for (int i = 0; i < 100; i++) {
+            for (int p = 0; p < catalogContext.numberOfPartitions; p++) {
+                hints.basePartition = p;
+                
+                // Once with a callback
+                client.callProcedure(callbacks[p], "GetItem", hints, 1);
+                
+                // And once without a callback
+                ClientResponse cresponse = client.callProcedure("GetItem", hints, 1);
+                assertNotNull(cresponse);
+                assertEquals(Status.OK, cresponse.getStatus());
+                assertEquals(p, cresponse.getBasePartition());
+            } // FOR
+        } // FOR
+        
+        latch.await();
+    }
+    
     public static Test suite() {
         VoltServerConfig config = null;
         // the suite made here will all be using the tests from this class
@@ -57,8 +104,9 @@ public class TestHStoreSiteSuite extends RegressionSuite {
         builder.setGlobalConfParameter("client.scalefactor", SCALEFACTOR);
 
         // build up a project builder for the TPC-C app
-        TM1ProjectBuilder project = new TM1ProjectBuilder();
+        TPCCProjectBuilder project = new TPCCProjectBuilder();
         project.addAllDefaults();
+        project.addStmtProcedure("GetItem", "SELECT * FROM ITEM WHERE I_ID = ?");
         
         boolean success;
         

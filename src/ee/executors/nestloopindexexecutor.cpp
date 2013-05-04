@@ -261,6 +261,7 @@ bool NestLoopIndexExecutor::p_execute(const NValueArray &params)
     while (outer_iterator.next(outer_tuple)) {
         VOLT_TRACE("outer_tuple:%s",
                    outer_tuple.debug(outer_table->name()).c_str());
+        outer_table->updateTupleAccessCount();
 
         //
         // Now use the outer table tuple to construct the search key
@@ -315,6 +316,7 @@ bool NestLoopIndexExecutor::p_execute(const NValueArray &params)
                 !(inner_tuple = index->nextValue()).isNullTuple()))
         {
             match = true;
+            inner_table->updateTupleAccessCount();
 
             VOLT_TRACE("inner_tuple:%s",
                        inner_tuple.debug(inner_table->name()).c_str());
