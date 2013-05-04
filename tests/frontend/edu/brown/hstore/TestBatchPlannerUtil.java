@@ -163,7 +163,7 @@ public class TestBatchPlannerUtil extends BaseTestCase {
      */
     public void testPlanMultiPartition() throws Exception {
         BatchPlanner batchPlan = new BatchPlanner(batch[TARGET_BATCH], catalog_proc, p_estimator);
-        BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, BASE_PARTITION, all_partitions, false, this.touched_partitions, args[TARGET_BATCH]);
+        BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, BASE_PARTITION, all_partitions, false, this.touched_partitions, args[TARGET_BATCH]);
         assertNotNull(plan);
         assertFalse(plan.hasMisprediction());
     }
@@ -180,7 +180,7 @@ public class TestBatchPlannerUtil extends BaseTestCase {
         partitions.add(BASE_PARTITION);
         partitions.add(BASE_PARTITION+1);
         
-        BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, BASE_PARTITION+1, partitions, true, this.touched_partitions, args[TARGET_BATCH]);
+        BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, BASE_PARTITION+1, partitions, true, this.touched_partitions, args[TARGET_BATCH]);
         assert(plan.hasMisprediction());
         if (plan != null) System.err.println(plan.toString());
     }
@@ -197,7 +197,7 @@ public class TestBatchPlannerUtil extends BaseTestCase {
         partitions.add(BASE_PARTITION);
 //        partitions.add(BASE_PARTITION+1);
         
-        BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, BASE_PARTITION+1, partitions, false, this.touched_partitions, args[TARGET_BATCH]);
+        BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, BASE_PARTITION+1, partitions, false, this.touched_partitions, args[TARGET_BATCH]);
         assert(plan.hasMisprediction());
         if (plan != null) System.err.println(plan.toString());
     }
@@ -208,7 +208,7 @@ public class TestBatchPlannerUtil extends BaseTestCase {
     public void testGetStatementPartitions() throws Exception {
         for (int batch_idx = 0; batch_idx < query_batch.length; batch_idx++) {
             BatchPlanner batchPlan = new BatchPlanner(batch[batch_idx], catalog_proc, p_estimator);
-            BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, BASE_PARTITION, all_partitions, false, this.touched_partitions, args[batch_idx]);
+            BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, BASE_PARTITION, all_partitions, false, this.touched_partitions, args[batch_idx]);
             assertNotNull(plan);
             assertFalse(plan.hasMisprediction());
             
@@ -245,7 +245,7 @@ public class TestBatchPlannerUtil extends BaseTestCase {
         // Check to make sure that if we do a SELECT on a replicated table, that
         // it doesn't get added to our touched partitions histogram
         BatchPlanner batchPlan = new BatchPlanner(batch, catalog_proc, p_estimator);
-        BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, BASE_PARTITION, partitions, true, this.touched_partitions, params);
+        BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, BASE_PARTITION, partitions, true, this.touched_partitions, params);
         assertNotNull(plan);
         assertFalse(plan.hasMisprediction());
         

@@ -286,12 +286,11 @@ public class BatchPlanner {
         }
 
         /**
-         * @param txn_id
-         * @param client_handle
          * @param base_partition
+         * @param txn_id
          * @param batchSize
          */
-        private BatchPlan init(long client_handle, int base_partition) {
+        private BatchPlan init(int base_partition) {
             assert (this.cached == false);
             this.base_partition = base_partition;
             this.mispredict = null;
@@ -537,7 +536,6 @@ public class BatchPlanner {
      * Generate a new BatchPlan for a batch of queries requested by the txn
      * 
      * @param txn_id
-     * @param client_handle
      * @param base_partition
      * @param predict_partitions
      * @param predict_singlePartitioned
@@ -546,7 +544,6 @@ public class BatchPlanner {
      * @return
      */
     public BatchPlan plan(final Long txn_id,
-                          final long client_handle,
                           final int base_partition,
                           final PartitionSet predict_partitions,
                           final boolean predict_singlePartitioned,
@@ -646,13 +643,18 @@ public class BatchPlanner {
         }
 
         // Otherwise we have to construct a new BatchPlan
-        this.plan.init(client_handle, base_partition);
+        this.plan.init(base_partition);
 
         // Only maintain the histogram of what partitions were touched if we
         // know that we're going to throw a MispredictionException
         Histogram<Integer> mispredict_h = null;
         boolean mispredict = false;
 
+        // ----------------------------------------------------------------------------
+        // MAIN LOGIC LOOP
+        // This is where we go through each SQLStmt in the batch and figure out
+        // what partitions it needs to touch.
+        // ----------------------------------------------------------------------------
         for (int stmt_index = 0; stmt_index < this.batchSize; stmt_index++) {
             final Statement catalog_stmt = this.catalog_stmts[stmt_index];
             assert (catalog_stmt != null) :
