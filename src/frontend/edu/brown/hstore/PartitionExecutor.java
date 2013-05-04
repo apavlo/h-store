@@ -100,6 +100,7 @@ import org.voltdb.jni.ExecutionEngineJNI;
 import org.voltdb.jni.MockExecutionEngine;
 import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.messaging.FastSerializer;
+import org.voltdb.sysprocs.StopCopy;
 import org.voltdb.types.SpecExecSchedulerPolicyType;
 import org.voltdb.types.SpeculationType;
 import org.voltdb.utils.DBBPool;
@@ -4854,6 +4855,32 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         VoltTable vt = null;
         // TODO : add logic to extract the data for the specified
         // reconfiguration range
+        /*
+         *          Table catalog_tbl = null;
+                            VoltTable table = null;
+                            Object row[] = null;
+                            for (ReconfigurationRange<? extends Comparable<?>> range : outgoing_ranges) {
+                                catalog_tbl = this.catalogContext.getTableByName(range.table_name);
+                                table = org.voltdb.utils.CatalogUtil.getVoltTable(catalog_tbl);
+                                row = new Object[table.getColumnCount()];
+                                table.clearRowData();
+                                // TODO range.table_name (ae)
+    
+                                // TODO (ae) how to iterate? or do we even need to
+                                // since
+                                // we will push down range
+                                // to ee to get table
+                                assert (range.getMin_inclusive() instanceof Long);
+                                for (Long i = (Long) range.getMin_inclusive(); i < (Long) range.getMax_exclusive(); i++) {
+                                    row[0] = i;
+    
+                                    // randomly generate strings for each column
+                                    for (int col = 2; col < row.length; col++) {
+                                        row[col] = StopCopy.astring(100, 100);
+                                    } // FOR
+                                    table.addRow(row);
+         * 
+         */
         return vt;
     }
 }

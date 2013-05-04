@@ -391,11 +391,12 @@ public class ReconfigurationCoordinator implements Shutdownable {
         VoltType voltType){
       LOG.info(String.format("pullTuples  keys %s->%s for %s  partIds %s->%s",min_inclusive,max_exclusive, table_name,oldPartitionId,newPartitionId));
       //TODO : Check if volt type makes can be used here for generic values or remove it
-      int destinationId = this.hstore_site.getCatalogContext().getSiteIdForPartitionId(oldPartitionId);
+      int sourceID = this.hstore_site.getCatalogContext().getSiteIdForPartitionId(oldPartitionId);
 
-      if (destinationId == localSiteId) {
+      if (sourceID == localSiteId) {
+          LOG.info("pulling from localsite");
           // Just push the message through local receive Tuples to the PE'S
-          sendTuples(destinationId, System.currentTimeMillis(), txnId, 
+          sendTuples(sourceID, System.currentTimeMillis(), txnId, 
               oldPartitionId, newPartitionId, table_name, min_inclusive, 
               max_exclusive);
           return;
@@ -409,7 +410,7 @@ public class ReconfigurationCoordinator implements Shutdownable {
           setMaxExclusive(max_exclusive).
           setT0S(System.currentTimeMillis()).build();
 
-      this.channels[destinationId].livePull(controller, livePullRequest, livePullRequestCallback);
+      this.channels[sourceID].livePull(controller, livePullRequest, livePullRequestCallback);
     }
     
     
