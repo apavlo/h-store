@@ -42,7 +42,7 @@ public class DepositChecking extends VoltProcedure {
         }
         // long acctId = results[0].asScalarLong();
         
-        voltQueueSQL(UpdateCheckingBalance, acctId, amount);
+        voltQueueSQL(UpdateCheckingBalance, amount, acctId);
         results = voltExecuteSQL(true);
         
         // TODO: Do we need to check whether we actually updated something?
