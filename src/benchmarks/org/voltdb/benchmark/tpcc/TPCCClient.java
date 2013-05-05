@@ -263,7 +263,7 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
     public TPCCClient(String args[]) {
         super(args);
 
-        m_tpccConfig = TPCCConfig.createConfig(this.getCatalog(), m_extraParams);
+        m_tpccConfig = TPCCConfig.createConfig(this.getCatalogContext().catalog, m_extraParams);
         if (LOG.isDebugEnabled()) LOG.debug("TPC-C Client Configuration:\n" + m_tpccConfig);
 
         // makeForRun requires the value cLast from the load generator in

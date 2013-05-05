@@ -16,10 +16,14 @@ public class Balance extends VoltProcedure {
     private static final VoltTable.ColumnInfo[] RESULT_COLS = {
         new VoltTable.ColumnInfo("TOTAL", VoltType.FLOAT),
     };
-	
+    
+    // 2013-05-05
+    // In the original version of the benchmark, this is suppose to be a look up
+    // on the customer's name. We don't have fast implementation of replicated 
+    // secondary indexes, so we'll just ignore that part for now.
     public final SQLStmt GetAccount = new SQLStmt(
-        "SELECT custid FROM " + SmallBankConstants.TABLENAME_ACCOUNTS +
-        " WHERE name = ?"
+        "SELECT * FROM " + SmallBankConstants.TABLENAME_ACCOUNTS +
+        " WHERE custid = ?"
     );
     
     public final SQLStmt GetSavingsBalance = new SQLStmt(
@@ -32,16 +36,15 @@ public class Balance extends VoltProcedure {
         " WHERE custid = ?"
     );
 	
-    public VoltTable run(String acctName) {
-        voltQueueSQL(GetAccount, acctName);
+    public VoltTable run(long acctId) {
+        voltQueueSQL(GetAccount, acctId);
         VoltTable results[] = voltExecuteSQL();
         
         if (results[0].getRowCount() != 1) {
-            String msg = "Invalid account name '" + acctName + "'";
+            String msg = "Invalid account '" + acctId + "'";
             throw new VoltAbortException(msg);
         }
-        
-        long acctId = results[0].asScalarLong();
+        // long acctId = results[0].asScalarLong();
         
         voltQueueSQL(GetSavingsBalance, acctId);
         voltQueueSQL(GetCheckingBalance, acctId);
