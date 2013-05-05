@@ -1091,6 +1091,10 @@ public abstract class BenchmarkComponent {
      * @return
      */
     protected final Integer getTransactionWeight(String txnName, Integer weightIfNull) {
+        if (debug.val)
+            LOG.debug(String.format("Looking for txn weight for '%s' [weightIfNull=%s]",
+                      txnName, weightIfNull));
+        
         Long val = this.m_txnWeights.get(txnName.toUpperCase()); 
         if (val != null) {
             return (val.intValue());
