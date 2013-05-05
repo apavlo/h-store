@@ -86,7 +86,7 @@ ENV_DEFAULT = {
     "hstore.git_branch":                "master",
     "hstore.git_options":               "",
     "hstore.clean":                     False,
-    "hstore.exec_prefix":               "compile",
+    "hstore.exec_prefix":               "",
     "hstore.partitions":                6,
     "hstore.sites_per_host":            1,
     "hstore.partitions_per_site":       8,
@@ -195,7 +195,7 @@ class AbstractFabric(object):
     ## ---------------------------------------------------------------------
     
     def exec_benchmark(self, inst, project, \
-                             removals=[ ], json=False, trace=False, \
+                             removals=[ ], json=False, build=True, trace=False, \
                              updateJar=True, updateConf=True, updateRepo=False, resetLog4j=False, \
                              extraParams={ } ):
         ## Make sure we have enough instances
@@ -249,7 +249,7 @@ class AbstractFabric(object):
         ## Make sure the the checkout is up to date
         if updateRepo: 
             LOG.info("Updating H-Store Git checkout")
-            self.deploy_hstore(build=False, update=True)
+            self.deploy_hstore(build=build, update=True)
         ## Update H-Store Conf file
         ## Do this after we update the repository so that we can put in our updates
         if updateConf:
@@ -295,9 +295,6 @@ class AbstractFabric(object):
                     for other in self.running_instances:
                         if other == inst: continue
                         run("scp %s %s:%s" % (projectFile, other.public_dns_name, projectFile))
-                        
-                    if prefix.find(" compile "):
-                        prefix = prefix.replace("compile ", "")
                 ## IF
                     
                 LOG.info("Running benchmark on %s", inst)
