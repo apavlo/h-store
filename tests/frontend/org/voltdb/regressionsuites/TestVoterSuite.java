@@ -124,15 +124,13 @@ public class TestVoterSuite extends RegressionSuite {
         
 
     public static Test suite() {
-        VoltServerConfig config = null;
         // the suite made here will all be using the tests from this class
         MultiConfigSuiteBuilder builder = new MultiConfigSuiteBuilder(TestVoterSuite.class);
-
-        // build up a project builder for the TPC-C app
         VoterProjectBuilder project = new VoterProjectBuilder();
         project.addAllDefaults();
         
         boolean success;
+        VoltServerConfig config;
         
         /////////////////////////////////////////////////////////////
         // CONFIG #1: 1 Local Site/Partition running on JNI backend
