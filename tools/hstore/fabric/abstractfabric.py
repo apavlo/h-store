@@ -161,13 +161,6 @@ class AbstractFabric(object):
         raise NotImplementedError("Unimplemented %s" % self.__init__.im_class)
     ## DEF
     
-    def exec_benchmark(self, project, \
-                             removals=[ ], json=False, trace=False, \
-                             updateJar=True, updateConf=True, updateRepo=False, resetLog4j=False, \
-                             extraParams={ } ):
-        raise NotImplementedError("Unimplemented %s" % self.__init__.im_class)
-    ## DEF
-                     
     ## =====================================================================
     ## MAIN API
     ## =====================================================================
@@ -227,12 +220,12 @@ class AbstractFabric(object):
             sites_needed = math.ceil(self.env["hstore.partitions"] / float(partitions_per_site))
             partitions_per_site = math.ceil(self.env["hstore.partitions"] / float(sites_needed))
         
-        for inst in self.getRunningSiteInstances():
-            site_hosts.add(inst.private_dns_name)
+        for siteInst in self.getRunningSiteInstances():
+            site_hosts.add(siteInst.private_dns_name)
             for i in range(self.env["hstore.sites_per_host"]):
                 firstPartition = partition_id
                 lastPartition = min(self.env["hstore.partitions"], firstPartition + partitions_per_site)-1
-                host = "%s:%d:%d" % (inst.private_dns_name, site_id, firstPartition)
+                host = "%s:%d:%d" % (siteInst.private_dns_name, site_id, firstPartition)
                 if firstPartition != lastPartition:
                     host += "-%d" % lastPartition
                 partition_id += partitions_per_site
@@ -302,8 +295,12 @@ class AbstractFabric(object):
                     for other in self.running_instances:
                         if other == inst: continue
                         run("scp %s %s:%s" % (projectFile, other.public_dns_name, projectFile))
+                        
+                    if prefix.find(" compile "):
+                        prefix = prefix.replace("compile ", "")
                 ## IF
                     
+                LOG.info("Running benchmark on %s", inst)
                 cmd = "ant %s hstore-benchmark %s" % (prefix, hstore_opts_cmd)
                 output = run(cmd)
                 

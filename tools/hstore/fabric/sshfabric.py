@@ -75,8 +75,9 @@ LOG.setLevel(logging.INFO)
 ## ==============================================
 
 ENV_DEFAULT = {
-    "ssh.hosts":                [ "istc4.csail.mit.edu", "istc3.csail.mit.edu", "istc4.csail.mit.edu" ],
-    #"key_filename":             os.path.join(os.environ["HOME"], ".ssh/csail.pem"),
+    # This can either be a path to a file, or a list of hostnames (with duplicates allowed)
+    # "ssh.hosts":                [ "host1", "host2", "host2", "host3" ],
+    "ssh.hosts":                os.path.realpath(os.path.join(basedir, "hosts.txt")),
     
     # H-Store Options
     "hstore.basedir":           os.path.realpath(os.path.join(basedir, "..")),
@@ -107,14 +108,31 @@ class SSHFabric(AbstractFabric):
         # Create all of our instance handles
         hostnames = set()
         self.unique_hosts = [ ]
-        for hostname in self.env["ssh.hosts"]:
+
+        allHostnames = [ ]
+        # HOSTS FILE
+        if type(self.env["ssh.hosts"]) is str:
+            # Check to make sure it exists
+            if not os.path.exists(self.env["ssh.hosts"]):
+                raise Exception("The ssh.hosts file '%s' does not exist" % self.env["ssh.hosts"])
+            with open(self.env["ssh.hosts"]) as fd:
+                for line in fd:
+                    map(allHostnames.append, re.split(r"[\s,]+", line.strip()))
+            ## WITH
+                                  
+        # HOSTS LIST
+        else:
+            allHostnames = self.env["ssh.hosts"]
+        
+        LOG.info("All Hostnames: %s", allHostnames)
+        for hostname in allHostnames:
             inst = SSHInstance(hostname)
             self.running_instances.append(inst)
             if not hostname in hostnames:
                 self.unique_hosts.append(inst)
                 hostnames.add(hostname)
-        self.running_instances.sort(key=lambda inst: inst.name)
-        self.unique_hosts.sort(key=lambda inst: inst.name)
+        # self.running_instances.sort(key=lambda inst: inst.name)
+        # self.unique_hosts.sort(key=lambda inst: inst.name)
         self.all_instances = self.running_instances
     ## DEF
     
@@ -168,6 +186,8 @@ class SSHFabric(AbstractFabric):
     ## DEF
 
     def getRunningClientInstances(self):
+        LOG.info("Running Instances: %s", map(str, self.running_instances))
+        LOG.info("Client Instances: %s", map(str, self.running_instances[self.siteCount+1:]))
         return self.running_instances[self.siteCount+1:]
     ## DEF
 
