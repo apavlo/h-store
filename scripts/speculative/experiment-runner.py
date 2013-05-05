@@ -264,7 +264,7 @@ def updateExperimentEnv(fabric, args, benchmark, partitions):
         if args['exp_type'] == 'motivation-oneclient':
             fabric.env["client.threads_per_host"] = 1
         else:
-            fabric.env["client.threads_per_host"] = partitions # max(1, int(partitions/2))
+            fabric.env["client.threads_per_host"] = partitions * 2  # max(1, int(partitions/2))
         
         if benchmark == "tpcc":
             fabric.env["benchmark.neworder_only"] = True
@@ -284,7 +284,8 @@ def updateExperimentEnv(fabric, args, benchmark, partitions):
         elif benchmark == "smallbank":
             fabric.env["client.weights"] = "SendPayment:100,*:0"
             fabric.env["benchmark.prob_account_hotspot"] = 0
-            fabric.env["prob_multiaccount_dtxn"] = 100
+            fabric.env["benchmark.prob_multiaccount_dtxn"] = 100
+            fabric.env["benchmark.force_multisite_dtxns"] = True
 
     ## ----------------------------------------------
     ## REMOTE QUERY

@@ -35,6 +35,7 @@ import java.util.Arrays;
 import java.util.Random;
 
 import org.apache.log4j.Logger;
+import org.voltdb.CatalogContext;
 import org.voltdb.TheHashinator;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.ProcedureCallback;
@@ -137,6 +138,7 @@ public class SmallBankClient extends BenchmarkComponent {
         
         public Object[] generateParams(SmallBankClient client) {
             long acctIds[] = new long[2];
+            int partitions[] = new int[acctIds.length];
             
             boolean is_hotspot = (client.rand.nextInt(100) < client.prob_account_hotspot);
             boolean is_dtxn = (client.rand.nextInt(100) < client.prob_multiaccount_dtxn);
@@ -152,8 +154,20 @@ public class SmallBankClient extends BenchmarkComponent {
                 }
                 
                 // DTXN
-                if (i == 1 && is_dtxn) {
-                    if (TheHashinator.hashToPartition(acctIds[0]) == TheHashinator.hashToPartition(acctIds[1])) {
+                if (is_dtxn) {
+                    partitions[i] = TheHashinator.hashToPartition(acctIds[i]);
+                    
+                    // Check whether the accounts need to be one different sites 
+                    // or whether they just need to be on different partitions
+                    if (client.force_multisite_dtxns) {
+                        CatalogContext catalogContext = client.getCatalogContext();
+                        if (catalogContext.getSiteIdForPartitionId(partitions[0]) ==
+                            catalogContext.getSiteIdForPartitionId(partitions[1])) {
+                            i -= 1;
+                            continue;
+                        }
+                    }
+                    else if (partitions[0] == partitions[1]) {
                         i -= 1;
                         continue;
                     }
@@ -195,6 +209,7 @@ public class SmallBankClient extends BenchmarkComponent {
     private final Random rand = new Random();
     private double prob_account_hotspot = 90d;
     private double prob_multiaccount_dtxn = 0.0d;
+    private boolean force_multisite_dtxns = false;
     
     public static void main(String args[]) {
         BenchmarkComponent.main(SmallBankClient.class, args, false);
@@ -202,7 +217,8 @@ public class SmallBankClient extends BenchmarkComponent {
 
     public SmallBankClient(String args[]) {
         super(args);
-        TheHashinator.initialize(this.getCatalogContext().catalog);
+        CatalogContext catalogContext = this.getCatalogContext();
+        TheHashinator.initialize(catalogContext.catalog);
         
         this.numAccounts = (int)Math.round(SmallBankConstants.NUM_ACCOUNTS * this.getScaleFactor());
         
@@ -214,11 +230,18 @@ public class SmallBankClient extends BenchmarkComponent {
                 this.prob_account_hotspot = Double.parseDouble(value);
             }
             // Probability that multi-accounts will be on different partitions
-            if (key.equalsIgnoreCase("prob_multiaccount_dtxn")) {
+            else if (key.equalsIgnoreCase("prob_multiaccount_dtxn")) {
                 this.prob_multiaccount_dtxn = Double.parseDouble(value);
             }
-            
+            // Force all distributed txns to be multi-site (if there is more than
+            // one site in the cluster.
+            else if (key.equalsIgnoreCase("force_multisite_dtxns")) {
+                this.force_multisite_dtxns = Boolean.parseBoolean(value);
+            }
         } // FOR
+        if (catalogContext.sites.size() == 1) {
+            this.force_multisite_dtxns = false;
+        }
         
         // Initialize the sampling table
         Histogram<Transaction> txns = new ObjectHistogram<Transaction>(); 

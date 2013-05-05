@@ -2794,6 +2794,18 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                        status != Status.ABORT_SPECULATIVE) {
                 (singlePartitioned ? TransactionCounter.SINGLE_PARTITION : TransactionCounter.MULTI_PARTITION).inc(catalog_proc);
                 
+                // Check for the number of multi-site txns
+                if (singlePartitioned == false) {
+                    int baseSite = catalogContext.getSiteIdForPartitionId(base_partition);
+                    for (int partition : ts.getPredictTouchedPartitions().values()) {
+                        int site = catalogContext.getSiteIdForPartitionId(partition);
+                        if (site != baseSite) {
+                            TransactionCounter.MULTI_SITE.inc(catalog_proc);
+                            break;
+                        }
+                    } // FOR
+                }
+                
                 // Only count no-undo buffers for completed transactions
                 if (ts.isExecNoUndoBuffer(base_partition)) TransactionCounter.NO_UNDO.inc(catalog_proc);
             }
