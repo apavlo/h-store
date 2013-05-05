@@ -38,10 +38,9 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
+import org.voltdb.CatalogContext;
 import org.voltdb.VoltTable;
-import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Table;
 import org.voltdb.utils.CatalogUtil;
@@ -130,16 +129,16 @@ public class TPCELoader extends BenchmarkComponent {
         generator.parseInputFiles();
         LOG.info("Finished parsing input files...");
 
-        Catalog catalog = null;
+        CatalogContext catalogContext = null;
         try {
-            catalog = this.getCatalog();
+            catalogContext = this.getCatalogContext();
         } catch (Exception ex) {
             LOG.error("Failed to retrieve already compiled catalog", ex);
             System.exit(1);
         }
 //        Database catalog_db = catalog.getClusters().get(0).getDatabases().get(0); // NASTY!
                                                                                   // CatalogUtil.getDatabase(catalog);
-        Database catalog_db = catalog.getClusters().values()[0].getDatabases().values()[0];
+        Database catalog_db = catalogContext.database;
 
         //
         // Fixed-sized Tables

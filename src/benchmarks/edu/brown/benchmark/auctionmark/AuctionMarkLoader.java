@@ -51,6 +51,7 @@ import java.util.regex.Pattern;
 import org.apache.commons.collections15.CollectionUtils;
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
+import org.voltdb.CatalogContext;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
 import org.voltdb.catalog.Catalog;
@@ -203,14 +204,14 @@ public class AuctionMarkLoader extends BenchmarkComponent {
         }
         
         // Catalog
-        Catalog _catalog = null;
+        CatalogContext _catalog = null;
         try {
-            _catalog = this.getCatalog();
+            _catalog = this.getCatalogContext();
         } catch (Exception ex) {
             LOG.error("Failed to retrieve already compiled catalog", ex);
             System.exit(1);
         }
-        this.catalog = _catalog;
+        this.catalog = _catalog.catalog;
         this.catalog_db = CatalogUtil.getDatabase(this.catalog);
         
         // ---------------------------
@@ -439,7 +440,7 @@ public class AuctionMarkLoader extends BenchmarkComponent {
         
         public void run() {
             // First block on the CountDownLatches of all the tables that we depend on
-            if (this.dependencyTables.size() > 0 && debug.get())
+            if (this.dependencyTables.size() > 0 && debug.val)
                 LOG.debug(String.format("%s: Table generator is blocked waiting for %d other tables: %s",
                                         this.tableName, this.dependencyTables.size(), this.dependencyTables));
             for (String dependency : this.dependencyTables) {

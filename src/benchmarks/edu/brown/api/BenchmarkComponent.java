@@ -606,7 +606,7 @@ public abstract class BenchmarkComponent {
         
         // HACK: This will instantiate m_catalog for us...
         if (m_catalogPath != null) {
-            this.getCatalog();
+            this.getCatalogContext();
         }
         
         // Parse workload transaction weights
@@ -782,7 +782,7 @@ public abstract class BenchmarkComponent {
                 LOG.debug("StatsUploaderSettings:\n" + statsSettings);
         }
         Client new_client = BenchmarkComponent.getClient(
-                (m_hstoreConf.client.txn_hints ? this.getCatalog() : null),
+                (m_hstoreConf.client.txn_hints ? this.getCatalogContext().catalog : null),
                 getExpectedOutgoingMessageSize(),
                 useHeavyweightClient(),
                 statsSettings,
@@ -810,7 +810,7 @@ public abstract class BenchmarkComponent {
 
     private void setupConnections() {
         boolean atLeastOneConnection = false;
-        for (Site catalog_site : CatalogUtil.getAllSites(this.getCatalog())) {
+        for (Site catalog_site : this.getCatalogContext().sites) {
             final int site_id = catalog_site.getId();
             final String host = catalog_site.getHost().getIpaddr();
             int port = catalog_site.getProc_port();
@@ -1139,16 +1139,15 @@ public abstract class BenchmarkComponent {
      */
     private final WorkloadStatistics generateWorkloadStatistics() {
         assert(m_tableStatsDir != null);
-        final Catalog catalog = this.getCatalog();
-        assert(catalog != null);
-        final Database catalog_db = CatalogUtil.getDatabase(catalog);
+        final CatalogContext catalogContext = this.getCatalogContext();
+        assert(catalogContext != null);
 
         // Make sure we call postprocess on all of our friends
         for (TableStatistics tableStats : m_tableStatsData.values()) {
             try {
-                tableStats.postprocess(catalog_db);
+                tableStats.postprocess(catalogContext.database);
             } catch (Exception ex) {
-                String tableName = tableStats.getCatalogItem(catalog_db).getName();
+                String tableName = tableStats.getCatalogItem(catalogContext.database).getName();
                 throw new RuntimeException("Failed to process TableStatistics for '" + tableName + "'", ex);
             }
         } // FOR
@@ -1156,7 +1155,7 @@ public abstract class BenchmarkComponent {
         if (trace.val)
             LOG.trace(String.format("Creating WorkloadStatistics for %d tables [totalRows=%d, totalBytes=%d",
                                     m_tableStatsData.size(), m_tableTuples.getSampleCount(), m_tableBytes.getSampleCount()));
-        WorkloadStatistics stats = new WorkloadStatistics(catalog_db);
+        WorkloadStatistics stats = new WorkloadStatistics(catalogContext.database);
         stats.apply(m_tableStatsData);
         return (stats);
     }
@@ -1428,16 +1427,6 @@ public abstract class BenchmarkComponent {
 
     public final int getCurrentTickCounter() {
         return (m_tickCounter);
-    }
-    
-    /**
-     * Return the catalog used for this benchmark.
-     * @return
-     * @throws Exception
-     */
-    @Deprecated
-    public Catalog getCatalog() {
-        return (this.getCatalogContext().catalog);
     }
     
     /**

@@ -9,7 +9,6 @@ import org.voltdb.BackendTarget;
 import org.voltdb.CatalogContext;
 import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
-import org.voltdb.catalog.Catalog;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.sysprocs.AdHoc;
@@ -50,8 +49,8 @@ public class TestWikipediaSuite extends RegressionSuite {
                 this.setClientHandle(client);
             }
             @Override
-            public Catalog getCatalog() {
-                return (catalogContext.catalog);
+            public CatalogContext getCatalogContext() {
+                return (catalogContext);
             }
         };
         loader.load();
@@ -71,8 +70,8 @@ public class TestWikipediaSuite extends RegressionSuite {
                 this.setClientHandle(client);
             }
             @Override
-            public Catalog getCatalog() {
-                return (catalogContext.catalog);
+            public CatalogContext getCatalogContext() {
+                return (catalogContext);
             }
         };
         return (benchmarkClient);

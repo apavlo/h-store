@@ -3,9 +3,9 @@ package edu.brown.benchmark.locality;
 import java.lang.reflect.Field;
 
 import org.apache.log4j.Logger;
+import org.voltdb.CatalogContext;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
-import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.Cluster;
 import org.voltdb.catalog.Column;
 import org.voltdb.catalog.Table;
@@ -40,8 +40,8 @@ public class TestLocalityLoader extends BaseTestCase {
         String args[] = { "client.scalefactor=" + SCALE_FACTOR, "NOCONNECTIONS=true", "NOUPLOADING=true", };
         this.loader = new LocalityLoader(args) {
             @Override
-            public Catalog getCatalog() {
-                return (BaseTestCase.catalog);
+            public CatalogContext getCatalogContext() {
+                return (BaseTestCase.catalogContext);
             }
 
             @Override
