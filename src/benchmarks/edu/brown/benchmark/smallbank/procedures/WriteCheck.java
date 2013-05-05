@@ -17,9 +17,13 @@ import edu.brown.benchmark.smallbank.SmallBankConstants;
 )
 public class WriteCheck extends VoltProcedure {
     
+    // 2013-05-05
+    // In the original version of the benchmark, this is suppose to be a look up
+    // on the customer's name. We don't have fast implementation of replicated 
+    // secondary indexes, so we'll just ignore that part for now.
     public final SQLStmt GetAccount = new SQLStmt(
-        "SELECT custid FROM " + SmallBankConstants.TABLENAME_ACCOUNTS +
-        " WHERE name = ?"
+        "SELECT * FROM " + SmallBankConstants.TABLENAME_ACCOUNTS +
+        " WHERE custid = ?"
     );
     
     public final SQLStmt GetSavingsBalance = new SQLStmt(
@@ -38,16 +42,16 @@ public class WriteCheck extends VoltProcedure {
         " WHERE custid = ?"
     );
     
-    public VoltTable run(String acctName, double amount) {
-        voltQueueSQL(GetAccount, acctName);
+    public VoltTable run(long acctId, double amount) {
+        voltQueueSQL(GetAccount, acctId);
         VoltTable results[] = voltExecuteSQL();
         
         if (results[0].getRowCount() != 1) {
-            String msg = "Invalid account name '" + acctName + "'";
+            String msg = "Invalid account name '" + acctId + "'";
             throw new VoltAbortException(msg);
         }
+        // long acctId = results[0].asScalarLong();
         
-        long acctId = results[0].asScalarLong();
         voltQueueSQL(GetSavingsBalance, acctId);
         voltQueueSQL(GetCheckingBalance, acctId);
         results = voltExecuteSQL();
@@ -69,9 +73,9 @@ public class WriteCheck extends VoltProcedure {
         double total = results[0].getDouble(0) + results[1].getDouble(0);
         
         if (total < amount) {
-            voltQueueSQL(UpdateCheckingBalance, amount - 1);
+            voltQueueSQL(UpdateCheckingBalance, amount - 1, acctId);
         } else {
-            voltQueueSQL(UpdateCheckingBalance, amount);
+            voltQueueSQL(UpdateCheckingBalance, amount, acctId);
         }
         results = voltExecuteSQL(true);
         return (results[0]);

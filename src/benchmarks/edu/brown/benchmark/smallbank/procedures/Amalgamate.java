@@ -17,9 +17,13 @@ import edu.brown.benchmark.smallbank.SmallBankConstants;
 )
 public class Amalgamate extends VoltProcedure {
     
+    // 2013-05-05
+    // In the original version of the benchmark, this is suppose to be a look up
+    // on the customer's name. We don't have fast implementation of replicated 
+    // secondary indexes, so we'll just ignore that part for now.
     public final SQLStmt GetAccount = new SQLStmt(
-        "SELECT custid FROM " + SmallBankConstants.TABLENAME_ACCOUNTS +
-        " WHERE name = ?"
+        "SELECT * FROM " + SmallBankConstants.TABLENAME_ACCOUNTS +
+        " WHERE custid = ?"
     );
     
     public final SQLStmt GetSavingsBalance = new SQLStmt(
@@ -40,29 +44,35 @@ public class Amalgamate extends VoltProcedure {
     
     public final SQLStmt UpdateCheckingBalance = new SQLStmt(
         "UPDATE " + SmallBankConstants.TABLENAME_CHECKING + 
-        "   SET bal = bal - ? " +
+        "   SET bal = bal + ? " +
         " WHERE custid = ?"
     );
     
-    public VoltTable run(String acctName0, String acctName1, double amount) {
+    public final SQLStmt ZeroCheckingBalance = new SQLStmt(
+        "UPDATE " + SmallBankConstants.TABLENAME_CHECKING + 
+        "   SET bal = 0.0 " +
+        " WHERE custid = ?"
+    );
+    
+    public VoltTable run(long acctId0, long acctId1) {
         // Get Account Information
-        voltQueueSQL(GetAccount, acctName0);
-        voltQueueSQL(GetAccount, acctName1);
+        voltQueueSQL(GetAccount, acctId1);
+        voltQueueSQL(GetAccount, acctId0);
         final VoltTable acctResults[] = voltExecuteSQL();
         if (acctResults[0].getRowCount() != 1) {
-            String msg = "Invalid account name '" + acctName0 + "'";
+            String msg = "Invalid account '" + acctId0 + "'";
             throw new VoltAbortException(msg);
         }
         if (acctResults[1].getRowCount() != 1) {
-            String msg = "Invalid account name '" + acctName1 + "'";
+            String msg = "Invalid account '" + acctId1 + "'";
             throw new VoltAbortException(msg);
         }
-        long acctId0 = acctResults[0].asScalarLong();
-        long acctId1 = acctResults[1].asScalarLong();
+        // long acctId0 = acctResults[0].asScalarLong();
+        // long acctId1 = acctResults[1].asScalarLong();
         
         // Get Balance Information
         voltQueueSQL(GetSavingsBalance, acctId0);
-        voltQueueSQL(GetCheckingBalance, acctId0);
+        voltQueueSQL(GetCheckingBalance, acctId1);
         final VoltTable balResults[] = voltExecuteSQL();
         if (balResults[0].getRowCount() != 1) {
             String msg = String.format("No %s for customer #%d",
@@ -78,11 +88,12 @@ public class Amalgamate extends VoltProcedure {
         }
         balResults[0].advanceRow();
         balResults[1].advanceRow();
-        double total = balResults[0].getDouble(0) + balResults[1].getDouble(0);  
+        double total = balResults[0].getDouble(0) + balResults[1].getDouble(0);
+        assert(total >= 0);
 
         // Update Balance Information
-        voltQueueSQL(UpdateSavingsBalance, acctId0, 0.0);
-        voltQueueSQL(UpdateCheckingBalance, acctId0, 0.0);
+        voltQueueSQL(ZeroCheckingBalance, acctId0);
+        voltQueueSQL(UpdateSavingsBalance, total, acctId1);
         
                 
 //        if (balance < 0) {

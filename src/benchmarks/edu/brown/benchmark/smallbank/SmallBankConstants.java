@@ -34,8 +34,8 @@ public abstract class SmallBankConstants {
     // ----------------------------------------------------------------
     // STORED PROCEDURE EXECUTION FREQUENCIES (0-100)
     // ----------------------------------------------------------------
-    public static final int FREQUENCY_AMALGAMATE        = 5;
-    public static final int FREQUENCY_BALANCE           = 35;
+    public static final int FREQUENCY_AMALGAMATE        = 20;
+    public static final int FREQUENCY_BALANCE           = 20;
     public static final int FREQUENCY_DEPOSIT_CHECKING  = 20;
     public static final int FREQUENCY_TRANSACT_SAVINGS  = 20;
     public static final int FREQUENCY_WRITE_CHECK       = 20;

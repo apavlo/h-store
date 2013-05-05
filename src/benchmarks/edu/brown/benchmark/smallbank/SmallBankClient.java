@@ -70,27 +70,41 @@ public class SmallBankClient extends BenchmarkComponent {
     public static enum Transaction {
         AMALGAMATE(SmallBankConstants.FREQUENCY_AMALGAMATE, new ArgGenerator() {
             public Object[] genArgs(long acct0, long acct1) {
-                return (null);
+                return new Object[] {
+                    acct0,  // acctId0
+                    acct1,  // acctId1
+                };
             }
         }),
         BALANCE(SmallBankConstants.FREQUENCY_BALANCE, new ArgGenerator() {
             public Object[] genArgs(long acct0, long acct1) {
-                return (null);
+                return new Object[] {
+                    acct0,  // acctId
+                };
             }
         }),
         DEPOSIT_CHECKING(SmallBankConstants.FREQUENCY_DEPOSIT_CHECKING, new ArgGenerator() {
             public Object[] genArgs(long acct0, long acct1) {
-                return (null);
+                return new Object[] {
+                    acct0,  // acctId0
+                    1.3     // amount (from original code)
+                };
             }
         }),
         TRANSACT_SAVINGS(SmallBankConstants.FREQUENCY_TRANSACT_SAVINGS, new ArgGenerator() {
             public Object[] genArgs(long acct0, long acct1) {
-                return (null);
+                return new Object[] {
+                    acct0,  // acctId
+                    20.20   // amount (from original code)
+                };
             }
         }),
         WRITE_CHECK(SmallBankConstants.FREQUENCY_WRITE_CHECK, new ArgGenerator() {
             public Object[] genArgs(long acct0, long acct1) {
-                return (null);
+                return new Object[] {
+                    acct0,  // acctId
+                    5.0     // amount (from original code)
+                };
             }
         });
         
@@ -143,7 +157,7 @@ public class SmallBankClient extends BenchmarkComponent {
         @Override
         public void clientCallback(ClientResponse clientResponse) {
             incrementTransactionCounter(clientResponse, this.txnType.ordinal());
-            // LOG.info(clientResponse);
+            checkTransaction(txnType.callName, clientResponse, true, false);
         }
     } // END CLASS
     
@@ -171,8 +185,7 @@ public class SmallBankClient extends BenchmarkComponent {
             txns.put(t, weight);
         } // FOR
         assert(txns.getSampleCount() == 100) : "Invalid txn percentage total: " + txns.getSampleCount() + "\n" + txns;
-        Random rand = new Random(); // FIXME
-        this.txnWeights = new FlatHistogram<Transaction>(rand, txns);
+        this.txnWeights = new FlatHistogram<Transaction>(this.rand, txns);
         if (LOG.isDebugEnabled())
             LOG.debug("Transaction Workload Distribution:\n" + txns);
 
