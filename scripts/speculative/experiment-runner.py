@@ -168,8 +168,8 @@ EXPERIMENT_SETTINGS = {
         "client.blocking":                      True,
         "client.output_response_status":        True,
         "client.output_exec_profiling":         "execprofile.csv",
-        #"client.output_txn_profiling":          "txnprofile.csv",
-        #"client.output_txn_profiling_combine":  True,
+        "client.output_txn_profiling":          "txnprofile.csv",
+        "client.output_txn_profiling_combine":  True,
         #"client.output_txn_counters":           "txncounters.csv",
         #"client.output_txn_counters_combine":   False,
         "client.output_basepartitions":         False,
@@ -268,6 +268,7 @@ def updateExperimentEnv(fabric, args, benchmark, partitions):
         
         if benchmark == "tpcc":
             fabric.env["benchmark.neworder_only"] = True
+            fabric.env["benchmark.neworder_multip"] = True
             fabric.env["benchmark.neworder_multip_remote"] = True
             fabric.env["benchmark.neworder_abort"] = False
             fabric.env["benchmark.neworder_multip_mix"] = 100
@@ -281,7 +282,9 @@ def updateExperimentEnv(fabric, args, benchmark, partitions):
             fabric.env["benchmark.force_all_distributed"] = True
             fabric.env["benchmark.force_all_singlepartition"] = False
         elif benchmark == "smallbank":
-            pass
+            fabric.env["client.weights"] = "SendPayment:100,*:0"
+            fabric.env["benchmark.prob_account_hotspot"] = 0
+            fabric.env["prob_multiaccount_dtxn"] = 100
 
     ## ----------------------------------------------
     ## REMOTE QUERY
@@ -650,7 +653,7 @@ if __name__ == '__main__':
                 ## FOR
             
             client_inst = fabric.getRunningClientInstances()[0]
-            LOG.debug("Client Instance: " + client_inst.public_dns_name)
+            LOG.info("Client Instance: " + client_inst.public_dns_name)
             
             ## Synchronize Instance Times
             if needSync: fabric.sync_time()
