@@ -124,7 +124,7 @@ class SSHFabric(AbstractFabric):
         else:
             allHostnames = self.env["ssh.hosts"]
         
-        LOG.info("All Hostnames: %s", allHostnames)
+        LOG.debug("All Hostnames: %s", allHostnames)
         for hostname in allHostnames:
             inst = SSHInstance(hostname)
             self.running_instances.append(inst)
@@ -186,8 +186,8 @@ class SSHFabric(AbstractFabric):
     ## DEF
 
     def getRunningClientInstances(self):
-        LOG.info("Running Instances: %s", map(str, self.running_instances))
-        LOG.info("Client Instances: %s", map(str, self.running_instances[self.siteCount+1:]))
+        LOG.debug("Running Instances: %s", map(str, self.running_instances))
+        LOG.debug("Client Instances: %s", map(str, self.running_instances[self.siteCount+1:]))
         return self.running_instances[self.siteCount+1:]
     ## DEF
 

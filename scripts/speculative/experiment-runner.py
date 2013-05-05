@@ -682,22 +682,14 @@ if __name__ == '__main__':
             attempts = 0
             updateConf = (args['no_conf'] == False)
             while len(results) < args['exp_trials'] and attempts < totalAttempts and stop == False:
-                ## Only compile for the very first invocation
-                if needCompile:
-                    if fabric.env["hstore.exec_prefix"].find("compile") == -1:
-                        fabric.env["hstore.exec_prefix"] += " compile"
-                else:
-                    fabric.env["hstore.exec_prefix"] = fabric.env["hstore.exec_prefix"].replace("compile", "")
-                    
-                needCompile = False
                 attempts += 1
-                LOG.info("Executing %s Trial #%d/%d [attempt=%d/%d]" % (\
+                LOG.info("Executing %s Trial #%d/%d [attempt=%d/%d]",
                             benchmark.upper(),
                             len(results),
                             args['exp_trials'],
                             attempts,
                             totalAttempts
-                ))
+                )
                 try:
                     output, workloads = fabric.exec_benchmark(
                                             client_inst, \
@@ -705,6 +697,7 @@ if __name__ == '__main__':
                                             removals=conf_remove, \
                                             json=(args['no_json'] == False), \
                                             trace=args['workload_trace'], \
+                                            build=needCompile, \
                                             updateJar=updateJar, \
                                             updateConf=updateConf, \
                                             updateRepo=needUpdate, \
@@ -719,6 +712,9 @@ if __name__ == '__main__':
                     
                     # CSV RESULT FILES
                     getCSVOutput(client_inst, fabric, args, benchmark, partitions)
+                    
+                    # Only compile for the very first invocation
+                    needCompile = False
                 except KeyboardInterrupt:
                     stop = True
                     break
