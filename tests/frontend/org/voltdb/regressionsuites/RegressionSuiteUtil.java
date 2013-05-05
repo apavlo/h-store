@@ -24,7 +24,6 @@ import org.voltdb.sysprocs.Statistics;
 import org.voltdb.types.TimestampType;
 import org.voltdb.utils.VoltTypeUtil;
 
-import edu.brown.benchmark.smallbank.SmallBankLoader;
 import edu.brown.benchmark.tm1.TM1Loader;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.Hstoreservice.Status;
@@ -129,21 +128,6 @@ public abstract class RegressionSuiteUtil {
         loader.load();
     }
     
-    public static final void initializeSmallBankDatabase(final CatalogContext catalogContext, final Client client) throws Exception {
-        String args[] = { "NOCONNECTIONS=true", };
-        SmallBankLoader loader = new SmallBankLoader(args) {
-            {
-                this.setCatalogContext(catalogContext);
-                this.setClientHandle(client);
-            }
-            @Override
-            public CatalogContext getCatalogContext() {
-                return (catalogContext);
-            }
-        };
-        loader.load();
-    }
-
     protected static Object[] generateNewOrder(int num_warehouses, boolean dtxn, int w_id, int d_id) throws Exception {
         short supply_w_id;
         if (dtxn) {

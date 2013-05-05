@@ -2870,7 +2870,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         AsyncCompilerResult result = null;
  
         while ((result = asyncCompilerWork_thread.getPlannedStmt()) != null) {
-            if (debug.val) LOG.debug("AsyncCompilerResult\n" + result);
+            if (trace.val) LOG.trace("AsyncCompilerResult\n" + result);
             
             // ----------------------------------
             // BUSTED!
