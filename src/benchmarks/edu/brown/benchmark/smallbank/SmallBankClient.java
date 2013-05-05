@@ -167,7 +167,7 @@ public class SmallBankClient extends BenchmarkComponent {
                     }
                     // Or they need to be on the same site
                     else if (client.force_singlesite_dtxns) {
-                        retry = (sites[0] != sites[1]);
+                        retry = (sites[0] != sites[1] || partitions[0] == partitions[1]);
                     }
                     // Or at least on the same partition
                     else {
@@ -250,6 +250,9 @@ public class SmallBankClient extends BenchmarkComponent {
                 this.force_singlesite_dtxns = Boolean.parseBoolean(value);
             }
         } // FOR
+        if (catalogContext.numberOfPartitions == 1) {
+            this.prob_multiaccount_dtxn = 0;
+        }
         if (catalogContext.sites.size() == 1) {
             this.force_multisite_dtxns = false;
         }
