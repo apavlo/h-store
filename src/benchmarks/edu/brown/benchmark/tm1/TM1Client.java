@@ -43,6 +43,7 @@ import org.voltdb.client.ProcedureCallback;
 import edu.brown.api.BenchmarkComponent;
 import edu.brown.rand.RandomDistribution.FlatHistogram;
 import edu.brown.statistics.ObjectHistogram;
+import edu.brown.utils.StringUtil;
 
 /**
  * TM1Client
@@ -71,7 +72,7 @@ public class TM1Client extends BenchmarkComponent {
      * Set of transactions structs with their appropriate parameters
      */
     public static enum Transaction {
-        DELETE_CALL_FORWARDING("Delete Call Forwarding", TM1Constants.FREQUENCY_DELETE_CALL_FORWARDING, new ArgGenerator() {
+        DELETE_CALL_FORWARDING(TM1Constants.FREQUENCY_DELETE_CALL_FORWARDING, new ArgGenerator() {
             public Object[] genArgs(long subscriberSize) {
                 long s_id = TM1Util.getSubscriberId(subscriberSize);
                 return new Object[] { TM1Util.padWithZero(s_id), // s_id
@@ -80,7 +81,7 @@ public class TM1Client extends BenchmarkComponent {
                 };
             }
         }),
-        GET_ACCESS_DATA("Get Access Data", TM1Constants.FREQUENCY_GET_ACCESS_DATA, new ArgGenerator() {
+        GET_ACCESS_DATA(TM1Constants.FREQUENCY_GET_ACCESS_DATA, new ArgGenerator() {
             public Object[] genArgs(long subscriberSize) {
                 long s_id = TM1Util.getSubscriberId(subscriberSize);
                 return new Object[] { s_id, // s_id
@@ -88,7 +89,7 @@ public class TM1Client extends BenchmarkComponent {
                 };
             }
         }),
-        GET_NEW_DESTINATION("Get New Destination", TM1Constants.FREQUENCY_GET_NEW_DESTINATION, new ArgGenerator() {
+        GET_NEW_DESTINATION(TM1Constants.FREQUENCY_GET_NEW_DESTINATION, new ArgGenerator() {
             public Object[] genArgs(long subscriberSize) {
                 long s_id = TM1Util.getSubscriberId(subscriberSize);
                 return new Object[] { s_id, // s_id
@@ -98,14 +99,14 @@ public class TM1Client extends BenchmarkComponent {
                 };
             }
         }),
-        GET_SUBSCRIBER_DATA("Get Subscriber Data", TM1Constants.FREQUENCY_GET_SUBSCRIBER_DATA, new ArgGenerator() {
+        GET_SUBSCRIBER_DATA(TM1Constants.FREQUENCY_GET_SUBSCRIBER_DATA, new ArgGenerator() {
             public Object[] genArgs(long subscriberSize) {
                 long s_id = TM1Util.getSubscriberId(subscriberSize);
                 return new Object[] { s_id // s_id
                 };
             }
         }),
-        INSERT_CALL_FORWARDING("Insert Call Forwarding", TM1Constants.FREQUENCY_INSERT_CALL_FORWARDING, new ArgGenerator() {
+        INSERT_CALL_FORWARDING(TM1Constants.FREQUENCY_INSERT_CALL_FORWARDING, new ArgGenerator() {
             public Object[] genArgs(long subscriberSize) {
                 long s_id = TM1Util.getSubscriberId(subscriberSize);
                 return new Object[] {
@@ -117,7 +118,7 @@ public class TM1Client extends BenchmarkComponent {
                 };
             }
         }),
-        UPDATE_LOCATION("Update Location", TM1Constants.FREQUENCY_UPDATE_LOCATION, new ArgGenerator() {
+        UPDATE_LOCATION(TM1Constants.FREQUENCY_UPDATE_LOCATION, new ArgGenerator() {
             public Object[] genArgs(long subscriberSize) {
                 long s_id = TM1Util.getSubscriberId(subscriberSize);
                 return new Object[] { TM1Util.number(0, Integer.MAX_VALUE), // vlr_location
@@ -125,7 +126,7 @@ public class TM1Client extends BenchmarkComponent {
                 };
             }
         }),
-        UPDATE_SUBSCRIBER_DATA("Update Subscriber Data", TM1Constants.FREQUENCY_UPDATE_SUBSCRIBER_DATA, new ArgGenerator() {
+        UPDATE_SUBSCRIBER_DATA(TM1Constants.FREQUENCY_UPDATE_SUBSCRIBER_DATA, new ArgGenerator() {
             public Object[] genArgs(long subscriberSize) {
                 long s_id = TM1Util.getSubscriberId(subscriberSize);
                 return new Object[] { s_id, // s_id
@@ -139,9 +140,9 @@ public class TM1Client extends BenchmarkComponent {
         /**
          * Constructor
          */
-        private Transaction(String displayName, int weight, ArgGenerator ag) {
-            this.displayName = displayName;
-            this.callName = displayName.replace(" ", "");
+        private Transaction(int weight, ArgGenerator ag) {
+            this.displayName = StringUtil.title(this.name().replace("_", " ").toLowerCase());
+            this.callName = this.displayName.replace(" ", "");
             this.weight = weight;
             this.ag = ag;
         }
@@ -152,9 +153,8 @@ public class TM1Client extends BenchmarkComponent {
 
         public final String displayName;
         public final String callName;
-        public final int weight; // probability (in terms of percentage) the
-                                 // transaction gets executed
-        public final ArgGenerator ag;
+        private final int weight;
+        private final ArgGenerator ag;
     } // TRANSCTION ENUM
 
     /**
@@ -178,10 +178,7 @@ public class TM1Client extends BenchmarkComponent {
     /**
      * Data Members
      */
-
-    // Storing the ordinals of transaction per tm1 probability distribution
     private final FlatHistogram<Transaction> txnWeights;
-//    private final int[] txnWeights = new int[100];
 
     // Callbacks
     protected final TM1Callback callbacks[];
@@ -250,7 +247,7 @@ public class TM1Client extends BenchmarkComponent {
 
     @Override
     protected boolean runOnce() throws IOException {
-        final Transaction target = this.txnWeights.nextValue();
+        Transaction target = this.txnWeights.nextValue();
 
         this.startComputeTime(target.displayName);
         Object params[] = target.ag.genArgs(subscriberSize);
