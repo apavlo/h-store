@@ -42,6 +42,8 @@ import org.voltdb.catalog.Table;
 import org.voltdb.utils.CatalogUtil;
 
 import edu.brown.api.Loader;
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.rand.DefaultRandomGenerator;
 import edu.brown.rand.RandomDistribution.DiscreteRNG;
 import edu.brown.rand.RandomDistribution.Gaussian;
@@ -49,7 +51,10 @@ import edu.brown.utils.ThreadUtil;
 
 public class SmallBankLoader extends Loader {
     private static final Logger LOG = Logger.getLogger(SmallBankLoader.class);
-    private static final boolean d = LOG.isDebugEnabled();
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug);
+    }
 
     public static void main(String args[]) throws Exception {
         Loader.main(SmallBankLoader.class, args, true);
@@ -91,7 +96,8 @@ public class SmallBankLoader extends Loader {
         } // FOR
         ThreadUtil.runGlobalPool(runnables);
         
-        System.err.println(this.getTableTupleCounts());
+        if (debug.val)
+            LOG.debug("Table Counts:\n" + this.getTableTupleCounts());
     }
     
     /**
