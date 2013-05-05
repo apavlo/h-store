@@ -418,6 +418,9 @@ public class TPCCSimulation {
                 if (config.warehouse_pairing) {
                     remote_w_id = generatePairedWarehouse(warehouse_id, parameters.starting_warehouse, parameters.last_warehouse);
                 }
+                else if (config.neworder_multip_remote) {
+                    remote_w_id = (short)generator.numberRemoteWarehouseId(parameters.starting_warehouse, parameters.last_warehouse, (int) warehouse_id);
+                }
                 else {
                     remote_w_id = (short)generator.numberExcluding(parameters.starting_warehouse, parameters.last_warehouse, (int) warehouse_id);
                 }
@@ -433,7 +436,7 @@ public class TPCCSimulation {
         }
         // Whether to force this transaction to be multi-partitioned
         if (parameters.warehouses > 1 &&
-                config.neworder_multip == false && 
+                config.neworder_multip == true && 
                 config.neworder_multip_mix > 0 && 
                 (generator.number(1, 1000) <= (config.neworder_multip_mix*100))) {
             if (trace.val) LOG.trace("Forcing Multi-Partition NewOrder Transaction");
@@ -443,7 +446,7 @@ public class TPCCSimulation {
             if (config.warehouse_pairing) {
                 remote_w_id = generatePairedWarehouse(warehouse_id, parameters.starting_warehouse, parameters.last_warehouse);
             }
-            if (config.neworder_multip_remote) {
+            else if (config.neworder_multip_remote) {
             	remote_w_id = (short)generator.numberRemoteWarehouseId(parameters.starting_warehouse, parameters.last_warehouse, (int) warehouse_id);
             } else {
             	remote_w_id = (short)generator.numberExcluding(parameters.starting_warehouse, parameters.last_warehouse, (int) warehouse_id);
