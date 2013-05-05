@@ -37,6 +37,7 @@ public abstract class SmallBankConstants {
     public static final int FREQUENCY_AMALGAMATE        = 20;
     public static final int FREQUENCY_BALANCE           = 20;
     public static final int FREQUENCY_DEPOSIT_CHECKING  = 20;
+    public static final int FREQUENCY_SEND_PAYMENT      = 0;
     public static final int FREQUENCY_TRANSACT_SAVINGS  = 20;
     public static final int FREQUENCY_WRITE_CHECK       = 20;
 
@@ -56,7 +57,6 @@ public abstract class SmallBankConstants {
     // Default number of customers in bank
     public static final int NUM_ACCOUNTS            = 1000000;
     
-    public static final int HOTSPOT_PROBABILITY     = 10;
     public static final int HOTSPOT_SIZE            = 100;
     
     // ----------------------------------------------------------------

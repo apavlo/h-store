@@ -31,13 +31,17 @@
 package edu.brown.benchmark.smallbank;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Random;
 
 import org.apache.log4j.Logger;
+import org.voltdb.TheHashinator;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.ProcedureCallback;
 
 import edu.brown.api.BenchmarkComponent;
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.rand.RandomDistribution.FlatHistogram;
 import edu.brown.statistics.Histogram;
 import edu.brown.statistics.ObjectHistogram;
@@ -49,6 +53,10 @@ import edu.brown.utils.StringUtil;
  */
 public class SmallBankClient extends BenchmarkComponent {
     private static final Logger LOG = Logger.getLogger(SmallBankClient.class);
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug);
+    }
     
     /**
      * Each Transaction element provides an ArgGenerator to create the proper
@@ -91,6 +99,15 @@ public class SmallBankClient extends BenchmarkComponent {
                 };
             }
         }),
+        SEND_PAYMENT(SmallBankConstants.FREQUENCY_SEND_PAYMENT, new ArgGenerator() {
+            public Object[] genArgs(long acct0, long acct1) {
+                return new Object[] {
+                    acct0,  // sendAcct
+                    acct1,  // destAcct
+                    5.00    // amount
+                };
+            }
+        }),
         TRANSACT_SAVINGS(SmallBankConstants.FREQUENCY_TRANSACT_SAVINGS, new ArgGenerator() {
             public Object[] genArgs(long acct0, long acct1) {
                 return new Object[] {
@@ -118,24 +135,35 @@ public class SmallBankClient extends BenchmarkComponent {
             this.ag = ag;
         }
         
-        public Object[] generateParams(Random rand, int numAccounts) {
-            long acct0, acct1;
+        public Object[] generateParams(SmallBankClient client) {
+            long acctIds[] = new long[2];
             
-            // Outside the hotspot
-            if (rand.nextInt(100) < SmallBankConstants.HOTSPOT_PROBABILITY) {
-                acct0 = rand.nextInt(numAccounts - SmallBankConstants.HOTSPOT_SIZE) + SmallBankConstants.HOTSPOT_SIZE;
-                acct1 = rand.nextInt(numAccounts - SmallBankConstants.HOTSPOT_SIZE) + SmallBankConstants.HOTSPOT_SIZE;
-                LOG.debug(String.format("Random number outside hotspot: %s [%d, %d]",
-                          this, acct0, acct1));
-            }
-            // Inside the hotspot
-            else { 
-                acct0 = rand.nextInt(SmallBankConstants.HOTSPOT_SIZE);
-                acct1 = rand.nextInt(SmallBankConstants.HOTSPOT_SIZE);
-                LOG.debug(String.format("Random number inside hotspot: %s [%d, %d]",
-                          this, acct0, acct1));
-            }
-            return (this.ag.genArgs(acct0, acct1));
+            boolean is_hotspot = (client.rand.nextInt(100) < client.prob_account_hotspot);
+            boolean is_dtxn = (client.rand.nextInt(100) < client.prob_multiaccount_dtxn);
+            
+            for (int i = 0; i < acctIds.length; i++) {
+                // Outside the hotspot
+                if (is_hotspot == false) {
+                    acctIds[i] = client.rand.nextInt(client.numAccounts - SmallBankConstants.HOTSPOT_SIZE) + SmallBankConstants.HOTSPOT_SIZE;
+                }
+                // Inside the hotspot
+                else { 
+                    acctIds[i] = client.rand.nextInt(SmallBankConstants.HOTSPOT_SIZE);
+                }
+                
+                // DTXN
+                if (i == 1 && is_dtxn) {
+                    if (TheHashinator.hashToPartition(acctIds[0]) == TheHashinator.hashToPartition(acctIds[1])) {
+                        i -= 1;
+                        continue;
+                    }
+                }
+            } // FOR
+            if (debug.val)
+                LOG.debug(String.format("Accounts: %s [hotspot=%s, dtxn=%s]",
+                          Arrays.toString(acctIds), is_hotspot, is_dtxn));
+
+            return (this.ag.genArgs(acctIds[0], acctIds[1]));
         }
 
         private final String displayName;
@@ -165,6 +193,8 @@ public class SmallBankClient extends BenchmarkComponent {
     private final SmallBankCallback callbacks[];
     private final int numAccounts;
     private final Random rand = new Random();
+    private double prob_account_hotspot = 90d;
+    private double prob_multiaccount_dtxn = 0.0d;
     
     public static void main(String args[]) {
         BenchmarkComponent.main(SmallBankClient.class, args, false);
@@ -172,21 +202,35 @@ public class SmallBankClient extends BenchmarkComponent {
 
     public SmallBankClient(String args[]) {
         super(args);
+        TheHashinator.initialize(this.getCatalogContext().catalog);
         
         this.numAccounts = (int)Math.round(SmallBankConstants.NUM_ACCOUNTS * this.getScaleFactor());
+        
+        for (String key : m_extraParams.keySet()) {
+            String value = m_extraParams.get(key);
+            
+            // Probability that accounts are chosen from the hotspot
+            if (key.equalsIgnoreCase("prob_account_hotspot")) {
+                this.prob_account_hotspot = Double.parseDouble(value);
+            }
+            // Probability that multi-accounts will be on different partitions
+            if (key.equalsIgnoreCase("prob_multiaccount_dtxn")) {
+                this.prob_multiaccount_dtxn = Double.parseDouble(value);
+            }
+            
+        } // FOR
         
         // Initialize the sampling table
         Histogram<Transaction> txns = new ObjectHistogram<Transaction>(); 
         for (Transaction t : Transaction.values()) {
             Integer weight = this.getTransactionWeight(t.callName);
-            if (weight == null) {
-                weight = t.weight;
-            }
+            if (weight == null) weight = t.weight;
             txns.put(t, weight);
         } // FOR
+        System.err.println(txns);
         assert(txns.getSampleCount() == 100) : "Invalid txn percentage total: " + txns.getSampleCount() + "\n" + txns;
         this.txnWeights = new FlatHistogram<Transaction>(this.rand, txns);
-        if (LOG.isDebugEnabled())
+        if (debug.val)
             LOG.debug("Transaction Workload Distribution:\n" + txns);
 
         // Setup callbacks
@@ -207,12 +251,12 @@ public class SmallBankClient extends BenchmarkComponent {
         Transaction target = this.txnWeights.nextValue();
 
         this.startComputeTime(target.displayName);
-        Object params[] = target.generateParams(this.rand, this.numAccounts);
+        Object params[] = target.generateParams(this);
         this.stopComputeTime(target.displayName);
 
         ProcedureCallback callback = this.callbacks[target.ordinal()];
         boolean ret = this.getClientHandle().callProcedure(callback, target.callName, params);
-        LOG.debug("Executing txn " + target);
+        if (debug.val) LOG.debug("Executing txn " + target);
         return (ret);
     }
     

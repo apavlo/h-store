@@ -89,7 +89,7 @@ public class Amalgamate extends VoltProcedure {
         balResults[0].advanceRow();
         balResults[1].advanceRow();
         double total = balResults[0].getDouble(0) + balResults[1].getDouble(0);
-        assert(total >= 0);
+        // assert(total >= 0);
 
         // Update Balance Information
         voltQueueSQL(ZeroCheckingBalance, acctId0);

@@ -35,6 +35,7 @@ import edu.brown.benchmark.AbstractProjectBuilder;
 import edu.brown.benchmark.smallbank.procedures.Amalgamate;
 import edu.brown.benchmark.smallbank.procedures.Balance;
 import edu.brown.benchmark.smallbank.procedures.DepositChecking;
+import edu.brown.benchmark.smallbank.procedures.SendPayment;
 import edu.brown.benchmark.smallbank.procedures.TransactSavings;
 import edu.brown.benchmark.smallbank.procedures.WriteCheck;
 import edu.brown.api.BenchmarkComponent;
@@ -61,6 +62,7 @@ public class SmallBankProjectBuilder extends AbstractProjectBuilder {
         Amalgamate.class,
         Balance.class,
         DepositChecking.class,
+        SendPayment.class,
         TransactSavings.class,
         WriteCheck.class
     };
