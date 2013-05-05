@@ -56,6 +56,7 @@ import edu.brown.api.BenchmarkComponent;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.rand.RandomDistribution.FlatHistogram;
 import edu.brown.statistics.ObjectHistogram;
+import edu.brown.utils.StringUtil;
 
 public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.ProcCaller {
     private static final Logger LOG = Logger.getLogger(TPCCClient.class);
@@ -70,15 +71,15 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
     // type used by at least VoltDBClient and JDBCClient
     @SuppressWarnings("unchecked")
     public enum Transaction {
-        STOCK_LEVEL("Stock Level", TPCCConstants.FREQUENCY_STOCK_LEVEL, slev.class),
-        DELIVERY("Delivery", TPCCConstants.FREQUENCY_DELIVERY, delivery.class),
-        ORDER_STATUS("Order Status", TPCCConstants.FREQUENCY_ORDER_STATUS, ostatByCustomerId.class, ostatByCustomerName.class),
-        PAYMENT("Payment", TPCCConstants.FREQUENCY_PAYMENT, paymentByCustomerId.class, paymentByCustomerName.class),
-        NEW_ORDER("New Order", TPCCConstants.FREQUENCY_NEW_ORDER, neworder.class),
-        RESET_WAREHOUSE("Reset Warehouse", 0, ResetWarehouse.class);
+        STOCK_LEVEL(TPCCConstants.FREQUENCY_STOCK_LEVEL, slev.class),
+        DELIVERY(TPCCConstants.FREQUENCY_DELIVERY, delivery.class),
+        ORDER_STATUS(TPCCConstants.FREQUENCY_ORDER_STATUS, ostatByCustomerId.class, ostatByCustomerName.class),
+        PAYMENT(TPCCConstants.FREQUENCY_PAYMENT, paymentByCustomerId.class, paymentByCustomerName.class),
+        NEW_ORDER(TPCCConstants.FREQUENCY_NEW_ORDER, neworder.class),
+        RESET_WAREHOUSE(0, ResetWarehouse.class);
     
-        private Transaction(String displayName, int weight, Class<? extends VoltProcedure>...procClasses) {
-            this.displayName = displayName;
+        private Transaction(int weight, Class<? extends VoltProcedure>...procClasses) {
+            this.displayName = StringUtil.title(this.name().replace("_", " ").toLowerCase());
             this.weight = weight;
             this.procClasses = procClasses;
         }
