@@ -137,8 +137,10 @@ public class SmallBankClient extends BenchmarkComponent {
         }
         
         public Object[] generateParams(SmallBankClient client) {
+            final CatalogContext catalogContext = client.getCatalogContext();
             long acctIds[] = new long[2];
             int partitions[] = new int[acctIds.length];
+            int sites[] = new int[acctIds.length];
             
             boolean is_hotspot = (client.rand.nextInt(100) < client.prob_account_hotspot);
             boolean is_dtxn = (client.rand.nextInt(100) < client.prob_multiaccount_dtxn);
@@ -155,19 +157,24 @@ public class SmallBankClient extends BenchmarkComponent {
                 
                 // DTXN
                 if (is_dtxn) {
+                    boolean retry = false;
                     partitions[i] = TheHashinator.hashToPartition(acctIds[i]);
+                    sites[i] = catalogContext.getSiteIdForPartitionId(partitions[i]);
                     
-                    // Check whether the accounts need to be one different sites 
-                    // or whether they just need to be on different partitions
+                    // Check whether the accounts need to be on different sites 
                     if (client.force_multisite_dtxns) {
-                        CatalogContext catalogContext = client.getCatalogContext();
-                        if (catalogContext.getSiteIdForPartitionId(partitions[0]) ==
-                            catalogContext.getSiteIdForPartitionId(partitions[1])) {
-                            i -= 1;
-                            continue;
-                        }
+                        retry = (sites[0] == sites[1]);
                     }
-                    else if (partitions[0] == partitions[1]) {
+                    // Or they need to be on the same site
+                    else if (client.force_singlesite_dtxns) {
+                        retry = (sites[0] != sites[1]);
+                    }
+                    // Or at least on the same partition
+                    else {
+                        retry = (partitions[0] == partitions[1]);
+                    }
+                    
+                    if (retry) {
                         i -= 1;
                         continue;
                     }
@@ -210,6 +217,7 @@ public class SmallBankClient extends BenchmarkComponent {
     private double prob_account_hotspot = 90d;
     private double prob_multiaccount_dtxn = 0.0d;
     private boolean force_multisite_dtxns = false;
+    private boolean force_singlesite_dtxns = false;
     
     public static void main(String args[]) {
         BenchmarkComponent.main(SmallBankClient.class, args, false);
@@ -233,10 +241,13 @@ public class SmallBankClient extends BenchmarkComponent {
             else if (key.equalsIgnoreCase("prob_multiaccount_dtxn")) {
                 this.prob_multiaccount_dtxn = Double.parseDouble(value);
             }
-            // Force all distributed txns to be multi-site (if there is more than
-            // one site in the cluster.
+            // Force all distributed txns to be multi-site
             else if (key.equalsIgnoreCase("force_multisite_dtxns")) {
                 this.force_multisite_dtxns = Boolean.parseBoolean(value);
+            }
+            // Force all distributed txns to be single-sited
+            else if (key.equalsIgnoreCase("force_singlesite_dtxns")) {
+                this.force_singlesite_dtxns = Boolean.parseBoolean(value);
             }
         } // FOR
         if (catalogContext.sites.size() == 1) {
