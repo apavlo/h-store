@@ -227,7 +227,6 @@ public class SmallBankClient extends BenchmarkComponent {
             if (weight == null) weight = t.weight;
             txns.put(t, weight);
         } // FOR
-        System.err.println(txns);
         assert(txns.getSampleCount() == 100) : "Invalid txn percentage total: " + txns.getSampleCount() + "\n" + txns;
         this.txnWeights = new FlatHistogram<Transaction>(this.rand, txns);
         if (debug.val)

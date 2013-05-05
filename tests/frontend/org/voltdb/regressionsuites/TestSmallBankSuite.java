@@ -7,7 +7,6 @@ import org.voltdb.CatalogContext;
 import org.voltdb.VoltTable;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
-import org.voltdb.utils.VoltTableUtil;
 
 import edu.brown.benchmark.smallbank.SmallBankConstants;
 import edu.brown.benchmark.smallbank.SmallBankLoader;
