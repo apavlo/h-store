@@ -1,9 +1,8 @@
 package edu.brown.benchmark.example;
 
+import org.voltdb.CatalogContext;
 import org.voltdb.VoltTable;
-import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.Table;
-import org.voltdb.client.Client;
 
 import edu.brown.api.BenchmarkComponent;
 import edu.brown.catalog.CatalogUtil;
@@ -23,9 +22,8 @@ public class ExampleLoader extends BenchmarkComponent {
 
     @Override
     public void runLoop() {
-        Catalog catalog = this.getCatalog();
-        Client client = this.getClientHandle();
-        for (Table catalog_tbl : CatalogUtil.getDatabase(catalog).getTables()) {
+        CatalogContext catalog = this.getCatalogContext();
+        for (Table catalog_tbl : catalog.database.getTables()) {
             // Create an empty VoltTable handle and then populate it in batches
             // to be sent to the DBMS
             VoltTable table = CatalogUtil.getVoltTable(catalog_tbl);

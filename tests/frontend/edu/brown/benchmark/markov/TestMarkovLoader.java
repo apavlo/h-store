@@ -3,9 +3,9 @@ package edu.brown.benchmark.markov;
 import java.lang.reflect.Field;
 
 import org.apache.log4j.Logger;
+import org.voltdb.CatalogContext;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
-import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.Column;
 import org.voltdb.catalog.Table;
 
@@ -33,8 +33,8 @@ public class TestMarkovLoader extends BaseTestCase {
 
         this.loader = new MarkovLoader(LOADER_ARGS) {
             @Override
-            public Catalog getCatalog() {
-                return (BaseTestCase.catalog);
+            public CatalogContext getCatalogContext() {
+                return (BaseTestCase.catalogContext);
             }
 
             @Override

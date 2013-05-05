@@ -46,6 +46,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.log4j.Logger;
+import org.voltdb.CatalogContext;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
 import org.voltdb.types.TimestampType;
@@ -53,7 +54,6 @@ import org.voltdb.utils.Pair;
 
 import edu.brown.api.BenchmarkComponent;
 import edu.brown.api.Loader;
-import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.utils.EventObservableExceptionHandler;
 import edu.brown.utils.EventObserver;
@@ -93,11 +93,13 @@ public class TPCCLoader extends Loader {
         super(args);
 
         initTableNames();
-        m_tpccConfig = TPCCConfig.createConfig(this.getCatalog(), m_extraParams);
+        
+        CatalogContext catalogContext = this.getCatalogContext();
+        m_tpccConfig = TPCCConfig.createConfig(catalogContext, m_extraParams);
         m_loadThreads = new LoadThread[m_tpccConfig.num_loadthreads];
         
         // Scale the MAX_BATCH_SIZE based on the number of partitions
-        this.replicated_batch_size = MAX_BATCH_SIZE / CatalogUtil.getNumberOfPartitions(getCatalog());
+        this.replicated_batch_size = MAX_BATCH_SIZE / catalogContext.numberOfPartitions;
         
         if (LOG.isDebugEnabled())
             LOG.debug("Loader Configuration:\n" + m_tpccConfig);

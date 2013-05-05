@@ -226,7 +226,7 @@ public class MapReduceClient extends BenchmarkComponent {
      */
     public MapReduceClient(String[] args) {
         super(args);
-        assert(this.getCatalog() != null);
+        assert(this.getCatalogContext() != null);
         // Sanity check
         assert(MapReduceClient.TOTAL_WEIGHT == 100);
 
@@ -299,7 +299,7 @@ public class MapReduceClient extends BenchmarkComponent {
     protected boolean runOnce() throws IOException {
         MapReduceClient.Transaction txn_type = XACT_WEIGHTS[m_rng.number(0, 99)];
         assert(txn_type != null);
-        Object params[] = txn_type.params(m_rng,m_type, this.getCatalog(), this.table_sizes);
+        Object params[] = txn_type.params(m_rng,m_type, this.getCatalogContext().catalog, this.table_sizes);
         boolean ret = this.getClientHandle().callProcedure(new MapReduceCallback(txn_type), txn_type.name(), params);
         return (ret);
     }

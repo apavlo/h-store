@@ -35,7 +35,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.voltdb.CatalogContext;
 import org.voltdb.VoltTable;
-import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.Table;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.types.TimestampType;
@@ -71,10 +70,6 @@ public class TestSEATSLoader extends SEATSBaseTestCase {
         @Override
         public CatalogContext getCatalogContext() {
             return (BaseTestCase.catalogContext);
-        }
-        @Override
-        public Catalog getCatalog() {
-            return (BaseTestCase.catalog);
         }
         @Override
         public ClientResponse loadVoltTable(String tableName, VoltTable vt) {

@@ -178,7 +178,7 @@ public class MapReduceLoader extends BenchmarkComponent {
         
         public AbstractTableGenerator(String tableName) {
             this.tableName = tableName;
-            this.catalog_tbl = CatalogUtil.getDatabase(getCatalog()).getTables().get(this.tableName);
+            this.catalog_tbl = getCatalogContext().database.getTables().get(this.tableName);
             assert(this.catalog_tbl != null);
             this.table = CatalogUtil.getVoltTable(this.catalog_tbl);
             this.row = new Object[this.table.getColumnCount()];

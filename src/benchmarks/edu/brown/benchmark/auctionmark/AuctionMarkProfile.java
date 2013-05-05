@@ -237,7 +237,7 @@ public class AuctionMarkProfile {
     // -----------------------------------------------------------------
 
     protected final void saveProfile(AuctionMarkLoader baseClient) {
-        Database catalog_db = CatalogUtil.getDatabase(baseClient.getCatalog());
+        Database catalog_db = baseClient.getCatalogContext().database;
         
      // CONFIG_PROFILE
         Table catalog_tbl = catalog_db.getTables().get(AuctionMarkConstants.TABLENAME_CONFIG_PROFILE);

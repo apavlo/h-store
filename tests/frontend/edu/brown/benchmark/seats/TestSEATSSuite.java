@@ -72,8 +72,8 @@ public class TestSEATSSuite extends RegressionSuite {
                 this.setClientHandle(client);
             }
             @Override
-            public Catalog getCatalog() {
-                return (catalogContext.catalog);
+            public CatalogContext getCatalogContext() {
+                return (catalogContext);
             }
         };
         loader.load();
@@ -96,8 +96,8 @@ public class TestSEATSSuite extends RegressionSuite {
                 this.setClientHandle(client);
             }
             @Override
-            public Catalog getCatalog() {
-                return (catalogContext.catalog);
+            public CatalogContext getCatalogContext() {
+                return (catalogContext);
             }
         };
         benchmarkClient.getProfile().loadProfile(client);

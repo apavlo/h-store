@@ -7,7 +7,6 @@ import org.voltdb.CatalogContext;
 import org.voltdb.ClientResponseImpl;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
-import org.voltdb.catalog.Catalog;
 import org.voltdb.types.TimestampType;
 
 import edu.brown.BaseTestCase;
@@ -50,10 +49,6 @@ public class TestSEATSClient extends SEATSBaseTestCase {
         @Override
         public CatalogContext getCatalogContext() {
             return (BaseTestCase.catalogContext);
-        }
-        @Override
-        public Catalog getCatalog() {
-            return (BaseTestCase.catalog);
         }
     }
     

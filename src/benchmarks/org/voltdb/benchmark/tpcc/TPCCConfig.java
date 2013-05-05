@@ -5,11 +5,14 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
-import org.voltdb.catalog.Catalog;
+import org.voltdb.CatalogContext;
 
-import edu.brown.catalog.CatalogUtil;
 import edu.brown.utils.StringUtil;
 
+/**
+ * TPC-C Benchmark Configuration
+ * @author pavlo
+ */
 public final class TPCCConfig {
 
     public int first_warehouse = TPCCConstants.STARTING_WAREHOUSE;
@@ -49,7 +52,7 @@ public final class TPCCConfig {
     private TPCCConfig() {
         // Nothing
     }
-    private TPCCConfig(Catalog catalog, Map<String, String> params) {
+    private TPCCConfig(CatalogContext catalogContext, Map<String, String> params) {
         for (Entry<String, String> e : params.entrySet()) {
             String key = e.getKey();
             String val = e.getValue();
@@ -151,7 +154,7 @@ public final class TPCCConfig {
             }
         } // FOR
         
-        if (warehouse_per_partition) num_warehouses = CatalogUtil.getNumberOfPartitions(catalog);
+        if (warehouse_per_partition) num_warehouses = catalogContext.numberOfPartitions;
         if (loadthread_per_warehouse) {
             num_loadthreads = num_warehouses;
         } else {
@@ -163,8 +166,8 @@ public final class TPCCConfig {
         return new TPCCConfig();
     }
     
-    public static TPCCConfig createConfig(Catalog catalog, Map<String, String> params) {
-        return new TPCCConfig(catalog, params);
+    public static TPCCConfig createConfig(CatalogContext catalogContext, Map<String, String> params) {
+        return new TPCCConfig(catalogContext, params);
     }
     
     @Override

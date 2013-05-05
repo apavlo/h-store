@@ -37,8 +37,8 @@ import java.util.Map;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
+import org.voltdb.CatalogContext;
 import org.voltdb.VoltTable;
-import org.voltdb.catalog.Catalog;
 import org.voltdb.client.ClientResponse;
 
 import edu.brown.BaseTestCase;
@@ -91,8 +91,8 @@ public class TestAuctionMarkLoader extends BaseTestCase {
         }
         
         @Override
-        public Catalog getCatalog() {
-            return (BaseTestCase.catalog);
+        public CatalogContext getCatalogContext() {
+            return (BaseTestCase.catalogContext);
         }
         
         @Override

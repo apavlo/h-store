@@ -135,6 +135,7 @@ public class RegressionSuite extends TestCase {
     /**
      * @return The catalog used in the internal cluster configuration
      */
+    @Deprecated
     public final Catalog getCatalog() {
         return m_config.getCatalog();
     }

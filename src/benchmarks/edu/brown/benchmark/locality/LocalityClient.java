@@ -255,7 +255,7 @@ public class LocalityClient extends BenchmarkComponent {
      */
     public LocalityClient(String[] args) {
         super(args);
-        assert (this.getCatalog() != null);
+        assert (this.getCatalogContext() != null);
         // Sanity check
         assert (LocalityClient.TOTAL_WEIGHT == 100);
 
@@ -331,7 +331,7 @@ public class LocalityClient extends BenchmarkComponent {
     protected boolean runOnce() throws IOException {
         LocalityClient.Transaction txn_type = XACT_WEIGHTS[m_rng.number(0, 99)];
         assert (txn_type != null);
-        Object params[] = txn_type.params(m_rng, m_type, this.getCatalog(), this.table_sizes);
+        Object params[] = txn_type.params(m_rng, m_type, this.getCatalogContext().catalog, this.table_sizes);
         boolean ret = this.getClientHandle().callProcedure(new LocalityCallback(txn_type), txn_type.name(), params);
         return (ret);
     }
