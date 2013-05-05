@@ -34,6 +34,8 @@ public enum TransactionCounter {
     SINGLE_PARTITION,
     /** Of the locally executed transactions, how many were multi-partitioned */
     MULTI_PARTITION,
+    /** Of the locally executed transactions, how many were multi-site */
+    MULTI_SITE,
     /** Speculative Execution **/
     SPECULATIVE,
     /** The number of sysprocs that we executed */
