@@ -3680,7 +3680,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                                   ts, num_remote));
                     this.requestWork(ts, tmp_remoteFragmentBuilders, tmp_serializedParams);
                     if (needs_profiling) {
-                        LOG.info(String.format("*************** %s - MARKING FIRST REMOVE QUERY", ts));
                         ts.profiler.markRemoteQuery();
                     }
                 }
@@ -3695,7 +3694,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                         hstore_site.getPartitionExecutor(builder.getPartitionId()).queueWork(ts, builder.build());
                     } // FOR
                     if (needs_profiling) {
-                        LOG.info(String.format("*************** %s - MARKING FIRST REMOVE QUERY", ts));
                         ts.profiler.markRemoteQuery();
                     }
                 }
