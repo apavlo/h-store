@@ -894,8 +894,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                     if (nextTxn != null) {
                         // If it's a single-partition txn, then we can return the StartTxnMessage 
                         // so that we can fire it off right away.
-
-                        // If this a single-partition txn, then we'll want to execute it right away
                         if (nextTxn.isPredictSinglePartition()) {
                             LocalTransaction localTxn = (LocalTransaction)nextTxn;
                             nextWork = localTxn.getStartTxnMessage();
@@ -3381,8 +3379,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         
         // *********************************** DEBUG ***********************************
         if (debug.val) {
-            LOG.debug(String.format("%s - Preparing to dispatch %d messages and wait for the results",
-                      ts, allFragmentBuilders.size()));
+            LOG.debug(String.format("%s - Preparing to dispatch %d messages and wait for the results [needsProfiling=%s]",
+                      ts, allFragmentBuilders.size(), needs_profiling));
             if (trace.val) {
                 StringBuilder sb = new StringBuilder();
                 sb.append(ts + " - WorkFragments:\n");
@@ -3681,7 +3679,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                         LOG.trace(String.format("%s - Requesting %d WorkFragments to be executed on remote partitions",
                                   ts, num_remote));
                     this.requestWork(ts, tmp_remoteFragmentBuilders, tmp_serializedParams);
-                    if (needs_profiling) ts.profiler.markRemoteQuery();
+                    if (needs_profiling) {
+                        LOG.info(String.format("*************** %s - MARKING FIRST REMOVE QUERY", ts));
+                        ts.profiler.markRemoteQuery();
+                    }
                 }
                 
                 // Then dispatch the task that are needed at the same HStoreSite but 
@@ -3693,15 +3694,19 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                     for (WorkFragment.Builder builder : this.tmp_localSiteFragmentBuilders) {
                         hstore_site.getPartitionExecutor(builder.getPartitionId()).queueWork(ts, builder.build());
                     } // FOR
-                    if (needs_profiling) ts.profiler.markRemoteQuery();
+                    if (needs_profiling) {
+                        LOG.info(String.format("*************** %s - MARKING FIRST REMOVE QUERY", ts));
+                        ts.profiler.markRemoteQuery();
+                    }
                 }
         
                 // Then execute all of the tasks need to access the partitions at this HStoreSite
                 // We'll dispatch the remote-partition-local-site fragments first because they're going
                 // to need to get queued up by at the other PartitionExecutors
                 if (num_localPartition > 0) {
-                    if (trace.val) LOG.trace(String.format("%s - Executing %d WorkFragments on local partition",
-                                     ts, num_localPartition));
+                    if (trace.val)
+                        LOG.trace(String.format("%s - Executing %d WorkFragments on local partition",
+                                  ts, num_localPartition));
                     for (WorkFragment.Builder fragmentBuilder : this.tmp_localWorkFragmentBuilders) {
                         WorkFragment fragment = fragmentBuilder.build();
                         ParameterSet fragmentParams[] = this.getFragmentParameters(ts, fragment, parameters);
@@ -3844,7 +3849,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                       ts.isExecLocal(this.partitionId), cresponse.getClientHandle()));
             if (trace.val) {
                 LOG.trace(ts + " Touched Partitions: " + ts.getTouchedPartitions().values());
-                LOG.trace(ts + " Done Partitions: " + ts.getDonePartitions());
+                if (ts.isPredictSinglePartition() == false)
+                    LOG.trace(ts + " Done Partitions: " + ts.getDonePartitions());
             }
         }
         

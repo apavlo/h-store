@@ -1178,7 +1178,7 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
             if (this.last_txn_id != null) str += String.format(" {LAST:%d}", this.last_txn_id);
         }
         // Include hashCode for debugging
-        str += "/" + this.hashCode();
+        // str += "/" + this.hashCode();
         return (str);
     }
     
