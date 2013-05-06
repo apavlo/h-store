@@ -352,7 +352,7 @@ public class ReconfigurationCoordinator implements Shutdownable {
       VoltTable vt = null;
       for (PartitionExecutor executor : this.local_executors) {
         // TODO : check if we can more efficient here
-        if (executor.getPartitionId() == newPartitionId) {
+        if (executor.getPartitionId() == oldPartitionId) {
             vt = executor.sendTuples(txnId, oldPartitionId, newPartitionId, table_name, min_inclusive, 
                 max_exclusive);
         }
