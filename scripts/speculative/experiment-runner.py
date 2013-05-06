@@ -173,18 +173,14 @@ EXPERIMENT_SETTINGS = {
         "client.output_txn_counters":           "txncounters.csv",
         "client.output_basepartitions":         False,
     },
-    "remotequery": {
-        "site.specexec_enable":                 False,
-        "site.specexec_nonblocking":            True,
-        "site.markov_enable":                   False,
-        "site.markov_fixed":                    True,
-        "site.exec_force_singlepartitioned":    False,
-        "client.count":                         1,
-        "client.txnrate":                       100000,
-        "client.blocking":                      True,
-        "client.output_exec_profiling":         "execprofile.csv",
-        # "client.output_txn_profiling":          "txnprofile.csv",
-        # "client.output_txn_profiling_combine":  True,
+    "motivation-singlepartition": {
+        
+    },
+    "motivation-dtxn-singlenode": {
+        
+    },
+    "motivation-dtxn-multinode": {
+        
     },
     "prefetchquery": {
         "site.exec_prefetch_queries":           True,
@@ -232,7 +228,9 @@ EXPERIMENT_SETTINGS = {
         "benchmark.loadthread_per_warehouse":   False,
     },
 }
-EXPERIMENT_SETTINGS['motivation-oneclient'] = dict(EXPERIMENT_SETTINGS['motivation'].items())
+for exp_type in EXPERIMENT_SETTINGS.keys():
+    if exp_type.startswith("motivation-"):
+        EXPERIMENT_SETTINGS[key].update(EXPERIMENT_SETTINGS['motivation'])
 
 EXPERIMENT_SETTINGS['specexec-base'] = dict(EXPERIMENT_SETTINGS['specexec'].items())
 for k, v in EXPERIMENT_SETTINGS['specexec-base'].iteritems():
@@ -266,44 +264,74 @@ def updateExperimentEnv(fabric, args, benchmark, partitions):
             fabric.env["client.threads_per_host"] = partitions * 2  # max(1, int(partitions/2))
         
         if benchmark == "tpcc":
-            fabric.env["benchmark.neworder_only"] = True
-            fabric.env["benchmark.neworder_multip"] = True
-            fabric.env["benchmark.neworder_multip_remote"] = True
+            fabric.env["client.weights"] = "neworder:50,paymentByCustomerId:50,*:0"
+            fabric.env["benchmark.payment_only"] = False
+            fabric.env["benchmark.neworder_only"] = False
             fabric.env["benchmark.neworder_abort"] = False
-            fabric.env["benchmark.neworder_multip_mix"] = 100
             fabric.env["benchmark.loadthread_per_warehouse"] = False
             fabric.env["benchmark.loadthreads"] = max(16, partitions)
         elif benchmark == "seats":
-            fabric.env["client.weights"] = "DeleteReservation:10," + \
-                                           "NewReservation:75," + \
-                                           "FindOpenSeats:15," + \
-                                           "*:0"
-            fabric.env["benchmark.force_all_distributed"] = True
-            fabric.env["benchmark.force_all_singlepartition"] = False
+            fabric.env["client.weights"] = "DeleteReservation:10,NewReservation:75,FindOpenSeats:15,*:0"
         elif benchmark == "smallbank":
             fabric.env["client.weights"] = "SendPayment:100,*:0"
             fabric.env["benchmark.prob_account_hotspot"] = 0
-            fabric.env["benchmark.prob_multiaccount_dtxn"] = 100
-            fabric.env["benchmark.force_multisite_dtxns"] = False
-            fabric.env["benchmark.force_singlesite_dtxns"] = True
-
-    ## ----------------------------------------------
-    ## REMOTE QUERY
-    ## ----------------------------------------------
-    elif args['exp_type'].startswith("remotequery"):
-        fabric.env["client.threads_per_host"] = int(partitions/2)
         
-        if benchmark == "tpcc":
-            fabric.env["client.weights"] = "neworder:50,paymentByCustomerId:50,*:0"
-            fabric.env["benchmark.neworder_multip_mix"] = 100
-            fabric.env["benchmark.payment_multip_mix"] = 100
-            
-        elif benchmark == "tm1":
-            fabric.env["client.weights"] = "DeleteCallForwarding:33,InsertCallForwarding:33,UpdateLocation:34,*:0"
-        elif benchmark == "seats":
-            fabric.env["client.weights"] = ""
-        else:
-            fabric.env["client.weights"] = ""
+        ## ----------------------------------------------
+        ## MOTIVATION-SINGLEPARTITION
+        ## ----------------------------------------------
+        if args['exp_type'] == "motivation-singlepartition":
+            if benchmark == "tpcc":
+                fabric.env["benchmark.neworder_multip"] = False
+                fabric.env["benchmark.neworder_multip_remote"] = False
+                fabric.env["benchmark.neworder_multip_mix"] = -1
+                fabric.env["benchmark.payment_multip"] = False
+                fabric.env["benchmark.payment_multip_remote"] = False
+                fabric.env["benchmark.payment_multip_mix"] = -1
+            elif benchmark == "seats":
+                fabric.env["benchmark.force_all_distributed"] = False
+                fabric.env["benchmark.force_all_singlepartition"] = True
+            elif benchmark == "smallbank":
+                fabric.env["benchmark.prob_multiaccount_dtxn"] = 0
+                fabric.env["benchmark.force_multisite_dtxns"] = False
+                fabric.env["benchmark.force_singlesite_dtxns"] = False
+        ## ----------------------------------------------
+        ## MOTIVATION-DTXN-SINGLENODE
+        ## ----------------------------------------------
+        elif args['exp_type'] == "motivation-dtxn-singlenode":
+            if benchmark == "tpcc":
+                fabric.env["benchmark.neworder_multip"] = True
+                fabric.env["benchmark.neworder_multip_remote"] = False
+                fabric.env["benchmark.neworder_multip_mix"] = 100
+                fabric.env["benchmark.payment_multip"] = True
+                fabric.env["benchmark.payment_multip_remote"] = False
+                fabric.env["benchmark.payment_multip_mix"] = 100
+            elif benchmark == "seats":
+                fabric.env["benchmark.force_all_distributed"] = True
+                fabric.env["benchmark.force_all_singlepartition"] = False
+            elif benchmark == "smallbank":
+                fabric.env["benchmark.prob_multiaccount_dtxn"] = 100
+                fabric.env["benchmark.force_multisite_dtxns"] = False
+                fabric.env["benchmark.force_singlesite_dtxns"] = True
+        ## ----------------------------------------------
+        ## MOTIVATION-DTXN-MULITNODE
+        ## ----------------------------------------------
+        elif args['exp_type'] == "motivation-dtxn-multinode":
+            if benchmark == "tpcc":
+                fabric.env["benchmark.neworder_multip"] = True
+                fabric.env["benchmark.neworder_multip_remote"] = True
+                fabric.env["benchmark.neworder_multip_mix"] = 100
+                fabric.env["benchmark.payment_multip"] = True
+                fabric.env["benchmark.payment_multip_remote"] = True
+                fabric.env["benchmark.payment_multip_mix"] = 100
+            elif benchmark == "seats":
+                fabric.env["benchmark.force_all_distributed"] = True
+                fabric.env["benchmark.force_all_singlepartition"] = False
+            elif benchmark == "smallbank":
+                fabric.env["benchmark.prob_multiaccount_dtxn"] = 100
+                fabric.env["benchmark.force_multisite_dtxns"] = True
+                fabric.env["benchmark.force_singlesite_dtxns"] = False            
+
+
     ## ----------------------------------------------
     ## ONE PARTITION EXPERIMENTS
     ## ----------------------------------------------
@@ -495,8 +523,8 @@ if __name__ == '__main__':
     agroup.add_argument("--codespeed-lastrevision", type=str, metavar="REV")
     agroup.add_argument("--codespeed-branch", type=str, metavar="BRANCH")
     
-    # And our Boto environment keys
-    agroup = aparser.add_argument_group('Boto Parameters')
+    # And our Fabric environment keys
+    agroup = aparser.add_argument_group('Fabric Parameters')
     for key in sorted(hstore.fabric.ENV_DEFAULT):
         keyPrefix = key.split(".")[0]
         if key not in BASE_SETTINGS and keyPrefix in [ "ec2", "hstore" ]:
