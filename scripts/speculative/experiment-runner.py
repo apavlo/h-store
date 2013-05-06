@@ -160,6 +160,7 @@ BASE_SETTINGS = {
 EXPERIMENT_SETTINGS = {
     "motivation": {
         "site.specexec_enable":                 False,
+        "site.specexec_nonblocking":            False,
         "site.markov_enable":                   True,
         "site.markov_fixed":                    True,
         "site.exec_force_singlepartitioned":    False,
@@ -173,14 +174,12 @@ EXPERIMENT_SETTINGS = {
         "client.output_txn_counters":           "txncounters.csv",
         "client.output_basepartitions":         False,
     },
-    "motivation-singlepartition": {
-        
-    },
-    "motivation-dtxn-singlenode": {
-        
-    },
-    "motivation-dtxn-multinode": {
-        
+    "motivation-singlepartition": { },
+    "motivation-dtxn-singlenode": { },
+    "motivation-dtxn-multinode": { },
+    "motivation-remotequery": {
+        "site.specexec_enable":                 False,
+        "site.specexec_nonblocking":            True,
     },
     "prefetchquery": {
         "site.exec_prefetch_queries":           True,
@@ -230,7 +229,10 @@ EXPERIMENT_SETTINGS = {
 }
 for exp_type in EXPERIMENT_SETTINGS.keys():
     if exp_type.startswith("motivation-"):
+        orig = dict(EXPERIMENT_SETTINGS[exp_type].items())
         EXPERIMENT_SETTINGS[exp_type].update(EXPERIMENT_SETTINGS['motivation'])
+        EXPERIMENT_SETTINGS[exp_type].update(orig)
+## FOR
 
 EXPERIMENT_SETTINGS['specexec-base'] = dict(EXPERIMENT_SETTINGS['specexec'].items())
 for k, v in EXPERIMENT_SETTINGS['specexec-base'].iteritems():
@@ -258,7 +260,7 @@ def updateExperimentEnv(fabric, args, benchmark, partitions):
         else:
             fabric.env['site.markov_fixed'] = True
         ## IF
-        if args['exp_type'] == 'motivation-oneclient':
+        if args['exp_type'] in ('motivation-oneclient', 'motivation-remotequery'):
             fabric.env["client.threads_per_host"] = 1
         else:
             fabric.env["client.threads_per_host"] = partitions * 2  # max(1, int(partitions/2))
@@ -315,7 +317,7 @@ def updateExperimentEnv(fabric, args, benchmark, partitions):
         ## ----------------------------------------------
         ## MOTIVATION-DTXN-MULITNODE
         ## ----------------------------------------------
-        elif args['exp_type'] == "motivation-dtxn-multinode":
+        elif args['exp_type'] in ("motivation-dtxn-multinode", "motivation-remotequery"):
             if benchmark == "tpcc":
                 fabric.env["benchmark.neworder_multip"] = True
                 fabric.env["benchmark.neworder_multip_remote"] = True
