@@ -2,6 +2,7 @@ package org.voltdb.regressionsuites;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.TreeMap;
 
 import junit.framework.Test;
 
@@ -125,9 +126,9 @@ public class TestStatsSuite extends RegressionSuite {
         assertEquals(Status.OK, cresponse.getStatus());
         VoltTable results[] = cresponse.getResults();
         assertEquals(1, results.length);
-        System.out.println(VoltTableUtil.format(results[0]));
+        // System.out.println(VoltTableUtil.format(results[0]));
         
-        Map<String, Long> profilerStats = new HashMap<>();
+        Map<String, Long> profilerStats = new TreeMap<>();
         while (results[0].advanceRow()) {
             String procName = results[0].getString("PROCEDURE");
             if (procName.equalsIgnoreCase(neworder.class.getSimpleName()) == false) continue;
@@ -139,6 +140,17 @@ public class TestStatsSuite extends RegressionSuite {
                 }
             } // FOR
         } // WHILE
+        
+        for (String key : profilerStats.keySet()) {
+            // All count columns should be exactly one
+            if (key.endsWith("_CNT")) {
+                assertEquals(key, 1l, (long)profilerStats.get(key));
+            }
+            // Everything else just needs to be greater than zero
+            else {
+                assertTrue(key, (long)profilerStats.get(key) > 0);
+            }
+        } // FOR
         System.out.println(StringUtil.formatMaps(profilerStats));
     }
     
