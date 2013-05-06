@@ -489,7 +489,11 @@ public final class HStoreConf {
         public boolean specexec_ignore_all_local;
         
         @ConfigProperty(
-            description="Special non-blocking remote query execution.",
+            description="Experimental non-blocking remote query execution. All query results will be wrapped " +
+            		    "in a special VoltTable that acts as a placeholder for a remote query whose " +
+            		    "result has not returned yet. A transaction when it tries to access the real " +
+            		    "result. Otherwise, it will proceed as normal. This does not require any changes " +
+            		    "to existing stored procedure code.",
             defaultBoolean=false,
             experimental=true
         )

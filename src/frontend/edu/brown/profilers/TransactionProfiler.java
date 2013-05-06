@@ -210,8 +210,7 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
     // ---------------------------------------------------------------
 
     /**
-     * The time spent setting up the transaction before it is queued in either an PartitionExecutor or with the
-     * Dtxn.Coordinator
+     * The time spent setting up the transaction before it is queued in either an PartitionExecutor 
      */
     protected final ProfileMeasurement pm_init_total = new ProfileMeasurement("INIT_TOTAL");
     /**
@@ -241,14 +240,6 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
         this.startInner(this.pm_init_total, this.pm_init_queue, false);
     }
 
-    public void stopInitQueue() {
-        if (this.disabled) return;
-        long timestamp = this.stopInner(this.pm_init_queue, this.pm_init_total, false);
-        if (this.singlePartitioned == false) {
-            this.pm_first_remote_query.start(timestamp);
-        }
-    }
-
     /**
      * Mark that this txn is requesting a query to be executed on a remote partition.
      * This can be safely invoked multiple times but it will only stop recording 
@@ -257,6 +248,7 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
     public void markRemoteQuery() {
         assert(this.singlePartitioned == false);
         if (this.pm_first_remote_query.isStarted()) {
+            if (trace.val) LOG.trace("Marking first remove query for transaction");
             long timestamp = ProfileMeasurement.getTime();
             this.pm_first_remote_query.stop(timestamp);
             this.pm_first_remote_query_access.start(timestamp);
@@ -308,6 +300,9 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
         if (debug.val) LOG.debug("START " + this.pm_queue_lock.getName());
         ProfileMeasurementUtil.swap(timestamp, pm, this.pm_queue_lock);
         this.stack.push(this.pm_queue_lock);
+        if (this.singlePartitioned == false) {
+            this.pm_first_remote_query.start(timestamp);
+        }
     }
     
     public void startQueueExec() {
