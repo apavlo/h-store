@@ -27,7 +27,10 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
     // ---------------------------------------------------------------
 
     /**
-     * 
+     * The current stack of this profiler.
+     * This makes it easier for us to pop out of a mode when the txn enters 
+     * the next phase of its life. It will also automatically update a history
+     * log of the states that we entered.
      */
     @SuppressWarnings("serial")
     private final Stack<ProfileMeasurement> stack = new Stack<ProfileMeasurement>() {
@@ -39,8 +42,20 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
 
     private final List<ProfileMeasurement> history = new ArrayList<ProfileMeasurement>();
 
+    /**
+     * Whether we need to disable all profiling for the current txn
+     */
     private transient boolean disabled = false;
 
+    /**
+     * Whether the current txn for this profiler is marked as single-partitioned. 
+     */
+    private boolean singlePartitioned;
+    
+    // ---------------------------------------------------------------
+    // INTERNAL HELPER METHODS
+    // ---------------------------------------------------------------
+    
     /**
      * 
      * @param expected_parent
@@ -130,20 +145,23 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
     protected final ProfileMeasurement pm_deserialize = new ProfileMeasurement("DESERIALIZE");
 
     /**
-     * This is the amount time from when the txn acquires all of the locks from the remote partitions to when invokes
-     * the first query that needs to get sent to a remote partition.
+     * This is the amount time from when the txn acquires all of the locks for the partitions that it needs
+     * to when invokes the first query that needs to get sent to a remote partition.
      */
     protected final ProfileMeasurement pm_first_remote_query = new ProfileMeasurement("FIRST_REMOTE_QUERY");
 
+    /**
+     * The amount of time from after the first remote query is invoked to when it arrives back at the
+     * transaction's base partition.
+     */
+    protected final ProfileMeasurement pm_first_remote_query_result = new ProfileMeasurement("FIRST_REMOTE_QUERY_RESULT");
+    
     /**
      * The amount of time after the transaction executes the first remote query until it attempts to use the results
      * from that query
      */
     protected final ProfileMeasurement pm_first_remote_query_access = new ProfileMeasurement("FIRST_REMOTE_QUERY_ACCESS");
     
-    protected final ProfileMeasurement pm_first_remote_query_result = new ProfileMeasurement("FIRST_REMOTE_QUERY_RESULT");
-
-    protected boolean singlePartitioned;
 
     public void startTransaction(long timestamp) {
         if (this.disabled)
@@ -300,9 +318,6 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
         if (debug.val) LOG.debug("START " + this.pm_queue_lock.getName());
         ProfileMeasurementUtil.swap(timestamp, pm, this.pm_queue_lock);
         this.stack.push(this.pm_queue_lock);
-        if (this.singlePartitioned == false) {
-            this.pm_first_remote_query.start(timestamp);
-        }
     }
     
     public void startQueueExec() {
@@ -357,8 +372,12 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
             "Trying to start txn execution twice!";
         assert(current == this.pm_queue_exec || current == this.pm_queue_lock) : 
             "Trying to start execution before txn was queued (" + current + ")";
-        ProfileMeasurementUtil.swap(current, this.pm_exec_total);
+        long timestamp = ProfileMeasurement.getTime();
+        ProfileMeasurementUtil.swap(timestamp, current, this.pm_exec_total);
         this.stack.push(this.pm_exec_total);
+        if (this.singlePartitioned == false) {
+            this.pm_first_remote_query.start(timestamp);
+        }
     }
     
     /**
