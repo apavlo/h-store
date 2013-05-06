@@ -47,6 +47,7 @@ import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.mappings.ParameterMapping;
 import edu.brown.mappings.ParameterMappingsSet;
+import edu.brown.statistics.Histogram;
 import edu.brown.statistics.ObjectHistogram;
 import edu.brown.statistics.TableStatistics;
 import edu.brown.utils.CollectionUtil;
@@ -130,7 +131,7 @@ public abstract class PartitionerUtil {
             LOG.debug("Generating Procedure visit order");
 
         final Map<Procedure, Double> proc_weights = new HashMap<Procedure, Double>();
-        ObjectHistogram<String> hist = info.workload.getProcedureHistogram();
+        Histogram<String> hist = info.workload.getProcedureHistogram();
         TreeSet<Procedure> proc_visit_order = new TreeSet<Procedure>(new PartitionerUtil.CatalogWeightComparator<Procedure>(proc_weights));
 
         for (Procedure catalog_proc : catalog_db.getProcedures()) {

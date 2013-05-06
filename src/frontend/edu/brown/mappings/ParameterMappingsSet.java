@@ -26,7 +26,14 @@ import org.voltdb.catalog.StmtParameter;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.JSONSerializable;
 import edu.brown.utils.JSONUtil;
+import edu.brown.utils.StringUtil;
 
+/**
+ * Container class for all of the ParameterMappings for a single project.
+ * We maintain internal index structures to make it easier to find the proper ParameterMapping
+ * objects for various search arguments. 
+ * @author pavlo
+ */
 public class ParameterMappingsSet extends HashSet<ParameterMapping> implements JSONSerializable {
     private static final long serialVersionUID = 1L;
 
@@ -267,7 +274,7 @@ public class ParameterMappingsSet extends HashSet<ParameterMapping> implements J
                         sb.append("   <NONE>\n");
                     }
                 } // FOR (catalog_stmt_index)
-                sb.append(MappingCalculator.DEFAULT_SINGLE_LINE);
+                sb.append(StringUtil.SINGLE_LINE);
             }
         } // FOR (catalot_stmt)
         return (sb.toString());

@@ -21,6 +21,7 @@ import org.voltdb.types.TimestampType;
 import org.voltdb.utils.JarReader;
 
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.FileUtil;
@@ -32,6 +33,9 @@ import edu.brown.utils.ProjectType;
 public abstract class ParametersUtil {
     private static final Logger LOG = Logger.getLogger(ParametersUtil.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug);
+    }
 
     public static final int NULL_PROC_PARAMETER_OFFSET = -1;
     
@@ -158,7 +162,7 @@ public abstract class ParametersUtil {
         } catch (Exception ex) {
             String msg = String.format("Failed to find ParameterMappingSet file '%s' in '%s'",
                                        paramFile, jarPath);
-            LOG.warn(msg, (debug.val ? ex : null));
+            LOG.warn(msg); // , (debug.val ? ex : null));
             return (null);
         }
         ParameterMappingsSet pms = null;
