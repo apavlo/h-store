@@ -230,7 +230,7 @@ EXPERIMENT_SETTINGS = {
 }
 for exp_type in EXPERIMENT_SETTINGS.keys():
     if exp_type.startswith("motivation-"):
-        EXPERIMENT_SETTINGS[key].update(EXPERIMENT_SETTINGS['motivation'])
+        EXPERIMENT_SETTINGS[exp_type].update(EXPERIMENT_SETTINGS['motivation'])
 
 EXPERIMENT_SETTINGS['specexec-base'] = dict(EXPERIMENT_SETTINGS['specexec'].items())
 for k, v in EXPERIMENT_SETTINGS['specexec-base'].iteritems():
