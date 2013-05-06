@@ -170,8 +170,7 @@ EXPERIMENT_SETTINGS = {
         "client.output_exec_profiling":         "execprofile.csv",
         "client.output_txn_profiling":          "txnprofile.csv",
         "client.output_txn_profiling_combine":  True,
-        #"client.output_txn_counters":           "txncounters.csv",
-        #"client.output_txn_counters_combine":   False,
+        "client.output_txn_counters":           "txncounters.csv",
         "client.output_basepartitions":         False,
     },
     "remotequery": {
@@ -285,7 +284,8 @@ def updateExperimentEnv(fabric, args, benchmark, partitions):
             fabric.env["client.weights"] = "SendPayment:100,*:0"
             fabric.env["benchmark.prob_account_hotspot"] = 0
             fabric.env["benchmark.prob_multiaccount_dtxn"] = 100
-            fabric.env["benchmark.force_multisite_dtxns"] = True
+            fabric.env["benchmark.force_multisite_dtxns"] = False
+            fabric.env["benchmark.force_singlesite_dtxns"] = True
 
     ## ----------------------------------------------
     ## REMOTE QUERY
