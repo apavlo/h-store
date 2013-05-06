@@ -68,7 +68,6 @@ import edu.brown.hstore.conf.HStoreConf;
  */
 public class ArgumentsParser {
     protected static final Logger LOG = Logger.getLogger(ArgumentsParser.class);
-
     static {
         LoggerUtil.setupLogging();
     }

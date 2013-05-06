@@ -28,7 +28,14 @@ public class RatioMapping extends AbstractMapping {
      */
     public synchronized <K extends Number, V extends Number> void addOccurrence(K x, V y) {
         if (x == null) return;
-        if (x.equals(y)) this.num_equal++;
+        if (x.equals(y)) {
+            this.num_equal++;
+        }
+//        else {
+//            System.err.printf("%s[%s] != %s[%s]\n",
+//                              x, x.getClass().getSimpleName(),
+//                              y, y.getClass().getSimpleName());
+//        }
         this.num_entries++;
         this.last_calculation = null;
     }

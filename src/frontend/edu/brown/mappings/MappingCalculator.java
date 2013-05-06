@@ -25,6 +25,7 @@ import org.voltdb.utils.Pair;
 import org.voltdb.utils.VoltTypeUtil;
 
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.StringUtil;
@@ -36,10 +37,9 @@ public class MappingCalculator {
     private static final Logger LOG = Logger.getLogger(MappingCalculator.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
-    
-    public static final String DEFAULT_SPACER = StringUtil.SPACER;
-    public static final String DEFAULT_DOUBLE_LINE = StringUtil.DOUBLE_LINE;
-    public static final String DEFAULT_SINGLE_LINE = StringUtil.SINGLE_LINE;
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
     
     public static final int QUERY_INSTANCE_MAX = 100;
     
@@ -77,7 +77,7 @@ public class MappingCalculator {
             this.started = true;
             for (Statement catalog_stmt : this.query_counters.keySet()) {
                 this.query_counters.get(catalog_stmt).set(0);
-            }
+            } // FOR
             this.xact_counter.getAndIncrement();
         }
         
@@ -94,9 +94,12 @@ public class MappingCalculator {
          * Calculate the correlations for all underlying counters
          */
         public void calculate() {
-            if (trace.val) LOG.trace("Calculating correlation coefficient for " + this.query_instances.size() + " query instances in " + this.catalog_proc);
+            if (trace.val)
+                LOG.trace("Calculating correlation coefficient for " + this.query_instances.size() +
+                          " query instances in " + this.catalog_proc);
             for (Entry<Statement, Map<Integer, QueryInstance>> e : this.query_instances.entrySet()) {
-                if (trace.val) LOG.trace(CatalogUtil.getDisplayName(e.getKey()) + ": " + e.getValue().size() + " query instances"); 
+                if (trace.val)
+                    LOG.trace(CatalogUtil.getDisplayName(e.getKey()) + ": " + e.getValue().size() + " query instances"); 
                 for (QueryInstance query_instance : e.getValue().values()) {
                     query_instance.calculate();
                 }
@@ -139,10 +142,13 @@ public class MappingCalculator {
          * @return
          */
         public ParameterMappingsSet getCorrelations(double threshold) {
-            if (trace.val) LOG.trace("Extracting correlations above " + threshold + " for " + this.catalog_proc);
+            if (trace.val)
+                LOG.trace("Extracting correlations above " + threshold + " for " + this.catalog_proc);
             ParameterMappingsSet results = new ParameterMappingsSet();
             for (Entry<Statement, Map<Integer, QueryInstance>> e : this.query_instances.entrySet()) {
-                if (trace.val) LOG.trace(CatalogUtil.getDisplayName(e.getKey()) + ": " + e.getValue().size() + " query instances"); 
+                if (trace.val)
+                    LOG.trace(String.format("%s: %d query instance",
+                              CatalogUtil.getDisplayName(e.getKey()), e.getValue().size())); 
                 for (QueryInstance query_instance : e.getValue().values()) {
                     results.addAll(query_instance.getParameterMappingsSet(threshold));
                 } // FOR
@@ -160,24 +166,24 @@ public class MappingCalculator {
             
             ret += "Query Instance Counters:\n";
             for (Statement catalog_stmt : this.query_instances.keySet()) {
-                ret += DEFAULT_SPACER + String.format(format, catalog_stmt.getName() + ":", this.query_instances.get(catalog_stmt).size());
+                ret += StringUtil.SPACER + String.format(format, catalog_stmt.getName() + ":", this.query_instances.get(catalog_stmt).size());
             } // FOR
             
-            ret += DEFAULT_DOUBLE_LINE + DEFAULT_DOUBLE_LINE;
+            ret += StringUtil.DOUBLE_LINE + StringUtil.DOUBLE_LINE;
             
             for (Statement catalog_stmt : this.query_instances.keySet()) {
                 if (this.query_instances.get(catalog_stmt).isEmpty()) continue;
                 ret += this.debug(catalog_stmt);
-                ret += DEFAULT_DOUBLE_LINE;
+                ret += StringUtil.DOUBLE_LINE;
             } // FOR
-            ret += DEFAULT_DOUBLE_LINE + DEFAULT_DOUBLE_LINE;
+            ret += StringUtil.DOUBLE_LINE + StringUtil.DOUBLE_LINE;
             
             return (ret);
         }
         
         public String debug(Statement catalog_stmt) {
             String ret = catalog_stmt.getName() + "\n";
-            String inner_spacer = "|" + DEFAULT_SPACER;
+            String inner_spacer = "|" + StringUtil.SPACER;
             for (QueryInstance query_instance : this.query_instances.get(catalog_stmt).values()) {
                 ret += query_instance.toString(inner_spacer);
             }
@@ -229,10 +235,16 @@ public class MappingCalculator {
          */
         public ParameterMappingsSet getParameterMappingsSet(double threshold) {
             ParameterMappingsSet results = new ParameterMappingsSet();
-            if (trace.val) LOG.trace("Extracting correlations for " + this.correlations.size() + " StmtParameters in " + this.getFirst());
+            if (trace.val)
+                LOG.trace(String.format("Extracting correlations for %d StmtParameters in %s",
+                          this.correlations.size(), this.getFirst().fullName()));
             
             for (Entry<StmtParameter, Map<ProcParameter, ProcParameterCorrelation>> e : this.correlations.entrySet()) {
-                if (trace.val) LOG.trace(CatalogUtil.getDisplayName(e.getKey()) + ": " + e.getValue().size() + " ProcParameterMappings"); 
+                if (trace.val)
+                    LOG.trace(String.format("%s: %d %s",
+                              CatalogUtil.getDisplayName(e.getKey()),
+                              e.getValue().size(),
+                              ProcParameterCorrelation.class.getSimpleName())); 
                 // Loop through all of the ProcParameter correlation objects and create new 
                 // Correlation objects for any results that we get back from each of them 
                 for (ProcParameterCorrelation ppc : e.getValue().values()) {
@@ -260,14 +272,14 @@ public class MappingCalculator {
         
         public String toString(String spacer) {
             String ret = spacer + "+ " + this.toString() + " - [# of Parameters=" + this.correlations.size() + "]\n";
-            String inner_spacer = spacer + "|" + DEFAULT_SPACER;
-            String inner_inner_spacer = inner_spacer + "|" + DEFAULT_SPACER;
+            String inner_spacer = spacer + "|" + StringUtil.SPACER;
+            String inner_inner_spacer = inner_spacer + "|" + StringUtil.SPACER;
             for (StmtParameter catalog_stmt_param : this.correlations.keySet()) {
                 ret += inner_spacer + "+ StmtParameter[Index=" + catalog_stmt_param.getIndex() + "]\n";
                 for (ProcParameter catalog_proc_param : this.correlations.get(catalog_stmt_param).keySet()) {
                     ret += this.correlations.get(catalog_stmt_param).get(catalog_proc_param).toString(inner_inner_spacer);
                 } // FOR
-                // ret += spacer + DEFAULT_SINGLE_LINE;
+                // ret += spacer + StringUtil.SINGLE_LINE;
             } // FOR
             return (ret);
         }
@@ -356,7 +368,7 @@ public class MappingCalculator {
             StringBuilder sb = new StringBuilder(this.toString());
             sb.append("\n");
             for (Integer index : this.keySet()) {
-                sb.append(spacer).append(DEFAULT_SPACER)
+                sb.append(spacer).append(StringUtil.SPACER)
                   .append("[" + index + "] " + this.get(index) + "\n");
             } // FOR
             return (sb.toString());
@@ -374,6 +386,7 @@ public class MappingCalculator {
         this.catalog_db = catalog_db;
         
         for (Procedure catalog_proc : this.catalog_db.getProcedures()) {
+            if (catalog_proc.getSystemproc()) continue;
             this.mappings.put(catalog_proc, new ProcedureMappings(catalog_proc));
         } // FOR
     }
@@ -386,11 +399,16 @@ public class MappingCalculator {
      * Recursively invoke the calculate method for all underlying ProcedureCorrelation objects
      */
     public void calculate() {
-        if (debug.val) LOG.debug("Calculating correlation for " + this.mappings.size() + " ProcedureCorrelations");
-        for (ProcedureMappings correlation : this.mappings.values()) {
-            correlation.calculate();
+        if (debug.val)
+            LOG.debug(String.format("Calculating correlations for %d %s",
+                      this.mappings.size(), ProcedureMappings.class.getSimpleName()));
+        for (ProcedureMappings pm : this.mappings.values()) {
+            if (pm.catalog_proc.getSystemproc()) continue;
+            pm.calculate();
         } // FOR
-        if (debug.val) LOG.debug("Completed calculations for all ProcedureCorrelations!");
+        if (debug.val)
+            LOG.debug(String.format("Completed calculations for %s",
+                      ProcedureMappings.class.getSimpleName()));
     }
     
     /**
@@ -491,6 +509,7 @@ public class MappingCalculator {
         ParameterMappingsSet ret = new ParameterMappingsSet();
         LOG.debug("Extracting ParameterMappings above threshold " + threshold + " [# of correlations=" + this.mappings.size() + "]");
         for (ProcedureMappings pc : this.mappings.values()) {
+            if (pc.catalog_proc.getSystemproc()) continue;
             ret.addAll(pc.getCorrelations(threshold));
         } // FOR
         return (ret);
@@ -542,7 +561,9 @@ public class MappingCalculator {
             ArgumentsParser.PARAM_WORKLOAD,
             ArgumentsParser.PARAM_MAPPINGS_OUTPUT
         );
-        LOG.info("Starting CorrelationCalculator...");
+        LOG.info("Starting " + MappingCalculator.class.getSimpleName());
+        if (debug.val)
+            LOG.debug("Workload Procedures Distribution:\n" + args.workload.getProcedureHistogram());
         
         MappingCalculator cc = new MappingCalculator(args.catalog_db);
         int ctr = 0;
@@ -575,6 +596,6 @@ public class MappingCalculator {
         assert(!pc.isEmpty());
         if (debug.val) LOG.debug("DEBUG DUMP:\n" + pc.debug());
         pc.save(output_path);
-        LOG.info("Wrote Correlations to " + output_path);
+        LOG.info(String.format("Wrote %s to '%s'", pc.getClass().getSimpleName(), output_path));
     }
 }

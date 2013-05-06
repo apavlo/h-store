@@ -59,6 +59,7 @@ import edu.brown.catalog.CatalogKey;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.statistics.Histogram;
 import edu.brown.statistics.ObjectHistogram;
 import edu.brown.statistics.TableStatistics;
 import edu.brown.statistics.WorkloadStatistics;
@@ -492,7 +493,7 @@ public class Workload implements WorkloadTrace, Iterable<TransactionTrace> {
      * The keys of the Histogram will be CatalogKeys
      * @return
      */
-    public ObjectHistogram<String> getProcedureHistogram() {
+    public Histogram<String> getProcedureHistogram() {
         // Install debug label mapping
         if (!this.proc_histogram.hasDebugLabels()) {
             Map<Object, String> labels = new HashMap<Object, String>();

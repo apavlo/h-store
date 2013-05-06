@@ -53,6 +53,7 @@ import edu.brown.mappings.ParameterMapping;
 import edu.brown.mappings.ParameterMappingsSet;
 import edu.brown.profilers.ProfileMeasurement;
 import edu.brown.rand.RandomDistribution;
+import edu.brown.statistics.Histogram;
 import edu.brown.statistics.ObjectHistogram;
 import edu.brown.statistics.TableStatistics;
 import edu.brown.utils.CollectionUtil;
@@ -232,7 +233,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
 
         // We also need to know some things about the Procedures and their
         // ProcParameters
-        ObjectHistogram<String> workloadHistogram = info.workload.getProcedureHistogram();
+        Histogram<String> workloadHistogram = info.workload.getProcedureHistogram();
         for (Procedure catalog_proc : info.catalogContext.database.getProcedures()) {
             // Skip if we're explicitly force to ignore this guy
             if (PartitionerUtil.shouldIgnoreProcedure(hints, catalog_proc)) {
