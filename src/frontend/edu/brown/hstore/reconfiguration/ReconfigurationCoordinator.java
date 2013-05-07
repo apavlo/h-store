@@ -94,6 +94,7 @@ public class ReconfigurationCoordinator implements Shutdownable {
             this.partitionStates.put(p_id, ReconfigurationState.NORMAL);
         }
         this.initialPartitionStates = Collections.unmodifiableMap(partitionStates);
+        this.localSiteId = hstore_site.getSiteId();
     }
 
     /**
@@ -529,7 +530,7 @@ public class ReconfigurationCoordinator implements Shutdownable {
             LOG.error("Error in deserializing volt table");
           }
           //TODO : change the log status later. Info for testing.
-          LOG.info("Volt table Received in callback is "+vt.toString());
+          //LOG.info("Volt table Received in callback is "+vt.toString());
           
           for (PartitionExecutor executor : local_executors) {
             // TODO : check if we can more efficient here

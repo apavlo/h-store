@@ -4792,7 +4792,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                     assert (range.getMin_inclusive() instanceof Long);
                     // TODO : Test this instance of pulling out a complete range
                     LOG.info("TODO ae force pulling tuples range to test");
-                    reconfiguration_coordinator.pullTuples(currentTxnId, range.old_partition, range.new_partition, range.table_name, (Long)range.getMin_inclusive(), (Long)range.getMax_exclusive(), range.getVt());
+                    reconfiguration_coordinator.pullTuples(currentTxnId, range.old_partition, 
+                        range.new_partition, range.table_name, (Long)range.getMin_inclusive(), (Long)range.getMax_exclusive(), range.getVt());
                     for (Long i = (Long) range.getMin_inclusive(); i < (Long) range.getMax_exclusive(); i++) {
                         this.to_pull.put(i, true);
                 
@@ -4855,32 +4856,29 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         VoltTable vt = null;
         // TODO : add logic to extract the data for the specified
         // reconfiguration range
-        /*
-         *          Table catalog_tbl = null;
-                            VoltTable table = null;
-                            Object row[] = null;
-                            for (ReconfigurationRange<? extends Comparable<?>> range : outgoing_ranges) {
-                                catalog_tbl = this.catalogContext.getTableByName(range.table_name);
-                                table = org.voltdb.utils.CatalogUtil.getVoltTable(catalog_tbl);
-                                row = new Object[table.getColumnCount()];
-                                table.clearRowData();
-                                // TODO range.table_name (ae)
-    
-                                // TODO (ae) how to iterate? or do we even need to
-                                // since
-                                // we will push down range
-                                // to ee to get table
-                                assert (range.getMin_inclusive() instanceof Long);
-                                for (Long i = (Long) range.getMin_inclusive(); i < (Long) range.getMax_exclusive(); i++) {
-                                    row[0] = i;
-    
-                                    // randomly generate strings for each column
-                                    for (int col = 2; col < row.length; col++) {
-                                        row[col] = StopCopy.astring(100, 100);
-                                    } // FOR
-                                    table.addRow(row);
-         * 
-         */
-        return vt;
+        
+        Table catalog_tbl = null;
+        VoltTable table = null;
+        Object row[] = null;
+        
+        catalog_tbl = this.catalogContext.getTableByName(table_name);
+        table = org.voltdb.utils.CatalogUtil.getVoltTable(catalog_tbl);
+        row = new Object[table.getColumnCount()];
+        table.clearRowData();
+          // TODO range.table_name (ae)
+          // TODO (ae) how to iterate? or do we even need to 
+          // since
+          // we will push down range
+          // to ee to get table
+        assert (max_exclusive instanceof Long);
+        for (Long i = (Long)min_inclusive ; i < (Long) max_exclusive; i++) {
+          row[0] = i;
+          // randomly generate strings for each column
+          for (int col = 2; col < row.length; col++) {
+            row[col] = StopCopy.astring(100, 100);
+          } // FOR
+          table.addRow(row);
+         }
+        return table;
     }
 }
