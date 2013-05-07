@@ -36,6 +36,7 @@ public abstract class FixCatalog {
         LOCALHOST_TYPOS.add("localhst");
         LOCALHOST_TYPOS.add("locahlost");
         LOCALHOST_TYPOS.add("loclhost");
+        LOCALHOST_TYPOS.add("localhos");
         LOCALHOST_TYPOS.add("loclhst");
     };
     
