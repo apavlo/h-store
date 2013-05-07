@@ -70,7 +70,6 @@ import org.voltdb.MemoryStats;
 import org.voltdb.ParameterSet;
 import org.voltdb.SQLStmt;
 import org.voltdb.SnapshotSiteProcessor;
-import org.voltdb.VoltType;
 import org.voltdb.SnapshotSiteProcessor.SnapshotTableTask;
 import org.voltdb.SysProcSelector;
 import org.voltdb.VoltProcedure;
@@ -117,6 +116,7 @@ import edu.brown.catalog.PlanFragmentIdGenerator;
 import edu.brown.catalog.special.CountedStatement;
 import edu.brown.hashing.ReconfigurationPlan;
 import edu.brown.hashing.ReconfigurationPlan.ReconfigurationRange;
+import edu.brown.hstore.Hstoreservice.LivePullRequest;
 import edu.brown.hstore.Hstoreservice.QueryEstimate;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.TransactionPrefetchResult;
@@ -139,6 +139,7 @@ import edu.brown.hstore.internal.InitializeRequestMessage;
 import edu.brown.hstore.internal.InitializeTxnMessage;
 import edu.brown.hstore.internal.InternalMessage;
 import edu.brown.hstore.internal.InternalTxnMessage;
+import edu.brown.hstore.internal.LivePullRequestMessage;
 import edu.brown.hstore.internal.PotentialSnapshotWorkMessage;
 import edu.brown.hstore.internal.PrepareTxnMessage;
 import edu.brown.hstore.internal.SetDistributedTxnMessage;
@@ -1390,6 +1391,14 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         else if (work instanceof InitializeTxnMessage) {
             this.queueManager.lockQueueInsert(ts, this.partitionId, ts.getInitCallback());
         }
+        // Pull Request Message
+        else if(work instanceof LivePullRequestMessage) {
+          // Process the pull request 
+          LivePullRequest livePullRequest = ((LivePullRequestMessage) work).getLivePullRequest();  
+            this.sendTuples(livePullRequest.getTransactionID(), livePullRequest.getOldPartition(), livePullRequest.getNewPartition()
+                , livePullRequest.getVoltTableName(), livePullRequest.getMinInclusive(), livePullRequest.getMaxExclusive());
+        }
+        
     }
 
     // ----------------------------------------------------------------------------
