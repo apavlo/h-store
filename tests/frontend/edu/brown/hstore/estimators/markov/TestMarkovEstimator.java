@@ -82,12 +82,12 @@ public class TestMarkovEstimator extends BaseTestCase {
                     .attach(new ProcedureLimitFilter(WORKLOAD_XACT_LIMIT));
 
             File file = this.getWorkloadFile(ProjectType.TPCC);
-            workload = new Workload(catalog);
-            ((Workload) workload).load(file, catalog_db, filter);
+            workload = new Workload(catalogContext.catalog);
+            ((Workload) workload).load(file, catalogContext.database, filter);
             assert(workload.getTransactionCount() > 0);
             
             // Generate MarkovGraphs
-            markovs = MarkovGraphContainersUtil.createBasePartitionMarkovGraphsContainer(catalog_db, workload, p_estimator);
+            markovs = MarkovGraphContainersUtil.createBasePartitionMarkovGraphsContainer(catalogContext.database, workload, p_estimator);
             assertNotNull(markovs);
             
             // Find a single-partition and multi-partition trace
@@ -493,7 +493,7 @@ public class TestMarkovEstimator extends BaseTestCase {
             MarkovVertex last_v = est.getVertex();
             assertNotNull(last_v);
             System.err.println("LAST VERTEX: " + last_v);
-            assertEquals(CollectionUtil.last(queries).getCatalogItem(catalog_db), last_v.getCatalogItem());
+            assertEquals(CollectionUtil.last(queries).getCatalogItem(catalogContext.database), last_v.getCatalogItem());
         } // FOR
     }
 }
