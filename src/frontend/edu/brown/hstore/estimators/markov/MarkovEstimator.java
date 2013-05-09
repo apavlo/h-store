@@ -221,12 +221,20 @@ public class MarkovEstimator extends TransactionEstimator {
         // Update EstimatorState.prefetch any time we transition to a MarkovVertex where the
         // underlying Statement catalog object was marked as prefetchable
         // Do we want to put this traversal above?
-        for (MarkovVertex vertex : initialEst.getMarkovPath()) {
-            Statement statement = (Statement) vertex.getCatalogItem();
-            if (statement.getPrefetchable() && vertex.getPartitions().get() != base_partition) {
-                state.addPrefetchableStatement(vertex.getCountedStatement());
-            }
-        } // FOR
+        if (hstore_conf.site.exec_prefetch_queries) {
+            for (MarkovVertex vertex : initialEst.getMarkovPath()) {
+                Statement statement = (Statement) vertex.getCatalogItem();
+                if (statement.getPrefetchable()) {
+                    if (debug.val)
+                        LOG.debug(String.format("%s - Checking whether we can prefetch %s on partitions %s",
+                                 AbstractTransaction.formatTxnName(catalog_proc, txn_id),
+                                 statement.fullName(), vertex.getPartitions()));
+                    if (vertex.getPartitions().isEmpty() == false && vertex.getPartitions().get() != base_partition) {
+                        state.addPrefetchableStatement(vertex.getCountedStatement());
+                    }
+                }
+            } // FOR
+        }
         
         // We want to add the estimate to the state down here after we have initialized
         // everything. This prevents other threads from accessing it before we have
