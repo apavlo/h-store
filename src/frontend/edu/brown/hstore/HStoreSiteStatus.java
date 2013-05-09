@@ -1011,7 +1011,6 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
             "STATES_TXN_REMOTE",
             "STATES_TXN_MAPREDUCE",
             "STATES_DISTRIBUTED",
-            "STATES_PREFETCH",
         };
         HStoreObjectPools objPool = hstore_site.getObjectPools();
         for (int i = 0, cnt = labels.length; i < cnt; i++) {
@@ -1036,11 +1035,6 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
                         break;
                     case 3:
                         pool = objPool.getDistributedStatePool(p);
-                        break;
-                    case 4:
-                        if (hstore_conf.site.exec_prefetch_queries) {
-                            pool = objPool.getPrefetchStatePool(p);
-                        }
                         break;
                 } // SWITCH
                 if (pool == null) continue;

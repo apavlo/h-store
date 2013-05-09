@@ -343,15 +343,6 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
         if (this.attached_inputs != null) this.attached_inputs.clear();
         this.attached_parameterSets = null;
 
-        // If this transaction handle was keeping track of pre-fetched queries,
-        // then go ahead and reset those state variables.
-        if (this.prefetch != null) {
-            hstore_site.getObjectPools()
-                       .getPrefetchStatePool(this.base_partition)
-                       .returnObject(this.prefetch);
-            this.prefetch = null;
-        }
-        
         for (int partition : this.hstore_site.getLocalPartitionIds().values()) {
             this.released[partition] = false;
             this.prepared[partition] = false;
@@ -1092,16 +1083,8 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
      */
     public final void initializePrefetch() {
         if (this.prefetch == null) {
-            try {
-                this.prefetch = hstore_site.getObjectPools()
-                                           .getPrefetchStatePool(this.base_partition)
-                                           .borrowObject();
-                this.prefetch.init(this);
-            } catch (Throwable ex) {
-                String message = String.format("Unexpected error when trying to initialize %s for %s",
-                                               PrefetchState.class.getSimpleName(), this);
-                throw new ServerFaultException(message, ex, this.txn_id);
-            }
+            this.prefetch = new PrefetchState(this.hstore_site);
+            this.prefetch.init(this);
         }
     }
     
