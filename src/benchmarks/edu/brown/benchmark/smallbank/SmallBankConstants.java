@@ -70,7 +70,7 @@ public abstract class SmallBankConstants {
     public static final int PERCENTAGE_NO_CHECKING  = 0;
     
     // Initial balance amount
-    public static final int MIN_BALANCE             = 1;
-    public static final int MAX_BALANCE             = 1000;
+    public static final int MIN_BALANCE             = 100;
+    public static final int MAX_BALANCE             = 5000;
 
 }
