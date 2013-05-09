@@ -33,6 +33,7 @@ import org.voltdb.catalog.CatalogType.UnresolvedInfo;
 import org.voltdb.plannodes.AbstractPlanNode;
 import org.voltdb.types.ConstraintType;
 import org.voltdb.types.IndexType;
+import org.voltdb.types.QueryType;
 import org.voltdb.utils.Encoder;
 
 import edu.brown.catalog.CatalogUtil;
@@ -138,6 +139,12 @@ public class CatalogAttributeText {
                 else if (catalog_obj instanceof Index) {
                     if (field == "type") {
                         m[0].put(field, IndexType.get((Integer)value));
+                    }
+                }
+                // STATEMENT
+                else if (catalog_obj instanceof Statement) {
+                    if (field == "querytype") {
+                        m[0].put(field, QueryType.get((Integer)value));
                     }
                 }
                 // COLUMN / STMTPARAMETER / PROCPARAMETER
