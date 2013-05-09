@@ -115,11 +115,18 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
                 for (Table tbl : CatalogUtil.getReferencedTables(stmt)) {
                     Column pkeys[] = this.pkeysCache.get(tbl);
                     if (trace.val) LOG.trace(tbl + " => " + Arrays.toString(pkeys));
+                    if (pkeys == null) {
+                        LOG.warn("Unexpected null primary keys for " + tbl);
+                        continue;
+                    }
                     for (Column col : pkeys) {
                         Collection<StmtParameter> params = cset.findAllForOther(StmtParameter.class, col);
                         // If there are more than one, then it should always conflict
                         if (params.size() > 1) {
                             // TODO
+                            LOG.warn(String.format("There are %d %s mapped to the primary key column %s. " +
+                                     "Marking %s as always conflicting with %s",
+                                     params.size(), col.fullName(), tbl, stmt.fullName()));
                         }
                         else {
                             // If there are no references, then there is nothing else that we 
