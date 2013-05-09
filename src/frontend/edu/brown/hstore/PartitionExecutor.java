@@ -1949,8 +1949,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
      */
     public void queueUtilityWork(InternalMessage work) {
         if (debug.val)
-            LOG.debug(String.format("Queuing utility work on partition %d\n%s",
-                      this.partitionId, work));
+            LOG.debug(String.format("Added utility work %s to partition %d",
+                      work.getClass().getSimpleName(), this.partitionId));
         this.work_queue.offer(work);
     }
 
