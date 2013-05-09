@@ -103,6 +103,15 @@
   "STATEMENT_INDEX": 1,
   "STATEMENT_PARAMETER": "{'SendPayment.GetAccount':'0'}",
   "STATEMENT_COLUMN": "{'ACCOUNTS':'CUSTID'}",
+  "PROCEDURE_PARAMETER": "{'SendPayment':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": -1,
+  "COEFFICIENT": 1.0
+ },
+  {
+  "STATEMENT": "{'SendPayment':'GetAccount'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'SendPayment.GetAccount':'0'}",
+  "STATEMENT_COLUMN": "{'ACCOUNTS':'CUSTID'}",
   "PROCEDURE_PARAMETER": "{'SendPayment':'0'}",
   "PROCEDURE_PARAMETER_INDEX": -1,
   "COEFFICIENT": 1.0
@@ -149,15 +158,6 @@
   "STATEMENT_PARAMETER": "{'Amalgamate.GetAccount':'0'}",
   "STATEMENT_COLUMN": "{'ACCOUNTS':'CUSTID'}",
   "PROCEDURE_PARAMETER": "{'Amalgamate':'1'}",
-  "PROCEDURE_PARAMETER_INDEX": -1,
-  "COEFFICIENT": 1.0
- },
- {
-  "STATEMENT": "{'SendPayment':'GetAccount'}",
-  "STATEMENT_INDEX": 0,
-  "STATEMENT_PARAMETER": "{'SendPayment.GetAccount':'0'}",
-  "STATEMENT_COLUMN": "{'ACCOUNTS':'CUSTID'}",
-  "PROCEDURE_PARAMETER": "{'SendPayment':'1'}",
   "PROCEDURE_PARAMETER_INDEX": -1,
   "COEFFICIENT": 1.0
  },
