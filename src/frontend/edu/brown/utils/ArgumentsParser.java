@@ -309,21 +309,21 @@ public class ArgumentsParser {
     public Byte getByteOptParam(int idx) {
         Object obj = this.getOptParam(idx, VoltType.TINYINT);
         if (obj != null)
-            obj = ((Long) obj).byteValue();
+            obj = ((Number) obj).byteValue();
         return ((Byte) obj);
     }
 
     public Short getShortOptParam(int idx) {
         Object obj = this.getOptParam(idx, VoltType.SMALLINT);
         if (obj != null)
-            obj = ((Long) obj).shortValue();
+            obj = ((Number) obj).shortValue();
         return ((Short) obj);
     }
 
     public Integer getIntOptParam(int idx) {
         Object obj = this.getOptParam(idx, VoltType.INTEGER);
         if (obj != null)
-            obj = ((Long) obj).intValue();
+            obj = ((Number) obj).intValue();
         return ((Integer) obj);
     }
 
