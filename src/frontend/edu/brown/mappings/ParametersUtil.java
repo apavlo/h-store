@@ -275,6 +275,13 @@ public abstract class ParametersUtil {
         return;
     }
     
+    /**
+     * Return the corresponding StmtParameter value from the ProcParameter ParameterSet
+     * using the information provided in the given ParameterMapping.
+     * @param params
+     * @param pm
+     * @return
+     */
     public static Object getValue(ParameterSet params, ParameterMapping pm) {
         Object val = null;
         Object orig = params.toArray()[pm.procedure_parameter.getIndex()];

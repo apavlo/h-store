@@ -1,7 +1,7 @@
 package edu.brown.hstore.util;
 
 import java.util.ArrayList;
-import java.util.BitSet;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -33,9 +33,11 @@ import edu.brown.mappings.ParameterMapping;
 import edu.brown.mappings.ParametersUtil;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PartitionEstimator;
+import edu.brown.utils.PartitionSet;
 import edu.brown.utils.StringUtil;
 
 /**
+ * Special planner for prefetching queries for distributed txns.
  * @author pavlo
  * @author cjl6
  */
@@ -47,12 +49,12 @@ public class PrefetchQueryPlanner {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
 
-    // private final Database catalog_db;
     private final Map<Integer, BatchPlanner> planners = new HashMap<Integer, BatchPlanner>();
+    private final Map<Integer, ParameterMapping[][]> mappingsCache = new HashMap<Integer, ParameterMapping[][]>();
+    
     private final PartitionEstimator p_estimator;
     private final int[] partitionSiteXref;
     private final CatalogContext catalogContext;
-    private final BitSet touched_sites;
     private final FastSerializer fs = new FastSerializer(); // TODO: Use pooled memory
 
     /**
@@ -62,7 +64,6 @@ public class PrefetchQueryPlanner {
      */
     public PrefetchQueryPlanner(CatalogContext catalogContext, PartitionEstimator p_estimator) {
         this.catalogContext = catalogContext;
-        this.touched_sites = new BitSet(this.catalogContext.numberOfSites);
         this.p_estimator = p_estimator;
 
         // Initialize a BatchPlanner for each Procedure if it has the
@@ -81,7 +82,7 @@ public class PrefetchQueryPlanner {
                 for (StmtParameter catalog_param : catalog_stmt.getParameters().values()) {
                     if (catalog_param.getProcparameter() == null) {
                         LOG.warn(String.format("Unable to mark %s as prefetchable because %s is not mapped to a ProcParameter",
-                                               catalog_stmt.fullName(), catalog_param.fullName()));
+                                 catalog_stmt.fullName(), catalog_param.fullName()));
                         valid = false;
                     }
                 } // FOR
@@ -96,20 +97,50 @@ public class PrefetchQueryPlanner {
         } // FOR (procedure)
 
         this.partitionSiteXref = CatalogUtil.getPartitionSiteXrefArray(catalogContext.database);
-        if (debug.val) LOG.debug(String.format("Initialized QueryPrefetchPlanner for %d " +
-        		                                 "Procedures with prefetchable Statements",
-        		                                 this.planners.size()));
+        if (debug.val)
+            LOG.debug(String.format("Initialized QueryPrefetchPlanner for %d " +
+                      "Procedures with prefetchable Statements",
+                      this.planners.size()));
         if (this.catalogContext.paramMappings == null) {
             LOG.warn("Unable to generate prefetachable query plans without a ParameterMappingSet");
         }
     }
 
-    public BatchPlanner addPlanner(SQLStmt[] prefetchStmts, Procedure catalog_proc, PartitionEstimator p_estimator, boolean prefetch) {
-        BatchPlanner planner = new BatchPlanner(prefetchStmts, prefetchStmts.length, catalog_proc, p_estimator);
-        planner.setPrefetchFlag(prefetch);
-        // Are the prefetchStmts always going to be sorted the same way? (Does it matter for the hash code?)
-        this.planners.put(VoltProcedure.getBatchHashCode(prefetchStmts, prefetchStmts.length), planner);
-        if (debug.val) LOG.debug(String.format("%s Prefetch Statements: %s", catalog_proc.getName(), prefetchStmts));
+    /**
+     * Initialize a new cached BatchPlanner that is specific to the prefetch batch. 
+     * @param catalog_proc
+     * @param prefetchable
+     * @param prefetchStmts
+     * @return
+     */
+    protected BatchPlanner addPlanner(Procedure catalog_proc,
+                                      List<CountedStatement> prefetchable,
+                                      SQLStmt[] prefetchStmts) {
+        BatchPlanner planner = new BatchPlanner(prefetchStmts, prefetchStmts.length, catalog_proc, this.p_estimator);
+        planner.setPrefetchFlag(true);
+        
+        // For each Statement in this batch, cache its ParameterMappings objects
+        ParameterMapping mappings[][] = new ParameterMapping[prefetchStmts.length][]; 
+        for (int i = 0; i < prefetchStmts.length; i++) {
+            CountedStatement counted_stmt = prefetchable.get(i);
+            mappings[i] = new ParameterMapping[counted_stmt.statement.getParameters().size()];
+            for (StmtParameter catalog_param : counted_stmt.statement.getParameters().values()) {
+                Collection<ParameterMapping> pmSets = this.catalogContext.paramMappings.get(
+                                                                counted_stmt.statement,
+                                                                counted_stmt.counter,
+                                                                catalog_param);
+                assert(pmSets != null) : String.format("Unexpected %s for %s", counted_stmt, catalog_param);
+                mappings[i][catalog_param.getIndex()] = CollectionUtil.first(pmSets);
+            } // FOR (StmtParameter)
+        } // FOR (CountedStatement)
+        
+        int batchId = VoltProcedure.getBatchHashCode(prefetchStmts, prefetchStmts.length);
+        this.planners.put(batchId, planner);
+        this.mappingsCache.put(batchId, mappings);
+        
+        if (debug.val)
+            LOG.debug(String.format("%s Prefetch Statements: %s",
+                      catalog_proc.getName(), Arrays.toString(prefetchStmts)));
         return planner;
     }
     
@@ -148,40 +179,40 @@ public class PrefetchQueryPlanner {
         // Check if we've used this planner in the past. If not, then create it.
         BatchPlanner planner = this.planners.get(hashcode);
         if (planner == null) {
-            planner = this.addPlanner(prefetchStmts, catalog_proc, p_estimator, true);
+            planner = this.addPlanner(catalog_proc, prefetchable, prefetchStmts);
         }
-        
-        assert (planner != null) : "Missing BatchPlanner for " + catalog_proc;
+        assert(planner != null) : "Missing BatchPlanner for " + catalog_proc;
         ParameterSet prefetchParams[] = new ParameterSet[planner.getBatchSize()];
         ByteString prefetchParamsSerialized[] = new ByteString[prefetchParams.length];
+        ParameterMapping mappings[][] = this.mappingsCache.get(hashcode);
+        assert(mappings != null) : "Missing cached ParameterMappings for " + catalog_proc;
         
         // Makes a list of ByteStrings containing the ParameterSets that we need
         // to send over to the remote sites so that they can execute our
         // prefetchable queries
         for (int i = 0; i < prefetchParams.length; i++) {
-            Statement catalog_stmt = planner.getStatement(i);
             CountedStatement counted_stmt = prefetchable.get(i);
             if (debug.val)
                 LOG.debug(String.format("%s - Building ParameterSet for prefetchable query %s",
-                          ts, catalog_stmt.fullName()));
-            Object stmt_params[] = new Object[catalog_stmt.getParameters().size()];
+                          ts, counted_stmt));
+            Object stmt_params[] = new Object[counted_stmt.statement.getParameters().size()];
 
             // Generates a new object array using a mapping from the
             // ProcParameter to the StmtParameter. This relies on a
             // ParameterMapping already being installed in the catalog
-            // TODO: Precompute this as arrays (it will be much faster)
-            for (StmtParameter catalog_param : catalog_stmt.getParameters().values()) {
-                Collection<ParameterMapping> pmSets = this.catalogContext.paramMappings.get(counted_stmt.statement,
-                                                                                            counted_stmt.counter,
-                                                                                            catalog_param);
-                assert(pmSets != null) : String.format("Unexpected %s for %s", counted_stmt, catalog_param);
-                ParameterMapping pm = CollectionUtil.first(pmSets);
+            for (StmtParameter catalog_param : counted_stmt.statement.getParameters().values()) {
+                ParameterMapping pm = mappings[i][catalog_param.getIndex()];
+                assert(pm != null) :
+                    String.format("Unexpected null %s for %s [%s]",
+                                  ParameterMapping.class.getSimpleName(), catalog_param.fullName(), counted_stmt);
+                
                 if (pm.procedure_parameter.getIsarray()) {
                     stmt_params[catalog_param.getIndex()] = ParametersUtil.getValue(ts.getProcedureParameters(), pm);
                 }
                 else {
                     ProcParameter catalog_proc_param = pm.procedure_parameter;
-                    assert(catalog_proc_param != null) : "Missing mapping from " + catalog_param.fullName() + " to ProcParameter";
+                    assert(catalog_proc_param != null) :
+                        "Missing mapping from " + catalog_param.fullName() + " to ProcParameter";
                     stmt_params[catalog_param.getIndex()] = proc_params[catalog_proc_param.getIndex()];
                 }
             } // FOR (StmtParameter)
@@ -189,7 +220,7 @@ public class PrefetchQueryPlanner {
 
             if (debug.val)
                 LOG.debug(String.format("%s - [%02d] Prefetch %s -> %s",
-                          ts, i, catalog_stmt.getName(), prefetchParams[i]));
+                          ts, i, counted_stmt, prefetchParams[i]));
 
             // Serialize this ParameterSet for the TransactionInitRequests
             try {
@@ -201,8 +232,7 @@ public class PrefetchQueryPlanner {
             }
         } // FOR (Statement)
 
-        // Generate the WorkFragments that we will need to send in our
-        // TransactionInitRequest
+        // Generate the WorkFragments that we will need to send in our TransactionInitRequest
         BatchPlan plan = planner.plan(ts.getTransactionId(),
                                       ts.getBasePartition(),
                                       ts.getPredictTouchedPartitions(),
@@ -235,10 +265,11 @@ public class PrefetchQueryPlanner {
             builders[site_id].addPrefetchFragments(fragmentBuilder);
         } // FOR (WorkFragment)
 
-        Collection<Integer> touched_partitions = ts.getPredictTouchedPartitions();
-        this.touched_sites.clear();
+        PartitionSet touched_partitions = ts.getPredictTouchedPartitions();
+        boolean touched_sites[] = new boolean[this.catalogContext.numberOfSites];
+        Arrays.fill(touched_sites, false);
         for (int partition : touched_partitions) {
-            this.touched_sites.set(this.partitionSiteXref[partition]);
+            touched_sites[this.partitionSiteXref[partition]] = true;
         } // FOR
         TransactionInitRequest[] init_requests = new TransactionInitRequest[this.catalogContext.numberOfSites];
         TransactionInitRequest default_request = null;
@@ -247,7 +278,7 @@ public class PrefetchQueryPlanner {
             if (builders[site_id] == null) {
                 // but it has other non-prefetched WorkFragments, create a
                 // default TransactionInitRequest.
-                if (this.touched_sites.get(site_id)) {
+                if (touched_sites[site_id]) {
                     if (default_request == null) {
                         default_request = TransactionInitRequest.newBuilder()
                                                 .setTransactionId(ts.getTransactionId())
@@ -258,8 +289,7 @@ public class PrefetchQueryPlanner {
                     init_requests[site_id] = default_request;
                     if (debug.val) LOG.debug(ts + " - Sending default TransactionInitRequest to site " + site_id);
                 }
-                // and no other WorkFragments, set the TransactionInitRequest to
-                // null.
+                // And no other WorkFragments, set the TransactionInitRequest to null.
                 else {
                     init_requests[site_id] = null;
                 }
