@@ -22,18 +22,18 @@ EXP_TYPES=( \
 )
 PARTITIONS=( \
     8 \
-#     16 \
+    16 \
 #     32 \
 )
 
+# for b in smallbank tpcc seats; do
 for b in smallbank tpcc seats; do
-# for b in seats; do
     PARAMS=( \
         --no-update \
+        --results-dir=$DATA_DIR \
         --benchmark=$b \
         --stop-on-error \
         --exp-trials=3 \
-#         --no-json \
         --partitions ${PARTITIONS[@]} \
         --client.duration=60000
     )
