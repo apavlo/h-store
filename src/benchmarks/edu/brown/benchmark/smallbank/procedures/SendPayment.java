@@ -58,7 +58,7 @@ public class SendPayment extends VoltProcedure {
         balResults[0].advanceRow();
         double balance = balResults[0].getDouble(0);
         
-        if (balance < 0) {
+        if (balance < amount) {
             String msg = String.format("Insufficient %s funds for customer #%d",
                                        SmallBankConstants.TABLENAME_CHECKING, sendAcct); 
             throw new VoltAbortException(msg);

@@ -7,6 +7,7 @@ import org.voltdb.CatalogContext;
 import org.voltdb.VoltTable;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
+import org.voltdb.client.ProcCallException;
 
 import edu.brown.benchmark.smallbank.SmallBankConstants;
 import edu.brown.benchmark.smallbank.SmallBankLoader;
@@ -30,6 +31,31 @@ public class TestSmallBankSuite extends RegressionSuite {
     public TestSmallBankSuite(String name) {
         super(name);
     }
+    
+    private void checkBalance(Client client, long acctId, double expected) throws Exception {
+        // Make sure that we set it correctly
+        String query = String.format("SELECT * FROM %s WHERE custid = %d",
+                              SmallBankConstants.TABLENAME_CHECKING, acctId);
+        ClientResponse cresponse = client.callProcedure("@AdHoc", query);
+        assertEquals(Status.OK, cresponse.getStatus());
+        VoltTable results[] = cresponse.getResults();
+        assertEquals(1, results.length);
+        assertEquals(1, results[0].getRowCount());
+        assertTrue(results[0].advanceRow());
+        assertEquals(expected, results[0].getDouble("bal"));
+    }
+    
+    private void updateBalance(Client client, long acctId, double balance) throws Exception {
+        // Prime the customer's balance
+        String query = String.format("UPDATE %s SET bal = %f WHERE custid = %d",
+                              SmallBankConstants.TABLENAME_CHECKING,
+                              balance, acctId);
+        ClientResponse cresponse = client.callProcedure("@AdHoc", query);
+        assertEquals(Status.OK, cresponse.getStatus());
+        VoltTable results[] = cresponse.getResults();
+        assertEquals(1, results.length);
+        assertTrue(results[0].advanceRow());
+    }
 
     /**
      * testSendPayment
@@ -43,31 +69,10 @@ public class TestSmallBankSuite extends RegressionSuite {
         double balances[] = { 100d, 0d };
         ClientResponse cresponse;
         VoltTable results[];
-        String query;
         
         for (int i = 0; i < acctIds.length; i++) {
-            // Prime the customer's balance
-            query = String.format("UPDATE %s SET bal = %f WHERE custid = %d",
-                                  SmallBankConstants.TABLENAME_CHECKING,
-                                  balances[i], acctIds[i]);
-            cresponse = client.callProcedure("@AdHoc", query);
-            assertEquals(Status.OK, cresponse.getStatus());
-            results = cresponse.getResults();
-            assertEquals(1, results.length);
-            assertTrue(results[0].advanceRow());
-            // assertEquals(1, results[0].asScalarLong());
-            
-            // Make sure that we set it correctly
-            query = String.format("SELECT * FROM %s WHERE custid = %d",
-                                  SmallBankConstants.TABLENAME_CHECKING, acctIds[i]);
-            cresponse = client.callProcedure("@AdHoc", query);
-            assertEquals(Status.OK, cresponse.getStatus());
-            results = cresponse.getResults();
-            assertEquals(1, results.length);
-            assertEquals(1, results[0].getRowCount());
-            assertTrue(results[0].advanceRow());
-            assertEquals(balances[i], results[0].getDouble("bal"));
-            // System.err.println(VoltTableUtil.format(results[0]));
+            this.updateBalance(client, acctIds[i], balances[i]);
+            this.checkBalance(client, acctIds[i], balances[i]);
         } // FOR
         
         // Run the SendPayment txn to send all the money from the first
@@ -84,16 +89,40 @@ public class TestSmallBankSuite extends RegressionSuite {
         
         // Make sure the account balances have switched
         for (int i = 0; i < acctIds.length; i++) {
-            query = String.format("SELECT * FROM %s WHERE custid = %d",
-                                  SmallBankConstants.TABLENAME_CHECKING, acctIds[i]);
-            cresponse = client.callProcedure("@AdHoc", query);
-            assertEquals(Status.OK, cresponse.getStatus());
-            results = cresponse.getResults();
-            assertEquals(1, results.length);
-            assertEquals(1, results[0].getRowCount());
-            assertTrue(results[0].advanceRow());
-            assertEquals(balances[i == 0 ? 1 : 0], results[0].getDouble("bal"));
-            // System.err.println(VoltTableUtil.format(results[0]));
+            this.checkBalance(client, acctIds[i], balances[i == 0 ? 1 : 0]);
+        } // FOR
+    }
+    
+    /**
+     * testSendPaymentInsufficientFunds
+     */
+    public void testSendPaymentInsufficientFunds() throws Exception {
+        CatalogContext catalogContext = this.getCatalogContext();
+        Client client = this.getClient();
+        TestSmallBankSuite.initializeSmallBankDatabase(catalogContext, client);
+        
+        long acctIds[] = { 1l, 2l };
+        double balances[] = { 0d, 100d };
+        ClientResponse cresponse;
+        
+        for (int i = 0; i < acctIds.length; i++) {
+            this.updateBalance(client, acctIds[i], balances[i]);
+            this.checkBalance(client, acctIds[i], balances[i]);
+        } // FOR
+        
+        // Run the SendPayment txn that tries to send to money from the first account,
+        // but it should fail because the balance is zero
+        try {
+            cresponse = client.callProcedure(SendPayment.class.getSimpleName(),
+                                             acctIds[0], acctIds[1], balances[1]);
+        } catch (ProcCallException ex) {
+            cresponse = ex.getClientResponse();
+        }
+        assertEquals(Status.ABORT_USER, cresponse.getStatus());
+        
+        // Make sure the account balances are still the same
+        for (int i = 0; i < acctIds.length; i++) {
+            this.checkBalance(client, acctIds[i], balances[i]);
         } // FOR
     }
     
