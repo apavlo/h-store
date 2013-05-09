@@ -159,12 +159,14 @@ public class PrefetchQueryPlanner {
             return (null);
         }
         
-        if (debug.val) LOG.debug(ts + " - Generating prefetch WorkFragments");
-        
         Procedure catalog_proc = ts.getProcedure();
         assert (ts.getProcedureParameters() != null) : 
             "Unexpected null ParameterSet for " + ts;
         Object proc_params[] = ts.getProcedureParameters().toArray();
+        
+        if (debug.val)
+            LOG.debug(String.format("%s - Generating prefetch WorkFragments using %s",
+                      ts, ts.getProcedureParameters()));
         
         SQLStmt[] prefetchStmts = new SQLStmt[prefetchable.size()];
         for (int i = 0; i < prefetchStmts.length; ++i) {
@@ -219,7 +221,7 @@ public class PrefetchQueryPlanner {
             prefetchParams[i] = new ParameterSet(stmt_params);
 
             if (debug.val)
-                LOG.debug(String.format("%s - [%02d] Prefetch %s -> %s",
+                LOG.debug(String.format("%s - [Prefetch %02d] %s -> %s",
                           ts, i, counted_stmt, prefetchParams[i]));
 
             // Serialize this ParameterSet for the TransactionInitRequests
