@@ -2588,6 +2588,34 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
         }
         return (ret);
     }
+    
+    /**
+     * Return a mapping from the CatalogType handle to their display name
+     * @param items
+     * @return
+     */
+    public static Map<CatalogType, String> getDisplayNameMapping(CatalogType...items) {
+        Map<CatalogType, String> ret = new HashMap<CatalogType, String>();
+        for (CatalogType i : items) {
+            if (i == null) continue;
+            ret.put(i, CatalogUtil.getDisplayName(i, false));
+        } // FOR
+        return (ret);
+    }
+    
+    /**
+     * Return a mapping from the CatalogType handle to their display name
+     * @param items
+     * @return
+     */
+    public static Map<CatalogType, String> getDisplayNameMapping(Iterable<? extends CatalogType> items) {
+        Map<CatalogType, String> ret = new HashMap<CatalogType, String>();
+        for (CatalogType i : items) {
+            if (i == null) continue;
+            ret.put(i, CatalogUtil.getDisplayName(i, false));
+        } // FOR
+        return (ret);
+    }
 
     /**
      * @param item

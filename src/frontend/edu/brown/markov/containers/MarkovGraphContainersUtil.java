@@ -206,6 +206,7 @@ public abstract class MarkovGraphContainersUtil {
                                className, CatalogUtil.getNumberOfPartitions(catalog_db), num_threads));
         ThreadUtil.runGlobalPool(runnables);
     
+        proc_h.setDebugLabels(CatalogUtil.getDisplayNameMapping(proc_h.values()));
         LOG.info("Procedure Histogram:\n" + proc_h);
         MarkovGraphContainersUtil.calculateProbabilities(markovs_map);
         
