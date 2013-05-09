@@ -68,6 +68,10 @@ public class TestPrefetchQueryPlanner extends BaseTestCase {
         Statement catalog_stmt = this.getStatement(catalog_proc, TARGET_PREFETCH_STATEMENT);
         catalog_stmt.setPrefetchable(true);
         catalog_proc.setPrefetchable(true);
+        
+        final ParameterSet params = new ParameterSet(this.proc_params);
+        final EstimatorState estState = new MarkovEstimatorState.Factory(catalogContext).makeObject();
+        estState.addPrefetchableStatement(new CountedStatement(catalog_stmt, 0));
 
         // Hard-code ParameterMapping
         int mappings[][] = {
@@ -86,7 +90,7 @@ public class TestPrefetchQueryPlanner extends BaseTestCase {
         
         this.prefetcher = new PrefetchQueryPlanner(catalogContext, p_estimator);
         SQLStmt[] batchStmts = {new SQLStmt(catalog_stmt)};
-        this.prefetcher.addPlanner(batchStmts, catalog_proc, p_estimator, true);
+        this.prefetcher.addPlanner(catalog_proc, estState.getPrefetchableStatements(), batchStmts);
         
         for (int i = 0; i < NUM_SITES; i++) {
             this.hstore_sites[i] = new MockHStoreSite(i, catalogContext, HStoreConf.singleton());
@@ -104,9 +108,7 @@ public class TestPrefetchQueryPlanner extends BaseTestCase {
             // } // FOR
         } // FOR
 
-        final ParameterSet params = new ParameterSet(this.proc_params);
-        final EstimatorState estimator = new MarkovEstimatorState.Factory(catalogContext).makeObject();
-        estimator.addPrefetchableStatement(new CountedStatement(catalog_stmt, 0));
+
         
         this.ts = new LocalTransaction(this.hstore_sites[LOCAL_SITE]) {
             @Override
@@ -115,7 +117,7 @@ public class TestPrefetchQueryPlanner extends BaseTestCase {
             }
             @Override
             public edu.brown.hstore.estimators.EstimatorState getEstimatorState() {
-                return (estimator);
+                return (estState);
             }
         };
 
