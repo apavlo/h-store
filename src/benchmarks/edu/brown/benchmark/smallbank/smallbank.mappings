@@ -27,15 +27,6 @@
   "COEFFICIENT": 1.0
  },
  {
-  "STATEMENT": "{'SendPayment':'UpdateCheckingBalance'}",
-  "STATEMENT_INDEX": 1,
-  "STATEMENT_PARAMETER": "{'SendPayment.UpdateCheckingBalance':'1'}",
-  "STATEMENT_COLUMN": "{'CHECKING':'CUSTID'}",
-  "PROCEDURE_PARAMETER": "{'SendPayment':'1'}",
-  "PROCEDURE_PARAMETER_INDEX": -1,
-  "COEFFICIENT": 1.0
- },
- {
   "STATEMENT": "{'TransactSavings':'UpdateSavingsBalance'}",
   "STATEMENT_INDEX": 0,
   "STATEMENT_PARAMETER": "{'TransactSavings.UpdateSavingsBalance':'0'}",
@@ -80,16 +71,7 @@
   "PROCEDURE_PARAMETER_INDEX": -1,
   "COEFFICIENT": 1.0
  },
- {
-  "STATEMENT": "{'SendPayment':'UpdateCheckingBalance'}",
-  "STATEMENT_INDEX": 1,
-  "STATEMENT_PARAMETER": "{'SendPayment.UpdateCheckingBalance':'0'}",
-  "STATEMENT_COLUMN": "{'CHECKING':'BAL'}",
-  "PROCEDURE_PARAMETER": "{'SendPayment':'2'}",
-  "PROCEDURE_PARAMETER_INDEX": -1,
-  "COEFFICIENT": 1.0
- },
- {
+  {
   "STATEMENT": "{'Amalgamate':'GetAccount'}",
   "STATEMENT_INDEX": 1,
   "STATEMENT_PARAMETER": "{'Amalgamate.GetAccount':'0'}",
@@ -113,6 +95,42 @@
   "STATEMENT_PARAMETER": "{'SendPayment.GetAccount':'0'}",
   "STATEMENT_COLUMN": "{'ACCOUNTS':'CUSTID'}",
   "PROCEDURE_PARAMETER": "{'SendPayment':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": -1,
+  "COEFFICIENT": 1.0
+ },
+  {
+  "STATEMENT": "{'SendPayment':'GetCheckingBalance'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'SendPayment.GetCheckingBalance':'0'}",
+  "STATEMENT_COLUMN": "{'CHECKING':'CUSTID'}",
+  "PROCEDURE_PARAMETER": "{'SendPayment':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": -1,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'SendPayment':'UpdateCheckingBalance'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'SendPayment.UpdateCheckingBalance':'1'}",
+  "STATEMENT_COLUMN": "{'CHECKING':'CUSTID'}",
+  "PROCEDURE_PARAMETER": "{'SendPayment':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": -1,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'SendPayment':'UpdateCheckingBalance'}",
+  "STATEMENT_INDEX": 1,
+  "STATEMENT_PARAMETER": "{'SendPayment.UpdateCheckingBalance':'1'}",
+  "STATEMENT_COLUMN": "{'CHECKING':'CUSTID'}",
+  "PROCEDURE_PARAMETER": "{'SendPayment':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": -1,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'SendPayment':'UpdateCheckingBalance'}",
+  "STATEMENT_INDEX": 1,
+  "STATEMENT_PARAMETER": "{'SendPayment.UpdateCheckingBalance':'0'}",
+  "STATEMENT_COLUMN": "{'CHECKING':'BAL'}",
+  "PROCEDURE_PARAMETER": "{'SendPayment':'2'}",
   "PROCEDURE_PARAMETER_INDEX": -1,
   "COEFFICIENT": 1.0
  },
@@ -171,15 +189,6 @@
   "COEFFICIENT": 1.0
  },
  {
-  "STATEMENT": "{'SendPayment':'UpdateCheckingBalance'}",
-  "STATEMENT_INDEX": 0,
-  "STATEMENT_PARAMETER": "{'SendPayment.UpdateCheckingBalance':'1'}",
-  "STATEMENT_COLUMN": "{'CHECKING':'CUSTID'}",
-  "PROCEDURE_PARAMETER": "{'SendPayment':'0'}",
-  "PROCEDURE_PARAMETER_INDEX": -1,
-  "COEFFICIENT": 1.0
- },
- {
   "STATEMENT": "{'WriteCheck':'UpdateCheckingBalance'}",
   "STATEMENT_INDEX": 0,
   "STATEMENT_PARAMETER": "{'WriteCheck.UpdateCheckingBalance':'1'}",
@@ -203,15 +212,6 @@
   "STATEMENT_PARAMETER": "{'WriteCheck.GetCheckingBalance':'0'}",
   "STATEMENT_COLUMN": "{'CHECKING':'CUSTID'}",
   "PROCEDURE_PARAMETER": "{'WriteCheck':'0'}",
-  "PROCEDURE_PARAMETER_INDEX": -1,
-  "COEFFICIENT": 1.0
- },
- {
-  "STATEMENT": "{'SendPayment':'GetCheckingBalance'}",
-  "STATEMENT_INDEX": 0,
-  "STATEMENT_PARAMETER": "{'SendPayment.GetCheckingBalance':'0'}",
-  "STATEMENT_COLUMN": "{'CHECKING':'CUSTID'}",
-  "PROCEDURE_PARAMETER": "{'SendPayment':'0'}",
   "PROCEDURE_PARAMETER_INDEX": -1,
   "COEFFICIENT": 1.0
  }
