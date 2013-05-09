@@ -501,7 +501,7 @@ public final class HStoreConf {
         
         @ConfigProperty(
             description="Use the row-based MarkovConflictChecker to determine whether queued transactions " +
-            		    "conflict with the current distributed transaction. This is used to selecte " +
+            		    "conflict with the current distributed transaction. This is used to select " +
             		    "speculative execution candidates at runtime. " +
             		    "Note that ${site.markov_enable} must be set to true.",
             defaultBoolean=false,

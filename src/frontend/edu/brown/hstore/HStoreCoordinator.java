@@ -751,8 +751,10 @@ public class HStoreCoordinator implements Shutdownable {
      * @param callback
      */
     public void transactionInit(LocalTransaction ts, RpcCallback<TransactionInitResponse> callback) {
-        if (debug.val) LOG.debug(String.format("%s - Sending TransactionInitRequest to %d partitions %s",
-                         ts, ts.getPredictTouchedPartitions().size(), ts.getPredictTouchedPartitions()));
+        if (debug.val)
+            LOG.debug(String.format("%s - Sending %s to %d partitions %s",
+                      ts, TransactionInitRequest.class.getSimpleName(),
+                      ts.getPredictTouchedPartitions().size(), ts.getPredictTouchedPartitions()));
         assert(callback != null) :
             String.format("Trying to initialize %s with a null TransactionInitCallback", ts);
         
@@ -761,12 +763,6 @@ public class HStoreCoordinator implements Shutdownable {
         // request for each site that we want to execute different queries on.
         // TODO: We probably don't want to bother prefetching for txns that only touch
         //       partitions that are in its same local HStoreSite
-        if (debug.val && ts.getProcedure().getPrefetchable()) {
-            LOG.debug("ts.getProcedure().getPrefetchable()@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
-        }
-        if (debug.val && ts.getEstimatorState() != null) {
-            LOG.debug("ts.getEstimatorState() != null@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
-        }
         if (hstore_conf.site.exec_prefetch_queries && ts.getProcedure().getPrefetchable() && ts.getEstimatorState() != null) {
             if (debug.val)
                 LOG.debug(String.format("%s - Generating %s with prefetchable queries",
@@ -774,13 +770,12 @@ public class HStoreCoordinator implements Shutdownable {
             
             // Make sure that we initialize our internal PrefetchState for this txn
             ts.initializePrefetch();
-            TransactionCounter.PREFETCH_LOCAL.inc(ts.getProcedure());
-            
             TransactionInitRequest[] requests = this.queryPrefetchPlanner.generateWorkFragments(ts);
             if (requests == null) {
                 this.sendDefaultTransactionInitRequests(ts, callback);
                 return;
             }
+            TransactionCounter.PREFETCH_LOCAL.inc(ts.getProcedure());
             int sent_ctr = 0;
             int prefetch_ctr = 0;
             assert(requests.length == this.num_sites) :
