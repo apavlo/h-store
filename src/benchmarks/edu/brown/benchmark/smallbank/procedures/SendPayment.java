@@ -34,8 +34,8 @@ public class SendPayment extends VoltProcedure {
     
     public VoltTable[] run(long sendAcct, long destAcct, double amount) {
         // Get Account Information
-        voltQueueSQL(GetAccount, destAcct);
         voltQueueSQL(GetAccount, sendAcct);
+        voltQueueSQL(GetAccount, destAcct);
         final VoltTable acctResults[] = voltExecuteSQL();
         if (acctResults[0].getRowCount() != 1) {
             String msg = "Invalid sender account '" + sendAcct + "'";
