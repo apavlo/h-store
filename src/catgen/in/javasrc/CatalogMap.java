@@ -162,12 +162,18 @@ public final class CatalogMap<T extends CatalogType> implements Iterable<T>, Col
      */
     @SuppressWarnings("unchecked")
     public T[] values() {
-        if (m_fastArray != null) return (m_fastArray);
-        int capacity = this.size();
-        m_fastArray = (T[])Array.newInstance(this.m_cls, capacity);
-        int i = 0;
-        for (T t : m_items.values()) {
-            m_fastArray[i++] = t;
+        if (m_fastArray == null) {
+            synchronized (this) {
+                if (m_fastArray == null) {
+                    int capacity = this.size();
+                    T arr[] = (T[])Array.newInstance(this.m_cls, capacity);
+                    int i = 0;
+                    for (T t : m_items.values()) {
+                        arr[i++] = t;
+                    } // FOR
+                    m_fastArray = arr;
+                }
+            } // SYNCH
         }
         return m_fastArray;
     }
