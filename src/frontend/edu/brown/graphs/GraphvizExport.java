@@ -132,6 +132,7 @@ public class GraphvizExport<V extends AbstractVertex, E extends AbstractEdge> {
         this.graph = graph;
     }
     
+    @SuppressWarnings("unchecked")
     public void addSubgraph(String subgraph, V...vertices) {
         Set<V> subVertices = this.subgraphs.get(subgraph);
         if (subVertices == null) {
