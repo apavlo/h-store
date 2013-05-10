@@ -458,6 +458,53 @@ message TimeSyncResponse {
     required int64 t1_s = 4;
 }
 
+//------------------------------------
+// RECONFIGURATION MESSAGE
+//------------------------------------
+
+message ReconfigurationRequest {
+    // The id of the HStoreSite sending this reconfiguration request
+    required int32 sender_site = 1;
+    // The time when the local HStoreSite sent this reconfiguration request
+    required int64 t0_s = 2; 
+}
+
+message ReconfigurationResponse {
+    // The id of the HStoreSite responding to this reconfiguration request
+    required int32 sender_site = 1;
+    // The time when the local HStoreSite sent this request
+    required int64 t0_s = 2;
+}
+
+//------------------------------------
+// DATA TRANSFER MESSAGE
+//------------------------------------
+
+message DataTransferRequest {
+    // The id of the HStoreSite sending this data transfer message
+    required int32 sender_site = 1;
+    // The time when the local HStoreSite sent this request
+    required int64 t0_s = 2;
+    // This is the old partition this data was associated with 
+    required int32 old_partition = 3; 
+    // This is the new partition this data is associated with 
+    required int32 new_partition = 4;   
+     // This is the table name
+    required string volt_table_name = 5; 
+    // This is the data (in form of serialized volt table)
+    required bytes volt_table_data = 6; 
+}
+
+message DataTransferResponse {
+    // The id of the HStoreSite responding to data transfer message
+    required int32 sender_site = 1;
+    // The time when the remote HStoreSite sent this request
+    required int64 t0_s = 2;
+    // This is the old partition this data was associated with 
+    required int32 old_partition = 3; 
+    // This is the new partition this data is associated with 
+    required int32 new_partition = 4; 
+}
 
 // -----------------------------------
 // SERVICE
@@ -478,4 +525,6 @@ service HStoreService {
     rpc ShutdownPrepare(ShutdownPrepareRequest) returns (ShutdownPrepareResponse);
     rpc Shutdown(ShutdownRequest) returns (ShutdownResponse);
     rpc TimeSync(TimeSyncRequest) returns (TimeSyncResponse);
+    rpc Reconfiguration(ReconfigurationRequest) returns (ReconfigurationResponse);
+    rpc DataTransfer(DataTransferRequest) returns (DataTransferResponse);
 }

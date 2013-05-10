@@ -5,9 +5,13 @@ import org.apache.log4j.Logger;
 import com.google.protobuf.RpcCallback;
 import com.google.protobuf.RpcController;
 
+import edu.brown.hstore.Hstoreservice.DataTransferRequest;
+import edu.brown.hstore.Hstoreservice.DataTransferResponse;
 import edu.brown.hstore.Hstoreservice.HStoreService;
 import edu.brown.hstore.Hstoreservice.InitializeRequest;
 import edu.brown.hstore.Hstoreservice.InitializeResponse;
+import edu.brown.hstore.Hstoreservice.ReconfigurationRequest;
+import edu.brown.hstore.Hstoreservice.ReconfigurationResponse;
 import edu.brown.hstore.Hstoreservice.SendDataRequest;
 import edu.brown.hstore.Hstoreservice.SendDataResponse;
 import edu.brown.hstore.Hstoreservice.ShutdownPrepareRequest;
@@ -34,14 +38,14 @@ import edu.brown.hstore.Hstoreservice.TransactionReduceRequest;
 import edu.brown.hstore.Hstoreservice.TransactionReduceResponse;
 import edu.brown.hstore.Hstoreservice.TransactionWorkRequest;
 import edu.brown.hstore.Hstoreservice.TransactionWorkResponse;
+import edu.brown.hstore.conf.HStoreConf;
+import edu.brown.hstore.txns.RemoteTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
 import edu.brown.utils.PartitionSet;
 import edu.brown.utils.StringUtil;
-import edu.brown.hstore.conf.HStoreConf;
-import edu.brown.hstore.txns.RemoteTransaction;
 
 public class MockHStoreCoordinator extends HStoreCoordinator {
     private static final Logger LOG = Logger.getLogger(MockHStoreCoordinator.class);
@@ -161,6 +165,12 @@ public class MockHStoreCoordinator extends HStoreCoordinator {
             // TODO Auto-generated method stub
             
         }
+        
+        @Override
+        public void reconfiguration(RpcController controller, ReconfigurationRequest request, RpcCallback<ReconfigurationResponse> done) {
+            // TODO Auto-generated method stub
+            
+        }
 
         @Override
         public void transactionMap(RpcController controller, TransactionMapRequest request, RpcCallback<TransactionMapResponse> done) {
@@ -197,6 +207,13 @@ public class MockHStoreCoordinator extends HStoreCoordinator {
         public void transactionDebug(RpcController controller, TransactionDebugRequest request, RpcCallback<TransactionDebugResponse> done) {
             // TODO Auto-generated method stub
             
+        }
+
+        @Override
+        public void dataTransfer(RpcController controller,
+            DataTransferRequest request, RpcCallback<DataTransferResponse> done) {
+          // TODO Auto-generated method stub
+          
         }
     }
 

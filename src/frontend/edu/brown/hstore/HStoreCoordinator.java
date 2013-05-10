@@ -1,5 +1,6 @@
 package edu.brown.hstore;
 
+import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -23,6 +24,7 @@ import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
 import org.voltdb.exceptions.SerializableException;
 import org.voltdb.exceptions.ServerFaultException;
+import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.messaging.FastSerializer;
 import org.voltdb.utils.EstTime;
 import org.voltdb.utils.Pair;
@@ -32,9 +34,13 @@ import com.google.protobuf.RpcCallback;
 import com.google.protobuf.RpcController;
 
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.hstore.Hstoreservice.DataTransferRequest;
+import edu.brown.hstore.Hstoreservice.DataTransferResponse;
 import edu.brown.hstore.Hstoreservice.HStoreService;
 import edu.brown.hstore.Hstoreservice.InitializeRequest;
 import edu.brown.hstore.Hstoreservice.InitializeResponse;
+import edu.brown.hstore.Hstoreservice.ReconfigurationRequest;
+import edu.brown.hstore.Hstoreservice.ReconfigurationResponse;
 import edu.brown.hstore.Hstoreservice.SendDataRequest;
 import edu.brown.hstore.Hstoreservice.SendDataResponse;
 import edu.brown.hstore.Hstoreservice.ShutdownPrepareRequest;
@@ -62,10 +68,10 @@ import edu.brown.hstore.Hstoreservice.TransactionReduceRequest;
 import edu.brown.hstore.Hstoreservice.TransactionReduceResponse;
 import edu.brown.hstore.Hstoreservice.TransactionWorkRequest;
 import edu.brown.hstore.Hstoreservice.TransactionWorkResponse;
-import edu.brown.hstore.callbacks.ShutdownPrepareCallback;
 import edu.brown.hstore.callbacks.LocalFinishCallback;
-import edu.brown.hstore.callbacks.TransactionPrefetchCallback;
 import edu.brown.hstore.callbacks.LocalPrepareCallback;
+import edu.brown.hstore.callbacks.ShutdownPrepareCallback;
+import edu.brown.hstore.callbacks.TransactionPrefetchCallback;
 import edu.brown.hstore.callbacks.TransactionRedirectResponseCallback;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.dispatchers.TransactionFinishDispatcher;
@@ -709,6 +715,19 @@ public class HStoreCoordinator implements Shutdownable {
             ThreadUtil.sleep(10);
             done.run(builder.setT1S(System.currentTimeMillis()).build());
         }
+        
+        @Override
+        public void reconfiguration(RpcController controller, ReconfigurationRequest request, RpcCallback<ReconfigurationResponse> done) {
+            if (debug.val)
+                LOG.debug(String.format("Received %s from HStoreSite %s",
+                          request.getClass().getSimpleName(),
+                          HStoreThreadManager.formatSiteName(request.getSenderSite())));
+            ReconfigurationResponse.Builder builder = ReconfigurationResponse.newBuilder()
+                                                    .setT0S(request.getT0S())
+                                                    .setSenderSite(local_site_id);
+            ThreadUtil.sleep(10);
+            done.run(builder.build());
+        }
 
         @Override
         public void transactionDebug(RpcController controller, TransactionDebugRequest request, RpcCallback<TransactionDebugResponse> done) {
@@ -734,6 +753,36 @@ public class HStoreCoordinator implements Shutdownable {
                                                   .setDebug(debug)
                                                   .build();
             done.run(response);
+        }
+
+        @Override
+        public void dataTransfer(RpcController controller,
+            DataTransferRequest request, RpcCallback<DataTransferResponse> done) {
+          
+          if (debug.val)
+            LOG.debug(String.format("Received %s from HStoreSite %s",
+                      request.getClass().getSimpleName(),
+                      HStoreThreadManager.formatSiteName(request.getSenderSite())));
+          
+          VoltTable vt = null;
+          try {
+            vt = FastDeserializer.deserialize(request.getVoltTableData().toByteArray(), VoltTable.class);
+          } catch (IOException e) {
+            // TODO Auto-generated catch block
+            LOG.error("Error in deserializing volt table");
+          }
+          DataTransferResponse response = null;
+          try {
+            response = hstore_site.getReconfigurationCoordinator().receiveTuples(
+                request.getSenderSite(), request.getT0S(), request.getOldPartition(), request.getNewPartition(), 
+                request.getVoltTableName(), vt);
+          } catch (Exception e) {
+            // TODO Auto-generated catch block
+            LOG.error("Exception incurred while receiving tuples", e);
+          }
+          
+          done.run(response);
+          
         }
 
     } // END CLASS
@@ -1393,5 +1442,9 @@ public class HStoreCoordinator implements Shutdownable {
         }
         HStoreService channel = HStoreService.newStub(channels[0]);
         return (channel);
+    }
+
+    public synchronized HStoreService[] getChannels() {
+      return channels;
     }
 }

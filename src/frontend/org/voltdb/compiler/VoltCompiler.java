@@ -83,18 +83,20 @@ import org.voltdb.compiler.projectfile.UsersType;
 import org.voltdb.compiler.projectfile.VerticalpartitionsType.Verticalpartition;
 import org.voltdb.planner.VerticalPartitionPlanner;
 import org.voltdb.sysprocs.AdHoc;
+import org.voltdb.sysprocs.ChangePartitionPlan;
+import org.voltdb.sysprocs.DatabaseDump;
 import org.voltdb.sysprocs.EvictHistory;
 import org.voltdb.sysprocs.EvictTuples;
-import org.voltdb.sysprocs.DatabaseDump;
 import org.voltdb.sysprocs.EvictedAccessHistory;
 import org.voltdb.sysprocs.ExecutorStatus;
 import org.voltdb.sysprocs.GarbageCollection;
 import org.voltdb.sysprocs.GetCatalog;
 import org.voltdb.sysprocs.GetConfiguration;
 import org.voltdb.sysprocs.LoadMultipartitionTable;
-import org.voltdb.sysprocs.NoOp;
 import org.voltdb.sysprocs.MarkovUpdate;
+import org.voltdb.sysprocs.NoOp;
 import org.voltdb.sysprocs.Quiesce;
+import org.voltdb.sysprocs.Reconfiguration;
 import org.voltdb.sysprocs.ResetProfiling;
 import org.voltdb.sysprocs.SetConfiguration;
 import org.voltdb.sysprocs.Shutdown;
@@ -105,6 +107,7 @@ import org.voltdb.sysprocs.SnapshotSave;
 import org.voltdb.sysprocs.SnapshotScan;
 import org.voltdb.sysprocs.SnapshotStatus;
 import org.voltdb.sysprocs.Statistics;
+import org.voltdb.sysprocs.StopCopy;
 import org.voltdb.types.IndexType;
 import org.voltdb.utils.Encoder;
 import org.voltdb.utils.JarReader;
@@ -1287,6 +1290,12 @@ public class VoltCompiler {
             {EvictTuples.class,                     false,      false},
             {EvictHistory.class,                    true,       true},
             {EvictedAccessHistory.class,            true,       true},
+            
+            //Reconfiguration operations
+            {ChangePartitionPlan.class,             true,       true},
+            {Reconfiguration.class,                 false,      true},
+            {StopCopy.class,                        false,      true},
+            
          
 //         {"org.voltdb.sysprocs.StartSampler",                 false,    false},
 //         {"org.voltdb.sysprocs.SystemInformation",            true,     false},
