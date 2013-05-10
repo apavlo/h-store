@@ -11,10 +11,10 @@ public class LivePullRequestMessage extends InternalTxnMessage {
   LivePullRequest livePullRequest;
   RpcCallback<LivePullResponse> livePullResponseCallback;
   
-  public LivePullRequestMessage(LivePullRequest livePullRequest,
+  public LivePullRequestMessage(AbstractTransaction ts, LivePullRequest livePullRequest,
       RpcCallback<LivePullResponse> livePullResponseCallback) {
     //TODO : Check whether null can be passed
-    super(null);
+    super(ts);
     this.livePullRequest = livePullRequest;
     this.livePullResponseCallback = livePullResponseCallback;
   }

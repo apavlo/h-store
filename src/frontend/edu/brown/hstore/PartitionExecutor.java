@@ -2105,9 +2105,25 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
     
     public boolean queueLivePullRequest(LivePullRequest livePullRequest, 
         RpcCallback<LivePullResponse> livePullResponseCallback){
-      //assert (livePullRequest.isInitialized()) : "Unexpected uninitialized live Pull Request";
-      LivePullRequestMessage livePullRequestMessage = new LivePullRequestMessage(livePullRequest, livePullResponseCallback);
-      LOG.info("Adding reconfig to the queue");
+      assert (livePullRequest.isInitialized()) : "Unexpected uninitialized live Pull Request";
+      // Make a dummy transaction with dummy parameters and only transaction Id initiated and 
+      // we are only being allowed to pass around transaction as null
+      LocalTransaction localTransaction = new LocalTransaction(hstore_site);
+      Long transactionId = livePullRequest.getTransactionID();
+      long initiateTime = 0;
+      long clientHandle = livePullRequest.getSenderSite();
+      PartitionSet partitionSet = new PartitionSet();
+      partitionSet.add(partitionId);
+      // Random procedure for now
+      //TODO : Procedure Id shouldn't be hardcoded. This is the code for Reconfiguration
+      Procedure procedure = hstore_site.getCatalogContext().getProcedureById(25);
+      ParameterSet parameterSet = new ParameterSet();
+      RpcCallback<ClientResponseImpl> dummyCallback = null;
+      localTransaction.init(transactionId, initiateTime, clientHandle, 0, partitionSet, false, false, procedure, parameterSet, dummyCallback);
+      LivePullRequestMessage livePullRequestMessage = new LivePullRequestMessage(localTransaction, 
+          livePullRequest, livePullResponseCallback);
+      //TODO : Remove log statement : for Testing
+      LOG.info("Adding reconfiguration work to the queue");
       boolean success = this.work_queue.offer(livePullRequestMessage); // , true);
       assert (success) : String.format("Failed to queue %s at partition %d for %s", livePullRequestMessage, this.partitionId, 
           livePullRequestMessage.getTransactionId()
