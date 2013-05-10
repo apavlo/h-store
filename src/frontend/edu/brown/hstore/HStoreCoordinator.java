@@ -34,11 +34,14 @@ import com.google.protobuf.RpcCallback;
 import com.google.protobuf.RpcController;
 
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.hashing.ReconfigurationPlan.ReconfigurationRange;
 import edu.brown.hstore.Hstoreservice.DataTransferRequest;
 import edu.brown.hstore.Hstoreservice.DataTransferResponse;
 import edu.brown.hstore.Hstoreservice.HStoreService;
 import edu.brown.hstore.Hstoreservice.InitializeRequest;
 import edu.brown.hstore.Hstoreservice.InitializeResponse;
+import edu.brown.hstore.Hstoreservice.LivePullRequest;
+import edu.brown.hstore.Hstoreservice.LivePullResponse;
 import edu.brown.hstore.Hstoreservice.ReconfigurationRequest;
 import edu.brown.hstore.Hstoreservice.ReconfigurationResponse;
 import edu.brown.hstore.Hstoreservice.SendDataRequest;
@@ -782,6 +785,29 @@ public class HStoreCoordinator implements Shutdownable {
           }
           
           done.run(response);
+          
+        }
+
+        @Override
+        public void livePull(RpcController controller, LivePullRequest request,
+            RpcCallback<LivePullResponse> done) {
+          if (debug.val)
+            LOG.debug(String.format("Received %s from HStoreSite %s",
+                      request.getClass().getSimpleName(),
+                      HStoreThreadManager.formatSiteName(request.getSenderSite())));
+          
+          LivePullResponse response = null;
+          try {
+              hstore_site.getReconfigurationCoordinator().sendTuples(
+                request, done);
+          } catch (Exception e) {
+            // TODO Auto-generated catch block
+            LOG.error("Exception incurred while receiving tuples", e);
+          }
+          
+          // Callback will be made when the work item is processed
+          // from the queue
+          //done.run(response);
           
         }
 

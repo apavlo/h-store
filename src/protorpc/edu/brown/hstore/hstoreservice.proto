@@ -506,6 +506,52 @@ message DataTransferResponse {
     required int32 new_partition = 4; 
 }
 
+//------------------------------------
+// LIVE PULL MESSAGE
+//------------------------------------
+
+message LivePullRequest {
+    // The id of the HStoreSite sending this live pull message
+    required int32 sender_site = 1;
+    // The time when the local HStoreSite sent this request
+    required int64 t0_s = 2;
+    // The transaction id of the Request sending this live pull message
+    required int64 transactionID = 3;
+    // This is the old partition pull is associated with 
+    required int32 old_partition = 4; 
+    // This is the new partition for the pull request  
+    required int32 new_partition = 5; 
+    // This is the table name to be pulled
+    required string volt_table_name = 6; 
+    // This is the minimum inclusive range for the pull
+    // Set to long for now, generalize later  
+    required int64 min_inclusive = 7;
+    // This is the maximum exclusive range for the pull 
+    required int64 max_exclusive = 8;
+}
+
+message LivePullResponse {
+    // The id of the HStoreSite responding to live pull message
+    required int32 sender_site = 1;
+    // The time when the remote HStoreSite sent this request
+    required int64 t0_s = 2;
+    // The transaction id of the Request 
+    required int64 transactionID = 3;
+      // This is the old partition pull is associated with 
+    required int32 old_partition = 4; 
+    // This is the new partition for the pull request  
+    required int32 new_partition = 5; 
+    // This is the table name to be pulled
+    required string volt_table_name = 6; 
+    // This is the minimum inclusive range for the pull
+    // Set to long for now, generalize later
+    required int64 min_inclusive = 7;
+    // This is the maximum exclusive range for the pull 
+    required int64 max_exclusive = 8;
+    // This is the data returned (in form of serialized volt table)
+    required bytes volt_table_data = 9; 
+}
+
 // -----------------------------------
 // SERVICE
 // -----------------------------------
@@ -527,4 +573,5 @@ service HStoreService {
     rpc TimeSync(TimeSyncRequest) returns (TimeSyncResponse);
     rpc Reconfiguration(ReconfigurationRequest) returns (ReconfigurationResponse);
     rpc DataTransfer(DataTransferRequest) returns (DataTransferResponse);
+    rpc LivePull(LivePullRequest) returns (LivePullResponse);
 }

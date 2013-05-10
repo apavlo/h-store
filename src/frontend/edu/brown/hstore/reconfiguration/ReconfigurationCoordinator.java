@@ -1,5 +1,6 @@
 package edu.brown.hstore.reconfiguration;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -12,6 +13,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.commons.lang.NotImplementedException;
 import org.apache.log4j.Logger;
 import org.voltdb.VoltTable;
+import org.voltdb.VoltType;
+import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.messaging.FastSerializer;
 
 import com.google.protobuf.ByteString;
@@ -19,10 +22,13 @@ import com.google.protobuf.RpcCallback;
 
 import edu.brown.hashing.PlannedHasher;
 import edu.brown.hashing.ReconfigurationPlan;
+import edu.brown.hashing.ReconfigurationPlan.ReconfigurationRange;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice.DataTransferRequest;
 import edu.brown.hstore.Hstoreservice.DataTransferResponse;
 import edu.brown.hstore.Hstoreservice.HStoreService;
+import edu.brown.hstore.Hstoreservice.LivePullRequest;
+import edu.brown.hstore.Hstoreservice.LivePullResponse;
 import edu.brown.hstore.Hstoreservice.ReconfigurationRequest;
 import edu.brown.hstore.Hstoreservice.ReconfigurationResponse;
 import edu.brown.hstore.PartitionExecutor;
@@ -38,7 +44,6 @@ import edu.brown.protorpc.ProtoRpcController;
  */
 /**
  * @author aelmore
- *
  */
 public class ReconfigurationCoordinator implements Shutdownable {
     private static final Logger LOG = Logger.getLogger(ReconfigurationCoordinator.class);
@@ -89,6 +94,7 @@ public class ReconfigurationCoordinator implements Shutdownable {
             this.partitionStates.put(p_id, ReconfigurationState.NORMAL);
         }
         this.initialPartitionStates = Collections.unmodifiableMap(partitionStates);
+        this.localSiteId = hstore_site.getSiteId();
     }
 
     /**
@@ -103,9 +109,11 @@ public class ReconfigurationCoordinator implements Shutdownable {
      * @return the reconfiguration plan or null if plan already set
      */
     public ReconfigurationPlan initReconfiguration(Integer leaderId, ReconfigurationProtocols reconfigurationProtocol, String partitionPlan, int partitionId) {
+        
+        //TODO ae start timing
         if (this.reconfigurationInProgress.get() == false && partitionPlan == this.currentPartitionPlan) {
-           LOG.info("Ignoring initReconfiguration request. Requested plan is already set");
-           return null;
+            LOG.info("Ignoring initReconfiguration request. Requested plan is already set");
+            return null;
         }
         if (reconfigurationProtocol == ReconfigurationProtocols.STOPCOPY) {
             if (partitionId != -1) {
@@ -116,13 +124,19 @@ public class ReconfigurationCoordinator implements Shutdownable {
                 LOG.error(msg);
                 throw new RuntimeException(msg);
             }
+        } else if (reconfigurationProtocol == ReconfigurationProtocols.LIVEPULL) {
+            
         } else {
             throw new NotImplementedException();
         }
+
+        // We may have reconfiguration initialized by PEs so need to ensure
+        // atomic
         if (this.reconfigurationInProgress.compareAndSet(false, true)) {
             LOG.info("Initializing reconfiguration. New reconfig plan.");
             if (this.hstore_site.getSiteId() == leaderId) {
-              //TODO : Check if more leader logic is needed
+                LOG.error("TODO setting as leader");
+                // TODO : Check if more leader logic is needed
                 if (debug.val) {
                     LOG.debug("Setting site as reconfig leader");
                 }
@@ -138,16 +152,22 @@ public class ReconfigurationCoordinator implements Shutdownable {
                 if (reconfigurationProtocol == ReconfigurationProtocols.STOPCOPY) {
                     // Nothing to do for S&C. PE's directly notified by
                     // sysProcedure
-                } else {
+                } else if(reconfigurationProtocol == ReconfigurationProtocols.LIVEPULL) {
                     if (reconfig_plan != null) {
                         for (PartitionExecutor executor : this.local_executors) {
-                            executor.initReconfiguration(reconfig_plan, reconfigurationProtocol, ReconfigurationState.BEGIN);
+                            executor.initReconfiguration(reconfig_plan, reconfigurationProtocol, ReconfigurationState.PREPARE);
+                            this.partitionStates.put(partitionId, ReconfigurationState.PREPARE);
                         }
+                        //Notify leader that this node has been initialized / prepared
+                        notifyReconfigLeader(ReconfigurationState.PREPARE);
+                    } else {
+                        LOG.info("No reconfig plan, nothing to do");
                     }
+                } else { 
                     throw new NotImplementedException();
                 }
             } catch (Exception e) {
-                LOG.error(e);
+                LOG.error("Exception converting plan",e);
                 throw new RuntimeException(e);
             }
             this.currentReconfigurationPlan = reconfig_plan;
@@ -173,6 +193,22 @@ public class ReconfigurationCoordinator implements Shutdownable {
     }
 
     /**
+     * Notify leader of a state change
+     * @param begin
+     */
+    private void notifyReconfigLeader(ReconfigurationState state) {
+        assert(this.reconfigurationLeader != -1 ) : "No reconfiguration leader set";
+        LOG.info("Notifying reconfiguration leader of state:"+state.toString());
+        if (this.hstore_site.getSiteId() == this.reconfigurationLeader){
+            //This node is the leader
+        }
+        else{
+            //TODO send state notification to leader
+        }
+        
+    }
+
+    /**
      * Function called by a PE when its active part of the reconfiguration is
      * complete
      * 
@@ -193,14 +229,14 @@ public class ReconfigurationCoordinator implements Shutdownable {
     }
 
     private boolean allPartitionsFinished() {
-        for(ReconfigurationState state : partitionStates.values()){
+        for (ReconfigurationState state : partitionStates.values()) {
             if (state != ReconfigurationState.END)
                 return false;
         }
-        return true;            
+        return true;
     }
-    
-    private void resetReconfigurationInProgress(){
+
+    private void resetReconfigurationInProgress() {
         this.partitionStates.putAll(this.initialPartitionStates);
         this.currentReconfigurationPlan = null;
         this.reconfigurationLeader = -1;
@@ -228,7 +264,7 @@ public class ReconfigurationCoordinator implements Shutdownable {
         }
     }
 
-
+  
     /**
      * @param oldPartitionId
      * @param newPartitionId
@@ -237,62 +273,175 @@ public class ReconfigurationCoordinator implements Shutdownable {
      * @throws Exception
      */
     public void pushTuples(int oldPartitionId, int newPartitionId, String table_name, VoltTable vt) throws Exception {
+        LOG.info(String.format("pushTuples  keys for %s  partIds %s->%s",table_name,oldPartitionId,newPartitionId));
         // TODO Auto-generated method stub
-      int destinationId = this.hstore_site.getCatalogContext().getSiteIdForPartitionId(newPartitionId);
-      
-      if(destinationId == localSiteId){
-        // Just push the message through local receive Tuples to the PE'S 
-        receiveTuples(destinationId, System.currentTimeMillis(), oldPartitionId, newPartitionId, table_name, vt);
-        return;
-      }
-      
-      ProtoRpcController controller = new ProtoRpcController();
-      ByteString tableBytes = null;
-      try {
-          ByteBuffer b = ByteBuffer.wrap(FastSerializer.serialize(vt));
-          tableBytes = ByteString.copyFrom(b.array()); 
-      } catch (Exception ex) {
-          throw new RuntimeException("Unexpected error when serializing Volt Table", ex);
-      }
-      
-      DataTransferRequest dataTransferRequest = DataTransferRequest.newBuilder().
-          setSenderSite(this.localSiteId).setOldPartition(oldPartitionId).
-          setNewPartition(newPartitionId).setVoltTableName(table_name).
-          setT0S(System.currentTimeMillis()).setVoltTableData(tableBytes).build();
-      
-      this.channels[destinationId].dataTransfer(controller, dataTransferRequest, dataTransferRequestCallback);
+        int destinationId = this.hstore_site.getCatalogContext().getSiteIdForPartitionId(newPartitionId);
+
+        if (destinationId == localSiteId) {
+            // Just push the message through local receive Tuples to the PE'S
+            receiveTuples(destinationId, System.currentTimeMillis(), oldPartitionId, newPartitionId, table_name, vt);
+            return;
+        }
+
+        ProtoRpcController controller = new ProtoRpcController();
+        ByteString tableBytes = null;
+        try {
+            ByteBuffer b = ByteBuffer.wrap(FastSerializer.serialize(vt));
+            tableBytes = ByteString.copyFrom(b.array());
+        } catch (Exception ex) {
+            throw new RuntimeException("Unexpected error when serializing Volt Table", ex);
+        }
+
+        DataTransferRequest dataTransferRequest = DataTransferRequest.newBuilder().setSenderSite(this.localSiteId).
+            setOldPartition(oldPartitionId).setNewPartition(newPartitionId)
+                .setVoltTableName(table_name).setT0S(System.currentTimeMillis()).setVoltTableData(tableBytes).build();
+
+        this.channels[destinationId].dataTransfer(controller, dataTransferRequest, dataTransferRequestCallback);
     }
-    
+
     /**
      * Receive the tuples
+     * 
      * @param partitionId
      * @param newPartitionId
      * @param table_name
      * @param vt
-     * @throws Exception 
+     * @throws Exception
      */
     public DataTransferResponse receiveTuples(int sourceId, long sentTimeStamp, int partitionId, int newPartitionId, 
         String table_name, VoltTable vt) throws Exception {
-      
-      if(vt == null){
-        LOG.error("Volt Table received is null");  
-      }
-      
+        LOG.info(String.format("receiveTuples  keys for %s  partIds %s->%s",table_name,sourceId,newPartitionId));
+        
+        if (vt == null) {
+            LOG.error("Volt Table received is null");
+        }
+
+        for (PartitionExecutor executor : this.local_executors) {
+            // TODO : check if we can more efficient here
+            if (executor.getPartitionId() == newPartitionId) {
+                executor.receiveTuples(partitionId, newPartitionId, table_name, vt);
+            }
+        }
+
+        DataTransferResponse response = null;
+
+        response = DataTransferResponse.newBuilder().setNewPartition(newPartitionId).setOldPartition(partitionId).
+            setT0S(sentTimeStamp).setSenderSite(sourceId).build();
+
+        return response;
+    }
+    
+   /**
+    * Call to send tuples in response to a live pull request
+    * @param senderId
+    * @param requestTimestamp
+    * @param txnId
+    * @param oldPartitionId
+    * @param newPartitionId
+    * @param table_name
+    * @param min_inclusive
+    * @param max_exclusive
+    * @param livePullResponseCallback - if its null the request was from a partition
+    * on a local site
+    * @return
+    */
+    public void sendTuples(LivePullRequest livePullRequest, RpcCallback<LivePullResponse> livePullResponseCallback){
+      LOG.info(String.format("sendTuples  keys %s->%s for %s  partIds %s->%s",livePullRequest.getMinInclusive(),
+          livePullRequest.getMaxExclusive()
+          , livePullRequest.getVoltTableName(), livePullRequest.getOldPartition() ,livePullRequest.getNewPartition()));
+        
+      VoltTable vt = null;
       for (PartitionExecutor executor : this.local_executors) {
-        //TODO : check if we can more efficient here 
-        if(executor.getPartitionId() == newPartitionId) {
-          executor.receiveTuples(partitionId, newPartitionId, table_name, vt);
+        // TODO : check if we can be more efficient here
+        if (executor.getPartitionId() == livePullRequest.getOldPartition()) {
+           // Queue the live Pull request to the work queue
+           //TODO : Change the input parameters for the senTuples function
+           LOG.info("Queue the live Pull Request");
+           executor.queueLivePullRequest(livePullRequest, livePullResponseCallback);
         }
       }
       
-      DataTransferResponse response = null;
-
-      response = DataTransferResponse.newBuilder().setNewPartition(newPartitionId).setOldPartition(partitionId).
-        setT0S(sentTimeStamp).setSenderSite(sourceId).build();
+      //TODO : Remove
+      /*
+      ByteString tableBytes = null;
+      try {
+          ByteBuffer b = ByteBuffer.wrap(FastSerializer.serialize(vt));
+          tableBytes = ByteString.copyFrom(b.array());
+      } catch (Exception ex) {
+          throw new RuntimeException("Unexpected error when serializing Volt Table", ex);
+      }
       
-      return response;
+      LivePullResponse livePullResponse = LivePullResponse.newBuilder().setSenderSite(this.localSiteId).
+          setOldPartition(oldPartitionId).setNewPartition(newPartitionId)
+              .setVoltTableName(table_name).setT0S(System.currentTimeMillis()).setVoltTableData(tableBytes)
+              .setMinInclusive(min_inclusive).setMaxExclusive(max_exclusive)
+              .setTransactionID(txnId).build();
+      
+      */
+      return;
     }
+    
+   /**
+    * Live Pull the tuples for a reconfiguration range
+    * by generating a live pull request
+    * @param txnId
+    * @param oldPartitionId
+    * @param newPartitionId
+    * @param table_name
+    * @param min_inclusive
+    * @param max_exclusive
+    * @param voltType
+    */
+    public void pullTuples(Long txnId, int oldPartitionId, int newPartitionId, String table_name, 
+        Long min_inclusive, Long max_exclusive,
+        VoltType voltType){
+      LOG.info(String.format("pullTuples  keys %s->%s for %s  partIds %s->%s",min_inclusive,max_exclusive, table_name,oldPartitionId,newPartitionId));
+      //TODO : Check if volt type makes can be used here for generic values or remove it
+      int sourceID = this.hstore_site.getCatalogContext().getSiteIdForPartitionId(oldPartitionId);
 
+      ProtoRpcController controller = new ProtoRpcController();
+
+      LivePullRequest livePullRequest = LivePullRequest.newBuilder().setSenderSite(this.localSiteId).
+          setTransactionID(txnId).setOldPartition(oldPartitionId).setNewPartition(newPartitionId).
+          setVoltTableName(table_name).setMinInclusive(min_inclusive).
+          setMaxExclusive(max_exclusive).
+          setT0S(System.currentTimeMillis()).build();
+      
+      if (sourceID == localSiteId) {
+          LOG.info("pulling from localsite");
+          // Just push the message through local receive Tuples to the PE'S
+          //TODO : if the callback is null, it shows that the request is from a partition in
+          // the local site itself
+          sendTuples(livePullRequest, null);
+          return;
+      }
+      
+      
+
+      this.channels[sourceID].livePull(controller, livePullRequest, livePullRequestCallback);
+    }
+    
+     public void receiveLivePullTuples(Long txnId, int oldPartitionId, int newPartitionId, String table_name, 
+         Long min_inclusive, Long max_exclusive,
+         VoltTable voltTable){
+      
+       for (PartitionExecutor executor : local_executors) {
+         // TODO : check if we can more efficient here
+         if (executor.getPartitionId() == newPartitionId) {
+             try {
+               executor.receiveTuples(txnId, 
+                   oldPartitionId, newPartitionId,
+                   table_name, min_inclusive, max_exclusive,
+                   voltTable);
+             } catch (Exception e) {
+               LOG.error("Error in partition executors receiving tuples for their pull " +
+                   "request", e);
+             }
+         }
+      }
+       
+    }
+ 
     /**
      * Parse the partition plan and figure out the destination sites and
      * populates the destination size
@@ -362,13 +511,14 @@ public class ReconfigurationCoordinator implements Shutdownable {
         this.reconfigurationInProgress.set(false);
     }
 
-    private final RpcCallback<ReconfigurationResponse> reconfigurationRequestCallback = new RpcCallback<ReconfigurationResponse>() {
+    private final RpcCallback<ReconfigurationResponse> reconfigurationRequestCallback = new 
+        RpcCallback<ReconfigurationResponse>() {
         @Override
         public void run(ReconfigurationResponse msg) {
             int senderId = msg.getSenderSite();
             ReconfigurationCoordinator.this.destinationsReady.add(senderId);
-            if (ReconfigurationCoordinator.this.reconfigurationInProgress.get() && 
-                ReconfigurationCoordinator.this.reconfigurationState == ReconfigurationState.PREPARE
+            if (ReconfigurationCoordinator.this.reconfigurationInProgress.get() && ReconfigurationCoordinator.
+                this.reconfigurationState == ReconfigurationState.PREPARE
                     && ReconfigurationCoordinator.this.destinationsReady.size() == ReconfigurationCoordinator.this.destinationSize) {
                 ReconfigurationCoordinator.this.reconfigurationState = ReconfigurationState.DATA_TRANSFER;
                 // bulk data transfer for stop and copy after each destination
@@ -377,15 +527,42 @@ public class ReconfigurationCoordinator implements Shutdownable {
             }
         }
     };
+
+    private final RpcCallback<DataTransferResponse> dataTransferRequestCallback = new 
+        RpcCallback<DataTransferResponse>() {
+        @Override
+        public void run(DataTransferResponse msg) {
+            // TODO : Do the book keeping of received messages
+            int senderId = msg.getSenderSite();
+            int oldPartition = msg.getOldPartition();
+            int newPartition = msg.getNewPartition();
+            long timeStamp = msg.getT0S();
+
+        }
+    };
     
-    private final RpcCallback<DataTransferResponse> dataTransferRequestCallback = new RpcCallback<DataTransferResponse>() {
+    private final RpcCallback<LivePullResponse> livePullRequestCallback = 
+        new RpcCallback<LivePullResponse>() {
       @Override
-      public void run(DataTransferResponse msg) {
-        //TODO : Do the book keeping of received messages 
-        int senderId = msg.getSenderSite();
-        int oldPartition = msg.getOldPartition();
-        int newPartition = msg.getNewPartition();
-        long timeStamp = msg.getT0S();
+      public void run(LivePullResponse msg) {
+          // TODO : Do the book keeping of received messages
+          int senderId = msg.getSenderSite();
+          long timeStamp = msg.getT0S();
+          long txnId = msg.getT0S();
+          LOG.debug("Received senderId "+senderId+" timestamp "+timeStamp+" Transaction Id "+txnId);
+          VoltTable vt = null;
+          try {
+            vt = FastDeserializer.deserialize(msg.getVoltTableData().toByteArray(), VoltTable.class);
+          } catch (IOException e) {
+            LOG.error("Error in deserializing volt table");
+          }
+          //TODO : change the log status later. Info for testing.
+          //LOG.info("Volt table Received in callback is "+vt.toString());
+          
+          receiveLivePullTuples(msg.getTransactionID(), 
+              msg.getOldPartition(), msg.getNewPartition(),
+              msg.getVoltTableName(), msg.getMinInclusive(), msg.getMaxExclusive(),
+              vt);
           
       }
   };

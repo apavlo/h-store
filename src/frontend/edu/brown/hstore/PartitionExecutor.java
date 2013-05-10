@@ -99,6 +99,7 @@ import org.voltdb.jni.ExecutionEngineJNI;
 import org.voltdb.jni.MockExecutionEngine;
 import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.messaging.FastSerializer;
+import org.voltdb.sysprocs.StopCopy;
 import org.voltdb.types.SpecExecSchedulerPolicyType;
 import org.voltdb.types.SpeculationType;
 import org.voltdb.utils.DBBPool;
@@ -115,6 +116,8 @@ import edu.brown.catalog.PlanFragmentIdGenerator;
 import edu.brown.catalog.special.CountedStatement;
 import edu.brown.hashing.ReconfigurationPlan;
 import edu.brown.hashing.ReconfigurationPlan.ReconfigurationRange;
+import edu.brown.hstore.Hstoreservice.LivePullRequest;
+import edu.brown.hstore.Hstoreservice.LivePullResponse;
 import edu.brown.hstore.Hstoreservice.QueryEstimate;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.TransactionPrefetchResult;
@@ -137,6 +140,7 @@ import edu.brown.hstore.internal.InitializeRequestMessage;
 import edu.brown.hstore.internal.InitializeTxnMessage;
 import edu.brown.hstore.internal.InternalMessage;
 import edu.brown.hstore.internal.InternalTxnMessage;
+import edu.brown.hstore.internal.LivePullRequestMessage;
 import edu.brown.hstore.internal.PotentialSnapshotWorkMessage;
 import edu.brown.hstore.internal.PrepareTxnMessage;
 import edu.brown.hstore.internal.SetDistributedTxnMessage;
@@ -661,7 +665,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         this.partitionId = 0;
         this.procedures = null;
         this.tmp_transactionRequestBuilders = null;
-        this.reconfig_state = ReconfigurationState.END;
+        this.reconfig_state = ReconfigurationState.NORMAL;
     }
 
     /**
@@ -691,7 +695,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         this.p_estimator = p_estimator;
         this.localTxnEstimator = t_estimator;
 
-        this.reconfig_state = ReconfigurationState.END;
+        this.reconfig_state = ReconfigurationState.NORMAL;
         // Speculative Execution
         this.specExecBlocked = new LinkedList<Pair<LocalTransaction, ClientResponseImpl>>();
         this.specExecModified = false;
@@ -979,6 +983,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 // Process Work
                 // -------------------------------
                 if (nextWork != null) {
+                    LOG.info("Next Work: " + nextWork);
                     if (trace.val)
                         LOG.trace("Next Work: " + nextWork);
                     if (hstore_conf.site.exec_profiling) {
@@ -1384,6 +1389,13 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         else if (work instanceof InitializeTxnMessage) {
             this.queueManager.lockQueueInsert(ts, this.partitionId, ts.getInitCallback());
         }
+        // Pull Request Message
+        else if(work instanceof LivePullRequestMessage) {
+          // Process the pull request 
+          LivePullRequestMessage livePullRequestMessage = ((LivePullRequestMessage) work);  
+          processLivePullRequestMessage(livePullRequestMessage);
+        }
+        
     }
 
     // ----------------------------------------------------------------------------
@@ -2095,6 +2107,35 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             this.specExecScheduler.interruptSearch(work);
         return (success);
     }
+    
+    public boolean queueLivePullRequest(LivePullRequest livePullRequest, 
+        RpcCallback<LivePullResponse> livePullResponseCallback){
+      assert (livePullRequest.isInitialized()) : "Unexpected uninitialized live Pull Request";
+      // Make a dummy transaction with dummy parameters and only transaction Id initiated and 
+      // we are only being allowed to pass around transaction as null
+      LocalTransaction localTransaction = new LocalTransaction(hstore_site);
+      Long transactionId = livePullRequest.getTransactionID();
+      long initiateTime = 0;
+      long clientHandle = livePullRequest.getSenderSite();
+      PartitionSet partitionSet = new PartitionSet();
+      partitionSet.add(partitionId);
+      // Random procedure for now
+      //TODO : Procedure Id shouldn't be hardcoded. This is the code for Reconfiguration
+      Procedure procedure = hstore_site.getCatalogContext().getProcedureById(25);
+      ParameterSet parameterSet = new ParameterSet();
+      RpcCallback<ClientResponseImpl> dummyCallback = null;
+      localTransaction.init(transactionId, initiateTime, clientHandle, 0, partitionSet, false, false, procedure, parameterSet, dummyCallback);
+      LivePullRequestMessage livePullRequestMessage = new LivePullRequestMessage(localTransaction, 
+          livePullRequest, livePullResponseCallback);
+      //TODO : Remove log statement : for Testing
+      LOG.info("Adding reconfiguration work to the queue");
+      boolean success = this.work_queue.offer(livePullRequestMessage); // , true);
+      assert (success) : String.format("Failed to queue %s at partition %d for %s", livePullRequestMessage, this.partitionId, 
+          livePullRequestMessage.getTransactionId()
+          );
+      LOG.info("success "+success);
+      return success;
+    }
 
     // ---------------------------------------------------------------
     // WORK QUEUE PROCESSING METHODS
@@ -2693,6 +2734,37 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         }
     }
 
+    public void processLivePullRequestMessage(LivePullRequestMessage livePullRequestMessage){
+      LivePullRequest livePullRequest = livePullRequestMessage.getLivePullRequest();
+      
+      VoltTable voltTable = sendTuples(livePullRequest.getTransactionID(), livePullRequest.getOldPartition(), 
+          livePullRequest.getNewPartition(), livePullRequest.getVoltTableName(), livePullRequest.getMinInclusive(), 
+          livePullRequest.getMaxExclusive());
+      
+      ByteString tableBytes = null;
+      try {
+          ByteBuffer b = ByteBuffer.wrap(FastSerializer.serialize(voltTable));
+          tableBytes = ByteString.copyFrom(b.array());
+      } catch (Exception ex) {
+          throw new RuntimeException("Unexpected error when serializing Volt Table", ex);
+      }
+      
+      LivePullResponse livePullResponse = LivePullResponse.newBuilder().setSenderSite(this.hstore_site.getSiteId()).
+          setOldPartition(livePullRequest.getOldPartition()).setNewPartition(livePullRequest.getNewPartition())
+              .setVoltTableName(livePullRequest.getVoltTableName()).setT0S(System.currentTimeMillis()).setVoltTableData(tableBytes)
+              .setMinInclusive(livePullRequest.getMinInclusive()).setMaxExclusive(livePullRequest.getMaxExclusive())
+              .setTransactionID(livePullRequest.getTransactionID()).build();
+      
+      if(livePullRequestMessage.getLivePullResponseCallback() != null){
+        //Send the Callback response to the site
+        livePullRequestMessage.getLivePullResponseCallback().run(livePullResponse); 
+      } else {
+        // Shows that the request is local , pass it to the local site's RC 
+        this.hstore_site.getReconfigurationCoordinator().receiveLivePullTuples(livePullRequest.getTransactionID(), 
+            livePullRequest.getOldPartition(), livePullRequest.getNewPartition(), livePullRequest.getVoltTableName(), 
+            livePullRequest.getMinInclusive(), livePullRequest.getMaxExclusive(), voltTable);
+      }
+    }
     /**
      * Executes a WorkFragment on behalf of some remote site and returns the
      * resulting DependencySet
@@ -4766,6 +4838,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
     private ReconfigurationProtocols reconfig_protocol = null;
     private List<ReconfigurationRange<? extends Comparable<?>>> outgoing_ranges;
     private List<ReconfigurationRange<? extends Comparable<?>>> incoming_ranges;
+    private HashMap<Long, Boolean> to_pull;
+    private HashMap<Long, Integer> pulled_tuples;
 
     public Debug getDebugContext() {
         if (this.cachedDebugContext == null) {
@@ -4796,47 +4870,123 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
 
     public void initReconfiguration(ReconfigurationPlan reconfig_plan, ReconfigurationProtocols reconfig_protocol, ReconfigurationState reconfig_state) throws Exception {
         // FIXME (ae) We need to check with Andy about concurrency issues here
+        LOG.info(String.format("PE %s InitReconfiguration plan  %s %s", this.partitionId, reconfig_protocol, reconfig_state));
         if (this.reconfig_plan != null) {
             String msg = "Reconfiguration plan already set. Cannot set until previous reconfig plan is complete. Current state: " + reconfig_state;
             LOG.error(msg);
             throw new Exception(msg);
 
         }
+        if (debug.val) {
+            LOG.debug(String.format("Setting reconfiguration plan. Protocol:%s. State:%s", reconfig_protocol, reconfig_state));
+        }
+        this.reconfig_plan = reconfig_plan;
+
+        this.reconfig_protocol = reconfig_protocol;
+        this.reconfig_state = reconfig_state;
+        this.outgoing_ranges = reconfig_plan.getOutgoing_ranges().get(this.partitionId);
+        this.incoming_ranges = reconfig_plan.getIncoming_ranges().get(this.partitionId);
+
         if (reconfig_protocol == ReconfigurationProtocols.STOPCOPY) {
             LOG.info("Stopping exeuction");
             this.currentExecMode = ExecutionMode.DISABLED_REJECT;
+        } else if (reconfig_protocol == ReconfigurationProtocols.LIVEPULL) {
+            this.to_pull = new HashMap<>();
+            this.pulled_tuples = new HashMap<>();
+            if(this.incoming_ranges!= null && this.incoming_ranges.isEmpty()==false){
+                for (ReconfigurationRange range : this.incoming_ranges) {
+                    // TODO ae how to iterate? do we need to? same as StopCopy
+                    assert (range.getMin_inclusive() instanceof Long);
+                    // TODO : Test this instance of pulling out a complete range
+                    LOG.info("TODO ae force pulling tuples range to test");
+                    reconfiguration_coordinator.pullTuples(currentTxnId, range.old_partition, 
+                        range.new_partition, range.table_name, (Long)range.getMin_inclusive(), (Long)range.getMax_exclusive(), range.getVt());
+                    for (Long i = (Long) range.getMin_inclusive(); i < (Long) range.getMax_exclusive(); i++) {
+                        this.to_pull.put(i, true);
+                
+                    }
+                }
+            }
         }
-        if (debug.val)
-            LOG.debug(String.format("Setting reconfiguration plan. Protocol:%s. State:%s", reconfig_protocol, reconfig_state));
-        this.reconfig_plan = reconfig_plan;
-        this.reconfig_protocol = reconfig_protocol;
-        this.reconfig_state = reconfig_state;
-        this.outgoing_ranges = reconfig_plan.getOutgoing_ranges().get(partitionId);
-        this.incoming_ranges = reconfig_plan.getIncoming_ranges().get(partitionId);
     }
 
     public void startReconfiguration() throws Exception {
         LOG.info(String.format("Starting reconfiguration"));
-        if (reconfig_protocol == ReconfigurationProtocols.STOPCOPY) 
-        {
+        if (reconfig_protocol == ReconfigurationProtocols.STOPCOPY) {
             Table catalog_tbl = null;
             VoltTable table = null;
             for (ReconfigurationRange out_range : outgoing_ranges) {
 
                 catalog_tbl = catalogContext.getTableByName(out_range.table_name);
                 table = CatalogUtil.getVoltTable(catalog_tbl);
-                // TODO ae leftoff                
-                reconfiguration_coordinator.pushTuples(this.partitionId,out_range.new_partition,out_range.table_name,table);
+                // TODO ae leftoff
+                reconfiguration_coordinator.pushTuples(this.partitionId, out_range.new_partition, out_range.table_name, table);
             }
         }
     }
-    
-    public void receiveTuples(int sourcePartitionId, int newPartitionId, String tableName, VoltTable vt) throws Exception{
-      
-      
-      //TODO : Add data processing
-      LOG.info(String.format("Received tuples for %s (%s) (from:%s to:%s)",tableName,vt.getRowCount(),sourcePartitionId,newPartitionId));
-      //TODO ae currentTXN and 0 for allowETL?
-      loadTable(currentTxn, this.catalogContext.catalog.getName(), this.catalogContext.database.getName(), tableName, vt, 0);
+
+    public void receiveTuples(int sourcePartitionId, int newPartitionId, String tableName, VoltTable vt) throws Exception {
+
+        // TODO : Add data processing
+        LOG.info(String.format("Received tuples for %s (%s) (from:%s to:%s)", tableName, vt.getRowCount(), sourcePartitionId, newPartitionId));
+        // TODO ae currentTXN and 0 for allowETL?
+        loadTable(currentTxn, this.catalogContext.catalog.getName(), this.catalogContext.database.getName(), tableName, vt, 0);
+    }
+
+    /**
+     * Receiving tuples for the asynchronous pull operation made
+     * 
+     * @param txnId
+     * @param reconfigurationRange
+     * @param vt
+     * @throws Exception
+     */
+    public void receiveTuples(Long txnId, int oldPartitionId, int newPartitionId, String table_name, Long min_inclusive, Long max_exclusive, VoltTable vt) throws Exception {
+
+        // TODO : Add data processing
+        LOG.info(String.format("Received tuples for %s (%s) (from:%s to:%s) for range, " + "(from:%s to:%s)", txnId, vt.getRowCount(), newPartitionId, oldPartitionId, min_inclusive, max_exclusive));
+        // TODO ae currentTXN and 0 for allowETL?
+        // TODO check the load when it is being executed for a range
+        loadTable(currentTxn, this.catalogContext.catalog.getName(), this.catalogContext.database.getName(), table_name, vt, 0);
+    }
+
+    /**
+     * Call from the Reconfiguration coordinator to pull tuples for replying to
+     * a live pull request
+     * 
+     * @param txnId
+     * @param reconfigurationRange
+     * @return
+     */
+    public VoltTable sendTuples(Long txnId, int oldPartitionId, int newPartitionId, String table_name, Long min_inclusive, Long max_exclusive) {
+        LOG.info(String.format("sendTuples keys %s->%s for %s  partIds %s->%s",min_inclusive,max_exclusive, table_name,oldPartitionId,newPartitionId));
+        VoltTable vt = null;
+        // TODO : add logic to extract the data for the specified
+        // TODO : also logic to go to the ee and delete the data
+        // reconfiguration range
+        
+        Table catalog_tbl = null;
+        VoltTable table = null;
+        Object row[] = null;
+        
+        catalog_tbl = this.catalogContext.getTableByName(table_name);
+        table = org.voltdb.utils.CatalogUtil.getVoltTable(catalog_tbl);
+        row = new Object[table.getColumnCount()];
+        table.clearRowData();
+          // TODO range.table_name (ae)
+          // TODO (ae) how to iterate? or do we even need to 
+          // since
+          // we will push down range
+          // to ee to get table
+        assert (max_exclusive instanceof Long);
+        for (Long i = (Long)min_inclusive ; i < (Long) max_exclusive; i++) {
+          row[0] = i;
+          // randomly generate strings for each column
+          for (int col = 2; col < row.length; col++) {
+            row[col] = StopCopy.astring(100, 100);
+          } // FOR
+          table.addRow(row);
+         }
+        return table;
     }
 }
