@@ -330,35 +330,39 @@ public class ReconfigurationCoordinator implements Shutdownable {
 
         return response;
     }
-
-    /**
-     * Call to send tuples in response to a live pull request
-     * coming into the system
-     * @param senderId
-     * @param requestTimestamp
-     * @param txnId
-     * @param oldPartitionId
-     * @param newPartitionId
-     * @param table_name
-     * @param min_inclusive
-     * @param max_exclusive
-     * @param voltType
-     * @return
-     */
-    public LivePullResponse sendTuples(int senderId, Long requestTimestamp, Long txnId, 
-        int oldPartitionId, int newPartitionId, String table_name, Long min_inclusive, 
-        Long max_exclusive){
-      LOG.info(String.format("sendTuples  keys %s->%s for %s  partIds %s->%s",min_inclusive,max_exclusive, table_name,oldPartitionId,newPartitionId));
+    
+   /**
+    * Call to send tuples in response to a live pull request
+    * @param senderId
+    * @param requestTimestamp
+    * @param txnId
+    * @param oldPartitionId
+    * @param newPartitionId
+    * @param table_name
+    * @param min_inclusive
+    * @param max_exclusive
+    * @param livePullResponseCallback - if its null the request was from a partition
+    * on a local site
+    * @return
+    */
+    public void sendTuples(LivePullRequest livePullRequest, RpcCallback<LivePullResponse> livePullResponseCallback){
+      LOG.info(String.format("sendTuples  keys %s->%s for %s  partIds %s->%s",livePullRequest.getMinInclusive(),
+          livePullRequest.getMaxExclusive()
+          , livePullRequest.getVoltTableName(), livePullRequest.getOldPartition() ,livePullRequest.getNewPartition()));
         
       VoltTable vt = null;
       for (PartitionExecutor executor : this.local_executors) {
-        // TODO : check if we can more efficient here
-        if (executor.getPartitionId() == oldPartitionId) {
-            vt = executor.sendTuples(txnId, oldPartitionId, newPartitionId, table_name, min_inclusive, 
-                max_exclusive);
+        // TODO : check if we can be more efficient here
+        if (executor.getPartitionId() == livePullRequest.getOldPartition()) {
+           // Queue the live Pull request to the work queue
+           //TODO : Change the input parameters for the senTuples function
+           LOG.info("Queue the live Pull Request");
+           executor.queueLivePullRequest(livePullRequest, livePullResponseCallback);
         }
       }
       
+      //TODO : Remove
+      /*
       ByteString tableBytes = null;
       try {
           ByteBuffer b = ByteBuffer.wrap(FastSerializer.serialize(vt));
@@ -373,7 +377,8 @@ public class ReconfigurationCoordinator implements Shutdownable {
               .setMinInclusive(min_inclusive).setMaxExclusive(max_exclusive)
               .setTransactionID(txnId).build();
       
-      return livePullResponse;
+      */
+      return;
     }
     
    /**
@@ -394,15 +399,6 @@ public class ReconfigurationCoordinator implements Shutdownable {
       //TODO : Check if volt type makes can be used here for generic values or remove it
       int sourceID = this.hstore_site.getCatalogContext().getSiteIdForPartitionId(oldPartitionId);
 
-      if (sourceID == localSiteId) {
-          LOG.info("pulling from localsite");
-          // Just push the message through local receive Tuples to the PE'S
-          sendTuples(sourceID, System.currentTimeMillis(), txnId, 
-              oldPartitionId, newPartitionId, table_name, min_inclusive, 
-              max_exclusive);
-          return;
-      }
-      
       ProtoRpcController controller = new ProtoRpcController();
 
       LivePullRequest livePullRequest = LivePullRequest.newBuilder().setSenderSite(this.localSiteId).
@@ -410,11 +406,42 @@ public class ReconfigurationCoordinator implements Shutdownable {
           setVoltTableName(table_name).setMinInclusive(min_inclusive).
           setMaxExclusive(max_exclusive).
           setT0S(System.currentTimeMillis()).build();
+      
+      if (sourceID == localSiteId) {
+          LOG.info("pulling from localsite");
+          // Just push the message through local receive Tuples to the PE'S
+          //TODO : if the callback is null, it shows that the request is from a partition in
+          // the local site itself
+          sendTuples(livePullRequest, null);
+          return;
+      }
+      
+      
 
       this.channels[sourceID].livePull(controller, livePullRequest, livePullRequestCallback);
     }
     
-    
+     public void receiveLivePullTuples(Long txnId, int oldPartitionId, int newPartitionId, String table_name, 
+         Long min_inclusive, Long max_exclusive,
+         VoltTable voltTable){
+      
+       for (PartitionExecutor executor : local_executors) {
+         // TODO : check if we can more efficient here
+         if (executor.getPartitionId() == newPartitionId) {
+             try {
+               executor.receiveTuples(txnId, 
+                   oldPartitionId, newPartitionId,
+                   table_name, min_inclusive, max_exclusive,
+                   voltTable);
+             } catch (Exception e) {
+               LOG.error("Error in partition executors receiving tuples for their pull " +
+                   "request", e);
+             }
+         }
+      }
+       
+    }
+ 
     /**
      * Parse the partition plan and figure out the destination sites and
      * populates the destination size
@@ -532,20 +559,11 @@ public class ReconfigurationCoordinator implements Shutdownable {
           //TODO : change the log status later. Info for testing.
           //LOG.info("Volt table Received in callback is "+vt.toString());
           
-          for (PartitionExecutor executor : local_executors) {
-            // TODO : check if we can more efficient here
-            if (executor.getPartitionId() == msg.getOldPartition()) {
-                try {
-                  executor.receiveTuples(msg.getTransactionID(), 
-                      msg.getOldPartition(), msg.getNewPartition(),
-                      msg.getVoltTableName(), msg.getMinInclusive(), msg.getMaxExclusive(),
-                      vt);
-                } catch (Exception e) {
-                  LOG.error("Error in partition executors receiving tuples for their pull " +
-                  		"request", e);
-                }
-            }
-        }
+          receiveLivePullTuples(msg.getTransactionID(), 
+              msg.getOldPartition(), msg.getNewPartition(),
+              msg.getVoltTableName(), msg.getMinInclusive(), msg.getMaxExclusive(),
+              vt);
+          
       }
   };
 

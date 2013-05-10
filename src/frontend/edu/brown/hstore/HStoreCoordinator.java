@@ -798,19 +798,16 @@ public class HStoreCoordinator implements Shutdownable {
           
           LivePullResponse response = null;
           try {
-            response = hstore_site.getReconfigurationCoordinator().sendTuples(
-                request.getSenderSite(), request.getT0S(), request.getTransactionID(),
-                request.getOldPartition(), request.getNewPartition(), request.getVoltTableName(),
-                request.getMinInclusive(), request.getMaxExclusive());
+              hstore_site.getReconfigurationCoordinator().sendTuples(
+                request, done);
           } catch (Exception e) {
             // TODO Auto-generated catch block
             LOG.error("Exception incurred while receiving tuples", e);
           }
           
-          if(response == null){
-            LOG.error("LivePull Response is null");
-          }
-          done.run(response);
+          // Callback will be made when the work item is processed
+          // from the queue
+          //done.run(response);
           
         }
 

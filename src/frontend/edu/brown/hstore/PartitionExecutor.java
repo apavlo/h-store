@@ -117,6 +117,7 @@ import edu.brown.catalog.special.CountedStatement;
 import edu.brown.hashing.ReconfigurationPlan;
 import edu.brown.hashing.ReconfigurationPlan.ReconfigurationRange;
 import edu.brown.hstore.Hstoreservice.LivePullRequest;
+import edu.brown.hstore.Hstoreservice.LivePullResponse;
 import edu.brown.hstore.Hstoreservice.QueryEstimate;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.TransactionPrefetchResult;
@@ -986,6 +987,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 // Process Work
                 // -------------------------------
                 if (nextWork != null) {
+                    LOG.info("Next Work: " + nextWork);
                     if (trace.val)
                         LOG.trace("Next Work: " + nextWork);
                     if (hstore_conf.site.exec_profiling) {
@@ -1394,9 +1396,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         // Pull Request Message
         else if(work instanceof LivePullRequestMessage) {
           // Process the pull request 
-          LivePullRequest livePullRequest = ((LivePullRequestMessage) work).getLivePullRequest();  
-            this.sendTuples(livePullRequest.getTransactionID(), livePullRequest.getOldPartition(), livePullRequest.getNewPartition()
-                , livePullRequest.getVoltTableName(), livePullRequest.getMinInclusive(), livePullRequest.getMaxExclusive());
+          LivePullRequestMessage livePullRequestMessage = ((LivePullRequestMessage) work);  
+          processLivePullRequestMessage(livePullRequestMessage);
         }
         
     }
@@ -2101,6 +2102,19 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             this.specExecScheduler.interruptSearch(work);
         return (success);
     }
+    
+    public boolean queueLivePullRequest(LivePullRequest livePullRequest, 
+        RpcCallback<LivePullResponse> livePullResponseCallback){
+      //assert (livePullRequest.isInitialized()) : "Unexpected uninitialized live Pull Request";
+      LivePullRequestMessage livePullRequestMessage = new LivePullRequestMessage(livePullRequest, livePullResponseCallback);
+      LOG.info("Adding reconfig to the queue");
+      boolean success = this.work_queue.offer(livePullRequestMessage); // , true);
+      assert (success) : String.format("Failed to queue %s at partition %d for %s", livePullRequestMessage, this.partitionId, 
+          livePullRequestMessage.getTransactionId()
+          );
+      LOG.info("success "+success);
+      return success;
+    }
 
     // ---------------------------------------------------------------
     // WORK QUEUE PROCESSING METHODS
@@ -2697,6 +2711,37 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         }
     }
 
+    public void processLivePullRequestMessage(LivePullRequestMessage livePullRequestMessage){
+      LivePullRequest livePullRequest = livePullRequestMessage.getLivePullRequest();
+      
+      VoltTable voltTable = sendTuples(livePullRequest.getTransactionID(), livePullRequest.getOldPartition(), 
+          livePullRequest.getNewPartition(), livePullRequest.getVoltTableName(), livePullRequest.getMinInclusive(), 
+          livePullRequest.getMaxExclusive());
+      
+      ByteString tableBytes = null;
+      try {
+          ByteBuffer b = ByteBuffer.wrap(FastSerializer.serialize(voltTable));
+          tableBytes = ByteString.copyFrom(b.array());
+      } catch (Exception ex) {
+          throw new RuntimeException("Unexpected error when serializing Volt Table", ex);
+      }
+      
+      LivePullResponse livePullResponse = LivePullResponse.newBuilder().setSenderSite(this.hstore_site.getSiteId()).
+          setOldPartition(livePullRequest.getOldPartition()).setNewPartition(livePullRequest.getNewPartition())
+              .setVoltTableName(livePullRequest.getVoltTableName()).setT0S(System.currentTimeMillis()).setVoltTableData(tableBytes)
+              .setMinInclusive(livePullRequest.getMinInclusive()).setMaxExclusive(livePullRequest.getMaxExclusive())
+              .setTransactionID(livePullRequest.getTransactionID()).build();
+      
+      if(livePullRequestMessage.getLivePullResponseCallback() != null){
+        //Send the Callback response to the site
+        livePullRequestMessage.getLivePullResponseCallback().run(livePullResponse); 
+      } else {
+        // Shows that the request is local , pass it to the local site's RC 
+        this.hstore_site.getReconfigurationCoordinator().receiveLivePullTuples(livePullRequest.getTransactionID(), 
+            livePullRequest.getOldPartition(), livePullRequest.getNewPartition(), livePullRequest.getVoltTableName(), 
+            livePullRequest.getMinInclusive(), livePullRequest.getMaxExclusive(), voltTable);
+      }
+    }
     /**
      * Executes a WorkFragment on behalf of some remote site and returns the
      * resulting DependencySet
@@ -4864,6 +4909,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         LOG.info(String.format("sendTuples keys %s->%s for %s  partIds %s->%s",min_inclusive,max_exclusive, table_name,oldPartitionId,newPartitionId));
         VoltTable vt = null;
         // TODO : add logic to extract the data for the specified
+        // TODO : also logic to go to the ee and delete the data
         // reconfiguration range
         
         Table catalog_tbl = null;
