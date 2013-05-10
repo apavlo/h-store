@@ -5,6 +5,7 @@ import java.util.BitSet;
 import java.util.List;
 
 import org.voltdb.ParameterSet;
+import org.voltdb.catalog.Statement;
 
 import com.google.protobuf.ByteString;
 
@@ -12,12 +13,19 @@ import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.Hstoreservice.WorkResult;
 import edu.brown.pools.Poolable;
+import edu.brown.statistics.Histogram;
+import edu.brown.statistics.ObjectHistogram;
 
 /**
  * Special internal state information for when the txn requests prefetch queries
  * @author pavlo
  */
 public class PrefetchState implements Poolable {
+    
+    /**
+     * Internal counter for the number of times that we've executed this query in the past.
+     */
+    protected final Histogram<Statement> stmtCounters = new ObjectHistogram<Statement>();
 
     /**
      * Which partitions have received prefetch WorkFragments
@@ -75,6 +83,5 @@ public class PrefetchState implements Poolable {
         this.results.clear();
     }
 
-    
     
 }

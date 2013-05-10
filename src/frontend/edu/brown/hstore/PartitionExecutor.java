@@ -151,6 +151,7 @@ import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.ExecutionState;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.hstore.txns.MapReduceTransaction;
+import edu.brown.hstore.txns.PrefetchState;
 import edu.brown.hstore.txns.RemoteTransaction;
 import edu.brown.hstore.util.ArrayCache.IntArrayCache;
 import edu.brown.hstore.util.ArrayCache.LongArrayCache;
@@ -1468,8 +1469,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
     }
     
     private void updateMemoryStats(long time) {
-        if (debug.val)
-            LOG.debug("Updating memory stats for partition " + this.partitionId);
+        if (trace.val)
+            LOG.trace("Updating memory stats for partition " + this.partitionId);
         
         Collection<Table> tables = this.catalogContext.database.getTables();
         int[] tableIds = new int[tables.size()];
@@ -2848,7 +2849,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             StringBuilder sb = new StringBuilder();
             sb.append(String.format("%s - Executing %d fragments [lastTxnId=%d, undoToken=%d]",
                       ts, batchSize, this.lastCommittedTxnId, undoToken));
-            if (trace.val) {
+            // if (trace.val) {
                 Map<String, Object> m = new LinkedHashMap<String, Object>();
                 m.put("Fragments", Arrays.toString(fragmentIds));
                 
@@ -2867,7 +2868,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 }
                 m.put("Output Dependencies", Arrays.toString(output_depIds));
                 sb.append("\n" + StringUtil.formatMaps(m)); 
-            }
+            // }
             LOG.debug(sb.toString());
         }
         // *********************************** DEBUG ***********************************
@@ -3072,7 +3073,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                                                    ts.isPredictSinglePartition(),
                                                    ts.getTouchedPartitions(),
                                                    batchParams);
-        
         assert(plan != null);
         if (trace.val) {
             LOG.trace(ts + " - Touched Partitions: " + ts.getTouchedPartitions().values());
@@ -3116,6 +3116,28 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             throw ex;
         }
         
+        // If we prefetched queries for this txn, we need to check whether we 
+        // have already submit a request for one of the queries in our batch
+        if (ts.hasPrefetchQueries()) {
+            PartitionSet stmtPartitions[] = plan.getStatementPartitions();
+            for (int i = 0; i < batchSize; i++) {
+                Statement stmt = batchStmts[i].getStatement();
+                // We only need to maintain counters for the prefetchable queries.
+                if (stmt.getPrefetchable()) {
+                    int stmtCnt = ts.updateStatementCounter(stmt, stmtPartitions[i]);
+
+                    // Check whether we have already sent a request to execute this query
+                    if (ts.isMarkedPrefetched(stmt, stmtCnt)) {
+                        // We have... so that means that we don't want to send it
+                        // again and should expect the result to come from somewhere else.
+                        
+                    }
+                }
+            } // FOR
+            
+            
+        }
+        
         VoltTable results[] = null;
         
         // If the BatchPlan only has WorkFragments that are for this partition, then
@@ -3128,6 +3150,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         // Otherwise, we need to generate WorkFragments and then send the messages out 
         // to our remote partitions using the HStoreCoordinator
         else {
+            
+
+            
+            
             if (trace.val)
                 LOG.trace(ts + " - Using PartitionExecutor.dispatchWorkFragments() to execute distributed queries");
             ExecutionState execState = ts.getExecutionState();
