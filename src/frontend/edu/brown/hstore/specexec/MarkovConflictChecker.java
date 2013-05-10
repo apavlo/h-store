@@ -126,7 +126,8 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
                             // TODO
                             LOG.warn(String.format("There are %d %s mapped to the primary key column %s. " +
                                      "Marking %s as always conflicting with %s",
-                                     params.size(), col.fullName(), tbl, stmt.fullName()));
+                                     params.size(), StmtParameter.class.getSimpleName(), col.fullName(),
+                                     tbl, stmt.fullName()));
                         }
                         else {
                             // If there are no references, then there is nothing else that we 
