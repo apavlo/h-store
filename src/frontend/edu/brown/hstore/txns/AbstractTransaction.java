@@ -37,6 +37,7 @@ import org.apache.log4j.Logger;
 import org.voltdb.ParameterSet;
 import org.voltdb.VoltTable;
 import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.Table;
 import org.voltdb.exceptions.SerializableException;
 import org.voltdb.exceptions.ServerFaultException;
@@ -1096,6 +1097,21 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
         return (this.prefetch != null);
     }
     
+    public final void markPrefetchQuery(Statement stmt, int counter) {
+        
+    }
+    
+    /**
+     * Returns true if this query 
+     * @param stmt
+     * @param counter
+     * @return
+     */
+    public final boolean isMarkedPrefetched(Statement stmt, int counter) {
+        
+        return (false);
+    }
+    
     /**
      * Attach prefetchable WorkFragments for this transaction
      * This should be invoked on the remote side of the initialization request.
@@ -1135,6 +1151,16 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
     public final void markExecPrefetchQuery(int partition) {
         assert(this.prefetch != null);
         this.prefetch.partitions.set(partition);
+    }
+    
+    /**
+     * Update an internal counter for the number of times that we've invoked queries
+     * @param stmt
+     * @return
+     */
+    public final int updateStatementCounter(Statement stmt, PartitionSet partitions) {
+        assert(this.prefetch != null);
+        return (int)this.prefetch.stmtCounters.put(stmt);
     }
     
     // ----------------------------------------------------------------------------

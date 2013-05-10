@@ -62,8 +62,9 @@ public class TransactionPrefetchHandler extends AbstractTransactionHandler<Trans
         assert(request.hasTransactionId()) : 
             "Got " + request.getClass().getSimpleName() + " without a txn id!";
         Long txn_id = Long.valueOf(request.getTransactionId());
-        if (debug.val) LOG.debug(String.format("Got %s for txn #%d [remotePartition=%d]",
-                                                 request.getClass().getSimpleName(), txn_id, request.getSourcePartition()));
+        if (debug.val)
+            LOG.debug(String.format("Got %s for txn #%d [remotePartition=%d]",
+                      request.getClass().getSimpleName(), txn_id, request.getSourcePartition()));
         
         // We should never a get a TransactionPrefetchResult for a transaction that
         // we don't know about.

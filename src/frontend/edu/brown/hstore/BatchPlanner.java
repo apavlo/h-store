@@ -367,7 +367,7 @@ public class BatchPlanner {
         public PartitionSet[] getStatementPartitions() {
             return (this.stmt_partitions);
         }
-
+        
         public boolean isReadOnly() {
             return (this.readonly);
         }

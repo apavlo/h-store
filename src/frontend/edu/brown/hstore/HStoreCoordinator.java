@@ -850,6 +850,11 @@ public class HStoreCoordinator implements Shutdownable {
         this.channels[site_id].transactionWork(ts.getTransactionWorkController(site_id), request, callback);
     }
     
+    /**
+     * Send the result of a prefetched query back to the txn's base partition.
+     * @param ts
+     * @param request
+     */
     public void transactionPrefetchResult(RemoteTransaction ts, TransactionPrefetchResult request) {
         if (debug.val)
             LOG.debug(String.format("%s - Sending %s back to base partition %d",
