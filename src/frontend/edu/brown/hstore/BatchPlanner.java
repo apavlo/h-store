@@ -1005,6 +1005,7 @@ public class BatchPlanner {
                     if (partitionBuilder == null) {
                         partitionBuilder = WorkFragment.newBuilder().setPartitionId(partition);
                         this.round_builders.put(v.input_dependency_id, partitionBuilder);
+                        partitionBuilder.setReadOnly(true);
                     }
 
                     // Fragment Id
@@ -1027,7 +1028,9 @@ public class BatchPlanner {
                     partitionBuilder.addParamIndex(v.stmt_index);
 
                     // Read-Only
-                    partitionBuilder.setReadOnly(partitionBuilder.getReadOnly() || v.read_only);
+                    if (v.read_only == false) {
+                        partitionBuilder.setReadOnly(v.read_only);
+                    }
 
                     // Prefetch
                     if (this.prefetch) partitionBuilder.setPrefetch(true);

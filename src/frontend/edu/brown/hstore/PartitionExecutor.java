@@ -1751,6 +1751,13 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         // Make sure that it's at least as big as the last one handed out
         if (undoToken < this.lastUndoToken) undoToken = this.lastUndoToken;
         
+        if (debug.val)
+            LOG.debug(String.format("%s - Next undo token at partition %d is %s [readOnly=%s]",
+                      ts, this.partitionId,
+                      (undoToken == HStoreConstants.DISABLE_UNDO_LOGGING_TOKEN ? "<DISABLED>" :
+                          (undoToken == HStoreConstants.NULL_UNDO_LOGGING_TOKEN ? "<NULL>" : undoToken)),
+                      readOnly));
+        
         return (undoToken);
     }
     
@@ -2448,16 +2455,17 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         boolean is_local = (ts.getBasePartition() == this.partitionId);
         boolean is_remote = (ts instanceof LocalTransaction == false);
         boolean is_prefetch = fragment.getPrefetch();
+        boolean is_readonly = fragment.getReadOnly();
         if (debug.val)
-            LOG.debug(String.format("%s - Executing %s [isLocal=%s, isRemote=%s, isPrefetch=%s, fragments=%s]",
+            LOG.debug(String.format("%s - Executing %s [isLocal=%s, isRemote=%s, isPrefetch=%s, isReadOnly=%s, fragments=%s]",
                       ts, fragment.getClass().getSimpleName(),
-                      is_local, is_remote, is_prefetch,
+                      is_local, is_remote, is_prefetch, is_readonly,
                       fragment.getFragmentIdCount()));
         
         // If this WorkFragment isn't being executed at this txn's base partition, then
         // we need to start a new execution round
         if (is_local == false) {
-            long undoToken = this.calculateNextUndoToken(ts, fragment.getReadOnly());
+            long undoToken = this.calculateNextUndoToken(ts, is_readonly);
             ts.initRound(this.partitionId, undoToken);
             ts.startRound(this.partitionId);
         }
