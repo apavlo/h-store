@@ -244,12 +244,14 @@ public class BatchPlanner {
          **/
         protected boolean readonly = true;
 
-        /** Whether the batch plan can all be executed locally **/
+        /**
+         * Whether the batch plan can all be executed locally
+         */
         protected boolean all_local = true;
 
         /**
          * Whether the fragments in the batch plan can be executed on a single site
-         **/
+         */
         protected boolean all_singlepartitioned = true;
 
         /** check if all local fragment work is non-transactional **/
@@ -267,9 +269,7 @@ public class BatchPlanner {
             this.rounds = (Collection<PlanVertex>[][]) new Collection<?>[max_round_size][];
             for (int i = 0; i < this.rounds.length; i++) {
                 this.rounds[i] = (Collection<PlanVertex>[]) new Collection<?>[num_partitions];
-//                for (int ii = 0; ii < num_partitions; ii++) {
-//                    this.rounds[i][ii] = new ArrayList<PlanVertex>();
-//                } // FOR
+                // These lists will only be allocated when needed
             } // FOR
 
             // Batch Data
@@ -304,11 +304,6 @@ public class BatchPlanner {
                     this.frag_list[i] = null;
                 if (this.stmt_partitions[i] != null && this.stmt_partitions_swap[i] == null)
                     this.stmt_partitions[i].clear();
-                // if (this.frag_partitions[i] != null) {
-                // for (PartitionSet s : this.frag_partitions[i].values()) {
-                // s.clear();
-                // } // FOR
-                // }
             } // FOR
             for (int i = 0; i < this.rounds.length; i++) {
                 for (int ii = 0; ii < this.rounds[i].length; ii++) {
@@ -359,7 +354,7 @@ public class BatchPlanner {
             return (this.graph.input_ids);
         }
         
-        public void removeStatementAtIndex(int stmtIndex) {
+        public void markStatementAsAlreadyPrefetched(int stmtIndex) {
             // TODO
         }
         

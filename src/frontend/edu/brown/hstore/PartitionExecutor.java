@@ -145,6 +145,8 @@ import edu.brown.hstore.internal.UtilityWorkMessage.UpdateMemoryMessage;
 import edu.brown.hstore.internal.WorkFragmentMessage;
 import edu.brown.hstore.specexec.AbstractConflictChecker;
 import edu.brown.hstore.specexec.MarkovConflictChecker;
+import edu.brown.hstore.specexec.QueryTracker;
+import edu.brown.hstore.specexec.QueryTracker.QueryInvocation;
 import edu.brown.hstore.specexec.TableConflictChecker;
 import edu.brown.hstore.specexec.UnsafeConflictChecker;
 import edu.brown.hstore.txns.AbstractTransaction;
@@ -3131,21 +3133,25 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         
         // If we prefetched queries for this txn, we need to check whether we 
         // have already submit a request for one of the queries in our batch
-        if (hstore_conf.site.exec_prefetch_queries && ts.hasPrefetchQueries()) {
+        if (ts.hasPrefetchQueries()) {
             PartitionSet stmtPartitions[] = plan.getStatementPartitions();
             PrefetchState prefetchState = ts.getPrefetchState();
+            QueryTracker queryTracker = prefetchState.getExecQueryTracker();
+            QueryTracker prefetchTracker = prefetchState.getPrefetchQueryTracker();
             assert(prefetchState != null);
             for (int i = 0; i < batchSize; i++) {
                 Statement stmt = batchStmts[i].getStatement();
-                // We only need to maintain counters for the prefetchable queries.
+                
+                // We always have to update the query tracker regardless of whether
+                // the query was prefetched or not. This is so that we can ensure
+                // that we execute the queries in the right order.
+                int stmtCnt = queryTracker.addQuery(stmt, stmtPartitions[i], batchParams[i]);
+                
+                // But we only need to check for conflicts for queries that were prefetched
                 if (stmt.getPrefetchable() == false) continue;
                 
-                // Always increase the counter so that we know how many times
-                // we have executed this query in the past.
-                int stmtCnt = prefetchState.updateStatementCounter(stmt, stmtPartitions[i]);
-
-                // Check whether we have already sent a request to execute this query
-                PrefetchState.PrefetchedQuery pq = prefetchState.findPrefetchedQuery(stmt, stmtCnt);
+                // Check whether we have already sent a prefetch request to execute this query
+                QueryInvocation pq = prefetchTracker.findPrefetchedQuery(stmt, stmtCnt);
                 if (pq != null) {
                     // We have... so that means that we don't want to send it
                     // again and should expect the result to come from somewhere else.
@@ -3156,10 +3162,15 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                     // Everything is the same, so we need to remove this
                     // statement from the batch.
                     if (samePartitions && sameParams) {
-                        // TODO
+                        plan.markStatementAsAlreadyPrefetched(i);
                     }
+                    // If it's a read-only query, then we don't care 
+                    // about it 
+                    
                     // The parameters are different
                     else if (sameParams == false) {
+                        // If it's a read
+                        
                         // TODO
                     }
                     // The partitions are different
@@ -3168,9 +3179,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                     }
                 }
             } // FOR
-            
-            
-        }
+        } // PREFETCH
         
         VoltTable results[] = null;
         
@@ -3300,7 +3309,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 if (debug.val)
                     LOG.debug(String.format("%s - Txn on partition %d is suppose to be " +
                               "single-partitioned, but it wants to execute a fragment on partition %d",
-                                 ts, this.partitionId, target_partition));
+                              ts, this.partitionId, target_partition));
                 need_restart = true;
                 break;
             }
