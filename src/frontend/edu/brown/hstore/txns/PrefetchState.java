@@ -1,11 +1,7 @@
 package edu.brown.hstore.txns;
 
 import java.util.ArrayList;
-import java.util.BitSet;
-import java.util.Collection;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 import org.voltdb.ParameterSet;
 import org.voltdb.catalog.Statement;
@@ -15,9 +11,8 @@ import com.google.protobuf.ByteString;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.Hstoreservice.WorkResult;
+import edu.brown.hstore.specexec.QueryTracker;
 import edu.brown.pools.Poolable;
-import edu.brown.statistics.Histogram;
-import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.PartitionSet;
 
 /**
@@ -26,27 +21,10 @@ import edu.brown.utils.PartitionSet;
  */
 public class PrefetchState implements Poolable {
     
-    public class PrefetchedQuery {
-        public final Statement stmt;
-        public final int counter;
-        public final PartitionSet partitions;
-        public final int paramsHash;
-        
-        public PrefetchedQuery(Statement stmt, int counter, PartitionSet partitions, int paramsHash) {
-            this.stmt = stmt;
-            this.counter = counter;
-            this.partitions = partitions;
-            this.paramsHash = paramsHash;
-        }
-    }
+
+    protected final QueryTracker prefetchTracker = new QueryTracker();
     
-    private final Collection<PrefetchedQuery> prefetchQueries = new ArrayList<>(); 
-    
-    /**
-     * Internal counter for the number of times that we've executed queries in the past.
-     * If a Statement is not in this list, then we know that it wasn't prefetched.
-     */
-    private final Histogram<Statement> stmtCounters = new ObjectHistogram<Statement>(true);
+    protected final QueryTracker queryTracker = new QueryTracker();
 
     /**
      * Which partitions have received prefetch WorkFragments
@@ -107,19 +85,21 @@ public class PrefetchState implements Poolable {
         this.results.clear();
     }
     
+    public QueryTracker getExecQueryTracker() {
+        return (this.queryTracker);
+    }
+    
+    public QueryTracker getPrefetchQueryTracker() {
+        return (this.prefetchTracker);
+    }
+    
+    
     // ----------------------------------------------------------------------------
     // INTERNAL METHODS
     // ----------------------------------------------------------------------------
     
     
-    public PrefetchedQuery findPrefetchedQuery(Statement stmt, int counter) {
-        for (PrefetchedQuery pq : this.prefetchQueries) {
-            if (pq.stmt.equals(stmt) && pq.counter == counter) {
-                return (pq);
-            }
-        } // FOR
-        return (null);
-    }
+
     
 
     // ----------------------------------------------------------------------------
@@ -137,20 +117,8 @@ public class PrefetchState implements Poolable {
      */
     public void markPrefetchedQuery(Statement stmt, int counter,
                                     PartitionSet partitions, ParameterSet stmtParams) {
-        PrefetchedQuery pq = new PrefetchedQuery(stmt, counter, partitions, stmtParams.hashCode());
-        this.prefetchQueries.add(pq);
+        this.prefetchTracker.addQuery(stmt, partitions, stmtParams);
     }
-    
-    
-    /**
-     * Update an internal counter for the number of times that we've invoked queries
-     * @param stmt
-     * @return
-     */
-    public final int updateStatementCounter(Statement stmt, PartitionSet partitions) {
-        return (int)this.stmtCounters.put(stmt);
-    }
-    
     
     /**
      * Returns true if this query 
@@ -159,7 +127,7 @@ public class PrefetchState implements Poolable {
      * @return
      */
     public final boolean isMarkedPrefetched(Statement stmt, int counter) {
-        return (this.findPrefetchedQuery(stmt, counter) != null);
+        return (this.prefetchTracker.findPrefetchedQuery(stmt, counter) != null);
     }
     
 }
