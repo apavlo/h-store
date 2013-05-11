@@ -430,9 +430,9 @@ public class LocalTransaction extends AbstractTransaction {
     
     @Override
     public void initRound(int partition, long undoToken) {
-        if (debug.val) LOG.debug(String.format("%s - Initializing ROUND #%d on partition %d [undoToken=%d]", 
-                                 this, this.round_ctr[partition],
-                                 partition, undoToken));
+        if (debug.val)
+            LOG.debug(String.format("%s - Initializing ROUND #%d on partition %d [undoToken=%d]", 
+                      this, this.round_ctr[partition], partition, undoToken));
         
         // SAME SITE, DIFFERENT PARTITION
         if (this.base_partition != partition) {
@@ -489,16 +489,18 @@ public class LocalTransaction extends AbstractTransaction {
         // SAME SITE, SAME PARTITION
         assert(this.state.output_order.isEmpty());
         assert(this.state.batch_size > 0);
-        if (debug.val) LOG.debug(String.format("%s - Starting ROUND #%d on partition %d with %d queued Statements [blocked=%d]", 
-                                       this, this.round_ctr[partition],
-                                       partition, this.state.batch_size, this.state.blocked_tasks.size()));
+        if (debug.val)
+            LOG.debug(String.format("%s - Starting ROUND #%d on partition %d with %d queued Statements [blocked=%d]", 
+                      this, this.round_ctr[partition],
+                      partition, this.state.batch_size, this.state.blocked_tasks.size()));
    
         if (this.predict_singlePartition == false) this.state.lock.lock();
         try {
             // Create our output counters
             for (int stmt_index = 0; stmt_index < this.state.batch_size; stmt_index++) {
-                if (trace.val) LOG.trace(String.format("%s - Examining %d dependencies at stmt_index %d",
-                                               this, this.state.dependencies.size(), stmt_index));
+                if (trace.val)
+                    LOG.trace(String.format("%s - Examining %d dependencies at stmt_index %d",
+                              this, this.state.dependencies.size(), stmt_index));
                 for (DependencyInfo dinfo : this.state.dependencies.values()) {
                     // Add this DependencyInfo our output list if it's being used in this round for this txn
                     // and if it is not an internal dependency
@@ -515,7 +517,8 @@ public class LocalTransaction extends AbstractTransaction {
             
             // Release any queued responses/results
             if (this.state.queued_results.isEmpty() == false) {
-                if (trace.val) LOG.trace("Releasing " + this.state.queued_results.size() + " queued results");
+                if (trace.val)
+                    LOG.trace("Releasing " + this.state.queued_results.size() + " queued results");
                 for (Entry<Pair<Integer, Integer>, VoltTable> e : this.state.queued_results.entrySet()) {
                     this.addResult(e.getKey(), e.getValue(), true);
                 } // FOR
@@ -566,7 +569,8 @@ public class LocalTransaction extends AbstractTransaction {
             // Reset our initialization flag so that we can be ready to run more stuff the next round
             if (this.state.dependency_latch != null) {
                 assert(this.state.dependency_latch.getCount() == 0);
-                if (trace.val) LOG.debug("Setting CountDownLatch to null for txn #" + this.txn_id);
+                if (trace.val)
+                    LOG.debug("Setting CountDownLatch to null for txn #" + this.txn_id);
                 this.state.dependency_latch = null;
             }
             this.state.clearRound();

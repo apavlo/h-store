@@ -58,8 +58,6 @@ import org.voltdb.VoltType;
 import org.voltdb.benchmark.tpcc.TPCCConstants;
 import org.voltdb.types.TimestampType;
 
-import edu.brown.interfaces.Prefetchable;
-
 //Notes on Stored Procedure:
 //Need to add error handling to catch invalid items, and still return needed values.
 
