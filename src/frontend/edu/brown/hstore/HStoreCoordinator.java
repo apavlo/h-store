@@ -771,10 +771,14 @@ public class HStoreCoordinator implements Shutdownable {
             // Make sure that we initialize our internal PrefetchState for this txn
             ts.initializePrefetch();
             TransactionInitRequest[] requests = this.queryPrefetchPlanner.generateWorkFragments(ts);
+            
+            // If the PrefetchQueryPlanner returns a null array, then there is nothing
+            // that we can actually prefetch, so we'll just send the normal txn init requests
             if (requests == null) {
                 this.sendDefaultTransactionInitRequests(ts, callback);
                 return;
             }
+            
             TransactionCounter.PREFETCH_LOCAL.inc(ts.getProcedure());
             int sent_ctr = 0;
             int prefetch_ctr = 0;
@@ -783,7 +787,7 @@ public class HStoreCoordinator implements Shutdownable {
                               this.num_sites, TransactionInitRequest.class.getSimpleName(), requests.length); 
             for (int site_id = 0; site_id < this.num_sites; site_id++) {
                 if (requests[site_id] == null) continue;
-                
+
                 if (site_id == this.local_site_id) {
                     this.hstore_site.transactionInit(ts);
 //                    this.transactionInit_handler.sendLocal(ts.getTransactionId(),

@@ -66,8 +66,9 @@ public class TransactionRedirectResponseCallback implements RpcCallback<ClientRe
     
     @Override
     public void run(ClientResponseImpl parameter) {
-        if (debug.val) LOG.debug(String.format("Got ClientResponse callback for txn #%d! Sending back to %s",
-                                   parameter.getTransactionId(), HStoreThreadManager.formatSiteName(this.destSiteId)));
+        if (debug.val)
+            LOG.debug(String.format("Got ClientResponse callback for txn #%d! Sending back to %s",
+                      parameter.getTransactionId(), HStoreThreadManager.formatSiteName(this.destSiteId)));
         FastSerializer fs = new FastSerializer();
         try {
             parameter.writeExternal(fs);
@@ -80,9 +81,10 @@ public class TransactionRedirectResponseCallback implements RpcCallback<ClientRe
                                                               .setOutput(bs)
                                                               .build();
         this.orig_callback.run(response);
-        if (debug.val) LOG.debug(String.format("Sent back ClientResponse for txn #%d to %s [bytes=%d]",
-                                   parameter.getTransactionId(), HStoreThreadManager.formatSiteName(this.destSiteId),
-                                   bs.size()));
+        if (debug.val)
+            LOG.debug(String.format("Sent back ClientResponse for txn #%d to %s [bytes=%d]",
+                      parameter.getTransactionId(), HStoreThreadManager.formatSiteName(this.destSiteId),
+                      bs.size()));
         
         // IMPORTANT: Since we're the only one that knows that we're finished (and actually even
         // cares), we need to be polite and clean-up after ourselves...

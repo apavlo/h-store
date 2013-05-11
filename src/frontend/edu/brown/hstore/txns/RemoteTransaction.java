@@ -139,7 +139,7 @@ public class RemoteTransaction extends AbstractTransaction {
         for (int i = 0; i < this.rpc_transactionPrefetch.length; i++) {
             // Tell the PretchQuery ProtoRpcControllers to cancel themselves
             // if we actually tried used them for this txn
-            if (this.rpc_transactionPrefetch[i] != null && this.prefetch.partitions.get(i)) {
+            if (this.rpc_transactionPrefetch[i] != null && this.prefetch.partitions.contains(i)) {
                 this.rpc_transactionPrefetch[i].startCancel();
             }
         } // FOR

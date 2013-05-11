@@ -27,6 +27,7 @@ import edu.brown.hstore.BatchPlanner.BatchPlan;
 import edu.brown.hstore.Hstoreservice.TransactionInitRequest;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.txns.LocalTransaction;
+import edu.brown.hstore.txns.PrefetchState;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.mappings.ParameterMapping;
@@ -159,15 +160,13 @@ public class PrefetchQueryPlanner {
             return (null);
         }
         
-        Procedure catalog_proc = ts.getProcedure();
         assert (ts.getProcedureParameters() != null) : 
             "Unexpected null ParameterSet for " + ts;
-        Object proc_params[] = ts.getProcedureParameters().toArray();
-        
         if (debug.val)
             LOG.debug(String.format("%s - Generating prefetch WorkFragments using %s",
                       ts, ts.getProcedureParameters()));
         
+        // Create a SQLStmt batch as if it was created during the normal txn execution process
         SQLStmt[] prefetchStmts = new SQLStmt[prefetchable.size()];
         for (int i = 0; i < prefetchStmts.length; ++i) {
             prefetchStmts[i] = new SQLStmt(prefetchable.get(i).statement);
@@ -181,17 +180,18 @@ public class PrefetchQueryPlanner {
         // Check if we've used this planner in the past. If not, then create it.
         BatchPlanner planner = this.planners.get(hashcode);
         if (planner == null) {
-            planner = this.addPlanner(catalog_proc, prefetchable, prefetchStmts);
+            planner = this.addPlanner(ts.getProcedure(), prefetchable, prefetchStmts);
         }
-        assert(planner != null) : "Missing BatchPlanner for " + catalog_proc;
+        assert(planner != null) : "Missing BatchPlanner for " + ts.getProcedure();
         ParameterSet prefetchParams[] = new ParameterSet[planner.getBatchSize()];
         ByteString prefetchParamsSerialized[] = new ByteString[prefetchParams.length];
         ParameterMapping mappings[][] = this.mappingsCache.get(hashcode);
-        assert(mappings != null) : "Missing cached ParameterMappings for " + catalog_proc;
+        assert(mappings != null) : "Missing cached ParameterMappings for " + ts.getProcedure();
         
         // Makes a list of ByteStrings containing the ParameterSets that we need
         // to send over to the remote sites so that they can execute our
         // prefetchable queries
+        Object proc_params[] = ts.getProcedureParameters().toArray();
         for (int i = 0; i < prefetchParams.length; i++) {
             CountedStatement counted_stmt = prefetchable.get(i);
             if (debug.val)
@@ -206,7 +206,8 @@ public class PrefetchQueryPlanner {
                 ParameterMapping pm = mappings[i][catalog_param.getIndex()];
                 assert(pm != null) :
                     String.format("Unexpected null %s for %s [%s]",
-                                  ParameterMapping.class.getSimpleName(), catalog_param.fullName(), counted_stmt);
+                                  ParameterMapping.class.getSimpleName(),
+                                  catalog_param.fullName(), counted_stmt);
                 
                 if (pm.procedure_parameter.getIsarray()) {
                     stmt_params[catalog_param.getIndex()] = ParametersUtil.getValue(ts.getProcedureParameters(), pm);
@@ -232,6 +233,8 @@ public class PrefetchQueryPlanner {
             } catch (Exception ex) {
                 throw new RuntimeException("Failed to serialize ParameterSet " + i + " for " + ts, ex);
             }
+            
+            
         } // FOR (Statement)
 
         // Generate the WorkFragments that we will need to send in our TransactionInitRequest
@@ -243,6 +246,19 @@ public class PrefetchQueryPlanner {
                                       prefetchParams);
         List<WorkFragment.Builder> fragmentBuilders = new ArrayList<WorkFragment.Builder>();
         plan.getWorkFragmentsBuilders(ts.getTransactionId(), fragmentBuilders);
+        
+        // IMPORTANT: Make sure that we tell the PrefetchState handle that
+        // we have marked this Statement as prefetched. We have to do this here
+        // because we need to have the BatchPlanner tell us what partitions the
+        // query is going to be executed on.
+        PrefetchState prefetchState = ts.getPrefetchState();
+        for (int i = 0; i < prefetchParams.length; i++) {
+            CountedStatement counted_stmt = prefetchable.get(i);
+            prefetchState.markPrefetchedQuery(counted_stmt.statement,
+                                              counted_stmt.counter,
+                                              plan.getStatementPartitions()[i],
+                                              prefetchParams[i]);
+        } // FOR
 
         // Loop through the fragments and check whether at least one of
         // them needs to be executed at the base (local) partition. If so, we need a

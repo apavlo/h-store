@@ -3,13 +3,11 @@ package edu.brown.hstore.txns;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
-import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.locks.ReentrantLock;
@@ -19,8 +17,8 @@ import org.voltdb.VoltTable;
 import org.voltdb.utils.Pair;
 
 import edu.brown.hstore.Hstoreservice.WorkFragment;
-import edu.brown.hstore.util.ParameterSetArrayCache;
 import edu.brown.hstore.PartitionExecutor;
+import edu.brown.hstore.util.ParameterSetArrayCache;
 import edu.brown.interfaces.DebugContext;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
@@ -28,7 +26,9 @@ import edu.brown.pools.Poolable;
 
 /**
  * The internal state of a transaction while it is running at a PartitionExecutor
- * This will be removed from the LocalTransaction once its control code is finished executing 
+ * This will be removed from the LocalTransaction once its control code is finished executing.
+ * If you need to track anything that may occur *before* the txn starts running, then you don't
+ * want to put those data structures in here.
  * @author pavlo
  */
 public class ExecutionState implements Poolable {
@@ -102,7 +102,7 @@ public class ExecutionState implements Poolable {
      * Internal cache of the result queues that were used by the txn in this round.
      * This is so that we don't have to clear all of the queues in the entire results_dependency_stmt_ctr cache. 
      */
-    private final Set<Queue<Integer>> results_queue_cache = new HashSet<Queue<Integer>>();
+    private final Collection<Queue<Integer>> results_queue_cache = new ArrayList<Queue<Integer>>();
     
     /**
      * Sometimes we will get results back while we are still queuing up the rest of the tasks and
