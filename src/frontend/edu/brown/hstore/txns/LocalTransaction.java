@@ -948,10 +948,11 @@ public class LocalTransaction extends AbstractTransaction {
         int currentRound = this.round_ctr[this.base_partition]; 
         
         if (dinfo != null) {
-            if (debug.val) LOG.debug(String.format("%s - Reusing DependencyInfo[%d] for %s. " +
-                                     "Checking whether it needs to be reset [currentRound=%d / lastRound=%d lastTxn=%s]",
-                                     this, dinfo.hashCode(), debugStmtDep(stmt_index, dep_id),
-                                     currentRound, dinfo.getRound(), dinfo.getTransactionId()));
+            if (debug.val)
+                LOG.debug(String.format("%s - Reusing DependencyInfo[%d] for %s. " +
+                          "Checking whether it needs to be reset [currentRound=%d / lastRound=%d lastTxn=%s]",
+                          this, dinfo.hashCode(), debugStmtDep(stmt_index, dep_id),
+                          currentRound, dinfo.getRound(), dinfo.getTransactionId()));
             if (dinfo.inSameTxnRound(this.txn_id, currentRound) == false) {
                 if (debug.val) LOG.debug(String.format("%s - Clearing out DependencyInfo[%d].",
                                          this, dinfo.hashCode()));
@@ -960,8 +961,9 @@ public class LocalTransaction extends AbstractTransaction {
         } else {
             dinfo = new DependencyInfo(hstore_site.getCatalogContext());
             stmt_dinfos.put(dep_id, dinfo);
-            if (debug.val) LOG.debug(String.format("%s - Created new DependencyInfo for %s [hashCode=%d]",
-                                           this, debugStmtDep(stmt_index, dep_id), dinfo.hashCode()));
+            if (debug.val)
+                LOG.debug(String.format("%s - Created new DependencyInfo for %s [hashCode=%d]",
+                          this, debugStmtDep(stmt_index, dep_id), dinfo.hashCode()));
         }
         if (dinfo.isInitialized() == false) {
             dinfo.init(this.txn_id, currentRound, stmt_index, dep_id.intValue());
@@ -979,8 +981,9 @@ public class LocalTransaction extends AbstractTransaction {
      */
     public VoltTable[] getResults() {
         final VoltTable results[] = new VoltTable[this.state.output_order.size()];
-        if (debug.val) LOG.debug(String.format("%s - Generating output results with %d tables",
-                         this, results.length));
+        if (debug.val)
+            LOG.debug(String.format("%s - Generating output results with %d tables",
+                      this, results.length));
         
         HStoreConf hstore_conf = hstore_site.getHStoreConf();
         boolean nonblocking = (hstore_conf.site.specexec_nonblocking &&
@@ -1026,8 +1029,9 @@ public class LocalTransaction extends AbstractTransaction {
         final int partition = fragment.getPartitionId();
         final int num_fragments = fragment.getFragmentIdCount();
         
-        if (debug.val) LOG.debug(String.format("%s - Adding %s for partition %d with %d fragments",
-                                       this, fragment.getClass().getSimpleName(), partition, num_fragments));
+        if (debug.val)
+            LOG.debug(String.format("%s - Adding %s for partition %d with %d fragments",
+                      this, fragment.getClass().getSimpleName(), partition, num_fragments));
         
         // PAVLO: 2011-12-10
         // We moved updating the exec_touchedPartitions histogram into the
@@ -1049,10 +1053,11 @@ public class LocalTransaction extends AbstractTransaction {
             if (output_dep_id != HStoreConstants.NULL_DEPENDENCY_ID) {
                 DependencyInfo dinfo = this.getOrCreateDependencyInfo(stmt_index, output_dep_id);
                 dinfo.addPartition(partition);
-                if (debug.val) LOG.debug(String.format("%s - Adding new DependencyInfo %s for PlanFragment %d at Partition %d [ctr=%d]\n%s",
-                                               this, debugStmtDep(stmt_index, output_dep_id),
-                                               fragment.getFragmentId(i), this.state.dependency_ctr,
-                                               partition, dinfo.toString()));
+                if (debug.val)
+                    LOG.debug(String.format("%s - Adding new DependencyInfo %s for PlanFragment %d at Partition %d [ctr=%d]\n%s",
+                              this, debugStmtDep(stmt_index, output_dep_id),
+                              fragment.getFragmentId(i), this.state.dependency_ctr,
+                              partition, dinfo.toString()));
                 // Store the stmt_index of when this dependency will show up
                 this.state.dependency_ctr++;
                 this.state.addResultDependencyStatement(partition, output_dep_id, stmt_index);
@@ -1070,8 +1075,9 @@ public class LocalTransaction extends AbstractTransaction {
                         this.state.blocked_tasks.add(fragment);
                         blocked = true;   
                     }
-                    if (debug.val) LOG.debug(String.format("%s - Created internal input dependency %d for PlanFragment %d\n%s", 
-                                                   this, dependency_id, fragment.getFragmentId(i), dinfo.toString()));
+                    if (debug.val)
+                        LOG.debug(String.format("%s - Created internal input dependency %d for PlanFragment %d\n%s", 
+                                  this, dependency_id, fragment.getFragmentId(i), dinfo.toString()));
                 }
             }
             
@@ -1088,7 +1094,7 @@ public class LocalTransaction extends AbstractTransaction {
                     }
                 } // FOR
                 LOG.trace(String.format("%s - Number of Output Dependencies for StmtIndex #%d: %d out of %d\n%s", 
-                                        this, stmt_index, output_ctr, dep_ctr, sb));
+                          this, stmt_index, output_ctr, dep_ctr, sb));
             }
             // *********************************** DEBUG ***********************************
             
@@ -1108,10 +1114,11 @@ public class LocalTransaction extends AbstractTransaction {
                 } // FOR
             }
             LOG.debug(String.format("%s - Queued up %s WorkFragment for partition %d and marked as %s [fragIds=%s]",
-                                    this, catalog_obj, partition,
-                                    (blocked ? "blocked" : "not blocked"),
-                                    fragment.getFragmentIdList()));
-            if (trace.val) LOG.trace("WorkFragment Contents for txn #" + this.txn_id + ":\n" + fragment);
+                      this, catalog_obj, partition,
+                      (blocked ? "blocked" : "not blocked"),
+                      fragment.getFragmentIdList()));
+            if (trace.val)
+                LOG.trace("WorkFragment Contents for txn #" + this.txn_id + ":\n" + fragment);
         }
         // *********************************** DEBUG ***********************************
         
@@ -1157,8 +1164,9 @@ public class LocalTransaction extends AbstractTransaction {
         final int partition = key.getFirst().intValue();
         final int dependency_id = key.getSecond().intValue();
         
-        if (debug.val) LOG.debug(String.format("%s - Attemping to add new result for %s [numRows=%d]",
-                         this, debugPartDep(partition, dependency_id), result.getRowCount()));
+        if (debug.val)
+            LOG.debug(String.format("%s - Attemping to add new result for %s [numRows=%d]",
+                      this, debugPartDep(partition, dependency_id), result.getRowCount()));
         
         // If the txn is still in the INITIALIZED state, then we just want to queue up the results
         // for now. They will get released when we switch to STARTED 
@@ -1172,8 +1180,9 @@ public class LocalTransaction extends AbstractTransaction {
                         String.format("%s - Duplicate result %s",
                                       this, debugPartDep(partition, dependency_id));
                     this.state.queued_results.put(key, result);
-                    if (debug.val) LOG.debug(String.format("%s - Queued result %s until the round is started",
-                                                   this, debugPartDep(partition, dependency_id)));
+                    if (debug.val)
+                        LOG.debug(String.format("%s - Queued result %s until the round is started",
+                                  this, debugPartDep(partition, dependency_id)));
                     return;
                 }
                 if (debug.val) {
@@ -1229,13 +1238,15 @@ public class LocalTransaction extends AbstractTransaction {
                 Collection<WorkFragment.Builder> to_unblock = dinfo.getAndReleaseBlockedWorkFragments();
                 assert(to_unblock != null);
                 assert(to_unblock.isEmpty() == false);
-                if (debug.val) LOG.debug(String.format("%s - Got %d WorkFragments to unblock that were waiting for DependencyId %d",
-                                 this, to_unblock.size(), dinfo.getDependencyId()));
+                if (debug.val)
+                    LOG.debug(String.format("%s - Got %d WorkFragments to unblock that were waiting for DependencyId %d",
+                               this, to_unblock.size(), dinfo.getDependencyId()));
                 this.state.blocked_tasks.removeAll(to_unblock);
                 this.state.unblocked_tasks.addLast(to_unblock);
             }
             else if (debug.val) {
-                LOG.debug(String.format("%s - No WorkFragments to unblock after storing %s [blockedTasks=%d, hasTasksReady=%s]",
+                LOG.debug(String.format("%s - No WorkFragments to unblock after storing %s " +
+                		  "[blockedTasks=%d, hasTasksReady=%s]",
                           this, debugPartDep(partition, dependency_id),
                           this.state.blocked_tasks.size(), dinfo.hasTasksReady()));
             }
@@ -1246,12 +1257,15 @@ public class LocalTransaction extends AbstractTransaction {
                 // HACK: If the latch is now zero, then push an EMPTY set into the unblocked queue
                 // This will cause the blocked PartitionExecutor thread to wake up and realize that he's done
                 if (this.state.dependency_latch.getCount() == 0) {
-                    if (debug.val) LOG.debug(String.format("%s - Pushing EMPTY_SET to PartitionExecutor because all the dependencies have arrived!",
-                                     this));
+                    if (debug.val)
+                        LOG.debug(String.format("%s - Pushing EMPTY_SET to PartitionExecutor at partition %d " +
+                        		  "because all the dependencies have arrived!",
+                                  this, partition));
                     this.state.unblocked_tasks.addLast(EMPTY_FRAGMENT_SET);
                 }
-                if (debug.val) LOG.debug(String.format("%s - Setting CountDownLatch to %d",
-                                               this, this.state.dependency_latch.getCount()));
+                if (debug.val)
+                    LOG.debug(String.format("%s - Setting CountDownLatch to %d for partition %d ",
+                              this, this.state.dependency_latch.getCount(), partition));
             }
 
             this.state.still_has_tasks = this.state.blocked_tasks.isEmpty() == false ||

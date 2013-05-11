@@ -68,7 +68,6 @@ public class TransactionPrefetchHandler extends AbstractTransactionHandler<Trans
         
         // We should never a get a TransactionPrefetchResult for a transaction that
         // we don't know about.
-        // XXX: No I think it's ok because we 
         LocalTransaction ts = hstore_site.getTransaction(txn_id);
         if (ts == null) {
             String msg = String.format("Unexpected transaction id %d for incoming %s",
@@ -107,13 +106,11 @@ public class TransactionPrefetchHandler extends AbstractTransactionHandler<Trans
         
         // I don't think we even need to bother wasting our time sending an acknowledgement
         // We would like to cancel but we can't do that on the "server" side
-        // controller.startCancel();
-        
-//        TransactionPrefetchAcknowledgement response = TransactionPrefetchAcknowledgement.newBuilder()
-//                                                            .setTransactionId(txn_id.longValue())
-//                                                            .setTargetPartition(request.getSourcePartition())
-//                                                            .build();
-//        callback.run(response);
+        TransactionPrefetchAcknowledgement response = TransactionPrefetchAcknowledgement.newBuilder()
+                                                            .setTransactionId(txn_id.longValue())
+                                                            .setTargetPartition(request.getSourcePartition())
+                                                            .build();
+        callback.run(response);
     }
     @Override
     protected ProtoRpcController getProtoRpcController(LocalTransaction ts, int site_id) {

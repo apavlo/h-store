@@ -1898,11 +1898,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             "Trying to reset the currentDtxn when it is already null";
         if (debug.val)
             LOG.debug(String.format("Resetting current DTXN for partition %d to null [previous=%s]",
-                         this.partitionId, this.lastDtxn));
+                      this.partitionId, this.lastDtxn));
         this.currentDtxn = null;
     }
 
-    
     /**
      * Store a new prefetch result for a transaction
      * @param txnId
@@ -1915,6 +1914,12 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         if (debug.val)
             LOG.debug(String.format("Adding prefetch result for txn #%d from partition %d",
                       txnId, partitionId));
+        
+        // TODO: We need to be able to either add the result to the query cache
+        // or directly to the LocalTransaction handle itself. This is because
+        // the query result may show up *after* the query is invoked (and thus
+        // the PartitionExecutor won't be looking in the query cache.
+        
         this.queryCache.addResult(txnId, fragmentId, partitionId, paramsHash, result); 
     }
     
@@ -3276,8 +3281,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         Long txn_id = ts.getTransactionId();
 
         if (trace.val)
-            LOG.trace(String.format("%s - Wrapping %d WorkFragments into a TransactionWorkRequest",
-                      ts, fragmentBuilders.size()));
+            LOG.trace(String.format("%s - Wrapping %d %s into a %s",
+                      ts, fragmentBuilders.size(),
+                      WorkFragment.class.getSimpleName(),
+                      TransactionWorkRequest.class.getSimpleName()));
         
         // If our transaction was originally designated as a single-partitioned, then we need to make
         // sure that we don't touch any partition other than our local one. If we do, then we need abort
@@ -3285,7 +3292,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         boolean need_restart = false;
         boolean predict_singlepartition = ts.isPredictSinglePartition(); 
         PartitionSet done_partitions = ts.getDonePartitions();
-
+        ExecutionState execState = ts.getExecutionState();
         Estimate t_estimate = ts.getLastEstimate();
         
         boolean hasNewDone = false;
@@ -3299,7 +3306,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         // waiting for an input dependency. Note that we pack all the fragments into a single
         // CoordinatorFragment rather than sending each WorkFragment in its own message
         for (WorkFragment.Builder fragmentBuilder : fragmentBuilders) {
-            assert(!ts.isBlocked(fragmentBuilder));
+            assert(execState.isBlocked(fragmentBuilder) == false);
             
             int target_partition = fragmentBuilder.getPartitionId();
             int target_site = catalogContext.getSiteIdForPartitionId(target_partition);
@@ -3762,7 +3769,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                         LOG.trace(String.format("%s - Executing %d WorkFragments on local site's partitions",
                                   ts, num_localSite));
                     for (WorkFragment.Builder builder : this.tmp_localSiteFragmentBuilders) {
-                        hstore_site.getPartitionExecutor(builder.getPartitionId()).queueWork(ts, builder.build());
+                        PartitionExecutor other = hstore_site.getPartitionExecutor(builder.getPartitionId());
+                        other.queueWork(ts, builder.build());
                     } // FOR
                     if (needs_profiling) ts.profiler.markRemoteQuery();
                 }
