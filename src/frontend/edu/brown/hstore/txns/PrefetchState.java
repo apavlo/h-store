@@ -2,7 +2,10 @@ package edu.brown.hstore.txns;
 
 import java.util.ArrayList;
 import java.util.BitSet;
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.voltdb.ParameterSet;
 import org.voltdb.catalog.Statement;
@@ -15,6 +18,7 @@ import edu.brown.hstore.Hstoreservice.WorkResult;
 import edu.brown.pools.Poolable;
 import edu.brown.statistics.Histogram;
 import edu.brown.statistics.ObjectHistogram;
+import edu.brown.utils.PartitionSet;
 
 /**
  * Special internal state information for when the txn requests prefetch queries
@@ -22,15 +26,32 @@ import edu.brown.statistics.ObjectHistogram;
  */
 public class PrefetchState implements Poolable {
     
+    public class PrefetchedQuery {
+        public final Statement stmt;
+        public final int counter;
+        public final PartitionSet partitions;
+        public final int paramsHash;
+        
+        public PrefetchedQuery(Statement stmt, int counter, PartitionSet partitions, int paramsHash) {
+            this.stmt = stmt;
+            this.counter = counter;
+            this.partitions = partitions;
+            this.paramsHash = paramsHash;
+        }
+    }
+    
+    private final Collection<PrefetchedQuery> prefetchQueries = new ArrayList<>(); 
+    
     /**
-     * Internal counter for the number of times that we've executed this query in the past.
+     * Internal counter for the number of times that we've executed queries in the past.
+     * If a Statement is not in this list, then we know that it wasn't prefetched.
      */
-    protected final Histogram<Statement> stmtCounters = new ObjectHistogram<Statement>();
+    private final Histogram<Statement> stmtCounters = new ObjectHistogram<Statement>(true);
 
     /**
      * Which partitions have received prefetch WorkFragments
      */
-    protected final BitSet partitions;
+    protected final PartitionSet partitions = new PartitionSet();
     
     /**
      * The list of the FragmentIds that were sent out in a prefetch request
@@ -59,9 +80,12 @@ public class PrefetchState implements Poolable {
      */
     protected final List<WorkResult> results = new ArrayList<WorkResult>();
     
+    // ----------------------------------------------------------------------------
+    // INITIALIZATION
+    // ----------------------------------------------------------------------------
+    
     public PrefetchState(HStoreSite hstore_site) {
-        int num_partitions = hstore_site.getLocalPartitionIds().size();
-        this.partitions = new BitSet(num_partitions);
+        // int num_partitions = hstore_site.getLocalPartitionIds().size();
     }
     
     public void init(AbstractTransaction ts) {
@@ -82,6 +106,60 @@ public class PrefetchState implements Poolable {
         this.params = null;
         this.results.clear();
     }
+    
+    // ----------------------------------------------------------------------------
+    // INTERNAL METHODS
+    // ----------------------------------------------------------------------------
+    
+    
+    public PrefetchedQuery findPrefetchedQuery(Statement stmt, int counter) {
+        for (PrefetchedQuery pq : this.prefetchQueries) {
+            if (pq.stmt.equals(stmt) && pq.counter == counter) {
+                return (pq);
+            }
+        } // FOR
+        return (null);
+    }
+    
 
+    // ----------------------------------------------------------------------------
+    // API METHODS
+    // ----------------------------------------------------------------------------
+
+    /**
+     * Mark the given query instance as being prefetched. This doesn't keep track
+     * of whether the result has returned, only that we sent the prefetch request
+     * out to the given partitions.
+     * @param stmt
+     * @param counter
+     * @param partitions
+     * @param stmtParams
+     */
+    public void markPrefetchedQuery(Statement stmt, int counter,
+                                    PartitionSet partitions, ParameterSet stmtParams) {
+        PrefetchedQuery pq = new PrefetchedQuery(stmt, counter, partitions, stmtParams.hashCode());
+        this.prefetchQueries.add(pq);
+    }
+    
+    
+    /**
+     * Update an internal counter for the number of times that we've invoked queries
+     * @param stmt
+     * @return
+     */
+    public final int updateStatementCounter(Statement stmt, PartitionSet partitions) {
+        return (int)this.stmtCounters.put(stmt);
+    }
+    
+    
+    /**
+     * Returns true if this query 
+     * @param stmt
+     * @param counter
+     * @return
+     */
+    public final boolean isMarkedPrefetched(Statement stmt, int counter) {
+        return (this.findPrefetchedQuery(stmt, counter) != null);
+    }
     
 }

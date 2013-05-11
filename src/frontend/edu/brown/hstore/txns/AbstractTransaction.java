@@ -1089,27 +1089,15 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
         }
     }
     
+    public final PrefetchState getPrefetchState() {
+        return (this.prefetch);
+    }
+    
     /**
      * Returns true if this transaction has prefetched queries 
      */
     public final boolean hasPrefetchQueries() {
-        // return (this.prefetch.fragments != null && this.prefetch.fragments.isEmpty() == false);
         return (this.prefetch != null);
-    }
-    
-    public final void markPrefetchQuery(Statement stmt, int counter) {
-        
-    }
-    
-    /**
-     * Returns true if this query 
-     * @param stmt
-     * @param counter
-     * @return
-     */
-    public final boolean isMarkedPrefetched(Statement stmt, int counter) {
-        
-        return (false);
     }
     
     /**
@@ -1131,7 +1119,8 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
     
     public void attachPrefetchParameters(ParameterSet params[]) {
         assert(this.prefetch.params == null) :
-            "Trying to attach Prefetch ParameterSets more than once!";
+            String.format("Trying to attach Prefetch %s more than once for %s",
+                          ParameterSet.class.getSimpleName(), this);
         this.prefetch.params = params;
     }
     
@@ -1150,18 +1139,9 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
     
     public final void markExecPrefetchQuery(int partition) {
         assert(this.prefetch != null);
-        this.prefetch.partitions.set(partition);
+        this.prefetch.partitions.add(partition);
     }
-    
-    /**
-     * Update an internal counter for the number of times that we've invoked queries
-     * @param stmt
-     * @return
-     */
-    public final int updateStatementCounter(Statement stmt, PartitionSet partitions) {
-        assert(this.prefetch != null);
-        return (int)this.prefetch.stmtCounters.put(stmt);
-    }
+
     
     // ----------------------------------------------------------------------------
     // DEBUG METHODS

@@ -1762,7 +1762,13 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         return (undoToken);
     }
     
-    
+    /**
+     * 
+     * @param ts
+     * @param fragment
+     * @param allParams
+     * @return
+     */
     private ParameterSet[] getFragmentParameters(AbstractTransaction ts, WorkFragment fragment, ParameterSet allParams[]) {
         int num_fragments = fragment.getFragmentIdCount();
         ParameterSet fragmentParams[] = tmp_fragmentParams.getParameterSet(num_fragments);
@@ -1779,6 +1785,13 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         return (fragmentParams);
     }
     
+    /**
+     * 
+     * @param ts
+     * @param input_dep_ids
+     * @param inputs
+     * @return
+     */
     private Map<Integer, List<VoltTable>> getFragmentInputs(AbstractTransaction ts,
                                                             List<Integer> input_dep_ids,
                                                             Map<Integer, List<VoltTable>> inputs) {
@@ -3118,19 +3131,40 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         
         // If we prefetched queries for this txn, we need to check whether we 
         // have already submit a request for one of the queries in our batch
-        if (ts.hasPrefetchQueries()) {
+        if (hstore_conf.site.exec_prefetch_queries && ts.hasPrefetchQueries()) {
             PartitionSet stmtPartitions[] = plan.getStatementPartitions();
+            PrefetchState prefetchState = ts.getPrefetchState();
+            assert(prefetchState != null);
             for (int i = 0; i < batchSize; i++) {
                 Statement stmt = batchStmts[i].getStatement();
                 // We only need to maintain counters for the prefetchable queries.
-                if (stmt.getPrefetchable()) {
-                    int stmtCnt = ts.updateStatementCounter(stmt, stmtPartitions[i]);
+                if (stmt.getPrefetchable() == false) continue;
+                
+                // Always increase the counter so that we know how many times
+                // we have executed this query in the past.
+                int stmtCnt = prefetchState.updateStatementCounter(stmt, stmtPartitions[i]);
 
-                    // Check whether we have already sent a request to execute this query
-                    if (ts.isMarkedPrefetched(stmt, stmtCnt)) {
-                        // We have... so that means that we don't want to send it
-                        // again and should expect the result to come from somewhere else.
-                        
+                // Check whether we have already sent a request to execute this query
+                PrefetchState.PrefetchedQuery pq = prefetchState.findPrefetchedQuery(stmt, stmtCnt);
+                if (pq != null) {
+                    // We have... so that means that we don't want to send it
+                    // again and should expect the result to come from somewhere else.
+                    // But we need to check whether we sent it to the same partitions
+                    boolean samePartitions = pq.partitions.containsAll(stmtPartitions[i]);
+                    boolean sameParams = (pq.paramsHash == batchParams[i].hashCode());
+                    
+                    // Everything is the same, so we need to remove this
+                    // statement from the batch.
+                    if (samePartitions && sameParams) {
+                        // TODO
+                    }
+                    // The parameters are different
+                    else if (sameParams == false) {
+                        // TODO
+                    }
+                    // The partitions are different
+                    else if (samePartitions == false) {
+                        // TODO
                     }
                 }
             } // FOR
@@ -3150,10 +3184,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         // Otherwise, we need to generate WorkFragments and then send the messages out 
         // to our remote partitions using the HStoreCoordinator
         else {
-            
-
-            
-            
             if (trace.val)
                 LOG.trace(ts + " - Using PartitionExecutor.dispatchWorkFragments() to execute distributed queries");
             ExecutionState execState = ts.getExecutionState();
