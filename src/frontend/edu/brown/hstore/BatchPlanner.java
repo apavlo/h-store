@@ -235,6 +235,13 @@ public class BatchPlanner {
         private final Map<PlanFragment, PartitionSet> frag_partitions_swap[];
 
         /**
+         * Bitmap that indicates that the query for the given StmtIndex was already
+         * sent out to prefetched.
+         */
+        private boolean already_prefetched[];
+        
+        
+        /**
          * A bitmap of whether each query at the given index in the batch was single-partitioned or not
          */
         private final boolean singlepartition_bitmap[];
@@ -298,6 +305,10 @@ public class BatchPlanner {
             this.readonly = true;
             this.all_local = true;
             this.all_singlepartitioned = true;
+            
+            if (this.already_prefetched != null) {
+                Arrays.fill(this.already_prefetched, false);
+            }
 
             for (int i = 0; i < this.frag_list.length; i++) {
                 if (this.frag_list[i] != null)
@@ -355,7 +366,11 @@ public class BatchPlanner {
         }
         
         public void markStatementAsAlreadyPrefetched(int stmtIndex) {
-            // TODO
+            if (this.already_prefetched == null) {
+                this.already_prefetched = new boolean[batchSize];
+                Arrays.fill(this.already_prefetched, false);
+            }
+            this.already_prefetched[stmtIndex] = true;
         }
         
         /**
@@ -1036,6 +1051,12 @@ public class BatchPlanner {
 
                     // Prefetch
                     if (this.prefetch) partitionBuilder.setPrefetch(true);
+                    
+                    // This query was already dispatched for prefetching, so we 
+                    // actually don't want to really execute it.
+                    if (plan.already_prefetched != null && plan.already_prefetched[v.stmt_index]) {
+                        
+                    }
 
                     if (trace.val)
                         LOG.trace(String.format("Fragment Grouping %d => " +
@@ -1049,8 +1070,9 @@ public class BatchPlanner {
                 for (WorkFragment.Builder partitionBuilder : this.round_builders.values()) {
                     if (partitionBuilder.getFragmentIdCount() == 0) {
                         if (trace.val) {
-                            LOG.warn("For some reason we thought it would be a good idea to construct a WorkFragment with no fragments! [txn_id=#"
-                                    + txn_id + "]");
+                            LOG.warn(String.format("For some reason we thought it would be a good idea to " +
+                            		 "construct a %s with no fragments! [txn_id=#%d]",
+                                    WorkFragment.class.getSimpleName(), txn_id));
                             LOG.warn("In case you were wondering, this is a terrible idea, which is why we didn't do it!");
                         }
                         continue;
