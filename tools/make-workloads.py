@@ -63,7 +63,6 @@ HSTORE_OPTS = {
     "client.warmup":                0,
     "client.count":                 1,
     "client.threads_per_host":      10,
-    "client.txnrate":               1000,
     "client.blocking":              True,
     "client.blocking_concurrent":   1,
     "client.scalefactor":           2.0,
@@ -102,6 +101,8 @@ if __name__ == '__main__':
                          help='Path to H-Store configuration file to use')
     aparser.add_argument('--txn-count', type=int, default=100000, metavar='T',
                         help='The minimum number of transaction records needed')
+    aparser.add_argument('--txn-rate', type=int, default=1000, metavar='R',
+                        help='Transaction submission rate.')
     aparser.add_argument('--memory', type=int, default=10240, metavar='MB',
                          help='The amount of memory (in MB) to provide the JVM when combining the transaction records')
     aparser.add_argument('--output-path', type=str, default="traces", metavar='DIR',
@@ -117,6 +118,7 @@ if __name__ == '__main__':
     
     trace_base = os.path.join(args['output_path'], args['benchmark'])
     HSTORE_OPTS["project"] = args['benchmark']
+    HSTORE_OPTS["client.txnrate"] = args['txn_rate']
     hstore_opts_cmd = " ".join(map(lambda x: "-D%s=%s" % (x, HSTORE_OPTS[x]), HSTORE_OPTS.keys()))
 
     logging.info("Generating Transaction Workload for %s [totalTxns=%d]" % (args['benchmark'].upper(), args['txn_count']))
