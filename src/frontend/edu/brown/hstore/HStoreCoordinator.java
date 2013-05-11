@@ -129,6 +129,10 @@ public class HStoreCoordinator implements Shutdownable {
     
     private Shutdownable.ShutdownState state = ShutdownState.INITIALIZED;
     
+    /**
+     * Special observable that is invoked when this HStoreCoordinator is on-line
+     * and ready to communicating with other nodes in the cluster.
+     */
     private final EventObservable<HStoreCoordinator> ready_observable = new EventObservable<HStoreCoordinator>();
     
     // ----------------------------------------------------------------------------

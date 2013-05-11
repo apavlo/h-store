@@ -76,7 +76,7 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
     /**
      * Internal state for the transaction
      */
-    protected enum RoundState {
+    public enum RoundState {
         INITIALIZED,
         STARTED,
         FINISHED;

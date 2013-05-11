@@ -215,6 +215,15 @@ public class ExecutionState implements Poolable {
     public boolean stillHasWorkFragments() {
         return (this.still_has_tasks);
     }
+    
+    /**
+     * Returns true if the given WorkFragment is currently set as blocked for this txn
+     * @param ftask
+     * @return
+     */
+    public boolean isBlocked(WorkFragment.Builder ftask) {
+        return (this.blocked_tasks.contains(ftask));
+    }
 
     // ----------------------------------------------------------------------------
     // EXECUTION ROUNDS
