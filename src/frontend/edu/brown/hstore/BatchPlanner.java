@@ -267,9 +267,9 @@ public class BatchPlanner {
             this.rounds = (Collection<PlanVertex>[][]) new Collection<?>[max_round_size][];
             for (int i = 0; i < this.rounds.length; i++) {
                 this.rounds[i] = (Collection<PlanVertex>[]) new Collection<?>[num_partitions];
-                for (int ii = 0; ii < num_partitions; ii++) {
-                    this.rounds[i][ii] = new ArrayList<PlanVertex>();
-                } // FOR
+//                for (int ii = 0; ii < num_partitions; ii++) {
+//                    this.rounds[i][ii] = new ArrayList<PlanVertex>();
+//                } // FOR
             } // FOR
 
             // Batch Data
@@ -312,7 +312,7 @@ public class BatchPlanner {
             } // FOR
             for (int i = 0; i < this.rounds.length; i++) {
                 for (int ii = 0; ii < this.rounds[i].length; ii++) {
-                    this.rounds[i][ii].clear();
+                    if (this.rounds[i][ii] != null) this.rounds[i][ii].clear();
                 } // FOR
             } // FOR
 
@@ -358,7 +358,11 @@ public class BatchPlanner {
         public int[] getInputDependencyIds() {
             return (this.graph.input_ids);
         }
-
+        
+        public void removeStatementAtIndex(int stmtIndex) {
+            // TODO
+        }
+        
         /**
          * Get an array of sets of partition ids for this plan Note that you can't rely on the
          * 
@@ -984,6 +988,9 @@ public class BatchPlanner {
         for (PlanVertex v : graph.sorted_vertices) {
             int stmt_index = v.stmt_index;
             for (int partition : plan.frag_partitions[stmt_index].get(v.catalog_frag).values()) {
+                if (plan.rounds[v.round][partition] == null) {
+                    plan.rounds[v.round][partition] = new ArrayList<PlanVertex>();
+                }
                 plan.rounds[v.round][partition].add(v);
             } // FOR
         } // FOR
@@ -996,7 +1003,7 @@ public class BatchPlanner {
             if (trace.val) LOG.trace(String.format("Txn #%d - Round %02d", txn_id, round));
             for (int partition = 0; partition < this.catalogContext.numberOfPartitions; partition++) {
                 Collection<PlanVertex> vertices = plan.rounds[round][partition];
-                if (vertices.isEmpty()) continue;
+                if (vertices == null || vertices.isEmpty()) continue;
 
                 this.round_builders.clear();
                 for (PlanVertex v : vertices) { // Does this order matter?
