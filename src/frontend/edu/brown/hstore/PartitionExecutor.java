@@ -747,8 +747,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             LOG.trace(String.format("Initializing HStoreSite components at partition %d", this.partitionId));
         assert(this.hstore_site == null);
         this.hstore_site = hstore_site;
-        this.hstore_coordinator = hstore_site.getCoordinator();
-        this.depTracker = hstore_site.getDependencyTracker(this.partitionId);
         this.thresholds = hstore_site.getThresholds();
         this.txnInitializer = hstore_site.getTransactionInitializer();
         this.queueManager = hstore_site.getTransactionQueueManager();
@@ -838,7 +836,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
      * Has the opportunity to do startup config.
      */
     @Override
-    public void run() {
+    public final void run() {
         if (this.hstore_site == null) {
             String msg = String.format("Trying to start %s for partition %d before its HStoreSite was initialized",
                                        this.getClass().getSimpleName(), this.partitionId);
@@ -849,18 +847,21 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                                        this.getClass().getSimpleName(), this.partitionId);
             throw new RuntimeException(msg);
         }
-        
-        assert(this.hstore_site != null);
-        assert(this.hstore_coordinator != null);
-        assert(this.specExecScheduler != null);
-        assert(this.queueManager != null);
-        
+
         this.self = Thread.currentThread();
         this.self.setName(HStoreThreadManager.getThreadName(this.hstore_site, this.partitionId));
+        
+        this.hstore_coordinator = hstore_site.getCoordinator();
+        this.depTracker = hstore_site.getDependencyTracker(this.partitionId);
         this.hstore_site.getThreadManager().registerEEThread(partition);
         this.shutdown_latch = new Semaphore(0);
         this.shutdown_state = ShutdownState.STARTED;
         if (hstore_conf.site.exec_profiling) profiler.start_time = System.currentTimeMillis();
+
+        assert(this.hstore_site != null);
+        assert(this.hstore_coordinator != null);
+        assert(this.specExecScheduler != null);
+        assert(this.queueManager != null);
         
         // *********************************** DEBUG ***********************************
         if (hstore_conf.site.exec_validate_work) {
@@ -2623,6 +2624,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                     LOG.trace(String.format("%s - Storing %d dependency results locally for successful work fragment",
                               ts, result.size()));
                 assert(result.size() == fragment.getOutputDepIdCount());
+                DependencyTracker otherTracker = this.hstore_site.getDependencyTracker(ts.getBasePartition());
                 for (int i = 0, cnt = result.size(); i < cnt; i++) {
                     int dep_id = fragment.getOutputDepId(i);
                     if (trace.val)
@@ -2630,7 +2632,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                                   ts, dep_id, result.dependencies[i].getRowCount(),
                                   result.dependencies[i]));
                     try {
-                        this.depTracker.addResult(local_ts, this.partitionId, dep_id, result.dependencies[i]);
+                        otherTracker.addResult(local_ts, this.partitionId, dep_id, result.dependencies[i]);
                     } catch (Throwable ex) {
                         ex.printStackTrace();
                         String msg = String.format("Failed to stored Dependency #%d for %s [idx=%d, fragmentId=%d]",
@@ -3212,7 +3214,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                           ts, execState.tmp_partitionFragments.size()));
 
             // Block until we get all of our responses.
-            results = this.dispatchWorkFragments(ts, batchParams, batchSize, execState.tmp_partitionFragments);
+            results = this.dispatchWorkFragments(ts, batchParams, batchSize,
+                                                 execState.tmp_partitionFragments);
         }
         if (debug.val && results == null)
             LOG.warn("Got back a null results array for " + ts + "\n" + plan.toString());
@@ -3521,6 +3524,12 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         int num_skipped = 0;
         int total = 0;
         Collection<WorkFragment.Builder> fragmentBuilders = allFragmentBuilders;
+
+        // Make sure our txn is in our DependencyTracker
+        if (debug.val)
+            LOG.debug(String.format("%s - Added transaction to %s",
+                      ts, this.depTracker.getClass().getSimpleName()));
+        this.depTracker.addTransaction(ts);
         
         // Figure out whether the txn will always be read-only at this partition
         for (WorkFragment.Builder fragmentBuilder : allFragmentBuilders) {
@@ -3531,7 +3540,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         } // FOR
         long undoToken = this.calculateNextUndoToken(ts, is_localReadOnly);
         ts.initFirstRound(undoToken, batchSize);
-        final ExecutionState execState = ts.getExecutionState();
         final boolean prefetch = ts.hasPrefetchQueries();
         final boolean predict_singlePartition = ts.isPredictSinglePartition();
         

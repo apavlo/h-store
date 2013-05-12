@@ -774,6 +774,11 @@ public class HStoreCoordinator implements Shutdownable {
             
             // Make sure that we initialize our internal PrefetchState for this txn
             ts.initializePrefetch();
+            
+            // We also need to add our boy to its base partition's DependencyTracker
+            // This is so that we can store the prefetch results when they come back
+            hstore_site.getDependencyTracker(ts.getBasePartition()).addTransaction(ts);
+            
             TransactionInitRequest[] requests = this.queryPrefetchPlanner.generateWorkFragments(ts);
             
             // If the PrefetchQueryPlanner returns a null array, then there is nothing
