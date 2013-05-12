@@ -449,7 +449,8 @@ public class LocalTransaction extends AbstractTransaction {
         
         // SAME SITE, SAME PARTITION
         if (this.base_partition == partition && 
-                (this.predict_singlePartition == false || this.isSysProc())) {
+                (this.predict_singlePartition == false || this.isSysProc() ||
+                 hstore_site.getCatalogContext().numberOfPartitions == 1)) {
             this.state.depTracker.initRound(this);
         }
         
@@ -473,7 +474,10 @@ public class LocalTransaction extends AbstractTransaction {
    
         if (this.predict_singlePartition == false) this.lock.lock();
         try {
-            if (this.predict_singlePartition == false || this.isSysProc()) {
+            // HACK: If there is only one partition, then we need to always
+            // update the DependencyTracker. It's a bit complicated to explain why...
+            if (this.predict_singlePartition == false || this.isSysProc() ||
+                    hstore_site.getCatalogContext().numberOfPartitions == 1) {
                 this.state.depTracker.startRound(this);
             } else {
                 LOG.warn(String.format("%s - Skipping DependencyTracker.startRound()\n%s", this, this.debug()));
@@ -501,7 +505,10 @@ public class LocalTransaction extends AbstractTransaction {
         // SAME SITE, SAME PARTITION
         if (this.predict_singlePartition == false) this.lock.lock();
         try {
-            if (this.predict_singlePartition == false || this.isSysProc()) {
+            // HACK: If there is only one partition, then we need to always
+            // update the DependencyTracker. It's a bit complicated to explain why...
+            if (this.predict_singlePartition == false || this.isSysProc() ||
+                    hstore_site.getCatalogContext().numberOfPartitions == 1) {
                 this.state.depTracker.finishRound(this);
             } else {
                 LOG.warn(String.format("%s - Skipping DependencyTracker.finishRound()", this));

@@ -2697,7 +2697,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             t_estimator = this.executors[base_partition].getTransactionEstimator();
             assert(t_estimator != null);
         }
-        if (singlePartitioned == false) {
+        if (singlePartitioned == false || catalogContext.numberOfPartitions == 1) {
             this.depTrackers[base_partition].removeTransaction(ts);
         }
         

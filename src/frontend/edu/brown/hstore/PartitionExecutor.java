@@ -3068,6 +3068,12 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             ts.profiler.stopExecJava();
             ts.profiler.startExecPlanning();
         }
+
+        // HACK: This is needed to handle updates on replicated tables properly
+        // when there is only one partition in the cluster.
+        if (catalogContext.numberOfPartitions == 1) {
+            this.depTracker.addTransaction(ts);
+        }
         
         if (hstore_conf.site.exec_deferrable_queries) {
             // TODO: Loop through batchStmts and check whether their corresponding Statement
@@ -3213,9 +3219,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 LOG.trace(String.format("%s - Got back %d work fragments",
                           ts, execState.tmp_partitionFragments.size()));
             
-            LOG.info("BatchPlan:\n" + plan + "\n" +
-                     StringUtil.join("\n", execState.tmp_partitionFragments));
-
             // Block until we get all of our responses.
             results = this.dispatchWorkFragments(ts, batchParams, batchSize,
                                                  execState.tmp_partitionFragments);
