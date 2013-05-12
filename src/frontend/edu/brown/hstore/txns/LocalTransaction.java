@@ -448,7 +448,7 @@ public class LocalTransaction extends AbstractTransaction {
                       this, this.round_ctr[partition], partition, undoToken));
         
         // SAME SITE, SAME PARTITION
-        if (this.base_partition == partition) {
+        if (this.base_partition == partition && this.predict_singlePartition == false) {
             this.state.depTracker.initRound(this);
         }
         
@@ -472,7 +472,7 @@ public class LocalTransaction extends AbstractTransaction {
    
         if (this.predict_singlePartition == false) this.lock.lock();
         try {
-            this.state.depTracker.startRound(this);
+            if (this.predict_singlePartition == false) this.state.depTracker.startRound(this);
             // It's now safe to change our state to STARTED
             super.startRound(partition);
         } finally {
@@ -497,7 +497,7 @@ public class LocalTransaction extends AbstractTransaction {
         // SAME SITE, SAME PARTITION
         if (this.predict_singlePartition == false) this.lock.lock();
         try {
-            this.state.depTracker.finishRound(this);
+            if (this.predict_singlePartition == false) this.state.depTracker.finishRound(this);
             super.finishRound(partition);
         } finally {
             if (this.predict_singlePartition == false) this.lock.unlock();
@@ -516,7 +516,7 @@ public class LocalTransaction extends AbstractTransaction {
         super.finishRound(partition);
         if (this.base_partition == partition) {
             assert(this.state != null) : "Unexpected null ExecutionState for " + this;
-            this.state.depTracker.finishRound(this);
+            if (this.predict_singlePartition == false) this.state.depTracker.finishRound(this);
         }
     }
     
@@ -535,7 +535,7 @@ public class LocalTransaction extends AbstractTransaction {
         interruptThread = (this.pending_error == null && interruptThread);
         super.setPendingError(error);
         if (interruptThread == false) return;
-        this.state.depTracker.unblock(this);
+        if (this.predict_singlePartition == false) this.state.depTracker.unblock(this);
     }
     
     @Override

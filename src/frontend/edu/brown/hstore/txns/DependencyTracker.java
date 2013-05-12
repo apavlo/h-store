@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -168,7 +167,7 @@ public class DependencyTracker {
     }
     
     private final PartitionExecutor executor;
-    private final Map<LocalTransaction, TransactionState> txnStates = new IdentityHashMap<>();
+    private final Map<Long, TransactionState> txnStates = new HashMap<Long, TransactionState>();
     
     // ----------------------------------------------------------------------------
     // INITIALIZATION
@@ -179,14 +178,31 @@ public class DependencyTracker {
     }
     
     public void addTransaction(LocalTransaction ts) {
+        if (this.txnStates.containsKey(ts.getTransactionId())) {
+            return;
+        }
+        
         // FIXME
         TransactionState state = new TransactionState(ts);
-        this.txnStates.put(ts, state);
+        this.txnStates.put(ts.getTransactionId(), state);
+        if (debug.val)
+            LOG.debug(String.format("Added %s to %s", ts, this));
+    }
+    
+    private TransactionState getState(LocalTransaction ts) {
+        TransactionState state = this.txnStates.get(ts.getTransactionId());
+        assert(state != null) :
+            String.format("Unexpected null %s handle for %s at %s",
+                          TransactionState.class.getSimpleName(), ts, this);
+        return (state);
     }
     
     public void removeTransaction(LocalTransaction ts) {
         // FIXME
-        this.txnStates.remove(ts);
+        TransactionState state = this.txnStates.remove(ts.getTransactionId());
+        if (debug.val && state != null) {
+            LOG.debug(String.format("Removed %s from %s", ts, this));
+        }
     }
     
     // ----------------------------------------------------------------------------
@@ -194,11 +210,7 @@ public class DependencyTracker {
     // ----------------------------------------------------------------------------
     
     protected void initRound(LocalTransaction ts) {
-        TransactionState state = this.txnStates.get(ts);
-        assert(state != null) :
-            String.format("Unexpected null %s handle for %s",
-                          TransactionState.class.getSimpleName(), ts);
-        
+        final TransactionState state = this.getState(ts);
         assert(state.queued_results.isEmpty()) : 
             String.format("Trying to initialize ROUND #%d for %s but there are %d queued results",
                            ts.getCurrentRound(ts.getBasePartition()),
@@ -209,11 +221,7 @@ public class DependencyTracker {
     }
     
     protected void startRound(LocalTransaction ts) {
-        TransactionState state = this.txnStates.get(ts);
-        assert(state != null) :
-            String.format("Unexpected null %s handle for %s",
-                          TransactionState.class.getSimpleName(), ts);
-        
+        final TransactionState state = this.getState(ts);
         final int basePartition = ts.getBasePartition();
         final int currentRound = ts.getCurrentRound(basePartition);
         final int batch_size = ts.getCurrentBatchSize();
@@ -257,11 +265,7 @@ public class DependencyTracker {
     }
     
     protected void finishRound(LocalTransaction ts) {
-        TransactionState state = this.txnStates.get(ts);
-        assert(state != null) :
-            String.format("Unexpected null %s handle for %s",
-                          TransactionState.class.getSimpleName(), ts);
-        
+        final TransactionState state = this.getState(ts);
         assert(state.dependency_ctr == state.received_ctr) :
             String.format("Trying to finish ROUND #%d on partition %d for %s before it was started",
                           ts.getCurrentRound(ts.getBasePartition()),
@@ -286,14 +290,6 @@ public class DependencyTracker {
     // INTERNAL METHODS
     // ----------------------------------------------------------------------------
 
-    private TransactionState getState(LocalTransaction ts) {
-        TransactionState state = this.txnStates.get(ts);
-        assert(state != null) :
-            String.format("Unexpected null %s handle for %s",
-                          TransactionState.class.getSimpleName(), ts);
-        return (state);
-    }
-    
     /**
      * 
      * @param state
@@ -802,6 +798,14 @@ public class DependencyTracker {
     // ----------------------------------------------------------------------------
     // DEBUG STUFF
     // ----------------------------------------------------------------------------
+    
+    @Override
+    public String toString() {
+        return String.format("%s{Partition=%02d / Hash=%d}",
+                             this.getClass().getSimpleName(),
+                             this.executor.getPartitionId(),
+                             this.hashCode());
+    }
     
     public class Debug implements DebugContext {
         public DependencyInfo getDependencyInfo(LocalTransaction ts, int d_id) {
