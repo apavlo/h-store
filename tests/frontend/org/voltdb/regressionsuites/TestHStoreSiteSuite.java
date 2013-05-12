@@ -118,7 +118,6 @@ public class TestHStoreSiteSuite extends RegressionSuite {
         TPCCProjectBuilder project = new TPCCProjectBuilder();
         project.addAllDefaults();
         project.addStmtProcedure("GetItem", "SELECT * FROM " + TPCCConstants.TABLENAME_ITEM + " WHERE I_ID = ?");
-        project.addStmtProcedure("GetWarehouse", "SELECT * FROM " + TPCCConstants.TABLENAME_WAREHOUSE + " WHERE W_ID = ?");
         
         boolean success;
         

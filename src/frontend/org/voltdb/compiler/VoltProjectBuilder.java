@@ -529,6 +529,7 @@ public class VoltProjectBuilder {
         addProcedures(procArray);
     }
 
+    @SuppressWarnings("unchecked")
     public void addProcedures(final Class<? extends VoltProcedure>... procedures) {
         if (procedures != null && procedures.length > 0) {
             final ArrayList<ProcedureInfo> procArray = new ArrayList<ProcedureInfo>();
@@ -551,10 +552,10 @@ public class VoltProjectBuilder {
     public void addProcedures(final Iterable<ProcedureInfo> procedures) {
         // check for duplicates and existings
         final Set<ProcedureInfo> newProcs = new HashSet<ProcedureInfo>();
-        for (final ProcedureInfo procedure : procedures) {
-            assert(newProcs.contains(procedure) == false);
-            assert(m_procedures.contains(procedure) == false);
-            newProcs.add(procedure);
+        for (final ProcedureInfo procInfo : procedures) {
+            assert(newProcs.contains(procInfo) == false);
+            assert(m_procedures.contains(procInfo) == false) : "Duplicate procedure " + procInfo.name;
+            newProcs.add(procInfo);
         }
 
         // add the procs

@@ -221,6 +221,9 @@ public class DependencyTracker {
     }
     
     protected void startRound(LocalTransaction ts) {
+        if (debug.val)
+            LOG.debug(String.format("%s - Start round", ts));
+        
         final TransactionState state = this.getState(ts);
         final int basePartition = ts.getBasePartition();
         final int currentRound = ts.getCurrentRound(basePartition);
@@ -262,6 +265,9 @@ public class DependencyTracker {
         assert(count >= 0);
         assert(state.dependency_latch == null) : "This should never happen!\n" + ts.debug();
         state.dependency_latch = new CountDownLatch(count);
+        if (debug.val)
+            LOG.debug(String.format("%s - Created %s with dependency counter set to %d",
+                      ts, state.dependency_latch.getClass().getSimpleName(), count));
     }
     
     protected void finishRound(LocalTransaction ts) {
@@ -309,11 +315,12 @@ public class DependencyTracker {
             if (debug.val)
                 LOG.debug(String.format("%s - Reusing DependencyInfo[%d] for %s. " +
                           "Checking whether it needs to be reset [currentRound=%d / lastRound=%d lastTxn=%s]",
-                          this, dinfo.hashCode(), TransactionUtil.debugStmtDep(stmt_index, dep_id),
+                          state.txn_id, dinfo.hashCode(), TransactionUtil.debugStmtDep(stmt_index, dep_id),
                           currentRound, dinfo.getRound(), dinfo.getTransactionId()));
             if (dinfo.inSameTxnRound(state.txn_id, currentRound) == false) {
-                if (debug.val) LOG.debug(String.format("%s - Clearing out DependencyInfo[%d].",
-                                         this, dinfo.hashCode()));
+                if (debug.val)
+                    LOG.debug(String.format("%s - Clearing out DependencyInfo[%d].",
+                              state.txn_id, dinfo.hashCode()));
                 dinfo.finish();
             }
         } else {
@@ -321,7 +328,7 @@ public class DependencyTracker {
             stmt_dinfos.put(dep_id, dinfo);
             if (debug.val)
                 LOG.debug(String.format("%s - Created new DependencyInfo for %s [hashCode=%d]",
-                          this, TransactionUtil.debugStmtDep(stmt_index, dep_id), dinfo.hashCode()));
+                          state.txn_id, TransactionUtil.debugStmtDep(stmt_index, dep_id), dinfo.hashCode()));
         }
         if (dinfo.isInitialized() == false) {
             dinfo.init(state.txn_id, currentRound, stmt_index, dep_id.intValue());
@@ -366,7 +373,7 @@ public class DependencyTracker {
         final VoltTable results[] = new VoltTable[state.output_order.size()];
         if (debug.val)
             LOG.debug(String.format("%s - Generating output results with %d tables",
-                      this, results.length));
+                      ts, results.length));
         
         HStoreConf hstore_conf = this.executor.getHStoreConf();
         boolean nonblocking = (hstore_conf.site.specexec_nonblocking &&
@@ -380,7 +387,7 @@ public class DependencyTracker {
 //                "Missing dependency set for stmt_index #" + stmt_index + " in txn #" + this.txn_id;
             assert(state.dependencies.containsKey(dependency_id)) :
                 String.format("Missing info for %s in %s",
-                              TransactionUtil.debugStmtDep(stmt_index, dependency_id), this); 
+                              TransactionUtil.debugStmtDep(stmt_index, dependency_id), ts); 
             
             VoltTable vt = state.dependencies.get(dependency_id).getResult();
 
@@ -421,7 +428,7 @@ public class DependencyTracker {
         
         if (debug.val)
             LOG.debug(String.format("%s - Adding %s for partition %d with %d fragments",
-                      this, fragment.getClass().getSimpleName(), partition, num_fragments));
+                      ts, fragment.getClass().getSimpleName(), partition, num_fragments));
         
         // PAVLO: 2011-12-10
         // We moved updating the exec_touchedPartitions histogram into the
@@ -445,7 +452,7 @@ public class DependencyTracker {
                 dinfo.addPartition(partition);
                 if (debug.val)
                     LOG.debug(String.format("%s - Adding new DependencyInfo %s for PlanFragment %d at Partition %d [ctr=%d]\n%s",
-                              this, TransactionUtil.debugStmtDep(stmt_index, output_dep_id),
+                              ts, TransactionUtil.debugStmtDep(stmt_index, output_dep_id),
                               fragment.getFragmentId(i), state.dependency_ctr,
                               partition, dinfo.toString()));
                 // Store the stmt_index of when this dependency will show up
@@ -467,7 +474,7 @@ public class DependencyTracker {
                     }
                     if (debug.val)
                         LOG.debug(String.format("%s - Created internal input dependency %d for PlanFragment %d\n%s", 
-                                  this, dependency_id, fragment.getFragmentId(i), dinfo.toString()));
+                                  ts, dependency_id, fragment.getFragmentId(i), dinfo.toString()));
                 }
             }
             
@@ -484,7 +491,7 @@ public class DependencyTracker {
                     }
                 } // FOR
                 LOG.trace(String.format("%s - Number of Output Dependencies for StmtIndex #%d: %d out of %d\n%s", 
-                          this, stmt_index, output_ctr, dep_ctr, sb));
+                          ts, stmt_index, output_ctr, dep_ctr, sb));
             }
             // *********************************** DEBUG ***********************************
             
@@ -504,7 +511,7 @@ public class DependencyTracker {
                 } // FOR
             }
             LOG.debug(String.format("%s - Queued up %s WorkFragment for partition %d and marked as %s [fragIds=%s]",
-                      this, catalog_obj, partition,
+                      ts, catalog_obj, partition,
                       (blocked ? "blocked" : "not blocked"),
                       fragment.getFragmentIdList()));
             if (trace.val)
@@ -666,6 +673,7 @@ public class DependencyTracker {
             m.put("Blocked Tasks", (state != null ? state.blocked_tasks.size() : null));
             m.put("DependencyInfo", dinfo.toString());
             m.put("hasTasksReady", dinfo.hasTasksReady());
+            m.put("Dependency Latch", state.dependency_latch);
             LOG.debug(this + " - Status Information\n" + StringUtil.formatMaps(m));
             if (trace.val) LOG.trace(ts.debug());
         }
@@ -725,10 +733,10 @@ public class DependencyTracker {
         DependencyInfo dinfo = state.getDependencyInfo(input_d_id);
         assert(dinfo != null) :
             String.format("No DependencyInfo object for Dependency %d in %s",
-                          input_d_id, this);
+                          input_d_id, ts);
         assert(dinfo.isInternal()) :
             String.format("The DependencyInfo for Dependency %s in %s is not marked as internal",
-                          input_d_id, this);
+                          input_d_id, ts);
         assert(dinfo.getPartitionCount() == dinfo.getResultsCount()) :
                     String.format("Number of results from partitions retrieved for Dependency %s " +
                                   "is %d but we were expecting %d in %s\n%s\n%s%s", 

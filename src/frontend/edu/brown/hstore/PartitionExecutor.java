@@ -3526,8 +3526,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         Collection<WorkFragment.Builder> fragmentBuilders = allFragmentBuilders;
 
         // Make sure our txn is in our DependencyTracker
-        if (debug.val)
-            LOG.debug(String.format("%s - Added transaction to %s",
+        if (trace.val)
+            LOG.trace(String.format("%s - Added transaction to %s",
                       ts, this.depTracker.getClass().getSimpleName()));
         this.depTracker.addTransaction(ts);
         
