@@ -437,8 +437,8 @@ public class LocalTransaction extends AbstractTransaction {
      * @param batchSize
      */
     public void initFirstRound(long undoToken, int batchSize) {
-        super.initRound(this.base_partition, undoToken);
         this.batch_size = batchSize;
+        this.initRound(this.base_partition, undoToken);
     }
     
     @Override
@@ -472,8 +472,9 @@ public class LocalTransaction extends AbstractTransaction {
    
         if (this.predict_singlePartition == false) this.lock.lock();
         try {
-            if (this.predict_singlePartition == false) this.state.depTracker.startRound(this);
-            // It's now safe to change our state to STARTED
+            if (this.predict_singlePartition == false || this.isSysProc()) {
+                this.state.depTracker.startRound(this);
+            }
             super.startRound(partition);
         } finally {
             if (this.predict_singlePartition == false) this.lock.unlock();
@@ -497,7 +498,9 @@ public class LocalTransaction extends AbstractTransaction {
         // SAME SITE, SAME PARTITION
         if (this.predict_singlePartition == false) this.lock.lock();
         try {
-            if (this.predict_singlePartition == false) this.state.depTracker.finishRound(this);
+            if (this.predict_singlePartition == false || this.isSysProc()) {
+                this.state.depTracker.finishRound(this);
+            }
             super.finishRound(partition);
         } finally {
             if (this.predict_singlePartition == false) this.lock.unlock();
