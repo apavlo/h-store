@@ -29,7 +29,7 @@ import edu.brown.hstore.estimators.Estimate;
 import edu.brown.hstore.estimators.markov.MarkovEstimate;
 import edu.brown.hstore.estimators.markov.MarkovEstimator;
 import edu.brown.hstore.estimators.markov.MarkovEstimatorState;
-import edu.brown.hstore.txns.AbstractTransaction;
+import edu.brown.hstore.txns.TransactionUtil;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.EstimationThresholds;
@@ -447,7 +447,7 @@ public class MarkovCostModel extends AbstractCostModel {
         // be to have calculate probabilities through a traversal for each batch
         if (this.force_regenerate_markovestimates) {
             if (debug.val) {
-                String name = AbstractTransaction.formatTxnName(markov.getProcedure(), s.getTransactionId());
+                String name = TransactionUtil.formatTxnName(markov.getProcedure(), s.getTransactionId());
                 LOG.debug("Using " + MarkovProbabilityCalculator.class.getSimpleName() + " to calculate MarkoEstimates for " + name);
             }
             estimates = new ArrayList<Estimate>();

@@ -81,9 +81,8 @@ public class BatchPlanner {
     private static final int FIRST_DEPENDENCY_ID = 1;
 
     /**
-     * If the unique dependency ids option is enabled, all input/output DependencyIds for WorkFragments will be globally
-     * unique.
-     * 
+     * If the unique dependency ids option is enabled, all input/output
+     * DependencyIds for WorkFragments will be globally unique.
      * @see HStoreConf.SiteConf.planner_unique_dependency_ids
      */
     private static final AtomicInteger NEXT_DEPENDENCY_ID = new AtomicInteger(FIRST_DEPENDENCY_ID);

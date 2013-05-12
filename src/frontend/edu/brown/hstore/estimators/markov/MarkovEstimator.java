@@ -22,7 +22,7 @@ import edu.brown.graphs.GraphvizExport;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.estimators.EstimatorState;
 import edu.brown.hstore.estimators.TransactionEstimator;
-import edu.brown.hstore.txns.AbstractTransaction;
+import edu.brown.hstore.txns.TransactionUtil;
 import edu.brown.interfaces.DebugContext;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
@@ -172,7 +172,7 @@ public class MarkovEstimator extends TransactionEstimator {
         long start_time = EstTime.currentTimeMillis();
         if (debug.val)
             LOG.debug(String.format("%s - Starting transaction estimation [partition=%d]",
-                      AbstractTransaction.formatTxnName(catalog_proc, txn_id), base_partition));
+                      TransactionUtil.formatTxnName(catalog_proc, txn_id), base_partition));
 
         // If we don't have a graph for this procedure, we should probably just return null
         // This will be the case for all sysprocs
@@ -181,13 +181,13 @@ public class MarkovEstimator extends TransactionEstimator {
         if (markov == null) {
             if (debug.val)
                 LOG.debug(String.format("%s - No MarkovGraph is available for transaction",
-                          AbstractTransaction.formatTxnName(catalog_proc, txn_id)));
+                          TransactionUtil.formatTxnName(catalog_proc, txn_id)));
             if (this.profiler != null) this.profiler.start_time.appendTime(timestamp);
             return (null);
         }
         
         if (trace.val) LOG.trace(String.format("%s - Creating new MarkovEstimatorState",
-                         AbstractTransaction.formatTxnName(catalog_proc, txn_id)));
+                         TransactionUtil.formatTxnName(catalog_proc, txn_id)));
         MarkovEstimatorState state = null;
         try {
             state = (MarkovEstimatorState)statesPool.borrowObject();
@@ -205,7 +205,7 @@ public class MarkovEstimator extends TransactionEstimator {
         this.estimatePath(state, initialEst, catalog_proc, args);
         
         if (debug.val) {
-            String txnName = AbstractTransaction.formatTxnName(catalog_proc, txn_id);
+            String txnName = TransactionUtil.formatTxnName(catalog_proc, txn_id);
             LOG.debug(String.format("%s - Initial MarkovEstimate\n%s", txnName, initialEst));
             List<MarkovVertex> path = initialEst.getMarkovPath();
             if (path.isEmpty()) {
@@ -227,7 +227,7 @@ public class MarkovEstimator extends TransactionEstimator {
                 if (statement.getPrefetchable()) {
                     if (debug.val)
                         LOG.debug(String.format("%s - Checking whether we can prefetch %s on partitions %s",
-                                 AbstractTransaction.formatTxnName(catalog_proc, txn_id),
+                                 TransactionUtil.formatTxnName(catalog_proc, txn_id),
                                  statement.fullName(), vertex.getPartitions()));
                     if (vertex.getPartitions().isEmpty() == false && vertex.getPartitions().get() != base_partition) {
                         state.addPrefetchableStatement(vertex.getCountedStatement());
@@ -392,7 +392,7 @@ public class MarkovEstimator extends TransactionEstimator {
             MarkovVertex current = state.getCurrent();
             assert(current != null) : 
                 String.format("Missing current vertex for %s\n%s",
-                              AbstractTransaction.formatTxnName(markov.getProcedure(), txn_id), state);
+                              TransactionUtil.formatTxnName(markov.getProcedure(), txn_id), state);
             
             // If we don't have the terminal vertex, then we know that we don't care about
             // what this transaction actually did
@@ -462,7 +462,7 @@ public class MarkovEstimator extends TransactionEstimator {
         assert(state.isInitialized()) : state.hashCode();
         assert(est.isInitialized()) : state.hashCode();
         if (debug.val) LOG.debug(String.format("%s - Estimating execution path (%s)",
-                         AbstractTransaction.formatTxnName(catalog_proc, state.getTransactionId()),
+                         TransactionUtil.formatTxnName(catalog_proc, state.getTransactionId()),
                          (est.isInitialEstimate() ? "INITIAL" : "BATCH #" + est.getBatchId())));
         
         MarkovVertex currentVertex = est.getVertex();
@@ -477,13 +477,13 @@ public class MarkovEstimator extends TransactionEstimator {
         MarkovGraph markov = state.getMarkovGraph();
         assert(markov != null) :
             String.format("Unexpected null MarkovGraph for %s [hashCode=%d]\n%s",
-                          AbstractTransaction.formatTxnName(catalog_proc, state.getTransactionId()), state.hashCode(), state);
+                          TransactionUtil.formatTxnName(catalog_proc, state.getTransactionId()), state.hashCode(), state);
         boolean compute_path = true;
         if (hstore_conf.site.markov_fast_path && currentVertex.isStartVertex() == false) {
             List<MarkovVertex> initialPath = ((MarkovEstimate)state.getInitialEstimate()).getMarkovPath();
             if (initialPath.contains(currentVertex)) {
                 if (debug.val) LOG.debug(String.format("%s - Using fast path estimation for %s[#%d]",
-                                 AbstractTransaction.formatTxnName(catalog_proc, state.getTransactionId()), markov, markov.getGraphId()));
+                                 TransactionUtil.formatTxnName(catalog_proc, state.getTransactionId()), markov, markov.getGraphId()));
                 if (this.profiler != null) timestamp = ProfileMeasurement.getTime();
                 try {
                     MarkovPathEstimator.fastEstimation(est, initialPath, currentVertex);
@@ -500,16 +500,16 @@ public class MarkovEstimator extends TransactionEstimator {
             List<MarkovVertex> cached = this.cached_paths.get(markov);
             if (cached == null) {
                 if (debug.val) LOG.debug(String.format("%s - No cached path available for %s[#%d]",
-                                 AbstractTransaction.formatTxnName(catalog_proc, state.getTransactionId()), markov, markov.getGraphId()));
+                                 TransactionUtil.formatTxnName(catalog_proc, state.getTransactionId()), markov, markov.getGraphId()));
             }
             else if (markov.getAccuracyRatio() < hstore_conf.site.markov_path_caching_threshold) {
                 if (debug.val) LOG.debug(String.format("%s - MarkovGraph %s[#%d] accuracy is below caching threshold [%.02f < %.02f]",
-                        AbstractTransaction.formatTxnName(catalog_proc, state.getTransactionId()),
+                        TransactionUtil.formatTxnName(catalog_proc, state.getTransactionId()),
                         markov, markov.getGraphId(), markov.getAccuracyRatio(), hstore_conf.site.markov_path_caching_threshold));
             }
             else {
                 if (debug.val) LOG.debug(String.format("%s - Using cached path for %s[#%d]",
-                                 AbstractTransaction.formatTxnName(catalog_proc, state.getTransactionId()), markov, markov.getGraphId()));
+                                 TransactionUtil.formatTxnName(catalog_proc, state.getTransactionId()), markov, markov.getGraphId()));
                 if (this.profiler != null) timestamp = ProfileMeasurement.getTime();
                 try {
                     MarkovPathEstimator.fastEstimation(est, cached, currentVertex);
@@ -523,7 +523,7 @@ public class MarkovEstimator extends TransactionEstimator {
         // Use the MarkovPathEstimator to estimate a new path for this txn
         if (compute_path) {
             if (debug.val) LOG.debug(String.format("%s - Need to compute new path in %s[#%d] using MarkovPathEstimator",
-                             AbstractTransaction.formatTxnName(catalog_proc, state.getTransactionId()), markov, markov.getGraphId()));
+                             TransactionUtil.formatTxnName(catalog_proc, state.getTransactionId()), markov, markov.getGraphId()));
             MarkovPathEstimator pathEstimator = null;
             try {
                 pathEstimator = (MarkovPathEstimator)this.pathEstimatorsPool.borrowObject();
@@ -531,7 +531,7 @@ public class MarkovEstimator extends TransactionEstimator {
                 pathEstimator.setForceTraversal(true);
                 // pathEstimator.setCreateMissing(true);
             } catch (Throwable ex) {
-                String txnName = AbstractTransaction.formatTxnName(catalog_proc, state.getTransactionId());
+                String txnName = TransactionUtil.formatTxnName(catalog_proc, state.getTransactionId());
                 String msg = "Failed to intitialize new MarkovPathEstimator for " + txnName; 
                 LOG.error(msg, ex);
                 throw new RuntimeException(msg, ex);
@@ -547,7 +547,7 @@ public class MarkovEstimator extends TransactionEstimator {
                 } catch (Exception ex2) {
                     throw new RuntimeException(ex2);
                 }
-                String msg = "Failed to estimate path for " + AbstractTransaction.formatTxnName(catalog_proc, state.getTransactionId());
+                String msg = "Failed to estimate path for " + TransactionUtil.formatTxnName(catalog_proc, state.getTransactionId());
                 LOG.error(msg, ex);
                 throw new RuntimeException(msg, ex);
             } finally {
@@ -615,7 +615,7 @@ public class MarkovEstimator extends TransactionEstimator {
                 assert(markov.containsVertex(current)) :
                     String.format("%s does not have current vertex %s for %s",
                                   markov, current,
-                                  AbstractTransaction.formatTxnName(markov.getProcedure(), state.getTransactionId())); 
+                                  TransactionUtil.formatTxnName(markov.getProcedure(), state.getTransactionId())); 
                 markov.addVertex(next_v);
                 next_e = markov.addToEdge(current, next_v);
                 if (trace.val) LOG.trace(String.format("Created new edge from %s to new vertex %s for txn #%d", 

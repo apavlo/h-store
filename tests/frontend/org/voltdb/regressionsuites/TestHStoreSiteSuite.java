@@ -7,6 +7,7 @@ import junit.framework.Test;
 import org.voltdb.BackendTarget;
 import org.voltdb.CatalogContext;
 import org.voltdb.StoredProcedureInvocationHints;
+import org.voltdb.benchmark.tpcc.TPCCConstants;
 import org.voltdb.benchmark.tpcc.TPCCProjectBuilder;
 import org.voltdb.benchmark.tpcc.procedures.neworder;
 import org.voltdb.client.Client;
@@ -42,6 +43,16 @@ public class TestHStoreSiteSuite extends RegressionSuite {
         ClientResponse cresponse = client.callProcedure(procName, params);
         assertNotNull(cresponse);
         assertEquals(Status.OK, cresponse.getStatus());
+    }
+    
+    /**
+     * testNetworkThreadInitialization
+     */
+    public void testTransactionRedirect() throws Exception {
+        CatalogContext catalogContext = this.getCatalogContext();
+        if (catalogContext.numberOfPartitions == 1) return;
+        
+        // TODO
     }
     
     /**
@@ -106,7 +117,8 @@ public class TestHStoreSiteSuite extends RegressionSuite {
         // build up a project builder for the TPC-C app
         TPCCProjectBuilder project = new TPCCProjectBuilder();
         project.addAllDefaults();
-        project.addStmtProcedure("GetItem", "SELECT * FROM ITEM WHERE I_ID = ?");
+        project.addStmtProcedure("GetItem", "SELECT * FROM " + TPCCConstants.TABLENAME_ITEM + " WHERE I_ID = ?");
+        project.addStmtProcedure("GetWarehouse", "SELECT * FROM " + TPCCConstants.TABLENAME_WAREHOUSE + " WHERE W_ID = ?");
         
         boolean success;
         

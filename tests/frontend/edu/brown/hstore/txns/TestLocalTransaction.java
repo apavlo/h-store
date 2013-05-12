@@ -49,6 +49,7 @@ public class TestLocalTransaction extends BaseTestCase {
     
     MockHStoreSite hstore_site;
     MockPartitionExecutor executor;
+    DependencyTracker depTracker;
     Procedure catalog_proc;
     LocalTransaction ts;
     AbstractTransaction.Debug tsDebug;
@@ -91,9 +92,11 @@ public class TestLocalTransaction extends BaseTestCase {
         
         this.hstore_site = new MockHStoreSite(0, catalogContext, HStoreConf.singleton());
         this.executor = (MockPartitionExecutor)this.hstore_site.getPartitionExecutor(BASE_PARTITION);
-        assertNotNull(this.executor);
+        this.depTracker = this.executor.getDependencyTracker();
         this.ts = new LocalTransaction(this.hstore_site);
         this.tsDebug = this.ts.getDebugContext();
+        
+        this.depTracker.addTransaction(this.ts);
     }
     
     /**
@@ -123,7 +126,7 @@ public class TestLocalTransaction extends BaseTestCase {
         
         List<WorkFragment.Builder> ready = new ArrayList<WorkFragment.Builder>();
         for (WorkFragment.Builder builder : builders) {
-            boolean blocked = this.ts.addWorkFragment(builder);
+            boolean blocked = this.depTracker.addWorkFragment(this.ts, builder);
             if (blocked == false) {
                 assertFalse(builder.toString(), ready.contains(builder));
                 ready.add(builder);

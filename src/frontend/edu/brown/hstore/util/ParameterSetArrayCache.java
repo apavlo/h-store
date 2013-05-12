@@ -4,6 +4,10 @@ import java.util.BitSet;
 
 import org.voltdb.ParameterSet;
 
+/**
+ * Reusable ParameterSet array cache
+ * @author pavlo
+ */
 public class ParameterSetArrayCache {
 
     /**

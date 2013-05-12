@@ -150,6 +150,7 @@ import edu.brown.hstore.specexec.QueryTracker.QueryInvocation;
 import edu.brown.hstore.specexec.TableConflictChecker;
 import edu.brown.hstore.specexec.UnsafeConflictChecker;
 import edu.brown.hstore.txns.AbstractTransaction;
+import edu.brown.hstore.txns.DependencyTracker;
 import edu.brown.hstore.txns.ExecutionState;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.hstore.txns.MapReduceTransaction;
@@ -295,6 +296,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
     private TransactionInitializer txnInitializer;
     private TransactionQueueManager queueManager;
     private PartitionLockQueue lockQueue;
+    private DependencyTracker depTracker;
     
     // ----------------------------------------------------------------------------
     // Work Queue
@@ -746,6 +748,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         assert(this.hstore_site == null);
         this.hstore_site = hstore_site;
         this.hstore_coordinator = hstore_site.getCoordinator();
+        this.depTracker = hstore_site.getDependencyTracker(this.partitionId);
         this.thresholds = hstore_site.getThresholds();
         this.txnInitializer = hstore_site.getTransactionInitializer();
         this.queueManager = hstore_site.getTransactionQueueManager();
@@ -816,8 +819,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         ExecutionState state = this.execStates.poll();
         if (state == null) {
             state = new ExecutionState(this);
-        } else {
-            state.clear();
         }
         return (state);
     }
@@ -1378,6 +1379,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
     public final int getPartitionId() {
         return (this.partitionId);
     }
+    public final DependencyTracker getDependencyTracker() {
+        return (this.depTracker);
+    }
     public final PartitionExecutorProfiler getProfiler() {
         return profiler;
     }
@@ -1809,7 +1813,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             // If the Transaction is on the same HStoreSite, then all the 
             // input dependencies will be internal and can be retrieved locally
             if (is_local) {
-                List<VoltTable> deps = ((LocalTransaction)ts).getInternalDependency(input_dep_id);
+                List<VoltTable> deps = this.depTracker.getInternalDependency((LocalTransaction)ts, input_dep_id);
                 assert(deps != null);
                 assert(inputs.containsKey(input_dep_id) == false);
                 inputs.put(input_dep_id, deps);
@@ -2161,7 +2165,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                     throw new ServerFaultException("Failed to deserialize VoltTable from partition " + result.getPartitionId() + " for " + ts, ex);
                 }
             }
-            ts.addResult(result.getPartitionId(), depId, vt);
+            this.depTracker.addResult(ts, result.getPartitionId(), depId, vt);
         } // FOR (dependencies)
         if (needs_profiling) ts.profiler.stopDeserialization();
     }
@@ -2626,7 +2630,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                                   ts, dep_id, result.dependencies[i].getRowCount(),
                                   result.dependencies[i]));
                     try {
-                        local_ts.addResult(this.partitionId, dep_id, result.dependencies[i]);
+                        this.depTracker.addResult(local_ts, this.partitionId, dep_id, result.dependencies[i]);
                     } catch (Throwable ex) {
                         ex.printStackTrace();
                         String msg = String.format("Failed to stored Dependency #%d for %s [idx=%d, fragmentId=%d]",
@@ -3292,7 +3296,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         boolean need_restart = false;
         boolean predict_singlepartition = ts.isPredictSinglePartition(); 
         PartitionSet done_partitions = ts.getDonePartitions();
-        ExecutionState execState = ts.getExecutionState();
         Estimate t_estimate = ts.getLastEstimate();
         
         boolean hasNewDone = false;
@@ -3306,7 +3309,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         // waiting for an input dependency. Note that we pack all the fragments into a single
         // CoordinatorFragment rather than sending each WorkFragment in its own message
         for (WorkFragment.Builder fragmentBuilder : fragmentBuilders) {
-            assert(execState.isBlocked(fragmentBuilder) == false);
+            assert(this.depTracker.isBlocked(ts, fragmentBuilder) == false);
             
             int target_partition = fragmentBuilder.getPartitionId();
             int target_site = catalogContext.getSiteIdForPartitionId(target_partition);
@@ -3527,10 +3530,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             }
         } // FOR
         long undoToken = this.calculateNextUndoToken(ts, is_localReadOnly);
-        ts.initRound(this.partitionId, undoToken);
-        
+        ts.initFirstRound(undoToken, batchSize);
         final ExecutionState execState = ts.getExecutionState();
-        execState.initRound(batchSize);
         final boolean prefetch = ts.hasPrefetchQueries();
         final boolean predict_singlePartition = ts.isPredictSinglePartition();
         
@@ -3540,7 +3541,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         
         // Now if we have some work sent out to other partitions, we need to wait until they come back
         // In the first part, we wait until all of our blocked WorkFragments become unblocked
-        final LinkedBlockingDeque<Collection<WorkFragment.Builder>> queue = execState.getUnblockedWorkFragmentsQueue();
+        final LinkedBlockingDeque<Collection<WorkFragment.Builder>> queue = this.depTracker.getUnblockedWorkFragmentsQueue(ts);
 
         // Run through this loop if:
         //  (1) We have no pending errors
@@ -3549,11 +3550,11 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         //  (4) If we know that there are still unblocked messages that we need to process
         //  (5) The latch for this round is still greater than zero
         while (ts.hasPendingError() == false && 
-              (first == true || execState.stillHasWorkFragments() || (latch != null && latch.getCount() > 0))) {
+              (first == true || this.depTracker.stillHasWorkFragments(ts) || (latch != null && latch.getCount() > 0))) {
             if (trace.val)
                 LOG.trace(String.format("%s - %s loop [first=%s, stillHasWorkFragments=%s, latch=%s]",
                           ts, ClassUtil.getCurrentMethodName(),
-                          first, execState.stillHasWorkFragments(), queue.size(), latch));
+                          first, this.depTracker.stillHasWorkFragments(ts), queue.size(), latch));
             
             // If this is the not first time through the loop, then poll the queue
             // to get our list of fragments
@@ -3624,7 +3625,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             // -------------------------------
             if (predict_singlePartition) {
                 for (WorkFragment.Builder fragmentBuilder : fragmentBuilders) {
-                    if (first == false || ts.addWorkFragment(fragmentBuilder) == false) {
+                    if (first == false || this.depTracker.addWorkFragment(ts, fragmentBuilder) == false) {
                         this.tmp_localWorkFragmentBuilders.add(fragmentBuilder);
                         total++;
                         num_localPartition++;
@@ -3635,7 +3636,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 // WorkFragments for execution, since they might start executing locally!
                 if (first) {
                     ts.startRound(this.partitionId);
-                    latch = execState.getDependencyLatch();
+                    latch = this.depTracker.getDependencyLatch(ts);
                 }
                 
                 // Execute all of our WorkFragments quickly at our local ExecutionEngine
@@ -3664,7 +3665,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                     is_localSite = hstore_site.isLocalPartition(partition);
                     is_localPartition = (partition == this.partitionId);
                     all_local = all_local && is_localPartition;
-                    if (first == false || ts.addWorkFragment(fragmentBuilder) == false) {
+                    if (first == false || this.depTracker.addWorkFragment(ts, fragmentBuilder) == false) {
                         total++;
                         
                         // At this point we know that all the WorkFragment has been registered
@@ -3684,7 +3685,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                                     if (trace.val)
                                         LOG.trace(String.format("%s - Storing cached result from partition %d for fragment %d",
                                                   ts, partition, fragId));
-                                    ts.addResult(partition, fragmentBuilder.getOutputDepId(i), vt);
+                                    this.depTracker.addResult(ts, partition, fragmentBuilder.getOutputDepId(i), vt);
                                 } else {
                                     skip_queue = false;
                                 }
@@ -3728,7 +3729,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 // FragmentTasks for execution, since they might start executing locally!
                 if (first) {
                     ts.startRound(this.partitionId);
-                    latch = execState.getDependencyLatch();
+                    latch = this.depTracker.getDependencyLatch(ts);
                 }
         
                 // Now request the fragments that aren't local
@@ -3799,7 +3800,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         
         if (trace.val)
             LOG.trace(String.format("%s - BREAK OUT [first=%s, stillHasWorkFragments=%s, latch=%s]",
-                      ts, first, execState.stillHasWorkFragments(), latch));
+                      ts, first, this.depTracker.stillHasWorkFragments(ts), latch));
 //        assert(ts.stillHasWorkFragments() == false) :
 //            String.format("Trying to block %s before all of its WorkFragments have been dispatched!\n%s\n%s",
 //                          ts,
@@ -3808,7 +3809,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 
         // Now that we know all of our WorkFragments have been dispatched, we can then
         // wait for all of the results to come back in.
-        if (latch == null) latch = execState.getDependencyLatch();
+        if (latch == null) latch = this.depTracker.getDependencyLatch(ts);
         if (latch.getCount() > 0) {
             if (debug.val) {
                 LOG.debug(String.format("%s - All blocked messages dispatched. Waiting for %d dependencies",
@@ -3867,7 +3868,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         
         // IMPORTANT: Don't try to check whether we got back the right number of tables because the batch
         // may have hit an error and we didn't execute all of them.
-        VoltTable results[] = ts.getResults();
+        VoltTable results[] = this.depTracker.getResults(ts);
         ts.finishRound(this.partitionId);
          if (debug.val) {
             if (trace.val) LOG.trace(ts + " is now running and looking for love in all the wrong places...");

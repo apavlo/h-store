@@ -108,6 +108,7 @@ import edu.brown.hstore.stats.TransactionCounterStats;
 import edu.brown.hstore.stats.TransactionProfilerStats;
 import edu.brown.hstore.stats.TransactionQueueManagerProfilerStats;
 import edu.brown.hstore.txns.AbstractTransaction;
+import edu.brown.hstore.txns.DependencyTracker;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.hstore.txns.MapReduceTransaction;
 import edu.brown.hstore.txns.RemoteTransaction;
@@ -274,6 +275,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     private final Thread executor_threads[];
     
     /**
+     * DependencyTrackers
+     * One per partition.
+     */
+    private final DependencyTracker depTrackers[];
+    
+    /**
      * The queue manager is responsible for deciding what distributed transaction
      * is allowed to acquire the locks for each partition. It can also requeue
      * restart transactions. 
@@ -437,6 +444,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         this.executors = new PartitionExecutor[num_partitions];
         this.executor_threads = new Thread[num_partitions];
+        this.depTrackers = new DependencyTracker[num_partitions];
         
         // Get the hasher we will use for this HStoreSite
         this.hasher = ClassUtil.newInstance(hstore_conf.global.hasher_class,
@@ -673,7 +681,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                       this.local_partitions.size(), this.getSiteName()));
         for (int partition : this.local_partitions.values()) {
             PartitionExecutor executor = this.getPartitionExecutor(partition);
-            executor.initHStoreSite(this);
+            // executor.initHStoreSite(this);
             
             t = new Thread(this.threadManager.getThreadGroup(ThreadGroupType.EXECUTION), executor);
             t.setDaemon(true);
@@ -922,6 +930,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         assert(this.shutdown_state != ShutdownState.STARTED);
         assert(executor != null);
         this.executors[partition] = executor;
+        this.depTrackers[partition] = new DependencyTracker(executor);
+        this.executors[partition].initHStoreSite(this);
     }
     
     /**
@@ -1143,6 +1153,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                           partition, this.getSiteName());
         return (es);
     }
+    public DependencyTracker getDependencyTracker(int partition) {
+        return (this.depTrackers[partition]);
+    }
+    
     public MemoryStats getMemoryStatsSource() {
         return (this.memoryStats);
     }
