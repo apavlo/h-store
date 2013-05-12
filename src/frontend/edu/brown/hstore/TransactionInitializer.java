@@ -48,6 +48,7 @@ import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.hstore.txns.MapReduceTransaction;
 import edu.brown.hstore.txns.RemoteTransaction;
+import edu.brown.hstore.txns.TransactionUtil;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.EstimationThresholds;
@@ -428,7 +429,7 @@ public class TransactionInitializer {
                 		  "remote partition %d [partitions=%s, hashCode=%d]",
                           ts, base_partition, partitions, ts.hashCode()));
         } catch (Throwable ex) {
-            String msg = "Failed to instantiate new remote transaction handle for " + AbstractTransaction.formatTxnName(catalog_proc, txn_id);
+            String msg = "Failed to instantiate new remote transaction handle for " + TransactionUtil.formatTxnName(catalog_proc, txn_id);
             throw new RuntimeException(msg, ex);
         }
         AbstractTransaction dupe = this.inflight_txns.put(txn_id, ts);
@@ -478,7 +479,7 @@ public class TransactionInitializer {
             }
             assert(ts.isInitialized() == false);
         } catch (Throwable ex) {
-            String msg = "Failed to instantiate new MapReduce transaction handle for " + AbstractTransaction.formatTxnName(catalog_proc, txn_id);
+            String msg = "Failed to instantiate new MapReduce transaction handle for " + TransactionUtil.formatTxnName(catalog_proc, txn_id);
             throw new RuntimeException(msg, ex);
         }
         // We should never already have a transaction handle for this txnId
@@ -643,7 +644,7 @@ public class TransactionInitializer {
             if (debug.val)
                 LOG.debug(String.format("%s - Using TransactionEstimator to check whether txn is single-partitioned " +
             	          "[clientHandle=%d]",
-            		      AbstractTransaction.formatTxnName(catalog_proc, txn_id), ts.getClientHandle()));
+            		      TransactionUtil.formatTxnName(catalog_proc, txn_id), ts.getClientHandle()));
             
             // Grab the TransactionEstimator for the destination partition and figure out whether
             // this mofo is likely to be single-partition or not. Anything that we can't estimate
@@ -672,7 +673,7 @@ public class TransactionInitializer {
                     if (debug.val) {
                         LOG.debug("No EstimationState was returned. Using default estimate@@@@@@@@@@");
                         LOG.debug(String.format("%s - No EstimationState was returned. Using default estimate.",
-                                  AbstractTransaction.formatTxnName(catalog_proc, txn_id)));
+                                  TransactionUtil.formatTxnName(catalog_proc, txn_id)));
                     }
                 }
                 // We have a TransactionEstimator, so let's see what it says...
@@ -686,22 +687,22 @@ public class TransactionInitializer {
                         if (debug.val)
                             LOG.debug(String.format("%s - No Estimation was recieved. " +
                         		      "Using default estimate.",
-                                      AbstractTransaction.formatTxnName(catalog_proc, txn_id)));
+                                      TransactionUtil.formatTxnName(catalog_proc, txn_id)));
                     }
                     // Invalid Estimation. Stick with defaults
                     else if (t_estimate.isValid() == false) {
                         if (debug.val)
                             LOG.debug(String.format("%s - Estimation is invalid. " +
                             		  "Using default estimate.\n%s",
-                                      AbstractTransaction.formatTxnName(catalog_proc, txn_id), t_estimate));
+                                      TransactionUtil.formatTxnName(catalog_proc, txn_id), t_estimate));
                     }    
                     // Use Estimation to determine things
                     else {
                         if (debug.val) {
                             LOG.debug(String.format("%s - Using Estimation to determine if txn is single-partitioned",
-                                      AbstractTransaction.formatTxnName(catalog_proc, txn_id)));
+                                      TransactionUtil.formatTxnName(catalog_proc, txn_id)));
                             LOG.trace(String.format("%s %s:\n%s",
-                                      AbstractTransaction.formatTxnName(catalog_proc, txn_id),
+                                      TransactionUtil.formatTxnName(catalog_proc, txn_id),
                                       t_estimate.getClass().getSimpleName(), t_estimate));
                         }
                         predict_partitions = t_estimate.getTouchedPartitions(this.thresholds);
@@ -717,7 +718,7 @@ public class TransactionInitializer {
                         
                         if (debug.val && predict_partitions.isEmpty()) {
                             LOG.warn(String.format("%s - Unexpected empty predicted PartitonSet from %s\n%s",
-                            		AbstractTransaction.formatTxnName(catalog_proc, txn_id),
+                            		TransactionUtil.formatTxnName(catalog_proc, txn_id),
                             		t_estimator, t_estimate));
                         }
                     }
@@ -727,7 +728,7 @@ public class TransactionInitializer {
                     LOG.warn("WROTE MARKOVGRAPH: " + ((MarkovEstimatorState)t_state).dumpMarkovGraph());
                 }
                 LOG.error(String.format("Failed calculate estimate for %s request\nParameters: %s",
-                          AbstractTransaction.formatTxnName(catalog_proc, txn_id),
+                          TransactionUtil.formatTxnName(catalog_proc, txn_id),
                           params), ex);
                 ex.printStackTrace();
                 predict_partitions = catalogContext.getAllPartitionIds();

@@ -89,7 +89,7 @@ public class DependencyInfo implements Poolable {
     public void init(Long txn_id, int round, int stmt_index, int dependency_id) {
         if (debug.val)
             LOG.debug(String.format("#%s - Intializing DependencyInfo for %s in ROUND #%d",
-                      txn_id, LocalTransaction.debugStmtDep(stmt_index, dependency_id), round));
+                      txn_id, TransactionUtil.debugStmtDep(stmt_index, dependency_id), round));
         this.txn_id = txn_id;
         this.round = round;
         this.stmt_index = stmt_index;
@@ -136,7 +136,7 @@ public class DependencyInfo implements Poolable {
     public void markInternal() {
         if (debug.val)
             LOG.debug(String.format("#%s - Marking DependencyInfo for %s as internal",
-                      this.txn_id, LocalTransaction.debugStmtDep(stmt_index, dependency_id)));
+                      this.txn_id, TransactionUtil.debugStmtDep(stmt_index, dependency_id)));
         this.internal = true;
     }
     public boolean isInternal() {

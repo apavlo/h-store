@@ -37,10 +37,8 @@ import org.apache.log4j.Logger;
 import org.voltdb.ParameterSet;
 import org.voltdb.VoltTable;
 import org.voltdb.catalog.Procedure;
-import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.Table;
 import org.voltdb.exceptions.SerializableException;
-import org.voltdb.exceptions.ServerFaultException;
 import org.voltdb.utils.NotImplementedException;
 
 import com.google.protobuf.ByteString;
@@ -1156,7 +1154,7 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
     protected int getCurrentRound(int partition) {
         return (this.round_ctr[partition]);
     }
-
+    
     @Override
     public final String toString() {
         String str = null;
@@ -1217,14 +1215,6 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
         
         return ((Map<String, Object>[])maps.toArray(new Map[0]));
     }
-    
-    public static String formatTxnName(Procedure catalog_proc, Long txn_id) {
-        if (catalog_proc != null) {
-            return (catalog_proc.getName() + " #" + txn_id);
-        }
-        return ("#" + txn_id);
-    }
-    
     
     public class Debug implements DebugContext {
         /**
