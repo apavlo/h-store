@@ -448,7 +448,8 @@ public class LocalTransaction extends AbstractTransaction {
                       this, this.round_ctr[partition], partition, undoToken));
         
         // SAME SITE, SAME PARTITION
-        if (this.base_partition == partition && this.predict_singlePartition == false) {
+        if (this.base_partition == partition && 
+                (this.predict_singlePartition == false || this.isSysProc())) {
             this.state.depTracker.initRound(this);
         }
         
@@ -474,6 +475,8 @@ public class LocalTransaction extends AbstractTransaction {
         try {
             if (this.predict_singlePartition == false || this.isSysProc()) {
                 this.state.depTracker.startRound(this);
+            } else {
+                LOG.warn(String.format("%s - Skipping DependencyTracker.startRound()\n%s", this, this.debug()));
             }
             super.startRound(partition);
         } finally {
@@ -500,6 +503,8 @@ public class LocalTransaction extends AbstractTransaction {
         try {
             if (this.predict_singlePartition == false || this.isSysProc()) {
                 this.state.depTracker.finishRound(this);
+            } else {
+                LOG.warn(String.format("%s - Skipping DependencyTracker.finishRound()", this));
             }
             super.finishRound(partition);
         } finally {

@@ -759,9 +759,10 @@ public class BatchPlanner {
                     while (true) {
                         if (is_singlePartition == false) stmt_all_partitions.clear();
                         fragments = (is_singlePartition ? catalog_stmt.getFragments() : catalog_stmt.getMs_fragments());
-                        if (debug.val) LOG.debug(String.format("[#%d-%02d] Estimating for %d %s-partition fragments",
-                                                 txn_id, stmt_index, fragments.size(),
-                                                 (is_singlePartition ? "single" : "multi")));
+                        if (debug.val)
+                            LOG.debug(String.format("[#%d-%02d] Estimating for %d %s-partition fragments",
+                                      txn_id, stmt_index, fragments.size(),
+                                      (is_singlePartition ? "single" : "multi")));
 
                         // PARTITION ESTIMATOR
                         if (hstore_conf.site.planner_profiling && profiler != null)
@@ -956,7 +957,7 @@ public class BatchPlanner {
         if (mispredict_h != null) {
             plan.mispredict = new MispredictionException(txn_id, mispredict_h);
             if (debug.val)
-                LOG.warn(String.format("Created %s for txn #%d\n%s\n%s\n%s",
+                LOG.warn(String.format("Created %s for txn #%d\n%s",
                          plan.mispredict.getClass().getSimpleName(), txn_id,
                          plan.mispredict.getPartitions()));
         }

@@ -31,7 +31,7 @@ public class QueryTracker {
         }
     }
     
-    private final List<QueryInvocation> invocations = new ArrayList<>(); 
+    private final List<QueryInvocation> invocations = new ArrayList<QueryInvocation>(); 
     
     /**
      * Internal counter for the number of times that we've executed queries in the past.

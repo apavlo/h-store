@@ -3212,6 +3212,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             if (trace.val)
                 LOG.trace(String.format("%s - Got back %d work fragments",
                           ts, execState.tmp_partitionFragments.size()));
+            
+            LOG.info("BatchPlan:\n" + plan + "\n" +
+                     StringUtil.join("\n", execState.tmp_partitionFragments));
 
             // Block until we get all of our responses.
             results = this.dispatchWorkFragments(ts, batchParams, batchSize,
@@ -3818,6 +3821,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         // Now that we know all of our WorkFragments have been dispatched, we can then
         // wait for all of the results to come back in.
         if (latch == null) latch = this.depTracker.getDependencyLatch(ts);
+        assert(latch != null) :
+            String.format("Unexpected null dependency latch for " + ts);
         if (latch.getCount() > 0) {
             if (debug.val) {
                 LOG.debug(String.format("%s - All blocked messages dispatched. Waiting for %d dependencies",
