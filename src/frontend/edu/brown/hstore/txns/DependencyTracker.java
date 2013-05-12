@@ -133,6 +133,11 @@ public class DependencyTracker {
         private int received_ctr = 0;
         
         
+        private TransactionState(LocalTransaction ts) {
+            this.txn_id = ts.getTransactionId();
+        }
+        
+        
         /**
          * 
          * @param d_id Output Dependency Id
@@ -175,10 +180,13 @@ public class DependencyTracker {
     
     public void addTransaction(LocalTransaction ts) {
         // FIXME
+        TransactionState state = new TransactionState(ts);
+        this.txnStates.put(ts, state);
     }
     
     public void removeTransaction(LocalTransaction ts) {
         // FIXME
+        this.txnStates.remove(ts);
     }
     
     // ----------------------------------------------------------------------------
@@ -219,7 +227,7 @@ public class DependencyTracker {
             for (DependencyInfo dinfo : state.dependencies.values()) {
                 // Add this DependencyInfo our output list if it's being used in this round for this txn
                 // and if it is not an internal dependency
-                if (dinfo.inSameTxnRound(state.txn_id, currentRound) &&
+                if (dinfo.inSameTxnRound(ts.getTransactionId(), currentRound) &&
                     dinfo.isInternal() == false && dinfo.getStatementIndex() == stmt_index) {
                     state.output_order.add(dinfo.getDependencyId());
                 }
