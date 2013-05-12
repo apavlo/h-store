@@ -12,6 +12,7 @@ import org.voltdb.VoltProcedure;
 import org.voltdb.catalog.PlanFragment;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
+import org.voltdb.exceptions.MispredictionException;
 
 import edu.brown.BaseTestCase;
 import edu.brown.benchmark.AbstractProjectBuilder;
@@ -23,6 +24,8 @@ import edu.brown.hstore.BatchPlanner.BatchPlan;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.statistics.FastIntHistogram;
 import edu.brown.utils.ClassUtil;
+import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.PartitionSet;
 
 /**
  * 
@@ -34,7 +37,6 @@ public class TestBatchPlannerComplex extends BaseTestCase {
     private static final int NUM_PARTITIONS = 4;
     private static final int BASE_PARTITION = 0;
     private static final long TXN_ID = 123l;
-    private static final long CLIENT_HANDLE = Long.MAX_VALUE;
 
     private SQLStmt batch[];
     private ParameterSet args[];
@@ -48,6 +50,10 @@ public class TestBatchPlannerComplex extends BaseTestCase {
         {
             this.addProcedure(BatchPlannerConflictProc.class);
             this.addAllDefaults();
+            this.addStmtProcedure(
+                "InsertCountry",
+                "INSERT INTO COUNTRY VALUES (?, ?, ?, ?);"
+            );
         }
     };
     
@@ -68,7 +74,7 @@ public class TestBatchPlannerComplex extends BaseTestCase {
 
         VoltProcedure volt_proc = ClassUtil.newInstance(TARGET_PROCEDURE, new Object[0], new Class<?>[0]);
         assert(volt_proc != null);
-        this.executor = new MockPartitionExecutor(BASE_PARTITION, catalog, p_estimator);
+        this.executor = new MockPartitionExecutor(BASE_PARTITION, catalogContext.catalog, p_estimator);
         volt_proc.globalInit(this.executor, catalog_proc, BackendTarget.NONE, null, p_estimator);
         
         this.planner = new BatchPlanner(this.batch, this.catalog_proc, p_estimator);
@@ -86,6 +92,31 @@ public class TestBatchPlannerComplex extends BaseTestCase {
         assertNotNull(plan);
         assertFalse(plan.hasMisprediction());
         return (plan);
+    }
+    
+    /**
+     * testReplicatedInsert
+     */
+    public void testReplicatedInsert() throws Exception {
+        Object params[] = new Object[]{ 9999, "FUCK", "YO", "COUCH" };
+        Procedure proc = this.getProcedure("InsertCountry");
+        Statement stmt = CollectionUtil.first(proc.getStatements()); 
+        this.batch = new SQLStmt[]{ new SQLStmt(stmt) };
+        this.args = new ParameterSet[]{ new ParameterSet(params) };
+        
+        BatchPlanner planner = new BatchPlanner(batch, catalog_proc, p_estimator);
+        this.touched_partitions.clear();
+        PartitionSet partitions = catalogContext.getPartitionSetSingleton(BASE_PARTITION);
+        BatchPlan plan = planner.plan(TXN_ID,
+                                      BASE_PARTITION,
+                                      partitions,
+                                      true,
+                                      this.touched_partitions,
+                                      this.args);
+        assertNotNull(plan);
+        assertTrue(plan.hasMisprediction());
+        MispredictionException error = plan.getMisprediction();
+        assertTrue(error.getPartitions().values().containsAll(catalogContext.getAllPartitionIds()));
     }
 
     /**
@@ -213,7 +244,7 @@ public class TestBatchPlannerComplex extends BaseTestCase {
             // we should make sure that it only has distributed queries...
             if (builder.getPartitionId() != BASE_PARTITION) {
                 for (int frag_id : builder.getFragmentIdList()) {
-                    PlanFragment catalog_frag = CatalogUtil.getPlanFragment(catalog, frag_id);
+                    PlanFragment catalog_frag = CatalogUtil.getPlanFragment(catalogContext.catalog, frag_id);
                     assertNotNull(catalog_frag);
                     Statement catalog_stmt = catalog_frag.getParent();
                     assertNotNull(catalog_stmt);
@@ -227,5 +258,5 @@ public class TestBatchPlannerComplex extends BaseTestCase {
             
 //            System.err.println(StringUtil.SINGLE_LINE);
         } // FOR
-    } // FOR
+    } 
 }
