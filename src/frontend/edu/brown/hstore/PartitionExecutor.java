@@ -55,6 +55,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Queue;
+import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.Semaphore;
@@ -146,7 +147,6 @@ import edu.brown.hstore.internal.WorkFragmentMessage;
 import edu.brown.hstore.specexec.AbstractConflictChecker;
 import edu.brown.hstore.specexec.MarkovConflictChecker;
 import edu.brown.hstore.specexec.QueryTracker;
-import edu.brown.hstore.specexec.QueryTracker.QueryInvocation;
 import edu.brown.hstore.specexec.TableConflictChecker;
 import edu.brown.hstore.specexec.UnsafeConflictChecker;
 import edu.brown.hstore.txns.AbstractTransaction;
@@ -155,6 +155,7 @@ import edu.brown.hstore.txns.ExecutionState;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.hstore.txns.MapReduceTransaction;
 import edu.brown.hstore.txns.PrefetchState;
+import edu.brown.hstore.txns.QueryInvocation;
 import edu.brown.hstore.txns.RemoteTransaction;
 import edu.brown.hstore.util.ArrayCache.IntArrayCache;
 import edu.brown.hstore.util.ArrayCache.LongArrayCache;
@@ -3555,7 +3556,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         
         // Now if we have some work sent out to other partitions, we need to wait until they come back
         // In the first part, we wait until all of our blocked WorkFragments become unblocked
-        final LinkedBlockingDeque<Collection<WorkFragment.Builder>> queue = this.depTracker.getUnblockedWorkFragmentsQueue(ts);
+        final BlockingDeque<Collection<WorkFragment.Builder>> queue = this.depTracker.getUnblockedWorkFragmentsQueue(ts);
 
         // Run through this loop if:
         //  (1) We have no pending errors

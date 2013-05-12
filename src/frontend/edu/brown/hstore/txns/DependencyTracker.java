@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -11,15 +12,19 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
 import java.util.Map.Entry;
+import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.locks.ReentrantLock;
 
 import org.apache.log4j.Logger;
+import org.voltdb.CatalogContext;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltTableNonBlocking;
 import org.voltdb.catalog.CatalogType;
 import org.voltdb.catalog.PlanFragment;
+import org.voltdb.catalog.Statement;
+import org.voltdb.exceptions.ServerFaultException;
 import org.voltdb.utils.Pair;
 
 import edu.brown.catalog.CatalogUtil;
@@ -27,6 +32,7 @@ import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.PartitionExecutor;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.conf.HStoreConf;
+import edu.brown.hstore.specexec.QueryTracker;
 import edu.brown.hstore.txns.AbstractTransaction.RoundState;
 import edu.brown.interfaces.DebugContext;
 import edu.brown.logging.LoggerUtil;
@@ -93,7 +99,7 @@ public class DependencyTracker {
          * Internal cache of the result queues that were used by the txn in this round.
          * This is so that we don't have to clear all of the queues in the entire results_dependency_stmt_ctr cache. 
          */
-        private final Collection<Queue<Integer>> results_queue_cache = new ArrayList<Queue<Integer>>();
+        private final Collection<Queue<Integer>> results_queue_cache = new HashSet<Queue<Integer>>();
         
         /**
          * Sometimes we will get results back while we are still queuing up the rest of the tasks and
@@ -113,7 +119,7 @@ public class DependencyTracker {
          * The VoltProcedure thread will block on this queue waiting for tasks to execute inside of ExecutionSite
          * This has to be a set so that we make sure that we only submit a single message that contains all of the tasks to the Dtxn.Coordinator
          */
-        private final LinkedBlockingDeque<Collection<WorkFragment.Builder>> unblocked_tasks = new LinkedBlockingDeque<Collection<WorkFragment.Builder>>(); 
+        private final BlockingDeque<Collection<WorkFragment.Builder>> unblocked_tasks = new LinkedBlockingDeque<Collection<WorkFragment.Builder>>(); 
         
         /**
          * Whether the current transaction still has outstanding WorkFragments that it
@@ -131,9 +137,36 @@ public class DependencyTracker {
          */
         private int received_ctr = 0;
         
+        // ----------------------------------------------------------------------------
+        // PREFETCH QUERY DATA
+        // ----------------------------------------------------------------------------
+        
+        private QueryTracker prefetch_tracker;
+        
+        /**
+         * SQLStmtIndex -> FragmentId -> DependencyInfo
+         */
+        private Map<Integer, Map<Integer, DependencyInfo>> prefetch_dependencies;
+        
+        private Map<Statement, List<Pair<QueryInvocation, VoltTable>>> prefetch_results;
+        
+        /**
+         * The total # of WorkFragments that the txn prefetched
+         */
+        private int prefetch_ctr = 0;
+        
+        // ----------------------------------------------------------------------------
+        // INITIALIZATION
+        // ----------------------------------------------------------------------------
         
         private TransactionState(LocalTransaction ts) {
             this.txn_id = ts.getTransactionId();
+            
+            if (ts.hasPrefetchQueries()) {
+                this.prefetch_tracker = new QueryTracker();
+                this.prefetch_dependencies = new HashMap<Integer, Map<Integer,DependencyInfo>>();
+                this.prefetch_results = new HashMap<>();
+            }
         }
         
         
@@ -146,6 +179,11 @@ public class DependencyTracker {
             return (this.dependencies.get(d_id));
         }
         
+        /**
+         * Clear the dependency information for a single SQLStmt batch round.
+         * We will clear out the prefetch information because we need that
+         * until the transaction is finished.
+         */
         public void clear() {
             this.dependencies.clear();
             this.output_order.clear();
@@ -163,10 +201,10 @@ public class DependencyTracker {
             this.dependency_ctr = 0;
             this.received_ctr = 0;
         }
-        
-    }
+    } // CLASS
     
     private final PartitionExecutor executor;
+    private final CatalogContext catalogContext;
     private final Map<Long, TransactionState> txnStates = new HashMap<Long, TransactionState>();
     
     // ----------------------------------------------------------------------------
@@ -175,6 +213,7 @@ public class DependencyTracker {
     
     public DependencyTracker(PartitionExecutor executor) {
         this.executor = executor;
+        this.catalogContext = this.executor.getCatalogContext();
     }
     
     public void addTransaction(LocalTransaction ts) {
@@ -187,14 +226,6 @@ public class DependencyTracker {
         this.txnStates.put(ts.getTransactionId(), state);
         if (debug.val)
             LOG.debug(String.format("Added %s to %s", ts, this));
-    }
-    
-    private TransactionState getState(LocalTransaction ts) {
-        TransactionState state = this.txnStates.get(ts.getTransactionId());
-        assert(state != null) :
-            String.format("Unexpected null %s handle for %s at %s",
-                          TransactionState.class.getSimpleName(), ts, this);
-        return (state);
     }
     
     public void removeTransaction(LocalTransaction ts) {
@@ -295,18 +326,28 @@ public class DependencyTracker {
     // ----------------------------------------------------------------------------
     // INTERNAL METHODS
     // ----------------------------------------------------------------------------
-
+    
+    private TransactionState getState(LocalTransaction ts) {
+        TransactionState state = this.txnStates.get(ts.getTransactionId());
+        assert(state != null) :
+            String.format("Unexpected null %s handle for %s at %s",
+                          TransactionState.class.getSimpleName(), ts, this);
+        return (state);
+    }
+    
     /**
      * 
      * @param state
      * @param currentRound
      * @param stmt_index
+     * @param fragment_id TODO
      * @param dep_id
      * @return
      */
     private DependencyInfo getOrCreateDependencyInfo(TransactionState state,
                                                      int currentRound,
                                                      int stmt_index,
+                                                     int fragment_id,
                                                      Integer dep_id) {
         Map<Integer, DependencyInfo> stmt_dinfos = state.dependencies;
         DependencyInfo dinfo = stmt_dinfos.get(dep_id);
@@ -314,7 +355,8 @@ public class DependencyTracker {
         if (dinfo != null) {
             if (debug.val)
                 LOG.debug(String.format("%s - Reusing DependencyInfo[%d] for %s. " +
-                          "Checking whether it needs to be reset [currentRound=%d / lastRound=%d lastTxn=%s]",
+                          "Checking whether it needs to be reset " +
+                          "[currentRound=%d / lastRound=%d / lastTxn=%s]",
                           state.txn_id, dinfo.hashCode(), TransactionUtil.debugStmtDep(stmt_index, dep_id),
                           currentRound, dinfo.getRound(), dinfo.getTransactionId()));
             if (dinfo.inSameTxnRound(state.txn_id, currentRound) == false) {
@@ -324,7 +366,7 @@ public class DependencyTracker {
                 dinfo.finish();
             }
         } else {
-            dinfo = new DependencyInfo(this.executor.getCatalogContext());
+            dinfo = new DependencyInfo(this.catalogContext);
             stmt_dinfos.put(dep_id, dinfo);
             if (debug.val)
                 LOG.debug(String.format("%s - Created new DependencyInfo for %s [hashCode=%d]",
@@ -441,14 +483,15 @@ public class DependencyTracker {
         // It definitely does not need to be because this is only invoked by the
         // transaction's base partition PartitionExecutor
         for (int i = 0; i < num_fragments; i++) {
+            int fragment_id = fragment.getFragmentId(i);
             int stmt_index = fragment.getStmtIndex(i);
-//            int param_index = fragment.getParamIndex(i);
             
             // If this task produces output dependencies, then we need to make 
             // sure that the txn wait for it to arrive first
             int output_dep_id = fragment.getOutputDepId(i);
             if (output_dep_id != HStoreConstants.NULL_DEPENDENCY_ID) {
-                DependencyInfo dinfo = this.getOrCreateDependencyInfo(state, currentRound, stmt_index, output_dep_id);
+                DependencyInfo dinfo = this.getOrCreateDependencyInfo(state, currentRound,
+                                                                      stmt_index, fragment_id, output_dep_id);
                 dinfo.addPartition(partition);
                 if (debug.val)
                     LOG.debug(String.format("%s - Adding new DependencyInfo %s for PlanFragment %d at Partition %d [ctr=%d]\n%s",
@@ -465,7 +508,17 @@ public class DependencyTracker {
             if (fragment.getNeedsInput()) {
                 int dependency_id = fragment.getInputDepId(i);
                 if (dependency_id != HStoreConstants.NULL_DEPENDENCY_ID) {
-                    DependencyInfo dinfo = this.getOrCreateDependencyInfo(state, currentRound, stmt_index, dependency_id);
+                    DependencyInfo dinfo = null;
+                    
+                    // Check to see whether there is already a prefetch WorkFragment that will
+                    // generate this result for us.
+                    if (state.prefetch_ctr > 0) {
+                        dinfo = this.getPrefetchDependencyInfo(state, stmt_index, fragment_id, dependency_id);
+                    }
+                    if (dinfo == null) {
+                        dinfo = this.getOrCreateDependencyInfo(state, currentRound,
+                                                               stmt_index, fragment_id, dependency_id);
+                    }
                     dinfo.addBlockedWorkFragment(fragment);
                     dinfo.markInternal();
                     if (blocked == false) {
@@ -550,7 +603,7 @@ public class DependencyTracker {
         final TransactionState state = this.getState(ts);
         assert(result != null);
         
-        final ReentrantLock stateLock = ts.getTransactionLock();
+        final ReentrantLock txnLock = ts.getTransactionLock();
         final int base_partition = ts.getBasePartition();
         final int partition = key.getFirst().intValue();
         final int dependency_id = key.getSecond().intValue();
@@ -569,7 +622,7 @@ public class DependencyTracker {
         // for now. They will get released when we switch to STARTED 
         // This is the only part that we need to synchonize on
         if (force == false) {
-            if (singlePartitioned == false) stateLock.lock();
+            if (singlePartitioned == false) txnLock.lock();
             try {
                 if (roundState == RoundState.INITIALIZED) {
                     assert(state.queued_results.containsKey(key) == false) : 
@@ -586,7 +639,7 @@ public class DependencyTracker {
                     // if (trace.val) LOG.trace("Result stmt_ctr(key=" + key + "): " + this.state.results_dependency_stmt_ctr.get(key));
                 }
             } finally {
-                if (singlePartitioned == false) stateLock.unlock();
+                if (singlePartitioned == false) txnLock.unlock();
             } // SYNCH
         }
             
@@ -618,10 +671,12 @@ public class DependencyTracker {
             // HACK: IGNORE!
             return;
         }
-        dinfo.addResult(partition, result);
         
-        if (singlePartitioned == false) stateLock.lock();
+        if (singlePartitioned == false) txnLock.lock();
         try {
+            // 2013-05-12: DependencyInfo.addResult() used to be synchronized, but this is not
+            //             necessary. We can just use the txnLock.
+            dinfo.addResult(partition, result);
             state.received_ctr++;
             
             // Check whether we need to start running stuff now
@@ -665,7 +720,7 @@ public class DependencyTracker {
             state.still_has_tasks = (state.blocked_tasks.isEmpty() == false ||
                                      state.unblocked_tasks.isEmpty() == false);
         } finally {
-            if (singlePartitioned == false) stateLock.unlock();
+            if (singlePartitioned == false) txnLock.unlock();
         } // SYNCH
         
         if (debug.val) {
@@ -767,7 +822,7 @@ public class DependencyTracker {
     }
     
     
-    public LinkedBlockingDeque<Collection<WorkFragment.Builder>> getUnblockedWorkFragmentsQueue(LocalTransaction ts) {
+    public BlockingDeque<Collection<WorkFragment.Builder>> getUnblockedWorkFragmentsQueue(LocalTransaction ts) {
         final TransactionState state = this.getState(ts);
         return (state.unblocked_tasks);
     }
@@ -802,6 +857,154 @@ public class DependencyTracker {
         final TransactionState state = this.getState(ts);
         return (state.blocked_tasks.contains(ftask));
     }
+    
+    // ----------------------------------------------------------------------------
+    // QUERY PREFETCHING
+    // ----------------------------------------------------------------------------
+    
+    /**
+     * 
+     * @param state
+     * @param currentRound
+     * @param stmt_index
+     * @param fragment_id TODO
+     * @param dep_id
+     * @return
+     */
+    private DependencyInfo getPrefetchDependencyInfo(TransactionState state,
+                                                     int stmt_index,
+                                                     int fragment_id,
+                                                     int dependency_id) {
+        Map<Integer, DependencyInfo> stmt_deps = state.prefetch_dependencies.get(stmt_index);
+        if (stmt_deps == null) {
+            return (null);
+        }
+        DependencyInfo dinfo = stmt_deps.get(fragment_id);
+        if (dinfo == null) {
+            return (null);
+        }
+        
+        // IMPORTANT: We have to update this DependencyInfo's output id 
+        // so that the blocked WorkFragment can retrieve it properly when it
+        // runs. This is necessary because we don't know what the PlanFragment's
+        // output id will be before it runs...
+        dinfo.setDependencyId(dependency_id);
+        
+        return (dinfo);
+    }
+    
+    /**
+     * Inform this tracker the txn is requesting the given WorkFragment to be
+     * prefetched on a remote partition.
+     * @param ts
+     * @param fragment
+     * @return
+     */
+    public void addPrefetchWorkFragment(LocalTransaction ts, WorkFragment.Builder fragment) {
+        final TransactionState state = this.getState(ts);
+        final int num_fragments = fragment.getFragmentIdCount();
+        final int partition = fragment.getPartitionId();
+        
+        for (int i = 0; i < num_fragments; i++) {
+            final int fragment_id = fragment.getFragmentId(i);
+            final int stmt_index = fragment.getStmtIndex(i);
+            
+            // A prefetched query must *always* produce an output!
+            int output_dep_id = fragment.getOutputDepId(i);
+            assert(output_dep_id != HStoreConstants.NULL_DEPENDENCY_ID);
+            
+            // But should never have an input dependency!
+            assert(fragment.getNeedsInput() == false);
+
+            Map<Integer, DependencyInfo> stmt_deps = state.prefetch_dependencies.get(stmt_index);
+            if (stmt_deps == null) {
+                stmt_deps = new HashMap<>();
+                state.prefetch_dependencies.put(stmt_index, stmt_deps);
+            }
+            
+            DependencyInfo dinfo = stmt_deps.get(fragment_id);
+            if (dinfo == null) {
+                dinfo = new DependencyInfo(this.catalogContext);
+                dinfo.init(state.txn_id, -1, stmt_index, output_dep_id);
+            }
+            dinfo.addPartition(partition);
+            state.prefetch_ctr++;
+            
+            if (debug.val)
+                LOG.debug(String.format("%s - Adding new prefetch %s %s for PlanFragment %d at partition %d",
+                          ts, dinfo.getClass().getSimpleName(),
+                          TransactionUtil.debugStmtDep(stmt_index, output_dep_id),
+                          fragment.getFragmentId(i), partition, dinfo.toString()));
+        } // FOR
+        
+        return;
+    }
+    
+    /**
+     * Store a new prefetch result for a transaction
+     * @param txnId
+     * @param stmt_index
+     * @param fragmentId
+     * @param partitionId
+     * @param params
+     * @param result
+     */
+    public void addPrefetchResult(LocalTransaction ts,
+                                  int stmt_index,
+                                  int fragmentId,
+                                  int partitionId,
+                                  int paramsHash,
+                                  VoltTable result) {
+        assert(ts.hasPrefetchQueries());
+        if (debug.val)
+            LOG.debug(String.format("%s - Adding prefetch result for txn from partition %d",
+                      ts, partitionId));
+        
+        final TransactionState state = this.getState(ts);
+        final ReentrantLock txnLock = ts.getTransactionLock();
+        
+        // Find the corresponding DependencyInfo
+        Map<Integer, DependencyInfo> stmt_deps = state.prefetch_dependencies.get(stmt_index);
+        if (stmt_deps == null) {
+            String msg = String.format("Unexpected prefetch result for %s from partition %d - " +
+                                       "Invalid SQLStmt index '%d'",
+                                       ts, partitionId, stmt_index);
+            throw new ServerFaultException(msg, ts.getTransactionId());
+        }
+        
+        DependencyInfo dinfo = stmt_deps.get(fragmentId);
+        if (dinfo == null) {
+            String msg = String.format("Unexpected prefetch result for %s from partition %d - " +
+                                       "Invalid PlanFragment id '%d'",
+                                       ts, partitionId, fragmentId);
+            throw new ServerFaultException(msg, ts.getTransactionId());
+        }
+        
+        // Always add it to our DependencyInfo handle and then check to see whether we have 
+        // all of the results that we need for it.
+        // If we do, then we need to check to see whether the txn needs the results
+        // right now.
+        if (dinfo.addResult(partitionId, result)) {
+            txnLock.lock();
+            try {
+                // Check 
+                
+    
+                
+                
+                // They don't, so we'll want to put it aside and then we'll have to look for
+                // it any time the txn wants to add a new WorkFragment
+                
+                
+                
+            } finally {
+                txnLock.unlock();
+            }
+        }
+        
+    }
+    
+    
     
     // ----------------------------------------------------------------------------
     // DEBUG STUFF
