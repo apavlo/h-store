@@ -178,8 +178,7 @@ public class TestDependencyTrackerPrefetch extends BaseTestCase {
         // and then we should get immediately unblocked
         this.ts.startRound(BASE_PARTITION);
         CountDownLatch latch = this.depTracker.getDependencyLatch(this.ts);
-        assertNotNull(latch);
-        System.err.println(latch);
+        assertTrue(latch.getCount() > 0);
  
         WorkFragment.Builder fragment = CollectionUtil.first(ftasks);
         Collection<Column> outputCols = PlanNodeUtil.getOutputColumnsForStatement(nextBatch[0].getStatement());
@@ -189,9 +188,7 @@ public class TestDependencyTrackerPrefetch extends BaseTestCase {
                                   fragment.getPartitionId(),
                                   fragment.getOutputDepId(0),
                                   result);
-        
-        System.err.println(latch);
-        
+        assertEquals(0, latch.getCount());
     }
     
 
