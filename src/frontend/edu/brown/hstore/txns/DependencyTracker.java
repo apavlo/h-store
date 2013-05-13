@@ -272,9 +272,8 @@ public class DependencyTracker {
             } // FOR
         } // FOR
         assert(batch_size == state.output_order.size()) :
-            String.format("%s - Expected %d output dependencies but we queued up %d\n%s",
-                          ts, batch_size, state.output_order.size(),
-                          StringUtil.join("\n", state.output_order));
+            String.format("%s - Expected %d output dependencies but we only queued up %d %s",
+                          ts, batch_size, state.output_order.size(), state.output_order);
         
         // Release any queued responses/results
         if (state.queued_results.isEmpty() == false) {
@@ -345,8 +344,7 @@ public class DependencyTracker {
                                                      int stmt_index,
                                                      int fragment_id,
                                                      Integer dep_id) {
-        Map<Integer, DependencyInfo> stmt_dinfos = state.dependencies;
-        DependencyInfo dinfo = stmt_dinfos.get(dep_id);
+        DependencyInfo dinfo = state.dependencies.get(dep_id);
         
         if (dinfo != null) {
             if (debug.val)
@@ -363,7 +361,7 @@ public class DependencyTracker {
             }
         } else {
             dinfo = new DependencyInfo(this.catalogContext);
-            stmt_dinfos.put(dep_id, dinfo);
+            state.dependencies.put(dep_id, dinfo);
             if (debug.val)
                 LOG.debug(String.format("%s - Created new DependencyInfo for %s [fragmentId=%d, hashCode=%d]",
                           state.txn_id, TransactionUtil.debugStmtDep(stmt_index, dep_id),
@@ -492,7 +490,8 @@ public class DependencyTracker {
                 // Check to see whether there is a already a prefetch WorkFragment for
                 // this same query invocation.
                 if (state.prefetch_ctr > 0) {
-                    dinfo = this.getPrefetchDependencyInfo(state, stmt_index, fragment_id, output_dep_id);
+                    dinfo = this.getPrefetchDependencyInfo(state, currentRound,
+                                                           stmt_index, fragment_id, output_dep_id);
                 }
                 if (dinfo == null) {
                     dinfo = this.getOrCreateDependencyInfo(state, currentRound,
@@ -521,7 +520,8 @@ public class DependencyTracker {
                 // Check to see whether there is already a prefetch WorkFragment that will
                 // generate this result for us.
                 if (state.prefetch_ctr > 0) {
-                    dinfo = this.getPrefetchDependencyInfo(state, stmt_index, fragment_id, input_dep_id);
+                    dinfo = this.getPrefetchDependencyInfo(state, currentRound,
+                                                           stmt_index, fragment_id, input_dep_id);
                 }
                 if (dinfo == null) {
                     dinfo = this.getOrCreateDependencyInfo(state, currentRound,
@@ -540,18 +540,18 @@ public class DependencyTracker {
             
             // *********************************** DEBUG ***********************************
             if (trace.val) {
-                StringBuilder sb = new StringBuilder();
                 int output_ctr = 0;
                 int dep_ctr = 0;
+                Map<String, Object> m = new LinkedHashMap<>();
                 for (DependencyInfo dinfo : state.dependencies.values()) {
                     if (dinfo.getStatementIndex() == stmt_index) dep_ctr++;
                     if (dinfo.isInternal() == false) {
-                        output_ctr++;
-                        sb.append("  Output -> " + dinfo.toString());
+                        m.put(String.format("Output[%02d]", output_ctr++), dinfo.toString());
                     }
                 } // FOR
-                LOG.trace(String.format("%s - Number of Output Dependencies for StmtIndex #%d: %d out of %d\n%s", 
-                          ts, stmt_index, output_ctr, dep_ctr, sb));
+                LOG.trace(String.format("%s - Number of Output Dependencies for StmtIndex #%d: " +
+                		  "%d out of %d\n%s", 
+                          ts, stmt_index, output_ctr, dep_ctr, StringUtil.formatMaps(m)));
             }
             // *********************************** DEBUG ***********************************
             
@@ -574,8 +574,8 @@ public class DependencyTracker {
                       ts, catalog_obj, partition,
                       (blocked ? "blocked" : "not blocked"),
                       fragment.getFragmentIdList()));
-            if (trace.val)
-                LOG.trace("WorkFragment Contents for " + ts + ":\n" + fragment);
+//            if (trace.val)
+//                LOG.trace("WorkFragment Contents for " + ts + ":\n" + fragment);
         }
         // *********************************** DEBUG ***********************************
         
@@ -583,7 +583,10 @@ public class DependencyTracker {
     }
     
     /**
-     * 
+     * Store an output dependency result for a transaction. This corresponds to the 
+     * execution of a single WorkFragment somewhere in the cluster. If there are other
+     * WorkFragments to become unblocked and be ready to execute.
+     * @param ts
      * @param partition
      * @param dependency_id
      * @param result
@@ -868,17 +871,18 @@ public class DependencyTracker {
     // ----------------------------------------------------------------------------
     // QUERY PREFETCHING
     // ----------------------------------------------------------------------------
-    
+
     /**
      * 
      * @param state
-     * @param currentRound
+     * @param round
      * @param stmt_index
-     * @param fragment_id TODO
-     * @param dep_id
+     * @param fragment_id
+     * @param dependency_id
      * @return
      */
     private DependencyInfo getPrefetchDependencyInfo(TransactionState state,
+                                                     int round,
                                                      int stmt_index,
                                                      int fragment_id,
                                                      int dependency_id) {
@@ -895,7 +899,8 @@ public class DependencyTracker {
         // so that the blocked WorkFragment can retrieve it properly when it
         // runs. This is necessary because we don't know what the PlanFragment's
         // output id will be before it runs...
-        dinfo.setDependencyId(dependency_id);
+        dinfo.prefetchOverride(round, dependency_id);
+        state.dependencies.put(dependency_id, dinfo);
         
         return (dinfo);
     }

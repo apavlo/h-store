@@ -6,6 +6,7 @@ package edu.brown.hstore.txns;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 
 import org.junit.Test;
 import org.voltdb.ParameterSet;
@@ -145,12 +146,6 @@ public class TestDependencyTrackerPrefetch extends BaseTestCase {
                                           this.prefetchParamsHash[0],
                                           this.prefetchResult);
         
-        // Initialize the txn to simulate that it has started
-        this.ts.initRound(BASE_PARTITION, undoToken);
-        assertEquals(AbstractTransaction.RoundState.INITIALIZED, this.ts.getCurrentRoundState(BASE_PARTITION));
-        assertNotNull(this.ts.getLastUndoToken(BASE_PARTITION));
-        assertEquals(undoToken, this.ts.getLastUndoToken(BASE_PARTITION));
-        
         // Now if we add in the same query again, it should automatically pick up the result
         SQLStmt nextBatch[] = {
             new SQLStmt(this.getStatement(this.catalog_proc, "getItemInfo")),
@@ -160,6 +155,13 @@ public class TestDependencyTrackerPrefetch extends BaseTestCase {
             new ParameterSet(12345l),
             new ParameterSet(this.prefetchParams[0].toArray())
         };
+        
+        // Initialize the txn to simulate that it has started
+        this.ts.initFirstRound(undoToken, nextBatch.length);
+        assertEquals(AbstractTransaction.RoundState.INITIALIZED, this.ts.getCurrentRoundState(BASE_PARTITION));
+        assertNotNull(this.ts.getLastUndoToken(BASE_PARTITION));
+        assertEquals(undoToken, this.ts.getLastUndoToken(BASE_PARTITION));
+        
         BatchPlanner nextPlanner = new BatchPlanner(nextBatch, this.catalog_proc, p_estimator);
         BatchPlan nextPlan = nextPlanner.plan(TXN_ID,
                                               BASE_PARTITION,
@@ -172,7 +174,23 @@ public class TestDependencyTrackerPrefetch extends BaseTestCase {
             this.depTracker.addWorkFragment(this.ts, fragment);
         } // FOR
         
+        // We only need to add the query result for the first query 
+        // and then we should get immediately unblocked
+        this.ts.startRound(BASE_PARTITION);
+        CountDownLatch latch = this.depTracker.getDependencyLatch(this.ts);
+        assertNotNull(latch);
+        System.err.println(latch);
+ 
+        WorkFragment.Builder fragment = CollectionUtil.first(ftasks);
+        Collection<Column> outputCols = PlanNodeUtil.getOutputColumnsForStatement(nextBatch[0].getStatement());
+        VoltTable result = CatalogUtil.getVoltTable(outputCols);
+        result.addRow(VoltTableUtil.getRandomRow(result));
+        this.depTracker.addResult(this.ts,
+                                  fragment.getPartitionId(),
+                                  fragment.getOutputDepId(0),
+                                  result);
         
+        System.err.println(latch);
         
     }
     

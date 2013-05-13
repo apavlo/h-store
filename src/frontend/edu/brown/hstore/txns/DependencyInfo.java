@@ -3,11 +3,11 @@ package edu.brown.hstore.txns;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 import org.voltdb.CatalogContext;
 import org.voltdb.VoltTable;
@@ -98,12 +98,14 @@ public class DependencyInfo implements Poolable {
     }
 
     /**
-     * Special method for overriding this DependencyInfo's output
-     * dependency id. This is needed for prefetched WorkFragments 
-     * that don't have the real id when they were original created. 
+     * Special method for overriding this DependencyInfo's current round 
+     * and output dependency id. This is needed for prefetched WorkFragments 
+     * that don't have the real id when they were original created.
+     * @param round 
      * @param dependency_id
      */
-    protected void setDependencyId(int dependency_id) {
+    protected void prefetchOverride(int round, int dependency_id) {
+        this.round = round;
         this.dependency_id = dependency_id;
     }
     
@@ -316,19 +318,20 @@ public class DependencyInfo implements Poolable {
             status = "BLOCKED";
         }
         
-        Map<String, Object> m = new ListOrderedMap<String, Object>();
-        m.put("  Internal", this.internal);
-        m.put("  Partitions", this.expectedPartitions);
+        Map<String, Object> m = new LinkedHashMap<String, Object>();
+        m.put("- Internal", this.internal);
+        m.put("- Partitions", this.expectedPartitions);
         
-        Map<String, Object> inner = new ListOrderedMap<String, Object>();
+        Map<String, Object> inner = new LinkedHashMap<String, Object>();
         for (int partition = 0, cnt = this.results.size(); partition < cnt; partition++) {
             if (this.results.get(partition) == null) continue;
             VoltTable vt = this.results.get(partition);
-            inner.put(String.format("Partition %02d",partition), String.format("{%d tuples}", vt.getRowCount()));  
+            inner.put(String.format("Partition %02d",partition),
+                      String.format("{%d tuples}", vt.getRowCount()));  
         } // FOR
-        m.put("  Results", inner);
-        m.put("  Blocked", this.blockedTasks);
-        m.put("  Status", status);
+        m.put("- Results", inner);
+        m.put("- Blocked", this.blockedTasks);
+        m.put("- Status", status);
 
         return String.format("DependencyInfo[#%d] - HashCode:%d\n%s",
                              this.dependency_id, this.hashCode(),

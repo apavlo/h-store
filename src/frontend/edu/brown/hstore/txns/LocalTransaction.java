@@ -296,6 +296,10 @@ public class LocalTransaction extends AbstractTransaction {
                                      Procedure catalog_proc) {
         this.initiateTime = EstTime.currentTimeMillis();
         
+        if (this.predict_singlePartition == false || this.isSysProc() || hstore_site.getCatalogContext().numberOfPartitions == 1) {
+            this.depTracker = hstore_site.getDependencyTracker(base_partition);
+        }
+        
         super.init(txn_id,                       // TxnId
                    Integer.MAX_VALUE,            // ClientHandle
                    base_partition,               // BasePartition
