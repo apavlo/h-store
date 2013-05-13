@@ -106,8 +106,7 @@ public class TestLocalTransaction extends BaseTestCase {
         this.ts.testInit(TXN_ID, BASE_PARTITION, null, new PartitionSet(BASE_PARTITION), this.catalog_proc);
         ExecutionState state = new ExecutionState(this.executor);
         this.ts.setExecutionState(state);
-        this.ts.initRound(BASE_PARTITION, UNDO_TOKEN);
-        this.ts.setBatchSize(this.batchStmts.length);
+        this.ts.initFirstRound(UNDO_TOKEN, this.batchStmts.length);
         
         // We need to get all of our WorkFragments for this batch
         BatchPlanner planner = new BatchPlanner(this.batchStmts, this.catalog_proc, p_estimator);
@@ -142,7 +141,7 @@ public class TestLocalTransaction extends BaseTestCase {
     public void testReadWriteSets() throws Exception {
         ExecutionState state = new ExecutionState(this.executor);
         this.ts.setExecutionState(state);
-        this.ts.initRound(BASE_PARTITION, UNDO_TOKEN);
+        this.ts.initFirstRound(UNDO_TOKEN, this.batchStmts.length);
         
         int tableIds[] = null;
         for (Statement catalog_stmt : catalog_proc.getStatements()) {

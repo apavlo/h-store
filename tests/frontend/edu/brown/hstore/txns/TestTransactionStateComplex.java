@@ -35,7 +35,6 @@ import edu.brown.hstore.PartitionExecutor;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.statistics.FastIntHistogram;
 import edu.brown.utils.CollectionUtil;
-import edu.brown.utils.PartitionSet;
 import edu.brown.utils.ProjectType;
 
 /**
@@ -43,7 +42,6 @@ import edu.brown.utils.ProjectType;
  */
 public class TestTransactionStateComplex extends BaseTestCase {
     private static final long TXN_ID = 1000l;
-    private static final boolean SINGLE_PARTITIONED = false;
     private static final long UNDO_TOKEN = 10l;
     
     private static final String TARGET_PROCEDURE = GetUserInfo.class.getSimpleName();
@@ -107,12 +105,21 @@ public class TestTransactionStateComplex extends BaseTestCase {
         this.depTrackerDbg = this.depTracker.getDebugContext();
         
         BatchPlanner batchPlan = new BatchPlanner(batch, catalog_proc, p_estimator);
-        this.plan = batchPlan.plan(TXN_ID, LOCAL_PARTITION, new PartitionSet(LOCAL_PARTITION), this.touched_partitions, args);
+        this.plan = batchPlan.plan(TXN_ID,
+                                   LOCAL_PARTITION,
+                                   catalogContext.getAllPartitionIds(),
+                                   this.touched_partitions,
+                                   args);
         this.plan.getWorkFragmentsBuilders(TXN_ID, ftasks);
         assertFalse(ftasks.isEmpty());
         
         this.execState = new ExecutionState(executor);
-        this.ts = new LocalTransaction(hstore_site).testInit(TXN_ID, LOCAL_PARTITION, null, new PartitionSet(LOCAL_PARTITION), catalog_proc);
+        this.ts = new LocalTransaction(hstore_site);
+        this.ts.testInit(TXN_ID,
+                         LOCAL_PARTITION,
+                         null,
+                         catalogContext.getAllPartitionIds(),
+                         this.catalog_proc);
         this.ts.setExecutionState(this.execState);
         this.depTracker.addTransaction(this.ts);
     }
@@ -122,7 +129,6 @@ public class TestTransactionStateComplex extends BaseTestCase {
      * We will also populate our list of dependency ids
      */
     private void addFragments() {
-        this.ts.setBatchSize(NUM_DUPLICATE_STATEMENTS);
         for (WorkFragment.Builder ftask : ftasks) {
 //            System.err.println(ftask);
 //            System.err.println("+++++++++++++++++++++++++++++++++++");
@@ -155,7 +161,7 @@ public class TestTransactionStateComplex extends BaseTestCase {
      * testTwoRoundQueryPlan
      */
     public void testTwoRoundQueryPlan() throws Exception {
-        this.ts.initRound(LOCAL_PARTITION, UNDO_TOKEN);
+        this.ts.initFirstRound(UNDO_TOKEN, NUM_DUPLICATE_STATEMENTS);
         this.addFragments();
         this.ts.startRound(LOCAL_PARTITION);
         
@@ -201,7 +207,7 @@ public class TestTransactionStateComplex extends BaseTestCase {
      * testAddResultsBeforeStart
      */
     public void testAddResultsBeforeStart() throws Exception {
-        this.ts.initRound(LOCAL_PARTITION, UNDO_TOKEN);
+        this.ts.initFirstRound(UNDO_TOKEN, NUM_DUPLICATE_STATEMENTS);
         this.addFragments();
         
         // We need to test to make sure that we don't get a CountDownLatch with the wrong count
@@ -239,7 +245,7 @@ public class TestTransactionStateComplex extends BaseTestCase {
      * testGetResults
      */
     public void testGetResults() throws Exception {
-        this.ts.initRound(LOCAL_PARTITION, UNDO_TOKEN);
+        this.ts.initFirstRound(UNDO_TOKEN, NUM_DUPLICATE_STATEMENTS);
         this.addFragments();
         this.ts.startRound(LOCAL_PARTITION);
 //        System.err.println(this.ts);

@@ -75,6 +75,12 @@ public class DependencyInfo implements Poolable {
      */
     private boolean internal = false;
     
+    /**
+     * Is the data for this dependency for a prefetched query. If this is
+     * set to true, then this 
+     */
+    private boolean prefetch = false;
+    
     // ----------------------------------------------------------------------------
     // INITIALIZATION
     // ----------------------------------------------------------------------------
@@ -96,29 +102,6 @@ public class DependencyInfo implements Poolable {
         this.stmt_index = stmt_index;
         this.dependency_id = dependency_id;
     }
-
-    /**
-     * Special method for overriding this DependencyInfo's current round 
-     * and output dependency id. This is needed for prefetched WorkFragments 
-     * that don't have the real id when they were original created.
-     * @param round 
-     * @param dependency_id
-     */
-    protected void prefetchOverride(int round, int dependency_id) {
-        this.round = round;
-        this.dependency_id = dependency_id;
-    }
-    
-    public Long getTransactionId() {
-        return (this.txn_id);
-    }
-    protected int getRound() {
-        return (this.round);
-    }
-    
-    public boolean inSameTxnRound(Long txn_id, int round) {
-        return (txn_id.equals(this.txn_id) && this.round == round);
-    }
     
     @Override
     public boolean isInitialized() {
@@ -134,11 +117,34 @@ public class DependencyInfo implements Poolable {
         this.blockedTasks.clear();
         this.blockedTasksReleased = false;
         this.internal = false;
+        this.prefetch = false;
         
         this.results.clear();
         this.resultPartitions.clear();
     }
     
+    /**
+     * Special method for overriding this DependencyInfo's current round 
+     * and output dependency id. This is needed for prefetched WorkFragments 
+     * that don't have the real id when they were original created.
+     * @param round 
+     * @param dependency_id
+     */
+    protected void prefetchOverride(int round, int dependency_id) {
+        this.round = round;
+        this.dependency_id = dependency_id;
+    }
+    
+    // ----------------------------------------------------------------------------
+    // ACCESS METHODS
+    // ----------------------------------------------------------------------------
+
+    public Long getTransactionId() {
+        return (this.txn_id);
+    }
+    protected int getRound() {
+        return (this.round);
+    }
     public int getStatementIndex() {
         return (this.stmt_index);
     }
@@ -146,6 +152,10 @@ public class DependencyInfo implements Poolable {
         return (this.dependency_id);
     }
     
+    public boolean inSameTxnRound(Long txn_id, int round) {
+        return (txn_id.equals(this.txn_id) && this.round == round);
+    }
+
     public void markInternal() {
         if (debug.val)
             LOG.debug(String.format("#%s - Marking DependencyInfo for %s as internal",
@@ -153,8 +163,22 @@ public class DependencyInfo implements Poolable {
         this.internal = true;
     }
     public boolean isInternal() {
-        return this.internal;
+        return (this.internal);
     }
+    
+    public void markPrefetch() {
+        this.prefetch = true;
+    }
+    public void resetPrefetch() {
+        this.prefetch = false;
+    }
+    public boolean isPrefetch() {
+        return (this.prefetch);
+    }
+    
+    // ----------------------------------------------------------------------------
+    // API METHODS
+    // ----------------------------------------------------------------------------
     
     /**
      * Add a FragmentTaskMessage this blocked until all of the partitions return results/responses
@@ -240,6 +264,10 @@ public class DependencyInfo implements Poolable {
         return (this.expectedPartitions.size() == this.resultPartitions.size()); 
     }
     
+    /**
+     * Get the number of results that have arrived so far for this DependencyInfo
+     * @return
+     */
     protected int getResultsCount() {
         return (this.resultPartitions.size());
     }
@@ -299,6 +327,10 @@ public class DependencyInfo implements Poolable {
         return (this.blockedTasksReleased);
     }
     
+    // ----------------------------------------------------------------------------
+    // DEBUG METHODS
+    // ----------------------------------------------------------------------------
+    
     @Override
     public String toString() {
         if (this.isInitialized() == false) {
@@ -320,6 +352,7 @@ public class DependencyInfo implements Poolable {
         
         Map<String, Object> m = new LinkedHashMap<String, Object>();
         m.put("- Internal", this.internal);
+        m.put("- Prefetch", this.prefetch);
         m.put("- Partitions", this.expectedPartitions);
         
         Map<String, Object> inner = new LinkedHashMap<String, Object>();

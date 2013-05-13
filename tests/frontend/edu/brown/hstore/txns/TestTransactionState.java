@@ -12,6 +12,8 @@ import java.util.concurrent.CountDownLatch;
 import org.apache.commons.collections15.set.ListOrderedSet;
 import org.apache.log4j.Logger;
 import org.junit.Test;
+
+import edu.brown.benchmark.tm1.procedures.UpdateLocation;
 import edu.brown.hstore.PartitionExecutor;
 import org.voltdb.ParameterSet;
 import org.voltdb.SQLStmt;
@@ -32,7 +34,6 @@ import edu.brown.hstore.txns.ExecutionState;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.statistics.FastIntHistogram;
 import edu.brown.utils.PartitionEstimator;
-import edu.brown.utils.PartitionSet;
 import edu.brown.utils.ProjectType;
 import edu.brown.hstore.BatchPlanner;
 import edu.brown.hstore.BatchPlanner.BatchPlan;
@@ -48,10 +49,9 @@ public class TestTransactionState extends BaseTestCase {
     private static final Logger LOG = Logger.getLogger(TestTransactionState.class);
 
     private static final Long TXN_ID = 1000l;
-    private static final boolean SINGLE_PARTITIONED = false;
     private static final long UNDO_TOKEN = 10l;
     
-    private static final String TARGET_PROCEDURE = "UpdateLocation";
+    private static final Class<? extends VoltProcedure> TARGET_PROCEDURE = UpdateLocation.class;
     private static final String TARGET_STATEMENT = "update";
     private static final int NUM_DUPLICATE_STATEMENTS = 3;
     
@@ -115,7 +115,11 @@ public class TestTransactionState extends BaseTestCase {
         this.depTrackerDbg = this.depTracker.getDebugContext();
         
         BatchPlanner planner = new BatchPlanner(batch, catalog_proc, p_estimator);
-        this.plan = planner.plan(TXN_ID, LOCAL_PARTITION, PartitionSet.singleton(LOCAL_PARTITION), this.touched_partitions, args);
+        this.plan = planner.plan(TXN_ID,
+                                 LOCAL_PARTITION,
+                                 catalogContext.getAllPartitionIds(),
+                                 this.touched_partitions,
+                                 args);
         this.plan.getWorkFragmentsBuilders(TXN_ID, ftasks);
         assertFalse(ftasks.isEmpty());
         assertNotNull(ftasks);
@@ -125,26 +129,21 @@ public class TestTransactionState extends BaseTestCase {
         this.ts.testInit(TXN_ID,
                          LOCAL_PARTITION,
                          null,
-                         catalogContext.getAllPartitionIds(), this.getProcedure(TARGET_PROCEDURE));
+                         catalogContext.getAllPartitionIds(),
+                         this.getProcedure(TARGET_PROCEDURE));
         this.ts.setExecutionState(this.execState);
         this.depTracker.addTransaction(ts);
         assertNull(this.ts.getCurrentRoundState(LOCAL_PARTITION));
     }
     
-    @Override
-    protected void tearDown() throws Exception {
-        this.depTracker.removeTransaction(this.ts);
-    }
-
     /**
      * Add all of the FragmentTaskMessages from our BatchPlanner into the TransactionState
      * We will also populate our list of dependency ids
      */
     private void addFragments() {
-        this.ts.setBatchSize(NUM_DUPLICATE_STATEMENTS);
         for (WorkFragment.Builder ftask : ftasks) {
             assertNotNull(ftask);
-            this.depTracker.addWorkFragment(ts, ftask);
+            this.depTracker.addWorkFragment(this.ts, ftask);
             for (int i = 0, cnt = ftask.getFragmentIdCount(); i < cnt; i++) {
                 this.dependency_ids.add(ftask.getOutputDepId(i));
                 int input_dep_id = ftask.getInputDepId(i);
@@ -171,7 +170,7 @@ public class TestTransactionState extends BaseTestCase {
      */
     @Test
     public void testInitRound() throws Exception {
-        this.ts.initRound(LOCAL_PARTITION, UNDO_TOKEN);
+        this.ts.initFirstRound(UNDO_TOKEN, NUM_DUPLICATE_STATEMENTS);
         assertEquals(AbstractTransaction.RoundState.INITIALIZED, this.ts.getCurrentRoundState(LOCAL_PARTITION));
         assertNotNull(this.ts.getLastUndoToken(LOCAL_PARTITION));
         assertEquals(UNDO_TOKEN, this.ts.getLastUndoToken(LOCAL_PARTITION));
@@ -183,7 +182,7 @@ public class TestTransactionState extends BaseTestCase {
      */
     @Test
     public void testStartRound() throws Exception {
-        this.ts.initRound(LOCAL_PARTITION, UNDO_TOKEN);
+        this.ts.initFirstRound(UNDO_TOKEN, NUM_DUPLICATE_STATEMENTS);
         assertEquals(AbstractTransaction.RoundState.INITIALIZED, this.ts.getCurrentRoundState(LOCAL_PARTITION));
         this.addFragments();
         this.ts.startRound(LOCAL_PARTITION);
@@ -216,7 +215,7 @@ public class TestTransactionState extends BaseTestCase {
      */
     @Test
     public void testAddFragmentTaskMessage() throws Exception {
-        this.ts.initRound(LOCAL_PARTITION, UNDO_TOKEN);
+        this.ts.initFirstRound(UNDO_TOKEN, NUM_DUPLICATE_STATEMENTS);
         this.addFragments();
         
         assertEquals(NUM_EXPECTED_DEPENDENCIES, this.depTrackerDbg.getDependencyCount(this.ts));
@@ -255,7 +254,7 @@ public class TestTransactionState extends BaseTestCase {
      */
     @Test
     public void testAddResult() throws Exception {
-        this.ts.initRound(LOCAL_PARTITION, UNDO_TOKEN);
+        this.ts.initFirstRound(UNDO_TOKEN, NUM_DUPLICATE_STATEMENTS);
         this.addFragments();
         this.ts.startRound(LOCAL_PARTITION);
         assertEquals(AbstractTransaction.RoundState.STARTED, this.ts.getCurrentRoundState(LOCAL_PARTITION));
@@ -310,7 +309,7 @@ public class TestTransactionState extends BaseTestCase {
      */
     @Test
     public void testAddResultsBeforeStart() throws Exception {
-        this.ts.initRound(LOCAL_PARTITION, UNDO_TOKEN);
+        this.ts.initFirstRound(UNDO_TOKEN, NUM_DUPLICATE_STATEMENTS);
         this.addFragments();
         assertEquals(AbstractTransaction.RoundState.INITIALIZED, this.ts.getCurrentRoundState(LOCAL_PARTITION));
         
@@ -351,7 +350,7 @@ public class TestTransactionState extends BaseTestCase {
      */
     @Test
     public void testGetResults() throws Exception {
-        this.ts.initRound(LOCAL_PARTITION, UNDO_TOKEN);
+        this.ts.initFirstRound(UNDO_TOKEN, NUM_DUPLICATE_STATEMENTS);
         this.addFragments();
         this.ts.startRound(LOCAL_PARTITION);
 

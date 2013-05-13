@@ -62,6 +62,7 @@ import edu.brown.markov.EstimationThresholds;
 import edu.brown.profilers.TransactionProfiler;
 import edu.brown.protorpc.ProtoRpcController;
 import edu.brown.statistics.FastIntHistogram;
+import edu.brown.utils.ClassUtil;
 import edu.brown.utils.PartitionSet;
 import edu.brown.utils.StringUtil;
 
@@ -296,10 +297,6 @@ public class LocalTransaction extends AbstractTransaction {
                                      Procedure catalog_proc) {
         this.initiateTime = EstTime.currentTimeMillis();
         
-        if (this.predict_singlePartition == false || this.isSysProc() || hstore_site.getCatalogContext().numberOfPartitions == 1) {
-            this.depTracker = hstore_site.getDependencyTracker(base_partition);
-        }
-        
         super.init(txn_id,                       // TxnId
                    Integer.MAX_VALUE,            // ClientHandle
                    base_partition,               // BasePartition
@@ -313,6 +310,10 @@ public class LocalTransaction extends AbstractTransaction {
         if (this.predict_singlePartition == false) {
             this.dtxnState = new DistributedState(hstore_site).init(this);
         }
+        if (this.predict_singlePartition == false || this.isSysProc() || hstore_site.getCatalogContext().numberOfPartitions == 1) {
+            this.depTracker = hstore_site.getDependencyTracker(base_partition);
+        }
+        
         return (this);
         
     }
@@ -450,20 +451,25 @@ public class LocalTransaction extends AbstractTransaction {
      * @param batchSize
      */
     public void initFirstRound(long undoToken, int batchSize) {
+        if (debug.val)
+            LOG.debug(String.format("%s - Initializing ROUND #%d on partition %d [undoToken=%d]", 
+                      this, this.round_ctr[this.base_partition], this.base_partition, undoToken));
+        
         this.batch_size = batchSize;
-        this.initRound(this.base_partition, undoToken);
+        if (this.depTracker != null) {
+            this.depTracker.initRound(this);
+        }
+        super.initRound(this.base_partition, undoToken);
     }
     
     @Override
     public void initRound(int partition, long undoToken) {
+        assert(partition != this.base_partition) :
+            String.format("Trying to invoke %s for %s at its base partition. Use initFirstRound()",
+                          ClassUtil.getCurrentMethodName(), this);
         if (debug.val)
             LOG.debug(String.format("%s - Initializing ROUND #%d on partition %d [undoToken=%d]", 
                       this, this.round_ctr[partition], partition, undoToken));
-        
-        // SAME SITE, SAME PARTITION
-        if (this.base_partition == partition && this.depTracker != null) {
-            this.depTracker.initRound(this);
-        }
         
         super.initRound(partition, undoToken);
     }
@@ -695,14 +701,6 @@ public class LocalTransaction extends AbstractTransaction {
      */
     public long getInitiateTime() {
         return (this.initiateTime);
-    }
-    
-    /**
-     * Set the number of Statements being executed in the current batch 
-     * @param batchSize
-     */
-    public final void setBatchSize(int batchSize) {
-        this.batch_size = batchSize;
     }
     
     public final int getCurrentBatchSize() {

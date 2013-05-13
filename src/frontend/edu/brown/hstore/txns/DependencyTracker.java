@@ -31,7 +31,6 @@ import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.PartitionExecutor;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.conf.HStoreConf;
-import edu.brown.hstore.specexec.QueryTracker;
 import edu.brown.hstore.txns.AbstractTransaction.RoundState;
 import edu.brown.interfaces.DebugContext;
 import edu.brown.logging.LoggerUtil;
@@ -92,12 +91,14 @@ public class DependencyTracker {
          * the data for. Note that we have to maintain two separate lists for results and responses
          * PartitionId -> DependencyId -> Next SQLStmt Index
          */
+        @Deprecated
         private final Map<Pair<Integer, Integer>, Queue<Integer>> results_dependency_stmt_ctr = new HashMap<Pair<Integer,Integer>, Queue<Integer>>();
         
         /**
          * Internal cache of the result queues that were used by the txn in this round.
          * This is so that we don't have to clear all of the queues in the entire results_dependency_stmt_ctr cache. 
          */
+        @Deprecated
         private final Collection<Queue<Integer>> results_queue_cache = new HashSet<Queue<Integer>>();
         
         /**
@@ -339,7 +340,8 @@ public class DependencyTracker {
      * @param dep_id
      * @return
      */
-    private DependencyInfo getOrCreateDependencyInfo(TransactionState state,
+    private DependencyInfo getOrCreateDependencyInfo(LocalTransaction ts,
+                                                     TransactionState state,
                                                      int currentRound,
                                                      int stmt_index,
                                                      int fragment_id,
@@ -351,7 +353,7 @@ public class DependencyTracker {
                 LOG.debug(String.format("%s - Reusing DependencyInfo[%d] for %s. " +
                           "Checking whether it needs to be reset " +
                           "[currentRound=%d / lastRound=%d / lastTxn=%s]",
-                          state.txn_id, dinfo.hashCode(), TransactionUtil.debugStmtDep(stmt_index, dep_id),
+                          ts, dinfo.hashCode(), TransactionUtil.debugStmtDep(stmt_index, dep_id),
                           currentRound, dinfo.getRound(), dinfo.getTransactionId()));
             if (dinfo.inSameTxnRound(state.txn_id, currentRound) == false) {
                 if (debug.val)
@@ -364,7 +366,7 @@ public class DependencyTracker {
             state.dependencies.put(dep_id, dinfo);
             if (debug.val)
                 LOG.debug(String.format("%s - Created new DependencyInfo for %s [fragmentId=%d, hashCode=%d]",
-                          state.txn_id, TransactionUtil.debugStmtDep(stmt_index, dep_id),
+                          ts, TransactionUtil.debugStmtDep(stmt_index, dep_id),
                           fragment_id, dinfo.hashCode()));
         }
         if (dinfo.isInitialized() == false) {
@@ -381,7 +383,11 @@ public class DependencyTracker {
      * @param output_dep_id
      * @param stmt_index
      */
-    private void addResultDependencyStatement(TransactionState state, int partition, int output_dep_id, int stmt_index) {
+    private void addResultDependencyStatement(LocalTransaction ts,
+                                              TransactionState state,
+                                              int partition,
+                                              int output_dep_id,
+                                              int stmt_index) {
         Pair<Integer, Integer> key = Pair.of(partition, output_dep_id);
         Queue<Integer> rest_stmt_ctr = state.results_dependency_stmt_ctr.get(key);
         if (rest_stmt_ctr == null) {
@@ -391,8 +397,59 @@ public class DependencyTracker {
         rest_stmt_ctr.add(stmt_index);
         state.results_queue_cache.add(rest_stmt_ctr);
         if (debug.val)
-            LOG.debug(String.format("%d - Set dependency statement counters for %s: %s",
-                      state.txn_id, TransactionUtil.debugPartDep(partition, output_dep_id), rest_stmt_ctr));
+            LOG.debug(String.format("%s - Set dependency statement counters for %s: %s",
+                      ts, TransactionUtil.debugPartDep(partition, output_dep_id), rest_stmt_ctr));
+    }
+    
+    /**
+     * Update internal state information after a new result was added to a DependencyInfo.
+     * This may cause the next round of blocked WorkFragments to get released.
+     * @param ts
+     * @param state
+     * @param dinfo
+     */
+    private void updateAfterNewResult(final LocalTransaction ts,
+                                      final TransactionState state,
+                                      final DependencyInfo dinfo) {
+        // Check whether we need to start running stuff now
+        // 2011-12-31: This needs to be synchronized because they might check
+        //             whether there are no more blocked tasks before we 
+        //             can add to_unblock to the unblocked_tasks queue
+        if (state.blocked_tasks.isEmpty() == false && dinfo.hasTasksReady()) {
+            Collection<WorkFragment.Builder> to_unblock = dinfo.getAndReleaseBlockedWorkFragments();
+            assert(to_unblock != null);
+            assert(to_unblock.isEmpty() == false);
+            if (debug.val)
+                LOG.debug(String.format("%s - Got %d WorkFragments to unblock that were waiting for DependencyId %d",
+                           ts, to_unblock.size(), dinfo.getDependencyId()));
+            state.blocked_tasks.removeAll(to_unblock);
+            state.unblocked_tasks.addLast(to_unblock);
+        }
+        else if (debug.val) {
+            LOG.debug(String.format("%s - No WorkFragments to unblock after storing DependencyId %d " +
+                      "[blockedTasks=%d, hasTasksReady=%s]",
+                      ts, dinfo.getDependencyId(), state.blocked_tasks.size(), dinfo.hasTasksReady()));
+        }
+    
+        if (state.dependency_latch != null) {    
+            state.dependency_latch.countDown();
+                
+            // HACK: If the latch is now zero, then push an EMPTY set into the unblocked queue
+            // This will cause the blocked PartitionExecutor thread to wake up and realize that he's done
+            if (state.dependency_latch.getCount() == 0) {
+                if (debug.val)
+                    LOG.debug(String.format("%s - Pushing EMPTY_SET to PartitionExecutor at partition %d " +
+                              "because all the dependencies have arrived!",
+                              ts, ts.getBasePartition()));
+                state.unblocked_tasks.addLast(EMPTY_FRAGMENT_SET);
+            }
+            if (debug.val)
+                LOG.debug(String.format("%s - Setting CountDownLatch to %d for partition %d ",
+                          ts, state.dependency_latch.getCount(), ts.getBasePartition()));
+        }
+
+        state.still_has_tasks = (state.blocked_tasks.isEmpty() == false ||
+                                 state.unblocked_tasks.isEmpty() == false);
     }
     
     // ----------------------------------------------------------------------------
@@ -486,22 +543,25 @@ public class DependencyTracker {
             // sure that the txn wait for it to arrive first
             if ((output_dep_id = fragment.getOutputDepId(i)) != HStoreConstants.NULL_DEPENDENCY_ID) {
                 DependencyInfo dinfo = null;
+                boolean prefetch = false;
                 
                 // Check to see whether there is a already a prefetch WorkFragment for
                 // this same query invocation.
                 if (state.prefetch_ctr > 0) {
                     dinfo = this.getPrefetchDependencyInfo(state, currentRound,
                                                            stmt_index, fragment_id, output_dep_id);
+                    prefetch = (dinfo != null);
+                    
                 }
                 if (dinfo == null) {
-                    dinfo = this.getOrCreateDependencyInfo(state, currentRound,
+                    dinfo = this.getOrCreateDependencyInfo(ts, state, currentRound,
                                                            stmt_index, fragment_id, output_dep_id);
                 }
                 
                 // Store the stmt_index of when this dependency will show up
                 dinfo.addPartition(partition);
                 state.dependency_ctr++;
-                this.addResultDependencyStatement(state, partition, output_dep_id, stmt_index);
+                this.addResultDependencyStatement(ts, state, partition, output_dep_id, stmt_index);
                 
                 if (debug.val)
                     LOG.debug(String.format("%s - Added new %s %s for PlanFragment %d at partition %d [depCtr=%d]\n%s",
@@ -509,33 +569,55 @@ public class DependencyTracker {
                               TransactionUtil.debugStmtDep(stmt_index, output_dep_id),
                               fragment.getFragmentId(i), state.dependency_ctr,
                               partition, dinfo.toString()));
+                
+                // If this query was prefetched, we need to push its results through the 
+                // the tracker so that it can update counters
+                if (prefetch) {
+                    ts.getTransactionLock().lock();
+                    try {
+                        // Switch the DependencyInfo out of prefetch mode
+                        // This means that all incoming results (if any) will be 
+                        // added to TransactionState just like any other regular query.
+                        dinfo.resetPrefetch();
+                        
+                        // Now update the internal state just as if these new results 
+                        // arrived for this query.
+                        state.received_ctr += dinfo.getResultsCount();
+                        this.updateAfterNewResult(ts, state, dinfo);
+                    } finally {
+                        ts.getTransactionLock().unlock();
+                    } // SYNCH
+                }
 
             } // IF
             
             // If this WorkFragment needs an input dependency, then we need to make sure it arrives at
             // the executor before it is allowed to start executing
-            if (fragment.getNeedsInput() && (input_dep_id = fragment.getInputDepId(i)) != HStoreConstants.NULL_DEPENDENCY_ID) {
-                DependencyInfo dinfo = null;
-                
-                // Check to see whether there is already a prefetch WorkFragment that will
-                // generate this result for us.
-                if (state.prefetch_ctr > 0) {
-                    dinfo = this.getPrefetchDependencyInfo(state, currentRound,
-                                                           stmt_index, fragment_id, input_dep_id);
+            if (fragment.getNeedsInput()) {
+                input_dep_id = fragment.getInputDepId(i);
+                if (input_dep_id != HStoreConstants.NULL_DEPENDENCY_ID) {
+                    DependencyInfo dinfo = null;
+                    
+                    // Check to see whether there is already a prefetch WorkFragment that will
+                    // generate this result for us.
+                    if (state.prefetch_ctr > 0) {
+                        dinfo = this.getPrefetchDependencyInfo(state, currentRound,
+                                                               stmt_index, fragment_id, input_dep_id);
+                    }
+                    if (dinfo == null) {
+                        dinfo = this.getOrCreateDependencyInfo(ts, state, currentRound,
+                                                               stmt_index, fragment_id, input_dep_id);
+                    }
+                    dinfo.addBlockedWorkFragment(fragment);
+                    dinfo.markInternal();
+                    if (blocked == false) {
+                        state.blocked_tasks.add(fragment);
+                        blocked = true;   
+                    }
+                    if (debug.val)
+                        LOG.debug(String.format("%s - Created internal input dependency %d for PlanFragment %d\n%s", 
+                                  ts, input_dep_id, fragment.getFragmentId(i), dinfo.toString()));
                 }
-                if (dinfo == null) {
-                    dinfo = this.getOrCreateDependencyInfo(state, currentRound,
-                                                           stmt_index, fragment_id, input_dep_id);
-                }
-                dinfo.addBlockedWorkFragment(fragment);
-                dinfo.markInternal();
-                if (blocked == false) {
-                    state.blocked_tasks.add(fragment);
-                    blocked = true;   
-                }
-                if (debug.val)
-                    LOG.debug(String.format("%s - Created internal input dependency %d for PlanFragment %d\n%s", 
-                              ts, input_dep_id, fragment.getFragmentId(i), dinfo.toString()));
             }
             
             // *********************************** DEBUG ***********************************
@@ -682,53 +764,14 @@ public class DependencyTracker {
             return;
         }
         
+        // 2013-05-12: DependencyInfo.addResult() used to be synchronized, but I believe 
+        //             that this is not necessary. 
+        dinfo.addResult(partition, result);
+        
         if (singlePartitioned == false) txnLock.lock();
         try {
-            // 2013-05-12: DependencyInfo.addResult() used to be synchronized, but this is not
-            //             necessary. We can just use the txnLock.
-            dinfo.addResult(partition, result);
             state.received_ctr++;
-            
-            // Check whether we need to start running stuff now
-            // 2011-12-31: This needs to be synchronized because they might check
-            //             whether there are no more blocked tasks before we 
-            //             can add to_unblock to the unblocked_tasks queue
-            if (state.blocked_tasks.isEmpty() == false && dinfo.hasTasksReady()) {
-                Collection<WorkFragment.Builder> to_unblock = dinfo.getAndReleaseBlockedWorkFragments();
-                assert(to_unblock != null);
-                assert(to_unblock.isEmpty() == false);
-                if (debug.val)
-                    LOG.debug(String.format("%s - Got %d WorkFragments to unblock that were waiting for DependencyId %d",
-                               ts, to_unblock.size(), dinfo.getDependencyId()));
-                state.blocked_tasks.removeAll(to_unblock);
-                state.unblocked_tasks.addLast(to_unblock);
-            }
-            else if (debug.val) {
-                LOG.debug(String.format("%s - No WorkFragments to unblock after storing %s " +
-                          "[blockedTasks=%d, hasTasksReady=%s]",
-                          ts, TransactionUtil.debugPartDep(partition, dependency_id),
-                          state.blocked_tasks.size(), dinfo.hasTasksReady()));
-            }
-        
-            if (state.dependency_latch != null) {    
-                state.dependency_latch.countDown();
-                    
-                // HACK: If the latch is now zero, then push an EMPTY set into the unblocked queue
-                // This will cause the blocked PartitionExecutor thread to wake up and realize that he's done
-                if (state.dependency_latch.getCount() == 0) {
-                    if (debug.val)
-                        LOG.debug(String.format("%s - Pushing EMPTY_SET to PartitionExecutor at partition %d " +
-                                  "because all the dependencies have arrived!",
-                                  ts, partition));
-                    state.unblocked_tasks.addLast(EMPTY_FRAGMENT_SET);
-                }
-                if (debug.val)
-                    LOG.debug(String.format("%s - Setting CountDownLatch to %d for partition %d ",
-                              ts, state.dependency_latch.getCount(), partition));
-            }
-
-            state.still_has_tasks = (state.blocked_tasks.isEmpty() == false ||
-                                     state.unblocked_tasks.isEmpty() == false);
+            this.updateAfterNewResult(ts, state, dinfo);
         } finally {
             if (singlePartitioned == false) txnLock.unlock();
         } // SYNCH
@@ -743,6 +786,8 @@ public class DependencyTracker {
             if (trace.val) LOG.trace(ts.debug());
         }
     }
+    
+
 
     /**
      * Populate the given map with the the dependency results that are used for
@@ -940,6 +985,7 @@ public class DependencyTracker {
             if (dinfo == null) {
                 dinfo = new DependencyInfo(this.catalogContext);
                 dinfo.init(state.txn_id, -1, stmt_index, output_dep_id);
+                dinfo.markPrefetch();
             }
             dinfo.addPartition(partition);
             stmt_deps.put(fragment_id, dinfo);
@@ -999,27 +1045,20 @@ public class DependencyTracker {
         // all of the results that we need for it.
         // If we do, then we need to check to see whether the txn needs the results
         // right now.
-        if (dinfo.addResult(partitionId, result)) {
-            txnLock.lock();
-            try {
-                // Check 
-                
-    
-                
-                
-                // They don't, so we'll want to put it aside and then we'll have to look for
-                // it any time the txn wants to add a new WorkFragment
-                
-                
-                
-            } finally {
-                txnLock.unlock();
+        txnLock.lock();
+        try {
+            // Check to see whether we should adding this through
+            // the normal channels or whether we are still in "prefetch" mode
+            if (dinfo.isPrefetch() == false) {
+                this.addResult(ts, partitionId, dinfo.getDependencyId(), result);
             }
+            else {
+                dinfo.addResult(partitionId, result);    
+            }
+        } finally {
+            txnLock.unlock();
         }
-        
     }
-    
-    
     
     // ----------------------------------------------------------------------------
     // DEBUG STUFF
