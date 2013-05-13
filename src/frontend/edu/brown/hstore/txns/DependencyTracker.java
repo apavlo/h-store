@@ -457,7 +457,7 @@ public class DependencyTracker {
     // ----------------------------------------------------------------------------
     
     /**
-     * Get the final results of the last round of execution for this Transaction
+     * Get the final results of the last round of execution for the given txn.
      * This should only be called to get the VoltTables that you want to send into
      * the Java stored procedure code (e.g., the return value for voltExecuteSql())
      * @return

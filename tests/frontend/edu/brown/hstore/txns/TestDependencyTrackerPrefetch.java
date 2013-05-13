@@ -128,7 +128,7 @@ public class TestDependencyTrackerPrefetch extends BaseTestCase {
      * testAddPrefetchResultBefore
      */
     @Test
-    public void testAddPrefetchWorkFragment() throws Exception {
+    public void testAddPrefetchResultBefore() throws Exception {
         // This tests when the result for the prefetch queries arrive in
         // the DependencyTracker *before* the txn actually requests it.
         // When the query does get added into the tracker, it should get
@@ -189,6 +189,83 @@ public class TestDependencyTrackerPrefetch extends BaseTestCase {
                                   fragment.getOutputDepId(0),
                                   result);
         assertEquals(0, latch.getCount());
+        
+        VoltTable results[] = this.depTracker.getResults(this.ts);
+        assertEquals(nextBatch.length, results.length);
+        assertEquals(this.prefetchResult, CollectionUtil.last(results));
+    }
+    
+    /**
+     * testAddPrefetchResultAfter
+     */
+    @Test
+    public void testAddPrefetchResultAfter() throws Exception {
+        // This tests when the result for the prefetch queries arrive in
+        // the DependencyTracker *after* the txn actually requests it.
+        // When the query does get added into the tracker, it should get
+        // immediately released.
+        
+        // Tell the DependencyTracker that we're going to prefetch all of the WorkFragments
+        this.depTracker.addPrefetchWorkFragment(this.ts, this.prefetchFragment);
+        assertEquals(1, this.depTrackerDbg.getPrefetchCounter(this.ts));
+        
+        // Now if we add in the same query again, it should automatically pick up the result
+        SQLStmt nextBatch[] = {
+            new SQLStmt(this.getStatement(this.catalog_proc, "getItemInfo")),
+            new SQLStmt(this.catalog_stmt)
+        };
+        ParameterSet nextParams[] = {
+            new ParameterSet(12345l),
+            new ParameterSet(this.prefetchParams[0].toArray())
+        };
+        
+        // Initialize the txn to simulate that it has started
+        this.ts.initFirstRound(undoToken, nextBatch.length);
+        assertEquals(AbstractTransaction.RoundState.INITIALIZED, this.ts.getCurrentRoundState(BASE_PARTITION));
+        assertNotNull(this.ts.getLastUndoToken(BASE_PARTITION));
+        assertEquals(undoToken, this.ts.getLastUndoToken(BASE_PARTITION));
+        
+        // And invoke the first batch
+        BatchPlanner nextPlanner = new BatchPlanner(nextBatch, this.catalog_proc, p_estimator);
+        BatchPlan nextPlan = nextPlanner.plan(TXN_ID,
+                                              BASE_PARTITION,
+                                              catalogContext.getAllPartitionIds(),
+                                              this.touchedPartitions,
+                                              nextParams);
+        List<WorkFragment.Builder> ftasks = new ArrayList<WorkFragment.Builder>();
+        nextPlan.getWorkFragmentsBuilders(TXN_ID, ftasks);
+        for (WorkFragment.Builder fragment : ftasks) {
+            this.depTracker.addWorkFragment(this.ts, fragment);
+        } // FOR
+        
+        // We only need to add the query result for the first query 
+        // and then we should get immediately unblocked
+        this.ts.startRound(BASE_PARTITION);
+        CountDownLatch latch = this.depTracker.getDependencyLatch(this.ts);
+        assertEquals(nextBatch.length, latch.getCount());
+        WorkFragment.Builder fragment = CollectionUtil.first(ftasks);
+        Collection<Column> outputCols = PlanNodeUtil.getOutputColumnsForStatement(nextBatch[0].getStatement());
+        VoltTable result = CatalogUtil.getVoltTable(outputCols);
+        result.addRow(VoltTableUtil.getRandomRow(result));
+        this.depTracker.addResult(this.ts,
+                                  fragment.getPartitionId(),
+                                  fragment.getOutputDepId(0),
+                                  result);
+        assertEquals(nextBatch.length-1, latch.getCount());
+        
+        // Now add in the prefetch result
+        // This should cause use to get unblocked now
+        this.depTracker.addPrefetchResult(this.ts,
+                                          this.prefetchStmtIndex,
+                                          this.prefetchFragment.getFragmentId(0),
+                                          REMOTE_PARTITION,
+                                          this.prefetchParamsHash[0],
+                                          this.prefetchResult);
+        assertEquals(0, latch.getCount());
+        
+        VoltTable results[] = this.depTracker.getResults(this.ts);
+        assertEquals(nextBatch.length, results.length);
+        assertEquals(this.prefetchResult, CollectionUtil.last(results));
     }
     
 
