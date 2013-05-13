@@ -48,7 +48,7 @@ public class TestMapReduceTransaction extends BaseTestCase{
             
             // We have to make our fake ExecutionSites for each Partition at this site
             for (int p : this.sites[i].getLocalPartitionIds().values()) {
-                MockPartitionExecutor executor = new MockPartitionExecutor(p, catalog, p_estimator);
+                MockPartitionExecutor executor = new MockPartitionExecutor(p, catalogContext, p_estimator);
                 this.sites[i].addPartitionExecutor(p, executor);
             } // FOR
         } // FOR

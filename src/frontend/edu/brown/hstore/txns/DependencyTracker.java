@@ -383,11 +383,11 @@ public class DependencyTracker {
      * @param output_dep_id
      * @param stmt_index
      */
-    private void addResultDependencyStatement(LocalTransaction ts,
-                                              TransactionState state,
-                                              int partition,
-                                              int output_dep_id,
-                                              int stmt_index) {
+//    private void addResultDependencyStatement(LocalTransaction ts,
+//                                              TransactionState state,
+//                                              int partition,
+//                                              int output_dep_id,
+//                                              int stmt_index) {
 //        Pair<Integer, Integer> key = Pair.of(partition, output_dep_id);
 //        Queue<Integer> rest_stmt_ctr = state.results_dependency_stmt_ctr.get(key);
 //        if (rest_stmt_ctr == null) {
@@ -399,7 +399,7 @@ public class DependencyTracker {
 //        if (debug.val)
 //            LOG.debug(String.format("%s - Set dependency statement counters for %s: %s",
 //                      ts, TransactionUtil.debugPartDep(partition, output_dep_id), rest_stmt_ctr));
-    }
+//    }
     
     /**
      * Update internal state information after a new result was added to a DependencyInfo.
@@ -561,7 +561,7 @@ public class DependencyTracker {
                 // Store the stmt_index of when this dependency will show up
                 dinfo.addPartition(partition);
                 state.dependency_ctr++;
-                this.addResultDependencyStatement(ts, state, partition, output_dep_id, stmt_index);
+//                this.addResultDependencyStatement(ts, state, partition, output_dep_id, stmt_index);
                 
                 if (debug.val)
                     LOG.debug(String.format("%s - Added new %s %s for PlanFragment %d at partition %d [depCtr=%d]\n%s",

@@ -85,7 +85,7 @@ public class TestTransactionState extends BaseTestCase {
         this.addPartitions(NUM_PARTITIONS);
         
         PartitionEstimator p_estimator = new PartitionEstimator(catalogContext);
-        this.executor = new MockPartitionExecutor(LOCAL_PARTITION, catalogContext.catalog, p_estimator);
+        this.executor = new MockPartitionExecutor(LOCAL_PARTITION, catalogContext, p_estimator);
         assertNotNull(this.executor);
         
         // Setup a BatchPlanner for ourselves here

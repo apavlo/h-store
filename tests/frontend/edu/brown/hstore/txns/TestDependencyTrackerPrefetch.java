@@ -74,7 +74,7 @@ public class TestDependencyTrackerPrefetch extends BaseTestCase {
         super.setUp(ProjectType.TPCC);
         this.addPartitions(NUM_PARTITIONS);
         
-        this.executor = new MockPartitionExecutor(0, catalogContext.catalog, p_estimator);
+        this.executor = new MockPartitionExecutor(0, catalogContext, p_estimator);
         assertNotNull(this.executor);
         
         this.catalog_proc = this.getProcedure(TARGET_PROCEDURE);
