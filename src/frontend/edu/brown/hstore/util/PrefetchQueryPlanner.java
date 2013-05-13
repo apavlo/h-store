@@ -241,7 +241,6 @@ public class PrefetchQueryPlanner {
         BatchPlan plan = planner.plan(ts.getTransactionId(),
                                       ts.getBasePartition(),
                                       ts.getPredictTouchedPartitions(),
-                                      ts.isPredictSinglePartition(),
                                       ts.getTouchedPartitions(),
                                       prefetchParams);
         List<WorkFragment.Builder> fragmentBuilders = new ArrayList<WorkFragment.Builder>();

@@ -23,7 +23,6 @@ import org.voltdb.VoltTable;
 import org.voltdb.VoltTableNonBlocking;
 import org.voltdb.catalog.CatalogType;
 import org.voltdb.catalog.PlanFragment;
-import org.voltdb.catalog.Statement;
 import org.voltdb.exceptions.ServerFaultException;
 import org.voltdb.utils.Pair;
 
@@ -40,7 +39,7 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.StringUtil;
 
 public class DependencyTracker {
-    private static final Logger LOG = Logger.getLogger(LocalTransaction.class);
+    private static final Logger LOG = Logger.getLogger(DependencyTracker.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
@@ -366,8 +365,9 @@ public class DependencyTracker {
             dinfo = new DependencyInfo(this.catalogContext);
             stmt_dinfos.put(dep_id, dinfo);
             if (debug.val)
-                LOG.debug(String.format("%s - Created new DependencyInfo for %s [hashCode=%d]",
-                          state.txn_id, TransactionUtil.debugStmtDep(stmt_index, dep_id), dinfo.hashCode()));
+                LOG.debug(String.format("%s - Created new DependencyInfo for %s [fragmentId=%d, hashCode=%d]",
+                          state.txn_id, TransactionUtil.debugStmtDep(stmt_index, dep_id),
+                          fragment_id, dinfo.hashCode()));
         }
         if (dinfo.isInitialized() == false) {
             dinfo.init(state.txn_id, currentRound, stmt_index, dep_id.intValue());
@@ -393,8 +393,8 @@ public class DependencyTracker {
         rest_stmt_ctr.add(stmt_index);
         state.results_queue_cache.add(rest_stmt_ctr);
         if (debug.val)
-            LOG.debug(String.format("%d - Set Dependency Statement Counters for <%d %d>: %s",
-                      state.txn_id, partition, output_dep_id, rest_stmt_ctr));
+            LOG.debug(String.format("%d - Set dependency statement counters for %s: %s",
+                      state.txn_id, TransactionUtil.debugPartDep(partition, output_dep_id), rest_stmt_ctr));
     }
     
     // ----------------------------------------------------------------------------
@@ -458,7 +458,7 @@ public class DependencyTracker {
         assert(ts.getCurrentRoundState(ts.getBasePartition()) == RoundState.INITIALIZED) :
             String.format("Invalid round state %s for %s at partition %d",
                           ts.getCurrentRoundState(ts.getBasePartition()),
-                          this, ts.getBasePartition());
+                          ts, ts.getBasePartition());
         
         boolean blocked = false;
         final int partition = fragment.getPartitionId();
@@ -467,7 +467,7 @@ public class DependencyTracker {
         
         if (debug.val)
             LOG.debug(String.format("%s - Adding %s for partition %d with %d fragments",
-                      ts, fragment.getClass().getSimpleName(), partition, num_fragments));
+                      ts, WorkFragment.class.getSimpleName(), partition, num_fragments));
         
         // PAVLO: 2011-12-10
         // We moved updating the exec_touchedPartitions histogram into the
@@ -937,10 +937,11 @@ public class DependencyTracker {
                 dinfo.init(state.txn_id, -1, stmt_index, output_dep_id);
             }
             dinfo.addPartition(partition);
+            stmt_deps.put(fragment_id, dinfo);
             state.prefetch_ctr++;
             
             if (debug.val)
-                LOG.debug(String.format("%s - Adding new prefetch %s %s for PlanFragment %d at partition %d",
+                LOG.debug(String.format("%s - Adding prefetch %s %s for PlanFragment %d at partition %d",
                           ts, dinfo.getClass().getSimpleName(),
                           TransactionUtil.debugStmtDep(stmt_index, output_dep_id),
                           fragment.getFragmentId(i), partition, dinfo.toString()));
@@ -952,32 +953,32 @@ public class DependencyTracker {
     /**
      * Store a new prefetch result for a transaction
      * @param txnId
-     * @param stmt_index
+     * @param stmtIndex
      * @param fragmentId
      * @param partitionId
      * @param params
      * @param result
      */
     public void addPrefetchResult(LocalTransaction ts,
-                                  int stmt_index,
+                                  int stmtIndex,
                                   int fragmentId,
                                   int partitionId,
                                   int paramsHash,
                                   VoltTable result) {
         assert(ts.hasPrefetchQueries());
         if (debug.val)
-            LOG.debug(String.format("%s - Adding prefetch result for txn from partition %d",
-                      ts, partitionId));
+            LOG.debug(String.format("%s - Adding prefetch result %s from partition %d",
+                      ts, TransactionUtil.debugStmtFrag(stmtIndex, fragmentId), partitionId));
         
         final TransactionState state = this.getState(ts);
         final ReentrantLock txnLock = ts.getTransactionLock();
         
         // Find the corresponding DependencyInfo
-        Map<Integer, DependencyInfo> stmt_deps = state.prefetch_dependencies.get(stmt_index);
+        Map<Integer, DependencyInfo> stmt_deps = state.prefetch_dependencies.get(stmtIndex);
         if (stmt_deps == null) {
             String msg = String.format("Unexpected prefetch result for %s from partition %d - " +
                                        "Invalid SQLStmt index '%d'",
-                                       ts, partitionId, stmt_index);
+                                       ts, partitionId, stmtIndex);
             throw new ServerFaultException(msg, ts.getTransactionId());
         }
         

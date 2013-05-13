@@ -114,7 +114,6 @@ public class TestLocalTransaction extends BaseTestCase {
         BatchPlanner.BatchPlan plan = planner.plan(TXN_ID,
                                                    BASE_PARTITION,
                                                    ts.getPredictTouchedPartitions(),
-                                                   false,
                                                    ts.getTouchedPartitions(),
                                                    this.batchParams);
         assertNotNull(plan);

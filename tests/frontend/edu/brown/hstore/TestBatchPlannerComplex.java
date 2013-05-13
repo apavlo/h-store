@@ -86,7 +86,6 @@ public class TestBatchPlannerComplex extends BaseTestCase {
                             TXN_ID,
                             0,
                             catalogContext.getAllPartitionIds(),
-                            false,
                             this.touched_partitions,
                             this.args);
         assertNotNull(plan);
@@ -110,7 +109,6 @@ public class TestBatchPlannerComplex extends BaseTestCase {
         BatchPlan plan = planner.plan(TXN_ID,
                                       BASE_PARTITION,
                                       partitions,
-                                      true,
                                       this.touched_partitions,
                                       this.args);
         assertNotNull(plan);
@@ -196,7 +194,6 @@ public class TestBatchPlannerComplex extends BaseTestCase {
         BatchPlan plan = planner.plan(TXN_ID,
                                       BASE_PARTITION,
                                       catalogContext.getAllPartitionIds(),
-                                      false,
                                       this.touched_partitions,
                                       params);
         assertNotNull(plan);

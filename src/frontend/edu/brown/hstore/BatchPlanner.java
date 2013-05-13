@@ -551,7 +551,6 @@ public class BatchPlanner {
      * @param txn_id
      * @param base_partition
      * @param predict_partitions
-     * @param predict_singlePartitioned
      * @param touched_partitions
      * @param batchArgs
      * @return
@@ -559,9 +558,10 @@ public class BatchPlanner {
     public BatchPlan plan(final Long txn_id,
                           final int base_partition,
                           final PartitionSet predict_partitions,
-                          final boolean predict_singlePartitioned,
                           final FastIntHistogram touched_partitions,
                           final ParameterSet[] batchArgs) {
+        final boolean predict_singlePartitioned = (predict_partitions.size() == 1);
+        
         if (hstore_conf.site.planner_profiling) {
             if (this.profiler == null)
                 this.profiler = new BatchPlannerProfiler();

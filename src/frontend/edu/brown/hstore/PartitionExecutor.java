@@ -3103,7 +3103,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         BatchPlanner.BatchPlan plan = planner.plan(ts.getTransactionId(),
                                                    this.partitionId,
                                                    ts.getPredictTouchedPartitions(), 
-                                                   ts.isPredictSinglePartition(),
                                                    ts.getTouchedPartitions(),
                                                    batchParams);
         assert(plan != null);

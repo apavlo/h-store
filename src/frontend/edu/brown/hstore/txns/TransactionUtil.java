@@ -11,6 +11,10 @@ public abstract class TransactionUtil {
     protected static String debugPartDep(int partition, int dep_id) {
         return String.format("{Partition:%d, DependencyId:%d}", partition, dep_id);
     }
+    
+    protected static String debugStmtFrag(int stmtIndex, int fragment_id) {
+        return String.format("{StmtIndex:%d, FragmentId:%d}", stmtIndex, fragment_id);
+    }
 
     public static String formatTxnName(Procedure catalog_proc, Long txn_id) {
         if (catalog_proc != null) {
