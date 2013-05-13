@@ -18,7 +18,6 @@ import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.txns.ExecutionState;
 import edu.brown.hstore.txns.LocalTransaction;
-import edu.brown.utils.PartitionSet;
 import edu.brown.utils.ProjectType;
 import edu.brown.hstore.BatchPlanner;
 import edu.brown.hstore.MockPartitionExecutor;
@@ -93,9 +92,15 @@ public class TestLocalTransaction extends BaseTestCase {
         this.hstore_site = new MockHStoreSite(0, catalogContext, HStoreConf.singleton());
         this.executor = (MockPartitionExecutor)this.hstore_site.getPartitionExecutor(BASE_PARTITION);
         this.depTracker = this.executor.getDependencyTracker();
-        this.ts = new LocalTransaction(this.hstore_site);
-        this.tsDebug = this.ts.getDebugContext();
+        assertNotNull(this.depTracker);
         
+        this.ts = new LocalTransaction(this.hstore_site);
+        this.ts.testInit(TXN_ID,
+                         BASE_PARTITION,
+                         null,
+                         catalogContext.getAllPartitionIds(),
+                         this.catalog_proc);
+        this.tsDebug = this.ts.getDebugContext();
         this.depTracker.addTransaction(this.ts);
     }
     
@@ -103,7 +108,7 @@ public class TestLocalTransaction extends BaseTestCase {
      * testStartRound
      */
     public void testStartRound() throws Exception {
-        this.ts.testInit(TXN_ID, BASE_PARTITION, null, new PartitionSet(BASE_PARTITION), this.catalog_proc);
+        
         ExecutionState state = new ExecutionState(this.executor);
         this.ts.setExecutionState(state);
         this.ts.initFirstRound(UNDO_TOKEN, this.batchStmts.length);
