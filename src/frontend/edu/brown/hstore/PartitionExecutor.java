@@ -749,7 +749,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         assert(this.hstore_site == null) :
             String.format("Trying to initialize HStoreSite for PartitionExecutor #%d twice!", this.partitionId);
         this.hstore_site = hstore_site;
-        this.hstore_coordinator = hstore_site.getCoordinator();
         this.depTracker = hstore_site.getDependencyTracker(this.partitionId);
         this.thresholds = hstore_site.getThresholds();
         this.txnInitializer = hstore_site.getTransactionInitializer();
@@ -855,6 +854,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         this.self = Thread.currentThread();
         this.self.setName(HStoreThreadManager.getThreadName(this.hstore_site, this.partitionId));
         
+        this.hstore_coordinator = hstore_site.getCoordinator();
         this.hstore_site.getThreadManager().registerEEThread(partition);
         this.shutdown_latch = new Semaphore(0);
         this.shutdown_state = ShutdownState.STARTED;
