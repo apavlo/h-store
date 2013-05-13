@@ -83,7 +83,7 @@ public class TestTransactionStateComplex extends BaseTestCase {
         catalog_proc = this.getProcedure(TARGET_PROCEDURE);
         catalog_stmt = this.getStatement(catalog_proc, TARGET_STATEMENT);
         
-        this.executor = new MockPartitionExecutor(LOCAL_PARTITION, catalogContext.catalog, p_estimator);
+        this.executor = new MockPartitionExecutor(LOCAL_PARTITION, catalogContext, p_estimator);
         assertNotNull(executor);
         
         // Create a SQLStmt batch

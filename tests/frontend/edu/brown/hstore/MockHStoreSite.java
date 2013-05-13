@@ -74,7 +74,7 @@ public class MockHStoreSite extends HStoreSite {
         hstore_conf.site.status_enable = false;
         
         for (int p : this.getLocalPartitionIds().values()) {
-            MockPartitionExecutor executor = new MockPartitionExecutor(p, catalogContext.catalog,
+            MockPartitionExecutor executor = new MockPartitionExecutor(p, catalogContext,
                                                                        this.getPartitionEstimator());
             this.addPartitionExecutor(p, executor);
         } // FOR

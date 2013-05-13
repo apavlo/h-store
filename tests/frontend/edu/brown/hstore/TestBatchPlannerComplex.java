@@ -74,7 +74,7 @@ public class TestBatchPlannerComplex extends BaseTestCase {
 
         VoltProcedure volt_proc = ClassUtil.newInstance(TARGET_PROCEDURE, new Object[0], new Class<?>[0]);
         assert(volt_proc != null);
-        this.executor = new MockPartitionExecutor(BASE_PARTITION, catalogContext.catalog, p_estimator);
+        this.executor = new MockPartitionExecutor(BASE_PARTITION, catalogContext, p_estimator);
         volt_proc.globalInit(this.executor, catalog_proc, BackendTarget.NONE, null, p_estimator);
         
         this.planner = new BatchPlanner(this.batch, this.catalog_proc, p_estimator);
