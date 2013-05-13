@@ -107,7 +107,7 @@ public class TestTransactionStateComplex extends BaseTestCase {
         this.depTrackerDbg = this.depTracker.getDebugContext();
         
         BatchPlanner batchPlan = new BatchPlanner(batch, catalog_proc, p_estimator);
-        this.plan = batchPlan.plan(TXN_ID, LOCAL_PARTITION, new PartitionSet(LOCAL_PARTITION), SINGLE_PARTITIONED, this.touched_partitions, args);
+        this.plan = batchPlan.plan(TXN_ID, LOCAL_PARTITION, new PartitionSet(LOCAL_PARTITION), this.touched_partitions, args);
         this.plan.getWorkFragmentsBuilders(TXN_ID, ftasks);
         assertFalse(ftasks.isEmpty());
         

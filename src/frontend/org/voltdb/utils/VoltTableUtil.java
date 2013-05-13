@@ -156,6 +156,25 @@ public abstract class VoltTableUtil {
         return (result);
     }
     
+    
+    /**
+     * Returns a row with random data that can be added to this VoltTable
+     * @param table
+     * @return
+     */
+    public static Object[] getRandomRow(VoltTable volt_tbl) {
+        Object row[] = new Object[volt_tbl.getColumnCount()];
+        for (int i = 0; i < row.length; i++) {
+            VoltType vtype = volt_tbl.getColumnType(i);
+            row[i] = VoltTypeUtil.getRandomValue(vtype);
+            // HACK: We don't actually now the VARCHAR length here, 
+            // so we'll just leave it at 8
+            if (vtype == VoltType.STRING) {
+                row[i] = StringUtil.abbrv(row[i].toString(), 8, false);
+            }
+        } // FOR
+        return (row);
+    }
 
     /**
      * Returns a row with random data that can be added to this VoltTable

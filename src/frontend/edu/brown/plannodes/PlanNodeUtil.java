@@ -349,10 +349,9 @@ public abstract class PlanNodeUtil {
     }
 
     /**
-     * Get the columns referenced in the output portion of a SELECT query
-     * 
+     * Get the Columns referenced in the output portion of a SELECT query
      * @param catalog_stmt
-     * @return
+     * @return A collection of the output Columns
      * @throws Exception
      */
     public static Collection<Column> getOutputColumnsForStatement(Statement catalog_stmt) throws Exception {

@@ -279,12 +279,12 @@ public class LocalTransaction extends AbstractTransaction {
         
         return (this);
     }
-    
+
     /**
      * Testing Constructor
      * @param txn_id
      * @param base_partition
-     * @param params TODO
+     * @param params - Procedure Input Parameters
      * @param predict_touchedPartitions
      * @param catalog_proc
      * @return
