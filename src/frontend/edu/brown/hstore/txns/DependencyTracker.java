@@ -91,15 +91,15 @@ public class DependencyTracker {
          * the data for. Note that we have to maintain two separate lists for results and responses
          * PartitionId -> DependencyId -> Next SQLStmt Index
          */
-        @Deprecated
-        private final Map<Pair<Integer, Integer>, Queue<Integer>> results_dependency_stmt_ctr = new HashMap<Pair<Integer,Integer>, Queue<Integer>>();
+//        @Deprecated
+//        private final Map<Pair<Integer, Integer>, Queue<Integer>> results_dependency_stmt_ctr = new HashMap<Pair<Integer,Integer>, Queue<Integer>>();
         
         /**
          * Internal cache of the result queues that were used by the txn in this round.
          * This is so that we don't have to clear all of the queues in the entire results_dependency_stmt_ctr cache. 
          */
-        @Deprecated
-        private final Collection<Queue<Integer>> results_queue_cache = new HashSet<Queue<Integer>>();
+//        @Deprecated
+//        private final Collection<Queue<Integer>> results_queue_cache = new HashSet<Queue<Integer>>();
         
         /**
          * Sometimes we will get results back while we are still queuing up the rest of the tasks and
@@ -190,10 +190,10 @@ public class DependencyTracker {
             this.still_has_tasks = true;
 
             // Note that we only want to clear the queues and not the whole maps
-            for (Queue<Integer> q : this.results_queue_cache) {
-                q.clear();
-            } // FOR
-            this.results_queue_cache.clear();
+//            for (Queue<Integer> q : this.results_queue_cache) {
+//                q.clear();
+//            } // FOR
+//            this.results_queue_cache.clear();
             
             this.dependency_ctr = 0;
             this.received_ctr = 0;
@@ -388,17 +388,17 @@ public class DependencyTracker {
                                               int partition,
                                               int output_dep_id,
                                               int stmt_index) {
-        Pair<Integer, Integer> key = Pair.of(partition, output_dep_id);
-        Queue<Integer> rest_stmt_ctr = state.results_dependency_stmt_ctr.get(key);
-        if (rest_stmt_ctr == null) {
-            rest_stmt_ctr = new LinkedList<Integer>();
-            state.results_dependency_stmt_ctr.put(key, rest_stmt_ctr);
-        }
-        rest_stmt_ctr.add(stmt_index);
-        state.results_queue_cache.add(rest_stmt_ctr);
-        if (debug.val)
-            LOG.debug(String.format("%s - Set dependency statement counters for %s: %s",
-                      ts, TransactionUtil.debugPartDep(partition, output_dep_id), rest_stmt_ctr));
+//        Pair<Integer, Integer> key = Pair.of(partition, output_dep_id);
+//        Queue<Integer> rest_stmt_ctr = state.results_dependency_stmt_ctr.get(key);
+//        if (rest_stmt_ctr == null) {
+//            rest_stmt_ctr = new LinkedList<Integer>();
+//            state.results_dependency_stmt_ctr.put(key, rest_stmt_ctr);
+//        }
+//        rest_stmt_ctr.add(stmt_index);
+//        state.results_queue_cache.add(rest_stmt_ctr);
+//        if (debug.val)
+//            LOG.debug(String.format("%s - Set dependency statement counters for %s: %s",
+//                      ts, TransactionUtil.debugPartDep(partition, output_dep_id), rest_stmt_ctr));
     }
     
     /**
@@ -738,24 +738,24 @@ public class DependencyTracker {
         // Each partition+dependency_id should be unique within the Statement batch.
         // So as the results come back to us, we have to figure out which Statement it belongs to
         DependencyInfo dinfo = null;
-        Queue<Integer> queue = null;
-        int stmt_index;
+//        Queue<Integer> queue = null;
+//        int stmt_index;
         try {
-            queue = state.results_dependency_stmt_ctr.get(key);
-            assert(queue != null) :
-                String.format("Unexpected %s in %s / %s\n%s",
-                              TransactionUtil.debugPartDep(partition, dependency_id), ts,
-                              key, state.results_dependency_stmt_ctr);
-            assert(queue.isEmpty() == false) :
-                String.format("No more statements for %s in %s\nresults_dependency_stmt_ctr = %s",
-                              TransactionUtil.debugPartDep(partition, dependency_id), ts,
-                              state.results_dependency_stmt_ctr);
-
-            stmt_index = queue.remove().intValue();
+//            queue = state.results_dependency_stmt_ctr.get(key);
+//            assert(queue != null) :
+//                String.format("Unexpected %s in %s / %s\n%s",
+//                              TransactionUtil.debugPartDep(partition, dependency_id), ts,
+//                              key, state.results_dependency_stmt_ctr);
+//            assert(queue.isEmpty() == false) :
+//                String.format("No more statements for %s in %s\nresults_dependency_stmt_ctr = %s",
+//                              TransactionUtil.debugPartDep(partition, dependency_id), ts,
+//                              state.results_dependency_stmt_ctr);
+//
+//            stmt_index = queue.remove().intValue();
             dinfo = state.getDependencyInfo(dependency_id);
-            assert(dinfo != null) :
-                String.format("Unexpected %s for %s [stmt_index=%d]\n%s",
-                              TransactionUtil.debugPartDep(partition, dependency_id), ts, stmt_index, result);
+//            assert(dinfo != null) :
+//                String.format("Unexpected %s for %s [stmt_index=%d]\n%s",
+//                              TransactionUtil.debugPartDep(partition, dependency_id), ts, stmt_index, result);
         } catch (NullPointerException ex) {
             // HACK: IGNORE!
         }
@@ -1111,7 +1111,7 @@ public class DependencyTracker {
             m.put("CountdownLatch", state.dependency_latch);
             m.put("# of Blocked Tasks", state.blocked_tasks.size());
             m.put("# of Statements", ts.getCurrentBatchSize());
-            m.put("Expected Results", state.results_dependency_stmt_ctr.keySet());
+//            m.put("Expected Results", state.results_dependency_stmt_ctr.keySet());
             
             return (m);
         }
