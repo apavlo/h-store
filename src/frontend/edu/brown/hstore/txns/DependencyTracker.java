@@ -1066,13 +1066,16 @@ public class DependencyTracker {
     
     @Override
     public String toString() {
-        return String.format("%s{Partition=%02d / Hash=%d}",
+        return String.format("%s{Partition=%d / Hash=%d}",
                              this.getClass().getSimpleName(),
                              this.executor.getPartitionId(),
                              this.hashCode());
     }
     
     public class Debug implements DebugContext {
+        public boolean hasTransactionState(LocalTransaction ts) {
+            return (txnStates.containsKey(ts));
+        }
         public DependencyInfo getDependencyInfo(LocalTransaction ts, int d_id) {
             final TransactionState state = getState(ts);
             return (state.dependencies.get(d_id));
@@ -1103,7 +1106,8 @@ public class DependencyTracker {
         }
         
         public Map<String, Object> getDebugMap(LocalTransaction ts) {
-            final TransactionState state = getState(ts);
+            final TransactionState state = txnStates.get(ts);
+            if (state == null) return (null);
             
             Map<String, Object> m = new LinkedHashMap<String, Object>();
             m.put("Dependency Ctr", state.dependency_ctr);

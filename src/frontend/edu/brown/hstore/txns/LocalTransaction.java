@@ -947,10 +947,11 @@ public class LocalTransaction extends AbstractTransaction {
         maps.add(m);
         
         // Dependency Information
+        DependencyTracker.Debug depTrackerDebug = null;
         if (this.depTracker != null) {
-            DependencyTracker.Debug depTrackerDebug = this.depTracker.getDebugContext();
+            depTrackerDebug = this.depTracker.getDebugContext();
             m = depTrackerDebug.getDebugMap(this);
-            maps.add(m);
+            if (m != null) maps.add(m);
         }
 
         // Additional Info
@@ -969,9 +970,8 @@ public class LocalTransaction extends AbstractTransaction {
         StringBuilder sb = new StringBuilder();
         sb.append(StringUtil.formatMaps(maps.toArray(new Map<?, ?>[maps.size()])));
         
-        if (this.depTracker != null) {
+        if (this.depTracker != null && depTrackerDebug.hasTransactionState(this)) {
             sb.append(StringUtil.SINGLE_LINE);
-            DependencyTracker.Debug depTrackerDebug = this.depTracker.getDebugContext();
             String stmt_debug[] = new String[this.batch_size];
             
             // FIXME
