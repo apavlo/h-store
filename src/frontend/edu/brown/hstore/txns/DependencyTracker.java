@@ -141,14 +141,12 @@ public class DependencyTracker {
         // PREFETCH QUERY DATA
         // ----------------------------------------------------------------------------
         
-        private QueryTracker prefetch_tracker;
+        // private QueryTracker prefetch_tracker;
         
         /**
          * SQLStmtIndex -> FragmentId -> DependencyInfo
          */
         private Map<Integer, Map<Integer, DependencyInfo>> prefetch_dependencies;
-        
-        private Map<Statement, List<Pair<QueryInvocation, VoltTable>>> prefetch_results;
         
         /**
          * The total # of WorkFragments that the txn prefetched
@@ -163,9 +161,8 @@ public class DependencyTracker {
             this.txn_id = ts.getTransactionId();
             
             if (ts.hasPrefetchQueries()) {
-                this.prefetch_tracker = new QueryTracker();
+//                this.prefetch_tracker = new QueryTracker();
                 this.prefetch_dependencies = new HashMap<Integer, Map<Integer,DependencyInfo>>();
-                this.prefetch_results = new HashMap<>();
             }
         }
         
@@ -482,53 +479,63 @@ public class DependencyTracker {
         // I don't know why, but before this loop used to be synchronized
         // It definitely does not need to be because this is only invoked by the
         // transaction's base partition PartitionExecutor
+        int output_dep_id, input_dep_id;
         for (int i = 0; i < num_fragments; i++) {
             int fragment_id = fragment.getFragmentId(i);
             int stmt_index = fragment.getStmtIndex(i);
             
             // If this task produces output dependencies, then we need to make 
             // sure that the txn wait for it to arrive first
-            int output_dep_id = fragment.getOutputDepId(i);
-            if (output_dep_id != HStoreConstants.NULL_DEPENDENCY_ID) {
-                DependencyInfo dinfo = this.getOrCreateDependencyInfo(state, currentRound,
-                                                                      stmt_index, fragment_id, output_dep_id);
-                dinfo.addPartition(partition);
-                if (debug.val)
-                    LOG.debug(String.format("%s - Adding new DependencyInfo %s for PlanFragment %d at Partition %d [ctr=%d]\n%s",
-                              ts, TransactionUtil.debugStmtDep(stmt_index, output_dep_id),
-                              fragment.getFragmentId(i), state.dependency_ctr,
-                              partition, dinfo.toString()));
+            if ((output_dep_id = fragment.getOutputDepId(i)) != HStoreConstants.NULL_DEPENDENCY_ID) {
+                DependencyInfo dinfo = null;
+                
+                // Check to see whether there is a already a prefetch WorkFragment for
+                // this same query invocation.
+                if (state.prefetch_ctr > 0) {
+                    dinfo = this.getPrefetchDependencyInfo(state, stmt_index, fragment_id, output_dep_id);
+                }
+                if (dinfo == null) {
+                    dinfo = this.getOrCreateDependencyInfo(state, currentRound,
+                                                           stmt_index, fragment_id, output_dep_id);
+                }
+                
                 // Store the stmt_index of when this dependency will show up
+                dinfo.addPartition(partition);
                 state.dependency_ctr++;
                 this.addResultDependencyStatement(state, partition, output_dep_id, stmt_index);
+                
+                if (debug.val)
+                    LOG.debug(String.format("%s - Added new %s %s for PlanFragment %d at partition %d [depCtr=%d]\n%s",
+                              ts, dinfo.getClass().getSimpleName(),
+                              TransactionUtil.debugStmtDep(stmt_index, output_dep_id),
+                              fragment.getFragmentId(i), state.dependency_ctr,
+                              partition, dinfo.toString()));
+
             } // IF
             
             // If this WorkFragment needs an input dependency, then we need to make sure it arrives at
             // the executor before it is allowed to start executing
-            if (fragment.getNeedsInput()) {
-                int dependency_id = fragment.getInputDepId(i);
-                if (dependency_id != HStoreConstants.NULL_DEPENDENCY_ID) {
-                    DependencyInfo dinfo = null;
-                    
-                    // Check to see whether there is already a prefetch WorkFragment that will
-                    // generate this result for us.
-                    if (state.prefetch_ctr > 0) {
-                        dinfo = this.getPrefetchDependencyInfo(state, stmt_index, fragment_id, dependency_id);
-                    }
-                    if (dinfo == null) {
-                        dinfo = this.getOrCreateDependencyInfo(state, currentRound,
-                                                               stmt_index, fragment_id, dependency_id);
-                    }
-                    dinfo.addBlockedWorkFragment(fragment);
-                    dinfo.markInternal();
-                    if (blocked == false) {
-                        state.blocked_tasks.add(fragment);
-                        blocked = true;   
-                    }
-                    if (debug.val)
-                        LOG.debug(String.format("%s - Created internal input dependency %d for PlanFragment %d\n%s", 
-                                  ts, dependency_id, fragment.getFragmentId(i), dinfo.toString()));
+            if (fragment.getNeedsInput() && (input_dep_id = fragment.getInputDepId(i)) != HStoreConstants.NULL_DEPENDENCY_ID) {
+                DependencyInfo dinfo = null;
+                
+                // Check to see whether there is already a prefetch WorkFragment that will
+                // generate this result for us.
+                if (state.prefetch_ctr > 0) {
+                    dinfo = this.getPrefetchDependencyInfo(state, stmt_index, fragment_id, input_dep_id);
                 }
+                if (dinfo == null) {
+                    dinfo = this.getOrCreateDependencyInfo(state, currentRound,
+                                                           stmt_index, fragment_id, input_dep_id);
+                }
+                dinfo.addBlockedWorkFragment(fragment);
+                dinfo.markInternal();
+                if (blocked == false) {
+                    state.blocked_tasks.add(fragment);
+                    blocked = true;   
+                }
+                if (debug.val)
+                    LOG.debug(String.format("%s - Created internal input dependency %d for PlanFragment %d\n%s", 
+                              ts, input_dep_id, fragment.getFragmentId(i), dinfo.toString()));
             }
             
             // *********************************** DEBUG ***********************************
@@ -901,6 +908,8 @@ public class DependencyTracker {
      * @return
      */
     public void addPrefetchWorkFragment(LocalTransaction ts, WorkFragment.Builder fragment) {
+        assert(fragment.getPrefetch());
+        
         final TransactionState state = this.getState(ts);
         final int num_fragments = fragment.getFragmentIdCount();
         final int partition = fragment.getPartitionId();
@@ -1042,6 +1051,10 @@ public class DependencyTracker {
         public Map<Integer, DependencyInfo> getStatementDependencies(LocalTransaction ts, int stmt_index) {
             final TransactionState state = getState(ts);
             return (state.dependencies);
+        }
+        public int getPrefetchCounter(LocalTransaction ts) {
+            final TransactionState state = getState(ts);
+            return (state.prefetch_ctr);
         }
         
         public Map<String, Object> getDebugMap(LocalTransaction ts) {

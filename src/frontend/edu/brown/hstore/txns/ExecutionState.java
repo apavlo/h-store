@@ -48,8 +48,6 @@ public class ExecutionState implements Poolable {
      */
     protected final PartitionExecutor executor;
     
-    protected final DependencyTracker depTracker;
-    
     // ----------------------------------------------------------------------------
     // TEMPORARY DATA COLLECTIONS
     // ----------------------------------------------------------------------------
@@ -74,7 +72,6 @@ public class ExecutionState implements Poolable {
      */
     public ExecutionState(PartitionExecutor executor) {
         this.executor = executor;
-        this.depTracker = this.executor.getDependencyTracker();
     }
 
     // ----------------------------------------------------------------------------

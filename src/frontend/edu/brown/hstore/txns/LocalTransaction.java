@@ -104,6 +104,11 @@ public class LocalTransaction extends AbstractTransaction {
      */
     private final ReentrantLock lock = new ReentrantLock();
     
+    /**
+     * 
+     */
+    private DependencyTracker depTracker;
+    
     // ----------------------------------------------------------------------------
     // INTERNAL STATE
     // ----------------------------------------------------------------------------
@@ -250,6 +255,10 @@ public class LocalTransaction extends AbstractTransaction {
         this.client_callback = client_callback;
         this.init_callback.init(this, this.predict_touchedPartitions);
         this.mapreduce = catalog_proc.getMapreduce();
+        
+        if (this.predict_singlePartition == false || this.isSysProc() || hstore_site.getCatalogContext().numberOfPartitions == 1) {
+            this.depTracker = hstore_site.getDependencyTracker(base_partition);
+        }
         
         // Grab a DistributedState that will have all the goodies that we need
         // to execute a distributed transaction
@@ -448,10 +457,8 @@ public class LocalTransaction extends AbstractTransaction {
                       this, this.round_ctr[partition], partition, undoToken));
         
         // SAME SITE, SAME PARTITION
-        if (this.base_partition == partition && 
-                (this.predict_singlePartition == false || this.isSysProc() ||
-                 hstore_site.getCatalogContext().numberOfPartitions == 1)) {
-            this.state.depTracker.initRound(this);
+        if (this.base_partition == partition && this.depTracker != null) {
+            this.depTracker.initRound(this);
         }
         
         super.initRound(partition, undoToken);
@@ -476,9 +483,8 @@ public class LocalTransaction extends AbstractTransaction {
         try {
             // HACK: If there is only one partition, then we need to always
             // update the DependencyTracker. It's a bit complicated to explain why...
-            if (this.predict_singlePartition == false || this.isSysProc() ||
-                    hstore_site.getCatalogContext().numberOfPartitions == 1) {
-                this.state.depTracker.startRound(this);
+            if (this.depTracker != null) {
+                this.depTracker.startRound(this);
             } else {
                 LOG.warn(String.format("%s - Skipping DependencyTracker.startRound()\n%s", this, this.debug()));
             }
@@ -507,9 +513,8 @@ public class LocalTransaction extends AbstractTransaction {
         try {
             // HACK: If there is only one partition, then we need to always
             // update the DependencyTracker. It's a bit complicated to explain why...
-            if (this.predict_singlePartition == false || this.isSysProc() ||
-                    hstore_site.getCatalogContext().numberOfPartitions == 1) {
-                this.state.depTracker.finishRound(this);
+            if (this.depTracker != null) {
+                this.depTracker.finishRound(this);
             } else {
                 LOG.warn(String.format("%s - Skipping DependencyTracker.finishRound()", this));
             }
@@ -531,7 +536,7 @@ public class LocalTransaction extends AbstractTransaction {
         super.finishRound(partition);
         if (this.base_partition == partition) {
             assert(this.state != null) : "Unexpected null ExecutionState for " + this;
-            if (this.predict_singlePartition == false) this.state.depTracker.finishRound(this);
+            if (this.depTracker != null) this.depTracker.finishRound(this);
         }
     }
     
@@ -550,7 +555,7 @@ public class LocalTransaction extends AbstractTransaction {
         interruptThread = (this.pending_error == null && interruptThread);
         super.setPendingError(error);
         if (interruptThread == false) return;
-        if (this.predict_singlePartition == false) this.state.depTracker.unblock(this);
+        if (this.depTracker != null) this.depTracker.unblock(this);
     }
     
     @Override
@@ -937,8 +942,8 @@ public class LocalTransaction extends AbstractTransaction {
         maps.add(m);
         
         // Dependency Information
-        if (this.state != null) {
-            DependencyTracker.Debug depTrackerDebug = this.state.depTracker.getDebugContext();
+        if (this.depTracker != null) {
+            DependencyTracker.Debug depTrackerDebug = this.depTracker.getDebugContext();
             m = depTrackerDebug.getDebugMap(this);
             maps.add(m);
         }
@@ -959,9 +964,9 @@ public class LocalTransaction extends AbstractTransaction {
         StringBuilder sb = new StringBuilder();
         sb.append(StringUtil.formatMaps(maps.toArray(new Map<?, ?>[maps.size()])));
         
-        if (this.state != null) {
+        if (this.depTracker != null) {
             sb.append(StringUtil.SINGLE_LINE);
-            DependencyTracker.Debug depTrackerDebug = this.state.depTracker.getDebugContext();
+            DependencyTracker.Debug depTrackerDebug = this.depTracker.getDebugContext();
             String stmt_debug[] = new String[this.batch_size];
             
             // FIXME
