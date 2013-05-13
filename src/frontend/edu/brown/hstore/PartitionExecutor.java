@@ -2252,6 +2252,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             // 2011-11-14: We don't want to set the execution mode here, because we know that we
             //             can check whether we were read-only after the txn finishes
             this.setExecutionMode(this.currentDtxn, ExecutionMode.COMMIT_NONE);
+            
             if (debug.val)
                 LOG.debug(String.format("Marking %s as current DTXN on Partition %d [isLocal=%s, execMode=%s]",
                           ts, this.partitionId, true, this.currentExecMode));                    
@@ -2289,6 +2290,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             ts.profiler.startExec();
         }
         if (hstore_conf.site.exec_profiling) this.profiler.numTransactions++;
+        
+        // Make sure the dependency tracker knows about us
+        if (ts.hasDependencyTracker()) this.depTracker.addTransaction(ts);
         
         // Grab a new ExecutionState for this txn
         ExecutionState execState = this.initExecutionState(); 

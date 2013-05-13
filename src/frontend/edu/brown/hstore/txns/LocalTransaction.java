@@ -438,6 +438,9 @@ public class LocalTransaction extends AbstractTransaction {
     public final ReentrantLock getTransactionLock() {
         return (this.lock);
     }
+    public final boolean hasDependencyTracker() {
+        return (this.depTracker != null);
+    }
     
     // ----------------------------------------------------------------------------
     // EXECUTION ROUNDS
