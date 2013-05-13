@@ -48,7 +48,6 @@ public class TestBatchPlanner extends BaseTestCase {
     };
 
     private static final Long TXN_ID = 1000l;
-    private static final long CLIENT_HANDLE = 99999l;
     private static final int LOCAL_PARTITION = 1;
     private static final int REMOTE_PARTITION = 0;
     private static final int NUM_PARTITIONS = 10;
