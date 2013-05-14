@@ -48,7 +48,7 @@ public abstract class SmallBankConstants {
     public static final String TABLENAME_SAVINGS    = "SAVINGS";
     public static final String TABLENAME_CHECKING   = "CHECKING";
     
-    public static final int BATCH_SIZE              = 1000;
+    public static final int BATCH_SIZE              = 5000;
     
     // ----------------------------------------------------------------
     // ACCOUNT INFORMATION
@@ -62,12 +62,6 @@ public abstract class SmallBankConstants {
     // ----------------------------------------------------------------
     // ADDITIONAL CONFIGURATION SETTINGS
     // ----------------------------------------------------------------
-    
-    // Percentage of customers that do not have a SAVINGS account [0-100%]
-    public static final int PERCENTAGE_NO_SAVINGS   = 0;
-    
-    // Percentage of customers that do not have a CHECKING account [0-100%]
-    public static final int PERCENTAGE_NO_CHECKING  = 0;
     
     // Initial balance amount
     public static final int MIN_BALANCE             = 100;

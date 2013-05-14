@@ -48,7 +48,6 @@ public class TestDependencyTrackerPrefetch extends BaseTestCase {
     
     private static final Class<? extends VoltProcedure> TARGET_PROCEDURE = neworder.class;
     private static final String TARGET_STATEMENT = "getStockInfo";
-    
 
     private HStoreSite hstore_site;
     private PartitionExecutor executor;

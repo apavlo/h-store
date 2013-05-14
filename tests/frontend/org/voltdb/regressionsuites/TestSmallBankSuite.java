@@ -8,13 +8,13 @@ import org.voltdb.VoltTable;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.ProcCallException;
+import org.voltdb.utils.VoltTableUtil;
 
 import edu.brown.benchmark.smallbank.SmallBankConstants;
 import edu.brown.benchmark.smallbank.SmallBankLoader;
 import edu.brown.benchmark.smallbank.SmallBankProjectBuilder;
 import edu.brown.benchmark.smallbank.procedures.SendPayment;
 import edu.brown.hstore.Hstoreservice.Status;
-import edu.brown.utils.CollectionUtil;
 
 /**
  * Simple test suite for the SmallBank benchmark
@@ -23,7 +23,7 @@ import edu.brown.utils.CollectionUtil;
 public class TestSmallBankSuite extends RegressionSuite {
 
     private static final String PREFIX = "smallbank";
-    private static final double SCALEFACTOR = 0.001;
+    private static final double SCALEFACTOR = 0.0001;
     
     /**
      * Constructor needed for JUnit. Should just pass on parameters to superclass.
@@ -41,9 +41,13 @@ public class TestSmallBankSuite extends RegressionSuite {
         assertEquals(Status.OK, cresponse.getStatus());
         VoltTable results[] = cresponse.getResults();
         assertEquals(1, results.length);
-        assertEquals(1, results[0].getRowCount());
+        
+        if (results[0].getRowCount() == 0) {
+            System.err.println(VoltTableUtil.format(results[0]));
+        }
+        assertEquals("No rows for acctId "+acctId, 1, results[0].getRowCount());
         assertTrue(results[0].advanceRow());
-        assertEquals(expected, results[0].getDouble("bal"));
+        assertEquals("Mismatched balance for acctId "+acctId, expected, results[0].getDouble("bal"));
     }
     
     private void updateBalance(Client client, long acctId, double balance) throws Exception {
@@ -72,6 +76,7 @@ public class TestSmallBankSuite extends RegressionSuite {
 
         long num_rows = RegressionSuiteUtil.getRowCount(client, SmallBankConstants.TABLENAME_ACCOUNTS);
         assert(num_rows > acctIds[acctIds.length-1]);
+        // System.err.println("# of Rows: " + num_rows);
         
         for (int i = 0; i < acctIds.length; i++) {
             this.updateBalance(client, acctIds[i], balances[i]);
