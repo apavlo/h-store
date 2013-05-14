@@ -46,6 +46,8 @@ public class TestDependencyTrackerPrefetch extends BaseTestCase {
     private static final int BASE_PARTITION = 0;
     private static final int REMOTE_PARTITION = BASE_PARTITION + 1;
     
+    private static final int PREFETCH_STMT_COUNTER = 0;
+    
     private static final Class<? extends VoltProcedure> TARGET_PROCEDURE = neworder.class;
     private static final String TARGET_STATEMENT = "getStockInfo";
 
@@ -65,7 +67,7 @@ public class TestDependencyTrackerPrefetch extends BaseTestCase {
     private final ParameterSet prefetchParams[] = { new ParameterSet(10001, BASE_PARTITION+1) };
     private final int prefetchParamsHash[] = new int[this.prefetchParams.length];
     private final SQLStmt prefetchBatch[] = new SQLStmt[this.prefetchParams.length];
-    private final int prefetchStmtIndex = 1;
+    private final int prefetchStmtCounters[] = new int[this.prefetchParams.length];
     private final long undoToken = 1000;
     
     @Override
@@ -87,6 +89,7 @@ public class TestDependencyTrackerPrefetch extends BaseTestCase {
         for (int i = 0; i < this.prefetchParamsHash.length; i++) {
             this.prefetchBatch[i] = new SQLStmt(this.catalog_stmt);
             this.prefetchParamsHash[i] = this.prefetchParams[i].hashCode();
+            this.prefetchStmtCounters[i] = PREFETCH_STMT_COUNTER;
         } // FOR
 
         Partition catalog_part = catalogContext.getPartitionById(BASE_PARTITION);
@@ -105,9 +108,8 @@ public class TestDependencyTrackerPrefetch extends BaseTestCase {
                                  this.touchedPartitions,
                                  this.prefetchParams);
         List<WorkFragment.Builder> ftasks = new ArrayList<WorkFragment.Builder>();
-        this.plan.getWorkFragmentsBuilders(TXN_ID, ftasks);
+        this.plan.getWorkFragmentsBuilders(TXN_ID, this.prefetchStmtCounters, ftasks);
         this.prefetchFragment = CollectionUtil.first(ftasks);
-        this.prefetchFragment.setStmtIndex(0, this.prefetchStmtIndex);
         assert(this.prefetchFragment.getFragmentIdCount() > 0);
         assertTrue(this.prefetchFragment.getPrefetch());
         assertEquals(REMOTE_PARTITION, this.prefetchFragment.getPartitionId());
@@ -121,6 +123,78 @@ public class TestDependencyTrackerPrefetch extends BaseTestCase {
         this.ts.initializePrefetch();
         this.depTracker.addTransaction(ts);
         assertNull(this.ts.getCurrentRoundState(BASE_PARTITION));
+    }
+    
+    /**
+     * testMultipleStatementsSameBatch
+     */
+    public void testMultipleStatementsSameBatch() throws Exception {
+        // This tests when the prefetch result should be for the second invocation of 
+        // the same Statement. We should get back the results in the correct order.
+        
+        int num_invocations = 3;
+        int expected_prefetch_offset = 1;
+        
+        // Tell the DependencyTracker that we're going to prefetch all of the WorkFragments
+        this.prefetchFragment.setStmtCounter(0, 1);
+        assertEquals(1, this.depTrackerDbg.getPrefetchCounter(this.ts));
+        this.depTracker.addPrefetchResult(this.ts,
+                                          expected_prefetch_offset,
+                                          this.prefetchFragment.getFragmentId(0),
+                                          REMOTE_PARTITION,
+                                          this.prefetchParamsHash[0],
+                                          this.prefetchResult);
+        
+        // Now if we add in the same query again with the same parameters, it 
+        // should automatically pick up the prefetched result in the right location.
+        SQLStmt nextBatch[] = new SQLStmt[num_invocations];
+        ParameterSet nextParams[] = new ParameterSet[num_invocations];
+        VoltTable nextResults[] = new VoltTable[num_invocations];
+        int nextCounters[] = new int[num_invocations];
+        Collection<Column> outputCols = PlanNodeUtil.getOutputColumnsForStatement(this.catalog_stmt);
+        for (int i = 0; i < num_invocations; i++) {
+            nextBatch[i] = this.prefetchBatch[0];
+            nextCounters[i] = i;
+            if (i == expected_prefetch_offset) {
+                nextParams[i] = new ParameterSet(this.prefetchParams[0].toArray());
+                nextResults[i] = this.prefetchResult;
+            } else {
+                nextParams[i] = new ParameterSet(new Object[]{ i, BASE_PARTITION });
+                nextResults[i] = CatalogUtil.getVoltTable(outputCols);
+            }
+        } // FOR
+        
+        this.ts.initFirstRound(undoToken, nextBatch.length);
+        BatchPlanner nextPlanner = new BatchPlanner(nextBatch, this.catalog_proc, p_estimator);
+        BatchPlan nextPlan = nextPlanner.plan(TXN_ID,
+                                              BASE_PARTITION,
+                                              catalogContext.getAllPartitionIds(),
+                                              this.touchedPartitions,
+                                              nextParams);
+        List<WorkFragment.Builder> ftasks = new ArrayList<WorkFragment.Builder>();
+        nextPlan.getWorkFragmentsBuilders(TXN_ID, nextCounters, ftasks);
+        for (WorkFragment.Builder fragment : ftasks) {
+            this.depTracker.addWorkFragment(this.ts, fragment);
+        } // FOR
+        this.ts.startRound(BASE_PARTITION);
+        CountDownLatch latch = this.depTracker.getDependencyLatch(this.ts);
+        assertEquals(num_invocations-1, latch.getCount());
+        
+        for (int i = 0; i < num_invocations; i++) {
+            if (i == expected_prefetch_offset) continue;
+            WorkFragment.Builder fragment = ftasks.get(i);
+            this.depTracker.addResult(this.ts,
+                                      fragment.getPartitionId(),
+                                      fragment.getOutputDepId(0),
+                                      nextResults[i]);
+        } // FOR
+        
+        assertEquals(0, latch.getCount());
+        VoltTable results[] = this.depTracker.getResults(this.ts);
+        assertEquals(num_invocations, results.length);
+        for (int i = 0; i < num_invocations; i++) {
+            assertEquals(nextResults[i], results[i]);
+        } // FOR
     }
     
     /**
@@ -139,7 +213,7 @@ public class TestDependencyTrackerPrefetch extends BaseTestCase {
         
         // Then add the result into the DependencyTracker
         this.depTracker.addPrefetchResult(this.ts,
-                                          this.prefetchStmtIndex,
+                                          PREFETCH_STMT_COUNTER,
                                           this.prefetchFragment.getFragmentId(0),
                                           REMOTE_PARTITION,
                                           this.prefetchParamsHash[0],
@@ -154,6 +228,7 @@ public class TestDependencyTrackerPrefetch extends BaseTestCase {
             new ParameterSet(12345l),
             new ParameterSet(this.prefetchParams[0].toArray())
         };
+        int nextCounters[] = new int[]{ 0, 1 }; 
         
         // Initialize the txn to simulate that it has started
         this.ts.initFirstRound(undoToken, nextBatch.length);
@@ -168,7 +243,7 @@ public class TestDependencyTrackerPrefetch extends BaseTestCase {
                                               this.touchedPartitions,
                                               nextParams);
         List<WorkFragment.Builder> ftasks = new ArrayList<WorkFragment.Builder>();
-        nextPlan.getWorkFragmentsBuilders(TXN_ID, ftasks);
+        nextPlan.getWorkFragmentsBuilders(TXN_ID, nextCounters, ftasks);
         for (WorkFragment.Builder fragment : ftasks) {
             this.depTracker.addWorkFragment(this.ts, fragment);
         } // FOR
@@ -217,6 +292,7 @@ public class TestDependencyTrackerPrefetch extends BaseTestCase {
             new ParameterSet(12345l),
             new ParameterSet(this.prefetchParams[0].toArray())
         };
+        int nextCounters[] = new int[]{ 0, 1 };
         
         // Initialize the txn to simulate that it has started
         this.ts.initFirstRound(undoToken, nextBatch.length);
@@ -232,7 +308,7 @@ public class TestDependencyTrackerPrefetch extends BaseTestCase {
                                               this.touchedPartitions,
                                               nextParams);
         List<WorkFragment.Builder> ftasks = new ArrayList<WorkFragment.Builder>();
-        nextPlan.getWorkFragmentsBuilders(TXN_ID, ftasks);
+        nextPlan.getWorkFragmentsBuilders(TXN_ID, nextCounters, ftasks);
         for (WorkFragment.Builder fragment : ftasks) {
             this.depTracker.addWorkFragment(this.ts, fragment);
         } // FOR
@@ -255,7 +331,7 @@ public class TestDependencyTrackerPrefetch extends BaseTestCase {
         // Now add in the prefetch result
         // This should cause use to get unblocked now
         this.depTracker.addPrefetchResult(this.ts,
-                                          this.prefetchStmtIndex,
+                                          PREFETCH_STMT_COUNTER,
                                           this.prefetchFragment.getFragmentId(0),
                                           REMOTE_PARTITION,
                                           this.prefetchParamsHash[0],

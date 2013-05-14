@@ -40,6 +40,7 @@ import org.voltdb.ParameterSet;
 import org.voltdb.SQLStmt;
 import org.voltdb.VoltTable;
 import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.Table;
 import org.voltdb.exceptions.SerializableException;
 import org.voltdb.types.SpeculationType;
@@ -62,6 +63,8 @@ import edu.brown.markov.EstimationThresholds;
 import edu.brown.profilers.TransactionProfiler;
 import edu.brown.protorpc.ProtoRpcController;
 import edu.brown.statistics.FastIntHistogram;
+import edu.brown.statistics.Histogram;
+import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.PartitionSet;
 import edu.brown.utils.StringUtil;
@@ -202,6 +205,12 @@ public class LocalTransaction extends AbstractTransaction {
      * its base partition.
      */
     private boolean exec_controlCode = false;
+    
+    /**
+     * This keeps track of the number of times that we have invoked 
+     * each query in this transaction.
+     */
+    private final Histogram<Statement> exec_stmtCounters = new ObjectHistogram<Statement>();
     
     // ----------------------------------------------------------------------------
     // INITIALIZATION
@@ -365,6 +374,7 @@ public class LocalTransaction extends AbstractTransaction {
         this.exec_controlCode = false;
         this.exec_specExecType = SpeculationType.NULL;
         this.exec_touchedPartitions.clear();
+        this.exec_stmtCounters.clear();
         this.predict_touchedPartitions = null;
         this.restart_ctr = 0;
 
@@ -725,6 +735,16 @@ public class LocalTransaction extends AbstractTransaction {
     public boolean isExecSinglePartition() {
         return (this.exec_touchedPartitions.getValueCount() <= 1);
     }
+    
+    /**
+     * Update and return the number of times that we have executed the given
+     * Statement in this transaction's lifetime.
+     * @param stmt
+     * @return
+     */
+    public int updateStatementCounter(Statement stmt) {
+        return ((int)this.exec_stmtCounters.put(stmt));
+    }
 
     // ----------------------------------------------------------------------------
     // DISTRIBUTED TXN EXECUTION
@@ -940,6 +960,7 @@ public class LocalTransaction extends AbstractTransaction {
         m.put("Exec Read Only", Arrays.toString(this.exec_readOnly));
         m.put("Exec Touched Partitions", this.exec_touchedPartitions.toString(30));
         m.put("Exec Single-Partitioned", this.isExecSinglePartition());
+        m.put("Exec Statement Counters", this.exec_stmtCounters.toString(30));
         m.put("Restart Counter", this.restart_ctr);
         m.put("Needs Restart", this.needs_restart);
         m.put("Needs CommandLog", this.log_enabled);
@@ -987,7 +1008,7 @@ public class LocalTransaction extends AbstractTransaction {
             for (int stmt_index = 0; stmt_index < stmt_debug.length; stmt_index++) {
                 Map<Integer, DependencyInfo> s_dependencies = new HashMap<Integer, DependencyInfo>();
                 for (DependencyInfo dinfo : depTrackerDebug.getAllDependencies(this)) {
-                    if (dinfo.getStatementIndex() == stmt_index) {
+                    if (dinfo.getStatementCounter() == stmt_index) {
                         s_dependencies.put(dinfo.getDependencyId(), dinfo);
                     }
                 } // FOR

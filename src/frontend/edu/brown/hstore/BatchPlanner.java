@@ -324,27 +324,42 @@ public class BatchPlanner {
             return (this);
         }
 
-        public BatchPlanner getPlanner() {
+        protected BatchPlanner getPlanner() {
             return (BatchPlanner.this);
         }
-
         protected PlanGraph getPlanGraph() {
             return (this.graph);
         }
 
+        /**
+         * Returns true if this txn was hit by a MispredictionException when we were
+         * constructing this batch plan.
+         */
         public boolean hasMisprediction() {
             return (this.mispredict != null);
         }
 
+        /**
+         * Returns the MispredictionException for this batch plan.
+         */
         public MispredictionException getMisprediction() {
             return (this.mispredict);
         }
 
-        public void getWorkFragmentsBuilders(Long txn_id, List<WorkFragment.Builder> builders) {
-            BatchPlanner.this.createWorkFragmentsBuilders(txn_id, this, graph, builders);
+        /**
+         * Convert this batch plan into a list of WorkFragment builders.
+         * The stmtCounters is a list of the number of times that we have executed each 
+         * query in the past for this transaction. The offset of each element in stmtCounters
+         * corresponds to the stmtIndex in the SQLStmt batch. 
+         * @param txn_id
+         * @param stmtCounters
+         * @param builders
+         */
+        public void getWorkFragmentsBuilders(Long txn_id, int[] stmtCounters, List<WorkFragment.Builder> builders) {
+            BatchPlanner.this.createWorkFragmentsBuilders(txn_id, this, stmtCounters, builders);
         }
 
-        public int getBatchSize() {
+        protected int getBatchSize() {
             return (BatchPlanner.this.batchSize);
         }
 
@@ -979,13 +994,19 @@ public class BatchPlanner {
     }
 
     /**
+     * Utility method for converting a BatchPlan into WorkFragment.Builders.
+     * The stmtCounters is a list of the number of times that we have executed each 
+     * query in the past for this transaction. The offset of each element in stmtCounters
+     * corresponds to the stmtIndex in the SQLStmt batch. 
+     * @param txn_id
      * @param plan
+     * @param stmtCounters
      * @param graph
      * @param builders
      */
     protected void createWorkFragmentsBuilders(final Long txn_id,
                                                final BatchPlanner.BatchPlan plan,
-                                               final PlanGraph graph,
+                                               final int[] stmtCounters,
                                                final List<WorkFragment.Builder> builders) {
 
         if (hstore_conf.site.planner_profiling && profiler != null)
@@ -995,7 +1016,7 @@ public class BatchPlanner {
             		  "[txn_id=#%d, base_partition=%d]",
                       txn_id, plan.base_partition));
 
-        for (PlanVertex v : graph.sorted_vertices) {
+        for (PlanVertex v : plan.graph.sorted_vertices) {
             int stmt_index = v.stmt_index;
             for (int partition : plan.frag_partitions[stmt_index].get(v.catalog_frag).values()) {
                 if (plan.rounds[v.round][partition] == null) {
@@ -1039,7 +1060,7 @@ public class BatchPlanner {
                     partitionBuilder.addOutputDepId(v.output_dependency_id);
 
                     // SQLStmt Index (in batch)
-                    partitionBuilder.addStmtIndex(v.stmt_index);
+                    partitionBuilder.addStmtCounter(stmtCounters[v.stmt_index]);
 
                     // ParameterSet Index
                     partitionBuilder.addParamIndex(v.stmt_index);

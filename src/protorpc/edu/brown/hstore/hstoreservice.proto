@@ -55,35 +55,32 @@ message WorkFragment {
     // The DependencyIds that this work message will generate as output
     repeated int32 output_dep_id = 4 [packed=true];
     
-    // What SQLStmt in the batch this PlanFragment belongs to
-    repeated int32 stmt_index = 6 [packed=true];
-    
     // What ParameterSet offset do we need for each PlanFragment
-    repeated int32 param_index = 7 [packed=true];
+    repeated int32 param_index = 5 [packed=true];
 
     // The number of times that we have executed this Statement in the past
     // for this transaction.
-    repeated int32 stmt_counter = 8;
+    repeated int32 stmt_counter = 6 [packed=true];
     
     // Are all of the PlanFragments read only?
-    required bool read_only = 9;
+    required bool read_only = 7;
     
     // If true, then the Work embedded in this WorkFragment needs input
-    optional bool needs_input = 10 [default = false];
+    optional bool needs_input = 8 [default = false];
     
     // If true, then this is the final fragment for this transaction at this partition.
-    optional bool last_fragment = 11 [default = false];
+    optional bool last_fragment = 9 [default = false];
 
     // If true, then this is a prefetch fragment
-    optional bool prefetch = 12 [default = false];
+    optional bool prefetch = 10 [default = false];
     
     // If true, then this fragment should always be executed regardless 
     // of whether its result is cached.
-    optional bool force = 13 [default = false];
+    optional bool force = 11 [default = false];
 
     // An estimate of the Statements that the transaction might
     // execute at this partition
-    optional QueryEstimate future_statements = 14;
+    optional QueryEstimate future_statements = 12;
 }
 
 // The output results of WorkFragments
