@@ -203,6 +203,81 @@ public class TestDependencyTrackerPrefetch extends BaseTestCase {
         } // FOR
     }
     
+    private void helperTestDifferentBatch(int numBatches, int expectedOffset) throws Exception {
+        
+        // Tell the DependencyTracker that we're going to prefetch all of the WorkFragments
+        this.prefetchFragment.setStmtCounter(0, expectedOffset);
+        this.depTracker.addPrefetchWorkFragment(this.ts, this.prefetchFragment);
+        assertEquals(1, this.depTrackerDbg.getPrefetchCounter(this.ts));
+        this.depTracker.addPrefetchResult(this.ts,
+                                          expectedOffset,
+                                          this.prefetchFragment.getFragmentId(0),
+                                          REMOTE_PARTITION,
+                                          this.prefetchParamsHash[0],
+                                          this.prefetchResult);
+        
+        SQLStmt nextBatch[] = this.prefetchBatch;
+        ParameterSet nextParams[] = new ParameterSet[nextBatch.length];
+        VoltTable nextResults[] = new VoltTable[nextBatch.length];
+        int nextCounters[] = new int[nextBatch.length];
+        Collection<Column> outputCols = PlanNodeUtil.getOutputColumnsForStatement(this.catalog_stmt);
+        
+        // Now if we add in the same query again with the same parameters, it 
+        // should automatically pick up the prefetched result in the right location.
+        for (int batch = 0; batch < numBatches; batch++) {
+            nextCounters[0] = batch;
+            if (batch == expectedOffset) {
+                nextParams[0] = new ParameterSet(this.prefetchParams[0].toArray());
+                nextResults[0] = this.prefetchResult;
+            } else {
+                nextParams[0] = new ParameterSet(batch, BASE_PARTITION);
+                nextResults[0] = CatalogUtil.getVoltTable(outputCols);
+            }
+            this.ts.initFirstRound(undoToken, nextBatch.length);
+            
+            BatchPlanner nextPlanner = new BatchPlanner(nextBatch, this.catalog_proc, p_estimator);
+            BatchPlan nextPlan = nextPlanner.plan(TXN_ID,
+                                                  BASE_PARTITION,
+                                                  catalogContext.getAllPartitionIds(),
+                                                  this.touchedPartitions,
+                                                  nextParams);
+            List<WorkFragment.Builder> ftasks = new ArrayList<WorkFragment.Builder>();
+            nextPlan.getWorkFragmentsBuilders(TXN_ID, nextCounters, ftasks);
+            for (WorkFragment.Builder fragment : ftasks) {
+                this.depTracker.addWorkFragment(this.ts, fragment);
+            } // FOR
+            this.ts.startRound(BASE_PARTITION);
+            
+            for (WorkFragment.Builder fragment : ftasks) {
+                // Look through each WorkFragment and check to see whether it contains
+                // our prefetched query. Note that we have to walk through the WorkFragments
+                // this way because the BatchPlanner will have combined multiple SQLStmts
+                // into the same message if they are going to the same partition.
+                for (int i = 0, cnt = fragment.getFragmentIdCount(); i < cnt; i++) {
+                    int stmtCounter = fragment.getStmtCounter(i);
+                    if (stmtCounter != expectedOffset) {
+                        this.depTracker.addResult(this.ts,
+                                                  fragment.getPartitionId(),
+                                                  fragment.getOutputDepId(i),
+                                                  nextResults[0]);
+                    }
+                } // FOR
+            } // FOR
+            
+            CountDownLatch latch = this.depTracker.getDependencyLatch(this.ts);
+            assertEquals(0, latch.getCount());
+
+            VoltTable results[] = this.depTracker.getResults(this.ts);
+            assertEquals(nextResults.length, results.length);
+            for (int i = 0; i < results.length; i++) {
+                assertEquals(nextResults[i], results[i]);
+            } // FOR
+            
+            // Always make sure we finish this round so we can go to the next one
+            this.ts.finishRound(BASE_PARTITION);
+        } // FOR (batch)
+    }
+    
     // ----------------------------------------------------------------------------------
     // TESTS
     // ----------------------------------------------------------------------------------
@@ -226,6 +301,29 @@ public class TestDependencyTrackerPrefetch extends BaseTestCase {
                 this.ts.initializePrefetch();
                 this.depTracker.addTransaction(ts);
                 this.helperTestSameBatch(numInvocations, expectedOffset);
+            } // FOR
+        } // FOR
+    }
+    
+    /**
+     * testMultipleStatementsDifferentBatch
+     */
+    public void testMultipleStatementsDifferentBatch() throws Exception {
+        long txnId = TXN_ID;
+        for (int numBatches = 1; numBatches < 5; numBatches++) {
+            for (int expectedOffset = 0; expectedOffset < numBatches; expectedOffset++) {
+                this.ts = new LocalTransaction(hstore_site);
+                this.ts.testInit(++txnId,
+                                 BASE_PARTITION,
+                                 null,
+                                 catalogContext.getAllPartitionIds(),
+                                 this.catalog_proc);
+                this.ts.initializePrefetch();
+                this.depTracker.addTransaction(ts);
+                
+                System.err.printf("%d -> numBatches=%d / expectedOffset=%d\n",
+                                  this.ts.getTransactionId(), numBatches, expectedOffset);
+                this.helperTestDifferentBatch(numBatches, expectedOffset);
             } // FOR
         } // FOR
     }

@@ -1023,10 +1023,11 @@ public class BatchPlanner {
         if (hstore_conf.site.planner_profiling && profiler != null)
             profiler.fragment_time.start();
         if (debug.val)
-            LOG.debug(String.format("Constructing list of WorkFragments to execute" +
+            LOG.debug(String.format("Constructing list of WorkFragments to execute " +
             		  "[txn_id=#%d, base_partition=%d]",
                       txn_id, plan.base_partition));
 
+        // 2013-05-14: I feel like that we could probably cache this somehow...
         for (PlanVertex v : plan.graph.sorted_vertices) {
             int stmt_index = v.stmt_index;
             for (int partition : plan.frag_partitions[stmt_index].get(v.catalog_frag).values()) {
