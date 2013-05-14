@@ -54,6 +54,7 @@ public class TestLocalTransaction extends BaseTestCase {
     AbstractTransaction.Debug tsDebug;
     SQLStmt batchStmts[];
     ParameterSet batchParams[];
+    int batchCtrs[];
     
     @Override
     protected void setUp() throws Exception {
@@ -67,10 +68,12 @@ public class TestLocalTransaction extends BaseTestCase {
         } // FOR
         
         this.batchStmts = new SQLStmt[TARGET_REPEAT * TARGET_STMTS.length];
-        this.batchParams = new ParameterSet[TARGET_REPEAT * 2];
+        this.batchParams = new ParameterSet[this.batchStmts.length];
+        this.batchCtrs = new int[this.batchStmts.length];
         for (int i = 0; i < this.batchStmts.length; ) {
             for (int j = 0; j < catalog_stmts.length; j++) {
                 this.batchStmts[i] = new SQLStmt(catalog_stmts[j]);
+                this.batchCtrs[i] = i;
                 
                 // Generate random input parameters for the Statement but make sure that
                 // the W_IDs always point to our BASE_PARTITION
@@ -124,7 +127,7 @@ public class TestLocalTransaction extends BaseTestCase {
         assertFalse(plan.hasMisprediction());
         
         List<WorkFragment.Builder> builders = new ArrayList<WorkFragment.Builder>();
-        plan.getWorkFragmentsBuilders(TXN_ID, builders);
+        plan.getWorkFragmentsBuilders(TXN_ID, this.batchCtrs, builders);
         assertFalse(builders.isEmpty());
         
         List<WorkFragment.Builder> ready = new ArrayList<WorkFragment.Builder>();

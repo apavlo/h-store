@@ -38,7 +38,7 @@ public class DependencyInfo implements Poolable {
     
     private Long txn_id;
     private int round;
-    private int stmt_index = -1;
+    private int stmt_ctr = -1;
     private int dependency_id = -1;
     
     /**
@@ -93,13 +93,13 @@ public class DependencyInfo implements Poolable {
         this.resultPartitions = new PartitionSet(); // catalogContext.numberOfPartitions);
     }
     
-    public void init(Long txn_id, int round, int stmt_index, int dependency_id) {
+    public void init(Long txn_id, int round, int stmt_ctr, int dependency_id) {
         if (debug.val)
             LOG.debug(String.format("#%s - Intializing DependencyInfo for %s in ROUND #%d",
-                      txn_id, TransactionUtil.debugStmtDep(stmt_index, dependency_id), round));
+                      txn_id, TransactionUtil.debugStmtDep(stmt_ctr, dependency_id), round));
         this.txn_id = txn_id;
         this.round = round;
-        this.stmt_index = stmt_index;
+        this.stmt_ctr = stmt_ctr;
         this.dependency_id = dependency_id;
     }
     
@@ -111,7 +111,7 @@ public class DependencyInfo implements Poolable {
     @Override
     public void finish() {
         this.txn_id = null;
-        this.stmt_index = -1;
+        this.stmt_ctr = -1;
         this.dependency_id = -1;
         this.expectedPartitions.clear();
         this.blockedTasks.clear();
@@ -145,8 +145,8 @@ public class DependencyInfo implements Poolable {
     protected int getRound() {
         return (this.round);
     }
-    public int getStatementIndex() {
-        return (this.stmt_index);
+    public int getStatementCounter() {
+        return (this.stmt_ctr);
     }
     public int getDependencyId() {
         return (this.dependency_id);
@@ -159,7 +159,7 @@ public class DependencyInfo implements Poolable {
     public void markInternal() {
         if (debug.val)
             LOG.debug(String.format("#%s - Marking DependencyInfo for %s as internal",
-                      this.txn_id, TransactionUtil.debugStmtDep(stmt_index, dependency_id)));
+                      this.txn_id, TransactionUtil.debugStmtDep(this.stmt_ctr, this.dependency_id)));
         this.internal = true;
     }
     public boolean isInternal() {

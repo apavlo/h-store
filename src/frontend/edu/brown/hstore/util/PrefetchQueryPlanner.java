@@ -184,6 +184,7 @@ public class PrefetchQueryPlanner {
         }
         assert(planner != null) : "Missing BatchPlanner for " + ts.getProcedure();
         ParameterSet prefetchParams[] = new ParameterSet[planner.getBatchSize()];
+        int prefetchCounters[] = new int[planner.getBatchSize()]; 
         ByteString prefetchParamsSerialized[] = new ByteString[prefetchParams.length];
         ParameterMapping mappings[][] = this.mappingsCache.get(hashcode);
         assert(mappings != null) : "Missing cached ParameterMappings for " + ts.getProcedure();
@@ -220,6 +221,7 @@ public class PrefetchQueryPlanner {
                 }
             } // FOR (StmtParameter)
             prefetchParams[i] = new ParameterSet(stmt_params);
+            prefetchCounters[i] = counted_stmt.counter;
 
             if (debug.val)
                 LOG.debug(String.format("%s - [Prefetch %02d] %s -> %s",
@@ -244,7 +246,7 @@ public class PrefetchQueryPlanner {
                                       ts.getTouchedPartitions(),
                                       prefetchParams);
         List<WorkFragment.Builder> fragmentBuilders = new ArrayList<WorkFragment.Builder>();
-        plan.getWorkFragmentsBuilders(ts.getTransactionId(), fragmentBuilders);
+        plan.getWorkFragmentsBuilders(ts.getTransactionId(), prefetchCounters, fragmentBuilders);
         
         // IMPORTANT: Make sure that we tell the PrefetchState handle that
         // we have marked this Statement as prefetched. We have to do this here

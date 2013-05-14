@@ -40,6 +40,7 @@ public class TestBatchPlannerComplex extends BaseTestCase {
 
     private SQLStmt batch[];
     private ParameterSet args[];
+    private int stmtCounters[];
     
     private MockPartitionExecutor executor;
     private FastIntHistogram touched_partitions = new FastIntHistogram();
@@ -65,10 +66,12 @@ public class TestBatchPlannerComplex extends BaseTestCase {
         
         this.batch = new SQLStmt[this.catalog_proc.getStatements().size()];
         this.args = new ParameterSet[this.batch.length];
+        this.stmtCounters = new int[this.batch.length];
         int i = 0;
         for (Statement catalog_stmt : this.catalog_proc.getStatements()) {
             this.batch[i] = new SQLStmt(catalog_stmt);
             this.args[i] = ParameterSet.EMPTY;
+            this.stmtCounters[i] = i;
             i++;
         } // FOR
 
@@ -142,21 +145,22 @@ public class TestBatchPlannerComplex extends BaseTestCase {
      * testFragmentIds
      */
     public void testFragmentIds() throws Exception {
-        catalog_proc = this.getProcedure(DeleteReservation.class);
+        this.catalog_proc = this.getProcedure(DeleteReservation.class);
         
         // Make sure that PlanFragment ids in each WorkFragment only
         // belong to the Procedure
+        this.batch = new SQLStmt[1];
+        this.args = new ParameterSet[1];
+        int stmtCounters[] = { 0 };
         for (Statement catalog_stmt : catalog_proc.getStatements()) {
-            batch = new SQLStmt[] { new SQLStmt(catalog_stmt) };
-            args = new ParameterSet[] {
-                    new ParameterSet(this.randomStatementParameters(catalog_stmt))
-            };
+            this.batch[0] = new SQLStmt(catalog_stmt);
+            this.args[0] = new ParameterSet(this.randomStatementParameters(catalog_stmt));
             this.planner = new BatchPlanner(this.batch, this.catalog_proc, p_estimator);
             this.touched_partitions.clear();
             BatchPlan plan = this.getPlan();
         
             List<WorkFragment.Builder> builders = new ArrayList<WorkFragment.Builder>();
-            plan.getWorkFragmentsBuilders(TXN_ID, builders);
+            plan.getWorkFragmentsBuilders(TXN_ID, stmtCounters, builders);
             assertFalse(builders.isEmpty());
         
             for (WorkFragment.Builder builder : builders) {
@@ -184,9 +188,11 @@ public class TestBatchPlannerComplex extends BaseTestCase {
         };
         SQLStmt batch[] = new SQLStmt[stmts.length];
         ParameterSet params[] = new ParameterSet[stmts.length];
+        int stmtCounters[] = new int[stmts.length];
         for (int i = 0; i < stmts.length; i++) {
             batch[i] = new SQLStmt(stmts[i]);
             params[i] = new ParameterSet(this.randomStatementParameters(stmts[i]));
+            stmtCounters[i] = i;
         } // FOR
         
         BatchPlanner planner = new BatchPlanner(batch, catalog_proc, p_estimator);
@@ -200,7 +206,7 @@ public class TestBatchPlannerComplex extends BaseTestCase {
         assertFalse(plan.hasMisprediction());
         
         List<WorkFragment.Builder> builders = new ArrayList<WorkFragment.Builder>();
-        plan.getWorkFragmentsBuilders(TXN_ID, builders);
+        plan.getWorkFragmentsBuilders(TXN_ID, stmtCounters, builders);
         assertFalse(builders.isEmpty());
 
         List<Statement> batchStmtOrder = new ArrayList<Statement>();
@@ -230,7 +236,7 @@ public class TestBatchPlannerComplex extends BaseTestCase {
     public void testBuildWorkFragments() throws Exception {
         List<WorkFragment.Builder> builders = new ArrayList<WorkFragment.Builder>();
         BatchPlan plan = this.getPlan();
-        plan.getWorkFragmentsBuilders(TXN_ID, builders);
+        plan.getWorkFragmentsBuilders(TXN_ID, this.stmtCounters, builders);
         assertFalse(builders.isEmpty());
         
         for (WorkFragment.Builder builder : builders) {

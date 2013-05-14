@@ -3156,10 +3156,25 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             throw ex;
         }
         
-        // If we prefetched queries for this txn, we need to check whether we 
-        // have already submit a request for one of the queries in our batch
+        // Keep track of the number of times that we've executed each query for this transaction
+        int stmtCounters[] = this.tmp_outputDepIds.getArray(batchSize);
+        for (int i = 0; i < batchSize; i++) {
+            stmtCounters[i] = ts.updateStatementCounter(batchStmts[i].getStatement());
+        } // FOR
+        
         if (ts.hasPrefetchQueries()) {
-            PrefetchQueryUtil.checkSQLStmtBatch(this, ts, plan, batchSize, batchStmts, batchParams);
+            PartitionSet stmtPartitions[] = plan.getStatementPartitions();
+            PrefetchState prefetchState = ts.getPrefetchState();
+            QueryTracker queryTracker = prefetchState.getExecQueryTracker();
+            assert(prefetchState != null);
+            for (int i = 0; i < batchSize; i++) {
+                // We always have to update the query tracker regardless of whether
+                // the query was prefetched or not. This is so that we can ensure
+                // that we execute the queries in the right order.
+                Statement stmt = batchStmts[i].getStatement();
+                stmtCounters[i] = queryTracker.addQuery(stmt, stmtPartitions[i], batchParams[i]);
+            } // FOR
+            // FIXME PrefetchQueryUtil.checkSQLStmtBatch(this, ts, plan, batchSize, batchStmts, batchParams);
         } // PREFETCH
         
         VoltTable results[] = null;
@@ -3178,16 +3193,13 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 LOG.trace(ts + " - Using PartitionExecutor.dispatchWorkFragments() to execute distributed queries");
             ExecutionState execState = ts.getExecutionState();
             execState.tmp_partitionFragments.clear();
-            plan.getWorkFragmentsBuilders(ts.getTransactionId(), execState.tmp_partitionFragments);
+            plan.getWorkFragmentsBuilders(ts.getTransactionId(), stmtCounters, execState.tmp_partitionFragments);
             
             // We then need to make sure that add the SQLStmt counters for each query in the batch
             if (ts.hasPrefetchQueries()) {
-                PrefetchState prefetchState = ts.getPrefetchState();
-                QueryTracker queryTracker = prefetchState.getExecQueryTracker();
                 for (WorkFragment.Builder fragment : execState.tmp_partitionFragments) {
-                    for (int stmt_index = 0, cnt = fragment.getStmtIndexCount(); stmt_index < cnt; stmt_index++) {
-                        int stmt_cnt = queryTracker.getQueryCount(batchStmts[stmt_index].getStatement());
-                        fragment.addStmtCounter(stmt_cnt);
+                    for (int stmt_index = 0, cnt = fragment.getParamIndexCount(); stmt_index < cnt; stmt_index++) {
+                        fragment.addStmtCounter(stmtCounters[stmt_index]);
                     } // FOR
                 } // FOR
             }

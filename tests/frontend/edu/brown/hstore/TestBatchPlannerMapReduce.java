@@ -29,7 +29,6 @@ public class TestBatchPlannerMapReduce extends BaseTestCase {
     };
     
     private static final Long TXN_ID = 1000l;
-    private static final long CLIENT_HANDLE = 99999l;
     private static final int LOCAL_PARTITION = 0;
     private static final int NUM_PARTITIONS = 10;
     
@@ -37,6 +36,7 @@ public class TestBatchPlannerMapReduce extends BaseTestCase {
     private Statement catalog_stmt;
     private SQLStmt batch[];
     private ParameterSet args[];
+    private int stmtCounters[];
     private FastIntHistogram touched_partitions = new FastIntHistogram();
     
     @Override
@@ -57,6 +57,7 @@ public class TestBatchPlannerMapReduce extends BaseTestCase {
         // Create a SQLStmt batch
         this.batch = new SQLStmt[] { new SQLStmt(this.catalog_stmt, fragments) };
         this.args = new ParameterSet[] { VoltProcedure.getCleanParams(this.batch[0], raw_args) };
+        this.stmtCounters = new int[]{ 0 };
     }
     
     /**
@@ -73,7 +74,7 @@ public class TestBatchPlannerMapReduce extends BaseTestCase {
         assertFalse(plan.hasMisprediction());
         
         List<WorkFragment.Builder> tasks = new ArrayList<WorkFragment.Builder>(); 
-        plan.getWorkFragmentsBuilders(TXN_ID, tasks);
+        plan.getWorkFragmentsBuilders(TXN_ID, this.stmtCounters, tasks);
         int local_frags = TestBatchPlanner.getLocalFragmentCount(tasks, LOCAL_PARTITION);
         int remote_frags = TestBatchPlanner.getRemoteFragmentCount(tasks, LOCAL_PARTITION);
         

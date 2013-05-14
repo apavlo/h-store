@@ -80,22 +80,24 @@ public class TestTransactionStateComplex extends BaseTestCase {
         super.setUp(ProjectType.AUCTIONMARK);
         this.addPartitions(NUM_PARTITIONS);
         
-        catalog_proc = this.getProcedure(TARGET_PROCEDURE);
-        catalog_stmt = this.getStatement(catalog_proc, TARGET_STATEMENT);
+        this.catalog_proc = this.getProcedure(TARGET_PROCEDURE);
+        this.catalog_stmt = this.getStatement(catalog_proc, TARGET_STATEMENT);
         
         this.executor = new MockPartitionExecutor(LOCAL_PARTITION, catalogContext, p_estimator);
         assertNotNull(executor);
         
         // Create a SQLStmt batch
         SQLStmt batch[] = new SQLStmt[NUM_DUPLICATE_STATEMENTS];
-        ParameterSet args[] = new ParameterSet[NUM_DUPLICATE_STATEMENTS];
+        ParameterSet args[] = new ParameterSet[batch.length];
+        int stmtCounters[] = new int[batch.length];
         
         for (int i = 0; i < batch.length; i++) {
             Object raw_args[] = new Object[] {
                 new Long(i + 1),    // U_ID
             };
-            batch[i] = new SQLStmt(catalog_stmt, catalog_stmt.getMs_fragments());
-            args[i] = VoltProcedure.getCleanParams(batch[i], raw_args); 
+            batch[i] = new SQLStmt(this.catalog_stmt, this.catalog_stmt.getMs_fragments());
+            args[i] = VoltProcedure.getCleanParams(batch[i], raw_args);
+            stmtCounters[i] = i;
         } // FOR
         
         Partition catalog_part = catalogContext.getPartitionById(LOCAL_PARTITION);
@@ -110,7 +112,7 @@ public class TestTransactionStateComplex extends BaseTestCase {
                                    catalogContext.getAllPartitionIds(),
                                    this.touched_partitions,
                                    args);
-        this.plan.getWorkFragmentsBuilders(TXN_ID, ftasks);
+        this.plan.getWorkFragmentsBuilders(TXN_ID, stmtCounters, this.ftasks);
         assertFalse(ftasks.isEmpty());
         
         this.execState = new ExecutionState(executor);
