@@ -1,4 +1,4 @@
-package edu.brown.hstore.specexec;
+package edu.brown.hstore.specexec.checkers;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -26,7 +26,8 @@ import edu.brown.catalog.special.CountedStatement;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.MockHStoreSite;
 import edu.brown.hstore.conf.HStoreConf;
-import edu.brown.hstore.specexec.MarkovConflictChecker.StatementCache;
+import edu.brown.hstore.specexec.checkers.MarkovConflictChecker;
+import edu.brown.hstore.specexec.checkers.MarkovConflictChecker.StatementCache;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.mappings.ParameterMapping;

@@ -33,7 +33,7 @@ import edu.brown.benchmark.tm1.procedures.GetSubscriberData;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.conf.HStoreConf;
-import edu.brown.hstore.specexec.AbstractConflictChecker;
+import edu.brown.hstore.specexec.checkers.AbstractConflictChecker;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.hstore.util.TransactionCounter;

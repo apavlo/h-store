@@ -1,4 +1,4 @@
-package edu.brown.hstore.specexec;
+package edu.brown.hstore.specexec.checkers;
 
 import org.voltdb.CatalogContext;
 import org.voltdb.catalog.Procedure;

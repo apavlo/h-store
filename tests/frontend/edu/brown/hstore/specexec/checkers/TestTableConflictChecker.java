@@ -1,4 +1,4 @@
-package edu.brown.hstore.specexec;
+package edu.brown.hstore.specexec.checkers;
 
 import java.util.Collection;
 
@@ -12,6 +12,7 @@ import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.MockHStoreSite;
 import edu.brown.hstore.conf.HStoreConf;
+import edu.brown.hstore.specexec.checkers.TableConflictChecker;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.utils.PartitionSet;
 import edu.brown.utils.ProjectType;

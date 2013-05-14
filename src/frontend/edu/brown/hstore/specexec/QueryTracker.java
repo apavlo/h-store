@@ -60,6 +60,20 @@ public class QueryTracker {
         return (null);
     }
     
+    public int getQueryCount(Statement stmt) {
+        // FIXME
+        return (0);
+    }
+    
+    public void clear() {
+        this.invocations.clear();
+        this.stmtCounters.clear();
+    }
+    
+    public int size() {
+        return (this.invocations.size());
+    }
+    
     
     @Override
     public String toString() {
