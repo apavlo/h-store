@@ -111,6 +111,7 @@ public class TestDependencyTrackerPrefetch extends BaseTestCase {
         this.plan.getWorkFragmentsBuilders(TXN_ID, this.prefetchStmtCounters, ftasks);
         this.prefetchFragment = CollectionUtil.first(ftasks);
         assert(this.prefetchFragment.getFragmentIdCount() > 0);
+        assertEquals(this.prefetchFragment.getFragmentIdCount(), this.prefetchFragment.getStmtCounterCount());
         assertTrue(this.prefetchFragment.getPrefetch());
         assertEquals(REMOTE_PARTITION, this.prefetchFragment.getPartitionId());
         
@@ -125,21 +126,18 @@ public class TestDependencyTrackerPrefetch extends BaseTestCase {
         assertNull(this.ts.getCurrentRoundState(BASE_PARTITION));
     }
     
-    /**
-     * testMultipleStatementsSameBatch
-     */
-    public void testMultipleStatementsSameBatch() throws Exception {
-        // This tests when the prefetch result should be for the second invocation of 
-        // the same Statement. We should get back the results in the correct order.
-        
-        int num_invocations = 3;
-        int expected_prefetch_offset = 1;
+    // ----------------------------------------------------------------------------------
+    // HELPER METHODS
+    // ----------------------------------------------------------------------------------
+    
+    private void helperTestSameBatch(int numInvocations, int expectedOffset) throws Exception {
         
         // Tell the DependencyTracker that we're going to prefetch all of the WorkFragments
-        this.prefetchFragment.setStmtCounter(0, 1);
+        this.prefetchFragment.setStmtCounter(0, expectedOffset);
+        this.depTracker.addPrefetchWorkFragment(this.ts, this.prefetchFragment);
         assertEquals(1, this.depTrackerDbg.getPrefetchCounter(this.ts));
         this.depTracker.addPrefetchResult(this.ts,
-                                          expected_prefetch_offset,
+                                          expectedOffset,
                                           this.prefetchFragment.getFragmentId(0),
                                           REMOTE_PARTITION,
                                           this.prefetchParamsHash[0],
@@ -147,19 +145,19 @@ public class TestDependencyTrackerPrefetch extends BaseTestCase {
         
         // Now if we add in the same query again with the same parameters, it 
         // should automatically pick up the prefetched result in the right location.
-        SQLStmt nextBatch[] = new SQLStmt[num_invocations];
-        ParameterSet nextParams[] = new ParameterSet[num_invocations];
-        VoltTable nextResults[] = new VoltTable[num_invocations];
-        int nextCounters[] = new int[num_invocations];
+        SQLStmt nextBatch[] = new SQLStmt[numInvocations];
+        ParameterSet nextParams[] = new ParameterSet[nextBatch.length];
+        VoltTable nextResults[] = new VoltTable[nextBatch.length];
+        int nextCounters[] = new int[nextBatch.length];
         Collection<Column> outputCols = PlanNodeUtil.getOutputColumnsForStatement(this.catalog_stmt);
-        for (int i = 0; i < num_invocations; i++) {
+        for (int i = 0; i < numInvocations; i++) {
             nextBatch[i] = this.prefetchBatch[0];
             nextCounters[i] = i;
-            if (i == expected_prefetch_offset) {
+            if (i == expectedOffset) {
                 nextParams[i] = new ParameterSet(this.prefetchParams[0].toArray());
                 nextResults[i] = this.prefetchResult;
             } else {
-                nextParams[i] = new ParameterSet(new Object[]{ i, BASE_PARTITION });
+                nextParams[i] = new ParameterSet(i, BASE_PARTITION);
                 nextResults[i] = CatalogUtil.getVoltTable(outputCols);
             }
         } // FOR
@@ -176,24 +174,59 @@ public class TestDependencyTrackerPrefetch extends BaseTestCase {
         for (WorkFragment.Builder fragment : ftasks) {
             this.depTracker.addWorkFragment(this.ts, fragment);
         } // FOR
+        
         this.ts.startRound(BASE_PARTITION);
         CountDownLatch latch = this.depTracker.getDependencyLatch(this.ts);
-        assertEquals(num_invocations-1, latch.getCount());
+        assertEquals(numInvocations-1, latch.getCount());
         
-        for (int i = 0; i < num_invocations; i++) {
-            if (i == expected_prefetch_offset) continue;
-            WorkFragment.Builder fragment = ftasks.get(i);
-            this.depTracker.addResult(this.ts,
-                                      fragment.getPartitionId(),
-                                      fragment.getOutputDepId(0),
-                                      nextResults[i]);
+        for (WorkFragment.Builder fragment : ftasks) {
+            // Look through each WorkFragment and check to see whether it contains
+            // our prefetched query. Note that we have to walk through the WorkFragments
+            // this way because the BatchPlanner will have combined multiple SQLStmts
+            // into the same message if they are going to the same partition.
+            for (int i = 0, cnt = fragment.getFragmentIdCount(); i < cnt; i++) {
+                int stmtCounter = fragment.getStmtCounter(i);
+                if (stmtCounter != expectedOffset) {
+                    this.depTracker.addResult(this.ts,
+                                              fragment.getPartitionId(),
+                                              fragment.getOutputDepId(i),
+                                              nextResults[stmtCounter]);
+                }
+            } // FOR
         } // FOR
         
         assertEquals(0, latch.getCount());
         VoltTable results[] = this.depTracker.getResults(this.ts);
-        assertEquals(num_invocations, results.length);
-        for (int i = 0; i < num_invocations; i++) {
+        assertEquals(numInvocations, results.length);
+        for (int i = 0; i < numInvocations; i++) {
             assertEquals(nextResults[i], results[i]);
+        } // FOR
+    }
+    
+    // ----------------------------------------------------------------------------------
+    // TESTS
+    // ----------------------------------------------------------------------------------
+    
+    /**
+     * testMultipleStatementsSameBatch
+     */
+    public void testMultipleStatementsSameBatch() throws Exception {
+        // This tests when the prefetch result should be for the second invocation of 
+        // the same Statement. We should get back the results in the correct order.
+        
+        long txnId = TXN_ID;
+        for (int numInvocations = 1; numInvocations < 5; numInvocations++) {
+            for (int expectedOffset = 0; expectedOffset < numInvocations; expectedOffset++) {
+                this.ts = new LocalTransaction(hstore_site);
+                this.ts.testInit(++txnId,
+                                 BASE_PARTITION,
+                                 null,
+                                 catalogContext.getAllPartitionIds(),
+                                 this.catalog_proc);
+                this.ts.initializePrefetch();
+                this.depTracker.addTransaction(ts);
+                this.helperTestSameBatch(numInvocations, expectedOffset);
+            } // FOR
         } // FOR
     }
     
@@ -228,7 +261,7 @@ public class TestDependencyTrackerPrefetch extends BaseTestCase {
             new ParameterSet(12345l),
             new ParameterSet(this.prefetchParams[0].toArray())
         };
-        int nextCounters[] = new int[]{ 0, 1 }; 
+        int nextCounters[] = new int[]{ 0, 0 }; 
         
         // Initialize the txn to simulate that it has started
         this.ts.initFirstRound(undoToken, nextBatch.length);
@@ -292,7 +325,7 @@ public class TestDependencyTrackerPrefetch extends BaseTestCase {
             new ParameterSet(12345l),
             new ParameterSet(this.prefetchParams[0].toArray())
         };
-        int nextCounters[] = new int[]{ 0, 1 };
+        int nextCounters[] = new int[]{ 0, 0 };
         
         // Initialize the txn to simulate that it has started
         this.ts.initFirstRound(undoToken, nextBatch.length);
@@ -342,6 +375,5 @@ public class TestDependencyTrackerPrefetch extends BaseTestCase {
         assertEquals(nextBatch.length, results.length);
         assertEquals(this.prefetchResult, CollectionUtil.last(results));
     }
-    
 
 }
