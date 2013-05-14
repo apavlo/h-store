@@ -58,12 +58,18 @@ public abstract class RegressionSuiteUtil {
         ClientResponse cresponse = getStats(client, SysProcSelector.TABLE);
         VoltTable result = cresponse.getResults()[0];
         
+        long count = 0;
+        boolean found = false;
         while (result.advanceRow()) {
             if (tableName.equalsIgnoreCase(result.getString("TABLE_NAME"))) {
-                return result.getLong("TUPLE_COUNT");
+                found = true;
+                count += result.getLong("TUPLE_COUNT");
             }
         } // WHILE
-        throw new IllegalArgumentException("Invalid table '" + tableName + "'");
+        if (found == false) {
+            throw new IllegalArgumentException("Invalid table '" + tableName + "'");
+        }
+        return (count);
     }
     
     /**

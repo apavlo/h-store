@@ -132,16 +132,10 @@ public class SmallBankLoader extends Loader {
                 this.acctsTable.addRow(acctId, acctName);
                 
                 // CHECKINGS
-                if (rand.nextInt(100) > SmallBankConstants.PERCENTAGE_NO_CHECKING) {
-                    double balance = this.randBalance.nextInt();
-                    this.checkingTable.addRow(acctId, balance);
-                }
+                this.checkingTable.addRow(acctId, this.randBalance.nextInt());
                 
                 // SAVINGS
-                if (rand.nextInt(100) > SmallBankConstants.PERCENTAGE_NO_SAVINGS) {
-                    double balance = this.randBalance.nextInt();
-                    this.savingsTable.addRow(acctId, balance);
-                }
+                this.savingsTable.addRow(acctId, this.randBalance.nextInt());
                 
                 if (++batchSize >= SmallBankConstants.BATCH_SIZE) {
                     this.loadTables();
