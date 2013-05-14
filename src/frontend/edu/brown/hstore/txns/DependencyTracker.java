@@ -4,14 +4,11 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Queue;
-import java.util.Set;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingDeque;
@@ -28,8 +25,8 @@ import org.voltdb.utils.Pair;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.HStoreConstants;
-import edu.brown.hstore.PartitionExecutor;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
+import edu.brown.hstore.PartitionExecutor;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.txns.AbstractTransaction.RoundState;
 import edu.brown.interfaces.DebugContext;
@@ -37,6 +34,13 @@ import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.StringUtil;
 
+/**
+ * This class is responsible for managing the input and output dependencies of distributed
+ * transactions. It contains logic to creating blocking data structures that are released
+ * once the appropriate VoltTables arrive for queries executed on remote partitions.
+ * @author pavlo
+ *
+ */
 public class DependencyTracker {
     private static final Logger LOG = Logger.getLogger(DependencyTracker.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
@@ -44,7 +48,6 @@ public class DependencyTracker {
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
-
     
     /**
      * Special set to indicate that there are no more WorkFragments to be executed
@@ -85,21 +88,6 @@ public class DependencyTracker {
          * Final result output dependencies. Each position in the list represents a single Statement
          */
         private final List<Integer> output_order = new ArrayList<Integer>();
-        
-        /**
-         * As information come back to us, we need to keep track of what SQLStmt we are storing 
-         * the data for. Note that we have to maintain two separate lists for results and responses
-         * PartitionId -> DependencyId -> Next SQLStmt Index
-         */
-//        @Deprecated
-//        private final Map<Pair<Integer, Integer>, Queue<Integer>> results_dependency_stmt_ctr = new HashMap<Pair<Integer,Integer>, Queue<Integer>>();
-        
-        /**
-         * Internal cache of the result queues that were used by the txn in this round.
-         * This is so that we don't have to clear all of the queues in the entire results_dependency_stmt_ctr cache. 
-         */
-//        @Deprecated
-//        private final Collection<Queue<Integer>> results_queue_cache = new HashSet<Queue<Integer>>();
         
         /**
          * Sometimes we will get results back while we are still queuing up the rest of the tasks and
@@ -377,31 +365,6 @@ public class DependencyTracker {
     }
     
     /**
-     * Keep track of a new output dependency from the given partition that corresponds
-     * to the SQL statement executed at the given offset.
-     * @param partition
-     * @param output_dep_id
-     * @param stmt_index
-     */
-//    private void addResultDependencyStatement(LocalTransaction ts,
-//                                              TransactionState state,
-//                                              int partition,
-//                                              int output_dep_id,
-//                                              int stmt_index) {
-//        Pair<Integer, Integer> key = Pair.of(partition, output_dep_id);
-//        Queue<Integer> rest_stmt_ctr = state.results_dependency_stmt_ctr.get(key);
-//        if (rest_stmt_ctr == null) {
-//            rest_stmt_ctr = new LinkedList<Integer>();
-//            state.results_dependency_stmt_ctr.put(key, rest_stmt_ctr);
-//        }
-//        rest_stmt_ctr.add(stmt_index);
-//        state.results_queue_cache.add(rest_stmt_ctr);
-//        if (debug.val)
-//            LOG.debug(String.format("%s - Set dependency statement counters for %s: %s",
-//                      ts, TransactionUtil.debugPartDep(partition, output_dep_id), rest_stmt_ctr));
-//    }
-    
-    /**
      * Update internal state information after a new result was added to a DependencyInfo.
      * This may cause the next round of blocked WorkFragments to get released.
      * @param ts
@@ -477,8 +440,6 @@ public class DependencyTracker {
             Integer dependency_id = state.output_order.get(stmt_index);
             assert(dependency_id != null) :
                 "Null output dependency id for Statement index " + stmt_index + " in txn #" + state.txn_id;
-//            assert(this.state.dependencies[stmt_index] != null) :
-//                "Missing dependency set for stmt_index #" + stmt_index + " in txn #" + this.txn_id;
             assert(state.dependencies.containsKey(dependency_id)) :
                 String.format("Missing info for %s in %s",
                               TransactionUtil.debugStmtDep(stmt_index, dependency_id), ts); 
@@ -738,24 +699,8 @@ public class DependencyTracker {
         // Each partition+dependency_id should be unique within the Statement batch.
         // So as the results come back to us, we have to figure out which Statement it belongs to
         DependencyInfo dinfo = null;
-//        Queue<Integer> queue = null;
-//        int stmt_index;
         try {
-//            queue = state.results_dependency_stmt_ctr.get(key);
-//            assert(queue != null) :
-//                String.format("Unexpected %s in %s / %s\n%s",
-//                              TransactionUtil.debugPartDep(partition, dependency_id), ts,
-//                              key, state.results_dependency_stmt_ctr);
-//            assert(queue.isEmpty() == false) :
-//                String.format("No more statements for %s in %s\nresults_dependency_stmt_ctr = %s",
-//                              TransactionUtil.debugPartDep(partition, dependency_id), ts,
-//                              state.results_dependency_stmt_ctr);
-//
-//            stmt_index = queue.remove().intValue();
             dinfo = state.getDependencyInfo(dependency_id);
-//            assert(dinfo != null) :
-//                String.format("Unexpected %s for %s [stmt_index=%d]\n%s",
-//                              TransactionUtil.debugPartDep(partition, dependency_id), ts, stmt_index, result);
         } catch (NullPointerException ex) {
             // HACK: IGNORE!
         }
@@ -786,8 +731,6 @@ public class DependencyTracker {
             if (trace.val) LOG.trace(ts.debug());
         }
     }
-    
-
 
     /**
      * Populate the given map with the the dependency results that are used for
@@ -1115,7 +1058,6 @@ public class DependencyTracker {
             m.put("CountdownLatch", state.dependency_latch);
             m.put("# of Blocked Tasks", state.blocked_tasks.size());
             m.put("# of Statements", ts.getCurrentBatchSize());
-//            m.put("Expected Results", state.results_dependency_stmt_ctr.keySet());
             
             return (m);
         }
