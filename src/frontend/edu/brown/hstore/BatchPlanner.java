@@ -428,13 +428,24 @@ public class BatchPlanner {
 
     /**
      * Testing Constructor
+     * The batchSize is assumed to be the length of batchStmts
+     * @param batchStmts
+     * @param catalog_proc
+     * @param p_estimator
      */
     public BatchPlanner(SQLStmt[] batchStmts, Procedure catalog_proc, PartitionEstimator p_estimator) {
-        this(batchStmts, batchStmts.length, catalog_proc, p_estimator);
+        this(batchStmts, batchStmts.length, catalog_proc, p_estimator, false);
     }
 
+    /**
+     * Testing constructor where the planner is forced to choose single-partition queries
+     * @param batchStmts
+     * @param catalog_proc
+     * @param p_estimator
+     * @param forceSinglePartition
+     */
     protected BatchPlanner(SQLStmt[] batchStmts, Procedure catalog_proc, PartitionEstimator p_estimator,
-            boolean forceSinglePartition) {
+                           boolean forceSinglePartition) {
         this(batchStmts, batchStmts.length, catalog_proc, p_estimator, forceSinglePartition);
     }
 
