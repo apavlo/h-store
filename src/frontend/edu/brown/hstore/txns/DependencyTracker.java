@@ -170,6 +170,9 @@ public class DependencyTracker {
          * until the transaction is finished.
          */
         public void clear() {
+            if (debug.val)
+                LOG.debug("Clearing out internal state for " + this);
+            
             this.dependencies.clear();
             this.output_order.clear();
             this.queued_results.clear();
@@ -177,14 +180,13 @@ public class DependencyTracker {
             this.unblocked_tasks.clear();
             this.still_has_tasks = true;
 
-            // Note that we only want to clear the queues and not the whole maps
-//            for (Queue<Integer> q : this.results_queue_cache) {
-//                q.clear();
-//            } // FOR
-//            this.results_queue_cache.clear();
-            
             this.dependency_ctr = 0;
             this.received_ctr = 0;
+        }
+        
+        @Override
+        public String toString() {
+            return String.format("%s{#%d}", this.getClass().getSimpleName(), this.txn_id);
         }
     } // CLASS
     
@@ -255,13 +257,14 @@ public class DependencyTracker {
                 // Add this DependencyInfo our output list if it's being used in this round for this txn
                 // and if it is not an internal dependency
                 if (dinfo.inSameTxnRound(ts.getTransactionId(), currentRound) &&
-                    dinfo.isInternal() == false && dinfo.getStatementCounter() == stmtIndex) {
+                        dinfo.isInternal() == false) {  // && dinfo.getStatementCounter() == stmtIndex) {
                     state.output_order.add(dinfo.getDependencyId());
                 }
             } // FOR
         } // FOR
         assert(batch_size == state.output_order.size()) :
-            String.format("%s - Expected %d output dependencies but we only queued up %d %s",
+            String.format("%s - Expected %d output dependencies but we queued up %d " +
+            		      "[outputOrder=%s]",
                           ts, batch_size, state.output_order.size(), state.output_order);
         
         // Release any queued responses/results
@@ -525,11 +528,14 @@ public class DependencyTracker {
 //                this.addResultDependencyStatement(ts, state, partition, output_dep_id, stmtIndex);
                 
                 if (debug.val)
-                    LOG.debug(String.format("%s - Added new %s %s for PlanFragment %d at partition %d [depCtr=%d]\n%s",
+                    LOG.debug(String.format("%s - Added new %s %s for PlanFragment %d at partition %d " +
+                    		  "[depCtr=%d, prefetch=%s]\n%s",
                               ts, dinfo.getClass().getSimpleName(),
                               TransactionUtil.debugStmtDep(stmtCounter, output_dep_id),
-                              fragment.getFragmentId(i), state.dependency_ctr,
-                              partition, dinfo.toString()));
+                              fragment.getFragmentId(i),
+                              partition,
+                              state.dependency_ctr, prefetch,
+                              dinfo.toString()));
                 
                 // If this query was prefetched, we need to push its results through the 
                 // the tracker so that it can update counters
@@ -592,7 +598,7 @@ public class DependencyTracker {
                         m.put(String.format("Output[%02d]", output_ctr++), dinfo.toString());
                     }
                 } // FOR
-                LOG.trace(String.format("%s - Number of Output Dependencies for StmtIndex #%d: " +
+                LOG.trace(String.format("%s - Number of Output Dependencies for StmtCounter #%d: " +
                 		  "%d out of %d\n%s", 
                           ts, stmtCounter, output_ctr, dep_ctr, StringUtil.formatMaps(m)));
             }
@@ -613,12 +619,10 @@ public class DependencyTracker {
                     if (catalog_obj != null) break;
                 } // FOR
             }
-            LOG.debug(String.format("%s - Queued up %s WorkFragment for partition %d and marked as %s [fragIds=%s]",
-                      ts, catalog_obj, partition,
+            LOG.debug(String.format("%s - Queued up %s %s for partition %d and marked as %s [fragIds=%s]",
+                      ts, catalog_obj, WorkFragment.class.getSimpleName(), partition,
                       (blocked ? "blocked" : "not blocked"),
                       fragment.getFragmentIdList()));
-//            if (trace.val)
-//                LOG.trace("WorkFragment Contents for " + ts + ":\n" + fragment);
         }
         // *********************************** DEBUG ***********************************
         
@@ -687,10 +691,9 @@ public class DependencyTracker {
                                   ts, TransactionUtil.debugPartDep(partition, dependency_id)));
                     return;
                 }
-                if (debug.val) {
-                    LOG.debug(String.format("%s - Storing new result for key %s", ts, key));
-                    // if (trace.val) LOG.trace("Result stmt_ctr(key=" + key + "): " + this.state.results_dependency_stmt_ctr.get(key));
-                }
+                if (debug.val)
+                    LOG.debug(String.format("%s - Storing new result for %s",
+                              ts, TransactionUtil.debugPartDep(partition, dependency_id)));
             } finally {
                 if (singlePartitioned == false) txnLock.unlock();
             } // SYNCH
@@ -938,7 +941,7 @@ public class DependencyTracker {
             state.prefetch_ctr++;
             
             if (debug.val)
-                LOG.debug(String.format("%s - Adding prefetch %s %s for PlanFragment %d at partition %d",
+                LOG.debug(String.format("%s - Adding prefetch %s %s for PlanFragment %d at partition %d\n%s",
                           ts, dinfo.getClass().getSimpleName(),
                           TransactionUtil.debugStmtDep(stmtCounter, output_dep_id),
                           fragment.getFragmentId(i), partition, dinfo.toString()));

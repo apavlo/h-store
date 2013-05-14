@@ -38,7 +38,7 @@ public class DependencyInfo implements Poolable {
     
     private Long txn_id;
     private int round;
-    private int stmt_ctr = -1;
+    private int stmt_counter = -1;
     private int dependency_id = -1;
     
     /**
@@ -99,7 +99,7 @@ public class DependencyInfo implements Poolable {
                       txn_id, TransactionUtil.debugStmtDep(stmt_ctr, dependency_id), round));
         this.txn_id = txn_id;
         this.round = round;
-        this.stmt_ctr = stmt_ctr;
+        this.stmt_counter = stmt_ctr;
         this.dependency_id = dependency_id;
     }
     
@@ -111,7 +111,7 @@ public class DependencyInfo implements Poolable {
     @Override
     public void finish() {
         this.txn_id = null;
-        this.stmt_ctr = -1;
+        this.stmt_counter = -1;
         this.dependency_id = -1;
         this.expectedPartitions.clear();
         this.blockedTasks.clear();
@@ -146,7 +146,7 @@ public class DependencyInfo implements Poolable {
         return (this.round);
     }
     public int getStatementCounter() {
-        return (this.stmt_ctr);
+        return (this.stmt_counter);
     }
     public int getDependencyId() {
         return (this.dependency_id);
@@ -159,7 +159,7 @@ public class DependencyInfo implements Poolable {
     public void markInternal() {
         if (debug.val)
             LOG.debug(String.format("#%s - Marking DependencyInfo for %s as internal",
-                      this.txn_id, TransactionUtil.debugStmtDep(this.stmt_ctr, this.dependency_id)));
+                      this.txn_id, TransactionUtil.debugStmtDep(this.stmt_counter, this.dependency_id)));
         this.internal = true;
     }
     public boolean isInternal() {
@@ -254,7 +254,7 @@ public class DependencyInfo implements Poolable {
             LOG.debug(String.format("#%s - Storing RESULT for DependencyId #%d from Partition #%d with %d tuples",
                       this.txn_id, this.dependency_id, partition, result.getRowCount()));
         assert(this.resultPartitions.contains(partition) == false) :
-            String.format("Trying to add result %s for twice for %s!",
+            String.format("Trying to add result %s twice for %s!",
                           TransactionUtil.debugPartDep(partition, this.dependency_id), this.txn_id);
         assert(this.expectedPartitions.contains(partition)) :
             String.format("Unexpected partition result %s for %s!",
@@ -353,6 +353,8 @@ public class DependencyInfo implements Poolable {
         Map<String, Object> m = new LinkedHashMap<String, Object>();
         m.put("- Internal", this.internal);
         m.put("- Prefetch", this.prefetch);
+        m.put("- Round", this.round);
+        m.put("- Stmt Counter", this.stmt_counter);
         m.put("- Partitions", this.expectedPartitions);
         
         Map<String, Object> inner = new LinkedHashMap<String, Object>();
