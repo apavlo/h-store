@@ -14,6 +14,7 @@ import edu.brown.benchmark.smallbank.SmallBankLoader;
 import edu.brown.benchmark.smallbank.SmallBankProjectBuilder;
 import edu.brown.benchmark.smallbank.procedures.SendPayment;
 import edu.brown.hstore.Hstoreservice.Status;
+import edu.brown.utils.CollectionUtil;
 
 /**
  * Simple test suite for the SmallBank benchmark
@@ -64,11 +65,13 @@ public class TestSmallBankSuite extends RegressionSuite {
         CatalogContext catalogContext = this.getCatalogContext();
         Client client = this.getClient();
         TestSmallBankSuite.initializeSmallBankDatabase(catalogContext, client);
-        
         long acctIds[] = { 1l, 2l };
         double balances[] = { 100d, 0d };
         ClientResponse cresponse;
         VoltTable results[];
+
+        long num_rows = RegressionSuiteUtil.getRowCount(client, SmallBankConstants.TABLENAME_ACCOUNTS);
+        assert(num_rows > acctIds[acctIds.length-1]);
         
         for (int i = 0; i < acctIds.length; i++) {
             this.updateBalance(client, acctIds[i], balances[i]);

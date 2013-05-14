@@ -54,6 +54,18 @@ public abstract class RegressionSuiteUtil {
         return (cresponse);
     }
     
+    public static long getRowCount(Client client, String tableName) throws Exception {
+        ClientResponse cresponse = getStats(client, SysProcSelector.TABLE);
+        VoltTable result = cresponse.getResults()[0];
+        
+        while (result.advanceRow()) {
+            if (tableName.equalsIgnoreCase(result.getString("TABLE_NAME"))) {
+                return result.getLong("TUPLE_COUNT");
+            }
+        } // WHILE
+        throw new IllegalArgumentException("Invalid table '" + tableName + "'");
+    }
+    
     /**
      * Populate the given table with a bunch of random tuples
      * @param client
