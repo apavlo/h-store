@@ -442,6 +442,10 @@ public class LocalTransaction extends AbstractTransaction {
         return (this.depTracker != null);
     }
     
+    public void removeProcedureParameters() {
+        this.parameters = null;
+    }
+    
     // ----------------------------------------------------------------------------
     // EXECUTION ROUNDS
     // ----------------------------------------------------------------------------
@@ -622,22 +626,7 @@ public class LocalTransaction extends AbstractTransaction {
     // ----------------------------------------------------------------------------
     // ACCESS METHODS
     // ----------------------------------------------------------------------------
-    
-    public void removeProcedureParameters() {
-        this.parameters = null;
-    }
 
-    /**
-     * Returns true if all of the partitions that this txn is predicted
-     * to access are all on the same HStoreSite as its base partition
-     */
-    public boolean isPredictAllLocal() {
-        if (this.dtxnState != null) {
-            return (this.dtxnState.is_all_local);
-        }
-        return (true);
-    }
-    
     /**
      * Mark this transaction as needing to be restarted. This will prevent it from
      * being deleted immediately
@@ -688,18 +677,6 @@ public class LocalTransaction extends AbstractTransaction {
 
 
     /**
-     * Returns true if this transaction is part of a MapReduce transaction 
-     * @return
-     */
-    public boolean isMapReduce() {
-        return (this.mapreduce);
-    }
-    
-    public void markMapReduce() {
-        this.mapreduce = true;
-    }
-    
-    /**
      * Get the timestamp that this LocalTransaction handle was initiated
      */
     public long getInitiateTime() {
@@ -726,6 +703,33 @@ public class LocalTransaction extends AbstractTransaction {
         this.restart_ctr = val;
     }
     
+    public FastIntHistogram getTouchedPartitions() {
+        return (this.exec_touchedPartitions);
+    }
+    
+    /**
+     * Returns true if all of the partitions that this txn is predicted
+     * to access are all on the same HStoreSite as its base partition
+     */
+    public boolean isPredictAllLocal() {
+        if (this.dtxnState != null) {
+            return (this.dtxnState.is_all_local);
+        }
+        return (true);
+    }
+    
+    /**
+     * Returns true if this Transaction has executed only on a single-partition
+     * @return
+     */
+    public boolean isExecSinglePartition() {
+        return (this.exec_touchedPartitions.getValueCount() <= 1);
+    }
+
+    // ----------------------------------------------------------------------------
+    // DISTRIBUTED TXN EXECUTION
+    // ----------------------------------------------------------------------------
+    
     public boolean hasDonePartitions() {
         return (this.dtxnState.exec_donePartitions.isEmpty() == false);
     }
@@ -738,25 +742,67 @@ public class LocalTransaction extends AbstractTransaction {
         return (this.dtxnState.exec_donePartitions);
     }
     
-    
-    public FastIntHistogram getTouchedPartitions() {
-        return (this.exec_touchedPartitions);
-    }
-
-    
-    public TransactionProfiler getProfiler() {
-        return (this.profiler);
-    }
-    public void setProfiler(TransactionProfiler profiler) {
-        this.profiler = profiler;
-    }
-    
     /**
-     * Returns true if this Transaction has executed only on a single-partition
-     * @return
+     * Figure out what partitions this transaction is done with and notify those partitions
+     * that they are done
+     * Returns true if the done partitions has changed for this transaction
+     * @param ts
      */
-    public boolean isExecSinglePartition() {
-        return (this.exec_touchedPartitions.getValueCount() <= 1);
+    public PartitionSet calculateDonePartitions(EstimationThresholds thresholds) {
+        final int ts_done_partitions_size = this.dtxnState.exec_donePartitions.size();
+        PartitionSet new_done = null;
+
+        EstimatorState t_state = this.getEstimatorState();
+        if (t_state == null) {
+            return (null);
+        }
+        
+        if (debug.val)
+            LOG.debug(String.format("%s - Checking to see whether we can notify any partitions " +
+                      "that we're done with them [round=%d]",
+                      this, this.getCurrentRound(this.base_partition)));
+        
+        Estimate estimate = t_state.getLastEstimate();
+        assert(estimate != null) : "Got back null MarkovEstimate for " + this;
+        if (estimate.isValid()) {
+            return (null);
+        }
+        
+        new_done = estimate.getFinishPartitions(thresholds);
+        
+        if (new_done.isEmpty() == false) { 
+            // Note that we can actually be done with ourself, if this txn is only going to execute queries
+            // at remote partitions. But we can't actually execute anything because this partition's only 
+            // execution thread is going to be blocked. So we always do this so that we're not sending a 
+            // useless message
+            new_done.remove(this.base_partition);
+            
+            // Make sure that we only tell partitions that we actually touched, otherwise they will
+            // be stuck waiting for a finish request that will never come!
+            Collection<Integer> ts_touched = this.exec_touchedPartitions.values();
+
+            // Mark the txn done at this partition if the MarkovEstimate said we were done
+            for (Integer p : new_done) {
+                if (this.dtxnState.exec_donePartitions.contains(p.intValue()) == false && ts_touched.contains(p)) {
+                    if (trace.val) LOG.trace(String.format("Marking partition %d as done for %s", p, this));
+                    this.dtxnState.exec_donePartitions.add(p.intValue());
+                }
+            } // FOR
+        }
+        return (this.dtxnState.exec_donePartitions.size() != ts_done_partitions_size ? new_done : null);
+    }
+    
+    public ProtoRpcController getTransactionInitController(int site_id) {
+        return this.dtxnState.getTransactionInitController(site_id);
+    }
+    public ProtoRpcController getTransactionWorkController(int site_id) {
+        return this.dtxnState.getTransactionWorkController(site_id);
+    }
+    public ProtoRpcController getTransactionPrepareController(int site_id) {
+        return this.dtxnState.getTransactionPrepareController(site_id);
+    }
+    public ProtoRpcController getTransactionFinishController(int site_id) {
+        return this.dtxnState.getTransactionFinishController(site_id);
     }
     
     // ----------------------------------------------------------------------------
@@ -842,76 +888,31 @@ public class LocalTransaction extends AbstractTransaction {
     }
     
     // ----------------------------------------------------------------------------
-    // ProtoRpcController CACHE
+    // MAP REDUCE
     // ----------------------------------------------------------------------------
     
-    public ProtoRpcController getTransactionInitController(int site_id) {
-        return this.dtxnState.getProtoRpcController(this.dtxnState.rpc_transactionInit, site_id);
-    }
-    public ProtoRpcController getTransactionWorkController(int site_id) {
-        return this.dtxnState.getProtoRpcController(this.dtxnState.rpc_transactionWork, site_id);
-    }
-    public ProtoRpcController getTransactionPrepareController(int site_id) {
-        return this.dtxnState.getProtoRpcController(this.dtxnState.rpc_transactionPrepare, site_id);
-    }
-    public ProtoRpcController getTransactionFinishController(int site_id) {
-        return this.dtxnState.getProtoRpcController(this.dtxnState.rpc_transactionFinish, site_id);
+    /**
+     * Returns true if this transaction is part of a MapReduce transaction 
+     * @return
+     */
+    public boolean isMapReduce() {
+        return (this.mapreduce);
     }
     
-    /**
-     * Figure out what partitions this transaction is done with and notify those partitions
-     * that they are done
-     * Returns true if the done partitions has changed for this transaction
-     * @param ts
-     */
-    public PartitionSet calculateDonePartitions(EstimationThresholds thresholds) {
-        final int ts_done_partitions_size = this.dtxnState.exec_donePartitions.size();
-        PartitionSet new_done = null;
-
-        EstimatorState t_state = this.getEstimatorState();
-        if (t_state == null) {
-            return (null);
-        }
-        
-        if (debug.val)
-            LOG.debug(String.format("%s - Checking to see whether we can notify any partitions " +
-            		  "that we're done with them [round=%d]",
-                      this, this.getCurrentRound(this.base_partition)));
-        
-        Estimate estimate = t_state.getLastEstimate();
-        assert(estimate != null) : "Got back null MarkovEstimate for " + this;
-        if (estimate.isValid()) {
-            return (null);
-        }
-        
-        new_done = estimate.getFinishPartitions(thresholds);
-        
-        if (new_done.isEmpty() == false) { 
-            // Note that we can actually be done with ourself, if this txn is only going to execute queries
-            // at remote partitions. But we can't actually execute anything because this partition's only 
-            // execution thread is going to be blocked. So we always do this so that we're not sending a 
-            // useless message
-            new_done.remove(this.base_partition);
-            
-            // Make sure that we only tell partitions that we actually touched, otherwise they will
-            // be stuck waiting for a finish request that will never come!
-            Collection<Integer> ts_touched = this.exec_touchedPartitions.values();
-
-            // Mark the txn done at this partition if the MarkovEstimate said we were done
-            for (Integer p : new_done) {
-                if (this.dtxnState.exec_donePartitions.contains(p.intValue()) == false && ts_touched.contains(p)) {
-                    if (trace.val) LOG.trace(String.format("Marking partition %d as done for %s", p, this));
-                    this.dtxnState.exec_donePartitions.add(p.intValue());
-                }
-            } // FOR
-        }
-        return (this.dtxnState.exec_donePartitions.size() != ts_done_partitions_size ? new_done : null);
+    public void markMapReduce() {
+        this.mapreduce = true;
     }
     
     // ----------------------------------------------------------------------------
     // DEBUG STUFF
     // ----------------------------------------------------------------------------
-
+    
+    public TransactionProfiler getProfiler() {
+        return (this.profiler);
+    }
+    public void setProfiler(TransactionProfiler profiler) {
+        this.profiler = profiler;
+    }
     
     @Override
     public String toStringImpl() {

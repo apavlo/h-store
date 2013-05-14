@@ -1,4 +1,4 @@
-package edu.brown.hstore.specexec;
+package edu.brown.hstore.specexec.checkers;
 
 import org.apache.log4j.Logger;
 import org.voltdb.CatalogContext;

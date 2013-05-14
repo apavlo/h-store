@@ -10,7 +10,7 @@ import org.voltdb.types.SpeculationType;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.estimators.EstimatorState;
 import edu.brown.hstore.internal.InternalMessage;
-import edu.brown.hstore.specexec.AbstractConflictChecker;
+import edu.brown.hstore.specexec.checkers.AbstractConflictChecker;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.interfaces.DebugContext;

@@ -38,7 +38,6 @@ public class DistributedState implements Poolable {
      */
     protected boolean is_all_local = true;
     
-    
     /**
      * If this is a distributed transaction and we are doing aggressive spec exec,
      * then this bit map is used to keep track whether we have sent the Procedure
@@ -70,11 +69,12 @@ public class DistributedState implements Poolable {
     
     /**
      * Cached ProtoRpcControllers
+     * SiteId -> Controller
      */
-    protected final ProtoRpcController rpc_transactionInit[];
-    protected final ProtoRpcController rpc_transactionWork[];
-    protected final ProtoRpcController rpc_transactionPrepare[];
-    protected final ProtoRpcController rpc_transactionFinish[];
+    private final ProtoRpcController rpc_transactionInit[];
+    private final ProtoRpcController rpc_transactionWork[];
+    private final ProtoRpcController rpc_transactionPrepare[];
+    private final ProtoRpcController rpc_transactionFinish[];
     
     
     /**
@@ -122,7 +122,20 @@ public class DistributedState implements Poolable {
         this.ts = null;
     }
     
-    protected ProtoRpcController getProtoRpcController(ProtoRpcController cache[], int site_id) {
+    protected ProtoRpcController getTransactionInitController(int site_id) {
+        return this.getProtoRpcController(this.rpc_transactionInit, site_id);
+    }
+    protected ProtoRpcController getTransactionWorkController(int site_id) {
+        return this.getProtoRpcController(this.rpc_transactionWork, site_id);
+    }
+    protected ProtoRpcController getTransactionPrepareController(int site_id) {
+        return this.getProtoRpcController(this.rpc_transactionPrepare, site_id);
+    }
+    protected ProtoRpcController getTransactionFinishController(int site_id) {
+        return this.getProtoRpcController(this.rpc_transactionFinish, site_id);
+    }
+    
+    private final ProtoRpcController getProtoRpcController(ProtoRpcController cache[], int site_id) {
         if (cache[site_id] == null) {
             cache[site_id] = new ProtoRpcController();
         } else {
