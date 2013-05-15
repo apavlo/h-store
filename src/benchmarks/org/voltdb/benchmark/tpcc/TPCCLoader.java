@@ -106,7 +106,7 @@ public class TPCCLoader extends Loader {
         
         HStoreConf hstore_conf = this.getHStoreConf();
         for (int ii = 0; ii < m_tpccConfig.num_loadthreads; ii++) {
-            ScaleParameters parameters = ScaleParameters.makeWithScaleFactor(m_tpccConfig.num_warehouses, hstore_conf.client.scalefactor);
+            ScaleParameters parameters = ScaleParameters.makeWithScaleFactor(m_tpccConfig, hstore_conf.client.scalefactor);
             assert parameters != null;
 
             RandomGenerator generator = new RandomGenerator.Implementation();
