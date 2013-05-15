@@ -57,7 +57,6 @@ import java.util.Map.Entry;
 import java.util.Queue;
 import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 
@@ -144,7 +143,6 @@ import edu.brown.hstore.internal.UtilityWorkMessage;
 import edu.brown.hstore.internal.UtilityWorkMessage.TableStatsRequestMessage;
 import edu.brown.hstore.internal.UtilityWorkMessage.UpdateMemoryMessage;
 import edu.brown.hstore.internal.WorkFragmentMessage;
-import edu.brown.hstore.specexec.PrefetchQueryUtil;
 import edu.brown.hstore.specexec.QueryTracker;
 import edu.brown.hstore.specexec.checkers.AbstractConflictChecker;
 import edu.brown.hstore.specexec.checkers.MarkovConflictChecker;
@@ -156,7 +154,6 @@ import edu.brown.hstore.txns.ExecutionState;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.hstore.txns.MapReduceTransaction;
 import edu.brown.hstore.txns.PrefetchState;
-import edu.brown.hstore.txns.QueryInvocation;
 import edu.brown.hstore.txns.RemoteTransaction;
 import edu.brown.hstore.util.ArrayCache.IntArrayCache;
 import edu.brown.hstore.util.ArrayCache.LongArrayCache;
@@ -2696,9 +2693,19 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                                               ParameterSet parameters[]) throws Exception {
         DependencySet result = null;
         final long undoToken = ts.getLastUndoToken(this.partitionId);
+        
+        // Check how many fragments are not marked as ignored
         int fragmentCount = fragment.getFragmentIdCount();
+        if (ts.hasPrefetchQueries()) {
+            for (int i = 0, cnt = fragmentCount; i < cnt; i++) {
+                if (fragment.getStmtIgnore(i)) {
+                    fragmentCount--;
+                }
+            } // FOR
+        }
         if (fragmentCount == 0) {
-            LOG.warn(String.format("Got a FragmentTask for %s that does not have any fragments?!?", ts));
+            LOG.warn(String.format("Got a %s for %s that does not have any fragments?!?",
+                     fragment.getClass().getSimpleName(), ts));
             return (result);
         }
         
@@ -2707,9 +2714,11 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         int outputDepIds[] = tmp_outputDepIds.getArray(fragmentCount);
         int inputDepIds[] = tmp_inputDepIds.getArray(fragmentCount);
         for (int i = 0; i < fragmentCount; i++) {
-            fragmentIds[i] = fragment.getFragmentId(i);
-            outputDepIds[i] = fragment.getOutputDepId(i);
-            inputDepIds[i] = fragment.getInputDepId(i);
+            if (fragment.getStmtIgnore(i) == false) {
+                fragmentIds[i] = fragment.getFragmentId(i);
+                outputDepIds[i] = fragment.getOutputDepId(i);
+                inputDepIds[i] = fragment.getInputDepId(i);
+            }
         } // FOR
         
         // Input Dependencies
@@ -3628,7 +3637,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             // -------------------------------
             if (predict_singlePartition) {
                 for (WorkFragment.Builder fragmentBuilder : fragmentBuilders) {
-                    if (first == false || this.depTracker.addWorkFragment(ts, fragmentBuilder, parameters) == false) {
+                    if (first == false || this.depTracker.addWorkFragment(ts, fragmentBuilder, parameters)) {
                         this.tmp_localWorkFragmentBuilders.add(fragmentBuilder);
                         total++;
                         num_localPartition++;
@@ -3668,7 +3677,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                     is_localSite = hstore_site.isLocalPartition(partition);
                     is_localPartition = (partition == this.partitionId);
                     all_local = all_local && is_localPartition;
-                    if (first == false || this.depTracker.addWorkFragment(ts, fragmentBuilder, parameters) == false) {
+                    if (first == false || this.depTracker.addWorkFragment(ts, fragmentBuilder, parameters)) {
                         total++;
                         
                         // At this point we know that all the WorkFragment has been registered

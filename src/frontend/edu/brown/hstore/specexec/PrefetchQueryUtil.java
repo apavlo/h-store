@@ -46,24 +46,24 @@ public abstract class PrefetchQueryUtil {
                 boolean samePartitions = pq.partitions.containsAll(stmtPartitions[i]);
                 boolean sameParams = (pq.paramsHash == batchParams[i].hashCode());
                 
-                // Everything is the same, so we need to remove this
-                // statement from the batch.
-                if (samePartitions && sameParams) {
-                    plan.markStatementAsAlreadyPrefetched(i);
-                }
-                // If it's a read-only query, then we don't care 
-                // about it 
-                
-                // The parameters are different
-                else if (sameParams == false) {
-                    // If it's a read
-                    
-                    // TODO
-                }
-                // The partitions are different
-                else if (samePartitions == false) {
-                    // TODO
-                }
+//                // Everything is the same, so we need to remove this
+//                // statement from the batch.
+//                if (samePartitions && sameParams) {
+//                    plan.markStatementAsAlreadyPrefetched(i);
+//                }
+//                // If it's a read-only query, then we don't care 
+//                // about it 
+//                
+//                // The parameters are different
+//                else if (sameParams == false) {
+//                    // If it's a read
+//                    
+//                    // TODO
+//                }
+//                // The partitions are different
+//                else if (samePartitions == false) {
+//                    // TODO
+//                }
             }
         } // FOR
         

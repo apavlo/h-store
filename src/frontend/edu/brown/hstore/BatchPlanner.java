@@ -234,13 +234,6 @@ public class BatchPlanner {
         private final Map<PlanFragment, PartitionSet> frag_partitions_swap[];
 
         /**
-         * Bitmap that indicates that the query for the given StmtIndex was already
-         * sent out to prefetched.
-         */
-        private boolean already_prefetched[];
-        
-        
-        /**
          * A bitmap of whether each query at the given index in the batch was single-partitioned or not
          */
         private final boolean singlepartition_bitmap[];
@@ -305,10 +298,6 @@ public class BatchPlanner {
             this.all_local = true;
             this.all_singlepartitioned = true;
             
-            if (this.already_prefetched != null) {
-                Arrays.fill(this.already_prefetched, false);
-            }
-
             for (int i = 0; i < this.frag_list.length; i++) {
                 if (this.frag_list[i] != null)
                     this.frag_list[i] = null;
@@ -377,14 +366,6 @@ public class BatchPlanner {
 
         public int[] getInputDependencyIds() {
             return (this.graph.input_ids);
-        }
-        
-        public void markStatementAsAlreadyPrefetched(int stmtIndex) {
-            if (this.already_prefetched == null) {
-                this.already_prefetched = new boolean[batchSize];
-                Arrays.fill(this.already_prefetched, false);
-            }
-            this.already_prefetched[stmtIndex] = true;
         }
         
         /**
@@ -1056,6 +1037,7 @@ public class BatchPlanner {
                         partitionBuilder = WorkFragment.newBuilder().setPartitionId(partition);
                         this.round_builders.put(v.input_dependency_id, partitionBuilder);
                         partitionBuilder.setReadOnly(true);
+                        partitionBuilder.setPrefetch(this.prefetch);
                     }
 
                     // Fragment Id
@@ -1071,24 +1053,20 @@ public class BatchPlanner {
                     // All fragments will produce some output
                     partitionBuilder.addOutputDepId(v.output_dependency_id);
 
-                    // SQLStmt Index (in batch)
+                    // SQLStmt Counter
                     partitionBuilder.addStmtCounter(stmtCounters[v.stmt_index]);
 
+                    // SQLStmt Ignore
+                    // This query was already dispatched for prefetching, so we 
+                    // actually don't want to really execute it.
+                    partitionBuilder.addStmtIgnore(false);
+                    
                     // ParameterSet Index
                     partitionBuilder.addParamIndex(v.stmt_index);
 
                     // Read-Only
                     if (v.read_only == false) {
                         partitionBuilder.setReadOnly(v.read_only);
-                    }
-
-                    // Prefetch
-                    if (this.prefetch) partitionBuilder.setPrefetch(true);
-                    
-                    // This query was already dispatched for prefetching, so we 
-                    // actually don't want to really execute it.
-                    if (plan.already_prefetched != null && plan.already_prefetched[v.stmt_index]) {
-                        
                     }
 
                     if (trace.val)

@@ -132,7 +132,7 @@ public class TestLocalTransaction extends BaseTestCase {
         
         List<WorkFragment.Builder> ready = new ArrayList<WorkFragment.Builder>();
         for (WorkFragment.Builder builder : builders) {
-            boolean blocked = this.depTracker.addWorkFragment(this.ts, builder, this.batchParams);
+            boolean blocked = (this.depTracker.addWorkFragment(this.ts, builder, this.batchParams) == false);
             if (blocked == false) {
                 assertFalse(builder.toString(), ready.contains(builder));
                 ready.add(builder);

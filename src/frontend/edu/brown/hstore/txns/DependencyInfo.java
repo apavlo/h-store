@@ -239,12 +239,8 @@ public class DependencyInfo implements Poolable {
     /**
      * <B>NOTE:</B> This should only be called for DEBUG purposes only
      */
-    protected List<Integer> getPartitions() {
-        List<Integer> p = new ArrayList<Integer>();
-        for (int i = 0, cnt = this.expectedPartitions.size(); i < cnt; i++) {
-            if (this.expectedPartitions.contains(i)) p.add(i);
-        }
-        return (p);
+    protected PartitionSet getExpectedPartitions() {
+        return (this.expectedPartitions);
     }
     
     /**

@@ -437,8 +437,9 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
                           partition, this, this.hashCode());
         
         this.round_state[partition] = RoundState.STARTED;
-        if (debug.val) LOG.debug(String.format("%s - Starting batch ROUND #%d on partition %d",
-                         this, this.round_ctr[partition], partition));
+        if (debug.val)
+            LOG.debug(String.format("%s - Starting batch ROUND #%d on partition %d",
+                      this, this.round_ctr[partition], partition));
     }
     
     /**
@@ -450,8 +451,9 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
             String.format("Invalid batch round state %s for %s at partition %d",
                           this.round_state[partition], this, partition);
         
-        if (debug.val) LOG.debug(String.format("%s - Finishing batch ROUND #%d on partition %d",
-                         this, this.round_ctr[partition], partition));
+        if (debug.val)
+            LOG.debug(String.format("%s - Finishing batch ROUND #%d on partition %d",
+                      this, this.round_ctr[partition], partition));
         this.round_state[partition] = RoundState.FINISHED;
         this.round_ctr[partition]++;
     }

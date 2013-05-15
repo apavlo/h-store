@@ -367,14 +367,16 @@ public class DependencyTracker {
         
         return (dinfo);
     }
-    
+
     /**
-     * 
+     * Check to see whether there is already a prefetched query queued up for the
+     * given WorkFragment information.
      * @param state
      * @param round
      * @param stmtCounter
+     * @param paramsHash
      * @param fragmentId
-     * @param dependency_id
+     * @param dependencyId
      * @return
      */
     private DependencyInfo getPrefetchDependencyInfo(TransactionState state,
@@ -382,28 +384,40 @@ public class DependencyTracker {
                                                      int stmtCounter,
                                                      int paramsHash,
                                                      int fragmentId,
-                                                     int dependency_id) {
+                                                     int dependencyId) {
         Map<Integer, DependencyInfo> stmt_deps = state.prefetch_dependencies.get(stmtCounter);
         if (stmt_deps == null) {
+            if (trace.val)
+                LOG.trace(String.format("%s - Invalid prefetch query for %s." +
+                          "No StmtCounter match.",
+                          state, TransactionUtil.debugStmtDep(stmtCounter, dependencyId)));
             return (null);
         }
         DependencyInfo dinfo = stmt_deps.get(fragmentId);
         if (dinfo == null) {
+            if (trace.val)
+                LOG.trace(String.format("%s - Invalid prefetch query for %s. " +
+                          "No FragmentID match. [%d]",
+                          state, TransactionUtil.debugStmtDep(stmtCounter, dependencyId),
+                          fragmentId));
             return (null);
         }
         
         if (dinfo.getParameterSetHash() != paramsHash) {
-            // FIXME
+            if (trace.val)
+                LOG.trace(String.format("%s - Invalid prefetch query for %s. " +
+                          "Parameter hash mismatch [%d != %d]",
+                          state, TransactionUtil.debugStmtDep(stmtCounter, dependencyId),
+                          dinfo.getParameterSetHash(), paramsHash));
             return (null);
         }
-        
         
         // IMPORTANT: We have to update this DependencyInfo's output id 
         // so that the blocked WorkFragment can retrieve it properly when it
         // runs. This is necessary because we don't know what the PlanFragment's
         // output id will be before it runs...
-        dinfo.prefetchOverride(round, dependency_id);
-        state.dependencies.put(dependency_id, dinfo);
+        dinfo.prefetchOverride(round, dependencyId);
+        state.dependencies.put(dependencyId, dinfo);
         
         return (dinfo);
     }
@@ -505,13 +519,13 @@ public class DependencyTracker {
     }
     
     /**
-     * Queues up a WorkFragment for this txn. If the return value is true, 
-     * then the WorkFragment is blocked waiting for dependencies.
-     * If the return value is false, then the WorkFragment can be executed 
+     * Queues up a WorkFragment for this txn.
+     * If the return value is true, then the WorkFragment can be executed
      * immediately (either locally or on at a remote partition).
+     * If the return value is false, then the WorkFragment is blocked waiting for dependencies.
      * @param ts
      * @param fragment
-     * @return
+     * @return true if the WorkFragment should be dispatched right now 
      */
     public boolean addWorkFragment(LocalTransaction ts, WorkFragment.Builder fragment, ParameterSet batchParams[]) {
         final TransactionState state = this.getState(ts);
@@ -540,6 +554,7 @@ public class DependencyTracker {
         // It definitely does not need to be because this is only invoked by the
         // transaction's base partition PartitionExecutor
         int output_dep_id, input_dep_id;
+        int ignore_ctr = 0;
         for (int i = 0; i < num_fragments; i++) {
             int fragmentId = fragment.getFragmentId(i);
             int stmtCounter = fragment.getStmtCounter(i);
@@ -585,6 +600,12 @@ public class DependencyTracker {
                 // If this query was prefetched, we need to push its results through the 
                 // the tracker so that it can update counters
                 if (prefetch) {
+                    // We also need a way to mark this entry in the WorkFragment as 
+                    // unnecessary and make sure that we don't actually send it out
+                    // if there is no new work to be done.
+                    fragment.setStmtIgnore(i, true);
+                    ignore_ctr++;
+                    
                     ts.getTransactionLock().lock();
                     try {
                         // Switch the DependencyInfo out of prefetch mode
@@ -672,6 +693,10 @@ public class DependencyTracker {
                       fragment.getFragmentIdList()));
         }
         // *********************************** DEBUG ***********************************
+        
+        if (ignore_ctr == num_fragments) {
+            return (true);
+        }
         
         return (blocked);
     }
