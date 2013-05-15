@@ -248,19 +248,19 @@ public class DependencyTracker {
         
         // Create our output counters
         assert(state.output_order.isEmpty());
-//        for (int stmtIndex = 0; stmtIndex < batch_size; stmtIndex++) {
-//            if (trace.val)
-//                LOG.trace(String.format("%s - Examining %d dependencies at stmtIndex %d",
-//                          ts, state.dependencies.size(), stmtIndex));
+        for (int stmtIndex = 0; stmtIndex < batch_size; stmtIndex++) {
+            if (trace.val)
+                LOG.trace(String.format("%s - Examining %d dependencies at stmtIndex %d",
+                          ts, state.dependencies.size(), stmtIndex));
             for (DependencyInfo dinfo : state.dependencies.values()) {
                 // Add this DependencyInfo our output list if it's being used in this round for this txn
                 // and if it is not an internal dependency
                 if (dinfo.inSameTxnRound(ts.getTransactionId(), currentRound) &&
-                        dinfo.isInternal() == false) {  // && dinfo.getStatementCounter() == stmtIndex) {
+                        dinfo.isInternal() == false && dinfo.getStatementIndex() == stmtIndex) {
                     state.output_order.add(dinfo.getDependencyId());
                 }
             } // FOR
-//        } // FOR
+        } // FOR
         assert(batch_size == state.output_order.size()) :
             String.format("%s - Expected %d output dependencies but we queued up %d " +
                           "[outputOrder=%s / numDependencies=%d]",
@@ -336,6 +336,7 @@ public class DependencyTracker {
                                                      TransactionState state,
                                                      int currentRound,
                                                      int stmtCounter,
+                                                     int stmtIndex,
                                                      int paramsHash,
                                                      int fragmentId, Integer dep_id) {
         DependencyInfo dinfo = state.dependencies.get(dep_id);
@@ -362,7 +363,7 @@ public class DependencyTracker {
                           fragmentId, dinfo.hashCode()));
         }
         if (dinfo.isInitialized() == false) {
-            dinfo.init(state.txn_id, currentRound, stmtCounter, paramsHash,  dep_id.intValue());
+            dinfo.init(state.txn_id, currentRound, stmtCounter, stmtIndex, paramsHash,  dep_id.intValue());
         }
         
         return (dinfo);
@@ -578,7 +579,7 @@ public class DependencyTracker {
                 }
                 if (dinfo == null) {
                     dinfo = this.getOrCreateDependencyInfo(ts, state, currentRound,
-                                                           stmtCounter, paramsHash,
+                                                           stmtCounter, stmtIndex, paramsHash,
                                                            fragmentId, output_dep_id);
                 }
                 
@@ -640,7 +641,7 @@ public class DependencyTracker {
                     }
                     if (dinfo == null) {
                         dinfo = this.getOrCreateDependencyInfo(ts, state, currentRound,
-                                                               stmtCounter, paramsHash,
+                                                               stmtCounter, stmtIndex, paramsHash,
                                                                fragmentId, input_dep_id);
                     }
                     dinfo.addBlockedWorkFragment(fragment);
@@ -974,7 +975,7 @@ public class DependencyTracker {
             DependencyInfo dinfo = stmt_deps.get(fragmentId);
             if (dinfo == null) {
                 dinfo = new DependencyInfo(this.catalogContext);
-                dinfo.init(state.txn_id, -1, stmtCounter, paramHash, output_dep_id);
+                dinfo.init(state.txn_id, -1, stmtCounter, stmtIndex, paramHash, output_dep_id);
                 dinfo.markPrefetch();
             }
             dinfo.addPartition(partition);
