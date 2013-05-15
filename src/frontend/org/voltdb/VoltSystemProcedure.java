@@ -194,6 +194,7 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
                                                         .setLastFragment(pf.last_task)
                                                         .addFragmentId(pf.fragmentId)
                                                         .addStmtCounter(0)
+                                                        .addStmtIgnore(false)
                                                         .addParamIndex(i);
                 ts.getTouchedPartitions().put(destPartitionId);
                 
