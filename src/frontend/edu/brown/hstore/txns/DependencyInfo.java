@@ -135,10 +135,12 @@ public class DependencyInfo implements Poolable {
      * that don't have the real id when they were original created.
      * @param round 
      * @param dependency_id
+     * @param stmt_index
      */
-    protected void prefetchOverride(int round, int dependency_id) {
+    protected void prefetchOverride(int round, int dependency_id, int stmt_index) {
         this.round = round;
         this.dependency_id = dependency_id;
+        this.stmt_index = stmt_index;
     }
     
     // ----------------------------------------------------------------------------
