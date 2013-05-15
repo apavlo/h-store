@@ -3628,7 +3628,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             // -------------------------------
             if (predict_singlePartition) {
                 for (WorkFragment.Builder fragmentBuilder : fragmentBuilders) {
-                    if (first == false || this.depTracker.addWorkFragment(ts, fragmentBuilder) == false) {
+                    if (first) continue;
+                    if (this.depTracker.addWorkFragment(ts, fragmentBuilder, parameters) == false) {
                         this.tmp_localWorkFragmentBuilders.add(fragmentBuilder);
                         total++;
                         num_localPartition++;
@@ -3668,7 +3669,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                     is_localSite = hstore_site.isLocalPartition(partition);
                     is_localPartition = (partition == this.partitionId);
                     all_local = all_local && is_localPartition;
-                    if (first == false || this.depTracker.addWorkFragment(ts, fragmentBuilder) == false) {
+                    if (first == false || this.depTracker.addWorkFragment(ts, fragmentBuilder, parameters) == false) {
                         total++;
                         
                         // At this point we know that all the WorkFragment has been registered
