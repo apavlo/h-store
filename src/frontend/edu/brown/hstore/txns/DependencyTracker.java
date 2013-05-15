@@ -234,9 +234,7 @@ public class DependencyTracker {
             String.format("Trying to initialize ROUND #%d for %s but there are %d queued results",
                            ts.getCurrentRound(ts.getBasePartition()),
                            ts, state.queued_results.size());
-        // if (this.getLastUndoToken(partition) != HStoreConstants.NULL_UNDO_LOGGING_TOKEN) {
-        state.clear();
-        // }
+        if (ts.getCurrentRound(ts.getBasePartition()) != 0) state.clear();
     }
     
     protected void startRound(LocalTransaction ts) {
@@ -265,8 +263,9 @@ public class DependencyTracker {
 //        } // FOR
         assert(batch_size == state.output_order.size()) :
             String.format("%s - Expected %d output dependencies but we queued up %d " +
-            		      "[outputOrder=%s]",
-                          ts, batch_size, state.output_order.size(), state.output_order);
+                          "[outputOrder=%s / numDependencies=%d]",
+                          ts, batch_size, state.output_order.size(),
+                          state.output_order, state.dependencies.size());
         
         // Release any queued responses/results
         if (state.queued_results.isEmpty() == false) {
@@ -575,7 +574,7 @@ public class DependencyTracker {
                 
                 if (debug.val)
                     LOG.debug(String.format("%s - Added new %s %s for PlanFragment %d at partition %d " +
-                    		  "[depCtr=%d, prefetch=%s]\n%s",
+                              "[depCtr=%d, prefetch=%s]\n%s",
                               ts, dinfo.getClass().getSimpleName(),
                               TransactionUtil.debugStmtDep(stmtCounter, output_dep_id),
                               fragment.getFragmentId(i),
@@ -647,7 +646,7 @@ public class DependencyTracker {
                     }
                 } // FOR
                 LOG.trace(String.format("%s - Number of Output Dependencies for StmtCounter #%d: " +
-                		  "%d out of %d\n%s", 
+                          "%d out of %d\n%s", 
                           ts, stmtCounter, output_ctr, dep_ctr, StringUtil.formatMaps(m)));
             }
             // *********************************** DEBUG ***********************************
