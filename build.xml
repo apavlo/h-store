@@ -1055,7 +1055,6 @@ TEST CASES
                 <exclude name='edu/brown/benchmark/seats/TestSEATSSuite.class'/>
                 
                 <!-- Misc VoltDB stuff -->
-                <exclude name='org/voltdb/TestAdHocQueries*'/>
                 <exclude name='org/voltdb/TestHSQLBackend*'/>
                 <exclude name="**/*$*.class"/>
             </fileset>
@@ -1124,7 +1123,6 @@ TEST CASES
                 <include name='org/voltdb/messaging/**/*Test.class'/>
                 <include name='org/voltdb/utils/**/*Test.class'/>
                 
-                <exclude name='org/voltdb/TestAdHocQueries*'/>
                 <exclude name='org/voltdb/TestHSQLBackend*'/>
                 
                 <!-- VoltDB Regression Suite -->
@@ -1218,7 +1216,7 @@ TEST CASES
                     <exclude name="**/TestPrefetchableSuite.class" />
                     <exclude name="**/TestWikipediaSuite.class" />
                     <exclude name="**/TestWikipediaLoader.class" />
-<!--                     <exclude name="**/TestAntiCache*.class" /> -->
+                    <exclude name="**/TestAntiCache*.class" />
                 </fileset>
             </tests>
         </run_junit>
