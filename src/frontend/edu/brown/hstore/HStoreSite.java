@@ -329,7 +329,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * AdHoc: This thread waits for AdHoc queries. 
      */
     private boolean adhoc_helper_started = false;
-    private final AsyncCompilerWorkThread asyncCompilerWork_thread;
+    private final AsyncCompilerWorkThread asyncCompilerWorkThread;
     
     /**
      * Anti-Cache Abstraction Layer
@@ -557,9 +557,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
 
         // AdHoc Support
         if (hstore_conf.site.exec_adhoc_sql) {
-            this.asyncCompilerWork_thread = new AsyncCompilerWorkThread(this, this.site_id);
+            this.asyncCompilerWorkThread = new AsyncCompilerWorkThread(this, this.site_id);
         } else {
-            this.asyncCompilerWork_thread = null;
+            this.asyncCompilerWorkThread = null;
         }
         
         // The AntiCacheManager will allow us to do special things down in the EE
@@ -1050,12 +1050,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * Start threads for processing AdHoc queries 
      */
     private void startAdHocHelper() {
-        synchronized (this.asyncCompilerWork_thread) {
+        synchronized (this.asyncCompilerWorkThread) {
             if (this.adhoc_helper_started) return;
         
             if (debug.val)
-                LOG.debug("Starting " + this.asyncCompilerWork_thread.getClass().getSimpleName());
-            this.asyncCompilerWork_thread.start();
+                LOG.debug("Starting " + this.asyncCompilerWorkThread.getClass().getSimpleName());
+            this.asyncCompilerWorkThread.start();
             this.adhoc_helper_started = true;
         } // SYNCH
     }
@@ -1398,8 +1398,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         } // FOR
 
         if (this.adhoc_helper_started) {
-            if (this.asyncCompilerWork_thread != null)
-                this.asyncCompilerWork_thread.prepareShutdown(error);
+            if (this.asyncCompilerWorkThread != null)
+                this.asyncCompilerWorkThread.prepareShutdown(error);
         }
         
         for (int p : this.local_partitions.values()) {
@@ -1446,7 +1446,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * Perform shutdown operations for this HStoreSiteNode
      */
     @Override
-    public synchronized void shutdown(){
+    public synchronized void shutdown() {
         if (this.shutdown_state == ShutdownState.SHUTDOWN) {
 //            if (debug.val)
                 LOG.warn("Already told to shutdown... Ignoring");
@@ -1479,8 +1479,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         // Stop AdHoc threads
         if (this.adhoc_helper_started) {
-            if (this.asyncCompilerWork_thread != null)
-                this.asyncCompilerWork_thread.shutdown();
+            if (this.asyncCompilerWorkThread != null)
+                this.asyncCompilerWorkThread.shutdown();
         }
 
         if (this.preProcessors != null) {
@@ -1822,7 +1822,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                                                                              params,
                                                                              clientCallback);
             String sql = (String)params.toArray()[0];
-            this.asyncCompilerWork_thread.planSQL(ts, sql);
+            this.asyncCompilerWorkThread.planSQL(ts, sql);
             return (true);
         }
         
@@ -2873,8 +2873,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }
         
         // poll planner queue
-        if (this.asyncCompilerWork_thread != null) {
-            checkForFinishedCompilerWork();
+        if (this.asyncCompilerWorkThread != null) {
+            this.checkForFinishedCompilerWork();
+            this.asyncCompilerWorkThread.verifyEverthingIsKosher();
         }
         
         // Don't delete anything if we're shutting down
@@ -2892,10 +2893,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * 
      */
     private void checkForFinishedCompilerWork() {
-        // if (trace.val) LOG.trace("Checking for finished compiled work.");
+        if (trace.val) LOG.trace("Checking for finished compiled work.");
         AsyncCompilerResult result = null;
  
-        while ((result = asyncCompilerWork_thread.getPlannedStmt()) != null) {
+        while ((result = this.asyncCompilerWorkThread.getPlannedStmt()) != null) {
             if (trace.val) LOG.trace("AsyncCompilerResult\n" + result);
             
             // ----------------------------------
@@ -2903,7 +2904,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             // ----------------------------------
             if (result.errorMsg != null) {
                 if (debug.val)
-                    LOG.error("Unexpected AsyncCompiler Error:\n" + result.errorMsg);
+                    LOG.error(String.format("Unexpected %s Error for clientHandle #%d: %s",
+                              this.asyncCompilerWorkThread.getClass().getSimpleName(),
+                              result.clientHandle, result.errorMsg));
                 
                 ClientResponseImpl errorResponse =
                         new ClientResponseImpl(-1,
@@ -2915,7 +2918,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 this.responseSend(result.ts, errorResponse);
                 
                 // We can just delete the LocalTransaction handle directly
+                result.ts.getInitCallback().cancel();
                 boolean deletable = result.ts.isDeletable();
+                if (deletable == false) {
+                    LOG.warn(result.ts + " is not deletable?\n" + result.ts.debug());
+                }
                 assert(deletable);
                 this.deleteLocalTransaction(result.ts, Status.ABORT_UNEXPECTED);
             }

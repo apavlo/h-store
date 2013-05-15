@@ -31,10 +31,7 @@ public class AsyncCompilerResult implements Serializable {
     public LocalTransaction ts;
     public long clientHandle = -1;
     public String errorMsg = null;
-    public long connectionId = -1;
-    public String hostname = "";
     public int expectedCatalogVersion = -1;
-    transient public Object clientData = null;
     
     public AsyncCompilerResult(LocalTransaction ts) {
         this.ts = ts;
