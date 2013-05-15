@@ -695,10 +695,10 @@ public class DependencyTracker {
         // *********************************** DEBUG ***********************************
         
         if (ignore_ctr == num_fragments) {
-            return (true);
+            return (false);
         }
         
-        return (blocked);
+        return (blocked == false);
     }
     
     /**
