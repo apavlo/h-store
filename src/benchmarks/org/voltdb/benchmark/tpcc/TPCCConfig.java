@@ -49,6 +49,12 @@ public final class TPCCConfig {
     public int temporal_skew_mix = 0;
     public boolean temporal_skew_rotate = false;
     
+    /**
+     * Scale the number of items based on the client scalefactor.
+     * @see HStoreConf.ClientConf.scalefactor
+     */
+    public boolean scale_items = false;
+    
     private TPCCConfig() {
         // Nothing
     }
@@ -151,6 +157,11 @@ public final class TPCCConfig {
             // TEMPORAL SKEW ROTATE
             else if (key.equalsIgnoreCase("temporal_skew_rotate") && !val.isEmpty()) {
                 temporal_skew_rotate = Boolean.parseBoolean(val);
+            }
+            
+            // # OF ITEMS
+            else if (key.equalsIgnoreCase("scale_items") && !val.isEmpty()) {
+                scale_items = Boolean.parseBoolean(val);
             }
         } // FOR
         

@@ -54,7 +54,7 @@ package org.voltdb.benchmark.tpcc;
 public class ScaleParameters {
     
     public ScaleParameters(int items, int warehouses, int firstWarehouse, int districtsPerWarehouse,
-            int customersPerDistrict, int newOrdersPerDistrict) {
+                           int customersPerDistrict, int newOrdersPerDistrict) {
         
         // ITEMS
         assert(items > 0) : "Invalid # of items: " + items; 
@@ -88,17 +88,21 @@ public class ScaleParameters {
                                    TPCCConstants.INITIAL_NEW_ORDERS_PER_DISTRICT);
     }
 
-    public static ScaleParameters makeWithScaleFactor(int warehouses, double scaleFactor) {
-        return makeWithScaleFactor(warehouses, TPCCConstants.STARTING_WAREHOUSE, scaleFactor);
-    }
-    
-    public static ScaleParameters makeWithScaleFactor(int warehouses, int firstWarehouse, double scaleFactor) {
-        int items = TPCCConstants.NUM_ITEMS; // (int)Math.max(1, TPCCConstants.NUM_ITEMS * scaleFactor);
+    public static ScaleParameters makeWithScaleFactor(TPCCConfig config, double scaleFactor) {
+        int items = TPCCConstants.NUM_ITEMS;
+        if (config.scale_items) {
+            items = (int)Math.max(1, TPCCConstants.NUM_ITEMS * scaleFactor);
+        }
         int districts = TPCCConstants.DISTRICTS_PER_WAREHOUSE;
         int customers = (int)Math.max(1, TPCCConstants.CUSTOMERS_PER_DISTRICT * scaleFactor);
         int newOrders = (int)Math.max(1, TPCCConstants.INITIAL_NEW_ORDERS_PER_DISTRICT * scaleFactor);
 
-        return new ScaleParameters(items, warehouses, firstWarehouse, districts, customers, newOrders);
+        return new ScaleParameters(items,
+                                   config.num_warehouses,
+                                   config.first_warehouse,
+                                   districts,
+                                   customers,
+                                   newOrders);
     }
 
     public String toString() {

@@ -50,7 +50,7 @@ public class ResetTestMain {
         Logger.getLogger(PartitionExecutor.class.getName()).setLevel(Level.SEVERE);
         Logger.getLogger(VoltProcedure.class.getName()).setLevel(Level.SEVERE);
 
-        ScaleParameters parameters = ScaleParameters.makeWithScaleFactor(1, 1);
+        ScaleParameters parameters = ScaleParameters.makeDefault(1);
         RandomGenerator generator = new RandomGenerator.Implementation(0);
 
         String catalog = BuildDirectoryUtils.getBuildDirectoryPath() +

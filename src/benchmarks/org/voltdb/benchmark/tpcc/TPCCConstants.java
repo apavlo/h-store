@@ -219,11 +219,7 @@ public final class TPCCConstants {
     public static final String ORDER_STATUS_BY_ID = ostatByCustomerId.class.getSimpleName();
     public static final String DELIVERY = delivery.class.getSimpleName();
     public static final String PAYMENT_BY_NAME = paymentByCustomerName.class.getSimpleName();
-//    public static final String PAYMENT_BY_NAME_C = paymentByCustomerNameC.class.getSimpleName();
-//    public static final String PAYMENT_BY_NAME_W = paymentByCustomerNameW.class.getSimpleName();
     public static final String PAYMENT_BY_ID = paymentByCustomerId.class.getSimpleName();
-//    public static final String PAYMENT_BY_ID_C = paymentByCustomerIdC.class.getSimpleName();
-//    public static final String PAYMENT_BY_ID_W = paymentByCustomerIdW.class.getSimpleName();
     public static final String NEWORDER = neworder.class.getSimpleName();
     public static final String NOOP = noop.class.getSimpleName();
     public static final String STOCK_LEVEL = slev.class.getSimpleName();

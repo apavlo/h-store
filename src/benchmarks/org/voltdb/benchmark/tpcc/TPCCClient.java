@@ -282,7 +282,7 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
         rng.setC(base_runC2);
 
         HStoreConf hstore_conf = this.getHStoreConf();
-        m_scaleParams = ScaleParameters.makeWithScaleFactor(m_tpccConfig.num_warehouses, m_tpccConfig.first_warehouse, hstore_conf.client.scalefactor);
+        m_scaleParams = ScaleParameters.makeWithScaleFactor(m_tpccConfig, hstore_conf.client.scalefactor);
         m_tpccSim = new TPCCSimulation(this, rng, new Clock.RealTime(), m_scaleParams, m_tpccConfig, hstore_conf.client.skewfactor, this.getCatalogContext());
 //        m_tpccSim2 = new TPCCSimulation(this, rng2, new Clock.RealTime(), m_scaleParams, m_tpccConfig, hstore_conf.client.skewfactor);
 
