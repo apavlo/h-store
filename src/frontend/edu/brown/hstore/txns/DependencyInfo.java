@@ -39,6 +39,7 @@ public class DependencyInfo implements Poolable {
     private Long txn_id;
     private int round;
     private int stmt_counter = -1;
+    private int stmt_index = -1;
     private int dependency_id = -1;
     private int params_hash = -1;
     
@@ -94,13 +95,14 @@ public class DependencyInfo implements Poolable {
         this.resultPartitions = new PartitionSet(); // catalogContext.numberOfPartitions);
     }
     
-    public void init(Long txn_id, int round, int stmt_counter, int params_hash, int dependency_id) {
+    public void init(Long txn_id, int round, int stmt_counter, int stmt_index, int params_hash, int dependency_id) {
         if (debug.val)
             LOG.debug(String.format("#%s - Intializing DependencyInfo for %s in ROUND #%d",
                       txn_id, TransactionUtil.debugStmtDep(stmt_counter, dependency_id), round));
         this.txn_id = txn_id;
         this.round = round;
         this.stmt_counter = stmt_counter;
+        this.stmt_index = stmt_index;
         this.params_hash = params_hash;
         this.dependency_id = dependency_id;
     }
@@ -114,6 +116,7 @@ public class DependencyInfo implements Poolable {
     public void finish() {
         this.txn_id = null;
         this.stmt_counter = -1;
+        this.stmt_index = -1;
         this.dependency_id = -1;
         this.params_hash = -1;
         this.expectedPartitions.clear();
@@ -150,6 +153,9 @@ public class DependencyInfo implements Poolable {
     }
     public int getStatementCounter() {
         return (this.stmt_counter);
+    }
+    public int getStatementIndex() {
+        return (this.stmt_index);
     }
     public int getParameterSetHash() {
         return (this.params_hash);
@@ -357,6 +363,7 @@ public class DependencyInfo implements Poolable {
         m.put("- Prefetch", this.prefetch);
         m.put("- Round", this.round);
         m.put("- Stmt Counter", this.stmt_counter);
+        m.put("- Stmt Index", this.stmt_index);
         m.put("- Parameters Hash", this.params_hash);
         m.put("- Partitions", this.expectedPartitions);
         
