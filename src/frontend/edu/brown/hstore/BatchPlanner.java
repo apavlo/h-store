@@ -1056,6 +1056,9 @@ public class BatchPlanner {
                     // SQLStmt Counter
                     partitionBuilder.addStmtCounter(stmtCounters[v.stmt_index]);
 
+                    // SQLStmt Index
+                    partitionBuilder.addStmtIndex(v.stmt_index);
+                    
                     // SQLStmt Ignore
                     // This query was already dispatched for prefetching, so we 
                     // actually don't want to really execute it.

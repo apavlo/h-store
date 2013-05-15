@@ -249,10 +249,13 @@ public class DependencyTracker {
         // Create our output counters
         assert(state.output_order.isEmpty());
         for (int stmtIndex = 0; stmtIndex < batch_size; stmtIndex++) {
-            if (trace.val)
-                LOG.trace(String.format("%s - Examining %d dependencies at stmtIndex %d",
-                          ts, state.dependencies.size(), stmtIndex));
+            if (debug.val)
+                LOG.debug(String.format("%s - Examining %d dependencies [stmtIndex=%d, currentRound=%d]",
+                          ts, state.dependencies.size(), stmtIndex, currentRound));
             for (DependencyInfo dinfo : state.dependencies.values()) {
+                if (debug.val)
+                    LOG.debug(String.format("%s - Checking %s", ts, dinfo));
+                
                 // Add this DependencyInfo our output list if it's being used in this round for this txn
                 // and if it is not an internal dependency
                 if (dinfo.inSameTxnRound(ts.getTransactionId(), currentRound) &&
@@ -559,8 +562,8 @@ public class DependencyTracker {
         for (int i = 0; i < num_fragments; i++) {
             int fragmentId = fragment.getFragmentId(i);
             int stmtCounter = fragment.getStmtCounter(i);
-            int stmtIndex = fragment.getParamIndex(i);
-            int paramsHash = batchParams[stmtIndex].hashCode();
+            int stmtIndex = fragment.getStmtIndex(i);
+            int paramsHash = batchParams[fragment.getParamIndex(i)].hashCode();
             
             // If this task produces output dependencies, then we need to make 
             // sure that the txn wait for it to arrive first
@@ -953,8 +956,8 @@ public class DependencyTracker {
         for (int i = 0; i < num_fragments; i++) {
             final int fragmentId = fragment.getFragmentId(i);
             final int stmtCounter = fragment.getStmtCounter(i);
-            final int stmtIndex = fragment.getParamIndex(i);
-            final int paramHash = batchParams[stmtIndex].hashCode();
+            final int stmtIndex = fragment.getStmtIndex(i);
+            final int paramHash = batchParams[fragment.getParamIndex(i)].hashCode();
             
             // A prefetched query must *always* produce an output!
             int output_dep_id = fragment.getOutputDepId(i);
