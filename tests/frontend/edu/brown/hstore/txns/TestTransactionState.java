@@ -236,14 +236,14 @@ public class TestTransactionState extends BaseTestCase {
                 
                 if (this.internal_dependency_ids.contains(d_id)) {
                     // This fragment should have been broadcast to all partitions
-                    assertEquals(NUM_PARTITIONS, dinfo.getPartitions().size());
+                    assertEquals(NUM_PARTITIONS, dinfo.getExpectedPartitions().size());
                     // But never out to VoltProcedure
                     assertFalse(this.output_dependency_ids.contains(d_id));
                     // And we should have a task blocked waiting for this dependency
                     assertFalse(dinfo.getBlockedWorkFragments().isEmpty());
                 } else {
-                    assertEquals(1, dinfo.getPartitions().size());
-                    assertEquals(LOCAL_PARTITION, dinfo.getPartitions().get(0).intValue());
+                    assertEquals(1, dinfo.getExpectedPartitions().size());
+                    assertEquals(LOCAL_PARTITION, dinfo.getExpectedPartitions().get());
                 }
             } // FOR
             

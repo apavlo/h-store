@@ -1022,7 +1022,7 @@ public class LocalTransaction extends AbstractTransaction {
                 
                 inner += "  Dependency Partitions:\n";
                 for (Integer dependency_id : s_dependencies.keySet()) {
-                    inner += "    [" + dependency_id + "] => " + s_dependencies.get(dependency_id).getPartitions() + "\n";
+                    inner += "    [" + dependency_id + "] => " + s_dependencies.get(dependency_id).getExpectedPartitions() + "\n";
                 } // FOR
                 
                 inner += "  Dependency Results:\n";
@@ -1056,7 +1056,7 @@ public class LocalTransaction extends AbstractTransaction {
                             inner += "*RELEASED*";
                         }
                         else {
-                            inner += String.format("%d / %d", d.getResults().size(), d.getPartitions().size());
+                            inner += String.format("%d / %d", d.getResults().size(), d.getExpectedPartitions().size());
                         }
                         inner += "\n";
                         none = false;
