@@ -134,7 +134,7 @@ public class TestDependencyTrackerPrefetch extends BaseTestCase {
         
         // Tell the DependencyTracker that we're going to prefetch all of the WorkFragments
         this.prefetchFragment.setStmtCounter(0, expectedOffset);
-        this.depTracker.addPrefetchWorkFragment(this.ts, this.prefetchFragment);
+        this.depTracker.addPrefetchWorkFragment(this.ts, this.prefetchFragment, this.prefetchParams);
         assertEquals(1, this.depTrackerDbg.getPrefetchCounter(this.ts));
         this.depTracker.addPrefetchResult(this.ts,
                                           expectedOffset,
@@ -172,7 +172,7 @@ public class TestDependencyTrackerPrefetch extends BaseTestCase {
         List<WorkFragment.Builder> ftasks = new ArrayList<WorkFragment.Builder>();
         nextPlan.getWorkFragmentsBuilders(TXN_ID, nextCounters, ftasks);
         for (WorkFragment.Builder fragment : ftasks) {
-            this.depTracker.addWorkFragment(this.ts, fragment);
+            this.depTracker.addWorkFragment(this.ts, fragment, nextParams);
         } // FOR
         
         this.ts.startRound(BASE_PARTITION);
@@ -207,7 +207,7 @@ public class TestDependencyTrackerPrefetch extends BaseTestCase {
         
         // Tell the DependencyTracker that we're going to prefetch all of the WorkFragments
         this.prefetchFragment.setStmtCounter(0, expectedOffset);
-        this.depTracker.addPrefetchWorkFragment(this.ts, this.prefetchFragment);
+        this.depTracker.addPrefetchWorkFragment(this.ts, this.prefetchFragment, this.prefetchParams);
         assertEquals(1, this.depTrackerDbg.getPrefetchCounter(this.ts));
         this.depTracker.addPrefetchResult(this.ts,
                                           expectedOffset,
@@ -244,7 +244,7 @@ public class TestDependencyTrackerPrefetch extends BaseTestCase {
             List<WorkFragment.Builder> ftasks = new ArrayList<WorkFragment.Builder>();
             nextPlan.getWorkFragmentsBuilders(TXN_ID, nextCounters, ftasks);
             for (WorkFragment.Builder fragment : ftasks) {
-                this.depTracker.addWorkFragment(this.ts, fragment);
+                this.depTracker.addWorkFragment(this.ts, fragment, nextParams);
             } // FOR
             this.ts.startRound(BASE_PARTITION);
             
@@ -281,6 +281,82 @@ public class TestDependencyTrackerPrefetch extends BaseTestCase {
     // ----------------------------------------------------------------------------------
     // TESTS
     // ----------------------------------------------------------------------------------
+    
+    /**
+     * testDifferentParams
+     */
+    public void testDifferentParams() throws Exception {
+        // Execute the same query as our prefetch one but use different parameters.
+        // We should make sure that we don't get back our prefetched result.
+        
+        // Tell the DependencyTracker that we're going to prefetch all of the WorkFragments
+        this.depTracker.addPrefetchWorkFragment(this.ts, this.prefetchFragment, this.prefetchParams);
+        assertEquals(1, this.depTrackerDbg.getPrefetchCounter(this.ts));
+        
+        // Then add the result into the DependencyTracker
+        this.depTracker.addPrefetchResult(this.ts,
+                                          PREFETCH_STMT_COUNTER,
+                                          this.prefetchFragment.getFragmentId(0),
+                                          REMOTE_PARTITION,
+                                          this.prefetchParamsHash[0],
+                                          this.prefetchResult);
+        
+        Collection<Column> outputCols = PlanNodeUtil.getOutputColumnsForStatement(catalog_stmt);
+        
+        SQLStmt nextBatch[] = {
+            this.prefetchBatch[0],
+            this.prefetchBatch[0]
+        };
+        ParameterSet nextParams[] = {
+            new ParameterSet(12345l, BASE_PARTITION+1),
+            new ParameterSet(12345l, BASE_PARTITION+1),
+        };
+        int nextCounters[] = new int[]{ 0, 1 };
+        VoltTable nextResults[] = {
+            CatalogUtil.getVoltTable(outputCols),
+            CatalogUtil.getVoltTable(outputCols),
+        };
+        
+        // Initialize the txn to simulate that it has started
+        this.ts.initFirstRound(undoToken, nextBatch.length);
+        assertEquals(AbstractTransaction.RoundState.INITIALIZED, this.ts.getCurrentRoundState(BASE_PARTITION));
+        assertNotNull(this.ts.getLastUndoToken(BASE_PARTITION));
+        assertEquals(undoToken, this.ts.getLastUndoToken(BASE_PARTITION));
+        
+        BatchPlanner nextPlanner = new BatchPlanner(nextBatch, this.catalog_proc, p_estimator);
+        BatchPlan nextPlan = nextPlanner.plan(TXN_ID,
+                                              BASE_PARTITION,
+                                              catalogContext.getAllPartitionIds(),
+                                              this.touchedPartitions,
+                                              nextParams);
+        List<WorkFragment.Builder> ftasks = new ArrayList<WorkFragment.Builder>();
+        nextPlan.getWorkFragmentsBuilders(TXN_ID, nextCounters, ftasks);
+        assertEquals(1, ftasks.size());
+        WorkFragment.Builder fragment = CollectionUtil.first(ftasks);
+        this.depTracker.addWorkFragment(this.ts, fragment, nextParams);
+        
+        // We only need to add the query result for the first query 
+        // and then we should get immediately unblocked
+        this.ts.startRound(BASE_PARTITION);
+        CountDownLatch latch = this.depTracker.getDependencyLatch(this.ts);
+        assertEquals(nextCounters.length, latch.getCount());
+ 
+        for (int i = 0, cnt = fragment.getFragmentIdCount(); i < cnt; i++) {
+            nextResults[i].addRow(VoltTableUtil.getRandomRow(nextResults[i]));
+            this.depTracker.addResult(this.ts,
+                                      fragment.getPartitionId(),
+                                      fragment.getOutputDepId(i),
+                                      nextResults[i]);
+            assertEquals(cnt-(i+1), latch.getCount());
+        } // FOR
+        
+        
+        VoltTable results[] = this.depTracker.getResults(this.ts);
+        assertEquals(nextBatch.length, results.length);
+        for (int i = 0; i < results.length; i++) {
+            assertEquals(nextResults[i], results[i]);
+        } // FOR
+    }
     
     /**
      * testMultipleStatementsSameBatch
@@ -339,7 +415,7 @@ public class TestDependencyTrackerPrefetch extends BaseTestCase {
         // immediately released.
         
         // Tell the DependencyTracker that we're going to prefetch all of the WorkFragments
-        this.depTracker.addPrefetchWorkFragment(this.ts, this.prefetchFragment);
+        this.depTracker.addPrefetchWorkFragment(this.ts, this.prefetchFragment, this.prefetchParams);
         assertEquals(1, this.depTrackerDbg.getPrefetchCounter(this.ts));
         
         // Then add the result into the DependencyTracker
@@ -376,7 +452,7 @@ public class TestDependencyTrackerPrefetch extends BaseTestCase {
         List<WorkFragment.Builder> ftasks = new ArrayList<WorkFragment.Builder>();
         nextPlan.getWorkFragmentsBuilders(TXN_ID, nextCounters, ftasks);
         for (WorkFragment.Builder fragment : ftasks) {
-            this.depTracker.addWorkFragment(this.ts, fragment);
+            this.depTracker.addWorkFragment(this.ts, fragment, nextParams);
         } // FOR
         
         // We only need to add the query result for the first query 
@@ -411,7 +487,7 @@ public class TestDependencyTrackerPrefetch extends BaseTestCase {
         // immediately released.
         
         // Tell the DependencyTracker that we're going to prefetch all of the WorkFragments
-        this.depTracker.addPrefetchWorkFragment(this.ts, this.prefetchFragment);
+        this.depTracker.addPrefetchWorkFragment(this.ts, this.prefetchFragment, this.prefetchParams);
         assertEquals(1, this.depTrackerDbg.getPrefetchCounter(this.ts));
         
         // Now if we add in the same query again, it should automatically pick up the result
@@ -441,7 +517,7 @@ public class TestDependencyTrackerPrefetch extends BaseTestCase {
         List<WorkFragment.Builder> ftasks = new ArrayList<WorkFragment.Builder>();
         nextPlan.getWorkFragmentsBuilders(TXN_ID, nextCounters, ftasks);
         for (WorkFragment.Builder fragment : ftasks) {
-            this.depTracker.addWorkFragment(this.ts, fragment);
+            this.depTracker.addWorkFragment(this.ts, fragment, nextParams);
         } // FOR
         
         // We only need to add the query result for the first query 

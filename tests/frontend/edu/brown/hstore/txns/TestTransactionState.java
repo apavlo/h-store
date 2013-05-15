@@ -79,6 +79,10 @@ public class TestTransactionState extends BaseTestCase {
     private List<Integer> output_dependency_ids = new ArrayList<Integer>();
     private FastIntHistogram touched_partitions = new FastIntHistogram();
     
+    private SQLStmt batch[] = new SQLStmt[NUM_DUPLICATE_STATEMENTS];
+    private ParameterSet params[] = new ParameterSet[batch.length];
+    private int stmtCounters[] = new int[batch.length];
+    
     @Override
     protected void setUp() throws Exception {
         super.setUp(ProjectType.TM1);
@@ -95,18 +99,14 @@ public class TestTransactionState extends BaseTestCase {
         assertNotNull(catalog_stmt);
 
         // Create a SQLStmt batch
-        SQLStmt batch[] = new SQLStmt[NUM_DUPLICATE_STATEMENTS];
-        ParameterSet args[] = new ParameterSet[batch.length];
-        int stmtCounters[] = new int[batch.length];
-        
         for (int i = 0; i < batch.length; i++) {
             Object raw_args[] = new Object[] {
                 new Long(i + 1),    // VLR_LOCATION
                 new String("XXX"),  // SUB_NBR
             };
-            batch[i] = new SQLStmt(catalog_stmt, catalog_stmt.getMs_fragments());
-            args[i] = VoltProcedure.getCleanParams(batch[i], raw_args);
-            stmtCounters[i] = i;
+            this.batch[i] = new SQLStmt(catalog_stmt, catalog_stmt.getMs_fragments());
+            this.params[i] = VoltProcedure.getCleanParams(batch[i], raw_args);
+            this.stmtCounters[i] = i;
         } // FOR
      
         Partition catalog_part = catalogContext.getPartitionById(LOCAL_PARTITION);
@@ -121,7 +121,7 @@ public class TestTransactionState extends BaseTestCase {
                                  LOCAL_PARTITION,
                                  catalogContext.getAllPartitionIds(),
                                  this.touched_partitions,
-                                 args);
+                                 params);
         this.plan.getWorkFragmentsBuilders(TXN_ID, stmtCounters, ftasks);
         assertFalse(ftasks.isEmpty());
         assertNotNull(ftasks);
@@ -145,7 +145,7 @@ public class TestTransactionState extends BaseTestCase {
     private void addFragments() {
         for (WorkFragment.Builder ftask : ftasks) {
             assertNotNull(ftask);
-            this.depTracker.addWorkFragment(this.ts, ftask);
+            this.depTracker.addWorkFragment(this.ts, ftask, this.params);
             for (int i = 0, cnt = ftask.getFragmentIdCount(); i < cnt; i++) {
                 this.dependency_ids.add(ftask.getOutputDepId(i));
                 int input_dep_id = ftask.getInputDepId(i);

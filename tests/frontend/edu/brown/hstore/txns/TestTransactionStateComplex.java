@@ -74,6 +74,10 @@ public class TestTransactionStateComplex extends BaseTestCase {
     private Map<Integer, Set<Integer>> dependency_partitions = new HashMap<Integer, Set<Integer>>();
     private Procedure catalog_proc;
     private Statement catalog_stmt;
+    
+    SQLStmt batch[] = new SQLStmt[NUM_DUPLICATE_STATEMENTS];
+    ParameterSet args[] = new ParameterSet[batch.length];
+    int stmtCounters[] = new int[batch.length];
 
     @Override
     protected void setUp() throws Exception {
@@ -87,10 +91,6 @@ public class TestTransactionStateComplex extends BaseTestCase {
         assertNotNull(executor);
         
         // Create a SQLStmt batch
-        SQLStmt batch[] = new SQLStmt[NUM_DUPLICATE_STATEMENTS];
-        ParameterSet args[] = new ParameterSet[batch.length];
-        int stmtCounters[] = new int[batch.length];
-        
         for (int i = 0; i < batch.length; i++) {
             Object raw_args[] = new Object[] {
                 new Long(i + 1),    // U_ID
@@ -134,7 +134,7 @@ public class TestTransactionStateComplex extends BaseTestCase {
         for (WorkFragment.Builder ftask : ftasks) {
 //            System.err.println(ftask);
 //            System.err.println("+++++++++++++++++++++++++++++++++++");
-            this.depTracker.addWorkFragment(this.ts, ftask);
+            this.depTracker.addWorkFragment(this.ts, ftask, this.args);
             for (int i = 0, cnt = ftask.getFragmentIdCount(); i < cnt; i++) {
                 int dep_id = ftask.getOutputDepId(i);
                 this.dependency_ids.add(dep_id);
