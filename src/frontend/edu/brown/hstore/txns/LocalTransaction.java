@@ -516,6 +516,9 @@ public class LocalTransaction extends AbstractTransaction {
                 LOG.warn(String.format("%s - Skipping DependencyTracker.startRound()\n%s", this, this.debug()));
             }
             super.startRound(partition);
+        } catch (AssertionError ex) {
+            LOG.fatal("Unexpected error for " + this, ex);
+            throw ex;
         } finally {
             if (this.predict_singlePartition == false) this.lock.unlock();
         } // SYNCH

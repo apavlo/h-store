@@ -97,7 +97,7 @@ public class DependencyInfo implements Poolable {
     
     public void init(Long txn_id, int round, int stmt_counter, int stmt_index, int params_hash, int dependency_id) {
         if (debug.val)
-            LOG.debug(String.format("#%s - Intializing DependencyInfo for %s in ROUND #%d",
+            LOG.debug(String.format("#%s - Initializing DependencyInfo for %s in ROUND #%d",
                       txn_id, TransactionUtil.debugStmtDep(stmt_counter, dependency_id), round));
         this.txn_id = txn_id;
         this.round = round;

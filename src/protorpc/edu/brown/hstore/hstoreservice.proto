@@ -62,29 +62,32 @@ message WorkFragment {
     // for this transaction.
     repeated int32 stmt_counter = 6 [packed=true];
     
+    // The offset of this fragment's corresponding SQLStmt in the current batch.
+    repeated int32 stmt_index = 7 [packed=true];
+    
     // If a value is set to true in this array, then the PartitionExecutor
     // should not execute the fragment id at the corresponding offset.
-    repeated bool stmt_ignore = 7 [packed=true];
+    repeated bool stmt_ignore = 8 [packed=true];
 
     // Are all of the PlanFragments read only?
-    required bool read_only = 8;
+    required bool read_only = 9;
     
     // If true, then the Work embedded in this WorkFragment needs input
-    optional bool needs_input = 9 [default = false];
+    optional bool needs_input = 10 [default = false];
     
     // If true, then this is the final fragment for this transaction at this partition.
-    optional bool last_fragment = 10 [default = false];
+    optional bool last_fragment = 11 [default = false];
 
     // If true, then this is a prefetch fragment
-    optional bool prefetch = 11 [default = false];
+    optional bool prefetch = 12 [default = false];
     
     // If true, then this fragment should always be executed regardless 
     // of whether its result is cached.
-    optional bool force = 12 [default = false];
+    optional bool force = 13 [default = false];
 
     // An estimate of the Statements that the transaction might
     // execute at this partition
-    optional QueryEstimate future_statements = 13;
+    optional QueryEstimate future_statements = 14;
 }
 
 // The output results of WorkFragments

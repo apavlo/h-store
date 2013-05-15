@@ -185,15 +185,16 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
             // Create a WorkFragment for each target partition
             for (int destPartitionId : partitions) {
                 if (debug.val) 
-                    LOG.debug(String.format("%s - Creating %s WorkFragment for partition %s [%d]",
-                                            ts, this.getClass().getSimpleName(),
-                                            destPartitionId, pf.fragmentId));
+                    LOG.debug(String.format("%s - Creating %s for partition %s [fragmentId=%d]",
+                              ts, WorkFragment.class.getSimpleName(),
+                              destPartitionId, pf.fragmentId));
                 WorkFragment.Builder builder = WorkFragment.newBuilder()
                                                         .setPartitionId(destPartitionId)
                                                         .setReadOnly(false)
                                                         .setLastFragment(pf.last_task)
                                                         .addFragmentId(pf.fragmentId)
                                                         .addStmtCounter(0)
+                                                        .addStmtIndex(0)
                                                         .addStmtIgnore(false)
                                                         .addParamIndex(i);
                 ts.getTouchedPartitions().put(destPartitionId);
@@ -212,9 +213,6 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
                 } // FOR
                 builder.setNeedsInput(needs_input);
                 this.fragments.add(builder);
-                
-                if (debug.val) 
-                    LOG.debug(String.format("%s - WorkFragment.Builder\n%s", ts, builder));
             } // FOR
         } // FOR
 

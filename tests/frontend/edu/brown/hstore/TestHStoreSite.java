@@ -512,6 +512,40 @@ public class TestHStoreSite extends BaseTestCase {
         assertTrue(found);
     }
     
+    /**
+     * testSendClientResponse
+     */
+    @Test
+    public void testSendClientResponse() throws Exception {
+        Procedure catalog_proc = this.getProcedure(TARGET_PROCEDURE);
+        PartitionSet predict_touchedPartitions = new PartitionSet(BASE_PARTITION);
+        boolean predict_readOnly = true;
+        boolean predict_canAbort = true;
+        
+        MockClientCallback callback = new MockClientCallback();
+        
+        LocalTransaction ts = new LocalTransaction(hstore_site);
+        ts.init(1000l, EstTime.currentTimeMillis(), CLIENT_HANDLE, BASE_PARTITION,
+                predict_touchedPartitions, predict_readOnly, predict_canAbort,
+                catalog_proc, PARAMS, callback);
+        
+        ClientResponseImpl cresponse = new ClientResponseImpl(ts.getTransactionId(),
+                                                              ts.getClientHandle(),
+                                                              ts.getBasePartition(),
+                                                              Status.OK,
+                                                              HStoreConstants.EMPTY_RESULT,
+                                                              "");
+        hstore_site.responseSend(ts, cresponse);
+        
+        // Check to make sure our callback got the ClientResponse
+        // And just make sure that they're the same
+        assertEquals(callback, ts.getClientCallback());
+        ClientResponseImpl clone = callback.getResponse();
+        assertNotNull(clone);
+        assertEquals(cresponse.getTransactionId(), clone.getTransactionId());
+        assertEquals(cresponse.getClientHandle(), clone.getClientHandle());
+    }
+    
 //    /**
 //     * testAbortReject
 //     */
@@ -632,39 +666,5 @@ public class TestHStoreSite extends BaseTestCase {
 //            } // FOR
 //        } // FOR
 //    }
-    
-    /**
-     * testSendClientResponse
-     */
-    @Test
-    public void testSendClientResponse() throws Exception {
-        Procedure catalog_proc = this.getProcedure(TARGET_PROCEDURE);
-        PartitionSet predict_touchedPartitions = new PartitionSet(BASE_PARTITION);
-        boolean predict_readOnly = true;
-        boolean predict_canAbort = true;
-        
-        MockClientCallback callback = new MockClientCallback();
-        
-        LocalTransaction ts = new LocalTransaction(hstore_site);
-        ts.init(1000l, EstTime.currentTimeMillis(), CLIENT_HANDLE, BASE_PARTITION,
-                predict_touchedPartitions, predict_readOnly, predict_canAbort,
-                catalog_proc, PARAMS, callback);
-        
-        ClientResponseImpl cresponse = new ClientResponseImpl(ts.getTransactionId(),
-                                                              ts.getClientHandle(),
-                                                              ts.getBasePartition(),
-                                                              Status.OK,
-                                                              HStoreConstants.EMPTY_RESULT,
-                                                              "");
-        hstore_site.responseSend(ts, cresponse);
-        
-        // Check to make sure our callback got the ClientResponse
-        // And just make sure that they're the same
-        assertEquals(callback, ts.getClientCallback());
-        ClientResponseImpl clone = callback.getResponse();
-        assertNotNull(clone);
-        assertEquals(cresponse.getTransactionId(), clone.getTransactionId());
-        assertEquals(cresponse.getClientHandle(), clone.getClientHandle());
-    }
 
 }
