@@ -3628,8 +3628,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             // -------------------------------
             if (predict_singlePartition) {
                 for (WorkFragment.Builder fragmentBuilder : fragmentBuilders) {
-                    if (first) continue;
-                    if (this.depTracker.addWorkFragment(ts, fragmentBuilder, parameters) == false) {
+                    if (first == false || this.depTracker.addWorkFragment(ts, fragmentBuilder, parameters) == false) {
                         this.tmp_localWorkFragmentBuilders.add(fragmentBuilder);
                         total++;
                         num_localPartition++;
