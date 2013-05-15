@@ -85,7 +85,9 @@ public class TestDependencyTrackerPrefetch extends BaseTestCase {
         
         Collection<Column> outputCols = PlanNodeUtil.getOutputColumnsForStatement(this.catalog_stmt);
         this.prefetchResult = CatalogUtil.getVoltTable(outputCols);
-        this.prefetchResult.addRow(VoltTableUtil.getRandomRow(this.prefetchResult));
+        Object row[] = VoltTableUtil.getRandomRow(this.prefetchResult);
+        row[0] = new Long(999999);
+        this.prefetchResult.addRow(row);
         for (int i = 0; i < this.prefetchParamsHash.length; i++) {
             this.prefetchBatch[i] = new SQLStmt(this.catalog_stmt);
             this.prefetchParamsHash[i] = this.prefetchParams[i].hashCode();
@@ -159,6 +161,9 @@ public class TestDependencyTrackerPrefetch extends BaseTestCase {
             } else {
                 nextParams[i] = new ParameterSet(i, BASE_PARTITION);
                 nextResults[i] = CatalogUtil.getVoltTable(outputCols);
+                Object row[] = VoltTableUtil.getRandomRow(nextResults[i]);
+                row[0] = new Long(i);
+                nextResults[i].addRow(row);
             }
         } // FOR
         
@@ -199,6 +204,10 @@ public class TestDependencyTrackerPrefetch extends BaseTestCase {
         VoltTable results[] = this.depTracker.getResults(this.ts);
         assertEquals(numInvocations, results.length);
         for (int i = 0; i < numInvocations; i++) {
+//            if (nextResults[i].equals(results[i]) == false) {
+//                System.err.println("#" + i);
+//                System.err.println(VoltTableUtil.format(nextResults[i], results[i]));
+//            }
             assertEquals(nextResults[i], results[i]);
         } // FOR
     }

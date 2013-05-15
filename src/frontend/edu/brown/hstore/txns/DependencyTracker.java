@@ -386,6 +386,7 @@ public class DependencyTracker {
     private DependencyInfo getPrefetchDependencyInfo(TransactionState state,
                                                      int round,
                                                      int stmtCounter,
+                                                     int stmtIndex,
                                                      int paramsHash,
                                                      int fragmentId,
                                                      int dependencyId) {
@@ -420,7 +421,7 @@ public class DependencyTracker {
         // so that the blocked WorkFragment can retrieve it properly when it
         // runs. This is necessary because we don't know what the PlanFragment's
         // output id will be before it runs...
-        dinfo.prefetchOverride(round, dependencyId);
+        dinfo.prefetchOverride(round, dependencyId, stmtIndex);
         state.dependencies.put(dependencyId, dinfo);
         
         return (dinfo);
@@ -575,7 +576,7 @@ public class DependencyTracker {
                 // this same query invocation.
                 if (state.prefetch_ctr > 0) {
                     dinfo = this.getPrefetchDependencyInfo(state, currentRound,
-                                                           stmtCounter, paramsHash,
+                                                           stmtCounter, stmtIndex, paramsHash,
                                                            fragmentId, output_dep_id);
                     prefetch = (dinfo != null);
                     
@@ -639,7 +640,7 @@ public class DependencyTracker {
                     // generate this result for us.
                     if (state.prefetch_ctr > 0) {
                         dinfo = this.getPrefetchDependencyInfo(state, currentRound,
-                                                               stmtCounter, paramsHash,
+                                                               stmtCounter, stmtIndex, paramsHash,
                                                                fragmentId, input_dep_id);
                     }
                     if (dinfo == null) {

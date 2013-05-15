@@ -410,7 +410,7 @@ public abstract class PlanNodeUtil {
         final PlannerContext pcontext = PlannerContext.singleton();
         final Collection<Integer> planColumnIds = getOutputColumnIdsForPlanNode(node);
 
-        final Set<AbstractExpression> exps = new ListOrderedSet<AbstractExpression>();
+        final Collection<AbstractExpression> exps = new ListOrderedSet<AbstractExpression>();
         for (Integer column_guid : planColumnIds) {
             PlanColumn planColumn = pcontext.get(column_guid);
             assert (planColumn != null);
@@ -427,7 +427,7 @@ public abstract class PlanNodeUtil {
      * @return
      */
     public static Collection<Integer> getOutputColumnIdsForPlanNode(AbstractPlanNode node) {
-        final Set<Integer> planColumnIds = new HashSet<Integer>();
+        final Collection<Integer> planColumnIds = new ListOrderedSet<Integer>();
 
         // 2011-07-20: Using the AbstractExpressions is the more accurate way of
         // getting the
