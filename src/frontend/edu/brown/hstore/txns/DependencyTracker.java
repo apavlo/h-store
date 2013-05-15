@@ -249,10 +249,10 @@ public class DependencyTracker {
         
         // Create our output counters
         assert(state.output_order.isEmpty());
-        for (int stmtIndex = 0; stmtIndex < batch_size; stmtIndex++) {
-            if (trace.val)
-                LOG.trace(String.format("%s - Examining %d dependencies at stmtIndex %d",
-                          ts, state.dependencies.size(), stmtIndex));
+//        for (int stmtIndex = 0; stmtIndex < batch_size; stmtIndex++) {
+//            if (trace.val)
+//                LOG.trace(String.format("%s - Examining %d dependencies at stmtIndex %d",
+//                          ts, state.dependencies.size(), stmtIndex));
             for (DependencyInfo dinfo : state.dependencies.values()) {
                 // Add this DependencyInfo our output list if it's being used in this round for this txn
                 // and if it is not an internal dependency
@@ -261,7 +261,7 @@ public class DependencyTracker {
                     state.output_order.add(dinfo.getDependencyId());
                 }
             } // FOR
-        } // FOR
+//        } // FOR
         assert(batch_size == state.output_order.size()) :
             String.format("%s - Expected %d output dependencies but we queued up %d " +
             		      "[outputOrder=%s]",
