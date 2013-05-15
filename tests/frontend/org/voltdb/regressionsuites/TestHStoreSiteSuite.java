@@ -7,12 +7,15 @@ import junit.framework.Test;
 import org.voltdb.BackendTarget;
 import org.voltdb.CatalogContext;
 import org.voltdb.StoredProcedureInvocationHints;
+import org.voltdb.VoltSystemProcedure;
+import org.voltdb.VoltTable;
 import org.voltdb.benchmark.tpcc.TPCCConstants;
 import org.voltdb.benchmark.tpcc.TPCCProjectBuilder;
 import org.voltdb.benchmark.tpcc.procedures.neworder;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.ProcedureCallback;
+import org.voltdb.sysprocs.AdHoc;
 
 import edu.brown.hstore.Hstoreservice.Status;
 
@@ -43,6 +46,35 @@ public class TestHStoreSiteSuite extends RegressionSuite {
         ClientResponse cresponse = client.callProcedure(procName, params);
         assertNotNull(cresponse);
         assertEquals(Status.OK, cresponse.getStatus());
+    }
+    
+    /**
+     * testAdHocSQL
+     */
+    public void testAdHocSQL() throws Exception {
+        // This was originally from org.voltdb.TestAdHocQueries
+        
+        Client client = this.getClient();
+        String procName = VoltSystemProcedure.procCallName(AdHoc.class);
+        ClientResponse cr;
+        
+        cr = client.callProcedure(procName, "INSERT INTO NEW_ORDER VALUES (1, 1, 1);");
+        VoltTable modCount = cr.getResults()[0];
+        assertTrue(modCount.getRowCount() == 1);
+        assertTrue(modCount.asScalarLong() == 1);
+
+        cr = client.callProcedure(procName, "SELECT * FROM NEW_ORDER;");
+        VoltTable result = cr.getResults()[0];
+        assertTrue(result.getRowCount() == 1);
+        System.out.println(result.toString());
+
+        boolean caught = false;
+        try {
+            client.callProcedure("@AdHoc", "SLEECT * FROOM NEEEW_OOORDERERER;");
+        } catch (Exception e) {
+            caught = true;
+        }
+        assertTrue("Bad SQL failed to throw expected exception", caught);
     }
     
     /**
