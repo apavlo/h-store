@@ -117,7 +117,7 @@ public abstract class RegressionSuiteUtil {
             "NOCONNECTIONS=true",
             "BENCHMARK.WAREHOUSE_PER_PARTITION=true",
             "BENCHMARK.NUM_LOADTHREADS=1",
-            "BENCHMARK.SCALE_ITEMS=true",
+            // "BENCHMARK.SCALE_ITEMS=true",
         };
         TPCCLoader loader = new TPCCLoader(args) {
             {
