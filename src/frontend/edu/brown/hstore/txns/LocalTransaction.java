@@ -880,20 +880,6 @@ public class LocalTransaction extends AbstractTransaction {
     }
     
     // ----------------------------------------------------------------------------
-    // PREFETCHABLE QUERIES
-    // ----------------------------------------------------------------------------
-    
-    public void addPrefetchFragmentId(int fragmentId) {
-        assert(this.prefetch != null);
-        this.prefetch.fragmentIds.add(fragmentId);
-    }
-    
-    public void addPrefetchResults(WorkResult result) {
-        assert(this.prefetch != null);
-        this.prefetch.results.add(result);
-    }
-    
-    // ----------------------------------------------------------------------------
     // ANTI-CACHING
     // ----------------------------------------------------------------------------
     
