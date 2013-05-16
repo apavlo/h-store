@@ -1,5 +1,5 @@
 /***************************************************************************
- *   Copyright (C) 2012 by H-Store Project                                 *
+ *   Copyright (C) 2013 by H-Store Project                                 *
  *   Brown University                                                      *
  *   Massachusetts Institute of Technology                                 *
  *   Yale University                                                       *
@@ -158,7 +158,6 @@ import edu.brown.hstore.txns.RemoteTransaction;
 import edu.brown.hstore.util.ArrayCache.IntArrayCache;
 import edu.brown.hstore.util.ArrayCache.LongArrayCache;
 import edu.brown.hstore.util.ParameterSetArrayCache;
-import edu.brown.hstore.util.QueryCache;
 import edu.brown.hstore.util.TransactionCounter;
 import edu.brown.hstore.util.TransactionWorkRequestBuilder;
 import edu.brown.interfaces.Configurable;
@@ -408,7 +407,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
     /**
      * 
      */
-    private final QueryCache queryCache = new QueryCache(10, 10); // FIXME
+    // private final QueryCache queryCache = new QueryCache(10, 10); // FIXME
     
     // ----------------------------------------------------------------------------
     // SHARED VOLTPROCEDURE DATA MEMBERS
@@ -1915,17 +1914,16 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
      * @param params
      * @param result
      */
-    public void addPrefetchResult(Long txnId, int fragmentId, int partitionId, int paramsHash, VoltTable result) {
+    public void addPrefetchResult(LocalTransaction ts,
+                                  int stmtCounter,
+                                  int fragmentId,
+                                  int partitionId,
+                                  int paramsHash,
+                                  VoltTable result) {
         if (debug.val)
-            LOG.debug(String.format("Adding prefetch result for txn #%d from partition %d",
-                      txnId, partitionId));
-        
-        // TODO: We need to be able to either add the result to the query cache
-        // or directly to the LocalTransaction handle itself. This is because
-        // the query result may show up *after* the query is invoked (and thus
-        // the PartitionExecutor won't be looking in the query cache.
-        
-        this.queryCache.addResult(txnId, fragmentId, partitionId, paramsHash, result); 
+            LOG.debug(String.format("Adding prefetch result for %s from partition %d",
+                      ts, partitionId));
+        this.depTracker.addPrefetchResult(ts, stmtCounter, fragmentId, partitionId, paramsHash, result);
     }
     
     // ---------------------------------------------------------------
@@ -2574,28 +2572,20 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 if (debug.val)
                     LOG.debug(String.format("%s - Storing %d prefetch query results in partition %d query cache",
                               ts, result.size(), ts.getBasePartition()));
-                PartitionExecutor other = null; // The executor at the txn's base partition 
                 
                 // We're going to store the result in the base partition cache if they're 
                 // on the same HStoreSite as us
-                boolean is_sameSite = hstore_site.isLocalPartition(ts.getBasePartition()); 
-                for (int i = 0, cnt = result.size(); i < cnt; i++) {
-                    if (is_sameSite) {
-                        if (other == null) other = this.hstore_site.getPartitionExecutor(ts.getBasePartition());
-                        other.queryCache.addResult(ts.getTransactionId(),
-                                                   fragment.getFragmentId(i),
-                                                   fragment.getPartitionId(),
-                                                   parameters[i],
-                                                   result.dependencies[i]);
-                    }
-                    // We also need to store it in our own cache in case we need to retrieve it
-                    // if they come at us with the same query request
-                    this.queryCache.addResult(ts.getTransactionId(),
-                                              fragment.getFragmentId(i),
-                                              fragment.getPartitionId(),
-                                              parameters[i],
-                                              result.dependencies[i]);
-                } // FOR
+                if (is_remote == false) {
+                    PartitionExecutor other = this.hstore_site.getPartitionExecutor(ts.getBasePartition());
+                    for (int i = 0, cnt = result.size(); i < cnt; i++) {
+                        other.addPrefetchResult((LocalTransaction)ts,
+                                                fragment.getStmtCounter(i),
+                                                fragment.getFragmentId(i),
+                                                this.partitionId,
+                                                parameters[i].hashCode(),
+                                                result.dependencies[i]);
+                    } // FOR
+                }
             }
             
             // Now if it's a remote transaction, we need to use the coordinator to send
@@ -2609,7 +2599,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                                                                 .setSourcePartition(this.partitionId)
                                                                 .setResult(wr)
                                                                 .setStatus(status)
-                                                                .addAllFragmentId(fragment.getFragmentIdList());
+                                                                .addAllFragmentId(fragment.getFragmentIdList())
+                                                                .addAllStmtCounter(fragment.getStmtCounterList());
                 for (int i = 0, cnt = fragment.getFragmentIdCount(); i < cnt; i++) {
                     builder.addParamHash(parameters[i].hashCode());
                 }
@@ -3544,7 +3535,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         } // FOR
         long undoToken = this.calculateNextUndoToken(ts, is_localReadOnly);
         ts.initFirstRound(undoToken, batchSize);
-        final boolean prefetch = ts.hasPrefetchQueries();
+        // final boolean prefetch = ts.hasPrefetchQueries();
         final boolean predict_singlePartition = ts.isPredictSinglePartition();
         
         // Attach the ParameterSets to our transaction handle so that anybody on this HStoreSite
@@ -3683,36 +3674,36 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                         // At this point we know that all the WorkFragment has been registered
                         // in the LocalTransaction, so then it's safe for us to look to see
                         // whether we already have a prefetched result that we need
-                        if (prefetch && is_localPartition == false) {
-                            boolean skip_queue = true;
-                            for (int i = 0, cnt = fragmentBuilder.getFragmentIdCount(); i < cnt; i++) {
-                                int fragId = fragmentBuilder.getFragmentId(i);
-                                int paramIdx = fragmentBuilder.getParamIndex(i);
-                                
-                                VoltTable vt = this.queryCache.getResult(ts.getTransactionId(),
-                                                                         fragId,
-                                                                         partition,
-                                                                         parameters[paramIdx]);
-                                if (vt != null) {
-                                    if (trace.val)
-                                        LOG.trace(String.format("%s - Storing cached result from partition %d for fragment %d",
-                                                  ts, partition, fragId));
-                                    this.depTracker.addResult(ts, partition, fragmentBuilder.getOutputDepId(i), vt);
-                                } else {
-                                    skip_queue = false;
-                                }
-                            } // FOR
-                            // If we were able to get cached results for all of the fragmentIds in
-                            // this WorkFragment, then there is no need for us to send the message
-                            // So we'll just skip queuing it up! How nice!
-                            if (skip_queue) {
-                                if (debug.val)
-                                    LOG.debug(String.format("%s - Using prefetch result for all fragments from partition %d",
-                                              ts, partition));
-                                num_skipped++;
-                                continue;
-                            }
-                        }
+//                        if (prefetch && is_localPartition == false) {
+//                            boolean skip_queue = true;
+//                            for (int i = 0, cnt = fragmentBuilder.getFragmentIdCount(); i < cnt; i++) {
+//                                int fragId = fragmentBuilder.getFragmentId(i);
+//                                int paramIdx = fragmentBuilder.getParamIndex(i);
+//                                
+//                                VoltTable vt = this.queryCache.getResult(ts.getTransactionId(),
+//                                                                         fragId,
+//                                                                         partition,
+//                                                                         parameters[paramIdx]);
+//                                if (vt != null) {
+//                                    if (trace.val)
+//                                        LOG.trace(String.format("%s - Storing cached result from partition %d for fragment %d",
+//                                                  ts, partition, fragId));
+//                                    this.depTracker.addResult(ts, partition, fragmentBuilder.getOutputDepId(i), vt);
+//                                } else {
+//                                    skip_queue = false;
+//                                }
+//                            } // FOR
+//                            // If we were able to get cached results for all of the fragmentIds in
+//                            // this WorkFragment, then there is no need for us to send the message
+//                            // So we'll just skip queuing it up! How nice!
+//                            if (skip_queue) {
+//                                if (debug.val)
+//                                    LOG.debug(String.format("%s - Using prefetch result for all fragments from partition %d",
+//                                              ts, partition));
+//                                num_skipped++;
+//                                continue;
+//                            }
+//                        }
                         
                         // Otherwise add it to our list of WorkFragments that we want
                         // queue up right now
@@ -4466,7 +4457,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             }
             
             // Clear our cached query results that are specific for this transaction
-            this.queryCache.purgeTransaction(ts.getTransactionId());
+            // this.queryCache.purgeTransaction(ts.getTransactionId());
             
             // TODO: Remove anything in our queue for this txn
             // if (ts.hasQueuedWork(this.partitionId)) {
