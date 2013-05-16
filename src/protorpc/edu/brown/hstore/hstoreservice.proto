@@ -237,13 +237,14 @@ message TransactionPrefetchResult {
     // The global status for this response
     required Status status = 5;
 
-    // FragmentIds + ParameterSet hashes for the results
+    // StmtCounters + FragmentIds + ParameterSet hashes for the results
     // The offsets of these arrays will correspond with the
     // offsets in the WorkResult. I decided to put these separately
     // here because other parts of the system that use WorkResult do
     // not need this information
-    repeated int32 fragment_id = 6 [packed=true];
-    repeated int32 param_hash = 7 [packed=true];
+    repeated int32 stmt_counter = 6 [packed=true];
+    repeated int32 fragment_id = 7 [packed=true];
+    repeated int32 param_hash = 8 [packed=true];
 }
 
 message TransactionPrefetchAcknowledgement {

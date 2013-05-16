@@ -1086,7 +1086,11 @@ public class DependencyTracker {
     
     public class Debug implements DebugContext {
         public boolean hasTransactionState(LocalTransaction ts) {
-            return (getState(ts) != null);
+            try {
+                return (getState(ts) != null);
+            } catch (AssertionError ex) {
+                return (false);
+            }
         }
         public DependencyInfo getDependencyInfo(LocalTransaction ts, int d_id) {
             final TransactionState state = getState(ts);

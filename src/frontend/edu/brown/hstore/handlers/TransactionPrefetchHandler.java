@@ -85,6 +85,7 @@ public class TransactionPrefetchHandler extends AbstractTransactionHandler<Trans
         } else {
             for (int i = 0, cnt = result.getDepIdCount(); i < cnt; i++) {
                 int fragmentId = request.getFragmentId(i);
+                int stmtCounter = request.getStmtCounter(i);
                 int paramsHash = request.getParamHash(i);
                 
                 VoltTable vt = null;
@@ -95,11 +96,9 @@ public class TransactionPrefetchHandler extends AbstractTransactionHandler<Trans
                     throw new RuntimeException(ex);
                 }
         
-                executor.addPrefetchResult(txn_id,
-                                           fragmentId,
+                executor.addPrefetchResult(ts, stmtCounter, fragmentId,
                                            request.getSourcePartition(),
-                                           paramsHash,
-                                           vt);
+                                           paramsHash, vt);
             } // FOR
         }
         
