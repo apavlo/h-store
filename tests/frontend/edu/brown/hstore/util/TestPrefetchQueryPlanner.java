@@ -24,6 +24,7 @@ import edu.brown.hstore.MockHStoreSite;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.estimators.EstimatorState;
 import edu.brown.hstore.estimators.markov.MarkovEstimatorState;
+import edu.brown.hstore.txns.DependencyTracker;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.utils.PartitionSet;
 import edu.brown.utils.ProjectType;
@@ -43,6 +44,7 @@ public class TestPrefetchQueryPlanner extends BaseTestCase {
 
     private final MockHStoreSite[] hstore_sites = new MockHStoreSite[NUM_SITES];
     private final HStoreCoordinator[] coordinators = new HStoreCoordinator[NUM_SITES];
+    private DependencyTracker depTracker;
 
     private LocalTransaction ts;
 
@@ -137,6 +139,8 @@ public class TestPrefetchQueryPlanner extends BaseTestCase {
         for (Partition catalog_part : catalogContext.getAllPartitions()) {
             this.partition_site_xref[catalog_part.getId()] = ((Site) catalog_part.getParent()).getId();
         } // FOR
+        this.depTracker = this.hstore_sites[0].getDependencyTracker(LOCAL_PARTITION);
+        assertNotNull(this.depTracker);
     }
 
     /**
@@ -146,7 +150,13 @@ public class TestPrefetchQueryPlanner extends BaseTestCase {
         int num_sites = catalogContext.numberOfSites;
 
         this.ts.setTransactionId(TXN_ID);
-        TransactionInitRequest[] requests = this.prefetcher.generateWorkFragments(this.ts);
+        TransactionInitRequest.Builder[] builders = this.prefetcher.plan(this.ts,
+                                                                         this.ts.getProcedureParameters(),
+                                                                         this.depTracker);
+        TransactionInitRequest[] requests = new TransactionInitRequest[builders.length];
+        for (int i = 0; i < builders.length; i++) {
+            if (builders[i] != null) requests[i] = builders[i].build();
+        }
         assertEquals(num_sites, requests.length);
 
         // The TransactionInitRequest for the local partition will be the

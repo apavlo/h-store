@@ -336,9 +336,9 @@ public class DependencyTracker {
     
     private TransactionState getState(LocalTransaction ts) {
         TransactionState state = this.txnStates.get(ts.getTransactionId());
-//        assert(state != null) :
-//            String.format("Unexpected null %s handle for %s at %s",
-//                          TransactionState.class.getSimpleName(), ts, this);
+        assert(state != null) :
+            String.format("Unexpected null %s handle for %s at %s",
+                          TransactionState.class.getSimpleName(), ts, this);
         return (state);
     }
     
