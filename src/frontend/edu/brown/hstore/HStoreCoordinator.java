@@ -32,6 +32,7 @@ import com.google.protobuf.RpcCallback;
 import com.google.protobuf.RpcController;
 
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.catalog.special.CountedStatement;
 import edu.brown.hstore.Hstoreservice.HStoreService;
 import edu.brown.hstore.Hstoreservice.InitializeRequest;
 import edu.brown.hstore.Hstoreservice.InitializeResponse;
@@ -62,6 +63,7 @@ import edu.brown.hstore.Hstoreservice.TransactionReduceRequest;
 import edu.brown.hstore.Hstoreservice.TransactionReduceResponse;
 import edu.brown.hstore.Hstoreservice.TransactionWorkRequest;
 import edu.brown.hstore.Hstoreservice.TransactionWorkResponse;
+import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.callbacks.ShutdownPrepareCallback;
 import edu.brown.hstore.callbacks.LocalFinishCallback;
 import edu.brown.hstore.callbacks.TransactionPrefetchCallback;
@@ -80,7 +82,9 @@ import edu.brown.hstore.handlers.TransactionPrepareHandler;
 import edu.brown.hstore.handlers.TransactionReduceHandler;
 import edu.brown.hstore.handlers.TransactionWorkHandler;
 import edu.brown.hstore.txns.AbstractTransaction;
+import edu.brown.hstore.txns.DependencyTracker;
 import edu.brown.hstore.txns.LocalTransaction;
+import edu.brown.hstore.txns.PrefetchState;
 import edu.brown.hstore.txns.RemoteTransaction;
 import edu.brown.hstore.util.PrefetchQueryPlanner;
 import edu.brown.hstore.util.TransactionCounter;
@@ -772,14 +776,12 @@ public class HStoreCoordinator implements Shutdownable {
                 LOG.debug(String.format("%s - Generating %s with prefetchable queries",
                           ts, TransactionInitRequest.class.getSimpleName()));
             
-            // Make sure that we initialize our internal PrefetchState for this txn
-            ts.initializePrefetch();
-            
             // We also need to add our boy to its base partition's DependencyTracker
             // This is so that we can store the prefetch results when they come back
-            hstore_site.getDependencyTracker(ts.getBasePartition()).addTransaction(ts);
-            
-            TransactionInitRequest[] requests = this.queryPrefetchPlanner.generateWorkFragments(ts);
+            DependencyTracker depTracker = hstore_site.getDependencyTracker(ts.getBasePartition());
+            TransactionInitRequest.Builder[] requests = this.queryPrefetchPlanner.plan(ts,
+                                                                                       ts.getProcedureParameters(),
+                                                                                       depTracker);
             
             // If the PrefetchQueryPlanner returns a null array, then there is nothing
             // that we can actually prefetch, so we'll just send the normal txn init requests
@@ -796,23 +798,19 @@ public class HStoreCoordinator implements Shutdownable {
                               this.num_sites, TransactionInitRequest.class.getSimpleName(), requests.length); 
             for (int site_id = 0; site_id < this.num_sites; site_id++) {
                 if (requests[site_id] == null) continue;
-
-                if (site_id == this.local_site_id) {
-                    this.hstore_site.transactionInit(ts);
-//                    this.transactionInit_handler.sendLocal(ts.getTransactionId(),
-//                                                           requests[site_id],
-//                                                           ts.getPredictTouchedPartitions(),
-//                                                           callback);
-                }
-                else {
+                // Blast out this mofo. Tell them Rico sent you...
+                if (site_id != this.local_site_id) {
+                    TransactionInitRequest initRequest = requests[site_id].build();
                     ProtoRpcController controller = ts.getTransactionInitController(site_id);
-                    this.channels[site_id].transactionInit(controller,
-                                                           requests[site_id],
-                                                           callback);
+                    this.channels[site_id].transactionInit(controller, initRequest, callback);
+                    prefetch_ctr += initRequest.getPrefetchFragmentsCount();
                 }
-                
+                // Send the default message for the local site
+                else {
+                    assert(site_id == this.local_site_id);
+                    this.hstore_site.transactionInit(ts);
+                }
                 sent_ctr++;
-                prefetch_ctr += requests[site_id].getPrefetchFragmentsCount();
             } // FOR
             assert(sent_ctr > 0) : "No TransactionInitRequests available for " + ts;
             if (debug.val)

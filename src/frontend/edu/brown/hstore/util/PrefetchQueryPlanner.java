@@ -26,8 +26,8 @@ import edu.brown.hstore.BatchPlanner;
 import edu.brown.hstore.BatchPlanner.BatchPlan;
 import edu.brown.hstore.Hstoreservice.TransactionInitRequest;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
+import edu.brown.hstore.txns.DependencyTracker;
 import edu.brown.hstore.txns.LocalTransaction;
-import edu.brown.hstore.txns.PrefetchState;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.mappings.ParameterMapping;
@@ -149,7 +149,7 @@ public class PrefetchQueryPlanner {
      * @param ts
      * @return
      */
-    public TransactionInitRequest[] generateWorkFragments(LocalTransaction ts) {
+    public TransactionInitRequest.Builder[] plan(LocalTransaction ts, ParameterSet procParams, DependencyTracker depTracker) {
         // We can't do this without a ParameterMappingSet
         if (this.catalogContext.paramMappings == null) {
             return (null);
@@ -160,11 +160,9 @@ public class PrefetchQueryPlanner {
             return (null);
         }
         
-        assert (ts.getProcedureParameters() != null) : 
-            "Unexpected null ParameterSet for " + ts;
         if (debug.val)
             LOG.debug(String.format("%s - Generating prefetch WorkFragments using %s",
-                      ts, ts.getProcedureParameters()));
+                      ts, procParams));
         
         // Create a SQLStmt batch as if it was created during the normal txn execution process
         SQLStmt[] prefetchStmts = new SQLStmt[prefetchable.size()];
@@ -192,7 +190,7 @@ public class PrefetchQueryPlanner {
         // Makes a list of ByteStrings containing the ParameterSets that we need
         // to send over to the remote sites so that they can execute our
         // prefetchable queries
-        Object proc_params[] = ts.getProcedureParameters().toArray();
+        Object proc_params[] = procParams.toArray();
         for (int i = 0; i < prefetchParams.length; i++) {
             CountedStatement counted_stmt = prefetchable.get(i);
             if (debug.val)
@@ -211,7 +209,7 @@ public class PrefetchQueryPlanner {
                                   catalog_param.fullName(), counted_stmt);
                 
                 if (pm.procedure_parameter.getIsarray()) {
-                    stmt_params[catalog_param.getIndex()] = ParametersUtil.getValue(ts.getProcedureParameters(), pm);
+                    stmt_params[catalog_param.getIndex()] = ParametersUtil.getValue(procParams, pm);
                 }
                 else {
                     ProcParameter catalog_proc_param = pm.procedure_parameter;
@@ -236,7 +234,6 @@ public class PrefetchQueryPlanner {
                 throw new RuntimeException("Failed to serialize ParameterSet " + i + " for " + ts, ex);
             }
             
-            
         } // FOR (Statement)
 
         // Generate the WorkFragments that we will need to send in our TransactionInitRequest
@@ -247,19 +244,6 @@ public class PrefetchQueryPlanner {
                                       prefetchParams);
         List<WorkFragment.Builder> fragmentBuilders = new ArrayList<WorkFragment.Builder>();
         plan.getWorkFragmentsBuilders(ts.getTransactionId(), prefetchCounters, fragmentBuilders);
-        
-        // IMPORTANT: Make sure that we tell the PrefetchState handle that
-        // we have marked this Statement as prefetched. We have to do this here
-        // because we need to have the BatchPlanner tell us what partitions the
-        // query is going to be executed on.
-        PrefetchState prefetchState = ts.getPrefetchState();
-        for (int i = 0; i < prefetchParams.length; i++) {
-            CountedStatement counted_stmt = prefetchable.get(i);
-            prefetchState.markPrefetchedQuery(counted_stmt.statement,
-                                              counted_stmt.counter,
-                                              plan.getStatementPartitions()[i],
-                                              prefetchParams[i]);
-        } // FOR
 
         // Loop through the fragments and check whether at least one of
         // them needs to be executed at the base (local) partition. If so, we need a
@@ -269,8 +253,9 @@ public class PrefetchQueryPlanner {
         // PartitionExecutor is idle. That means, we don't want to serialize all this
         // if it's only going to the base partition.
         TransactionInitRequest.Builder[] builders = new TransactionInitRequest.Builder[this.catalogContext.numberOfSites];
-        for (WorkFragment.Builder fragmentBuilder : fragmentBuilders) {
-            int site_id = this.partitionSiteXref[fragmentBuilder.getPartitionId()];
+        boolean first = true;
+        for (WorkFragment.Builder fragment : fragmentBuilders) {
+            int site_id = this.partitionSiteXref[fragment.getPartitionId()];
             if (builders[site_id] == null) {
                 builders[site_id] = TransactionInitRequest.newBuilder()
                                             .setTransactionId(ts.getTransactionId().longValue())
@@ -281,7 +266,16 @@ public class PrefetchQueryPlanner {
                     builders[site_id].addPrefetchParams(bs);
                 } // FOR
             }
-            builders[site_id].addPrefetchFragments(fragmentBuilder);
+            // Update DependencyTracker
+            // This has to be done *before* you add it to the TransactionInitRequest
+            if (first) {
+                // Make sure that we initialize our internal PrefetchState for this txn
+                ts.initializePrefetch();
+                depTracker.addTransaction(ts); 
+            }
+            depTracker.addPrefetchWorkFragment(ts, fragment, prefetchParams);
+            
+            builders[site_id].addPrefetchFragments(fragment);
         } // FOR (WorkFragment)
 
         PartitionSet touched_partitions = ts.getPredictTouchedPartitions();
@@ -290,37 +284,26 @@ public class PrefetchQueryPlanner {
         for (int partition : touched_partitions) {
             touched_sites[this.partitionSiteXref[partition]] = true;
         } // FOR
-        TransactionInitRequest[] init_requests = new TransactionInitRequest[this.catalogContext.numberOfSites];
-        TransactionInitRequest default_request = null;
+
+        TransactionInitRequest.Builder default_request = null;
         for (int site_id = 0; site_id < this.catalogContext.numberOfSites; ++site_id) {
             // If this site has no prefetched fragments ...
-            if (builders[site_id] == null) {
-                // but it has other non-prefetched WorkFragments, create a
-                // default TransactionInitRequest.
-                if (touched_sites[site_id]) {
-                    if (default_request == null) {
-                        default_request = TransactionInitRequest.newBuilder()
-                                                .setTransactionId(ts.getTransactionId())
-                                                .setProcedureId(ts.getProcedure().getId())
-                                                .setBasePartition(ts.getBasePartition())
-                                                .addAllPartitions(ts.getPredictTouchedPartitions()).build();
-                    }
-                    init_requests[site_id] = default_request;
-                    if (debug.val) LOG.debug(ts + " - Sending default TransactionInitRequest to site " + site_id);
+            // but it has other non-prefetched WorkFragments, create a
+            // default TransactionInitRequest.
+            if (builders[site_id] == null && touched_sites[site_id]) {
+                if (default_request == null) {
+                    default_request = TransactionInitRequest.newBuilder()
+                                            .setTransactionId(ts.getTransactionId())
+                                            .setProcedureId(ts.getProcedure().getId())
+                                            .setBasePartition(ts.getBasePartition())
+                                            .addAllPartitions(ts.getPredictTouchedPartitions());
                 }
-                // And no other WorkFragments, set the TransactionInitRequest to null.
-                else {
-                    init_requests[site_id] = null;
-                }
-            }
-            // Otherwise, just build it.
-            else {
-                init_requests[site_id] = builders[site_id].build();
-                if (debug.val) LOG.debug(ts + " - Sending prefetch WorkFragments to site " + site_id);
+                builders[site_id] = default_request;
+                if (debug.val) LOG.debug(ts + " - Sending default TransactionInitRequest to site " + site_id);
             }
         } // FOR (Site)
 
-        if (debug.val) LOG.debug(ts + " - TransactionInitRequests\n" + StringUtil.join("\n", init_requests));
-        return (init_requests);
+        if (debug.val) LOG.debug(ts + " - TransactionInitRequests\n" + StringUtil.join("\n", builders));
+        return (builders);
     }
 }

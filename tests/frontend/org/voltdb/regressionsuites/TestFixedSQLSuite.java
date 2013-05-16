@@ -34,6 +34,9 @@ import org.voltdb.client.ProcCallException;
 import org.voltdb.compiler.VoltProjectBuilder;
 import org.voltdb.regressionsuites.fixedsql.Insert;
 
+import edu.brown.utils.ClassUtil;
+import edu.brown.utils.StringUtil;
+
 /**
  * Actual regression tests for SQL that I found that was broken and
  * have fixed.  Didn't like any of the other potential homes that already
@@ -53,6 +56,7 @@ public class TestFixedSQLSuite extends RegressionSuite {
 
     public void testTicket309() throws IOException, ProcCallException
     {
+        System.err.println(StringUtil.bold(ClassUtil.getCurrentMethodName()));
         String[] tables = {"P1", "R1", "P2", "R2"};
         Client client = getClient();
         for (String table : tables)
@@ -105,6 +109,7 @@ public class TestFixedSQLSuite extends RegressionSuite {
     public void testAndExpressionComparingSameTableColumns()
     throws IOException, ProcCallException
     {
+        System.err.println(StringUtil.bold(ClassUtil.getCurrentMethodName()));
         String[] tables = {"P1", "R1"};
         for (String table : tables)
         {
@@ -148,6 +153,7 @@ public class TestFixedSQLSuite extends RegressionSuite {
     public void testSeqScanFailedPredicateDoesntCountAgainstLimit()
     throws IOException, ProcCallException
     {
+        System.err.println(StringUtil.bold(ClassUtil.getCurrentMethodName()));
         String[] tables = {"P1", "R1"};
         for (String table : tables)
         {
@@ -182,6 +188,7 @@ public class TestFixedSQLSuite extends RegressionSuite {
     public void testSelectExpression()
     throws IOException, ProcCallException
     {
+        System.err.println(StringUtil.bold(ClassUtil.getCurrentMethodName()));
         String[] tables = {"P1", "R1"};
         for (String table : tables)
         {
@@ -223,6 +230,7 @@ public class TestFixedSQLSuite extends RegressionSuite {
     public void testNestLoopJoinPredicates()
     throws IOException, ProcCallException
     {
+        System.err.println(StringUtil.bold(ClassUtil.getCurrentMethodName()));
         Client client = getClient();
         for (int id=0; id < 5; id++) {
             // insert id, (5-id) in to P1
@@ -233,25 +241,26 @@ public class TestFixedSQLSuite extends RegressionSuite {
         // join on the (5-id), (id) columns
         String query = "select * from P1, R1 where P1.NUM = R1.NUM";
         VoltTable vts[] = client.callProcedure("@AdHoc", query).getResults();
-        testNestLoopJoinPredicates_verify(vts);
+        helperNestLoopJoinPredicates_verify(vts);
 
         // same thing using inner join syntax
         query = "select * from P1 INNER JOIN R1 on P1.NUM = R1.NUM";
         vts = client.callProcedure("@AdHoc", query).getResults();
-        testNestLoopJoinPredicates_verify(vts);
+        helperNestLoopJoinPredicates_verify(vts);
 
         // join on ID and verify NUM. (ID is indexed)
         query = "select * from P1, R1 where P1.ID = R1.ID";
         vts = client.callProcedure("@AdHoc", query).getResults();
-        testNestLoopJoinPredicates_verifyid(vts);
+        helperNestLoopJoinPredicates_verifyid(vts);
 
         // as above with inner join syntax
         query = "select * from P1 INNER JOIN R1 on P1.ID = R1.ID";
         vts = client.callProcedure("@AdHoc", query).getResults();
-        testNestLoopJoinPredicates_verifyid(vts);
+        helperNestLoopJoinPredicates_verifyid(vts);
     }
 
-    private void testNestLoopJoinPredicates_verifyid(VoltTable[] vts) {
+    private void helperNestLoopJoinPredicates_verifyid(VoltTable[] vts) {
+        System.err.println(StringUtil.bold(ClassUtil.getCurrentMethodName()));
         assertEquals(1, vts.length);
         System.out.println("verifyid: " + vts[0]);
         assertTrue(vts[0].getRowCount() == 5);
@@ -267,8 +276,9 @@ public class TestFixedSQLSuite extends RegressionSuite {
         }
     }
 
-    private void testNestLoopJoinPredicates_verify(VoltTable[] vts)
+    private void helperNestLoopJoinPredicates_verify(VoltTable[] vts)
     {
+        System.err.println(StringUtil.bold(ClassUtil.getCurrentMethodName()));
         assertEquals(1, vts.length);
         System.out.println(vts[0]);
         assertTrue(vts[0].getRowCount() == 4);
@@ -294,6 +304,7 @@ public class TestFixedSQLSuite extends RegressionSuite {
     public void testNestLoopJoinPredicatesWithExpressions()
     throws IOException, ProcCallException
     {
+        System.err.println(StringUtil.bold(ClassUtil.getCurrentMethodName()));
         Client client = getClient();
         for (int id=0; id < 5; id++) {
             // insert id, (5-id) in to P1
@@ -304,16 +315,17 @@ public class TestFixedSQLSuite extends RegressionSuite {
         // join on the (5-id), (id) columns and select a value modified by an expression
         String query = "select (P1.ID + 20), (R1.ID + 40) from P1, R1 where P1.NUM = R1.NUM";
         VoltTable vts[] = client.callProcedure("@AdHoc", query).getResults();
-        testNestLoopJoinPredicatesWithExpressions_verify(vts);
+        helperNestLoopJoinPredicatesWithExpressions_verify(vts);
 
         // same thing using inner join syntax
         query = "select (P1.ID + 20), (R1.ID + 40) from P1 INNER JOIN R1 on P1.NUM = R1.NUM";
         vts = client.callProcedure("@AdHoc", query).getResults();
-        testNestLoopJoinPredicatesWithExpressions_verify(vts);
+        helperNestLoopJoinPredicatesWithExpressions_verify(vts);
     }
 
-    private void testNestLoopJoinPredicatesWithExpressions_verify(
+    private void helperNestLoopJoinPredicatesWithExpressions_verify(
             VoltTable[] vts) {
+        System.err.println(StringUtil.bold(ClassUtil.getCurrentMethodName()));
         assertEquals(1, vts.length);
         System.out.println(vts[0]);
         assertTrue(vts[0].getRowCount() == 4);
@@ -342,6 +354,7 @@ public class TestFixedSQLSuite extends RegressionSuite {
     public void testNestLoopJoinPredicatesWithAliases()
     throws IOException, ProcCallException
     {
+        System.err.println(StringUtil.bold(ClassUtil.getCurrentMethodName()));
         Client client = getClient();
         for (int id=0; id < 5; id++) {
             // insert id, (5-id) in to P1
@@ -353,15 +366,15 @@ public class TestFixedSQLSuite extends RegressionSuite {
         // use an alias that would select an invalid column. (be a jerk).
         String query = "select R1.ID AS DESC, (P1.ID + 20) AS THOMAS from P1, R1 where P1.NUM = R1.NUM";
         VoltTable vts[] = client.callProcedure("@AdHoc", query).getResults();
-        testNestLoopJoinPredicatesWithAliases_verify(vts);
+        helperNestLoopJoinPredicatesWithAliases_verify(vts);
 
         // same thing using inner join syntax
         query = "select R1.ID AS DESC, (P1.ID + 20) AS THOMAS from P1 INNER JOIN R1 on P1.NUM = R1.NUM";
         vts = client.callProcedure("@AdHoc", query).getResults();
-        testNestLoopJoinPredicatesWithAliases_verify(vts);
+        helperNestLoopJoinPredicatesWithAliases_verify(vts);
     }
 
-    private void testNestLoopJoinPredicatesWithAliases_verify(VoltTable[] vts) {
+    private void helperNestLoopJoinPredicatesWithAliases_verify(VoltTable[] vts) {
         assertEquals(1, vts.length);
         System.out.println(vts[0]);
         assertTrue(vts[0].getRowCount() == 4);
@@ -394,6 +407,7 @@ public class TestFixedSQLSuite extends RegressionSuite {
     public void testGreaterThanOnOrderedIndex()
     throws IOException, ProcCallException
     {
+        System.err.println(StringUtil.bold(ClassUtil.getCurrentMethodName()));
         String[] tables = {"P2", "R2"};
         Client client = getClient();
         for (String table : tables)
@@ -423,6 +437,7 @@ public class TestFixedSQLSuite extends RegressionSuite {
 
     public void testTicket196() throws IOException, ProcCallException
     {
+        System.err.println(StringUtil.bold(ClassUtil.getCurrentMethodName()));
         String[] tables = {"P1", "R1", "P2", "R2"};
         Client client = getClient();
         for (String table : tables)
@@ -492,6 +507,7 @@ public class TestFixedSQLSuite extends RegressionSuite {
 
     public void testTicket201() throws IOException, ProcCallException
     {
+        System.err.println(StringUtil.bold(ClassUtil.getCurrentMethodName()));
         String[] tables = {"P1", "R1", "P2", "R2"};
         Client client = getClient();
         for (String table : tables)
@@ -572,6 +588,7 @@ public class TestFixedSQLSuite extends RegressionSuite {
 
     public void testTicket194() throws IOException, ProcCallException
     {
+        System.err.println(StringUtil.bold(ClassUtil.getCurrentMethodName()));
         String[] tables = {"P1", "R1", "P2", "R2"};
         Client client = getClient();
         for (String table : tables)
@@ -596,6 +613,7 @@ public class TestFixedSQLSuite extends RegressionSuite {
 
     public void testTickets227And228() throws IOException, ProcCallException
     {
+        System.err.println(StringUtil.bold(ClassUtil.getCurrentMethodName()));
         String[] tables = {"P2", "R2"};
         Client client = getClient();
         for (String table : tables)
@@ -631,6 +649,7 @@ public class TestFixedSQLSuite extends RegressionSuite {
 
     public void testTicket220() throws IOException, ProcCallException
     {
+        System.err.println(StringUtil.bold(ClassUtil.getCurrentMethodName()));
         String[] tables = {"P1", "R1"};
         Client client = getClient();
         int id = 0;
@@ -669,6 +688,7 @@ public class TestFixedSQLSuite extends RegressionSuite {
 
     public void testTicket310() throws IOException, ProcCallException
     {
+        System.err.println(StringUtil.bold(ClassUtil.getCurrentMethodName()));
         Client client = getClient();
         String sql =
             "INSERT INTO R1_DECIMAL VALUES (26, 307473.174514, 289429.605067, 9.71903320295135486617e-01)";
@@ -697,6 +717,7 @@ public class TestFixedSQLSuite extends RegressionSuite {
 
     public void testNumericExpressionConversion() throws IOException, ProcCallException
     {
+        System.err.println(StringUtil.bold(ClassUtil.getCurrentMethodName()));
         VoltTable[] results;
         Client client = getClient();
 
@@ -721,6 +742,7 @@ public class TestFixedSQLSuite extends RegressionSuite {
 
     public void testTicket221() throws IOException, ProcCallException
     {
+        System.err.println(StringUtil.bold(ClassUtil.getCurrentMethodName()));
         String[] tables = {"P1", "R1"};
         Client client = getClient();
         int id = 0;
@@ -743,6 +765,7 @@ public class TestFixedSQLSuite extends RegressionSuite {
 
     public void testTicket222() throws IOException, ProcCallException
     {
+        System.err.println(StringUtil.bold(ClassUtil.getCurrentMethodName()));
         String[] tables = {"P1", "R1"};
         Client client = getClient();
         int id = 0;
@@ -763,6 +786,7 @@ public class TestFixedSQLSuite extends RegressionSuite {
 
     public void testTicket224() throws IOException, ProcCallException
     {
+        System.err.println(StringUtil.bold(ClassUtil.getCurrentMethodName()));
         String[] tables = {"P1", "R1"};
         Client client = getClient();
         int id = 0;
@@ -786,6 +810,7 @@ public class TestFixedSQLSuite extends RegressionSuite {
 
     public void testTicket226() throws IOException, ProcCallException
     {
+        System.err.println(StringUtil.bold(ClassUtil.getCurrentMethodName()));
         String[] tables = {"P1", "R1"};
         Client client = getClient();
         int id = 0;
@@ -845,6 +870,7 @@ public class TestFixedSQLSuite extends RegressionSuite {
 
     public void testTicket232() throws IOException, ProcCallException
     {
+        System.err.println(StringUtil.bold(ClassUtil.getCurrentMethodName()));
         String[] tables = {"P1", "R1", "P2", "R2"};
         Client client = getClient();
         for (String table : tables)
@@ -866,6 +892,7 @@ public class TestFixedSQLSuite extends RegressionSuite {
 
     public void testTicket293() throws IOException, ProcCallException
     {
+        System.err.println(StringUtil.bold(ClassUtil.getCurrentMethodName()));
         String[] tables = {"P1", "R1", "P2", "R2"};
         Client client = getClient();
         int id = 0;
@@ -889,6 +916,7 @@ public class TestFixedSQLSuite extends RegressionSuite {
 
     public void testTicketEng397() throws IOException, ProcCallException
     {
+        System.err.println(StringUtil.bold(ClassUtil.getCurrentMethodName()));
         Client client = getClient();
         for (int i=0; i < 20; i++) {
             client.callProcedure("Insert", "P1", i, "desc", 100 + i, 4.5);
@@ -933,9 +961,12 @@ public class TestFixedSQLSuite extends RegressionSuite {
 
     static public junit.framework.Test suite() {
 
-        VoltServerConfig config = null;
-        MultiConfigSuiteBuilder builder =
-            new MultiConfigSuiteBuilder(TestFixedSQLSuite.class);
+        MultiConfigSuiteBuilder builder = new MultiConfigSuiteBuilder(TestFixedSQLSuite.class);
+        builder.setGlobalConfParameter("site.status_enable", false);
+        builder.setGlobalConfParameter("site.status_interval", 600000);
+        builder.setGlobalConfParameter("site.status_exec_info", true);
+        builder.setGlobalConfParameter("site.status_thread_info", false);
+        builder.setGlobalConfParameter("site.txn_profiling", false);
 
         VoltProjectBuilder project = new VoltProjectBuilder("fixed");
         project.addSchema(Insert.class.getResource("fixed-sql-ddl.sql"));
@@ -951,7 +982,8 @@ public class TestFixedSQLSuite extends RegressionSuite {
         project.addStmtProcedure("Ticket309R1", "select count(*), R1.NUM from R1 group by R1.NUM");
         project.addStmtProcedure("Ticket309P2", "select count(*), P2.NUM from P2 group by P2.NUM");
         project.addStmtProcedure("Ticket309R2", "select count(*), R2.NUM from R2 group by R2.NUM");
-        
+
+        VoltServerConfig config;
         boolean success;
         
         //project.addStmtProcedure("Eng490Select", "SELECT A.ASSET_ID, A.OBJECT_DETAIL_ID,  OD.OBJECT_DETAIL_ID FROM ASSET A, OBJECT_DETAIL OD WHERE A.OBJECT_DETAIL_ID = OD.OBJECT_DETAIL_ID;");
@@ -959,10 +991,10 @@ public class TestFixedSQLSuite extends RegressionSuite {
         /////////////////////////////////////////////////////////////
         // CONFIG #1: 1 Local Site/Partition running on JNI backend
         /////////////////////////////////////////////////////////////
-        config = new LocalSingleProcessServer(PREFIX + "-1part.jar", 1, BackendTarget.NATIVE_EE_JNI);
-        success = config.compile(project);
-        assert(success);
-        builder.addServerConfig(config);
+//        config = new LocalSingleProcessServer(PREFIX + "-1part.jar", 1, BackendTarget.NATIVE_EE_JNI);
+//        success = config.compile(project);
+//        assert(success);
+//        builder.addServerConfig(config);
         
         /////////////////////////////////////////////////////////////
         // CONFIG #2: 1 Local Site with 2 Partitions running on JNI backend
