@@ -261,7 +261,7 @@ public class DependencyInfo implements Poolable {
      */
     public boolean addResult(int partition, VoltTable result) {
         if (debug.val)
-            LOG.debug(String.format("#%s - Storing RESULT for DependencyId #%d from Partition #%d with %d tuples",
+            LOG.debug(String.format("#%s - Storing RESULT for DependencyId #%d from partition %02d with %d tuples",
                       this.txn_id, this.dependency_id, partition, result.getRowCount()));
         assert(this.resultPartitions.contains(partition) == false) :
             String.format("Trying to add result %s twice for %s!",
@@ -367,7 +367,8 @@ public class DependencyInfo implements Poolable {
         m.put("- Stmt Counter", this.stmt_counter);
         m.put("- Stmt Index", this.stmt_index);
         m.put("- Parameters Hash", this.params_hash);
-        m.put("- Partitions", this.expectedPartitions);
+        m.put("- Expected Partitions", this.expectedPartitions);
+        m.put("- Result Partitions", this.resultPartitions);
         
         Map<String, Object> inner = new LinkedHashMap<String, Object>();
         for (int partition = 0, cnt = this.results.size(); partition < cnt; partition++) {

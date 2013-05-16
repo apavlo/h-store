@@ -837,6 +837,9 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
             }
             return (allTxns.size());
         }
+        public int getLockQueueSize(int partition) {
+            return (lockQueues[partition].size());
+        }
         public int getRestartQueueSize() {
             return (restartQueue.size());
         }

@@ -19,6 +19,11 @@ import edu.brown.statistics.Histogram;
 import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.StringUtil;
 
+/**
+ * Internal counters for how transactions were executed.
+ * These are updated in various parts of the txn's lifetime.
+ * TODO: This should be better integrated into the Statistics framework.
+ */
 public enum TransactionCounter {
     /** The number of transaction requests that have arrived at this site */
     RECEIVED,
