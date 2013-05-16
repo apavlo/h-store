@@ -41,7 +41,7 @@ import edu.brown.utils.ThreadUtil;
 public class TestMarkovSpecExecSuite extends RegressionSuite {
     
     private static final String PREFIX = "markovspecexec";
-    private static final double SCALEFACTOR = 0.0001;
+    private static final double SCALEFACTOR = 0.01;
     
     /**
      * Constructor needed for JUnit. Should just pass on parameters to superclass.
