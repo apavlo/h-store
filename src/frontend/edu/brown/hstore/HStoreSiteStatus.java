@@ -27,6 +27,7 @@ import edu.brown.hstore.callbacks.PartitionCountingCallback;
 import edu.brown.hstore.cmdlog.CommandLogWriter;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.txns.AbstractTransaction;
+import edu.brown.hstore.txns.DependencyTracker;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.hstore.util.TransactionCounter;
 import edu.brown.interfaces.Shutdownable;
@@ -277,6 +278,11 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
         // ----------------------------------------------------------------------------
         Map<String, Object> poolInfo = (show_poolinfo ? this.poolInfo() : null);
         
+        // ----------------------------------------------------------------------------
+        // Dependency Tracker
+        // ----------------------------------------------------------------------------
+        Map<String, Object> depInfo = this.depTrackerInfo();
+        
         return StringUtil.formatMaps(this.header,
                                      siteInfo,
                                      execInfo,
@@ -285,7 +291,8 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
                                      cpuThreads,
                                      txnProfiles,
                                      plannerInfo,
-                                     poolInfo);
+                                     poolInfo,
+                                     depInfo);
     }
     
     // ----------------------------------------------------------------------------
@@ -494,7 +501,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
     // ----------------------------------------------------------------------------
         
     private Map<String, Object> executorInfo() {
-        LinkedHashMap<String, Object> m_exec = new LinkedHashMap<String, Object>();
+        LinkedHashMap<String, Object> execInfoMaps = new LinkedHashMap<String, Object>();
         
         TransactionQueueManager queueManager = hstore_site.getTransactionQueueManager();
         TransactionQueueManager.Debug queueManagerDebug = queueManager.getDebugContext();
@@ -607,7 +614,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
                 } // FOR
             }
             
-            m_exec.put(label, StringUtil.formatMaps(m) + "\n");
+            execInfoMaps.put(label, StringUtil.formatMaps(m) + "\n");
         } // FOR
         
         if (hstore_conf.site.exec_profiling) {
@@ -619,10 +626,10 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
                     name = StringUtil.title(name);
                 }
                 
-                m_exec.put(String.format("Total %s Time", name),
+                execInfoMaps.put(String.format("Total %s Time", name),
                            ProfileMeasurementUtil.formatComparison(pm, null, true));    
             } // FOR
-            m_exec.put(" ", null);
+            execInfoMaps.put(" ", null);
         }
         
         // Incoming Partition Distribution
@@ -631,16 +638,46 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
             if (incoming.isEmpty() == false) {
                 incoming.setDebugLabels(partitionLabels);
                 incoming.enablePercentages();
-                m_exec.put("Incoming Txns\nBase Partitions", incoming.toString(50, 10) + "\n");
+                execInfoMaps.put("Incoming Txns\nBase Partitions", incoming.toString(50, 10) + "\n");
             }
         }
         if (invokedTxns.isEmpty() == false) {
             invokedTxns.setDebugLabels(partitionLabels);
             invokedTxns.enablePercentages();
-            m_exec.put("Invoked Txns", invokedTxns.toString(50, 10) + "\n");
+            execInfoMaps.put("Invoked Txns", invokedTxns.toString(50, 10) + "\n");
         }
         
-        return (m_exec);
+        return (execInfoMaps);
+    }
+    
+    private Map<String, Object> depTrackerInfo() {
+        Map<String, Object> m = new LinkedHashMap<String, Object>();
+        m.put("Dependency Trackers", null);
+        
+        TransactionQueueManager queueManager = hstore_site.getTransactionQueueManager();
+        for (int partition : hstore_site.getLocalPartitionIds()) {
+            DependencyTracker depTracker = hstore_site.getDependencyTracker(partition);
+            DependencyTracker.Debug depTrackerDbg = depTracker.getDebugContext();
+            
+            Map<String, Object> inner = new LinkedHashMap<String, Object>();
+            boolean found = false;
+            for (AbstractTransaction ts : siteDebug.getInflightTransactions()) {
+                if ((ts instanceof LocalTransaction) == false ||
+                    ts.getBasePartition() != partition ||
+                    ts.isPredictSinglePartition()) continue;
+                LocalTransaction localTxn = (LocalTransaction)ts;
+                if (depTrackerDbg.hasTransactionState(localTxn)) {
+                    inner.put(localTxn.toString(), depTrackerDbg.debugMap(localTxn));
+                } else {
+                    inner.put(localTxn.toString(), "<MISSING>");
+                }
+                found = true; 
+            }
+            if (found == false) inner.put("<NONE>", null);
+            m.put(String.format("Partition %02d", partition), inner);
+        } // FOR
+        
+        return (m);
     }
     
     // ----------------------------------------------------------------------------
@@ -835,14 +872,14 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
 //                trace = Arrays.toString(stack);
             } else {
                 // Find the first line that is interesting to us
-//                trace = StringUtil.join("\n", stack);
-                for (int i = 0; i < stack.length; i++) {
-                    // if (THREAD_REGEX.matcher(stack[i].getClassName()).matches()) {
-                        trace += stack[i].toString();
-//                        break;
-//                    }
-                } // FOR
-                if (trace == null) stack[0].toString();
+                trace = StringUtil.join("\n", stack);
+//                for (int i = 0; i < stack.length; i++) {
+//                    // if (THREAD_REGEX.matcher(stack[i].getClassName()).matches()) {
+//                        trace += stack[i].toString();
+////                        break;
+////                    }
+//                } // FOR
+//                if (trace == null) stack[0].toString();
             }
             m_thread.put(name, trace);
         } // FOR

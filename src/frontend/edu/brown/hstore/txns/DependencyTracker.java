@@ -1,5 +1,6 @@
 package edu.brown.hstore.txns;
 
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -189,6 +190,22 @@ public class DependencyTracker {
         public String toString() {
             return String.format("%s{#%d}", this.getClass().getSimpleName(), this.txn_id);
         }
+        
+        public Map<String, Object> debugMap() {
+            Map<String, Object> m = new LinkedHashMap<String, Object>();
+            for (Field f : this.getClass().getDeclaredFields()) {
+                Object obj = null;
+                try {
+                    obj = f.get(this);
+                } catch (IllegalAccessException ex) {
+                    throw new RuntimeException(ex);
+                }
+                if ((obj instanceof DependencyTracker) == false) { 
+                    m.put(f.getName().toUpperCase(), obj);
+                }
+            } // FOR
+            return (m);
+        }
     } // CLASS
     
     private final PartitionExecutor executor;
@@ -319,9 +336,9 @@ public class DependencyTracker {
     
     private TransactionState getState(LocalTransaction ts) {
         TransactionState state = this.txnStates.get(ts.getTransactionId());
-        assert(state != null) :
-            String.format("Unexpected null %s handle for %s at %s",
-                          TransactionState.class.getSimpleName(), ts, this);
+//        assert(state != null) :
+//            String.format("Unexpected null %s handle for %s at %s",
+//                          TransactionState.class.getSimpleName(), ts, this);
         return (state);
     }
     
@@ -789,12 +806,12 @@ public class DependencyTracker {
             return;
         }
         
-        // 2013-05-12: DependencyInfo.addResult() used to be synchronized, but I believe 
-        //             that this is not necessary. 
-        dinfo.addResult(partition, result);
-        
         if (singlePartitioned == false) txnLock.lock();
         try {
+            // 2013-05-12: DependencyInfo.addResult() must definitely be synchronized!!!
+            //             There is a weird race condition where the inner PartitionSet is not
+            //             updated properly. 
+            dinfo.addResult(partition, result);
             state.received_ctr++;
             this.updateAfterNewResult(ts, state, dinfo);
         } finally {
@@ -1069,7 +1086,7 @@ public class DependencyTracker {
     
     public class Debug implements DebugContext {
         public boolean hasTransactionState(LocalTransaction ts) {
-            return (txnStates.containsKey(ts));
+            return (getState(ts) != null);
         }
         public DependencyInfo getDependencyInfo(LocalTransaction ts, int d_id) {
             final TransactionState state = getState(ts);
@@ -1100,18 +1117,10 @@ public class DependencyTracker {
             return (state.prefetch_ctr);
         }
         
-        public Map<String, Object> getDebugMap(LocalTransaction ts) {
-            final TransactionState state = txnStates.get(ts);
+        public Map<String, Object> debugMap(LocalTransaction ts) {
+            final TransactionState state = getState(ts);
             if (state == null) return (null);
-            
-            Map<String, Object> m = new LinkedHashMap<String, Object>();
-            m.put("Dependency Ctr", state.dependency_ctr);
-            m.put("Received Ctr", state.received_ctr);
-            m.put("CountdownLatch", state.dependency_latch);
-            m.put("# of Blocked Tasks", state.blocked_tasks.size());
-            m.put("# of Statements", ts.getCurrentBatchSize());
-            
-            return (m);
+            return state.debugMap();
         }
     }
     

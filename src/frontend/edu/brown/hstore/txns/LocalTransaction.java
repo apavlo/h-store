@@ -975,7 +975,7 @@ public class LocalTransaction extends AbstractTransaction {
         DependencyTracker.Debug depTrackerDebug = null;
         if (this.depTracker != null) {
             depTrackerDebug = this.depTracker.getDebugContext();
-            m = depTrackerDebug.getDebugMap(this);
+            m = depTrackerDebug.debugMap(this);
             if (m != null) maps.add(m);
         }
 

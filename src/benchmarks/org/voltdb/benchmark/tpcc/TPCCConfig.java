@@ -1,10 +1,10 @@
 package org.voltdb.benchmark.tpcc;
 
 import java.lang.reflect.Field;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import org.apache.commons.collections15.map.ListOrderedMap;
 import org.voltdb.CatalogContext;
 
 import edu.brown.utils.StringUtil;
@@ -188,7 +188,7 @@ public final class TPCCConfig {
     
     public Map<String, Object> debugMap() {
         Class<?> confClass = this.getClass();
-        Map<String, Object> m = new ListOrderedMap<String, Object>();
+        Map<String, Object> m = new LinkedHashMap<String, Object>();
         for (Field f : confClass.getFields()) {
             Object obj = null;
             try {
