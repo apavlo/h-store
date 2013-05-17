@@ -1046,7 +1046,6 @@ TEST CASES
                 <exclude name="**/TestMaliciousClientSuite.class" />
                 <exclude name="**/TestSaveRestoreSysprocSuite.class" />
                 <exclude name="**/TestMapReduceTransactionSuite.class" />
-                <exclude name="**/TestPrefetchableSuite.class" />
                 <exclude name="**/TestWikipediaSuite.class" />
                 <exclude name="**/TestWikipediaLoader.class" />
 <!--                 <exclude name="**/TestAntiCache*.class" /> -->
@@ -1133,7 +1132,6 @@ TEST CASES
                 <exclude name="**/TestMaliciousClientSuite.class" />
                 <exclude name="**/TestSaveRestoreSysprocSuite.class" />
                 <exclude name="**/TestMapReduceTransactionSuite.class" />
-                <exclude name="**/TestPrefetchableSuite.class" />
                 <exclude name="**/TestWikipediaSuite.class" />
                 <exclude name="**/TestWikipediaLoader.class" />
 <!--                 <exclude name="**/TestAntiCache*.class" /> -->
@@ -1187,7 +1185,7 @@ TEST CASES
 
 <target name="junit-regression" description="Run only regression testcases for Java classes.">
        <!-- Run the unit tests -->
-       <condition property="timeoutLength" value="${timeoutLength}" else='600000'>
+       <condition property="timeoutLength" value="${timeoutLength}" else='300000'>
            <isset property="timeoutLength"/>
        </condition>
        
@@ -1213,10 +1211,9 @@ TEST CASES
                     <exclude name="**/TestMaliciousClientSuite.class" />
                     <exclude name="**/TestSaveRestoreSysprocSuite.class" />
                     <exclude name="**/TestMapReduceTransactionSuite.class" />
-                    <exclude name="**/TestPrefetchableSuite.class" />
                     <exclude name="**/TestWikipediaSuite.class" />
                     <exclude name="**/TestWikipediaLoader.class" />
-                    <exclude name="**/TestAntiCache*.class" />
+<!--                     <exclude name="**/TestAntiCache*.class" /> -->
                 </fileset>
             </tests>
         </run_junit>
