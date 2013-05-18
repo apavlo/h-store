@@ -681,7 +681,7 @@ public class DependencyTracker {
             if (trace.val) {
                 int output_ctr = 0;
                 int dep_ctr = 0;
-                Map<String, Object> m = new LinkedHashMap<>();
+                Map<String, Object> m = new LinkedHashMap<String, Object>();
                 for (DependencyInfo dinfo : state.dependencies.values()) {
                     if (dinfo.getStatementCounter() == stmtCounter) dep_ctr++;
                     if (dinfo.isInternal() == false) {
@@ -989,7 +989,7 @@ public class DependencyTracker {
             // transaction whereas the StmtIndex is unique for a single SQLStmt batch.
             Map<Integer, DependencyInfo> stmt_deps = state.prefetch_dependencies.get(stmtCounter);
             if (stmt_deps == null) {
-                stmt_deps = new HashMap<>();
+                stmt_deps = new HashMap<Integer, DependencyInfo>();
                 state.prefetch_dependencies.put(stmtCounter, stmt_deps);
             }
             
