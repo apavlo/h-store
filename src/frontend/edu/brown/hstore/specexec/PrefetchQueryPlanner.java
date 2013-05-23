@@ -50,12 +50,18 @@ public class PrefetchQueryPlanner {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
 
-    private final Map<Integer, BatchPlanner> planners = new HashMap<Integer, BatchPlanner>();
     private final Map<Integer, ParameterMapping[][]> mappingsCache = new HashMap<Integer, ParameterMapping[][]>();
     
     private final PartitionEstimator p_estimator;
     private final int[] partitionSiteXref;
     private final CatalogContext catalogContext;
+    
+    // ThreadLocal Stuff
+    private final ThreadLocal<Map<Integer, BatchPlanner>> planners = new ThreadLocal<Map<Integer,BatchPlanner>>() {
+        protected java.util.Map<Integer,BatchPlanner> initialValue() {
+            return (new HashMap<Integer, BatchPlanner>());
+        }
+    };
     private final ThreadLocal<FastSerializer> serializers = new ThreadLocal<FastSerializer>() {
         protected FastSerializer initialValue() {
             return new FastSerializer(); // TODO: Use pooled memory
@@ -75,6 +81,7 @@ public class PrefetchQueryPlanner {
         // prefetch flag set to true. We generate an array of the SQLStmt
         // handles that we will want to prefetch for each Procedure
         List<SQLStmt> prefetchStmts = new ArrayList<SQLStmt>();
+        int stmt_ctr = 0;
         for (Procedure catalog_proc : this.catalogContext.procedures.values()) {
             if (catalog_proc.getPrefetchable() == false) continue;
             
@@ -94,7 +101,7 @@ public class PrefetchQueryPlanner {
                 if (valid) prefetchStmts.add(new SQLStmt(catalog_stmt));
             } // FOR
             if (prefetchStmts.isEmpty() == false) {
-//                addPlanner(prefetchStmts.toArray(new SQLStmt[0]), catalog_proc, p_estimator, true);
+                stmt_ctr += prefetchStmts.size();
             } else {
                 LOG.warn("There are no prefetchable Statements available for " + catalog_proc);
                 catalog_proc.setPrefetchable(false);
@@ -104,8 +111,7 @@ public class PrefetchQueryPlanner {
         this.partitionSiteXref = CatalogUtil.getPartitionSiteXrefArray(catalogContext.database);
         if (debug.val)
             LOG.debug(String.format("Initialized QueryPrefetchPlanner for %d " +
-                      "Procedures with prefetchable Statements",
-                      this.planners.size()));
+                      "Procedures with prefetchable Statements", stmt_ctr));
         if (this.catalogContext.paramMappings == null) {
             LOG.warn("Unable to generate prefetachable query plans without a ParameterMappingSet");
         }
@@ -140,7 +146,7 @@ public class PrefetchQueryPlanner {
         } // FOR (CountedStatement)
         
         int batchId = VoltProcedure.getBatchHashCode(prefetchStmts, prefetchStmts.length);
-        this.planners.put(batchId, planner);
+        this.planners.get().put(batchId, planner);
         this.mappingsCache.put(batchId, mappings);
         
         if (debug.val)
@@ -180,7 +186,7 @@ public class PrefetchQueryPlanner {
         int hashcode = VoltProcedure.getBatchHashCode(prefetchStmts, prefetchStmts.length);
         
         // Check if we've used this planner in the past. If not, then create it.
-        BatchPlanner planner = this.planners.get(hashcode);
+        BatchPlanner planner = this.planners.get().get(hashcode);
         if (planner == null) {
             planner = this.addPlanner(ts.getProcedure(), prefetchable, prefetchStmts);
         }
@@ -304,11 +310,13 @@ public class PrefetchQueryPlanner {
                                             .addAllPartitions(ts.getPredictTouchedPartitions());
                 }
                 builders[site_id] = default_request;
-                if (debug.val) LOG.debug(ts + " - Sending default TransactionInitRequest to site " + site_id);
+                if (debug.val)
+                    LOG.debug(ts + " - Sending default TransactionInitRequest to site " + site_id);
             }
         } // FOR (Site)
 
-        if (debug.val) LOG.debug(ts + " - TransactionInitRequests\n" + StringUtil.join("\n", builders));
+        if (debug.val)
+            LOG.debug(ts + " - TransactionInitRequests\n" + StringUtil.join("\n", builders));
         return (builders);
     }
 }
