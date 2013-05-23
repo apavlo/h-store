@@ -1,4 +1,4 @@
-package edu.brown.hstore.util;
+package edu.brown.hstore.specexec;
 
 import java.util.List;
 import java.util.Random;
@@ -25,6 +25,7 @@ import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.estimators.EstimatorState;
 import edu.brown.hstore.estimators.markov.MarkovEstimatorState;
 import edu.brown.hstore.txns.DependencyTracker;
+import edu.brown.hstore.specexec.PrefetchQueryPlanner;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.utils.PartitionSet;
 import edu.brown.utils.ProjectType;
