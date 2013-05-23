@@ -1615,19 +1615,45 @@ public final class HStoreConf {
         public boolean output_specexec;
         
         @ConfigProperty(
+            description="Print the benchmark results in a simple text-based output table.",
+            defaultBoolean=false,
+            experimental=false
+        )
+        public boolean output_results_table;
+        
+        @ConfigProperty(
+            description="Print the benchmark results in a JSON parseable format. This is useful for " +
+                        "running experiments inside of scripts.",
+            defaultBoolean=false,
+            experimental=false,
+            replacedBy="client.output_results_json"
+        )
+        @Deprecated
+        public boolean output_json;
+        
+        @ConfigProperty(
             description="Print the benchmark results in a JSON parseable format. This is useful for " +
             		    "running experiments inside of scripts.",
             defaultBoolean=false,
             experimental=false
         )
-        public boolean output_json;
+        public boolean output_results_json;
         
         @ConfigProperty(
             description="",
             defaultNull=true,
+            experimental=false,
+            replacedBy="client.output_results_csv"
+        )
+        @Deprecated
+        public String output_csv;
+        
+        @ConfigProperty(
+            description="Print the benchmark results in a CSV table.",
+            defaultNull=true,
             experimental=false
         )
-        public String output_csv;
+        public String output_results_csv;
         
         @ConfigProperty(
             description="Defines the path where the BenchmarkController will dump a CSV containing " +

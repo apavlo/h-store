@@ -166,7 +166,7 @@ EXPERIMENT_SETTINGS = [
     # Performance Experiments
     "performance-nospec",
     "performance-spec-txn",
-    "performance-spec-queries",
+    "performance-spec-query",
     "performance-spec-all",
 ]
 
@@ -330,7 +330,7 @@ def updateExperimentEnv(fabric, args, benchmark, partitions):
         ## ----------------------------------------------
         ## SPECULATIVE QUERIES
         ## ----------------------------------------------
-        if args['exp_type'] in ("performance-queries", "performance-spec-all"):
+        if args['exp_type'] in ("performance-spec-query", "performance-spec-all"):
             fabric.env["site.exec_prefetch_queries"] = True
             fabric.env["site.specexec_markov"] = True
             

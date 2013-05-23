@@ -117,8 +117,11 @@ class SSHFabric(AbstractFabric):
                 raise Exception("The ssh.hosts file '%s' does not exist" % self.env["ssh.hosts"])
             with open(self.env["ssh.hosts"]) as fd:
                 for line in fd:
-                    map(allHostnames.append, re.split(r"[\s,]+", line.strip()))
+                    for host in re.split(r"[\s,]+", line.strip()):
+                        if not host.startswith("#"): allHostnames.append(host)
+                ## FOR
             ## WITH
+            
                                   
         # HOSTS LIST
         else:
