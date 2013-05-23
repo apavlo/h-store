@@ -12,22 +12,22 @@ function onexit() {
 
 DATA_DIR="/home/pavlo/Documents/H-Store/Papers/speculative/data"
 FABRIC_TYPE="ssh"
-FIRST_PARAM_OFFSET=0
+FIRST_PARAM_OFFSET=1
 
 EXP_TYPES=( \
-    "performance-nospec" \
+#     "performance-nospec" \
 #     "performance-spec-txn" \
-#     "performance-spec-query" \
+    "performance-spec-query" \
 #     "performance-spec-all" \
 )
 PARTITIONS=( \
     8 \
     16 \
-#     32 \
+    32 \
 )
 
-# for b in smallbank tpcc seats; do
 for b in smallbank tpcc seats; do
+# for b in seats; do
     PARAMS=( \
         --no-update \
         --results-dir=$DATA_DIR \
@@ -41,7 +41,8 @@ for b in smallbank tpcc seats; do
     i=0
     cnt=${#EXP_TYPES[@]}
     while [ "$i" -lt "$cnt" ]; do
-        ./experiment-runner.py $FABRIC_TYPE ${PARAMS[@]:$FIRST_PARAM_OFFSET} \
+        ./experiment-runner.py $FABRIC_TYPE \
+            ${PARAMS[@]:$FIRST_PARAM_OFFSET} \
             --exp-type=${EXP_TYPES[$i]}
         FIRST_PARAM_OFFSET=0
         i=`expr $i + 1`

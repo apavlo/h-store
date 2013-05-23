@@ -268,7 +268,7 @@ class AbstractFabric(object):
             "project":                      project,
             "hosts":                        '"%s"' % ";".join(hosts),
         }
-        if json: hstore_options["client.output_json"] = True
+        if json: hstore_options["client.output_results_json"] = True
         if trace:
             hstore_options["trace"] = "traces/%s-%d" % (project, time.time())
             LOG.debug("Enabling trace files that will be output to '%s'" % hstore_options["trace"])
