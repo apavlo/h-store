@@ -5,6 +5,7 @@ import java.util.ConcurrentModificationException;
 import java.util.List;
 
 import org.apache.log4j.Logger;
+import org.voltdb.messaging.FastDeserializer;
 
 import com.google.protobuf.RpcCallback;
 
@@ -12,6 +13,7 @@ import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.TransactionQueueManager;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.TransactionInitResponse;
+import edu.brown.hstore.specexec.PrefetchQueryUtil;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
@@ -30,6 +32,8 @@ public class LocalInitQueueCallback extends PartitionCountingCallback<LocalTrans
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
 
+    private final boolean prefetch;
+    private ThreadLocal<FastDeserializer> prefetchDeserializers;
     private final TransactionQueueManager txnQueueManager;
     private final List<TransactionInitResponse> responses = new ArrayList<TransactionInitResponse>();
     
@@ -39,6 +43,7 @@ public class LocalInitQueueCallback extends PartitionCountingCallback<LocalTrans
     
     public LocalInitQueueCallback(HStoreSite hstore_site) {
         super(hstore_site);
+        this.prefetch = hstore_site.getHStoreConf().site.exec_prefetch_queries;
         this.txnQueueManager = hstore_site.getTransactionQueueManager();
     }
     
@@ -52,13 +57,33 @@ public class LocalInitQueueCallback extends PartitionCountingCallback<LocalTrans
     // CALLBACK METHODS
     // ----------------------------------------------------------------------------
 
-//    @Override
-//    public void run(int partition) {
-//        if (partition != this.ts.getBasePartition() && this.hstore_site.isLocalPartition(partition)) {
-//            this.hstore_site.transactionSetPartitionLock(this.ts, partition);
-//        }
-//        super.run(partition);
-//    }
+    @Override
+    public void run(int partition) {
+        if (trace.val)
+            LOG.trace(String.format("%s - Prefetch=%s / HasPrefetchFragments=%s",
+                      this.ts, this.prefetch, this.ts.hasPrefetchFragments()));
+        if (this.prefetch && partition != this.ts.getBasePartition() && this.ts.hasPrefetchFragments()) {
+            if (debug.val)
+                LOG.debug(String.format("%s - Checking for prefetch queries at partition %d",
+                          this.ts, partition));
+            if (this.prefetchDeserializers == null) {
+                synchronized (this) {
+                    this.prefetchDeserializers = new ThreadLocal<FastDeserializer>() {
+                        @Override
+                        protected FastDeserializer initialValue() {
+                            return (new FastDeserializer(new byte[0]));
+                        }
+                    };
+                } // SYNCH
+            }
+            FastDeserializer fd = this.prefetchDeserializers.get();
+            boolean result = PrefetchQueryUtil.dispatchPrefetchQueries(hstore_site, this.ts, fd, partition);
+            if (debug.val)
+                LOG.debug(String.format("%s - Result from dispatching prefetch queries at partition %d -> %s",
+                          this.ts, partition, result));
+        }
+        super.run(partition);
+    }
     
     @Override
     protected void unblockCallback() {

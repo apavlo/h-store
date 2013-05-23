@@ -804,15 +804,21 @@ public class HStoreCoordinator implements Shutdownable {
                     ProtoRpcController controller = ts.getTransactionInitController(site_id);
                     this.channels[site_id].transactionInit(controller, initRequest, callback);
                     prefetch_ctr += initRequest.getPrefetchFragmentsCount();
+                    sent_ctr++;
                 }
                 // Send the default message for the local site
                 else {
-                    assert(site_id == this.local_site_id);
-                    this.hstore_site.transactionInit(ts);
+//                    assert(site_id == this.local_site_id);
+//                    this.hstore_site.transactionInit(ts);
                 }
-                sent_ctr++;
             } // FOR
-            assert(sent_ctr > 0) : "No TransactionInitRequests available for " + ts;
+            if (requests[this.local_site_id] != null) {
+                this.transactionInit_handler.remoteHandler(null, requests[this.local_site_id].build(), null);
+                sent_ctr++;
+            }
+            
+            assert(sent_ctr > 0) : 
+                String.format("No %s available for %s", TransactionInitRequest.class.getSimpleName(), ts);
             if (debug.val)
                 LOG.debug(String.format("%s - Sent %d %s with %d prefetch WorkFragments",
                           ts, sent_ctr, TransactionInitRequest.class.getSimpleName(), prefetch_ctr));
