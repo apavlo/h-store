@@ -925,19 +925,19 @@ public class BenchmarkController {
         // ----------------------------------------------------------------------------
         
         // JSON Output
-        if (hstore_conf.client.output_json) {
+        if (hstore_conf.client.output_results_json) {
             this.registerInterest(new JSONResultsPrinter(hstore_conf));
         }
         // CSV Output
-        else if (hstore_conf.client.output_csv != null && hstore_conf.client.output_csv.isEmpty() == false) {
-            if (hstore_conf.client.output_csv.equalsIgnoreCase("true")) {
+        if (hstore_conf.client.output_results_csv != null && hstore_conf.client.output_results_csv.isEmpty() == false) {
+            if (hstore_conf.client.output_results_csv.equalsIgnoreCase("true")) {
                 LOG.warn("The HStoreConf parameter 'hstore_conf.client.output_csv' should be a file path, not a boolean value");
             }
-            File f = new File(hstore_conf.client.output_csv);
+            File f = new File(hstore_conf.client.output_results_csv);
             this.registerInterest(new CSVResultsPrinter(f));
         }
         // Default Table Output
-        else {
+        if (hstore_conf.client.output_results_table) {
             this.registerInterest(new ResultsPrinter(hstore_conf));
         }
         
