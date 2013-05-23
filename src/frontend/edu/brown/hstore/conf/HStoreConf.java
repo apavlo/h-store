@@ -1616,7 +1616,7 @@ public final class HStoreConf {
         
         @ConfigProperty(
             description="Print the benchmark results in a simple text-based output table.",
-            defaultBoolean=false,
+            defaultBoolean=true,
             experimental=false
         )
         public boolean output_results_table;
