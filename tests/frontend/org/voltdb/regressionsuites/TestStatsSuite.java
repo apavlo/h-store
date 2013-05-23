@@ -128,7 +128,7 @@ public class TestStatsSuite extends RegressionSuite {
         assertEquals(1, results.length);
         // System.out.println(VoltTableUtil.format(results[0]));
         
-        Map<String, Long> profilerStats = new TreeMap<>();
+        Map<String, Long> profilerStats = new TreeMap<String, Long>();
         while (results[0].advanceRow()) {
             String procName = results[0].getString("PROCEDURE");
             if (procName.equalsIgnoreCase(neworder.class.getSimpleName()) == false) continue;

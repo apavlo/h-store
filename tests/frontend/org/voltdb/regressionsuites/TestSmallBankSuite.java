@@ -107,6 +107,10 @@ public class TestSmallBankSuite extends RegressionSuite {
         } // FOR
     }
     
+    // --------------------------------------------------------------------------------------------
+    // UTILITY METHODS
+    // --------------------------------------------------------------------------------------------
+    
     public static final void initializeSmallBankDatabase(final CatalogContext catalogContext, final Client client) throws Exception {
         String args[] = {
             "NOCONNECTIONS=true",
@@ -124,8 +128,7 @@ public class TestSmallBankSuite extends RegressionSuite {
         };
         loader.load();
     }
-    
-    
+
     public static void checkBalance(Client client, long acctId, double expected) throws Exception {
         // Make sure that we set it correctly
         String query = String.format("SELECT * FROM %s WHERE custid = %d",
