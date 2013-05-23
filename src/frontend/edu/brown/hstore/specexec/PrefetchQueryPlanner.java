@@ -56,7 +56,11 @@ public class PrefetchQueryPlanner {
     private final PartitionEstimator p_estimator;
     private final int[] partitionSiteXref;
     private final CatalogContext catalogContext;
-    private final FastSerializer fs = new FastSerializer(); // TODO: Use pooled memory
+    private final ThreadLocal<FastSerializer> serializers = new ThreadLocal<FastSerializer>() {
+        protected FastSerializer initialValue() {
+            return new FastSerializer(); // TODO: Use pooled memory
+        };
+    };
 
     /**
      * Constructor
@@ -191,6 +195,7 @@ public class PrefetchQueryPlanner {
         // to send over to the remote sites so that they can execute our
         // prefetchable queries
         Object proc_params[] = procParams.toArray();
+        FastSerializer fs = this.serializers.get();
         for (int i = 0; i < prefetchParams.length; i++) {
             CountedStatement counted_stmt = prefetchable.get(i);
             if (debug.val)
@@ -227,9 +232,9 @@ public class PrefetchQueryPlanner {
 
             // Serialize this ParameterSet for the TransactionInitRequests
             try {
-                if (i > 0) this.fs.clear();
-                prefetchParams[i].writeExternal(this.fs);
-                prefetchParamsSerialized[i] = ByteString.copyFrom(this.fs.getBBContainer().b);
+                if (i > 0) fs.clear();
+                prefetchParams[i].writeExternal(fs);
+                prefetchParamsSerialized[i] = ByteString.copyFrom(fs.getBBContainer().b);
             } catch (Exception ex) {
                 throw new RuntimeException("Failed to serialize ParameterSet " + i + " for " + ts, ex);
             }

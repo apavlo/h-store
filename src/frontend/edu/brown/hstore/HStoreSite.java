@@ -33,7 +33,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.ConcurrentModificationException;
 import java.util.HashMap;
-import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
@@ -175,14 +174,22 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     /**
      * Incoming request deserializer
      */
-    private final IdentityHashMap<Thread, FastDeserializer> incomingDeserializers =
-                        new IdentityHashMap<Thread, FastDeserializer>();
+    private final ThreadLocal<FastDeserializer> incomingDeserializers = new ThreadLocal<FastDeserializer>() {
+        @Override
+        protected FastDeserializer initialValue() {
+            return (new FastDeserializer(new byte[0]));
+        }
+    };
     
     /**
      * Outgoing response serializers
      */
-    private final IdentityHashMap<Thread, FastSerializer> outgoingSerializers = 
-                        new IdentityHashMap<Thread, FastSerializer>();
+    private final ThreadLocal<FastSerializer> outgoingSerializers = new ThreadLocal<FastSerializer>() {
+        @Override
+        protected FastSerializer initialValue() {
+            return (new FastSerializer(HStoreSite.this.buffer_pool));
+        }
+    };
     
     /**
      * This is the object that we use to generate unqiue txn ids used by our
@@ -1194,37 +1201,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         return ((T)this.inflight_txns.get(txn_id));
     }
 
-    /**
-     * Return a thread-safe FastDeserializer
-     * @return
-     */
-    private FastDeserializer getIncomingDeserializer() {
-        Thread t = Thread.currentThread();
-        FastDeserializer fds = this.incomingDeserializers.get(t);
-        if (fds == null) {
-            fds = new FastDeserializer(new byte[0]);
-            this.incomingDeserializers.put(t, fds);
-        }
-        assert(fds != null);
-        return (fds);
-    }
-    
-    /**
-     * Return a thread-safe FastSerializer
-     * @return
-     */
-    private FastSerializer getOutgoingSerializer() {
-        Thread t = Thread.currentThread();
-        FastSerializer fs = this.outgoingSerializers.get(t);
-        if (fs == null) {
-            fs = new FastSerializer(this.buffer_pool);
-            this.outgoingSerializers.put(t, fs);
-        }
-        assert(fs != null);
-        return (fs);
-    }
-    
-    
     // ----------------------------------------------------------------------------
     // LOCAL PARTITION OFFSETS
     // ----------------------------------------------------------------------------
@@ -1601,7 +1577,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // Extract the stuff we need to figure out whether this guy belongs at our site
         // We don't need to create a StoredProcedureInvocation anymore in order to
         // extract out the data that we need in this request
-        final FastDeserializer incomingDeserializer = this.getIncomingDeserializer();
+        final FastDeserializer incomingDeserializer = this.incomingDeserializers.get();
         incomingDeserializer.setBuffer(buffer);
         final long client_handle = StoredProcedureInvocation.getClientHandle(buffer);
         final int procId = StoredProcedureInvocation.getProcedureId(buffer);
@@ -2260,7 +2236,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 spi.setBasePartition(redirect_partition);
                 spi.setRestartCounter(orig_ts.getRestartCounter()+1);
                 
-                FastSerializer out = this.getOutgoingSerializer();
+                FastSerializer out = this.outgoingSerializers.get();
                 try {
                     out.writeObject(spi);
                 } catch (IOException ex) {
