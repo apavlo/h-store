@@ -2,31 +2,18 @@ package org.voltdb.regressionsuites;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Random;
 
 import org.junit.Test;
 import org.voltdb.BackendTarget;
 import org.voltdb.CatalogContext;
-import org.voltdb.VoltProcedure;
-import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
-import org.voltdb.benchmark.tpcc.TPCCConstants;
-import org.voltdb.benchmark.tpcc.TPCCProjectBuilder;
-import org.voltdb.benchmark.tpcc.procedures.LoadWarehouse;
-import org.voltdb.benchmark.tpcc.procedures.neworder;
-import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
-import org.voltdb.catalog.Table;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
-import org.voltdb.client.ProcCallException;
-import org.voltdb.sysprocs.AdHoc;
-import org.voltdb.sysprocs.LoadMultipartitionTable;
 
 import edu.brown.benchmark.smallbank.SmallBankProjectBuilder;
 import edu.brown.benchmark.smallbank.procedures.SendPayment;
-import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.mappings.ParametersUtil;
 import edu.brown.utils.ProjectType;
@@ -37,11 +24,6 @@ import edu.brown.utils.ProjectType;
  */
 public class TestPrefetchQuerySuite extends RegressionSuite {
     
-    /** Procedures used by this suite */
-    @SuppressWarnings("unchecked")
-    static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
-        neworder.class, LoadWarehouse.class
-    };
     private static final String PREFIX = "prefetch";
 
     /**
@@ -68,7 +50,7 @@ public class TestPrefetchQuerySuite extends RegressionSuite {
         double balances[] = { 100d, 0d };
         for (int i = 0; i < acctIds.length; i++) {
             TestSmallBankSuite.updateBalance(client, acctIds[i], balances[i]);
-            TestSmallBankSuite.checkBalance(client, acctIds[i], balances[i]);
+//            TestSmallBankSuite.checkBalance(client, acctIds[i], balances[i]);
         } // FOR
         
         // Run the SendPayment txn to send all the money from the first
@@ -126,10 +108,10 @@ public class TestPrefetchQuerySuite extends RegressionSuite {
         /////////////////////////////////////////////////////////////
         // CONFIG #2: 1 Local Site with 2 Partitions running on JNI backend
         /////////////////////////////////////////////////////////////
-//        config = new LocalSingleProcessServer(PREFIX + "-2part.jar", 2, BackendTarget.NATIVE_EE_JNI);
-//        success = config.compile(project);
-//        assert(success);
-//        builder.addServerConfig(config);
+        config = new LocalSingleProcessServer(PREFIX + "-2part.jar", 2, BackendTarget.NATIVE_EE_JNI);
+        success = config.compile(project);
+        assert(success);
+        builder.addServerConfig(config);
         
         ////////////////////////////////////////////////////////////
         // CONFIG #3: cluster of 2 nodes running 1 site each, one replica

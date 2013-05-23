@@ -1122,9 +1122,14 @@ public class DependencyTracker {
         }
         
         public Map<String, Object> debugMap(LocalTransaction ts) {
-            final TransactionState state = getState(ts);
-            if (state == null) return (null);
-            return state.debugMap();
+            try {
+                TransactionState state = getState(ts);
+                return state.debugMap();
+            } catch (AssertionError ex) {
+                // IGNORE
+            }
+            return (null);
+            
         }
     }
     
