@@ -340,9 +340,14 @@ public class DependencyInfo implements Poolable {
     // ----------------------------------------------------------------------------
     // DEBUG METHODS
     // ----------------------------------------------------------------------------
-    
+
     @Override
     public String toString() {
+        return String.format("DependencyInfo[#%d/hashCode:%d]",
+                             this.dependency_id, this.hashCode());
+    }
+    
+    public String debug() {
         if (this.isInitialized() == false) {
             return ("<UNINITIALIZED>");
         }
@@ -371,19 +376,16 @@ public class DependencyInfo implements Poolable {
         m.put("- Result Partitions", this.resultPartitions);
         
         Map<String, Object> inner = new LinkedHashMap<String, Object>();
-        for (int partition = 0, cnt = this.results.size(); partition < cnt; partition++) {
-            if (this.results.get(partition) == null) continue;
-            VoltTable vt = this.results.get(partition);
-            inner.put(String.format("Partition %02d",partition),
+        for (int i = 0; i < this.results.size(); i++) {
+            VoltTable vt = this.results.get(i);
+            inner.put(String.format("#%02d", i),
                       String.format("{%d tuples}", vt.getRowCount()));  
         } // FOR
         m.put("- Results", inner);
         m.put("- Blocked", this.blockedTasks);
         m.put("- Status", status);
 
-        return String.format("DependencyInfo[#%d] - HashCode:%d\n%s",
-                             this.dependency_id, this.hashCode(),
-                             StringUtil.formatMaps(m).trim());
+        return (this.toString() + "\n" + StringUtil.formatMaps(m).trim());
     }
 
 }

@@ -1262,8 +1262,12 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 parameters = ts.getPrefetchParameterSets();
                 ts.markExecPrefetchQuery(this.partitionId);
                 TransactionCounter.PREFETCH_REMOTE.inc(ts.getProcedure());
+                if (trace.val && ts.isSysProc() == false)
+                    LOG.trace(ts + " - Prefetch Parameters:\n" + StringUtil.join("\n", parameters));
             } else {
                 parameters = ts.getAttachedParameterSets();
+                if (trace.val && ts.isSysProc() == false) 
+                    LOG.trace(ts + " - Attached Parameters:\n" + StringUtil.join("\n", parameters));
             }
             parameters = this.getFragmentParameters(ts, fragment, parameters);
             assert(parameters != null);
@@ -1921,8 +1925,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                                   int paramsHash,
                                   VoltTable result) {
         if (debug.val)
-            LOG.debug(String.format("Adding prefetch result for %s from partition %d",
-                      ts, partitionId));
+            LOG.debug(String.format("%s - Adding prefetch result for %s with %d rows from partition %d " +
+                      "[stmtCounter=%d / paramsHash=%d]",
+                      ts, CatalogUtil.getPlanFragment(catalogContext.catalog, fragmentId).fullName(),
+                      result.getRowCount(), partitionId, stmtCounter, paramsHash));
         this.depTracker.addPrefetchResult(ts, stmtCounter, fragmentId, partitionId, paramsHash, result);
     }
     
@@ -2480,19 +2486,19 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         
         
         // A txn is "local" if the Java is executing at the same partition as this one
-        boolean is_local = (ts.getBasePartition() == this.partitionId);
+        boolean is_basepartition = (ts.getBasePartition() == this.partitionId);
         boolean is_remote = (ts instanceof LocalTransaction == false);
         boolean is_prefetch = fragment.getPrefetch();
         boolean is_readonly = fragment.getReadOnly();
         if (debug.val)
-            LOG.debug(String.format("%s - Executing %s [isLocal=%s, isRemote=%s, isPrefetch=%s, isReadOnly=%s, fragments=%s]",
+            LOG.debug(String.format("%s - Executing %s [isBasePartition=%s, isRemote=%s, isPrefetch=%s, isReadOnly=%s, fragments=%s]",
                       ts, fragment.getClass().getSimpleName(),
-                      is_local, is_remote, is_prefetch, is_readonly,
+                      is_basepartition, is_remote, is_prefetch, is_readonly,
                       fragment.getFragmentIdCount()));
         
         // If this WorkFragment isn't being executed at this txn's base partition, then
         // we need to start a new execution round
-        if (is_local == false) {
+        if (is_basepartition == false) {
             long undoToken = this.calculateNextUndoToken(ts, is_readonly);
             ts.initRound(this.partitionId, undoToken);
             ts.startRound(this.partitionId);
@@ -2504,9 +2510,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         
         try {
             result = this.executeWorkFragment(ts, fragment, parameters);
-            
         } catch (EvictedTupleAccessException ex) {
-
             // XXX: What do we do if this is not a single-partition txn?
             status = Status.ABORT_EVICTEDACCESS;
             error = ex;
@@ -2554,7 +2558,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
            "Got back " + result.size() + " results but was expecting " + fragment.getFragmentIdCount();
         
         // Make sure that we mark the round as finished before we start sending results
-        if (is_local == false) {
+        if (is_basepartition == false) {
             ts.finishRound(this.partitionId);
         }
         
@@ -2569,15 +2573,15 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             // just wait until they come back to execute the query again before 
             // we tell them that something went wrong. It's ghetto, but it's just easier this way...
             if (status == Status.OK) {
-                if (debug.val)
-                    LOG.debug(String.format("%s - Storing %d prefetch query results in partition %d query cache",
-                              ts, result.size(), ts.getBasePartition()));
-                
                 // We're going to store the result in the base partition cache if they're 
                 // on the same HStoreSite as us
                 if (is_remote == false) {
                     PartitionExecutor other = this.hstore_site.getPartitionExecutor(ts.getBasePartition());
                     for (int i = 0, cnt = result.size(); i < cnt; i++) {
+                        if (trace.val)
+                            LOG.trace(String.format("%s - Storing %s prefetch result [params=%s]",
+                                      ts, CatalogUtil.getPlanFragment(catalogContext.catalog, fragment.getFragmentId(i)).fullName(),
+                                      parameters[i]));
                         other.addPrefetchResult((LocalTransaction)ts,
                                                 fragment.getStmtCounter(i),
                                                 fragment.getFragmentId(i),
@@ -2664,7 +2668,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         
         // Check whether this is the last query that we're going to get
         // from this transaction. If it is, then we can go ahead and prepare the txn
-        if (is_local == false && fragment.getLastFragment()) {
+        if (is_basepartition == false && fragment.getLastFragment()) {
             if (debug.val)
                 LOG.debug(String.format("%s - Invoking early 2PC:PREPARE at partition %d",
                           ts, this.partitionId));
@@ -3873,7 +3877,13 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         
         // IMPORTANT: Don't try to check whether we got back the right number of tables because the batch
         // may have hit an error and we didn't execute all of them.
-        VoltTable results[] = this.depTracker.getResults(ts);
+        VoltTable results[] = null;
+        try {
+            results = this.depTracker.getResults(ts);
+        } catch (AssertionError ex) {
+            LOG.error("Failed to get final results for batch\n" + ts.debug());
+            throw ex;
+        }
         ts.finishRound(this.partitionId);
          if (debug.val) {
             if (trace.val) LOG.trace(ts + " is now running and looking for love in all the wrong places...");

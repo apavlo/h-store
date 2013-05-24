@@ -85,6 +85,9 @@ public abstract class PrefetchQueryUtil {
                 String msg = "Failed to deserialize pre-fetch ParameterSet at offset #" + i;
                 throw new ServerFaultException(msg, ex, ts.getTransactionId());
             }
+            if (debug.val)
+                LOG.debug(String.format("%s - Prefetch ParameterSet [%02d] -> %s",
+                          ts, i, params[i]));
         } // FOR
         ts.attachPrefetchParameters(params);
     }
