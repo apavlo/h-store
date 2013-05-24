@@ -1,9 +1,9 @@
 package edu.brown.benchmark.smallbank.procedures;
 
-import org.apache.log4j.Logger;
+import static org.voltdb.VoltProcedure.LOG;
+
 import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
-import org.voltdb.TheHashinator;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 
@@ -17,7 +17,6 @@ import edu.brown.benchmark.smallbank.SmallBankConstants;
     partitionParam=0
 )
 public class SendPayment extends VoltProcedure {
-    private static final Logger LOG = Logger.getLogger(SendPayment.class);
     
     public final SQLStmt GetAccount = new SQLStmt(
         "SELECT * FROM " + SmallBankConstants.TABLENAME_ACCOUNTS +
@@ -42,12 +41,10 @@ public class SendPayment extends VoltProcedure {
         final VoltTable acctResults[] = voltExecuteSQL();
         if (acctResults[0].getRowCount() != 1) {
             String msg = "Invalid sender account '" + sendAcct + "'";
-            LOG.error(this.getTransactionState() + " - " + msg + " / hash=" + TheHashinator.hashToPartition(sendAcct));
             throw new VoltAbortException(msg);
         }
         else if (acctResults[1].getRowCount() != 1) {
             String msg = "Invalid destination account '" + destAcct + "'";
-            LOG.error(this.getTransactionState() + " - " + msg + " / hash=" + TheHashinator.hashToPartition(destAcct));
             throw new VoltAbortException(msg);
         }
         
@@ -58,7 +55,6 @@ public class SendPayment extends VoltProcedure {
             String msg = String.format("No %s for customer #%d",
                                        SmallBankConstants.TABLENAME_SAVINGS, 
                                        sendAcct);
-            LOG.error(msg);
             throw new VoltAbortException(msg);
         }
         balResults[0].advanceRow();
@@ -67,7 +63,6 @@ public class SendPayment extends VoltProcedure {
         if (balance < amount) {
             String msg = String.format("Insufficient %s funds for customer #%d",
                                        SmallBankConstants.TABLENAME_CHECKING, sendAcct);
-            LOG.error(msg);
             throw new VoltAbortException(msg);
         }
         
