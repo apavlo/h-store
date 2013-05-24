@@ -238,7 +238,7 @@ public class PrefetchQueryPlanner {
 
             // Serialize this ParameterSet for the TransactionInitRequests
             try {
-                if (i > 0) fs.clear();
+                fs.clear();
                 prefetchParams[i].writeExternal(fs);
                 prefetchParamsSerialized[i] = ByteString.copyFrom(fs.getBBContainer().b);
             } catch (Exception ex) {
@@ -268,9 +268,15 @@ public class PrefetchQueryPlanner {
         for (WorkFragment.Builder fragment : fragmentBuilders) {
             int site_id = this.partitionSiteXref[fragment.getPartitionId()];
             
+            // Update DependencyTracker
+            // This has to be done *before* you add it to the TransactionInitRequest
+            if (first) {
+                // Make sure that we initialize our internal PrefetchState for this txn
+                ts.initializePrefetch();
+                depTracker.addTransaction(ts); 
+            }
             // HACK: Attach the prefetch params in the transaction handle in case we need to use it locally
             if (site_id == local_site_id) {
-                ts.initializePrefetch();
                 ts.attachPrefetchParameters(prefetchParams);
             }
             
@@ -284,15 +290,8 @@ public class PrefetchQueryPlanner {
                     builders[site_id].addPrefetchParams(bs);
                 } // FOR
             }
-            // Update DependencyTracker
-            // This has to be done *before* you add it to the TransactionInitRequest
-            if (first) {
-                // Make sure that we initialize our internal PrefetchState for this txn
-                ts.initializePrefetch();
-                depTracker.addTransaction(ts); 
-            }
-            depTracker.addPrefetchWorkFragment(ts, fragment, prefetchParams);
             
+            depTracker.addPrefetchWorkFragment(ts, fragment, prefetchParams);
             builders[site_id].addPrefetchFragments(fragment);
         } // FOR (WorkFragment)
 
