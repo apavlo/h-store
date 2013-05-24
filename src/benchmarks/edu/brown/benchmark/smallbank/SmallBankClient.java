@@ -155,6 +155,11 @@ public class SmallBankClient extends BenchmarkComponent {
                     acctIds[i] = client.rand.nextInt(SmallBankConstants.HOTSPOT_SIZE);
                 }
                 
+                // They can never be the same!
+                if (i > 0 && acctIds[i-1] == acctIds[i]) {
+                    continue;
+                }
+                
                 // DTXN
                 if (is_dtxn) {
                     boolean retry = false;
