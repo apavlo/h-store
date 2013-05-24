@@ -244,7 +244,6 @@ public class PrefetchQueryPlanner {
             } catch (Exception ex) {
                 throw new RuntimeException("Failed to serialize ParameterSet " + i + " for " + ts, ex);
             }
-            
         } // FOR (Statement)
 
         // Generate the WorkFragments that we will need to send in our TransactionInitRequest
@@ -255,7 +254,7 @@ public class PrefetchQueryPlanner {
                                       prefetchParams);
         List<WorkFragment.Builder> fragmentBuilders = new ArrayList<WorkFragment.Builder>();
         plan.getWorkFragmentsBuilders(ts.getTransactionId(), prefetchCounters, fragmentBuilders);
-
+        
         // Loop through the fragments and check whether at least one of
         // them needs to be executed at the base (local) partition. If so, we need a
         // separate TransactionInitRequest per site. Group the WorkFragments by siteID.
@@ -265,8 +264,16 @@ public class PrefetchQueryPlanner {
         // if it's only going to the base partition.
         TransactionInitRequest.Builder[] builders = new TransactionInitRequest.Builder[this.catalogContext.numberOfSites];
         boolean first = true;
+        int local_site_id = this.partitionSiteXref[ts.getBasePartition()];
         for (WorkFragment.Builder fragment : fragmentBuilders) {
             int site_id = this.partitionSiteXref[fragment.getPartitionId()];
+            
+            // HACK: Attach the prefetch params in the transaction handle in case we need to use it locally
+            if (site_id == local_site_id) {
+                ts.initializePrefetch();
+                ts.attachPrefetchParameters(prefetchParams);
+            }
+            
             if (builders[site_id] == null) {
                 builders[site_id] = TransactionInitRequest.newBuilder()
                                             .setTransactionId(ts.getTransactionId().longValue())
