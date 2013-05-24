@@ -298,7 +298,7 @@ public class PrefetchQueryPlanner {
         PartitionSet touched_partitions = ts.getPredictTouchedPartitions();
         boolean touched_sites[] = new boolean[this.catalogContext.numberOfSites];
         Arrays.fill(touched_sites, false);
-        for (int partition : touched_partitions) {
+        for (int partition : touched_partitions.values()) {
             touched_sites[this.partitionSiteXref[partition]] = true;
         } // FOR
 

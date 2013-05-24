@@ -32,7 +32,6 @@ import com.google.protobuf.RpcCallback;
 import com.google.protobuf.RpcController;
 
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.catalog.special.CountedStatement;
 import edu.brown.hstore.Hstoreservice.HStoreService;
 import edu.brown.hstore.Hstoreservice.InitializeRequest;
 import edu.brown.hstore.Hstoreservice.InitializeResponse;
@@ -63,7 +62,6 @@ import edu.brown.hstore.Hstoreservice.TransactionReduceRequest;
 import edu.brown.hstore.Hstoreservice.TransactionReduceResponse;
 import edu.brown.hstore.Hstoreservice.TransactionWorkRequest;
 import edu.brown.hstore.Hstoreservice.TransactionWorkResponse;
-import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.callbacks.ShutdownPrepareCallback;
 import edu.brown.hstore.callbacks.LocalFinishCallback;
 import edu.brown.hstore.callbacks.TransactionPrefetchCallback;
@@ -85,7 +83,6 @@ import edu.brown.hstore.specexec.PrefetchQueryPlanner;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.DependencyTracker;
 import edu.brown.hstore.txns.LocalTransaction;
-import edu.brown.hstore.txns.PrefetchState;
 import edu.brown.hstore.txns.RemoteTransaction;
 import edu.brown.hstore.util.TransactionCounter;
 import edu.brown.interfaces.Shutdownable;
@@ -166,7 +163,7 @@ public class HStoreCoordinator implements Shutdownable {
     // ----------------------------------------------------------------------------
     
     private final TransactionPrefetchCallback transactionPrefetch_callback;
-    private final PrefetchQueryPlanner queryPrefetchPlanner;
+    private final PrefetchQueryPlanner prefetchPlanner;
     
     
     /**
@@ -297,8 +294,8 @@ public class HStoreCoordinator implements Shutdownable {
                                                       hstore_site.getPartitionEstimator());
             }
         }
-        this.queryPrefetchPlanner = tmpPlanner;
-        this.transactionPrefetch_callback = (this.queryPrefetchPlanner != null ? new TransactionPrefetchCallback() : null);
+        this.prefetchPlanner = tmpPlanner;
+        this.transactionPrefetch_callback = (this.prefetchPlanner != null ? new TransactionPrefetchCallback() : null);
     }
     
     protected HStoreService initHStoreService() {
@@ -779,13 +776,13 @@ public class HStoreCoordinator implements Shutdownable {
             // We also need to add our boy to its base partition's DependencyTracker
             // This is so that we can store the prefetch results when they come back
             DependencyTracker depTracker = hstore_site.getDependencyTracker(ts.getBasePartition());
-            TransactionInitRequest.Builder[] requests = this.queryPrefetchPlanner.plan(ts,
-                                                                                       ts.getProcedureParameters(),
-                                                                                       depTracker);
+            TransactionInitRequest.Builder[] builders = this.prefetchPlanner.plan(ts,
+                                                                                  ts.getProcedureParameters(),
+                                                                                  depTracker);
             
             // If the PrefetchQueryPlanner returns a null array, then there is nothing
             // that we can actually prefetch, so we'll just send the normal txn init requests
-            if (requests == null) {
+            if (builders == null) {
                 this.sendDefaultTransactionInitRequests(ts, callback);
                 return;
             }
@@ -793,37 +790,43 @@ public class HStoreCoordinator implements Shutdownable {
             TransactionCounter.PREFETCH_LOCAL.inc(ts.getProcedure());
             int sent_ctr = 0;
             int prefetch_ctr = 0;
-            assert(requests.length == this.num_sites) :
+            assert(builders.length == this.num_sites) :
                 String.format("Expected %d %s but we got %d",
-                              this.num_sites, TransactionInitRequest.class.getSimpleName(), requests.length); 
+                              this.num_sites, TransactionInitRequest.class.getSimpleName(), builders.length);
+            
+            // Send out all of the prefetch requests first
             for (int site_id = 0; site_id < this.num_sites; site_id++) {
-                if (requests[site_id] == null) continue;
-                // Blast out this mofo. Tell them Rico sent you...
-                if (site_id != this.local_site_id) {
-                    TransactionInitRequest initRequest = requests[site_id].build();
-                    
-//                    for (int i = 0; i < initRequest.getPrefetchParamsCount(); i++) {
-//                        LOG.info(String.format("%s - XXX OUTBOUND PREFETCH RAW [%02d]: %s",
-//                                 ts, i,
-//                                 StringUtil.md5sum(initRequest.getPrefetchParams(i).asReadOnlyByteBuffer())));
-//                    } // FOR
-                    
-                    ProtoRpcController controller = ts.getTransactionInitController(site_id);
-                    this.channels[site_id].transactionInit(controller, initRequest, callback);
-                    prefetch_ctr += initRequest.getPrefetchFragmentsCount();
+                // Blast out this mofo. Tell them that Rico sent you...
+                if (builders[site_id] != null && builders[site_id].getPrefetchFragmentsCount() > 0) {
+                    TransactionInitRequest request = builders[site_id].build();
+                    if (site_id == this.local_site_id) {
+                        this.transactionInit_handler.remoteHandler(null, request, null);    
+                    } else {
+                        ProtoRpcController controller = ts.getTransactionInitController(site_id);
+                        this.channels[site_id].transactionInit(controller, request, callback);
+                    }
+                    prefetch_ctr += request.getPrefetchFragmentsCount();
                     sent_ctr++;
                 }
-                // Send the default message for the local site
-                else {
-//                    assert(site_id == this.local_site_id);
-//                    this.hstore_site.transactionInit(ts);
+            } // FOR
+            
+            // Then send out the ones without prefetching. These should all be the same
+            // builder so we have to make sure that we only build it once.
+            TransactionInitRequest request = null;
+            for (int site_id = 0; site_id < this.num_sites; site_id++) {
+                if (builders[site_id] != null && builders[site_id].getPrefetchFragmentsCount() == 0) {
+                    if (request == null) {
+                        request = builders[site_id].build();
+                    }
+                    if (site_id == this.local_site_id) {
+                        this.transactionInit_handler.remoteHandler(null, request, null);    
+                    } else {
+                        ProtoRpcController controller = ts.getTransactionInitController(site_id);
+                        this.channels[site_id].transactionInit(controller, request, callback);
+                    }
+                    sent_ctr++;
                 }
             } // FOR
-            if (requests[this.local_site_id] != null) {
-                this.transactionInit_handler.remoteHandler(null, requests[this.local_site_id].build(), null);
-                sent_ctr++;
-            }
-            
             assert(sent_ctr > 0) : 
                 String.format("No %s available for %s", TransactionInitRequest.class.getSimpleName(), ts);
             if (debug.val)
