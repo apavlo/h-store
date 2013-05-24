@@ -1261,7 +1261,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             if (fragment.getPrefetch()) {
                 parameters = ts.getPrefetchParameterSets();
                 ts.markExecPrefetchQuery(this.partitionId);
-                TransactionCounter.PREFETCH_REMOTE.inc(ts.getProcedure());
                 if (trace.val && ts.isSysProc() == false)
                     LOG.trace(ts + " - Prefetch Parameters:\n" + StringUtil.join("\n", parameters));
             } else {
@@ -3078,6 +3077,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         
         boolean needs_profiling = (hstore_conf.site.txn_profiling && ts.profiler != null);
         if (needs_profiling) {
+            ts.profiler.addBatch(batchSize);
             ts.profiler.stopExecJava();
             ts.profiler.startExecPlanning();
         }

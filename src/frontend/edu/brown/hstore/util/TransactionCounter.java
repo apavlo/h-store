@@ -62,9 +62,7 @@ public enum TransactionCounter {
     /** No undo buffers! Naked transactions! */
     NO_UNDO,
     /** The number of transactions that were sent out with prefetch queries */
-    PREFETCH_LOCAL,
-    /** The number of transactions with prefetch queries that were received and prefetched before needed by the sender */
-    PREFETCH_REMOTE,
+    PREFETCH,
     
     // --------------------------------------------------------
     // Speculative Execution Stall Points
@@ -154,8 +152,7 @@ public enum TransactionCounter {
             case REJECTED:
             case RECEIVED:
             case EXECUTED:
-            case PREFETCH_LOCAL:
-            case PREFETCH_REMOTE:
+            case PREFETCH:
                 total = RECEIVED.get();
                 break;
             case SPECULATIVE_IDLE:

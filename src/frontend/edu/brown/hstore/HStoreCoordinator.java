@@ -787,7 +787,7 @@ public class HStoreCoordinator implements Shutdownable {
                 return;
             }
             
-            TransactionCounter.PREFETCH_LOCAL.inc(ts.getProcedure());
+            TransactionCounter.PREFETCH.inc(ts.getProcedure());
             int sent_ctr = 0;
             int prefetch_ctr = 0;
             assert(builders.length == this.num_sites) :
@@ -816,9 +816,7 @@ public class HStoreCoordinator implements Shutdownable {
             TransactionInitRequest request = null;
             for (int site_id = 0; site_id < this.num_sites; site_id++) {
                 if (builders[site_id] != null) {
-                    if (request == null) {
-                        request = builders[site_id].build();
-                    }
+                    if (request == null) request = builders[site_id].build();
                     if (site_id == this.local_site_id) {
                         this.transactionInit_handler.remoteHandler(null, request, null);    
                     } else {
@@ -833,6 +831,7 @@ public class HStoreCoordinator implements Shutdownable {
             if (debug.val)
                 LOG.debug(String.format("%s - Sent %d %s with %d prefetch WorkFragments",
                           ts, sent_ctr, TransactionInitRequest.class.getSimpleName(), prefetch_ctr));
+            if (ts.profiler != null) ts.profiler.addPrefetchQuery(prefetch_ctr);
             
         }
         // Otherwise we will send the same TransactionInitRequest to all of the remote sites 

@@ -14,6 +14,10 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.pools.Poolable;
 import edu.brown.utils.StringUtil;
 
+/**
+ * Container for internal profiling metrics for the behavior of transactions.
+ * @author pavlo
+ */
 public class TransactionProfiler extends AbstractProfiler implements Poolable {
     private static final Logger LOG = Logger.getLogger(TransactionProfiler.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
@@ -51,6 +55,21 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
      * Whether the current txn for this profiler is marked as single-partitioned. 
      */
     private boolean singlePartitioned;
+    
+    /**
+     * The total number of queries that this txn invoked
+     */
+    private int num_queries = 0;
+    
+    /**
+     * The total number of batches that this txn invoked
+     */
+    private int num_batches = 0;
+    
+    /**
+     * The number of queries that were dispatched as prefetched
+     */
+    private int num_prefetched = 0;
     
     // ---------------------------------------------------------------
     // INTERNAL HELPER METHODS
@@ -537,6 +556,29 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
     }
 
     // ---------------------------------------------------------------
+    // QUERY COUNTERS 
+    // ---------------------------------------------------------------
+    
+    public void addBatch(int num_queries) {
+        this.num_batches++;
+        this.num_queries += num_queries;
+    }
+    
+    public void addPrefetchQuery(int num_queries) {
+        this.num_prefetched += num_queries;
+    }
+    
+    public int getBatchCount() {
+        return (this.num_batches);
+    }
+    public int getQueryCount() {
+        return (this.num_queries);
+    }
+    public int getPrefetchCount() {
+        return (this.num_prefetched);
+    }
+    
+    // ---------------------------------------------------------------
     // UTILITY METHODS
     // ---------------------------------------------------------------
 
@@ -580,6 +622,9 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
         this.stack.clear();
         this.history.clear();
         this.disabled = false;
+        this.num_batches = 0;
+        this.num_queries = 0;
+        this.num_prefetched = 0;
     }
 
     /**
@@ -629,7 +674,7 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
     public boolean isSinglePartitioned() {
         return (this.singlePartitioned);
     }
-
+    
     @Override
     public boolean isInitialized() {
         return true;
@@ -639,6 +684,9 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
     public Map<String, Object> debugMap() {
         Map<String, Object> m = super.debugMap();
         m.put("Single-Partitioned", this.singlePartitioned);
+        m.put("# of Batches", this.num_batches);
+        m.put("# of Queries", this.num_queries);
+        m.put("# of Prefetched", this.num_prefetched);
 
         // HISTORY
         String history = "";

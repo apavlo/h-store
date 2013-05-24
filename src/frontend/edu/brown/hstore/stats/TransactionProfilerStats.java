@@ -23,6 +23,7 @@ import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.profilers.ProfileMeasurement;
 import edu.brown.profilers.TransactionProfiler;
+import edu.brown.statistics.FastIntHistogram;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.MathUtil;
 
@@ -39,12 +40,16 @@ public class TransactionProfilerStats extends StatsSource {
     private int proc_offset;
     private int stdev_offset;
     
-    /**
-     * Maintain a set of tuples for the transaction profile times
-     */
-    private final Map<Procedure, Queue<long[]>> profileQueues = Collections.synchronizedSortedMap(new TreeMap<Procedure, Queue<long[]>>());
-    // private final Map<Procedure, long[]> profileTotals = Collections.synchronizedSortedMap(new TreeMap<Procedure, long[]>());
+    private class ProcedureStats {
+        /** Maintain a set of tuples for the transaction profile times **/
+        final Queue<long[]> queue = new ConcurrentLinkedQueue<long[]>();
+        final FastIntHistogram num_batches = new FastIntHistogram();
+        final FastIntHistogram num_queries = new FastIntHistogram();
+        final FastIntHistogram num_prefetch = new FastIntHistogram();        
+    }
 
+    private final Map<Procedure, ProcedureStats> procStats = Collections.synchronizedSortedMap(new TreeMap<Procedure, ProcedureStats>());
+    
     public TransactionProfilerStats(CatalogContext catalogContext) {
         super(SysProcSelector.TXNCOUNTER.name(), false);
         this.catalogContext = catalogContext;
@@ -59,13 +64,13 @@ public class TransactionProfilerStats extends StatsSource {
         assert(tp.isStopped());
         if (trace.val) LOG.info("Calculating TransactionProfile information");
 
-        Queue<long[]> queue = this.profileQueues.get(catalog_proc);
-        if (queue == null) {
+        ProcedureStats stats = this.procStats.get(catalog_proc);
+        if (stats == null) {
             synchronized (this) {
-                queue = this.profileQueues.get(catalog_proc);
-                if (queue == null) {
-                    queue = new ConcurrentLinkedQueue<long[]>();
-                    this.profileQueues.put(catalog_proc, queue);
+                stats = this.procStats.get(catalog_proc);
+                if (stats == null) {
+                    stats = new ProcedureStats();
+                    this.procStats.put(catalog_proc, stats);
                 }
             } // SYNCH
         }
@@ -74,22 +79,27 @@ public class TransactionProfilerStats extends StatsSource {
         assert(tuple != null);
         if (trace.val)
             LOG.trace(String.format("Appending TransactionProfile: %s", Arrays.toString(tuple)));
-        queue.offer(tuple);
+        stats.queue.offer(tuple);
+        synchronized (stats) {
+            stats.num_batches.put(tp.getBatchCount());
+            stats.num_queries.put(tp.getQueryCount());
+            stats.num_prefetch.put(tp.getPrefetchCount());
+        } // SYNCH
     }
     
     @SuppressWarnings("unchecked")
     private Object[] calculateTxnProfileTotals(Procedure catalog_proc) {
         if (debug.val) LOG.debug("Calculating profiling totals for " + catalog_proc.getName());
-        Object row[] = null; // this.profileTotals.get(catalog_proc); 
+        Object row[] = null; 
         long tuple[] = null;
         int stdev_offset = this.stdev_offset - this.proc_offset - 1;
         
         // Each offset in this array is one profile measurement type
-        Queue<long[]> queue = this.profileQueues.get(catalog_proc);
+        ProcedureStats stats = this.procStats.get(catalog_proc);
         List<Long> stdevValues[] = null;
-        while ((tuple = queue.poll()) != null) {
+        while ((tuple = stats.queue.poll()) != null) {
             if (row == null) {
-                row = new Object[tuple.length + 2];
+                row = new Object[tuple.length + 5];
                 for (int i = 0; i < row.length; i++) { 
                     row[i] = 0l;
                 }
@@ -105,7 +115,7 @@ public class TransactionProfilerStats extends StatsSource {
             //  (2) Number of Invocations
             // We will want to keep track of the number of invocations so that
             // we can compute the standard deviation
-            int offset = 1;
+            int offset = 4;
             for (int i = 0; i < tuple.length; i++) {
                 row[offset] = ((Long)row[offset]) + tuple[i];
                 
@@ -122,6 +132,9 @@ public class TransactionProfilerStats extends StatsSource {
                 if (offset == stdev_offset) offset++;
             } // FOR
         } // FOR
+        row[1] = MathUtil.weightedMean(stats.num_batches);
+        row[2] = MathUtil.weightedMean(stats.num_queries);
+        row[3] = MathUtil.weightedMean(stats.num_prefetch);
         
         // HACK: Dump values for stdev
         int i = columnNameToIndex.get("FIRST_REMOTE_QUERY") - this.proc_offset - 1;
@@ -129,7 +142,8 @@ public class TransactionProfilerStats extends StatsSource {
             double values[] = CollectionUtil.toDoubleArray(stdevValues[i]);
             row[stdev_offset] = MathUtil.stdev(values);
             if (trace.val) 
-                LOG.trace(String.format("[%02d] %s => %f", stdev_offset, catalog_proc.getName(), row[stdev_offset]));
+                LOG.trace(String.format("[%02d] %s => %f",
+                          stdev_offset, catalog_proc.getName(), row[stdev_offset]));
         }
         
         return (row);
@@ -138,7 +152,7 @@ public class TransactionProfilerStats extends StatsSource {
 
     @Override
     protected Iterator<Object> getStatsRowKeyIterator(boolean interval) {
-        final Iterator<Procedure> it = this.profileQueues.keySet().iterator();
+        final Iterator<Procedure> it = this.procStats.keySet().iterator();
         return new Iterator<Object>() {
             @Override
             public boolean hasNext() {
@@ -161,6 +175,9 @@ public class TransactionProfilerStats extends StatsSource {
         this.proc_offset = columns.size();
         columns.add(new VoltTable.ColumnInfo("PROCEDURE", VoltType.STRING));
         columns.add(new VoltTable.ColumnInfo("TRANSACTIONS", VoltType.BIGINT));
+        columns.add(new VoltTable.ColumnInfo("BATCHES_AVG", VoltType.FLOAT));
+        columns.add(new VoltTable.ColumnInfo("QUERIES_AVG", VoltType.FLOAT));
+        columns.add(new VoltTable.ColumnInfo("PREFETCH_AVG", VoltType.FLOAT));
         
         // Construct a dummy TransactionProfiler so that we can get the fields
         TransactionProfiler profiler = new TransactionProfiler();
