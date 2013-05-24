@@ -19,6 +19,7 @@ import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.protorpc.ProtoRpcController;
 import edu.brown.utils.PartitionSet;
+import edu.brown.utils.StringUtil;
 
 /**
  * Add the given transaction id to this site's queue manager with all of the partitions that
@@ -102,12 +103,18 @@ public class TransactionInitHandler extends AbstractTransactionHandler<Transacti
         
         // If (request.getPrefetchFragmentsCount() > 0), then we need to
         // make a RemoteTransaction handle for ourselves so that we can keep track of 
-        // our state when pre-fetching queries.
+        // our state when prefetching queries.
         if (request.getPrefetchFragmentsCount() > 0) {
             // Stick the prefetch information into the transaction
             if (debug.val)
                 LOG.debug(String.format("%s - Attaching %d prefetch WorkFragments at %s",
                           ts, request.getPrefetchFragmentsCount(), hstore_site.getSiteName()));
+//            for (int i = 0; i < request.getPrefetchParamsCount(); i++) {
+//                LOG.info(String.format("%s - XXX INBOUND PREFETCH RAW [%02d]: %s",
+//                         ts, i,
+//                         StringUtil.md5sum(request.getPrefetchParams(i).asReadOnlyByteBuffer())));
+//            }
+            
             ts.initializePrefetch();
             ts.attachPrefetchQueries(request.getPrefetchFragmentsList(),
                                      request.getPrefetchParamsList());

@@ -801,6 +801,13 @@ public class HStoreCoordinator implements Shutdownable {
                 // Blast out this mofo. Tell them Rico sent you...
                 if (site_id != this.local_site_id) {
                     TransactionInitRequest initRequest = requests[site_id].build();
+                    
+//                    for (int i = 0; i < initRequest.getPrefetchParamsCount(); i++) {
+//                        LOG.info(String.format("%s - XXX OUTBOUND PREFETCH RAW [%02d]: %s",
+//                                 ts, i,
+//                                 StringUtil.md5sum(initRequest.getPrefetchParams(i).asReadOnlyByteBuffer())));
+//                    } // FOR
+                    
                     ProtoRpcController controller = ts.getTransactionInitController(site_id);
                     this.channels[site_id].transactionInit(controller, initRequest, callback);
                     prefetch_ctr += initRequest.getPrefetchFragmentsCount();
