@@ -807,6 +807,7 @@ public class HStoreCoordinator implements Shutdownable {
                     }
                     prefetch_ctr += request.getPrefetchFragmentsCount();
                     sent_ctr++;
+                    builders[site_id] = null;
                 }
             } // FOR
             
@@ -814,7 +815,7 @@ public class HStoreCoordinator implements Shutdownable {
             // builder so we have to make sure that we only build it once.
             TransactionInitRequest request = null;
             for (int site_id = 0; site_id < this.num_sites; site_id++) {
-                if (builders[site_id] != null && builders[site_id].getPrefetchFragmentsCount() == 0) {
+                if (builders[site_id] != null) {
                     if (request == null) {
                         request = builders[site_id].build();
                     }
