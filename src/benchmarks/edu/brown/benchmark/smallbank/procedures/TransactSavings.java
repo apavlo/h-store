@@ -1,6 +1,5 @@
 package edu.brown.benchmark.smallbank.procedures;
 
-import org.apache.log4j.Logger;
 import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
@@ -17,8 +16,6 @@ import edu.brown.benchmark.smallbank.SmallBankConstants;
     partitionParam=0
 )
 public class TransactSavings extends VoltProcedure {
-    private static final Logger LOG = Logger.getLogger(TransactSavings.class);
-
     
     // 2013-05-05
     // In the original version of the benchmark, this is suppose to be a look up
@@ -46,7 +43,6 @@ public class TransactSavings extends VoltProcedure {
         
         if (results[0].getRowCount() != 1) {
             String msg = "Invalid account '" + acctId + "'";
-            LOG.error(msg);
             throw new VoltAbortException(msg);
         }
         // long acctId = results[0].asScalarLong();
@@ -57,7 +53,6 @@ public class TransactSavings extends VoltProcedure {
             String msg = String.format("No %s for customer #%d",
                                        SmallBankConstants.TABLENAME_SAVINGS, 
                                        acctId);
-            LOG.error(msg);
             throw new VoltAbortException(msg);
         }
         
@@ -67,7 +62,6 @@ public class TransactSavings extends VoltProcedure {
             String msg = String.format("Negative %s balance for customer #%d",
                                        SmallBankConstants.TABLENAME_SAVINGS, 
                                        acctId);
-            LOG.error(msg);
             throw new VoltAbortException(msg);
         }
         

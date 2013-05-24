@@ -1,9 +1,7 @@
 package edu.brown.benchmark.smallbank.procedures;
 
-import org.apache.log4j.Logger;
 import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
-import org.voltdb.TheHashinator;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 
@@ -18,7 +16,6 @@ import edu.brown.benchmark.smallbank.SmallBankConstants;
     partitionParam=0
 )
 public class Amalgamate extends VoltProcedure {
-    private static final Logger LOG = Logger.getLogger(Amalgamate.class);
     
     // 2013-05-05
     // In the original version of the benchmark, this is suppose to be a look up
@@ -64,12 +61,10 @@ public class Amalgamate extends VoltProcedure {
         final VoltTable acctResults[] = voltExecuteSQL();
         if (acctResults[0].getRowCount() != 1) {
             String msg = "Invalid account '" + acctId0 + "'\n" + acctResults[0]; 
-            LOG.error(this.getTransactionState() + " - " + msg + " / hash=" + TheHashinator.hashToPartition(acctId0));
             throw new VoltAbortException(msg);
         }
         if (acctResults[1].getRowCount() != 1) {
             String msg = "Invalid account '" + acctId1 + "'\n" + acctResults[1];
-            LOG.error(this.getTransactionState() + " - " + msg + " / hash=" + TheHashinator.hashToPartition(acctId1));
             throw new VoltAbortException(msg);
         }
         
@@ -81,14 +76,12 @@ public class Amalgamate extends VoltProcedure {
             String msg = String.format("No %s for customer #%d",
                                        SmallBankConstants.TABLENAME_SAVINGS, 
                                        acctId0);
-            LOG.error(msg);
             throw new VoltAbortException(msg);
         }
         if (balResults[1].getRowCount() != 1) {
             String msg = String.format("No %s for customer #%d",
                                        SmallBankConstants.TABLENAME_CHECKING, 
                                        acctId0);
-            LOG.error(msg);
             throw new VoltAbortException(msg);
         }
         balResults[0].advanceRow();
