@@ -19,7 +19,6 @@ import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.protorpc.ProtoRpcController;
 import edu.brown.utils.PartitionSet;
-import edu.brown.utils.StringUtil;
 
 /**
  * Add the given transaction id to this site's queue manager with all of the partitions that
