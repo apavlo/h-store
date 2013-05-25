@@ -121,8 +121,6 @@ class SSHFabric(AbstractFabric):
                         if not host.startswith("#"): allHostnames.append(host)
                 ## FOR
             ## WITH
-            
-                                  
         # HOSTS LIST
         else:
             allHostnames = self.env["ssh.hosts"]

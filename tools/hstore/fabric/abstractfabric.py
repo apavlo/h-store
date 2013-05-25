@@ -211,16 +211,16 @@ class AbstractFabric(object):
         partitions_per_site = self.env["hstore.partitions_per_site"]
         
         ## HStore Sites
-        LOG.debug("Partitions Needed: %d" % self.env["hstore.partitions"])
-        LOG.debug("Partitions Per Site: %d" % self.env["hstore.partitions_per_site"])
         site_hosts = set()
-        
         ## Attempt to assign the same number of partitions to nodes
         if self.env.get("hstore.round_robin_partitions", False):
             sites_needed = math.ceil(self.env["hstore.partitions"] / float(partitions_per_site))
             partitions_per_site = math.ceil(self.env["hstore.partitions"] / float(sites_needed))
         
-        for siteInst in self.getRunningSiteInstances():
+        LOG.debug("Partitions Needed: %d" % self.env["hstore.partitions"])
+        LOG.debug("Partitions Per Site: %d" % partitions_per_site)
+        LOG.debug("Sites Per Host: %d" % self.env["hstore.sites_per_host"])
+        for siteInst in self.getRunningInstances():
             site_hosts.add(siteInst.private_dns_name)
             for i in range(self.env["hstore.sites_per_host"]):
                 firstPartition = partition_id
@@ -236,11 +236,12 @@ class AbstractFabric(object):
             if lastPartition+1 == self.env["hstore.partitions"]: break
         ## FOR
         assert len(hosts) > 0
-        LOG.debug("Site Hosts: %s" % hosts)
+        LOG.debug("Last Partition: %d", lastPartition)
+        LOG.debug("Site Hosts: %s" % site_hosts)
         
         ## HStore Clients
         for clientInst in self.getRunningClientInstances():
-            #if clientInst.private_dns_name in site_hosts: continue
+            if clientInst.private_dns_name in site_hosts: continue
             clients.append(clientInst.private_dns_name)
         ## FOR
         assert len(clients) > 0
@@ -475,7 +476,7 @@ class AbstractFabric(object):
             "TRACE": trace,
         }
         with settings(host_string=inst.public_dns_name):
-            contents = self.get_file(conf_file)
+            contents = self.get_file(inst, conf_file)
             assert len(contents) > 0, "Configuration file '%s' is empty" % conf_file
             
             # Go through the file and update anything that is already there

@@ -105,6 +105,9 @@ DEBUG_SITE_LOGGING = [
     "edu.brown.hstore.HStoreSite",
     "edu.brown.hstore.PartitionExecutor",
     "edu.brown.hstore.TransactionQueueManager",
+    "edu.brown.hstore.specexec.PrefetchQueryPlanner",
+    "edu.brown.hstore.specexec.PrefetchQueryUtil",
+    "edu.brown.hstore.txns.DependencyTracker",
     #"edu.brown.hstore.callbacks.TransactionPrepareCallback",
     #"edu.brown.hstore.callbacks.TransactionPrepareWrapperCallback",
     #"edu.brown.hstore.callbacks.TransactionInitCallback",
@@ -137,7 +140,6 @@ BASE_SETTINGS = {
     "client.skewfactor":                -1,
     "client.duration":                  300000,
     "client.warmup":                    60000,
-    "client.scalefactor":               OPT_BASE_SCALE_FACTOR,
     "client.txn_hints":                 True,
     "client.memory":                    6000,
     "client.output_basepartitions":     False,
@@ -297,6 +299,7 @@ def updateExperimentEnv(fabric, args, benchmark, partitions):
         fabric.env["client.blocking"] = True
         fabric.env["client.threads_per_host"] = OPT_BASE_CLIENT_THREADS_PER_HOST * int(partitions/8)
         fabric.env["client.scalefactor"] = OPT_BASE_SCALE_FACTOR * int(partitions/8)
+        fabric.env["client.output_txn_counters"] = "txncounters.csv"
         
         if benchmark == "tpcc":
             fabric.env["client.scalefactor"] = OPT_BASE_SCALE_FACTOR
@@ -311,8 +314,11 @@ def updateExperimentEnv(fabric, args, benchmark, partitions):
             fabric.env["benchmark.force_all_singlepartition"] = False
         elif benchmark == "smallbank":
             fabric.env["client.weights"] = "SendPayment:25,*:15"
+            fabric.env["client.scalefactor"] = OPT_BASE_SCALE_FACTOR * int(partitions/4)
             fabric.env["benchmark.force_multisite_dtxns"] = False
             fabric.env["benchmark.force_singlesite_dtxns"] = False
+            fabric.env["benchmark.prob_account_hotspot"] = 0
+            #fabric.env["benchmark.prob_multiaccount_dtxn"] = 20
         
         ## ----------------------------------------------
         ## NO SPECULATION
@@ -325,8 +331,10 @@ def updateExperimentEnv(fabric, args, benchmark, partitions):
         ## ----------------------------------------------
         if args['exp_type'] in ("performance-spec-txn", "performance-spec-all"):
             fabric.env["site.specexec_enable"] = True
-            fabric.env["site.markov_enable"] = True
             fabric.env["site.specexec_markov"] = True
+            fabric.env["site.markov_enable"] = True
+            fabric.env["client.blocking_concurrent"] = 2
+            
         ## ----------------------------------------------
         ## SPECULATIVE QUERIES
         ## ----------------------------------------------
@@ -341,6 +349,9 @@ def updateExperimentEnv(fabric, args, benchmark, partitions):
         fabric.env["hstore.exec_prefix"] += " -Dmarkov=%s" % os.path.join(OPT_MARKOV_DIR, markov)
     else:
         fabric.env['site.markov_fixed'] = True
+        
+    for key in ('client.txnrate', 'client.threads_per_host', 'client.scalefactor'):
+        if key in args and args[key]: fabric.env[key] = args[key]
 ## DEF
 
 ## ==============================================
@@ -452,6 +463,8 @@ def processResults(inst, fabric, args, partitions, output, workloads):
 ## ==============================================
 def writeResultsCSV(args, benchmark, finalResults):
     for partitions in sorted(finalResults.keys()):
+        if not finalResults[partitions]: continue
+        
         baseName = "%s-%02dp-results.csv" % (benchmark, partitions)
         output = os.path.join(args['results_dir'], args['exp_type'], baseName)
         with open(output, "w") as fd:
@@ -665,11 +678,10 @@ if __name__ == '__main__':
     
     needUpdate = (args['no_update'] == False)
     needUpdateLog4j = args['debug_log4j_site'] or args['debug_log4j_client']
-    needResetLog4j = not (args['no_update'] or needUpdateLog4j)
+    needResetLog4j = True # not (args['no_update'] or needUpdateLog4j)
     needSync = (args['no_sync'] == False)
     needCompile = (args['no_compile'] == False)
     needClearLogs = (args['clear_logs'] == True)
-    origScaleFactor = BASE_SETTINGS['client.scalefactor']
     
     for benchmark in args['benchmark']:
         finalResults = { }
@@ -700,7 +712,7 @@ if __name__ == '__main__':
                             fabric.env[k] = False if isinstance(v, bool) else ""
                     ## FOR
                 
-                client_inst = fabric.getRunningClientInstances()[0]
+                client_inst = fabric.getRunningInstances()[-1]
                 LOG.info("Client Instance: " + client_inst.public_dns_name)
                 
                 ## Synchronize Instance Times
