@@ -320,9 +320,11 @@ public class ExecutionEngineJNI extends ExecutionEngine {
 
         assert(parameterSets != null) : "Null ParameterSets for txn #" + txnId;
         assert(planFragmentIds.length == parameterSets.length) :
-            String.format("Expected %d ParameterSets but there were only %d for txn #%d\nPlanFragments:%s",
+            String.format("Expected %d ParameterSets but there were %d for txn #%d\n" +
+            		      "PlanFragments:%s\nParameterSets:%s",
                           planFragmentIds.length, parameterSets.length, txnId,
-                          Arrays.toString(planFragmentIds));
+                          Arrays.toString(planFragmentIds),
+                          Arrays.toString(parameterSets));
         
         if (batchSize == 0) {
             LOG.warn("No fragments to execute. Returning empty DependencySet");

@@ -60,6 +60,7 @@ import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.pools.Poolable;
 import edu.brown.utils.PartitionSet;
+import edu.brown.utils.StringUtil;
 
 /**
  * @author pavlo
@@ -1136,15 +1137,29 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
         return (this.prefetch.fragments);
     }
     
+    /**
+     * 
+     * @return
+     */
     public final List<ByteString> getPrefetchRawParameterSets() {
         return (this.prefetch.paramsRaw);
     }
 
+    /**
+     * Retrieve the ParameterSets for the prefetch queries.
+     * There should be one ParameterSet array per site, which means that this
+     * is shared across all partitions.
+     * @return
+     */
     public final ParameterSet[] getPrefetchParameterSets() {
         assert(this.prefetch.params != null);
         return (this.prefetch.params);
     }
     
+    /**
+     * Mark this txn as having executed a prefetched query at the given partition
+     * @param partition
+     */
     public final void markExecPrefetchQuery(int partition) {
         assert(this.prefetch != null);
         this.prefetch.partitions.add(partition);
@@ -1210,6 +1225,16 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
         m.put("Marked Finished", PartitionSet.toString(this.finished));
         m.put("Marked Deletable", this.checkDeletableFlag());
         maps.add(m);
+        
+        // Prefetch State
+        if (this.prefetch != null) {
+            m = new LinkedHashMap<String, Object>();
+            m.put("Prefetch Partitions", this.prefetch.partitions);
+            m.put("Prefetch Fragments", StringUtil.join("\n", this.prefetch.fragments));
+            m.put("Prefetch Parameters", StringUtil.join("\n", this.prefetch.params));
+            m.put("Prefetch Raw Parameters", StringUtil.join("\n", this.prefetch.paramsRaw));
+            maps.add(m);
+        }
 
         // Partition Execution State
         m = new LinkedHashMap<String, Object>();
@@ -1221,7 +1246,6 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
         m.put("# of Rounds", Arrays.toString(this.round_ctr));
         m.put("Executed Work", PartitionSet.toString(this.exec_eeWork));
         maps.add(m);
-
         
         return ((Map<String, Object>[])maps.toArray(new Map[0]));
     }

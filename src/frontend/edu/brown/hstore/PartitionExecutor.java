@@ -470,6 +470,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
      */
     private final LongArrayCache tmp_fragmentIds = new LongArrayCache(10);
     /**
+     * Reusable long array for fragment id offsets
+     */
+    private final IntArrayCache tmp_fragmentOffsets = new IntArrayCache(10);
+    /**
      * Reusable int array for output dependency ids
      */
     private final IntArrayCache tmp_outputDepIds = new IntArrayCache(10);
@@ -1261,15 +1265,13 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             if (fragment.getPrefetch()) {
                 parameters = ts.getPrefetchParameterSets();
                 ts.markExecPrefetchQuery(this.partitionId);
-                if (trace.val && ts.isSysProc() == false)
-                    LOG.trace(ts + " - Prefetch Parameters:\n" + StringUtil.join("\n", parameters));
+                if (debug.val && ts.isSysProc() == false)
+                    LOG.debug(ts + " - Prefetch Parameters:\n" + StringUtil.join("\n", parameters));
             } else {
                 parameters = ts.getAttachedParameterSets();
                 if (trace.val && ts.isSysProc() == false) 
                     LOG.trace(ts + " - Attached Parameters:\n" + StringUtil.join("\n", parameters));
             }
-            parameters = this.getFragmentParameters(ts, fragment, parameters);
-            assert(parameters != null);
             
             // At this point we know that we are either the current dtxn or the current dtxn is null
             // We will allow any read-only transaction to commit if
@@ -1772,98 +1774,64 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
     }
     
     /**
-     * 
-     * @param ts
-     * @param fragment
-     * @param allParams
-     * @return
-     */
-    private ParameterSet[] getFragmentParameters(AbstractTransaction ts, WorkFragment fragment, ParameterSet allParams[]) {
-        int num_fragments = fragment.getFragmentIdCount();
-        ParameterSet fragmentParams[] = tmp_fragmentParams.getParameterSet(num_fragments);
-        assert(fragmentParams != null);
-        assert(fragmentParams.length == num_fragments);
-        
-        for (int i = 0; i < num_fragments; i++) {
-            int param_index = fragment.getParamIndex(i);
-            assert(param_index < allParams.length) :
-                String.format("StatementIndex is %d but there are only %d ParameterSets for %s",
-                              param_index, allParams.length, ts); 
-            fragmentParams[i].setParameters(allParams[param_index]);
-        } // FOR
-        return (fragmentParams);
-    }
-    
-    /**
-     * 
+     * Populate the provided inputs map with the VoltTables needed for the give 
+     * input DependencyId. If the txn is a LocalTransaction, then we will
+     * get the data we need from the base partition's DependencyTracker. 
      * @param ts
      * @param input_dep_ids
      * @param inputs
      * @return
      */
-    private Map<Integer, List<VoltTable>> getFragmentInputs(AbstractTransaction ts,
-                                                            List<Integer> input_dep_ids,
-                                                            Map<Integer, List<VoltTable>> inputs) {
-        Map<Integer, List<VoltTable>> attachedInputs = ts.getAttachedInputDependencies();
-        assert(attachedInputs != null);
-        boolean is_local = (ts instanceof LocalTransaction);
+    private void getFragmentInputs(AbstractTransaction ts,
+                                   int input_dep_id,
+                                   Map<Integer, List<VoltTable>> inputs) {
+        if (input_dep_id == HStoreConstants.NULL_DEPENDENCY_ID) return;
         
         if (trace.val)
-            LOG.trace(String.format("%s - Attempting to retrieve input dependencies [isLocal=%s]",
-                      ts, is_local));
-        DependencyTracker txnTracker = null;
-        for (Integer input_dep_id : input_dep_ids) {
-            if (input_dep_id.intValue() == HStoreConstants.NULL_DEPENDENCY_ID) continue;
+            LOG.trace(String.format("%s - Attempting to retrieve input dependencies for DependencyId #%d",
+                      ts, input_dep_id));
 
-            // If the Transaction is on the same HStoreSite, then all the 
-            // input dependencies will be internal and can be retrieved locally
-            if (is_local) {
-                if (txnTracker == null) {
-                    if (ts.getBasePartition() != this.partitionId) {
-                        txnTracker = hstore_site.getDependencyTracker(ts.getBasePartition());
-                    } else {
-                        txnTracker = this.depTracker;
-                    }
-                }
-                List<VoltTable> deps = txnTracker.getInternalDependency((LocalTransaction)ts, input_dep_id);
-                assert(deps != null);
-                assert(inputs.containsKey(input_dep_id) == false);
-                inputs.put(input_dep_id, deps);
-                if (trace.val)
-                    LOG.trace(String.format("%s - Retrieved %d INTERNAL VoltTables for DependencyId #%d",
-                              ts, deps.size(), input_dep_id,
-                              (trace.val ? "\n" + deps : "")));
+        // If the Transaction is on the same HStoreSite, then all the 
+        // input dependencies will be internal and can be retrieved locally
+        if (ts instanceof LocalTransaction) {
+            DependencyTracker txnTracker = null;
+            if (ts.getBasePartition() != this.partitionId) {
+                txnTracker = hstore_site.getDependencyTracker(ts.getBasePartition());
+            } else {
+                txnTracker = this.depTracker;
             }
-            // Otherwise they will be "attached" inputs to the RemoteTransaction handle
-            // We should really try to merge these two concepts into a single function call
-            else if (attachedInputs.containsKey(input_dep_id)) {
-                List<VoltTable> deps = attachedInputs.get(input_dep_id);
-                List<VoltTable> pDeps = null;
-                // We have to copy the tables if we have debugging enabled
-                if (trace.val) { // this.firstPartition == false) {
-                    pDeps = new ArrayList<VoltTable>();
-                    for (VoltTable vt : deps) {
-                        ByteBuffer buffer = vt.getTableDataReference();
-                        byte arr[] = new byte[vt.getUnderlyingBufferSize()];
-                        buffer.get(arr, 0, arr.length);
-                        pDeps.add(new VoltTable(ByteBuffer.wrap(arr), true));
-                    }
-                } else {
-                    pDeps = deps;
-                }
-                inputs.put(input_dep_id, pDeps); 
-                if (trace.val)
-                    LOG.trace(String.format("%s - Retrieved %d ATTACHED VoltTables for DependencyId #%d in %s",
-                              ts, deps.size(), input_dep_id));
-            }
-        } // FOR (inputs)
-        if (trace.val && inputs.isEmpty() == false) {
-            LOG.trace(String.format("%s - Retrieved %d InputDependencies from partition %d",
-                      ts, inputs.size(), this.partitionId)); // StringUtil.formatMaps(inputs)));
+            List<VoltTable> deps = txnTracker.getInternalDependency((LocalTransaction)ts, input_dep_id);
+            assert(deps != null);
+            assert(inputs.containsKey(input_dep_id) == false);
+            inputs.put(input_dep_id, deps);
+            if (trace.val)
+                LOG.trace(String.format("%s - Retrieved %d INTERNAL VoltTables for DependencyId #%d",
+                          ts, deps.size(), input_dep_id,
+                          (trace.val ? "\n" + deps : "")));
         }
-        return (inputs);
+        // Otherwise they will be "attached" inputs to the RemoteTransaction handle
+        // We should really try to merge these two concepts into a single function call
+        else if (ts.getAttachedInputDependencies().containsKey(input_dep_id)) {
+            List<VoltTable> deps = ts.getAttachedInputDependencies().get(input_dep_id);
+            List<VoltTable> pDeps = null;
+            // We have to copy the tables if we have debugging enabled
+            if (trace.val) { // this.firstPartition == false) {
+                pDeps = new ArrayList<VoltTable>();
+                for (VoltTable vt : deps) {
+                    ByteBuffer buffer = vt.getTableDataReference();
+                    byte arr[] = new byte[vt.getUnderlyingBufferSize()];
+                    buffer.get(arr, 0, arr.length);
+                    pDeps.add(new VoltTable(ByteBuffer.wrap(arr), true));
+                }
+            } else {
+                pDeps = deps;
+            }
+            inputs.put(input_dep_id, pDeps); 
+            if (trace.val)
+                LOG.trace(String.format("%s - Retrieved %d ATTACHED VoltTables for DependencyId #%d in %s",
+                          ts, deps.size(), input_dep_id));
+        }
     }
-    
     
     /**
      * Set the given AbstractTransaction handle as the current distributed txn
@@ -2471,13 +2439,14 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                           ts, this.currentExecMode, status);
         return (false);
     }
-    
+
     /**
-     * Execute a WorkFragment for a distributed transaction
+     * Process a WorkFragment for a transaction and execute it in this partition's underlying EE. 
+     * @param ts
      * @param fragment
-     * @throws Exception
+     * @param allParameters The array of all the ParameterSets for the current SQLStmt batch.
      */
-    private void processWorkFragment(AbstractTransaction ts, WorkFragment fragment, ParameterSet parameters[]) {
+    private void processWorkFragment(AbstractTransaction ts, WorkFragment fragment, ParameterSet allParameters[]) {
         assert(this.partitionId == fragment.getPartitionId()) :
             String.format("Tried to execute WorkFragment %s for %s at partition %d but it was suppose " +
                           "to be executed on partition %d",
@@ -2485,7 +2454,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         assert(ts.isMarkedPrepared(this.partitionId) == false) :
             String.format("Tried to execute WorkFragment %s for %s at partition %d after it was marked 2PC:PREPARE",
                           fragment.getFragmentIdList(), ts, this.partitionId);
-        
         
         // A txn is "local" if the Java is executing at the same partition as this one
         boolean is_basepartition = (ts.getBasePartition() == this.partitionId);
@@ -2510,8 +2478,54 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         Status status = Status.OK;
         SerializableException error = null;
         
+        // Check how many fragments are not marked as ignored
+        // If the fragment is marked as ignore then it means that it was already
+        // sent to this partition for prefetching. We need to make sure that we remove
+        // it from the list of fragmentIds that we need to execute.
+        int fragmentCount = fragment.getFragmentIdCount();
+        if (ts.hasPrefetchQueries()) {
+            for (int i = 0, cnt = fragmentCount; i < cnt; i++) {
+                if (fragment.getStmtIgnore(i)) fragmentCount--;
+            } // FOR
+        }
+        final ParameterSet parameters[] = tmp_fragmentParams.getParameterSet(fragmentCount);
+        assert(parameters.length == fragmentCount);
+        
+        // Construct data given to the EE to execute this work fragment
+        this.tmp_EEdependencies.clear();
+        long fragmentIds[] = tmp_fragmentIds.getArray(fragmentCount);
+        int fragmentOffsets[] = tmp_fragmentOffsets.getArray(fragmentCount);
+        int outputDepIds[] = tmp_outputDepIds.getArray(fragmentCount);
+        int inputDepIds[] = tmp_inputDepIds.getArray(fragmentCount);
+        int offset = 0;
+        for (int i = 0; i < fragmentCount; i++) {
+            if (fragment.getStmtIgnore(i) == false) {
+                fragmentIds[offset] = fragment.getFragmentId(i);
+                fragmentOffsets[offset] = i;
+                outputDepIds[offset] = fragment.getOutputDepId(i);
+                inputDepIds[offset] = fragment.getInputDepId(i);
+                try {
+                    parameters[offset] = allParameters[fragment.getParamIndex(i)];
+                    this.getFragmentInputs(ts, inputDepIds[offset], this.tmp_EEdependencies);
+                } catch (NullPointerException ex) {
+                    LOG.error("Offset: " + offset);
+                    LOG.error("fragmentId: " + fragmentIds[offset]);
+                    LOG.error("outputDepId: " + outputDepIds[offset]);
+                    LOG.error("inputDepId: " + inputDepIds[offset]);
+                    throw ex;
+                }
+                offset++;
+            }
+        } // FOR
+        
         try {
-            result = this.executeWorkFragment(ts, fragment, parameters);
+            result = this.executeFragmentIds(ts,
+                                             ts.getLastUndoToken(this.partitionId),
+                                             fragmentIds,
+                                             parameters,
+                                             outputDepIds,
+                                             inputDepIds,
+                                             this.tmp_EEdependencies);
         } catch (EvictedTupleAccessException ex) {
             // XXX: What do we do if this is not a single-partition txn?
             status = Status.ABORT_EVICTEDACCESS;
@@ -2538,7 +2552,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 // error.printStackTrace();
                 LOG.warn(String.format("%s - Unexpected %s on partition %d",
                          ts, error.getClass().getSimpleName(), this.partitionId),
-                         (debug.val ? error : null));
+                         error); // (debug.val ? error : null));
             }
             // Success, but without any results???
             if (result == null && status == Status.OK) {
@@ -2582,11 +2596,11 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                     for (int i = 0, cnt = result.size(); i < cnt; i++) {
                         if (trace.val)
                             LOG.trace(String.format("%s - Storing %s prefetch result [params=%s]",
-                                      ts, CatalogUtil.getPlanFragment(catalogContext.catalog, fragment.getFragmentId(i)).fullName(),
+                                      ts, CatalogUtil.getPlanFragment(catalogContext.catalog, fragment.getFragmentId(fragmentOffsets[i])).fullName(),
                                       parameters[i]));
                         other.addPrefetchResult((LocalTransaction)ts,
-                                                fragment.getStmtCounter(i),
-                                                fragment.getFragmentId(i),
+                                                fragment.getStmtCounter(fragmentOffsets[i]),
+                                                fragment.getFragmentId(fragmentOffsets[i]),
                                                 this.partitionId,
                                                 parameters[i].hashCode(),
                                                 result.dependencies[i]);
@@ -2627,17 +2641,16 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 assert(result.size() == fragment.getOutputDepIdCount());
                 DependencyTracker otherTracker = this.hstore_site.getDependencyTracker(ts.getBasePartition());
                 for (int i = 0, cnt = result.size(); i < cnt; i++) {
-                    int dep_id = fragment.getOutputDepId(i);
                     if (trace.val)
                         LOG.trace(String.format("%s - Storing DependencyId #%d [numRows=%d]\n%s",
-                                  ts, dep_id, result.dependencies[i].getRowCount(),
+                                  ts, outputDepIds[i], result.dependencies[i].getRowCount(),
                                   result.dependencies[i]));
                     try {
-                        otherTracker.addResult(local_ts, this.partitionId, dep_id, result.dependencies[i]);
+                        otherTracker.addResult(local_ts, this.partitionId, outputDepIds[i], result.dependencies[i]);
                     } catch (Throwable ex) {
                         ex.printStackTrace();
                         String msg = String.format("Failed to stored Dependency #%d for %s [idx=%d, fragmentId=%d]",
-                                                   dep_id, ts, i, fragment.getFragmentId(i));
+                                                   outputDepIds[i], ts, i, fragmentIds[i]);
                         LOG.error(msg + "\n" + fragment.toString());
                         throw new ServerFaultException(msg, ex);
                     }
@@ -2685,47 +2698,23 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
      * @return
      * @throws Exception
      */
-    private DependencySet executeWorkFragment(AbstractTransaction ts,
-                                              WorkFragment fragment,
-                                              ParameterSet parameters[]) throws Exception {
-        DependencySet result = null;
-        final long undoToken = ts.getLastUndoToken(this.partitionId);
+    private DependencySet executeFragmentIds(AbstractTransaction ts,
+                                              long undoToken,
+                                              long fragmentIds[],
+                                              ParameterSet parameters[],
+                                              int output_depIds[],
+                                              int input_depIds[],
+                                              Map<Integer, List<VoltTable>> input_deps) throws Exception {
         
-        // Check how many fragments are not marked as ignored
-        int fragmentCount = fragment.getFragmentIdCount();
-        if (ts.hasPrefetchQueries()) {
-            for (int i = 0, cnt = fragmentCount; i < cnt; i++) {
-                if (fragment.getStmtIgnore(i)) {
-                    fragmentCount--;
-                }
-            } // FOR
+        if (fragmentIds.length == 0) {
+            LOG.warn(String.format("Got a fragment batch for %s that does not have any fragments?", ts));
+            return (null);
         }
-        if (fragmentCount == 0) {
-            LOG.warn(String.format("Got a %s for %s that does not have any fragments?!?",
-                     fragment.getClass().getSimpleName(), ts));
-            return (result);
-        }
-        
-        // Construct arrays given to the EE
-        long fragmentIds[] = tmp_fragmentIds.getArray(fragmentCount);
-        int outputDepIds[] = tmp_outputDepIds.getArray(fragmentCount);
-        int inputDepIds[] = tmp_inputDepIds.getArray(fragmentCount);
-        for (int i = 0; i < fragmentCount; i++) {
-            if (fragment.getStmtIgnore(i) == false) {
-                fragmentIds[i] = fragment.getFragmentId(i);
-                outputDepIds[i] = fragment.getOutputDepId(i);
-                inputDepIds[i] = fragment.getInputDepId(i);
-            }
-        } // FOR
-        
-        // Input Dependencies
-        this.tmp_EEdependencies.clear();
-        this.getFragmentInputs(ts, fragment.getInputDepIdList(), this.tmp_EEdependencies);
         
         // *********************************** DEBUG ***********************************
         if (trace.val) {
             LOG.trace(String.format("%s - Getting ready to kick %d fragments to partition %d EE [undoToken=%d]",
-                      ts, fragmentCount, this.partitionId,
+                      ts, fragmentIds.length, this.partitionId,
                       (undoToken != HStoreConstants.NULL_UNDO_LOGGING_TOKEN ? undoToken : "null")));
 //            if (trace.val) {
 //                LOG.trace("FragmentTaskIds: " + Arrays.toString(fragmentIds));
@@ -2738,52 +2727,32 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         }
         // *********************************** DEBUG ***********************************
         
+        DependencySet result = null;
+        
         // -------------------------------
         // SYSPROC FRAGMENTS
         // -------------------------------
         if (ts.isSysProc()) {
-            assert(fragmentCount == 1);
-            long fragment_id = fragmentIds[0];
-            assert(fragmentCount == parameters.length) :
-                String.format("%s - Fragments:%d / Parameters:%d",
-                              ts, fragmentCount, parameters.length);
-            ParameterSet fragmentParams = parameters[0];
-
-            VoltSystemProcedure volt_proc = this.m_registeredSysProcPlanFragments.get(fragment_id);
-            if (volt_proc == null) {
-                String msg = "No sysproc handle exists for FragmentID #" + fragment_id + " :: " + this.m_registeredSysProcPlanFragments;
-                throw new ServerFaultException(msg, ts.getTransactionId());
-            }
-            
-            // HACK: We have to set the TransactionState for sysprocs manually
-            volt_proc.setTransactionState(ts);
-            ts.markExecNotReadOnly(this.partitionId);
-            try {
-                result = volt_proc.executePlanFragment(ts.getTransactionId(),
-                                                       this.tmp_EEdependencies,
-                                                       (int)fragment_id,
-                                                       fragmentParams,
-                                                       this.m_systemProcedureContext);
-            } catch (Throwable ex) {
-                String msg = "Unexpected error when executing system procedure";
-                throw new ServerFaultException(msg, ex, ts.getTransactionId());
-            }
-            if (debug.val)
-                LOG.debug(String.format("%s - Finished executing sysproc fragment for %s (#%d)%s",
-                          ts, m_registeredSysProcPlanFragments.get(fragment_id).getClass().getSimpleName(),
-                          fragment_id, (trace.val ? "\n" + result : "")));
+            result = this.executeSysProcFragments(ts,
+                                                  undoToken,
+                                                  fragmentIds.length,
+                                                  fragmentIds,
+                                                  parameters,
+                                                  output_depIds,
+                                                  input_depIds,
+                                                  input_deps);
         // -------------------------------
         // REGULAR FRAGMENTS
         // -------------------------------
         } else {
             result = this.executePlanFragments(ts,
                                                undoToken,
-                                               fragmentCount,
+                                               fragmentIds.length,
                                                fragmentIds,
                                                parameters,
-                                               outputDepIds,
-                                               inputDepIds,
-                                               this.tmp_EEdependencies);
+                                               output_depIds,
+                                               input_depIds,
+                                               input_deps);
             if (result == null) {
                 LOG.warn(String.format("Output DependencySet for %s in %s is null?",
                          Arrays.toString(fragmentIds), ts));
@@ -2859,6 +2828,58 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         if (trace.val)
             LOG.trace("Output:\n" + result);
         return (result != null ? result.dependencies : null);
+    }
+    
+    /**
+     * Execute the given fragment tasks on this site's underlying EE
+     * @param ts
+     * @param undoToken
+     * @param batchSize
+     * @param fragmentIds
+     * @param parameterSets
+     * @param output_depIds
+     * @param input_depIds
+     * @return
+     */
+    private DependencySet executeSysProcFragments(AbstractTransaction ts,
+                                                  long undoToken,
+                                                  int batchSize, 
+                                                  long fragmentIds[],
+                                                  ParameterSet parameters[],
+                                                  int output_depIds[],
+                                                  int input_depIds[],
+                                                  Map<Integer, List<VoltTable>> input_deps) {
+        assert(fragmentIds.length == 1);
+        assert(fragmentIds.length == parameters.length) :
+            String.format("%s - Fragments:%d / Parameters:%d",
+                          ts, fragmentIds.length, parameters.length);
+
+        VoltSystemProcedure volt_proc = this.m_registeredSysProcPlanFragments.get(fragmentIds[0]);
+        if (volt_proc == null) {
+            String msg = "No sysproc handle exists for FragmentID #" + fragmentIds[0] + " :: " + this.m_registeredSysProcPlanFragments;
+            throw new ServerFaultException(msg, ts.getTransactionId());
+        }
+        
+        // HACK: We have to set the TransactionState for sysprocs manually
+        volt_proc.setTransactionState(ts);
+        ts.markExecNotReadOnly(this.partitionId);
+        DependencySet result = null;
+        try {
+            result = volt_proc.executePlanFragment(ts.getTransactionId(),
+                                                   this.tmp_EEdependencies,
+                                                   (int)fragmentIds[0],
+                                                   parameters[0],
+                                                   this.m_systemProcedureContext);
+        } catch (Throwable ex) {
+            String msg = "Unexpected error when executing system procedure";
+            throw new ServerFaultException(msg, ex, ts.getTransactionId());
+        }
+        if (debug.val)
+            LOG.debug(String.format("%s - Finished executing sysproc fragment for %s (#%d)%s",
+                      ts, m_registeredSysProcPlanFragments.get(fragmentIds[0]).getClass().getSimpleName(),
+                      fragmentIds[0], (trace.val ? "\n" + result : "")));
+        
+        return (result);
     }
     
     /**
@@ -2983,9 +3004,12 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                             txn_id.longValue(),
                             this.lastCommittedTxnId.longValue(),
                             undoToken);
-            
-        } catch(EvictedTupleAccessException ex) {
-            LOG.debug("Caught EvictedTupleAccessException.");
+        } catch (AssertionError ex) {
+            LOG.error("Fatal error when processing " + ts + "\n" + ts.debug());
+            error = ex;
+            throw ex;
+        } catch (EvictedTupleAccessException ex) {
+            if (debug.val) LOG.warn("Caught EvictedTupleAccessException.");
             error = ex;
             throw ex;
         } catch (SerializableException ex) {
@@ -3285,7 +3309,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
     private void requestWork(LocalTransaction ts,
                              Collection<WorkFragment.Builder> fragmentBuilders,
                              List<ByteString> parameterSets) {
-        assert(!fragmentBuilders.isEmpty());
+        assert(fragmentBuilders.isEmpty() == false);
         assert(ts != null);
         Long txn_id = ts.getTransactionId();
 
@@ -3382,7 +3406,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                               ts, this.partitionId));
                 
                 tmp_removeDependenciesMap.clear();
-                this.getFragmentInputs(ts, fragmentBuilder.getInputDepIdList(), tmp_removeDependenciesMap);
+                for (int i = 0, cnt = fragmentBuilder.getInputDepIdCount(); i < cnt; i++) {
+                    this.getFragmentInputs(ts, fragmentBuilder.getInputDepId(i), tmp_removeDependenciesMap);
+                } // FOR
 
                 for (Entry<Integer, List<VoltTable>> e : tmp_removeDependenciesMap.entrySet()) {
                     if (requestBuilder.hasInputDependencyId(e.getKey())) continue;
@@ -3660,8 +3686,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                                       fragmentBuilder.getClass().getSimpleName(), ts, this.partitionId,
                                       fragmentBuilder.getPartitionId(), predict_singlePartition, fragmentBuilder);
                     WorkFragment fragment = fragmentBuilder.build();
-                    ParameterSet fragmentParams[] = this.getFragmentParameters(ts, fragment, parameters);
-                    this.processWorkFragment(ts, fragment, fragmentParams);
+                    this.processWorkFragment(ts, fragment, parameters);
                 } // FOR
             }
             // -------------------------------
@@ -3794,9 +3819,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                         LOG.trace(String.format("%s - Executing %d WorkFragments on local partition",
                                   ts, num_localPartition));
                     for (WorkFragment.Builder fragmentBuilder : this.tmp_localWorkFragmentBuilders) {
-                        WorkFragment fragment = fragmentBuilder.build();
-                        ParameterSet fragmentParams[] = this.getFragmentParameters(ts, fragment, parameters);
-                        this.processWorkFragment(ts, fragment, fragmentParams);
+                        this.processWorkFragment(ts, fragmentBuilder.build(), parameters);
                     } // FOR
                 }
             }

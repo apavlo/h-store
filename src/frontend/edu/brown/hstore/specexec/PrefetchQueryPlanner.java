@@ -319,8 +319,8 @@ public class PrefetchQueryPlanner {
             }
         } // FOR (Site)
 
-        if (debug.val)
-            LOG.debug(ts + " - TransactionInitRequests\n" + StringUtil.join("\n", builders));
+        if (trace.val)
+            LOG.trace(ts + " - TransactionInitRequests\n" + StringUtil.join("\n", builders));
         return (builders);
     }
 }
