@@ -1118,7 +1118,7 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
     }
     
     public boolean hasPrefetchParameters() {
-        return (this.prefetch.params != null);
+        return (this.prefetch != null && this.prefetch.params != null);
     }
     
     public void attachPrefetchParameters(ParameterSet params[]) {
