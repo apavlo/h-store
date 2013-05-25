@@ -256,8 +256,8 @@ public class DependencyTracker {
     }
     
     protected void startRound(LocalTransaction ts) {
-        if (debug.val)
-            LOG.debug(String.format("%s - Start round", ts));
+        if (trace.val)
+            LOG.trace(String.format("%s - Start round", ts));
         
         final TransactionState state = this.getState(ts);
         final int basePartition = ts.getBasePartition();
@@ -267,11 +267,11 @@ public class DependencyTracker {
         // Create our output counters
         assert(state.output_order.isEmpty());
         for (int stmtIndex = 0; stmtIndex < batch_size; stmtIndex++) {
-            if (debug.val)
-                LOG.debug(String.format("%s - Examining %d dependencies [stmtIndex=%d, currentRound=%d]",
+            if (trace.val)
+                LOG.trace(String.format("%s - Examining %d dependencies [stmtIndex=%d, currentRound=%d]",
                           ts, state.dependencies.size(), stmtIndex, currentRound));
             for (DependencyInfo dinfo : state.dependencies.values()) {
-                if (debug.val)
+                if (trace.val)
                     LOG.debug(String.format("%s - Checking %s", ts, dinfo));
                 
                 // Add this DependencyInfo our output list if it's being used in this round for this txn
