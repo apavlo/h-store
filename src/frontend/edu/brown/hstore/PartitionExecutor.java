@@ -2724,7 +2724,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                       ts, fragmentIds.length, this.partitionId,
                       (undoToken != HStoreConstants.NULL_UNDO_LOGGING_TOKEN ? undoToken : "null")));
 //            if (trace.val) {
-//                LOG.trace("FragmentTaskIds: " + Arrays.toString(fragmentIds));
+//                LOG.trace("WorkFragmentIds: " + Arrays.toString(fragmentIds));
 //                Map<String, Object> m = new LinkedHashMap<String, Object>();
 //                for (int i = 0; i < parameters.length; i++) {
 //                    m.put("Parameter[" + i + "]", parameters[i]);
@@ -3753,13 +3753,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 assert(total == (num_remote + num_localSite + num_localPartition + num_skipped)) :
                     String.format("Total:%d / Remote:%d / LocalSite:%d / LocalPartition:%d / Skipped:%d",
                                   total, num_remote, num_localSite, num_localPartition, num_skipped);
-                if (num_localPartition == 0 && num_localSite == 0 && num_remote == 0 && num_skipped == 0) {
-                    String msg = String.format("Deadlock! All tasks for %s are blocked waiting on input!", ts);
-                    throw new ServerFaultException(msg, ts.getTransactionId());
-                }
 
-                // We have to tell the TransactinState to start the round before we send off the
-                // FragmentTasks for execution, since they might start executing locally!
+                // We have to tell the txn to start the round before we send off the
+                // WorkFragments for execution, since they might start executing locally!
                 if (first) {
                     ts.startRound(this.partitionId);
                     latch = this.depTracker.getDependencyLatch(ts);
