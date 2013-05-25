@@ -16,6 +16,7 @@ import org.voltdb.catalog.ProcParameter;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.StmtParameter;
+import org.voltdb.exceptions.ServerFaultException;
 import org.voltdb.messaging.FastSerializer;
 
 import com.google.protobuf.ByteString;
@@ -50,8 +51,6 @@ public class PrefetchQueryPlanner {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
 
-    private final Map<Integer, ParameterMapping[][]> mappingsCache = new HashMap<Integer, ParameterMapping[][]>();
-    
     private final PartitionEstimator p_estimator;
     private final int[] partitionSiteXref;
     private final CatalogContext catalogContext;
@@ -130,24 +129,8 @@ public class PrefetchQueryPlanner {
         BatchPlanner planner = new BatchPlanner(prefetchStmts, prefetchStmts.length, catalog_proc, this.p_estimator);
         planner.setPrefetchFlag(true);
         
-        // For each Statement in this batch, cache its ParameterMappings objects
-        ParameterMapping mappings[][] = new ParameterMapping[prefetchStmts.length][]; 
-        for (int i = 0; i < prefetchStmts.length; i++) {
-            CountedStatement counted_stmt = prefetchable.get(i);
-            mappings[i] = new ParameterMapping[counted_stmt.statement.getParameters().size()];
-            for (StmtParameter catalog_param : counted_stmt.statement.getParameters().values()) {
-                Collection<ParameterMapping> pmSets = this.catalogContext.paramMappings.get(
-                                                                counted_stmt.statement,
-                                                                counted_stmt.counter,
-                                                                catalog_param);
-                assert(pmSets != null) : String.format("Unexpected %s for %s", counted_stmt, catalog_param);
-                mappings[i][catalog_param.getIndex()] = CollectionUtil.first(pmSets);
-            } // FOR (StmtParameter)
-        } // FOR (CountedStatement)
-        
         int batchId = VoltProcedure.getBatchHashCode(prefetchStmts, prefetchStmts.length);
         this.planners.get().put(batchId, planner);
-        this.mappingsCache.put(batchId, mappings);
         
         if (debug.val)
             LOG.debug(String.format("%s Prefetch Statements: %s",
@@ -194,8 +177,6 @@ public class PrefetchQueryPlanner {
         ParameterSet prefetchParams[] = new ParameterSet[planner.getBatchSize()];
         int prefetchCounters[] = new int[planner.getBatchSize()]; 
         ByteString prefetchParamsSerialized[] = new ByteString[prefetchParams.length];
-        ParameterMapping mappings[][] = this.mappingsCache.get(hashcode);
-        assert(mappings != null) : "Missing cached ParameterMappings for " + ts.getProcedure();
         
         // Makes a list of ByteStrings containing the ParameterSets that we need
         // to send over to the remote sites so that they can execute our
@@ -213,14 +194,31 @@ public class PrefetchQueryPlanner {
             // ProcParameter to the StmtParameter. This relies on a
             // ParameterMapping already being installed in the catalog
             for (StmtParameter catalog_param : counted_stmt.statement.getParameters().values()) {
-                ParameterMapping pm = mappings[i][catalog_param.getIndex()];
+                Collection<ParameterMapping> pmSets = this.catalogContext.paramMappings.get(
+                                                                counted_stmt.statement,
+                                                                counted_stmt.counter,
+                                                                catalog_param);
+                assert(pmSets != null) : String.format("Unexpected %s for %s", counted_stmt, catalog_param);
+                ParameterMapping pm = CollectionUtil.first(pmSets);
                 assert(pm != null) :
                     String.format("Unexpected null %s for %s [%s]",
                                   ParameterMapping.class.getSimpleName(),
                                   catalog_param.fullName(), counted_stmt);
+                assert(pm.statement_index == counted_stmt.counter) :
+                    String.format("Mismatch StmtCounter for %s - Expected[%d] != Actual[%d]\n%s",
+                                  counted_stmt, counted_stmt.counter, pm.statement_index, pm);
                 
                 if (pm.procedure_parameter.getIsarray()) {
-                    stmt_params[catalog_param.getIndex()] = ParametersUtil.getValue(procParams, pm);
+                    try {
+                        stmt_params[catalog_param.getIndex()] = ParametersUtil.getValue(procParams, pm);
+                    } catch (Throwable ex) {
+                        String msg = String.format("Unable to get %s value for %s in %s\n" +
+                        		                   "ProcParams: %s\nParameterMapping: %s",
+                                                   catalog_param.fullName(), ts, counted_stmt,
+                                                   procParams, pm);
+                        LOG.error(msg, ex);
+                        throw new ServerFaultException(msg, ex, ts.getTransactionId());
+                    }
                 }
                 else {
                     ProcParameter catalog_proc_param = pm.procedure_parameter;
@@ -276,7 +274,7 @@ public class PrefetchQueryPlanner {
                 depTracker.addTransaction(ts); 
             }
             // HACK: Attach the prefetch params in the transaction handle in case we need to use it locally
-            if (site_id == local_site_id) {
+            if (site_id == local_site_id && ts.hasPrefetchParameters() == false) {
                 ts.attachPrefetchParameters(prefetchParams);
             }
             
