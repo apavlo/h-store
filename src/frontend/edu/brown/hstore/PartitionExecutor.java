@@ -462,6 +462,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
      */
     private final PartitionSet tmp_preparePartitions = new PartitionSet();
     /**
+     * Reusable int array for stmtCounters
+     */
+    private final IntArrayCache tmp_stmtCounters = new IntArrayCache(10);
+    /**
      * Reusable ParameterSet array cache for WorkFragments
      */
     private final ParameterSetArrayCache tmp_fragmentParams = new ParameterSetArrayCache(5);
@@ -1265,8 +1269,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             if (fragment.getPrefetch()) {
                 parameters = ts.getPrefetchParameterSets();
                 ts.markExecPrefetchQuery(this.partitionId);
-                if (debug.val && ts.isSysProc() == false)
-                    LOG.debug(ts + " - Prefetch Parameters:\n" + StringUtil.join("\n", parameters));
+                if (trace.val && ts.isSysProc() == false)
+                    LOG.trace(ts + " - Prefetch Parameters:\n" + StringUtil.join("\n", parameters));
             } else {
                 parameters = ts.getAttachedParameterSets();
                 if (trace.val && ts.isSysProc() == false) 
@@ -2483,11 +2487,11 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         // sent to this partition for prefetching. We need to make sure that we remove
         // it from the list of fragmentIds that we need to execute.
         int fragmentCount = fragment.getFragmentIdCount();
-        if (ts.hasPrefetchQueries()) {
-            for (int i = 0, cnt = fragmentCount; i < cnt; i++) {
-                if (fragment.getStmtIgnore(i)) fragmentCount--;
-            } // FOR
-        }
+        for (int i = 0; i < fragmentCount; i++) {
+            if (fragment.getStmtIgnore(i)) {
+                fragmentCount--;
+            }
+        } // FOR
         final ParameterSet parameters[] = tmp_fragmentParams.getParameterSet(fragmentCount);
         assert(parameters.length == fragmentCount);
         
@@ -2498,25 +2502,25 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         int outputDepIds[] = tmp_outputDepIds.getArray(fragmentCount);
         int inputDepIds[] = tmp_inputDepIds.getArray(fragmentCount);
         int offset = 0;
-        for (int i = 0; i < fragmentCount; i++) {
+
+        for (int i = 0, cnt = fragment.getFragmentIdCount(); i < cnt; i++) {
             if (fragment.getStmtIgnore(i) == false) {
                 fragmentIds[offset] = fragment.getFragmentId(i);
                 fragmentOffsets[offset] = i;
                 outputDepIds[offset] = fragment.getOutputDepId(i);
                 inputDepIds[offset] = fragment.getInputDepId(i);
-                try {
-                    parameters[offset] = allParameters[fragment.getParamIndex(i)];
-                    this.getFragmentInputs(ts, inputDepIds[offset], this.tmp_EEdependencies);
-                } catch (NullPointerException ex) {
-                    LOG.error("Offset: " + offset);
-                    LOG.error("fragmentId: " + fragmentIds[offset]);
-                    LOG.error("outputDepId: " + outputDepIds[offset]);
-                    LOG.error("inputDepId: " + inputDepIds[offset]);
-                    throw ex;
-                }
+                parameters[offset] = allParameters[fragment.getParamIndex(i)];
+                this.getFragmentInputs(ts, inputDepIds[offset], this.tmp_EEdependencies);
+                
+                if (trace.val && ts.isSysProc() == false && is_basepartition == false)
+                    LOG.trace(String.format("%s - Offset:%d FragmentId:%d OutputDep:%d/%d InputDep:%d/%d",
+                              ts, offset, fragmentIds[offset],
+                              outputDepIds[offset], fragment.getOutputDepId(i),
+                              inputDepIds[offset], fragment.getInputDepId(i)));
                 offset++;
             }
         } // FOR
+        assert(offset == fragmentCount);
         
         try {
             result = this.executeFragmentIds(ts,
@@ -2570,8 +2574,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         // execute the SendPlanNode in order to get back the number of tuples that
         // were modified. So we have to rely on the output dependency ids set in the task
         assert(status != Status.OK ||
-              (status == Status.OK && result.size() == fragment.getFragmentIdCount())) :
-           "Got back " + result.size() + " results but was expecting " + fragment.getFragmentIdCount();
+              (status == Status.OK && result.size() == fragmentIds.length)) :
+           "Got back " + result.size() + " results but was expecting " + fragmentIds.length;
         
         // Make sure that we mark the round as finished before we start sending results
         if (is_basepartition == false) {
@@ -2638,9 +2642,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 if (trace.val)
                     LOG.trace(String.format("%s - Storing %d dependency results locally for successful work fragment",
                               ts, result.size()));
-                assert(result.size() == fragment.getOutputDepIdCount());
+                assert(result.size() == outputDepIds.length);
                 DependencyTracker otherTracker = this.hstore_site.getDependencyTracker(ts.getBasePartition());
-                for (int i = 0, cnt = result.size(); i < cnt; i++) {
+                for (int i = 0; i < outputDepIds.length; i++) {
                     if (trace.val)
                         LOG.trace(String.format("%s - Storing DependencyId #%d [numRows=%d]\n%s",
                                   ts, outputDepIds[i], result.dependencies[i].getRowCount(),
@@ -2648,10 +2652,13 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                     try {
                         otherTracker.addResult(local_ts, this.partitionId, outputDepIds[i], result.dependencies[i]);
                     } catch (Throwable ex) {
-                        ex.printStackTrace();
+//                        ex.printStackTrace();
                         String msg = String.format("Failed to stored Dependency #%d for %s [idx=%d, fragmentId=%d]",
                                                    outputDepIds[i], ts, i, fragmentIds[i]);
-                        LOG.error(msg + "\n" + fragment.toString());
+                        LOG.error(String.format("%s - WorkFragment:%d\nExpectedIds:%s\nOutputDepIds: %s\nResultDepIds: %s\n%s",
+                                  msg, fragment.hashCode(),
+                                  fragment.getOutputDepIdList(), Arrays.toString(outputDepIds),
+                                  Arrays.toString(result.depIds), fragment));
                         throw new ServerFaultException(msg, ex);
                     }
                 } // FOR
@@ -3188,7 +3195,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         }
         
         // Keep track of the number of times that we've executed each query for this transaction
-        int stmtCounters[] = this.tmp_outputDepIds.getArray(batchSize);
+        int stmtCounters[] = this.tmp_stmtCounters.getArray(batchSize);
         for (int i = 0; i < batchSize; i++) {
             stmtCounters[i] = ts.updateStatementCounter(batchStmts[i].getStatement());
         } // FOR
@@ -3225,15 +3232,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             ExecutionState execState = ts.getExecutionState();
             execState.tmp_partitionFragments.clear();
             plan.getWorkFragmentsBuilders(ts.getTransactionId(), stmtCounters, execState.tmp_partitionFragments);
-            
-            // We then need to make sure that add the SQLStmt counters for each query in the batch
-            if (ts.hasPrefetchQueries()) {
-                for (WorkFragment.Builder fragment : execState.tmp_partitionFragments) {
-                    for (int stmt_index = 0, cnt = fragment.getParamIndexCount(); stmt_index < cnt; stmt_index++) {
-                        fragment.addStmtCounter(stmtCounters[stmt_index]);
-                    } // FOR
-                } // FOR
-            }
             
             if (trace.val)
                 LOG.trace(String.format("%s - Got back %d work fragments",
