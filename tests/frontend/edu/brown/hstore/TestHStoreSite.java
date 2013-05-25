@@ -483,33 +483,38 @@ public class TestHStoreSite extends BaseTestCase {
         assertEquals(num_txns, TransactionCounter.RECEIVED.get());
         
         // Now try invoking @Statistics to get back more information
+        // Invoke it multiple times to make sure we get something...
+        String procName = VoltSystemProcedure.procCallName(Statistics.class);
         params = new Object[]{ SysProcSelector.TXNPROFILER.name(), 0 };
-        cr = this.client.callProcedure(VoltSystemProcedure.procCallName(Statistics.class), params);
-//        System.err.println(cr);
-        System.err.println(VoltTableUtil.format(cr.getResults()[0]));
-        assertNotNull(cr);
-        assertEquals(Status.OK, cr.getStatus());
-        
         String fields[] = { "TOTAL", "INIT_TOTAL" };
-        
-        VoltTable results[] = cr.getResults();
-        assertEquals(1, results.length);
-        boolean found = false;
-        results[0].resetRowPosition();
-        while (results[0].advanceRow()) {
-            if (results[0].getString(3).equalsIgnoreCase(catalog_proc.getName())) {
-                for (String f : fields) {
-                    int i = results[0].getColumnIndex(f);
-                    assertEquals(f, results[0].getColumnName(i));
-                    long val = results[0].getLong(i);
-                    assertFalse(f, results[0].wasNull());
-                    assertTrue(f, val > 0);
-                } // FOR
-                found = true;
-                break;
-            }
-        } // WHILE
-        assertTrue(found);
+        for (int ii = 0; ii < 5; ii++) {
+            cr = this.client.callProcedure(procName, params);
+            System.err.println(VoltTableUtil.format(cr.getResults()[0]));
+            assertNotNull(cr);
+            assertEquals(Status.OK, cr.getStatus());
+            
+            VoltTable results[] = cr.getResults();
+            assertEquals(1, results.length);
+            
+            if (ii != 0) continue;
+            
+            boolean found = false;
+            results[0].resetRowPosition();
+            while (results[0].advanceRow()) {
+                if (results[0].getString(3).equalsIgnoreCase(catalog_proc.getName())) {
+                    for (String f : fields) {
+                        int i = results[0].getColumnIndex(f);
+                        assertEquals(f, results[0].getColumnName(i));
+                        long val = results[0].getLong(i);
+                        assertFalse(f, results[0].wasNull());
+                        assertTrue(f, val > 0);
+                    } // FOR
+                    found = true;
+                    break;
+                }
+            } // WHILE
+            assertTrue(found);
+        } // FOR
     }
     
     /**
