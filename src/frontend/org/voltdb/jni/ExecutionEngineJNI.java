@@ -335,6 +335,13 @@ public class ExecutionEngineJNI extends ExecutionEngine {
         fsForParameterSet.clear();
         try {
             for (int i = 0; i < batchSize; ++i) {
+                assert(parameterSets[i] != null) :
+                    String.format("Null ParameterSet at offset %d for txn #%d\n" +
+                                  "PlanFragments:%s\nParameterSets:%s",
+                                  i, txnId,
+                                  Arrays.toString(planFragmentIds),
+                                  Arrays.toString(parameterSets));
+                
                 parameterSets[i].writeExternal(fsForParameterSet);
                 if (trace.val)
                     LOG.trace(String.format("Batch Executing planfragment:%d, params=%s",

@@ -267,8 +267,8 @@ public class DependencyInfo implements Poolable {
             String.format("Trying to add result %s twice for %s!",
                           TransactionUtil.debugPartDep(partition, this.dependency_id), this.txn_id);
         assert(this.expectedPartitions.contains(partition)) :
-            String.format("Unexpected partition result %s for %s!",
-                          TransactionUtil.debugPartDep(partition, this.dependency_id), this.txn_id);
+            String.format("Unexpected partition result %s for %s!\n%s",
+                          TransactionUtil.debugPartDep(partition, this.dependency_id), this.txn_id, this.debug());
         this.results.add(result);
         this.resultPartitions.add(partition);
         return (this.expectedPartitions.size() == this.resultPartitions.size()); 

@@ -1081,8 +1081,9 @@ public class BatchPlanner {
                     
                 } // FOR (frag_idx)
 
-                for (WorkFragment.Builder partitionBuilder : this.round_builders.values()) {
-                    if (partitionBuilder.getFragmentIdCount() == 0) {
+                for (WorkFragment.Builder builder : this.round_builders.values()) {
+                    int fragmentCount = builder.getFragmentIdCount();
+                    if (fragmentCount == 0) {
                         if (trace.val) {
                             LOG.warn(String.format("For some reason we thought it would be a good idea to " +
                             		 "construct a %s with no fragments! [txn_id=#%d]",
@@ -1091,7 +1092,20 @@ public class BatchPlanner {
                         }
                         continue;
                     }
-                    builders.add(partitionBuilder);
+                    assert(builder.getOutputDepIdCount() == fragmentCount) :
+                        "OutputDepId:" + builder.getOutputDepIdCount() + "!=" + fragmentCount;
+                    assert(builder.getInputDepIdCount() == fragmentCount) :
+                        "InputDepId:" + builder.getInputDepIdCount() + "!=" + fragmentCount;
+                    assert(builder.getParamIndexCount() == fragmentCount) :
+                        "ParamIndex:" + builder.getParamIndexCount() + "!=" + fragmentCount;
+                    assert(builder.getStmtCounterCount() == fragmentCount) :
+                        "StmtCounter:" + builder.getStmtCounterCount() + "!=" + fragmentCount;
+                    assert(builder.getStmtIndexCount() == fragmentCount) :
+                        "StmtIndex:" + builder.getStmtIndexCount() + "!=" + fragmentCount;
+                    assert(builder.getStmtIgnoreCount() == fragmentCount) :
+                        "StmtIgnore:" + builder.getStmtIgnoreCount() + "!=" + fragmentCount;
+                    
+                    builders.add(builder);
                 } // FOR
 
                 // if (debug.val) {
