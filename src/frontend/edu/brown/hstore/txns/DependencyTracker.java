@@ -201,8 +201,9 @@ public class DependencyTracker {
                 } catch (IllegalAccessException ex) {
                     throw new RuntimeException(ex);
                 }
-                if ((obj instanceof DependencyTracker) == false) { 
-                    m.put(f.getName().toUpperCase(), obj);
+                if ((obj instanceof DependencyTracker) == false) {
+                    String name = StringUtil.title(f.getName().replace("_", " ")); 
+                    m.put(name, obj);
                 }
             } // FOR
             return (m);

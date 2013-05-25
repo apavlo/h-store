@@ -1,6 +1,5 @@
 package edu.brown.hstore.txns;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import org.voltdb.ParameterSet;
@@ -19,11 +18,14 @@ import edu.brown.utils.PartitionSet;
  */
 public class PrefetchState implements Poolable {
     
-
+    /**
+     * Keep track of every query invocation made by the transaction so that
+     * we can check whether we have already submitted the query as a prefetch
+     */
     protected final QueryTracker queryTracker = new QueryTracker();
 
     /**
-     * Which partitions have received prefetch WorkFragments
+     * Which partitions have executed prefetch WorkFragments
      */
     protected final PartitionSet partitions = new PartitionSet();
     
