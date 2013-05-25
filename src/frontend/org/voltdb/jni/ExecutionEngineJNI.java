@@ -319,7 +319,10 @@ public class ExecutionEngineJNI extends ExecutionEngine {
             long txnId, long lastCommittedTxnId, long undoToken) throws EEException {
 
         assert(parameterSets != null) : "Null ParameterSets for txn #" + txnId;
-        assert (planFragmentIds.length == parameterSets.length);
+        assert(planFragmentIds.length == parameterSets.length) :
+            String.format("Expected %d ParameterSets but there were only %d for txn #%d\nPlanFragments:%s",
+                          planFragmentIds.length, parameterSets.length, txnId,
+                          Arrays.toString(planFragmentIds));
         
         if (batchSize == 0) {
             LOG.warn("No fragments to execute. Returning empty DependencySet");
@@ -331,7 +334,9 @@ public class ExecutionEngineJNI extends ExecutionEngine {
         try {
             for (int i = 0; i < batchSize; ++i) {
                 parameterSets[i].writeExternal(fsForParameterSet);
-                if (trace.val) LOG.trace("Batch Executing planfragment:" + planFragmentIds[i] + ", params=" + parameterSets[i].toString());
+                if (trace.val)
+                    LOG.trace(String.format("Batch Executing planfragment:%d, params=%s",
+                              planFragmentIds[i], parameterSets[i]));
             }
         } catch (final IOException exception) {
             throw new RuntimeException(exception); // can't happen
