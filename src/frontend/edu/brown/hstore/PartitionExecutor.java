@@ -1809,14 +1809,23 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         boolean is_local = (ts instanceof LocalTransaction);
         
         if (trace.val)
-            LOG.trace(String.format("%s - Attempting to retrieve input dependencies [isLocal=%s]", ts, is_local));
+            LOG.trace(String.format("%s - Attempting to retrieve input dependencies [isLocal=%s]",
+                      ts, is_local));
+        DependencyTracker txnTracker = null;
         for (Integer input_dep_id : input_dep_ids) {
             if (input_dep_id.intValue() == HStoreConstants.NULL_DEPENDENCY_ID) continue;
 
             // If the Transaction is on the same HStoreSite, then all the 
             // input dependencies will be internal and can be retrieved locally
             if (is_local) {
-                List<VoltTable> deps = this.depTracker.getInternalDependency((LocalTransaction)ts, input_dep_id);
+                if (txnTracker == null) {
+                    if (ts.getBasePartition() != this.partitionId) {
+                        txnTracker = hstore_site.getDependencyTracker(ts.getBasePartition());
+                    } else {
+                        txnTracker = this.depTracker;
+                    }
+                }
+                List<VoltTable> deps = txnTracker.getInternalDependency((LocalTransaction)ts, input_dep_id);
                 assert(deps != null);
                 assert(inputs.containsKey(input_dep_id) == false);
                 inputs.put(input_dep_id, deps);
@@ -1847,16 +1856,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                     LOG.trace(String.format("%s - Retrieved %d ATTACHED VoltTables for DependencyId #%d in %s",
                               ts, deps.size(), input_dep_id));
             }
-
         } // FOR (inputs)
-        if (trace.val) {
-            if (inputs.isEmpty() == false) {
-                LOG.trace(String.format("%s - Retrieved %d InputDependencies from partition %d",
-                                        ts, inputs.size(), this.partitionId)); // StringUtil.formatMaps(inputs)));
-//            } else if (fragment.getNeedsInput()) {
-//                LOG.warn(String.format("%s - No InputDependencies retrieved for %s on partition %d",
-//                                       ts, fragment.getFragmentIdList(), fragment.getPartitionId()));
-            }
+        if (trace.val && inputs.isEmpty() == false) {
+            LOG.trace(String.format("%s - Retrieved %d InputDependencies from partition %d",
+                      ts, inputs.size(), this.partitionId)); // StringUtil.formatMaps(inputs)));
         }
         return (inputs);
     }
