@@ -510,7 +510,12 @@ public final class HStoreConf {
         public boolean specexec_markov;
         
         @ConfigProperty(
-            description="" +
+            description="All the PartitionExecutor to speculatively <b>any</b> transaction whenever a " +
+            		    "distributed transaction is stalled. This is a bad thing to do because it will " +
+            		    "not check whether there are any conflicts or consistency violations. You most " +
+            		    "likely do not want to enable this option unless you are Andy and its right " +
+            		    "before you have to go on a speaking tour and need to show comparison " +
+            		    "numbers in your job talk. " +
                         "Note that ${site.markov_enable} must be set to true.",
             defaultBoolean=false,
             experimental=true
