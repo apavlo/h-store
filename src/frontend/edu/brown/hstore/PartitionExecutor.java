@@ -768,9 +768,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         // BENCHMARK START NOTIFICATIONS
         // -------------------------------
         
+        // Poke ourselves to update the partition stats when the first
+        // non-sysproc procedure shows up. I forget why we need to do this...
         EventObservable<HStoreSite> observable = this.hstore_site.getStartWorkloadObservable(); 
-        
-        // Poke ourselves to update the partition stats
         observable.addObserver(new EventObserver<HStoreSite>() {
             @Override
             public void update(EventObservable<HStoreSite> o, HStoreSite arg) {
@@ -781,18 +781,32 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         // Reset our profiling information when we get the first non-sysproc
         this.profiler.resetOnEventObservable(observable);
         
-        // -------------------------------
-        // SPECULATIVE EXECUTION INITIALIZATION
-        // -------------------------------
+        // Initialize speculative execution scheduler
+        this.initSpecExecScheduler();
+
+        // Initialize all of our VoltProcedures handles
+        this.initializeVoltProcedures();
+    }
+    
+    /**
+     * Initialize this PartitionExecutor' speculative execution scheduler
+     */
+    private void initSpecExecScheduler() {
+        assert(this.specExecScheduler == null);
+        assert(this.hstore_site != null);
         
+        // Row-level Conflict Detection
         if (hstore_conf.site.specexec_markov) {
             // The MarkovConflictChecker is thread-safe, so we all of the partitions
             // at this site can reuse the same one.
             this.specExecChecker = MarkovConflictChecker.singleton(this.catalogContext, this.thresholds);
-        } 
+        }
+        // Unsafe Conflict Detection
+        // NOTE: You probably don't want to use this!
         else if (hstore_conf.site.specexec_unsafe) {
             this.specExecChecker = new UnsafeConflictChecker(this.catalogContext, hstore_conf.site.specexec_unsafe_limit);
         }
+        // Table-level Conflict Detection
         else {
             this.specExecChecker = new TableConflictChecker(this.catalogContext);
         }
@@ -816,12 +830,14 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             // this.specExecScheduler.setIgnoreSpeculationTypeChange(true);
         }
         
-
-        // Initialize all of our VoltProcedures handles
-        this.initializeVoltProcedures();
+        if (hstore_conf.site.specexec_enable) {
+            LOG.info(String.format("Initialized %s for partition %d [checker=%s, policy=%s]",
+                     this.specExecScheduler.getClass().getSimpleName(), this.partitionId,
+                     this.specExecChecker.getClass().getSimpleName(), policy));
+        }
     }
     
-    protected ExecutionState initExecutionState() {
+    private ExecutionState initExecutionState() {
         ExecutionState state = this.execStates.poll();
         if (state == null) {
             state = new ExecutionState(this);

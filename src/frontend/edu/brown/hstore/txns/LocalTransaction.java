@@ -50,7 +50,6 @@ import com.google.protobuf.RpcCallback;
 
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
-import edu.brown.hstore.Hstoreservice.WorkResult;
 import edu.brown.hstore.callbacks.LocalFinishCallback;
 import edu.brown.hstore.callbacks.LocalInitQueueCallback;
 import edu.brown.hstore.callbacks.LocalPrepareCallback;
