@@ -252,9 +252,10 @@ public abstract class VoltProcedure implements Poolable {
         this.batchQueryStmts = new SQLStmt[hstore_conf.site.planner_max_batch_size];
         
         // Enable Workload Tracing
-        LOG.info("Profiling Level: " + ProcedureProfiler.profilingLevel);
-        LOG.info("Profiling Workload Handle: " + ProcedureProfiler.workloadTrace);
-        
+        if (trace.val) {
+            LOG.trace("Profiling Level: " + ProcedureProfiler.profilingLevel);
+            LOG.trace("Profiling Workload Handle: " + ProcedureProfiler.workloadTrace);
+        }
         this.workloadTraceEnable = (ProcedureProfiler.profilingLevel == ProcedureProfiler.Level.INTRUSIVE &&
                                     ProcedureProfiler.workloadTrace != null);
         if (this.workloadTraceEnable) {
