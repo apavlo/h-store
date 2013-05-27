@@ -35,6 +35,7 @@ import edu.brown.api.BenchmarkInterest;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.statistics.Histogram;
 import edu.brown.statistics.HistogramUtil;
+import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.TableUtil;
 
@@ -150,7 +151,7 @@ public class ResultsPrinter implements BenchmarkInterest {
             } // FOR
             row_idx++;
             
-            for (String clientName : clientNames) {
+            for (String clientName : CollectionUtil.sort(clientNames)) {
                 EntityResult er = fr.getClientResult(clientName);
                 assert(er != null);
                 this.makeRow(er, clientName, rows[row_idx++]);

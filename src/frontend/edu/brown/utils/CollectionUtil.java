@@ -55,6 +55,12 @@ public abstract class CollectionUtil {
         return (list);
     }
     
+    public static <T extends Comparable<T>> Collection<T> sort(Collection<T> items) {
+        List<T> list = new ArrayList<T>(items);
+        Collections.sort(list);
+        return (list);
+    }
+    
     /**
      * Put all of the elements in items into the given array This assumes that
      * the array has been pre-allocated
