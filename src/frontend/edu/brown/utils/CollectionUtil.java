@@ -278,6 +278,7 @@ public abstract class CollectionUtil {
         return (CollectionUtil.random(list, rand));
     }
 
+    @SuppressWarnings("unchecked")
     public static <E extends Enum<?>> Set<E> getAllExcluding(E elements[], E... excluding) {
         Set<E> exclude_set = new HashSet<E>();
         for (E e : excluding)
@@ -302,6 +303,7 @@ public abstract class CollectionUtil {
      * @param data
      * @param items
      */
+    @SuppressWarnings("unchecked")
     public static <T> Collection<T> addAll(Collection<T> data, T... items) {
         for (T i : (T[]) items) {
             data.add(i);
@@ -452,6 +454,7 @@ public abstract class CollectionUtil {
      * @param items
      * @return
      */
+    @SuppressWarnings("unchecked")
     public static <T> T last(T... items) {
         if (items != null && items.length > 0) {
             return (items[items.length - 1]);
