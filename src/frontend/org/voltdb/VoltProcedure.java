@@ -171,7 +171,6 @@ public abstract class VoltProcedure implements Poolable {
     private int batchQueryStmtIndex = 0;
     private int last_batchQueryStmtIndex = 0;
     private Object[] batchQueryArgs[];
-    private int batchQueryArgsIndex = 0;
     private VoltTable[] results = HStoreConstants.EMPTY_RESULT;
     private Status status = Status.OK;
     private SerializableException error = null;
@@ -527,7 +526,6 @@ public abstract class VoltProcedure implements Poolable {
         // in case someone queues sql but never calls execute, clear the queue here.
         this.batchId = 0;
         this.batchQueryStmtIndex = 0;
-        this.batchQueryArgsIndex = 0;
         this.last_batchQueryStmtIndex = -1;
         
         if (debug.val) LOG.debug("Starting execution of " + this.m_currentTxnState);
@@ -968,15 +966,15 @@ public abstract class VoltProcedure implements Poolable {
             throw new RuntimeException("Procedure attempted to queue more than " + batchQueryStmts.length +
                     " statements in a batch.");
         } else {
-            batchQueryStmts[batchQueryStmtIndex++] = stmt;
-            batchQueryArgs[batchQueryArgsIndex++] = args;
+            batchQueryStmts[batchQueryStmtIndex] = stmt;
+            batchQueryArgs[batchQueryStmtIndex] = args;
+            batchQueryStmtIndex += 1;
         }
         if (trace.val) LOG.trace("Batching Statement: " + stmt.getText());
     }
 
     public final void voltClearQueue() {
         batchQueryStmtIndex = 0;
-        batchQueryArgsIndex = 0;
     }
     
     /**
@@ -1027,7 +1025,6 @@ public abstract class VoltProcedure implements Poolable {
             this.queryResults.clear();
             return (batch_results);
         }
-        assert(this.batchQueryStmtIndex == this.batchQueryArgsIndex);
         
         // Workload Trace - Start Query
         if (this.workloadTraceEnable && this.workloadTxnHandle != null) {
@@ -1080,7 +1077,6 @@ public abstract class VoltProcedure implements Poolable {
         }
 
         this.batchQueryStmtIndex = 0;
-        this.batchQueryArgsIndex = 0;
         
         return retval;
     }
