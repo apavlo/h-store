@@ -830,11 +830,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             // this.specExecScheduler.setIgnoreSpeculationTypeChange(true);
         }
         
-        if (hstore_conf.site.specexec_enable) {
-            LOG.info(String.format("Initialized %s for partition %d [checker=%s, policy=%s]",
-                     this.specExecScheduler.getClass().getSimpleName(), this.partitionId,
-                     this.specExecChecker.getClass().getSimpleName(), policy));
-        }
+        if (debug.val && hstore_conf.site.specexec_enable)
+            LOG.debug(String.format("Initialized %s for partition %d [checker=%s, policy=%s]",
+                      this.specExecScheduler.getClass().getSimpleName(), this.partitionId,
+                      this.specExecChecker.getClass().getSimpleName(), policy));
     }
     
     private ExecutionState initExecutionState() {

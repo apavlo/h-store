@@ -108,7 +108,14 @@ public class neworder extends VoltProcedure {
         " FROM STOCK WHERE S_I_ID = ? AND S_W_ID = ?;"
     ); //ol_i_id, ol_supply_w_id
 
-    public final SQLStmt updateStock = new SQLStmt("UPDATE STOCK SET S_QUANTITY = ?, S_YTD = ?, S_ORDER_CNT = ?, S_REMOTE_CNT = ? WHERE S_I_ID = ? AND S_W_ID = ?;"); //s_quantity, s_order_cnt, s_remote_cnt, ol_i_id, ol_supply_w_id
+    public final SQLStmt updateStock = new SQLStmt(
+        "UPDATE STOCK " +
+        "   SET S_QUANTITY = ?, " +
+        "       S_YTD = ?, " +
+        "       S_ORDER_CNT = ?, " +
+        "       S_REMOTE_CNT = ? " +
+        " WHERE S_I_ID = ? AND S_W_ID = ?;"
+    ); //s_quantity, s_order_cnt, s_remote_cnt, ol_i_id, ol_supply_w_id
 
     public final SQLStmt createOrderLine = new SQLStmt("INSERT INTO ORDER_LINE (OL_O_ID, OL_D_ID, OL_W_ID, OL_NUMBER, OL_I_ID, OL_SUPPLY_W_ID, OL_DELIVERY_D, OL_QUANTITY, OL_AMOUNT, OL_DIST_INFO) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"); //o_id, d_id, w_id, ol_number, ol_i_id, ol_supply_w_id, ol_quantity, ol_amount, ol_dist_info
 
