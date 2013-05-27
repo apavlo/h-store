@@ -57,6 +57,7 @@ public abstract class StringUtil {
     public static final String SINGLE_LINE = StringUtil.repeat("-", 64) + "\n";
 
     private static final Pattern LINE_SPLIT = Pattern.compile("\n");
+    private static final Pattern LIST_SPLIT = Pattern.compile("[ ]*,");
     private static final Pattern TITLE_SPLIT = Pattern.compile(" ");
 
     private static String CACHE_REPEAT_STR = null;
@@ -145,11 +146,17 @@ public abstract class StringUtil {
     }
 
     /**
-     * @param str
-     * @return
+     * Split the given string into based on newlines 
      */
     public static String[] splitLines(String str) {
         return (str != null ? LINE_SPLIT.split(str) : null);
+    }
+    /**
+     * Split the given string into based on list delimiters
+     * This will strip out any whitespace 
+     */
+    public static String[] splitList(String str) {
+        return (str != null ? LIST_SPLIT.split(str) : null);
     }
 
     public static String header(String msg) {
