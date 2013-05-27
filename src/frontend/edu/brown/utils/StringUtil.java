@@ -60,10 +60,6 @@ public abstract class StringUtil {
     private static final Pattern LIST_SPLIT = Pattern.compile("[ ]*,");
     private static final Pattern TITLE_SPLIT = Pattern.compile(" ");
 
-    private static String CACHE_REPEAT_STR = null;
-    private static Integer CACHE_REPEAT_SIZE = null;
-    private static String CACHE_REPEAT_RESULT = null;
-
     public static final String SET_PLAIN_TEXT = "\033[0;0m";
     public static final String SET_BOLD_TEXT = "\033[0;1m";
     
@@ -484,19 +480,10 @@ public abstract class StringUtil {
      * @return
      */
     public static String repeat(String str, int size) {
-        // We cache the last call in case they are making repeated calls for the
-        // same thing
-        if (CACHE_REPEAT_STR != null && CACHE_REPEAT_STR.equals(str) && CACHE_REPEAT_SIZE.equals(size)) {
-            return (CACHE_REPEAT_RESULT);
-        }
-
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < size; i++)
             sb.append(str);
-        CACHE_REPEAT_RESULT = sb.toString();
-        CACHE_REPEAT_STR = str;
-        CACHE_REPEAT_SIZE = size;
-        return (CACHE_REPEAT_RESULT);
+        return (sb.toString());
     }
 
     /**

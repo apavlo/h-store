@@ -1400,7 +1400,10 @@ public abstract class BenchmarkComponent {
      * @return
      */
     public final boolean isSinglePartitionOnly() {
-        return (m_id < m_hstoreConf.client.singlepartition_threads);
+        boolean ret = (m_id < m_hstoreConf.client.singlepartition_threads);
+        if (debug.val && ret)
+            LOG.debug(String.format("Client #%03d is marked as single-partiiton only", m_id));
+        return (ret);
     }
     /**
      * Return the total number of clients for this benchmark invocation

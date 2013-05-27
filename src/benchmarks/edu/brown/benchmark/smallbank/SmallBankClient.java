@@ -145,6 +145,7 @@ public class SmallBankClient extends BenchmarkComponent {
             boolean is_hotspot = (client.rand.nextInt(100) < client.prob_account_hotspot);
             boolean is_dtxn = (client.rand.nextInt(100) < client.prob_multiaccount_dtxn);
             
+            boolean retry = false;
             for (int i = 0; i < acctIds.length; i++) {
                 // Outside the hotspot
                 if (is_hotspot == false) {
@@ -160,12 +161,13 @@ public class SmallBankClient extends BenchmarkComponent {
                     continue;
                 }
                 
+                partitions[i] = TheHashinator.hashToPartition(acctIds[i]);
+                sites[i] = catalogContext.getSiteIdForPartitionId(partitions[i]);
+                
+                if (i == 0) continue;
+                
                 // DTXN
                 if (is_dtxn) {
-                    boolean retry = false;
-                    partitions[i] = TheHashinator.hashToPartition(acctIds[i]);
-                    sites[i] = catalogContext.getSiteIdForPartitionId(partitions[i]);
-                    
                     // Check whether the accounts need to be on different sites 
                     if (client.force_multisite_dtxns) {
                         retry = (sites[0] == sites[1]);
@@ -178,11 +180,14 @@ public class SmallBankClient extends BenchmarkComponent {
                     else {
                         retry = (partitions[0] == partitions[1]);
                     }
-                    
-                    if (retry) {
-                        i -= 1;
-                        continue;
-                    }
+                }
+                // SINGLE-PARTITON
+                else {
+                    retry = (partitions[0] != partitions[1]);
+                }
+                if (retry) {
+                    i -= 1;
+                    continue;
                 }
             } // FOR
             if (debug.val)
@@ -220,7 +225,7 @@ public class SmallBankClient extends BenchmarkComponent {
     private final int numAccounts;
     private final Random rand = new Random();
     private double prob_account_hotspot = 90d;
-    private double prob_multiaccount_dtxn = 0.0d;
+    private double prob_multiaccount_dtxn = 50d;
     private boolean force_multisite_dtxns = false;
     private boolean force_singlesite_dtxns = false;
     
