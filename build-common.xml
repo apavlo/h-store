@@ -132,6 +132,7 @@
 <arg value="site.specexec_unsafe_limit=${site.specexec_unsafe_limit}" />
 <arg value="site.specexec_profiling=${site.specexec_profiling}" />
 <arg value="site.specexec_scheduler_policy=${site.specexec_scheduler_policy}" />
+<arg value="site.specexec_ignore_stallpoints=${site.specexec_ignore_stallpoints}" />
 <arg value="site.specexec_scheduler_window=${site.specexec_scheduler_window}" />
 <arg value="site.commandlog_enable=${site.commandlog_enable}" />
 <arg value="site.commandlog_dir=${site.commandlog_dir}" />

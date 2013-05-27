@@ -827,6 +827,14 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             // this.specExecScheduler.setIgnoreSpeculationTypeChange(true);
         }
         
+        // Tell the SpecExecScheduler to ignore certain SpeculationTypes
+        if (hstore_conf.site.specexec_ignore_stallpoints != null) {
+            for (String element : StringUtil.splitList(hstore_conf.site.specexec_ignore_stallpoints)) {
+                SpeculationType specType = SpeculationType.get(element);
+                if (specType != null) this.specExecScheduler.ignoreSpeculationType(specType);
+            } // FOR
+        }
+        
         if (debug.val && hstore_conf.site.specexec_enable)
             LOG.debug(String.format("Initialized %s for partition %d [checker=%s, policy=%s]",
                       this.specExecScheduler.getClass().getSimpleName(), this.partitionId,

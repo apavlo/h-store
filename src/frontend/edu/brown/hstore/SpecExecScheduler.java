@@ -1,6 +1,8 @@
 package edu.brown.hstore;
 
+import java.util.HashSet;
 import java.util.Iterator;
+import java.util.Set;
 
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.Procedure;
@@ -47,6 +49,8 @@ public class SpecExecScheduler {
     
     /** Don't reset the iterator if the current SpeculationType changes */
     private boolean ignore_speculation_type_change = false;
+    
+    private Set<SpeculationType> ignore_types = null;
     
     private AbstractTransaction lastDtxn;
     private SpeculationType lastSpecType;
@@ -121,6 +125,13 @@ public class SpecExecScheduler {
         return (this.checker.shouldIgnoreProcedure(catalog_proc));
     }
     
+    public void ignoreSpeculationType(SpeculationType specType) {
+        if (this.ignore_types == null) {
+            this.ignore_types = new HashSet<SpeculationType>();
+        }
+        this.ignore_types.add(specType);
+    }
+    
     public void interruptSearch(InternalMessage msg) {
         if (this.interrupted == false) {
             this.interrupted = true;
@@ -161,6 +172,15 @@ public class SpecExecScheduler {
             this.profilerCurrentTxn = dtxn;
             profiler = this.profilerMap[specType.ordinal()];
             profiler.total_time.start();
+        }
+        
+        // Check whether we need to ignore this speculation stall point
+        if (this.ignore_types != null && this.ignore_types.contains(specType)) {
+            if (debug.val)
+                LOG.debug(String.format("%s - Ignoring txn because we are set to ignore %s",
+                          dtxn, specType));
+            if (this.profiling) profiler.total_time.stop();
+            return (null);
         }
         
         // If we have a distributed txn, then check make sure it's legit

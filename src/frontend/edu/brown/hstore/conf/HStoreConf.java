@@ -540,12 +540,20 @@ public final class HStoreConf {
         public boolean specexec_profiling;
         
         @ConfigProperty(
-            description="Speculative pollicy to pick the transactions to run speculatively. " +
-                        "Allowed values are 'FIRST', 'SHORTEST', or 'LONGEST'." ,
+            description="Speculative policy to pick the transactions to run speculatively. ",
             defaultString="FIRST",
-            experimental=false
+            experimental=false,
+            enumOptions="org.voltdb.types.SpecExecSchedulerPolicyType"
         )
         public String specexec_scheduler_policy;
+        
+        @ConfigProperty(
+            description="Disable speculative execution at the given stall points. " ,
+            defaultNull=true,
+            experimental=false,
+            enumOptions="org.voltdb.types.SpeculationType"
+        )
+        public String specexec_ignore_stallpoints;
         
         @ConfigProperty(
             description="The window size to pick up txn to run speculatively. ",
@@ -1162,14 +1170,6 @@ public final class HStoreConf {
         )
         public boolean pool_txn_enable;
         
-//        @ConfigProperty(
-//            description="The max number of LocalTransaction handles to keep in the pool per partition. " +
-//            		    "This should be roughly equivalent to ${site.network_incoming_max_per_partition}.",
-//            defaultInt=7000,
-//            experimental=false
-//        )
-//        public int pool_localtxnstate_idle;
-        
         @ConfigProperty(
             description="The max number of MapReduceTransactionStates to keep in the pool per partition.",
             defaultInt=10,
@@ -1177,37 +1177,12 @@ public final class HStoreConf {
         )
         public int pool_mapreducetxnstate_idle;
         
-//        @ConfigProperty(
-//            description="The max number of RemoteTransactionStates to keep in the pool per partition. " +
-//                        "Depending on the workload, this should be roughly equivalent to " +
-//                        "${site.network_incoming_max_per_partition}.",
-//            defaultInt=1000,
-//            experimental=false
-//        )
-//        public int pool_remotetxnstate_idle;
-        
         @ConfigProperty(
             description="The max number of MarkovPathEstimators to keep in the pool per partition",
             defaultInt=100,
             experimental=false
         )
         public int pool_pathestimators_idle;
-        
-//        @ConfigProperty(
-//            description="The max number of TransactionEstimator.States to keep in the pool. " + 
-//                        "This should be the same as ${site.pool_localtxnstate_idle}.",
-//            defaultInt=1000,
-//            experimental=false
-//        )
-//        public int pool_estimatorstates_idle;
-        
-//        @ConfigProperty(
-//            description="The max number of DistributedStates to keep in the pool per partition." +
-//                        "This should be the same as ${site.pool_localtxnstate_idle}.",
-//            defaultInt=1000,
-//            experimental=false
-//        )
-//        public int pool_dtxnstates_idle;
         
         @ConfigProperty(
             description="The max number of PrefetchStates to keep in the pool.",
@@ -2324,8 +2299,9 @@ public final class HStoreConf {
             assert(cp != null) : "Missing ConfigProperty for " + f;
             Class<?> f_class = f.getType();
             Object value = null;
-            if (debug.val) LOG.debug(String.format("Casting value '%s' for key '%s' to proper type [class=%s]",
-                                       v, k, f_class));
+            if (debug.val)
+                LOG.debug(String.format("Casting value '%s' for key '%s' to proper type [class=%s]",
+                          v, k, f_class));
 
             try {
                 if (f_class.equals(int.class) || f_class.equals(Integer.class)) {
@@ -2388,6 +2364,14 @@ public final class HStoreConf {
             }
         }
         return (value);
+    }
+    
+    protected <T extends Enum<?>> T[] getEnumOptions(Field f, ConfigProperty cp) {
+        if (cp.enumOptions() == null || cp.enumOptions().isEmpty()) {
+            return (null);
+        }
+        
+        return (null);
     }
     
     /**
