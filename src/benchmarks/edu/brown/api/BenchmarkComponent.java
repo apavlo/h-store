@@ -955,7 +955,7 @@ public abstract class BenchmarkComponent {
                 } // SYNCH
             }
         }
-//        else {
+//        else if (status == Status.ABORT_UNEXPECTED) {
 //            LOG.warn("Invalid " + m_countDisplayNames[txn_idx] + " response!\n" + cresponse);
 //            if (cresponse.getException() != null) {
 //                cresponse.getException().printStackTrace();
@@ -963,8 +963,6 @@ public abstract class BenchmarkComponent {
 //            if (cresponse.getStatusString() != null) {
 //                LOG.warn(cresponse.getStatusString());
 //            }
-//
-//            System.exit(-1);   
 //        }
         
         if (m_txnStats.isResponsesStatusesEnabled()) {
@@ -1395,6 +1393,14 @@ public abstract class BenchmarkComponent {
      */
     public final int getClientId() {
         return (m_id);
+    }
+    /**
+     * Returns true if this client thread should submit only single-partition txns.
+     * Support for this option must be implemented in the benchmark.
+     * @return
+     */
+    public final boolean isSinglePartitionOnly() {
+        return (m_id < m_hstoreConf.client.singlepartition_threads);
     }
     /**
      * Return the total number of clients for this benchmark invocation

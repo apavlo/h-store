@@ -1331,11 +1331,19 @@ public final class HStoreConf {
         public boolean shared_connection;
 
         @ConfigProperty(
-            description="Number of clients hosts to use in the benchmark run.",
+            description="The number of clients hosts to use in the benchmark run.",
             defaultInt=1,
             experimental=false
         )
         public int count;
+        
+        @ConfigProperty(
+            description="The number of client threads that will submit only single-partition " +
+            		    "transaction requests. This is not supported in all benchmarks.",
+            defaultInt=0,
+            experimental=true
+        )
+        public int singlepartition_threads;
 
         @ConfigProperty(
             description="How long should the benchmark trial run (in milliseconds). Does not " +

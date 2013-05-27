@@ -30,6 +30,7 @@
 <arg value="client.processesperclient_per_partition=${client.processesperclient_per_partition}" />
 <arg value="client.shared_connection=${client.shared_connection}" />
 <arg value="client.count=${client.count}" />
+<arg value="client.singlepartition_threads=${client.singlepartition_threads}" />
 <arg value="client.duration=${client.duration}" />
 <arg value="client.warmup=${client.warmup}" />
 <arg value="client.interval=${client.interval}" />
