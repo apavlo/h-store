@@ -748,6 +748,16 @@ public final class HStoreConf {
         public boolean txn_profiling;
         
         @ConfigProperty(
+            description="Sample factor for transaction profiling (0.0 - 1.0). " +
+            		    "This will be used at runtime to determine whether a transaction is executed " +
+            		    "with the profiling hooks enabled. " +
+                        "Note that the the ${site.txn_profiling} parameter must also be set.",
+            defaultDouble=0.10,
+            experimental=false
+        )
+        public double txn_profiling_sample;
+        
+        @ConfigProperty(
             description="Enable transaction execution mode counting. This will cause the HStoreSite to keep " +
             		    "track of various properties about tranasctions, such as the number that were speculatively " +
             		    "executed or had to be restarted.",
