@@ -261,6 +261,11 @@ public class SmallBankClient extends BenchmarkComponent {
         if (catalogContext.sites.size() == 1) {
             this.force_multisite_dtxns = false;
         }
+        // Disable all multi-partition txns
+        if (this.isSinglePartitionOnly()) {
+            this.force_multisite_dtxns = false;
+            this.prob_multiaccount_dtxn = 0;
+        }
         
         // Initialize the sampling table
         Histogram<Transaction> txns = new ObjectHistogram<Transaction>(); 

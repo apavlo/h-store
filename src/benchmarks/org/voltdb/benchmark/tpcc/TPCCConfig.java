@@ -181,6 +181,13 @@ public final class TPCCConfig {
         return new TPCCConfig(catalogContext, params);
     }
     
+    public void disableDistributedTransactions() {
+        this.neworder_multip = false;
+        this.neworder_multip_mix = 0;
+        this.payment_multip = false;
+        this.payment_multip_mix = 0;
+    }
+    
     @Override
     public String toString() {
         return StringUtil.formatMaps(this.debugMap());

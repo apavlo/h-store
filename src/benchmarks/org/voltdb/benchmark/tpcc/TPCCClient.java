@@ -292,7 +292,9 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
         // Initialize the sampling table
         this.initTransactionWeights();
         
-
+        // Disable all distributed transaction requests for this client thread
+        if (this.isSinglePartitionOnly()) m_tpccConfig.disableDistributedTransactions();
+        
         //m_sampler = new VoltSampler(20, "tpcc-cliet-sampling");
     }
     

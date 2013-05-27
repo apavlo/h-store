@@ -132,7 +132,7 @@ public class SpecExecScheduler {
         this.ignore_types.add(specType);
         if (debug.val)
             LOG.debug(String.format("Setting %s to ignore speculation at stall point %s",
-                     this.getClass().getSimpleName(), specType));
+                      this.getClass().getSimpleName(), specType));
     }
     
     public void interruptSearch(InternalMessage msg) {
