@@ -783,9 +783,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         
         // Initialize speculative execution scheduler
         this.initSpecExecScheduler();
-
-        // Initialize all of our VoltProcedures handles
-        this.initializeVoltProcedures();
     }
     
     /**
@@ -871,6 +868,11 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             throw new RuntimeException(msg);
         }
 
+        // Initialize all of our VoltProcedures handles
+        // This needs to be done here so that the Workload trace handles can be 
+        // set up properly
+        this.initializeVoltProcedures();
+        
         this.self = Thread.currentThread();
         this.self.setName(HStoreThreadManager.getThreadName(this.hstore_site, this.partitionId));
         

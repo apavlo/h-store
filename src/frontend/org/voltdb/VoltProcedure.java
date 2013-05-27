@@ -246,14 +246,17 @@ public abstract class VoltProcedure implements Poolable {
         this.isNative = (eeType != BackendTarget.HSQLDB_BACKEND);
         this.hsql = hsql;
         this.partitionId = this.executor.getPartitionId();
-        assert(this.partitionId != -1);
+        assert(this.partitionId != HStoreConstants.NULL_PARTITION_ID);
         
         this.batchQueryArgs = new Object[hstore_conf.site.planner_max_batch_size][];
         this.batchQueryStmts = new SQLStmt[hstore_conf.site.planner_max_batch_size];
         
         // Enable Workload Tracing
-        this.workloadTraceEnable = (ProcedureProfiler.profilingLevel == ProcedureProfiler.Level.INTRUSIVE) &&
-                              (ProcedureProfiler.workloadTrace != null);
+        LOG.info("Profiling Level: " + ProcedureProfiler.profilingLevel);
+        LOG.info("Profiling Workload Handle: " + ProcedureProfiler.workloadTrace);
+        
+        this.workloadTraceEnable = (ProcedureProfiler.profilingLevel == ProcedureProfiler.Level.INTRUSIVE &&
+                                    ProcedureProfiler.workloadTrace != null);
         if (this.workloadTraceEnable) {
             this.workloadQueryHandles = new ArrayList<Object>();
         }
@@ -568,8 +571,8 @@ public abstract class VoltProcedure implements Poolable {
         // a handle that we need to pass to the trace manager when we want to register a new query
         if (this.workloadTraceEnable) {
             this.workloadQueryHandles.clear();
-            this.workloadTxnHandle = ProcedureProfiler.workloadTrace.startTransaction(
-                    this.m_currentTxnState.getTransactionId(), this.catalog_proc, this.procParams);
+            this.workloadTxnHandle = ProcedureProfiler.workloadTrace.startTransaction(this.m_currentTxnState.getTransactionId(),
+                                                                                      this.catalog_proc, this.procParams);
         }
 
         // Fix to make no-Java procedures work
