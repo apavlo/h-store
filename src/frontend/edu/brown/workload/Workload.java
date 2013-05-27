@@ -27,6 +27,7 @@ package edu.brown.workload;
 
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -281,18 +282,20 @@ public class Workload implements WorkloadTrace, Iterable<TransactionTrace> {
         if (this.out != null) {
             System.err.println("Flushing workload trace output and closing files...");
             
-            //
             // Workload Statistics
-            //
             if (this.stats != null) this.saveStats();
-            //
             // This was here in case I wanted to dump out auxillary data structures
             // As of right now, I don't need to do that, so we'll just flush and close the file
-            //
             this.out.flush();
             this.out.close();
         }
         super.finalize();
+    }
+    
+    public void flush() throws IOException {
+        if (this.out != null) {
+            this.out.flush();
+        }
     }
 
     /**

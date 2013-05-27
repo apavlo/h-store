@@ -48,6 +48,7 @@ import org.voltdb.CatalogContext;
 import org.voltdb.ClientResponseImpl;
 import org.voltdb.MemoryStats;
 import org.voltdb.ParameterSet;
+import org.voltdb.ProcedureProfiler;
 import org.voltdb.StatsAgent;
 import org.voltdb.StatsSource;
 import org.voltdb.StoredProcedureInvocation;
@@ -132,6 +133,7 @@ import edu.brown.utils.ExceptionHandlingRunnable;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.PartitionSet;
 import edu.brown.utils.StringUtil;
+import edu.brown.workload.Workload;
 
 /**
  * THE ALL POWERFUL H-STORE SITE!
@@ -1338,6 +1340,14 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     public void prepareShutdown(boolean error) {
         this.shutdown_state = ShutdownState.PREPARE_SHUTDOWN;
 
+        if (ProcedureProfiler.workloadTrace instanceof Workload) {
+            try {
+                ((Workload)ProcedureProfiler.workloadTrace).flush();
+            } catch (Throwable ex) {
+                LOG.error("Failed to flush workload trace", ex);
+            }
+        }
+        
         if (this.hstore_coordinator != null)
             this.hstore_coordinator.prepareShutdown(false);
         
