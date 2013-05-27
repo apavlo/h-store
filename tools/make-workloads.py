@@ -59,6 +59,8 @@ logging.basicConfig(level = logging.INFO,
 
 HSTORE_OPTS = {
     "site.specexec_enable":         False,
+    "site.markov_enable":           True,
+    "site.markov_fixed":            True,
     "client.duration":              180000,
     "client.warmup":                0,
     "client.count":                 1,
@@ -141,7 +143,7 @@ if __name__ == '__main__':
             cnt = txnCount(trace)
             logging.info("Created %d traces in last round", cnt)
 
-        assert cnt > 0
+        assert cnt > 0, "No transaction trace records after running?"
         total_cnt += cnt
         logging.info("Number of transactions after round %d: %d" % (trace_ctr, total_cnt))
         if total_cnt >= args['txn_count']: break
