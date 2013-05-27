@@ -130,8 +130,9 @@ public class SpecExecScheduler {
             this.ignore_types = new HashSet<SpeculationType>();
         }
         this.ignore_types.add(specType);
-        LOG.info(String.format("Setting %s to ignore speculation at stall point %s",
-                 this, specType));
+        if (debug.val)
+            LOG.debug(String.format("Setting %s to ignore speculation at stall point %s",
+                     this.getClass().getSimpleName(), specType));
     }
     
     public void interruptSearch(InternalMessage msg) {
