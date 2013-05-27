@@ -435,23 +435,28 @@ public class TPCCSimulation {
             quantity[i] = generator.number(1, TPCCConstants.MAX_OL_QUANTITY);
         }
         // Whether to force this transaction to be multi-partitioned
-        if (parameters.warehouses > 1 &&
-                config.neworder_multip == true && 
-                config.neworder_multip_mix > 0 && 
-                (generator.number(1, 1000) <= (config.neworder_multip_mix*100))) {
-            if (trace.val) LOG.trace("Forcing Multi-Partition NewOrder Transaction");
-            // Flip a random one
-            int idx = generator.number(0, ol_cnt-1);
-            short remote_w_id;
-            if (config.warehouse_pairing) {
-                remote_w_id = generatePairedWarehouse(warehouse_id, parameters.starting_warehouse, parameters.last_warehouse);
+        if (parameters.warehouses > 1 && config.neworder_multip == true && config.neworder_multip_mix > 0) {
+            // First force the entire thing to be single-partitioned
+            for (int idx = 0; idx < ol_cnt; idx++) {
+                supply_w_id[idx] = warehouse_id;
+            } // FOR
+
+            // Then check whether we should flip a random SUPPLY_W_ID to be remote
+            if (generator.number(1, 1000) <= (config.neworder_multip_mix*100)) {
+                if (trace.val) LOG.trace("Forcing Multi-Partition NewOrder Transaction");
+                // Flip a random one
+                int idx = generator.number(0, ol_cnt-1);
+                short remote_w_id;
+                if (config.warehouse_pairing) {
+                    remote_w_id = generatePairedWarehouse(warehouse_id, parameters.starting_warehouse, parameters.last_warehouse);
+                }
+                else if (config.neworder_multip_remote) {
+                	remote_w_id = (short)generator.numberRemoteWarehouseId(parameters.starting_warehouse, parameters.last_warehouse, (int) warehouse_id);
+                } else {
+                	remote_w_id = (short)generator.numberExcluding(parameters.starting_warehouse, parameters.last_warehouse, (int) warehouse_id);
+                }
+                supply_w_id[idx] = remote_w_id;
             }
-            else if (config.neworder_multip_remote) {
-            	remote_w_id = (short)generator.numberRemoteWarehouseId(parameters.starting_warehouse, parameters.last_warehouse, (int) warehouse_id);
-            } else {
-            	remote_w_id = (short)generator.numberExcluding(parameters.starting_warehouse, parameters.last_warehouse, (int) warehouse_id);
-            }
-            supply_w_id[idx] = remote_w_id;
         }
 
         if (trace.val)
