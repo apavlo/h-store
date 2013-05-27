@@ -27,6 +27,7 @@ package edu.brown.hstore;
 
 import java.nio.ByteBuffer;
 import java.util.Map;
+import java.util.Random;
 
 import org.apache.log4j.Logger;
 import org.voltdb.CatalogContext;
@@ -89,6 +90,7 @@ public class TransactionInitializer {
     private final PartitionSet local_partitions;
     private final TransactionEstimator t_estimators[];
     private final TransactionIdManager txnIdManagers[];
+    private final Random rng = new Random();
     private EstimationThresholds thresholds;
     
     /**
@@ -358,22 +360,21 @@ public class TransactionInitializer {
             }
             assert(new_ts.isInitialized() == false);
         } catch (Throwable ex) {
-            String msg = String.format("Failed to instantiate new %s for mispredicted %s", orig_ts.getClass().getSimpleName(), orig_ts);
+            String msg = String.format("Failed to instantiate new %s for mispredicted %s",
+                                       orig_ts.getClass().getSimpleName(), orig_ts);
             throw new RuntimeException(msg, ex);
         }
         
         // Setup TransactionProfiler
-        if (hstore_conf.site.txn_profiling && orig_ts.isSysProc() == false) {
-            if (new_ts.profiler == null) {
-                new_ts.setProfiler(new TransactionProfiler());
+        if (hstore_conf.site.txn_profiling) {
+            if (this.setupTransactionProfiler(new_ts, orig_ts.isSysProc())) {
+                // Since we're restarting the txn, we should probably include
+                // the original profiler information the original txn.
+                new_ts.profiler.startTransaction(ProfileMeasurement.getTime());
+                new_ts.profiler.setSingledPartitioned(predict_touchedPartitions.size() == 1);                
             }
-            new_ts.profiler.enableProfiling();
-            
-            // Since we're restarting the txn, we should probably include
-            // the original profiler information the original txn.
-            new_ts.profiler.startTransaction(ProfileMeasurement.getTime());
-            new_ts.profiler.setSingledPartitioned(predict_touchedPartitions.size() == 1);
-        } else if (new_ts.profiler != null) {
+        }
+        else if (new_ts.profiler != null) {
             new_ts.profiler.disableProfiling();
         }
         
@@ -402,7 +403,6 @@ public class TransactionInitializer {
         
         return (new_ts);
     }
-    
     
     /**
      * Create a RemoteTransaction handle. This obviously only for a remote site.
@@ -553,6 +553,29 @@ public class TransactionInitializer {
     }
 
     /**
+     * Initialize the TransactionProfiler for the given txn handle.
+     * Returns true if profiling is enabled for this txn.
+     * @param ts
+     * @param sysproc
+     * @return
+     */
+    private boolean setupTransactionProfiler(LocalTransaction ts, boolean sysproc) {
+        if (hstore_conf.site.txn_profiling &&
+                sysproc == false &&
+                this.rng.nextDouble() < hstore_conf.site.txn_profiling_sample) {
+            if (ts.profiler == null) {
+                ts.setProfiler(new TransactionProfiler());
+            }
+            ts.profiler.enableProfiling();
+            ts.profiler.startTransaction(ProfileMeasurement.getTime());
+            return (true);
+        } else if (ts.profiler != null) {
+            ts.profiler.disableProfiling();
+        }
+        return (false);
+    }
+    
+    /**
      * Initialize the execution properties for a new transaction.
      * This is the important part where we try to figure out:
      * <ol>
@@ -584,13 +607,7 @@ public class TransactionInitializer {
         
         // Setup TransactionProfiler
         if (hstore_conf.site.txn_profiling) {
-            if (ts.profiler == null) {
-                ts.setProfiler(new TransactionProfiler());
-            }
-            ts.profiler.enableProfiling();
-            ts.profiler.startTransaction(ProfileMeasurement.getTime());
-        } else if (ts.profiler != null) {
-            ts.profiler.disableProfiling();
+            this.setupTransactionProfiler(ts, this.isSysProc[procId]);
         }
         
         // -------------------------------
