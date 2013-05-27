@@ -322,12 +322,6 @@ public class TransactionInitializer {
             }
         }
         
-        if (hstore_conf.site.txn_profiling && ts.profiler != null) {
-            // Disable transaction profiling for sysprocs
-            if (this.isSysProc[procId]) {
-                ts.profiler.disableProfiling();
-            }
-        }
         // Notify anybody that cares about this new txn
         if (this.newTxnObservable != null) this.newTxnObservable.notifyObservers(ts);
         
@@ -370,7 +364,7 @@ public class TransactionInitializer {
             if (this.setupTransactionProfiler(new_ts, orig_ts.isSysProc())) {
                 // Since we're restarting the txn, we should probably include
                 // the original profiler information the original txn.
-                new_ts.profiler.startTransaction(ProfileMeasurement.getTime());
+                // new_ts.profiler.startTransaction(ProfileMeasurement.getTime());
                 new_ts.profiler.setSingledPartitioned(predict_touchedPartitions.size() == 1);                
             }
         }
