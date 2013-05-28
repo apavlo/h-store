@@ -47,6 +47,7 @@ public class TransactionProfilerStats extends StatsSource {
         final Queue<long[]> queue = new ConcurrentLinkedQueue<long[]>();
         final FastIntHistogram num_batches = new FastIntHistogram();
         final FastIntHistogram num_queries = new FastIntHistogram();
+        final FastIntHistogram num_remote = new FastIntHistogram();
         final FastIntHistogram num_prefetch = new FastIntHistogram();        
     }
 
@@ -85,7 +86,14 @@ public class TransactionProfilerStats extends StatsSource {
         synchronized (stats) {
             stats.num_batches.put(tp.getBatchCount());
             stats.num_queries.put(tp.getQueryCount());
-            stats.num_prefetch.put(tp.getPrefetchCount());
+
+            // Don't update the histogram if there were no remote or prefetch
+            // queries. Otherwise the weighted average will be computed with including
+            // all of the txns that executed without these types of queries. 
+            if (tp.getRemoteQueryCount() > 0)
+                stats.num_remote.put(tp.getRemoteQueryCount());
+            if (tp.getPrefetchQueryCount() > 0)
+                stats.num_prefetch.put(tp.getPrefetchQueryCount());
         } // SYNCH
     }
     
@@ -103,6 +111,7 @@ public class TransactionProfilerStats extends StatsSource {
         final FastIntHistogram histograms[] = {
             stats.num_batches,
             stats.num_queries,
+            stats.num_remote,
             stats.num_prefetch
         };
         
@@ -140,7 +149,11 @@ public class TransactionProfilerStats extends StatsSource {
         int offset = 1;
         for (int i = 0; i < histograms.length; i++) {
             row[offset++] = HistogramUtil.sum(histograms[i]);
-            row[offset++] = MathUtil.weightedMean(histograms[i]);
+            if (histograms[i].getSampleCount() > 0) {
+                row[offset++] = MathUtil.weightedMean(histograms[i]);
+            } else {
+                row[offset++] = 0;
+            }
         } // FOR
         
         // HACK: Dump values for stdev
@@ -186,6 +199,8 @@ public class TransactionProfilerStats extends StatsSource {
         columns.add(new VoltTable.ColumnInfo("BATCHES_AVG", VoltType.FLOAT));
         columns.add(new VoltTable.ColumnInfo("QUERIES_CNT", VoltType.BIGINT));
         columns.add(new VoltTable.ColumnInfo("QUERIES_AVG", VoltType.FLOAT));
+        columns.add(new VoltTable.ColumnInfo("REMOTE_CNT", VoltType.BIGINT));
+        columns.add(new VoltTable.ColumnInfo("REMOTE_AVG", VoltType.FLOAT));
         columns.add(new VoltTable.ColumnInfo("PREFETCH_CNT", VoltType.BIGINT));
         columns.add(new VoltTable.ColumnInfo("PREFETCH_AVG", VoltType.FLOAT));
         
