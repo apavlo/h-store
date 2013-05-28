@@ -954,7 +954,13 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 if (nextWork == null) {
                     if (hstore_conf.site.exec_profiling) profiler.idle_time.start();
                     try {
-                        nextWork = this.work_queue.poll(WORK_QUEUE_POLL_TIME, WORK_QUEUE_POLL_TIMEUNIT);
+                        // If we're allowed to speculatively execute txns, then we don't want to have
+                        // to wait to see if anything will show up in our work queue.
+                        if (hstore_conf.site.specexec_enable && this.lockQueue.approximateIsEmpty() == false) {
+                            nextWork = this.work_queue.poll();
+                        } else {
+                            nextWork = this.work_queue.poll(WORK_QUEUE_POLL_TIME, WORK_QUEUE_POLL_TIMEUNIT);    
+                        }
                     } catch (InterruptedException ex) {
                         continue;
                     } finally {

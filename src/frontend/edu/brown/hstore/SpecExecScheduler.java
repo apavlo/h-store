@@ -59,6 +59,9 @@ public class SpecExecScheduler {
     private boolean interrupted = false;
     private Class<? extends InternalMessage> latchMsg;
 
+    /**
+     * Maintain a separate SpecExecProfiler per SpeculationType.
+     */
     private final SpecExecProfiler profilerMap[];
     private boolean profiling = false;
     private AbstractTransaction profilerCurrentTxn;
