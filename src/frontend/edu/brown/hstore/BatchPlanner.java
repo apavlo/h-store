@@ -369,11 +369,12 @@ public class BatchPlanner {
         }
         
         /**
-         * Get an array of sets of partition ids for this plan Note that you can't rely on the
-         * 
+         * Return an array of PartitionSets where each element in the array
+         * corresponds to the partitions that the SQLStmt in the batch will need
+         * to execute on.
          * @return
          */
-        public PartitionSet[] getStatementPartitions() {
+        public final PartitionSet[] getStatementPartitions() {
             return (this.stmt_partitions);
         }
         

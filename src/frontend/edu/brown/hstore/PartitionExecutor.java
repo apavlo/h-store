@@ -3268,6 +3268,19 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 LOG.trace(String.format("%s - Got back %d work fragments",
                           ts, execState.tmp_partitionFragments.size()));
             
+            if (needs_profiling) {
+                int remote_cnt = 0;
+                PartitionSet stmtPartitions[] = plan.getStatementPartitions();
+                for (int i = 0; i < batchSize; i++) {
+                    if (stmtPartitions[i].get() != ts.getBasePartition()) remote_cnt++;
+                    if (trace.val)
+                        LOG.trace(String.format("%s - [%02d] stmt:%s / partitions:%s",
+                                 ts, i, batchStmts[i].getStatement().getName(), stmtPartitions[i]));
+                } // FOR
+                if (trace.val) LOG.trace(String.format("%s - Remote Queries Count = %d", ts, remote_cnt));
+                ts.profiler.addRemoteQuery(remote_cnt);
+            }
+            
             // Block until we get all of our responses.
             results = this.dispatchWorkFragments(ts, batchParams, batchSize,
                                                  execState.tmp_partitionFragments);
@@ -3275,7 +3288,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         if (debug.val && results == null)
             LOG.warn("Got back a null results array for " + ts + "\n" + plan.toString());
 
-        if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.startExecJava();
+        if (needs_profiling) ts.profiler.startExecJava();
         
         return (results);
     }

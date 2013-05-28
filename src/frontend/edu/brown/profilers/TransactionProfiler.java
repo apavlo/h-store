@@ -62,6 +62,12 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
     private int num_queries = 0;
     
     /**
+     * The total number of queries that this txn invoked that 
+     * needed to be executed on remote partitions.
+     */
+    private int num_remote_queries = 0;
+    
+    /**
      * The total number of batches that this txn invoked
      */
     private int num_batches = 0;
@@ -564,6 +570,9 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
         this.num_queries += num_queries;
     }
     
+    public void addRemoteQuery(int num_queries) {
+        this.num_remote_queries += num_queries;
+    }
     public void addPrefetchQuery(int num_queries) {
         this.num_prefetched += num_queries;
     }
@@ -574,7 +583,10 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
     public int getQueryCount() {
         return (this.num_queries);
     }
-    public int getPrefetchCount() {
+    public int getRemoteQueryCount() {
+        return (this.num_remote_queries);
+    }
+    public int getPrefetchQueryCount() {
         return (this.num_prefetched);
     }
     
@@ -624,6 +636,7 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
         this.disabled = false;
         this.num_batches = 0;
         this.num_queries = 0;
+        this.num_remote_queries = 0;
         this.num_prefetched = 0;
     }
 
@@ -686,7 +699,8 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
         m.put("Single-Partitioned", this.singlePartitioned);
         m.put("# of Batches", this.num_batches);
         m.put("# of Queries", this.num_queries);
-        m.put("# of Prefetched", this.num_prefetched);
+        m.put("# of Remote Queries", this.num_queries);
+        m.put("# of Prefetched Queries", this.num_prefetched);
 
         // HISTORY
         String history = "";
