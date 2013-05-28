@@ -224,7 +224,7 @@ public class SmallBankClient extends BenchmarkComponent {
     private final SmallBankCallback callbacks[];
     private final int numAccounts;
     private final Random rand = new Random();
-    private double prob_account_hotspot = 90d;
+    private double prob_account_hotspot = 0d;
     private double prob_multiaccount_dtxn = 50d;
     private boolean force_multisite_dtxns = false;
     private boolean force_singlesite_dtxns = false;
