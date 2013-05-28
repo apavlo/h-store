@@ -12,13 +12,13 @@ function onexit() {
 
 DATA_DIR="/home/pavlo/Documents/H-Store/Papers/speculative/data"
 FABRIC_TYPE="ssh"
-FIRST_PARAM_OFFSET=0
+FIRST_PARAM_OFFSET=1
 
 EXP_TYPES=( \
-#     "performance-nospec" \
-#     "performance-spec-txn" \
     "performance-spec-query" \
-#     "performance-spec-all" \
+    "performance-spec-txn" \
+    "performance-nospec" \
+    "performance-spec-all" \
 )
 PARTITIONS=( \
     8 \
@@ -27,21 +27,22 @@ PARTITIONS=( \
 )
 
 # for b in smallbank tpcc seats; do
-for b in tpcc ; do
+for b in smallbank tpcc ; do
     PARAMS=( \
         --no-update \
         --results-dir=$DATA_DIR \
         --benchmark=$b \
-        --stop-on-error \
+#         --stop-on-error \
         --retry-on-zero \
-        --exp-trials=1 \
+        --exp-trials=3 \
         --partitions ${PARTITIONS[@]} \
-        --client.warmup=0 \
+#         --client.warmup=0 \
         --client.duration=300000 \
-        --site.exec_force_undo_logging_all=true \
-        --site.jvm_asserts=true \
-#         --client.txnrate=1 \
-        --client.threads_per_host=100 \
+#         --client.blocking_concurrent=2 \
+#         --site.exec_force_undo_logging_all=true \
+#         --site.jvm_asserts=true \
+#         --client.txnrate=500 \
+#         --client.threads_per_host=100 \
 #         --client.scalefactor=1 \
 #         --debug-log4j-site \
     )
