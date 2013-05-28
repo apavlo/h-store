@@ -789,10 +789,14 @@ public abstract class BenchmarkComponent {
                 m_hstoreConf.client.shared_connection
         );
         if (m_blocking) { //  && isLoader == false) {
+            int concurrent = m_hstoreConf.client.blocking_concurrent;
             if (debug.val) 
                 LOG.debug(String.format("Using BlockingClient [concurrent=%d]",
-                                        m_hstoreConf.client.blocking_concurrent));
-            m_voltClient = new BlockingClient(new_client, m_hstoreConf.client.blocking_concurrent);
+                          m_hstoreConf.client.blocking_concurrent));
+            if (this.isSinglePartitionOnly()) {
+                concurrent *= 4; // HACK
+            }
+            m_voltClient = new BlockingClient(new_client, concurrent);
         } else {
             m_voltClient = new_client;
         }
