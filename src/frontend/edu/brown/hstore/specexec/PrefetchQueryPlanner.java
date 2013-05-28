@@ -272,6 +272,7 @@ public class PrefetchQueryPlanner {
                 // Make sure that we initialize our internal PrefetchState for this txn
                 ts.initializePrefetch();
                 depTracker.addTransaction(ts); 
+                if (ts.profiler != null) ts.profiler.addPrefetchQuery(prefetchStmts.length);
             }
             // HACK: Attach the prefetch params in the transaction handle in case we need to use it locally
             if (site_id == local_site_id && ts.hasPrefetchParameters() == false) {

@@ -831,8 +831,6 @@ public class HStoreCoordinator implements Shutdownable {
             if (debug.val)
                 LOG.debug(String.format("%s - Sent %d %s with %d prefetch WorkFragments",
                           ts, sent_ctr, TransactionInitRequest.class.getSimpleName(), prefetch_ctr));
-            if (ts.profiler != null) ts.profiler.addPrefetchQuery(prefetch_ctr);
-            
         }
         // Otherwise we will send the same TransactionInitRequest to all of the remote sites 
         else {
