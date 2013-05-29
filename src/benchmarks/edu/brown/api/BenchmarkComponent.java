@@ -920,10 +920,10 @@ public abstract class BenchmarkComponent {
             
             // TRANSACTION COUNTERS
             boolean is_specexec = cresponse.isSpeculative();
-            boolean is_dtxn = cresponse.isSinglePartition(); 
+            boolean is_dtxn = (cresponse.isSinglePartition() == false); 
             synchronized (m_txnStats.transactions) {
                 m_txnStats.transactions.put(txn_idx);
-                if (is_dtxn == false) m_txnStats.dtxns.put(txn_idx);
+                if (is_dtxn) m_txnStats.dtxns.put(txn_idx);
                 if (is_specexec) m_txnStats.specexecs.put(txn_idx);
             } // SYNCH
 

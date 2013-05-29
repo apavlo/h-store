@@ -43,7 +43,7 @@ public class FinalResult implements JSONSerializable {
     public double stddevTxnPerSecond;
 
     public double totalAvgLatency;
-    public double totalStdDevLatency;
+    public double totalStdevLatency;
     public double totalMinLatency;
     public double totalMaxLatency;
     
@@ -150,7 +150,7 @@ public class FinalResult implements JSONSerializable {
             this.totalMinLatency = x[i++];
             this.totalMaxLatency = x[i++];
             this.totalAvgLatency = x[i++];
-            this.totalStdDevLatency = x[i++];
+            this.totalStdevLatency = x[i++];
         }
         if (spLatencies.isEmpty() == false) {
             double x[] = BenchmarkControllerUtil.computeLatencies(spLatencies);
@@ -219,7 +219,7 @@ public class FinalResult implements JSONSerializable {
         return this.totalAvgLatency;
     }
     public double getTotalStdDevLatency() {
-        return this.totalStdDevLatency;
+        return this.totalStdevLatency;
     }
     public double getTotalMinLatency() {
         return this.totalMinLatency;
