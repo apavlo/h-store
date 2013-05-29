@@ -297,6 +297,7 @@ def updateExperimentEnv(fabric, args, benchmark, partitions):
         fabric.env["client.scalefactor"] = OPT_BASE_SCALE_FACTOR * int(partitions/8)
         fabric.env["client.output_txn_counters"] = "txncounters.csv"
         fabric.env["client.output_txn_profiling"] = "txnprofile.csv"
+        #fabric.env["client.output_specexec_profiling"] = "specexec.csv"
         fabric.env["client.output_clients"] = False
         
         if benchmark == "tpcc":
@@ -329,10 +330,9 @@ def updateExperimentEnv(fabric, args, benchmark, partitions):
         ## SPECULATIVE TXNS
         ## ----------------------------------------------
         if args['exp_type'] in ("performance-spec-txn", "performance-spec-all"):
-            fabric.env["site.specexec_ignore_stallpoints"] = ""
             fabric.env["site.specexec_enable"] = True
-            fabric.env["site.specexec_markov"] = True
-            
+            fabric.env["site.specexec_ignore_stallpoints"] = ""
+            fabric.env["site.specexec_markov"] = False
             fabric.env["client.singlepartition_threads"] = int(fabric.env["client.threads_per_host"] * 0.5) #0.15 * int(partitions/8))
             
             #fabric.env["benchmark.neworder_multip_mix"] = 0.1
@@ -344,7 +344,6 @@ def updateExperimentEnv(fabric, args, benchmark, partitions):
         ## ----------------------------------------------
         if args['exp_type'] in ("performance-spec-query", "performance-spec-all"):
             fabric.env["site.exec_prefetch_queries"] = True
-            fabric.env["site.specexec_markov"] = True
             
     ## ----------------------------------------------
     ## MARKOV MODELS!
@@ -485,8 +484,7 @@ def writeResultsCSV(args, benchmark, finalResults, partitions):
         LOG.warn("No results for %s - %s - %d Partitions" % (args['exp_type'].upper(), benchmark.upper(), partitions))
         return
     
-    baseName = "%s-%02dp-results.csv" % (benchmark, partitions)
-    output = os.path.join(args['results_dir'], args['exp_type'], baseName)
+    output = getResultsFilename(args, benchmark, partitions)
     with open(output, "w") as fd:
         writer = csv.writer(fd)
         header = None
@@ -499,6 +497,15 @@ def writeResultsCSV(args, benchmark, finalResults, partitions):
         ## FOR
     ## WITH
     LOG.info("Wrote %s results to '%s'", benchmark, output)
+## DEF
+
+## ==============================================
+## getResultsFilename
+## ==============================================
+def getResultsFilename(args, benchmark, partitions):
+    baseName = "%s-%02dp-results.csv" % (benchmark, partitions)
+    output = os.path.join(args['results_dir'], args['exp_type'], baseName)
+    return output
 ## DEF
 
 ## ==============================================
@@ -556,6 +563,7 @@ if __name__ == '__main__':
     agroup.add_argument("--clear-logs", action='store_true')
     agroup.add_argument("--workload-trace", action='store_true')
     agroup.add_argument("--results-dir", type=str, default='results', metavar='D', help='Directory where CSV results are stored')
+    agroup.add_argument("--overwrite", action='store_true', help='Overwrite existing results')
     
     ## Codespeed Parameters
     agroup = aparser.add_argument_group('Codespeed Parameters')
@@ -713,6 +721,15 @@ if __name__ == '__main__':
             LOG.info("** %s - %s - %d Partitions", args['exp_type'].upper(), benchmark.upper(), partitions)
             LOG.info("*"*100)
             LOG.info("*"*100)
+            
+            resultsOutput = getResultsFilename(args, benchmark, partitions)
+            if os.path.exists(resultsOutput):
+                if not args['overwrite']:
+                    LOG.warn("Results file '%s' already exists. Skipping!\n", resultsOutput)
+                    continue
+                else:
+                    LOG.warn("Results file '%s' already exists. It will be overwritten!", resultsOutput)
+            
             try:
                 fabric.env["hstore.partitions"] = partitions
                 all_results = [ ]
