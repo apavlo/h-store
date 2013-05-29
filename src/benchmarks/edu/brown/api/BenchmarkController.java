@@ -538,12 +538,6 @@ public class BenchmarkController {
         if (debug.val) LOG.debug("Number of hosts to start: " + m_launchHosts.size());
         int hosts_started = 0;
         
-        // If they want to dump profiling information, then we need to make sure
-        // that these parameters are turned on 
-        if (hstore_conf.client.output_specexec) {
-            m_config.siteParameters.put("site.txn_client_debug", Boolean.TRUE.toString());
-        }
-        
         // For each client output option, we'll enable the corresponding
         // site config parameter so that we can collect the proper data
         for (ProfilingOutput po : BenchmarkControllerUtil.PROFILING_OUTPUTS) {
