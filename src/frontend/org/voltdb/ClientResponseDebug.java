@@ -87,7 +87,7 @@ public class ClientResponseDebug implements FastSerializable {
     // ----------------------------------------------------------------------------
     
     public ClientResponseDebug() {
-        
+        // Needed for serialization
     }
     
     public ClientResponseDebug(LocalTransaction ts) {

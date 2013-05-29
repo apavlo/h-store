@@ -88,12 +88,12 @@ public class TransactionRedirectResponseCallback implements RpcCallback<ClientRe
         
         // IMPORTANT: Since we're the only one that knows that we're finished (and actually even
         // cares), we need to be polite and clean-up after ourselves...
-        try {
-            this.finish();
-            hstore_site.getObjectPools().CALLBACKS_TXN_REDIRECT_RESPONSE.returnObject(this);
-        } catch (Exception ex) {
-            throw new RuntimeException("Funky failure", ex);
-        }
+//        try {
+//            this.finish();
+//            hstore_site.getObjectPools().CALLBACKS_TXN_REDIRECT_RESPONSE.returnObject(this);
+//        } catch (Exception ex) {
+//            throw new RuntimeException("Funky failure", ex);
+//        }
     }
     
 }

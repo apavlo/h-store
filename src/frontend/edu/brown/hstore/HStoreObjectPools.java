@@ -7,15 +7,11 @@ import java.util.Map.Entry;
 
 import org.apache.log4j.Logger;
 import org.voltdb.CatalogContext;
-import org.voltdb.catalog.Procedure;
 
-import edu.brown.hstore.callbacks.RedirectCallback;
-import edu.brown.hstore.callbacks.TransactionRedirectResponseCallback;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.txns.DistributedState;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.hstore.txns.MapReduceTransaction;
-import edu.brown.hstore.txns.PrefetchState;
 import edu.brown.hstore.txns.RemoteTransaction;
 import edu.brown.interfaces.Configurable;
 import edu.brown.pools.TypedObjectPool;
@@ -42,7 +38,7 @@ public final class HStoreObjectPools implements Configurable {
     /**
      * ForwardTxnResponseCallback Pool
      */
-    public final TypedObjectPool<TransactionRedirectResponseCallback> CALLBACKS_TXN_REDIRECT_RESPONSE;
+    // public final TypedObjectPool<TransactionRedirectResponseCallback> CALLBACKS_TXN_REDIRECT_RESPONSE;
     
     // ----------------------------------------------------------------------------
     // INTERNAL STATE OBJECTS
@@ -84,9 +80,9 @@ public final class HStoreObjectPools implements Configurable {
 //        this.CALLBACKS_TXN_REDIRECT_REQUEST = TypedObjectPool.factory(RedirectCallback.class,
 //                (int)(hstore_conf.site.pool_txnredirect_idle * hstore_conf.site.pool_scale_factor),
 //                hstore_conf.site.pool_profiling, hstore_site);
-        this.CALLBACKS_TXN_REDIRECT_RESPONSE = TypedObjectPool.factory(TransactionRedirectResponseCallback.class,
-                (int)(hstore_conf.site.pool_txnredirectresponses_idle * hstore_conf.site.pool_scale_factor),
-                hstore_conf.site.pool_profiling, hstore_site);
+//        this.CALLBACKS_TXN_REDIRECT_RESPONSE = TypedObjectPool.factory(TransactionRedirectResponseCallback.class,
+//                (int)(hstore_conf.site.pool_txnredirectresponses_idle * hstore_conf.site.pool_scale_factor),
+//                hstore_conf.site.pool_profiling, hstore_site);
 
         // -------------------------------
         // LOCAL PARTITION POOLS
