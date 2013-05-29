@@ -170,17 +170,19 @@ public class SEATSClient extends BenchmarkComponent {
         public final void clientCallback(ClientResponse clientResponse) {
             incrementTransactionCounter(clientResponse, txn.ordinal());
             this.clientCallbackImpl(clientResponse);
-            
-            if (txn == Transaction.UPDATE_RESERVATION && clientResponse.getStatus() == Status.ABORT_USER) {
-                LOG.error(String.format("Unexpected Error in %s: %s",
-                          this.txn.name(), clientResponse.getStatusString()),
-                          clientResponse.getException());
-            }
-            
-            if (clientResponse.getStatus() == Status.ABORT_UNEXPECTED) {
-                LOG.error(String.format("Unexpected Error in %s: %s",
-                          this.txn.name(), clientResponse.getStatusString()),
-                          clientResponse.getException());
+
+            if (debug.val) {
+                if (txn == Transaction.UPDATE_RESERVATION && clientResponse.getStatus() == Status.ABORT_USER) {
+                    LOG.error(String.format("Unexpected Error in %s: %s",
+                              this.txn.name(), clientResponse.getStatusString()),
+                              clientResponse.getException());
+                }
+                
+                if (clientResponse.getStatus() == Status.ABORT_UNEXPECTED) {
+                    LOG.error(String.format("Unexpected Error in %s: %s",
+                              this.txn.name(), clientResponse.getStatusString()),
+                              clientResponse.getException());
+                }
             }
             
         }
