@@ -213,7 +213,7 @@ public class ResultsPrinter implements BenchmarkInterest {
         // AVG LATENCY
         String txnAvgLatency = "-";
         if (er.getTxnCount() > 0) {
-            txnAvgLatency = String.format(RESULT_FORMAT, er.getTxnAvgLatency());
+            txnAvgLatency = String.format(RESULT_FORMAT, er.getTotalAvgLatency());
         }
         row[col_idx++] = String.format(COL_FORMATS[col_idx-1], txnAvgLatency);
     }
@@ -229,11 +229,11 @@ public class ResultsPrinter implements BenchmarkInterest {
         long txnDelta = p.getSecond();
         
         // INTERVAL LATENCY
-        Histogram<Integer> lastLatencies = results.getLastLatencies();
+        Histogram<Integer> lastLatencies = results.getLastSinglePartitionLatencies();
         double intervalLatency = HistogramUtil.sum(lastLatencies) / (double)lastLatencies.getSampleCount();
         
         // TOTAL LATENCY
-        Histogram<Integer> allLatencies = results.getAllLatencies();        
+        Histogram<Integer> allLatencies = results.getAllSinglePartitionLatencies();        
         double totalLatency = HistogramUtil.sum(allLatencies) / (double)allLatencies.getSampleCount();
 
         int pollIndex = results.getCompletedIntervalCount();
