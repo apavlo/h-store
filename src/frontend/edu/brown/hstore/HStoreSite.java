@@ -2080,7 +2080,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // we will just forward it back to the client. How sweet is that??
         RedirectCallback callback = null;
         try {
-            callback = (RedirectCallback)objectPools.CALLBACKS_TXN_REDIRECT_REQUEST.borrowObject();
+            callback = new RedirectCallback(this);
+            // callback = (RedirectCallback)objectPools.CALLBACKS_TXN_REDIRECT_REQUEST.borrowObject();
             callback.init(clientCallback);
         } catch (Exception ex) {
             throw new RuntimeException("Failed to get TransactionRedirectCallback", ex);
@@ -2256,7 +2257,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 
                 RedirectCallback callback;
                 try {
-                    callback = (RedirectCallback)objectPools.CALLBACKS_TXN_REDIRECT_REQUEST.borrowObject();
+                    // callback = (RedirectCallback)objectPools.CALLBACKS_TXN_REDIRECT_REQUEST.borrowObject();
+                    callback = new RedirectCallback(this);
                     callback.init(orig_ts.getClientCallback());
                 } catch (Exception ex) {
                     String msg = "Failed to get TransactionRedirectCallback";

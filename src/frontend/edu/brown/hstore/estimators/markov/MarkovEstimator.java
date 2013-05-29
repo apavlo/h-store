@@ -125,11 +125,13 @@ public class MarkovEstimator extends TransactionEstimator {
             this.manglers[catalog_proc.getId()] = ParameterMangler.singleton(catalog_proc);
         } // FOR
         
-        if (debug.val) LOG.debug("Creating MarkovPathEstimator Object Pool");
+        if (debug.val)
+            LOG.debug("Creating MarkovPathEstimator Object Pool");
         TypedPoolableObjectFactory<MarkovPathEstimator> m_factory = new MarkovPathEstimator.Factory(this.catalogContext, this.p_estimator);
         this.pathEstimatorsPool = new TypedObjectPool<MarkovPathEstimator>(m_factory, hstore_conf.site.pool_pathestimators_idle);
         
-        if (debug.val) LOG.debug("Creating MarkovEstimatorState Object Pool");
+        if (debug.val)
+            LOG.debug("Creating MarkovEstimatorState Object Pool");
         TypedPoolableObjectFactory<MarkovEstimatorState> s_factory = new MarkovEstimatorState.Factory(this.catalogContext);
         int num_idle = (int)(hstore_conf.site.network_incoming_limit_txns * hstore_conf.site.pool_scale_factor); 
         this.statesPool = new TypedObjectPool<MarkovEstimatorState>(s_factory, num_idle);
@@ -461,9 +463,10 @@ public class MarkovEstimator extends TransactionEstimator {
         long timestamp = -1l;
         assert(state.isInitialized()) : state.hashCode();
         assert(est.isInitialized()) : state.hashCode();
-        if (debug.val) LOG.debug(String.format("%s - Estimating execution path (%s)",
-                         TransactionUtil.formatTxnName(catalog_proc, state.getTransactionId()),
-                         (est.isInitialEstimate() ? "INITIAL" : "BATCH #" + est.getBatchId())));
+        if (debug.val)
+            LOG.debug(String.format("%s - Estimating execution path (%s)",
+                      TransactionUtil.formatTxnName(catalog_proc, state.getTransactionId()),
+                      (est.isInitialEstimate() ? "INITIAL" : "BATCH #" + est.getBatchId())));
         
         MarkovVertex currentVertex = est.getVertex();
         assert(currentVertex != null);
@@ -482,8 +485,9 @@ public class MarkovEstimator extends TransactionEstimator {
         if (hstore_conf.site.markov_fast_path && currentVertex.isStartVertex() == false) {
             List<MarkovVertex> initialPath = ((MarkovEstimate)state.getInitialEstimate()).getMarkovPath();
             if (initialPath.contains(currentVertex)) {
-                if (debug.val) LOG.debug(String.format("%s - Using fast path estimation for %s[#%d]",
-                                 TransactionUtil.formatTxnName(catalog_proc, state.getTransactionId()), markov, markov.getGraphId()));
+                if (debug.val)
+                    LOG.debug(String.format("%s - Using fast path estimation for %s[#%d]",
+                              TransactionUtil.formatTxnName(catalog_proc, state.getTransactionId()), markov, markov.getGraphId()));
                 if (this.profiler != null) timestamp = ProfileMeasurement.getTime();
                 try {
                     MarkovPathEstimator.fastEstimation(est, initialPath, currentVertex);
@@ -499,17 +503,20 @@ public class MarkovEstimator extends TransactionEstimator {
         else if (hstore_conf.site.markov_path_caching) {
             List<MarkovVertex> cached = this.cached_paths.get(markov);
             if (cached == null) {
-                if (debug.val) LOG.debug(String.format("%s - No cached path available for %s[#%d]",
-                                 TransactionUtil.formatTxnName(catalog_proc, state.getTransactionId()), markov, markov.getGraphId()));
+                if (debug.val)
+                    LOG.debug(String.format("%s - No cached path available for %s[#%d]",
+                              TransactionUtil.formatTxnName(catalog_proc, state.getTransactionId()), markov, markov.getGraphId()));
             }
             else if (markov.getAccuracyRatio() < hstore_conf.site.markov_path_caching_threshold) {
-                if (debug.val) LOG.debug(String.format("%s - MarkovGraph %s[#%d] accuracy is below caching threshold [%.02f < %.02f]",
-                        TransactionUtil.formatTxnName(catalog_proc, state.getTransactionId()),
-                        markov, markov.getGraphId(), markov.getAccuracyRatio(), hstore_conf.site.markov_path_caching_threshold));
+                if (debug.val)
+                    LOG.debug(String.format("%s - MarkovGraph %s[#%d] accuracy is below caching threshold [%.02f < %.02f]",
+                              TransactionUtil.formatTxnName(catalog_proc, state.getTransactionId()),
+                              markov, markov.getGraphId(), markov.getAccuracyRatio(), hstore_conf.site.markov_path_caching_threshold));
             }
             else {
-                if (debug.val) LOG.debug(String.format("%s - Using cached path for %s[#%d]",
-                                 TransactionUtil.formatTxnName(catalog_proc, state.getTransactionId()), markov, markov.getGraphId()));
+                if (debug.val)
+                    LOG.debug(String.format("%s - Using cached path for %s[#%d]",
+                              TransactionUtil.formatTxnName(catalog_proc, state.getTransactionId()), markov, markov.getGraphId()));
                 if (this.profiler != null) timestamp = ProfileMeasurement.getTime();
                 try {
                     MarkovPathEstimator.fastEstimation(est, cached, currentVertex);
@@ -522,8 +529,9 @@ public class MarkovEstimator extends TransactionEstimator {
         
         // Use the MarkovPathEstimator to estimate a new path for this txn
         if (compute_path) {
-            if (debug.val) LOG.debug(String.format("%s - Need to compute new path in %s[#%d] using MarkovPathEstimator",
-                             TransactionUtil.formatTxnName(catalog_proc, state.getTransactionId()), markov, markov.getGraphId()));
+            if (debug.val)
+                LOG.debug(String.format("%s - Need to compute new path in %s[#%d] using MarkovPathEstimator",
+                          TransactionUtil.formatTxnName(catalog_proc, state.getTransactionId()), markov, markov.getGraphId()));
             MarkovPathEstimator pathEstimator = null;
             try {
                 pathEstimator = (MarkovPathEstimator)this.pathEstimatorsPool.borrowObject();
@@ -591,7 +599,8 @@ public class MarkovEstimator extends TransactionEstimator {
         synchronized (current) {
             Collection<MarkovEdge> edges = markov.getOutEdges(current);
             if (edges != null) {
-                if (trace.val) LOG.trace("Examining " + edges.size() + " edges from " + current + " for txn #" + state.getTransactionId());
+                if (trace.val)
+                    LOG.trace("Examining " + edges.size() + " edges from " + current + " for txn #" + state.getTransactionId());
                 for (MarkovEdge e : edges) {
                     MarkovVertex v = markov.getDest(e);
                     if (v.isEqual(catalog_stmt, partitions, touchedPartitions, queryCounter)) {
@@ -618,8 +627,9 @@ public class MarkovEstimator extends TransactionEstimator {
                                   TransactionUtil.formatTxnName(markov.getProcedure(), state.getTransactionId())); 
                 markov.addVertex(next_v);
                 next_e = markov.addToEdge(current, next_v);
-                if (trace.val) LOG.trace(String.format("Created new edge from %s to new vertex %s for txn #%d", 
-                                 state.getCurrent(), next_v, state.getTransactionId()));
+                if (trace.val)
+                    LOG.trace(String.format("Created new edge from %s to new vertex %s for txn #%d", 
+                              state.getCurrent(), next_v, state.getTransactionId()));
                 // assert(state.getCurrent().getPartitions().size() <= touchedPartitions.size());
             }
         } // SYNCH
@@ -635,7 +645,8 @@ public class MarkovEstimator extends TransactionEstimator {
         
         // Update the state information
         state.setCurrent(next_v, next_e);
-        if (trace.val) LOG.trace("Updated State Information for Txn #" + state.getTransactionId() + ":\n" + state);
+        if (trace.val)
+            LOG.trace("Updated State Information for Txn #" + state.getTransactionId() + ":\n" + state);
         if (this.profiler != null) this.profiler.consume_time.appendTime(timestamp);
         return (next_v);
     }
@@ -648,7 +659,8 @@ public class MarkovEstimator extends TransactionEstimator {
         Long txn_id = txn_trace.getTransactionId();
         if (debug.val) {
             LOG.debug("Processing TransactionTrace #" + txn_id);
-            if (trace.val) LOG.trace(txn_trace.debug(this.catalogContext.database));
+            if (trace.val)
+                LOG.trace(txn_trace.debug(this.catalogContext.database));
         }
         MarkovEstimatorState s = (MarkovEstimatorState)this.startTransaction(txn_id,
                                                txn_trace.getCatalogItem(this.catalogContext.database),
