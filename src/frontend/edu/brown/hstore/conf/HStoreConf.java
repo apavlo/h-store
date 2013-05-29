@@ -540,6 +540,13 @@ public final class HStoreConf {
         public boolean specexec_profiling;
         
         @ConfigProperty(
+            description="",
+            defaultDouble=0.1,
+            experimental=true
+        )
+        public double specexec_profiling_sample;
+        
+        @ConfigProperty(
             description="Speculative policy to pick the transactions to run speculatively. ",
             defaultString="FIRST",
             experimental=false,
