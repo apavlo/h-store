@@ -2,6 +2,7 @@ package edu.brown.hstore;
 
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.Random;
 import java.util.Set;
 
 import org.apache.log4j.Logger;
@@ -64,6 +65,8 @@ public class SpecExecScheduler {
      */
     private final SpecExecProfiler profilerMap[];
     private boolean profiling = false;
+    private double profiling_sample;
+    private final Random profiling_rand = new Random();
     private AbstractTransaction profilerCurrentTxn;
     private final FastIntHistogram profilerExecuteCounter = new FastIntHistogram(SpeculationType.values().length);
     
@@ -86,6 +89,7 @@ public class SpecExecScheduler {
         this.windowSize = window_size;
         
         this.profiling = HStoreConf.singleton().site.specexec_profiling;
+        this.profiling_sample = HStoreConf.singleton().site.specexec_profiling_sample;
         this.profilerExecuteCounter.setKeepZeroEntries(true);
         this.profilerMap = new SpecExecProfiler[SpeculationType.values().length];
         if (this.profiling) {
@@ -167,7 +171,7 @@ public class SpecExecScheduler {
         }
         
         SpecExecProfiler profiler = null;
-        if (this.profiling) {
+        if (this.profiling && this.profiling_rand.nextDouble() < this.profiling_sample) {
             if (this.profilerCurrentTxn != dtxn && this.profilerCurrentTxn != null) {
                 for (int i = 0; i < this.profilerMap.length; i++) {
                     int cnt = (int)this.profilerExecuteCounter.get(i, 0);
@@ -185,7 +189,7 @@ public class SpecExecScheduler {
             if (debug.val)
                 LOG.debug(String.format("%s - Ignoring txn because we are set to ignore %s",
                           dtxn, specType));
-            if (this.profiling) profiler.total_time.stop();
+            if (profiler != null) profiler.total_time.stop();
             return (null);
         }
         
@@ -202,7 +206,7 @@ public class SpecExecScheduler {
                 if (debug.val)
                     LOG.debug(String.format("%s - Ignoring current distributed txn because all of the partitions that " +
                               "it is using are on the same HStoreSite [%s]", dtxn, dtxn.getProcedure()));
-                if (this.profiling) profiler.total_time.stop();
+                if (profiler != null) profiler.total_time.stop();
                 return (null);
             }
         }
@@ -223,7 +227,7 @@ public class SpecExecScheduler {
             this.lastIterator = this.queue.iterator();    
         }
         boolean resetIterator = true;
-        if (this.profiling) profiler.queue_size.put(this.queue.size());
+        if (profiler != null) profiler.queue_size.put(this.queue.size());
         boolean lastHasNext;
         if (trace.val) LOG.trace(StringUtil.header("BEGIN QUEUE CHECK :: " + dtxn));
         while ((lastHasNext = this.lastIterator.hasNext()) == true) {
@@ -231,7 +235,7 @@ public class SpecExecScheduler {
                 if (debug.val)
                     LOG.warn(String.format("Search interrupted after %d examinations [%s]",
                              examined_ctr, this.latchMsg.getSimpleName()));
-                if (this.profiling) profiler.interrupts++;
+                if (profiler != null) profiler.interrupts++;
                 break;
             }
             
@@ -256,7 +260,7 @@ public class SpecExecScheduler {
             }
 
             // Let's check it out!
-            if (this.profiling) profiler.compute_time.start();
+            if (profiler != null) profiler.compute_time.start();
             if (singlePartition == false) {
                 if (trace.val)
                     LOG.trace(String.format("Skipping %s because it is not single-partitioned", localTxn));
@@ -314,17 +318,17 @@ public class SpecExecScheduler {
                 if (examined_ctr == this.windowSize) break;
                 
             } finally {
-                if (this.profiling) profiler.compute_time.stop();
+                if (profiler != null) profiler.compute_time.stop();
             }
         } // WHILE
         if (trace.val) LOG.trace(StringUtil.header("END QUEUE CHECK"));
-        if (this.profiling) profiler.num_comparisons.put(txn_ctr);
+        if (profiler != null) profiler.num_comparisons.put(txn_ctr);
         
         // We found somebody to execute right now!
         // Make sure that we set the speculative flag to true!
         if (next != null) {
             next.markReleased(this.partitionId);
-            if (this.profiling) {
+            if (profiler != null) {
                 this.profilerExecuteCounter.put(specType.ordinal());
                 profiler.success++;
             }
@@ -346,7 +350,7 @@ public class SpecExecScheduler {
         this.lastSpecType = specType;
         if (resetIterator || lastHasNext == false) this.lastIterator = null;
         else if (this.ignore_queue_size_change == false) this.lastSize = this.queue.size();
-        if (this.profiling) profiler.total_time.stop();
+        if (profiler != null) profiler.total_time.stop();
         return (next);
     }
     
