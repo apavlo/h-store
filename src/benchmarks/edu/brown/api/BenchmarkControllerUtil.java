@@ -2,6 +2,9 @@ package edu.brown.api;
 
 import org.voltdb.SysProcSelector;
 
+import edu.brown.statistics.Histogram;
+import edu.brown.statistics.HistogramUtil;
+
 public abstract class BenchmarkControllerUtil {
 
     public static class ProfilingOutput {
@@ -41,6 +44,24 @@ public abstract class BenchmarkControllerUtil {
     
     public static String getClientName(String host, int id) {
         return String.format("%s-%03d", host, id);
+    }
+    
+    /**
+     * Return an array with stats about latencies recorded in a Histogram:
+     * [0] - Min Latency
+     * [1] - Max Latency
+     * [2] - Average Latency
+     * [3] - Stdev Latency
+     * @param latencies
+     * @return
+     */
+    public static double[] computeLatencies(Histogram<Integer> latencies) {
+        double minLatency = latencies.getMinValue().doubleValue();
+        double maxLatency = latencies.getMaxValue().doubleValue();
+        double avgLatency = HistogramUtil.sum(latencies) / (double)latencies.getSampleCount();
+        double stdDevLatency = HistogramUtil.stdev(latencies);
+        
+        return new double[]{ minLatency, maxLatency, avgLatency, stdDevLatency };
     }
     
 }
