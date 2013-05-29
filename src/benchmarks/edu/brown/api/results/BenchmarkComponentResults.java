@@ -42,7 +42,8 @@ public class BenchmarkComponentResults implements JSONSerializable {
     /**
      * Transaction Name Index -> Latencies
      */
-    public final Map<Integer, ObjectHistogram<Integer>> latencies = new HashMap<Integer, ObjectHistogram<Integer>>();
+    public final Map<Integer, ObjectHistogram<Integer>> spLatencies = new HashMap<Integer, ObjectHistogram<Integer>>();
+    public final Map<Integer, ObjectHistogram<Integer>> dtxnLatencies = new HashMap<Integer, ObjectHistogram<Integer>>();
     
     public FastIntHistogram basePartitions = new FastIntHistogram(true);
     private boolean enableBasePartitions = false;
@@ -72,13 +73,21 @@ public class BenchmarkComponentResults implements JSONSerializable {
         copy.dtxns.setDebugLabels(this.transactions.getDebugLabels());
         copy.dtxns.put(this.dtxns);
         
-        copy.latencies.clear();
-        for (Entry<Integer, ObjectHistogram<Integer>> e : this.latencies.entrySet()) {
+        copy.spLatencies.clear();
+        copy.dtxnLatencies.clear();
+        for (Entry<Integer, ObjectHistogram<Integer>> e : this.spLatencies.entrySet()) {
             ObjectHistogram<Integer> h = new ObjectHistogram<Integer>();
             synchronized (e.getValue()) {
                 h.put(e.getValue());
             } // SYNCH
-            copy.latencies.put(e.getKey(), h);
+            copy.spLatencies.put(e.getKey(), h);
+        } // FOR
+        for (Entry<Integer, ObjectHistogram<Integer>> e : this.dtxnLatencies.entrySet()) {
+            ObjectHistogram<Integer> h = new ObjectHistogram<Integer>();
+            synchronized (e.getValue()) {
+                h.put(e.getValue());
+            } // SYNCH
+            copy.dtxnLatencies.put(e.getKey(), h);
         } // FOR
         
         copy.enableBasePartitions = this.enableBasePartitions;
@@ -110,7 +119,8 @@ public class BenchmarkComponentResults implements JSONSerializable {
             this.specexecs.clearValues();
             this.dtxns.clearValues();
         }
-        this.latencies.clear();
+        this.spLatencies.clear();
+        this.dtxnLatencies.clear();
         this.basePartitions.clearValues();
         this.responseStatuses.clearValues();
     }
@@ -141,7 +151,8 @@ public class BenchmarkComponentResults implements JSONSerializable {
     }
     @Override
     public void fromJSON(JSONObject json_object, Database catalog_db) throws JSONException {
-        this.latencies.clear();
+        this.spLatencies.clear();
+        this.dtxnLatencies.clear();
         Field fields[] = JSONUtil.getSerializableFields(this.getClass());
         JSONUtil.fieldsFromJSON(json_object, catalog_db, this, BenchmarkComponentResults.class, true, fields);
         assert(this.transactions != null);

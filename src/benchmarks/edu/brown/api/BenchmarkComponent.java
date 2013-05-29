@@ -920,10 +920,10 @@ public abstract class BenchmarkComponent {
             
             // TRANSACTION COUNTERS
             boolean is_specexec = cresponse.isSpeculative();
-            boolean is_dtxn = cresponse.isSinglePartition(); 
+            boolean is_dtxn = (cresponse.isSinglePartition() == false); 
             synchronized (m_txnStats.transactions) {
                 m_txnStats.transactions.put(txn_idx);
-                if (is_dtxn == false) m_txnStats.dtxns.put(txn_idx);
+                if (is_dtxn) m_txnStats.dtxns.put(txn_idx);
                 if (is_specexec) m_txnStats.specexecs.put(txn_idx);
             } // SYNCH
 
@@ -931,13 +931,14 @@ public abstract class BenchmarkComponent {
             // Ignore zero latencies... Not sure why this happens...
             int latency = cresponse.getClusterRoundtrip();
             if (latency > 0) {
-                Histogram<Integer> latencies = m_txnStats.latencies.get(txn_idx);
+                final Map<Integer, ObjectHistogram<Integer>> latenciesMap = (is_dtxn ? m_txnStats.dtxnLatencies : m_txnStats.spLatencies); 
+                Histogram<Integer> latencies = latenciesMap.get(txn_idx);
                 if (latencies == null) {
-                    synchronized (m_txnStats.latencies) {
-                        latencies = m_txnStats.latencies.get(txn_idx);
+                    synchronized (latenciesMap) {
+                        latencies = latenciesMap.get(txn_idx);
                         if (latencies == null) {
                             latencies = new ObjectHistogram<Integer>();
-                            m_txnStats.latencies.put(txn_idx, (ObjectHistogram<Integer>)latencies);
+                            latenciesMap.put(txn_idx, (ObjectHistogram<Integer>)latencies);
                         }
                     } // SYNCH
                 }

@@ -8,8 +8,8 @@ import org.json.JSONObject;
 import org.json.JSONStringer;
 import org.voltdb.catalog.Database;
 
+import edu.brown.api.BenchmarkControllerUtil;
 import edu.brown.statistics.Histogram;
-import edu.brown.statistics.HistogramUtil;
 import edu.brown.utils.JSONSerializable;
 import edu.brown.utils.JSONUtil;
 
@@ -22,12 +22,23 @@ public class EntityResult implements JSONSerializable {
     public long dtxnCount;
     public double dtxnPercentage;
     
-    public double txnAvgLatency = 0d;
-    public double txnStdDevLatency = 0d;
-    public double txnMinLatency = 0d;
-    public double txnMaxLatency = 0d;
+    public double totalAvgLatency = 0d;
+    public double totalStdevLatency = 0d;
+    public double totalMinLatency = 0d;
+    public double totalMaxLatency = 0d;
     
-    public EntityResult(long totalTxnCount, long duration, long txnCount, long dtxnCount, Histogram<Integer> latencies) {
+    public double spAvgLatency = 0d;
+    public double spStdevLatency = 0d;
+    public double spMinLatency = 0d;
+    public double spMaxLatency = 0d;
+    
+    public double dtxnAvgLatency = 0d;
+    public double dtxnStdevLatency = 0d;
+    public double dtxnMinLatency = 0d;
+    public double dtxnMaxLatency = 0d;
+    
+    public EntityResult(long totalTxnCount, long duration, long txnCount, long dtxnCount,
+                        Histogram<Integer> totalLatencies, Histogram<Integer> spLatencies, Histogram<Integer> dtxnLatencies) {
         this.txnCount = txnCount;
         this.dtxnCount = dtxnCount;
         if (totalTxnCount == 0) {
@@ -35,10 +46,10 @@ public class EntityResult implements JSONSerializable {
             this.txnPercentage = 0;
             this.txnPerMilli = 0;
             this.txnPerSecond = 0;
-            this.txnAvgLatency = 0;
-            this.txnStdDevLatency = 0;
-            this.txnMinLatency = 0;
-            this.txnMaxLatency = 0;
+            this.totalAvgLatency = 0;
+            this.totalStdevLatency = 0;
+            this.totalMinLatency = 0;
+            this.totalMaxLatency = 0;
         } else {
             this.txnPercentage = (txnCount / (double)totalTxnCount) * 100;
             this.txnPerMilli = txnCount / (double)duration * 1000.0;
@@ -49,14 +60,29 @@ public class EntityResult implements JSONSerializable {
                 this.dtxnPercentage = 0;
             }
             
-            if (latencies.getMinValue() != null)
-                this.txnMinLatency = latencies.getMinValue().doubleValue();
-            if (latencies.getMaxValue() != null)
-                this.txnMaxLatency = latencies.getMaxValue().doubleValue();
-            
-            if (latencies.isEmpty() == false) {
-                this.txnAvgLatency = HistogramUtil.sum(latencies) / (double)latencies.getSampleCount();
-                this.txnStdDevLatency = HistogramUtil.stdev(latencies);
+            if (totalLatencies.isEmpty() == false) {
+                double x[] = BenchmarkControllerUtil.computeLatencies(totalLatencies);
+                int i = 0;
+                this.totalMinLatency = x[i++];
+                this.totalMaxLatency = x[i++];
+                this.totalAvgLatency = x[i++];
+                this.totalStdevLatency = x[i++];
+            }
+            if (spLatencies.isEmpty() == false) {
+                double x[] = BenchmarkControllerUtil.computeLatencies(spLatencies);
+                int i = 0;
+                this.spMinLatency = x[i++];
+                this.spMaxLatency = x[i++];
+                this.spAvgLatency = x[i++];
+                this.spStdevLatency = x[i++];
+            }
+            if (dtxnLatencies.isEmpty() == false) {
+                double x[] = BenchmarkControllerUtil.computeLatencies(dtxnLatencies);
+                int i = 0;
+                this.dtxnMinLatency = x[i++];
+                this.dtxnMaxLatency = x[i++];
+                this.dtxnAvgLatency = x[i++];
+                this.dtxnStdevLatency = x[i++];
             }
         }
     }
@@ -85,17 +111,44 @@ public class EntityResult implements JSONSerializable {
     public double getTxnPerSecond() {
         return this.txnPerSecond;
     }
-    public double getTxnAvgLatency() {
-        return this.txnAvgLatency;
+    
+    public double getTotalAvgLatency() {
+        return this.totalAvgLatency;
     }
-    public double getTxnStdDevLatency() {
-        return this.txnStdDevLatency;
+    public double getTotalStdevLatency() {
+        return this.totalStdevLatency;
     }
-    public double getTxnMinLatency() {
-        return this.txnMinLatency;
+    public double getTotalMinLatency() {
+        return this.totalMinLatency;
     }
-    public double getTxnMaxLatency() {
-        return this.txnMaxLatency;
+    public double getTotalMaxLatency() {
+        return this.totalMaxLatency;
+    }
+    
+    public double getSinglePartitionAvgLatency() {
+        return this.totalAvgLatency;
+    }
+    public double getSinglePartitionStdevLatency() {
+        return this.totalStdevLatency;
+    }
+    public double getSinglePartitionMinLatency() {
+        return this.totalMinLatency;
+    }
+    public double getSinglePartitionMaxLatency() {
+        return this.totalMaxLatency;
+    }
+    
+    public double getDistributedAvgLatency() {
+        return this.totalAvgLatency;
+    }
+    public double getDistributedStdevLatency() {
+        return this.totalStdevLatency;
+    }
+    public double getDistributedMinLatency() {
+        return this.totalMinLatency;
+    }
+    public double getDistributedMaxLatency() {
+        return this.totalMaxLatency;
     }
 
     // ----------------------------------------------------------------------------

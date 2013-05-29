@@ -83,7 +83,7 @@ public class CSVResultsPrinter implements BenchmarkInterest {
         double intervalThroughput = txnDelta / (double)(br.getIntervalDuration()) * 1000.0;
         
         // INTERVAL LATENCY
-        Histogram<Integer> lastLatencies = br.getLastLatencies();
+        Histogram<Integer> lastLatencies = br.getLastSinglePartitionLatencies();
         double intervalLatency = HistogramUtil.sum(lastLatencies) / (double)lastLatencies.getSampleCount();
         
         Object row[] = {

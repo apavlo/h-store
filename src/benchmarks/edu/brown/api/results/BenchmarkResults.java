@@ -63,7 +63,8 @@ public class BenchmarkResults {
         public final long transactionCount;
         public final long specexecCount;
         public final long dtxnCount;
-        public final Histogram<Integer> latencies = new ObjectHistogram<Integer>();
+        public final Histogram<Integer> spLatencies = new ObjectHistogram<Integer>();
+        public final Histogram<Integer> dtxnLatencies = new ObjectHistogram<Integer>();
         
         public Result(long timestamp, long benchmarkTimeDelta, long transactionCount, long specexecCount, long dtxnCount) {
             this.timestamp = timestamp;
@@ -193,50 +194,90 @@ public class BenchmarkResults {
         return (this.responseStatuses);
     }
 
-    public Histogram<Integer> getAllLatencies() {
+    private Histogram<Integer> getAllLatencies(boolean dtxn) {
         ObjectHistogram<Integer> latencies = new ObjectHistogram<Integer>();
         for (Map<String, List<Result>> clientResults : data.values()) {
             for (List<Result> txnResults : clientResults.values()) {
                 for (Result r : txnResults) {
-                    latencies.put(r.latencies);
+                    latencies.put(dtxn ? r.dtxnLatencies : r.spLatencies);
                 } // FOR
             } // FOR
         } // FOR
         return (latencies);
     }
     
-    public Histogram<Integer> getLastLatencies() {
+    public Histogram<Integer> getAllSinglePartitionLatencies() {
+        return this.getAllLatencies(false);
+    }
+    public Histogram<Integer> getAllDistributedLatencies() {
+        return this.getAllLatencies(true);
+    }
+    
+    private Histogram<Integer> getLastLatencies(boolean dtxn) {
         Histogram<Integer> latencies = new ObjectHistogram<Integer>();
         for (Map<String, List<Result>> clientResults : data.values()) {
             for (List<Result> txnResults : clientResults.values()) {
                 Result r = CollectionUtil.last(txnResults);
-                if (r != null) latencies.put(r.latencies);
+                if (r != null) latencies.put(dtxn ? r.dtxnLatencies : r.spLatencies);
             } // FOR
         } // FOR
         return (latencies);
     }
     
-    public Histogram<Integer> getLatenciesForClient(String clientName) {
+    public Histogram<Integer> getLastSinglePartitionLatencies() {
+        return this.getLastLatencies(false);
+    }
+    public Histogram<Integer> getLastDistributedLatencies() {
+        return this.getLastLatencies(true);
+    }
+    
+    private Histogram<Integer> getClientLatencies(String clientName, boolean dtxn) {
         Histogram<Integer> latencies = new ObjectHistogram<Integer>();
         Map<String, List<Result>> clientResults = data.get(clientName);
         if (clientResults == null) return (latencies);
         for (List<Result> results : clientResults.values()) {
             for (Result r : results) {
-                latencies.put(r.latencies);
+                latencies.put(dtxn ? r.dtxnLatencies : r.spLatencies);
             } // FOR
         } // FOR
         return (latencies);
     }
     
-    public Histogram<Integer> getLatenciesForTransaction(String txnName) {
+    public Histogram<Integer> getClientTotalLatencies(String clientName) {
+        Histogram<Integer> latencies = new ObjectHistogram<Integer>();
+        latencies.put(this.getClientLatencies(clientName, false));
+        latencies.put(this.getClientLatencies(clientName, true));
+        return (latencies);
+    }
+    public Histogram<Integer> getClientSinglePartitionLatencies(String clientName) {
+        return this.getClientLatencies(clientName, false);
+    }
+    public Histogram<Integer> getClientDistributedLatencies(String clientName) {
+        return this.getClientLatencies(clientName, true);
+    }
+    
+    private Histogram<Integer> getTransactionLatencies(String txnName, boolean dtxn) {
         Histogram<Integer> latencies = new ObjectHistogram<Integer>();
         for (Map<String, List<Result>> clientResults : data.values()) {
             if (clientResults.containsKey(txnName) == false) continue;
             for (Result r : clientResults.get(txnName)) {
-                latencies.put(r.latencies);
+                latencies.put(dtxn ? r.dtxnLatencies : r.spLatencies);
             } // FOR
         } // FOR
         return (latencies);
+    }
+    
+    public Histogram<Integer> getTransactionTotalLatencies(String txnName) {
+        Histogram<Integer> latencies = new ObjectHistogram<Integer>();
+        latencies.put(this.getTransactionLatencies(txnName, false));
+        latencies.put(this.getTransactionLatencies(txnName, true));
+        return (latencies);
+    }
+    public Histogram<Integer> getTransactionSinglePartitionLatencies(String txnName) {
+        return this.getTransactionLatencies(txnName, false);
+    }
+    public Histogram<Integer> getTransactionDistributedLatencies(String txnName) {
+        return this.getTransactionLatencies(txnName, true);
     }
     
     public Result[] getResultsForClientAndTransaction(String clientName, String txnName) {
@@ -387,11 +428,19 @@ public class BenchmarkResults {
                                       cmpResults.transactions.get(offset.intValue(), 0),
                                       cmpResults.specexecs.get(offset.intValue(), 0),
                                       cmpResults.dtxns.get(offset.intValue(), 0));
-                if (cmpResults.latencies != null) {
-                    Histogram<Integer> latencies = cmpResults.latencies.get(offset);
+                if (cmpResults.spLatencies != null) {
+                    Histogram<Integer> latencies = cmpResults.spLatencies.get(offset);
                     if (latencies != null) {
                         synchronized (latencies) {
-                            r.latencies.put(latencies);
+                            r.spLatencies.put(latencies);
+                        } // SYNCH
+                    }
+                }
+                if (cmpResults.dtxnLatencies != null) {
+                    Histogram<Integer> latencies = cmpResults.dtxnLatencies.get(offset);
+                    if (latencies != null) {
+                        synchronized (latencies) {
+                            r.dtxnLatencies.put(latencies);
                         } // SYNCH
                     }
                 }
