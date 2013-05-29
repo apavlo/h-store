@@ -612,7 +612,8 @@ public class HStoreCoordinator implements Shutdownable {
             ByteBuffer serializedRequest = request.getWork().asReadOnlyByteBuffer();
             TransactionRedirectResponseCallback callback = null;
             try {
-                callback = hstore_site.getObjectPools().CALLBACKS_TXN_REDIRECT_RESPONSE.borrowObject();
+                // callback = hstore_site.getObjectPools().CALLBACKS_TXN_REDIRECT_RESPONSE.borrowObject();
+                callback = new TransactionRedirectResponseCallback(hstore_site);
                 callback.init(local_site_id, request.getSenderSite(), done);
             } catch (Exception ex) {
                 String msg = "Failed to get " + TransactionRedirectResponseCallback.class.getSimpleName();
