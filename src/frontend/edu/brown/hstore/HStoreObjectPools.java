@@ -37,7 +37,7 @@ public final class HStoreObjectPools implements Configurable {
     /**
      * ForwardTxnRequestCallback Pool
      */
-    public final TypedObjectPool<RedirectCallback> CALLBACKS_TXN_REDIRECT_REQUEST;
+//    public final TypedObjectPool<RedirectCallback> CALLBACKS_TXN_REDIRECT_REQUEST;
     
     /**
      * ForwardTxnResponseCallback Pool
@@ -81,9 +81,9 @@ public final class HStoreObjectPools implements Configurable {
         // -------------------------------
         // GLOBAL CALLBACK POOLS
         // -------------------------------
-        this.CALLBACKS_TXN_REDIRECT_REQUEST = TypedObjectPool.factory(RedirectCallback.class,
-                (int)(hstore_conf.site.pool_txnredirect_idle * hstore_conf.site.pool_scale_factor),
-                hstore_conf.site.pool_profiling, hstore_site);
+//        this.CALLBACKS_TXN_REDIRECT_REQUEST = TypedObjectPool.factory(RedirectCallback.class,
+//                (int)(hstore_conf.site.pool_txnredirect_idle * hstore_conf.site.pool_scale_factor),
+//                hstore_conf.site.pool_profiling, hstore_site);
         this.CALLBACKS_TXN_REDIRECT_RESPONSE = TypedObjectPool.factory(TransactionRedirectResponseCallback.class,
                 (int)(hstore_conf.site.pool_txnredirectresponses_idle * hstore_conf.site.pool_scale_factor),
                 hstore_conf.site.pool_profiling, hstore_site);
@@ -94,13 +94,13 @@ public final class HStoreObjectPools implements Configurable {
         
         // If there are no prefetchable queries or MapReduce procedures in the catalog, then we will not
         // create these special object pools
-        boolean needsPrefetch = false;
-        for (Procedure catalog_proc : catalogContext.procedures) {
-            if (catalog_proc.getPrefetchable() && hstore_conf.site.exec_prefetch_queries) {
-                needsPrefetch = true;
-                break;
-            }
-        } // FOR
+//        boolean needsPrefetch = false;
+//        for (Procedure catalog_proc : catalogContext.procedures) {
+//            if (catalog_proc.getPrefetchable() && hstore_conf.site.exec_prefetch_queries) {
+//                needsPrefetch = true;
+//                break;
+//            }
+//        } // FOR
         
         // We will have one object pool per local partition
         this.STATES_TXN_LOCAL = (TypedObjectPool<LocalTransaction>[])new TypedObjectPool<?>[catalogContext.numberOfPartitions];
