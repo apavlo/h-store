@@ -62,6 +62,7 @@ import edu.brown.hstore.Hstoreservice.TransactionReduceRequest;
 import edu.brown.hstore.Hstoreservice.TransactionReduceResponse;
 import edu.brown.hstore.Hstoreservice.TransactionWorkRequest;
 import edu.brown.hstore.Hstoreservice.TransactionWorkResponse;
+import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.callbacks.ShutdownPrepareCallback;
 import edu.brown.hstore.callbacks.LocalFinishCallback;
 import edu.brown.hstore.callbacks.TransactionPrefetchCallback;
@@ -829,8 +830,9 @@ public class HStoreCoordinator implements Shutdownable {
             assert(sent_ctr > 0) : 
                 String.format("No %s available for %s", TransactionInitRequest.class.getSimpleName(), ts);
             if (debug.val)
-                LOG.debug(String.format("%s - Sent %d %s with %d prefetch WorkFragments",
-                          ts, sent_ctr, TransactionInitRequest.class.getSimpleName(), prefetch_ctr));
+                LOG.debug(String.format("%s - Sent %d %s with %d prefetch %s",
+                          ts, sent_ctr, TransactionInitRequest.class.getSimpleName(),
+                          prefetch_ctr, WorkFragment.class.getSimpleName()));
         }
         // Otherwise we will send the same TransactionInitRequest to all of the remote sites 
         else {
