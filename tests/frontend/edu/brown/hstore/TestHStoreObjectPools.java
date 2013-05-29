@@ -37,19 +37,19 @@ public class TestHStoreObjectPools extends BaseTestCase {
         if (this.hstore_site != null) this.hstore_site.shutdown();
     }
 
-    /**
-     * testGetGlobalPools
-     */
-    @Test
-    public void testGetGlobalPools() throws Exception {
-        Map<String, TypedObjectPool<?>> globalPools = this.objectPools.getGlobalPools();
-        assertNotNull(globalPools);
-        assertFalse(globalPools.isEmpty());
-        for (String name : globalPools.keySet()) {
-            TypedObjectPool<?> pool = globalPools.get(name);
-            assertNotNull(name, pool);
-        } // FOR
-    }
+//    /**
+//     * testGetGlobalPools
+//     */
+//    @Test
+//    public void testGetGlobalPools() throws Exception {
+//        Map<String, TypedObjectPool<?>> globalPools = this.objectPools.getGlobalPools();
+//        assertNotNull(globalPools);
+//        assertFalse(globalPools.isEmpty());
+//        for (String name : globalPools.keySet()) {
+//            TypedObjectPool<?> pool = globalPools.get(name);
+//            assertNotNull(name, pool);
+//        } // FOR
+//    }
     
     /**
      * testGetPartitionedPools
