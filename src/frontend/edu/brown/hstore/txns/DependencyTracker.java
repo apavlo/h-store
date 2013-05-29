@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
@@ -201,10 +202,28 @@ public class DependencyTracker {
                 } catch (IllegalAccessException ex) {
                     throw new RuntimeException(ex);
                 }
-                if ((obj instanceof DependencyTracker) == false) {
-                    String name = StringUtil.title(f.getName().replace("_", " ")); 
-                    m.put(name, obj);
+                // Skip parent reference
+                if (obj instanceof DependencyTracker) continue;
+                
+                if (obj == this.dependencies) {
+                    Map<Integer, Object> inner = new TreeMap<Integer, Object>();
+                    for (Entry<Integer, DependencyInfo> e : this.dependencies.entrySet()) {
+                        inner.put(e.getKey(), e.getValue().debug());
+                    }
+                    obj = inner;
                 }
+                else if (obj == this.prefetch_dependencies) {
+                    Map<Integer, Object> inner = new TreeMap<Integer, Object>();
+                    for (Integer stmtCounter : this.prefetch_dependencies.keySet()) {
+                        Map<Integer, Object> stmtDeps = new LinkedHashMap<Integer, Object>();
+                        for (Entry<Integer, DependencyInfo> e : this.prefetch_dependencies.get(stmtCounter).entrySet()) {
+                            stmtDeps.put(e.getKey(), e.getValue().debug());
+                        } // FOR
+                        inner.put(stmtCounter, stmtDeps);
+                    } // FOR
+                    obj = inner;
+                }
+                m.put(StringUtil.title(f.getName().replace("_", " ")), obj);
             } // FOR
             return (m);
         }
