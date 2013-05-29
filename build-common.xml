@@ -59,7 +59,6 @@
 <arg value="client.output_basepartitions=${client.output_basepartitions}" />
 <arg value="client.output_response_status=${client.output_response_status}" />
 <arg value="client.output_status=${client.output_status}" />
-<arg value="client.output_specexec=${client.output_specexec}" />
 <arg value="client.output_results_table=${client.output_results_table}" />
 <arg value="client.output_json=${client.output_json}" />
 <arg value="client.output_results_json=${client.output_results_json}" />

@@ -4381,8 +4381,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 if (status != Status.OK && ts.isExecReadOnly(this.partitionId) == false) {
                     // We need to get the first undo tokens for our distributed transaction
                     long dtxnUndoToken = ts.getFirstUndoToken(this.partitionId);
-                    if (debug.val) LOG.debug(String.format("%s - Looking for speculative txns to commit before we rollback undoToken %d",
-                                     ts, dtxnUndoToken));
+                    if (debug.val)
+                        LOG.debug(String.format("%s - Looking for speculative txns to commit before we rollback undoToken %d",
+                                  ts, dtxnUndoToken));
                     
                     long spec_token;
                     long max_token = HStoreConstants.NULL_UNDO_LOGGING_TOKEN;
@@ -4413,8 +4414,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                         }
                     } // FOR
                     if (debug.val)
-                        LOG.debug(String.format("%s - Found %d speculative txns at partition %d that need to be committed " +
-                                  "*before* we abort this txn",
+                        LOG.debug(String.format("%s - Found %d speculative txns at partition %d that need to be " +
+                        		  "committed *before* we abort this txn",
                                   ts, tmp_toCommit.size(), this.partitionId));
     
                     // Commit the greatest token that we've seen. This means that
@@ -4451,7 +4452,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                         spec_ts = pair.getFirst(); 
                         spec_cr = pair.getSecond();
                         
-                        MispredictionException error = new MispredictionException(spec_ts.getTransactionId(), spec_ts.getTouchedPartitions());
+                        MispredictionException error = new MispredictionException(spec_ts.getTransactionId(),
+                                                                                  spec_ts.getTouchedPartitions());
                         spec_ts.setPendingError(error, false);
                         spec_cr.setStatus(Status.ABORT_SPECULATIVE);
                         this.processClientResponse(spec_ts, spec_cr);
