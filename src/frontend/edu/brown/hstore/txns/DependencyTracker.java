@@ -174,8 +174,8 @@ public class DependencyTracker {
          * until the transaction is finished.
          */
         public void clear() {
-            if (debug.val)
-                LOG.debug("Clearing out internal state for " + this);
+            if (trace.val)
+                LOG.trace("Clearing out internal state for " + this);
             
             this.dependencies.clear();
             this.output_order.clear();
@@ -250,15 +250,15 @@ public class DependencyTracker {
         // FIXME
         TransactionState state = new TransactionState(ts);
         this.txnStates.put(ts.getTransactionId(), state);
-        if (debug.val)
-            LOG.debug(String.format("Added %s to %s", ts, this));
+        if (trace.val)
+            LOG.trace(String.format("Added %s to %s", ts, this));
     }
     
     public void removeTransaction(LocalTransaction ts) {
         // FIXME
         TransactionState state = this.txnStates.remove(ts.getTransactionId());
-        if (debug.val && state != null) {
-            LOG.debug(String.format("Removed %s from %s", ts, this));
+        if (trace.val && state != null) {
+            LOG.trace(String.format("Removed %s from %s", ts, this));
         }
     }
     
@@ -292,7 +292,7 @@ public class DependencyTracker {
                           ts, state.dependencies.size(), stmtIndex, currentRound));
             for (DependencyInfo dinfo : state.dependencies.values()) {
                 if (trace.val)
-                    LOG.debug(String.format("%s - Checking %s", ts, dinfo));
+                    LOG.trace(String.format("%s - Checking %s", ts, dinfo));
                 
                 // Add this DependencyInfo our output list if it's being used in this round for this txn
                 // and if it is not an internal dependency
@@ -344,7 +344,7 @@ public class DependencyTracker {
         if (state.dependency_latch != null) {
             assert(state.dependency_latch.getCount() == 0);
             if (trace.val)
-                LOG.debug("Setting CountDownLatch to null for " + ts);
+                LOG.trace("Setting CountDownLatch to null for " + ts);
             state.dependency_latch = null;
         }
         state.clear();
@@ -385,23 +385,23 @@ public class DependencyTracker {
         DependencyInfo dinfo = state.dependencies.get(dep_id);
         
         if (dinfo != null) {
-            if (debug.val)
-                LOG.debug(String.format("%s - Reusing DependencyInfo[hashCode=%d] for %s. " +
+            if (trace.val)
+                LOG.trace(String.format("%s - Reusing DependencyInfo[hashCode=%d] for %s. " +
                           "Checking whether it needs to be reset " +
                           "[currentRound=%d, lastRound=%d, lastTxn=%s]",
                           ts, dinfo.hashCode(), TransactionUtil.debugStmtDep(stmtCounter, dep_id),
                           currentRound, dinfo.getRound(), dinfo.getTransactionId()));
             if (dinfo.inSameTxnRound(state.txn_id, currentRound) == false) {
-                if (debug.val)
-                    LOG.debug(String.format("%s - Clearing out DependencyInfo[%d].",
+                if (trace.val)
+                    LOG.trace(String.format("%s - Clearing out DependencyInfo[%d].",
                               state.txn_id, dinfo.hashCode()));
                 dinfo.finish();
             }
         } else {
             dinfo = new DependencyInfo(this.catalogContext);
             state.dependencies.put(dep_id, dinfo);
-            if (debug.val)
-                LOG.debug(String.format("%s - Created new DependencyInfo for %s " +
+            if (trace.val)
+                LOG.trace(String.format("%s - Created new DependencyInfo for %s " +
                 		  "[stmtIndex=%d, fragmentId=%d, paramsHash=%d]",
                           ts, TransactionUtil.debugStmtDep(stmtCounter, dep_id),
                           stmtIndex, fragmentId, paramsHash));
@@ -519,8 +519,8 @@ public class DependencyTracker {
                               ts, ts.getBasePartition()));
                 state.unblocked_tasks.addLast(EMPTY_FRAGMENT_SET);
             }
-            if (debug.val)
-                LOG.debug(String.format("%s - Setting CountDownLatch to %d for partition %d ",
+            if (trace.val)
+                LOG.trace(String.format("%s - Setting CountDownLatch to %d for partition %d ",
                           ts, state.dependency_latch.getCount(), ts.getBasePartition()));
         }
 
@@ -642,8 +642,8 @@ public class DependencyTracker {
                 state.dependency_ctr++;
 //                this.addResultDependencyStatement(ts, state, partition, output_dep_id, stmtIndex);
                 
-                if (debug.val)
-                    LOG.debug(String.format("%s - Added new %s %s for PlanFragment %d at partition %d " +
+                if (trace.val)
+                    LOG.trace(String.format("%s - Added new %s %s for PlanFragment %d at partition %d " +
                               "[depCtr=%d, prefetch=%s]\n%s",
                               ts, dinfo.getClass().getSimpleName(),
                               TransactionUtil.debugStmtDep(stmtCounter, output_dep_id),
@@ -704,8 +704,8 @@ public class DependencyTracker {
                         state.blocked_tasks.add(fragment);
                         blocked = true;   
                     }
-                    if (debug.val)
-                        LOG.debug(String.format("%s - Created internal input dependency %d for PlanFragment %d\n%s", 
+                    if (trace.val)
+                        LOG.trace(String.format("%s - Created internal input dependency %d for PlanFragment %d\n%s", 
                                   ts, input_dep_id, fragment.getFragmentId(i), dinfo.debug()));
                 }
             }
@@ -799,8 +799,8 @@ public class DependencyTracker {
                           roundState, ts, base_partition);
         
         if (debug.val)
-            LOG.debug(String.format("%s - Attemping to add new result for %s [numRows=%d]",
-                      ts, TransactionUtil.debugPartDep(partition, dependency_id), result.getRowCount()));
+            LOG.debug(String.format("%s - Attemping to add new result with %d rows for %s",
+                      ts, result.getRowCount(), TransactionUtil.debugPartDep(partition, dependency_id)));
         
         // If the txn is still in the INITIALIZED state, then we just want to queue up the results
         // for now. They will get released when we switch to STARTED 
@@ -851,14 +851,14 @@ public class DependencyTracker {
             if (singlePartitioned == false) txnLock.unlock();
         } // SYNCH
         
-        if (debug.val) {
+        if (trace.val) {
             Map<String, Object> m = new LinkedHashMap<String, Object>();
             m.put("Blocked Tasks", (state != null ? state.blocked_tasks.size() : null));
             m.put("DependencyInfo", dinfo.debug());
             m.put("hasTasksReady", dinfo.hasTasksReady());
             m.put("Dependency Latch", state.dependency_latch);
-            LOG.debug(this + " - Status Information\n" + StringUtil.formatMaps(m));
-            if (trace.val) LOG.trace(ts.debug());
+            LOG.trace(this + " - Status Information\n" + StringUtil.formatMaps(m));
+            // if (trace.val) LOG.trace(ts.debug());
         }
     }
 
@@ -893,8 +893,8 @@ public class DependencyTracker {
                               fragment.toString(),
                               StringUtil.SINGLE_LINE, ts.debug()); 
             results.put(input_d_id, dinfo.getResults());
-            if (debug.val)
-                LOG.debug(String.format("%s - %s -> %d VoltTables",
+            if (trace.val)
+                LOG.trace(String.format("%s - %s -> %d VoltTables",
                           ts, TransactionUtil.debugStmtDep(stmtCounter, input_d_id),
                           results.get(input_d_id).size()));
         } // FOR
@@ -1068,8 +1068,9 @@ public class DependencyTracker {
                                   VoltTable result) {
         assert(ts.hasPrefetchQueries());
         if (debug.val)
-            LOG.debug(String.format("%s - Adding prefetch result %s from partition %d [paramsHash=%d]",
-                      ts, TransactionUtil.debugStmtFrag(stmtCounter, fragmentId), partitionId, paramsHash));
+            LOG.debug(String.format("%s - Adding prefetch result %s with %d rows from partition %d [paramsHash=%d]",
+                      ts, TransactionUtil.debugStmtFrag(stmtCounter, fragmentId),
+                      result.getRowCount(), partitionId, paramsHash));
         
         final TransactionState state = this.getState(ts);
         if (state == null) {
