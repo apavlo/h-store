@@ -1671,7 +1671,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 toKeep.add(msg);
             }
         } // WHILE
-        assert(this.work_queue.isEmpty());
+        // assert(this.work_queue.isEmpty());
         this.work_queue.addAll(toKeep);
         
         // For now we'll set it back so that we can execute new stuff. Clearing out
