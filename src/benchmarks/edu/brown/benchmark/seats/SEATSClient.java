@@ -65,6 +65,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.commons.collections15.Buffer;
+import org.apache.commons.collections15.BufferUtils;
 import org.apache.commons.collections15.buffer.CircularFifoBuffer;
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
@@ -209,7 +210,8 @@ public class SEATSClient extends BenchmarkComponent {
     static {
         FULL_FLIGHT_BITSET.set(0, SEATSConstants.FLIGHTS_NUM_SEATS);
         for (CacheType ctype : CacheType.values()) {
-            CACHE_RESERVATIONS.put(ctype, new CircularFifoBuffer<Reservation>(ctype.limit));
+            Buffer<Reservation> buffer = BufferUtils.synchronizedBuffer(new CircularFifoBuffer<Reservation>(ctype.limit));
+            CACHE_RESERVATIONS.put(ctype, buffer);
         } // FOR
     } // STATIC
     
@@ -434,7 +436,7 @@ public class SEATSClient extends BenchmarkComponent {
         }
         assert(ctype != null);
         
-        Collection<Reservation> cache = CACHE_RESERVATIONS.get(ctype);
+        Buffer<Reservation> cache = CACHE_RESERVATIONS.get(ctype);
         assert(cache != null);
         cache.add(r);
         if (debug.val)
@@ -467,11 +469,8 @@ public class SEATSClient extends BenchmarkComponent {
     protected final Set<FlightId> getCustomerBookedFlights(CustomerId customer_id) {
         Set<FlightId> f_ids = CACHE_CUSTOMER_BOOKED_FLIGHTS.get(customer_id);
         if (f_ids == null) {
-            f_ids = CACHE_CUSTOMER_BOOKED_FLIGHTS.get(customer_id);
-            if (f_ids == null) {
-                f_ids = new HashSet<FlightId>();
-                CACHE_CUSTOMER_BOOKED_FLIGHTS.put(customer_id, f_ids);
-            }
+            f_ids = new HashSet<FlightId>();
+            CACHE_CUSTOMER_BOOKED_FLIGHTS.put(customer_id, f_ids);
         }
         return (f_ids);
     }
@@ -484,7 +483,9 @@ public class SEATSClient extends BenchmarkComponent {
             queue.clear();
         } // FOR
         for (Set<FlightId> f_ids : CACHE_CUSTOMER_BOOKED_FLIGHTS.values()) {
-            f_ids.clear();
+            synchronized (f_ids) {
+                f_ids.clear();
+            } // SYNCH
         } // FOR
     }
     
