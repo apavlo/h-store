@@ -54,12 +54,14 @@ import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.commons.collections15.Buffer;
@@ -114,7 +116,8 @@ public class SEATSClient extends BenchmarkComponent {
         FIND_OPEN_SEATS     (FindOpenSeats.class,       SEATSConstants.FREQUENCY_FIND_OPEN_SEATS),
         NEW_RESERVATION     (NewReservation.class,      SEATSConstants.FREQUENCY_NEW_RESERVATION),
         UPDATE_CUSTOMER     (UpdateCustomer.class,      SEATSConstants.FREQUENCY_UPDATE_CUSTOMER),
-        UPDATE_RESERVATION  (UpdateReservation.class,   SEATSConstants.FREQUENCY_UPDATE_RESERVATION);
+        UPDATE_RESERVATION  (UpdateReservation.class,   SEATSConstants.FREQUENCY_UPDATE_RESERVATION),
+        ;
         
         private Transaction(Class<? extends VoltProcedure> proc_class, int weight) {
             this.proc_class = proc_class;
@@ -175,7 +178,7 @@ public class SEATSClient extends BenchmarkComponent {
             
             if (clientResponse.getStatus() == Status.ABORT_UNEXPECTED) {
                 LOG.error(String.format("Unexpected Error in %s: %s",
-                                        this.txn.name(), clientResponse.getStatusString()),
+                          this.txn.name(), clientResponse.getStatusString()),
                           clientResponse.getException());
             }
             
@@ -199,94 +202,16 @@ public class SEATSClient extends BenchmarkComponent {
         private final int limit;
     }
     
-    private final Map<CacheType, Buffer<Reservation>> CACHE_RESERVATIONS = new HashMap<CacheType, Buffer<Reservation>>();
-    {
+    private static final Map<CacheType, Buffer<Reservation>> CACHE_RESERVATIONS = new EnumMap<CacheType, Buffer<Reservation>>(CacheType.class);
+    private static final Map<CustomerId, Set<FlightId>> CACHE_CUSTOMER_BOOKED_FLIGHTS = new ConcurrentHashMap<CustomerId, Set<FlightId>>();
+    private static final Map<FlightId, BitSet> CACHE_BOOKED_SEATS = new ConcurrentHashMap<FlightId, BitSet>();
+    private static final BitSet FULL_FLIGHT_BITSET = new BitSet(SEATSConstants.FLIGHTS_NUM_SEATS);
+    static {
+        FULL_FLIGHT_BITSET.set(0, SEATSConstants.FLIGHTS_NUM_SEATS);
         for (CacheType ctype : CacheType.values()) {
             CACHE_RESERVATIONS.put(ctype, new CircularFifoBuffer<Reservation>(ctype.limit));
         } // FOR
-    } 
-    
-    
-    private final Map<CustomerId, Set<FlightId>> CACHE_CUSTOMER_BOOKED_FLIGHTS = new HashMap<CustomerId, Set<FlightId>>();
-    private final Map<FlightId, BitSet> CACHE_BOOKED_SEATS = new HashMap<FlightId, BitSet>();
-
-    private static final BitSet FULL_FLIGHT_BITSET = new BitSet(SEATSConstants.FLIGHTS_NUM_SEATS);
-    static {
-        for (int i = 0; i < SEATSConstants.FLIGHTS_NUM_SEATS; i++)
-            FULL_FLIGHT_BITSET.set(i);
     } // STATIC
-    
-    protected BitSet getSeatsBitSet(FlightId flight_id) {
-        BitSet seats = CACHE_BOOKED_SEATS.get(flight_id);
-        if (seats == null) {
-//            synchronized (CACHE_BOOKED_SEATS) {
-                seats = CACHE_BOOKED_SEATS.get(flight_id);
-                if (seats == null) {
-                    seats = new BitSet(SEATSConstants.FLIGHTS_NUM_SEATS);
-                    CACHE_BOOKED_SEATS.put(flight_id, seats);
-                }
-//            } // SYNCH
-        }
-        return (seats);
-    }
-    
-    /**
-     * Returns true if the given BitSet for a Flight has all of its seats reserved 
-     * @param seats
-     * @return
-     */
-    protected boolean isFlightFull(BitSet seats) {
-        assert(FULL_FLIGHT_BITSET.size() == seats.size());
-        return FULL_FLIGHT_BITSET.equals(seats);
-    }
-    
-    /**
-     * Returns true if the given Customer already has a reservation booked on the target Flight
-     * @param customer_id
-     * @param flight_id
-     * @return
-     */
-    protected boolean isCustomerBookedOnFlight(CustomerId customer_id, FlightId flight_id) {
-        Set<FlightId> flights = CACHE_CUSTOMER_BOOKED_FLIGHTS.get(customer_id);
-        return (flights != null && flights.contains(flight_id));
-    }
-    
-    protected final Set<FlightId> getCustomerBookedFlights(CustomerId customer_id) {
-        Set<FlightId> f_ids = CACHE_CUSTOMER_BOOKED_FLIGHTS.get(customer_id);
-        if (f_ids == null) {
-            f_ids = CACHE_CUSTOMER_BOOKED_FLIGHTS.get(customer_id);
-            if (f_ids == null) {
-                f_ids = new HashSet<FlightId>();
-                CACHE_CUSTOMER_BOOKED_FLIGHTS.put(customer_id, f_ids);
-            }
-        }
-        return (f_ids);
-    }
-    
-    protected final void clearCache() {
-        for (BitSet seats : CACHE_BOOKED_SEATS.values()) {
-            seats.clear();
-        } // FOR
-        for (Buffer<Reservation> queue : CACHE_RESERVATIONS.values()) {
-            queue.clear();
-        } // FOR
-        for (Set<FlightId> f_ids : CACHE_CUSTOMER_BOOKED_FLIGHTS.values()) {
-            f_ids.clear();
-        } // FOR
-    }
-    
-    @Override
-    public String toString() {
-        Map<String, Object> m = new ListOrderedMap<String, Object>();
-        for (CacheType ctype : CACHE_RESERVATIONS.keySet()) {
-            m.put(ctype.name(), CACHE_RESERVATIONS.get(ctype).size());
-        } // FOR
-        m.put("CACHE_CUSTOMER_BOOKED_FLIGHTS", CACHE_CUSTOMER_BOOKED_FLIGHTS.size()); 
-        m.put("CACHE_BOOKED_SEATS", CACHE_BOOKED_SEATS.size());
-        m.put("PROFILE", this.profile);
-        
-        return StringUtil.formatMaps(m);
-    }
     
     // -----------------------------------------------------------------
     // ADDITIONAL DATA MEMBERS
@@ -487,6 +412,10 @@ public class SEATSClient extends BenchmarkComponent {
         return (tries > 0);
     }
     
+    // -----------------------------------------------------------------
+    // UTILITY METHODS
+    // -----------------------------------------------------------------
+    
     /**
      * Take an existing Reservation that we know is legit and randomly decide to 
      * either queue it for a later update or delete transaction 
@@ -512,6 +441,64 @@ public class SEATSClient extends BenchmarkComponent {
             LOG.debug(String.format("Queued %s for %s [cacheSize=%d]\nFlightId: %d\nCustomerId: %d",
                       r, ctype, cache.size(),
                       r.flight_id.encode(), r.customer_id.encode()));
+    }
+    
+    /**
+     * Returns true if the given BitSet for a Flight has all of its seats reserved 
+     * @param seats
+     * @return
+     */
+    protected boolean isFlightFull(BitSet seats) {
+        assert(FULL_FLIGHT_BITSET.size() == seats.size());
+        return FULL_FLIGHT_BITSET.equals(seats);
+    }
+    
+    /**
+     * Returns true if the given Customer already has a reservation booked on the target Flight
+     * @param customer_id
+     * @param flight_id
+     * @return
+     */
+    protected boolean isCustomerBookedOnFlight(CustomerId customer_id, FlightId flight_id) {
+        Set<FlightId> flights = CACHE_CUSTOMER_BOOKED_FLIGHTS.get(customer_id);
+        return (flights != null && flights.contains(flight_id));
+    }
+    
+    protected final Set<FlightId> getCustomerBookedFlights(CustomerId customer_id) {
+        Set<FlightId> f_ids = CACHE_CUSTOMER_BOOKED_FLIGHTS.get(customer_id);
+        if (f_ids == null) {
+            f_ids = CACHE_CUSTOMER_BOOKED_FLIGHTS.get(customer_id);
+            if (f_ids == null) {
+                f_ids = new HashSet<FlightId>();
+                CACHE_CUSTOMER_BOOKED_FLIGHTS.put(customer_id, f_ids);
+            }
+        }
+        return (f_ids);
+    }
+    
+    protected final void clearCache() {
+        for (BitSet seats : CACHE_BOOKED_SEATS.values()) {
+            seats.clear();
+        } // FOR
+        for (Buffer<Reservation> queue : CACHE_RESERVATIONS.values()) {
+            queue.clear();
+        } // FOR
+        for (Set<FlightId> f_ids : CACHE_CUSTOMER_BOOKED_FLIGHTS.values()) {
+            f_ids.clear();
+        } // FOR
+    }
+    
+    @Override
+    public String toString() {
+        Map<String, Object> m = new ListOrderedMap<String, Object>();
+        for (CacheType ctype : CACHE_RESERVATIONS.keySet()) {
+            m.put(ctype.name(), CACHE_RESERVATIONS.get(ctype).size());
+        } // FOR
+        m.put("CACHE_CUSTOMER_BOOKED_FLIGHTS", CACHE_CUSTOMER_BOOKED_FLIGHTS.size()); 
+        m.put("CACHE_BOOKED_SEATS", CACHE_BOOKED_SEATS.size());
+        m.put("PROFILE", this.profile);
+        
+        return StringUtil.formatMaps(m);
     }
 
     // -----------------------------------------------------------------
@@ -662,7 +649,7 @@ public class SEATSClient extends BenchmarkComponent {
             
             if (debug.val)
                 LOG.debug(String.format("Using %s as look up in %s: %d / %s",
-                                        flight_id, txn, flight_id.encode(), flightDate));
+                          flight_id, txn, flight_id.encode(), flightDate));
         }
         
         // If distance is greater than zero, then we will also get flights from nearby airports
@@ -1006,9 +993,7 @@ public class SEATSClient extends BenchmarkComponent {
         synchronized (cache) {
             if (cache.isEmpty() == false) r = cache.remove();
         } // SYNCH
-        if (r == null) {
-            return (null);
-        }
+        if (r == null) return (null);
         
         long value = rng.number(1, 1 << 20);
         long attribute_idx = rng.nextInt(UpdateReservation.NUM_UPDATES);
@@ -1029,5 +1014,20 @@ public class SEATSClient extends BenchmarkComponent {
         if (trace.val) LOG.trace("Calling " + txn.getExecName());
         return new Pair<Object[], ProcedureCallback>(params, new UpdateReservationCallback(r));
     }
+    
+    protected BitSet getSeatsBitSet(FlightId flight_id) {
+        BitSet seats = CACHE_BOOKED_SEATS.get(flight_id);
+        if (seats == null) {
+//            synchronized (CACHE_BOOKED_SEATS) {
+                seats = CACHE_BOOKED_SEATS.get(flight_id);
+                if (seats == null) {
+                    seats = new BitSet(SEATSConstants.FLIGHTS_NUM_SEATS);
+                    CACHE_BOOKED_SEATS.put(flight_id, seats);
+                }
+//            } // SYNCH
+        }
+        return (seats);
+    }
+    
 
 }
