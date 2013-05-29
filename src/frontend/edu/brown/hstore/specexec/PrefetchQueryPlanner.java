@@ -81,6 +81,7 @@ public class PrefetchQueryPlanner {
         // handles that we will want to prefetch for each Procedure
         List<SQLStmt> prefetchStmts = new ArrayList<SQLStmt>();
         int stmt_ctr = 0;
+        int proc_ctr = 0;
         for (Procedure catalog_proc : this.catalogContext.procedures.values()) {
             if (catalog_proc.getPrefetchable() == false) continue;
             
@@ -92,7 +93,8 @@ public class PrefetchQueryPlanner {
                 boolean valid = true;
                 for (StmtParameter catalog_param : catalog_stmt.getParameters().values()) {
                     if (catalog_param.getProcparameter() == null) {
-                        LOG.warn(String.format("Unable to mark %s as prefetchable because %s is not mapped to a ProcParameter",
+                        LOG.warn(String.format("Unable to mark %s as prefetchable because %s is not " +
+                        		 "mapped to a ProcParameter",
                                  catalog_stmt.fullName(), catalog_param.fullName()));
                         valid = false;
                     }
@@ -101,6 +103,7 @@ public class PrefetchQueryPlanner {
             } // FOR
             if (prefetchStmts.isEmpty() == false) {
                 stmt_ctr += prefetchStmts.size();
+                proc_ctr++;
             } else {
                 LOG.warn("There are no prefetchable Statements available for " + catalog_proc);
                 catalog_proc.setPrefetchable(false);
@@ -109,8 +112,9 @@ public class PrefetchQueryPlanner {
 
         this.partitionSiteXref = CatalogUtil.getPartitionSiteXrefArray(catalogContext.database);
         if (debug.val)
-            LOG.debug(String.format("Initialized QueryPrefetchPlanner for %d " +
-                      "Procedures with prefetchable Statements", stmt_ctr));
+            LOG.debug(String.format("Initialized %s for %d Procedures " +
+            		  "with a total of %d prefetchable Statements",
+            		  this.getClass().getSimpleName(), proc_ctr, stmt_ctr));
         if (this.catalogContext.paramMappings == null) {
             LOG.warn("Unable to generate prefetachable query plans without a ParameterMappingSet");
         }
