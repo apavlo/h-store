@@ -326,8 +326,10 @@ public class MarkovEstimator extends TransactionEstimator {
             } // FOR
             
             // Update our cache if we tried and failed before
-            if (stmt_idxs != null) {
-                if (debug.val) LOG.debug(String.format("Updating cache batch end for %s: %s -> %s", markov, current, state.getCurrent()));
+            if (hstore_conf.site.markov_endpoint_caching && stmt_idxs != null) {
+                if (debug.val)
+                    LOG.debug(String.format("Updating cache batch end for %s: %s -> %s",
+                              markov, current, state.getCurrent()));
                 this.addCachedBatchEnd(current,
                                        CollectionUtil.last(state.actual_path_edges),
                                        state.getCurrent(),
@@ -347,7 +349,9 @@ public class MarkovEstimator extends TransactionEstimator {
         Object procArgs[] = state.getProcedureParameters();
         this.estimatePath(state, estimate, catalog_proc, procArgs);
         
-        if (debug.val) LOG.debug(String.format("Next MarkovEstimate for txn #%d\n%s", state.getTransactionId(), estimate.toString()));
+        if (debug.val)
+            LOG.debug(String.format("Next MarkovEstimate for txn #%d\n%s",
+                      state.getTransactionId(), estimate.toString()));
         assert(estimate.isInitialized()) :
             String.format("Unexpected uninitialized MarkovEstimate for txn #%d\n%s", state.getTransactionId(), estimate);
         assert(estimate.isValid()) :
@@ -383,7 +387,9 @@ public class MarkovEstimator extends TransactionEstimator {
         Long txn_id = state.getTransactionId();
         long end_time = EstTime.currentTimeMillis();
         MarkovGraph markov = state.getMarkovGraph();
-        if (debug.val) LOG.debug(String.format("Cleaning up state info for txn #%d [status=%s]", txn_id, status));
+        if (debug.val)
+            LOG.debug(String.format("Cleaning up state info for txn #%d [status=%s]",
+                      txn_id, status));
 
         // If there were no updates while the transaction was running, then
         // we don't want to try to update the model, because we will end up
@@ -427,8 +433,9 @@ public class MarkovEstimator extends TransactionEstimator {
             MarkovEstimate initialEst = s.getInitialEstimate();
             synchronized (this.cached_paths) {
                 if (this.cached_paths.containsKey(markov) == false) {
-                    if (debug.val) LOG.debug(String.format("Storing cached path through %s[#%d] that was used by txn #%d",
-                                     markov, markov.getGraphId(), txn_id));
+                    if (debug.val)
+                        LOG.debug(String.format("Storing cached path through %s[#%d] that was used by txn #%d",
+                                  markov, markov.getGraphId(), txn_id));
                     this.cached_paths.put(markov, initialEst.getMarkovPath());
                 }
             } // SYNCH
