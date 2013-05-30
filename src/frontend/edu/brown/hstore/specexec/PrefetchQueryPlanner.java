@@ -25,6 +25,7 @@ import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.special.CountedStatement;
 import edu.brown.hstore.BatchPlanner;
 import edu.brown.hstore.BatchPlanner.BatchPlan;
+import edu.brown.hstore.HStoreThreadManager;
 import edu.brown.hstore.Hstoreservice.TransactionInitRequest;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.txns.DependencyTracker;
@@ -178,9 +179,10 @@ public class PrefetchQueryPlanner {
             planner = this.addPlanner(ts.getProcedure(), prefetchable, prefetchStmts);
         }
         assert(planner != null) : "Missing BatchPlanner for " + ts.getProcedure();
-        ParameterSet prefetchParams[] = new ParameterSet[planner.getBatchSize()];
-        int prefetchCounters[] = new int[planner.getBatchSize()]; 
-        ByteString prefetchParamsSerialized[] = new ByteString[prefetchParams.length];
+        final ParameterSet prefetchParams[] = new ParameterSet[planner.getBatchSize()];
+        final int prefetchCounters[] = new int[planner.getBatchSize()]; 
+        final ByteString prefetchParamsSerialized[] = new ByteString[prefetchParams.length];
+        final int basePartition = ts.getBasePartition();
         
         // Makes a list of ByteStrings containing the ParameterSets that we need
         // to send over to the remote sites so that they can execute our
@@ -250,7 +252,7 @@ public class PrefetchQueryPlanner {
 
         // Generate the WorkFragments that we will need to send in our TransactionInitRequest
         BatchPlan plan = planner.plan(ts.getTransactionId(),
-                                      ts.getBasePartition(),
+                                      basePartition,
                                       ts.getPredictTouchedPartitions(),
                                       ts.getTouchedPartitions(),
                                       prefetchParams);
@@ -268,7 +270,14 @@ public class PrefetchQueryPlanner {
         boolean first = true;
         int local_site_id = this.partitionSiteXref[ts.getBasePartition()];
         for (WorkFragment.Builder fragment : fragmentBuilders) {
-            int site_id = this.partitionSiteXref[fragment.getPartitionId()];
+            // IMPORTANT: We need to check whether our estimator goofed and is trying to have us
+            // prefetch a query at our base partition. This is bad for all sorts of reasons...
+            if (basePartition == fragment.getPartitionId()) {
+                if (debug.val)
+                    LOG.warn(String.format("%s - Trying to schedule prefetch %s at base partition %d. Skipping...",
+                             ts, WorkFragment.class.getSimpleName(), basePartition));
+                continue;
+            }
             
             // Update DependencyTracker
             // This has to be done *before* you add it to the TransactionInitRequest
@@ -279,6 +288,7 @@ public class PrefetchQueryPlanner {
                 if (ts.profiler != null) ts.profiler.addPrefetchQuery(prefetchStmts.length);
             }
             // HACK: Attach the prefetch params in the transaction handle in case we need to use it locally
+            int site_id = this.partitionSiteXref[fragment.getPartitionId()];
             if (site_id == local_site_id && ts.hasPrefetchParameters() == false) {
                 ts.attachPrefetchParameters(prefetchParams);
             }
@@ -287,7 +297,7 @@ public class PrefetchQueryPlanner {
                 builders[site_id] = TransactionInitRequest.newBuilder()
                                             .setTransactionId(ts.getTransactionId().longValue())
                                             .setProcedureId(ts.getProcedure().getId())
-                                            .setBasePartition(ts.getBasePartition())
+                                            .setBasePartition(basePartition)
                                             .addAllPartitions(ts.getPredictTouchedPartitions());
                 for (ByteString bs : prefetchParamsSerialized) {
                     builders[site_id].addPrefetchParams(bs);
@@ -315,12 +325,14 @@ public class PrefetchQueryPlanner {
                     default_request = TransactionInitRequest.newBuilder()
                                             .setTransactionId(ts.getTransactionId())
                                             .setProcedureId(ts.getProcedure().getId())
-                                            .setBasePartition(ts.getBasePartition())
+                                            .setBasePartition(basePartition)
                                             .addAllPartitions(ts.getPredictTouchedPartitions());
                 }
                 builders[site_id] = default_request;
                 if (debug.val)
-                    LOG.debug(ts + " - Sending default TransactionInitRequest to site " + site_id);
+                    LOG.debug(String.format("%s - Sending default %s to site %s",
+                              ts, TransactionInitRequest.class.getSimpleName(),
+                              HStoreThreadManager.formatSiteName(site_id)));
             }
         } // FOR (Site)
 

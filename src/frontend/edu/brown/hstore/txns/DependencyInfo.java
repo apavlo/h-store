@@ -166,11 +166,11 @@ public class DependencyInfo implements Poolable {
         return (this.dependency_id);
     }
     
-    public boolean inSameTxnRound(Long txn_id, int round) {
+    protected boolean inSameTxnRound(Long txn_id, int round) {
         return (txn_id.equals(this.txn_id) && this.round == round);
     }
 
-    public void markInternal() {
+    protected void markInternal() {
         if (debug.val)
             LOG.debug(String.format("#%s - Marking DependencyInfo for %s as internal",
                       this.txn_id, TransactionUtil.debugStmtDep(this.stmt_counter, this.dependency_id)));
