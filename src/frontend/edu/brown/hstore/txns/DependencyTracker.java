@@ -1188,11 +1188,21 @@ public class DependencyTracker {
         /**
          * Returns the number of outstanding prefetch DependencyInfo with 
          * results that were not utilized by the txn's regular query invocations.
+         * If there is no TransactionState for the given txn handle or the txn did
+         * not execute with prefetch queries, then the return result will be null.
          * @param ts
          * @return
          */
-        public int getUnusedPrefetchResultCount(LocalTransaction ts) {
-            final TransactionState state = getState(ts);
+        public Integer getUnusedPrefetchResultCount(LocalTransaction ts) {
+            TransactionState state = null;
+            try {
+                state = getState(ts);
+            } catch (AssertionError ex) {
+                // IGNORE
+            }
+            if (state == null || state.prefetch_dependencies == null) {
+                return (null);
+            }
             int ctr = 0;
             if (state.prefetch_dependencies != null) {
                 for (Map<Integer, DependencyInfo> m : state.prefetch_dependencies.values()) {
