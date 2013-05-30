@@ -519,6 +519,10 @@ public class DependencyTracker {
     
         if (state.dependency_latch != null) {    
             state.dependency_latch.countDown();
+            if (debug.val)
+                LOG.debug(String.format("%s - Decremented %s to %d for partition %d ",
+                          ts, state.dependency_latch.getClass().getSimpleName(),
+                          state.dependency_latch.getCount(), ts.getBasePartition()));
                 
             // HACK: If the latch is now zero, then push an EMPTY set into the unblocked queue
             // This will cause the blocked PartitionExecutor thread to wake up and realize that he's done
@@ -529,10 +533,6 @@ public class DependencyTracker {
                               ts, ts.getBasePartition()));
                 state.unblocked_tasks.addLast(EMPTY_FRAGMENT_SET);
             }
-            if (debug.val)
-                LOG.debug(String.format("%s - Setting %s to %d for partition %d ",
-                          ts, state.dependency_latch.getClass().getSimpleName(),
-                          state.dependency_latch.getCount(), ts.getBasePartition()));
         }
 
         state.still_has_tasks = (state.blocked_tasks.isEmpty() == false ||
