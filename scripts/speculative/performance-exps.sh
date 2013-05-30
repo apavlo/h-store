@@ -16,9 +16,9 @@ FIRST_PARAM_OFFSET=1
 
 EXP_TYPES=( \
     "performance-spec-query" \
-    "performance-spec-txn" \
-    "performance-nospec" \
     "performance-spec-all" \
+#     "performance-spec-txn" \
+#     "performance-nospec" \
 )
 PARTITIONS=( \
     8 \
@@ -27,13 +27,14 @@ PARTITIONS=( \
 )
 
 # for b in smallbank tpcc seats; do
-for b in smallbank tpcc ; do
+for b in tpcc smallbank seats ; do
     PARAMS=( \
         --no-update \
         --results-dir=$DATA_DIR \
         --benchmark=$b \
-#         --stop-on-error \
-        --retry-on-zero \
+        --stop-on-error \
+        --overwrite \
+#         --retry-on-zero \
         --exp-trials=3 \
         --partitions ${PARTITIONS[@]} \
 #         --client.warmup=0 \
