@@ -2659,6 +2659,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 for (int i = 0, cnt = fragment.getFragmentIdCount(); i < cnt; i++) {
                     builder.addParamHash(parameters[i].hashCode());
                 }
+                if (debug.val)
+                    LOG.debug(String.format("%s - Sending back %s to partition %d [numResults=%s, status=%s]",
+                              ts, wr.getClass().getSimpleName(), ts.getBasePartition(),
+                              result.size(), status));
                 hstore_coordinator.transactionPrefetchResult((RemoteTransaction)ts, builder.build());
             }
         }
