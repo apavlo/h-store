@@ -50,6 +50,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
         
         HStoreConf hstore_conf = HStoreConf.singleton();
         hstore_conf.site.specexec_profiling = true;
+        hstore_conf.site.specexec_profiling_sample = 1.0;
         
         this.checker = new TableConflictChecker(catalogContext);
         this.hstore_site = new MockHStoreSite(0, catalogContext, HStoreConf.singleton());
