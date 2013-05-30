@@ -524,14 +524,15 @@ public class DependencyTracker {
             // This will cause the blocked PartitionExecutor thread to wake up and realize that he's done
             if (state.dependency_latch.getCount() == 0) {
                 if (debug.val)
-                    LOG.debug(String.format("%s - Pushing EMPTY_SET to PartitionExecutor at partition %d " +
-                              "because all the dependencies have arrived!",
+                    LOG.debug(String.format("%s - Pushing EMPTY_FRAGMENT_SET to PartitionExecutor " +
+                    		  "at partition %d because all of the dependencies have arrived!",
                               ts, ts.getBasePartition()));
                 state.unblocked_tasks.addLast(EMPTY_FRAGMENT_SET);
             }
-            if (trace.val)
-                LOG.trace(String.format("%s - Setting CountDownLatch to %d for partition %d ",
-                          ts, state.dependency_latch.getCount(), ts.getBasePartition()));
+            if (debug.val)
+                LOG.debug(String.format("%s - Setting %s to %d for partition %d ",
+                          ts, state.dependency_latch.getClass().getSimpleName(),
+                          state.dependency_latch.getCount(), ts.getBasePartition()));
         }
 
         state.still_has_tasks = (state.blocked_tasks.isEmpty() == false ||
@@ -829,9 +830,6 @@ public class DependencyTracker {
                                   ts, TransactionUtil.debugPartDep(partition, dependency_id)));
                     return;
                 }
-                if (debug.val)
-                    LOG.debug(String.format("%s - Storing new result for %s",
-                              ts, TransactionUtil.debugPartDep(partition, dependency_id)));
             } finally {
                 if (singlePartitioned == false) txnLock.unlock();
             } // SYNCH
@@ -849,7 +847,7 @@ public class DependencyTracker {
             // HACK: IGNORE!
             return;
         }
-        
+
         if (singlePartitioned == false) txnLock.lock();
         try {
             // 2013-05-12: DependencyInfo.addResult() must definitely be synchronized!!!
@@ -861,6 +859,10 @@ public class DependencyTracker {
         } finally {
             if (singlePartitioned == false) txnLock.unlock();
         } // SYNCH
+        
+        if (debug.val)
+            LOG.debug(String.format("%s - Stored new result for %s",
+                      ts, TransactionUtil.debugPartDep(partition, dependency_id)));
         
         if (trace.val) {
             Map<String, Object> m = new LinkedHashMap<String, Object>();
