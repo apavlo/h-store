@@ -1036,16 +1036,19 @@ public class DependencyTracker {
             stmt_deps.put(fragmentId, dinfo);
             state.prefetch_ctr++;
             
-            if (debug.val)
-                LOG.debug(String.format("%s - Adding prefetch %s %s at partition %d for %s\n" +
-                          "ProcedureParams = %s\n" +
-                		  "ParameterSet[%d] = %s\n%s",
-                          ts, dinfo.getClass().getSimpleName(),
-                          TransactionUtil.debugStmtDep(stmtCounter, output_dep_id), partition,
-                          CatalogUtil.getPlanFragment(catalogContext.catalog, fragment.getFragmentId(i)).fullName(),
-                          ts.getProcedureParameters(),
-                          fragment.getParamIndex(i), batchParams[fragment.getParamIndex(i)],
-                          dinfo.debug()));
+            if (debug.val) {
+                String msg = String.format("%s - Adding prefetch %s %s at partition %d for %s",
+                                           ts, dinfo.getClass().getSimpleName(),
+                                           TransactionUtil.debugStmtDep(stmtCounter, output_dep_id), partition,
+                                           CatalogUtil.getPlanFragment(catalogContext.catalog, fragment.getFragmentId(i)).fullName());
+                if (trace.val)
+                    msg += "\n" + String.format("ProcedureParams = %s\n" +
+                                                "ParameterSet[%d] = %s\n%s",
+                                                ts.getProcedureParameters(),
+                                                fragment.getParamIndex(i), batchParams[fragment.getParamIndex(i)],
+                                                dinfo.debug());
+                LOG.debug(msg);
+            }
         } // FOR
         
         return;
