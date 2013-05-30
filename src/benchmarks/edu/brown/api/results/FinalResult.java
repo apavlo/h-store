@@ -48,12 +48,12 @@ public class FinalResult implements JSONSerializable {
     public double totalMaxLatency;
     
     public double spAvgLatency;
-    public double spStdDevLatency;
+    public double spStdevLatency;
     public double spMinLatency;
     public double spMaxLatency;
     
     public double dtxnAvgLatency;
-    public double dtxnStdDevLatency;
+    public double dtxnStdevLatency;
     public double dtxnMinLatency;
     public double dtxnMaxLatency;
     
@@ -158,7 +158,7 @@ public class FinalResult implements JSONSerializable {
             this.spMinLatency = x[i++];
             this.spMaxLatency = x[i++];
             this.spAvgLatency = x[i++];
-            this.spStdDevLatency = x[i++];
+            this.spStdevLatency = x[i++];
         }
         if (dtxnLatencies.isEmpty() == false) {
             double x[] = BenchmarkControllerUtil.computeLatencies(dtxnLatencies);
@@ -166,7 +166,7 @@ public class FinalResult implements JSONSerializable {
             this.dtxnMinLatency = x[i++];
             this.dtxnMaxLatency = x[i++];
             this.dtxnAvgLatency = x[i++];
-            this.dtxnStdDevLatency = x[i++];
+            this.dtxnStdevLatency = x[i++];
         }
         
         // CLIENTS RESULTS
