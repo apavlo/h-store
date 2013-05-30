@@ -29,7 +29,7 @@ public abstract class EstimatorState implements Poolable {
     
     private Estimate initialEstimate;
     private final List<Estimate> estimates = new ArrayList<Estimate>();
-    private boolean disableUpdates = false;
+    private boolean allowUpdates = true;
     
     /**
      * Constructor
@@ -54,7 +54,7 @@ public abstract class EstimatorState implements Poolable {
     @Override
     public void finish() {
         this.initialEstimate = null;
-        this.disableUpdates = false;
+        this.allowUpdates = true;
         for (Estimate estimate : this.estimates) {
             if (estimate != null) estimate.finish();
         } // FOR
@@ -87,11 +87,15 @@ public abstract class EstimatorState implements Poolable {
     // ----------------------------------------------------------------------------
     
     public final void disableUpdates() {
-        this.disableUpdates = true;
+        this.allowUpdates = false;
     }
     
-    public final boolean updatesEnabled() {
-        return (this.disableUpdates == false);
+    public final void enableUpdates() {
+        this.allowUpdates = true;
+    }
+    
+    public final boolean isUpdatesEnabled() {
+        return (this.allowUpdates);
     }
     
     protected void addInitialEstimate(Estimate estimate) {

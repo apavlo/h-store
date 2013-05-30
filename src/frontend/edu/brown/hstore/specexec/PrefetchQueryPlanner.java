@@ -28,6 +28,7 @@ import edu.brown.hstore.BatchPlanner.BatchPlan;
 import edu.brown.hstore.HStoreThreadManager;
 import edu.brown.hstore.Hstoreservice.TransactionInitRequest;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
+import edu.brown.hstore.estimators.markov.MarkovEstimatorState;
 import edu.brown.hstore.txns.DependencyTracker;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.logging.LoggerUtil;
@@ -284,9 +285,16 @@ public class PrefetchQueryPlanner {
             // IMPORTANT: We need to check whether our estimator goofed and is trying to have us
             // prefetch a query at our base partition. This is bad for all sorts of reasons...
             if (basePartition == fragment.getPartitionId()) {
-                LOG.warn(String.format("%s - Trying to schedule prefetch %s at base partition %d. Skipping...\n" +
+                if (debug.val)
+                    LOG.warn(String.format("%s - Trying to schedule prefetch %s at base partition %d. Skipping...\n" +
                 		 "ProcParameters: %s\n",
                          ts, WorkFragment.class.getSimpleName(), basePartition, procParams));
+                
+                // If we got a busted estimate, then we definitely want to be able to
+                // follow the txn as it runs and correct ourselves!
+                if (ts.getEstimatorState() instanceof MarkovEstimatorState) {
+                    ts.getEstimatorState().enableUpdates();
+                }
                 continue;
             }
             
