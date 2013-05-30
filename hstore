@@ -71,6 +71,10 @@ JVM_TARGET = "edu.brown.terminal.HStoreTerminal"
 if __name__ == '__main__':
     aparser = argparse.ArgumentParser(description='H-Store Terminal Client')
     aparser.add_argument('project', help='Benchmark name or Project Jar')
+    aparser.add_argument('--host', type=str,
+                         help='Hostname of an HStoreSite to connect to.')
+    aparser.add_argument('--port', type=int,
+                         help='Port number of an HStoreSite to connect to.')
     aparser.add_argument('--csv', action='store_true',
                          help='Output all tables as CSV results')
     args = vars(aparser.parse_args())
@@ -88,8 +92,12 @@ if __name__ == '__main__':
         logging.error("Project jar '%s' does not exist" % (args['project']))
         sys.exit(1)
 
-    # Enable CSV output
-    options = "terminal.csv=%s" % args['csv']
+    # Options
+    options = [ ]
+    for key in ('host', 'port', 'csv'):
+        if key in args and args[key]:
+            options.append("terminal.%s=%s" % (key, args[key]))
+    ## FOR
         
     # Invoke java directly
     cmd = "java %s -classpath %s %s catalog.jar=%s %s" % (\
@@ -97,7 +105,7 @@ if __name__ == '__main__':
         ":".join(JVM_CLASSPATH), \
         JVM_TARGET, \
         args['project'],
-        options)
+        " ".join(options))
     logging.debug(cmd)
     try:
         p = subprocess.Popen(cmd, shell=True)
