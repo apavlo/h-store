@@ -264,11 +264,13 @@ public class DependencyInfo implements Poolable {
             LOG.debug(String.format("#%s - Storing RESULT for DependencyId #%d from partition %02d with %d tuples",
                       this.txn_id, this.dependency_id, partition, result.getRowCount()));
         assert(this.resultPartitions.contains(partition) == false) :
-            String.format("Trying to add result %s twice for %s!",
-                          TransactionUtil.debugPartDep(partition, this.dependency_id), this.txn_id);
+            String.format("Trying to add result %s into %s twice for %s!\n%s",
+                          TransactionUtil.debugPartDep(partition, this.dependency_id),
+                          this, this.txn_id, this.debug());
         assert(this.expectedPartitions.contains(partition)) :
             String.format("Unexpected partition result %s for %s!\n%s",
-                          TransactionUtil.debugPartDep(partition, this.dependency_id), this.txn_id, this.debug());
+                          TransactionUtil.debugPartDep(partition, this.dependency_id),
+                          this.txn_id, this.debug());
         this.results.add(result);
         this.resultPartitions.add(partition);
         return (this.expectedPartitions.size() == this.resultPartitions.size()); 
@@ -299,9 +301,13 @@ public class DependencyInfo implements Poolable {
      * @return
      */
     public VoltTable getResult() {
-        assert(this.resultPartitions.size() > 0) : "There are no results available for " + this;
+        assert(this.resultPartitions.size() > 0) :
+            String.format("There are no results available for %s\n%s", this, this.debug());
         assert(this.resultPartitions.size() == 1) : 
-            "There are " + this.resultPartitions.size() + " results for " + this + "\n-------\n" + this.results;
+            String.format("There are % results for %s\n" +
+            		      "-------\n%s\n" +
+            		      "-------\n%s",
+            		      this.resultPartitions.size(), this, this.results, this.debug()); 
         return (this.results.get(0));
     }
     
