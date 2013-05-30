@@ -2,6 +2,7 @@ package edu.brown.hstore.stats;
 
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 
@@ -96,6 +97,7 @@ public class SpecExecProfilerStats extends StatsSource {
             //  (2) The number of invocations
             columns.add(new VoltTable.ColumnInfo(name, VoltType.BIGINT));
             columns.add(new VoltTable.ColumnInfo(name+"_CNT", VoltType.BIGINT));
+            columns.add(new VoltTable.ColumnInfo(name+"_STDEV", VoltType.FLOAT));
         } // FOR
     }
 
@@ -125,9 +127,12 @@ public class SpecExecProfilerStats extends StatsSource {
         rowValues[offset++] = MathUtil.weightedMean(profiler.num_executed);
         rowValues[offset++] = HistogramUtil.stdev(profiler.num_executed);
         
+        List<Long> history = new ArrayList<Long>();
         for (ProfileMeasurement pm : profiler.getProfileMeasurements()) {
             rowValues[offset++] = pm.getTotalThinkTime();
             rowValues[offset++] = pm.getInvocations();
+            rowValues[offset++] = MathUtil.stdev(pm.getHistory(history));
+            history.clear();
         } // FOR
         super.updateStatsRow(rowKey, rowValues);
     }

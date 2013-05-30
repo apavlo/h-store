@@ -28,6 +28,7 @@
 package edu.brown.utils;
 
 import java.math.BigInteger;
+import java.util.Collection;
 import java.util.Map;
 
 import org.apache.commons.collections15.map.LRUMap;
@@ -130,6 +131,14 @@ public abstract class MathUtil {
         }
         return sum / (double) values.length;
     }
+    
+    public static final <T extends Number> double arithmeticMean(Collection<T> values) {
+        double sum = 0;
+        for (T v : values) {
+            sum += v.doubleValue();
+        }
+        return sum / (double) values.size();
+    }
 
     public static final double weightedMean(final double[] values, final double[] weights) {
         double total = 0.0d;
@@ -142,7 +151,7 @@ public abstract class MathUtil {
         return (total / (double) weight_sum);
     }
     
-    public static <T extends Number> double weightedMean(Histogram<T> h) {
+    public static final <T extends Number> double weightedMean(Histogram<T> h) {
         double values[] = new double[h.getValueCount()];
         double weights[] = new double[values.length];
         int i = 0;
@@ -174,7 +183,7 @@ public abstract class MathUtil {
      * @param percision
      * @return
      */
-    public static float roundToDecimals(float d, int percision) {
+    public static final float roundToDecimals(float d, int percision) {
         float p = (float) Math.pow(10, percision);
         return (float) Math.round(d * p) / p;
     }
@@ -185,7 +194,7 @@ public abstract class MathUtil {
      * @param n
      * @return
      */
-    public static BigInteger factorial(int n) {
+    public static final BigInteger factorial(int n) {
         BigInteger ret;
 
         if (n == 0)
@@ -205,7 +214,7 @@ public abstract class MathUtil {
      * @param data
      * @return
      */
-    public static double stdev(double...data) {
+    public static final double stdev(double...data) {
         if (data.length < 2) {
             return Double.NaN;
         }
@@ -223,7 +232,7 @@ public abstract class MathUtil {
      * @param data
      * @return
      */
-    public static double stdev(int...data) {
+    public static final double stdev(int...data) {
         if (data.length < 2) {
             return Double.NaN;
         }
@@ -235,19 +244,33 @@ public abstract class MathUtil {
         return Math.sqrt(sum / (data.length - 1));
     }
     
+    /**
+     * Compute standard deviation Derived from
+     * http://nscraps.com/Java/720-java-calculate-standard-deviation.htm
+     * @param data
+     * @return
+     */
+    public static final <T extends Number> double stdev(Collection<T> data) {
+        if (data.size() < 2) {
+            return Double.NaN;
+        }
+        double mean = MathUtil.arithmeticMean(data);
+        double sum = 0;
+        for (T d : data) {
+            sum += Math.pow((d.doubleValue() - mean), 2);
+        } // FOR
+        return Math.sqrt(sum / (data.size() - 1));
+    }
+    
+    
     /** Compute the sum of the given array */
-    public static long sum(long...values) {
+    public static final long sum(long...values) {
         long total = 0;
         for (long v : values) total += v;
         return (total);
     }
     /** Compute the sum of the given array */
-    public static int sum(int...values) {
-        int total = 0;
-        for (int v : values) total += v;
-        return (total);
-    }
-    public static int sum(Iterable<Integer> values) {
+    public static final int sum(int...values) {
         int total = 0;
         for (int v : values) total += v;
         return (total);

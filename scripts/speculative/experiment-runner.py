@@ -168,17 +168,28 @@ EXPERIMENT_SETTINGS = [
     "performance-spec-txn",
     "performance-spec-query",
     "performance-spec-all",
+    
+    # Conflict Experiments
+    "conflicts-table",
+    "row-table",
 ]
 
 ## ==============================================
 ## updateExperimentEnv
 ## ==============================================
 def updateExperimentEnv(fabric, args, benchmark, partitions):
+    targetType = args['exp_type']
+  
+    ## ----------------------------------------------
+    ## CONFLICTS
+    ## ----------------------------------------------
+    if targetType.startswith("conflicts"):
+        targetType = "performance-spec-txn"
   
     ## ----------------------------------------------
     ## MOTIVATION
     ## ----------------------------------------------
-    if args['exp_type'].startswith("motivation"):
+    if targetType.startswith("motivation"):
         fabric.env["site.specexec_enable"] = False
         fabric.env["site.specexec_nonblocking"] = False
         fabric.env["site.markov_enable"] = True
@@ -194,7 +205,7 @@ def updateExperimentEnv(fabric, args, benchmark, partitions):
         fabric.env["client.output_txn_counters"] = "txncounters.csv"
         
         ## IF
-        if args['exp_type'] in ('motivation-oneclient', 'motivation-remotequery'):
+        if targetType in ('motivation-oneclient', 'motivation-remotequery'):
             fabric.env["client.threads_per_host"] = 1
         else:
             fabric.env["client.threads_per_host"] = partitions * 2  # max(1, int(partitions/2))
@@ -215,7 +226,7 @@ def updateExperimentEnv(fabric, args, benchmark, partitions):
         ## ----------------------------------------------
         ## MOTIVATION-SINGLEPARTITION
         ## ----------------------------------------------
-        if args['exp_type'] == "motivation-singlepartition":
+        if targetType == "motivation-singlepartition":
             fabric.env["client.weights"] = ""
             
             if benchmark == "tpcc":
@@ -236,7 +247,7 @@ def updateExperimentEnv(fabric, args, benchmark, partitions):
         ## ----------------------------------------------
         ## MOTIVATION-DTXN-SINGLENODE
         ## ----------------------------------------------
-        elif args['exp_type'] == "motivation-dtxn-singlenode":
+        elif targetType == "motivation-dtxn-singlenode":
             if benchmark == "tpcc":
                 fabric.env["benchmark.neworder_multip"] = True
                 fabric.env["benchmark.neworder_multip_remote"] = False
@@ -254,8 +265,8 @@ def updateExperimentEnv(fabric, args, benchmark, partitions):
         ## ----------------------------------------------
         ## MOTIVATION-DTXN-MULITNODE
         ## ----------------------------------------------
-        elif args['exp_type'] in ("motivation-dtxn-multinode", "motivation-remotequery"):
-            if args['exp_type'] == "motivation-remotequery":
+        elif targetType in ("motivation-dtxn-multinode", "motivation-remotequery"):
+            if targetType == "motivation-remotequery":
                 fabric.env["site.specexec_enable"] = False
                 fabric.env["site.specexec_nonblocking"] = True
             
@@ -277,7 +288,7 @@ def updateExperimentEnv(fabric, args, benchmark, partitions):
     ## ----------------------------------------------
     ## PERFORMANCE EXPERIMENTS
     ## ----------------------------------------------
-    elif args['exp_type'].startswith("performance"):
+    elif targetType.startswith("performance"):
         OPT_BASE_CLIENT_THREADS_PER_HOST = 100
         fabric.env["site.markov_enable"] = True
         fabric.env["site.exec_prefetch_queries"] = False
@@ -297,7 +308,6 @@ def updateExperimentEnv(fabric, args, benchmark, partitions):
         fabric.env["client.scalefactor"] = OPT_BASE_SCALE_FACTOR * int(partitions/8)
         fabric.env["client.output_txn_counters"] = "txncounters.csv"
         fabric.env["client.output_txn_profiling"] = "txnprofile.csv"
-        #fabric.env["client.output_specexec_profiling"] = "specexec.csv"
         fabric.env["client.output_clients"] = False
         
         if benchmark == "tpcc":
@@ -322,7 +332,7 @@ def updateExperimentEnv(fabric, args, benchmark, partitions):
         ## ----------------------------------------------
         ## NO SPECULATION
         ## ----------------------------------------------
-        if args['exp_type'] == "performance-nospec":
+        if targetType == "performance-nospec":
             #fabric.env["site.markov_enable"] = False
             if partitions>16: fabric.env["client.blocking_concurrent"] = 8 # HACK
             pass
@@ -330,14 +340,13 @@ def updateExperimentEnv(fabric, args, benchmark, partitions):
         ## ----------------------------------------------
         ## SPECULATIVE TXNS
         ## ----------------------------------------------
-        if args['exp_type'] in ("performance-spec-txn", "performance-spec-all"):
+        if targetType in ("performance-spec-txn", "performance-spec-all"):
             fabric.env["site.specexec_enable"] = True
             fabric.env["site.specexec_ignore_stallpoints"] = ""
             fabric.env["site.specexec_markov"] = False
 
-            spFactor = 0.65 if args['exp_type'] == "performance-spec-all" else 0.5
+            spFactor = 0.65 if targetType == "performance-spec-all" else 0.5
             fabric.env["client.singlepartition_threads"] = int(fabric.env["client.threads_per_host"] * spFactor)
-            
             #fabric.env["benchmark.neworder_multip_mix"] = 0.1
             #fabric.env["benchmark.payment_multip_mix"] = 0.1
             #fabric.env["benchmark.prob_multiaccount_dtxn"] = 1
@@ -345,8 +354,15 @@ def updateExperimentEnv(fabric, args, benchmark, partitions):
         ## ----------------------------------------------
         ## SPECULATIVE QUERIES
         ## ----------------------------------------------
-        if args['exp_type'] in ("performance-spec-query", "performance-spec-all"):
+        if targetType in ("performance-spec-query", "performance-spec-all"):
             fabric.env["site.exec_prefetch_queries"] = True
+            
+    ## ----------------------------------------------
+    ## CONFLICTS
+    ## ----------------------------------------------
+    if args['exp_type'].startswith("conflicts"):
+        fabric.env["client.output_specexec_profiling"] = "specexec.csv"
+        fabric.env["client.output_specexec_profiling_sample"] = 0.05
             
     ## ----------------------------------------------
     ## MARKOV MODELS!
