@@ -18,16 +18,18 @@ EXP_TYPES=( \
 #     "performance-spec-query" \
 #     "performance-spec-all" \
 #     "performance-spec-txn" \
-    "performance-nospec" \
+#     "performance-nospec" \
+    "conflicts-row" \
+    "conflicts-table" \
 )
 PARTITIONS=( \
 #     8 \
     16 \
-    32 \
+#     32 \
 )
 
 # for b in smallbank tpcc seats; do
-for b in smallbank ; do
+for b in smallbank tpcc seats ; do
     PARAMS=( \
         --no-update \
         --results-dir=$DATA_DIR \
@@ -38,7 +40,7 @@ for b in smallbank ; do
         --exp-trials=1 \
         --partitions ${PARTITIONS[@]} \
 #         --client.warmup=0 \
-        --client.duration=300000 \
+        --client.duration=150000 \
 #         --client.blocking_concurrent=2 \
 #         --site.exec_force_undo_logging_all=true \
 #         --site.jvm_asserts=true \

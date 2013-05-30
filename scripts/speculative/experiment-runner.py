@@ -171,7 +171,7 @@ EXPERIMENT_SETTINGS = [
     
     # Conflict Experiments
     "conflicts-table",
-    "row-table",
+    "conflicts-row",
 ]
 
 ## ==============================================
@@ -361,9 +361,21 @@ def updateExperimentEnv(fabric, args, benchmark, partitions):
     ## CONFLICTS
     ## ----------------------------------------------
     if args['exp_type'].startswith("conflicts"):
+        fabric.env["site.specexec_profiling_sample"] = 1
         fabric.env["client.output_specexec_profiling"] = "specexec.csv"
-        fabric.env["client.output_specexec_profiling_sample"] = 0.05
-            
+        
+        ## ----------------------------------------------
+        ## ROW-LEVEL DETECTION
+        ## ----------------------------------------------
+        if args['exp_type'] == "conflicts-row":
+            fabric.env["site.specexec_markov"] = True
+        ## ----------------------------------------------
+        ## TABLE-LEVEL DETECTION
+        ## ----------------------------------------------
+        elif args['exp_type'] == "conflicts-table":
+            fabric.env["site.specexec_markov"] = False
+    ## IF
+
     ## ----------------------------------------------
     ## MARKOV MODELS!
     ## ----------------------------------------------
