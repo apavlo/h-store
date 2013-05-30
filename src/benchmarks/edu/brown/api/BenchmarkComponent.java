@@ -671,10 +671,10 @@ public abstract class BenchmarkComponent {
             for (int i = 0; i < m_countDisplayNames.length; i++) {
                 m_txnStats.transactions.put(i, 0);
                 m_txnStats.dtxns.put(i, 0);
+                m_txnStats.specexecs.put(i, 0);
                 debugLabels.put(i, m_countDisplayNames[i]);
             } // FOR
             m_txnStats.transactions.setDebugLabels(debugLabels);
-            m_txnStats.dtxns.setDebugLabels(debugLabels);
             m_txnStats.setEnableBasePartitions(m_hstoreConf.client.output_basepartitions);
             m_txnStats.setEnableResponsesStatuses(m_hstoreConf.client.output_status);
             
@@ -931,7 +931,8 @@ public abstract class BenchmarkComponent {
             // Ignore zero latencies... Not sure why this happens...
             int latency = cresponse.getClusterRoundtrip();
             if (latency > 0) {
-                final Map<Integer, ObjectHistogram<Integer>> latenciesMap = (is_dtxn ? m_txnStats.dtxnLatencies : m_txnStats.spLatencies); 
+                Map<Integer, ObjectHistogram<Integer>> latenciesMap = (is_dtxn ? m_txnStats.dtxnLatencies :
+                                                                                 m_txnStats.spLatencies); 
                 Histogram<Integer> latencies = latenciesMap.get(txn_idx);
                 if (latencies == null) {
                     synchronized (latenciesMap) {

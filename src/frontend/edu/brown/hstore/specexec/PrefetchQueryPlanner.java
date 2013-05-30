@@ -285,7 +285,7 @@ public class PrefetchQueryPlanner {
             // IMPORTANT: We need to check whether our estimator goofed and is trying to have us
             // prefetch a query at our base partition. This is bad for all sorts of reasons...
             if (basePartition == fragment.getPartitionId()) {
-                if (debug.val)
+//                if (debug.val)
                     LOG.warn(String.format("%s - Trying to schedule prefetch %s at base partition %d. Skipping...\n" +
                 		 "ProcParameters: %s\n",
                          ts, WorkFragment.class.getSimpleName(), basePartition, procParams));

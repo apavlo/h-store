@@ -74,21 +74,26 @@ public class BenchmarkComponentResults implements JSONSerializable {
         copy.dtxns.put(this.dtxns);
         
         copy.spLatencies.clear();
+        synchronized (this.spLatencies) {
+            for (Entry<Integer, ObjectHistogram<Integer>> e : this.spLatencies.entrySet()) {
+                ObjectHistogram<Integer> h = new ObjectHistogram<Integer>();
+                synchronized (e.getValue()) {
+                    h.put(e.getValue());
+                } // SYNCH
+                copy.spLatencies.put(e.getKey(), h);
+            } // FOR
+        } // SYNCH
+        
         copy.dtxnLatencies.clear();
-        for (Entry<Integer, ObjectHistogram<Integer>> e : this.spLatencies.entrySet()) {
-            ObjectHistogram<Integer> h = new ObjectHistogram<Integer>();
-            synchronized (e.getValue()) {
-                h.put(e.getValue());
-            } // SYNCH
-            copy.spLatencies.put(e.getKey(), h);
-        } // FOR
-        for (Entry<Integer, ObjectHistogram<Integer>> e : this.dtxnLatencies.entrySet()) {
-            ObjectHistogram<Integer> h = new ObjectHistogram<Integer>();
-            synchronized (e.getValue()) {
-                h.put(e.getValue());
-            } // SYNCH
-            copy.dtxnLatencies.put(e.getKey(), h);
-        } // FOR
+        synchronized (this.dtxnLatencies) {
+            for (Entry<Integer, ObjectHistogram<Integer>> e : this.dtxnLatencies.entrySet()) {
+                ObjectHistogram<Integer> h = new ObjectHistogram<Integer>();
+                synchronized (e.getValue()) {
+                    h.put(e.getValue());
+                } // SYNCH
+                copy.dtxnLatencies.put(e.getKey(), h);
+            } // FOR
+        } // SYNCH
         
         copy.enableBasePartitions = this.enableBasePartitions;
         copy.basePartitions.put(this.basePartitions);
@@ -146,8 +151,16 @@ public class BenchmarkComponentResults implements JSONSerializable {
             (this.enableBasePartitions == false ? "basePartitions" : ""),
             (this.enableResponseStatuses == false ? "responseStatuses" : ""),
         };
+        
+        // HACK
+        this.specexecs.setDebugLabels(null);
+        this.dtxns.setDebugLabels(null);
+        
         Field fields[] = JSONUtil.getSerializableFields(this.getClass(), exclude);
         JSONUtil.fieldsToJSON(stringer, this, BenchmarkComponentResults.class, fields);
+        
+        this.specexecs.setDebugLabels(this.transactions.getDebugLabels());
+        this.dtxns.setDebugLabels(this.transactions.getDebugLabels());
     }
     @Override
     public void fromJSON(JSONObject json_object, Database catalog_db) throws JSONException {
@@ -158,5 +171,13 @@ public class BenchmarkComponentResults implements JSONSerializable {
         assert(this.transactions != null);
         assert(this.specexecs != null);
         assert(this.dtxns != null);
+        
+        // HACK: Copy the transaction's debug labels into these histograms
+        if (this.specexecs.hasDebugLabels() == false) {
+            this.specexecs.setDebugLabels(this.transactions.getDebugLabels());
+        }
+        if (this.dtxns.hasDebugLabels() == false) {
+            this.dtxns.setDebugLabels(this.transactions.getDebugLabels());
+        }
     }
 } // END CLASS

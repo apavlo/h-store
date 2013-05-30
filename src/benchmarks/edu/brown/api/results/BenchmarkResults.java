@@ -422,14 +422,14 @@ public class BenchmarkResults {
                 }
                 assert(results != null);
                 
-                Integer offset = this.transactionNames.get(txnName);
+                Integer txnOffset = this.transactionNames.get(txnName);
                 Result r = new Result(timestamp,
                                       offsetTime,
-                                      cmpResults.transactions.get(offset.intValue(), 0),
-                                      cmpResults.specexecs.get(offset.intValue(), 0),
-                                      cmpResults.dtxns.get(offset.intValue(), 0));
+                                      cmpResults.transactions.get(txnOffset.intValue(), 0),
+                                      cmpResults.specexecs.get(txnOffset.intValue(), 0),
+                                      cmpResults.dtxns.get(txnOffset.intValue(), 0));
                 if (cmpResults.spLatencies != null) {
-                    Histogram<Integer> latencies = cmpResults.spLatencies.get(offset);
+                    Histogram<Integer> latencies = cmpResults.spLatencies.get(txnOffset);
                     if (latencies != null) {
                         synchronized (latencies) {
                             r.spLatencies.put(latencies);
@@ -437,7 +437,7 @@ public class BenchmarkResults {
                     }
                 }
                 if (cmpResults.dtxnLatencies != null) {
-                    Histogram<Integer> latencies = cmpResults.dtxnLatencies.get(offset);
+                    Histogram<Integer> latencies = cmpResults.dtxnLatencies.get(txnOffset);
                     if (latencies != null) {
                         synchronized (latencies) {
                             r.dtxnLatencies.put(latencies);
@@ -474,7 +474,6 @@ public class BenchmarkResults {
 
         for (Entry<String, Map<String, List<Result>>> entry : this.data.entrySet()) {
             Map<String, List<Result>> txnsForClient = new TreeMap<String, List<Result>>();
-
             for (Entry<String, List<Result>> entry2 : entry.getValue().entrySet()) {
                 ArrayList<Result> newResults = new ArrayList<Result>();
                 for (Result r : entry2.getValue())
