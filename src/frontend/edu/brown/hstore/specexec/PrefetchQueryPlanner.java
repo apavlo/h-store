@@ -142,19 +142,30 @@ public class PrefetchQueryPlanner {
                       catalog_proc.getName(), Arrays.toString(prefetchStmts)));
         return planner;
     }
-    
+
     /**
+     * Generate a list of TransactionInitRequest builders that contain WorkFragments
+     * for queries that can be prefetched.
      * @param ts
+     * @param procParams
+     * @param depTracker
      * @return
      */
-    public TransactionInitRequest.Builder[] plan(LocalTransaction ts, ParameterSet procParams, DependencyTracker depTracker) {
+    public TransactionInitRequest.Builder[] plan(LocalTransaction ts,
+                                                 ParameterSet procParams,
+                                                 DependencyTracker depTracker) {
         // We can't do this without a ParameterMappingSet
         if (this.catalogContext.paramMappings == null) {
+            if (debug.val)
+                LOG.warn(ts + " - No parameter mappings available. Unable to schedule prefetch queries");
             return (null);
         }
         // Or without queries that can be prefetched.
         List<CountedStatement> prefetchable = ts.getEstimatorState().getPrefetchableStatements(); 
         if (prefetchable.isEmpty()) {
+            if (debug.val)
+                LOG.warn(ts + " - No prefetchable queries were found in the transaction's initial path estimate. " +
+                		 "Unable to schedule prefetch queries.");
             return (null);
         }
         
@@ -273,9 +284,9 @@ public class PrefetchQueryPlanner {
             // IMPORTANT: We need to check whether our estimator goofed and is trying to have us
             // prefetch a query at our base partition. This is bad for all sorts of reasons...
             if (basePartition == fragment.getPartitionId()) {
-                if (debug.val)
-                    LOG.warn(String.format("%s - Trying to schedule prefetch %s at base partition %d. Skipping...",
-                             ts, WorkFragment.class.getSimpleName(), basePartition));
+                LOG.warn(String.format("%s - Trying to schedule prefetch %s at base partition %d. Skipping...\n" +
+                		 "ProcParameters: %s\n",
+                         ts, WorkFragment.class.getSimpleName(), basePartition, procParams));
                 continue;
             }
             
@@ -286,6 +297,7 @@ public class PrefetchQueryPlanner {
                 ts.initializePrefetch();
                 depTracker.addTransaction(ts); 
                 if (ts.profiler != null) ts.profiler.addPrefetchQuery(prefetchStmts.length);
+                first = false;
             }
             // HACK: Attach the prefetch params in the transaction handle in case we need to use it locally
             int site_id = this.partitionSiteXref[fragment.getPartitionId()];
@@ -307,6 +319,12 @@ public class PrefetchQueryPlanner {
             depTracker.addPrefetchWorkFragment(ts, fragment, prefetchParams);
             builders[site_id].addPrefetchFragments(fragment);
         } // FOR (WorkFragment)
+        if (first == true) {
+//            if (debug.val)
+                LOG.warn(ts + " - No remote partition prefetchable queries were found in the transaction's " +
+                		 "initial path estimate. Unable to schedule prefetch queries.");
+            return (null);
+        }
 
         PartitionSet touched_partitions = ts.getPredictTouchedPartitions();
         boolean touched_sites[] = new boolean[this.catalogContext.numberOfSites];
