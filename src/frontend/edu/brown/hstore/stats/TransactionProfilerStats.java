@@ -48,7 +48,9 @@ public class TransactionProfilerStats extends StatsSource {
         final FastIntHistogram num_batches = new FastIntHistogram();
         final FastIntHistogram num_queries = new FastIntHistogram();
         final FastIntHistogram num_remote = new FastIntHistogram();
-        final FastIntHistogram num_prefetch = new FastIntHistogram();        
+        final FastIntHistogram num_prefetch = new FastIntHistogram();
+        final FastIntHistogram num_prefetch_unused = new FastIntHistogram();
+//        final FastIntHistogram num_speculative = new FastIntHistogram();
     }
 
     private final Map<Procedure, ProcedureStats> procStats = Collections.synchronizedSortedMap(new TreeMap<Procedure, ProcedureStats>());
@@ -94,6 +96,10 @@ public class TransactionProfilerStats extends StatsSource {
                 stats.num_remote.put(tp.getRemoteQueryCount());
             if (tp.getPrefetchQueryCount() > 0)
                 stats.num_prefetch.put(tp.getPrefetchQueryCount());
+            if (tp.getPrefetchQueryUnusedCount() > 0)
+                stats.num_prefetch_unused.put(tp.getPrefetchQueryUnusedCount());
+//            if (tp.getSpeculativeTransactionCount() > 0)
+//                stats.num_speculative.put(tp.getSpeculativeTransactionCount());
         } // SYNCH
     }
     
@@ -112,7 +118,9 @@ public class TransactionProfilerStats extends StatsSource {
             stats.num_batches,
             stats.num_queries,
             stats.num_remote,
-            stats.num_prefetch
+            stats.num_prefetch,
+            stats.num_prefetch_unused,
+//            stats.num_speculative
         };
         
         long tuple[] = null;
@@ -147,14 +155,16 @@ public class TransactionProfilerStats extends StatsSource {
 
         // Add histogram stats
         int offset = 1;
-        for (int i = 0; i < histograms.length; i++) {
-            row[offset++] = HistogramUtil.sum(histograms[i]);
-            if (histograms[i].getSampleCount() > 0) {
-                row[offset++] = MathUtil.weightedMean(histograms[i]);
-            } else {
-                row[offset++] = 0;
-            }
-        } // FOR
+        synchronized (stats) {
+            for (int i = 0; i < histograms.length; i++) {
+                row[offset++] = HistogramUtil.sum(histograms[i]);
+                if (histograms[i].getSampleCount() > 0) {
+                    row[offset++] = MathUtil.weightedMean(histograms[i]);
+                } else {
+                    row[offset++] = 0;
+                }
+            } // FOR
+        } // SYNCH
         
         // HACK: Dump values for stdev
         int i = columnNameToIndex.get("FIRST_REMOTE_QUERY") - this.proc_offset - 1;
@@ -203,6 +213,10 @@ public class TransactionProfilerStats extends StatsSource {
         columns.add(new VoltTable.ColumnInfo("REMOTE_AVG", VoltType.FLOAT));
         columns.add(new VoltTable.ColumnInfo("PREFETCH_CNT", VoltType.BIGINT));
         columns.add(new VoltTable.ColumnInfo("PREFETCH_AVG", VoltType.FLOAT));
+        columns.add(new VoltTable.ColumnInfo("PREFETCH_UNUSED_CNT", VoltType.BIGINT));
+        columns.add(new VoltTable.ColumnInfo("PREFETCH_UNUSED_AVG", VoltType.FLOAT));
+//        columns.add(new VoltTable.ColumnInfo("SPECULATIVE_CNT", VoltType.BIGINT));
+//        columns.add(new VoltTable.ColumnInfo("SPECULATIVE_AVG", VoltType.FLOAT));
         
         // Construct a dummy TransactionProfiler so that we can get the fields
         TransactionProfiler profiler = new TransactionProfiler();
