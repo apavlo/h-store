@@ -68,6 +68,7 @@ public class SpecExecScheduler {
     private double profiling_sample;
     private final Random profiling_rand = new Random();
     private AbstractTransaction profilerCurrentTxn;
+    private boolean profilerSkipCurrentTxn = true;
     private final FastIntHistogram profilerExecuteCounter = new FastIntHistogram(SpeculationType.values().length);
     
     /**
@@ -171,17 +172,34 @@ public class SpecExecScheduler {
         }
         
         SpecExecProfiler profiler = null;
-        if (this.profiling && this.profiling_rand.nextDouble() < this.profiling_sample) {
-            if (this.profilerCurrentTxn != dtxn && this.profilerCurrentTxn != null) {
-                for (int i = 0; i < this.profilerMap.length; i++) {
-                    int cnt = (int)this.profilerExecuteCounter.get(i, 0);
-                    this.profilerMap[i].num_executed.put(i, cnt);
-                } // FOR
-                this.profilerExecuteCounter.clearValues();
+        if (this.profiling) {
+            // This is the first time that we've seen this dtxn, so
+            // we need to dump out its stats. This is not entirely accurate,
+            // since we won't have the last txn's info, but it's good enough.
+            if (this.profilerCurrentTxn != dtxn) {
+                if (this.profilerCurrentTxn != null && this.profilerSkipCurrentTxn == false) {
+                    for (int i = 0; i < this.profilerMap.length; i++) {
+                        int cnt = (int)this.profilerExecuteCounter.get(i, 0);
+                        this.profilerMap[i].num_executed.put(i, cnt);
+                    } // FOR
+                    this.profilerExecuteCounter.clearValues();
+                    this.profilerCurrentTxn = null;
+                }
+                this.profilerCurrentTxn = dtxn;
+                
+                // Check whether we should enable it for this new txn
+                if (this.profiling_rand.nextDouble() < this.profiling_sample) {
+                    this.profilerSkipCurrentTxn = false;
+                    profiler = this.profilerMap[specType.ordinal()];
+                    profiler.total_time.start();    
+                }
+                else {
+                    this.profilerSkipCurrentTxn = true;
+                }
             }
-            this.profilerCurrentTxn = dtxn;
-            profiler = this.profilerMap[specType.ordinal()];
-            profiler.total_time.start();
+            if (this.profilerSkipCurrentTxn == false) {
+                profiler = this.profilerMap[specType.ordinal()];
+            }
         }
         
         // Check whether we need to ignore this speculation stall point
