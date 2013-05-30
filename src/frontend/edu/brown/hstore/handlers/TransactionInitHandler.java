@@ -110,8 +110,9 @@ public class TransactionInitHandler extends AbstractTransactionHandler<Transacti
                 PartitionSet prefetchPartitions = new PartitionSet();
                 for (WorkFragment fragment : request.getPrefetchFragmentsList())
                     prefetchPartitions.add(fragment.getPartitionId());
-                LOG.debug(String.format("%s - Attaching %d prefetch WorkFragments at partitions %s",
-                          ts, request.getPrefetchFragmentsCount(), prefetchPartitions));
+                LOG.debug(String.format("%s - Attaching %d prefetch %s at partitions %s",
+                          ts, request.getPrefetchFragmentsCount(),
+                          WorkFragment.class.getSimpleName(), prefetchPartitions));
             }
 //            for (int i = 0; i < request.getPrefetchParamsCount(); i++) {
 //                LOG.info(String.format("%s - XXX INBOUND PREFETCH RAW [%02d]: %s",
