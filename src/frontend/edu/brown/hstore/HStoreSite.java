@@ -2688,8 +2688,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (ts.hasDependencyTracker()) {
             // HACK: Check whether there were unnecessary prefetch queries
             if (hstore_conf.site.txn_profiling && ts.profiler != null) {
-                int cnt = this.depTrackers[base_partition].getDebugContext().getUnusedPrefetchResultCount(ts);
-                ts.profiler.addPrefetchUnusedQuery(cnt);
+                Integer cnt = this.depTrackers[base_partition].getDebugContext().getUnusedPrefetchResultCount(ts);
+                if (cnt != null) ts.profiler.addPrefetchUnusedQuery(cnt.intValue());
             }
             this.depTrackers[base_partition].removeTransaction(ts);
         }
@@ -2698,7 +2698,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             switch (status) {
                 case OK:
                     if (t_estimator != null) {
-                        if (trace.val) LOG.trace("Telling the TransactionEstimator to COMMIT " + ts);
+                        if (trace.val)
+                            LOG.trace(String.format("Telling the %s to COMMIT %s",
+                                      t_estimator.getClass().getSimpleName(), ts));
                         t_estimator.commit(t_state);
                     }
                     // We always need to keep track of how many txns we process 
