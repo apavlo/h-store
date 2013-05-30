@@ -190,8 +190,6 @@ public class SpecExecScheduler {
                 // Check whether we should enable it for this new txn
                 if (this.profiling_rand.nextDouble() < this.profiling_sample) {
                     this.profilerSkipCurrentTxn = false;
-                    profiler = this.profilerMap[specType.ordinal()];
-                    profiler.total_time.start();    
                 }
                 else {
                     this.profilerSkipCurrentTxn = true;
@@ -199,6 +197,7 @@ public class SpecExecScheduler {
             }
             if (this.profilerSkipCurrentTxn == false) {
                 profiler = this.profilerMap[specType.ordinal()];
+                profiler.total_time.start();
             }
         }
         
