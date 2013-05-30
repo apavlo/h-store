@@ -291,7 +291,7 @@ def updateExperimentEnv(fabric, args, benchmark, partitions):
         fabric.env["client.count"] = 1
         fabric.env["client.txnrate"] = 100000
         fabric.env["client.blocking"] = True
-        fabric.env["client.blocking_concurrent"] = 4
+        fabric.env["client.blocking_concurrent"] = 4 * int(partitions/8)
         #if partitions > 16: fabric.env["client.blocking_concurrent"] *= int(partitions/8)
         fabric.env["client.threads_per_host"] = OPT_BASE_CLIENT_THREADS_PER_HOST
         fabric.env["client.scalefactor"] = OPT_BASE_SCALE_FACTOR * int(partitions/8)
@@ -324,7 +324,8 @@ def updateExperimentEnv(fabric, args, benchmark, partitions):
         ## ----------------------------------------------
         if args['exp_type'] == "performance-nospec":
             #fabric.env["site.markov_enable"] = False
-            fabric.env["client.blocking_concurrent"] = int(partitions/8)
+            if partitions>16: fabric.env["client.blocking_concurrent"] = 8 # HACK
+            pass
             
         ## ----------------------------------------------
         ## SPECULATIVE TXNS
@@ -333,7 +334,9 @@ def updateExperimentEnv(fabric, args, benchmark, partitions):
             fabric.env["site.specexec_enable"] = True
             fabric.env["site.specexec_ignore_stallpoints"] = ""
             fabric.env["site.specexec_markov"] = False
-            fabric.env["client.singlepartition_threads"] = int(fabric.env["client.threads_per_host"] * 0.5) #0.15 * int(partitions/8))
+
+            spFactor = 0.65 if args['exp_type'] == "performance-spec-all" else 0.5
+            fabric.env["client.singlepartition_threads"] = int(fabric.env["client.threads_per_host"] * spFactor)
             
             #fabric.env["benchmark.neworder_multip_mix"] = 0.1
             #fabric.env["benchmark.payment_multip_mix"] = 0.1
@@ -358,6 +361,8 @@ def updateExperimentEnv(fabric, args, benchmark, partitions):
     if fabric.env.get('site.markov_enable', False):
         markov = os.path.join(OPT_MARKOV_DIR, "%s-%dp.markov.gz" % (benchmark, partitions))
         fabric.env["hstore.exec_prefix"] += " -Dmarkov=%s" % markov
+        #fabric.env["hstore.exec_prefix"] += " -Dmarkov.recompute_end=true"
+        
         fabric.env["site.markov_singlep_updates"] = False
         fabric.env["site.markov_dtxn_updates"] = False
         fabric.env["site.markov_path_caching"] = True
