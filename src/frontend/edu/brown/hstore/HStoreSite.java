@@ -2685,7 +2685,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             t_estimator = this.executors[base_partition].getTransactionEstimator();
             assert(t_estimator != null);
         }
-        if (singlePartitioned == false || catalogContext.numberOfPartitions == 1) {
+        if (ts.hasDependencyTracker()) {
+            // HACK: Check whether there were unnecessary prefetch queries
+            if (hstore_conf.site.txn_profiling && ts.profiler != null) {
+                int cnt = this.depTrackers[base_partition].getDebugContext().getUnusedPrefetchResultCount(ts);
+                ts.profiler.addPrefetchUnusedQuery(cnt);
+            }
             this.depTrackers[base_partition].removeTransaction(ts);
         }
         
