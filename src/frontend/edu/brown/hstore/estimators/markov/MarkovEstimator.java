@@ -388,7 +388,7 @@ public class MarkovEstimator extends TransactionEstimator {
         // If there were no updates while the transaction was running, then
         // we don't want to try to update the model, because we will end up
         // connecting the START vertex to the COMMIT vertex, which is not correct
-        if (state.updatesEnabled()) {
+        if (state.isUpdatesEnabled()) {
             // We need to update the counter information in our MarkovGraph so that we know
             // that the procedure may transition to the ABORT vertex from where ever it was before 
             MarkovVertex current = state.getCurrent();
