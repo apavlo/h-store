@@ -205,14 +205,14 @@ public class DependencyTracker {
                 // Skip parent reference
                 if (obj instanceof DependencyTracker) continue;
                 
-                if (obj == this.dependencies) {
+                if (obj != null && obj == this.dependencies) {
                     Map<Integer, Object> inner = new TreeMap<Integer, Object>();
                     for (Entry<Integer, DependencyInfo> e : this.dependencies.entrySet()) {
                         inner.put(e.getKey(), e.getValue().debug());
                     }
                     obj = inner;
                 }
-                else if (obj == this.prefetch_dependencies) {
+                else if (obj != null && obj == this.prefetch_dependencies) {
                     Map<Integer, Object> inner = new TreeMap<Integer, Object>();
                     for (Integer stmtCounter : this.prefetch_dependencies.keySet()) {
                         Map<Integer, Object> stmtDeps = new LinkedHashMap<Integer, Object>();
