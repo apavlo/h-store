@@ -424,6 +424,7 @@ public class DependencyTracker {
      * @param state
      * @param round
      * @param stmtCounter
+     * @param partitionId TODO
      * @param paramsHash
      * @param fragmentId
      * @param dependencyId
@@ -433,6 +434,7 @@ public class DependencyTracker {
                                                      int round,
                                                      int stmtCounter,
                                                      int stmtIndex,
+                                                     int partitionId,
                                                      int paramsHash,
                                                      int fragmentId,
                                                      int dependencyId) {
@@ -460,6 +462,14 @@ public class DependencyTracker {
                           "Parameter hash mismatch [%d != %d]",
                           state, TransactionUtil.debugStmtDep(stmtCounter, dependencyId),
                           dinfo.getParameterSetHash(), paramsHash));
+            return (null);
+        }
+        else if (dinfo.getExpectedPartitions().contains(partitionId) == false) {
+            if (trace.val)
+                LOG.trace(String.format("%s - Invalid prefetch query for %s. " +
+                          "Partition mismatch [%d != %d]",
+                          state, TransactionUtil.debugStmtDep(stmtCounter, dependencyId),
+                          partitionId, dinfo.getExpectedPartitions()));
             return (null);
         }
         
@@ -611,6 +621,7 @@ public class DependencyTracker {
         int output_dep_id, input_dep_id;
         int ignore_ctr = 0;
         for (int i = 0; i < num_fragments; i++) {
+            int partitionId = fragment.getPartitionId();
             int fragmentId = fragment.getFragmentId(i);
             int stmtCounter = fragment.getStmtCounter(i);
             int stmtIndex = fragment.getStmtIndex(i);
@@ -626,8 +637,8 @@ public class DependencyTracker {
                 // this same query invocation.
                 if (state.prefetch_ctr > 0) {
                     dinfo = this.getPrefetchDependencyInfo(state, currentRound,
-                                                           stmtCounter, stmtIndex, paramsHash,
-                                                           fragmentId, output_dep_id);
+                                                           stmtCounter, stmtIndex, partitionId,
+                                                           paramsHash, fragmentId, output_dep_id);
                     prefetch = (dinfo != null);
                     
                 }
@@ -690,8 +701,8 @@ public class DependencyTracker {
                     // generate this result for us.
                     if (state.prefetch_ctr > 0) {
                         dinfo = this.getPrefetchDependencyInfo(state, currentRound,
-                                                               stmtCounter, stmtIndex, paramsHash,
-                                                               fragmentId, input_dep_id);
+                                                               stmtCounter, stmtIndex, partitionId,
+                                                               paramsHash, fragmentId, input_dep_id);
                     }
                     if (dinfo == null) {
                         dinfo = this.getOrCreateDependencyInfo(ts, state, currentRound,
@@ -1038,7 +1049,7 @@ public class DependencyTracker {
             
             if (debug.val) {
                 String msg = String.format("%s - Adding prefetch %s %s at partition %d for %s",
-                                           ts, dinfo.getClass().getSimpleName(),
+                                           ts, dinfo,
                                            TransactionUtil.debugStmtDep(stmtCounter, output_dep_id), partition,
                                            CatalogUtil.getPlanFragment(catalogContext.catalog, fragment.getFragmentId(i)).fullName());
                 if (trace.val)
