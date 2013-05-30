@@ -540,8 +540,9 @@ public final class HStoreConf {
         public boolean specexec_profiling;
         
         @ConfigProperty(
-            description="",
-            defaultDouble=0.1,
+            description="Sample factor for speculative execution scheduler profiling (0.0 - 1.0). " +
+                        "Note that the the ${site.specexec_profiling} parameter must also be enabled.",
+            defaultDouble=0.05,
             experimental=true
         )
         public double specexec_profiling_sample;
@@ -758,7 +759,7 @@ public final class HStoreConf {
             description="Sample factor for transaction profiling (0.0 - 1.0). " +
             		    "This will be used at runtime to determine whether a transaction is executed " +
             		    "with the profiling hooks enabled. " +
-                        "Note that the the ${site.txn_profiling} parameter must also be set.",
+                        "Note that the the ${site.txn_profiling} parameter must also be enabled.",
             defaultDouble=0.10,
             experimental=false
         )
