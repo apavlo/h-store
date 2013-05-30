@@ -476,15 +476,15 @@ public class HStoreTerminal implements Runnable {
         HStoreTerminal term = new HStoreTerminal(args.catalog);
         
         // CSV OUTPUT
-        if (args.getBooleanParam(ArgumentsParser.PARAM_TERMINAL_CSV) == true) {
-            term.enable_csv = true;
+        if (args.hasBooleanParam(ArgumentsParser.PARAM_TERMINAL_CSV)) {
+            term.enable_csv = args.getBooleanParam(ArgumentsParser.PARAM_TERMINAL_CSV);
         }
         // HOSTNAME
-        if (args.hasParam(ArgumentsParser.PARAM_TERMINAL_CSV) == true) {
-            term.hostname = args.getParam(ArgumentsParser.PARAM_TERMINAL_CSV);
+        if (args.hasParam(ArgumentsParser.PARAM_TERMINAL_HOST)) {
+            term.hostname = args.getParam(ArgumentsParser.PARAM_TERMINAL_HOST);
         }
         // PORT
-        if (args.hasParam(ArgumentsParser.PARAM_TERMINAL_PORT) == true) {
+        if (args.hasParam(ArgumentsParser.PARAM_TERMINAL_PORT)) {
             term.port = args.getIntParam(ArgumentsParser.PARAM_TERMINAL_PORT);
         }
         
