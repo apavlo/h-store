@@ -10,6 +10,7 @@ import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice.HStoreService;
 import edu.brown.hstore.Hstoreservice.TransactionInitRequest;
 import edu.brown.hstore.Hstoreservice.TransactionInitResponse;
+import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.callbacks.RemoteInitQueueCallback;
 import edu.brown.hstore.dispatchers.AbstractDispatcher;
 import edu.brown.hstore.txns.AbstractTransaction;
@@ -105,9 +106,13 @@ public class TransactionInitHandler extends AbstractTransactionHandler<Transacti
         // our state when prefetching queries.
         if (request.getPrefetchFragmentsCount() > 0) {
             // Stick the prefetch information into the transaction
-            if (debug.val)
-                LOG.debug(String.format("%s - Attaching %d prefetch WorkFragments at %s",
-                          ts, request.getPrefetchFragmentsCount(), hstore_site.getSiteName()));
+            if (debug.val) {
+                PartitionSet prefetchPartitions = new PartitionSet();
+                for (WorkFragment fragment : request.getPrefetchFragmentsList())
+                    prefetchPartitions.add(fragment.getPartitionId());
+                LOG.debug(String.format("%s - Attaching %d prefetch WorkFragments at partitions %s",
+                          ts, request.getPrefetchFragmentsCount(), prefetchPartitions));
+            }
 //            for (int i = 0; i < request.getPrefetchParamsCount(); i++) {
 //                LOG.info(String.format("%s - XXX INBOUND PREFETCH RAW [%02d]: %s",
 //                         ts, i,
