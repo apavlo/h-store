@@ -523,14 +523,19 @@ public class FastIntHistogram implements Histogram<Integer> {
     
     @Override
     public Histogram<Integer> setDebugLabels(Map<?, String> names_map) {
-        if (this.debug_names == null) {
-            synchronized (this) {
-                if (this.debug_names == null) {
-                    this.debug_names = new HashMap<Object, String>();
-                }
-            } // SYNCH
+        if (names_map == null) {
+            this.debug_names = null;
         }
-        this.debug_names.putAll(names_map);
+        else {
+            if (this.debug_names == null) {
+                synchronized (this) {
+                    if (this.debug_names == null) {
+                        this.debug_names = new HashMap<Object, String>();
+                    }
+                } // SYNCH
+            }
+            this.debug_names.putAll(names_map);
+        }
         return (this);
     }
     @Override
