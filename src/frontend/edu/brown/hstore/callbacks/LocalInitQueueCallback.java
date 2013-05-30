@@ -62,7 +62,10 @@ public class LocalInitQueueCallback extends PartitionCountingCallback<LocalTrans
         if (trace.val)
             LOG.trace(String.format("%s - Prefetch=%s / HasPrefetchFragments=%s",
                       this.ts, this.prefetch, this.ts.hasPrefetchFragments()));
-        if (this.prefetch && partition != this.ts.getBasePartition() && this.ts.hasPrefetchFragments()) {
+        if (this.prefetch && 
+                this.ts.hasPrefetchFragments() &&
+                partition != this.ts.getBasePartition() &&
+                hstore_site.isLocalPartition(partition)) {
             if (debug.val)
                 LOG.debug(String.format("%s - Checking for prefetch queries at partition %d",
                           this.ts, partition));
