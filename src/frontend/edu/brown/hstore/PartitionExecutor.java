@@ -819,9 +819,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                                                        policy,
                                                        hstore_conf.site.specexec_scheduler_window);
         this.specExecChecker.setEstimationThresholds(this.thresholds);
-        if (hstore_conf.site.specexec_ignore_all_local) {
-            this.specExecScheduler.setIgnoreAllLocal(true);
-        }
+        this.specExecScheduler.setIgnoreQueueSizeChange(hstore_conf.site.specexec_ignore_queue_size_change);
+        this.specExecScheduler.setIgnoreAllLocal(hstore_conf.site.specexec_ignore_all_local);
+        
         if (hstore_conf.site.specexec_unsafe) {
             // this.specExecScheduler.setIgnoreQueueSizeChange(true);
             // this.specExecScheduler.setIgnoreSpeculationTypeChange(true);

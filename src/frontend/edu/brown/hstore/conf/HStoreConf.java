@@ -489,6 +489,16 @@ public final class HStoreConf {
         public boolean specexec_ignore_all_local;
         
         @ConfigProperty(
+            description="If this parameter is true, then the SpecExecScheduler will not reset its internal " +
+            		    "iterator if the partition's lock queue changes in size. This will provide a minor " +
+            		    "speed up when checking for speculative transactions, but it also means that " +
+            		    "new transactions that are added to the front of the queue will be missed.",
+            defaultBoolean=false,
+            experimental=true
+        )
+        public boolean specexec_ignore_queue_size_change;
+        
+        @ConfigProperty(
             description="Experimental non-blocking remote query execution. All query results will be wrapped " +
             		    "in a special VoltTable that acts as a placeholder for a remote query whose " +
             		    "result has not returned yet. A transaction when it tries to access the real " +
