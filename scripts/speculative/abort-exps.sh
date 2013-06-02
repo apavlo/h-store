@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -x
 
 # ---------------------------------------------------------------------
 
@@ -12,23 +12,16 @@ function onexit() {
 
 DATA_DIR="/home/pavlo/Documents/H-Store/Papers/speculative/data"
 FABRIC_TYPE="ssh"
-FIRST_PARAM_OFFSET=0
+FIRST_PARAM_OFFSET=1
 
-EXP_TYPES=( \
-#      "performance-spec-query" \
-#      "performance-spec-all" \
-     "performance-spec-txn" \
-#      "performance-nospec" \
-#    "conflicts-row" \
-#    "conflicts-table" \
+PERCENTAGES=( \
+    00
+    20
+    40
+    60
 )
-PARTITIONS=( \
-#      8 \
-#     16 \
-    32 \
-)
+PARTITIONS=( 16 )
 
-# for b in smallbank tpcc seats; do
 for b in tpcc ; do
     PARAMS=( \
         --no-update \
@@ -36,26 +29,17 @@ for b in tpcc ; do
         --benchmark=$b \
         --stop-on-error \
         --overwrite \
-#         --retry-on-zero \
         --exp-trials=1 \
         --partitions ${PARTITIONS[@]} \
-#         --client.warmup=0 \
         --client.duration=300000 \
-#         --client.blocking_concurrent=2 \
-#         --site.exec_force_undo_logging_all=true \
-#         --site.jvm_asserts=true \
-#         --client.txnrate=500 \
-#         --client.threads_per_host=100 \
-#         --client.scalefactor=1 \
-#         --debug-log4j-site \
     )
     
     i=0
-    cnt=${#EXP_TYPES[@]}
+    cnt=${#PERCENTAGES[@]}
     while [ "$i" -lt "$cnt" ]; do
         ./experiment-runner.py $FABRIC_TYPE \
             ${PARAMS[@]:$FIRST_PARAM_OFFSET} \
-            --exp-type=${EXP_TYPES[$i]}
+            --exp-type="aborts-${PERCENTAGES[$i]}" || break
         FIRST_PARAM_OFFSET=0
         i=`expr $i + 1`
     done
