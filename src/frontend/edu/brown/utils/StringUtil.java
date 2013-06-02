@@ -601,7 +601,6 @@ public abstract class StringUtil {
      * @param items
      * @return
      */
-    @SafeVarargs
     public static <T> String join(String delimiter, T... items) {
         return (join(null, delimiter, Arrays.asList(items)));
     }
