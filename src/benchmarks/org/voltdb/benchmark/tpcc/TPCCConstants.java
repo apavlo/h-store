@@ -100,6 +100,9 @@ public final class TPCCConstants {
 	public static final int HOT_DATA_SIZE = 50;
 	public static final int WARM_DATA_SIZE = 0;
 	public static final int WARM_DATA_WORKLOAD_SKEW = 0;
+	
+	// Percentage of neworder txns that will abort
+	public static final int NEWORDER_ABORT = 1; // 1%
 
     // Item constants
     public static final int NUM_ITEMS = 100000;

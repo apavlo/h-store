@@ -29,9 +29,10 @@ public final class TPCCConfig {
     
     public boolean noop = false;
     public boolean neworder_only = false;
-    public boolean neworder_abort = false;
     public boolean neworder_multip = true;
     public boolean neworder_skew_warehouse = false;
+    /** Percentage of neworder txns that will abort */
+    public int neworder_abort = TPCCConstants.NEWORDER_ABORT;
     /** Percentage of neworder txns that are forced to be multi-partitioned */
     public double neworder_multip_mix = -1;
     /** Whether neworder txns that are forced to be remote or not */
@@ -110,7 +111,7 @@ public final class TPCCConfig {
             }
             // ALLOW NEWORDER ABORTS
             else if (key.equalsIgnoreCase("neworder_abort") && !val.isEmpty()) {
-                neworder_abort = Boolean.parseBoolean(val);
+                neworder_abort = Integer.parseInt(val);
             }
             // NEWORDER DTXN PERCENTAGE
             else if (key.equalsIgnoreCase("neworder_multip") && !val.isEmpty()) {
