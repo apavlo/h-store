@@ -172,6 +172,12 @@ EXPERIMENT_SETTINGS = [
     # Conflict Experiments
     "conflicts-table",
     "conflicts-row",
+    
+    # Abort Experiments
+    "aborts-00",
+    "aborts-20",
+    "aborts-40",
+    "aborts-60",
 ]
 
 ## ==============================================
@@ -184,6 +190,12 @@ def updateExperimentEnv(fabric, args, benchmark, partitions):
     ## CONFLICTS
     ## ----------------------------------------------
     if targetType.startswith("conflicts"):
+        targetType = "performance-spec-txn"
+        
+    ## ----------------------------------------------
+    ## ABORTS
+    ## ----------------------------------------------
+    if targetType.startswith("aborts"):
         targetType = "performance-spec-txn"
   
     ## ----------------------------------------------
@@ -214,7 +226,7 @@ def updateExperimentEnv(fabric, args, benchmark, partitions):
             fabric.env["client.weights"] = "neworder:50,paymentByCustomerId:50,*:0"
             fabric.env["benchmark.payment_only"] = False
             fabric.env["benchmark.neworder_only"] = False
-            fabric.env["benchmark.neworder_abort"] = False
+            fabric.env["benchmark.neworder_abort"] = 0
             fabric.env["benchmark.loadthread_per_warehouse"] = False
             fabric.env["benchmark.loadthreads"] = max(16, partitions)
         elif benchmark == "seats":
@@ -362,6 +374,7 @@ def updateExperimentEnv(fabric, args, benchmark, partitions):
     ## ----------------------------------------------
     if args['exp_type'].startswith("conflicts"):
         fabric.env["site.specexec_profiling_sample"] = 1
+        fabric.env["site.specexec_ignore_stallpoints"] = "IDLE,SP2_REMOTE_BEFORE,SP3_LOCAL,SP3_REMOTE"
         fabric.env["client.output_specexec_profiling"] = "specexec.csv"
         
         ## ----------------------------------------------
@@ -374,6 +387,15 @@ def updateExperimentEnv(fabric, args, benchmark, partitions):
         ## ----------------------------------------------
         elif args['exp_type'] == "conflicts-table":
             fabric.env["site.specexec_markov"] = False
+    ## IF
+    
+    ## ----------------------------------------------
+    ## ABORTS
+    ## ----------------------------------------------
+    if args['exp_type'].startswith("aborts"):
+        abortPercentage = int(args['exp_type'].split("-")[-1])
+        fabric.env["site.specexec_markov"] = True
+        fabric.env["benchmark.neworder_abort"] = abortPercentage
     ## IF
 
     ## ----------------------------------------------
