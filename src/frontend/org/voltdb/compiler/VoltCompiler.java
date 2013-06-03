@@ -584,6 +584,7 @@ public class VoltCompiler {
         m_catalog.getClusters().get("cluster").setSecurityenabled(false);
     }
 
+    //testing
     void compileDatabaseNode(DatabaseType database) throws VoltCompilerException {
         final ArrayList<String> programs = new ArrayList<String>();
         final ArrayList<String> schemas = new ArrayList<String>();
