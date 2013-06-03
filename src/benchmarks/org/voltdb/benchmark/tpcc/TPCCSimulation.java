@@ -394,8 +394,8 @@ public class TPCCSimulation {
         short warehouse_id = generateWarehouseId();
         int ol_cnt = generator.number(TPCCConstants.MIN_OL_CNT, TPCCConstants.MAX_OL_CNT);
 
-        // 1% of transactions roll back
-        boolean rollback = (config.neworder_abort && generator.number(1, 100) == 1);
+        // % of transactions that roll back
+        boolean rollback = (generator.number(1, 100) < config.neworder_abort);
         int local_warehouses = 0;
         int remote_warehouses = 0;
 
