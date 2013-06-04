@@ -70,11 +70,12 @@ public class TestPlansInsertInto extends TestCase{
         super.tearDown();
         aide.tearDown();
     }
-
-
+ 
+    
     public void testInsertIntoD1() {
         AbstractPlanNode pn = null;
-        pn = compile("INSERT INTO D1 SELECT * from D2", 0);
+        pn = compile("SELECT * from D2", 0);
+        assertNotNull(pn);
         if (pn != null)
             System.out.println(pn.toJSONString());
     }
