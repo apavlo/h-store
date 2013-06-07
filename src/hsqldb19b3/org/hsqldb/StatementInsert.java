@@ -291,6 +291,10 @@ public class StatementInsert extends StatementDML {
 
         sb = new StringBuffer();
         String indent = orig_indent + HSQLInterface.XML_INDENT;
+        
+        //System.out.println(sb.toString());
+      //sb.replace(0, sb.length(), "<insert table=\"D1\"> <columns><columnref id=\"1667513825\" table=\"D2\" column=\"D2_PKEY\" alias=\"D2_PKEY\" /><columnref id=\"1243263425\" table=\"D2\" column=\"D2_NAME\" alias=\"D2_NAME\" /></columns><select><columns><columnref id=\"1667513825\" table=\"D2\" column=\"D2_PKEY\" alias=\"D2_PKEY\" /><columnref id=\"1243263425\" table=\"D2\" column=\"D2_NAME\" alias=\"D2_NAME\" /></columns><parameters></parameters><tablescans><tablescan type=\"sequential\" table=\"D2\"></tablescan></tablescans></select>");
+
 
         switch (type) {
 
@@ -307,6 +311,8 @@ public class StatementInsert extends StatementDML {
                 break;
 
         }
+        System.out.println(sb.toString());
+        
         return sb.toString();
     }
 }
