@@ -2606,25 +2606,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (debug.val)
             LOG.debug(String.format("Queueing txn #%d for deletion [status=%s]", txn_id, status));
         
-        // Update Transaction profiler
-        // We want to call this before we queue it so that the post-finish time is more accurate
-        if (hstore_conf.site.txn_profiling) {
-            AbstractTransaction ts = this.inflight_txns.get(txn_id);
-            // XXX: Should we include totals for mispredicted txns?
-            if (ts != null && status != Status.ABORT_MISPREDICT && ts instanceof LocalTransaction) {
-                LocalTransaction local_ts = (LocalTransaction)ts;
-                if (local_ts.profiler != null && local_ts.profiler.isDisabled() == false) {
-                    local_ts.profiler.stopTransaction();
-                    if (this.txnProfilerStats != null) {
-                        this.txnProfilerStats.addTxnProfile(local_ts.getProcedure(), local_ts.profiler);
-                    }
-                    if (this.status_monitor != null) {
-                        this.status_monitor.addTxnProfile(local_ts.getProcedure(), local_ts.profiler);
-                    }
-                }
-            }
-        }
-        
         // Queue it up for deletion! There is no return for the txn from this!
         try {
             this.deletable_txns.get(status).offer(txn_id);
@@ -2697,6 +2678,21 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 if (cnt != null) ts.profiler.addPrefetchUnusedQuery(cnt.intValue());
             }
             this.depTrackers[base_partition].removeTransaction(ts);
+        }
+        
+        // Update Transaction profiler
+        // XXX: Should we include totals for mispredicted txns?
+        if (hstore_conf.site.txn_profiling &&
+                ts.profiler != null &&
+                ts.profiler.isDisabled() == false &&
+                status != Status.ABORT_MISPREDICT) {
+            ts.profiler.stopTransaction();
+            if (this.txnProfilerStats != null) {
+                this.txnProfilerStats.addTxnProfile(ts.getProcedure(), ts.profiler);
+            }
+            if (this.status_monitor != null) {
+                this.status_monitor.addTxnProfile(ts.getProcedure(), ts.profiler);
+            }
         }
         
         try {
