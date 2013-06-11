@@ -412,7 +412,9 @@ public abstract class VoltProcedure implements Poolable {
                 paramTypeComponentType[param.getIndex()] = null;
             }
         }
-        if (trace.val) LOG.trace(String.format("Initialized VoltProcedure for %s [partition=%d]", this.procedure_name, this.partitionId));
+        if (trace.val)
+            LOG.trace(String.format("Initialized VoltProcedure for %s [partition=%d]",
+                      this.procedure_name, this.partitionId));
     }
     
     protected SQLStmt getSQLStmt(String name) {
@@ -461,18 +463,7 @@ public abstract class VoltProcedure implements Poolable {
         }
         return m_cachedRNG;
     }
-    
-    /**
-     * End users should not call this method.
-     * Used by the VoltDB runtime to initialize stored procedures for execution.
-     */
-//    public void init(ExecutionEngine engine, Procedure catProc, Cluster cluster, PartitionEstimator p_estimator, int local_partition) {
-//        assert this.engine == null;
-//        assert engine != null;
-//        this.engine = engine;
-//        init(null, catProc, BackendTarget.NATIVE_EE_JNI, null, cluster, p_estimator, local_partition);
-//    }
-    
+
     public final int getProcedureId() {
         return (this.procedure_id);
     }
