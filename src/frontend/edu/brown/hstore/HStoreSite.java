@@ -2509,7 +2509,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                               RpcCallback<ClientResponseImpl> clientCallback,
                               long initiateTime,
                               int restartCounter) {
-        this.postProcessorQueue.add(new Object[]{ cresponse, clientCallback, initiateTime, restartCounter });
+        this.postProcessorQueue.add(new Object[]{
+                                            cresponse,
+                                            clientCallback,
+                                            initiateTime,
+                                            restartCounter
+        });
     }
 
     /**
