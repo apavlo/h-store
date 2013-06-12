@@ -564,6 +564,13 @@ public final class HStoreConf {
             enumOptions="org.voltdb.types.SpecExecSchedulerPolicyType"
         )
         public String specexec_scheduler_policy;
+
+        @ConfigProperty(
+            description="The window size to pick up txn to run speculatively. ",
+            defaultInt= 10,
+            experimental=false
+        )
+        public int specexec_scheduler_window;
         
         @ConfigProperty(
             description="Disable speculative execution at the given stall points. " ,
@@ -572,13 +579,6 @@ public final class HStoreConf {
             enumOptions="org.voltdb.types.SpeculationType"
         )
         public String specexec_ignore_stallpoints;
-        
-        @ConfigProperty(
-            description="The window size to pick up txn to run speculatively. ",
-            defaultInt= 10,
-            experimental=false
-        )
-        public int specexec_scheduler_window;
         
         // ----------------------------------------------------------------------------
         // Command Logging Options

@@ -20,9 +20,15 @@ public class SpecExecProfiler extends AbstractProfiler {
     public final FastIntHistogram queue_size = new FastIntHistogram(100);
     
     /**
-     * The number of messages analyzed per invocation of SpecExecScheduler.next()
+     * The number of txns analyzed per invocation of SpecExecScheduler.next()
      */
     public final FastIntHistogram num_comparisons = new FastIntHistogram(100);
+    
+    /**
+     * The number of txns that are valid matches during the scan of the partition's lock queue
+     * in SpecExecScheduler.next(). This is only useful for certain experiments.
+     */
+    public final FastIntHistogram num_matches = new FastIntHistogram(100);
     
     /**
      * The number of txns executed per stalled txn
@@ -47,6 +53,7 @@ public class SpecExecProfiler extends AbstractProfiler {
         this.success = 0;
         this.interrupts = 0;
         this.num_comparisons.clear();
+        this.num_matches.clear();
         this.num_executed.clear();
         this.queue_size.clear();
     }
