@@ -375,6 +375,8 @@ def updateExperimentEnv(fabric, args, benchmark, partitions):
     if args['exp_type'].startswith("conflicts"):
         fabric.env["site.specexec_profiling_sample"] = 1
         fabric.env["site.specexec_ignore_stallpoints"] = "IDLE,SP2_REMOTE_BEFORE,SP3_LOCAL,SP3_REMOTE"
+        fabric.env["site.specexec_scheduler_policy"] = "LAST"
+        fabric.env["site.specexec_scheduler_window"] = 999999
         fabric.env["client.output_specexec_profiling"] = "specexec.csv"
         
         ## ----------------------------------------------
