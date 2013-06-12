@@ -89,7 +89,7 @@ public abstract class TransactionEstimator {
      * @return
      */
     public final <T extends EstimatorState> T startTransaction(Long txn_id, int base_partition, Procedure catalog_proc, Object args[]) {
-        if (debug.val) LOG.debug(String.format("Checking %s input parameters:\nARGS: %s",
+        if (debug.val) LOG.debug(String.format("Checking %s input parameters: %s",
                                    catalog_proc.getName(),
                                    StringUtil.toString(args, true, true)));
 
