@@ -122,7 +122,7 @@ import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
-import edu.brown.markov.containers.MarkovGraphContainersUtil;
+import edu.brown.markov.containers.MarkovGraphsContainerUtil;
 import edu.brown.profilers.ProfileMeasurement;
 import edu.brown.statistics.Histogram;
 import edu.brown.statistics.ObjectHistogram;
@@ -1565,7 +1565,7 @@ public class BenchmarkController {
         
         String new_output = output_directory + "/" + m_projectBuilder.getProjectName() + "-new.markovs";
         if (debug.val) LOG.debug(String.format("Writing %d updated MarkovGraphsContainers to '%s'", markovs.size(),  new_output));
-        MarkovGraphContainersUtil.combine(markovs, new_output, catalogContext.database);
+        MarkovGraphsContainerUtil.combine(markovs, new_output, catalogContext.database);
         
         // Clean up the remote files
         for (Pair<String, File> p : files_to_remove) {

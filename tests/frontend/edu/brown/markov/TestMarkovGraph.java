@@ -19,7 +19,7 @@ import org.voltdb.catalog.Statement;
 import edu.brown.BaseTestCase;
 import edu.brown.mappings.ParameterMappingsSet;
 import edu.brown.markov.MarkovVertex.Type;
-import edu.brown.markov.containers.MarkovGraphContainersUtil;
+import edu.brown.markov.containers.MarkovGraphsContainerUtil;
 import edu.brown.markov.containers.MarkovGraphsContainer;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.MathUtil;
@@ -76,7 +76,7 @@ public class TestMarkovGraph extends BaseTestCase {
             // }
 
             // Generate MarkovGraphs
-            markovs = MarkovGraphContainersUtil.createBasePartitionMarkovGraphsContainer(catalog_db, workload, p_estimator);
+            markovs = MarkovGraphsContainerUtil.createBasePartitionMarkovGraphsContainer(catalog_db, workload, p_estimator);
             assertNotNull(markovs);
             assertEquals(1, markovs.size());
         }

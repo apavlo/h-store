@@ -142,7 +142,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
     }
     
     /**
-     * testLatsMatchPolicy
+     * testLastMatchPolicy
      */
     public void testLastMatchPolicy() throws Exception {
         // We should be able to get one match with only one evaluation
