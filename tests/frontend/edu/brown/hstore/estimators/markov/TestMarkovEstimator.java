@@ -22,7 +22,7 @@ import edu.brown.markov.EstimationThresholds;
 import edu.brown.markov.MarkovGraph;
 import edu.brown.markov.MarkovUtil.StatementWrapper;
 import edu.brown.markov.MarkovVertex;
-import edu.brown.markov.containers.MarkovGraphContainersUtil;
+import edu.brown.markov.containers.MarkovGraphsContainerUtil;
 import edu.brown.markov.containers.MarkovGraphsContainer;
 import edu.brown.utils.*;
 import edu.brown.workload.QueryTrace;
@@ -87,7 +87,7 @@ public class TestMarkovEstimator extends BaseTestCase {
             assert(workload.getTransactionCount() > 0);
             
             // Generate MarkovGraphs
-            markovs = MarkovGraphContainersUtil.createBasePartitionMarkovGraphsContainer(catalogContext.database, workload, p_estimator);
+            markovs = MarkovGraphsContainerUtil.createBasePartitionMarkovGraphsContainer(catalogContext.database, workload, p_estimator);
             assertNotNull(markovs);
             
             // Find a single-partition and multi-partition trace

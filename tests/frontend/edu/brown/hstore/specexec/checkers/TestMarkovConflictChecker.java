@@ -33,7 +33,7 @@ import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.mappings.ParameterMapping;
 import edu.brown.mappings.ParametersUtil;
 import edu.brown.markov.EstimationThresholds;
-import edu.brown.markov.containers.MarkovGraphContainersUtil;
+import edu.brown.markov.containers.MarkovGraphsContainerUtil;
 import edu.brown.markov.containers.MarkovGraphsContainer;
 import edu.brown.statistics.Histogram;
 import edu.brown.statistics.ObjectHistogram;
@@ -87,7 +87,7 @@ public class TestMarkovConflictChecker extends BaseTestCase {
             workload.load(file, catalogContext.database, filter.attach(procFilter));
 
             // Generate MarkovGraphs per base partition
-            markovs = MarkovGraphContainersUtil.createBasePartitionMarkovGraphsContainer(catalogContext.database,
+            markovs = MarkovGraphsContainerUtil.createBasePartitionMarkovGraphsContainer(catalogContext.database,
                                                                                          workload, p_estimator);
         }
         assertNotNull(markovs);

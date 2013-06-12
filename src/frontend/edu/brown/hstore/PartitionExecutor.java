@@ -335,6 +335,12 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
     private String lastDtxn = null;
     
     /**
+     * The current VoltProcedure handle that is executing at this partition
+     * This will be set to null as soon as the VoltProcedure.run() method completes
+     */
+    private VoltProcedure currentVoltProc = null;
+    
+    /**
      * List of messages that are blocked waiting for the outstanding dtxn to commit
      */
     private final List<InternalMessage> currentBlockedTxns = new ArrayList<InternalMessage>();
@@ -2319,7 +2325,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         
         if (hstore_conf.site.txn_counters) TransactionCounter.EXECUTED.inc(ts.getProcedure());
         ClientResponseImpl cresponse = null;
+        VoltProcedure previous = this.currentVoltProc;
         try {
+            this.currentVoltProc = volt_proc;
             cresponse = volt_proc.call(ts, ts.getProcedureParameters().toArray()); // Blocking...
         // VoltProcedure.call() should handle any exceptions thrown by the transaction
         // If we get anything out here then that's bad news
@@ -2335,6 +2343,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 this.crash(ex);
             }
         } finally {
+            this.currentVoltProc = previous;
             ts.resetExecutionState();
             execState.finish();
             this.execStates.add(execState);
@@ -4747,6 +4756,13 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         }
         public long getLastCommittedIndoToken() {
             return (PartitionExecutor.this.lastCommittedUndoToken);
+        }
+        /**
+         * Get the VoltProcedure handle of the current running txn. This could be null.
+         * <B>FOR TESTING ONLY</B> 
+         */
+        public VoltProcedure getCurrentVoltProcedure() {
+            return (PartitionExecutor.this.currentVoltProc);
         }
         /**
          * Get the txnId of the current distributed transaction at this partition

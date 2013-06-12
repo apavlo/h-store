@@ -23,7 +23,7 @@ import edu.brown.graphs.GraphvizExport.Attribute;
 import edu.brown.graphs.GraphvizExport.AttributeValues;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
-import edu.brown.markov.containers.MarkovGraphContainersUtil;
+import edu.brown.markov.containers.MarkovGraphsContainerUtil;
 import edu.brown.markov.containers.MarkovGraphsContainer;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PartitionSet;
@@ -214,14 +214,14 @@ public abstract class MarkovUtil {
      */
     public static MarkovGraphsContainer loadId(Database catalog_db, File input_path, int id) throws Exception {
         Set<Integer> idset = (Set<Integer>)CollectionUtil.addAll(new HashSet<Integer>(), Integer.valueOf(id));
-        Map<Integer, MarkovGraphsContainer> markovs = MarkovGraphContainersUtil.load(catalog_db, input_path, null, idset);
+        Map<Integer, MarkovGraphsContainer> markovs = MarkovGraphsContainerUtil.load(catalog_db, input_path, null, idset);
         assert(markovs.size() == 1);
         assert(markovs.containsKey(id));
         return (markovs.get(id));
     }
     
     public static Map<Integer, MarkovGraphsContainer> load(final Database catalog_db, File input_path) throws Exception {
-        return (MarkovGraphContainersUtil.load(catalog_db, input_path, null, null));
+        return (MarkovGraphsContainerUtil.load(catalog_db, input_path, null, null));
     }
     
     /**

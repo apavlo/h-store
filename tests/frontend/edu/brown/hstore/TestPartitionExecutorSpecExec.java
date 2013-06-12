@@ -38,9 +38,12 @@ import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.hstore.util.TransactionCounter;
 import edu.brown.utils.CollectionUtil;
-import edu.brown.utils.StringUtil;
 import edu.brown.utils.ThreadUtil;
 
+/**
+ * PartitionExecutor Tests for Speculative Execution
+ * @author pavlo
+ */
 public class TestPartitionExecutorSpecExec extends BaseTestCase {
     private static final Logger LOG = Logger.getLogger(TestPartitionExecutorSpecExec.class);
     

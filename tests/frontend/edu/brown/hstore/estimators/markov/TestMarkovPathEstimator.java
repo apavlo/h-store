@@ -15,7 +15,7 @@ import edu.brown.catalog.CatalogUtil;
 import edu.brown.mappings.ParameterMappingsSet;
 import edu.brown.markov.MarkovGraph;
 import edu.brown.markov.MarkovVertex;
-import edu.brown.markov.containers.MarkovGraphContainersUtil;
+import edu.brown.markov.containers.MarkovGraphsContainerUtil;
 import edu.brown.markov.containers.MarkovGraphsContainer;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.MathUtil;
@@ -57,10 +57,10 @@ public class TestMarkovPathEstimator extends BaseTestCase {
         this.addPartitions(NUM_PARTITIONS);
         this.catalog_proc = this.getProcedure(TARGET_PROCEDURE);
         
-        if (markovs == null) {
+        if (isFirstSetup()) {
             File file = this.getParameterMappingsFile(ProjectType.TPCC);
             mappings = new ParameterMappingsSet();
-            mappings.load(file, catalog_db);
+            mappings.load(file, catalogContext.database);
             
             // Workload Filter:
             //  (1) Only include TARGET_PROCEDURE traces
@@ -76,15 +76,15 @@ public class TestMarkovPathEstimator extends BaseTestCase {
                   .attach(new ProcedureLimitFilter(WORKLOAD_XACT_LIMIT));
             
             file = this.getWorkloadFile(ProjectType.TPCC);
-            workload = new Workload(catalog);
-            ((Workload) workload).load(file, catalog_db, filter);
+            workload = new Workload(catalogContext.catalog);
+            ((Workload) workload).load(file, catalogContext.database, filter);
 //             for (TransactionTrace xact : workload.getTransactions()) {
-//                 System.err.println(xact.debug(catalog_db));
+//                 System.err.println(xact.debug(catalogContext.database));
 //                 System.err.println(StringUtil.repeat("+", 100));
 //             }
             
             // Generate MarkovGraphs
-            markovs = MarkovGraphContainersUtil.createBasePartitionMarkovGraphsContainer(catalog_db, workload, p_estimator);
+            markovs = MarkovGraphsContainerUtil.createBasePartitionMarkovGraphsContainer(catalogContext.database, workload, p_estimator);
             assertNotNull(markovs);
             
             // Find a single-partition and multi-partition trace
@@ -151,10 +151,10 @@ public class TestMarkovPathEstimator extends BaseTestCase {
         assertFalse(singlep_trace.isAborted());
         assertFalse(visitPath.contains(this.graph.getAbortVertex()));
         
-//        System.err.println(singlep_trace.debug(catalog_db));
+//        System.err.println(singlep_trace.debug(catalogContext.database));
 //        System.err.println("Base Partition = " + p_estimator.getBasePartition(singlep_trace));
 //        for (QueryTrace qtrace : singlep_trace.getQueries()) {
-//            System.err.println(qtrace.debug(catalog_db) + " => " + p_estimator.getAllPartitions(qtrace, BASE_PARTITION));
+//            System.err.println(qtrace.debug(catalogContext.database) + " => " + p_estimator.getAllPartitions(qtrace, BASE_PARTITION));
 //        }
         
         for (int p : catalogContext.getAllPartitionIdArray()) {
@@ -196,7 +196,7 @@ public class TestMarkovPathEstimator extends BaseTestCase {
 //        System.err.println("INITIAL PATH:\n" + StringUtil.join("\n", path));
 //        System.err.println("CONFIDENCE: " + confidence);
 //        System.err.println("DUMPED FILE: " + MarkovUtil.exportGraphviz(this.graph, false, this.graph.getPath(path)).writeToTempFile());
-//        System.err.println(singlep_trace.debug(catalog_db));
+//        System.err.println(singlep_trace.debug(catalogContext.database));
 //        System.err.println(StringUtil.columns(StringUtil.join("\n", path), this.estimate.toString()));
 
         ArrayList<MarkovVertex> path = new ArrayList<MarkovVertex>(this.estimate.getMarkovPath());
@@ -233,7 +233,7 @@ public class TestMarkovPathEstimator extends BaseTestCase {
 //      System.err.println("INITIAL PATH:\n" + StringUtil.join("\n", path));
 //      System.err.println("CONFIDENCE: " + confidence);
 //      System.err.println("DUMPED FILE: " + MarkovUtil.exportGraphviz(this.graph, false, this.graph.getPath(path)).writeToTempFile());
-//      System.err.println(multip_trace.debug(catalog_db));
+//      System.err.println(multip_trace.debug(catalogContext.database));
 //      System.err.println(StringUtil.columns(StringUtil.join("\n", path), this.estimate.toString()));
         
         ArrayList<MarkovVertex> path = new ArrayList<MarkovVertex>(this.estimate.getMarkovPath());

@@ -4,7 +4,6 @@ import java.io.File;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.ConcurrentModificationException;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -30,7 +29,7 @@ import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.containers.AuctionMarkMarkovGraphsContainer;
 import edu.brown.markov.containers.GlobalMarkovGraphsContainer;
-import edu.brown.markov.containers.MarkovGraphContainersUtil;
+import edu.brown.markov.containers.MarkovGraphsContainerUtil;
 import edu.brown.markov.containers.MarkovGraphsContainer;
 import edu.brown.markov.containers.SEATSMarkovGraphsContainer;
 import edu.brown.markov.containers.TPCCMarkovGraphsContainer;
@@ -721,19 +720,26 @@ public class MarkovGraph extends AbstractDirectedGraph<MarkovVertex, MarkovEdge>
         // Check whether we want to update an existing collection of MarkovGraphsContainers
         if (args.hasParam(ArgumentsParser.PARAM_MARKOV)) {
             File path = args.getFileParam(ArgumentsParser.PARAM_MARKOV);
-            markovs_map = MarkovGraphContainersUtil.load(args.catalog_db, path);
+            markovs_map = MarkovGraphsContainerUtil.load(args.catalog_db, path);
         }
         
         if (markovs_map == null) {
-            markovs_map = MarkovGraphContainersUtil.createMarkovGraphsContainers(args.catalog_db, args.workload, p_estimator, containerClass);
+            markovs_map = MarkovGraphsContainerUtil.createMarkovGraphsContainers(args.catalog_db,
+                                                                                 args.workload,
+                                                                                 p_estimator,
+                                                                                 containerClass);
         } else {
-            markovs_map = MarkovGraphContainersUtil.createMarkovGraphsContainers(args.catalog_db, args.workload, p_estimator, containerClass, markovs_map);
+            markovs_map = MarkovGraphsContainerUtil.createMarkovGraphsContainers(args.catalog_db,
+                                                                                 args.workload,
+                                                                                 p_estimator,
+                                                                                 containerClass,
+                                                                                 markovs_map);
         }
         
         // Save the graphs
         assert(markovs_map != null);
         File output = args.getFileParam(ArgumentsParser.PARAM_MARKOV_OUTPUT);
         LOG.info("Writing graphs out to " + output);
-        MarkovGraphContainersUtil.save(markovs_map, output.getAbsolutePath());
+        MarkovGraphsContainerUtil.save(markovs_map, output);
     }
 }

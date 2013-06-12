@@ -426,7 +426,7 @@ public class MarkovGraphsContainer implements JSONSerializable {
         }
         LOG.info("VALID: " + (cnt_total - cnt_invalid) + " / "+ cnt_total);
         if (save && cnt_invalid == 0) {
-            MarkovGraphContainersUtil.save(all_markovs, args.getParam(ArgumentsParser.PARAM_MARKOV));
+            MarkovGraphsContainerUtil.save(all_markovs, args.getFileParam(ArgumentsParser.PARAM_MARKOV));
         }
     }
 }

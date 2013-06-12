@@ -43,8 +43,8 @@ import edu.brown.utils.ThreadUtil;
 import edu.brown.workload.TransactionTrace;
 import edu.brown.workload.Workload;
 
-public abstract class MarkovGraphContainersUtil {
-    private static final Logger LOG = Logger.getLogger(MarkovGraphContainersUtil.class);
+public abstract class MarkovGraphsContainerUtil {
+    private static final Logger LOG = Logger.getLogger(MarkovGraphsContainerUtil.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
@@ -54,13 +54,20 @@ public abstract class MarkovGraphContainersUtil {
     // ----------------------------------------------------------------------------
     // INSTANTATION METHODS
     // ----------------------------------------------------------------------------
-    
+
     /**
      * Create the MarkovGraphsContainers for the given workload
-     * @param args
+     * @param catalog_db
+     * @param workload
+     * @param p_estimator
+     * @param containerClass
+     * @return
      * @throws Exception
      */
-    public static <T extends MarkovGraphsContainer> Map<Integer, MarkovGraphsContainer> createMarkovGraphsContainers(final Database catalog_db, final Workload workload, final PartitionEstimator p_estimator, final Class<T> containerClass) throws Exception {
+    public static <T extends MarkovGraphsContainer> Map<Integer, MarkovGraphsContainer> createMarkovGraphsContainers(final Database catalog_db,
+                                                                                                                     final Workload workload,
+                                                                                                                     final PartitionEstimator p_estimator,
+                                                                                                                     final Class<T> containerClass) throws Exception {
         final Map<Integer, MarkovGraphsContainer> markovs_map = new ConcurrentHashMap<Integer, MarkovGraphsContainer>();
         return createMarkovGraphsContainers(catalog_db, workload, p_estimator, containerClass, markovs_map);
     }
@@ -77,7 +84,11 @@ public abstract class MarkovGraphContainersUtil {
      * @throws Exception
      */
     @SuppressWarnings("unchecked")
-    public static <T extends MarkovGraphsContainer> Map<Integer, MarkovGraphsContainer> createMarkovGraphsContainers(final Database catalog_db, final Workload workload, final PartitionEstimator p_estimator, final Class<T> containerClass, final Map<Integer, MarkovGraphsContainer> markovs_map) throws Exception {
+    public static <T extends MarkovGraphsContainer> Map<Integer, MarkovGraphsContainer> createMarkovGraphsContainers(final Database catalog_db,
+                                                                                                                     final Workload workload,
+                                                                                                                     final PartitionEstimator p_estimator,
+                                                                                                                     final Class<T> containerClass,
+                                                                                                                     final Map<Integer, MarkovGraphsContainer> markovs_map) throws Exception {
         final String className = containerClass.getSimpleName();
         
         final List<Runnable> runnables = new ArrayList<Runnable>();
@@ -208,7 +219,7 @@ public abstract class MarkovGraphContainersUtil {
     
         proc_h.setDebugLabels(CatalogUtil.getDisplayNameMapping(proc_h.values()));
         LOG.info("Procedure Histogram:\n" + proc_h);
-        MarkovGraphContainersUtil.calculateProbabilities(markovs_map);
+        MarkovGraphsContainerUtil.calculateProbabilities(markovs_map);
         
         return (markovs_map);
     }
@@ -270,7 +281,7 @@ public abstract class MarkovGraphContainersUtil {
                 File in = markovs.get(partition);
                 try {
                     JSONObject json_object = new JSONObject(FileUtil.readFile(in));
-                    MarkovGraphsContainer markov = MarkovGraphContainersUtil.createMarkovGraphsContainer(json_object, procedures, catalog_db);
+                    MarkovGraphsContainer markov = MarkovGraphsContainerUtil.createMarkovGraphsContainer(json_object, procedures, catalog_db);
                     markov.load(in, catalog_db);
                     
                     stringer = (JSONStringer)new JSONStringer().object();
@@ -322,16 +333,15 @@ public abstract class MarkovGraphContainersUtil {
      * @param output_path
      * @throws Exception
      */
-    public static void save(Map<Integer, ? extends MarkovGraphsContainer> markovs, String output_path) {
+    public static void save(Map<Integer, ? extends MarkovGraphsContainer> markovs, File output_path) {
         final String className = CollectionUtil.first(markovs.values()).getClass().getSimpleName();
         
         // Sort the list of partitions so we always iterate over them in the same order
         SortedSet<Integer> sorted = new TreeSet<Integer>(markovs.keySet());
         
         int graphs_ctr = 0;
-        File file = new File(output_path);
         try {
-            FileOutputStream out = new FileOutputStream(file);
+            FileOutputStream out = new FileOutputStream(output_path);
             
             // First construct an index that allows us to quickly find the partitions that we want
             JSONStringer stringer = (JSONStringer)(new JSONStringer().object());
@@ -366,15 +376,15 @@ public abstract class MarkovGraphContainersUtil {
     // ----------------------------------------------------------------------------
     
     public static Map<Integer, MarkovGraphsContainer> load(Database catalog_db, File input_path) throws Exception {
-        return (MarkovGraphContainersUtil.load(catalog_db, input_path, null, null));
+        return (MarkovGraphsContainerUtil.load(catalog_db, input_path, null, null));
     }
     
     public static Map<Integer, MarkovGraphsContainer> loadIds(Database catalog_db, File input_path, Collection<Integer> ids) throws Exception {
-        return (MarkovGraphContainersUtil.load(catalog_db, input_path, null, ids));
+        return (MarkovGraphsContainerUtil.load(catalog_db, input_path, null, ids));
     }
 
     public static Map<Integer, MarkovGraphsContainer> loadProcedures(Database catalog_db, File input_path, Collection<Procedure> procedures) throws Exception {
-        return (MarkovGraphContainersUtil.load(catalog_db, input_path, procedures, null));
+        return (MarkovGraphsContainerUtil.load(catalog_db, input_path, procedures, null));
     }
 
     /**

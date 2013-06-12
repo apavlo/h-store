@@ -1,5 +1,6 @@
 package edu.brown.markov;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -39,7 +40,7 @@ import edu.brown.costmodel.MarkovCostModel;
 import edu.brown.hstore.estimators.markov.MarkovEstimator;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
-import edu.brown.markov.containers.MarkovGraphContainersUtil;
+import edu.brown.markov.containers.MarkovGraphsContainerUtil;
 import edu.brown.markov.containers.MarkovGraphsContainer;
 import edu.brown.markov.features.BasePartitionFeature;
 import edu.brown.markov.features.FeatureUtil;
@@ -1152,8 +1153,8 @@ public class FeatureClusterer {
         MarkovAttributeSet aset = new MarkovAttributeSet(attributes);
         Map<Integer, MarkovGraphsContainer> markovs = fclusterer.constructMarkovModels(aset, data);
         
-        String output = catalog_proc.getName() + ".markovs";
-        MarkovGraphContainersUtil.save(markovs, output);
+        File output = new File(catalog_proc.getName() + ".markovs");
+        MarkovGraphsContainerUtil.save(markovs, output);
         
 //        fclusterer.calculateGlobalCost();
 //        AbstractClusterer clusterer = fclusterer.calculateAttributeSetCost(aset);
