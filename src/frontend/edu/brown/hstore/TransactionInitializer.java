@@ -652,11 +652,6 @@ public class TransactionInitializer {
         // TRANSACTION ESTIMATORS
         // -------------------------------
         else if (hstore_conf.site.markov_enable || hstore_conf.site.markov_fixed) {
-            if (debug.val)
-                LOG.debug(String.format("%s - Using TransactionEstimator to check whether txn is single-partitioned " +
-            	          "[clientHandle=%d]",
-            		      TransactionUtil.formatTxnName(catalog_proc, txn_id), ts.getClientHandle()));
-            
             // Grab the TransactionEstimator for the destination partition and figure out whether
             // this mofo is likely to be single-partition or not. Anything that we can't estimate
             // will just have to be multi-partitioned. This includes sysprocs
@@ -665,29 +660,30 @@ public class TransactionInitializer {
                 t_estimator = this.hstore_site.getPartitionExecutor(base_partition).getTransactionEstimator();
                 this.t_estimators[base_partition] = t_estimator;
             }
-            if (debug.val && t_estimator instanceof MarkovEstimator) {
-                LOG.debug("We are in fact using a MarkovEstimator@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
-            }
             
             try {
                 if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.startInitEstimation();
                 if (t_estimator != null) {
+                    if (debug.val)
+                        LOG.debug(String.format("%s - Using %s to populate txn properties [clientHandle=%d]",
+                                  TransactionUtil.formatTxnName(catalog_proc, txn_id),
+                                  t_estimator.getClass().getSimpleName(), ts.getClientHandle()));
                     t_state = t_estimator.startTransaction(txn_id, base_partition, catalog_proc, params.toArray());
                 }
-                else if (debug.val) {
-                    LOG.debug("t_estimator is null@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
+                else if (trace.val) {
+                    LOG.trace("t_estimator is null@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
                 }
                 
-                // If there is no TransactinEstimator.State, then there is nothing we can do
+                // If there is no EstimatorState, then there is nothing we can do
                 // It has to be executed as multi-partitioned
                 if (t_state == null) {
                     if (debug.val) {
-                        LOG.debug("No EstimationState was returned. Using default estimate@@@@@@@@@@");
-                        LOG.debug(String.format("%s - No EstimationState was returned. Using default estimate.",
-                                  TransactionUtil.formatTxnName(catalog_proc, txn_id)));
+                        LOG.debug(String.format("%s - No %s was returned. Using default estimate.",
+                                  TransactionUtil.formatTxnName(catalog_proc, txn_id),
+                                  EstimatorState.class.getSimpleName()));
                     }
                 }
-                // We have a TransactionEstimator, so let's see what it says...
+                // We have a EstimatorState handle, so let's see what it says...
                 else {
                     if (trace.val)
                         LOG.trace("\n" + StringBoxUtil.box(t_state.toString()));
@@ -696,22 +692,23 @@ public class TransactionInitializer {
                     // Bah! We didn't get back a Estimation for some reason...
                     if (t_estimate == null) {
                         if (debug.val)
-                            LOG.debug(String.format("%s - No Estimation was recieved. " +
-                        		      "Using default estimate.",
-                                      TransactionUtil.formatTxnName(catalog_proc, txn_id)));
+                            LOG.debug(String.format("%s - No %s handle was return. Using default estimate.",
+                                      TransactionUtil.formatTxnName(catalog_proc, txn_id),
+                                      Estimate.class.getSimpleName()));
                     }
                     // Invalid Estimation. Stick with defaults
                     else if (t_estimate.isValid() == false) {
                         if (debug.val)
-                            LOG.debug(String.format("%s - Estimation is invalid. " +
-                            		  "Using default estimate.\n%s",
-                                      TransactionUtil.formatTxnName(catalog_proc, txn_id), t_estimate));
+                            LOG.debug(String.format("%s - %s is marked as invalid. Using default estimate.\n%s",
+                                      TransactionUtil.formatTxnName(catalog_proc, txn_id),
+                                      t_estimate.getClass().getSimpleName(), t_estimate));
                     }    
                     // Use Estimation to determine things
                     else {
                         if (debug.val) {
-                            LOG.debug(String.format("%s - Using Estimation to determine if txn is single-partitioned",
-                                      TransactionUtil.formatTxnName(catalog_proc, txn_id)));
+                            LOG.debug(String.format("%s - Using %s to determine if txn is single-partitioned",
+                                      TransactionUtil.formatTxnName(catalog_proc, txn_id),
+                                      t_estimate.getClass().getSimpleName()));
                             LOG.trace(String.format("%s %s:\n%s",
                                       TransactionUtil.formatTxnName(catalog_proc, txn_id),
                                       t_estimate.getClass().getSimpleName(), t_estimate));
@@ -728,9 +725,9 @@ public class TransactionInitializer {
                         }
                         
                         if (debug.val && predict_partitions.isEmpty()) {
-                            LOG.warn(String.format("%s - Unexpected empty predicted PartitonSet from %s\n%s",
+                            LOG.warn(String.format("%s - Unexpected empty predicted %s from %s\n%s",
                             		TransactionUtil.formatTxnName(catalog_proc, txn_id),
-                            		t_estimator, t_estimate));
+                            		PartitionSet.class.getSimpleName(), t_estimator, t_estimate));
                         }
                     }
                 }

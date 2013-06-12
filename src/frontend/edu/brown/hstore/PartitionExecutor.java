@@ -4719,6 +4719,12 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
     // DEBUG METHODS
     // ----------------------------------------------------------------------------
     
+    @Override
+    public String toString() {
+        return String.format("%s{%s}", this.getClass().getSimpleName(),
+                                       HStoreThreadManager.formatPartitionName(siteId, partitionId));
+    }
+    
     public class Debug implements DebugContext {
         public VoltProcedure getVoltProcedure(String procName) {
             Procedure proc = catalogContext.procedures.getIgnoreCase(procName);

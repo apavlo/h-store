@@ -31,6 +31,8 @@ import edu.brown.hstore.specexec.checkers.AbstractConflictChecker;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.hstore.util.TransactionCounter;
+import edu.brown.mappings.ParameterMapping;
+import edu.brown.mappings.ParameterMappingsSet;
 import edu.brown.markov.containers.MarkovGraphsContainer;
 import edu.brown.markov.containers.MarkovGraphsContainerUtil;
 import edu.brown.utils.CollectionUtil;
@@ -56,7 +58,7 @@ public class TestPartitionExecutorEarly2PC extends BaseTestCase {
     private static final int BASE_PARTITION = 0;
     private static final int NOTIFY_TIMEOUT = 1000; // ms
     private static final int NUM_SPECEXEC_TXNS = 5;
-    private static final int WORKLOAD_XACT_LIMIT = 100;
+    private static final int WORKLOAD_XACT_LIMIT = 5000;
 
     // We want to make sure that the PartitionExecutor only spec execs 
     // at the 2PC stall points.
@@ -113,13 +115,14 @@ public class TestPartitionExecutorEarly2PC extends BaseTestCase {
         this.blockingProc = this.getProcedure(BlockableSendPayment.class);
         
         if (isFirstSetup()) {
+            
             // LOAD SAMPLE WORKLOAD
             Filter filter =  new ProcedureNameFilter(false)
                     .include(this.spProc.getName())
                     .attach(new NoAbortFilter())
                     .attach(new ProcedureLimitFilter(WORKLOAD_XACT_LIMIT));
-            File file = this.getWorkloadFile(ProjectType.SMALLBANK);
-            Workload workload0 = new Workload(catalogContext.catalog).load(file, catalogContext.database, filter);
+            File workloadFile = this.getWorkloadFile(ProjectType.SMALLBANK);
+            Workload workload0 = new Workload(catalogContext.catalog).load(workloadFile, catalogContext.database, filter);
             
             // DUPLICATE ALL SENDPAYMENTS TO BE BLOCKABLE SENDPAYMENTS
             File tempFile = FileUtil.getTempFile("workload", true);
@@ -134,7 +137,15 @@ public class TestPartitionExecutorEarly2PC extends BaseTestCase {
             // Make sure we change their txn ids
             for (TransactionTrace tt : workload1) {
                 tt.setTransactionId(tt.getTransactionId() + 1000000);
-                
+            } // FOR
+            
+            // DUPLICATE PARAMETER MAPPINGS
+            for (ParameterMapping pm : catalogContext.paramMappings.get(this.spProc)) {
+                ParameterMapping clone = pm.clone();
+                clone.procedure_parameter = this.blockingProc.getParameters().get(pm.procedure_parameter.getIndex());
+                clone.statement = this.blockingProc.getStatements().get(pm.statement.getName());
+                clone.statement_parameter = clone.statement.getParameters().get(pm.statement_parameter.getIndex());
+                catalogContext.paramMappings.add(clone);
             } // FOR
 
             // COMBINE INTO A SINGLE WORKLOAD HANDLE
@@ -164,7 +175,7 @@ public class TestPartitionExecutorEarly2PC extends BaseTestCase {
         this.hstore_conf.site.specexec_ignore_stallpoints = StringUtil.join(",", IGNORED_STALLPOINTS);
         this.hstore_conf.site.txn_client_debug = true;
         this.hstore_conf.site.txn_counters = true;
-        this.hstore_conf.site.exec_voltdb_procinfo = true;
+        this.hstore_conf.site.exec_force_singlepartitioned = true;
         this.hstore_conf.site.pool_profiling = true;
         this.hstore_conf.site.markov_enable = true;
         this.hstore_conf.site.markov_path = markovsFile.getAbsolutePath();
@@ -245,15 +256,17 @@ public class TestPartitionExecutorEarly2PC extends BaseTestCase {
         assertNotNull(dtxn);
     }
     
-    private void checkBlockedSpeculativeTxns(PartitionExecutor executor, int expected) {
+    private void checkQueuedTxns(PartitionExecutor executor, int expected) {
         // Wait until they have all been executed but make sure that nobody actually returned yet
         int tries = 3;
+        int blocked = -1;
+        PartitionLockQueue queue = hstore_site.getTransactionQueueManager().getLockQueue(executor.getPartitionId()); 
         while (tries-- > 0) {
-            int blocked = executor.getDebugContext().getBlockedSpecExecCount();
+            blocked = queue.size();
             if (blocked == expected) break;
             ThreadUtil.sleep(NOTIFY_TIMEOUT);    
         } // WHILE
-        assertEquals(expected, executor.getDebugContext().getBlockedSpecExecCount());
+        assertEquals(executor.toString(), expected, blocked);
     }
     
     private <T extends VoltProcedure> T getCurrentVoltProcedure(PartitionExecutor executor, Class<T> expectedType) {
@@ -309,10 +322,10 @@ public class TestPartitionExecutorEarly2PC extends BaseTestCase {
         // Block until we know that the txn has started running
         BlockableSendPayment dtxnVoltProc = this.getCurrentVoltProcedure(this.baseExecutor, BlockableSendPayment.class); 
         assertNotNull(dtxnVoltProc);
-        dtxnVoltProc.LOCK_BEFORE.release();
-        boolean result = dtxnVoltProc.NOTIFY_AFTER.tryAcquire(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
+        boolean result = dtxnVoltProc.NOTIFY_BEFORE.tryAcquire(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
         assertTrue(result);
         this.checkCurrentDtxn();
+        LOG.info("Our bad boy is running: " + dtxnVoltProc);
         
         // Fire off a single-partition txn that not get executed right away
         Object spParams[] = new Object[]{ BASE_PARTITION+1, BASE_PARTITION+1, 1.0 };
@@ -320,7 +333,7 @@ public class TestPartitionExecutorEarly2PC extends BaseTestCase {
         spHints.basePartition = BASE_PARTITION+1;
         LatchableProcedureCallback spCallback0 = new LatchableProcedureCallback(1);
         this.client.callProcedure(spCallback0, this.blockingProc.getName(), spHints, spParams);
-        this.checkBlockedSpeculativeTxns(this.remoteExecutor, 1);
+        this.checkQueuedTxns(this.remoteExecutor, 1);
         
 
 //        
