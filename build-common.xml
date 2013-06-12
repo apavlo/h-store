@@ -116,10 +116,6 @@
 <arg value="site.exec_queued_response_ee_bypass=${site.exec_queued_response_ee_bypass}" />
 <arg value="site.exec_response_timeout=${site.exec_response_timeout}" />
 <arg value="site.exec_validate_work=${site.exec_validate_work}" />
-<arg value="site.exec_command_logging=${site.exec_command_logging}" />
-<arg value="site.exec_command_logging_directory=${site.exec_command_logging_directory}" />
-<arg value="site.exec_command_logging_group_commit_timeout=${site.exec_command_logging_group_commit_timeout}" />
-<arg value="site.exec_command_logging_profile=${site.exec_command_logging_profile}" />
 <arg value="site.exec_adhoc_sql=${site.exec_adhoc_sql}" />
 <arg value="site.exec_prefetch_queries=${site.exec_prefetch_queries}" />
 <arg value="site.exec_deferrable_queries=${site.exec_deferrable_queries}" />
@@ -181,7 +177,6 @@
 <arg value="site.markov_fast_path=${site.markov_fast_path}" />
 <arg value="site.markov_endpoint_caching=${site.markov_endpoint_caching}" />
 <arg value="site.markov_batch_caching_min=${site.markov_batch_caching_min}" />
-<arg value="site.exec_neworder_cheat=${site.exec_neworder_cheat}" />
 <arg value="site.markov_fixed=${site.markov_fixed}" />
 <arg value="site.markov_profiling=${site.markov_profiling}" />
 <arg value="site.planner_profiling=${site.planner_profiling}" />
@@ -206,7 +201,4 @@
 <arg value="site.pool_txn_enable=${site.pool_txn_enable}" />
 <arg value="site.pool_mapreducetxnstate_idle=${site.pool_mapreducetxnstate_idle}" />
 <arg value="site.pool_pathestimators_idle=${site.pool_pathestimators_idle}" />
-<arg value="site.pool_prefetchstates_idle=${site.pool_prefetchstates_idle}" />
-<arg value="site.pool_txnredirect_idle=${site.pool_txnredirect_idle}" />
-<arg value="site.pool_txnredirectresponses_idle=${site.pool_txnredirectresponses_idle}" />
 
