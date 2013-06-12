@@ -10,6 +10,7 @@ import com.google.protobuf.ByteString;
 
 import edu.brown.hstore.Hstoreservice.TransactionWorkRequest;
 import edu.brown.hstore.txns.LocalTransaction;
+import edu.brown.utils.PartitionSet;
 
 public class TransactionWorkRequestBuilder {
 
@@ -31,14 +32,14 @@ public class TransactionWorkRequestBuilder {
      * @param ts
      * @return
      */
-    public TransactionWorkRequest.Builder getBuilder(LocalTransaction ts) {
+    public TransactionWorkRequest.Builder getBuilder(LocalTransaction ts, PartitionSet doneNotifications) {
         if (this.builder == null) {
             this.builder = TransactionWorkRequest.newBuilder()
                                         .setTransactionId(ts.getTransactionId().longValue())
                                         .setSourcePartition(ts.getBasePartition())
                                         .setProcedureId(ts.getProcedure().getId());
-            if (ts.hasDonePartitions()) {
-                this.builder.addAllDonePartition(ts.getDonePartitions());
+            if (doneNotifications != null) {
+                this.builder.addAllDonePartition(doneNotifications);
             }
             this.param_indexes.clear();
             this.inputs.clear();

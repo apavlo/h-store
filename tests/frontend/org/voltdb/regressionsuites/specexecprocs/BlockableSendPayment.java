@@ -69,7 +69,7 @@ public class BlockableSendPayment extends SendPayment {
         // BATCH #3
         voltQueueSQL(UpdateCheckingBalance, amount*-1d, sendAcct);
         voltQueueSQL(UpdateCheckingBalance, amount, destAcct);
-        final VoltTable updateResults[] = voltExecuteSQL(true);
+        final VoltTable updateResults[] = voltExecuteSQL();
         
         // -------------------- LOCK AFTER QUERY --------------------
         ProfileMeasurement pm_after = new ProfileMeasurement("AFTER");

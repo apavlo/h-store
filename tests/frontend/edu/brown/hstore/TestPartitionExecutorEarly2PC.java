@@ -37,6 +37,7 @@ import edu.brown.markov.containers.MarkovGraphsContainer;
 import edu.brown.markov.containers.MarkovGraphsContainerUtil;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.FileUtil;
+import edu.brown.utils.PartitionSet;
 import edu.brown.utils.ProjectType;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.ThreadUtil;
@@ -325,15 +326,27 @@ public class TestPartitionExecutorEarly2PC extends BaseTestCase {
         boolean result = dtxnVoltProc.NOTIFY_BEFORE.tryAcquire(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
         assertTrue(result);
         this.checkCurrentDtxn();
-        LOG.info("Our bad boy is running: " + dtxnVoltProc);
         
-        // Fire off a single-partition txn that not get executed right away
+        // Fire off a single-partition txn that will not get executed right away
         Object spParams[] = new Object[]{ BASE_PARTITION+1, BASE_PARTITION+1, 1.0 };
         StoredProcedureInvocationHints spHints = new StoredProcedureInvocationHints();
         spHints.basePartition = BASE_PARTITION+1;
         LatchableProcedureCallback spCallback0 = new LatchableProcedureCallback(1);
         this.client.callProcedure(spCallback0, this.blockingProc.getName(), spHints, spParams);
         this.checkQueuedTxns(this.remoteExecutor, 1);
+        
+        // Ok now we're going to release our txn. It will execute a bunch of stuff.
+        // It should be able to identify that it is finished with the remote partition without
+        // having to be explicitly told in the code.
+        dtxnVoltProc.LOCK_BEFORE.release();
+        result = dtxnVoltProc.NOTIFY_AFTER.tryAcquire(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
+        assertTrue(result);
+        
+        LocalTransaction dtxn = (LocalTransaction)this.baseExecutor.getDebugContext().getCurrentDtxn();
+        assertEquals(dtxnVoltProc.getTransactionId(), dtxn.getTransactionId());
+        PartitionSet donePartitions = dtxn.getDonePartitions();
+        assertEquals(donePartitions.toString(), 1, donePartitions.size());
+        assertEquals(this.remoteExecutor.getPartitionId(), donePartitions.get());
         
 
 //        

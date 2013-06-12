@@ -302,6 +302,16 @@ public class CatalogContext {
     public int getSiteIdForPartitionId(int partition_id) {
         return (this.partitionSiteXref[partition_id]);
     }
+    
+    /**
+     * Return the site for the given partition
+     * @param partition
+     * @return
+     */
+    public Site getSiteForPartition(int partition) {
+        int siteId = this.partitionSiteXref[partition]; 
+        return (this.getSiteById(siteId));
+    }
 
     // ------------------------------------------------------------
     // PARTITIONS
