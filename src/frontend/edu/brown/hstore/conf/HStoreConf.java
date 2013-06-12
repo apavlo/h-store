@@ -2398,8 +2398,11 @@ public final class HStoreConf {
         if (cp.enumOptions() == null || cp.enumOptions().isEmpty()) {
             return (null);
         }
-        
-        return (null);
+        @SuppressWarnings("unchecked")
+        Class<T> enumClass = (Class<T>)ClassUtil.getClass(cp.enumOptions());
+        if (debug.val)
+            LOG.debug(String.format("%s -> %s", f.getName(), enumClass.getCanonicalName()));
+        return enumClass.getEnumConstants();
     }
     
     /**
