@@ -93,6 +93,12 @@ public abstract class HStoreConfUtil {
         final Map<Field, ConfigProperty> props = handle.getConfigProperties();
         
         // Parameters:
+        //  (1) Row Type Name
+        //  (2) Row Key
+        //  (3) Row Value
+        final String htmlRow = "<tr><td class=\"prop-%s\">%s:</td><td><tt>%s</tt></td>\n";
+        
+        // Parameters:
         //  (1) parameter
         //  (2) parameter
         //  (3) experimental
@@ -101,8 +107,8 @@ public abstract class HStoreConfUtil {
         final String template = "<a name=\"@@PROP@@\"></a>\n" +
                                 "<li><tt class=\"property\">@@PROPFULL@@</tt>@@EXP@@ @@DEPRECATED@@\n" +
                                 "<table>\n" +
-                                "<tr><td class=\"prop-default\">Default:</td><td><tt>@@DEFAULT@@</tt></td>\n" +
-                                "<tr><td class=\"prop-type\">Permitted Type:</td><td><tt>@@TYPE@@</tt></td>\n" +
+                                String.format(htmlRow, "default", "Default", "@@DEFAULT@@") +
+                                String.format(htmlRow, "type", "Permitted Tye", "@@TYPE@@") +
                                 "@@VALUES_FULL@@" +
                                 "@@DEPRECATED_FULL@@" +
                                 "<tr><td colspan=\"2\">@@DESC@@</td></tr>\n" +
@@ -171,8 +177,10 @@ public abstract class HStoreConfUtil {
                 values.put("VALUES_FULL", "");
                 if (cp.enumOptions() != null && !cp.enumOptions().isEmpty()) {
                     Enum<?> permitted[] = conf.getEnumOptions(f, cp);
-                    values.put("VALUES_FULL", "<tr><td class=\"prop-values\">Permitted Values:</td>" +
-                    		                      "<td><tt>" + Arrays.toString(permitted) + "</tt></td>\n");
+                    values.put("VALUES_FULL",
+                               String.format(htmlRow, "values", "Permitted Values", Arrays.toString(permitted)) +
+                               String.format(htmlRow, "values", "See Also", cp.enumOptions())
+                    );
                 }
                 
                 // DEPRECATED
@@ -183,7 +191,7 @@ public abstract class HStoreConfUtil {
                     Matcher m = REGEX_CONFIG.matcher(replacedBy);
                     if (m.find()) replacedBy = m.replaceAll(REGEX_CONFIG_REPLACE);
                     values.put("DEPRECATED", " <b class=\"deprecated\">Deprecated</b>");
-                    values.put("DEPRECATED_FULL", "<tr><td class=\"prop-replaced\">Replaced By:</td><td><tt>" + replacedBy + "</tt></td>\n");
+                    values.put("DEPRECATED_FULL", String.format(htmlRow, "replaced", "Replaced By", replacedBy));
                 }
                 
                 // DESC
