@@ -392,42 +392,42 @@ public final class HStoreConf {
         )
         public boolean exec_validate_work;
 
-        @ConfigProperty(
-            description="If enabled, log all transaction requests to disk",
-            defaultBoolean=false,
-            replacedBy="site.commandlog_enable",
-            experimental=true
-        )
-        @Deprecated
-        public boolean exec_command_logging;
-        
-        @ConfigProperty(
-            description="Directory for storage of command logging files",
-            defaultString="${global.temp_dir}/wal",
-            replacedBy="site.commandlog_dir",
-            experimental=true
-        )
-        @Deprecated
-        public String exec_command_logging_directory = HStoreConf.this.global.temp_dir + "/wal";
-        
-        @ConfigProperty(
-            description="Timeout in milliseconds before group commit buffer flushes, if it does not fill",
-            defaultInt=50,
-            replacedBy="site.commandlog_timeout",
-            experimental=true
-        )
-        @Deprecated
-        public int exec_command_logging_group_commit_timeout;
-        
-        @ConfigProperty(
-            description="If enabled, then the CommandLogWriter will keep track of various internal " +
-            		    "profile statistics.",
-            defaultBoolean=false,
-            replacedBy="site.commandlog_profiling",
-            experimental=true
-        )
-        @Deprecated
-        public boolean exec_command_logging_profile;
+//        @ConfigProperty(
+//            description="If enabled, log all transaction requests to disk",
+//            defaultBoolean=false,
+//            replacedBy="site.commandlog_enable",
+//            experimental=true
+//        )
+//        @Deprecated
+//        public boolean exec_command_logging;
+//        
+//        @ConfigProperty(
+//            description="Directory for storage of command logging files",
+//            defaultString="${global.temp_dir}/wal",
+//            replacedBy="site.commandlog_dir",
+//            experimental=true
+//        )
+//        @Deprecated
+//        public String exec_command_logging_directory = HStoreConf.this.global.temp_dir + "/wal";
+//        
+//        @ConfigProperty(
+//            description="Timeout in milliseconds before group commit buffer flushes, if it does not fill",
+//            defaultInt=50,
+//            replacedBy="site.commandlog_timeout",
+//            experimental=true
+//        )
+//        @Deprecated
+//        public int exec_command_logging_group_commit_timeout;
+//        
+//        @ConfigProperty(
+//            description="If enabled, then the CommandLogWriter will keep track of various internal " +
+//            		    "profile statistics.",
+//            defaultBoolean=false,
+//            replacedBy="site.commandlog_profiling",
+//            experimental=true
+//        )
+//        @Deprecated
+//        public boolean exec_command_logging_profile;
         
         @ConfigProperty(
             description="Setting this configuration parameter to true allows clients to " +
@@ -984,16 +984,16 @@ public final class HStoreConf {
         )
         public int markov_batch_caching_min;
         
-        @ConfigProperty(
-            description="Enable a hack for TPC-C where we inspect the arguments of the TPC-C neworder transaction" +
-            		    "and figure out what partitions it needs without having to use the TransactionEstimator. " +
-            		    "This will crash the system when used with other benchmarks. ",
-            defaultBoolean=false,
-            replacedBy="site.markov_fixed",
-            experimental=true
-        )
-        @Deprecated
-        public boolean exec_neworder_cheat;
+//        @ConfigProperty(
+//            description="Enable a hack for TPC-C where we inspect the arguments of the TPC-C neworder transaction" +
+//            		    "and figure out what partitions it needs without having to use the TransactionEstimator. " +
+//            		    "This will crash the system when used with other benchmarks. ",
+//            defaultBoolean=false,
+//            replacedBy="site.markov_fixed",
+//            experimental=true
+//        )
+//        @Deprecated
+//        public boolean exec_neworder_cheat;
         
         @ConfigProperty(
             description="Use a fixed transaction estimator to predict the initial properties of an incoming " +
@@ -1212,26 +1212,6 @@ public final class HStoreConf {
         )
         public int pool_pathestimators_idle;
         
-        @ConfigProperty(
-            description="The max number of PrefetchStates to keep in the pool.",
-            defaultInt=100,
-            experimental=false
-        )
-        public int pool_prefetchstates_idle;
-        
-        @ConfigProperty(
-            description="The max number of TransactionRedirectCallbacks to keep idle in the pool",
-            defaultInt=1000,
-            experimental=false
-        )
-        public int pool_txnredirect_idle;
-        
-        @ConfigProperty(
-            description="The max number of TransactionRedirectResponseCallbacks to keep idle in the pool.",
-            defaultInt=2500,
-            experimental=false
-        )
-        public int pool_txnredirectresponses_idle;
     }
     
     // ============================================================================
@@ -1375,7 +1355,7 @@ public final class HStoreConf {
 
         @ConfigProperty(
             description="How long should the benchmark trial run (in milliseconds). Does not " +
-                        "include ${client.warmup time}.",
+                        "include ${client.warmup} time.",
             defaultInt=60000,
             experimental=false
         )
@@ -1563,7 +1543,7 @@ public final class HStoreConf {
         public String codespeed_executable;
         
         @ConfigProperty(
-            description="The Subversion revision number of the H-Store source code that is reported " +
+            description="The revision number of the H-Store source code that is reported " +
                         "when posting the benchmark result used to CodeSpeed. " +
                         "This parameter is required by CodeSpeed and cannot be empty. " +
                         "Note that the the ${client.codespeed_url} parameter must also be set.", 
