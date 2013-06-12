@@ -35,6 +35,10 @@ public class SpecExecScheduler {
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
+
+    // ----------------------------------------------------------------------------
+    // DATA MEMBERS
+    // ----------------------------------------------------------------------------
     
     private final int partitionId;
     private final PartitionLockQueue queue;
@@ -52,6 +56,7 @@ public class SpecExecScheduler {
     private boolean ignore_speculation_type_change = false;
     
     private Set<SpeculationType> ignore_types = null;
+   
     
     private AbstractTransaction lastDtxn;
     private SpeculationType lastSpecType;
@@ -60,6 +65,10 @@ public class SpecExecScheduler {
     private boolean interrupted = false;
     private Class<? extends InternalMessage> latchMsg;
 
+    // ----------------------------------------------------------------------------
+    // PROFILING STUFF
+    // ----------------------------------------------------------------------------
+    
     /**
      * Maintain a separate SpecExecProfiler per SpeculationType.
      */
@@ -70,6 +79,10 @@ public class SpecExecScheduler {
     private AbstractTransaction profilerCurrentTxn;
     private boolean profilerSkipCurrentTxn = true;
     private final FastIntHistogram profilerExecuteCounter = new FastIntHistogram(SpeculationType.values().length);
+    
+    // ----------------------------------------------------------------------------
+    // CONSTRUCTOR
+    // ----------------------------------------------------------------------------
     
     /**
      * Constructor
@@ -99,6 +112,10 @@ public class SpecExecScheduler {
             } // FOR
         }
     }
+    
+    // ----------------------------------------------------------------------------
+    // ACCESS METHODS
+    // ----------------------------------------------------------------------------
     
     /**
      * Replace the ConflictChecker. This should only be used for testing
@@ -233,6 +250,7 @@ public class SpecExecScheduler {
         LocalTransaction next = null;
         int txn_ctr = 0;
         int examined_ctr = 0;
+        int matched_ctr = 0;
         long bestTime = (this.policyType == SpecExecSchedulerPolicyType.LONGEST ? Long.MIN_VALUE : Long.MAX_VALUE);
 
         // Check whether we can use our same iterator from the last call
@@ -309,6 +327,9 @@ public class SpecExecScheduler {
                         String msg = String.format("Unexpected %s.%s", specType.getClass().getSimpleName(), specType);
                         throw new RuntimeException(msg);
                 } // SWITCH
+                // If we get get to this point through the above switch statement, we know
+                // that this txn is safe to execute now.
+                matched_ctr++;
                 
                 // Scheduling Policy: FIRST MATCH
                 if (this.policyType == SpecExecSchedulerPolicyType.FIRST) {
@@ -316,19 +337,25 @@ public class SpecExecScheduler {
                     resetIterator = false;
                     break;
                 }
-                
-                // Estimate the time that remains.
-                EstimatorState es = localTxn.getEstimatorState();
-                if (es != null) {
-                    long remainingTime = es.getLastEstimate().getRemainingExecutionTime();
-                    if ((this.policyType == SpecExecSchedulerPolicyType.SHORTEST && remainingTime < bestTime) ||
-                        (this.policyType == SpecExecSchedulerPolicyType.LONGEST && remainingTime > bestTime)) {
-                        bestTime = remainingTime;
-                        next = localTxn;
-                        if (debug.val)
-                            LOG.debug(String.format("[%s %d/%d] New Match -> %s / remainingTime=%d",
-                                      this.policyType, examined_ctr, this.windowSize, next, remainingTime));
-                     }
+                // Scheduling Policy: LAST MATCH
+                else if (this.policyType == SpecExecSchedulerPolicyType.LAST) {
+                    next = localTxn;
+                }
+                // Scheduling Policy: SHORTEST/LONGEST TIME
+                else {
+                    // Estimate the time that remains.
+                    EstimatorState es = localTxn.getEstimatorState();
+                    if (es != null) {
+                        long remainingTime = es.getLastEstimate().getRemainingExecutionTime();
+                        if ((this.policyType == SpecExecSchedulerPolicyType.SHORTEST && remainingTime < bestTime) ||
+                            (this.policyType == SpecExecSchedulerPolicyType.LONGEST && remainingTime > bestTime)) {
+                            bestTime = remainingTime;
+                            next = localTxn;
+                            if (debug.val)
+                                LOG.debug(String.format("[%s %d/%d] New Match -> %s / remainingTime=%d",
+                                          this.policyType, examined_ctr, this.windowSize, next, remainingTime));
+                         }
+                    }
                 }
                     
                 // Stop if we've reached our window size
@@ -339,7 +366,10 @@ public class SpecExecScheduler {
             }
         } // WHILE
         if (trace.val) LOG.trace(StringUtil.header("END QUEUE CHECK"));
-        if (profiler != null) profiler.num_comparisons.put(txn_ctr);
+        if (profiler != null) {
+            profiler.num_comparisons.put(txn_ctr);
+            profiler.num_matches.put(matched_ctr);
+        }
         
         // We found somebody to execute right now!
         // Make sure that we set the speculative flag to true!
@@ -394,7 +424,6 @@ public class SpecExecScheduler {
         public SpecExecProfiler getProfiler(SpeculationType stype) {
             return (profilerMap[stype.ordinal()]);
         }
-        
     } // CLASS
     
     private SpecExecScheduler.Debug cachedDebugContext;
