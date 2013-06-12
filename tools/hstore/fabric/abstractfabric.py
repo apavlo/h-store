@@ -235,17 +235,17 @@ class AbstractFabric(object):
             ## FOR (SITES)
             if lastPartition+1 == self.env["hstore.partitions"]: break
         ## FOR
-        assert len(hosts) > 0
         LOG.debug("Last Partition: %d", lastPartition)
         LOG.debug("Site Hosts: %s" % site_hosts)
-        
+        assert len(hosts) > 0
+
         ## HStore Clients
-        for clientInst in self.getRunningClientInstances():
+        for clientInst in self.getRunningInstances():
             if clientInst.private_dns_name in site_hosts: continue
             clients.append(clientInst.private_dns_name)
         ## FOR
-        assert len(clients) > 0
         LOG.debug("Client Hosts: %s" % clients)
+        assert len(clients) > 0
 
         ## Make sure the the checkout is up to date
         if updateRepo: 
