@@ -65,6 +65,9 @@ public abstract class LoggerUtil {
             this.logger = logger;
             this.debug = debug;
             this.trace = trace;
+            
+            if (this.debug != null) this.debug.set(logger.isDebugEnabled());
+            if (this.trace != null) this.trace.set(logger.isTraceEnabled());
         }
         
         @Override
