@@ -31,10 +31,9 @@ public class MarkovProbabilityCalculator extends VertexTreeWalker<MarkovVertex, 
     private final PartitionSet all_partitions;
     private MarkovEstimate markov_est;
     
-    public MarkovProbabilityCalculator(MarkovGraph markov) {
+    public MarkovProbabilityCalculator(MarkovGraph markov, PartitionSet all_partitions) {
         super(markov, TraverseOrder.LONGEST_PATH, Direction.REVERSE);
-        
-        this.all_partitions = markov.getAllPartitions();
+        this.all_partitions = all_partitions;
         
         // This is tricky. We need to sort of multiplex the traversal from either the commit
         // or abort vertices. We'll always start from the commit but then force the abort 
@@ -182,7 +181,7 @@ public class MarkovProbabilityCalculator extends VertexTreeWalker<MarkovVertex, 
     }
     
     public static MarkovEstimate generate(CatalogContext catalogContext, MarkovGraph markov, MarkovVertex v) {
-        MarkovProbabilityCalculator calc = new MarkovProbabilityCalculator(markov);
+        MarkovProbabilityCalculator calc = new MarkovProbabilityCalculator(markov, catalogContext.getAllPartitionIds());
         calc.stopAtElement(v);
         MarkovEstimate est = new MarkovEstimate(catalogContext);
         est.init(v, EstimatorUtil.INITIAL_ESTIMATE_BATCH);

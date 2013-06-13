@@ -68,7 +68,7 @@ public class TestMarkovCostModel extends BaseTestCase {
             catalog_proc = this.getProcedure(TARGET_PROCEDURE);
             
             File file = this.getWorkloadFile(ProjectType.TPCC);
-            workload = new Workload(catalog);
+            workload = new Workload(catalogContext.catalog);
 
             // Check out this beauty:
             // (1) Filter by procedure name
@@ -86,7 +86,7 @@ public class TestMarkovCostModel extends BaseTestCase {
             workload.load(file, catalogContext.database, filter);
             
             // Make a copy that doesn't have the first TransactionTrace
-            Workload clone = new Workload(catalog, new Filter() {
+            Workload clone = new Workload(catalogContext.catalog, new Filter() {
                 private boolean first = true;
                 @Override
                 protected FilterResult filter(AbstractTraceElement<? extends CatalogType> element) {
@@ -116,7 +116,7 @@ public class TestMarkovCostModel extends BaseTestCase {
             // Generate MarkovGraphs per base partition
 //            file = this.getMarkovFile(ProjectType.TPCC);
 //            markovs = MarkovUtil.load(catalogContext.database, file.getAbsolutePath());
-            markovs = MarkovGraphsContainerUtil.createBasePartitionMarkovGraphsContainer(catalogContext.database, clone, p_estimator);
+            markovs = MarkovGraphsContainerUtil.createBasePartitionMarkovGraphsContainer(catalogContext, clone, p_estimator);
             assertNotNull(markovs);
             
             // And then populate the MarkovCostModel

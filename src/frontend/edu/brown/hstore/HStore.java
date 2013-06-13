@@ -133,8 +133,7 @@ public abstract class HStore {
             if (path.exists()) {
                 long start = System.currentTimeMillis();
                 try {
-                    markovs = MarkovGraphsContainerUtil.loadIds(catalogContext.database,
-                                                                path, 
+                    markovs = MarkovGraphsContainerUtil.loadIds(catalogContext, path, 
                                                                 singleton.getLocalPartitionIds());
                 } catch (Exception ex) {
                     throw new RuntimeException(ex);

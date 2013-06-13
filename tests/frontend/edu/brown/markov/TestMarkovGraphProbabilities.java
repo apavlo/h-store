@@ -8,7 +8,6 @@ import org.voltdb.catalog.Statement;
 
 import edu.brown.BaseTestCase;
 import edu.brown.benchmark.tm1.procedures.UpdateSubscriberData;
-import edu.brown.catalog.CatalogUtil;
 import edu.brown.mappings.ParameterMappingsSet;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.ProjectType;
@@ -45,10 +44,10 @@ public class TestMarkovGraphProbabilities extends BaseTestCase {
             
             File file = this.getParameterMappingsFile(ProjectType.TM1);
             correlations = new ParameterMappingsSet();
-            correlations.load(file, catalog_db);
+            correlations.load(file, catalogContext.database);
 
             file = this.getWorkloadFile(ProjectType.TM1);
-            workload = new Workload(catalog);
+            workload = new Workload(catalogContext.catalog);
 
             // Check out this beauty:
             // (1) Filter by procedure name
@@ -60,14 +59,14 @@ public class TestMarkovGraphProbabilities extends BaseTestCase {
                     .include(TARGET_PROCEDURE.getSimpleName())
                     .attach(new BasePartitionTxnFilter(p_estimator, BASE_PARTITION))
                     .attach(new ProcedureLimitFilter(WORKLOAD_XACT_LIMIT));
-            workload.load(file, catalog_db, filter);
+            workload.load(file, catalogContext.database, filter);
             assert(workload.getTransactionCount() > 0);
             
             markov = new MarkovGraph(catalog_proc).initialize();
             for (TransactionTrace txn_trace : workload.getTransactions()) {
                 markov.processTransaction(txn_trace, p_estimator);
             } // FOR
-            markov.calculateProbabilities();
+            markov.calculateProbabilities(catalogContext.getAllPartitionIds());
         }
     }
     
@@ -84,7 +83,7 @@ public class TestMarkovGraphProbabilities extends BaseTestCase {
         assertEquals(1.0f, v.getSinglePartitionProbability());
         assert(v.getAbortProbability() > 0.0) : v.getAbortProbability(); 
         
-        for (int p : CatalogUtil.getAllPartitionIds(catalog_proc)) {
+        for (int p : catalogContext.getAllPartitionIds()) {
             if (p == BASE_PARTITION) {
                 assertEquals(0.0f, v.getReadOnlyProbability(p), MarkovGraph.PROBABILITY_EPSILON);
                 assertEquals(1.0f, v.getWriteProbability(p), MarkovGraph.PROBABILITY_EPSILON);

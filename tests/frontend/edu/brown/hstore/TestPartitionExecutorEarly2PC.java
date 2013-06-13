@@ -25,14 +25,15 @@ import edu.brown.benchmark.smallbank.SmallBankProjectBuilder;
 import edu.brown.benchmark.smallbank.procedures.SendPayment;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.conf.HStoreConf;
+import edu.brown.hstore.estimators.EstimatorState;
 import edu.brown.hstore.estimators.TransactionEstimator;
 import edu.brown.hstore.estimators.markov.MarkovEstimator;
+import edu.brown.hstore.estimators.markov.MarkovEstimatorState;
 import edu.brown.hstore.specexec.checkers.AbstractConflictChecker;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.hstore.util.TransactionCounter;
 import edu.brown.mappings.ParameterMapping;
-import edu.brown.mappings.ParameterMappingsSet;
 import edu.brown.markov.containers.MarkovGraphsContainer;
 import edu.brown.markov.containers.MarkovGraphsContainerUtil;
 import edu.brown.utils.CollectionUtil;
@@ -156,7 +157,7 @@ public class TestPartitionExecutorEarly2PC extends BaseTestCase {
             
             // GENERATE MARKOV GRAPHS
             Map<Integer, MarkovGraphsContainer> markovs = MarkovGraphsContainerUtil.createMarkovGraphsContainers(
-                                                                catalogContext.database,
+                                                                catalogContext,
                                                                 workload,
                                                                 p_estimator,
                                                                 MarkovGraphsContainer.class);
@@ -344,49 +345,15 @@ public class TestPartitionExecutorEarly2PC extends BaseTestCase {
         
         LocalTransaction dtxn = (LocalTransaction)this.baseExecutor.getDebugContext().getCurrentDtxn();
         assertEquals(dtxnVoltProc.getTransactionId(), dtxn.getTransactionId());
+        EstimatorState t_state = dtxn.getEstimatorState(); 
+        if (t_state instanceof MarkovEstimatorState) {
+            LOG.warn("WROTE MARKOVGRAPH: " + ((MarkovEstimatorState)t_state).dumpMarkovGraph());
+        }
         PartitionSet donePartitions = dtxn.getDonePartitions();
         assertEquals(donePartitions.toString(), 1, donePartitions.size());
         assertEquals(this.remoteExecutor.getPartitionId(), donePartitions.get());
         
 
-//        
-//        // Block until we know that the txn has started running
-//        result = spNotify.tryAcquire(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
-//        assertTrue(result);
-//        
-//        // Then execute a distributed txn. It will get the lock for the
-//        // other partition that the first partition isn't running on
-//        Object dtxnParams[] = new Object[]{ BASE_PARTITION+1 };
-//        this.client.callProcedure(this.dtxnCallback, this.dtxnProc.getName(), dtxnParams);
-//        ThreadUtil.sleep(NOTIFY_TIMEOUT);
-//        
-//        // Now blast out a single-partition txn that will get
-//        // speculatively executed on the idle partition
-//        LatchableProcedureCallback spCallback1 = new LatchableProcedureCallback(1);
-//        params = new Object[]{ BASE_PARTITION+1, marker + 1, 0 };
-//        this.client.callProcedure(spCallback1, spProc.getName(), params);
-//        result = spCallback1.latch.await(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
-//        assertTrue("SINGLE-P1 LATCH: " + spCallback1.latch, result);
-//        assertEquals(1, spCallback1.responses.size());
-//        this.checkClientResponses(spCallback1.responses, Status.OK, true, 0);
-//        
-//        // Release all the locks and let this one fly
-//        assertEquals(0, spCallback0.responses.size());
-//        spLock.release();
-//        this.lockBefore.release();
-//        this.lockAfter.release();
-//        
-//        // Everyone else should succeed and not be speculative. 
-//        result = this.dtxnLatch.await(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
-//        assertTrue("DTXN LATCH"+this.dtxnLatch, result);
-//        assertEquals(Status.OK, this.dtxnResponse.getStatus());
-//        
-//        result = spCallback0.latch.await(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
-//        assertTrue("SINGLE-P0 LATCH"+spCallback0.latch, result);
-//        assertEquals(1, spCallback0.responses.size());
-//        this.checkClientResponses(spCallback0.responses, Status.OK, false, 0);
-//        
-//        HStoreSiteTestUtil.checkObjectPools(hstore_site);
     }
     
 //    /**

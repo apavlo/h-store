@@ -114,8 +114,8 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
     // ----------------------------------------------------------------------------
 
     /**
-     * The Query Instance Index is the counter for the number of times this particular Statement
-     * was executed in the transaction 
+     * The StmtCounter is the number of times that this particular Statement
+     * was executed previously in the current transaction. 
      */
     public int counter;
     
@@ -493,7 +493,7 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
             StringBuilder sb = new StringBuilder();
             sb.append("{").append(this.catalog_item.getName());
             if (this.type == Type.QUERY) {
-                sb.append(String.format(" Id:%d,Indx:%d,Prtns:%s,Past:%s",
+                sb.append(String.format(" Id:%d,Cnt:%d,Prtns:%s,Past:%s",
                                         this.getElementId(), this.counter, this.partitions, this.past_partitions));
             }
             sb.append("}");

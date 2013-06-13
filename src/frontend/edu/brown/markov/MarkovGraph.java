@@ -344,14 +344,6 @@ public class MarkovGraph extends AbstractDirectedGraph<MarkovVertex, MarkovEdge>
         return (successors);
     }
     
-    /**
-     * Return an immutable list of all the partition ids in our catalog
-     * @return
-     */
-    protected PartitionSet getAllPartitions() {
-        return (CatalogUtil.getAllPartitionIds(this.getDatabase()));
-    }
-    
     // ----------------------------------------------------------------------------
     // STATISTICAL MODEL METHODS
     // ----------------------------------------------------------------------------
@@ -361,7 +353,7 @@ public class MarkovGraph extends AbstractDirectedGraph<MarkovVertex, MarkovEdge>
      * First we will reset all of the existing probabilities and then apply the instancehits to 
      * the totalhits for each graph element
      */
-    public void calculateProbabilities() {
+    public void calculateProbabilities(PartitionSet partitions) {
         // Reset all probabilities
         for (MarkovVertex v : this.getVertices()) {
             v.resetAllProbabilities();
@@ -379,7 +371,7 @@ public class MarkovGraph extends AbstractDirectedGraph<MarkovVertex, MarkovEdge>
         this.calculateEdgeProbabilities();
         
         // Then traverse the graph and calculate the vertex probability tables
-        this.calculateVertexProbabilities();
+        this.calculateVertexProbabilities(partitions);
         
         this.recompute_count++;
     }
@@ -387,9 +379,9 @@ public class MarkovGraph extends AbstractDirectedGraph<MarkovVertex, MarkovEdge>
     /**
      * Calculate vertex probabilities
      */
-    private void calculateVertexProbabilities() {
+    private void calculateVertexProbabilities(PartitionSet partitions) {
         if (trace.val) LOG.trace("Calculating Vertex probabilities for " + this);
-        new MarkovProbabilityCalculator(this).calculate();
+        new MarkovProbabilityCalculator(this, partitions).calculate();
     }
 
     /**
@@ -720,16 +712,16 @@ public class MarkovGraph extends AbstractDirectedGraph<MarkovVertex, MarkovEdge>
         // Check whether we want to update an existing collection of MarkovGraphsContainers
         if (args.hasParam(ArgumentsParser.PARAM_MARKOV)) {
             File path = args.getFileParam(ArgumentsParser.PARAM_MARKOV);
-            markovs_map = MarkovGraphsContainerUtil.load(args.catalog_db, path);
+            markovs_map = MarkovGraphsContainerUtil.load(args.catalogContext, path);
         }
         
         if (markovs_map == null) {
-            markovs_map = MarkovGraphsContainerUtil.createMarkovGraphsContainers(args.catalog_db,
+            markovs_map = MarkovGraphsContainerUtil.createMarkovGraphsContainers(args.catalogContext,
                                                                                  args.workload,
                                                                                  p_estimator,
                                                                                  containerClass);
         } else {
-            markovs_map = MarkovGraphsContainerUtil.createMarkovGraphsContainers(args.catalog_db,
+            markovs_map = MarkovGraphsContainerUtil.createMarkovGraphsContainers(args.catalogContext,
                                                                                  args.workload,
                                                                                  p_estimator,
                                                                                  containerClass,
