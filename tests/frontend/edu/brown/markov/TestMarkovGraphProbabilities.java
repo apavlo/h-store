@@ -87,11 +87,11 @@ public class TestMarkovGraphProbabilities extends BaseTestCase {
             if (p == BASE_PARTITION) {
                 assertEquals(0.0f, v.getReadOnlyProbability(p), MarkovGraph.PROBABILITY_EPSILON);
                 assertEquals(1.0f, v.getWriteProbability(p), MarkovGraph.PROBABILITY_EPSILON);
-                assertEquals(0.0f, v.getFinishProbability(p), MarkovGraph.PROBABILITY_EPSILON);
+                assertEquals(0.0f, v.getDoneProbability(p), MarkovGraph.PROBABILITY_EPSILON);
             } else {
                 assertEquals(1.0f, v.getReadOnlyProbability(p), MarkovGraph.PROBABILITY_EPSILON);
                 assertEquals(0.0f, v.getWriteProbability(p), MarkovGraph.PROBABILITY_EPSILON);
-                assertEquals(1.0f, v.getFinishProbability(p), MarkovGraph.PROBABILITY_EPSILON);
+                assertEquals(1.0f, v.getDoneProbability(p), MarkovGraph.PROBABILITY_EPSILON);
             }
         } // FOR
     }

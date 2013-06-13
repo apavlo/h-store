@@ -291,7 +291,7 @@ public class MarkovCostModel extends AbstractCostModel {
         assert(initialEst != null);
         assert(initialEst.isInitialized());
         for (Integer partition : initialEst.getTouchedPartitions(this.thresholds)) {
-            if (initialEst.isFinishPartition(this.thresholds, partition.intValue()) == false) {
+            if (initialEst.isDonePartition(this.thresholds, partition.intValue()) == false) {
                 for (MarkovVertex v : initialEst.getMarkovPath()) {
                     if (v.getPartitions().contains(partition) == false)
                         continue;
@@ -681,7 +681,7 @@ public class MarkovCostModel extends AbstractCostModel {
             // that causes the partition to get touched. This is because our initial 
             // estimation of what partitions we are done at will be based on the total
             // path estimation and not directly on the finished probabilities
-            for (Integer finished_p : est.getFinishPartitions(this.thresholds)) {
+            for (Integer finished_p : est.getDonePartitions(this.thresholds)) {
                 if (touched_partitions.contains(finished_p)) {
                     // We are late with identifying that a partition is finished
                     // if it was idle for more than one batch round

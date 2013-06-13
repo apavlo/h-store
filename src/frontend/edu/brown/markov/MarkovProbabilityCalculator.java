@@ -87,7 +87,7 @@ public class MarkovProbabilityCalculator extends VertexTreeWalker<MarkovVertex, 
             // And DONE at all partitions!
             // And will not Read/Write Probability
             for (Integer partition : this.all_partitions) {
-                est.setFinishProbability(partition, 1.0f);
+                est.setDoneProbability(partition, 1.0f);
                 est.setReadOnlyProbability(partition, 1.0f);
                 est.setWriteProbability(partition, 0.0f);
             } // FOR
@@ -117,7 +117,7 @@ public class MarkovProbabilityCalculator extends VertexTreeWalker<MarkovVertex, 
             // Make sure everything is set to zero
             est.setSinglePartitionProbability(0f);
             for (int partition : this.all_partitions.values()) {
-                est.setFinishProbability(partition, 0f);
+                est.setDoneProbability(partition, 0f);
                 est.setReadOnlyProbability(partition, 0f);
                 est.setWriteProbability(partition, 0f);
             } // FOR
@@ -154,7 +154,7 @@ public class MarkovProbabilityCalculator extends VertexTreeWalker<MarkovVertex, 
                 
                 // DONE/READ/WRITE AT PARTITION PROBABILITY
                 for (int partition : this.all_partitions.values()) {
-                    assert(successor.isFinishProbabilitySet(partition)) : 
+                    assert(successor.isDoneProbabilitySet(partition)) : 
                         "Setting " + element + " BEFORE " + successor;
                     assert(successor.isReadOnlyProbabilitySet(partition)) : 
                         "Setting " + element + " BEFORE " + successor;
@@ -163,7 +163,7 @@ public class MarkovProbabilityCalculator extends VertexTreeWalker<MarkovVertex, 
                     
                     // The successor vertex accesses this partition
                     if (successor.getPartitions().contains(partition)) {
-                        est.setFinishProbability(partition, 0.0f);
+                        est.setDoneProbability(partition, 0.0f);
                         
                         // Figure out whether it is a read or a write
                         if (successorStmt.getReadonly()) {
@@ -186,7 +186,7 @@ public class MarkovProbabilityCalculator extends VertexTreeWalker<MarkovVertex, 
                     // multiplied based on the edge probabilities 
                     else {
                         try {
-                            est.addFinishProbability(partition, (e.getProbability() * successor.getFinishProbability(partition)));
+                            est.addDoneProbability(partition, (e.getProbability() * successor.getDoneProbability(partition)));
                         } catch (Throwable ex) {
                             LOG.warn(String.format("Failed to set FINISH probability for %s [partition=%d / edge=%s / successor=%s]",
                                                    est, partition, e, successor), ex);

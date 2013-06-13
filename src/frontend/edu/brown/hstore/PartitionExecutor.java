@@ -3528,7 +3528,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
     private Pair<PartitionSet, PartitionSet[]> calculateDonePartitions(LocalTransaction ts,
                                                                        Estimate estimate,
                                                                        FastIntHistogram fragmentsPerPartition) {
-        final PartitionSet estDonePartitions = estimate.getFinishPartitions(this.thresholds);
+        final PartitionSet estDonePartitions = estimate.getDonePartitions(this.thresholds);
         if (estDonePartitions.isEmpty()) {
             if (debug.val)
                 LOG.debug(String.format("%s - There are no new done partitions identified by %s",

@@ -1,6 +1,5 @@
 package edu.brown.hstore.estimators;
 
-
 import java.util.List;
 
 import edu.brown.catalog.special.CountedStatement;
@@ -97,16 +96,16 @@ public interface Estimate extends Poolable {
     public PartitionSet getWritePartitions(EstimationThresholds t);
     
     // ----------------------------------------------------------------------------
-    // FINISH PROBABILITY
+    // DONE PROBABILITY
     // ----------------------------------------------------------------------------
-    public boolean isFinishProbabilitySet(int partition);
-    public boolean isFinishPartition(EstimationThresholds t, int partition);
+    public boolean isDoneProbabilitySet(int partition);
+    public boolean isDonePartition(EstimationThresholds t, int partition);
     
     /**
      * Get the partitions that this transaction is finished with at this point in the transaction
      * @param t
      */
-    public PartitionSet getFinishPartitions(EstimationThresholds t);
+    public PartitionSet getDonePartitions(EstimationThresholds t);
 
     // ----------------------------------------------------------------------------
     // ABORT PROBABILITY

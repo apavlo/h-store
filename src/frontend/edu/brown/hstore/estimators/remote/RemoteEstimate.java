@@ -145,17 +145,17 @@ public class RemoteEstimate implements Estimate {
     }
 
     @Override
-    public boolean isFinishProbabilitySet(int partition) {
+    public boolean isDoneProbabilitySet(int partition) {
         return (false);
     }
 
     @Override
-    public boolean isFinishPartition(EstimationThresholds t, int partition) {
+    public boolean isDonePartition(EstimationThresholds t, int partition) {
         throw new NotImplementedException(this.getClass().getSimpleName() + " does not implement this method");
     }
 
     @Override
-    public PartitionSet getFinishPartitions(EstimationThresholds t) {
+    public PartitionSet getDonePartitions(EstimationThresholds t) {
         throw new NotImplementedException(this.getClass().getSimpleName() + " does not implement this method");
     }
 

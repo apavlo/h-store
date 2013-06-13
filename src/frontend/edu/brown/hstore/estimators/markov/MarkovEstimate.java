@@ -340,13 +340,13 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
     // ----------------------------------------------------------------------------
 
     @Override
-    public void addFinishProbability(int partition, float probability) {
+    public void addDoneProbability(int partition, float probability) {
         this.finished[partition] = probability + (this.finished[partition] == EstimatorUtil.NULL_MARKER ? 0 : this.finished[partition]);
         this.valid = this.valid && (probability != EstimatorUtil.NULL_MARKER);
         if (trace.val) LOG.trace(String.format("SET Partition %02d - FINISH %.02f", partition, this.finished[partition]));
     }
     @Override
-    public void setFinishProbability(int partition, float probability) {
+    public void setDoneProbability(int partition, float probability) {
         assert(partition >= 0) : "Invalid Partition: " + partition;
         assert(partition < this.finished.length) : "Invalid Partition: " + partition;
         this.finished[partition] = probability;
@@ -354,11 +354,11 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
         if (trace.val) LOG.trace(String.format("SET Partition %02d - FINISH %.02f", partition, this.finished[partition]));
     }
     @Override
-    public float getFinishProbability(int partition) {
+    public float getDoneProbability(int partition) {
         return (this.finished[partition]);
     }
     @Override
-    public boolean isFinishProbabilitySet(int partition) {
+    public boolean isDoneProbabilitySet(int partition) {
         return (this.finished[partition] != EstimatorUtil.NULL_MARKER);
     }
     
@@ -429,7 +429,7 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
     // ----------------------------------------------------------------------------
     
     @Override
-    public boolean isFinishPartition(EstimationThresholds t, int partition) {
+    public boolean isDonePartition(EstimationThresholds t, int partition) {
         return (this.finished[partition] >= t.getFinishedThreshold());
     }
     
@@ -472,7 +472,7 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
         return (this.write_partitionset);
     }
     @Override
-    public PartitionSet getFinishPartitions(EstimationThresholds t) {
+    public PartitionSet getDonePartitions(EstimationThresholds t) {
         assert(t != null);
         if (this.finished_partitionset == null) this.finished_partitionset = new PartitionSet();
         this.getPartitions(this.finished_partitionset, this.finished, (float)t.getFinishedThreshold(), false);
@@ -514,9 +514,9 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
         
         String header[] = {
             "",
-            "ReadO",
+            "ReadOnly",
             "Write",
-            "Finished",
+            "Done",
             "TouchCtr",
         };
         Object rows[][] = new Object[this.touched.length][];

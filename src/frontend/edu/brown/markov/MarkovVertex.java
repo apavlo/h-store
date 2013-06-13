@@ -542,7 +542,7 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
         Object rows[][] = new String[num_partitions][header.size()];
         for (int row_idx = 0, cnt = num_partitions; row_idx < cnt; row_idx++) {
             int col_idx = 0;
-            rows[row_idx][col_idx++] = String.format("[%02d]", row_idx);
+            rows[row_idx][col_idx++] = String.format("Partition %02d", row_idx);
             for (MarkovVertex.Probability type : ptypes) {
                 if (type.single_value) continue;
                 float val = this.probabilities[type.ordinal()][row_idx];
@@ -747,30 +747,30 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
     }
     
     // ----------------------------------------------------------------------------
-    // FINISHED PROBABILITY
+    // DONE PROBABILITY
     // ----------------------------------------------------------------------------
     
-    public void addFinishProbability(int partition, float probability) {
+    public void addDoneProbability(int partition, float probability) {
         this.addToProbability(Probability.DONE, partition, probability);
     }
-    public void setFinishProbability(int partition, float probability) {
+    public void setDoneProbability(int partition, float probability) {
         this.setProbability(Probability.DONE, partition, probability);
     }
-    public float getFinishProbability(int partition) {
+    public float getDoneProbability(int partition) {
         return (this.getSpecificProbability(Probability.DONE, partition));
     }
-    public boolean isFinishProbabilitySet(int partition) {
+    public boolean isDoneProbabilitySet(int partition) {
         return (this.getSpecificProbability(Probability.DONE, partition) != EstimatorUtil.NULL_MARKER);
     }
     @Override
-    public boolean isFinishPartition(EstimationThresholds t, int partition) {
+    public boolean isDonePartition(EstimationThresholds t, int partition) {
         return (this.getSpecificProbability(Probability.DONE, partition) >= t.finished);
     }
     @Override
-    public PartitionSet getFinishPartitions(EstimationThresholds t) {
+    public PartitionSet getDonePartitions(EstimationThresholds t) {
         PartitionSet partitions = new PartitionSet();
         for (int p = 0, cnt = this.probabilities[Probability.DONE.ordinal()].length; p < cnt; p++) {
-            if (this.isFinishPartition(t, p)) {
+            if (this.isDonePartition(t, p)) {
                 partitions.add(p);
             }
         } // FOR

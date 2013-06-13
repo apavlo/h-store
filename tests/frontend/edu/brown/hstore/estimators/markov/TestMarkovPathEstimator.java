@@ -160,12 +160,12 @@ public class TestMarkovPathEstimator extends BaseTestCase {
         for (int p : catalogContext.getAllPartitionIdArray()) {
             assertTrue(estimate.toString(), estimate.isReadOnlyProbabilitySet(p));
             assertTrue(estimate.toString(), estimate.isWriteProbabilitySet(p));
-            assertTrue(estimate.toString(), estimate.isFinishProbabilitySet(p));
+            assertTrue(estimate.toString(), estimate.isDoneProbabilitySet(p));
             
-            if (estimate.getFinishProbability(p) < 0.9f) {
+            if (estimate.getDoneProbability(p) < 0.9f) {
                 assert(estimate.getTouchedCounter(p) > 0) : String.format("TOUCHED[%d]: %d", p, estimate.getTouchedCounter(p)); 
                 assert(MathUtil.greaterThan(estimate.getWriteProbability(p), 0.0f, 0.01f)) : String.format("WRITE[%d]: %f", p, estimate.getWriteProbability(p));
-            } else if (MathUtil.equals(estimate.getFinishProbability(p), 0.01f, 0.03f)) {
+            } else if (MathUtil.equals(estimate.getDoneProbability(p), 0.01f, 0.03f)) {
                 assertEquals(0, estimate.getTouchedCounter(p));
                 assertEquals(0.0f, estimate.getWriteProbability(p), MarkovGraph.PROBABILITY_EPSILON);
             }
