@@ -25,14 +25,16 @@
  ***************************************************************************/
 package edu.brown.catalog;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.Vector;
 
+import org.apache.log4j.Logger;
 import org.voltdb.catalog.Column;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Table;
@@ -43,6 +45,7 @@ import edu.brown.utils.AbstractTreeWalker;
  * @author pavlo
  */
 public class DependencyUtil {
+    private static final Logger LOG = Logger.getLogger(DependencyUtil.class);
 
     /**
      * For each table, we store an ordered list tables up to the root of the
@@ -63,7 +66,7 @@ public class DependencyUtil {
      * the schema tree Table.Column -> Vector
      * <Table.Column>
      */
-    private final Map<String, Vector<String>> column_ancestors = new HashMap<String, Vector<String>>();
+    private final Map<String, List<String>> column_ancestors = new HashMap<String, List<String>>();
 
     /**
      * For each column we store a set of the columns that are dependent to it
@@ -102,23 +105,19 @@ public class DependencyUtil {
      * Initialize the various data structures that we will use
      */
     private void init(final Database catalog_db) {
-        //
         // Build the paths from columns to their ancestors based on foreign keys
-        //
         for (Table catalog_tbl : catalog_db.getTables()) {
             assert (catalog_tbl != null);
             final Set<String> tbl_ancestors = new LinkedHashSet<String>();
             String table_key = CatalogKey.createKey(catalog_tbl);
             this.table_descendants.put(table_key, new HashSet<String>());
 
-            //
             // Columns
-            //
             // LOG.info("Getting foreign key dependencies for " + catalog_tbl +
             // "\n" + CatalogUtil.getForeignKeyDependents(catalog_tbl));
             for (Column catalog_col : CatalogUtil.getForeignKeyDependents(catalog_tbl)) {
                 assert (catalog_col != null);
-                final Vector<String> col_ancestors = new Vector<String>();
+                final List<String> col_ancestors = new ArrayList<String>();
 
                 new AbstractTreeWalker<Column>() {
                     protected void populate_children(AbstractTreeWalker.Children<Column> children, Column element) {
@@ -143,11 +142,8 @@ public class DependencyUtil {
             } // FOR
             this.table_ancestors.put(table_key, tbl_ancestors);
         } // FOR
-          //
-          // Build a reverse index so that we know all the columns that depend
-          // somewhere
-          // down the line for each column
-          //
+        // Build a reverse index so that we know all the columns that depend
+        // somewhere down the line for each column
         for (String key : this.table_ancestors.keySet()) {
             for (String ancestor_key : this.table_ancestors.get(key)) {
                 this.table_descendants.get(ancestor_key).add(key);
@@ -164,10 +160,10 @@ public class DependencyUtil {
     }
 
     /**
-     * @param catalog_col
-     * @return
+     * Return an unordered set all the foreign key ancestor tables for the given table
+     * @param catalog_tbl
      */
-    public Set<Table> getAncestors(Table catalog_tbl) {
+    public Collection<Table> getAncestors(Table catalog_tbl) {
         Database catalog_db = (Database) catalog_tbl.getParent();
         Set<Table> ret = new LinkedHashSet<Table>();
         String key = CatalogKey.createKey(catalog_tbl);
@@ -184,12 +180,12 @@ public class DependencyUtil {
     }
 
     /**
+     * Return an ordered list of all the foreign ancestor columns for the given column.
      * @param catalog_col
-     * @return
      */
     public List<Column> getAncestors(Column catalog_col) {
         Database catalog_db = (Database) catalog_col.getParent().getParent();
-        List<Column> ret = new Vector<Column>();
+        List<Column> ret = new ArrayList<Column>();
         String key = CatalogKey.createKey(catalog_col);
         for (String ancestor_key : this.column_ancestors.get(key)) {
             // If this table is missing from the catalog, then we want to stop
@@ -204,20 +200,20 @@ public class DependencyUtil {
     }
 
     /**
+     * Return an unordered set of foreign key descendant tables for the given table
      * @param catalog_tbl
      * @return
      */
-    public Set<Table> getDescendants(Table catalog_tbl) {
+    public Collection<Table> getDescendants(Table catalog_tbl) {
         Database catalog_db = (Database) catalog_tbl.getParent();
         Set<Table> ret = new HashSet<Table>();
         String key = CatalogKey.createKey(catalog_tbl);
         boolean contains = this.table_descendants.containsKey(key);
-        if (!contains) {
-            System.out.println("Missing " + key + "???");
-            System.out.println(this.debug());
+        if (contains == false) {
+            LOG.warn("Missing " + key + "???");
+            LOG.warn(this.debug());
             // System.out.println(this.table_descendants.keySet());
-            System.out.println(CatalogUtil.debug(catalog_db.getTables()));
-            System.out.flush();
+            LOG.warn(CatalogUtil.debug(catalog_db.getTables()));
         }
         assert (contains) : "No table descendants for " + key + " (" + contains + ")";
         for (String dependent_key : this.table_descendants.get(key)) {
@@ -230,10 +226,11 @@ public class DependencyUtil {
     }
 
     /**
+     * Return an unordered set of foreign key descendant columns for the given column
      * @param catalog_col
      * @return
      */
-    public Set<Column> getDescendants(Column catalog_col) {
+    public Collection<Column> getDescendants(Column catalog_col) {
         Database catalog_db = (Database) catalog_col.getParent().getParent();
         Set<Column> ret = new HashSet<Column>();
         String key = CatalogKey.createKey(catalog_col);
