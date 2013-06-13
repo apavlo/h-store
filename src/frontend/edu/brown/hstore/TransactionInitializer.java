@@ -671,9 +671,6 @@ public class TransactionInitializer {
                                   t_estimator.getClass().getSimpleName(), ts.getClientHandle()));
                     t_state = t_estimator.startTransaction(txn_id, base_partition, catalog_proc, params.toArray());
                 }
-                else if (trace.val) {
-                    LOG.trace("t_estimator is null@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
-                }
                 
                 // If there is no EstimatorState, then there is nothing we can do
                 // It has to be executed as multi-partitioned

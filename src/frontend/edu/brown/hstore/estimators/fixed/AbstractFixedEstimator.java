@@ -220,15 +220,15 @@ public abstract class AbstractFixedEstimator extends TransactionEstimator {
         // FINISH
         // ----------------------------------------------------------------------------
         @Override
-        public boolean isFinishProbabilitySet(int partition) {
+        public boolean isDoneProbabilitySet(int partition) {
             return (this.isValid());
         }
         @Override
-        public PartitionSet getFinishPartitions(EstimationThresholds t) {
+        public PartitionSet getDonePartitions(EstimationThresholds t) {
             return (this.finished);
         }
         @Override
-        public boolean isFinishPartition(EstimationThresholds t, int partition) {
+        public boolean isDonePartition(EstimationThresholds t, int partition) {
             return (this.finished.contains(Integer.valueOf(partition)));
         }
         

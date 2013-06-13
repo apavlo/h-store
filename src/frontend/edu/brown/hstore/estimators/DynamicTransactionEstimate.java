@@ -30,11 +30,11 @@ public interface DynamicTransactionEstimate extends Estimate {
     public void setWriteProbability(int partition, float probability);
     
     // ----------------------------------------------------------------------------
-    // FINISH PROBABILITY
+    // DONE PROBABILITY
     // ----------------------------------------------------------------------------
-    public float getFinishProbability(int partition);
-    public void addFinishProbability(int partition, float probability);
-    public void setFinishProbability(int partition, float probability);
+    public float getDoneProbability(int partition);
+    public void addDoneProbability(int partition, float probability);
+    public void setDoneProbability(int partition, float probability);
     
     // ----------------------------------------------------------------------------
     // ABORT PROBABILITY

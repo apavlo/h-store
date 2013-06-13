@@ -508,7 +508,8 @@ public abstract class PartitionerUtil {
      * @throws Exception
      */
     public static ObjectHistogram<Column> generateProcedureColumnAccessHistogram(final DesignerInfo info, final DesignerHints hints, final AccessGraph agraph, final Procedure catalog_proc) throws Exception {
-        LOG.debug("Constructing column access histogram for " + catalog_proc.getName());
+        if (debug.val)
+            LOG.debug("Constructing column access histogram for " + catalog_proc.getName());
         ObjectHistogram<Column> column_histogram = new ObjectHistogram<Column>();
         for (Table catalog_tbl : CatalogUtil.getReferencedTables(catalog_proc)) {
             DesignerVertex v = agraph.getVertex(catalog_tbl);

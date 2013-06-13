@@ -263,11 +263,11 @@ public class TestMarkovEstimator extends BaseTestCase {
         
         for (Integer partition : catalogContext.getAllPartitionIds()) {
             if (partitions.contains(partition)) { //  == BASE_PARTITION) {
-                assertFalse("isFinishedPartition(" + partition + ")", est.isFinishPartition(thresholds, partition));
+                assertFalse("isFinishedPartition(" + partition + ")", est.isDonePartition(thresholds, partition));
                 assertTrue("isWritePartition(" + partition + ")", est.isWritePartition(thresholds, partition));
                 assertTrue("isTargetPartition(" + partition + ")", est.isTargetPartition(thresholds, partition));
             } else {
-                assertTrue("isFinishedPartition(" + partition + ")", est.isFinishPartition(thresholds, partition));
+                assertTrue("isFinishedPartition(" + partition + ")", est.isDonePartition(thresholds, partition));
                 assertFalse("isWritePartition(" + partition + ")", est.isWritePartition(thresholds, partition));
                 assertFalse("isTargetPartition(" + partition + ")", est.isTargetPartition(thresholds, partition));
             }
@@ -379,15 +379,15 @@ public class TestMarkovEstimator extends BaseTestCase {
             for (Integer partition : catalogContext.getAllPartitionIds()) {
                 String debug = String.format("Batch %02d / Partition %02d\n%s",
                                              est.getBatchId(), partition, est.toString());
-                assertTrue(debug, est.isFinishProbabilitySet(partition));
+                assertTrue(debug, est.isDoneProbabilitySet(partition));
                 assertTrue(debug, est.isWriteProbabilitySet(partition));
                 assertTrue(debug, est.isReadOnlyProbabilitySet(partition));
                 
                 if (touched.contains(partition) && (is_last == false || partition == state.getBasePartition())) {
-                    assertFalse(debug, est.isFinishPartition(thresholds, partition));
+                    assertFalse(debug, est.isDonePartition(thresholds, partition));
                     assertTrue(debug, est.isWritePartition(thresholds, partition));
                 } else {
-                    assertTrue(debug, est.isFinishPartition(thresholds, partition));
+                    assertTrue(debug, est.isDonePartition(thresholds, partition));
                 }
             } // FOR
         } // FOR 
@@ -439,10 +439,10 @@ public class TestMarkovEstimator extends BaseTestCase {
                                                  ests[i].getBatchId(), partition, ests[i].toString());
                     
                     assertEquals(debug, ests[i].getTouchedCounter(partition), ests[ii].getTouchedCounter(partition));
-                    assertEquals(debug, ests[i].isFinishProbabilitySet(partition), ests[ii].isFinishProbabilitySet(partition));
+                    assertEquals(debug, ests[i].isDoneProbabilitySet(partition), ests[ii].isDoneProbabilitySet(partition));
                     assertEquals(debug, ests[i].isWriteProbabilitySet(partition), ests[ii].isWriteProbabilitySet(partition));
                     assertEquals(debug, ests[i].isReadOnlyProbabilitySet(partition), ests[ii].isReadOnlyProbabilitySet(partition));
-                    assertEquals(debug, ests[i].isFinishPartition(thresholds, partition), ests[ii].isFinishPartition(thresholds, partition));
+                    assertEquals(debug, ests[i].isDonePartition(thresholds, partition), ests[ii].isDonePartition(thresholds, partition));
                     assertEquals(debug, ests[i].isWritePartition(thresholds, partition), ests[ii].isWritePartition(thresholds, partition));
                     assertEquals(debug, ests[i].isReadOnlyPartition(thresholds, partition), ests[ii].isReadOnlyPartition(thresholds, partition));
                 } // FOR

@@ -222,7 +222,7 @@ public class TestVertex extends BaseTestCase {
         v.setAbortProbability(0.50f);
         v.setSinglePartitionProbability(0.50f);
         for (int i = 0; i < NUM_PARTITIONS; i++) {
-            v.setFinishProbability(i, 0.50f);
+            v.setDoneProbability(i, 0.50f);
             v.setWriteProbability(i, 0.50f);
             v.setReadOnlyProbability(i, 0.50f);
         } // FOR
@@ -232,7 +232,7 @@ public class TestVertex extends BaseTestCase {
         assertEquals(0.0f, v.getAbortProbability());
         assertEquals(0.0f, v.getSinglePartitionProbability());
         for (int i = 0; i < NUM_PARTITIONS; i++) {
-            assertEquals(1.0f, v.getFinishProbability(i));
+            assertEquals(1.0f, v.getDoneProbability(i));
             assertEquals(0.0f, v.getWriteProbability(i));
             assertEquals(0.0f, v.getReadOnlyProbability(i));
         } // FOR
