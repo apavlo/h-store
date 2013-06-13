@@ -214,19 +214,20 @@ public class TestMarkovEstimator extends BaseTestCase {
     @Test
     public void testStartTransaction() throws Exception {
         long txn_id = XACT_ID.getAndIncrement();
-        MarkovEstimatorState state = (MarkovEstimatorState)t_estimator.startTransaction(txn_id, this.catalog_proc, singlep_trace.getParams());
+        MarkovEstimatorState state = t_estimator.startTransaction(txn_id, this.catalog_proc, singlep_trace.getParams());
         assertNotNull(state);
         assertNotNull(state.getLastEstimate());
         
         MarkovEstimate est = state.getInitialEstimate();
+        System.err.println(est);
         assertNotNull(est);
         assertTrue(est.toString(), est.isInitialized());
         assertTrue(est.toString(), est.isSinglePartitionProbabilitySet());
         assertTrue(est.toString(), est.isAbortProbabilitySet());
-        assertTrue(est.toString(), est.getSinglePartitionProbability() < 1.0f);
         assertTrue(est.toString(), est.isConfidenceCoefficientSet());
-        assertTrue(est.toString(), est.getConfidenceCoefficient() >= 0f);
-        assertTrue(est.toString(), est.getConfidenceCoefficient() <= 1f);
+        // assertTrue(est.toString(), est.getConfidenceCoefficient() >= 0f);
+        assertEquals(est.toString(), 1.0f, est.getSinglePartitionProbability());
+        assertEquals(est.toString(), 1.0f, est.getConfidenceCoefficient());
 
         //        System.err.println(est.toString());
         
