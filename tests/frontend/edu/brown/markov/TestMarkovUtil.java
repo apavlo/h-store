@@ -52,7 +52,7 @@ public class TestMarkovUtil extends BaseTestCase {
 //        System.err.println("MARKOV FILE: " + temp);
         
         // Now read it back in make sure everything is there
-        Map<Integer, MarkovGraphsContainer> clone = MarkovUtil.load(catalogContext.database, temp);
+        Map<Integer, MarkovGraphsContainer> clone = MarkovUtil.load(catalogContext, temp);
         assertNotNull(clone);
         assertEquals(markovs.size(), clone.size());
         assert(markovs.keySet().containsAll(clone.keySet()));
@@ -66,21 +66,21 @@ public class TestMarkovUtil extends BaseTestCase {
      * testGetStartVertex
      */
     public void testGetStartVertex() throws Exception {
-        this.examineVertices(MarkovUtil.getStartVertex(catalogContext.database), MarkovUtil.getStartVertex(catalogContext.database)); 
+        this.examineVertices(MarkovUtil.getStartVertex(catalogContext), MarkovUtil.getStartVertex(catalogContext)); 
     }
 
     /**
      * testGetStopVertex
      */
     public void testGetStopVertex() throws Exception {
-        this.examineVertices(MarkovUtil.getCommitVertex(catalogContext.database), MarkovUtil.getCommitVertex(catalogContext.database)); 
+        this.examineVertices(MarkovUtil.getCommitVertex(catalogContext), MarkovUtil.getCommitVertex(catalogContext)); 
     }
 
     /**
      * testGetAbortVertex
      */
     public void testGetAbortVertex() throws Exception {
-        this.examineVertices(MarkovUtil.getAbortVertex(catalogContext.database), MarkovUtil.getAbortVertex(catalogContext.database)); 
+        this.examineVertices(MarkovUtil.getAbortVertex(catalogContext), MarkovUtil.getAbortVertex(catalogContext)); 
     }
 
     /**

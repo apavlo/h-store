@@ -84,7 +84,7 @@ public class TestMarkovPathEstimator extends BaseTestCase {
 //             }
             
             // Generate MarkovGraphs
-            markovs = MarkovGraphsContainerUtil.createBasePartitionMarkovGraphsContainer(catalogContext.database, workload, p_estimator);
+            markovs = MarkovGraphsContainerUtil.createBasePartitionMarkovGraphsContainer(catalogContext, workload, p_estimator);
             assertNotNull(markovs);
             
             // Find a single-partition and multi-partition trace

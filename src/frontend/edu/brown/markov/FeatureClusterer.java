@@ -628,7 +628,7 @@ public class FeatureClusterer {
         for (Integer partition : FeatureClusterer.this.all_partitions) {
             MarkovGraph m = this.global_markov.get(partition, this.catalog_proc);
             assert(m != null);
-            m.calculateProbabilities();
+            m.calculateProbabilities(catalogContext.getAllPartitionIds());
             assert(m.isValid()) : "The MarkovGraph at Partition #" + partition + " is not valid!";
         } // FOR
         if (debug.val) LOG.debug(String.format("Finished initializing GLOBAL MarkovCostModel"));
@@ -776,7 +776,7 @@ public class FeatureClusterer {
                 
                 // So that we can improve our predictions...
                 markov.processTransaction(txn_trace, p_estimator);
-                markov.calculateProbabilities();
+                markov.calculateProbabilities(catalogContext.getAllPartitionIds());
                 
 //                if (c_counters[singlepartitioned ? 0 : 1] == 1) {
 ////                    MarkovPathEstimator.LOG.setLevel(Level.TRACE);
@@ -890,7 +890,7 @@ public class FeatureClusterer {
                 
                 // Calculate the probabilities for each graph
                 for (MarkovGraph markov : e.getValue().values()) {
-                    markov.calculateProbabilities();
+                    markov.calculateProbabilities(catalogContext.getAllPartitionIds());
                 } // FOR
             } // FOR
             if (trace.val) LOG.trace(String.format("Finished processing MarkovGraphs for Partition #%d [count=%d]", partition, costmodel_latch.getCount()));

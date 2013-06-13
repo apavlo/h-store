@@ -87,7 +87,7 @@ public class TestMarkovConflictChecker extends BaseTestCase {
             workload.load(file, catalogContext.database, filter.attach(procFilter));
 
             // Generate MarkovGraphs per base partition
-            markovs = MarkovGraphsContainerUtil.createBasePartitionMarkovGraphsContainer(catalogContext.database,
+            markovs = MarkovGraphsContainerUtil.createBasePartitionMarkovGraphsContainer(catalogContext,
                                                                                          workload, p_estimator);
         }
         assertNotNull(markovs);

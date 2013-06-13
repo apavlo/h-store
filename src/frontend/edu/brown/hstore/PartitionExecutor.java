@@ -49,6 +49,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Deque;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -2988,7 +2989,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 m.put("Output Dependencies", Arrays.toString(output_depIds));
                 sb.append("\n" + StringUtil.formatMaps(m)); 
             // }
-            LOG.debug(sb.toString());
+            LOG.debug(sb.toString().trim());
         }
         // *********************************** DEBUG ***********************************
 
@@ -3271,21 +3272,19 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         // we can use the fast-path executeLocalPlan() method
         if (plan.isSingledPartitionedAndLocal()) {
             if (trace.val)
-                LOG.trace(ts + " - Sending BatchPlan directly to the ExecutionEngine");
+                LOG.trace(String.format("%s - Sending %s directly to the ExecutionEngine at partition %d",
+                          ts, plan.getClass().getSimpleName(), this.partitionId));
             results = this.executeLocalPlan(ts, plan, batchParams);
         }
         // Otherwise, we need to generate WorkFragments and then send the messages out 
         // to our remote partitions using the HStoreCoordinator
         else {
-            if (trace.val)
-                LOG.trace(ts + " - Using PartitionExecutor.dispatchWorkFragments() to execute distributed queries");
             ExecutionState execState = ts.getExecutionState();
             execState.tmp_partitionFragments.clear();
             plan.getWorkFragmentsBuilders(ts.getTransactionId(), stmtCounters, execState.tmp_partitionFragments);
-            
-            if (trace.val)
-                LOG.trace(String.format("%s - Got back %d work fragments",
-                          ts, execState.tmp_partitionFragments.size()));
+            if (debug.val)
+                LOG.debug(String.format("%s - Using dispatchWorkFragments to execute %d %ss",
+                          ts, execState.tmp_partitionFragments.size(), WorkFragment.class.getSimpleName()));
             
             if (needs_profiling) {
                 int remote_cnt = 0;
@@ -3360,51 +3359,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         }
         
         return (builder.build());
-    }
-    
-    /**
-     * Figure out what partitions this transaction is done with. This will only return
-     * a PartitionSet of what partitions we think we're done with. It's up to whomever is
-     * calling us to notify them to tell them that the party is over and to mark the partition
-     * as done in the LocalTransaction. 
-     * @param ts
-     * @param estimate
-     * @return
-     */
-    private PartitionSet calculateDonePartitions(LocalTransaction ts, Estimate estimate) {
-        if (debug.val)
-            LOG.debug(String.format("%s - Checking to see whether we can notify any partitions " +
-                      "that we're done with them ", ts));
-        
-        if (estimate.isValid()) {
-            return (null);
-        }
-
-        final PartitionSet donePartitions = ts.getDonePartitions();
-        final PartitionSet newDonePartitions = estimate.getFinishPartitions(this.thresholds);
-        tmp_preparePartitions.clear();
-        
-        if (newDonePartitions.isEmpty() == false) { 
-            // Note that we can actually be done with ourself, if this txn is only going to execute queries
-            // at remote partitions. But we can't actually execute anything because this partition's only 
-            // execution thread is going to be blocked. So we always do this so that we're not sending a 
-            // useless message
-            newDonePartitions.remove(this.partitionId);
-            
-            // Make sure that we only tell partitions that we actually touched, otherwise they will
-            // be stuck waiting for a finish request that will never come!
-            FastIntHistogram ts_touched = ts.getTouchedPartitions();
-
-            // Mark the txn done at this partition if the MarkovEstimate said we were done
-            for (int partition : newDonePartitions.values()) {
-                if (donePartitions.contains(partition) == false && ts_touched.contains(partition)) {
-                    if (trace.val)
-                        LOG.trace(String.format("Marking partition %d as done for %s", partition, this));
-                    tmp_preparePartitions.add(partition);
-                }
-            } // FOR
-        }
-        return (tmp_preparePartitions);
     }
     
     /**
@@ -3565,10 +3519,105 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
     }
 
     /**
+     * Figure out what partitions this transaction is done with. This will only return
+     * a PartitionSet of what partitions we think we're done with.
+     * @param ts
+     * @param estimate
+     * @return
+     */
+    private Pair<PartitionSet, PartitionSet[]> calculateDonePartitions(LocalTransaction ts,
+                                                                       Estimate estimate,
+                                                                       FastIntHistogram fragmentsPerPartition) {
+        final PartitionSet estDonePartitions = estimate.getFinishPartitions(this.thresholds);
+        if (estDonePartitions.isEmpty()) {
+            if (debug.val)
+                LOG.debug(String.format("%s - There are no new done partitions identified by %s",
+                          ts, estimate.getClass().getSimpleName()));
+            return (null);
+        }
+        
+        if (debug.val)
+            LOG.debug(String.format("%s - New estimated done partitions %s\n%s",
+                      ts, estDonePartitions, estimate));
+
+        // Note that we can actually be done with ourself, if this txn is only going to execute queries
+        // at remote partitions. But we can't actually execute anything because this partition's only 
+        // execution thread is going to be blocked. So we always do this so that we're not sending a 
+        // useless message
+        estDonePartitions.remove(this.partitionId);
+        
+        // Make sure that we only tell partitions that we actually touched, otherwise they will
+        // be stuck waiting for a finish request that will never come!
+        final PartitionSet touchedPartitions = ts.getPredictTouchedPartitions();
+        final PartitionSet donePartitions = ts.getDonePartitions();
+        final Collection<Site> toNotify = new HashSet<Site>();
+        tmp_preparePartitions.clear();
+        PartitionSet notificationsPerSite[] = null;
+        for (int partition : estDonePartitions.values()) {
+            // Only mark the txn done at this partition if the Estimate says we were done
+            // with it after executing this batch and it's a partition that we've locked.
+            if (donePartitions.contains(partition) || touchedPartitions.contains(partition) == false)
+                continue;
+                
+            if (trace.val)
+                LOG.trace(String.format("%s - Marking partition %d as done for txn", ts, partition));
+            tmp_preparePartitions.add(partition);
+            
+            // Check whether we're executing a query at this partition in this batch.
+            // If we're not, then we need to check whether we can piggyback the "done" message
+            // in another WorkFragment going to that partition or whether we have to
+            // send a separate TransactionPrepareRequest
+            if (fragmentsPerPartition.get(partition, 0) == 0) {
+                // We need to let them know that the party is over!
+                if (hstore_site.isLocalPartition(partition)) {
+                    hstore_site.getPartitionExecutor(partition).queuePrepare(ts);
+                }
+                // Check whether we can piggyback on another WorkFragment that is going to
+                // the same site
+                else {
+                    Site remoteSite = catalogContext.getSiteForPartition(partition);
+                    if (notificationsPerSite == null) {
+                        notificationsPerSite = new PartitionSet[catalogContext.numberOfSites];
+                    }
+                    if (notificationsPerSite[remoteSite.getId()] == null) {
+                        notificationsPerSite[remoteSite.getId()] = new PartitionSet();
+                    }
+                    notificationsPerSite[remoteSite.getId()].add(partition);
+                    
+                    boolean found = false;
+                    for (Partition remotePartition : remoteSite.getPartitions().values()) {
+                        if (fragmentsPerPartition.get(remotePartition.getId(), 0) != 0) {
+                            found = true;
+                            break;
+                        }
+                    } // FOR
+                    if (found == false) toNotify.add(remoteSite);
+                }
+            }
+        } // FOR
+        
+        // BLAST OUT NOTIFICATIONS!
+        if (toNotify.isEmpty() == false) {
+            for (Site notifySite : toNotify) {
+                int notifySiteId = notifySite.getId(); 
+                if (debug.val)
+                    LOG.debug(String.format("%s - Notifying %s that txn is finished with partitions %s",
+                              ts, HStoreThreadManager.formatSiteName(notifySiteId),
+                              notificationsPerSite[notifySite.getId()]));
+                hstore_coordinator.transactionPrepare(ts, ts.getPrepareCallback(),
+                                                      notificationsPerSite[notifySiteId]);
+                notificationsPerSite[notifySiteId] = null; // play it safe!
+            } // FOR
+        }
+        
+        return (Pair.of(tmp_preparePartitions, notificationsPerSite));
+    }
+    
+    /**
      * Execute the given tasks and then block the current thread waiting for the list of dependency_ids to come
      * back from whatever it was we were suppose to do...
      * This is the slowest way to execute a bunch of WorkFragments and therefore should only be invoked
-     * for batches that need to access non-local Partitions
+     * for batches that need to access non-local partitions
      * @param ts
      * @param parameters
      * @param allFragmentBuilders
@@ -3666,46 +3715,15 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         
         // Calculate whether we are finished with partitions now
         final Estimate lastEstimate = ts.getLastEstimate();
-        PartitionSet newDonePartitions = null;
-        PartitionSet newDonePartitionsPerSite[] = null;
+        PartitionSet donePartitions = null;
+        PartitionSet notificationsPerSite[] = null;
         if (ts.isSysProc() == false && lastEstimate != null && lastEstimate.isValid()) {
-            newDonePartitions = this.calculateDonePartitions(ts, lastEstimate);
-            
-            // Check whether there are partitions that we are now done with but we are not about
-            // to send a query to them.
-            if (newDonePartitions.isEmpty() == false) {
-                for (int partition : newDonePartitions.values()) {
-                    if (tmp_fragmentsPerPartition.get(partition, 0) != 0) continue;
-                        
-                    // We need to let them know that the party is over!
-                    if (hstore_site.isLocalPartition(partition)) {
-                        hstore_site.getPartitionExecutor(partition).queuePrepare(ts);
-                    }
-                    // Check whether we can piggyback on another WorkFragment that is going to
-                    // the same site
-                    else {
-                        Site remoteSite = catalogContext.getSiteForPartition(partition);
-                        int piggybackPartition = HStoreConstants.NULL_PARTITION_ID;
-                        for (Partition remotePartition : remoteSite.getPartitions().values()) {
-                            if (tmp_fragmentsPerPartition.get(remotePartition.getId(), 0) != 0) {
-                                piggybackPartition = remotePartition.getId();
-                            }
-                        } // FOR
-                        if (piggybackPartition != HStoreConstants.NULL_PARTITION_ID) {
-                            if (newDonePartitionsPerSite == null) {
-                                newDonePartitionsPerSite = new PartitionSet[catalogContext.numberOfSites];
-                            }
-                            if (newDonePartitionsPerSite[remoteSite.getId()] == null) {
-                                newDonePartitionsPerSite[remoteSite.getId()] = new PartitionSet();
-                            }
-                            newDonePartitionsPerSite[remoteSite.getId()].add(partition);
-                        }
-                        else {
-                            // BLAST OUT NOTIFICATION!
-                        }
-                        
-                    }
-                } // FOR
+            Pair<PartitionSet, PartitionSet[]> pair = this.calculateDonePartitions(ts,
+                                                                                   lastEstimate,
+                                                                                   tmp_fragmentsPerPartition);
+            if (pair != null) {
+                donePartitions = pair.getFirst();
+                notificationsPerSite = pair.getSecond();
             }
         }
         
@@ -3842,8 +3860,13 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                     // If this is the last WorkFragment that we're going to send to this partition for
                     // this batch, then we will want to check whether we know that this is the last
                     // time this txn will ever need to go to that txn. If so, then we'll want to 
-                    if (newDonePartitions != null && tmp_fragmentsPerPartition.dec(partition) == 0) {
-                        fragmentBuilder.setLastFragment(newDonePartitions.contains(partition));
+                    if (donePartitions != null &&
+                            donePartitions.contains(partition) &&
+                            tmp_fragmentsPerPartition.dec(partition) == 0) {
+                        if (debug.val)
+                            LOG.debug(String.format("%s - Marking last %s flag for partition %d",
+                                      ts, WorkFragment.class.getSimpleName(), partition));
+                        fragmentBuilder.setLastFragment(true);
                     }
                     
                     if (first == false || this.depTracker.addWorkFragment(ts, fragmentBuilder, parameters)) {
@@ -3934,9 +3957,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                         if (needs_profiling) ts.profiler.stopSerialization();
                     }
                     if (trace.val)
-                        LOG.trace(String.format("%s - Requesting %d WorkFragments to be executed on remote partitions",
-                                  ts, num_remote));
-                    this.requestWork(ts, tmp_remoteFragmentBuilders, tmp_serializedParams, newDonePartitionsPerSite);
+                        LOG.trace(String.format("%s - Requesting %d %s to be executed on remote partitions " +
+                                  "[doneNotifications=%s]",
+                                  ts, WorkFragment.class.getSimpleName(), num_remote, notificationsPerSite!=null));
+                    this.requestWork(ts, tmp_remoteFragmentBuilders, tmp_serializedParams, notificationsPerSite);
                     if (needs_profiling) ts.profiler.markRemoteQuery();
                 }
                 
@@ -3948,9 +3972,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                                   ts, num_localSite));
                     for (WorkFragment.Builder builder : this.tmp_localSiteFragmentBuilders) {
                         PartitionExecutor other = hstore_site.getPartitionExecutor(builder.getPartitionId());
-                        
-
-                        
                         other.queueWork(ts, builder.build());
                     } // FOR
                     if (needs_profiling) ts.profiler.markRemoteQuery();
@@ -4035,6 +4056,12 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 String msg = "The query responses for " + ts + " never arrived!";
                 throw new ServerFaultException(msg, ts.getTransactionId());
             }
+        }
+        // Update done partitions
+        if (donePartitions != null && donePartitions.isEmpty() == false) {
+            if (debug.val)
+                LOG.debug(String.format("%s - Marking new done partitions %s", ts, donePartitions));
+            ts.getDonePartitions().addAll(donePartitions);
         }
         
         // IMPORTANT: Check whether the fragments failed somewhere and we got a response with an error

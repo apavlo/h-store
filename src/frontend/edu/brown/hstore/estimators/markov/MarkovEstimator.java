@@ -360,7 +360,7 @@ public class MarkovEstimator extends TransactionEstimator {
         // Once the workload shifts we detect it and trigger this method. Recomputes
         // the graph with the data we collected with the current workload method.
         if (this.enable_recomputes && markov.shouldRecompute(this.txn_count.get(), RECOMPUTE_TOLERANCE)) {
-            markov.calculateProbabilities();
+            markov.calculateProbabilities(catalogContext.getAllPartitionIds());
         }
         
         // We want to add the estimate to the state down here after we have initialized

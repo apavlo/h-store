@@ -53,10 +53,10 @@ public class TestMarkovGraph extends BaseTestCase {
         if (markovs == null) {
             File file = this.getParameterMappingsFile(ProjectType.TPCC);
             correlations = new ParameterMappingsSet();
-            correlations.load(file, catalog_db);
+            correlations.load(file, catalogContext.database);
 
             file = this.getWorkloadFile(ProjectType.TPCC);
-            workload = new Workload(catalog);
+            workload = new Workload(catalogContext.catalog);
 
             // Check out this beauty:
             // (1) Filter by procedure name
@@ -68,7 +68,7 @@ public class TestMarkovGraph extends BaseTestCase {
             filter.attach(new BasePartitionTxnFilter(p_estimator, BASE_PARTITION))
             // .attach(new MultiPartitionTxnFilter(p_estimator))
                     .attach(new ProcedureLimitFilter(WORKLOAD_XACT_LIMIT));
-            workload.load(file, catalog_db, filter);
+            workload.load(file, catalogContext.database, filter);
             // assertEquals(WORKLOAD_XACT_LIMIT, workload.getTransactionCount());
 
             // for (TransactionTrace xact : workload.getTransactions()) {
@@ -76,7 +76,7 @@ public class TestMarkovGraph extends BaseTestCase {
             // }
 
             // Generate MarkovGraphs
-            markovs = MarkovGraphsContainerUtil.createBasePartitionMarkovGraphsContainer(catalog_db, workload, p_estimator);
+            markovs = MarkovGraphsContainerUtil.createBasePartitionMarkovGraphsContainer(catalogContext, workload, p_estimator);
             assertNotNull(markovs);
             assertEquals(1, markovs.size());
         }
@@ -226,7 +226,7 @@ public class TestMarkovGraph extends BaseTestCase {
             all_previous.addAll(partitions);
         }
         
-        testGraph.calculateProbabilities();
+        testGraph.calculateProbabilities(catalogContext.getAllPartitionIds());
         
 //        if (testGraph.isValid() == false) {
 //            System.err.println("FAILED: " + MarkovUtil.exportGraphviz(testGraph, true, null).writeToTempFile());
@@ -260,7 +260,7 @@ public class TestMarkovGraph extends BaseTestCase {
              last = v;
          } // FOR
          graph.setTransactionCount(1);
-         graph.calculateProbabilities();
+         graph.calculateProbabilities(catalogContext.getAllPartitionIds());
         
          String json = graph.toJSONString();
          assertNotNull(json);
@@ -270,7 +270,7 @@ public class TestMarkovGraph extends BaseTestCase {
          // System.err.println(json_object.toString(1));
                 
          MarkovGraph clone = new MarkovGraph(catalog_proc);
-         clone.fromJSON(json_object, catalog_db);
+         clone.fromJSON(json_object, catalogContext.database);
                 
 //         assertEquals(graph.getBasePartition(), clone.getBasePartition());
          assertEquals(graph.getEdgeCount(), clone.getEdgeCount());

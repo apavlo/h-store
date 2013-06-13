@@ -820,7 +820,8 @@ public class MarkovCostModel extends AbstractCostModel {
         }
 
         final File input_path = args.getFileParam(ArgumentsParser.PARAM_MARKOV);
-        final Map<Integer, MarkovGraphsContainer> m = MarkovGraphsContainerUtil.load(args.catalog_db, input_path, procedures, partitions);
+        final Map<Integer, MarkovGraphsContainer> m = MarkovGraphsContainerUtil.load(args.catalogContext,
+                                                                                     input_path, procedures, partitions);
         assert (m != null);
         final boolean global = m.containsKey(MarkovUtil.GLOBAL_MARKOV_CONTAINER_ID);
         final Map<Integer, MarkovGraphsContainer> thread_markovs[] = (Map<Integer, MarkovGraphsContainer>[]) new Map<?, ?>[num_threads];
@@ -829,14 +830,14 @@ public class MarkovCostModel extends AbstractCostModel {
         // there is no thread contention
         if (global && num_threads > 2) {
             LOG.info("Loading multiple copies of GLOBAL MarkovGraphsContainer");
-
             for (int i = 0; i < num_threads; i++) {
                 final int thread_id = i;
                 runnables.add(new Runnable() {
                     @Override
                     public void run() {
                         try {
-                            thread_markovs[thread_id] = MarkovGraphsContainerUtil.load(args.catalog_db, input_path, procedures, null);
+                            thread_markovs[thread_id] = MarkovGraphsContainerUtil.load(args.catalogContext,
+                                                                                       input_path, procedures, null);
                         } catch (Throwable ex) {
                             throw new RuntimeException(ex);
                         }

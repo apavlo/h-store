@@ -26,6 +26,7 @@
 package edu.brown.hstore;
 
 import java.nio.ByteBuffer;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Random;
 
@@ -59,7 +60,7 @@ import edu.brown.utils.EventObservable;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.PartitionSet;
 import edu.brown.utils.StringBoxUtil;
-import edu.brown.hstore.estimators.markov.MarkovEstimator;
+import edu.brown.utils.StringUtil;
 
 /**
  * This class is responsible for figuring out everything about a txn before it 
@@ -787,14 +788,14 @@ public class TransactionInitializer {
             ts.profiler.setSingledPartitioned(ts.isPredictSinglePartition());
         
         if (debug.val) {
-            LOG.debug(String.format("Initializing %s on partition %d " +
-            		                "[clientHandle=%d, partitions=%s, singlePartition=%s, readOnly=%s, abortable=%s]",
-                      ts, base_partition,
-                      client_handle,
-                      ts.getPredictTouchedPartitions(),
-                      ts.isPredictSinglePartition(),
-                      ts.isPredictReadOnly(),
-                      ts.isPredictAbortable()));
+            Map<String, Object> m = new LinkedHashMap<String, Object>();
+            m.put("ClientHandle", client_handle);
+            m.put("Partitions", ts.getPredictTouchedPartitions());
+            m.put("Single Partition", ts.isPredictSinglePartition());
+            m.put("Read Only", ts.isPredictReadOnly());
+            m.put("Abortable", ts.isPredictAbortable()); 
+            LOG.debug(String.format("Initializing %s on partition %d\n%s",
+                      ts, base_partition, StringUtil.formatMaps(m).trim()));
         }
     }
 
