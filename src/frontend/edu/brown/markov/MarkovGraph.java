@@ -19,7 +19,6 @@ import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
 
-import edu.brown.catalog.CatalogUtil;
 import edu.brown.graphs.AbstractDirectedGraph;
 import edu.brown.graphs.AbstractGraphElement;
 import edu.brown.graphs.GraphUtil;
@@ -429,8 +428,10 @@ public class MarkovGraph extends AbstractDirectedGraph<MarkovVertex, MarkovEdge>
             
             // Make sure that nobody else has the same element id
             if (seen_ids.containsKey(e.getElementId())) {
-                throw new InvalidGraphElementException(this, e, String.format("Duplicate element id #%d: Edge[%s] <-> %s",
-                                                                               e.getElementId(), e.toString(true), seen_ids.get(e.getElementId())));
+                String msg = String.format("Duplicate element id #%d: Edge[%s] <-> %s",
+                                           e.getElementId(), e.toString(true),
+                                           seen_ids.get(e.getElementId()));
+                throw new InvalidGraphElementException(this, e, msg);
             }
             seen_ids.put(e.getElementId(), e);
         } // FOR
