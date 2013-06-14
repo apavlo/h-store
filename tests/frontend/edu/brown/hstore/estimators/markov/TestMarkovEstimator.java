@@ -377,15 +377,14 @@ public class TestMarkovEstimator extends BaseTestCase {
             MarkovEstimate est = t_estimator.executeQueries(state, stmts, partitions);
             assertNotNull(est);
             
-            System.err.println("DUMP: " + state.dumpMarkovGraph());
             for (int partition : catalogContext.getAllPartitionIds()) {
-                String debug = String.format("Batch %02d / Partition %02d\n%s",
-                                             est.getBatchId(), partition, est.toString());
+                String debug = String.format("Batch %02d / Partition %02d / isLast=%s\n%s",
+                                             est.getBatchId(), partition, is_last, est.toString());
                 assertTrue(debug, est.isDoneProbabilitySet(partition));
                 assertTrue(debug, est.isWriteProbabilitySet(partition));
                 assertTrue(debug, est.isReadOnlyProbabilitySet(partition));
                 
-                if (touched.contains(partition) && (is_last == false || partition == state.getBasePartition())) {
+                if (touched.contains(partition) && is_last == false) { //  || partition == state.getBasePartition())) {
                     assertFalse(debug, est.isDonePartition(thresholds, partition));
                     assertTrue(debug, est.isWritePartition(thresholds, partition));
                 } else {

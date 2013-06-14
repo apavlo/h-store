@@ -513,7 +513,7 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
     
     @Override
     public String toString() {
-        final String f = "%-6.02f"; 
+        final String fmt = "%-6.02f"; 
         
         Map<String, Object> m0 = new LinkedHashMap<String, Object>();
         m0.put("BatchEstimate", (this.batch == EstimatorUtil.INITIAL_ESTIMATE_BATCH ?
@@ -521,10 +521,10 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
         m0.put("HashCode", this.hashCode());
         m0.put("Valid", this.valid);
         m0.put("Vertex", this.vertex);
-        m0.put("Confidence", this.confidence);
+        m0.put("Confidence", String.format(fmt, this.confidence));
 //        m0.put("Single-Partition", (this.singlepartition != EstimatorUtil.NULL_MARKER ?
 //                                    String.format(f, this.singlepartition) : "-"));
-        m0.put("User Abort", (this.abort != EstimatorUtil.NULL_MARKER ? String.format(f, this.abort) : "-"));
+        m0.put("User Abort", (this.abort != EstimatorUtil.NULL_MARKER ? String.format(fmt, this.abort) : "-"));
         
         String header[] = {
             "",
@@ -537,9 +537,9 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
         for (int i = 0; i < rows.length; i++) {
             rows[i] = new String[] {
                 String.format("Partition #%02d", i),
-                (this.read[i] != EstimatorUtil.NULL_MARKER ? String.format(f, this.read[i]) : "-"),
-                (this.write[i] != EstimatorUtil.NULL_MARKER ? String.format(f, this.write[i]) : "-"),
-                (this.done[i] != EstimatorUtil.NULL_MARKER ? String.format(f, this.done[i]) : "-"),
+                (this.read[i] != EstimatorUtil.NULL_MARKER ? String.format(fmt, this.read[i]) : "-"),
+                (this.write[i] != EstimatorUtil.NULL_MARKER ? String.format(fmt, this.write[i]) : "-"),
+                (this.done[i] != EstimatorUtil.NULL_MARKER ? String.format(fmt, this.done[i]) : "-"),
                 Integer.toString((int)this.touched.get(i, 0)),
             };
         } // FOR
