@@ -697,7 +697,7 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
     }
     @Override
     public boolean isDonePartition(EstimationThresholds t, int partition) {
-        return (this.getSpecificProbability(Probability.DONE, partition) >= t.finished);
+        return (this.getSpecificProbability(Probability.DONE, partition) >= t.done);
     }
     @Override
     public PartitionSet getDonePartitions(EstimationThresholds t) {
@@ -943,7 +943,7 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
         m0.put("Total Hits", this.totalhits);
         m0.put("Instance Hits", this.instancehits);
         
-        if (this.isQueryVertex()) {
+        if (true || this.isQueryVertex()) {
             m0.put("Partitions", this.partitions);
             m0.put("Previous", this.past_partitions);
             

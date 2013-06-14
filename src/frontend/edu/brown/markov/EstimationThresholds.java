@@ -31,7 +31,7 @@ public class EstimationThresholds implements JSONSerializable {
     public float single_partition = DEFAULT_THRESHOLD;
     public float read = DEFAULT_THRESHOLD;
     public float write = DEFAULT_THRESHOLD;
-    public float finished = DEFAULT_THRESHOLD;
+    public float done = DEFAULT_THRESHOLD;
     public float abort = 0.0001f;
     
     public EstimationThresholds() {
@@ -42,7 +42,7 @@ public class EstimationThresholds implements JSONSerializable {
         this.single_partition = default_value;
         this.read = default_value;
         this.write = default_value;
-        this.finished = default_value;
+        this.done = default_value;
 //        this.abort = default_value;
     }
     
@@ -100,14 +100,14 @@ public class EstimationThresholds implements JSONSerializable {
     /**
      * @return the done
      */
-    public float getFinishedThreshold() {
-        return this.finished;
+    public float getDoneThreshold() {
+        return this.done;
     }
     /**
      * @param done the done to set
      */
-    public void setFinishedThreshold(float done) {
-        this.finished = done;
+    public void setDoneThreshold(float done) {
+        this.done = done;
     }
 
     /**
