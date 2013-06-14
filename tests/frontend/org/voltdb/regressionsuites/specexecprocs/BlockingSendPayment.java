@@ -17,8 +17,8 @@ import edu.brown.profilers.ProfileMeasurement;
     partitionParam = 0,
     singlePartition = false
 )
-public class BlockableSendPayment extends SendPayment {
-    private static final Logger LOG = Logger.getLogger(BlockableSendPayment.class);
+public class BlockingSendPayment extends SendPayment {
+    private static final Logger LOG = Logger.getLogger(BlockingSendPayment.class);
     
     public final Semaphore LOCK_BEFORE = new Semaphore(0);
     public final Semaphore NOTIFY_BEFORE = new Semaphore(0);
@@ -35,7 +35,6 @@ public class BlockableSendPayment extends SendPayment {
             NOTIFY_AFTER.drainPermits();
         }
     }
-        
         
     private VoltTable[] _run(long sendAcct, long destAcct, double amount) {
         // -------------------- LOCK BEFORE QUERY -------------------- 

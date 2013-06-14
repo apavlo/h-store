@@ -278,6 +278,7 @@ public class Workload implements WorkloadTrace, Iterable<TransactionTrace> {
         this(catalog);
         Database catalog_db = CatalogUtil.getDatabase(this.catalog);
         for (Workload w : workloads) {
+            assert(w != null);
             for (TransactionTrace txn : CollectionUtil.iterable(w.iterator(filter))) {
                 this.addTransaction(txn.getCatalogItem(catalog_db), txn, false);
             } // WHILE
