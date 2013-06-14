@@ -561,7 +561,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
                         LOG.trace(String.format("First time partition %d is read from! " +
                         		  "Setting read-only probability to %.03f",
                                   p, estimate.confidence));
-                    estimate.setReadOnlyProbability(p, estimate.confidence);
+//                    estimate.setReadOnlyProbability(p, estimate.confidence);
                     if (estimate.isDoneProbabilitySet(p) == false) {
                         estimate.setDoneProbability(p, inverse_prob);
                     }
@@ -579,7 +579,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
                         LOG.trace(String.format("First time partition %d is written to! " +
                         		  "Setting write probability to %.03f",
                                   p, estimate.confidence));
-                    estimate.setReadOnlyProbability(p, inverse_prob);
+//                    estimate.setReadOnlyProbability(p, inverse_prob);
                     estimate.setWriteProbability(p, estimate.confidence);
                     if (estimate.isDoneProbabilitySet(p) == false) {
                         estimate.setDoneProbability(p, inverse_prob);
@@ -620,7 +620,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
             if (estimate.isDoneProbabilitySet(partition) == false) {
                 estimate.setDoneProbability(partition, vertex.getDoneProbability(partition));
                 estimate.setWriteProbability(partition, vertex.getWriteProbability(partition));
-                estimate.setReadOnlyProbability(partition, vertex.getReadOnlyProbability(partition));
+//                estimate.setReadOnlyProbability(partition, vertex.getReadOnlyProbability(partition));
             }
         } // FOR
         

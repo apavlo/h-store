@@ -82,7 +82,7 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
     public enum Probability {
 //        SINGLE_SITED    (true,  0.0f),
         ABORT           (true,  0.0f),
-        READ_ONLY       (false, 0.0f),
+//        READ_ONLY       (false, 0.0f),
         WRITE           (false, 0.0f),
         DONE            (false, 1.0f);
         
@@ -202,16 +202,6 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
     }
     
     /**
-     * Constructor used to make the unit tests
-     * @param catalog_stmt
-     * @param partitions
-     * @param xact_count
-     */
-    public MarkovVertex(Statement catalog_stmt, Integer[] partitions, Integer[] past_partitions) {
-        this(catalog_stmt, Type.QUERY, 0, new PartitionSet(partitions), new PartitionSet(past_partitions));
-    }
-
-    /**
      * Constructor used to create the actual graphs
      * @param catalog_stmt - query this vertex is associated with
      * @param type - QUERY, ABORT, START, or STOP
@@ -254,6 +244,7 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
      * Initialize the probability tables
      */
     private void init() {
+        @SuppressWarnings("deprecation")
         int num_partitions = CatalogUtil.getNumberOfPartitions(this.catalog_item); 
         for (MarkovVertex.Probability ptype : MarkovVertex.Probability.values()) {
             int inner_len = (ptype.single_value ? 1 : num_partitions);
@@ -604,22 +595,22 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
     public boolean isReadOnly() {
         return ((Statement) this.catalog_item).getReadonly();
     }
-    @Override
-    public void addReadOnlyProbability(int partition, float probability) {
-        this.addToProbability(Probability.READ_ONLY, partition, probability);
-    }
-    @Override
-    public void setReadOnlyProbability(int partition, float probability) {
-        this.setProbability(Probability.READ_ONLY, partition, probability);
-    }
-    @Override
-    public float getReadOnlyProbability(int partition) {
-        return (this.getSpecificProbability(Probability.READ_ONLY, partition));
-    }
-    @Override
-    public boolean isReadOnlyProbabilitySet(int partition) {
-        return (this.getSpecificProbability(Probability.READ_ONLY, partition) != EstimatorUtil.NULL_MARKER);
-    }
+//    @Override
+//    public void addReadOnlyProbability(int partition, float probability) {
+//        this.addToProbability(Probability.READ_ONLY, partition, probability);
+//    }
+//    @Override
+//    public void setReadOnlyProbability(int partition, float probability) {
+//        this.setProbability(Probability.READ_ONLY, partition, probability);
+//    }
+//    @Override
+//    public float getReadOnlyProbability(int partition) {
+//        return (this.getSpecificProbability(Probability.READ_ONLY, partition));
+//    }
+//    @Override
+//    public boolean isReadOnlyProbabilitySet(int partition) {
+//        return (this.getSpecificProbability(Probability.READ_ONLY, partition) != EstimatorUtil.NULL_MARKER);
+//    }
     @Override
     public boolean isReadOnlyPartition(EstimationThresholds t, int partition) {
         return (this.getSpecificProbability(Probability.WRITE, partition) >= t.write);
@@ -627,7 +618,7 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
     @Override
     public boolean isReadOnlyAllPartitions(EstimationThresholds t) {
         boolean readonly = true;
-        for (int p = 0, cnt = this.probabilities[Probability.READ_ONLY.ordinal()].length; p < cnt; p++) {
+        for (int p = 0, cnt = this.probabilities[Probability.WRITE.ordinal()].length; p < cnt; p++) {
             if (this.getSpecificProbability(Probability.WRITE, p) >= t.write) {
                 readonly = false;
                 break;
@@ -638,7 +629,7 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
     @Override
     public PartitionSet getReadOnlyPartitions(EstimationThresholds t) {
         PartitionSet partitions = new PartitionSet();
-        for (int p = 0, cnt = this.probabilities[Probability.READ_ONLY.ordinal()].length; p < cnt; p++) {
+        for (int p = 0, cnt = this.probabilities[Probability.WRITE.ordinal()].length; p < cnt; p++) {
             if (this.isReadOnlyPartition(t, p)) {
                 partitions.add(p);
             }
@@ -669,7 +660,7 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
     @Override
     public PartitionSet getWritePartitions(EstimationThresholds t) {
         PartitionSet partitions = new PartitionSet();
-        for (int p = 0, cnt = this.probabilities[Probability.READ_ONLY.ordinal()].length; p < cnt; p++) {
+        for (int p = 0, cnt = this.probabilities[Probability.WRITE.ordinal()].length; p < cnt; p++) {
             if (this.isWritePartition(t, p)) {
                 partitions.add(p);
             }

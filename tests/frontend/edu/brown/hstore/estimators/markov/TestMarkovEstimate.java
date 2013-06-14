@@ -44,7 +44,7 @@ public class TestMarkovEstimate extends BaseTestCase {
         // Initialize
         // This is based on an actual estimate generated from a benchmark run
         for (int p = 0; p < NUM_PARTITIONS; p++) {
-            est.setReadOnlyProbability(p, 1.0f);
+//            est.setReadOnlyProbability(p, 1.0f);
             if (p == BASE_PARTITION) {
                 est.setWriteProbability(p, 0.08f);
                 est.setDoneProbability(p, 0.0f);

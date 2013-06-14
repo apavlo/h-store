@@ -55,10 +55,10 @@ public class MockEstimate implements Estimate {
     public boolean isSinglePartitioned(EstimationThresholds t) {
         return false;
     }
-    @Override
-    public boolean isReadOnlyProbabilitySet(int partition) {
-        return false;
-    }
+//    @Override
+//    public boolean isReadOnlyProbabilitySet(int partition) {
+//        return false;
+//    }
     @Override
     public boolean isReadOnlyPartition(EstimationThresholds t, int partition) {
         return false;

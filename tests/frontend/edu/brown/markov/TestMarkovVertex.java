@@ -229,7 +229,7 @@ public class TestMarkovVertex extends BaseTestCase {
         for (int i = 0; i < NUM_PARTITIONS; i++) {
             v.setDoneProbability(i, 0.50f);
             v.setWriteProbability(i, 0.50f);
-            v.setReadOnlyProbability(i, 0.50f);
+//            v.setReadOnlyProbability(i, 0.50f);
         } // FOR
         
         v.resetAllProbabilities();
@@ -239,7 +239,7 @@ public class TestMarkovVertex extends BaseTestCase {
         for (int i = 0; i < NUM_PARTITIONS; i++) {
             assertEquals(1.0f, v.getDoneProbability(i));
             assertEquals(0.0f, v.getWriteProbability(i));
-            assertEquals(0.0f, v.getReadOnlyProbability(i));
+//            assertEquals(0.0f, v.getReadOnlyProbability(i));
         } // FOR
     }
 
