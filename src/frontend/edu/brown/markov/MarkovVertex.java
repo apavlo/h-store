@@ -80,7 +80,7 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
     };
 
     public enum Probability {
-        SINGLE_SITED    (true,  0.0f),
+//        SINGLE_SITED    (true,  0.0f),
         ABORT           (true,  0.0f),
         READ_ONLY       (false, 0.0f),
         WRITE           (false, 0.0f),
@@ -255,8 +255,7 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
      */
     private void init() {
         int num_partitions = CatalogUtil.getNumberOfPartitions(this.catalog_item); 
-        MarkovVertex.Probability ptypes[] = MarkovVertex.Probability.values();
-        for (MarkovVertex.Probability ptype : ptypes) {
+        for (MarkovVertex.Probability ptype : MarkovVertex.Probability.values()) {
             int inner_len = (ptype.single_value ? 1 : num_partitions);
             this.probabilities[ptype.ordinal()] = new float[inner_len];
         } // FOR
@@ -577,25 +576,25 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
     // SINGLE-SITED PROBABILITY
     // ----------------------------------------------------------------------------
     
-    @Override
-    public void addSinglePartitionProbability(float probability) {
-        this.addToProbability(Probability.SINGLE_SITED, DEFAULT_PARTITION_ID, probability);
-    }
-    @Override
-    public void setSinglePartitionProbability(float probability) {
-        this.setProbability(Probability.SINGLE_SITED, DEFAULT_PARTITION_ID, probability);
-    }
-    @Override
-    public float getSinglePartitionProbability() {
-        return (this.getSpecificProbability(Probability.SINGLE_SITED, DEFAULT_PARTITION_ID));
-    }
-    @Override
-    public boolean isSinglePartitionProbabilitySet() {
-        return (this.getSpecificProbability(Probability.SINGLE_SITED, DEFAULT_PARTITION_ID) != EstimatorUtil.NULL_MARKER);
-    }
+//    @Override
+//    public void addSinglePartitionProbability(float probability) {
+//        this.addToProbability(Probability.SINGLE_SITED, DEFAULT_PARTITION_ID, probability);
+//    }
+//    @Override
+//    public void setSinglePartitionProbability(float probability) {
+//        this.setProbability(Probability.SINGLE_SITED, DEFAULT_PARTITION_ID, probability);
+//    }
+//    @Override
+//    public float getSinglePartitionProbability() {
+//        return (this.getSpecificProbability(Probability.SINGLE_SITED, DEFAULT_PARTITION_ID));
+//    }
+//    @Override
+//    public boolean isSinglePartitionProbabilitySet() {
+//        return (this.getSpecificProbability(Probability.SINGLE_SITED, DEFAULT_PARTITION_ID) != EstimatorUtil.NULL_MARKER);
+//    }
     @Override
     public boolean isSinglePartitioned(EstimationThresholds t) {
-        return (this.partitions.size() == 1);
+        return (this.getDonePartitions(t).size() == 1);
     }
 
     // ----------------------------------------------------------------------------
@@ -667,7 +666,6 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
     public boolean isWritePartition(EstimationThresholds t, int partition) {
         return (this.getSpecificProbability(Probability.WRITE, partition) >= t.write);
     }
-
     @Override
     public PartitionSet getWritePartitions(EstimationThresholds t) {
         PartitionSet partitions = new PartitionSet();
@@ -943,7 +941,7 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
         m0.put("Total Hits", this.totalhits);
         m0.put("Instance Hits", this.instancehits);
         
-        if (true || this.isQueryVertex()) {
+        // if (true || this.isQueryVertex()) {
             m0.put("Partitions", this.partitions);
             m0.put("Previous", this.past_partitions);
             
@@ -974,7 +972,7 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
                 } // FOR
             } // FOR
             m2 = TableUtil.tableMap(header.toArray(new String[0]), rows);
-        }
+        // }
 
         return (StringUtil.formatMaps(m0, m1, m2));
 

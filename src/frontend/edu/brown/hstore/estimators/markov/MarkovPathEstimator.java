@@ -543,19 +543,19 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
     protected static void populateProbabilities(MarkovEstimate estimate, MarkovVertex vertex) {
         if (debug.val)
             LOG.debug(String.format("Populating %s probabilities based on %s " +
-                      "[touchedPartitions=%s, confidence=%f]\n%s",
+                      "[touchedPartitions=%s, confidence=%.03f]\n%s",
                       estimate.getClass().getSimpleName(), vertex.getClass().getSimpleName(),
                       estimate.touched_partitions, estimate.confidence,
                       vertex.debug()));
         
         PartitionSet next_partitions = vertex.getPartitions();
-        // String orig = (debug.val ? next_partitions.toString() : null);
         float inverse_prob = 1.0f - estimate.confidence;
         Statement catalog_stmt = vertex.getCatalogItem();
         
-        // READ
+        // READ QUERY
         if (catalog_stmt.getQuerytype() == QueryType.SELECT.getValue()) {
             for (int p : next_partitions.values()) {
+                // This is the first time we've read from this partition
                 if (estimate.read_partitions.contains(p) == false) {
                     if (trace.val)
                         LOG.trace(String.format("First time partition %d is read from! " +
@@ -570,9 +570,10 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
                 estimate.incrementTouchedCounter(p);
             } // FOR
         }
-        // WRITE
+        // WRITE QUERY
         else {
             for (int p : next_partitions.values()) {
+                // This is the first time we've written to this partition
                 if (estimate.write_partitions.contains(p) == false) {
                     if (trace.val)
                         LOG.trace(String.format("First time partition %d is written to! " +
@@ -592,11 +593,6 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
         // If this is the first time that the path touched more than one partition, then we 
         // need to set the single-partition probability to be the confidence coefficient thus far
         estimate.touched_partitions.addAll(vertex.getPartitions());
-        if (estimate.touched_partitions.size() > 1 && estimate.isSinglePartitionProbabilitySet() == false) {
-            if (trace.val)
-                LOG.trace("Setting the single-partition probability to current confidence [" + estimate.confidence + "]");
-            estimate.setSinglePartitionProbability(inverse_prob);
-        }
         
         // Keep track of the highest abort probability that we've seen thus far
         if (vertex.isQueryVertex() && vertex.getAbortProbability() > estimate.greatest_abort) {
@@ -629,16 +625,16 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
         } // FOR
         
         // If our single-partition probability hasn't been set and we can set it now
-        if (estimate.isSinglePartitionProbabilitySet() == false) {
-            if (estimate.touched_partitions.size() == 1) {
-                estimate.setSinglePartitionProbability(estimate.confidence);
-            } else {
-                estimate.setSinglePartitionProbability(1f - estimate.confidence);
-            }
-            if (debug.val)
-                LOG.debug(String.format("Setting single-partition probability to %s [touchedPartitions=%s]",
-                          estimate.getSinglePartitionProbability(), estimate.touched_partitions));
-        }
+//        if (estimate.isSinglePartitionProbabilitySet() == false) {
+//            if (estimate.touched_partitions.size() == 1) {
+//                estimate.setSinglePartitionProbability(estimate.confidence);
+//            } else {
+//                estimate.setSinglePartitionProbability(1f - estimate.confidence);
+//            }
+//            if (debug.val)
+//                LOG.debug(String.format("Setting single-partition probability to %s [touchedPartitions=%s]",
+//                          estimate.getSinglePartitionProbability(), estimate.touched_partitions));
+//        }
         
         // Abort Probability
         // Only use the abort probability if we have seen at least ABORT_MIN_TXNS

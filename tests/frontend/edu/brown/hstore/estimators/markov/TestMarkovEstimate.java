@@ -55,7 +55,7 @@ public class TestMarkovEstimate extends BaseTestCase {
             }
         } // FOR
         est.setConfidenceCoefficient(0.92f);
-        est.setSinglePartitionProbability(1.0f);
+//        est.setSinglePartitionProbability(1.0f);
         est.setAbortProbability(0.0f);
         assert(this.est.isValid());
 //        System.err.println(est);

@@ -99,10 +99,10 @@ public class RemoteEstimate implements Estimate {
         throw new NotImplementedException(this.getClass().getSimpleName() + " does not implement this method");
     }
 
-    @Override
-    public boolean isSinglePartitionProbabilitySet() {
-        return (false);
-    }
+//    @Override
+//    public boolean isSinglePartitionProbabilitySet() {
+//        return (false);
+//    }
 
     @Override
     public boolean isSinglePartitioned(EstimationThresholds t) {
