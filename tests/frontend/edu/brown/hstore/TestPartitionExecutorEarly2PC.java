@@ -347,9 +347,9 @@ public class TestPartitionExecutorEarly2PC extends BaseTestCase {
         LocalTransaction dtxn = (LocalTransaction)this.baseExecutor.getDebugContext().getCurrentDtxn();
         assertEquals(dtxnVoltProc.getTransactionId(), dtxn.getTransactionId());
         EstimatorState t_state = dtxn.getEstimatorState(); 
-        if (t_state instanceof MarkovEstimatorState) {
-            LOG.warn("WROTE MARKOVGRAPH: " + ((MarkovEstimatorState)t_state).dumpMarkovGraph());
-        }
+//        if (t_state instanceof MarkovEstimatorState) {
+//            LOG.warn("WROTE MARKOVGRAPH: " + ((MarkovEstimatorState)t_state).dumpMarkovGraph());
+//        }
         PartitionSet donePartitions = dtxn.getDonePartitions();
         assertEquals(donePartitions.toString(), 1, donePartitions.size());
         assertEquals(this.remoteExecutor.getPartitionId(), donePartitions.get());

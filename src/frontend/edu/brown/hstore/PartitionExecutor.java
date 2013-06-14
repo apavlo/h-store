@@ -3537,8 +3537,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         }
         
         if (debug.val)
-            LOG.debug(String.format("%s - New estimated done partitions %s\n%s",
-                      ts, estDonePartitions, estimate));
+            LOG.debug(String.format("%s - New estimated done partitions %s%s",
+                      ts, estDonePartitions,
+                      (trace.val ? "\n"+estimate : "")));
 
         // Note that we can actually be done with ourself, if this txn is only going to execute queries
         // at remote partitions. But we can't actually execute anything because this partition's only 
