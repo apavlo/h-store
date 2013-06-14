@@ -21,7 +21,12 @@ import edu.brown.utils.PartitionSet;
 import edu.brown.utils.ProjectType;
 import edu.brown.workload.Workload;
 
-public class TestVertex extends BaseTestCase {
+/**
+ * 
+ * @author svelagap
+ * @author pavlo
+ */
+public class TestMarkovVertex extends BaseTestCase {
 
     private static final int NUM_PARTITIONS = 5;
     Workload g;
@@ -220,7 +225,7 @@ public class TestVertex extends BaseTestCase {
         
         assertNotNull(start);
         v.setAbortProbability(0.50f);
-        v.setSinglePartitionProbability(0.50f);
+//        v.setSinglePartitionProbability(0.50f);
         for (int i = 0; i < NUM_PARTITIONS; i++) {
             v.setDoneProbability(i, 0.50f);
             v.setWriteProbability(i, 0.50f);
@@ -230,7 +235,7 @@ public class TestVertex extends BaseTestCase {
         v.resetAllProbabilities();
         
         assertEquals(0.0f, v.getAbortProbability());
-        assertEquals(0.0f, v.getSinglePartitionProbability());
+//        assertEquals(0.0f, v.getSinglePartitionProbability());
         for (int i = 0; i < NUM_PARTITIONS; i++) {
             assertEquals(1.0f, v.getDoneProbability(i));
             assertEquals(0.0f, v.getWriteProbability(i));

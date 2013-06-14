@@ -68,7 +68,14 @@ public interface Estimate extends Poolable {
     // ----------------------------------------------------------------------------
     // SINGLE-PARTITION PROBABILITY
     // ----------------------------------------------------------------------------
-    public boolean isSinglePartitionProbabilitySet();
+//    public boolean isSinglePartitionProbabilitySet();
+    
+    /**
+     * Returns true if the number of partitions that this txn is expected
+     * to touch from this estimate forward is one.
+     * @param t
+     * @return
+     */
     public boolean isSinglePartitioned(EstimationThresholds t);
     
     // ----------------------------------------------------------------------------

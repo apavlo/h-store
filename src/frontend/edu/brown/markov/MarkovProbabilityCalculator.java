@@ -86,11 +86,11 @@ public class MarkovProbabilityCalculator extends VertexTreeWalker<MarkovVertex, 
         
         // COMMIT/ABORT is always single-partitioned!
         if (vtype == MarkovVertex.Type.COMMIT || vtype == MarkovVertex.Type.ABORT) {
-            est.setSinglePartitionProbability(1.0f);
+//            est.setSinglePartitionProbability(1.0f);
             
             // And DONE at all partitions!
             // And will not Read/Write Probability
-            for (Integer partition : this.all_partitions) {
+            for (int partition : this.all_partitions.values()) {
                 est.setDoneProbability(partition, 1.0f);
                 est.setReadOnlyProbability(partition, 1.0f);
                 est.setWriteProbability(partition, 0.0f);
@@ -108,7 +108,7 @@ public class MarkovProbabilityCalculator extends VertexTreeWalker<MarkovVertex, 
         else {
             
             // Make sure everything is set to zero
-            est.setSinglePartitionProbability(0f);
+//            est.setSinglePartitionProbability(0f);
             for (int partition : this.all_partitions.values()) {
                 est.setDoneProbability(partition, 0f);
                 est.setReadOnlyProbability(partition, 0f);
@@ -120,8 +120,8 @@ public class MarkovProbabilityCalculator extends VertexTreeWalker<MarkovVertex, 
                 MarkovVertex successor = markov.getDest(e);
                 assert(successor != null) :
                     "Null successor for " + e.debug(markov);
-                assert(successor.isSinglePartitionProbabilitySet()) :
-                    "Setting " + element + " BEFORE " + successor;
+//                assert(successor.isSinglePartitionProbabilitySet()) :
+//                    "Setting " + element + " BEFORE " + successor;
                 assert(successor.isStartVertex() == false) :
                     "Invalid edge " + element + " --> " + successor;
                 if (debug.val) 
@@ -134,9 +134,9 @@ public class MarkovProbabilityCalculator extends VertexTreeWalker<MarkovVertex, 
                 // SINGLE-PARTITION PROBABILITY
                 // If our successor only touches partition and that partition is also accessed
                 // by the current vertex... <-- Not sure we need this last one
-                if (successor.isQueryVertex() == false || successor.getPartitions().size() == 1) { //  || element.getPartitions().containsAll(successorPartitions)) {
-                    est.addSinglePartitionProbability(edgeProbability * successor.getSinglePartitionProbability());
-                }
+//                if (successor.isQueryVertex() == false || successor.getPartitions().size() == 1) { //  || element.getPartitions().containsAll(successorPartitions)) {
+//                    est.addSinglePartitionProbability(edgeProbability * successor.getSinglePartitionProbability());
+//                }
                 
                 // ABORT PROBABILITY
                 // We need to have seen at least this number of hits before we will use a 

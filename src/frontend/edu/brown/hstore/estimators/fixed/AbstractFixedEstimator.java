@@ -170,10 +170,10 @@ public abstract class AbstractFixedEstimator extends TransactionEstimator {
         // SINGLE-PARTITION PROBABILITY
         // ----------------------------------------------------------------------------
         
-        @Override
-        public boolean isSinglePartitionProbabilitySet() {
-            return (this.isValid());
-        }
+//        @Override
+//        public boolean isSinglePartitionProbabilitySet() {
+//            return (this.isValid());
+//        }
 
         @Override
         public boolean isSinglePartitioned(EstimationThresholds t) {

@@ -47,10 +47,10 @@ public class MockEstimate implements Estimate {
     public List<CountedStatement> getQueryEstimate(int partition) {
         return null;
     }
-    @Override
-    public boolean isSinglePartitionProbabilitySet() {
-        return false;
-    }
+//    @Override
+//    public boolean isSinglePartitionProbabilitySet() {
+//        return false;
+//    }
     @Override
     public boolean isSinglePartitioned(EstimationThresholds t) {
         return false;

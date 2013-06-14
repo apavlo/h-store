@@ -36,7 +36,7 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
     // ----------------------------------------------------------------------------
     
     protected float confidence = EstimatorUtil.NULL_MARKER;
-    protected float singlepartition;
+//    protected float singlepartition;
     protected float abort;
     protected float greatest_abort = EstimatorUtil.NULL_MARKER;
 
@@ -134,7 +134,7 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
             if (this.query_estimate[i] != null) this.query_estimate[i].clear();
         } // FOR
         this.confidence = EstimatorUtil.NULL_MARKER;
-        this.singlepartition = EstimatorUtil.NULL_MARKER;
+//        this.singlepartition = EstimatorUtil.NULL_MARKER;
         this.abort = EstimatorUtil.NULL_MARKER;
         this.greatest_abort = EstimatorUtil.NULL_MARKER;
         this.path.clear();
@@ -263,26 +263,26 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
     // SINGLE-PARTITIONED PROBABILITY
     // ----------------------------------------------------------------------------
     
-    @Override
-    public void addSinglePartitionProbability(float probability) {
-        this.singlepartition = probability + (this.singlepartition == EstimatorUtil.NULL_MARKER ? 0 : this.singlepartition);
-        this.valid = this.valid && (probability != EstimatorUtil.NULL_MARKER);
-        if (trace.val) LOG.trace(String.format("SET Global - SINGLE-P %.02f", this.singlepartition));
-    }
-    @Override
-    public void setSinglePartitionProbability(float probability) {
-        this.singlepartition = probability;
-        this.valid = this.valid && (probability != EstimatorUtil.NULL_MARKER);
-        if (trace.val) LOG.trace(String.format("SET Global - SINGLE-P %.02f", this.singlepartition));
-    }
-    @Override
-    public float getSinglePartitionProbability() {
-        return (this.singlepartition);
-    }
-    @Override
-    public boolean isSinglePartitionProbabilitySet() {
-        return (this.singlepartition != EstimatorUtil.NULL_MARKER);
-    }
+//    @Override
+//    public void addSinglePartitionProbability(float probability) {
+//        this.singlepartition = probability + (this.singlepartition == EstimatorUtil.NULL_MARKER ? 0 : this.singlepartition);
+//        this.valid = this.valid && (probability != EstimatorUtil.NULL_MARKER);
+//        if (trace.val) LOG.trace(String.format("SET Global - SINGLE-P %.02f", this.singlepartition));
+//    }
+//    @Override
+//    public void setSinglePartitionProbability(float probability) {
+//        this.singlepartition = probability;
+//        this.valid = this.valid && (probability != EstimatorUtil.NULL_MARKER);
+//        if (trace.val) LOG.trace(String.format("SET Global - SINGLE-P %.02f", this.singlepartition));
+//    }
+//    @Override
+//    public float getSinglePartitionProbability() {
+//        return (this.singlepartition);
+//    }
+//    @Override
+//    public boolean isSinglePartitionProbabilitySet() {
+//        return (this.singlepartition != EstimatorUtil.NULL_MARKER);
+//    }
     
     // ----------------------------------------------------------------------------
     // READ-ONLY PROBABILITY
@@ -319,7 +319,8 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
     public void addWriteProbability(int partition, float probability) {
         this.write[partition] = probability + (this.write[partition] == EstimatorUtil.NULL_MARKER ? 0 : this.write[partition]);
         this.valid = this.valid && (probability != EstimatorUtil.NULL_MARKER);
-        if (trace.val) LOG.trace(String.format("SET Partition %02d - WRITE %.02f", partition, this.write[partition]));
+        if (trace.val)
+            LOG.trace(String.format("SET Partition %02d - WRITE %.02f", partition, this.write[partition]));
     }
     @Override
     public void setWriteProbability(int partition, float probability) {
@@ -327,7 +328,8 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
         assert(partition < this.write.length) : "Invalid Partition: " + partition;
         this.write[partition] = probability;
         this.valid = this.valid && (probability != EstimatorUtil.NULL_MARKER);
-        if (trace.val) LOG.trace(String.format("SET Partition %02d - WRITE %.02f", partition, this.write[partition]));
+        if (trace.val)
+            LOG.trace(String.format("SET Partition %02d - WRITE %.02f", partition, this.write[partition]));
     }
     @Override
     public float getWriteProbability(int partition) {
@@ -346,7 +348,8 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
     public void addDoneProbability(int partition, float probability) {
         this.done[partition] = probability + (this.done[partition] == EstimatorUtil.NULL_MARKER ? 0 : this.done[partition]);
         this.valid = this.valid && (probability != EstimatorUtil.NULL_MARKER);
-        if (trace.val) LOG.trace(String.format("SET Partition %02d - FINISH %.02f", partition, this.done[partition]));
+        if (trace.val)
+            LOG.trace(String.format("SET Partition %02d - FINISH %.02f", partition, this.done[partition]));
     }
     @Override
     public void setDoneProbability(int partition, float probability) {
@@ -354,7 +357,8 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
         assert(partition < this.done.length) : "Invalid Partition: " + partition;
         this.done[partition] = probability;
         this.valid = this.valid && (probability != EstimatorUtil.NULL_MARKER);
-        if (trace.val) LOG.trace(String.format("SET Partition %02d - FINISH %.02f", partition, this.done[partition]));
+        if (trace.val)
+            LOG.trace(String.format("SET Partition %02d - FINISH %.02f", partition, this.done[partition]));
     }
     @Override
     public float getDoneProbability(int partition) {
@@ -518,8 +522,8 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
         m0.put("Valid", this.valid);
         m0.put("Vertex", this.vertex);
         m0.put("Confidence", this.confidence);
-        m0.put("Single-Partition", (this.singlepartition != EstimatorUtil.NULL_MARKER ?
-                                    String.format(f, this.singlepartition) : "-"));
+//        m0.put("Single-Partition", (this.singlepartition != EstimatorUtil.NULL_MARKER ?
+//                                    String.format(f, this.singlepartition) : "-"));
         m0.put("User Abort", (this.abort != EstimatorUtil.NULL_MARKER ? String.format(f, this.abort) : "-"));
         
         String header[] = {

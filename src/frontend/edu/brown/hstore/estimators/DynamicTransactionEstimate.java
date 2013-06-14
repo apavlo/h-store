@@ -11,9 +11,9 @@ public interface DynamicTransactionEstimate extends Estimate {
     // ----------------------------------------------------------------------------
     // SINGLE-PARTITION PROBABILITY
     // ----------------------------------------------------------------------------
-    public float getSinglePartitionProbability();
-    public void addSinglePartitionProbability(float probability);
-    public void setSinglePartitionProbability(float probability);
+//    public float getSinglePartitionProbability();
+//    public void addSinglePartitionProbability(float probability);
+//    public void setSinglePartitionProbability(float probability);
     
     // ----------------------------------------------------------------------------
     // READ-ONLY PROBABILITY
