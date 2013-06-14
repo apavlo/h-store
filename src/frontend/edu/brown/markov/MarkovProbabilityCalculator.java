@@ -109,12 +109,10 @@ public class MarkovProbabilityCalculator extends VertexTreeWalker<MarkovVertex, 
             
             // Make sure everything is set to zero
             est.setSinglePartitionProbability(0f);
-            final float done_probs[] = new float[this.all_partitions.size()];
             for (int partition : this.all_partitions.values()) {
                 est.setDoneProbability(partition, 0f);
                 est.setReadOnlyProbability(partition, 0f);
                 est.setWriteProbability(partition, 0f);
-                done_probs[partition] = 0f;
             } // FOR
             
             for (MarkovEdge e : markov.getOutEdges(element)) {
@@ -131,11 +129,14 @@ public class MarkovProbabilityCalculator extends VertexTreeWalker<MarkovVertex, 
                               element, e, successor));
                 
                 final Statement successorStmt = successor.getCatalogItem();
-                final QueryType successorType = QueryType.get(successorStmt.getQuerytype());
                 final float edgeProbability = e.getProbability();
 
                 // SINGLE-PARTITION PROBABILITY
-                est.addSinglePartitionProbability(edgeProbability * successor.getSinglePartitionProbability());
+                // If our successor only touches partition and that partition is also accessed
+                // by the current vertex... <-- Not sure we need this last one
+                if (successor.isQueryVertex() == false || successor.getPartitions().size() == 1) { //  || element.getPartitions().containsAll(successorPartitions)) {
+                    est.addSinglePartitionProbability(edgeProbability * successor.getSinglePartitionProbability());
+                }
                 
                 // ABORT PROBABILITY
                 // We need to have seen at least this number of hits before we will use a 

@@ -16,6 +16,7 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.EstimationThresholds;
 import edu.brown.markov.MarkovVertex;
 import edu.brown.pools.Poolable;
+import edu.brown.statistics.FastIntHistogram;
 import edu.brown.utils.PartitionSet;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.TableUtil;
@@ -58,7 +59,7 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
     /**
      * The number of Statements executed at each partition
      */
-    private final int touched[];
+    private final FastIntHistogram touched;
     
     // Probabilities
     private final float done[];
@@ -70,7 +71,7 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
     // ----------------------------------------------------------------------------
     
     // Cached
-    private transient PartitionSet finished_partitionset;
+    private transient PartitionSet done_partitionset;
     private transient PartitionSet touched_partitionset;
     private transient PartitionSet most_touched_partitionset;
     private transient PartitionSet read_partitionset;
@@ -86,7 +87,7 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
     public MarkovEstimate(CatalogContext catalogContext) {
         this.catalogContext = catalogContext;
         
-        this.touched = new int[this.catalogContext.numberOfPartitions];
+        this.touched = new FastIntHistogram(true, this.catalogContext.numberOfPartitions); 
         this.done = new float[this.catalogContext.numberOfPartitions];
         this.read = new float[this.catalogContext.numberOfPartitions];
         this.write = new float[this.catalogContext.numberOfPartitions];
@@ -126,8 +127,7 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
             if (debug.val) LOG.debug(String.format("Cleaning up MarkovEstimate [hashCode=%d]", this.hashCode()));
             this.vertex = null;
         }
-        for (int i = 0; i < this.touched.length; i++) {
-            this.touched[i] = 0;
+        for (int i = 0; i < this.done.length; i++) {
             this.done[i] = EstimatorUtil.NULL_MARKER;
             this.read[i] = EstimatorUtil.NULL_MARKER;
             this.write[i] = EstimatorUtil.NULL_MARKER;
@@ -139,11 +139,12 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
         this.greatest_abort = EstimatorUtil.NULL_MARKER;
         this.path.clear();
         
+        this.touched.clearValues();
         this.touched_partitions.clear();
         this.read_partitions.clear();
         this.write_partitions.clear();
         
-        if (this.finished_partitionset != null) this.finished_partitionset.clear();
+        if (this.done_partitionset != null) this.done_partitionset.clear();
         if (this.touched_partitionset != null) this.touched_partitionset.clear();
         if (this.most_touched_partitionset != null) this.most_touched_partitionset.clear();
         if (this.read_partitionset != null) this.read_partitionset.clear();
@@ -207,10 +208,10 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
     }
     
     public boolean isTargetPartition(EstimationThresholds t, int partition) {
-        return ((1 - this.done[partition]) >= t.getFinishedThreshold());
+        return ((1 - this.done[partition]) >= t.getDoneThreshold());
     }
     public int getTouchedCounter(int partition) {
-        return (this.touched[partition]);
+        return ((int)this.touched.get(partition, 0));
     }
     
     // ----------------------------------------------------------------------------
@@ -234,12 +235,12 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
      * @param partition
      */
     protected void incrementTouchedCounter(int partition) {
-        this.touched[partition]++;
+        this.touched.put(partition);
     }
     
     protected void incrementTouchedCounter(PartitionSet partitions) {
-        for (int p = 0; p < this.touched.length; p++) {
-            if (partitions.contains(p)) this.touched[p]++;
+        for (int partition : partitions) {
+            this.touched.put(partition);
         } // FOR
     }
     
@@ -427,12 +428,12 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
     }
     
     // ----------------------------------------------------------------------------
-    // FINISHED PROBABILITY
+    // DONE PROBABILITY
     // ----------------------------------------------------------------------------
     
     @Override
     public boolean isDonePartition(EstimationThresholds t, int partition) {
-        return (this.done[partition] >= t.getFinishedThreshold());
+        return (this.done[partition] >= t.getDoneThreshold());
     }
     
     // ----------------------------------------------------------------------------
@@ -441,60 +442,65 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
     
     @Override
     public long getRemainingExecutionTime() {
-        return time;
+        return (this.time);
     }
     
     private void getPartitions(PartitionSet partitions, float values[], float limit, boolean inverse) {
         partitions.clear();
-        if (inverse) {
-            for (int i = 0; i < values.length; i++) {
-                if ((1 - values[i]) >= limit)
-                    partitions.add(this.catalogContext.getAllPartitionIdArray()[i]);
-            } // FOR
-        } else {
-            for (int i = 0; i < values.length; i++) {
-                if (values[i] >= limit)
-                    partitions.add(this.catalogContext.getAllPartitionIdArray()[i]);
-            } // FOR
-        }
+        for (int partition = 0; partition < values.length; partition++) {
+            if ((inverse == true && ((1 - values[partition]) >= limit)) ||
+                (inverse == false && (values[partition] >= limit))) {
+                
+                partitions.add(partition);
+            }
+        } // FOR
     }
 
     @Override
     public PartitionSet getReadOnlyPartitions(EstimationThresholds t) {
         assert(t != null);
-        if (this.read_partitionset == null) this.read_partitionset = new PartitionSet();
+        if (this.read_partitionset == null) {
+            this.read_partitionset = new PartitionSet();
+        }
         this.getPartitions(this.read_partitionset, this.read, (float)t.getReadThreshold(), false);
         return (this.read_partitionset);
     }
     @Override
     public PartitionSet getWritePartitions(EstimationThresholds t) {
         assert(t != null);
-        if (this.write_partitionset == null) this.write_partitionset = new PartitionSet();
+        if (this.write_partitionset == null) {
+            this.write_partitionset = new PartitionSet();
+        }
         this.getPartitions(this.write_partitionset, this.write, (float)t.getWriteThreshold(), false);
         return (this.write_partitionset);
     }
     @Override
     public PartitionSet getDonePartitions(EstimationThresholds t) {
         assert(t != null);
-        if (this.finished_partitionset == null) this.finished_partitionset = new PartitionSet();
-        this.getPartitions(this.finished_partitionset, this.done, (float)t.getFinishedThreshold(), false);
-        return (this.finished_partitionset);
+        if (this.done_partitionset == null) {
+            this.done_partitionset = new PartitionSet();
+        }
+        this.getPartitions(this.done_partitionset, this.done, (float)t.getDoneThreshold(), false);
+        return (this.done_partitionset);
     }
     
     public PartitionSet getMostTouchedPartitions(EstimationThresholds t) {
         assert(t != null);
         if (this.touched_partitionset == null) this.touched_partitionset = new PartitionSet();
-        this.getPartitions(this.touched_partitionset, this.done, t.getFinishedThreshold(), true);
+        this.getPartitions(this.touched_partitionset, this.done, t.getDoneThreshold(), true);
         
-        if (this.most_touched_partitionset == null) this.most_touched_partitionset = new PartitionSet();
+        if (this.most_touched_partitionset == null) {
+            this.most_touched_partitionset = new PartitionSet();
+        }
         int max_ctr = 0;
-        for (Integer p : this.touched_partitionset) {
-            if (this.touched[p.intValue()] > 0 && max_ctr <= this.touched[p.intValue()]) {
-                if (max_ctr == this.touched[p.intValue()]) this.most_touched_partitionset.add(p);
+        for (int p : this.touched_partitionset.values()) {
+            int numTouched = (int)this.touched.get(p, 0); 
+            if (numTouched > 0 && max_ctr <= numTouched) {
+                if (max_ctr == numTouched) this.most_touched_partitionset.add(p);
                 else {
                     this.most_touched_partitionset.clear();
                     this.most_touched_partitionset.add(p);
-                    max_ctr = this.touched[p.intValue()];
+                    max_ctr = numTouched;
                 }
             }
         } // FOR
@@ -506,29 +512,31 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
         final String f = "%-6.02f"; 
         
         Map<String, Object> m0 = new LinkedHashMap<String, Object>();
-        m0.put("BatchEstimate", (this.batch == EstimatorUtil.INITIAL_ESTIMATE_BATCH ? "<INITIAL>" : "#" + this.batch));
+        m0.put("BatchEstimate", (this.batch == EstimatorUtil.INITIAL_ESTIMATE_BATCH ?
+                                 "<INITIAL>" : "#" + this.batch));
         m0.put("HashCode", this.hashCode());
         m0.put("Valid", this.valid);
         m0.put("Vertex", this.vertex);
         m0.put("Confidence", this.confidence);
-        m0.put("Single-P", (this.singlepartition != EstimatorUtil.NULL_MARKER ? String.format(f, this.singlepartition) : "-"));
+        m0.put("Single-Partition", (this.singlepartition != EstimatorUtil.NULL_MARKER ?
+                                    String.format(f, this.singlepartition) : "-"));
         m0.put("User Abort", (this.abort != EstimatorUtil.NULL_MARKER ? String.format(f, this.abort) : "-"));
         
         String header[] = {
             "",
-            "ReadOnly",
-            "Write",
-            "Done",
-            "TouchCtr",
+            "READ_ONLY",
+            "WRITE",
+            "DONE",
+            "TOUCH_CTR",
         };
-        Object rows[][] = new Object[this.touched.length][];
+        Object rows[][] = new Object[this.done.length][];
         for (int i = 0; i < rows.length; i++) {
             rows[i] = new String[] {
                 String.format("Partition #%02d", i),
                 (this.read[i] != EstimatorUtil.NULL_MARKER ? String.format(f, this.read[i]) : "-"),
                 (this.write[i] != EstimatorUtil.NULL_MARKER ? String.format(f, this.write[i]) : "-"),
                 (this.done[i] != EstimatorUtil.NULL_MARKER ? String.format(f, this.done[i]) : "-"),
-                Integer.toString(this.touched[i]),
+                Integer.toString((int)this.touched.get(i, 0)),
             };
         } // FOR
         Map<String, String> m1 = TableUtil.tableMap(header, rows);
