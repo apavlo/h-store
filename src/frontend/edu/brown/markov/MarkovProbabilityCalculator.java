@@ -6,7 +6,6 @@ import java.util.Set;
 import org.apache.log4j.Logger;
 import org.voltdb.CatalogContext;
 import org.voltdb.catalog.Statement;
-import org.voltdb.types.QueryType;
 
 import edu.brown.graphs.VertexTreeWalker;
 import edu.brown.hstore.estimators.DynamicTransactionEstimate;

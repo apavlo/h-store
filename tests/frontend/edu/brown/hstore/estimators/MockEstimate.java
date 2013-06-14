@@ -67,10 +67,10 @@ public class MockEstimate implements Estimate {
     public boolean isReadOnlyAllPartitions(EstimationThresholds t) {
         return false;
     }
-    @Override
-    public PartitionSet getReadOnlyPartitions(EstimationThresholds t) {
-        return null;
-    }
+//    @Override
+//    public PartitionSet getReadOnlyPartitions(EstimationThresholds t) {
+//        return null;
+//    }
     @Override
     public boolean isWriteProbabilitySet(int partition) {
         return false;

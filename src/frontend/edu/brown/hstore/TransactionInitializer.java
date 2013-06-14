@@ -713,7 +713,9 @@ public class TransactionInitializer {
                         }
                         predict_partitions = t_estimate.getTouchedPartitions(this.thresholds);
                         predict_readOnly = t_estimate.isReadOnlyAllPartitions(this.thresholds);
-                        predict_abortable = (predict_partitions.size() == 1 || t_estimate.isAbortable(this.thresholds)); // || predict_readOnly == false
+                        predict_abortable = (predict_partitions.size() == 1 ||
+                                             predict_readOnly == false ||
+                                             t_estimate.isAbortable(this.thresholds));
                         
                         if (predict_partitions.size() == 1) {
                             if (hstore_conf.site.markov_singlep_updates == false) t_state.disableUpdates();
