@@ -288,28 +288,28 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
     // READ-ONLY PROBABILITY
     // ----------------------------------------------------------------------------
     
-    @Override
-    public void addReadOnlyProbability(int partition, float probability) {
-        this.read[partition] = probability + (this.read[partition] == EstimatorUtil.NULL_MARKER ? 0 : this.read[partition]); 
-        this.valid = this.valid && (probability != EstimatorUtil.NULL_MARKER);
-        if (trace.val) LOG.trace(String.format("SET Partition %02d - READONLY %.02f", partition, this.read[partition]));
-    }
-    @Override
-    public void setReadOnlyProbability(int partition, float probability) {
-        assert(partition >= 0) : "Invalid Partition: " + partition;
-        assert(partition < this.read.length) : "Invalid Partition: " + partition;
-        this.read[partition] = probability;
-        this.valid = this.valid && (probability != EstimatorUtil.NULL_MARKER);
-        if (trace.val) LOG.trace(String.format("SET Partition %02d - READONLY %.02f", partition, this.read[partition]));
-    }
-    @Override
-    public float getReadOnlyProbability(int partition) {
-        return (this.read[partition]);
-    }
-    @Override
-    public boolean isReadOnlyProbabilitySet(int partition) {
-        return (this.read[partition] != EstimatorUtil.NULL_MARKER);
-    }
+//    @Override
+//    public void addReadOnlyProbability(int partition, float probability) {
+//        this.read[partition] = probability + (this.read[partition] == EstimatorUtil.NULL_MARKER ? 0 : this.read[partition]); 
+//        this.valid = this.valid && (probability != EstimatorUtil.NULL_MARKER);
+//        if (trace.val) LOG.trace(String.format("SET Partition %02d - READONLY %.02f", partition, this.read[partition]));
+//    }
+//    @Override
+//    public void setReadOnlyProbability(int partition, float probability) {
+//        assert(partition >= 0) : "Invalid Partition: " + partition;
+//        assert(partition < this.read.length) : "Invalid Partition: " + partition;
+//        this.read[partition] = probability;
+//        this.valid = this.valid && (probability != EstimatorUtil.NULL_MARKER);
+//        if (trace.val) LOG.trace(String.format("SET Partition %02d - READONLY %.02f", partition, this.read[partition]));
+//    }
+//    @Override
+//    public float getReadOnlyProbability(int partition) {
+//        return (this.read[partition]);
+//    }
+//    @Override
+//    public boolean isReadOnlyProbabilitySet(int partition) {
+//        return (this.read[partition] != EstimatorUtil.NULL_MARKER);
+//    }
     
     // ----------------------------------------------------------------------------
     // WRITE PROBABILITY

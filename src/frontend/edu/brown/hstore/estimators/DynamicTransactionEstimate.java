@@ -18,9 +18,9 @@ public interface DynamicTransactionEstimate extends Estimate {
     // ----------------------------------------------------------------------------
     // READ-ONLY PROBABILITY
     // ----------------------------------------------------------------------------
-    public float getReadOnlyProbability(int partition);
-    public void addReadOnlyProbability(int partition, float probability);
-    public void setReadOnlyProbability(int partition, float probability);
+//    public float getReadOnlyProbability(int partition);
+//    public void addReadOnlyProbability(int partition, float probability);
+//    public void setReadOnlyProbability(int partition, float probability);
     
     // ----------------------------------------------------------------------------
     // WRITE PROBABILITY

@@ -158,7 +158,7 @@ public class TestMarkovPathEstimator extends BaseTestCase {
 //        }
         
         for (int p : catalogContext.getAllPartitionIdArray()) {
-            assertTrue(estimate.toString(), estimate.isReadOnlyProbabilitySet(p));
+//            assertTrue(estimate.toString(), estimate.isReadOnlyProbabilitySet(p));
             assertTrue(estimate.toString(), estimate.isWriteProbabilitySet(p));
             assertTrue(estimate.toString(), estimate.isDoneProbabilitySet(p));
             

@@ -183,10 +183,10 @@ public abstract class AbstractFixedEstimator extends TransactionEstimator {
         // ----------------------------------------------------------------------------
         // READ-ONLY
         // ----------------------------------------------------------------------------
-        @Override
-        public boolean isReadOnlyProbabilitySet(int partition) {
-            return (this.isValid());
-        }
+//        @Override
+//        public boolean isReadOnlyProbabilitySet(int partition) {
+//            return (this.isValid());
+//        }
         @Override
         public boolean isReadOnlyAllPartitions(EstimationThresholds t) {
             return (this.partitions.size() == this.readonly.size());

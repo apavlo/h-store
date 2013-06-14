@@ -86,11 +86,11 @@ public class TestMarkovGraphProbabilities extends BaseTestCase {
         
         for (int p : catalogContext.getAllPartitionIds()) {
             if (p == BASE_PARTITION) {
-                assertEquals("ReadOnly("+p+")", 0.0f, v.getReadOnlyProbability(p), MarkovGraph.PROBABILITY_EPSILON);
+//                assertEquals("ReadOnly("+p+")", 0.0f, v.getReadOnlyProbability(p), MarkovGraph.PROBABILITY_EPSILON);
                 assertEquals("Write("+p+")", 1.0f, v.getWriteProbability(p), MarkovGraph.PROBABILITY_EPSILON);
                 assertEquals("Done("+p+")", 0.0f, v.getDoneProbability(p), MarkovGraph.PROBABILITY_EPSILON);
             } else {
-                assertEquals("ReadOnly("+p+")", 1.0f, v.getReadOnlyProbability(p), MarkovGraph.PROBABILITY_EPSILON);
+//                assertEquals("ReadOnly("+p+")", 1.0f, v.getReadOnlyProbability(p), MarkovGraph.PROBABILITY_EPSILON);
                 assertEquals("Write("+p+")", 0.0f, v.getWriteProbability(p), MarkovGraph.PROBABILITY_EPSILON);
                 assertEquals("Done("+p+")", 1.0f, v.getDoneProbability(p), MarkovGraph.PROBABILITY_EPSILON);
             }

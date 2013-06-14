@@ -92,7 +92,7 @@ public class MarkovProbabilityCalculator extends VertexTreeWalker<MarkovVertex, 
             // And will not Read/Write Probability
             for (int partition : this.all_partitions.values()) {
                 est.setDoneProbability(partition, 1.0f);
-                est.setReadOnlyProbability(partition, 1.0f);
+//                est.setReadOnlyProbability(partition, 1.0f);
                 est.setWriteProbability(partition, 0.0f);
             } // FOR
             
@@ -111,7 +111,7 @@ public class MarkovProbabilityCalculator extends VertexTreeWalker<MarkovVertex, 
 //            est.setSinglePartitionProbability(0f);
             for (int partition : this.all_partitions.values()) {
                 est.setDoneProbability(partition, 0f);
-                est.setReadOnlyProbability(partition, 0f);
+//                est.setReadOnlyProbability(partition, 0f);
                 est.setWriteProbability(partition, 0f);
             } // FOR
             
@@ -156,8 +156,8 @@ public class MarkovProbabilityCalculator extends VertexTreeWalker<MarkovVertex, 
                     
                     assert(successor.isDoneProbabilitySet(partition)) : 
                         "Setting " + element + " BEFORE " + successor;
-                    assert(successor.isReadOnlyProbabilitySet(partition)) : 
-                        "Setting " + element + " BEFORE " + successor;
+//                    assert(successor.isReadOnlyProbabilitySet(partition)) : 
+//                        "Setting " + element + " BEFORE " + successor;
                     assert(successor.isWriteProbabilitySet(partition)) : 
                         "Setting " + element + " BEFORE " + successor;
                     
@@ -211,13 +211,13 @@ public class MarkovProbabilityCalculator extends VertexTreeWalker<MarkovVertex, 
                                                    est, partition, e, successor, before), ex);
                         }
                         // READ-ONLY
-                        before = est.getReadOnlyProbability(partition);
-                        try {
-                            est.addReadOnlyProbability(partition, (edgeProbability * successor.getReadOnlyProbability(partition)));
-                        } catch (Throwable ex) {
-                            LOG.warn(String.format("Failed to set READ-ONLY probability for %s [partition=%d / edge=%s / successor=%s / before=%f]",
-                                                   est, partition, e, successor, before), ex);
-                        }
+//                        before = est.getReadOnlyProbability(partition);
+//                        try {
+//                            est.addReadOnlyProbability(partition, (edgeProbability * successor.getReadOnlyProbability(partition)));
+//                        } catch (Throwable ex) {
+//                            LOG.warn(String.format("Failed to set READ-ONLY probability for %s [partition=%d / edge=%s / successor=%s / before=%f]",
+//                                                   est, partition, e, successor, before), ex);
+//                        }
                     }
                 } // FOR (PartitionId)
             } // FOR (Edge)

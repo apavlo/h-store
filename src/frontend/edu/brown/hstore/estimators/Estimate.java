@@ -81,7 +81,7 @@ public interface Estimate extends Poolable {
     // ----------------------------------------------------------------------------
     // READ-ONLY PROBABILITY
     // ----------------------------------------------------------------------------
-    public boolean isReadOnlyProbabilitySet(int partition);
+//    public boolean isReadOnlyProbabilitySet(int partition);
     public boolean isReadOnlyPartition(EstimationThresholds t, int partition);
     public boolean isReadOnlyAllPartitions(EstimationThresholds t);
     
