@@ -24,12 +24,15 @@ import org.voltdb.client.ProcedureCallback;
 import org.voltdb.regressionsuites.specexecprocs.Sleeper;
 import org.voltdb.sysprocs.MarkovUpdate;
 
+import edu.brown.HStoreSiteTestUtil.LatchableProcedureCallback;
 import edu.brown.catalog.special.CountedStatement;
+import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.mappings.ParametersUtil;
 import edu.brown.statistics.Histogram;
 import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.PartitionSet;
 import edu.brown.utils.ProjectType;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.ThreadUtil;
@@ -43,6 +46,9 @@ public class TestMarkovSpecExecSuite extends RegressionSuite {
     private static final String PREFIX = "markovspecexec";
     private static final double SCALEFACTOR = 0.01;
     
+    private static final int WAREHOUSE_ID = 1;
+    private static final int DISTRICT_ID = 1;
+    
     /**
      * Constructor needed for JUnit. Should just pass on parameters to superclass.
      * @param name The name of the method to test. This is just passed to the superclass.
@@ -52,14 +58,40 @@ public class TestMarkovSpecExecSuite extends RegressionSuite {
     }
     
     /**
+     * testEarlyPrepare
+     */
+    public void testEarlyPrepare() throws Exception {
+        CatalogContext catalogContext = this.getCatalogContext();
+        Client client = this.getClient();
+        RegressionSuiteUtil.initializeTPCCDatabase(catalogContext, client);
+        
+        String procName = neworder.class.getSimpleName();
+        Object params[] = RegressionSuiteUtil.generateNewOrder(catalogContext.numberOfPartitions, true, WAREHOUSE_ID, DISTRICT_ID);
+        ClientResponse cr = client.callProcedure(procName, params);
+        assertTrue(cr.hasDebug());
+        
+        PartitionSet touched = new PartitionSet(cr.getDebug().getExecTouchedPartitions());
+        assertEquals(cr.toString(), 2, touched.size());
+        int basePartition = cr.getBasePartition();
+        assertTrue(cr.toString(), touched.contains(basePartition));
+        PartitionSet early = cr.getDebug().getEarlyPreparePartitions();
+        assertFalse(cr.toString(), early.isEmpty());
+        touched.remove(basePartition);
+        int remotePartition = touched.get();
+        assertNotSame(HStoreConstants.NULL_PARTITION_ID, remotePartition);
+        
+        System.err.println(cr);
+        assertFalse(cr.toString(), early.contains(basePartition));
+        assertTrue(cr.toString(), early.contains(remotePartition));
+    }
+    
+    /**
      * testRemoteQueryEstimates
      */
     public void testRemoteQueryEstimates() throws Exception {
         CatalogContext catalogContext = this.getCatalogContext();
         Client client = this.getClient();
         RegressionSuiteUtil.initializeTPCCDatabase(catalogContext, client);
-        int w_id = 1;
-        int d_id = 1;
 
         // We have to turn off caching to ensure that we get a full path estimate each time
         RegressionSuiteUtil.setHStoreConf(client, "site.markov_path_caching", false);
@@ -70,7 +102,7 @@ public class TestMarkovSpecExecSuite extends RegressionSuite {
         // has all of the vertices that we need. We'll then invoke @MarkovUpdate and then
         // request the txn one more time
         String procName = neworder.class.getSimpleName();
-        Object params[] = RegressionSuiteUtil.generateNewOrder(catalogContext.numberOfPartitions, true, w_id, d_id);
+        Object params[] = RegressionSuiteUtil.generateNewOrder(catalogContext.numberOfPartitions, true, WAREHOUSE_ID, DISTRICT_ID);
         ClientResponse cr = null;
         int repeat = 2;
         for (int i = 0; i < repeat; i++) {
@@ -134,8 +166,6 @@ public class TestMarkovSpecExecSuite extends RegressionSuite {
         Client client = this.getClient();
         RegressionSuiteUtil.initializeTPCCDatabase(catalogContext, client);
         
-        int w_id = 1;
-        int d_id = 1;
         ClientResponse cresponse = null;
         String procName = null;
         Object params[] = null;
@@ -147,20 +177,13 @@ public class TestMarkovSpecExecSuite extends RegressionSuite {
         final int sleepBefore = 5000; // ms
         final int sleepAfter = 5000; // ms
         procName = Sleeper.class.getSimpleName();
-        params = new Object[]{ w_id+1, sleepBefore, sleepAfter };
+        params = new Object[]{ WAREHOUSE_ID+1, sleepBefore, sleepAfter };
         client.callProcedure(new NullCallback(), procName, params);
         
         // Now fire off a distributed NewOrder transaction
-        final List<ClientResponse> dtxnResponse = new ArrayList<ClientResponse>();
-        final ProcedureCallback dtxnCallback = new ProcedureCallback() {
-            @Override
-            public void clientCallback(ClientResponse clientResponse) {
-                // System.err.println("DISTRUBTED RESULT " + clientResponse);
-                dtxnResponse.add(clientResponse);
-            }
-        };
+        final LatchableProcedureCallback dtxnCallback = new LatchableProcedureCallback(1);
         procName = neworder.class.getSimpleName();
-        params = RegressionSuiteUtil.generateNewOrder(catalogContext.numberOfPartitions, true, w_id, d_id);
+        params = RegressionSuiteUtil.generateNewOrder(catalogContext.numberOfPartitions, true, WAREHOUSE_ID, DISTRICT_ID);
         client.callProcedure(dtxnCallback, procName, params);
         long start = System.currentTimeMillis();
         
@@ -176,12 +199,12 @@ public class TestMarkovSpecExecSuite extends RegressionSuite {
                 spLatch.decrementAndGet();
             }
         };
-        while (dtxnResponse.isEmpty()) {
+        while (dtxnCallback.responses.isEmpty()) {
             // Just sleep for a little bit so that we don't blast the cluster
             ThreadUtil.sleep(1000);
             
             spLatch.incrementAndGet();
-            params = RegressionSuiteUtil.generateNewOrder(catalogContext.numberOfPartitions, true, w_id, d_id+1);
+            params = RegressionSuiteUtil.generateNewOrder(catalogContext.numberOfPartitions, true, WAREHOUSE_ID, DISTRICT_ID+1);
             client.callProcedure(spCallback, procName, params);
             
             // We'll only check the txns half way through the dtxns expected
@@ -190,7 +213,7 @@ public class TestMarkovSpecExecSuite extends RegressionSuite {
             assert(elapsed <= (sleepBefore+sleepAfter)*2);
         } // WHILE 
 
-        cresponse = CollectionUtil.first(dtxnResponse);
+        cresponse = CollectionUtil.first(dtxnCallback.responses);
         assertNotNull(cresponse);
         assertFalse(cresponse.isSinglePartition());
         assertTrue(cresponse.hasDebug());
@@ -265,9 +288,18 @@ public class TestMarkovSpecExecSuite extends RegressionSuite {
         builder.addServerConfig(config);
 
         ////////////////////////////////////////////////////////////
-        // CONFIG #2: cluster of 2 nodes running 2 site each, one replica
+        // CONFIG #2: cluster of 2 nodes running 1 site each, one replica
         ////////////////////////////////////////////////////////////
-        config = new LocalCluster(PREFIX + "-cluster.jar", 2, 2, 1, BackendTarget.NATIVE_EE_JNI);
+        config = new LocalCluster(PREFIX + "-2part-cluster.jar", 2, 1, 1, BackendTarget.NATIVE_EE_JNI);
+        config.setConfParameter("site.markov_path", new File("files/markovs/tpcc-2p.markov.gz").getAbsolutePath());
+        success = config.compile(project);
+        assert(success);
+        builder.addServerConfig(config);
+        
+        ////////////////////////////////////////////////////////////
+        // CONFIG #3: cluster of 2 nodes running 2 site each, one replica
+        ////////////////////////////////////////////////////////////
+        config = new LocalCluster(PREFIX + "-4part-cluster.jar", 2, 2, 1, BackendTarget.NATIVE_EE_JNI);
         config.setConfParameter("site.markov_path", new File("files/markovs/tpcc-4p.markov.gz").getAbsolutePath());
         success = config.compile(project);
         assert(success);

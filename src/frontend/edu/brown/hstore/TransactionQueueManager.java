@@ -149,7 +149,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
         Arrays.fill(this.lockQueueLastTxns, Long.valueOf(-1l));
         
         // Use updateConf() to initialize our internal values from the HStoreConf
-        this.updateConf(this.hstore_conf);
+        this.updateConf(this.hstore_conf, null);
         
         // Add a EventObservable that will tell us when the first non-sysproc
         // request arrives from a client. This will then tell the queues that its ok
@@ -169,7 +169,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
     }
     
     @Override
-    public void updateConf(HStoreConf hstore_conf) {
+    public void updateConf(HStoreConf hstore_conf, String[] changed) {
         this.initThrottleThreshold = (int)(hstore_conf.site.network_incoming_limit_txns * hstore_conf.site.queue_threshold_factor);
         this.initThrottleRelease = hstore_conf.site.queue_release_factor;
         for (PartitionLockQueue queue : this.lockQueues) {

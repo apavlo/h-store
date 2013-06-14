@@ -16,6 +16,7 @@ import edu.brown.hstore.internal.InternalMessage;
 import edu.brown.hstore.specexec.checkers.AbstractConflictChecker;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
+import edu.brown.interfaces.Configurable;
 import edu.brown.interfaces.DebugContext;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
@@ -28,7 +29,7 @@ import edu.brown.utils.StringUtil;
  * to speculatively execute at a partition based on the current distributed transaction 
  * @author pavlo
  */
-public class SpecExecScheduler {
+public class SpecExecScheduler implements Configurable {
     private static final Logger LOG = Logger.getLogger(SpecExecScheduler.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -110,6 +111,26 @@ public class SpecExecScheduler {
             for (int i = 0; i < this.profilerMap.length; i++) {
                 this.profilerMap[i] = new SpecExecProfiler();
             } // FOR
+        }
+    }
+    
+    @Override
+    public void updateConf(HStoreConf hstore_conf, String[] changed) {
+        // Tell the SpecExecScheduler to ignore certain SpeculationTypes
+        if (hstore_conf.site.specexec_ignore_stallpoints != null) {
+            if (this.ignore_types != null) this.ignore_types.clear();
+            for (String element : StringUtil.splitList(hstore_conf.site.specexec_ignore_stallpoints)) {
+                SpeculationType specType = SpeculationType.get(element);
+                if (specType != null) this.ignoreSpeculationType(specType);
+            } // FOR
+        }
+        
+        this.ignore_queue_size_change = hstore_conf.site.specexec_ignore_queue_size_change;
+        this.ignore_all_local = hstore_conf.site.specexec_ignore_all_local;
+        
+        if (hstore_conf.site.specexec_unsafe) {
+            // this.specExecScheduler.setIgnoreQueueSizeChange(true);
+            // this.specExecScheduler.setIgnoreSpeculationTypeChange(true);
         }
     }
     

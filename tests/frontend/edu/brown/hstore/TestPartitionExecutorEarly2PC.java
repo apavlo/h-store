@@ -153,7 +153,6 @@ public class TestPartitionExecutorEarly2PC extends BaseTestCase {
                 } // FOR
                 assert(workloads[i] != null) : i;
             } // FOR
-            System.err.println(StringUtil.join("\n", workloads));
 
             // COMBINE INTO A SINGLE WORKLOAD HANDLE
             workload = new Workload(catalogContext.catalog, workloads);

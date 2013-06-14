@@ -832,21 +832,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                                                        policy,
                                                        hstore_conf.site.specexec_scheduler_window);
         this.specExecChecker.setEstimationThresholds(this.thresholds);
-        this.specExecScheduler.setIgnoreQueueSizeChange(hstore_conf.site.specexec_ignore_queue_size_change);
-        this.specExecScheduler.setIgnoreAllLocal(hstore_conf.site.specexec_ignore_all_local);
-        
-        if (hstore_conf.site.specexec_unsafe) {
-            // this.specExecScheduler.setIgnoreQueueSizeChange(true);
-            // this.specExecScheduler.setIgnoreSpeculationTypeChange(true);
-        }
-        
-        // Tell the SpecExecScheduler to ignore certain SpeculationTypes
-        if (hstore_conf.site.specexec_ignore_stallpoints != null) {
-            for (String element : StringUtil.splitList(hstore_conf.site.specexec_ignore_stallpoints)) {
-                SpeculationType specType = SpeculationType.get(element);
-                if (specType != null) this.specExecScheduler.ignoreSpeculationType(specType);
-            } // FOR
-        }
+        this.specExecScheduler.updateConf(hstore_conf, null);
         
         if (debug.val && hstore_conf.site.specexec_enable)
             LOG.debug(String.format("Initialized %s for partition %d [checker=%s, policy=%s]",
@@ -863,9 +849,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
     }
 
     @Override
-    public void updateConf(HStoreConf hstore_conf) {
-        // SpecExecScheduler
-        this.specExecScheduler.setIgnoreAllLocal(hstore_conf.site.specexec_ignore_all_local);
+    public void updateConf(HStoreConf hstore_conf, String[] changed) {
+        if (this.specExecScheduler != null) {
+            this.specExecScheduler.updateConf(hstore_conf, changed);
+        }
     }
     
     // ----------------------------------------------------------------------------
@@ -3563,6 +3550,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             if (trace.val)
                 LOG.trace(String.format("%s - Marking partition %d as done for txn", ts, partition));
             tmp_preparePartitions.add(partition);
+            if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.markEarly2PCPartition(partition);
             
             // Check whether we're executing a query at this partition in this batch.
             // If we're not, then we need to check whether we can piggyback the "done" message
