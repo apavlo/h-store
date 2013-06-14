@@ -18,12 +18,15 @@ import edu.brown.markov.MarkovVertex.Type;
 import edu.brown.utils.PartitionSet;
 import edu.brown.utils.StringUtil;
 
+/**
+ * Utility class for computing the vertex probilities in a MarkovGraph
+ * @author pavlo
+ */
 public class MarkovProbabilityCalculator extends VertexTreeWalker<MarkovVertex, MarkovEdge> {
     private static final Logger LOG = Logger.getLogger(MarkovProbabilityCalculator.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
-        LoggerUtil.attachObserver(LOG, debug, trace);
+        LoggerUtil.attachObserver(LOG, debug);
     }
     
     private final Set<MarkovEdge> visited_edges = new HashSet<MarkovEdge>();
@@ -52,20 +55,18 @@ public class MarkovProbabilityCalculator extends VertexTreeWalker<MarkovVertex, 
     @Override
     protected void callback_first(MarkovVertex element) {
         super.callback_first(element);
-        if (trace.val) {
-            String msg = String.format("START %s %s",
-                                       this.getClass().getSimpleName(), this.getGraph());
-            LOG.trace(StringUtil.header(msg, "=", 150));
+        if (debug.val) {
+            String msg = "START " + ((MarkovGraph)this.getGraph()).getProcedure().getName();
+            LOG.debug(StringUtil.header(msg, "=", 150));
         }
     }
     
     @Override
     protected void callback_finish() {
         super.callback_finish();
-        if (trace.val) {
-            String msg = String.format("STOP %s %s",
-                                       this.getClass().getSimpleName(), this.getGraph());
-            LOG.trace(StringUtil.header(msg, "=", 150));
+        if (debug.val) {
+            String msg = "STOP " + ((MarkovGraph)this.getGraph()).getProcedure().getName();
+            LOG.debug(StringUtil.header(msg, "=", 150));
         }
     }
     
@@ -76,8 +77,11 @@ public class MarkovProbabilityCalculator extends VertexTreeWalker<MarkovVertex, 
         final DynamicTransactionEstimate est = (this.markov_est != null ? this.markov_est : element);
         final Type vtype = element.getType();
         
-        if (trace.val)
-            LOG.trace("BEFORE: " + element + " => " + est.getSinglePartitionProbability());
+        if (debug.val) {
+            if (this.getCounter() > 1) LOG.debug(StringUtil.repeat("-", 60));
+            LOG.debug(String.format("BEFORE: %s\n%s", element, element.debug()));
+            // LOG.debug("BEFORE: " + element + " => " + est.getSinglePartitionProbability());
+        }
         
         // COMMIT/ABORT is always single-partitioned!
         if (vtype == MarkovVertex.Type.COMMIT || vtype == MarkovVertex.Type.ABORT) {
@@ -101,17 +105,6 @@ public class MarkovProbabilityCalculator extends VertexTreeWalker<MarkovVertex, 
         }
         // STATEMENT VERTEX
         else {
-            // If the current vertex is not single-partitioned, then we know right away
-            // that the probability should be zero and we don't need to check our successors
-            // We define a single-partition vertex to be a query that accesses only one partition
-            // that is the same partition as the base/local partition. So even if the query accesses
-            // only one partition, if that partition is not the same as where the java is executing,
-            // then we're going to say that it is multi-partitioned
-//            boolean element_islocalonly = element.isLocalPartitionOnly(); 
-//            if (element_islocalonly == false) {
-//                if (trace.val) LOG.trace(element + " NOT is single-partitioned!");
-//                est.setSinglePartitionProbability(0.0f);
-//            }
             
             // Make sure everything is set to zero
             est.setSinglePartitionProbability(0f);
@@ -124,23 +117,21 @@ public class MarkovProbabilityCalculator extends VertexTreeWalker<MarkovVertex, 
             for (MarkovEdge e : markov.getOutEdges(element)) {
                 if (this.visited_edges.contains(e)) continue;
                 MarkovVertex successor = markov.getDest(e);
-                assert(successor != null);
-                assert(successor.isSinglePartitionProbabilitySet()) : "Setting " + element + " BEFORE " + successor;
+                assert(successor != null) :
+                    "Null successor for " + e.debug(markov);
+                assert(successor.isSinglePartitionProbabilitySet()) :
+                    "Setting " + element + " BEFORE " + successor;
+                assert(successor.isStartVertex() == false) :
+                    "Invalid edge " + element + " --> " + successor;
+                if (debug.val) 
+                    LOG.debug(String.format("Updating probabilities using edge [%s --%s--> %s]",
+                              element, e, successor));
+                
                 final Statement successorStmt = successor.getCatalogItem();
                 final QueryType successorType = QueryType.get(successorStmt.getQuerytype());
 
                 // SINGLE-PARTITION PROBABILITY
-                // If our vertex only touches the base partition, then we need to calculate the 
-                // single-partition probability as the sum of the the edge weights times our
-                // successors' single-partition probability
-//                if (element_islocalonly) {
-                    float prob = e.getProbability() * successor.getSinglePartitionProbability();
-                    est.addSinglePartitionProbability(prob);
-                    if (trace.val) 
-                        LOG.trace(String.format("%s --%s--> %s [%f * %f = %f]",
-                        		  element, e, successor, 
-                        		  e.getProbability(), successor.getSinglePartitionProbability(), prob));
-//                }
+                est.addSinglePartitionProbability(e.getProbability() * successor.getSinglePartitionProbability());
                 
                 // ABORT PROBABILITY
                 // We need to have seen at least this number of hits before we will use a 
@@ -160,34 +151,40 @@ public class MarkovProbabilityCalculator extends VertexTreeWalker<MarkovVertex, 
                     assert(successor.isWriteProbabilitySet(partition)) : 
                         "Setting " + element + " BEFORE " + successor;
                     
-                    // The successor vertex accesses this partition
+                    // The successor accesses this partition
                     if (successor.getPartitions().contains(partition)) {
-                        est.setDoneProbability(partition, 0.0f);
+                        // The done probability needs to be the inverse of the edge weight,
+                        // regardless of whether it is a read-only query or not
+                        est.addDoneProbability(partition, 1.0f - e.getProbability());
                         
-                        // Figure out whether it is a read or a write
-                        if (successorStmt.getReadonly()) {
-                            if (trace.val)
-                                LOG.trace(String.format("%s does not modify partition %d. " +
+                        // If the query writes to this partition, then the write probability
+                        // for this partition must be increased by the edge's probability
+                        // This is because this is the max probability for writing to this partition
+                        if (successorStmt.getReadonly() == false) {
+                            if (debug.val)
+                                LOG.debug(String.format("%s modifies partition %d. " +
+                                          "Setting WRITE probability to 1.0 [%s]",
+                                          successor, partition, successorType));
+                            est.addWriteProbability(partition, e.getProbability());
+                        }
+                        // Otherwise, we need to set the write probability to be based on
+                        // the probability that we will execute a write query at subsequent 
+                        // vertices in the graph
+                        else {
+                            if (debug.val)
+                                LOG.debug(String.format("%s does not modify partition %d. " +
                                 		  "Setting WRITE probability based on children [%s]",
                                           element, partition, successorType));
-                            est.addWriteProbability(partition, e.getProbability()); //  * successor.getWriteProbability(partition)));
-                            // est.addReadOnlyProbability(partition, 1.0f - e.getProbability()); //  * successor.getReadOnlyProbability(partition)));
-                        } else {
-                            if (trace.val)
-                                LOG.trace(String.format("%s modifies partition %d. " +
-                                		  "Setting WRITE probability to 1.0 [%s]",
-                                          successor, partition, successorType));
-                            // est.addWriteProbability(partition, 1.0f - e.getProbability());
-                            est.addReadOnlyProbability(partition, e.getProbability());
-                            // est.setWriteProbability(partition, 1.0f);
-                            // est.setReadOnlyProbability(partition, 0.0f);
+                            est.addWriteProbability(partition, e.getProbability() * successor.getWriteProbability(partition));
                         }
                     }
-                    // This successor doesn't directly access this partition, so the successor's probabilities are
-                    // multiplied based on the edge probabilities 
+                    // This successor doesn't access this partition, so we are going to use 
+                    // the successor's probabilities for our current vertex. But we have to multiply
+                    // their values by the edge's probability 
                     else {
                         float before;
                         
+                        // DONE
                         before = est.getDoneProbability(partition);
                         try {
                             est.addDoneProbability(partition, (e.getProbability() * successor.getDoneProbability(partition)));
@@ -195,6 +192,7 @@ public class MarkovProbabilityCalculator extends VertexTreeWalker<MarkovVertex, 
                             LOG.warn(String.format("Failed to set FINISH probability for %s [partition=%d / edge=%s / successor=%s / before=%f]",
                                                    est, partition, e, successor, before), ex);
                         }
+                        // WRITE
                         before = est.getWriteProbability(partition);
                         try {
                             est.addWriteProbability(partition, (e.getProbability() * successor.getWriteProbability(partition)));
@@ -202,6 +200,7 @@ public class MarkovProbabilityCalculator extends VertexTreeWalker<MarkovVertex, 
                             LOG.warn(String.format("Failed to set WRITE probability for %s [partition=%d / edge=%s / successor=%s / before=%f]",
                                                    est, partition, e, successor, before), ex);
                         }
+                        // READ-ONLY
                         before = est.getReadOnlyProbability(partition);
                         try {
                             est.addReadOnlyProbability(partition, (e.getProbability() * successor.getReadOnlyProbability(partition)));
@@ -213,8 +212,8 @@ public class MarkovProbabilityCalculator extends VertexTreeWalker<MarkovVertex, 
                 } // FOR (PartitionId)
             } // FOR (Edge)
         }
-        if (trace.val) LOG.trace("AFTER: " + element + " => " + est.getSinglePartitionProbability());
-        if (trace.val) LOG.trace(StringUtil.repeat("-", 40));
+        if (debug.val)
+            LOG.debug(String.format("AFTER: %s\n%s", element, element.debug()));
     }
     
     @Override
