@@ -139,7 +139,9 @@ public abstract class MarkovUtil {
             v.setAbortProbability(1.0f);
         }
         if (type != MarkovVertex.Type.START) {
-            for (int partition : CatalogUtil.getAllPartitionIds(catalog_db).values()) {
+            @SuppressWarnings("deprecation")
+            PartitionSet partitions = CatalogUtil.getAllPartitionIds(catalog_db);
+            for (int partition : partitions.values()) {
                 v.setDoneProbability(partition, 1.0f);
             } // FOR
         }

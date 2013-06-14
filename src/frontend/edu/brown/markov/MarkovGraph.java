@@ -93,13 +93,7 @@ public class MarkovGraph extends AbstractDirectedGraph<MarkovVertex, MarkovEdge>
     /**
      * Constructor
      * @param catalog_proc
-     * @param basePartition
      */
-//    public MarkovGraph(Procedure catalog_proc, int xact_count) {
-//        super((Database) catalog_proc.getParent());
-//        this.catalog_proc = catalog_proc;
-//        this.xact_count = xact_count;
-//    }
     public MarkovGraph(Procedure catalog_proc){
         super((Database) catalog_proc.getParent());
         this.catalog_proc = catalog_proc;
