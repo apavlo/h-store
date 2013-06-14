@@ -124,10 +124,10 @@ public class RemoteEstimate implements Estimate {
         throw new NotImplementedException(this.getClass().getSimpleName() + " does not implement this method");
     }
 
-    @Override
-    public PartitionSet getReadOnlyPartitions(EstimationThresholds t) {
-        throw new NotImplementedException(this.getClass().getSimpleName() + " does not implement this method");
-    }
+//    @Override
+//    public PartitionSet getReadOnlyPartitions(EstimationThresholds t) {
+//        throw new NotImplementedException(this.getClass().getSimpleName() + " does not implement this method");
+//    }
 
     @Override
     public boolean isWriteProbabilitySet(int partition) {

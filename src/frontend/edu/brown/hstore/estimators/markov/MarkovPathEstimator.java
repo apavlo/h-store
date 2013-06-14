@@ -165,8 +165,9 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
     
     @Override
     public void finish() {
-        if (debug.val) LOG.debug(String.format("Cleaning up MarkovPathEstimator [hashCode=%d]",
-                         this.hashCode()));
+        if (debug.val)
+            LOG.debug(String.format("Cleaning up MarkovPathEstimator [hashCode=%d]",
+                      this.hashCode()));
         super.finish();
         this.estimate = null;
         this.forced_vertices.clear();
@@ -543,56 +544,76 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
     protected static void populateProbabilities(MarkovEstimate estimate, MarkovVertex vertex) {
         if (debug.val)
             LOG.debug(String.format("Populating %s probabilities based on %s " +
-                      "[touchedPartitions=%s, confidence=%.03f]\n%s",
+                      "[touchedPartitions=%s, confidence=%.03f, hashCode=%d]\n%s",
                       estimate.getClass().getSimpleName(), vertex.getClass().getSimpleName(),
-                      estimate.touched_partitions, estimate.confidence,
+                      estimate.touched_partitions, estimate.confidence, estimate.hashCode(),
                       vertex.debug()));
         
-        PartitionSet next_partitions = vertex.getPartitions();
-        float inverse_prob = 1.0f - estimate.confidence;
         Statement catalog_stmt = vertex.getCatalogItem();
-        
-        // READ QUERY
-        if (catalog_stmt.getQuerytype() == QueryType.SELECT.getValue()) {
-            for (int p : next_partitions.values()) {
-                // This is the first time we've read from this partition
-                if (estimate.read_partitions.contains(p) == false) {
-                    if (trace.val)
-                        LOG.trace(String.format("First time partition %d is read from! " +
-                        		  "Setting read-only probability to %.03f",
-                                  p, estimate.confidence));
-//                    estimate.setReadOnlyProbability(p, estimate.confidence);
-                    if (estimate.isDoneProbabilitySet(p) == false) {
-                        estimate.setDoneProbability(p, inverse_prob);
-                    }
-                    estimate.read_partitions.add(p);
+        PartitionSet partitions = vertex.getPartitions();
+        boolean readQuery = (catalog_stmt.getQuerytype() == QueryType.SELECT.getValue());
+        for (int partition : partitions.values()) {
+            if (estimate.isDoneProbabilitySet(partition) == false) {
+                estimate.setDoneProbability(partition, vertex.getDoneProbability(partition));
+            }
+            if (estimate.isWriteProbabilitySet(partition) == false) {
+                estimate.setWriteProbability(partition, vertex.getWriteProbability(partition));
+            }
+            (readQuery ? estimate.read_partitions : estimate.write_partitions).add(partition);
+            estimate.incrementTouchedCounter(partition);
+            estimate.touched_partitions.add(partition);
+        } // FOR
+        // Make sure that we update our probabilities for any partition that we've touched
+        // in the past but are not touching for this query
+        for (int partition : vertex.getPastPartitions()) {
+            if (partitions.contains(partition) == false) {
+                if (estimate.isDoneProbabilitySet(partition) == false) {
+                    estimate.setDoneProbability(partition, vertex.getDoneProbability(partition));
                 }
-                estimate.incrementTouchedCounter(p);
-            } // FOR
-        }
-        // WRITE QUERY
-        else {
-            for (int p : next_partitions.values()) {
-                // This is the first time we've written to this partition
-                if (estimate.write_partitions.contains(p) == false) {
-                    if (trace.val)
-                        LOG.trace(String.format("First time partition %d is written to! " +
-                        		  "Setting write probability to %.03f",
-                                  p, estimate.confidence));
-//                    estimate.setReadOnlyProbability(p, inverse_prob);
-                    estimate.setWriteProbability(p, estimate.confidence);
-                    if (estimate.isDoneProbabilitySet(p) == false) {
-                        estimate.setDoneProbability(p, inverse_prob);
-                    }
-                    estimate.write_partitions.add(p);
-                }
-                estimate.incrementTouchedCounter(p);
-            } // FOR
-        }
+                if (estimate.isWriteProbabilitySet(partition) == false) {
+                    estimate.setWriteProbability(partition, vertex.getWriteProbability(partition));
+                }   
+            }
+        } // FOR
         
-        // If this is the first time that the path touched more than one partition, then we 
-        // need to set the single-partition probability to be the confidence coefficient thus far
-        estimate.touched_partitions.addAll(vertex.getPartitions());
+     // float inverse_prob = 1.0f - estimate.confidence;
+//        // READ QUERY
+//        if (catalog_stmt.getQuerytype() == QueryType.SELECT.getValue()) {
+//            for (int partition : next_partitions.values()) {
+//                // This is the first time we've read from this partition
+//                if (estimate.read_partitions.contains(partition) == false) {
+//                    if (trace.val)
+//                        LOG.trace(String.format("First time partition %d is read from! " +
+//                        		  "Setting read-only probability to %.03f",
+//                                  partition, estimate.confidence));
+////                    estimate.setReadOnlyProbability(p, estimate.confidence);
+//                    if (estimate.isDoneProbabilitySet(partition) == false) {
+//                        estimate.setDoneProbability(partition, inverse_prob);
+//                    }
+//                    estimate.read_partitions.add(partition);
+//                }
+//                estimate.incrementTouchedCounter(partition);
+//            } // FOR
+//        }
+//        // WRITE QUERY
+//        else {
+//            for (int partition : next_partitions.values()) {
+//                // This is the first time we've written to this partition
+//                if (estimate.write_partitions.contains(partition) == false) {
+//                    if (trace.val)
+//                        LOG.trace(String.format("First time partition %d is written to! " +
+//                        		  "Setting write probability to %.03f",
+//                                  partition, estimate.confidence));
+////                    estimate.setReadOnlyProbability(p, inverse_prob);
+//                    estimate.setWriteProbability(partition, estimate.confidence);
+//                    if (estimate.isDoneProbabilitySet(partition) == false) {
+//                        estimate.setDoneProbability(partition, inverse_prob);
+//                    }
+//                    estimate.write_partitions.add(partition);
+//                }
+//                estimate.incrementTouchedCounter(partition);
+//            } // FOR
+//        }
         
         // Keep track of the highest abort probability that we've seen thus far
         if (vertex.isQueryVertex() && vertex.getAbortProbability() > estimate.greatest_abort) {
@@ -609,19 +630,23 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
         assert(vertex != null);
         if (debug.val)
             LOG.debug(String.format("Populating %s internal properties based on current %s " +
-            		  "[touchedPartitions=%s, confidence=%f]\n%s",
+            		  "[touchedPartitions=%s, confidence=%f]",
             		  estimate.getClass().getSimpleName(), vertex.getClass().getSimpleName(),
-            		  estimate.touched_partitions, estimate.confidence,
-            		  vertex.debug()));
+            		  estimate.touched_partitions, estimate.confidence));
         
 //        float untouched_finish = 1.0f;
         // float inverse_prob = 1.0f - estimate.confidence;
+        
+        // We need to loop through all possible partitions and make sure
+        // that they all have a probability here.
         for (int partition : estimate.getCatalogContext().getAllPartitionIds().values()) {
             if (estimate.isDoneProbabilitySet(partition) == false) {
                 estimate.setDoneProbability(partition, vertex.getDoneProbability(partition));
-                estimate.setWriteProbability(partition, vertex.getWriteProbability(partition));
-//                estimate.setReadOnlyProbability(partition, vertex.getReadOnlyProbability(partition));
             }
+            if (estimate.isWriteProbabilitySet(partition) == false) {
+                estimate.setWriteProbability(partition, vertex.getWriteProbability(partition));
+            }
+//            estimate.setReadOnlyProbability(partition, vertex.getReadOnlyProbability(partition));
         } // FOR
         
         // If our single-partition probability hasn't been set and we can set it now
@@ -651,6 +676,11 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
     // ----------------------------------------------------------------------------
     
     public static void fastEstimation(MarkovEstimate estimate, List<MarkovVertex> initialPath, MarkovVertex current) {
+        if (debug.val)
+            LOG.debug(String.format("Fast Estimation for %s [hashCode=%d]\n%s",
+                      estimate.getClass().getSimpleName(), estimate.hashCode(), 
+                      estimate.toString()));
+        
         boolean add = false;
         for (MarkovVertex v : initialPath) {
             if (add || current.equals(v)) {

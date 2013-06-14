@@ -195,10 +195,10 @@ public abstract class AbstractFixedEstimator extends TransactionEstimator {
         public boolean isReadOnlyPartition(EstimationThresholds t, int partition) {
             return (this.readonly.contains(Integer.valueOf(partition)));
         }
-        @Override
-        public PartitionSet getReadOnlyPartitions(EstimationThresholds t) {
-            return (this.readonly);
-        }
+//        @Override
+//        public PartitionSet getReadOnlyPartitions(EstimationThresholds t) {
+//            return (this.readonly);
+//        }
 
         // ----------------------------------------------------------------------------
         // WRITE

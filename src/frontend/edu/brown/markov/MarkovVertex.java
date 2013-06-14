@@ -626,16 +626,16 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
         } // FOR
         return (readonly);
     }
-    @Override
-    public PartitionSet getReadOnlyPartitions(EstimationThresholds t) {
-        PartitionSet partitions = new PartitionSet();
-        for (int p = 0, cnt = this.probabilities[Probability.WRITE.ordinal()].length; p < cnt; p++) {
-            if (this.isReadOnlyPartition(t, p)) {
-                partitions.add(p);
-            }
-        } // FOR
-        return (partitions);
-    }
+//    @Override
+//    public PartitionSet getReadOnlyPartitions(EstimationThresholds t) {
+//        PartitionSet partitions = new PartitionSet();
+//        for (int p = 0, cnt = this.probabilities[Probability.WRITE.ordinal()].length; p < cnt; p++) {
+//            if (this.isReadOnlyPartition(t, p)) {
+//                partitions.add(p);
+//            }
+//        } // FOR
+//        return (partitions);
+//    }
     
     // ----------------------------------------------------------------------------
     // WRITE PROBABILITY

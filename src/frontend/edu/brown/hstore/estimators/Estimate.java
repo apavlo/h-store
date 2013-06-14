@@ -31,7 +31,8 @@ public interface Estimate extends Poolable {
     public boolean isValid();
     
     /**
-     * Get the partitions that this transaction will need to read/write data on 
+     * Get the partitions that this transaction will need to execute a query
+     * on in the future. 
      * @param t
      */
     public PartitionSet getTouchedPartitions(EstimationThresholds t);
@@ -85,11 +86,11 @@ public interface Estimate extends Poolable {
     public boolean isReadOnlyPartition(EstimationThresholds t, int partition);
     public boolean isReadOnlyAllPartitions(EstimationThresholds t);
     
-    /**
-     * Get the partitions that this transaction will only read from
-     * @param t
-     */
-    public PartitionSet getReadOnlyPartitions(EstimationThresholds t);
+//    /**
+//     * Get the partitions that this transaction will only read from
+//     * @param t
+//     */
+//    public PartitionSet getReadOnlyPartitions(EstimationThresholds t);
     
     // ----------------------------------------------------------------------------
     // WRITE PROBABILITY
