@@ -525,12 +525,7 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
                           partition, ptype, this.probabilities[ptype.ordinal()].length);
         float value = this.probabilities[ptype.ordinal()][partition];
         if (value == EstimatorUtil.NULL_MARKER) value = ptype.default_value;
-        
-        // Handle funky rounding error that I think is due to casting
-        // Note that we only round when we hand out the number. If we try to round it before we 
-        // stick it in then it still comes out wrong sometimes...
         return (value);
-//        return (MathUtil.roundToDecimals(value, PROBABILITY_PRECISION)); 
     }
     
     /**
@@ -554,8 +549,10 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
      */
     private void setProbability(MarkovVertex.Probability ptype, int partition, float probability) {
         if (trace.val)
-            LOG.trace(String.format("%s :: SET %s(partition=%d) -> %.3f",
-                      this, ptype, partition, probability));
+            LOG.trace(String.format("%s :: SET %s%s -> %.3f",
+                      this, ptype,
+                      (ptype.single_value ? "" : "(partition="+partition+")"),
+                      probability));
         assert(MathUtil.greaterThanEquals(probability, 0.0f, MarkovGraph.PROBABILITY_EPSILON) &&
                MathUtil.lessThanEquals(probability, 1.0f, MarkovGraph.PROBABILITY_EPSILON)) :
             String.format("%s :: Invalid %s probability at partition #%d: %f",
