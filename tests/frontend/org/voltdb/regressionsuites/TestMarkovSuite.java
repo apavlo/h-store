@@ -161,7 +161,7 @@ public class TestMarkovSuite extends RegressionSuite {
     
     public static Test suite() throws Exception {
         File mappings = ParametersUtil.getParameterMappingsFile(ProjectType.TPCC);
-        File markovs = new File("files/markovs/vldb-august2012/tpcc-2p.markov.gz"); // HACK
+        File markovs = new File("files/markovs/tpcc-2p.markov.gz"); // HACK
         
         VoltServerConfig config = null;
         // the suite made here will all be using the tests from this class
