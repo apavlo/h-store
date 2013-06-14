@@ -667,14 +667,6 @@ public class MarkovGraph extends AbstractDirectedGraph<MarkovVertex, MarkovEdge>
     // YE OLDE MAIN METHOD
     // ----------------------------------------------------------------------------
 
-    /**
-     * To load in the workloads and see their properties, we use this method.
-     * There are still many workloads that have problems running.
-     * 
-     * @param args
-     * @throws InterruptedException
-     * @throws InvocationTargetException
-     */
     public static void main(String vargs[]) throws Exception {
         ArgumentsParser args = ArgumentsParser.load(vargs);
         args.require(

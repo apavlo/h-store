@@ -421,8 +421,13 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
 
     @Override
     public boolean isReadOnlyPartition(EstimationThresholds t, int partition) {
-        if (this.write[partition] != EstimatorUtil.NULL_MARKER && this.done[partition] != EstimatorUtil.NULL_MARKER) {
-            return (((1.0f - this.done[partition]) - this.write[partition]) >= t.getReadThreshold());   
+        if (this.write[partition] != EstimatorUtil.NULL_MARKER) {
+            float readOnly = 1.0f - this.write[partition];
+            boolean ret = (readOnly >= t.getReadThreshold());
+            if (trace.val)
+                LOG.trace(String.format("Partition %d: (1.0 - WRITE[%.03f]) = READ_ONLY[%.03f] >= %.03f ==> %s",
+                          partition, this.write[partition], readOnly, t.getReadThreshold(), ret));
+            return (ret);
         }
         return (true);
     }
