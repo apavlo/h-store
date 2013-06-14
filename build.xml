@@ -2108,6 +2108,18 @@ UTILITIES
 -->
 
 <target name='markov-generate' description="Generate Markov Graphs" depends="getcpus">
+    <!-- Benchmarks Configuration File -->
+    <condition property="benchmark.conf" value="${benchmark.dir}/${project}.properties">
+        <not>
+            <isset property="benchmark.conf"/>
+        </not>
+    </condition>
+    <property file="${benchmark.conf}" prefix="benchmark" />
+    
+    <condition property="exclude" value="${benchmark.workload.ignore}">
+        <not><isset property="exclude"/></not>
+    </condition>
+    
     <java fork="yes" classname="edu.brown.markov.MarkovGraph" failonerror='true'>
         <jvmarg value="-Xmx${volt.client.memory}m" />
         <jvmarg value="-Dhstore.max_threads=${numcpus}" />

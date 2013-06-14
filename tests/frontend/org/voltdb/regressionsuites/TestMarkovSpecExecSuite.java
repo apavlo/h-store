@@ -259,7 +259,7 @@ public class TestMarkovSpecExecSuite extends RegressionSuite {
         // CONFIG #1: 1 Local Site with 2 Partitions running on JNI backend
         /////////////////////////////////////////////////////////////
         config = new LocalSingleProcessServer(PREFIX + "-2part.jar", 2, BackendTarget.NATIVE_EE_JNI);
-        config.setConfParameter("site.markov_path", new File("files/markovs/vldb-august2012/tpcc-2p.markov.gz").getAbsolutePath());
+        config.setConfParameter("site.markov_path", new File("files/markovs/tpcc-2p.markov.gz").getAbsolutePath());
         success = config.compile(project);
         assert(success);
         builder.addServerConfig(config);
@@ -268,7 +268,7 @@ public class TestMarkovSpecExecSuite extends RegressionSuite {
         // CONFIG #2: cluster of 2 nodes running 2 site each, one replica
         ////////////////////////////////////////////////////////////
         config = new LocalCluster(PREFIX + "-cluster.jar", 2, 2, 1, BackendTarget.NATIVE_EE_JNI);
-        config.setConfParameter("site.markov_path", new File("files/markovs/vldb-august2012/tpcc-4p.markov.gz").getAbsolutePath());
+        config.setConfParameter("site.markov_path", new File("files/markovs/tpcc-4p.markov.gz").getAbsolutePath());
         success = config.compile(project);
         assert(success);
         builder.addServerConfig(config);

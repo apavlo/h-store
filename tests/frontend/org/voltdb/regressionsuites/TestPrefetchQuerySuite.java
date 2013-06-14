@@ -83,7 +83,7 @@ public class TestPrefetchQuerySuite extends RegressionSuite {
  
     static public junit.framework.Test suite() throws IOException {
         File mappings = ParametersUtil.getParameterMappingsFile(ProjectType.SMALLBANK);
-        File markovs = new File("files/markovs/vldb-august2012/smallbank-2p.markov.gz"); // HACK
+        File markovs = new File("files/markovs/smallbank-2p.markov.gz"); // HACK
         
         MultiConfigSuiteBuilder builder = new MultiConfigSuiteBuilder(TestPrefetchQuerySuite.class);
         builder.setGlobalConfParameter("site.exec_prefetch_queries", true);
