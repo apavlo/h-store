@@ -700,17 +700,20 @@ public abstract class VoltProcedure implements Poolable {
                 this.status = Status.ABORT_UNEXPECTED;
                 this.status_msg = "UNEXPECTED ABORT: " + statusMsg;
                 
-                if (debug.val) LOG.error("Unpexpected error when executing " + this.m_currentTxnState, ex);
+                if (debug.val)
+                    LOG.error("Unpexpected error when executing " + this.m_currentTxnState, ex);
             }
         // -------------------------------
         // Something bad happened inside of the procedure that wasn't our fault
         // -------------------------------
         } catch (Throwable ex) {
-            if (debug.val) LOG.error("Unpexpected error when executing " + this.m_currentTxnState, ex);
+            if (debug.val)
+                LOG.error("Unpexpected error when executing " + this.m_currentTxnState, ex);
             this.status = Status.ABORT_UNEXPECTED;
             this.status_msg = "UNEXPECTED ERROR IN " + this.m_localTxnState;
         } finally {
-            if (debug.val) LOG.debug(this.m_currentTxnState + " - Finished transaction [" + this.status + "]");
+            if (debug.val)
+                LOG.debug(this.m_currentTxnState + " - Finished transaction [" + this.status + "]");
 
             // Workload Trace - Stop the transaction trace record.
             if (this.workloadTraceEnable && this.workloadTxnHandle != null && this.status == Status.OK) {

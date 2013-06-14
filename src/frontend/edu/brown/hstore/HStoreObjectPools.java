@@ -155,7 +155,7 @@ public final class HStoreObjectPools implements Configurable {
     }
 
     @Override
-    public void updateConf(HStoreConf hstore_conf) {
+    public void updateConf(HStoreConf hstore_conf, String[] changed) {
         for (TypedObjectPool<?> pool : this.getGlobalPools().values()) {
             TypedPoolableObjectFactory<?> factory = (TypedPoolableObjectFactory<?>)pool.getFactory();
             factory.setEnableCounting(hstore_conf.site.pool_profiling);

@@ -914,7 +914,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     // ----------------------------------------------------------------------------
     
     @Override
-    public void updateConf(HStoreConf hstore_conf) {
+    public void updateConf(HStoreConf hstore_conf, String[] changed) {
         if (hstore_conf.site.profiling && this.profiler == null) {
             this.profiler = new HStoreSiteProfiler();
         }
@@ -922,13 +922,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // Push the updates to all of our PartitionExecutors
         for (PartitionExecutor executor : this.executors) {
             if (executor == null) continue;
-            executor.updateConf(hstore_conf);
+            executor.updateConf(hstore_conf, null);
         } // FOR
         
         // Update all our other boys
-        this.clientInterface.updateConf(hstore_conf);
-        this.objectPools.updateConf(hstore_conf);
-        this.txnQueueManager.updateConf(hstore_conf);
+        this.clientInterface.updateConf(hstore_conf, null);
+        this.objectPools.updateConf(hstore_conf, null);
+        this.txnQueueManager.updateConf(hstore_conf, null);
     }
     
     // ----------------------------------------------------------------------------

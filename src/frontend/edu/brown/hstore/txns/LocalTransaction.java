@@ -761,7 +761,10 @@ public class LocalTransaction extends AbstractTransaction {
      * @return
      */
     public PartitionSet getDonePartitions() {
-        return (this.dtxnState.exec_donePartitions);
+        if (this.dtxnState != null) {
+            return (this.dtxnState.exec_donePartitions);
+        }
+        return (null);
     }
     
     public ProtoRpcController getTransactionInitController(int site_id) {

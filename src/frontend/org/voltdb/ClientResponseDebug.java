@@ -32,6 +32,9 @@ public class ClientResponseDebug implements FastSerializable {
      * we won't have the catalog when we deserialize it on the client side
      */
     private class QueryEstimate implements FastSerializable {
+        /**
+         * Pair -> StatementId : StatementCounter
+         */
         private final List<Pair<Integer, Integer>> statements = new ArrayList<Pair<Integer, Integer>>();
         private int partition;
         
@@ -79,6 +82,11 @@ public class ClientResponseDebug implements FastSerializable {
     private boolean predict_readOnly;
     private final PartitionSet predict_touchedPartitions = new PartitionSet();
     
+    /**
+     * Partitions that were marked for early 2PC
+     */
+    private final PartitionSet early_preparePartitions = new PartitionSet();
+    
     private boolean prefetched = false;
     private final PartitionSet exec_touchedPartitions = new PartitionSet();
     
@@ -99,6 +107,10 @@ public class ClientResponseDebug implements FastSerializable {
         this.predict_touchedPartitions.addAll(ts.getPredictTouchedPartitions());
         this.prefetched = ts.hasPrefetchQueries();
         this.exec_touchedPartitions.addAll(ts.getTouchedPartitions().values());
+        
+        if (this.predict_singlePartition == false) {
+            this.early_preparePartitions.addAll(ts.getDonePartitions());
+        }
         
         EstimatorState t_state = ts.getEstimatorState();
         if (t_state != null) {
@@ -145,6 +157,14 @@ public class ClientResponseDebug implements FastSerializable {
     public PartitionSet getExecTouchedPartitions() {
         return this.exec_touchedPartitions;
     }
+    
+    /**
+     * Get the set of partitions that were marked for early 2PC prepare
+     * @return
+     */
+    public PartitionSet getEarlyPreparePartitions() {
+        return this.early_preparePartitions;
+    }
 
     public List<CountedStatement>[] getRemoteEstimates(CatalogContext catalogContext, int partition) {
         List<QueryEstimate> estimates = this.remote_estimates.get(partition);
@@ -182,6 +202,7 @@ public class ClientResponseDebug implements FastSerializable {
         this.predict_abortable = in.readBoolean();
         this.predict_readOnly = in.readBoolean();
         this.predict_touchedPartitions.readExternal(in);
+        this.early_preparePartitions.readExternal(in);
         this.prefetched = in.readBoolean();
         this.exec_touchedPartitions.readExternal(in);
         
@@ -205,6 +226,7 @@ public class ClientResponseDebug implements FastSerializable {
         out.writeBoolean(this.predict_abortable);
         out.writeBoolean(this.predict_readOnly);
         this.predict_touchedPartitions.writeExternal(out);
+        this.early_preparePartitions.writeExternal(out);
         out.writeBoolean(this.prefetched);
         this.exec_touchedPartitions.writeExternal(out);
         
@@ -235,6 +257,8 @@ public class ClientResponseDebug implements FastSerializable {
         
         m = new LinkedHashMap<String, Object>();
         m.put("Exec Touched Partitions", this.exec_touchedPartitions);
+        m.put("Early 2PC Partitions", this.early_preparePartitions);
+        maps.add(m);
         
         return StringUtil.formatMaps(maps.toArray(new Map<?, ?>[maps.size()]));
     }

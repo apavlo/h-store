@@ -83,7 +83,7 @@ public class SetConfiguration extends VoltSystemProcedure {
                               m.size(), executor.getHStoreSite().getSiteName()));
                 
                 // Update our local HStoreSite
-                context.getHStoreSite().updateConf(hstore_conf);
+                context.getHStoreSite().updateConf(hstore_conf, confNames);
 
                 // Create the result table
                 VoltTable vt = new VoltTable(nodeResultsColumns);

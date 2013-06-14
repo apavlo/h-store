@@ -421,7 +421,7 @@ public class TestHStoreSite extends BaseTestCase {
     @Test
     public void testTransactionCounters() throws Exception {
         hstore_conf.site.txn_counters = true;
-        hstore_site.updateConf(hstore_conf);
+        hstore_site.updateConf(hstore_conf, null);
         
         Procedure catalog_proc = this.getProcedure(UpdateLocation.class);
         ClientResponse cr = null;
@@ -469,7 +469,7 @@ public class TestHStoreSite extends BaseTestCase {
     public void testTransactionProfilers() throws Exception {
         hstore_conf.site.txn_counters = true;
         hstore_conf.site.txn_profiling = true;
-        hstore_site.updateConf(hstore_conf);
+        hstore_site.updateConf(hstore_conf, null);
         
         Procedure catalog_proc = this.getProcedure(UpdateLocation.class);
         ClientResponse cr = null;
