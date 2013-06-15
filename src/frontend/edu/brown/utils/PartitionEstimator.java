@@ -1312,6 +1312,7 @@ public class PartitionEstimator {
                         if (trace.val)
                             LOG.trace("Cache entry " + target + " must be broadcast to all partitions");
                         table_partitions.addAll(this.all_partitions);
+                        break;
                     // BUSTED (like your mom)
                     default:
                         assert (false) : "Unexpected query type: " + stmt_type;
