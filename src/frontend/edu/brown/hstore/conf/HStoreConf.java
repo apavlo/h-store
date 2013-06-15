@@ -53,6 +53,16 @@ public final class HStoreConf {
         public String jvm_version;
         
         @ConfigProperty(
+            description="The amount of memory to allocate for the various utility programs that are " +
+            		    "invoked through the commandline terminal using ant. " +
+            		    "<B>Note:</B> This is not control the amount of memory that is allocated for " +
+            		    "the database nodes or client terminals. See ${site.memory} or ${client.memory}. ",
+            defaultInt=2048,
+            experimental=false
+        )
+        public int memory;
+        
+        @ConfigProperty(
             description="Temporary directory used to store various artifacts related to H-Store.",
             defaultString="obj",
             experimental=false
