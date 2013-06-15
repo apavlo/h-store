@@ -423,7 +423,7 @@ public class TestCatalogUtil extends BaseTestCase {
         //
         // Add in some fake partitions
         //
-        Cluster cluster = CatalogUtil.getCluster(catalog);
+        Cluster cluster = catalogContext.cluster;
         assertNotNull(cluster);
         Map<Host, Set<Partition>> host_partitions = new HashMap<Host, Set<Partition>>();
 
@@ -440,7 +440,7 @@ public class TestCatalogUtil extends BaseTestCase {
             Set<Partition> partitions = host_partitions.get(catalog_host);
             Partition catalog_part = CollectionUtil.first(partitions);
             int base_partition = catalog_part.getId();
-            Set<Partition> local_partitions = CatalogUtil.getLocalPartitions(catalog_db, base_partition);
+            Collection<Partition> local_partitions = CatalogUtil.getLocalPartitions(catalog_db, base_partition);
             assertEquals(partitions.size(), local_partitions.size());
 
             for (Partition other_part : local_partitions) {
@@ -456,7 +456,7 @@ public class TestCatalogUtil extends BaseTestCase {
      */
     public void testGetSitesForHost() throws Exception {
         Map<Host, List<Site>> host_sites = new HashMap<Host, List<Site>>();
-        Cluster catalog_clus = CatalogUtil.getCluster(catalog);
+        Cluster catalog_clus = catalogContext.cluster;
 
         for (Site catalog_site : catalog_clus.getSites()) {
             Host catalog_host = catalog_site.getHost();
@@ -479,7 +479,7 @@ public class TestCatalogUtil extends BaseTestCase {
      * testGetCluster
      */
     public void testGetCluster() {
-        Cluster catalog_clus = CatalogUtil.getCluster(catalog);
+        Cluster catalog_clus = catalogContext.cluster;
         assertNotNull(catalog_clus);
 
         Set<Cluster> clusters = new HashSet<Cluster>();
@@ -498,7 +498,7 @@ public class TestCatalogUtil extends BaseTestCase {
         assertNotNull(db0);
 
         Set<Database> dbs = new HashSet<Database>();
-        for (Database db1 : CatalogUtil.getCluster(catalog).getDatabases()) {
+        for (Database db1 : catalogContext.cluster.getDatabases()) {
             dbs.add(db1);
         } // FOR
         assertEquals(1, dbs.size());
