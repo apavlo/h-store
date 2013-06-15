@@ -39,6 +39,21 @@ public class SpecExecScheduler implements Configurable {
     }
 
     // ----------------------------------------------------------------------------
+    // INTERNAL STATE
+    // ----------------------------------------------------------------------------
+
+    private final int partitionId;
+    private final PartitionLockQueue queue;
+    private boolean disabled = false;
+    private AbstractConflictChecker checker;
+    private AbstractTransaction lastDtxn;
+    private SpeculationType lastSpecType;
+    private Iterator<AbstractTransaction> lastIterator;
+    private int lastSize = 0;
+    private boolean interrupted = false;
+    private Class<? extends InternalMessage> latchMsg;
+
+    // ----------------------------------------------------------------------------
     // CONFIGURATION PARAMETERS
     // ----------------------------------------------------------------------------
     
@@ -71,22 +86,12 @@ public class SpecExecScheduler implements Configurable {
      * What SpeculationTypes to ignore 
      */
     private Set<SpeculationType> ignore_types = null;
-   
-    // ----------------------------------------------------------------------------
-    // INTERNAL STATE
-    // ----------------------------------------------------------------------------
-
-    private final int partitionId;
-    private final PartitionLockQueue queue;
-    private boolean disabled = false;
-    private AbstractConflictChecker checker;
-    private AbstractTransaction lastDtxn;
-    private SpeculationType lastSpecType;
-    private Iterator<AbstractTransaction> lastIterator;
-    private int lastSize = 0;
-    private boolean interrupted = false;
-    private Class<? extends InternalMessage> latchMsg;
-
+    
+    /**
+     * Ignore notifying the thread at runtime when interrupts occur.
+     */
+    private boolean ignore_interrupts = false;
+    
     // ----------------------------------------------------------------------------
     // PROFILING STUFF
     // ----------------------------------------------------------------------------
@@ -148,6 +153,7 @@ public class SpecExecScheduler implements Configurable {
         
         this.ignore_queue_size_change = hstore_conf.site.specexec_ignore_queue_size_change;
         this.ignore_all_local = hstore_conf.site.specexec_ignore_all_local;
+        this.ignore_interrupts = hstore_conf.site.specexec_ignore_interruptions;
         
         if (hstore_conf.site.specexec_disable_partitions != null) {
             // Disable on all partitions
@@ -181,14 +187,17 @@ public class SpecExecScheduler implements Configurable {
                  checker.getClass().getCanonicalName()));
         this.checker = checker;
     }
-    protected void setIgnoreAllLocal(boolean ignore_all_local) {
-        this.ignore_all_local = ignore_all_local;
+    protected void setIgnoreAllLocal(boolean val) {
+        this.ignore_all_local = val;
     }
-    protected void setIgnoreQueueSizeChange(boolean ignore_queue_changes) {
-        this.ignore_queue_size_change = ignore_queue_changes;
+    protected void setIgnoreQueueSizeChange(boolean val) {
+        this.ignore_queue_size_change = val;
     }
-    protected void setIgnoreSpeculationTypeChange(boolean ignore_speculation_type_change) {
-        this.ignore_speculation_type_change = ignore_speculation_type_change;
+    protected void setIgnoreSpeculationTypeChange(boolean val) {
+        this.ignore_speculation_type_change = val;
+    }
+    protected void setIgnoreInterrupts(boolean val) {
+        this.ignore_interrupts = val;
     }
     protected void setWindowSize(int window) {
         this.windowSize = window;
@@ -220,8 +229,14 @@ public class SpecExecScheduler implements Configurable {
                       this.getClass().getSimpleName(), specType));
     }
     
+    /**
+     * This allows another thread to tell whatever thread that is down in next()
+     * that a message has arrived that needs to be processed at this partition.   
+     * This is thread-safe.
+     * @param msg
+     */
     public void interruptSearch(InternalMessage msg) {
-        if (this.interrupted == false) {
+        if (this.ignore_interrupts == false && this.interrupted == false) {
             this.interrupted = true;
             this.latchMsg = msg.getClass();
         }
@@ -239,6 +254,9 @@ public class SpecExecScheduler implements Configurable {
     public LocalTransaction next(AbstractTransaction dtxn, SpeculationType specType) {
         if (this.disabled) return (null);
         
+        // Make sure that we always reset this before we go. There is a race condition
+        // between the time that we get to this point and from when the interrupt flag could
+        // be set to true, but I don't think it really matters.
         this.interrupted = false;
         
         if (debug.val) {
@@ -357,14 +375,15 @@ public class SpecExecScheduler implements Configurable {
                     LOG.trace(String.format("Skipping %s because it was already executed", txn));
                 continue;
             }
-
-            // Let's check it out!
-            if (profiler != null) profiler.compute_time.start();
-            if (singlePartition == false) {
+            // We can only support single-partition txns right now
+            else if (singlePartition == false) {
                 if (trace.val)
                     LOG.trace(String.format("Skipping %s because it is not single-partitioned", localTxn));
                 continue;
             }
+            
+            // Let's check it out!
+            if (profiler != null) profiler.compute_time.start();
             if (debug.val)
                 LOG.debug(String.format("Examining whether %s conflicts with current dtxn", localTxn));
             examined_ctr++;
