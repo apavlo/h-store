@@ -141,6 +141,10 @@ class AbstractFabric(object):
         raise NotImplementedError("Unimplemented %s" % self.__init__.im_class)
     ## DEF
     
+    def updateLog4j(self, debug=[], trace=[]):
+        raise NotImplementedError("Unimplemented %s" % self.__init__.im_class)
+    ## DEF
+    
     def sync_time(self):
         raise NotImplementedError("Unimplemented %s" % self.__init__.im_class)
     ## DEF
@@ -259,7 +263,7 @@ class AbstractFabric(object):
 
         if resetLog4j:
             LOG.info("Reverting log4j.properties")
-            self.reset_debugging()
+            self.resetLog4j()
 
         ## Construct dict of command-line H-Store options
         hstore_options = {
@@ -467,7 +471,7 @@ class AbstractFabric(object):
                 run("git checkout %s -- %s" % (self.env["hstore.git_options"], "log4j.properties"))
     ## DEF
     
-    def __enableDebugging__(self, inst, debug=[], trace=[]):
+    def __updateLog4j__(self, inst, debug=[], trace=[]):
         LOG.info("Updating log4j properties - DEBUG[%d] / TRACE[%d]", len(debug), len(trace))
         
         conf_file = os.path.join(self.hstore_dir, "log4j.properties")

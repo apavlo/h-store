@@ -124,6 +124,7 @@
 <arg value="site.specexec_enable=${site.specexec_enable}" />
 <arg value="site.specexec_ignore_all_local=${site.specexec_ignore_all_local}" />
 <arg value="site.specexec_ignore_queue_size_change=${site.specexec_ignore_queue_size_change}" />
+<arg value="site.specexec_ignore_stallpoints=${site.specexec_ignore_stallpoints}" />
 <arg value="site.specexec_nonblocking=${site.specexec_nonblocking}" />
 <arg value="site.specexec_markov=${site.specexec_markov}" />
 <arg value="site.specexec_unsafe=${site.specexec_unsafe}" />
@@ -132,7 +133,7 @@
 <arg value="site.specexec_profiling_sample=${site.specexec_profiling_sample}" />
 <arg value="site.specexec_scheduler_policy=${site.specexec_scheduler_policy}" />
 <arg value="site.specexec_scheduler_window=${site.specexec_scheduler_window}" />
-<arg value="site.specexec_ignore_stallpoints=${site.specexec_ignore_stallpoints}" />
+<arg value="site.specexec_disable_partitions=${site.specexec_disable_partitions}" />
 <arg value="site.commandlog_enable=${site.commandlog_enable}" />
 <arg value="site.commandlog_dir=${site.commandlog_dir}" />
 <arg value="site.commandlog_timeout=${site.commandlog_timeout}" />

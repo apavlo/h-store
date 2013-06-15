@@ -509,6 +509,14 @@ public final class HStoreConf {
         public boolean specexec_ignore_queue_size_change;
         
         @ConfigProperty(
+            description="Disable speculative execution at the given stall points. " ,
+            defaultNull=true,
+            experimental=false,
+            enumOptions="org.voltdb.types.SpeculationType"
+        )
+        public String specexec_ignore_stallpoints;
+        
+        @ConfigProperty(
             description="Experimental non-blocking remote query execution. All query results will be wrapped " +
             		    "in a special VoltTable that acts as a placeholder for a remote query whose " +
             		    "result has not returned yet. A transaction when it tries to access the real " +
@@ -583,12 +591,13 @@ public final class HStoreConf {
         public int specexec_scheduler_window;
         
         @ConfigProperty(
-            description="Disable speculative execution at the given stall points. " ,
+            description="Comma-separated list of partition ids to disable speculative execution on. " +
+            		    "This is only needed for debugging and experiments.",
             defaultNull=true,
-            experimental=false,
-            enumOptions="org.voltdb.types.SpeculationType"
+            experimental=true
         )
-        public String specexec_ignore_stallpoints;
+        public String specexec_disable_partitions;
+
         
         // ----------------------------------------------------------------------------
         // Command Logging Options
