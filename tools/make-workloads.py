@@ -165,7 +165,7 @@ if __name__ == '__main__':
     
     HSTORE_OPTS = {
         "project":              args['benchmark'],
-        "volt.server.memory":   args['memory'],
+        "global.memory":        args['memory'],
         "output":               output,
         "workload":             trace_base + "*",
     }

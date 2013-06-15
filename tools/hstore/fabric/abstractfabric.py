@@ -306,10 +306,10 @@ class AbstractFabric(object):
                 if trace:
                     output = "/tmp/hstore/workloads/%s.trace" % project
                     combine_opts = {
-                        "project":              project,
-                        "volt.server.memory":   5000,
-                        "output":               output,
-                        "workload":             hstore_options["trace"] + "*",
+                        "project":       project,
+                        "global.memory": 5000,
+                        "output":        output,
+                        "workload":      hstore_options["trace"] + "*",
                     }
                     LOG.debug("Combine %s workload traces into '%s'" % (project.upper(), output))
                     combine_opts_cmd = " ".join(map(lambda x: "-D%s=%s" % (x, combine_opts[x]), combine_opts.keys()))
