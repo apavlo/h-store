@@ -430,7 +430,7 @@ public class TestPartitionEstimator extends BaseTestCase {
         } // FOR
         assertNotNull(last);
         
-        PartitionEstimator.populateColumnJoins(column_joins);
+        PartitionEstimator.populateColumnJoinSets(column_joins);
         for (Column catalog_col : order) {
             assert(column_joins.containsKey(catalog_col));
             assertEquals(order.size() - 1, column_joins.get(catalog_col).size());
@@ -468,7 +468,7 @@ public class TestPartitionEstimator extends BaseTestCase {
 //        System.err.println("split[0]: " + split[0]);
 //        System.err.println("split[1]: " + split[1] + "\n");
         
-        PartitionEstimator.populateColumnJoins(column_joins);
+        PartitionEstimator.populateColumnJoinSets(column_joins);
         ctr = 0;
         for (Column catalog_col : catalog_tbl.getColumns()) {
             assert(column_joins.containsKey(catalog_col));

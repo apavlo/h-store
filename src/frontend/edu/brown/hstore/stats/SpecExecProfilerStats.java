@@ -31,7 +31,7 @@ import edu.brown.utils.MathUtil;
  */
 public class SpecExecProfilerStats extends StatsSource {
     private static final Logger LOG = Logger.getLogger(SpecExecProfilerStats.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
     static {
         LoggerUtil.attachObserver(LOG, debug);
     }

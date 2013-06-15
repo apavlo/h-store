@@ -16,8 +16,8 @@ public class MultiColumn extends Column implements MultiAttributeCatalogType<Col
     private final InnerMultiAttributeCatalogType<Column> inner;
 
     /**
-     * THIS SHOULD NOT BE CALLED DIRECTLY Use MultiColumn.get()
-     * 
+     * <B>THIS SHOULD NOT BE CALLED DIRECTLY.</B>
+     * Use MultiColumn.get()
      * @param attributes
      */
     @SuppressWarnings("unchecked")
