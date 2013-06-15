@@ -58,7 +58,7 @@ public class ScaleParameters {
         
         // ITEMS
         assert(items > 0) : "Invalid # of items: " + items; 
-        this.items = items;
+        this.num_items = items;
         
         // WAREHOUSES
         assert warehouses > 0;
@@ -106,7 +106,7 @@ public class ScaleParameters {
     }
 
     public String toString() {
-        String out = items + " items\n";
+        String out = num_items + " items\n";
         out += warehouses + " warehouses\n";
         out += districtsPerWarehouse + " districts/warehouse\n";
         out += customersPerDistrict + " customers/district\n";
@@ -114,7 +114,7 @@ public class ScaleParameters {
         return out;
     }
 
-    public final int items;
+    public final int num_items;
     public final int warehouses;
     public final int starting_warehouse;
     public final int last_warehouse;

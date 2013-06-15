@@ -202,7 +202,7 @@ public class TPCCSimulation {
         m.put("Districts per Warehouse", parameters.districtsPerWarehouse);
         m.put("Custers per District", parameters.customersPerDistrict);
         m.put("Initial Orders per District", parameters.newOrdersPerDistrict);
-        m.put("Items", parameters.items);
+        m.put("Items", parameters.num_items);
         m.put("Affine Warehouse", lastAssignedWarehouseId);
         m.put("Skew Factor", this.skewFactor);
         if (this.zipf != null && this.zipf.isHistoryEnabled()) {
@@ -301,7 +301,7 @@ public class TPCCSimulation {
     }
 
     private int generateItemID() {
-        return generator.NURand(8191, 1, parameters.items);
+        return generator.NURand(8191, 1, parameters.num_items);
     }
 
     /** Executes a reset warehouse transaction. */
@@ -406,7 +406,7 @@ public class TPCCSimulation {
             if (rollback && i + 1 == ol_cnt) {
                 // LOG.fine("[NOT_ERROR] Causing a rollback on purpose defined in TPCC spec. "
                 //     + "You can ignore following 'ItemNotFound' exception.");
-                item_id[i] = parameters.items + 1;
+                item_id[i] = parameters.num_items + 1;
             } else {
                 item_id[i] = generateItemID();
             }

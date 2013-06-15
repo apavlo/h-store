@@ -180,7 +180,7 @@ public class TPCCLoader extends Loader {
             this.m_generationDateTime = generationDateTime;
             this.m_parameters = parameters;
             
-            int itemsPerThread = parameters.items / m_tpccConfig.num_loadthreads; 
+            int itemsPerThread = parameters.num_items / m_tpccConfig.num_loadthreads; 
             this.itemStart = itemsPerThread * threadIndex;
             this.itemEnd = this.itemStart + itemsPerThread;
         }
@@ -440,7 +440,7 @@ public class TPCCLoader extends Loader {
         }
 
         public void generateOrderLine(long ol_w_id, long ol_d_id, long ol_o_id, long ol_number, boolean newOrder) {
-            long ol_i_id = m_generator.number(1, m_parameters.items);
+            long ol_i_id = m_generator.number(1, m_parameters.num_items);
             long ol_supply_w_id = ol_w_id;
             TimestampType ol_delivery_d = m_generationDateTime;
             long ol_quantity = TPCCConstants.INITIAL_QUANTITY;
@@ -496,14 +496,14 @@ public class TPCCLoader extends Loader {
             // t.ensureStringCapacity(parameters.items * (32 * 10 + 64) /
             // BATCH);
 
-            HashSet<Integer> selectedRows = selectUniqueIds(m_parameters.items / 10, 1, m_parameters.items);
+            HashSet<Integer> selectedRows = selectUniqueIds(m_parameters.num_items / 10, 1, m_parameters.num_items);
 
-            for (int i_id = 1; i_id <= m_parameters.items; ++i_id) {
+            for (int i_id = 1; i_id <= m_parameters.num_items; ++i_id) {
                 boolean original = selectedRows.contains(i_id);
                 generateStock(w_id, i_id, original);
                 if (i_id % MAX_BATCH_SIZE == 0) {
                     commitDataTables(w_id);
-                    LOG.debug(String.format("%d/%d", i_id, m_parameters.items));
+                    LOG.debug(String.format("%d/%d", i_id, m_parameters.num_items));
                 }
             }
             if (data_tables[IDX_STOCKS].getRowCount() != 0) {
@@ -593,8 +593,8 @@ public class TPCCLoader extends Loader {
             // items.ensureRowCapacity(parameters.items);
             // items.ensureStringCapacity(parameters.items * 96);
             // Select 10% of the rows to be marked "original"
-            LOG.debug(String.format("Loading replicated ITEM table [tuples=%d]", m_parameters.items));
-            HashSet<Integer> originalRows = selectUniqueIds(m_parameters.items / 10, 1, m_parameters.items);
+            LOG.debug(String.format("Loading replicated ITEM table [tuples=%d]", m_parameters.num_items));
+            HashSet<Integer> originalRows = selectUniqueIds(m_parameters.num_items / 10, 1, m_parameters.num_items);
             for (int i = itemStart; i < itemFinish; ++i) {
                 // if we're on a 10% boundary, print out some nice status info
                 // if (i % (m_parameters.items / 10) == 0)
@@ -607,7 +607,7 @@ public class TPCCLoader extends Loader {
                 // Items! Sail yo ho!
                 if (items.getRowCount() == replicated_batch_size) {
                     if (LOG.isDebugEnabled())
-                        LOG.debug(String.format("Loading replicated ITEM table [tuples=%d/%d]", i, m_parameters.items));
+                        LOG.debug(String.format("Loading replicated ITEM table [tuples=%d/%d]", i, m_parameters.num_items));
                     loadVoltTable("ITEM", items);
                     items.clearRowData();
                 }
@@ -615,7 +615,7 @@ public class TPCCLoader extends Loader {
             } // FOR
             if (items.getRowCount() > 0) {
                 String extra = "";
-                if (items.getRowCount() < m_parameters.items) extra = String.format(" [tuples=%d/%d]", m_parameters.items-items.getRowCount(), m_parameters.items);
+                if (items.getRowCount() < m_parameters.num_items) extra = String.format(" [tuples=%d/%d]", m_parameters.num_items-items.getRowCount(), m_parameters.num_items);
                 if (LOG.isDebugEnabled())
                     LOG.debug("Loading replicated ITEM table" + extra);
                 loadVoltTable("ITEM", items);
