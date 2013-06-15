@@ -1377,7 +1377,8 @@ public class PartitionEstimator {
                                     int partition = this.hasher.multiValueHash(part0, part1);
                                     table_partitions.add(partition);
                                     if (trace.val)
-                                        LOG.trace(String.format("MultiColumn Partitions[%d, %d] => %d", part0, part1, partition));
+                                        LOG.trace(String.format("MultiColumn Partitions[%d, %d] => %d",
+                                                  part0, part1, partition));
                                 } // FOR
                             } // FOR
                         }
