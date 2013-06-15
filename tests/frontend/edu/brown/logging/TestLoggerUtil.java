@@ -35,7 +35,7 @@ public class TestLoggerUtil extends TestCase {
     public void testLoggerBoolean() {
         LoggerUtil.LoggerBoolean logger = new LoggerUtil.LoggerBoolean(true);
         for (long i = 0; i < rounds; i++) {
-            logger.get();
+            assertTrue(logger.val);
         }
     }
     

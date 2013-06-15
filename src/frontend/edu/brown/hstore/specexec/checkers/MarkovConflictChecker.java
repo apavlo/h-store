@@ -41,8 +41,8 @@ import edu.brown.utils.CollectionUtil;
  */
 public class MarkovConflictChecker extends AbstractConflictChecker {
     private static final Logger LOG = Logger.getLogger(MarkovConflictChecker.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
+    private static final LoggerBoolean trace = new LoggerBoolean();
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
@@ -159,7 +159,9 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
         EstimatorState dtxnState = dtxn.getEstimatorState();
         EstimatorState tsState = ts.getEstimatorState();
         if (dtxnState == null || tsState == null) {
-            if (debug.val) LOG.debug(String.format("No EstimatorState available for %s<->%s", dtxn, ts));
+            if (debug.val)
+                LOG.debug(String.format("No %s available for %s<->%s",
+                          EstimatorState.class.getSimpleName(), dtxn, ts));
             return (false);
         }
         
@@ -169,17 +171,20 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
         // queries that the transaction is going to execute
         Estimate dtxnEst = dtxnState.getLastEstimate();
         if (dtxnEst == null) {
-            LOG.warn("Unexpected null Estimate for " + dtxn);
+            LOG.warn(String.format("Unexpected null %s in the %s for %s",
+                     Estimate.class.getSimpleName(), dtxnState.getClass().getSimpleName(), dtxn));
             return (false);
         }
-        if (dtxnEst.hasQueryEstimate(partitionId) == false) {
-            if (debug.val) LOG.debug(String.format("No query list estimate is available for dtxn %s", dtxn));
+        else if (dtxnEst.hasQueryEstimate(partitionId) == false) {
+            if (debug.val)
+                LOG.debug(String.format("No query list estimate is available for dtxn %s", dtxn));
             return (false);
         }
         Estimate tsEst = tsState.getInitialEstimate();
         assert(tsEst != null);
         if (tsEst.hasQueryEstimate(partitionId) == false) {
-            if (debug.val) LOG.debug(String.format("No query list estimate is available for candidate %s", ts));
+            if (debug.val)
+                LOG.debug(String.format("No query list estimate is available for candidate %s", ts));
             return (false);
         }
         

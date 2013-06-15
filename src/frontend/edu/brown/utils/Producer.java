@@ -84,7 +84,7 @@ public abstract class Producer<T, U> implements Runnable {
             assert (p.getFirst() != null) : "Null Consumer - " + p;
             assert (p.getSecond() != null) : "Null Object - " + p;
             p.getFirst().queue(p.getSecond());
-            if (++ctr % 100 == 0 && debug.get())
+            if (debug.val && ++ctr % 100 == 0)
                 LOG.debug(String.format("Queued %d %s objects", ctr, t.getClass().getSimpleName()));
         } // FOR
 
