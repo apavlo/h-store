@@ -426,7 +426,6 @@ public class PartitionEstimator {
      * @param catalog_stmt
      * @throws Exception
      */
-    @SuppressWarnings("unchecked")
     private synchronized void generateCache(final Statement catalog_stmt) throws Exception {
         // Check whether we already have a CacheEntry for the Statement that we
         // can reuse
@@ -458,6 +457,7 @@ public class PartitionEstimator {
         for (int i = 0; i < fragment_sets.length; i++) {
             if (fragment_sets[i] == null || fragment_sets[i].isEmpty())
                 continue;
+            @SuppressWarnings("unchecked")
             CatalogMap<PlanFragment> fragments = (CatalogMap<PlanFragment>) fragment_sets[i];
             boolean singlesited = (i == 0);
             if (trace.val)

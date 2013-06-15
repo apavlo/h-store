@@ -347,7 +347,7 @@ public abstract class PlanNodeUtil {
         }.traverse(root);
         return (found);
     }
-
+    
     /**
      * Get the Columns referenced in the output portion of a SELECT query
      * @param catalog_stmt

@@ -10,8 +10,8 @@ import org.voltdb.utils.Pair;
 import edu.brown.expressions.ExpressionUtil;
 
 public class CatalogPair extends Pair<CatalogType, CatalogType> {
-    protected final ExpressionType comparison_exp;
-    protected final QueryType query_types[];
+    private final ExpressionType comparison_exp;
+    private final QueryType query_types[];
 
     public static CatalogPair factory(CatalogType element0, CatalogType element1, ExpressionType comparison_exp, Collection<QueryType> query_types) {
         return (CatalogPair.factory(element0, element1, comparison_exp, query_types.toArray(new QueryType[query_types.size()])));

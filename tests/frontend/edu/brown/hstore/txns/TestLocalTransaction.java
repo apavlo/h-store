@@ -166,7 +166,7 @@ public class TestLocalTransaction extends BaseTestCase {
                 }
             } // FOR
 
-            for (Table catalog_tbl : CatalogUtil.getAllTables(catalog_stmt)) {
+            for (Table catalog_tbl : CatalogUtil.getReferencedTables(catalog_stmt)) {
                 if (catalog_stmt.getReadonly()) {
                     assertTrue(catalog_tbl.toString(), ts.isTableRead(BASE_PARTITION, catalog_tbl));
                     assertFalse(catalog_tbl.toString(), ts.isTableWritten(BASE_PARTITION, catalog_tbl));
