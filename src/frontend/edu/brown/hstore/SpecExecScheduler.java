@@ -22,6 +22,7 @@ import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.profilers.SpecExecProfiler;
 import edu.brown.statistics.FastIntHistogram;
+import edu.brown.utils.PartitionSet;
 import edu.brown.utils.StringUtil;
 
 /**
@@ -38,27 +39,47 @@ public class SpecExecScheduler implements Configurable {
     }
 
     // ----------------------------------------------------------------------------
-    // DATA MEMBERS
+    // CONFIGURATION PARAMETERS
     // ----------------------------------------------------------------------------
     
-    private final int partitionId;
-    private final PartitionLockQueue queue;
-    private AbstractConflictChecker checker;
+    /**
+     * The scheduling policy type.
+     */
     private SpecExecSchedulerPolicyType policyType;
+    
+    /**
+     * The number of txns to examine in the queue per invocation of next()
+     */
     private int windowSize = 1;
     
-    /** Ignore all LocalTransaction handles **/
+    /**
+     * Ignore all LocalTransaction handles
+     */
     private boolean ignore_all_local = false;
     
-    /** Don't reset the iterator if the queue size changes **/
+    /**
+     * Don't reset the iterator if the queue size changes
+     */
     private boolean ignore_queue_size_change = false;
     
-    /** Don't reset the iterator if the current SpeculationType changes */
+    /**
+     * Don't reset the iterator if the current SpeculationType changes
+     */
     private boolean ignore_speculation_type_change = false;
     
+    /**
+     * What SpeculationTypes to ignore 
+     */
     private Set<SpeculationType> ignore_types = null;
    
-    
+    // ----------------------------------------------------------------------------
+    // INTERNAL STATE
+    // ----------------------------------------------------------------------------
+
+    private final int partitionId;
+    private final PartitionLockQueue queue;
+    private boolean disabled = false;
+    private AbstractConflictChecker checker;
     private AbstractTransaction lastDtxn;
     private SpeculationType lastSpecType;
     private Iterator<AbstractTransaction> lastIterator;
@@ -128,6 +149,18 @@ public class SpecExecScheduler implements Configurable {
         this.ignore_queue_size_change = hstore_conf.site.specexec_ignore_queue_size_change;
         this.ignore_all_local = hstore_conf.site.specexec_ignore_all_local;
         
+        if (hstore_conf.site.specexec_disable_partitions != null) {
+            // Disable on all partitions
+            // Use HStoreConf's site.specexec_enable=false instead
+            if (hstore_conf.site.specexec_disable_partitions.trim() == "*") {
+                this.setDisabled(true);
+            }
+            else {
+                PartitionSet partitions = PartitionSet.parse(hstore_conf.site.specexec_disable_partitions);
+                this.setDisabled(partitions.contains(this.partitionId));
+            }
+        }
+        
         if (hstore_conf.site.specexec_unsafe) {
             // this.specExecScheduler.setIgnoreQueueSizeChange(true);
             // this.specExecScheduler.setIgnoreSpeculationTypeChange(true);
@@ -166,6 +199,12 @@ public class SpecExecScheduler implements Configurable {
     protected void reset() {
         this.lastIterator = null;
     }
+    
+    public void setDisabled(boolean disabled) {
+        this.disabled = disabled;
+        if (this.disabled == true)
+            LOG.info("Disabled speculative execution scheduling at partition " + this.partitionId);
+    }
 
     public boolean shouldIgnoreProcedure(Procedure catalog_proc) {
         return (this.checker.shouldIgnoreProcedure(catalog_proc));
@@ -198,6 +237,8 @@ public class SpecExecScheduler implements Configurable {
      * @return
      */
     public LocalTransaction next(AbstractTransaction dtxn, SpeculationType specType) {
+        if (this.disabled) return (null);
+        
         this.interrupted = false;
         
         if (debug.val) {
@@ -327,15 +368,18 @@ public class SpecExecScheduler implements Configurable {
             examined_ctr++;
             try {
                 switch (specType) {
-                    // We can execute anything when we are in 2PC or idle
+                    // We can execute anything when we are in SP3 (i.e., 2PC) or IDLE
+                    // For SP2, we can execute anything if the txn has not
+                    // executed a query at this partition.
                     case IDLE:
                     case SP2_REMOTE_BEFORE:
                     case SP3_LOCAL:
                     case SP3_REMOTE: {
                         break;
                     }
-                    // For SP1 + SP2 we can execute anything if the txn has not
-                    // executed a query at this partition.
+                    // Otherwise we have to use the ConflictChecker to determine whether
+                    // it is safe to execute this txn given what the distributed txn
+                    // is expected to execute in the future.
                     case SP1_LOCAL:
                     case SP2_REMOTE_AFTER: {
                         if (this.checker.canExecute(dtxn, localTxn, this.partitionId) == false) {
@@ -378,7 +422,6 @@ public class SpecExecScheduler implements Configurable {
                          }
                     }
                 }
-                    
                 // Stop if we've reached our window size
                 if (examined_ctr == this.windowSize) break;
                 
