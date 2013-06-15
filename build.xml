@@ -1777,41 +1777,6 @@ TEST CASES
     </java>
 </target>
 
-<target name="benchmarkenv" description="Run second cluster using parameters from the environment">
-    <antcall target="benchmark" inheritAll='true'>
-        <param name="local" value="false"/>
-        <param name="client" value="${env.BMCLIENT}"/>
-
-        <param name="hostcount" value="${env.BMHOSTCOUNT}"/>
-        <param name="sitesperhost" value="${env.BMSITESPERHOST}"/>
-        <!-- use env.FIRSTSERVER to override host1 from volt3a -->
-        <param name="manualhost1" value="${env.HOST1}"/>
-        <param name="manualhost2" value="${env.HOST2}"/>
-        <param name="manualhost3" value="${env.HOST3}"/>
-        <param name="manualhost4" value="${env.HOST4}"/>
-        <param name="manualhost5" value="${env.HOST5}"/>
-        <param name="manualhost6" value="${env.HOST6}"/>
-
-        <param name="clientcount" value="${env.BMCLIENTCOUNT}"/>
-        <param name="processesperclient" value="1"/>
-        <!-- use env.FIRSTCLIENT to override clienthost1 from volt4a -->
-
-        <param name="duration" value="${env.BMDURATION}000"/>
-        <param name="interval" value="${env.BMINTERVAL}000"/>
-        <param name="txnrate" value="${env.BMRATELIMIT}"/>
-        <param name="warehouses" value="${env.BMTPCCWAREHOUSES}"/>
-        <param name="volt.server.memory" value="2048"/>
-        <param name="kfactor" value="${env.BMKFACTOR}"/>
-        <param name="os" value="${env.MACHTYPE}"/>
-
-        <!-- all four of these have to be set for it to do anything -->
-        <param name="snapshotPath" value="/tmp"/>
-        <param name="snapshotFrequency" value="${env.BMSNAPSHOTFREQUENCY}"/>
-        <param name="snapshotPrefix" value="volt_snapshot"/>
-        <param name="snapshotRetain" value="${env.BMSNAPSHOTRETAIN}"/>
-    </antcall>
-</target>
-
 <target name='proccallmicrobench' depends='ee, compile'
     description="Run client-server stored procedure call overhead microbenchmark. [-Dclients={# clients}]">
     <java fork="true" failonerror="true"
