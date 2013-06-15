@@ -164,7 +164,8 @@ class SSHFabric(AbstractFabric):
             self.__resetDebugging__(inst)
     ## DEF
     
-    def updateLog4j(self, debug=[], trace=[]):
+    def updateLog4j(self, reset=False, debug=[], trace=[]):
+        if reset: self.resetLog4j()
         for inst in self.unique_hosts:
             self.__updateLog4j__(inst, debug, trace)
     ## DEF

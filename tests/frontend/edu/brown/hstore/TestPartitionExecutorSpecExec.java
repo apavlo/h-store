@@ -82,11 +82,11 @@ public class TestPartitionExecutorSpecExec extends BaseTestCase {
      */
     private final AbstractConflictChecker checker = new AbstractConflictChecker(null) {
         @Override
-        public boolean shouldIgnoreProcedure(Procedure proc) {
+        public boolean shouldIgnoreTransaction(AbstractTransaction ts) {
             return (false);
         }
         @Override
-        public boolean canExecute(AbstractTransaction dtxn, LocalTransaction ts, int partitionId) {
+        public boolean canExecute(AbstractTransaction dtxn, LocalTransaction candidate, int partitionId) {
             return (true);
         }
     };

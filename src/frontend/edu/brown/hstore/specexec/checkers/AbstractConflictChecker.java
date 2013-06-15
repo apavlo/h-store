@@ -1,7 +1,6 @@
 package edu.brown.hstore.specexec.checkers;
 
 import org.voltdb.CatalogContext;
-import org.voltdb.catalog.Procedure;
 
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
@@ -15,6 +14,7 @@ import edu.brown.markov.EstimationThresholds;
 public abstract class AbstractConflictChecker {
 
     protected final CatalogContext catalogContext;
+    protected boolean disabled = false;
     
     public AbstractConflictChecker(CatalogContext catalogContext) {
         this.catalogContext = catalogContext;
@@ -24,12 +24,16 @@ public abstract class AbstractConflictChecker {
         // Nothing...
     }
     
+    public boolean isDisabled() {
+        return (this.disabled);
+    }
+    
     /**
-     * Returns true if the given Procedure should be ignored from conflict checking
-     * @param proc
+     * Returns true if the given transaction should be ignored from conflict checking
+     * @param ts
      * @return
      */
-    public abstract boolean shouldIgnoreProcedure(Procedure proc);
+    public abstract boolean shouldIgnoreTransaction(AbstractTransaction ts);
     
     /**
      * Calculate whether to two transaction handles are conflicting.
@@ -38,9 +42,9 @@ public abstract class AbstractConflictChecker {
      * is a single-partition transaction from the work queue that we want to try to
      * speculatively execute right now. 
      * @param dtxn
-     * @param ts
+     * @param candidate
      * @param partitionId TODO
      * @return
      */
-    public abstract boolean canExecute(AbstractTransaction dtxn, LocalTransaction ts, int partitionId);
+    public abstract boolean canExecute(AbstractTransaction dtxn, LocalTransaction candidate, int partitionId);
 }

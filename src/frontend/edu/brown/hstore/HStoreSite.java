@@ -1941,8 +1941,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                                                                    ts.getProcedure(),
                                                                    null);
                 remote_ts.setEstimatorState(t_state);
-                this.remoteTxnEstimator.processQueryEstimate(t_state, query_estimate, fragment.getPartitionId());
             }
+            LOG.info(String.format("%s - Updating %s with future statements hints for partition %d " +
+                     "[numStatements=%s]",
+                     ts, fragment.getPartitionId(), fragment.getFutureStatements().getStmtIdsCount()));
+            
+            this.remoteTxnEstimator.processQueryEstimate(t_state, query_estimate, fragment.getPartitionId());
         }
         this.executors[fragment.getPartitionId()].queueWork(ts, fragment);
     }
@@ -2010,7 +2014,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (ts == null) {
             if (debug.val)
                 LOG.warn(String.format("No transaction information exists for #%d." +
-                	  	 "Ignoring finish request", txn_id));
+                           "Ignoring finish request", txn_id));
             return;
         }
         
@@ -2162,14 +2166,14 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         assert(orig_ts != null) : "Null LocalTransaction handle [status=" + status + "]";
         assert(orig_ts.isInitialized()) : "Uninitialized transaction??";
         if (debug.val)
-            LOG.debug(String.format("%s got hit with a %s! Going to clean-up our mess and re-execute " +
-                      "[restarts=%d]",
+            LOG.debug(String.format("%s got hit with a %s! " +
+                      "Going to clean-up our mess and re-execute [restarts=%d]",
                       orig_ts , status, orig_ts.getRestartCounter()));
         int base_partition = orig_ts.getBasePartition();
         SerializableException orig_error = orig_ts.getPendingError();
 
-		//LOG.info("In transactionRestart()"); 
-		        
+        //LOG.info("In transactionRestart()"); 
+                
         // If this txn has been restarted too many times, then we'll just give up
         // and reject it outright
         int restart_limit = (orig_ts.isSysProc() ? hstore_conf.site.txn_restart_limit_sysproc :
@@ -2344,7 +2348,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 }
                 predict_touchedPartitions.addAll(partitions);
             }
-            if (debug.val)
+            if (trace.val)
                 LOG.trace(orig_ts + " Mispredicted Partitions: " + partitions);
         }
         
@@ -2382,19 +2386,20 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (status == Status.ABORT_EVICTEDACCESS && orig_error instanceof EvictedTupleAccessException) {
             if (this.anticacheManager == null) {
                 String message = "Got eviction notice but anti-caching is not enabled";
-				LOG.warn(message); 
+                LOG.warn(message); 
                 throw new ServerFaultException(message, orig_error, orig_ts.getTransactionId());
             }
-			
+            
             EvictedTupleAccessException error = (EvictedTupleAccessException)orig_error;
             short block_ids[] = error.getBlockIds();
             int tuple_offsets[] = error.getTupleOffsets(); 
-						
+                        
             Table evicted_table = error.getTable(this.catalogContext.database);
             new_ts.setPendingError(error, false);
 
-			LOG.debug(String.format("Added aborted txn to %s queue. Unevicting %d blocks from %s (%d).",
-			         AntiCacheManager.class.getSimpleName(), block_ids.length, evicted_table.getName(), evicted_table.getRelativeIndex()));
+            if (debug.val)
+                LOG.debug(String.format("Added aborted txn to %s queue. Unevicting %d blocks from %s (%d).",
+                          AntiCacheManager.class.getSimpleName(), block_ids.length, evicted_table.getName(), evicted_table.getRelativeIndex()));
             this.anticacheManager.queue(new_ts, base_partition, evicted_table, block_ids, tuple_offsets);
         }
             

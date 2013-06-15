@@ -141,7 +141,7 @@ class AbstractFabric(object):
         raise NotImplementedError("Unimplemented %s" % self.__init__.im_class)
     ## DEF
     
-    def updateLog4j(self, debug=[], trace=[]):
+    def updateLog4j(self, reset=False, debug=[], trace=[]):
         raise NotImplementedError("Unimplemented %s" % self.__init__.im_class)
     ## DEF
     
