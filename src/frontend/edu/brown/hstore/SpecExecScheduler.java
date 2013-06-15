@@ -313,6 +313,7 @@ public class SpecExecScheduler implements Configurable {
         int txn_ctr = 0;
         int examined_ctr = 0;
         int matched_ctr = 0;
+        boolean was_interrupted = false;
         long bestTime = (this.policyType == SpecExecSchedulerPolicyType.LONGEST ? Long.MIN_VALUE : Long.MAX_VALUE);
 
         // Check whether we can use our same iterator from the last call
@@ -333,6 +334,7 @@ public class SpecExecScheduler implements Configurable {
                     LOG.warn(String.format("Search interrupted after %d examinations [%s]",
                              examined_ctr, this.latchMsg.getSimpleName()));
                 if (profiler != null) profiler.interrupts++;
+                was_interrupted = true;
                 break;
             }
             
@@ -383,6 +385,8 @@ public class SpecExecScheduler implements Configurable {
                     case SP1_LOCAL:
                     case SP2_REMOTE_AFTER: {
                         if (this.checker.canExecute(dtxn, localTxn, this.partitionId) == false) {
+                            if (debug.val)
+                                LOG.debug(String.format("Skipping %s because it conflicts with current transaction", localTxn));
                             continue;
                         }
                         break;
@@ -453,8 +457,8 @@ public class SpecExecScheduler implements Configurable {
         }
         else if (debug.val && this.queue.isEmpty() == false) {
             LOG.debug(String.format("Failed to find non-conflicting speculative txn " +
-            		  "[dtxn=%s, txnCtr=%d, examinedCtr=%d]",
-                      dtxn, txn_ctr, examined_ctr));
+            		  "[dtxn=%s, txnCtr=%d, examinedCtr=%d, interrupted=%s]",
+                      dtxn, txn_ctr, examined_ctr, was_interrupted));
         }
         
         this.lastDtxn = dtxn;
