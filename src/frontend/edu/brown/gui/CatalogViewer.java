@@ -64,13 +64,17 @@ import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.CatalogType;
 import org.voltdb.catalog.Cluster;
 import org.voltdb.catalog.Database;
+import org.voltdb.catalog.Host;
+import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.Table;
 import org.voltdb.utils.Pair;
 
 import edu.brown.catalog.conflicts.ConflictGraph;
 import edu.brown.graphs.GraphvizExport;
 import edu.brown.gui.catalog.AttributesNode;
 import edu.brown.gui.catalog.CatalogAttributeText;
-import edu.brown.gui.catalog.CatalogSummaryText;
+import edu.brown.gui.catalog.CatalogMapTreeNode;
+import edu.brown.gui.catalog.CatalogSummaryUtil;
 import edu.brown.gui.catalog.CatalogTreeModel;
 import edu.brown.gui.catalog.PlanTreeCatalogNode;
 import edu.brown.gui.catalog.ProcedureConflictGraphNode;
@@ -78,6 +82,7 @@ import edu.brown.gui.catalog.WrapperNode;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.IOFileFilter;
+import edu.brown.utils.StringUtil;
 
 /**
  * Graphical Catalog Viewer Tool
@@ -113,7 +118,7 @@ public class CatalogViewer extends AbstractViewer {
     protected JPanel textInfoPanel;
     protected JPanel mainPanel;
 
-    protected CatalogSummaryText summaryText;
+    protected CatalogSummaryUtil summaryUtil;
     protected CatalogAttributeText attributeText;
     
     // ----------------------------------------------
@@ -200,7 +205,7 @@ public class CatalogViewer extends AbstractViewer {
      * 
      */
     protected void viewerInit() {
-        this.summaryText = new CatalogSummaryText(this.catalog);
+        this.summaryUtil = new CatalogSummaryUtil(this.catalog);
         this.attributeText = new CatalogAttributeText(this.catalog);
         
         // ----------------------------------------------
@@ -257,61 +262,7 @@ public class CatalogViewer extends AbstractViewer {
         this.catalogTree.setEditable(false);
         this.catalogTree.setCellRenderer(new CatalogViewer.CatalogTreeRenderer());
         this.catalogTree.getSelectionModel().setSelectionMode(TreeSelectionModel.SINGLE_TREE_SELECTION);
-        this.catalogTree.addTreeSelectionListener(new TreeSelectionListener() {
-            public void valueChanged(TreeSelectionEvent e) {
-                DefaultMutableTreeNode node = (DefaultMutableTreeNode)CatalogViewer.this.catalogTree.getLastSelectedPathComponent();
-                if (node == null) return;
-
-                Object user_obj = node.getUserObject();
-                String new_text = ""; // <html>";
-                boolean text_mode = true;
-                if (user_obj instanceof WrapperNode) {
-                    CatalogType catalog_obj  = ((WrapperNode)user_obj).getCatalogType();
-                    new_text += CatalogViewer.this.attributeText.getAttributesText(catalog_obj);
-                }
-                else if (user_obj instanceof AttributesNode) {
-                    AttributesNode wrapper = (AttributesNode)user_obj;
-                    new_text += wrapper.getAttributes();
-                }
-                else if (user_obj instanceof ProcedureConflictGraphNode) {
-                    ProcedureConflictGraphNode wrapper = (ProcedureConflictGraphNode)user_obj; 
-                    CatalogViewer.this.replaceMainPanel(wrapper.getVisualization());
-                    text_mode = false;
-                }
-                else if (user_obj instanceof PlanTreeCatalogNode) {
-                    final PlanTreeCatalogNode wrapper = (PlanTreeCatalogNode)user_obj;
-                    text_mode = false;
-                    
-                    CatalogViewer.this.replaceMainPanel(wrapper.getPanel());
-                    
-                    if (SwingUtilities.isEventDispatchThread() == false) {
-                        SwingUtilities.invokeLater(new Runnable() {
-                            public void run() {
-                                wrapper.centerOnRoot();
-                            }
-                        });
-                    } else {
-                        wrapper.centerOnRoot();
-                    }
-                    
-                } else {
-                    new_text += CatalogViewer.this.summaryText.getSummaryText();
-                }
-
-                // Text Mode
-                if (text_mode) {
-                    if (CatalogViewer.this.text_mode == false) {
-                        CatalogViewer.this.replaceMainPanel(CatalogViewer.this.textInfoPanel);
-                    }
-                    CatalogViewer.this.textInfoTextArea.setText(new_text);
-                    
-                    // Scroll to top
-                    CatalogViewer.this.textInfoTextArea.grabFocus();
-                }
-                
-                CatalogViewer.this.text_mode = text_mode;
-            }
-        });
+        this.catalogTree.addTreeSelectionListener(new CatalogTreeSeleciontListener());
         this.generateCatalogTree(this.catalog, this.catalog_file_path.getName());
 
         // ----------------------------------------------
@@ -322,7 +273,8 @@ public class CatalogViewer extends AbstractViewer {
         this.textInfoTextArea = new JTextArea();
         this.textInfoTextArea.setEditable(false);
         this.textInfoTextArea.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
-        this.textInfoTextArea.setText(this.summaryText.getSummaryText());
+        this.textInfoTextArea.setText(StringUtil.header("CATALOG SUMMARY", "-", 50) + // HACK
+                                      "\n\n" + this.summaryUtil.getSummaryText());
         this.textInfoTextArea.addFocusListener(new FocusListener() {
             @Override
             public void focusLost(FocusEvent e) {
@@ -546,6 +498,89 @@ public class CatalogViewer extends AbstractViewer {
         }
         return (path);
     }
+    
+    private class CatalogTreeSeleciontListener implements TreeSelectionListener {
+        
+        public void valueChanged(TreeSelectionEvent e) {
+            DefaultMutableTreeNode node = (DefaultMutableTreeNode)CatalogViewer.this.catalogTree.getLastSelectedPathComponent();
+            if (node == null) return;
+
+            Object user_obj = node.getUserObject();
+            String new_header = null;
+            String new_text = null;
+            boolean text_mode = true;
+            if (user_obj instanceof WrapperNode) {
+                CatalogType catalog_obj  = ((WrapperNode)user_obj).getCatalogType();
+                new_text = CatalogViewer.this.attributeText.getAttributesText(catalog_obj);
+            }
+            else if (user_obj instanceof AttributesNode) {
+                AttributesNode wrapper = (AttributesNode)user_obj;
+                new_text = wrapper.getAttributes();
+            }
+            else if (user_obj instanceof ProcedureConflictGraphNode) {
+                ProcedureConflictGraphNode wrapper = (ProcedureConflictGraphNode)user_obj; 
+                CatalogViewer.this.replaceMainPanel(wrapper.getVisualization());
+                text_mode = false;
+            }
+            else if (user_obj instanceof PlanTreeCatalogNode) {
+                final PlanTreeCatalogNode wrapper = (PlanTreeCatalogNode)user_obj;
+                text_mode = false;
+                
+                CatalogViewer.this.replaceMainPanel(wrapper.getPanel());
+                
+                if (SwingUtilities.isEventDispatchThread() == false) {
+                    SwingUtilities.invokeLater(new Runnable() {
+                        public void run() {
+                            wrapper.centerOnRoot();
+                        }
+                    });
+                } else {
+                    wrapper.centerOnRoot();
+                }
+                
+            }
+            // SUMMARY NODES
+            else if (node instanceof CatalogMapTreeNode) {
+                Class<? extends CatalogType> catalogType = ((CatalogMapTreeNode)node).getCatalogType();
+                if (catalogType.equals(Procedure.class)) {
+                    new_text = StringUtil.formatMaps(summaryUtil.getProceduresInfo(true));
+                }
+                else if (catalogType.equals(Table.class)) {
+                    new_text = StringUtil.formatMaps(summaryUtil.getTablesInfo(true));
+                }
+                else if (catalogType.equals(Host.class)) {
+                    new_text = StringUtil.formatMaps(summaryUtil.getHostsInfo(true));
+                }
+                if (new_text != null) {
+                    new_header = catalogType.getSimpleName() + "s Summary";
+                }
+                
+                
+            }
+            // EVERYTHING ELSE
+            if (text_mode && new_text == null) {
+                new_header = "Catalog Summary";
+                new_text = CatalogViewer.this.summaryUtil.getSummaryText();
+            }
+
+            // Text Mode
+            if (text_mode) {
+                if (CatalogViewer.this.text_mode == false) {
+                    CatalogViewer.this.replaceMainPanel(CatalogViewer.this.textInfoPanel);
+                }
+                if (new_header != null) {
+                    new_text = StringUtil.header(new_header.toUpperCase(), "-", 50) +
+                               "\n\n" + new_text;
+                }
+                CatalogViewer.this.textInfoTextArea.setText(new_text);
+                
+                // Scroll to top
+                CatalogViewer.this.textInfoTextArea.grabFocus();
+            }
+            
+            CatalogViewer.this.text_mode = text_mode;
+        }
+    } // END CLASS
     
     protected class MenuHandler extends AbstractMenuHandler {
         /**
