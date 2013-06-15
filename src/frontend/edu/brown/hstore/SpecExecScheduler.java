@@ -138,6 +138,11 @@ public class SpecExecScheduler implements Configurable {
                 this.profilerMap[i] = new SpecExecProfiler();
             } // FOR
         }
+        
+        if (debug.val)
+            LOG.debug(String.format("Initialized %s for partition %d with %s",
+                      this.getClass().getSimpleName(), this.partitionId,
+                      this.checker.getClass().getSimpleName()));
     }
     
     @Override
@@ -228,6 +233,10 @@ public class SpecExecScheduler implements Configurable {
             LOG.debug(String.format("Setting %s to ignore speculation at stall point %s",
                       this.getClass().getSimpleName(), specType));
     }
+    
+    // ----------------------------------------------------------------------------
+    // SCHEDULING METHODS
+    // ----------------------------------------------------------------------------
     
     /**
      * This allows another thread to tell whatever thread that is down in next()

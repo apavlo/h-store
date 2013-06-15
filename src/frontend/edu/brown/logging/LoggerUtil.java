@@ -36,6 +36,13 @@ public abstract class LoggerUtil {
     private static final EventObservable<Object> OBSERVABLE = new EventObservable<Object>();
     private static HStoreThreadManager THREAD_MANAGER;
     
+    /**
+     * Simple boolean object used to determine whether to output a log4j message.
+     * When this object is attached to the LoggerUtil observerable, it will automatically
+     * get updated when its corresponding logger's debug level changes.
+     * I did this so that I didn't have to call LOG.isDebugEnabled() all over the place.
+     * @author pavlo
+     */
     public static class LoggerBoolean {
         /**
          * Whether the log output tracked by this object is set to enabled.
@@ -49,10 +56,6 @@ public abstract class LoggerUtil {
         }
         public LoggerBoolean(boolean val) {
             this.val = val;
-        }
-        @Deprecated
-        public boolean get() {
-            return (this.val);
         }
         public void set(boolean val) {
             this.val = val;

@@ -367,7 +367,7 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
         // For each interval, divide the number of partitions touched by the total number 
         // of partitions that the interval could have touched (worst case scenario)
         final double execution_costs[] = new double[num_intervals];
-        StringBuilder sb = (this.isDebugEnabled() || debug.get() ? new StringBuilder() : null);
+        StringBuilder sb = (this.isDebugEnabled() || debug.val ? new StringBuilder() : null);
         Map<String, Object> debug_m = null;
         if (sb != null) {
             debug_m = new LinkedHashMap<String, Object>();
