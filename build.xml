@@ -155,14 +155,9 @@
 ******************************************************************************
 -->
 
-<!-- Default heap size for Volt server (MB)  -->
-<condition property="volt.server.memory" value="2048">
-    <not><isset property="volt.server.memory"/></not>
-</condition>
-
-<!-- Default heap size for Volt clients+loaders (MB)  -->
-<condition property="volt.client.memory" value="1024">
-    <not><isset property="volt.client.memory"/></not>
+<!-- Default heap size for utility programs (MB)  -->
+<condition property="global.memory" value="2048">
+    <not><isset property="global.memory"/></not>
 </condition>
 
 <!-- Overridden in the Hudson test script. -->
@@ -2048,7 +2043,7 @@ UTILITIES
 
 <target name='workload-combine'>
     <java fork="yes" failonerror="true" classname="edu.brown.workload.CombineWorkloadTraces">
-        <jvmarg value="-Xmx${volt.server.memory}m" />
+        <jvmarg value="-Xmx${global.memory}m" />
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
         <arg value="catalog.jar=${jar}" />
         <arg value="workload.output=${output}" />
@@ -2062,7 +2057,7 @@ UTILITIES
 
 <target name='workload-compress'>
     <java fork="yes" failonerror="true" classname="edu.brown.workload.WorkloadSummarizer">
-        <jvmarg value="-Xmx${volt.server.memory}m" />
+        <jvmarg value="-Xmx${global.memory}m" />
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
         <arg value="catalog.jar=${jar}" />
         <arg value="catalog.hosts=${hosts}" />
@@ -2085,7 +2080,7 @@ UTILITIES
 <target name='workload-stats'
         description="Generate workload statistics">
     <java fork="yes" classname="edu.brown.statistics.WorkloadStatistics" failonerror='true'>
-        <jvmarg value="-Xmx${volt.client.memory}m" />
+        <jvmarg value="-Xmx${global.memory}m" />
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
         <arg value="catalog.jar=${jar}" />
         <arg value="workload=${workload}" />
@@ -2121,7 +2116,7 @@ UTILITIES
     </condition>
     
     <java fork="yes" classname="edu.brown.markov.MarkovGraph" failonerror='true'>
-        <jvmarg value="-Xmx${volt.client.memory}m" />
+        <jvmarg value="-Xmx${global.memory}m" />
         <jvmarg value="-Dhstore.max_threads=${numcpus}" />
         <arg value="catalog.jar=${jar}" />
         <arg value="workload=${workload}" />
@@ -2140,7 +2135,7 @@ UTILITIES
 
 <target name='markov-cost' description="Estimate MarkovGraph Costs" depends="getcpus">
     <java fork="yes" classname="edu.brown.costmodel.MarkovCostModel" failonerror='true'>
-        <jvmarg value="-Xmx${volt.client.memory}m" />
+        <jvmarg value="-Xmx${global.memory}m" />
         <jvmarg value="-Dhstore.max_threads=${numcpus}" />
         <arg value="catalog.jar=${jar}" />
         <arg value="workload=${workload}" />
@@ -2160,7 +2155,7 @@ UTILITIES
 
 <target name='markov-graphviz' description="Create MarkovGraphs Graphviz files">
     <java fork="yes" classname="edu.brown.markov.MarkovGraphvizExport" failonerror='true'>
-        <jvmarg value="-Xmx${volt.client.memory}m" />
+        <jvmarg value="-Xmx${global.memory}m" />
         <arg value="catalog.jar=${jar}" />
         <arg value="markov=${markov}" />
         <arg value="${procedure}" />
@@ -2172,7 +2167,7 @@ UTILITIES
 
 <target name='markov-extractor' description="Generate Weka Feature Files">
     <java fork="yes" classname="edu.brown.markov.FeatureExtractor" failonerror='true'>
-        <jvmarg value="-Xmx${volt.client.memory}m" />
+        <jvmarg value="-Xmx${global.memory}m" />
         <arg value="catalog.jar=${jar}" />
         <arg value="workload=${workload}" />
         <arg value="workload.xactlimit=${limit}" />
@@ -2188,7 +2183,7 @@ UTILITIES
 
 <target name='markov-cluster' description="Generate Markov Cluster-based File" depends="getcpus">
     <java fork="yes" classname="edu.brown.markov.FeatureClusterer" failonerror='true'>
-        <jvmarg value="-Xmx${volt.client.memory}m" />
+        <jvmarg value="-Xmx${global.memory}m" />
         <jvmarg value="-server" />
 <!--         <jvmarg value="-verbose:gc" /> -->
         <jvmarg value="-XX:+UseParNewGC" />
@@ -2220,7 +2215,7 @@ UTILITIES
 
 <target name='weka' description="Launch Weka GUI">
     <java fork="yes" classname="weka.gui.GUIChooser">
-        <jvmarg value="-Xmx${volt.client.memory}m" />
+        <jvmarg value="-Xmx${global.memory}m" />
         <classpath refid='project.classpath' />
         <!-- <assertions><enable /></assertions> -->
     </java>
@@ -2235,7 +2230,7 @@ UTILITIES
 <target name='mappings-generate'
         description="Generate Parameter Mappings">
     <java fork="yes" classname="edu.brown.mappings.MappingCalculator" failonerror='true'>
-        <jvmarg value="-Xmx${volt.client.memory}m" />
+        <jvmarg value="-Xmx${global.memory}m" />
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
         <arg value="catalog.jar=${jar}" />
         <arg value="workload=${workload}" />
@@ -2267,7 +2262,7 @@ UTILITIES
 
     <echo>Creating table stats file for ${project}...</echo>
     <java fork="yes" classname="edu.brown.statistics.AbstractTableStatisticsGenerator" failonerror='true'>
-        <jvmarg value="-Xmx${volt.client.memory}m" />
+        <jvmarg value="-Xmx${global.memory}m" />
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
         <arg value="catalog.jar=${jar}" />
         <arg value="stats.scalefactor=${scalefactor}" />
@@ -2315,7 +2310,7 @@ UTILITIES
    <java fork="yes" failonerror="true" classname="edu.brown.designer.Designer">
         <jvmarg value="-server" />
         <jvmarg value="-Xms256m" />
-        <jvmarg value="-Xmx${volt.client.memory}m" />
+        <jvmarg value="-Xmx${global.memory}m" />
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
         <jvmarg value="-Dhstore.max_threads=${numcpus}" />
         <arg value="conf=${conf}" />
@@ -2356,7 +2351,7 @@ UTILITIES
     <java fork="yes" failonerror="true" classname="${costmodel}">
         <jvmarg value="-client" />
         <jvmarg value="-Xms256m" />
-        <jvmarg value="-Xmx${volt.client.memory}m" />
+        <jvmarg value="-Xmx${global.memory}m" />
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
         <arg value="conf=${conf}" />
         <arg value="catalog.jar=${jar}" />
@@ -2386,7 +2381,7 @@ UTILITIES
    <java fork="yes" failonerror="true" classname="edu.brown.designer.LowerBoundsCalculator">
         <jvmarg value="-client" />
         <jvmarg value="-Xms256m" />
-        <jvmarg value="-Xmx${volt.client.memory}m" />
+        <jvmarg value="-Xmx${global.memory}m" />
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
         <arg value="catalog.jar=${jar}" />
         <arg value="catalog.type=${project}" />
