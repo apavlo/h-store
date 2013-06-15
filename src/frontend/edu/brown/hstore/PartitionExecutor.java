@@ -334,7 +334,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
      * When we get the response for these txn, we know we can commit/abort the speculatively executed transactions
      */
     private AbstractTransaction currentDtxn = null;
-    private String lastDtxn = null;
+    private String lastDtxnDebug = null;
     
     /**
      * The current VoltProcedure handle that is executing at this partition
@@ -1002,7 +1002,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             if (this.isShuttingDown() == false) {
                 // ex.printStackTrace();
                 LOG.fatal(String.format("Unexpected error at partition #%d [current=%s, lastDtxn=%s]",
-                                        this.partitionId, this.currentTxn, this.lastDtxn), ex);
+                                        this.partitionId, this.currentTxn, this.lastDtxnDebug), ex);
                 if (this.currentTxn != null) LOG.fatal("TransactionState Dump:\n" + this.currentTxn.debug());
             }
             this.shutdown_latch.release();
@@ -1888,15 +1888,15 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         // Check whether we should check for speculative txns to execute whenever this
         // dtxn is idle at this partition
         this.currentDtxn = ts;
-        if (hstore_conf.site.specexec_enable && ts.isSysProc() == false) {
-            this.specExecIgnoreCurrent = this.specExecChecker.shouldIgnoreProcedure(ts.getProcedure());
+        if (hstore_conf.site.specexec_enable && ts.isSysProc() == false && this.specExecScheduler.isDisabled() == false) {
+            this.specExecIgnoreCurrent = this.specExecChecker.shouldIgnoreTransaction(ts);
         } else {
             this.specExecIgnoreCurrent = true;
         }
         if (debug.val) {
             LOG.debug(String.format("Set %s as the current DTXN for partition %d [specExecIgnore=%s, previous=%s]",
-                      ts, this.partitionId, this.specExecIgnoreCurrent, this.lastDtxn));
-            this.lastDtxn = this.currentDtxn.toString();
+                      ts, this.partitionId, this.specExecIgnoreCurrent, this.lastDtxnDebug));
+            this.lastDtxnDebug = this.currentDtxn.toString();
         }
         if (hstore_conf.site.exec_profiling && ts.getBasePartition() != this.partitionId) {
             profiler.sp2_time.start();
@@ -1911,7 +1911,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             "Trying to reset the currentDtxn when it is already null";
         if (debug.val)
             LOG.debug(String.format("Resetting current DTXN for partition %d to null [previous=%s]",
-                      this.partitionId, this.lastDtxn));
+                      this.partitionId, this.lastDtxnDebug));
         this.currentDtxn = null;
     }
 
@@ -3347,11 +3347,16 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         
         return (builder.build());
     }
-    
+
     /**
-     * This site is requesting that the coordinator execute work on its behalf
-     * at remote sites in the cluster 
-     * @param ftasks
+     * This method is invoked when the PartitionExecutor wants to execute work at a remote HStoreSite.
+     * The doneNotificationsPerSite is an array where each offset (based on SiteId) may contain
+     * a PartitionSet of the partitions that this txn is finished with at the remote node and will
+     * not be executing any work in the current batch. 
+     * @param ts
+     * @param fragmentBuilders
+     * @param parameterSets
+     * @param doneNotificationsPerSite
      */
     private void requestWork(LocalTransaction ts,
                              Collection<WorkFragment.Builder> fragmentBuilders,
@@ -3412,8 +3417,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             // Add in the specexec query estimate at this partition if needed
             if (hstore_conf.site.specexec_enable && t_estimate != null && t_estimate.hasQueryEstimate(target_partition)) {
                 List<CountedStatement> queryEst = t_estimate.getQueryEstimate(target_partition);
-                if (debug.val)
-                    LOG.debug(String.format("%s - Sending remote query estimate to partition %d " +
+                // if (debug.val)
+                if (target_partition == 0)
+                    LOG.info(String.format("%s - Sending remote query estimate to partition %d " +
                               "containing %d queries\n%s",
                               ts, target_partition, queryEst.size(), StringUtil.join("\n", queryEst)));
                 assert(queryEst.isEmpty() == false);

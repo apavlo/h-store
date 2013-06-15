@@ -72,15 +72,19 @@ public class ClientResponseDebug implements FastSerializable {
         }
     } // CLASS
     
-    /**
-     * Partition -> List<QueryEstimate>
-     */
-    private final Map<Integer, List<QueryEstimate>> remote_estimates = new TreeMap<Integer, List<QueryEstimate>>();
-    
     private boolean predict_singlePartition;
     private boolean predict_abortable;
     private boolean predict_readOnly;
     private final PartitionSet predict_touchedPartitions = new PartitionSet();
+    
+    private String estimateType;
+    private int estimateUpdateCount = 0;
+
+    /**
+     * Partition -> List<QueryEstimate>
+     */
+    private final Map<Integer, List<QueryEstimate>> estimateRemoteQueryUpdates = new TreeMap<Integer, List<QueryEstimate>>();
+
     
     /**
      * Partitions that were marked for early 2PC
@@ -99,8 +103,6 @@ public class ClientResponseDebug implements FastSerializable {
     }
     
     public ClientResponseDebug(LocalTransaction ts) {
-        this();
-        
         this.predict_singlePartition = ts.isPredictSinglePartition();
         this.predict_abortable = ts.isPredictAbortable();
         this.predict_readOnly = ts.isPredictReadOnly();
@@ -114,7 +116,9 @@ public class ClientResponseDebug implements FastSerializable {
         
         EstimatorState t_state = ts.getEstimatorState();
         if (t_state != null) {
+            this.estimateType = t_state.getClass().getSimpleName();
             for (Estimate est : t_state.getEstimates()) {
+                this.estimateUpdateCount++;
                 for (int partition : this.exec_touchedPartitions) {
                     if (est.hasQueryEstimate(partition)) {
                         Collection<CountedStatement> stmts = est.getQueryEstimate(partition);
@@ -126,10 +130,10 @@ public class ClientResponseDebug implements FastSerializable {
     }
     
     protected void addQueryEstimate(QueryEstimate query_estimate) {
-        List<QueryEstimate> estimates = this.remote_estimates.get(query_estimate.partition);
+        List<QueryEstimate> estimates = this.estimateRemoteQueryUpdates.get(query_estimate.partition);
         if (estimates == null) {
             estimates = new ArrayList<QueryEstimate>();
-            this.remote_estimates.put(query_estimate.partition, estimates);
+            this.estimateRemoteQueryUpdates.put(query_estimate.partition, estimates);
         }
         estimates.add(query_estimate);
     }
@@ -166,8 +170,23 @@ public class ClientResponseDebug implements FastSerializable {
         return this.early_preparePartitions;
     }
 
-    public List<CountedStatement>[] getRemoteEstimates(CatalogContext catalogContext, int partition) {
-        List<QueryEstimate> estimates = this.remote_estimates.get(partition);
+    /**
+     * Returns true if this transaction was executed with prefetched queries.
+     * @return
+     */
+    public boolean hadPrefetchedQueries() {
+        return this.prefetched;
+    }
+    
+    public String getEstimatorType() {
+        return (this.estimateType);
+    }
+    public int getEstimatorUpdateCount() {
+        return (this.estimateUpdateCount);
+    }
+    
+    public List<CountedStatement>[] getRemoteQueryEstimates(CatalogContext catalogContext, int partition) {
+        List<QueryEstimate> estimates = this.estimateRemoteQueryUpdates.get(partition);
         int num_estimates = (estimates != null ? estimates.size() : 0);
         @SuppressWarnings("unchecked")
         List<CountedStatement> result[] = (List<CountedStatement>[])new List<?>[num_estimates];
@@ -181,14 +200,6 @@ public class ClientResponseDebug implements FastSerializable {
             } // FOR
         } // FOR
         return (result);
-    }
-    
-    /**
-     * Returns true if this transaction was executed with prefetched queries.
-     * @return
-     */
-    public boolean hadPrefetchedQueries() {
-        return this.prefetched;
     }
     
     // ----------------------------------------------------------------------------
@@ -205,6 +216,10 @@ public class ClientResponseDebug implements FastSerializable {
         this.early_preparePartitions.readExternal(in);
         this.prefetched = in.readBoolean();
         this.exec_touchedPartitions.readExternal(in);
+        
+        // TXN ESTIMATE INFO
+        this.estimateType = in.readString();
+        this.estimateUpdateCount = in.readInt();
         
         // QUERY ESTIMATES
         int num_partitions = in.readShort();
@@ -230,9 +245,13 @@ public class ClientResponseDebug implements FastSerializable {
         out.writeBoolean(this.prefetched);
         this.exec_touchedPartitions.writeExternal(out);
         
+        // TXN ESTIMATE INFO
+        out.writeString(this.estimateType);
+        out.writeInt(this.estimateUpdateCount);
+        
         // QUERY ESTIMATES
-        out.writeShort(this.remote_estimates.size());
-        for (Entry<Integer, List<QueryEstimate>> e : this.remote_estimates.entrySet()) {
+        out.writeShort(this.estimateRemoteQueryUpdates.size());
+        for (Entry<Integer, List<QueryEstimate>> e : this.estimateRemoteQueryUpdates.entrySet()) {
             out.writeInt(e.getKey());
             out.writeShort(e.getValue().size());
             for (QueryEstimate query_est : e.getValue()) {
@@ -252,7 +271,12 @@ public class ClientResponseDebug implements FastSerializable {
         m.put("Predict Read Only", this.predict_readOnly);
         m.put("Predict Abortable", this.predict_abortable);
         m.put("Had Prefetched Queries", this.prefetched);
-        m.put("Remote Query Estimates", this.remote_estimates);
+        maps.add(m);
+        
+        m = new LinkedHashMap<String, Object>();
+        m.put("Estimator Type", this.estimateType);
+        m.put("Estimate Updates", this.estimateUpdateCount);
+        m.put("Remote Query Estimates", this.estimateRemoteQueryUpdates);
         maps.add(m);
         
         m = new LinkedHashMap<String, Object>();

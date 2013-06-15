@@ -139,6 +139,9 @@ public class SpecExecScheduler implements Configurable {
             } // FOR
         }
         
+        if (this.checker.isDisabled())
+            this.setDisabled(true);
+        
         if (debug.val)
             LOG.debug(String.format("Initialized %s for partition %d with %s",
                       this.getClass().getSimpleName(), this.partitionId,
@@ -219,11 +222,10 @@ public class SpecExecScheduler implements Configurable {
         if (this.disabled == true)
             LOG.info("Disabled speculative execution scheduling at partition " + this.partitionId);
     }
-
-    public boolean shouldIgnoreProcedure(Procedure catalog_proc) {
-        return (this.checker.shouldIgnoreProcedure(catalog_proc));
+    public boolean isDisabled() {
+        return (this.disabled);
     }
-    
+
     public void ignoreSpeculationType(SpeculationType specType) {
         if (this.ignore_types == null) {
             this.ignore_types = new HashSet<SpeculationType>();
@@ -245,7 +247,7 @@ public class SpecExecScheduler implements Configurable {
      * @param msg
      */
     public void interruptSearch(InternalMessage msg) {
-        if (this.ignore_interrupts == false && this.interrupted == false) {
+        if (this.interrupted == false) {
             this.interrupted = true;
             this.latchMsg = msg.getClass();
         }
@@ -318,7 +320,7 @@ public class SpecExecScheduler implements Configurable {
         
         // If we have a distributed txn, then check make sure it's legit
         if (dtxn != null) {
-            assert(this.checker.shouldIgnoreProcedure(dtxn.getProcedure()) == false) :
+            assert(this.checker.shouldIgnoreTransaction(dtxn) == false) :
                 String.format("Trying to check for speculative txns for %s but the txn " +
                 		      "should have been ignored", dtxn);
             
@@ -356,13 +358,13 @@ public class SpecExecScheduler implements Configurable {
         boolean lastHasNext;
         if (trace.val) LOG.trace(StringUtil.header("BEGIN QUEUE CHECK :: " + dtxn));
         while ((lastHasNext = this.lastIterator.hasNext()) == true) {
-            if (this.interrupted) {
+            if (this.interrupted && was_interrupted == false) {
                 if (debug.val)
                     LOG.warn(String.format("Search interrupted after %d examinations [%s]",
                              examined_ctr, this.latchMsg.getSimpleName()));
                 if (profiler != null) profiler.interrupts++;
                 was_interrupted = true;
-                break;
+                if (this.ignore_interrupts == false) break;
             }
             
             AbstractTransaction txn = this.lastIterator.next();
@@ -469,7 +471,7 @@ public class SpecExecScheduler implements Configurable {
         
         // We found somebody to execute right now!
         // Make sure that we set the speculative flag to true!
-        if (next != null) {
+        if (was_interrupted == false && next != null) {
             next.markReleased(this.partitionId);
             if (profiler != null) {
                 this.profilerExecuteCounter.put(specType.ordinal());

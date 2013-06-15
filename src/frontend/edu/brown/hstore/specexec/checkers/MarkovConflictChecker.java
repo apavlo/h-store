@@ -48,12 +48,11 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
     }
     
     private final ParameterMappingsSet paramMappings;
-    private final boolean disabled;
     @SuppressWarnings("unused")
     private EstimationThresholds thresholds;
 
     // ----------------------------------------------------------------------------
-    // PRECOMPUTED CACHE
+    // PRE-COMPUTED CACHE
     // ----------------------------------------------------------------------------
 
     protected static class StatementCache {
@@ -85,7 +84,7 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
     // ----------------------------------------------------------------------------
     
     /**
-     * 
+     * Constructor
      * @param catalogContext
      * @param thresholds
      */
@@ -93,7 +92,14 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
         super(catalogContext);
         this.paramMappings = catalogContext.paramMappings;
         this.thresholds = thresholds;
-        this.disabled = (this.paramMappings == null);
+        
+        if (this.paramMappings == null) {
+            LOG.warn(String.format("Disabling %s because the %s in the %s is null",
+                     this.getClass().getSimpleName(),
+                     ParameterMappingsSet.class.getSimpleName(),
+                     catalogContext.getClass().getSimpleName()));
+            this.disabled = true;
+        }
         
         for (Table catalog_tbl : CatalogUtil.getDataTables(this.catalogContext.database)) {
             this.pkeysCache.put(catalog_tbl, CatalogUtil.getPrimaryKeyColumns(catalog_tbl).toArray(new Column[0]));
@@ -149,21 +155,40 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
     }
     
     @Override
-    public boolean shouldIgnoreProcedure(Procedure proc) {
-        return (this.disabled);
+    public boolean shouldIgnoreTransaction(AbstractTransaction ts) {
+        if (this.disabled) return (true);
+
+        // We need to have an EstimatorState in order to do our analysis
+        EstimatorState tsState = ts.getEstimatorState();
+        if (tsState == null) {
+            if (debug.val)
+                LOG.debug(String.format("No %s available for txn %s. This txn has to be ignored",
+                          EstimatorState.class.getSimpleName(), ts));
+            return (true);
+        }
+        
+        // We're good to go!
+        return (false);
     }
 
     @Override
-    public boolean canExecute(AbstractTransaction dtxn, LocalTransaction ts, int partitionId) {
-        // Get the queries for both of the txns
+    public boolean canExecute(AbstractTransaction dtxn, LocalTransaction candidate, int partitionId) {
+        // Get the transaction estimates for both of the txns
         EstimatorState dtxnState = dtxn.getEstimatorState();
-        EstimatorState tsState = ts.getEstimatorState();
-        if (dtxnState == null || tsState == null) {
+        EstimatorState tsState = candidate.getEstimatorState();
+        if (dtxnState == null) {
             if (debug.val)
-                LOG.debug(String.format("No %s available for %s<->%s",
-                          EstimatorState.class.getSimpleName(), dtxn, ts));
+                LOG.debug(String.format("No %s available for distributed txn %s",
+                          EstimatorState.class.getSimpleName(), dtxn));
             return (false);
         }
+        else if (tsState == null) {
+            if (debug.val)
+                LOG.debug(String.format("No %s available for candidate txn %s",
+                          EstimatorState.class.getSimpleName(), candidate));
+            return (false);
+        }
+    
         
         // Get the current TransactionEstimate for the DTXN and the 
         // initial TransactionEstimate for the single-partition txn
@@ -184,7 +209,7 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
         assert(tsEst != null);
         if (tsEst.hasQueryEstimate(partitionId) == false) {
             if (debug.val)
-                LOG.debug(String.format("No query list estimate is available for candidate %s", ts));
+                LOG.debug(String.format("No query list estimate is available for candidate %s", candidate));
             return (false);
         }
         
@@ -200,9 +225,18 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
         List<CountedStatement> queries0 = dtxnEst.getQueryEstimate(partitionId);
         List<CountedStatement> queries1 = tsEst.getQueryEstimate(partitionId);
         
-        return this.canExecute(dtxn, queries0, ts, queries1);
+        return this.canExecute(dtxn, queries0, candidate, queries1);
     }
     
+    /**
+     * Internal method that checks whether the txns conflict based on their list
+     * queries that they're expected to execute in the future.
+     * @param ts0
+     * @param queries0
+     * @param ts1
+     * @param queries1
+     * @return
+     */
     protected boolean canExecute(AbstractTransaction ts0, List<CountedStatement> queries0,
                                  AbstractTransaction ts1, List<CountedStatement> queries1) {
         ParameterSet params0 = ts0.getProcedureParameters();

@@ -132,7 +132,7 @@ public class TestMarkovSpecExecSuite extends RegressionSuite {
         expectedStmts.add(catalog_proc.getStatements().getIgnoreCase("updateStock"));
         
         for (int partition : crDebug.getExecTouchedPartitions()) {
-            List<CountedStatement> query_estimates[] = crDebug.getRemoteEstimates(catalogContext, partition);
+            List<CountedStatement> query_estimates[] = crDebug.getRemoteQueryEstimates(catalogContext, partition);
             assertNotNull(query_estimates);
 
             System.err.println("PARTITION: " + partition);

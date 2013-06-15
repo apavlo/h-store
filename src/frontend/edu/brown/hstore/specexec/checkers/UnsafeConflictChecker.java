@@ -2,7 +2,6 @@ package edu.brown.hstore.specexec.checkers;
 
 import org.apache.log4j.Logger;
 import org.voltdb.CatalogContext;
-import org.voltdb.catalog.Procedure;
 
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
@@ -32,12 +31,12 @@ public class UnsafeConflictChecker extends AbstractConflictChecker {
     }
 
     @Override
-    public boolean shouldIgnoreProcedure(Procedure proc) {
+    public boolean shouldIgnoreTransaction(AbstractTransaction ts) {
         return (false);
     }
 
     @Override
-    public boolean canExecute(AbstractTransaction dtxn, LocalTransaction ts, int partitionId) {
+    public boolean canExecute(AbstractTransaction dtxn, LocalTransaction candidate, int partitionId) {
         if (this.lastDtxn != dtxn) {
             this.counter = 1;
             this.lastDtxn = dtxn;
