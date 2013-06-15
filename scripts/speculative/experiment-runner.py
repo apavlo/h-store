@@ -88,7 +88,7 @@ OPT_BASE_CLIENT_THREADS_PER_HOST = 200
 OPT_BASE_SCALE_FACTOR = float(1.0)
 OPT_BASE_PARTITIONS_PER_SITE = 8
 OPT_PARTITION_PLAN_DIR = "files/designplans"
-OPT_MARKOV_DIR = "files/markovs/vldb-august2012"
+OPT_MARKOV_DIR = "files/markovs"
 OPT_GIT_BRANCH = subprocess.check_output("git rev-parse --abbrev-ref HEAD", shell=True).strip()
 
 DEFAULT_OPTIONS = {
@@ -101,12 +101,16 @@ DEBUG_OPTIONS = {
     #"site.txn_profiling":             True,    
 }
 DEBUG_SITE_LOGGING = [
-    "edu.brown.hstore.HStoreSite",
-    "edu.brown.hstore.PartitionExecutor",
-    "edu.brown.hstore.TransactionQueueManager",
-    "edu.brown.hstore.specexec.PrefetchQueryPlanner",
-    "edu.brown.hstore.specexec.PrefetchQueryUtil",
-    "edu.brown.hstore.txns.DependencyTracker",
+    #"edu.brown.hstore.HStoreSite",
+    #"edu.brown.hstore.PartitionExecutor",
+    #"edu.brown.hstore.TransactionQueueManager",
+    #"edu.brown.hstore.specexec.PrefetchQueryPlanner",
+    #"edu.brown.hstore.specexec.PrefetchQueryUtil",
+    "edu.brown.hstore.SpecExecScheduler",
+    "edu.brown.hstore.specexec.checkers.MarkovConflictChecker",
+    #"edu.brown.hstore.txns.DependencyTracker",
+
+    ## CALLBACKS
     #"edu.brown.hstore.callbacks.TransactionPrepareCallback",
     #"edu.brown.hstore.callbacks.TransactionPrepareWrapperCallback",
     #"edu.brown.hstore.callbacks.TransactionInitCallback",
@@ -377,6 +381,7 @@ def updateExperimentEnv(fabric, args, benchmark, partitions):
         fabric.env["site.specexec_ignore_stallpoints"] = "IDLE,SP2_REMOTE_BEFORE,SP3_LOCAL,SP3_REMOTE"
         fabric.env["site.specexec_scheduler_policy"] = "LAST"
         fabric.env["site.specexec_scheduler_window"] = 999999
+        fabric.env["site.specexec_disable_partitions"] = "1-15"
         fabric.env["client.output_specexec_profiling"] = "specexec.csv"
         
         ## ----------------------------------------------
@@ -762,7 +767,7 @@ if __name__ == '__main__':
     
     needUpdate = (args['no_update'] == False)
     needUpdateLog4j = args['debug_log4j_site'] or args['debug_log4j_client']
-    needResetLog4j = True # not (args['no_update'] or needUpdateLog4j)
+    needResetLog4j = not (args['no_update'] or needUpdateLog4j)
     needSync = (args['no_sync'] == False)
     needCompile = (args['no_compile'] == False)
     needClearLogs = (args['clear_logs'] == True)
@@ -822,14 +827,15 @@ if __name__ == '__main__':
                 
                 ## Update Log4j
                 if needUpdateLog4j:
-                    LOG.info("Updating log4j.properties")
-                    enableDebug = [ ]
+                    log4jTargets = [ ]
                     if args['debug_log4j_site']:
-                        enableDebug += DEBUG_SITE_LOGGING
+                        log4jTargets += DEBUG_SITE_LOGGING
                     if args['debug_log4j_client']:
-                        enableDebug += DEBUG_CLIENT_LOGGING
-                    fabric.enable_debugging(debug=enableDebug)
+                        log4jTargets += DEBUG_CLIENT_LOGGING
+                    LOG.debug("Updating log4j.properties:\n  %s", "\n  ".join(log4jTargets))
+                    fabric.updateLog4j(trace=log4jTargets)
                     needUpdateLog4j = False
+                    needResetLog4j = False
                     
                 updateJar = (args['no_jar'] == False)
                 LOG.debug("Parameters:\n%s" % pformat(env))
