@@ -70,6 +70,10 @@ public class ClientResponseDebug implements FastSerializable {
                 out.writeShort(stmt.getSecond());
             } // FOR
         }
+        @Override
+        public String toString() {
+            return String.format("{Partition #%02d - %s}", this.partition, this.statements);
+        }
     } // CLASS
     
     private boolean predict_singlePartition;
