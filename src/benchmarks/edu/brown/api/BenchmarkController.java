@@ -122,6 +122,7 @@ import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.markov.containers.MarkovGraphsContainer;
 import edu.brown.markov.containers.MarkovGraphsContainerUtil;
 import edu.brown.profilers.ProfileMeasurement;
 import edu.brown.statistics.Histogram;
@@ -1032,7 +1033,7 @@ public class BenchmarkController {
                 if (debug.val)
                     LOG.debug(String.format("Copying %s file '%s' to '%s' on client %s [clientId=%d]",
                               param, local_file, remote_file, clientHost, clientId)); 
-                SSHTools.copyToRemote(local_file.getPath(), m_config.remoteUser, clientHost, remote_file.getPath(), m_config.sshOptions);
+                SSHTools.copyToRemote(local_file, m_config.remoteUser, clientHost, remote_file, m_config.sshOptions);
                 files.put(remote_file, local_file);
                 m_clientFilesUploaded.incrementAndGet();
             }
@@ -1523,6 +1524,13 @@ public class BenchmarkController {
         this.invokeSysProcs(client, sysprocs, params);
     }
     
+    /**
+     * Instruct the cluster to recompute the edge weight probabilities for its markov models.
+     * If retrieveFiles is set to true, then the BenchmarkController automatically will download
+     * the updated models and write them to a temp directory on the BenchmarkController's host. 
+     * @param client
+     * @param retrieveFiles
+     */
     private void recomputeMarkovs(Client client, boolean retrieveFiles) {
         LOG.info("Requesting HStoreSites to recalculate Markov models");
         ClientResponse cr = null;
@@ -1536,8 +1544,9 @@ public class BenchmarkController {
         assert(cr != null);
         if (retrieveFiles == false) return;
 
-        String output_directory = hstore_conf.global.temp_dir + "/markovs/" + m_projectBuilder.getProjectName();
-        FileUtil.makeDirIfNotExists(output_directory);
+        File outputDir = FileUtil.join(hstore_conf.global.temp_dir, "markovs",
+                                       m_projectBuilder.getProjectName());
+        FileUtil.makeDirIfNotExists(outputDir);
         
         // The return should be a list of SiteIds->RemotePath
         // We just need to then pull down the files and then combine them into
@@ -1555,16 +1564,22 @@ public class BenchmarkController {
             Pair<String, Integer> p = CollectionUtil.first(m_launchHosts.get(site_id));
             assert(p != null) : "Invalid SiteId " + site_id;
             
-            if (debug.val) LOG.debug(String.format("Retrieving MarkovGraph file '%s' from %s", remote_path, HStoreThreadManager.formatSiteName(site_id)));
-            SSHTools.copyFromRemote(output_directory, m_config.remoteUser, p.getFirst(), remote_path.getPath(), m_config.sshOptions);
-            File local_file = new File(output_directory + "/" + remote_path.getName());
+            if (debug.val)
+                LOG.debug(String.format("Retrieving %s file '%s' from %s",
+                          MarkovGraphsContainer.class.getSimpleName(),
+                          remote_path, HStoreThreadManager.formatSiteName(site_id)));
+            SSHTools.copyFromRemote(outputDir, m_config.remoteUser, p.getFirst(), remote_path, m_config.sshOptions);
+            File local_file = new File(outputDir + "/" + remote_path.getName());
             markovs.put(partition_id, local_file);
             files_to_remove.add(Pair.of((String)null, local_file));
             files_to_remove.add(Pair.of(p.getFirst(), remote_path));
         } // FOR
         
-        String new_output = output_directory + "/" + m_projectBuilder.getProjectName() + "-new.markovs";
-        if (debug.val) LOG.debug(String.format("Writing %d updated MarkovGraphsContainers to '%s'", markovs.size(),  new_output));
+        File new_output = FileUtil.join(outputDir.getPath(),
+                                        m_projectBuilder.getProjectName() + "-new.markovs");
+        if (debug.val)
+            LOG.debug(String.format("Writing %d updated MarkovGraphsContainers to '%s'",
+                      markovs.size(),  new_output));
         MarkovGraphsContainerUtil.combine(markovs, new_output, catalogContext.database);
         
         // Clean up the remote files
@@ -1572,7 +1587,7 @@ public class BenchmarkController {
             if (p.getFirst() == null) {
                 p.getSecond().delete();
             } else {
-                SSHTools.deleteFile(m_config.remoteUser, p.getFirst(), p.getSecond().getPath(), m_config.sshOptions);
+                SSHTools.deleteFile(m_config.remoteUser, p.getFirst(), p.getSecond(), m_config.sshOptions);
             }
         } // FOR
     }

@@ -171,6 +171,8 @@
 <arg value="site.queue_release_factor=${site.queue_release_factor}" />
 <arg value="site.mappings_path=${site.mappings_path}" />
 <arg value="site.markov_enable=${site.markov_enable}" />
+<arg value="site.markov_force_traversal=${site.markov_force_traversal}" />
+<arg value="site.markov_learning_enable=${site.markov_learning_enable}" />
 <arg value="site.markov_singlep_updates=${site.markov_singlep_updates}" />
 <arg value="site.markov_dtxn_updates=${site.markov_dtxn_updates}" />
 <arg value="site.markov_mispredict_recompute=${site.markov_mispredict_recompute}" />

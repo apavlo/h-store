@@ -115,6 +115,11 @@ public final class MarkovEstimatorState extends EstimatorState {
         return super.addEstimate(est);
     }
     
+    @Override
+    protected void shouldAllowUpdates(boolean enable) {
+        super.shouldAllowUpdates(enable);
+    }
+    
     // ----------------------------------------------------------------------------
     // MARKOV GRAPH METHODS
     // ----------------------------------------------------------------------------

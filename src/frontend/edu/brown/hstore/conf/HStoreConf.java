@@ -937,6 +937,26 @@ public final class HStoreConf {
         public boolean markov_enable;
         
         @ConfigProperty(
+            description="Force the MarkovPathEstimator to always choose a transition from an execution state " +
+            		    "in a Markov model even if there is not a state that matches the prediction.  " +
+                        "This ensures that the estimated path always reaches either the COMMIT or ABORT " +
+                        "terminal states and therefore a valid estimation can be created.",
+            defaultBoolean=true,
+            experimental=true
+        )
+        public boolean markov_force_traversal;
+        
+        @ConfigProperty(
+            description="Allow the MarkovPathEstimator to automatically learn new execution states " +
+                        "for transactions if it is unable to find the correct one for the current transaction. " +
+                        "The updated models can be retrieved using the @MarkovUpdate system procedure. " +
+                        "Note that ${site.markov_force_traversal} must be set to true.",
+            defaultBoolean=false,
+            experimental=true
+        )
+        public boolean markov_learning_enable;
+        
+        @ConfigProperty(
             description="If this parameter is set to true, then the PartitionExecutor will use its " +
                         "TransactionEstimator to calculate updated estimates after a single-partition " +
                         "transaction submits a new batch of queries for execution.",
@@ -1012,17 +1032,6 @@ public final class HStoreConf {
             experimental=true
         )
         public int markov_batch_caching_min;
-        
-//        @ConfigProperty(
-//            description="Enable a hack for TPC-C where we inspect the arguments of the TPC-C neworder transaction" +
-//                        "and figure out what partitions it needs without having to use the TransactionEstimator. " +
-//                        "This will crash the system when used with other benchmarks. ",
-//            defaultBoolean=false,
-//            replacedBy="site.markov_fixed",
-//            experimental=true
-//        )
-//        @Deprecated
-//        public boolean exec_neworder_cheat;
         
         @ConfigProperty(
             description="Use a fixed transaction estimator to predict the initial properties of an incoming " +

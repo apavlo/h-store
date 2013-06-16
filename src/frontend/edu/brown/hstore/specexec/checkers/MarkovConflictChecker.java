@@ -162,8 +162,8 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
         EstimatorState tsState = ts.getEstimatorState();
         if (tsState == null) {
             if (debug.val)
-                LOG.debug(String.format("No %s available for txn %s. This txn has to be ignored",
-                          EstimatorState.class.getSimpleName(), ts));
+                LOG.debug(String.format("No %s available for txn %s. This txn has to be ignored\n%s",
+                          EstimatorState.class.getSimpleName(), ts, ts.debug()));
             return (true);
         }
         

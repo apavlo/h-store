@@ -2495,7 +2495,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     private void responseQueue(LocalTransaction ts, ClientResponseImpl cresponse) {
         assert(hstore_conf.site.exec_postprocessing_threads);
         if (debug.val)
-            LOG.debug(String.format("Adding ClientResponse for %s from partition %d to processing queue [status=%s, size=%d]",
+            LOG.debug(String.format("Adding ClientResponse for %s from partition %d " +
+                      "to processing queue [status=%s, size=%d]",
                       ts, ts.getBasePartition(), cresponse.getStatus(), this.postProcessorQueue.size()));
         this.postProcessorQueue.add(new Object[]{
                                             cresponse,

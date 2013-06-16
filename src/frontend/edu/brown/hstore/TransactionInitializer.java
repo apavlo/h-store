@@ -395,6 +395,11 @@ public class TransactionInitializer {
         // Notify anybody that cares about this new txn
         if (this.newTxnObservable != null) this.newTxnObservable.notifyObservers(new_ts);
         
+//        if (debug.val)
+            LOG.info(String.format("Restarted %s as new %s transaction request " +
+                      "[handle=%d, partition=%d]",
+                      orig_ts, new_ts, orig_ts.getClientHandle(), base_partition));
+        
         return (new_ts);
     }
     
@@ -716,17 +721,26 @@ public class TransactionInitializer {
                                              predict_readOnly == false ||
                                              t_estimate.isAbortable(this.thresholds));
                         
-                        if (predict_partitions.size() == 1) {
-                            if (hstore_conf.site.markov_singlep_updates == false) t_state.disableUpdates();
-                        }
-                        else if (hstore_conf.site.markov_dtxn_updates == false) {
-                            t_state.disableUpdates();
+                        // Check whether the TransactionEstimator *really* thinks that we should 
+                        // give it updates about this txn. If the flag is false, then we'll
+                        // check whether the updates are enabled in the HStoreConf parameters
+                        if (t_state.shouldAllowUpdates() == false) {
+                            if (predict_partitions.size() == 1) {
+                                if (hstore_conf.site.markov_singlep_updates == false) t_state.disableUpdates();
+                            }
+                            else if (hstore_conf.site.markov_dtxn_updates == false) {
+                                t_state.disableUpdates();
+                            }
                         }
                         
                         if (debug.val && predict_partitions.isEmpty()) {
                             LOG.warn(String.format("%s - Unexpected empty predicted %s from %s\n%s",
                             		TransactionUtil.formatTxnName(catalog_proc, txn_id),
-                            		PartitionSet.class.getSimpleName(), t_estimator, t_estimate));
+                            		PartitionSet.class.getSimpleName(),
+                            		t_estimator.getClass().getSimpleName(), t_estimate));
+//                            System.err.println("WROTE MARKOVGRAPH: " + ((MarkovEstimatorState)t_state).dumpMarkovGraph());
+//                            System.err.flush();
+//                            HStore.crashDB();
                         }
                     }
                 }
