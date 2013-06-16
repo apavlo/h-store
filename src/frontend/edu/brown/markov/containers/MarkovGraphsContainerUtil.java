@@ -260,14 +260,14 @@ public abstract class MarkovGraphsContainerUtil {
      * @param markovs
      * @param output_path
      */
-    public static void combine(Map<Integer, File> markovs, String output_path, Database catalog_db) {
+    public static void combine(Map<Integer, File> markovs, File file, Database catalog_db) {
         // Sort the list of partitions so we always iterate over them in the same order
         SortedSet<Integer> sorted = new TreeSet<Integer>(markovs.keySet());
         
         // We want all the procedures
-        Set<Procedure> procedures = (Set<Procedure>)CollectionUtil.addAll(new HashSet<Procedure>(), catalog_db.getProcedures());
+        Collection<Procedure> procedures = CollectionUtil.addAll(new HashSet<Procedure>(),
+                                                                 catalog_db.getProcedures());
         
-        File file = new File(output_path);
         try {
             FileOutputStream out = new FileOutputStream(file);
             
@@ -275,7 +275,7 @@ public abstract class MarkovGraphsContainerUtil {
             JSONStringer stringer = (JSONStringer)(new JSONStringer().object());
             int offset = 1;
             for (Integer partition : sorted) {
-                stringer.key(Integer.toString(partition)).value(offset++);
+                stringer.key(partition.toString()).value(offset++);
             } // FOR
             out.write((stringer.endObject().toString() + "\n").getBytes());
             
@@ -298,10 +298,15 @@ public abstract class MarkovGraphsContainerUtil {
             } // FOR
             out.close();
         } catch (Exception ex) {
-            LOG.error("Failed to combine multiple MarkovGraphsContainers into file '" + output_path + "'", ex);
-            throw new RuntimeException(ex);
+            String msg = String.format("Failed to combine multiple %s into file '%s'",
+                                       MarkovGraphsContainer.class.getSimpleName(),
+                                       file.getAbsolutePath());
+            LOG.error(msg, ex);
+            throw new RuntimeException(msg, ex);
         }
-        LOG.info(String.format("Combined %d MarkovGraphsContainers into file '%s'", markovs.size(), output_path));
+        LOG.info(String.format("Combined %d %s into file '%s'",
+                 markovs.size(), MarkovGraphsContainer.class.getSimpleName(),
+                 file.getAbsolutePath()));
     }
 
     /**

@@ -504,6 +504,8 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
         assert(this.predict_tState == null) :
             String.format("Trying to set the %s for %s twice",
                           EstimatorState.class.getSimpleName(), this);
+        LOG.info(String.format("%s - Setting %s for txn",
+                 this, state.getClass().getSimpleName()));
         this.predict_tState = state;
     }
     /**

@@ -100,8 +100,8 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
     /**
      * Given an empty estimate object and the current Vertex, we fill in the
      * relevant information for the transaction coordinator to use.
-     * @param estimate the Estimate object which will be filled in
      * @param v the Vertex we are currently at in the MarkovGraph
+     * @param batch the current batch id
      */
     public MarkovEstimate init(MarkovVertex v, int batch) {
         assert(v != null);

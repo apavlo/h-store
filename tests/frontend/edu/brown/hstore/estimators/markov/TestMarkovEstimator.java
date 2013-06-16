@@ -69,6 +69,8 @@ public class TestMarkovEstimator extends BaseTestCase {
         HStoreConf hstore_conf = HStoreConf.singleton();
         hstore_conf.site.markov_path_caching = false;
         hstore_conf.site.markov_fast_path = false;
+        hstore_conf.site.markov_force_traversal = true;
+        hstore_conf.site.markov_learning_enable = false;
         
         this.catalog_proc = this.getProcedure(TARGET_PROCEDURE);
         

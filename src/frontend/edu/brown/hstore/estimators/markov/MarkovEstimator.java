@@ -188,8 +188,9 @@ public class MarkovEstimator extends TransactionEstimator {
             return (null);
         }
         
-        if (trace.val) LOG.trace(String.format("%s - Creating new MarkovEstimatorState",
-                         TransactionUtil.formatTxnName(catalog_proc, txn_id)));
+        if (trace.val)
+            LOG.trace(String.format("%s - Creating new MarkovEstimatorState",
+                      TransactionUtil.formatTxnName(catalog_proc, txn_id)));
         MarkovEstimatorState state = null;
         try {
             state = (MarkovEstimatorState)statesPool.borrowObject();
@@ -487,7 +488,8 @@ public class MarkovEstimator extends TransactionEstimator {
         MarkovGraph markov = state.getMarkovGraph();
         assert(markov != null) :
             String.format("Unexpected null MarkovGraph for %s [hashCode=%d]\n%s",
-                          TransactionUtil.formatTxnName(catalog_proc, state.getTransactionId()), state.hashCode(), state);
+                          TransactionUtil.formatTxnName(catalog_proc, state.getTransactionId()),
+                          state.hashCode(), state);
         boolean compute_path = true;
         if (hstore_conf.site.markov_fast_path && currentVertex.isStartVertex() == false) {
             List<MarkovVertex> initialPath = ((MarkovEstimate)state.getInitialEstimate()).getMarkovPath();
@@ -512,18 +514,21 @@ public class MarkovEstimator extends TransactionEstimator {
             if (cached == null) {
                 if (debug.val)
                     LOG.debug(String.format("%s - No cached path available for %s[#%d]",
-                              TransactionUtil.formatTxnName(catalog_proc, state.getTransactionId()), markov, markov.getGraphId()));
+                              TransactionUtil.formatTxnName(catalog_proc, state.getTransactionId()),
+                              markov, markov.getGraphId()));
             }
             else if (markov.getAccuracyRatio() < hstore_conf.site.markov_path_caching_threshold) {
                 if (debug.val)
                     LOG.debug(String.format("%s - MarkovGraph %s[#%d] accuracy is below caching threshold [%.02f < %.02f]",
                               TransactionUtil.formatTxnName(catalog_proc, state.getTransactionId()),
-                              markov, markov.getGraphId(), markov.getAccuracyRatio(), hstore_conf.site.markov_path_caching_threshold));
+                              markov, markov.getGraphId(), markov.getAccuracyRatio(),
+                              hstore_conf.site.markov_path_caching_threshold));
             }
             else {
                 if (debug.val)
                     LOG.debug(String.format("%s - Using cached path for %s[#%d]",
-                              TransactionUtil.formatTxnName(catalog_proc, state.getTransactionId()), markov, markov.getGraphId()));
+                              TransactionUtil.formatTxnName(catalog_proc, state.getTransactionId()),
+                              markov, markov.getGraphId()));
                 if (this.profiler != null) timestamp = ProfileMeasurement.getTime();
                 try {
                     MarkovPathEstimator.fastEstimation(est, cached, currentVertex);
@@ -537,14 +542,17 @@ public class MarkovEstimator extends TransactionEstimator {
         // Use the MarkovPathEstimator to estimate a new path for this txn
         if (compute_path) {
             if (debug.val)
-                LOG.debug(String.format("%s - Need to compute new path in %s[#%d] using MarkovPathEstimator",
-                          TransactionUtil.formatTxnName(catalog_proc, state.getTransactionId()), markov, markov.getGraphId()));
+                LOG.debug(String.format("%s - Need to compute new path in %s[#%d] using %s",
+                          TransactionUtil.formatTxnName(catalog_proc, state.getTransactionId()),
+                          markov, markov.getGraphId(),
+                          MarkovPathEstimator.class.getSimpleName()));
             MarkovPathEstimator pathEstimator = null;
             try {
                 pathEstimator = (MarkovPathEstimator)this.pathEstimatorsPool.borrowObject();
-                pathEstimator.init(state.getMarkovGraph(), est, state.getBasePartition(), args);
-                pathEstimator.setForceTraversal(true);
-                // pathEstimator.setCreateMissing(true);
+                pathEstimator.init(state.getMarkovGraph(), est, args, state.getBasePartition());
+                
+                pathEstimator.setForceTraversal(hstore_conf.site.markov_force_traversal);
+                pathEstimator.setLearningEnabled(hstore_conf.site.markov_learning_enable);
             } catch (Throwable ex) {
                 String txnName = TransactionUtil.formatTxnName(catalog_proc, state.getTransactionId());
                 String msg = "Failed to intitialize new MarkovPathEstimator for " + txnName; 
@@ -567,6 +575,21 @@ public class MarkovEstimator extends TransactionEstimator {
                 throw new RuntimeException(msg, ex);
             } finally {
                 if (this.profiler != null) this.profiler.fullest_time.appendTime(timestamp);
+            }
+            
+            // If our path was incomplete or we created new vertices during the traversal,
+            // then we should tell the PartitionExecutor that we need updates about this
+            // txn so that we can populate the MarkovGraph
+            if (hstore_conf.site.markov_learning_enable && est.isInitialEstimate()) {
+                Collection<MarkovVertex> createdVertices = pathEstimator.getCreatedVertices(); 
+                if ((createdVertices != null && createdVertices.isEmpty() == false) ||
+                     (est.getVertex().isQueryVertex() == true)) {
+                    if (debug.val)
+                        LOG.debug(String.format("Enabling runtime updates for %s " +
+                        		  "[createdVertices=%s, lastVertex=%s]",
+                        		  state.getTransactionId(), createdVertices, est.getVertex()));
+                    state.shouldAllowUpdates(true);
+                }
             }
             
             this.pathEstimatorsPool.returnObject(pathEstimator);

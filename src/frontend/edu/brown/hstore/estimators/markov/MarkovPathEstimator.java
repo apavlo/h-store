@@ -12,6 +12,7 @@ import java.util.TreeSet;
 
 import org.apache.log4j.Logger;
 import org.voltdb.CatalogContext;
+import org.voltdb.ParameterSet;
 import org.voltdb.catalog.ProcParameter;
 import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.StmtParameter;
@@ -74,7 +75,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
     
     private MarkovEstimate estimate;
     private int base_partition;
-    private Object args[];
+    private Object procParams[];
 
     private final int num_partitions;
     private final ParameterMappingsSet allMappings;
@@ -93,20 +94,20 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
      * This only gets populated when force_traversal is set to true.
      * This is primarily used for debugging.
      */
-    private final Set<MarkovVertex> forced_vertices = new HashSet<MarkovVertex>();
+    private Set<MarkovVertex> forced_vertices;
     
     /**
      * If this flag is set to true, then the estimator will be allowed to create vertices
      * that it knows that it needs to transition to but do not exist.
      */
-    private boolean create_missing = false;
+    private boolean learning_enabled = false;
     
     /**
      * These are the vertices that we weren't sure about.
      * This only gets populated when force_traversal is set to true.
      * This is primarily used for debugging.
      */
-    private final Set<MarkovVertex> created_vertices = new HashSet<MarkovVertex>();
+    private Set<MarkovVertex> created_vertices;
 
     // ----------------------------------------------------------------------------
     // TEMPORARY TRAVERSAL MEMBERS
@@ -133,27 +134,34 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
         this.allMappings = catalogContext.paramMappings;
         assert(this.allMappings != null);
     }
-    
+
     /**
-     * 
-     * @param markov
-     * @param t_estimator
-     * @param base_partition
-     * @param args
+     * Initialize this MarkovPathEstimator for a new traversal run.
+     * @param markov The MarkovGraph to use for this txn.
+     * @param estimate The MarkovEstimate to populate while we traverse the model.
+     * @param procParams The txn's Procedure input parameters
+     * @param base_partition The txn's bases partition.
      * @return
      */
-    public MarkovPathEstimator init(MarkovGraph markov, MarkovEstimate estimate, int base_partition, Object args[]) {
+    public MarkovPathEstimator init(MarkovGraph markov, MarkovEstimate estimate, Object procParams[], int base_partition) {
         this.init(markov, TraverseOrder.DEPTH, Direction.FORWARD);
         this.estimate = estimate;
         this.base_partition = base_partition;
-        this.args = args;
+        this.procParams = procParams;
         assert(this.base_partition >= 0);
 
-        if (LOG.isTraceEnabled()) {
-            LOG.trace("Procedure:       " + markov.getProcedure().getName());
-            LOG.trace("Base Partition:  " + this.base_partition);
-            LOG.trace("# of Partitions: " + this.num_partitions);
-//            LOG.trace("Arguments:       " + Arrays.toString(args));
+        if (trace.val) {
+            Map<String, Object> m = new LinkedHashMap<String, Object>();
+            m.put("Procedure", markov.getProcedure().getName());
+            m.put("Base Partition", this.base_partition);
+            m.put("# of Partitions", this.num_partitions);
+            m.put("Parameters", StringUtil.toString(this.procParams, true, true));
+            m.put("Force Traversal", this.force_traversal);
+            m.put("Auto Learning", this.learning_enabled);
+            
+            LOG.trace(String.format("Initialized %s [hashCode=%d]\n%s",
+                      this.getClass().getSimpleName(), this.hashCode(),
+                      StringUtil.formatMaps(m)));
         }
         return (this);
     }
@@ -170,10 +178,10 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
                       this.hashCode()));
         super.finish();
         this.estimate = null;
-        this.forced_vertices.clear();
-        this.created_vertices.clear();
         this.past_partitions.clear();
         this.stmt_partitions.clear();
+        if (this.forced_vertices != null) this.forced_vertices.clear();
+        if (this.created_vertices != null) this.created_vertices.clear();
     }
     
     /**
@@ -185,6 +193,10 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
     public void setForceTraversal(boolean flag) {
         this.force_traversal = flag;
     }
+    /**
+     * Can be null.
+     * @return
+     */
     protected Collection<MarkovVertex> getForcedVertices() {
         return this.forced_vertices;
     }
@@ -196,9 +208,13 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
      * it is up to whomever is using use to make sure that what we're doing is thread safe.
      * @param flag
      */
-    public void setCreateMissing(boolean flag) {
-        this.create_missing = flag;
+    public void setLearningEnabled(boolean flag) {
+        this.learning_enabled = flag;
     }
+    /**
+     * Can be null
+     * @return
+     */
     protected Collection<MarkovVertex> getCreatedVertices() {
         return this.created_vertices;
     }
@@ -323,7 +339,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
                     if (trace.val) LOG.trace("Mapping: " + m);
                     ProcParameter catalog_proc_param = m.getProcParameter();
                     if (catalog_proc_param.getIsarray()) {
-                        Object proc_inner_args[] = (Object[])args[m.getProcParameter().getIndex()];
+                        Object proc_inner_args[] = (Object[])procParams[m.getProcParameter().getIndex()];
                         if (trace.val)
                             LOG.trace(CatalogUtil.getDisplayName(m.getProcParameter(), true) + " is an array: " + 
                                       Arrays.toString(proc_inner_args));
@@ -343,7 +359,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
                             LOG.trace("Mapped " + CatalogUtil.getDisplayName(m.getProcParameter()) + "[" + m.getProcParameterIndex() + "] to " +
                                       CatalogUtil.getDisplayName(catalog_stmt_param) + " [value=" + stmt_args[i] + "]");
                     } else {
-                        stmt_args[i] = args[m.getProcParameter().getIndex()];
+                        stmt_args[i] = procParams[m.getProcParameter().getIndex()];
                         stmt_args_set = true;
                         if (trace.val)
                             LOG.trace("Mapped " + CatalogUtil.getDisplayName(m.getProcParameter()) + " to " +
@@ -413,7 +429,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
         } // FOR
         
         // If we don't have any candidate edges and the FORCE TRAVERSAL flag is set, then we'll just
-        // grab all of the edges from our currect vertex
+        // grab all of the edges from our current vertex
         int num_candidates = this.candidate_edges.size();
         boolean was_forced = false;
         if (num_candidates == 0 && this.force_traversal) {
@@ -423,7 +439,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
             		      this.next_statements));
             
             // We're allow to create the vertices that we know are missing
-            if (this.create_missing && this.next_statements.size() == 1) {
+            if (this.learning_enabled && this.next_statements.size() == 1) {
                 CountedStatement cntStmt = CollectionUtil.first(this.next_statements);
                 MarkovVertex v = new MarkovVertex(cntStmt.statement,
                                                   MarkovVertex.Type.QUERY,
@@ -438,20 +454,23 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
                 candidate_edge = new MarkovEdge(markov, 1, 1.0f);
                 markov.addEdge(candidate_edge, element, v, EdgeType.DIRECTED);
                 this.candidate_edges.add(candidate_edge);
+                
+                if (this.created_vertices == null) this.created_vertices = new HashSet<MarkovVertex>();
                 this.created_vertices.add(v);
                 if (trace.val)
                     LOG.trace(String.format("Created new vertex %s and connected it to %s", v, element));
                 
                 // 2012-10-21
-                // The problem with allow the estimator to create a new vertex is that 
+                // The problem with allowing the estimator to create a new vertex is that 
                 // we don't know what it's children are going to be. That means that when
                 // we invoke this method again at the next vertex (the one we just made above)
                 // then it's not going to have any children, so we don't know what it's
                 // going to do. We are actually better off with just grabbing the next best
                 // vertex from the existing edges and then updating the graph after 
                 // the txn has finished, since now we know exactly what it did.
+                
             }
-            // Otherwise we'll just make all of the out bound edges from the
+            // Otherwise we'll just make all of the outbound edges from the
             // current vertex be our candidates
             else {
                 if (trace.val)
@@ -471,7 +490,10 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
             assert(next_edge != null) : "Unexpected null edge " + this.candidate_edges;
             MarkovVertex next_vertex = markov.getOpposite(element, next_edge);
             children.addAfter(next_vertex);
-            if (was_forced) this.forced_vertices.add(next_vertex);
+            if (was_forced) {
+                if (this.forced_vertices == null) this.forced_vertices = new HashSet<MarkovVertex>();
+                this.forced_vertices.add(next_vertex);
+            }
 
             if (debug.val) {
                 StringBuilder sb = new StringBuilder();
@@ -544,10 +566,10 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
     protected static void populateProbabilities(MarkovEstimate estimate, MarkovVertex vertex) {
         if (debug.val)
             LOG.debug(String.format("Populating %s probabilities based on %s " +
-                      "[touchedPartitions=%s, confidence=%.03f, hashCode=%d]\n%s",
+                      "[touchedPartitions=%s, confidence=%.03f, hashCode=%d]%s",
                       estimate.getClass().getSimpleName(), vertex.getClass().getSimpleName(),
                       estimate.touched_partitions, estimate.confidence, estimate.hashCode(),
-                      vertex.debug()));
+                      (trace.val ? "\n"+vertex.debug() : "")));
         
         Statement catalog_stmt = vertex.getCatalogItem();
         PartitionSet partitions = vertex.getPartitions();
@@ -717,7 +739,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
         
         MarkovEstimate est = new MarkovEstimate(t_estimator.getCatalogContext());
         MarkovPathEstimator estimator = new MarkovPathEstimator(catalogContext, p_estimator);
-        estimator.init(markov, est, base_partition, args);
+        estimator.init(markov, est, args, base_partition);
         estimator.traverse(markov.getStartVertex());
         return (est);
     }
