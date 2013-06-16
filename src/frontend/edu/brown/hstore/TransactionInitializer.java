@@ -101,8 +101,7 @@ public class TransactionInitializer {
     private final Map<Long, AbstractTransaction> inflight_txns;
     
     /**
-     * This is fired whenever we create a new txn handle is grabbed from the
-     * the object pools.
+     * This is fired whenever we create a new txn handle is initialized.
      * It is only used for debugging+testing 
      */
     private EventObservable<LocalTransaction> newTxnObservable; 
@@ -148,7 +147,7 @@ public class TransactionInitializer {
         } // FOR
     }
     
-    protected synchronized EventObservable<LocalTransaction> getNewTxnObservable() {
+    public synchronized EventObservable<LocalTransaction> getNewTxnObservable() {
         if (this.newTxnObservable == null) {
             this.newTxnObservable = new EventObservable<LocalTransaction>();
         }
