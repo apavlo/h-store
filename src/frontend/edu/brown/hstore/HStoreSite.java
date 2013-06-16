@@ -1942,11 +1942,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                                                                    null);
                 remote_ts.setEstimatorState(t_state);
             }
-            LOG.info(String.format("%s - Updating %s with future statements hints for partition %d " +
-                     "[numStatements=%s]",
-                     ts, t_state.getClass().getSimpleName(),
-                     fragment.getPartitionId(),
-                     fragment.getFutureStatements().getStmtIdsCount()));
+            if (debug.val)
+                LOG.debug(String.format("%s - Updating %s with %d future statement hints for partition %d",
+                          ts, t_state.getClass().getSimpleName(),
+                          fragment.getFutureStatements().getStmtIdsCount(),
+                          fragment.getPartitionId()));
             
             this.remoteTxnEstimator.processQueryEstimate(t_state, query_estimate, fragment.getPartitionId());
         }
