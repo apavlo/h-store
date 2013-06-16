@@ -13,6 +13,8 @@ import org.voltdb.BackendTarget;
 import org.voltdb.CatalogContext;
 import org.voltdb.ClientResponseDebug;
 import org.voltdb.VoltSystemProcedure;
+import org.voltdb.VoltTable;
+import org.voltdb.benchmark.tpcc.TPCCConstants;
 import org.voltdb.benchmark.tpcc.TPCCProjectBuilder;
 import org.voltdb.benchmark.tpcc.procedures.neworder;
 import org.voltdb.catalog.Procedure;
@@ -22,6 +24,7 @@ import org.voltdb.client.ClientResponse;
 import org.voltdb.client.NullCallback;
 import org.voltdb.client.ProcedureCallback;
 import org.voltdb.regressionsuites.specexecprocs.Sleeper;
+import org.voltdb.sysprocs.AdHoc;
 import org.voltdb.sysprocs.MarkovUpdate;
 
 import edu.brown.HStoreSiteTestUtil.LatchableProcedureCallback;
@@ -34,11 +37,10 @@ import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PartitionSet;
 import edu.brown.utils.ProjectType;
-import edu.brown.utils.StringUtil;
 import edu.brown.utils.ThreadUtil;
 
 /**
- * 
+ * Markov-based Speculative Execution Regression Tests
  * @author pavlo
  */
 public class TestMarkovSpecExecSuite extends RegressionSuite {
@@ -56,6 +58,41 @@ public class TestMarkovSpecExecSuite extends RegressionSuite {
     public TestMarkovSpecExecSuite(String name) {
         super(name);
     }
+
+    /**
+     * testValidateDatabase
+     */
+    public void testValidateDatabase() throws Exception {
+        CatalogContext catalogContext = this.getCatalogContext();
+        Client client = this.getClient();
+        RegressionSuiteUtil.initializeTPCCDatabase(catalogContext, client, true);
+        
+        String procName = VoltSystemProcedure.procCallName(AdHoc.class);
+        String sql = "SELECT MIN(I_ID), MAX(I_ID) FROM " + TPCCConstants.TABLENAME_ITEM;
+        ClientResponse cr = client.callProcedure(procName, sql);
+        assertEquals(Status.OK, cr.getStatus());
+        VoltTable results[] = cr.getResults();
+        assertEquals(1, results.length);
+        assertEquals(1, results[0].getRowCount());
+        assertTrue(results[0].advanceRow());
+        int minId = (int)results[0].getLong(0);
+        int maxId = (int)results[0].getLong(1);
+        assert(minId < maxId);
+        
+//        System.err.printf("MinItemId=%d / MaxItemId=%d\n", minId, maxId);
+        procName = "GetStockWarehouseIds";
+        for (int itemId = minId; itemId <= maxId; itemId++) {
+            cr = client.callProcedure(procName, itemId);
+            assertEquals(cr.toString(), Status.OK, cr.getStatus());
+            results = cr.getResults();
+            assertEquals(sql+"\n"+cr, 1, results.length);
+            assertEquals(sql+"\n"+cr, 1, results[0].getRowCount());
+            assertEquals(sql+"\n"+cr, catalogContext.numberOfPartitions, results[0].asScalarLong());
+//            if (itemId > 0 && itemId % 100 == 0)
+//                System.err.printf("ITEM %d\n", itemId);
+        } // FOR
+        
+    }
     
     /**
      * testEarlyPrepare
@@ -63,7 +100,7 @@ public class TestMarkovSpecExecSuite extends RegressionSuite {
     public void testEarlyPrepare() throws Exception {
         CatalogContext catalogContext = this.getCatalogContext();
         Client client = this.getClient();
-        RegressionSuiteUtil.initializeTPCCDatabase(catalogContext, client);
+        RegressionSuiteUtil.initializeTPCCDatabase(catalogContext, client, true);
         
         String procName = neworder.class.getSimpleName();
         Object params[] = RegressionSuiteUtil.generateNewOrder(catalogContext.numberOfPartitions, true, WAREHOUSE_ID, DISTRICT_ID);
@@ -80,7 +117,7 @@ public class TestMarkovSpecExecSuite extends RegressionSuite {
         int remotePartition = touched.get();
         assertNotSame(HStoreConstants.NULL_PARTITION_ID, remotePartition);
         
-        System.err.println(cr);
+        // System.err.println(cr);
         assertFalse(cr.toString(), early.contains(basePartition));
         assertTrue(cr.toString(), early.contains(remotePartition));
     }
@@ -91,7 +128,7 @@ public class TestMarkovSpecExecSuite extends RegressionSuite {
     public void testRemoteQueryEstimates() throws Exception {
         CatalogContext catalogContext = this.getCatalogContext();
         Client client = this.getClient();
-        RegressionSuiteUtil.initializeTPCCDatabase(catalogContext, client);
+        RegressionSuiteUtil.initializeTPCCDatabase(catalogContext, client, true);
 
         // We have to turn off caching to ensure that we get a full path estimate each time
         RegressionSuiteUtil.setHStoreConf(client, "site.markov_path_caching", false);
@@ -135,15 +172,16 @@ public class TestMarkovSpecExecSuite extends RegressionSuite {
             List<CountedStatement> query_estimates[] = crDebug.getRemoteQueryEstimates(catalogContext, partition);
             assertNotNull(query_estimates);
 
-            System.err.println("PARTITION: " + partition);
-            for (List<CountedStatement> queries : query_estimates) {
-                System.err.println(StringUtil.join("\n", queries));
-                System.err.println("------");
-            } // FOR
-            System.err.println();
+//            System.err.println("PARTITION: " + partition);
+//            for (List<CountedStatement> queries : query_estimates) {
+//                System.err.println(StringUtil.join("\n", queries));
+//                System.err.println("------");
+//            } // FOR
+//            System.err.println();
 
             if (partition == cr.getBasePartition()) {
                 // We can ignore anything on the base partition
+                // XXX: Should we be getting remote query estimates at the base partition???
             } else {
                 // We should only see updateStock and getStockInfo on the remote partition
                 // We'll only examine the last query estimate
@@ -164,7 +202,7 @@ public class TestMarkovSpecExecSuite extends RegressionSuite {
     public void testRemoteIdle() throws Exception {
         CatalogContext catalogContext = this.getCatalogContext();
         Client client = this.getClient();
-        RegressionSuiteUtil.initializeTPCCDatabase(catalogContext, client);
+        RegressionSuiteUtil.initializeTPCCDatabase(catalogContext, client, true);
         
         ClientResponse cresponse = null;
         String procName = null;
@@ -245,7 +283,7 @@ public class TestMarkovSpecExecSuite extends RegressionSuite {
                 }
             }
         } // FOR
-        System.err.println(specExecHistogram);
+        // XXX System.err.println(specExecHistogram);
     }
 
     public static Test suite() throws Exception {
@@ -274,6 +312,10 @@ public class TestMarkovSpecExecSuite extends RegressionSuite {
         project.addDefaultPartitioning();
         project.addParameterMappings(mappings);
         project.addProcedure(Sleeper.class);
+        project.addStmtProcedure("GetStockWarehouseIds",
+                                 "SELECT COUNT(DISTINCT S_W_ID) " +
+                                 "  FROM " + TPCCConstants.TABLENAME_STOCK +
+                                 " WHERE S_I_ID = ?");
         
         boolean success;
         VoltServerConfig config = null;
