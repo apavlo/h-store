@@ -113,11 +113,15 @@ public abstract class RegressionSuiteUtil {
     }
 
     public static final void initializeTPCCDatabase(final CatalogContext catalogContext, final Client client) throws Exception {
+        initializeTPCCDatabase(catalogContext, client, false);
+    }
+    
+    public static final void initializeTPCCDatabase(final CatalogContext catalogContext, final Client client, boolean scaleItems) throws Exception {
         String args[] = {
             "NOCONNECTIONS=true",
             "BENCHMARK.WAREHOUSE_PER_PARTITION=true",
             "BENCHMARK.NUM_LOADTHREADS=1",
-            // "BENCHMARK.SCALE_ITEMS=true",
+            "BENCHMARK.SCALE_ITEMS="+scaleItems,
         };
         TPCCLoader loader = new TPCCLoader(args) {
             {

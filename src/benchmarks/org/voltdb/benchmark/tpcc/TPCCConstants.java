@@ -54,7 +54,6 @@ import org.voltdb.benchmark.tpcc.procedures.*;
 
 /** Holds TPC-C constants.  */
 public final class TPCCConstants {
-    public static int STARTING_WAREHOUSE = 1;
 
     private TPCCConstants() { assert false; }
     
@@ -104,7 +103,8 @@ public final class TPCCConstants {
 	// Percentage of neworder txns that will abort
 	public static final int NEWORDER_ABORT = 1; // 1%
 
-    // Item constants
+    // ITEM constants
+	public static final int STARTING_ITEM = 0;
     public static final int NUM_ITEMS = 100000;
     public static final int MIN_IM = 1;
     public static final int MAX_IM = 10000;
@@ -115,7 +115,8 @@ public final class TPCCConstants {
     public static final int MIN_I_DATA = 26;
     public static final int MAX_I_DATA = 50;
 
-    // Warehouse constants
+    // WAREHOUSE constants
+    public static final int STARTING_WAREHOUSE = 1;
     public static final double MIN_TAX = 0;
     public static final double MAX_TAX = 0.2000;
     public static final int TAX_DECIMALS = 4;
@@ -130,18 +131,18 @@ public final class TPCCConstants {
     public static final int ZIP_LENGTH = 9;
     public static final String ZIP_SUFFIX = "11111";
 
-    // Stock constants
+    // STOCK constants
     public static final int MIN_QUANTITY = 10;
     public static final int MAX_QUANTITY = 100;
     public static final int DIST = 24;
     public static final int STOCK_PER_WAREHOUSE = 100000;
 
-    // District constants
+    // DISTRICT constants
     public static final int DISTRICTS_PER_WAREHOUSE = 10;
     public static final double INITIAL_D_YTD = 30000.00;  // different from Warehouse
     public static final int INITIAL_NEXT_O_ID = 3001;
 
-    // Customer constants
+    // CUSTOMER constants
     public static final int CUSTOMERS_PER_DISTRICT = 3000;
     public static final double INITIAL_CREDIT_LIM = 50000.00;
     public static final double MIN_DISCOUNT = 0.0000;
@@ -161,7 +162,7 @@ public final class TPCCConstants {
     public static final String BAD_CREDIT = "BC";
     public static final byte[] BAD_CREDIT_BYTES = BAD_CREDIT.getBytes();
 
-    // Order constants
+    // ORDERS constants
     public static final int MIN_CARRIER_ID = 1;
     public static final int MAX_CARRIER_ID = 10;
     // HACK: This is not strictly correct, but it works
@@ -175,16 +176,16 @@ public final class TPCCConstants {
     // Used to generate new order transactions
     public static final int MAX_OL_QUANTITY = 10;
 
-    // Order line constants
+    // ORDER LINE constants
     public static final int INITIAL_QUANTITY = 5;
     public static final double MIN_AMOUNT = 0.01;
 
-    // History constants
+    // HISTORY constants
     public static final int MIN_DATA = 12;
     public static final int MAX_DATA = 24;
     public static final double INITIAL_AMOUNT = 10.00f;
 
-    // New order constants
+    // NEW ORDER constants
     public static final int INITIAL_NEW_ORDERS_PER_DISTRICT = 900;
 
     // TPC-C 2.4.3.4 (page 31) says this must be displayed when new order rolls back.
