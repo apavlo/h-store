@@ -1944,7 +1944,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             }
             LOG.info(String.format("%s - Updating %s with future statements hints for partition %d " +
                      "[numStatements=%s]",
-                     ts, fragment.getPartitionId(), fragment.getFutureStatements().getStmtIdsCount()));
+                     ts, t_state.getClass().getSimpleName(),
+                     fragment.getPartitionId(),
+                     fragment.getFutureStatements().getStmtIdsCount()));
             
             this.remoteTxnEstimator.processQueryEstimate(t_state, query_estimate, fragment.getPartitionId());
         }
