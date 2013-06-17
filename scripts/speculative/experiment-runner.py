@@ -103,19 +103,22 @@ DEBUG_OPTIONS = {
 DEBUG_SITE_LOGGING = [
     #"edu.brown.hstore.HStoreSite",
     #"edu.brown.hstore.PartitionExecutor",
-    #"edu.brown.hstore.TransactionQueueManager",
+    #"edu.brown.hstore.TransactionInitializer",
     #"edu.brown.hstore.specexec.PrefetchQueryPlanner",
     #"edu.brown.hstore.specexec.PrefetchQueryUtil",
     "edu.brown.hstore.SpecExecScheduler",
     "edu.brown.hstore.specexec.checkers.MarkovConflictChecker",
     #"edu.brown.hstore.txns.DependencyTracker",
-
+    
     ## CALLBACKS
     #"edu.brown.hstore.callbacks.TransactionPrepareCallback",
     #"edu.brown.hstore.callbacks.TransactionPrepareWrapperCallback",
     #"edu.brown.hstore.callbacks.TransactionInitCallback",
     #"edu.brown.hstore.callbacks.TransactionInitQueueCallback",
     #"edu.brown.hstore.callbacks.BlockingRpcCallback",
+]
+TRACE_SITE_LOGGING = [
+    "edu.brown.hstore.estimators.markov.MarkovPathEstimator",
 ]
 DEBUG_CLIENT_LOGGING = [
     #"edu.brown.api.BenchmarkComponent",
@@ -381,8 +384,14 @@ def updateExperimentEnv(fabric, args, benchmark, partitions):
         fabric.env["site.specexec_ignore_stallpoints"] = "IDLE,SP2_REMOTE_BEFORE,SP3_LOCAL,SP3_REMOTE"
         fabric.env["site.specexec_scheduler_policy"] = "LAST"
         fabric.env["site.specexec_scheduler_window"] = 999999
-        fabric.env["site.specexec_disable_partitions"] = "1-15"
         fabric.env["client.output_specexec_profiling"] = "specexec.csv"
+        
+        # TESTING
+        fabric.env["site.specexec_disable_partitions"] = "1-15"
+        fabric.env["site.specexec_ignore_interruptions"] = True
+        fabric.env["client.scalefactor"] = 0.1
+        fabric.env["client.threads_per_host"] = 80
+        fabric.env["client.blocking_concurrent"] = 2
         
         ## ----------------------------------------------
         ## ROW-LEVEL DETECTION
@@ -827,13 +836,15 @@ if __name__ == '__main__':
                 
                 ## Update Log4j
                 if needUpdateLog4j:
-                    log4jTargets = [ ]
+                    log4jDebug = [ ]
+                    log4jTrace = [ ]
                     if args['debug_log4j_site']:
-                        log4jTargets += DEBUG_SITE_LOGGING
+                        log4jDebug += DEBUG_SITE_LOGGING
+                        log4jTrace += TRACE_SITE_LOGGING
                     if args['debug_log4j_client']:
-                        log4jTargets += DEBUG_CLIENT_LOGGING
-                    LOG.debug("Updating log4j.properties:\n  %s", "\n  ".join(log4jTargets))
-                    fabric.updateLog4j(trace=log4jTargets)
+                        log4jDebug += DEBUG_CLIENT_LOGGING
+                    LOG.debug("Updating log4j.properties:\n  %s", "\n  ".join(log4jDebug))
+                    fabric.updateLog4j(reset=True, debug=log4jDebug, trace=log4jTrace)
                     needUpdateLog4j = False
                     needResetLog4j = False
                     
