@@ -66,8 +66,12 @@ public abstract class BenchmarkControllerUtil {
         double stdDevLatency = Double.NaN;
         
         if (latencies.getSampleCount() > 0) {
-            minLatency = latencies.getMinValue().doubleValue();
-            maxLatency = latencies.getMaxValue().doubleValue();
+            Integer val = latencies.getMinValue();
+            if (val != null) minLatency = val.doubleValue();
+            
+            val = latencies.getMaxValue();
+            if (val != null) maxLatency = val.doubleValue();
+            
             avgLatency = HistogramUtil.sum(latencies) / (double)latencies.getSampleCount();
             stdDevLatency = HistogramUtil.stdev(latencies);
         }
