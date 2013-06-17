@@ -527,13 +527,7 @@ public class BenchmarkController {
 
         // Start the clients
         if (m_config.noExecute == false) {
-            ProfileMeasurement stopwatch = new ProfileMeasurement("clients").start();
             this.startClients();
-            LOG.info(String.format("Initialized %d %s client threads in %.2f sec",
-                    m_clientThreads.size(), 
-                    m_projectBuilder.getProjectName().toUpperCase(),
-                    stopwatch.getTotalThinkTimeSeconds()));
-            
         }
         
         // registerInterest(uploader);
@@ -968,7 +962,6 @@ public class BenchmarkController {
             this.evictorThread = new PeriodicEvictionThread(catalogContext, getClientConnection(),
                                                             hstore_conf.client.anticache_evict_size, m_interested);
         }
-        
     }
     
     private void addHostConnections(Collection<String> params) {
@@ -989,7 +982,9 @@ public class BenchmarkController {
         assert(site_id != null);
         Pair<String, Integer> p = CollectionUtil.random(m_launchHosts.get(site_id));
         assert(p != null);
-        if (debug.val) LOG.debug(String.format("Creating new client connection to HStoreSite %s", HStoreThreadManager.formatSiteName(site_id)));
+        if (debug.val)
+            LOG.debug(String.format("Creating new client connection to HStoreSite %s",
+                      HStoreThreadManager.formatSiteName(site_id)));
         
         Client new_client = ClientFactory.createClient(128, null, false, null);
         try {
@@ -1070,6 +1065,8 @@ public class BenchmarkController {
             debugOpts += ", concurrent=" + hstore_conf.client.blocking_concurrent; 
         }
         debugOpts += "]";
+        
+        ProfileMeasurement stopwatch = new ProfileMeasurement("clients").start();
         LOG.info(String.format("Starting %s execution with %d %sclient%s %s",
                  m_projectBuilder.getProjectName().toUpperCase(),
                  m_clientThreads.size(), 
@@ -1120,6 +1117,11 @@ public class BenchmarkController {
                 return;
             }
         } // WHILE
+        LOG.info(String.format("Initialized %d %s client threads in %.2f sec",
+                m_clientThreads.size(), 
+                m_projectBuilder.getProjectName().toUpperCase(),
+                stopwatch.getTotalThinkTimeSeconds()));
+        
         if (this.stop) {
             if (debug.val) LOG.debug("Stop flag is set to true");
             return;

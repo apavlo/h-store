@@ -269,6 +269,11 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
             stmt0 = queries0.get(i0);
             cache0 = this.stmtCache.get(stmt0.statement);
             mappings0 = this.catalogContext.paramMappings.get(stmt0.statement, stmt0.counter);
+            if (mappings0 == null) {
+                LOG.warn(String.format("The ParameterMappings for %s in dtxn %s is null?",
+                         stmt0, ts0));
+                return (false);
+            }
             
             for (int i1 = 0, cnt1 = queries1.size(); i1 < cnt1; i1++) {
                 stmt1 = queries1.get(i1);
@@ -291,6 +296,11 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
                 // of the primary keys referenced in the queries to see whether they conflict
                 cache1 = this.stmtCache.get(stmt1.statement);
                 mappings1 = this.catalogContext.paramMappings.get(stmt1.statement, stmt1.counter);
+                if (mappings1 == null) {
+                    LOG.warn(String.format("The ParameterMappings for %s in candidate %s is null?",
+                             stmt1, ts1));
+                    return (false);
+                }
                 
                 boolean allEqual = true;
                 for (Column col : cache0.colParams.keySet()) {
