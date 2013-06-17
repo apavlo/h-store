@@ -12,7 +12,6 @@ import java.util.TreeSet;
 
 import org.apache.log4j.Logger;
 import org.voltdb.CatalogContext;
-import org.voltdb.ParameterSet;
 import org.voltdb.catalog.ProcParameter;
 import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.StmtParameter;
@@ -245,7 +244,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
         // and get unique Statements that we could be executing next
         Collection<MarkovVertex> next_vertices = markov.getSuccessors(element);
         if (next_vertices == null || next_vertices.isEmpty()) {
-            if (trace.val) LOG.trace("No succesors were found for " + element + ". Halting traversal");
+            if (debug.val) LOG.debug("No succesors were found for " + element + ". Halting traversal");
             return;
         }
         if (trace.val) LOG.trace("Successors: " + next_vertices);
@@ -286,7 +285,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
         for (CountedStatement cstmt : this.next_statements) {
             Statement catalog_stmt = cstmt.statement;
             Integer catalog_stmt_index = cstmt.counter;
-            if (trace.val) LOG.trace("Examining " + cstmt);
+            if (debug.val) LOG.debug("Examining " + cstmt);
             
             // Get the mapping objects (if any) for next
             // This is the only way we can predict what partitions we will touch
@@ -294,7 +293,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
             if (stmtMappings == null) {
                 if (debug.val) {
                     LOG.warn("No parameter mappings for " + catalog_stmt);
-                    LOG.trace(this.allMappings.debug(catalog_stmt));
+                    if (trace.val) LOG.trace(this.allMappings.debug(catalog_stmt));
                 }
                 continue;
             }
@@ -303,20 +302,31 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
             StmtParameter stmt_params[] = catalog_stmt.getParameters().values();
             Object stmt_args[] = new Object[stmt_params.length]; // this.getStatementParamsArray(catalog_stmt);
             boolean stmt_args_set = false;
-            for (int i = 0; i < stmt_args.length; i++) {
-                StmtParameter catalog_stmt_param = stmt_params[i];
+            
+            // XXX: This method may return null because it's being used for other
+            // purposes in the BatchPlanner.
+            int stmt_args_offsets[] = this.p_estimator.getStatementEstimationParameters(catalog_stmt);
+            if (stmt_args_offsets == null) {
+                stmt_args_offsets = new int[stmt_args.length];
+                for (int i = 0; i < stmt_args.length; i++)
+                    stmt_args_offsets[i] = i;
+            }
+            assert(stmt_args_offsets != null) :
+                "Unexpected null StmtParameter offsets for " + catalog_stmt.fullName();
+            for (int offset : stmt_args_offsets) {
+                StmtParameter catalog_stmt_param = stmt_params[offset];
                 assert(catalog_stmt_param != null);
                 if (trace.val)
                     LOG.trace("Retrieving ParameterMappings for " + catalog_stmt_param.fullName());
                 
-                SortedSet<ParameterMapping> mappings = stmtMappings.get(catalog_stmt_param);
+                Collection<ParameterMapping> mappings = stmtMappings.get(catalog_stmt_param);
                 if (mappings == null || mappings.isEmpty()) {
                     if (trace.val)
                         LOG.trace("No parameter mappings exists for " + catalog_stmt_param.fullName());
                     continue;
                 }
-                if (trace.val)
-                    LOG.trace("Found " + mappings.size() + " mapping(s) for " + catalog_stmt_param.fullName());
+                if (debug.val)
+                    LOG.debug("Found " + mappings.size() + " mapping(s) for " + catalog_stmt_param.fullName());
         
                 // Special Case:
                 // If the number of possible Statements we could execute next is greater than one,
@@ -353,17 +363,17 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
                                           "c.getProcParameterIndex[" + m.getProcParameterIndex() + "]"); 
                             continue;
                         }
-                        stmt_args[i] = proc_inner_args[m.getProcParameterIndex()];
+                        stmt_args[offset] = proc_inner_args[m.getProcParameterIndex()];
                         stmt_args_set = true;
                         if (trace.val)
                             LOG.trace("Mapped " + CatalogUtil.getDisplayName(m.getProcParameter()) + "[" + m.getProcParameterIndex() + "] to " +
-                                      CatalogUtil.getDisplayName(catalog_stmt_param) + " [value=" + stmt_args[i] + "]");
+                                      CatalogUtil.getDisplayName(catalog_stmt_param) + " [value=" + stmt_args[offset] + "]");
                     } else {
-                        stmt_args[i] = procParams[m.getProcParameter().getIndex()];
+                        stmt_args[offset] = procParams[m.getProcParameter().getIndex()];
                         stmt_args_set = true;
                         if (trace.val)
                             LOG.trace("Mapped " + CatalogUtil.getDisplayName(m.getProcParameter()) + " to " +
-                                      CatalogUtil.getDisplayName(catalog_stmt_param) + " [value=" + stmt_args[i] + "]"); 
+                                      CatalogUtil.getDisplayName(catalog_stmt_param) + " [value=" + stmt_args[offset] + "]"); 
                     }
                     break;
                 } // FOR (Mapping)
@@ -433,8 +443,8 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
         int num_candidates = this.candidate_edges.size();
         boolean was_forced = false;
         if (num_candidates == 0 && this.force_traversal) {
-            if (trace.val)
-                LOG.trace(String.format("No candidate edges were found. " +
+            if (debug.val)
+                LOG.debug(String.format("No candidate edges were found. " +
             		      "Checking whether we can create our own. [nextStatements=%s]",
             		      this.next_statements));
             

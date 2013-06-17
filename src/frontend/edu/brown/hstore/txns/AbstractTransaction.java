@@ -93,6 +93,7 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
     private Procedure catalog_proc;
     private boolean sysproc;
     private boolean readonly;
+    private boolean allow_early_prepare = true;
     
     protected Long txn_id = null;
     protected Long last_txn_id = null; // FOR DEBUGGING
@@ -337,6 +338,7 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
         this.predict_readOnly = false;
         this.predict_tState = null;
         
+        this.allow_early_prepare = true;
         this.pending_error = null;
         this.status = null;
         this.parameters = null;
@@ -504,8 +506,9 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
         assert(this.predict_tState == null) :
             String.format("Trying to set the %s for %s twice",
                           EstimatorState.class.getSimpleName(), this);
-        LOG.info(String.format("%s - Setting %s for txn",
-                 this, state.getClass().getSimpleName()));
+        if (debug.val)
+            LOG.debug(String.format("%s - Setting %s for txn",
+                      this, state.getClass().getSimpleName()));
         this.predict_tState = state;
     }
     /**
@@ -687,6 +690,14 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
      */
     public final boolean isSysProc() {
         return (this.sysproc);
+    }
+    
+    public final boolean allowEarlyPrepare() {
+        return (this.allow_early_prepare);
+    }
+    
+    public final void setAllowEarlyPrepare(boolean enable) {
+        this.allow_early_prepare = enable;
     }
     
     // ----------------------------------------------------------------------------

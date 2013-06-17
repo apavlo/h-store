@@ -3207,6 +3207,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             } finally {
                 if (needs_profiling) ts.profiler.stopExecEstimation();
             }
+        } else if (t_state != null && t_state.shouldAllowUpdates()) {
+            LOG.warn("Skipping estimator updates for " + ts);
         }
 
         // Check whether our plan was caused a mispredict
@@ -3214,6 +3216,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         if (plan.getMisprediction() != null) {
             MispredictionException ex = plan.getMisprediction(); 
             ts.setPendingError(ex, false);
+            assert(ex.getPartitions().isEmpty() == false) :
+                "Unexpected empty PartitionSet for mispredicated txn " + ts;
 
             // Print Misprediction Debug
             if (hstore_conf.site.exec_mispredict_crash) {
@@ -3712,7 +3716,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         final Estimate lastEstimate = ts.getLastEstimate();
         PartitionSet donePartitions = null;
         PartitionSet notificationsPerSite[] = null;
-        if (ts.isSysProc() == false && lastEstimate != null && lastEstimate.isValid()) {
+        if (ts.isSysProc() == false && ts.allowEarlyPrepare() && lastEstimate != null && lastEstimate.isValid()) {
             Pair<PartitionSet, PartitionSet[]> pair = this.calculateDonePartitions(ts,
                                                                                    lastEstimate,
                                                                                    tmp_fragmentsPerPartition);
