@@ -514,19 +514,27 @@ public class BenchmarkController {
 
         
         if (m_loaderClass != null && m_config.noLoader == false) {
-            ProfileMeasurement load_time = new ProfileMeasurement("load").start();
+            ProfileMeasurement stopwatch = new ProfileMeasurement("load").start();
             this.startLoader();
-            load_time.stop();
+            stopwatch.stop();
             if (this.failed) System.exit(1);
             LOG.info(String.format("Completed %s loading phase in %.2f sec",
                                    m_projectBuilder.getProjectName().toUpperCase(),
-                                   load_time.getTotalThinkTimeSeconds()));
+                                   stopwatch.getTotalThinkTimeSeconds()));
         } else if (debug.val && m_config.noLoader) {
             LOG.debug("Skipping data loading phase");
         }
 
         // Start the clients
-        if (m_config.noExecute == false) this.startClients();
+        if (m_config.noExecute == false) {
+            ProfileMeasurement stopwatch = new ProfileMeasurement("clients").start();
+            this.startClients();
+            LOG.info(String.format("Initialized %d %s client threads in %.2f sec",
+                    m_clientThreads.size(), 
+                    m_projectBuilder.getProjectName().toUpperCase(),
+                    stopwatch.getTotalThinkTimeSeconds()));
+            
+        }
         
         // registerInterest(uploader);
     }
@@ -1464,7 +1472,7 @@ public class BenchmarkController {
                 Object row[] = totalRows.get(procName);
                 for (int i = 1; i < row.length; i++) {
                     if (stdevs[i] != null) {
-                        row[i] = MathUtil.geometricMean(CollectionUtil.toDoubleArray(stdevs[i]));
+                        row[i] = MathUtil.arithmeticMean(CollectionUtil.toDoubleArray(stdevs[i]));
                         if (trace.val) 
                             LOG.trace(String.format("%s STDEV -> %s -> %s", procName, stdevs[i], row[i]));
                     }
