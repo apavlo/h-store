@@ -158,14 +158,10 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
     public boolean shouldIgnoreTransaction(AbstractTransaction ts) {
         if (this.disabled) return (true);
 
-        // We need to have an EstimatorState in order to do our analysis
-        EstimatorState tsState = ts.getEstimatorState();
-        if (tsState == null) {
-            if (debug.val)
-                LOG.debug(String.format("No %s available for txn %s. This txn has to be ignored\n%s",
-                          EstimatorState.class.getSimpleName(), ts, ts.debug()));
-            return (true);
-        }
+        // NOTE: We actually don't want to check whether we have a transaction estimate here
+        // because this is a global flag. There may be times when the txn doesn't 
+        // actually need an estimate (e.g., when we're stalled because of 2PC), so we 
+        // just want to always return false here!
         
         // We're good to go!
         return (false);
