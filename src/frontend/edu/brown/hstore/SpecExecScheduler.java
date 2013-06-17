@@ -219,8 +219,8 @@ public class SpecExecScheduler implements Configurable {
     
     public void setDisabled(boolean disabled) {
         this.disabled = disabled;
-        if (this.disabled == true)
-            LOG.info("Disabled speculative execution scheduling at partition " + this.partitionId);
+        if (debug.val && this.disabled == true)
+            LOG.debug("Disabled speculative execution scheduling at partition " + this.partitionId);
     }
     public boolean isDisabled() {
         return (this.disabled);

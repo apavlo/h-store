@@ -1033,7 +1033,7 @@ public class PartitionEstimator {
      * what partitions the Statement invocation will touch. This is used to
      * quickly figure out whether that invocation is single-partition or not. If
      * this Statement will always be multi-partition, or if the tables it
-     * references uses a MultiColumn partitioning attrtibute, then the return
+     * references uses a MultiColumn partitioning attribute, then the return
      * set will be null. This is at a coarse-grained level. You still need to
      * use the other PartitionEstimator methods to figure out where to send
      * PlanFragments.
@@ -1068,7 +1068,8 @@ public class PartitionEstimator {
                 // can't be used for fast look-ups
                 if (cache_entry.hasBroadcast()) {
                     if (debug.val)
-                        LOG.warn(String.format("%s contains an operation that must be broadcast. Cannot be used for fast look-ups", catalog_frag.fullName()));
+                        LOG.warn(String.format("%s contains an operation that must be broadcast." +
+                        		 "Cannot be used for fast look-ups", catalog_frag.fullName()));
                     return (null);
                 }
 
@@ -1079,8 +1080,9 @@ public class PartitionEstimator {
                     Column partition_col = catalog_tbl.getPartitioncolumn();
                     if (partition_col instanceof MultiColumn) {
                         if (debug.val)
-                            LOG.warn(String.format("%s references %s, which is partitioned on %s. Cannot be used for fast look-ups", catalog_frag.fullName(), catalog_tbl.getName(),
-                                    partition_col.fullName()));
+                            LOG.warn(String.format("%s references %s, which is partitioned on %s. " +
+                            		 "Cannot be used for fast look-ups",
+                            		 catalog_frag.fullName(), catalog_tbl.getName(), partition_col.fullName()));
                         return (null);
                     } else if (partition_col != null && cache_entry.containsKey(partition_col)) {
                         for (int idx : cache_entry.get(partition_col)) {

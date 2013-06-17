@@ -734,10 +734,12 @@ public class TransactionInitializer {
                         }
                         
                         if (debug.val && predict_partitions.isEmpty()) {
-                            LOG.warn(String.format("%s - Unexpected empty predicted %s from %s\n%s",
+                            LOG.warn(String.format("%s - Unexpected empty predicted %s from %s [updatesEnabled=%s]\n%s",
                             		TransactionUtil.formatTxnName(catalog_proc, txn_id),
                             		PartitionSet.class.getSimpleName(),
-                            		t_estimator.getClass().getSimpleName(), t_estimate));
+                            		t_estimator.getClass().getSimpleName(),
+                            		t_state.isUpdatesEnabled(), t_estimate));
+                            ts.setAllowEarlyPrepare(false);
 //                            System.err.println("WROTE MARKOVGRAPH: " + ((MarkovEstimatorState)t_state).dumpMarkovGraph());
 //                            System.err.flush();
 //                            HStore.crashDB();
