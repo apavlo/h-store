@@ -5,6 +5,10 @@ import org.voltdb.SysProcSelector;
 import edu.brown.statistics.Histogram;
 import edu.brown.statistics.HistogramUtil;
 
+/**
+ * Utility methods for the BenchmarkController
+ * @author pavlo
+ */
 public abstract class BenchmarkControllerUtil {
 
     public static class ProfilingOutput {
@@ -56,10 +60,17 @@ public abstract class BenchmarkControllerUtil {
      * @return
      */
     public static double[] computeLatencies(Histogram<Integer> latencies) {
-        double minLatency = latencies.getMinValue().doubleValue();
-        double maxLatency = latencies.getMaxValue().doubleValue();
-        double avgLatency = HistogramUtil.sum(latencies) / (double)latencies.getSampleCount();
-        double stdDevLatency = HistogramUtil.stdev(latencies);
+        double minLatency = Double.NaN;
+        double avgLatency = Double.NaN;
+        double maxLatency = Double.NaN;
+        double stdDevLatency = Double.NaN;
+        
+        if (latencies.getSampleCount() > 0) {
+            minLatency = latencies.getMinValue().doubleValue();
+            maxLatency = latencies.getMaxValue().doubleValue();
+            avgLatency = HistogramUtil.sum(latencies) / (double)latencies.getSampleCount();
+            stdDevLatency = HistogramUtil.stdev(latencies);
+        }
         
         return new double[]{ minLatency, maxLatency, avgLatency, stdDevLatency };
     }
