@@ -184,7 +184,6 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
                           EstimatorState.class.getSimpleName(), candidate));
             return (false);
         }
-    
         
         // Get the current TransactionEstimate for the DTXN and the 
         // initial TransactionEstimate for the single-partition txn
@@ -197,15 +196,15 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
             return (false);
         }
         else if (dtxnEst.hasQueryEstimate(partitionId) == false) {
-            if (debug.val)
-                LOG.debug(String.format("No query list estimate is available for dtxn %s", dtxn));
+//            if (debug.val)
+                LOG.warn(String.format("No query list estimate is available for dtxn %s", dtxn));
             return (false);
         }
         Estimate tsEst = tsState.getInitialEstimate();
         assert(tsEst != null);
         if (tsEst.hasQueryEstimate(partitionId) == false) {
-            if (debug.val)
-                LOG.debug(String.format("No query list estimate is available for candidate %s", candidate));
+//            if (debug.val)
+                LOG.warn(String.format("No query list estimate is available for candidate %s", candidate));
             return (false);
         }
         
@@ -242,13 +241,18 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
         Map<StmtParameter, SortedSet<ParameterMapping>> mappings0, mappings1;
         
         if (params0 == null) {
-            if (debug.val) LOG.warn(String.format("The ParameterSet for %s is null.", ts0));
+            LOG.error(String.format("The ParameterSet for %s is null.", ts0));
             return (false);
         }
         else if (params1 == null) {
-            if (debug.val) LOG.warn(String.format("The ParameterSet for %s is null.", ts1));
+            LOG.error(String.format("The ParameterSet for %s is null.", ts1));
             return (false);
         }
+        
+//        if (debug.val)
+            LOG.info(String.format("Comparing expected query execution for dtxn %s [#queries=%d] " +
+            		  "with candidate txn %s [#queries=%d]",
+            		  ts0, queries0.size(), ts1, queries1.size()));
         
         // TODO: Rather than checking the values referenced in each ConflictPair
         // individually, we should go through all of them first and just get the 

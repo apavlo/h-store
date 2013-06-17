@@ -1064,14 +1064,13 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             if (specTxn != null) {
                 // TODO: What we really want to do is check to see whether we have anything
                 // in our work queue before we go ahead and fire off this txn
-                if (debug.val && this.work_queue.isEmpty() == false) {
-                    LOG.warn(String.format("About to speculatively execute %s on partition %d but there " +
-                             "are %d messages in the work queue\n%s",
-                             specTxn, this.partitionId, this.work_queue.size(),
-                             CollectionUtil.first(this.work_queue)));
-                }
-                
                 if (debug.val) {
+                    if (this.work_queue.isEmpty() == false) {
+                        LOG.warn(String.format("About to speculatively execute %s on partition %d but there " +
+                                 "are %d messages in the work queue\n%s",
+                                 specTxn, this.partitionId, this.work_queue.size(),
+                                 CollectionUtil.first(this.work_queue)));
+                    }
                     LOG.debug(String.format("Utility Work found speculative txn to execute on " +
                     		  "partition %d [%s, specType=%s]",
                               this.partitionId, specTxn, specType));
@@ -2189,11 +2188,11 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
      */
     private void executeTransaction(LocalTransaction ts) {
         assert(ts.isInitialized()) :
-            String.format("Uninitialized transaction at partition %d: %s",
-                          this.partitionId, ts);
+            String.format("Trying to execute uninitialized transaction %s at partition %d",
+                          ts, this.partitionId);
         assert(ts.isMarkedReleased(this.partitionId)) :
-            String.format("Transaction was not marked released at partition %d: %s",
-                          this.partitionId, ts);
+            String.format("Transaction %s was not marked released at partition %d before being executed",
+                          ts, this.partitionId);
         
         if (trace.val)
             LOG.debug(String.format("%s - Attempting to start transaction on partition %d",
@@ -3518,13 +3517,21 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
     /**
      * Figure out what partitions this transaction is done with. This will only return
      * a PartitionSet of what partitions we think we're done with.
+     * For each partition that we idenitfy that the txn is done with, we will check to see
+     * whether the txn is going to execute a query at its site in this batch. If it's not,
+     * then we will notify that HStoreSite through the HStoreCoordinator.
+     * If the partition that it doesn't need anymore is local (i.e., it's at the same
+     * HStoreSite that we're at right now), then we'll just pass them a quick message
+     * to let them know that they can prepare the txn. 
      * @param ts
      * @param estimate
-     * @return
+     * @param fragmentsPerPartition A histogram of the number of PlanFragments the
+     *                              txn will execute in this batch at each partition.
+     * @return Pair<
      */
-    private Pair<PartitionSet, PartitionSet[]> calculateDonePartitions(LocalTransaction ts,
-                                                                       Estimate estimate,
-                                                                       FastIntHistogram fragmentsPerPartition) {
+    private Pair<PartitionSet, PartitionSet[]> computeDonePartitions(LocalTransaction ts,
+                                                                     Estimate estimate,
+                                                                     FastIntHistogram fragmentsPerPartition) {
         final PartitionSet estDonePartitions = estimate.getDonePartitions(this.thresholds);
         if (estDonePartitions.isEmpty()) {
             if (debug.val)
@@ -3569,6 +3576,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             if (fragmentsPerPartition.get(partition, 0) == 0) {
                 // We need to let them know that the party is over!
                 if (hstore_site.isLocalPartition(partition)) {
+//                    if (debug.val)
+                        LOG.info(String.format("%s - Notifying local partition %d that txn is finished it",
+                                  ts, partition));
                     hstore_site.getPartitionExecutor(partition).queuePrepare(ts);
                 }
                 // Check whether we can piggyback on another WorkFragment that is going to
@@ -3599,8 +3609,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         if (toNotify.isEmpty() == false) {
             for (Site notifySite : toNotify) {
                 int notifySiteId = notifySite.getId(); 
-                if (debug.val)
-                    LOG.debug(String.format("%s - Notifying %s that txn is finished with partitions %s",
+//                if (debug.val)
+                    LOG.info(String.format("%s - Notifying %s that txn is finished with partitions %s",
                               ts, HStoreThreadManager.formatSiteName(notifySiteId),
                               notificationsPerSite[notifySite.getId()]));
                 hstore_coordinator.transactionPrepare(ts, ts.getPrepareCallback(),
@@ -3717,8 +3727,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         PartitionSet donePartitions = null;
         PartitionSet notificationsPerSite[] = null;
         if (ts.isSysProc() == false && ts.allowEarlyPrepare() && lastEstimate != null && lastEstimate.isValid()) {
-            Pair<PartitionSet, PartitionSet[]> pair = this.calculateDonePartitions(ts,
-                                                                                   lastEstimate,
+            Pair<PartitionSet, PartitionSet[]> pair = this.computeDonePartitions(ts, lastEstimate,
                                                                                    tmp_fragmentsPerPartition);
             if (pair != null) {
                 donePartitions = pair.getFirst();
@@ -3862,8 +3871,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                     if (donePartitions != null &&
                             donePartitions.contains(partition) &&
                             tmp_fragmentsPerPartition.dec(partition) == 0) {
-                        if (debug.val)
-                            LOG.debug(String.format("%s - Marking last %s flag for partition %d",
+//                        if (debug.val)
+                            LOG.info(String.format("%s - Setting last fragment flag in %s for partition %d",
                                       ts, WorkFragment.class.getSimpleName(), partition));
                         fragmentBuilder.setLastFragment(true);
                     }

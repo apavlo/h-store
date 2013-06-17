@@ -109,6 +109,7 @@ public class MockHStoreCoordinator extends HStoreCoordinator {
             RemoteTransaction ts = hstore_site.getTransactionInitializer()
                                              .createRemoteTransaction(request.getTransactionId(),
                                                                       partitions,
+                                                                      null,
                                                                       request.getBasePartition(),
                                                                       request.getProcedureId());
             // FIXME hstore_site.transactionInit(ts, done);

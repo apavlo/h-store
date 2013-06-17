@@ -146,7 +146,7 @@ public class TestPartitionExecutorSpecExec extends BaseTestCase {
         // Make sure that we replace the conflict checker on the remote partition
         // so that it can schedule our speculative txns
         PartitionExecutor.Debug remoteDebug = this.remoteExecutor.getDebugContext();
-        remoteDebug.getSpecExecScheduler().setConflictChecker(this.checker);
+        remoteDebug.getSpecExecScheduler().getDebugContext().setConflictChecker(this.checker);
         
         // Make sure that we always set to false to ensure that the dtxn won't abort
         // unless the test case really wants it to
