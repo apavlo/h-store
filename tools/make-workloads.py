@@ -64,10 +64,10 @@ HSTORE_OPTS = {
     "client.duration":              180000,
     "client.warmup":                0,
     "client.count":                 1,
-    "client.threads_per_host":      10,
+    "client.threads_per_host":      20,
     "client.blocking":              True,
     "client.blocking_concurrent":   1,
-    "client.scalefactor":           2.0,
+    "client.scalefactor":           1.0,
     "killonzero":                   True,
     
     # "site.status_exec_info": True,
