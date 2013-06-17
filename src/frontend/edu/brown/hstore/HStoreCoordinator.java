@@ -1288,18 +1288,28 @@ public class HStoreCoordinator implements Shutdownable {
                 ByteBuffer buffer = sError.serializeToBuffer();
                 buffer.rewind();
                 builder.setError(ByteString.copyFrom(buffer));
-                LOG.info("Serializing error message in shutdown request");
+                if (debug.val)
+                    LOG.debug("Serializing error message in shutdown request");
             }
             ShutdownPrepareRequest request = builder.build();
             
-            if (debug.val) LOG.debug(String.format("Sending %s to %d remote sites",
-                             request.getClass().getSimpleName(), this.num_sites-1));
+            if (debug.val)
+                LOG.debug(String.format("Sending %s to %d remote sites",
+                          request.getClass().getSimpleName(), this.num_sites-1));
             for (int site_id = 0; site_id < this.num_sites; site_id++) {
                 if (site_id == this.local_site_id) continue;
-                this.channels[site_id].shutdownPrepare(new ProtoRpcController(), request, callback);
-                if (trace.val) LOG.trace(String.format("Sent %s to %s",
-                                 request.getClass().getSimpleName(),
-                                 HStoreThreadManager.formatSiteName(site_id)));
+                
+                if (this.channels[site_id] == null) {
+                    LOG.error(String.format("Trying to send %s to %s before the connection was established",
+                              request.getClass().getSimpleName(),
+                              HStoreThreadManager.formatSiteName(site_id)));
+                } else {
+                    this.channels[site_id].shutdownPrepare(new ProtoRpcController(), request, callback);
+                    if (trace.val)
+                        LOG.trace(String.format("Sent %s to %s",
+                                  request.getClass().getSimpleName(),
+                                  HStoreThreadManager.formatSiteName(site_id)));
+                }
             } // FOR
         }
         
