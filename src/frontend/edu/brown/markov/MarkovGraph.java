@@ -699,6 +699,7 @@ public class MarkovGraph extends AbstractDirectedGraph<MarkovVertex, MarkovEdge>
         if (args.hasParam(ArgumentsParser.PARAM_MARKOV)) {
             File path = args.getFileParam(ArgumentsParser.PARAM_MARKOV);
             markovs_map = MarkovGraphsContainerUtil.load(args.catalogContext, path);
+            MarkovGraphsContainerUtil.setHasher(markovs_map, p_estimator.getHasher());
         }
         
         if (markovs_map == null) {
