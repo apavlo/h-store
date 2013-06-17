@@ -341,6 +341,11 @@ public class PartitionSet implements Collection<Integer>, JSONSerializable, Fast
         return (ret);
     }
     
+    /**
+     * Convert a bitmap into a PartitionSet and print it out
+     * @param bitmap
+     * @return
+     */
     public static String toString(boolean bitmap[]) {
         PartitionSet ps = new PartitionSet();
         for (int i = 0; i < bitmap.length; i++) {

@@ -63,6 +63,7 @@ import edu.brown.utils.PartitionSet;
 import edu.brown.utils.StringUtil;
 
 /**
+ * Base Transaction State
  * @author pavlo
  */
 public abstract class AbstractTransaction implements Poolable, Comparable<AbstractTransaction> {
@@ -1221,6 +1222,7 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
         m.put("Base Partition", this.base_partition);
         m.put("Hash Code", this.hashCode());
         m.put("Pending Error", this.pending_error);
+        m.put("Allow Early Prepare", this.allow_early_prepare);
         maps.add(m);
         
         // Predictions
