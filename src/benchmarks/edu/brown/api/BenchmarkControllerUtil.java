@@ -60,10 +60,10 @@ public abstract class BenchmarkControllerUtil {
      * @return
      */
     public static double[] computeLatencies(Histogram<Integer> latencies) {
-        double minLatency = Double.NaN;
-        double avgLatency = Double.NaN;
-        double maxLatency = Double.NaN;
-        double stdDevLatency = Double.NaN;
+        double minLatency = -1;
+        double avgLatency = -1;
+        double maxLatency = -1;
+        double stdDevLatency = -1;
         
         if (latencies.getSampleCount() > 0) {
             Integer val = latencies.getMinValue();
