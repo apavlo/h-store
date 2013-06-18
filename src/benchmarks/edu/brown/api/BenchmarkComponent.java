@@ -416,16 +416,18 @@ public abstract class BenchmarkComponent {
                 break;
             }
         } // FOR
-            
-        if (HStoreConf.isInitialized() == false) {
-            assert(hstore_conf_path != null) : "Missing HStoreConf file";
-            File f = new File(hstore_conf_path);
-            if (debug.val) LOG.debug("Initializing HStoreConf from '" + f.getName() + "' along with input parameters");
-            HStoreConf.init(f, args);
-        } else {
-            if (debug.val) LOG.debug("Initializing HStoreConf only with input parameters");
-            HStoreConf.singleton().loadFromArgs(args);
-        }
+
+        synchronized (BenchmarkComponent.class) {
+            if (HStoreConf.isInitialized() == false) {
+                assert(hstore_conf_path != null) : "Missing HStoreConf file";
+                File f = new File(hstore_conf_path);
+                if (debug.val) LOG.debug("Initializing HStoreConf from '" + f.getName() + "' along with input parameters");
+                HStoreConf.init(f, args);
+            } else {
+                if (debug.val) LOG.debug("Initializing HStoreConf only with input parameters");
+                HStoreConf.singleton().loadFromArgs(args); // XXX Why do we need to do this??
+            }
+        } // SYNCH
         m_hstoreConf = HStoreConf.singleton();
         if (trace.val) LOG.trace("HStore Conf\n" + m_hstoreConf.toString(true));
         
@@ -741,7 +743,9 @@ public abstract class BenchmarkComponent {
                 worker.start();
                 
                 // Wait for the worker to finish
-                if (debug.val) LOG.debug(String.format("Started ControlWorker for client #%02d. Waiting until finished...", clientMain.getClientId()));
+                if (debug.val)
+                    LOG.debug(String.format("Started ControlWorker for client #%02d. Waiting until finished...",
+                              clientMain.getClientId()));
                 worker.join();
                 clientMain.invokeStopCallback();
             }
@@ -803,7 +807,7 @@ public abstract class BenchmarkComponent {
         
         // scan the inputs again looking for host connections
         if (m_noConnections == false) {
-            synchronized (BenchmarkComponent.class) {
+            synchronized (globalHasConnections) {
                 if (globalHasConnections.contains(new_client) == false) {
                     this.setupConnections();
                     globalHasConnections.add(new_client);

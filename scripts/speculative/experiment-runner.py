@@ -106,8 +106,9 @@ DEBUG_SITE_LOGGING = [
     #"edu.brown.hstore.TransactionInitializer",
     #"edu.brown.hstore.specexec.PrefetchQueryPlanner",
     #"edu.brown.hstore.specexec.PrefetchQueryUtil",
-    "edu.brown.hstore.SpecExecScheduler",
-    "edu.brown.hstore.specexec.checkers.MarkovConflictChecker",
+    #"edu.brown.hstore.SpecExecScheduler",
+    #"edu.brown.hstore.specexec.checkers.MarkovConflictChecker",
+    #"edu.brown.hstore.estimators.markov.MarkovEstimator",
     #"edu.brown.hstore.txns.DependencyTracker",
     
     ## CALLBACKS
@@ -118,7 +119,7 @@ DEBUG_SITE_LOGGING = [
     #"edu.brown.hstore.callbacks.BlockingRpcCallback",
 ]
 TRACE_SITE_LOGGING = [
-    "edu.brown.hstore.estimators.markov.MarkovPathEstimator",
+    #"edu.brown.hstore.estimators.markov.MarkovPathEstimator",
 ]
 DEBUG_CLIENT_LOGGING = [
     #"edu.brown.api.BenchmarkComponent",
@@ -387,11 +388,14 @@ def updateExperimentEnv(fabric, args, benchmark, partitions):
         fabric.env["client.output_specexec_profiling"] = "specexec.csv"
         
         # TESTING
-        fabric.env["site.specexec_disable_partitions"] = "1-15"
+        #fabric.env["site.specexec_disable_partitions"] = "1-15"
         fabric.env["site.specexec_ignore_interruptions"] = True
+        fabric.env["site.markov_force_traversal"] = True
         fabric.env["client.scalefactor"] = 0.1
         fabric.env["client.threads_per_host"] = 80
         fabric.env["client.blocking_concurrent"] = 2
+        fabric.env["site.markov_learning_enable"] = False
+        #fabric.env["hstore.exec_prefix"] += " -Dmarkov.recompute_end=true"
         
         ## ----------------------------------------------
         ## ROW-LEVEL DETECTION

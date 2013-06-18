@@ -207,7 +207,7 @@ public class TestPartitionExecutorEarly2PC extends BaseTestCase {
         // Make sure that we replace the conflict checker on the remote partition
         // so that it can schedule our speculative txns
         PartitionExecutor.Debug remoteDebug = this.remoteExecutor.getDebugContext();
-        remoteDebug.getSpecExecScheduler().setConflictChecker(this.checker);
+        remoteDebug.getSpecExecScheduler().getDebugContext().setConflictChecker(this.checker);
     }
     
     @Override

@@ -6,7 +6,6 @@ import java.util.Random;
 import java.util.Set;
 
 import org.apache.log4j.Logger;
-import org.voltdb.catalog.Procedure;
 import org.voltdb.types.SpecExecSchedulerPolicyType;
 import org.voltdb.types.SpeculationType;
 
@@ -185,16 +184,6 @@ public class SpecExecScheduler implements Configurable {
     // ACCESS METHODS
     // ----------------------------------------------------------------------------
     
-    /**
-     * Replace the ConflictChecker. This should only be used for testing
-     * @param checker
-     */
-    protected void setConflictChecker(AbstractConflictChecker checker) {
-        LOG.warn(String.format("Replacing original checker %s with %s",
-                 this.checker.getClass().getSimpleName(),
-                 checker.getClass().getCanonicalName()));
-        this.checker = checker;
-    }
     protected void setIgnoreAllLocal(boolean val) {
         this.ignore_all_local = val;
     }
@@ -468,10 +457,13 @@ public class SpecExecScheduler implements Configurable {
             profiler.num_comparisons.put(txn_ctr);
             profiler.num_matches.put(matched_ctr);
         }
+        // Make sure that if we were interrupted that we reset the next 
+        // variable so that we don't actually try to execute it.
+        if (was_interrupted) next = null; 
         
         // We found somebody to execute right now!
         // Make sure that we set the speculative flag to true!
-        if (was_interrupted == false && next != null) {
+        if (next != null) {
             next.markReleased(this.partitionId);
             if (profiler != null) {
                 this.profilerExecuteCounter.put(specType.ordinal());
@@ -493,8 +485,15 @@ public class SpecExecScheduler implements Configurable {
         
         this.lastDtxn = dtxn;
         this.lastSpecType = specType;
-        if (resetIterator || lastHasNext == false) this.lastIterator = null;
-        else if (this.ignore_queue_size_change == false) this.lastSize = this.queue.size();
+        
+        // Reset the iterator if we were told to or if we reached the end of our current one
+        if (resetIterator || lastHasNext == false) {
+            this.lastIterator = null;
+        }
+        // Otherwise, check to see if we need to track whether the size of the queue changes.
+        else if (this.ignore_queue_size_change == false) {
+            this.lastSize = this.queue.size();
+        }
         if (profiler != null) profiler.total_time.stop();
         return (next);
     }
@@ -521,6 +520,16 @@ public class SpecExecScheduler implements Configurable {
         }
         public SpecExecProfiler getProfiler(SpeculationType stype) {
             return (profilerMap[stype.ordinal()]);
+        }
+        /**
+         * Replace the ConflictChecker. This should only be used for testing
+         * @param checker
+         */
+        protected void setConflictChecker(AbstractConflictChecker checker) {
+            LOG.warn(String.format("Replacing original checker %s with %s",
+                     SpecExecScheduler.this.checker.getClass().getSimpleName(),
+                     checker.getClass().getCanonicalName()));
+            SpecExecScheduler.this.checker = checker;
         }
     } // CLASS
     
