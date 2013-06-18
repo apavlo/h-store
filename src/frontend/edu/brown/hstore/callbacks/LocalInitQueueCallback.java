@@ -21,15 +21,14 @@ import edu.brown.utils.PartitionSet;
 import edu.brown.utils.StringUtil;
 
 /**
- * 
+ * InitQueue Callback on the Txn's Local HStoreSite
  * @author pavlo
  */
 public class LocalInitQueueCallback extends PartitionCountingCallback<LocalTransaction> implements RpcCallback<TransactionInitResponse> {
     private static final Logger LOG = Logger.getLogger(LocalInitQueueCallback.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
-        LoggerUtil.attachObserver(LOG, debug, trace);
+        LoggerUtil.attachObserver(LOG, debug);
     }
 
     private final boolean prefetch;
@@ -59,8 +58,8 @@ public class LocalInitQueueCallback extends PartitionCountingCallback<LocalTrans
 
     @Override
     public void run(int partition) {
-        if (trace.val)
-            LOG.trace(String.format("%s - Prefetch=%s / HasPrefetchFragments=%s",
+        if (debug.val)
+            LOG.debug(String.format("%s - Prefetch=%s / HasPrefetchFragments=%s",
                       this.ts, this.prefetch, this.ts.hasPrefetchFragments()));
         if (this.prefetch && 
                 this.ts.hasPrefetchFragments() &&
@@ -90,7 +89,8 @@ public class LocalInitQueueCallback extends PartitionCountingCallback<LocalTrans
     
     @Override
     protected void unblockCallback() {
-        assert(this.isAborted() == false);
+        assert(this.isAborted() == false) :
+            "Trying unblock " + this.ts + " but it was already marked as aborted";
         
         // HACK: If this is a single-partition txn, then we don't
         // need to submit it for execution because the PartitionExecutor
