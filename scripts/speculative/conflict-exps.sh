@@ -16,7 +16,7 @@ FIRST_PARAM_OFFSET=0
 
 EXP_TYPES=( \
    "conflicts-row" \
-#    "conflicts-table" \
+   "conflicts-table" \
 )
 PARTITIONS=( \
 #     8 \
@@ -34,15 +34,15 @@ for b in tpcc ; do
 #         --retry-on-zero \
         --exp-trials=1 \
         --partitions ${PARTITIONS[@]} \
-        --client.warmup=0 \
-        --client.duration=60000 \
+#         --client.warmup=0 \
+        --client.duration=120000 \
 #         --client.blocking_concurrent=2 \
 #         --site.exec_force_undo_logging_all=true \
         --site.jvm_asserts=true \
 #         --client.txnrate=500 \
 #         --client.threads_per_host=100 \
 #         --client.scalefactor=1 \
-        --debug-log4j-site \
+#         --debug-log4j-site \
 #         --debug \
     )
     

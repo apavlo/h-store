@@ -12,24 +12,22 @@ function onexit() {
 
 DATA_DIR="/home/pavlo/Documents/H-Store/Papers/speculative/data"
 FABRIC_TYPE="ssh"
-FIRST_PARAM_OFFSET=0
+FIRST_PARAM_OFFSET=1
 
 EXP_TYPES=( \
 #      "performance-spec-query" \
-#      "performance-spec-all" \
+     "performance-spec-all" \
      "performance-spec-txn" \
 #      "performance-nospec" \
-#    "conflicts-row" \
-#    "conflicts-table" \
 )
 PARTITIONS=( \
-#      8 \
-#     16 \
-    32 \
+     8 \
+    16 \
+#     32 \
 )
 
 # for b in smallbank tpcc seats; do
-for b in tpcc ; do
+for b in tpcc smallbank ; do
     PARAMS=( \
         --no-update \
         --results-dir=$DATA_DIR \
@@ -37,7 +35,7 @@ for b in tpcc ; do
         --stop-on-error \
         --overwrite \
 #         --retry-on-zero \
-        --exp-trials=1 \
+        --exp-trials=3 \
         --partitions ${PARTITIONS[@]} \
 #         --client.warmup=0 \
         --client.duration=300000 \
