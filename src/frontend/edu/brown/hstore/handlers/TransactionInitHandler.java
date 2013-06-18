@@ -1,6 +1,9 @@
 package edu.brown.hstore.handlers;
 
 import org.apache.log4j.Logger;
+import org.voltdb.ParameterSet;
+import org.voltdb.exceptions.ServerFaultException;
+import org.voltdb.messaging.FastDeserializer;
 
 import com.google.protobuf.RpcCallback;
 import com.google.protobuf.RpcController;
@@ -86,14 +89,26 @@ public class TransactionInitHandler extends AbstractTransactionHandler<Transacti
             // partitions that are local at this site.
             partitions = new PartitionSet(request.getPartitionsList());
 
+            ParameterSet procParams = null;
+            if (request.hasProcParams()) {
+                FastDeserializer fds = new FastDeserializer(request.getProcParams().asReadOnlyByteBuffer());
+                try {
+                    procParams = fds.readObject(ParameterSet.class);
+                } catch (Exception ex) {
+                    String msg = String.format("Failed to deserialize procedure ParameterSet for txn #%d from %s",
+                                               txn_id, request.getClass().getSimpleName()); 
+                    throw new ServerFaultException(msg, ex, txn_id);
+                }
+            }
+            
             // If we don't have a handle, we need to make one so that we can stick in the
             // things that we need to keep track of at this site. At this point we know that we're on
             // a remote site from the txn's base partition
-            int base_partition = request.getBasePartition();
             ts = this.hstore_site.getTransactionInitializer()
                                  .createRemoteTransaction(txn_id,
                                                           partitions,
-                                                          base_partition,
+                                                          procParams,
+                                                          request.getBasePartition(),
                                                           request.getProcedureId());
             
             // Make sure that we initialize the RemoteTransactionInitCallback too!

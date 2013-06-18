@@ -395,9 +395,8 @@ public class TransactionInitializer {
         // Notify anybody that cares about this new txn
         if (this.newTxnObservable != null) this.newTxnObservable.notifyObservers(new_ts);
         
-//        if (debug.val)
-            LOG.info(String.format("Restarted %s as new %s transaction request " +
-                      "[handle=%d, partition=%d]",
+        if (debug.val)
+            LOG.debug(String.format("Restarted %s as %s [handle=%d, basePartition=%d]",
                       orig_ts, new_ts, orig_ts.getClientHandle(), base_partition));
         
         return (new_ts);
@@ -411,6 +410,7 @@ public class TransactionInitializer {
      */
     public RemoteTransaction createRemoteTransaction(Long txn_id,
                                                      PartitionSet partitions,
+                                                     ParameterSet procParams,
                                                      int base_partition,
                                                      int proc_id) {
         RemoteTransaction ts = null;
@@ -422,7 +422,7 @@ public class TransactionInitializer {
                 ts = new RemoteTransaction(this.hstore_site);
             }
             assert(ts.isInitialized() == false);
-            ts.init(txn_id, base_partition, null, catalog_proc, partitions, true);
+            ts.init(txn_id, base_partition, procParams, catalog_proc, partitions, true);
             if (debug.val)
                 LOG.debug(String.format("Creating new RemoteTransactionState %s from " +
                 		  "remote partition %d [partitions=%s, hashCode=%d]",
