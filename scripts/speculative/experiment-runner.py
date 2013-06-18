@@ -385,15 +385,14 @@ def updateExperimentEnv(fabric, args, benchmark, partitions):
         fabric.env["site.specexec_ignore_stallpoints"] = "IDLE,SP2_REMOTE_BEFORE,SP3_LOCAL,SP3_REMOTE"
         fabric.env["site.specexec_scheduler_policy"] = "LAST"
         fabric.env["site.specexec_scheduler_window"] = 999999
+        fabric.env["site.specexec_ignore_interruptions"] = True
         fabric.env["client.output_specexec_profiling"] = "specexec.csv"
         
         # TESTING
         #fabric.env["site.specexec_disable_partitions"] = "1-15"
-        fabric.env["site.specexec_ignore_interruptions"] = True
-        fabric.env["site.markov_force_traversal"] = True
-        fabric.env["client.scalefactor"] = 0.1
-        fabric.env["client.threads_per_host"] = 80
-        fabric.env["client.blocking_concurrent"] = 2
+        #fabric.env["client.scalefactor"] = 0.1
+        #fabric.env["client.threads_per_host"] = 80
+        #fabric.env["client.blocking_concurrent"] = 2
         fabric.env["site.markov_learning_enable"] = False
         #fabric.env["hstore.exec_prefix"] += " -Dmarkov.recompute_end=true"
         
@@ -438,6 +437,8 @@ def updateExperimentEnv(fabric, args, benchmark, partitions):
         fabric.env["site.markov_path_caching"] = True
         fabric.env["site.markov_endpoint_caching"] = False
         fabric.env["site.markov_fixed"] = False
+        fabric.env["site.markov_force_traversal"] = True
+        fabric.env["site.network_startup_wait"] = 15000 * 2
     else:
         fabric.env['site.markov_fixed'] = False
         
