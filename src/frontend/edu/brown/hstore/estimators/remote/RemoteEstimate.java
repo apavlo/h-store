@@ -83,14 +83,13 @@ public class RemoteEstimate implements Estimate {
     public List<CountedStatement> getQueryEstimate(int partition) {
         if (this.countedStmts[partition] == null) {
             this.countedStmts[partition] = new ArrayList<CountedStatement>();
+            QueryEstimate est = this.query_estimates[partition];
+            for (int i = 0, cnt = est.getStmtIdsCount(); i < cnt; i++) {
+                Statement catalog_stmt = this.catalogContext.getStatementById(est.getStmtIds(i));
+                assert(catalog_stmt != null) : "Invalid Statement id '" + est.getStmtIds(i) + "'";
+                this.countedStmts[partition].add(new CountedStatement(catalog_stmt, est.getStmtCounters(i)));
+            } // FOR
         }
-        
-        QueryEstimate est = this.query_estimates[partition];
-        for (int i = 0, cnt = est.getStmtIdsCount(); i < cnt; i++) {
-            Statement catalog_stmt = this.catalogContext.getStatementById(est.getStmtIds(i));
-            assert(catalog_stmt != null) : "Invalid Statement id '" + est.getStmtIds(i) + "'";
-            this.countedStmts[partition].add(new CountedStatement(catalog_stmt, est.getStmtIds(i)));
-        } // FOR
         return (this.countedStmts[partition]);
     }
 
