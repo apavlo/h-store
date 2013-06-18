@@ -40,7 +40,7 @@ import edu.brown.utils.StringUtil;
  * rows the txns will read/write.
  * @author pavlo
  */
-public class MarkovConflictChecker extends AbstractConflictChecker {
+public class MarkovConflictChecker extends TableConflictChecker {
     private static final Logger LOG = Logger.getLogger(MarkovConflictChecker.class);
     private static final LoggerBoolean debug = new LoggerBoolean();
     private static final LoggerBoolean trace = new LoggerBoolean();
@@ -170,6 +170,15 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
 
     @Override
     public boolean canExecute(AbstractTransaction dtxn, LocalTransaction candidate, int partitionId) {
+        // If the TableConflictChecker says that it's ok, then we know that we don't need
+        // to check anything else.
+        if (super.canExecute(dtxn, candidate, partitionId)) {
+            if (debug.val)
+                LOG.debug(String.format("No table-level conflicts between %s and %s. Safe to execute!",
+                          dtxn, candidate));
+            return (true);
+        }
+        
         // Get the transaction estimates for both of the txns
         EstimatorState dtxnState = dtxn.getEstimatorState();
         EstimatorState tsState = candidate.getEstimatorState();
