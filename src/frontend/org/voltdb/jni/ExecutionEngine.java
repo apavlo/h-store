@@ -705,7 +705,12 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
     // READ/WRITE SET TRACKING
     // ----------------------------------------------------------------------------
     
-    public abstract void readwriteTrackingEnable(boolean value) throws EEException;
+    /**
+     * Enable/disable row-level tracking for transactions at runtime.
+     * @param value
+     * @throws EEException
+     */
+    public abstract void rowTrackingEnable(boolean value) throws EEException;
     
     /**
      * Enable/disable tracking the read/write sets of individual transactions at runtime. 
@@ -713,7 +718,7 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
      * @return
      * @throws EEException
      */
-    protected native int nativeReadwriteTrackingEnable(boolean value) throws EEException;
+    protected native int nativeReadwriteTrackingEnable(long pointer, boolean value) throws EEException;
     
     // ----------------------------------------------------------------------------
     // ANTI-CACHING

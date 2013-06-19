@@ -1241,6 +1241,36 @@ SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_utils_ThreadUtils_getNumCores
 }
 
 // ----------------------------------------------------------------------------
+// READ/WRITE TRACKING
+// ----------------------------------------------------------------------------
+
+/**
+ * Toggle the read/write set tracking feature in the EE.
+ * @param pointer the VoltDBEngine pointer
+ * @param value whether to enable the feature
+ * @return error code
+ */
+JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeReadwriteTrackingEnable(
+        JNIEnv *env,
+        jobject obj,
+        jlong engine_ptr,
+        jboolean value) {
+    
+    VOLT_DEBUG("nativeReadwriteTrackingEnable() start");
+    VoltDBEngine *engine = castToEngine(engine_ptr);
+    Topend *topend = static_cast<JNITopend*>(engine->getTopend())->updateJNIEnv(env);
+    if (engine == NULL) {
+        return org_voltdb_jni_ExecutionEngine_ERRORCODE_ERROR;
+    }
+    try {
+        engine->readWriteTrackingEnable(value);
+    } catch (FatalException e) {
+        topend->crashVoltDB(e);
+    }
+    return org_voltdb_jni_ExecutionEngine_ERRORCODE_SUCCESS;
+}
+
+// ----------------------------------------------------------------------------
 // ANTI-CACHING
 // ----------------------------------------------------------------------------
 #if ANTICACHE
@@ -1367,7 +1397,7 @@ SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeAntiC
     }
     return (retval);
 }
-#endif
+#endif // ANTICACHE
 
 /*
  * Class:     org_voltdb_jni_ExecutionEngine

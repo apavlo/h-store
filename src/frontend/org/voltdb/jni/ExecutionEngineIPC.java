@@ -1462,7 +1462,7 @@ public class ExecutionEngineIPC extends ExecutionEngine {
     }
 
     @Override
-    public void readwriteTrackingEnable(boolean value) throws EEException {
+    public void rowTrackingEnable(boolean value) throws EEException {
         throw new NotImplementedException("Read/Write Set Tracking is disabled for IPC ExecutionEngine");
     }
     

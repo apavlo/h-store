@@ -259,7 +259,12 @@ class __attribute__((visibility("default"))) VoltDBEngine {
         bool restoreTableFromDisk(std::string restoreFilePath);
 
         // -------------------------------------------------
-        // Anti-Cache Functions
+        // READ/WRITE SET TRACKING FUNCTIONS
+        // -------------------------------------------------
+        void readWriteTrackingEnable(bool value);
+        
+        // -------------------------------------------------
+        // ANTI-CACHE FUNCTIONS
         // -------------------------------------------------
         void antiCacheInitialize(std::string dbDir, long blockSize) const;
         #ifdef ANTICACHE

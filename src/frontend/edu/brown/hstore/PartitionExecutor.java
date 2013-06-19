@@ -708,6 +708,11 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                                                 this.site.getHost().getId(),
                                                 "localhost");
                 
+                // Initialize Read/Write Tracking
+                if (hstore_conf.site.exec_readwrite_tracking) {
+                    eeTemp.rowTrackingEnable(true);
+                }
+                
                 // Initialize Anti-Cache
                 if (hstore_conf.site.anticache_enable) {
                     File acFile = AntiCacheManager.getDatabaseDir(this);

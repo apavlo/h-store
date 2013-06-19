@@ -108,7 +108,7 @@ public class ExecutionEngineJNI extends ExecutionEngine {
          * the signal handler or not.
          */
         pointer = nativeCreate(System.getProperty("java.vm.vendor", "xyz").toLowerCase().contains("sun microsystems"));
-        nativeSetLogLevels(pointer, EELoggers.getLogLevels());
+        nativeSetLogLevels(this.pointer, EELoggers.getLogLevels());
         int errorCode =
             nativeInitialize(
                     pointer,
@@ -121,7 +121,7 @@ public class ExecutionEngineJNI extends ExecutionEngine {
         fsForParameterSet = new FastSerializer(false, new BufferGrowCallback() {
             public void onBufferGrow(final FastSerializer obj) {
                 if (trace.val) LOG.trace("Parameter buffer has grown. re-setting to EE..");
-                final int code = nativeSetBuffers(pointer,
+                final int code = nativeSetBuffers(this.pointer,
                         fsForParameterSet.getContainerNoFlip().b,
                         fsForParameterSet.getContainerNoFlip().b.capacity(),
                         deserializer.buffer(), deserializer.buffer().capacity(),
@@ -130,7 +130,7 @@ public class ExecutionEngineJNI extends ExecutionEngine {
             }
         }, null);
 
-        errorCode = nativeSetBuffers(pointer, fsForParameterSet.getContainerNoFlip().b,
+        errorCode = nativeSetBuffers(this.pointer, fsForParameterSet.getContainerNoFlip().b,
                 fsForParameterSet.getContainerNoFlip().b.capacity(),
                 deserializer.buffer(), deserializer.buffer().capacity(),
                 exceptionBuffer, exceptionBuffer.capacity());
@@ -172,8 +172,8 @@ public class ExecutionEngineJNI extends ExecutionEngine {
     @Override
     public void release() throws EEException {
         if (trace.val) LOG.trace("Releasing Execution Engine... " + pointer);
-        if (pointer != 0L) {
-            final int errorCode = nativeDestroy(pointer);
+        if (this.pointer != 0L) {
+            final int errorCode = nativeDestroy(this.pointer);
             pointer = 0L;
             checkErrorCode(errorCode);
         }
@@ -194,7 +194,7 @@ public class ExecutionEngineJNI extends ExecutionEngine {
         LOG.trace("Loading Application Catalog...");
         int errorCode = 0;
         synchronized (ExecutionEngineJNI.class) {
-            errorCode = nativeLoadCatalog(pointer, serializedCatalog);
+            errorCode = nativeLoadCatalog(this.pointer, serializedCatalog);
         }
         checkErrorCode(errorCode);
         //LOG.info("Loaded Catalog.");
@@ -210,7 +210,7 @@ public class ExecutionEngineJNI extends ExecutionEngine {
         if (trace.val) LOG.trace("Loading Application Catalog...");
         int errorCode = 0;
         synchronized (ExecutionEngineJNI.class) {
-            errorCode = nativeUpdateCatalog(pointer, catalogDiffs, catalogVersion);
+            errorCode = nativeUpdateCatalog(this.pointer, catalogDiffs, catalogVersion);
         }
         checkErrorCode(errorCode);
         //LOG.info("Loaded Catalog.");
@@ -241,7 +241,7 @@ public class ExecutionEngineJNI extends ExecutionEngine {
         // checkMaxFsSize();
         // Execute the plan, passing a raw pointer to the byte buffer.
         deserializer.clear();
-        final int errorCode = nativeExecutePlanFragment(pointer, planFragmentId, outputDepId, inputDepId,
+        final int errorCode = nativeExecutePlanFragment(this.pointer, planFragmentId, outputDepId, inputDepId,
                                                         txnId, lastCommittedTxnId, undoToken);
         checkErrorCode(errorCode);
 
@@ -279,7 +279,7 @@ public class ExecutionEngineJNI extends ExecutionEngine {
         //C++ JSON deserializer is not thread safe, must synchronize
         int errorCode = 0;
         synchronized (ExecutionEngineJNI.class) {
-            errorCode = nativeExecuteCustomPlanFragment(pointer, plan, outputDepId, inputDepId,
+            errorCode = nativeExecuteCustomPlanFragment(this.pointer, plan, outputDepId, inputDepId,
                                                         txnId, lastCommittedTxnId, undoQuantumToken);
         }
         checkErrorCode(errorCode);
@@ -353,7 +353,7 @@ public class ExecutionEngineJNI extends ExecutionEngine {
 
         // Execute the plan, passing a raw pointer to the byte buffers for input and output
         deserializer.clear();
-        final int errorCode = nativeExecuteQueryPlanFragmentsAndGetResults(pointer,
+        final int errorCode = nativeExecuteQueryPlanFragmentsAndGetResults(this.pointer,
                 planFragmentIds, batchSize,
                 input_depIds,
                 output_depIds,
@@ -446,7 +446,7 @@ public class ExecutionEngineJNI extends ExecutionEngine {
             LOG.trace("Retrieving VoltTable:" + tableId);
         }
         deserializer.clear();
-        final int errorCode = nativeSerializeTable(pointer, tableId, deserializer.buffer(),
+        final int errorCode = nativeSerializeTable(this.pointer, tableId, deserializer.buffer(),
                 deserializer.buffer().capacity());
         checkErrorCode(errorCode);
 
@@ -466,7 +466,7 @@ public class ExecutionEngineJNI extends ExecutionEngine {
         byte[] serialized_table = table.getTableDataReference().array();
         if (trace.val) LOG.trace(String.format("Passing table into EE [id=%d, bytes=%s]", tableId, serialized_table.length));
 
-        final int errorCode = nativeLoadTable(pointer, tableId, serialized_table,
+        final int errorCode = nativeLoadTable(this.pointer, tableId, serialized_table,
                                               txnId, lastCommittedTxnId,
                                               undoToken, allowExport);
         checkErrorCode(errorCode);
@@ -480,12 +480,12 @@ public class ExecutionEngineJNI extends ExecutionEngine {
      */
     @Override
     public void tick(final long time, final long lastCommittedTxnId) {
-        nativeTick(pointer, time, lastCommittedTxnId);
+        nativeTick(this.pointer, time, lastCommittedTxnId);
     }
 
     @Override
     public void quiesce(long lastCommittedTxnId) {
-        nativeQuiesce(pointer, lastCommittedTxnId);
+        nativeQuiesce(this.pointer, lastCommittedTxnId);
     }
 
     /**
@@ -504,7 +504,7 @@ public class ExecutionEngineJNI extends ExecutionEngine {
             final Long now)
     {
         deserializer.clear();
-        final int numResults = nativeGetStats(pointer, selector.ordinal(), locators, interval, now);
+        final int numResults = nativeGetStats(this.pointer, selector.ordinal(), locators, interval, now);
         if (numResults == -1) {
             throwExceptionForError(ERRORCODE_ERROR);
         }
@@ -526,17 +526,17 @@ public class ExecutionEngineJNI extends ExecutionEngine {
 
     @Override
     public int toggleProfiler(final int toggle) {
-        return nativeToggleProfiler(pointer, toggle);
+        return nativeToggleProfiler(this.pointer, toggle);
     }
 
     @Override
     public boolean releaseUndoToken(final long undoToken) {
-        return nativeReleaseUndoToken(pointer, undoToken);
+        return nativeReleaseUndoToken(this.pointer, undoToken);
     }
 
     @Override
     public boolean undoUndoToken(final long undoToken) {
-        return nativeUndoUndoToken(pointer, undoToken);
+        return nativeUndoUndoToken(this.pointer, undoToken);
     }
 
     /**
@@ -557,7 +557,7 @@ public class ExecutionEngineJNI extends ExecutionEngine {
 
     @Override
     public int tableStreamSerializeMore(BBContainer c, int tableId, TableStreamType streamType) {
-        return nativeTableStreamSerializeMore(pointer, c.address, c.b.position(), c.b.remaining(), tableId, streamType.ordinal());
+        return nativeTableStreamSerializeMore(this.pointer, c.address, c.b.position(), c.b.remaining(), tableId, streamType.ordinal());
     }
 
     /**
@@ -572,7 +572,7 @@ public class ExecutionEngineJNI extends ExecutionEngine {
         deserializer.clear();
         ExportProtoMessage result = null;
         try {
-            long offset = nativeExportAction(pointer, ackAction, pollAction, resetAction,
+            long offset = nativeExportAction(this.pointer, ackAction, pollAction, resetAction,
                                              syncAction, ackTxnId, seqNo, tableId);
             if (offset < 0) {
                 result = new ExportProtoMessage(partitionId, tableId);
@@ -626,7 +626,7 @@ public class ExecutionEngineJNI extends ExecutionEngine {
             throw new RuntimeException(exception); // can't happen
         }
 
-        return nativeHashinate(pointer, partitionCount);
+        return nativeHashinate(this.pointer, partitionCount);
     }
     
     // ----------------------------------------------------------------------------
@@ -634,10 +634,10 @@ public class ExecutionEngineJNI extends ExecutionEngine {
     // ----------------------------------------------------------------------------
     
     @Override
-    public void readwriteTrackingEnable(boolean value) throws EEException {
+    public void rowTrackingEnable(boolean value) throws EEException {
         LOG.info(String.format("%s read/write set tracking at partition %d",
                  (value ? "Enabling" : "Disabling"), this.site.getPartitionId()));
-        final int errorCode = nativeReadwriteTrackingEnable(true);
+        final int errorCode = nativeReadwriteTrackingEnable(this.pointer, true);
         checkErrorCode(errorCode);
         m_readwriteTracking = value;
     }
@@ -654,7 +654,7 @@ public class ExecutionEngineJNI extends ExecutionEngine {
         LOG.info("Initializing anti-cache feature at partition " + this.site.getPartitionId());
         LOG.info(String.format("Partition #%d AntiCache Directory: %s",
                  this.site.getPartitionId(), dbDir.getAbsolutePath()));
-        final int errorCode = nativeAntiCacheInitialize(pointer, dbDir.getAbsolutePath(), blockSize);
+        final int errorCode = nativeAntiCacheInitialize(this.pointer, dbDir.getAbsolutePath(), blockSize);
         checkErrorCode(errorCode);
         m_anticache = true;
     }
@@ -665,7 +665,7 @@ public class ExecutionEngineJNI extends ExecutionEngine {
             String msg = "Trying to invoke anti-caching operation but feature is not enabled";
             throw new VoltProcedure.VoltAbortException(msg);
         }
-        final int errorCode = nativeAntiCacheReadBlocks(pointer, catalog_tbl.getRelativeIndex(), block_ids, tuple_offsets);
+        final int errorCode = nativeAntiCacheReadBlocks(this.pointer, catalog_tbl.getRelativeIndex(), block_ids, tuple_offsets);
         checkErrorCode(errorCode);
     }
     
@@ -677,7 +677,7 @@ public class ExecutionEngineJNI extends ExecutionEngine {
         }
         deserializer.clear();
         
-        final int numResults = nativeAntiCacheEvictBlock(pointer, catalog_tbl.getRelativeIndex(), block_size, num_blocks);
+        final int numResults = nativeAntiCacheEvictBlock(this.pointer, catalog_tbl.getRelativeIndex(), block_size, num_blocks);
         if (numResults == -1) {
             throwExceptionForError(ERRORCODE_ERROR);
         }
@@ -698,7 +698,7 @@ public class ExecutionEngineJNI extends ExecutionEngine {
     @Override
     public void antiCacheMergeBlocks(Table catalog_tbl) {
         assert(m_anticache);
-        final int errorCode = nativeAntiCacheMergeBlocks(pointer, catalog_tbl.getRelativeIndex());
+        final int errorCode = nativeAntiCacheMergeBlocks(this.pointer, catalog_tbl.getRelativeIndex());
         checkErrorCode(errorCode);
     }
 }

@@ -184,6 +184,10 @@ namespace voltdb {
         // READ-WRITE TRACKERS
         // ------------------------------------------------------------------ 
         
+        bool isReadWriteTrackingEnabled() const {
+            return (m_readWriteTrackingEnabled);
+        }
+        
         /**
          * Enable the read/write set tracking feature in the EE.
          */
