@@ -43,6 +43,8 @@ import org.voltdb.utils.VoltLoggerFactory;
 
 import edu.brown.hstore.HStore;
 import edu.brown.hstore.PartitionExecutor;
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.StringUtil;
 
 /**
@@ -52,8 +54,11 @@ import edu.brown.utils.StringUtil;
  */
 public abstract class ExecutionEngine implements FastDeserializer.DeserializationMonitor {
     private static final Logger LOG = Logger.getLogger(ExecutionEngine.class);
-    private static final boolean t = LOG.isTraceEnabled();
-    private static final boolean d = LOG.isDebugEnabled();
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
 
 //    private static boolean voltSharedLibraryLoaded = false;
     protected PartitionExecutor site;
@@ -63,6 +68,9 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
     
     // Whether the anti-cache feature is enabled
     protected boolean m_anticache;
+    
+    // Whether read/write set tracking is enabled
+    protected boolean m_readwriteTracking;
 
     /** Error codes exported for JNI methods. */
     public static final int ERRORCODE_SUCCESS = 0;
@@ -87,7 +95,7 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
     /** Utility method to verify return code and throw as required */
     final protected void checkErrorCode(final int errorCode) {
         if (errorCode != ERRORCODE_SUCCESS) {
-            if (d) LOG.error(String.format("Unexpected ExecutionEngine error [code=%d]", errorCode));
+            if (debug.val) LOG.error(String.format("Unexpected ExecutionEngine error [code=%d]", errorCode));
             throwExceptionForError(errorCode);
         }
     }
@@ -117,8 +125,9 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
      * @param dependencies
      */
     public void stashWorkUnitDependencies(final Map<Integer, List<VoltTable>> dependencies) {
-        if (d) LOG.debug(String.format("Stashing %d InputDependencies:\n%s",
-                                       dependencies.size(), StringUtil.formatMaps(dependencies)));
+        if (debug.val)
+            LOG.debug(String.format("Stashing %d InputDependencies:\n%s",
+                      dependencies.size(), StringUtil.formatMaps(dependencies)));
         m_dependencyTracker.trackNewWorkUnit(dependencies);
     }
 
@@ -159,7 +168,7 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
         void trackNewWorkUnit(final Map<Integer, List<VoltTable>> dependencies) {
             for (final Entry<Integer, List<VoltTable>> e : dependencies.entrySet()) {
                 // could do this optionally - debug only.
-                if (d) verifyDependencySanity(e.getKey(), e.getValue());
+                if (debug.val) verifyDependencySanity(e.getKey(), e.getValue());
                 // create a new list of references to the workunit's table
                 // to avoid any changes to the WorkUnit's list. But do not
                 // copy the table data.
@@ -176,7 +185,7 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
                     if (vt != null) deque.add(vt);
                 } // FOR
             }
-            if (d) LOG.debug("Current InputDepencies:\n" + StringUtil.formatMaps(m_depsById));
+            if (debug.val) LOG.debug("Current InputDepencies:\n" + StringUtil.formatMaps(m_depsById));
         }
 
         public VoltTable nextDependency(final int dependencyId) {
@@ -221,7 +230,7 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
                                    new Object[] { dependencyId }, null);
                     HStore.crashDB();
                 }
-                if (t) LOG.trace(String.format("Storing Dependency %d\n:%s", dependencyId, dependency));
+                if (trace.val) LOG.trace(String.format("Storing Dependency %d\n:%s", dependencyId, dependency));
             } // FOR
 
         }
@@ -253,7 +262,7 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
         final VoltTable vt =  m_dependencyTracker.nextDependency(dependencyId);
         if (vt != null) {
             ByteBuffer buffer = vt.getDirectDataReference();
-            if (d) LOG.debug(String.format("Passing Dependency %d to EE [rows=%d, cols=%d, bytes=%d/%d]\n%s",
+            if (debug.val) LOG.debug(String.format("Passing Dependency %d to EE [rows=%d, cols=%d, bytes=%d/%d]\n%s",
                                            dependencyId,
                                            vt.getRowCount(),
                                            vt.getColumnCount(),
@@ -266,7 +275,7 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
         // Note that we will hit this after retrieving all the VoltTables for the given dependencyId
         // It does not mean that there were no VoltTables at all, it just means that 
         // we have gotten all of them
-        else if (d) {
+        else if (debug.val) {
             LOG.warn(String.format("Failed to find Dependency %d for EE [dep=%s, count=%d, ids=%s]",
                                     dependencyId,
                                     m_dependencyTracker.m_depsById.get(dependencyId),
@@ -692,6 +701,20 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
             long seqNo,
             long mTableId);
 
+    // ----------------------------------------------------------------------------
+    // READ/WRITE SET TRACKING
+    // ----------------------------------------------------------------------------
+    
+    public abstract void readwriteTrackingEnable(boolean value) throws EEException;
+    
+    /**
+     * Enable/disable tracking the read/write sets of individual transactions at runtime. 
+     * @param value
+     * @return
+     * @throws EEException
+     */
+    protected native int nativeReadwriteTrackingEnable(boolean value) throws EEException;
+    
     // ----------------------------------------------------------------------------
     // ANTI-CACHING
     // ----------------------------------------------------------------------------

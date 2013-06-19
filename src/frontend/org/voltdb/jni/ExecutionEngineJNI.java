@@ -614,8 +614,7 @@ public class ExecutionEngineJNI extends ExecutionEngine {
     }
 
     @Override
-    public int hashinate(Object value, int partitionCount)
-    {
+    public int hashinate(Object value, int partitionCount) {
         ParameterSet parameterSet = new ParameterSet(true);
         parameterSet.setParameters(value);
 
@@ -631,6 +630,19 @@ public class ExecutionEngineJNI extends ExecutionEngine {
     }
     
     // ----------------------------------------------------------------------------
+    // READ/WRITE SET TRACKING
+    // ----------------------------------------------------------------------------
+    
+    @Override
+    public void readwriteTrackingEnable(boolean value) throws EEException {
+        LOG.info(String.format("%s read/write set tracking at partition %d",
+                 (value ? "Enabling" : "Disabling"), this.site.getPartitionId()));
+        final int errorCode = nativeReadwriteTrackingEnable(true);
+        checkErrorCode(errorCode);
+        m_readwriteTracking = value;
+    }
+    
+    // ----------------------------------------------------------------------------
     // ANTI-CACHING
     // ----------------------------------------------------------------------------
 
@@ -641,7 +653,7 @@ public class ExecutionEngineJNI extends ExecutionEngine {
         // TODO: Switch to LOG.debug
         LOG.info("Initializing anti-cache feature at partition " + this.site.getPartitionId());
         LOG.info(String.format("Partition #%d AntiCache Directory: %s",
-                                this.site.getPartitionId(), dbDir.getAbsolutePath()));
+                 this.site.getPartitionId(), dbDir.getAbsolutePath()));
         final int errorCode = nativeAntiCacheInitialize(pointer, dbDir.getAbsolutePath(), blockSize);
         checkErrorCode(errorCode);
         m_anticache = true;

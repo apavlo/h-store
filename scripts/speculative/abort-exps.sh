@@ -16,16 +16,14 @@ FIRST_PARAM_OFFSET=1
 
 EXP_TYPES=( \
     "spec" \
-    "occ" \
+#     "occ" \
 )
 
 PERCENTAGES=( \
-#     00
-#     20
-    40
-    60
-    80
-    100
+    40 \
+    60 \
+    80 \
+    100 \
 )
 PARTITIONS=( 16 )
 

@@ -284,6 +284,7 @@ CTX.INPUT['storage'] = """
  temptable.cpp
  TupleStreamWrapper.cpp
  RecoveryContext.cpp
+ ReadWriteTracker.cpp
 """
 
 CTX.INPUT['stats'] = """
