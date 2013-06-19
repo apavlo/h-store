@@ -192,6 +192,11 @@ public class MockExecutionEngine extends ExecutionEngine {
     }
 
     @Override
+    public void readwriteTrackingEnable(boolean value) throws EEException {
+        // TODO Auto-generated method stub
+    }
+    
+    @Override
     public void antiCacheInitialize(File dbFilePath, long blockSize) throws EEException {
         // TODO Auto-generated method stub
         

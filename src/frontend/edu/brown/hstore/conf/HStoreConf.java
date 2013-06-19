@@ -475,6 +475,13 @@ public final class HStoreConf {
             experimental=false
         )
         public int exec_periodic_interval;
+        
+        @ConfigProperty(
+            description="Enables tracking of what tuples each txn reads and writes down in the EE.",
+            defaultBoolean=false,
+            experimental=true
+        )
+        public boolean exec_readwrite_tracking;
 
         // ----------------------------------------------------------------------------
         // Speculative Execution Options

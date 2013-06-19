@@ -192,12 +192,18 @@ EXPERIMENT_SETTINGS = [
     "conflictshotspot-100-row",
     
     # Abort Experiments
-    "aborts-00",
-    "aborts-20",
-    "aborts-40",
-    "aborts-60",
-    "aborts-80",
-    "aborts-100",
+    "aborts-00-spec",
+    "aborts-20-spec",
+    "aborts-40-spec",
+    "aborts-60-spec",
+    "aborts-80-spec",
+    "aborts-100-spec",
+    "aborts-00-occ",
+    "aborts-20-occ",
+    "aborts-40-occ",
+    "aborts-60-occ",
+    "aborts-80-occ",
+    "aborts-100-occ",
 ]
 
 ## ==============================================
@@ -458,7 +464,7 @@ def updateExperimentEnv(fabric, args, benchmark, partitions):
         ## ----------------------------------------------
         ## HERMES!
         ## ----------------------------------------------
-        if shcedulerType == "spec":
+        if schedulerType == "spec":
             fabric.env["site.specexec_markov"] = True
             fabric.env["site.specexec_unsafe"] = False
         ## ----------------------------------------------
@@ -608,7 +614,7 @@ def processResults(inst, fabric, args, partitions, output, workloads):
 ## writeResultsCSV
 ## ==============================================
 def writeResultsCSV(args, benchmark, finalResults, partitions):
-    if not finalResults[partitions]:
+    if not partitions in finalResults or not finalResults[partitions]:
         LOG.warn("No results for %s - %s - %d Partitions" % (args['exp_type'].upper(), benchmark.upper(), partitions))
         return
     

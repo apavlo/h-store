@@ -1462,25 +1462,27 @@ public class ExecutionEngineIPC extends ExecutionEngine {
     }
 
     @Override
+    public void readwriteTrackingEnable(boolean value) throws EEException {
+        throw new NotImplementedException("Read/Write Set Tracking is disabled for IPC ExecutionEngine");
+    }
+    
+    @Override
     public void antiCacheInitialize(File dbFilePath, long blockSize) throws EEException {
         throw new NotImplementedException("Anti-Caching is disabled for IPC ExecutionEngine");
     }
 
     @Override
     public void antiCacheReadBlocks(Table catalog_tbl, short[] block_ids, int[] tuple_offsets) {
-        // TODO Auto-generated method stub
-        
+        throw new NotImplementedException("Anti-Caching is disabled for IPC ExecutionEngine");
     }
 
     @Override
     public void antiCacheMergeBlocks(Table catalog_tbl) {
-        // TODO Auto-generated method stub
-        
+        throw new NotImplementedException("Anti-Caching is disabled for IPC ExecutionEngine");
     }
 
     @Override
     public VoltTable antiCacheEvictBlock(Table catalog_tbl, long block_size, int num_blocks) {
-        // TODO Auto-generated method stub
-        return (null);
+        throw new NotImplementedException("Anti-Caching is disabled for IPC ExecutionEngine");
     }
 }

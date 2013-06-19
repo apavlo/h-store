@@ -18,6 +18,7 @@
 #ifndef _EXECUTORCONTEXT_HPP_
 #define _EXECUTORCONTEXT_HPP_
 
+#include "boost/unordered_map.hpp"
 #include "Topend.h"
 #include "common/UndoQuantum.h"
 
@@ -28,10 +29,12 @@
 
 namespace voltdb {
     
-#ifdef ANTICACHE
+    class ReadWriteTracker;
+    
+    #ifdef ANTICACHE
     class AntiCacheDB;
     class AntiCacheEvictionManager; 
-#endif
+    #endif
     
     /*
      * EE site global data required by executors at runtime.
@@ -74,6 +77,7 @@ namespace voltdb {
             m_lastCommittedTxnId = 0;
             m_lastTickTime = 0;
             m_antiCacheEnabled = false;
+            m_readWriteTrackingEnabled = false;
         }
         
         // not always known at initial construction
@@ -176,6 +180,39 @@ namespace voltdb {
         }
         #endif
         
+        // ------------------------------------------------------------------
+        // READ-WRITE TRACKERS
+        // ------------------------------------------------------------------ 
+        
+        /**
+         * Enable the read/write set tracking feature in the EE.
+         */
+        void enableReadWriteTracking() {
+            assert(m_readWriteTrackingEnabled == false);
+            m_readWriteTrackingEnabled = true;
+        }
+        
+        void setReadWriteTracker(int64_t txnId, ReadWriteTracker *tracker) {
+            assert(m_readWriteTrackingEnabled == true);
+            m_readwriteTrackers[txnId] = tracker;
+        }
+        
+        ReadWriteTracker* getReadWriteTracker(int64_t txnId) const {
+            assert(m_readWriteTrackingEnabled == true);
+            boost::unordered_map<int64_t, ReadWriteTracker*>::const_iterator iter;
+            iter = m_readwriteTrackers.find(txnId);
+            if (iter != m_readwriteTrackers.end()) {
+                return iter->second;
+            } else {
+                return NULL;
+            }
+        }
+        
+        void removeReadWriteTracker(int64_t txnId) {
+            assert(m_readWriteTrackingEnabled == true);
+            m_readwriteTrackers.erase(txnId);
+        }
+        
     private:
         Topend *m_topEnd;
         UndoQuantum *m_undoQuantum;
@@ -185,6 +222,10 @@ namespace voltdb {
         AntiCacheDB *m_antiCacheDB;
         AntiCacheEvictionManager *m_antiCacheEvictionManager; 
         #endif
+        
+        /** ReadWrite Trackers (one per txnId) */
+        bool m_readWriteTrackingEnabled;
+        boost::unordered_map<int64_t, ReadWriteTracker*> m_readwriteTrackers;
         
     public:
         int64_t m_lastCommittedTxnId;
