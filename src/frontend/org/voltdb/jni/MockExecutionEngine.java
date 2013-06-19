@@ -192,7 +192,7 @@ public class MockExecutionEngine extends ExecutionEngine {
     }
 
     @Override
-    public void readwriteTrackingEnable(boolean value) throws EEException {
+    public void rowTrackingEnable(boolean value) throws EEException {
         // TODO Auto-generated method stub
     }
     

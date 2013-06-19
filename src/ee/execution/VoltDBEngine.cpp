@@ -1381,6 +1381,17 @@ size_t VoltDBEngine::tableHashCode(int32_t tableId) {
 }
 
 // -------------------------------------------------
+// READ/WRITE SET TRACKING FUNCTIONS
+// -------------------------------------------------
+
+void VoltDBEngine::readWriteTrackingEnable(bool value) {
+    if (value == true && m_executorContext->isReadWriteTrackingEnabled() == false) {
+        VOLT_INFO("Enabling Read/Write Set Tracking at Partition %d", m_partitionId);
+        m_executorContext->enableReadWriteTracking();
+    }
+}
+
+// -------------------------------------------------
 // ANTI-CACHE FUNCTIONS
 // -------------------------------------------------
 
