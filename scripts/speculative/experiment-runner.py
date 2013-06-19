@@ -182,6 +182,14 @@ EXPERIMENT_SETTINGS = [
     "conflicts-row",
     "conflictsperf-table",
     "conflictsperf-row",
+    "conflictshotspot-25-table",
+    "conflictshotspot-25-row",
+    "conflictshotspot-50-table",
+    "conflictshotspot-50-row",
+    "conflictshotspot-75-table",
+    "conflictshotspot-75-row",
+    "conflictshotspot-100-table",
+    "conflictshotspot-100-row",
     
     # Abort Experiments
     "aborts-00",
@@ -401,6 +409,14 @@ def updateExperimentEnv(fabric, args, benchmark, partitions):
         ## PERFORMANCE
         ## ----------------------------------------------
         if args['exp_type'].startswith("conflictsperf"):
+            fabric.env["site.specexec_scheduler_policy"] = "FIRST"
+            fabric.env["site.specexec_scheduler_window"] = 1
+        ## ----------------------------------------------
+        ## HOTSPOT
+        ## ----------------------------------------------
+        if args['exp_type'].startswith("conflictshotspot"):
+            hotspot = int(args['exp_type'].split("-")[1])
+            fabric.env["prob_account_hotspot"] = hotspot
             fabric.env["site.specexec_scheduler_policy"] = "FIRST"
             fabric.env["site.specexec_scheduler_window"] = 1
         ## ----------------------------------------------

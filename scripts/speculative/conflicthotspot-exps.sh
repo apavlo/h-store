@@ -15,18 +15,14 @@ FABRIC_TYPE="ssh"
 FIRST_PARAM_OFFSET=1
 
 EXP_TYPES=( \
-    "conflictsperf-row" \
-    "conflictsperf-table" \
-    "conflicts-row" \
-    "conflicts-table" \
+    "conflictshotspot-row" \
+    "conflictshotspot-table" \
 )
 PARTITIONS=( \
-#     8 \
      16 \
 )
 
-# for b in smallbank tpcc seats; do
-for b in tpcc smallbank seats ; do
+for b in smallbank ; do
     PARAMS=( \
         --no-update \
         --results-dir=$DATA_DIR \
@@ -34,18 +30,10 @@ for b in tpcc smallbank seats ; do
         --stop-on-error \
         --overwrite \
 #         --retry-on-zero \
-        --exp-trials=2 \
+        --exp-trials=3 \
         --partitions ${PARTITIONS[@]} \
 #         --client.warmup=0 \
-        --client.duration=120000 \
-#         --client.blocking_concurrent=2 \
-#         --site.exec_force_undo_logging_all=true \
-#         --site.jvm_asserts=true \
-#         --client.txnrate=500 \
-#         --client.threads_per_host=100 \
-#         --client.scalefactor=1 \
-#         --debug-log4j-site \
-#         --debug \
+        --client.duration=300000 \
     )
     
     i=0
