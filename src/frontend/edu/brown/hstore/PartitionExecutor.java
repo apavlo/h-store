@@ -3422,9 +3422,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 List<CountedStatement> queryEst = t_estimate.getQueryEstimate(target_partition);
                 // if (debug.val)
                 if (target_partition == 0)
-                    LOG.info(String.format("%s - Sending remote query estimate to partition %d " +
-                              "containing %d queries\n%s",
-                              ts, target_partition, queryEst.size(), StringUtil.join("\n", queryEst)));
+                    if (debug.val)
+                        LOG.debug(String.format("%s - Sending remote query estimate to partition %d " +
+                                  "containing %d queries\n%s",
+                                  ts, target_partition, queryEst.size(), StringUtil.join("\n", queryEst)));
                 assert(queryEst.isEmpty() == false);
                 QueryEstimate.Builder estBuilder = QueryEstimate.newBuilder();
                 for (CountedStatement countedStmt : queryEst) {
