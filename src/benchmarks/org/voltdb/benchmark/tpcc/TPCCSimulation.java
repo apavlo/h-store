@@ -460,10 +460,12 @@ public class TPCCSimulation {
                 else local_warehouses++;
             }
         }
-        // Have all distributed txns abort
-        // We need to this for some experiments
-        if (remote_warehouses > 0 && config.neworder_abort_dtxns) {
-            item_id[0] = parameters.num_items + 1;
+        // Prevent aborts
+        if (rollback && (
+            (remote_warehouses > 0 && config.neworder_abort_no_multip) ||
+            (remote_warehouses == 0 && config.neworder_abort_no_singlep))
+           ) {
+            item_id[ol_cnt-1] = generateItemID();
         }
 
         if (trace.val)
