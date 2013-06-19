@@ -456,7 +456,14 @@ public class TPCCSimulation {
                 	remote_w_id = (short)generator.numberExcluding(parameters.starting_warehouse, parameters.last_warehouse, (int) warehouse_id);
                 }
                 supply_w_id[idx] = remote_w_id;
+                if (supply_w_id[idx] != warehouse_id) remote_warehouses++;
+                else local_warehouses++;
             }
+        }
+        // Have all distributed txns abort
+        // We need to this for some experiments
+        if (remote_warehouses > 0 && config.neworder_abort_dtxns) {
+            item_id[0] = parameters.num_items + 1;
         }
 
         if (trace.val)
