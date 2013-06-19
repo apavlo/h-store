@@ -180,12 +180,16 @@ EXPERIMENT_SETTINGS = [
     # Conflict Experiments
     "conflicts-table",
     "conflicts-row",
+    "conflictsperf-table",
+    "conflictsperf-row",
     
     # Abort Experiments
     "aborts-00",
     "aborts-20",
     "aborts-40",
     "aborts-60",
+    "aborts-80",
+    "aborts-100",
 ]
 
 ## ==============================================
@@ -381,30 +385,43 @@ def updateExperimentEnv(fabric, args, benchmark, partitions):
     ## CONFLICTS
     ## ----------------------------------------------
     if args['exp_type'].startswith("conflicts"):
-        fabric.env["site.specexec_profiling_sample"] = 1
-        fabric.env["site.specexec_ignore_stallpoints"] = "IDLE,SP2_REMOTE_BEFORE,SP3_LOCAL,SP3_REMOTE"
-        fabric.env["site.specexec_scheduler_policy"] = "LAST"
-        fabric.env["site.specexec_scheduler_window"] = 999999
-        fabric.env["site.specexec_ignore_interruptions"] = True
+        conflictType = args['exp_type'].split("-")[-1]
+        
         fabric.env["client.output_specexec_profiling"] = "specexec.csv"
+        fabric.env["site.markov_learning_enable"] = False
         
         # TESTING
         #fabric.env["site.specexec_disable_partitions"] = "1-15"
         #fabric.env["client.scalefactor"] = 0.1
         #fabric.env["client.threads_per_host"] = 80
         #fabric.env["client.blocking_concurrent"] = 2
-        fabric.env["site.markov_learning_enable"] = False
         #fabric.env["hstore.exec_prefix"] += " -Dmarkov.recompute_end=true"
+
+        ## ----------------------------------------------
+        ## PERFORMANCE
+        ## ----------------------------------------------
+        if args['exp_type'].startswith("conflictsperf"):
+            fabric.env["site.specexec_scheduler_policy"] = "FIRST"
+            fabric.env["site.specexec_scheduler_window"] = 1
+        ## ----------------------------------------------
+        ## ANALYSIS
+        ## ----------------------------------------------
+        else:
+            fabric.env["site.specexec_profiling_sample"] = 1
+            fabric.env["site.specexec_ignore_stallpoints"] = "IDLE,SP2_REMOTE_BEFORE,SP3_LOCAL,SP3_REMOTE"
+            fabric.env["site.specexec_scheduler_policy"] = "LAST"
+            fabric.env["site.specexec_scheduler_window"] = 999999
+            fabric.env["site.specexec_ignore_interruptions"] = True
         
         ## ----------------------------------------------
         ## ROW-LEVEL DETECTION
         ## ----------------------------------------------
-        if args['exp_type'] == "conflicts-row":
+        if conflictType == "row":
             fabric.env["site.specexec_markov"] = True
         ## ----------------------------------------------
         ## TABLE-LEVEL DETECTION
         ## ----------------------------------------------
-        elif args['exp_type'] == "conflicts-table":
+        elif conflictType == "table":
             fabric.env["site.specexec_markov"] = False
     ## IF
     
