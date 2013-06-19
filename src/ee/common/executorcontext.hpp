@@ -184,7 +184,7 @@ namespace voltdb {
         // READ-WRITE TRACKERS
         // ------------------------------------------------------------------ 
         
-        bool isReadWriteTrackingEnabled() const {
+        inline bool isReadWriteTrackingEnabled() const {
             return (m_readWriteTrackingEnabled);
         }
         
