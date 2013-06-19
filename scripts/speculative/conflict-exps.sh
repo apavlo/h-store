@@ -37,7 +37,7 @@ for b in tpcc smallbank seats ; do
         --exp-trials=2 \
         --partitions ${PARTITIONS[@]} \
 #         --client.warmup=0 \
-        --client.duration=120000 \
+        --client.duration=300000 \
 #         --client.blocking_concurrent=2 \
 #         --site.exec_force_undo_logging_all=true \
 #         --site.jvm_asserts=true \
