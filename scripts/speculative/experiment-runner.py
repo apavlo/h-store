@@ -416,7 +416,9 @@ def updateExperimentEnv(fabric, args, benchmark, partitions):
         ## ----------------------------------------------
         if args['exp_type'].startswith("conflictshotspot"):
             hotspot = int(args['exp_type'].split("-")[1])
-            fabric.env["prob_account_hotspot"] = hotspot
+            fabric.env["benchmark.prob_account_hotspot"] = hotspot
+            fabric.env["benchmark.hotspot_use_fixed_size"] = False
+            fabric.env["benchmark.hotspot_percentage"] = 1
             fabric.env["site.specexec_scheduler_policy"] = "FIRST"
             fabric.env["site.specexec_scheduler_window"] = 1
         ## ----------------------------------------------
@@ -445,9 +447,26 @@ def updateExperimentEnv(fabric, args, benchmark, partitions):
     ## ABORTS
     ## ----------------------------------------------
     if args['exp_type'].startswith("aborts"):
-        abortPercentage = int(args['exp_type'].split("-")[-1])
+        abortPercentage = int(args['exp_type'].split("-")[1])
+        schedulerType = args['exp_type'].split("-")[2]
+        
         fabric.env["site.specexec_markov"] = True
         fabric.env["benchmark.neworder_abort"] = abortPercentage
+        fabric.env["benchmark.neworder_abort_no_multip"] = True
+        fabric.env["benchmark.neworder_abort_no_singlep"] = True
+        
+        ## ----------------------------------------------
+        ## HERMES!
+        ## ----------------------------------------------
+        if shcedulerType == "spec":
+            fabric.env["site.specexec_markov"] = True
+            fabric.env["site.specexec_unsafe"] = False
+        ## ----------------------------------------------
+        ## OCC
+        ## ----------------------------------------------
+        elif schedulerType == "occ":
+            fabric.env["site.specexec_markov"] = False
+            fabric.env["site.specexec_unsafe"] = True
     ## IF
 
     ## ----------------------------------------------
