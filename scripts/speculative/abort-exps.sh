@@ -12,13 +12,15 @@ function onexit() {
 
 DATA_DIR="/home/pavlo/Documents/H-Store/Papers/speculative/data"
 FABRIC_TYPE="ssh"
-FIRST_PARAM_OFFSET=1
+FIRST_PARAM_OFFSET=0
 
 PERCENTAGES=( \
-    00
-    20
+#     00
+#     20
     40
     60
+    80
+    100
 )
 PARTITIONS=( 16 )
 
@@ -31,7 +33,7 @@ for b in tpcc ; do
         --overwrite \
         --exp-trials=1 \
         --partitions ${PARTITIONS[@]} \
-        --client.duration=300000 \
+        --client.duration=180000 \
     )
     
     i=0
