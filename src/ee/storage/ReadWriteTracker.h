@@ -62,7 +62,7 @@ class ReadWriteTracker {
         std::vector<std::string> getTablesWritten();
         
     private:
-        uint32_t insertTuple(boost::unordered_map<std::string, RowOffsets*> *map, const std::string tableName, TableTuple *tuple);
+        void insertTuple(boost::unordered_map<std::string, RowOffsets*> *map, const std::string tableName, TableTuple *tuple);
         std::vector<std::string> getTableNames(boost::unordered_map<std::string, RowOffsets*> *map) const;
         
         int64_t txnId;

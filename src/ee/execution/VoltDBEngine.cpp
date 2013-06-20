@@ -1434,7 +1434,7 @@ int VoltDBEngine::trackingTupleSet(int64_t txnId, bool writes) {
     
     // Serialize the output table so that we can read it up in Java
     if (resultTable != NULL) {
-        fprintf(stderr, "TRACKING TABLE TXN #%ld\n%s\n", txnId, resultTable->debug().c_str());
+        VOLT_DEBUG("TRACKING TABLE TXN #%ld\n%s\n", txnId, resultTable->debug().c_str());
         
         size_t lengthPosition = m_resultOutput.reserveBytes(sizeof(int32_t));
         resultTable->serializeTo(m_resultOutput);
