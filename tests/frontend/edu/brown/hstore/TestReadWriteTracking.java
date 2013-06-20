@@ -3,6 +3,8 @@
  */
 package edu.brown.hstore;
 
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import org.junit.Test;
@@ -11,6 +13,7 @@ import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
+import org.voltdb.catalog.Table;
 import org.voltdb.client.Client;
 import org.voltdb.jni.ExecutionEngine;
 import org.voltdb.regressionsuites.TestSmallBankSuite;
@@ -19,9 +22,11 @@ import org.voltdb.utils.VoltTableUtil;
 
 import edu.brown.BaseTestCase;
 import edu.brown.HStoreSiteTestUtil.LatchableProcedureCallback;
+import edu.brown.benchmark.smallbank.SmallBankConstants;
 import edu.brown.benchmark.smallbank.SmallBankProjectBuilder;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.conf.HStoreConf;
+import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.ThreadUtil;
 
@@ -77,6 +82,10 @@ public class TestReadWriteTracking extends BaseTestCase {
         if (this.hstore_site != null) this.hstore_site.shutdown();
     }
     
+    // --------------------------------------------------------------------------------------------
+    // UTILITY METHODS
+    // --------------------------------------------------------------------------------------------
+    
     @SuppressWarnings("unchecked")
     private <T extends VoltProcedure> T getCurrentVoltProcedure(PartitionExecutor executor, Class<T> expectedType) {
         int tries = 3;
@@ -91,36 +100,7 @@ public class TestReadWriteTracking extends BaseTestCase {
         return ((T)voltProc);
     }
     
-    // --------------------------------------------------------------------------------------------
-    // TEST CASES
-    // --------------------------------------------------------------------------------------------
-
-//    /**
-//     * testEnableTracking
-//     */
-//    @Test
-//    public void testEnableTracking() throws Exception {
-//        Long txnId = 12345l;
-//        this.ee.trackingEnable(txnId);
-//    }
-//    
-//    /**
-//     * testFinishTracking
-//     */
-//    @Test
-//    public void testFinishTracking() throws Exception {
-//        Long txnId = 12345l;
-//        this.ee.trackingEnable(txnId);
-//        this.ee.trackingFinish(txnId);
-//    }
-    
-    /**
-     * testReadSets
-     */
-    @Test
-    public void testReadSets() throws Exception {
-        TestSmallBankSuite.initializeSmallBankDatabase(catalogContext, this.client);
-        
+    private BlockingSendPayment startTxn() throws Exception {
         // Fire off a distributed a txn that will block.
         Object dtxnParams[] = new Object[]{ BASE_PARTITION, BASE_PARTITION+1, 1.0 };
         StoredProcedureInvocationHints dtxnHints = new StoredProcedureInvocationHints();
@@ -134,26 +114,117 @@ public class TestReadWriteTracking extends BaseTestCase {
         boolean result = voltProc.NOTIFY_BEFORE.tryAcquire(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
         assertTrue(result);
         
-        Long txnId = voltProc.getTransactionId();
-        assertNotNull(txnId);
-        
         // Ok now we're going to release our txn. It will execute a bunch of stuff.
         voltProc.LOCK_BEFORE.release();
         result = voltProc.NOTIFY_AFTER.tryAcquire(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
         assertTrue(result);
         
-        // It's blocked again. Let's take a peek at its ReadSet
-        VoltTable readSet = this.ee.trackingReadSet(txnId);
-        assertNotNull(readSet);
-        System.err.println("READ SET:\n" + VoltTableUtil.format(readSet));
-        ThreadUtil.sleep(10000000);
         
+        return (voltProc);
+    }
+    
+    private void finishTxn(BlockingSendPayment voltProc) throws Exception {
         // Check to make sure that the dtxn succeeded
         voltProc.LOCK_AFTER.release();
-        result = dtxnCallback.latch.await(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
-        assertTrue("DTXN LATCH"+dtxnCallback.latch, result);
-        assertEquals(Status.OK, CollectionUtil.first(dtxnCallback.responses).getStatus());
+        // VoltTable result[] = dtxnCallback.latch.await(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
+        // assertTrue("DTXN LATCH"+dtxnCallback.latch, result);
+        // assertEquals(Status.OK, CollectionUtil.first(dtxnCallback.responses).getStatus());
+    }
+    
+    // --------------------------------------------------------------------------------------------
+    // TEST CASES
+    // --------------------------------------------------------------------------------------------
+    
+    /**
+     * testReadSets
+     */
+    @Test
+    public void testReadSets() throws Exception {
+        TestSmallBankSuite.initializeSmallBankDatabase(catalogContext, this.client);
+        
+        BlockingSendPayment voltProc = this.startTxn();
+        Long txnId = voltProc.getTransactionId();
+        assertNotNull(txnId);
+        LocalTransaction ts = hstore_site.getTransaction(txnId);
+        assertNotNull(ts);
+        
+        Set<String> expectedTables = new HashSet<String>();
+        for (Table tbl : catalogContext.database.getTables()) {
+            if (ts.isTableRead(BASE_PARTITION, tbl)) {
+                expectedTables.add(tbl.getName());
+            }
+        } // FOR
+        
+        // Let's take a peek at its ReadSet
+        VoltTable result = this.ee.trackingReadSet(txnId);
+        assertNotNull(result);
+        Set<String> foundTables = new HashSet<String>();
+        while (result.advanceRow()) {
+            String tableName = result.getString(0);
+            int tupleId = (int)result.getLong(1);
+            foundTables.add(tableName);
+            assert(tupleId >= 0);
+        } // WHILE 
+        this.finishTxn(voltProc);
+        System.err.println("READ SET:\n" + VoltTableUtil.format(result));
+        
+        assertEquals(expectedTables, foundTables);
+    }
+    
+    /**
+     * testWriteSets
+     */
+    @Test
+    public void testWriteSets() throws Exception {
+        TestSmallBankSuite.initializeSmallBankDatabase(catalogContext, this.client);
+        
+        BlockingSendPayment voltProc = this.startTxn();
+        Long txnId = voltProc.getTransactionId();
+        assertNotNull(txnId);
+        LocalTransaction ts = hstore_site.getTransaction(txnId);
+        assertNotNull(ts);
+        
+        Set<String> expectedTables = new HashSet<String>();
+        for (Table tbl : catalogContext.database.getTables()) {
+            if (ts.isTableWritten(BASE_PARTITION, tbl)) {
+                expectedTables.add(tbl.getName());
+            }
+        } // FOR
+        
+        // Let's take a peek at its WriteSet
+        VoltTable result = this.ee.trackingWriteSet(txnId);
+        assertNotNull(result);
+        Set<String> foundTables = new HashSet<String>();
+        while (result.advanceRow()) {
+            String tableName = result.getString(0);
+            int tupleId = (int)result.getLong(1);
+            foundTables.add(tableName);
+            assert(tupleId >= 0);
+        } // WHILE 
+        this.finishTxn(voltProc);
+        System.err.println("WRITE SET:\n" + VoltTableUtil.format(result));
+        
+        assertEquals(expectedTables, foundTables);
     }
 
+
+    /**
+     * testEnableTracking
+     */
+    @Test
+    public void testEnableTracking() throws Exception {
+        Long txnId = 12345l;
+        this.ee.trackingEnable(txnId);
+    }
+    
+    /**
+     * testFinishTracking
+     */
+    @Test
+    public void testFinishTracking() throws Exception {
+        Long txnId = 12345l;
+        this.ee.trackingEnable(txnId);
+        this.ee.trackingFinish(txnId);
+    }
     
 }

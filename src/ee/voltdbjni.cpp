@@ -1315,6 +1315,7 @@ SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeTrack
         return org_voltdb_jni_ExecutionEngine_ERRORCODE_ERROR;
     }
     
+    engine->resetReusedResultOutputBuffer();
     int retval = org_voltdb_jni_ExecutionEngine_ERRORCODE_SUCCESS;
     try {
         retval = engine->trackingTupleSet(static_cast<int64_t>(txnId), false);
@@ -1343,6 +1344,7 @@ SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeTrack
         return org_voltdb_jni_ExecutionEngine_ERRORCODE_ERROR;
     }
     
+    engine->resetReusedResultOutputBuffer();
     int retval = org_voltdb_jni_ExecutionEngine_ERRORCODE_SUCCESS;
     try {
         retval = engine->trackingTupleSet(static_cast<int64_t>(txnId), true);
