@@ -1254,16 +1254,16 @@ JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeTrackingEnable(
         JNIEnv *env,
         jobject obj,
         jlong engine_ptr,
-        jboolean value) {
+        jlong txnId) {
     
-    VOLT_DEBUG("nativeReadwriteTrackingEnable() start");
+    VOLT_DEBUG("nativeTrackingEnable() start");
     VoltDBEngine *engine = castToEngine(engine_ptr);
     Topend *topend = static_cast<JNITopend*>(engine->getTopend())->updateJNIEnv(env);
     if (engine == NULL) {
         return org_voltdb_jni_ExecutionEngine_ERRORCODE_ERROR;
     }
     try {
-        engine->trackingEnable(value);
+        engine->trackingEnable(static_cast<int64_t>(txnId));
     } catch (FatalException e) {
         topend->crashVoltDB(e);
     }
@@ -1282,7 +1282,7 @@ JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeTrackingFinish(
         jlong engine_ptr,
         jlong txnId) {
     
-    VOLT_DEBUG("nativeReadwriteTrackingFinish() start");
+    VOLT_DEBUG("nativeTrackingFinish() start");
     VoltDBEngine *engine = castToEngine(engine_ptr);
     Topend *topend = static_cast<JNITopend*>(engine->getTopend())->updateJNIEnv(env);
     if (engine == NULL) {
@@ -1294,6 +1294,62 @@ JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeTrackingFinish(
         topend->crashVoltDB(e);
     }
     return org_voltdb_jni_ExecutionEngine_ERRORCODE_SUCCESS;
+}
+
+/**
+ * Get the READ tracking set for the given txnId.
+ * @param pointer the VoltDBEngine pointer
+ * @param txnId the transaction to retrieve data from.
+ * @return error code
+ */
+JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeTrackingReadSet(
+        JNIEnv *env,
+        jobject obj,
+        jlong engine_ptr,
+        jlong txnId) {
+    
+    VOLT_DEBUG("nativeTrackingReadSet() start");
+    VoltDBEngine *engine = castToEngine(engine_ptr);
+    Topend *topend = static_cast<JNITopend*>(engine->getTopend())->updateJNIEnv(env);
+    if (engine == NULL) {
+        return org_voltdb_jni_ExecutionEngine_ERRORCODE_ERROR;
+    }
+    
+    int retval = org_voltdb_jni_ExecutionEngine_ERRORCODE_SUCCESS;
+    try {
+        retval = engine->trackingTupleSet(static_cast<int64_t>(txnId), false);
+    } catch (FatalException e) {
+        topend->crashVoltDB(e);
+    }
+    return retval;
+}
+
+/**
+ * Get the WRITE tracking set for the given txnId.
+ * @param pointer the VoltDBEngine pointer
+ * @param txnId the transaction to retrieve data from.
+ * @return error code
+ */
+JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeTrackingWriteSet(
+        JNIEnv *env,
+        jobject obj,
+        jlong engine_ptr,
+        jlong txnId) {
+    
+    VOLT_DEBUG("nativeTrackingWriteSet() start");
+    VoltDBEngine *engine = castToEngine(engine_ptr);
+    Topend *topend = static_cast<JNITopend*>(engine->getTopend())->updateJNIEnv(env);
+    if (engine == NULL) {
+        return org_voltdb_jni_ExecutionEngine_ERRORCODE_ERROR;
+    }
+    
+    int retval = org_voltdb_jni_ExecutionEngine_ERRORCODE_SUCCESS;
+    try {
+        retval = engine->trackingTupleSet(static_cast<int64_t>(txnId), true);
+    } catch (FatalException e) {
+        topend->crashVoltDB(e);
+    }
+    return retval;
 }
 
 // ----------------------------------------------------------------------------

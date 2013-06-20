@@ -1462,11 +1462,19 @@ public class ExecutionEngineIPC extends ExecutionEngine {
     }
 
     @Override
-    public void trackingEnable(boolean value) throws EEException {
+    public void trackingEnable(Long txnId) throws EEException {
         throw new NotImplementedException("Read/Write Set Tracking is disabled for IPC ExecutionEngine");
     }
     @Override
     public void trackingFinish(Long txnId) throws EEException {
+        throw new NotImplementedException("Read/Write Set Tracking is disabled for IPC ExecutionEngine");
+    }
+    @Override
+    public VoltTable trackingReadSet(Long txnId) throws EEException {
+        throw new NotImplementedException("Read/Write Set Tracking is disabled for IPC ExecutionEngine");
+    }
+    @Override
+    public VoltTable trackingWriteSet(Long txnId) throws EEException {
         throw new NotImplementedException("Read/Write Set Tracking is disabled for IPC ExecutionEngine");
     }
     

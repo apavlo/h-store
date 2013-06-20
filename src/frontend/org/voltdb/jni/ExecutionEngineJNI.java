@@ -634,21 +634,57 @@ public class ExecutionEngineJNI extends ExecutionEngine {
     // ----------------------------------------------------------------------------
     
     @Override
-    public void trackingEnable(boolean value) throws EEException {
-        LOG.info(String.format("%s read/write set tracking at partition %d",
-                 (value ? "Enabling" : "Disabling"), this.site.getPartitionId()));
-        final int errorCode = nativeTrackingEnable(this.pointer, true);
+    public void trackingEnable(Long txnId) throws EEException {
+        LOG.info(String.format("Enabling read/write set tracking for txn #%d at partition %d",
+                 txnId, this.site.getPartitionId()));
+        final int errorCode = nativeTrackingEnable(this.pointer, txnId.longValue());
         checkErrorCode(errorCode);
-        m_readwriteTracking = value;
     }
     
     @Override
     public void trackingFinish(Long txnId) throws EEException {
-        assert(m_readwriteTracking);
-        LOG.info(String.format("Deleting read/write set tracker for txn #%s at partition %d",
+        LOG.info(String.format("Deleting read/write set tracker for txn #%d at partition %d",
                  txnId, this.site.getPartitionId()));
-       final int errorCode = nativeTrackingFinish(this.pointer, txnId.longValue());
-       checkErrorCode(errorCode);
+        final int errorCode = nativeTrackingFinish(this.pointer, txnId.longValue());
+        checkErrorCode(errorCode);
+    }
+    
+    @Override
+    public VoltTable trackingReadSet(Long txnId) throws EEException {
+        LOG.info(String.format("Get READ tracking set for txn #%d at partition %d",
+                 txnId, this.site.getPartitionId()));
+        deserializer.clear();
+        final int numResults = nativeTrackingReadSet(this.pointer, txnId.longValue());
+        if (numResults == -1) {
+            throwExceptionForError(ERRORCODE_ERROR);
+        }
+        try {
+            deserializer.readInt();//Ignore the length of the result tables
+            final VoltTable resultTable = PrivateVoltTableFactory.createUninitializedVoltTable();
+            return (VoltTable)deserializer.readObject(resultTable, this);
+        } catch (final IOException ex) {
+            LOG.error("Failed to deserialze result table for getStats" + ex);
+            throw new EEException(ERRORCODE_WRONG_SERIALIZED_BYTES);
+        }
+    }
+    
+    @Override
+    public VoltTable trackingWriteSet(Long txnId) throws EEException {
+        LOG.info(String.format("Get WRITE tracking set for txn #%d at partition %d",
+                 txnId, this.site.getPartitionId()));
+        deserializer.clear();
+        final int numResults = nativeTrackingReadSet(this.pointer, txnId.longValue());
+        if (numResults == -1) {
+            throwExceptionForError(ERRORCODE_ERROR);
+        }
+        try {
+            deserializer.readInt();//Ignore the length of the result tables
+            final VoltTable resultTable = PrivateVoltTableFactory.createUninitializedVoltTable();
+            return (VoltTable)deserializer.readObject(resultTable, this);
+        } catch (final IOException ex) {
+            LOG.error("Failed to deserialze result table for getStats" + ex);
+            throw new EEException(ERRORCODE_WRONG_SERIALIZED_BYTES);
+        }
     }
     
     // ----------------------------------------------------------------------------
