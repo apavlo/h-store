@@ -262,6 +262,7 @@ class __attribute__((visibility("default"))) VoltDBEngine {
         // READ/WRITE SET TRACKING FUNCTIONS
         // -------------------------------------------------
         void readWriteTrackingEnable(bool value);
+        void readWriteTrackingFinish(int64_t txnId);
         
         // -------------------------------------------------
         // ANTI-CACHE FUNCTIONS

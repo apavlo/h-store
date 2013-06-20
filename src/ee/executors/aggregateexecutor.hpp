@@ -374,7 +374,7 @@ public:
 protected:
     bool p_init(AbstractPlanNode* abstract_node,
                 const catalog::Database *catalog_db, int* tempTableMemoryInBytes);
-    bool p_execute(const NValueArray &params);
+    bool p_execute(const NValueArray &params, ReadWriteTracker *tracker);
 
     /*
      * List of mappings of columns from the output table that are
@@ -976,7 +976,7 @@ AggregateExecutor<aggregateType>::p_init(AbstractPlanNode *abstract_node,
 // Assumes that the input table is sorted on the group-by keys.
 //
 template<PlanNodeType aggregateType>
-bool AggregateExecutor<aggregateType>::p_execute(const NValueArray &params)
+bool AggregateExecutor<aggregateType>::p_execute(const NValueArray &params, ReadWriteTracker *tracker)
 {
     m_memoryPool.purge();
     AggregatePlanNode* node = dynamic_cast<AggregatePlanNode*>(abstract_node);

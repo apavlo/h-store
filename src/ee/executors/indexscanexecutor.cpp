@@ -343,7 +343,7 @@ bool IndexScanExecutor::p_init(AbstractPlanNode *abstractNode,
     return true;
 }
 
-bool IndexScanExecutor::p_execute(const NValueArray &params)
+bool IndexScanExecutor::p_execute(const NValueArray &params, ReadWriteTracker *tracker)
 {
     assert(m_node);
     assert(m_node == dynamic_cast<IndexScanPlanNode*>(abstract_node));
@@ -508,7 +508,7 @@ bool IndexScanExecutor::p_execute(const NValueArray &params)
         return false;
     }
     
-#ifdef ANTICACHE
+    #ifdef ANTICACHE
     // anti-cache variables
     //EvictedTable* m_evictedTable = static_cast<EvictedTable*> (m_targetTable->getEvictedTable()); 
     list<int16_t> evicted_block_ids;
@@ -522,11 +522,9 @@ bool IndexScanExecutor::p_execute(const NValueArray &params)
     if (m_targetTable->getEvictedTable() != NULL)
         m_evicted_tuple = new TableTuple(m_targetTable->getEvictedTable()->schema()); 
 
-    
     int16_t block_id;
     int32_t tuple_id;
-    
-#endif        
+    #endif        
 
 
     //
@@ -539,9 +537,13 @@ bool IndexScanExecutor::p_execute(const NValueArray &params)
     {
         m_targetTable->updateTupleAccessCount();
         
-#ifdef ANTICACHE
+        // Read/Write Set Tracking
+        if (tracker != NULL) {
+            tracker->markTupleRead(m_targetTable->name(), &m_tuple);
+        }
+        
+        #ifdef ANTICACHE
         // We are pointing to an entry for an evicted tuple
-
         if (m_tuple.isEvicted()) {            
             if (m_evicted_tuple == NULL) {
                 VOLT_INFO("Evicted Tuple found in table without EvictedTable!"); 
@@ -558,7 +560,7 @@ bool IndexScanExecutor::p_execute(const NValueArray &params)
                 evicted_offsets.push_back(tuple_id);
             }
         }
-#endif        
+        #endif        
         
         //
         // First check whether the end_expression is now false

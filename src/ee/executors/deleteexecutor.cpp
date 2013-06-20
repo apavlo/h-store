@@ -89,7 +89,7 @@ bool DeleteExecutor::p_init(AbstractPlanNode *abstract_node, const catalog::Data
     return true;
 }
 
-bool DeleteExecutor::p_execute(const NValueArray &params) {
+bool DeleteExecutor::p_execute(const NValueArray &params, ReadWriteTracker *tracker) {
     assert(m_targetTable);
     if (m_truncate) {
         VOLT_TRACE("truncating table %s...", m_targetTable->name().c_str());
@@ -115,6 +115,11 @@ bool DeleteExecutor::p_execute(const NValueArray &params) {
         //
         void *targetAddress = m_inputTuple.getNValue(0).castAsAddress();
         m_targetTuple.move(targetAddress);
+        
+        // Read/Write Set Tracking
+        if (tracker != NULL) {
+            tracker->markTupleWritten(m_targetTable->name(), &m_targetTuple);
+        }
 
         // Delete from target table
         if (!m_targetTable->deleteTuple(m_targetTuple, true)) {

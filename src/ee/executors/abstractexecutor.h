@@ -51,12 +51,14 @@
 #include "common/valuevector.h"
 #include "storage/table.h"
 #include "storage/temptable.h"
+#include "storage/ReadWriteTracker.h"
 #include "plannodes/abstractplannode.h"
 #include "catalog/database.h"
 
 namespace voltdb {
 
 class VoltDBEngine;
+class ReadWriteTracker;
 
 /**
  * AbstractExecutor provides the API for initializing and invoking executors.
@@ -70,7 +72,7 @@ class AbstractExecutor {
     bool init(VoltDBEngine*, const catalog::Database *catalog_db, int* tempTableMemoryInBytes);
 
     /** Invoke a plannode's associated executor */
-    bool execute(const NValueArray &params);
+    bool execute(const NValueArray &params, ReadWriteTracker *tracker);
 
     /**
      * Returns true if the output table for the plannode must be cleaned up
@@ -89,6 +91,7 @@ class AbstractExecutor {
      * Returns the plannode that generated this executor.
      */
     inline AbstractPlanNode* getPlanNode() { return abstract_node; }
+    
   protected:
     AbstractExecutor(VoltDBEngine *engine, AbstractPlanNode *abstract_node) {
         this->abstract_node = abstract_node;
@@ -100,7 +103,7 @@ class AbstractExecutor {
     virtual bool p_init(AbstractPlanNode*, const catalog::Database *catalog_db, int* tempTableMemoryInBytes) = 0;
 
     /** Concrete executor classes impelmenet execution in p_execute() */
-    virtual bool p_execute(const NValueArray &params) = 0;
+    virtual bool p_execute(const NValueArray &params, ReadWriteTracker *tracker) = 0;
 
     /**
      * Returns true if the output table for the plannode must be
@@ -147,7 +150,7 @@ class OperationExecutor : public AbstractExecutor {
     virtual bool needsOutputTableClear() { return false; };
 };
 
-inline bool AbstractExecutor::execute(const NValueArray &params) {
+inline bool AbstractExecutor::execute(const NValueArray &params, ReadWriteTracker *tracker) {
     assert (abstract_node);
     VOLT_TRACE("Starting execution of plannode(id=%d)...", abstract_node->getPlanNodeId());
 
@@ -157,7 +160,7 @@ inline bool AbstractExecutor::execute(const NValueArray &params) {
     }
 
     // run the executor
-    return this->p_execute(params);
+    return this->p_execute(params, tracker);
 }
 
 }

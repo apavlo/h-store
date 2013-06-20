@@ -1250,7 +1250,7 @@ SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_utils_ThreadUtils_getNumCores
  * @param value whether to enable the feature
  * @return error code
  */
-JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeReadwriteTrackingEnable(
+JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeReadWriteTrackingEnable(
         JNIEnv *env,
         jobject obj,
         jlong engine_ptr,
@@ -1264,6 +1264,32 @@ JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeReadwriteTracki
     }
     try {
         engine->readWriteTrackingEnable(value);
+    } catch (FatalException e) {
+        topend->crashVoltDB(e);
+    }
+    return org_voltdb_jni_ExecutionEngine_ERRORCODE_SUCCESS;
+}
+
+/**
+ * Delete the read/write tracker for the given txnId
+ * @param pointer the VoltDBEngine pointer
+ * @param txnId the transaction to free up
+ * @return error code
+ */
+JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeReadWriteTrackingFinish(
+        JNIEnv *env,
+        jobject obj,
+        jlong engine_ptr,
+        jlong txnId) {
+    
+    VOLT_DEBUG("nativeReadwriteTrackingFinish() start");
+    VoltDBEngine *engine = castToEngine(engine_ptr);
+    Topend *topend = static_cast<JNITopend*>(engine->getTopend())->updateJNIEnv(env);
+    if (engine == NULL) {
+        return org_voltdb_jni_ExecutionEngine_ERRORCODE_ERROR;
+    }
+    try {
+        engine->readWriteTrackingFinish(static_cast<int64_t>(txnId));
     } catch (FatalException e) {
         topend->crashVoltDB(e);
     }

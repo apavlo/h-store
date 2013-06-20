@@ -122,7 +122,7 @@ bool UnionExecutor::p_init(AbstractPlanNode *abstract_node,
     return true;
 }
 
-bool UnionExecutor::p_execute(const NValueArray &params) {
+bool UnionExecutor::p_execute(const NValueArray &params, ReadWriteTracker *tracker) {
     UnionPlanNode* node = dynamic_cast<UnionPlanNode*>(abstract_node);
     assert(node);
     Table* output_table = node->getOutputTable();

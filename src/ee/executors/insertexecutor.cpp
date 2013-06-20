@@ -101,7 +101,7 @@ bool InsertExecutor::p_init(AbstractPlanNode *abstract_node, const catalog::Data
     return true;
 }
 
-bool InsertExecutor::p_execute(const NValueArray &params) {
+bool InsertExecutor::p_execute(const NValueArray &params, ReadWriteTracker *tracker) {
     assert(m_node == dynamic_cast<InsertPlanNode*>(abstract_node));
     assert(m_node);
     assert(m_inputTable == dynamic_cast<TempTable*>(m_node->getInputTables()[0]));

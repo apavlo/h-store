@@ -41,18 +41,19 @@ ReadWriteTracker::~ReadWriteTracker() {
     // TODO: Do we need to free up the entries in our maps?
 }
     
-void ReadWriteTracker::markTupleRead(const int32_t tableId, const int32_t rowOffset) {
-
-    
+void ReadWriteTracker::markTupleRead(const std::string tableName, TableTuple *tuple) {
+    uint32_t tupleId = tuple->getTupleID();
+    this->reads.insert(std::make_pair(tableName, tupleId));
 }
 
-void ReadWriteTracker::markTupleWritten(const int32_t tableId, const int32_t rowOffset) {
-
+void ReadWriteTracker::markTupleWritten(const std::string tableName, TableTuple *tuple) {
+    uint32_t tupleId = tuple->getTupleID();
+    this->writes.insert(std::make_pair(tableName, tupleId));
     
 }
 void ReadWriteTracker::clear() {
-    
-    
+    this->reads.clear();
+    this->writes.clear();
 }
 
 }
