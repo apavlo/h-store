@@ -76,11 +76,12 @@ class ReadWriteTrackerManager {
         ReadWriteTrackerManager(ExecutorContext *ctx);
         ~ReadWriteTrackerManager();
     
+        ReadWriteTracker* enableTracking(int64_t txnId);
         ReadWriteTracker* getTracker(int64_t txnId);
         void removeTracker(int64_t txnId);
         
+        Table* getTuplesRead(ReadWriteTracker *tracker);
         Table* getTuplesWritten(ReadWriteTracker *tracker);
-
         
     private:
         ExecutorContext *executorContext;

@@ -191,12 +191,22 @@ public class MockExecutionEngine extends ExecutionEngine {
     }
 
     @Override
-    public void trackingEnable(boolean value) throws EEException {
+    public void trackingEnable(Long txnId) throws EEException {
         // TODO Auto-generated method stub
     }
     @Override
     public void trackingFinish(Long txnId) throws EEException {
         // TODO Auto-generated method stub
+    }
+    @Override
+    public VoltTable trackingReadSet(Long txnId) throws EEException {
+        // TODO Auto-generated method stub
+        return null;
+    }
+    @Override
+    public VoltTable trackingWriteSet(Long txnId) throws EEException {
+        // TODO Auto-generated method stub
+        return null;
     }
     
     @Override

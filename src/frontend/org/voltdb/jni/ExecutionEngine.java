@@ -69,9 +69,6 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
     // Whether the anti-cache feature is enabled
     protected boolean m_anticache;
     
-    // Whether read/write set tracking is enabled
-    protected boolean m_readwriteTracking;
-
     /** Error codes exported for JNI methods. */
     public static final int ERRORCODE_SUCCESS = 0;
     public static final int ERRORCODE_ERROR = 1; // just error or not so far.
@@ -706,12 +703,11 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
     // ----------------------------------------------------------------------------
     
     /**
-     * Enable/disable row-level tracking for transactions at runtime.
+     * Enable/disable row-level tracking for a transaction at runtime.
      * @param value
      * @throws EEException
      */
-    public abstract void trackingEnable(boolean value) throws EEException;
-    
+    public abstract void trackingEnable(Long txnId) throws EEException;
     
     /**
      * Enable/disable tracking the read/write sets of individual transactions at runtime.
@@ -720,7 +716,7 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
      * @return
      * @throws EEException
      */
-    protected native int nativeTrackingEnable(long pointer, boolean value) throws EEException;
+    protected native int nativeTrackingEnable(long pointer, long txnId) throws EEException;
     
     /**
      * Mark a txn as finished in the EE. This will clean up the row tracking stuff.
@@ -728,7 +724,6 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
      * @throws EEException
      */
     public abstract void trackingFinish(Long txnId) throws EEException;
-    
     
     /**
      * Mark a txn as finished in the EE. This will clean up the row tracking stuff.
@@ -738,6 +733,38 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
      * @throws EEException
      */
     protected native int nativeTrackingFinish(long pointer, long txnId) throws EEException;
+    
+    /**
+     * Get the read set for this txn.
+     * @param txnId
+     * @throws EEException
+     */
+    public abstract VoltTable trackingReadSet(Long txnId) throws EEException;
+    
+    /**
+     * Get the read set for this txn.
+     * @param value
+     * @param pointer
+     * @return
+     * @throws EEException
+     */
+    protected native int nativeTrackingReadSet(long pointer, long txnId) throws EEException;
+    
+    /**
+     * Get the write set for this txn.
+     * @param txnId
+     * @throws EEException
+     */
+    public abstract VoltTable trackingWriteSet(Long txnId) throws EEException;
+    
+    /**
+     * Get the write set for this txn.
+     * @param value
+     * @param pointer
+     * @return
+     * @throws EEException
+     */
+    protected native int nativeTrackingWriteSet(long pointer, long txnId) throws EEException;
 
     
     // ----------------------------------------------------------------------------

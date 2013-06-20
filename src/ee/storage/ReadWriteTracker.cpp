@@ -90,16 +90,19 @@ ReadWriteTrackerManager::~ReadWriteTrackerManager() {
     } // FOR
 }
 
+ReadWriteTracker* ReadWriteTrackerManager::enableTracking(int64_t txnId) {
+    ReadWriteTracker *tracker = new ReadWriteTracker(txnId);
+    trackers[txnId] = tracker;
+    return (tracker);
+}
+
 ReadWriteTracker* ReadWriteTrackerManager::getTracker(int64_t txnId) {
     boost::unordered_map<int64_t, ReadWriteTracker*>::const_iterator iter;
     iter = trackers.find(txnId);
     if (iter != trackers.end()) {
         return iter->second;
     }
-    
-    ReadWriteTracker *tracker = new ReadWriteTracker(txnId);
-    trackers[txnId] = tracker;
-    return (tracker);
+    return (NULL);
 }
 
 void ReadWriteTrackerManager::removeTracker(int64_t txnId) {
@@ -108,6 +111,11 @@ void ReadWriteTrackerManager::removeTracker(int64_t txnId) {
         trackers.erase(txnId);
         delete tracker;
     }
+}
+
+Table* ReadWriteTrackerManager::getTuplesRead(ReadWriteTracker *tracker) {
+    
+    return (NULL);
 }
 
 Table* ReadWriteTrackerManager::getTuplesWritten(ReadWriteTracker *tracker) {
