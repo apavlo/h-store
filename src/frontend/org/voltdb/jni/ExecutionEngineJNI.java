@@ -654,10 +654,8 @@ public class ExecutionEngineJNI extends ExecutionEngine {
         LOG.info(String.format("Get READ tracking set for txn #%d at partition %d",
                  txnId, this.site.getPartitionId()));
         deserializer.clear();
-        final int numResults = nativeTrackingReadSet(this.pointer, txnId.longValue());
-        if (numResults == -1) {
-            throwExceptionForError(ERRORCODE_ERROR);
-        }
+        final int errorCode = nativeTrackingReadSet(this.pointer, txnId.longValue());
+        checkErrorCode(errorCode);
         try {
             deserializer.readInt();//Ignore the length of the result tables
             final VoltTable resultTable = PrivateVoltTableFactory.createUninitializedVoltTable();
@@ -673,10 +671,8 @@ public class ExecutionEngineJNI extends ExecutionEngine {
         LOG.info(String.format("Get WRITE tracking set for txn #%d at partition %d",
                  txnId, this.site.getPartitionId()));
         deserializer.clear();
-        final int numResults = nativeTrackingReadSet(this.pointer, txnId.longValue());
-        if (numResults == -1) {
-            throwExceptionForError(ERRORCODE_ERROR);
-        }
+        final int errorCode = nativeTrackingWriteSet(this.pointer, txnId.longValue());
+        checkErrorCode(errorCode);
         try {
             deserializer.readInt();//Ignore the length of the result tables
             final VoltTable resultTable = PrivateVoltTableFactory.createUninitializedVoltTable();

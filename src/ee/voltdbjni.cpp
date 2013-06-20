@@ -1250,7 +1250,7 @@ SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_utils_ThreadUtils_getNumCores
  * @param value whether to enable the feature
  * @return error code
  */
-JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeTrackingEnable(
+SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeTrackingEnable(
         JNIEnv *env,
         jobject obj,
         jlong engine_ptr,
@@ -1276,7 +1276,7 @@ JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeTrackingEnable(
  * @param txnId the transaction to free up
  * @return error code
  */
-JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeTrackingFinish(
+SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeTrackingFinish(
         JNIEnv *env,
         jobject obj,
         jlong engine_ptr,
@@ -1302,7 +1302,7 @@ JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeTrackingFinish(
  * @param txnId the transaction to retrieve data from.
  * @return error code
  */
-JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeTrackingReadSet(
+SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeTrackingReadSet(
         JNIEnv *env,
         jobject obj,
         jlong engine_ptr,
@@ -1330,7 +1330,7 @@ JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeTrackingReadSet
  * @param txnId the transaction to retrieve data from.
  * @return error code
  */
-JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeTrackingWriteSet(
+SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeTrackingWriteSet(
         JNIEnv *env,
         jobject obj,
         jlong engine_ptr,

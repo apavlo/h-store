@@ -1397,23 +1397,27 @@ void VoltDBEngine::trackingEnable(int64_t txnId) {
         VOLT_INFO("Setting up Tracking Manager at Partition %d", m_partitionId);
         m_executorContext->enableTracking();
     }
-    VOLT_INFO("Creating ReadWriteTracker for txn #%lld at Partition %d", txnId, m_partitionId);
+    VOLT_INFO("Creating ReadWriteTracker for txn #%ld at Partition %d", txnId, m_partitionId);
     ReadWriteTrackerManager *trackerMgr = m_executorContext->getTrackerManager();
     trackerMgr->enableTracking(txnId);
 }
 
 void VoltDBEngine::trackingFinish(int64_t txnId) {
-    if (m_executorContext->isTrackingEnabled()) {
-        ReadWriteTrackerManager *trackerMgr = m_executorContext->getTrackerManager();
-        VOLT_INFO("Deleting ReadWriteTracker for txn #%lld at Partition %d",
-                  txnId, m_partitionId);
-        trackerMgr->removeTracker(txnId);
+    if (m_executorContext->isTrackingEnabled() == false) {
+        VOLT_WARN("Tracking is not enable for txn #%ld at Partition %d", txnId, m_partitionId);
+        return;
     }
+    ReadWriteTrackerManager *trackerMgr = m_executorContext->getTrackerManager();
+    VOLT_INFO("Deleting ReadWriteTracker for txn #%ld at Partition %d",
+              txnId, m_partitionId);
+    trackerMgr->removeTracker(txnId);
+    return;
 }
 
 int VoltDBEngine::trackingTupleSet(int64_t txnId, bool writes) {
     if (m_executorContext->isTrackingEnabled() == false) {
-        return (ENGINE_ERRORCODE_ERROR);
+        throwFatalException("Tracking is not enable for txn #%ld at Partition %d", txnId, m_partitionId);
+        // return (ENGINE_ERRORCODE_ERROR);
     }
 
     ReadWriteTrackerManager *trackerMgr = m_executorContext->getTrackerManager();
@@ -1421,17 +1425,22 @@ int VoltDBEngine::trackingTupleSet(int64_t txnId, bool writes) {
     
     Table *resultTable = NULL;
     if (writes) {
+        VOLT_INFO("Getting WRITE tracking set for txn #%ld at Partition %d", txnId, m_partitionId);
         resultTable = trackerMgr->getTuplesWritten(tracker);
     } else {
+        VOLT_INFO("Getting READ tracking set for txn #%ld at Partition %d", txnId, m_partitionId);
         resultTable = trackerMgr->getTuplesRead(tracker);
     }
     
     // Serialize the output table so that we can read it up in Java
     if (resultTable != NULL) {
+        fprintf(stderr, "TRACKING TABLE TXN #%ld\n%s\n", txnId, resultTable->debug().c_str());
+        
         size_t lengthPosition = m_resultOutput.reserveBytes(sizeof(int32_t));
         resultTable->serializeTo(m_resultOutput);
         m_resultOutput.writeIntAt(lengthPosition,
                                   static_cast<int32_t>(m_resultOutput.size() - sizeof(int32_t)));
+        VOLT_INFO("Returning tracking set for txn #%ld at Partition %d", txnId, m_partitionId);
         return (ENGINE_ERRORCODE_SUCCESS);
     }
     return (ENGINE_ERRORCODE_ERROR);
