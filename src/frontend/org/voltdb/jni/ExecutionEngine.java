@@ -710,7 +710,7 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
      * @param value
      * @throws EEException
      */
-    public abstract void rowTrackingEnable(boolean value) throws EEException;
+    public abstract void trackingEnable(boolean value) throws EEException;
     
     
     /**
@@ -720,14 +720,14 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
      * @return
      * @throws EEException
      */
-    protected native int nativeReadWriteTrackingEnable(long pointer, boolean value) throws EEException;
+    protected native int nativeTrackingEnable(long pointer, boolean value) throws EEException;
     
     /**
      * Mark a txn as finished in the EE. This will clean up the row tracking stuff.
      * @param txnId
      * @throws EEException
      */
-    public abstract void rowTrackingFinish(Long txnId) throws EEException;
+    public abstract void trackingFinish(Long txnId) throws EEException;
     
     
     /**
@@ -737,7 +737,7 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
      * @return
      * @throws EEException
      */
-    protected native int nativeReadWriteTrackingFinish(long pointer, long txnId) throws EEException;
+    protected native int nativeTrackingFinish(long pointer, long txnId) throws EEException;
 
     
     // ----------------------------------------------------------------------------
