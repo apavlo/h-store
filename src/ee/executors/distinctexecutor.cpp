@@ -94,7 +94,7 @@ bool DistinctExecutor::p_init(AbstractPlanNode*, const catalog::Database* catalo
     return (true);
 }
 
-bool DistinctExecutor::p_execute(const NValueArray &params) {
+bool DistinctExecutor::p_execute(const NValueArray &params, ReadWriteTracker *tracker) {
     DistinctPlanNode* node = dynamic_cast<DistinctPlanNode*>(abstract_node);
     assert(node);
     Table* output_table = node->getOutputTable();

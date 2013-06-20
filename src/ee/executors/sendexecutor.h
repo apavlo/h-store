@@ -66,7 +66,7 @@ class SendExecutor : public OperationExecutor {
         }
     protected:
         bool p_init(AbstractPlanNode*, const catalog::Database* catalog_db, int* tempTableMemoryInBytes);
-        bool p_execute(const NValueArray &params);
+        bool p_execute(const NValueArray &params, ReadWriteTracker *tracker);
 
     private:
         Table* m_inputTable;

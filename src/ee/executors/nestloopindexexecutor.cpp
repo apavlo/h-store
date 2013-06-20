@@ -195,7 +195,7 @@ bool NestLoopIndexExecutor::p_init(AbstractPlanNode* abstract_node,
     return true;
 }
 
-bool NestLoopIndexExecutor::p_execute(const NValueArray &params)
+bool NestLoopIndexExecutor::p_execute(const NValueArray &params, ReadWriteTracker *tracker)
 {
     VOLT_TRACE ("executing NestLoopIndex...");
     assert (node == dynamic_cast<NestLoopIndexPlanNode*>(abstract_node));

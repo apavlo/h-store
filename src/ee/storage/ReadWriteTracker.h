@@ -26,12 +26,16 @@
 #ifndef HSTORE_READWRITETRACKER_H
 #define HSTORE_READWRITETRACKER_H
 
+#include <string>
 #include <vector>
 #include "boost/unordered_map.hpp"
+#include "common/tabletuple.h"
 
-typedef std::vector<int32_t> rowOffsets;
+typedef std::vector<uint32_t> rowOffsets;
 
 namespace voltdb {
+    
+class TableTuple;
     
 /**
  * Read/Write Tuple Tracker
@@ -42,17 +46,16 @@ class ReadWriteTracker {
         ReadWriteTracker(int64_t txnId);
         ~ReadWriteTracker();
         
-        void markTupleRead(const int32_t tableId, const int32_t rowOffset);
-        void markTupleWritten(const int32_t tableId, const int32_t rowOffset);
+        void markTupleRead(const std::string tableName, TableTuple *tuple);
+        void markTupleWritten(const std::string tableName, TableTuple *tuple);
         void clear();
-        
         
     private:
         int64_t txnId;
         // TableId -> RowOffsets
-        boost::unordered_map<int32_t, rowOffsets> reads;
+        boost::unordered_map<std::string, rowOffsets> reads;
         // TableId -> RowOffsets
-        boost::unordered_map<int32_t, rowOffsets> writes;
+        boost::unordered_map<std::string, rowOffsets> writes;
         
 }; // CLASS
 

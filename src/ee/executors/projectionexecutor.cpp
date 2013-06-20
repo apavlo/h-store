@@ -115,7 +115,7 @@ bool ProjectionExecutor::p_init(AbstractPlanNode *abstract_node,
     return true;
 }
 
-bool ProjectionExecutor::p_execute(const NValueArray &params) {
+bool ProjectionExecutor::p_execute(const NValueArray &params, ReadWriteTracker *tracker) {
 #ifndef NDEBUG
     ProjectionPlanNode* node = dynamic_cast<ProjectionPlanNode*>(abstract_node);
 #endif

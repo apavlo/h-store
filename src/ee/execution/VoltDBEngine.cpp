@@ -323,6 +323,16 @@ int VoltDBEngine::executeQuery(int64_t planfragmentId,
     assert (iter != m_executorMap.end());
     boost::shared_ptr<ExecutorVector> execsForFrag = iter->second;
 
+    // ReadWriteTracker
+    ReadWriteTracker *tracker = NULL;
+    if (m_executorContext->isReadWriteTrackingEnabled()) {
+        tracker = m_executorContext->getReadWriteTracker(txnId);
+        if (tracker == NULL) {
+            tracker = new ReadWriteTracker(txnId);
+            m_executorContext->setReadWriteTracker(txnId, tracker);
+        }
+    }
+    
     // PAVLO: If we see a SendPlanNode with the "fake" flag set to true,
     // then we won't really execute it and instead will send back the 
     // number of tuples that we modified
@@ -349,14 +359,13 @@ int VoltDBEngine::executeQuery(int64_t planfragmentId,
                        (intmax_t)planfragmentId, executor->getPlanNode()->getPlanNodeId(),
                        (intmax_t)txnId, m_currentOutputDepId);
         } else {
-            VOLT_DEBUG("_[PlanFragment %jd] Executing PlanNode #%02d for txn #%jd [OutputDep=%d]",
+            VOLT_DEBUG("[PlanFragment %jd] Executing PlanNode #%02d for txn #%jd [OutputDep=%d]",
                        (intmax_t)planfragmentId, executor->getPlanNode()->getPlanNodeId(),
                        (intmax_t)txnId, m_currentOutputDepId);
             try {
                 // Now call the execute method to actually perform whatever action
                 // it is that the node is supposed to do...
-
-                if (!executor->execute(params)) {
+                if (!executor->execute(params, tracker)) {
                     VOLT_DEBUG("The Executor's execution at position '%d' failed for PlanFragment '%jd'",
                                ctr, (intmax_t)planfragmentId);
                     if (cleanUpTable != NULL)
@@ -1388,6 +1397,18 @@ void VoltDBEngine::readWriteTrackingEnable(bool value) {
     if (value == true && m_executorContext->isReadWriteTrackingEnabled() == false) {
         VOLT_INFO("Enabling Read/Write Set Tracking at Partition %d", m_partitionId);
         m_executorContext->enableReadWriteTracking();
+    }
+}
+
+void VoltDBEngine::readWriteTrackingFinish(int64_t txnId) {
+    if (m_executorContext->isReadWriteTrackingEnabled()) {
+        ReadWriteTracker *tracker = m_executorContext->getReadWriteTracker(txnId);
+        if (tracker != NULL) {
+            VOLT_INFO("Deleting ReadWriteTracker for txn #%lld at Partition %d",
+                      txnId, m_partitionId);
+            m_executorContext->removeReadWriteTracker(txnId);
+            delete tracker;
+        }
     }
 }
 

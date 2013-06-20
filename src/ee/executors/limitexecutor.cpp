@@ -84,7 +84,7 @@ LimitExecutor::p_init(AbstractPlanNode* abstract_node,
 }
 
 bool
-LimitExecutor::p_execute(const NValueArray &params)
+LimitExecutor::p_execute(const NValueArray &params, ReadWriteTracker *tracker)
 {
     LimitPlanNode* node = dynamic_cast<LimitPlanNode*>(abstract_node);
     assert(node);

@@ -121,7 +121,7 @@ public class ExecutionEngineJNI extends ExecutionEngine {
         fsForParameterSet = new FastSerializer(false, new BufferGrowCallback() {
             public void onBufferGrow(final FastSerializer obj) {
                 if (trace.val) LOG.trace("Parameter buffer has grown. re-setting to EE..");
-                final int code = nativeSetBuffers(this.pointer,
+                final int code = nativeSetBuffers(pointer,
                         fsForParameterSet.getContainerNoFlip().b,
                         fsForParameterSet.getContainerNoFlip().b.capacity(),
                         deserializer.buffer(), deserializer.buffer().capacity(),
@@ -637,9 +637,18 @@ public class ExecutionEngineJNI extends ExecutionEngine {
     public void rowTrackingEnable(boolean value) throws EEException {
         LOG.info(String.format("%s read/write set tracking at partition %d",
                  (value ? "Enabling" : "Disabling"), this.site.getPartitionId()));
-        final int errorCode = nativeReadwriteTrackingEnable(this.pointer, true);
+        final int errorCode = nativeReadWriteTrackingEnable(this.pointer, true);
         checkErrorCode(errorCode);
         m_readwriteTracking = value;
+    }
+    
+    @Override
+    public void rowTrackingFinish(Long txnId) throws EEException {
+        assert(m_readwriteTracking);
+        LOG.info(String.format("Deleting read/write set tracker for txn #%s at partition %d",
+                 txnId, this.site.getPartitionId()));
+       final int errorCode = nativeReadWriteTrackingFinish(this.pointer, txnId.longValue());
+       checkErrorCode(errorCode);
     }
     
     // ----------------------------------------------------------------------------
