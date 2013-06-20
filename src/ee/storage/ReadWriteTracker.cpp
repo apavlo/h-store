@@ -40,24 +40,51 @@ ReadWriteTracker::ReadWriteTracker(int64_t txnId) :
 }
 
 ReadWriteTracker::~ReadWriteTracker() {
-    // TODO: Do we need to free up the entries in our maps?
-}
+    boost::unordered_map<std::string, RowOffsets*>::const_iterator iter;
     
-void ReadWriteTracker::markTupleRead(const std::string tableName, TableTuple *tuple) {
+    iter = this->reads.begin();
+    while (iter != this->reads.end()) {
+        delete iter->second;
+        iter++;
+    } // WHILE
+    
+    iter = this->writes.begin();
+    while (iter != this->writes.end()) {
+        delete iter->second;
+        iter++;
+    } // WHILE
+}
+
+uint32_t ReadWriteTracker::insertTuple(boost::unordered_map<std::string, RowOffsets*> *map, const std::string tableName, TableTuple *tuple) {
+    RowOffsets *offsets = NULL;
+    boost::unordered_map<std::string, RowOffsets*>::const_iterator iter = map->find(tableName);
+    if (iter != map->end()) {
+        offsets = iter->second;
+    } else {
+        offsets = new RowOffsets();
+        map->insert(std::make_pair(tableName, offsets));
+    }
+    
     uint32_t tupleId = tuple->getTupleID();
-    this->reads.insert(std::make_pair(tableName, tupleId));
+    offsets->insert(tupleId);
+    
+    return (tupleId);
+}
+
+void ReadWriteTracker::markTupleRead(const std::string tableName, TableTuple *tuple) {
+    uint32_t tupleId = this->insertTuple(&this->reads, tableName, tuple);
+    VOLT_INFO("*** TXN #%ld READ -> %s / %d", this->txnId, tableName.c_str(), tupleId);
 }
 
 void ReadWriteTracker::markTupleWritten(const std::string tableName, TableTuple *tuple) {
-    uint32_t tupleId = tuple->getTupleID();
-    this->writes.insert(std::make_pair(tableName, tupleId));
-    
+    uint32_t tupleId = this->insertTuple(&this->writes, tableName, tuple);
+    VOLT_INFO("*** TXN #%ld WRITE -> %s / %d", this->txnId, tableName.c_str(), tupleId);
 }
 
-std::vector<std::string> ReadWriteTracker::getTableNames(boost::unordered_map<std::string, rowOffsets> *map) const {
+std::vector<std::string> ReadWriteTracker::getTableNames(boost::unordered_map<std::string, RowOffsets*> *map) const {
     std::vector<std::string> tableNames;
     tableNames.reserve(map->size());
-    boost::unordered_map<std::string, rowOffsets>::const_iterator iter = map->begin();
+    boost::unordered_map<std::string, RowOffsets*>::const_iterator iter = map->begin();
     while (iter != map->end()) {
         tableNames.push_back(iter->first);
         iter++;
@@ -129,13 +156,13 @@ void ReadWriteTrackerManager::removeTracker(int64_t txnId) {
     }
 }
 
-void ReadWriteTrackerManager::getTuples(boost::unordered_map<std::string, rowOffsets> *map) const {
+void ReadWriteTrackerManager::getTuples(boost::unordered_map<std::string, RowOffsets*> *map) const {
     this->resultTable->deleteAllTuples(false);
     TableTuple tuple = this->resultTable->tempTuple();
-    boost::unordered_map<std::string, rowOffsets>::const_iterator iter = map->begin();
+    boost::unordered_map<std::string, RowOffsets*>::const_iterator iter = map->begin();
     while (iter != map->end()) {
-        rowOffsets::const_iterator tupleIter = iter->second.begin();
-        while (tupleIter != iter->second.end()) {
+        RowOffsets::const_iterator tupleIter = iter->second->begin();
+        while (tupleIter != iter->second->end()) {
             int idx = 0;
             tuple.setNValue(idx++, ValueFactory::getStringValue(iter->first)); // TABLE_NAME
             tuple.setNValue(idx++, ValueFactory::getIntegerValue(*tupleIter)); // TUPLE_ID

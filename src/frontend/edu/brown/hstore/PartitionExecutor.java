@@ -2987,7 +2987,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             this.ee.stashWorkUnitDependencies(input_deps);
         }
         
-        // Table Read-Write Sets
+        // Java-based Table Read-Write Sets
         boolean readonly = true;
         boolean speculative = ts.isSpeculative();
         boolean singlePartition = ts.isPredictSinglePartition();
@@ -3005,6 +3005,13 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 }
             }
             readonly = readonly && fragReadOnly;
+        }
+        
+        // Enable read/write set tracking
+        if (hstore_conf.site.exec_readwrite_tracking && ts.hasExecutedWork(this.partitionId) == false) {
+            LOG.info(String.format("%s - Enabling read/write set tracking in EE at partition %d",
+                     ts, this.partitionId));
+            this.ee.trackingEnable(txn_id);
         }
         
         // Check whether the txn has only exeuted read-only queries up to this point
@@ -3028,11 +3035,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 needs_profiling = true;
                 ((LocalTransaction)ts).profiler.startExecEE();
             }
-        }
-        
-        // Enable read/write set tracking
-        if (hstore_conf.site.exec_readwrite_tracking && ts.hasExecutedWork(this.partitionId) == false) {
-            this.ee.trackingEnable(txn_id);
         }
         
         Throwable error = null;
