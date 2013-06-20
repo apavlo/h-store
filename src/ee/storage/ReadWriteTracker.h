@@ -43,9 +43,11 @@ class TupleSchema;
 class Table;
     
 /**
- * Read/Write Tuple Tracker
+ * Read/Write Tuple Tracker for a single transaction
  */
 class ReadWriteTracker {
+    
+    friend class ReadWriteTrackerManager;
     
     public:
         ReadWriteTracker(int64_t txnId);
@@ -70,7 +72,9 @@ class ReadWriteTracker {
         
 }; // CLASS
 
-
+/**
+ * ReadWriteTracker Manager 
+ */
 class ReadWriteTrackerManager {
     public:
         ReadWriteTrackerManager(ExecutorContext *ctx);
@@ -84,8 +88,11 @@ class ReadWriteTrackerManager {
         Table* getTuplesWritten(ReadWriteTracker *tracker);
         
     private:
+        void getTuples(boost::unordered_map<std::string, rowOffsets> *map) const;
+        
         ExecutorContext *executorContext;
         TupleSchema *resultSchema;
+        Table *resultTable;
         boost::unordered_map<int64_t, ReadWriteTracker*> trackers;
 }; // CLASS
 

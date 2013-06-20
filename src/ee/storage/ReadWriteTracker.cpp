@@ -23,9 +23,11 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include "storage/ReadWriteTracker.h"
 #include "common/debuglog.h"
 #include "common/FatalException.hpp"
+#include "common/ValueFactory.hpp"
+#include "storage/ReadWriteTracker.h"
+#include "storage/tablefactory.h"
 
 using namespace std;
 
@@ -78,11 +80,25 @@ void ReadWriteTracker::clear() {
 // -------------------------------------------------------------------------
 
 ReadWriteTrackerManager::ReadWriteTrackerManager(ExecutorContext *ctx) : executorContext(ctx) {
+    CatalogId databaseId = 1;
     this->resultSchema = TupleSchema::createTrackerTupleSchema();
+    
+    string *resultColumnNames = new string[this->resultSchema->columnCount()];
+    resultColumnNames[0] = std::string("TABLE_NAME");
+    resultColumnNames[1] = std::string("TUPLE_ID"); 
+    
+    this->resultTable = reinterpret_cast<Table*>(voltdb::TableFactory::getTempTable(
+                databaseId,
+                std::string("ReadWriteTrackerManager"),
+                this->resultSchema,
+                resultColumnNames,
+                NULL));
 }
 
 ReadWriteTrackerManager::~ReadWriteTrackerManager() {
     TupleSchema::freeTupleSchema(this->resultSchema);
+    delete this->resultTable;
+    
     boost::unordered_map<int64_t, ReadWriteTracker*>::const_iterator iter = this->trackers.begin();
     while (iter != this->trackers.end()) {
         delete iter->second;
@@ -113,14 +129,32 @@ void ReadWriteTrackerManager::removeTracker(int64_t txnId) {
     }
 }
 
+void ReadWriteTrackerManager::getTuples(boost::unordered_map<std::string, rowOffsets> *map) const {
+    this->resultTable->deleteAllTuples(false);
+    TableTuple tuple = this->resultTable->tempTuple();
+    boost::unordered_map<std::string, rowOffsets>::const_iterator iter = map->begin();
+    while (iter != map->end()) {
+        rowOffsets::const_iterator tupleIter = iter->second.begin();
+        while (tupleIter != iter->second.end()) {
+            int idx = 0;
+            tuple.setNValue(idx++, ValueFactory::getStringValue(iter->first)); // TABLE_NAME
+            tuple.setNValue(idx++, ValueFactory::getIntegerValue(*tupleIter)); // TUPLE_ID
+            this->resultTable->insertTuple(tuple);
+            tupleIter++;
+        } // WHILE
+        iter++;
+    } // WHILE
+    return;
+}
+
 Table* ReadWriteTrackerManager::getTuplesRead(ReadWriteTracker *tracker) {
-    
-    return (NULL);
+    this->getTuples(&tracker->reads);
+    return (this->resultTable);
 }
 
 Table* ReadWriteTrackerManager::getTuplesWritten(ReadWriteTracker *tracker) {
-    
-    return (NULL);
+    this->getTuples(&tracker->writes);
+    return (this->resultTable);
 }
 
 }
