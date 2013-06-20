@@ -634,20 +634,20 @@ public class ExecutionEngineJNI extends ExecutionEngine {
     // ----------------------------------------------------------------------------
     
     @Override
-    public void rowTrackingEnable(boolean value) throws EEException {
+    public void trackingEnable(boolean value) throws EEException {
         LOG.info(String.format("%s read/write set tracking at partition %d",
                  (value ? "Enabling" : "Disabling"), this.site.getPartitionId()));
-        final int errorCode = nativeReadWriteTrackingEnable(this.pointer, true);
+        final int errorCode = nativeTrackingEnable(this.pointer, true);
         checkErrorCode(errorCode);
         m_readwriteTracking = value;
     }
     
     @Override
-    public void rowTrackingFinish(Long txnId) throws EEException {
+    public void trackingFinish(Long txnId) throws EEException {
         assert(m_readwriteTracking);
         LOG.info(String.format("Deleting read/write set tracker for txn #%s at partition %d",
                  txnId, this.site.getPartitionId()));
-       final int errorCode = nativeReadWriteTrackingFinish(this.pointer, txnId.longValue());
+       final int errorCode = nativeTrackingFinish(this.pointer, txnId.longValue());
        checkErrorCode(errorCode);
     }
     

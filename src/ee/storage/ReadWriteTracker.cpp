@@ -51,9 +51,68 @@ void ReadWriteTracker::markTupleWritten(const std::string tableName, TableTuple 
     this->writes.insert(std::make_pair(tableName, tupleId));
     
 }
+
+std::vector<std::string> ReadWriteTracker::getTableNames(boost::unordered_map<std::string, rowOffsets> *map) const {
+    std::vector<std::string> tableNames;
+    tableNames.reserve(map->size());
+    boost::unordered_map<std::string, rowOffsets>::const_iterator iter = map->begin();
+    while (iter != map->end()) {
+        tableNames.push_back(iter->first);
+        iter++;
+    } // FOR
+    return (tableNames);
+}
+
+std::vector<std::string> ReadWriteTracker::getTablesRead() {
+    return this->getTableNames(&this->reads);
+}    
+std::vector<std::string> ReadWriteTracker::getTablesWritten() {
+    return this->getTableNames(&this->writes);
+}
+
 void ReadWriteTracker::clear() {
     this->reads.clear();
     this->writes.clear();
+}
+
+// -------------------------------------------------------------------------
+
+ReadWriteTrackerManager::ReadWriteTrackerManager(ExecutorContext *ctx) : executorContext(ctx) {
+    this->resultSchema = TupleSchema::createTrackerTupleSchema();
+}
+
+ReadWriteTrackerManager::~ReadWriteTrackerManager() {
+    TupleSchema::freeTupleSchema(this->resultSchema);
+    boost::unordered_map<int64_t, ReadWriteTracker*>::const_iterator iter = this->trackers.begin();
+    while (iter != this->trackers.end()) {
+        delete iter->second;
+        iter++;
+    } // FOR
+}
+
+ReadWriteTracker* ReadWriteTrackerManager::getTracker(int64_t txnId) {
+    boost::unordered_map<int64_t, ReadWriteTracker*>::const_iterator iter;
+    iter = trackers.find(txnId);
+    if (iter != trackers.end()) {
+        return iter->second;
+    }
+    
+    ReadWriteTracker *tracker = new ReadWriteTracker(txnId);
+    trackers[txnId] = tracker;
+    return (tracker);
+}
+
+void ReadWriteTrackerManager::removeTracker(int64_t txnId) {
+    ReadWriteTracker *tracker = this->getTracker(txnId);
+    if (tracker != NULL) {
+        trackers.erase(txnId);
+        delete tracker;
+    }
+}
+
+Table* ReadWriteTrackerManager::getTuplesWritten(ReadWriteTracker *tracker) {
+    
+    return (NULL);
 }
 
 }

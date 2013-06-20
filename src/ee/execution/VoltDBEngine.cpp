@@ -323,14 +323,11 @@ int VoltDBEngine::executeQuery(int64_t planfragmentId,
     assert (iter != m_executorMap.end());
     boost::shared_ptr<ExecutorVector> execsForFrag = iter->second;
 
-    // ReadWriteTracker
+    // Read/Write Set Tracking
     ReadWriteTracker *tracker = NULL;
-    if (m_executorContext->isReadWriteTrackingEnabled()) {
-        tracker = m_executorContext->getReadWriteTracker(txnId);
-        if (tracker == NULL) {
-            tracker = new ReadWriteTracker(txnId);
-            m_executorContext->setReadWriteTracker(txnId, tracker);
-        }
+    if (m_executorContext->isTrackingEnabled()) {
+        ReadWriteTrackerManager *trackerMgr = m_executorContext->getTrackerManager();
+        tracker = trackerMgr->getTracker(txnId);
     }
     
     // PAVLO: If we see a SendPlanNode with the "fake" flag set to true,
@@ -1393,24 +1390,58 @@ size_t VoltDBEngine::tableHashCode(int32_t tableId) {
 // READ/WRITE SET TRACKING FUNCTIONS
 // -------------------------------------------------
 
-void VoltDBEngine::readWriteTrackingEnable(bool value) {
-    if (value == true && m_executorContext->isReadWriteTrackingEnabled() == false) {
+void VoltDBEngine::trackingEnable(bool value) {
+    if (value == true && m_executorContext->isTrackingEnabled() == false) {
         VOLT_INFO("Enabling Read/Write Set Tracking at Partition %d", m_partitionId);
-        m_executorContext->enableReadWriteTracking();
+        m_executorContext->enableTracking();
     }
 }
 
-void VoltDBEngine::readWriteTrackingFinish(int64_t txnId) {
-    if (m_executorContext->isReadWriteTrackingEnabled()) {
-        ReadWriteTracker *tracker = m_executorContext->getReadWriteTracker(txnId);
-        if (tracker != NULL) {
-            VOLT_INFO("Deleting ReadWriteTracker for txn #%lld at Partition %d",
-                      txnId, m_partitionId);
-            m_executorContext->removeReadWriteTracker(txnId);
-            delete tracker;
-        }
+void VoltDBEngine::trackingFinish(int64_t txnId) {
+    if (m_executorContext->isTrackingEnabled()) {
+        ReadWriteTrackerManager *trackerMgr = m_executorContext->getTrackerManager();
+        VOLT_INFO("Deleting ReadWriteTracker for txn #%lld at Partition %d",
+                    txnId, m_partitionId);
+        trackerMgr->removeTracker(txnId);
     }
 }
+
+int VoltDBEngine::trackingTuplesRead(int64_t txnId) {
+//     Table *resultTable = NULL;
+    if (m_executorContext->isTrackingEnabled()) {
+//         ReadWriteTrackerManager *trackerMgr = m_executorContext->getTrackerManager();
+    }
+    return (ENGINE_ERRORCODE_ERROR);
+}
+int VoltDBEngine::trackingTuplesWritten(int64_t txnId) {
+//     Table *resultTable = NULL;
+    if (m_executorContext->isTrackingEnabled()) {
+//         ReadWriteTrackerManager *trackerMgr = m_executorContext->getTrackerManager();
+        
+        
+    }
+    return (ENGINE_ERRORCODE_ERROR);
+}
+
+// std::vector<std::string> VoltDBEngine::trackingTablesRead(int64_t txnId) {
+//     if (m_executorContext->isTrackingEnabled()) {
+//         ReadWriteTracker *tracker = m_executorContext->getTrackerManager(txnId);
+//         if (tracker != NULL) {
+//             return tracker->getTablesRead();
+//         }
+//     }
+//     return (NULL);
+// }
+// std::vector<std::string> VoltDBEngine::trackingTablesWritten(int64_t txnId) {
+//     if (m_executorContext->isTrackingEnabled()) {
+//         ReadWriteTracker *tracker = m_executorContext->getTrackerManager(txnId);
+//         if (tracker != NULL) {
+//             return tracker->getTablesWritten();
+//         }
+//     }
+//     return (NULL);
+// }
+    
 
 // -------------------------------------------------
 // ANTI-CACHE FUNCTIONS

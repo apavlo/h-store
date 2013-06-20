@@ -261,8 +261,12 @@ class __attribute__((visibility("default"))) VoltDBEngine {
         // -------------------------------------------------
         // READ/WRITE SET TRACKING FUNCTIONS
         // -------------------------------------------------
-        void readWriteTrackingEnable(bool value);
-        void readWriteTrackingFinish(int64_t txnId);
+        void trackingEnable(bool value);
+        void trackingFinish(int64_t txnId);
+//         std::vector<std::string> trackingTablesRead(int64_t txnId);
+//         std::vector<std::string> trackingTablesWritten(int64_t txnId);
+        int trackingTuplesRead(int64_t txnId);
+        int trackingTuplesWritten(int64_t txnId);
         
         // -------------------------------------------------
         // ANTI-CACHE FUNCTIONS

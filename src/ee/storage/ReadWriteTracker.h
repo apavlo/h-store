@@ -30,12 +30,17 @@
 #include <vector>
 #include "boost/unordered_map.hpp"
 #include "common/tabletuple.h"
+#include "common/TupleSchema.h"
+#include "storage/table.h"
 
 typedef std::vector<uint32_t> rowOffsets;
 
 namespace voltdb {
     
+class ExecutorContext;
 class TableTuple;
+class TupleSchema;
+class Table;
     
 /**
  * Read/Write Tuple Tracker
@@ -48,29 +53,40 @@ class ReadWriteTracker {
         
         void markTupleRead(const std::string tableName, TableTuple *tuple);
         void markTupleWritten(const std::string tableName, TableTuple *tuple);
+        
         void clear();
         
+        std::vector<std::string> getTablesRead();
+        std::vector<std::string> getTablesWritten();
+        
     private:
+        std::vector<std::string> getTableNames(boost::unordered_map<std::string, rowOffsets> *map) const;
+        
         int64_t txnId;
-        // TableId -> RowOffsets
+        
+        // TableName -> RowOffsets
         boost::unordered_map<std::string, rowOffsets> reads;
-        // TableId -> RowOffsets
         boost::unordered_map<std::string, rowOffsets> writes;
         
 }; // CLASS
 
 
+class ReadWriteTrackerManager {
+    public:
+        ReadWriteTrackerManager(ExecutorContext *ctx);
+        ~ReadWriteTrackerManager();
+    
+        ReadWriteTracker* getTracker(int64_t txnId);
+        void removeTracker(int64_t txnId);
+        
+        Table* getTuplesWritten(ReadWriteTracker *tracker);
+
+        
+    private:
+        ExecutorContext *executorContext;
+        TupleSchema *resultSchema;
+        boost::unordered_map<int64_t, ReadWriteTracker*> trackers;
+}; // CLASS
+
 }
 #endif
-
-
-
-
-
-
-
-
-
-
-
-

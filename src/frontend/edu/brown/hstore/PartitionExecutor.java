@@ -710,7 +710,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 
                 // Initialize Read/Write Tracking
                 if (hstore_conf.site.exec_readwrite_tracking) {
-                    eeTemp.rowTrackingEnable(true);
+                    eeTemp.trackingEnable(true);
                 }
                 
                 // Initialize Anti-Cache
