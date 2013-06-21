@@ -381,7 +381,7 @@ def updateExperimentEnv(fabric, args, benchmark, partitions):
         if targetType in ("performance-spec-txn", "performance-spec-all"):
             fabric.env["site.specexec_enable"] = True
             fabric.env["site.specexec_ignore_stallpoints"] = ""
-            fabric.env["site.specexec_markov"] = False
+            fabric.env["site.specexec_scheduler_checker"] = "TABLE"
 
             spFactor = 0.65 if targetType == "performance-spec-all" else 0.5
             fabric.env["client.singlepartition_threads"] = int(fabric.env["client.threads_per_host"] * spFactor)
@@ -441,12 +441,12 @@ def updateExperimentEnv(fabric, args, benchmark, partitions):
         ## ROW-LEVEL DETECTION
         ## ----------------------------------------------
         if conflictType == "row":
-            fabric.env["site.specexec_markov"] = True
+            fabric.env["site.specexec_scheduler_checker"] = "MARKOV"
         ## ----------------------------------------------
         ## TABLE-LEVEL DETECTION
         ## ----------------------------------------------
         elif conflictType == "table":
-            fabric.env["site.specexec_markov"] = False
+            fabric.env["site.specexec_scheduler_checker"] = "TABLE"
     ## IF
     
     ## ----------------------------------------------
@@ -456,7 +456,7 @@ def updateExperimentEnv(fabric, args, benchmark, partitions):
         abortPercentage = int(args['exp_type'].split("-")[1])
         schedulerType = args['exp_type'].split("-")[2]
         
-        fabric.env["site.specexec_markov"] = True
+        fabric.env["site.specexec_scheduler_checker"] = "MARKOV"
         fabric.env["benchmark.neworder_abort"] = abortPercentage
         fabric.env["benchmark.neworder_abort_no_multip"] = True
         fabric.env["benchmark.neworder_abort_no_singlep"] = True
@@ -465,14 +465,12 @@ def updateExperimentEnv(fabric, args, benchmark, partitions):
         ## HERMES!
         ## ----------------------------------------------
         if schedulerType == "spec":
-            fabric.env["site.specexec_markov"] = True
-            fabric.env["site.specexec_unsafe"] = False
+            fabric.env["site.specexec_scheduler_checker"] = "MARKOV"
         ## ----------------------------------------------
         ## OCC
         ## ----------------------------------------------
         elif schedulerType == "occ":
-            fabric.env["site.specexec_markov"] = False
-            fabric.env["site.specexec_unsafe"] = True
+            fabric.env["site.specexec_scheduler_checker"] = "OPTIMISTIC"
     ## IF
 
     ## ----------------------------------------------

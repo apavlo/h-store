@@ -22,8 +22,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- *
- *
+ * Table Partitioning Method
  */
 public enum PartitionMethodType {
     INVALID     (0),
@@ -45,31 +44,23 @@ public enum PartitionMethodType {
         return this.ordinal();
     }
 
-    protected static final Map<Integer, PartitionMethodType> idx_lookup = new HashMap<Integer, PartitionMethodType>();
-    protected static final Map<String, PartitionMethodType> name_lookup = new HashMap<String, PartitionMethodType>();
+    private static final Map<String, PartitionMethodType> name_lookup = new HashMap<String, PartitionMethodType>();
     static {
         for (PartitionMethodType vt : EnumSet.allOf(PartitionMethodType.class)) {
-            PartitionMethodType.idx_lookup.put(vt.ordinal(), vt);
-            PartitionMethodType.name_lookup.put(vt.name().toLowerCase().intern(), vt);
+            PartitionMethodType.name_lookup.put(vt.name().toLowerCase(), vt);
         }
     }
 
-    public static Map<Integer, PartitionMethodType> getIndexMap() {
-        return idx_lookup;
-    }
-
-    public static Map<String, PartitionMethodType> getNameMap() {
-        return name_lookup;
-    }
-
-
     public static PartitionMethodType get(Integer idx) {
-        PartitionMethodType ret = PartitionMethodType.idx_lookup.get(idx);
-        return (ret == null ? PartitionMethodType.INVALID : ret);
+        PartitionMethodType values[] = PartitionMethodType.values();
+        if (idx < 0 || idx >= values.length) {
+            return (PartitionMethodType.INVALID);
+        }
+        return (values[idx]);
     }
 
     public static PartitionMethodType get(String name) {
-        PartitionMethodType ret = PartitionMethodType.name_lookup.get(name.toLowerCase().intern());
+        PartitionMethodType ret = PartitionMethodType.name_lookup.get(name.toLowerCase());
         return (ret == null ? PartitionMethodType.INVALID : ret);
     }
 }

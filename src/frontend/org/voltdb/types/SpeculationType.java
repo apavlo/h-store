@@ -45,15 +45,11 @@ public enum SpeculationType {
     SP3_REMOTE,
     ;
 
-    protected static final Map<String, SpeculationType> name_lookup = new HashMap<String, SpeculationType>();
+    private static final Map<String, SpeculationType> name_lookup = new HashMap<String, SpeculationType>();
     static {
         for (SpeculationType vt : EnumSet.allOf(SpeculationType.class)) {
             SpeculationType.name_lookup.put(vt.name().toLowerCase(), vt);
         }
-    }
-
-    public static Map<String, SpeculationType> getNameMap() {
-        return name_lookup;
     }
 
     public static SpeculationType get(int idx) {

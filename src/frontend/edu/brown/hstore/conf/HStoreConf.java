@@ -497,6 +497,30 @@ public final class HStoreConf {
         public boolean specexec_enable;
         
         @ConfigProperty(
+            description="This controls what conflict detection algorithm the SpecExecScheduler will use " +
+            		    "to use at run time to decide what transactions to run speculatively.",
+            defaultString="TABLE",
+            experimental=false,
+            enumOptions="org.voltdb.types.SpeculationConflictCheckerType"
+        )
+        public String specexec_scheduler_checker;
+        
+        @ConfigProperty(
+            description="Speculative policy to pick the transactions to run speculatively. ",
+            defaultString="FIRST",
+            experimental=false,
+            enumOptions="org.voltdb.types.SpecExecSchedulerPolicyType"
+        )
+        public String specexec_scheduler_policy;
+
+        @ConfigProperty(
+            description="The window size to pick up txn to run speculatively. ",
+            defaultInt= 10,
+            experimental=false
+        )
+        public int specexec_scheduler_window;
+        
+        @ConfigProperty(
             description="If this parameter is true, then the SpecExecScheduler will not attempt to " +
                         "speculatively execute any transactions if the current distributed transaction " +
                         "is using only partitions that are all on the same site.",
@@ -545,29 +569,6 @@ public final class HStoreConf {
         public boolean specexec_nonblocking;
         
         @ConfigProperty(
-            description="Use the row-based MarkovConflictChecker to determine whether queued transactions " +
-                        "conflict with the current distributed transaction. This is used to select " +
-                        "speculative execution candidates at runtime. " +
-                        "Note that ${site.markov_enable} must be set to true.",
-            defaultBoolean=false,
-            experimental=true
-        )
-        public boolean specexec_markov;
-        
-        @ConfigProperty(
-            description="All the PartitionExecutor to speculatively <b>any</b> transaction whenever a " +
-                        "distributed transaction is stalled. This is a bad thing to do because it will " +
-                        "not check whether there are any conflicts or consistency violations. You most " +
-                        "likely do not want to enable this option unless you are Andy and its right " +
-                        "before you have to go on a speaking tour and need to show comparison " +
-                        "numbers in your job talk. " +
-                        "Note that ${site.markov_enable} must be set to true.",
-            defaultBoolean=false,
-            experimental=true
-        )
-        public boolean specexec_unsafe;
-        
-        @ConfigProperty(
             description="" +
                         "Note that ${site.markov_enable} must be set to true.",
             defaultInt=-1,
@@ -591,21 +592,6 @@ public final class HStoreConf {
             experimental=true
         )
         public double specexec_profiling_sample;
-        
-        @ConfigProperty(
-            description="Speculative policy to pick the transactions to run speculatively. ",
-            defaultString="FIRST",
-            experimental=false,
-            enumOptions="org.voltdb.types.SpecExecSchedulerPolicyType"
-        )
-        public String specexec_scheduler_policy;
-
-        @ConfigProperty(
-            description="The window size to pick up txn to run speculatively. ",
-            defaultInt= 10,
-            experimental=false
-        )
-        public int specexec_scheduler_window;
         
         @ConfigProperty(
             description="Comma-separated list of partition ids to disable speculative execution on. " +
@@ -2053,6 +2039,10 @@ public final class HStoreConf {
         Class<?> confClass = handle.getClass();
         assert(confClass != null);
         Field f = null;
+        
+        if (value instanceof Enum<?>) {
+            value = ((Enum<?>)value).name();
+        }
         
         try {
             f = confClass.getField(f_name);
