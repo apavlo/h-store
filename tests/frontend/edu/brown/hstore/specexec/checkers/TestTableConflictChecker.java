@@ -89,7 +89,7 @@ public class TestTableConflictChecker extends BaseTestCase {
                 
                 Collection<Table> intersection = CollectionUtils.intersection(tables0, tables1); 
                 boolean expected = (intersection.isEmpty() == false);
-                boolean result = this.checker.hasConflict(txn0, txn1, BASE_PARTITION);
+                boolean result = this.checker.hasConflictBefore(txn0, txn1, BASE_PARTITION);
                 System.err.printf("   %s\n", intersection);
                 System.err.printf("   %s -> %s {%s}\n\n", proc1.getName(), tables1, result);
                 // assertEquals(proc0+"->"+proc1, expected, result);

@@ -36,7 +36,7 @@ public class UnsafeConflictChecker extends AbstractConflictChecker {
     }
 
     @Override
-    public boolean hasConflict(AbstractTransaction dtxn, LocalTransaction candidate, int partitionId) {
+    public boolean hasConflictBefore(AbstractTransaction dtxn, LocalTransaction candidate, int partitionId) {
         if (this.lastDtxn != dtxn) {
             this.counter = 1;
             this.lastDtxn = dtxn;
@@ -46,5 +46,10 @@ public class UnsafeConflictChecker extends AbstractConflictChecker {
             return (false);
         }
         return (true);
+    }
+    
+    @Override
+    public boolean hasConflictAfter(AbstractTransaction ts0, LocalTransaction ts1, int partitionId) {
+        return (false);
     }
 }

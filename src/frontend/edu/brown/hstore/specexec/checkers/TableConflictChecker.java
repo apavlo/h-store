@@ -69,7 +69,7 @@ public class TableConflictChecker extends AbstractConflictChecker {
     }
 
     @Override
-    public boolean hasConflict(AbstractTransaction dtxn, LocalTransaction candidate, int partitionId) {
+    public boolean hasConflictBefore(AbstractTransaction dtxn, LocalTransaction candidate, int partitionId) {
         assert(dtxn.isInitialized()) :
             String.format("Uninitialized distributed transaction handle [%s]", dtxn);
         assert(candidate.isInitialized()) :
@@ -175,6 +175,11 @@ public class TableConflictChecker extends AbstractConflictChecker {
         }
         
         // If we get to this point, then we know that these two txns do not conflict
+        return (false);
+    }
+    
+    @Override
+    public boolean hasConflictAfter(AbstractTransaction ts0, LocalTransaction ts1, int partitionId) {
         return (false);
     }
 }

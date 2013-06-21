@@ -169,10 +169,10 @@ public class MarkovConflictChecker extends TableConflictChecker {
     }
 
     @Override
-    public boolean hasConflict(AbstractTransaction dtxn, LocalTransaction candidate, int partitionId) {
+    public boolean hasConflictBefore(AbstractTransaction dtxn, LocalTransaction candidate, int partitionId) {
         // If the TableConflictChecker says that it's ok, then we know that we don't need
         // to check anything else.
-        if (super.hasConflict(dtxn, candidate, partitionId)) {
+        if (super.hasConflictBefore(dtxn, candidate, partitionId)) {
             if (debug.val)
                 LOG.debug(String.format("No table-level conflicts between %s and %s. Safe to execute!",
                           dtxn, candidate));

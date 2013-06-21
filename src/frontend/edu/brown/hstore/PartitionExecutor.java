@@ -4542,8 +4542,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                     for (Pair<LocalTransaction, ClientResponseImpl> pair : this.specExecBlocked) {
                         spec_ts = pair.getFirst(); 
                         spec_token = spec_ts.getFirstUndoToken(this.partitionId);
-                        if (trace.val) LOG.trace(String.format("Speculative Txn %s [undoToken=%d, %s]",
-                                         spec_ts, spec_token, spec_ts.getSpeculativeType()));
+                        if (trace.val)
+                            LOG.trace(String.format("Speculative Txn %s [undoToken=%d, %s]",
+                                      spec_ts, spec_token, spec_ts.getSpeculativeType()));
                         
                         // Speculative txns should never be executed without an undo token
                         assert(spec_token != HStoreConstants.DISABLE_UNDO_LOGGING_TOKEN);
