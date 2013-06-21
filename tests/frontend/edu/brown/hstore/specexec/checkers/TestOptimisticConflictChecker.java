@@ -120,6 +120,7 @@ public class TestOptimisticConflictChecker extends BaseTestCase {
             this.addReads(ts1, tbl, 1111);
         }
         assertFalse(this.checker.hasConflictBefore(ts0, ts1, BASE_PARTITION));
+        assertFalse(this.checker.hasConflictAfter(ts0, ts1, BASE_PARTITION));
         
         // Now if we have the second txn write to the tables, but target different
         // tupleIds, then it still should say that there isn't a conflict.
@@ -127,13 +128,15 @@ public class TestOptimisticConflictChecker extends BaseTestCase {
             this.addReads(ts1, tbl, 2222);
         }
         assertFalse(this.checker.hasConflictBefore(ts0, ts1, BASE_PARTITION));
+        assertFalse(this.checker.hasConflictAfter(ts0, ts1, BASE_PARTITION));
         
         // Finally, we'll pick a random table to have the second txn write to.
         // That should get the checker to mark them as conflicting
         Table tbl = CollectionUtil.random(tables);
         assertNotNull(tbl);
         this.addWrites(ts1, tbl, 1111);
-        assertTrue(this.checker.hasConflictBefore(ts0, ts1, BASE_PARTITION));
+        assertFalse(this.checker.hasConflictBefore(ts0, ts1, BASE_PARTITION));
+        assertTrue(this.checker.hasConflictAfter(ts0, ts1, BASE_PARTITION));
     }
     
     /**
@@ -165,13 +168,15 @@ public class TestOptimisticConflictChecker extends BaseTestCase {
             this.addWrites(ts1, tbl, 2222);
         }
         assertFalse(this.checker.hasConflictBefore(ts0, ts1, BASE_PARTITION));
+        assertFalse(this.checker.hasConflictAfter(ts0, ts1, BASE_PARTITION));
         
         // Finally, we'll pick a random table to have the second txn write to.
         // That should get the checker to mark them as conflicting
         Table tbl = CollectionUtil.random(tables);
         assertNotNull(tbl);
         this.addWrites(ts1, tbl, 1111);
-        assertTrue(this.checker.hasConflictBefore(ts0, ts1, BASE_PARTITION));
+        assertFalse(this.checker.hasConflictBefore(ts0, ts1, BASE_PARTITION));
+        assertTrue(this.checker.hasConflictAfter(ts0, ts1, BASE_PARTITION));
     }
     
 }
