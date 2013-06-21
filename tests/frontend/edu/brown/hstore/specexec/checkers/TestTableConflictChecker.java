@@ -63,7 +63,7 @@ public class TestTableConflictChecker extends BaseTestCase {
             Collection<Table> tables0 = CatalogUtil.getReferencedTables(proc0);
             for (Table tbl : tables0) {
                 if (proc0.getReadonly()) {
-                    txn0.markTableAsRead(BASE_PARTITION, tbl);
+                    txn0.markTableRead(BASE_PARTITION, tbl);
                 } else {
                     txn0.markTableWritten(BASE_PARTITION, tbl);
                 }
@@ -76,7 +76,7 @@ public class TestTableConflictChecker extends BaseTestCase {
                 Collection<Table> tables1 = CatalogUtil.getReferencedTables(proc1);
                 for (Table tbl : tables1) {
                     if (proc1.getReadonly()) {
-                        txn1.markTableAsRead(BASE_PARTITION, tbl);
+                        txn1.markTableRead(BASE_PARTITION, tbl);
                     } else {
                         txn1.markTableWritten(BASE_PARTITION, tbl);
                     }
