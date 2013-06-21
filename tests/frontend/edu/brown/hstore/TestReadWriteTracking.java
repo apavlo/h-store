@@ -9,8 +9,8 @@ import java.util.concurrent.TimeUnit;
 
 import org.junit.Test;
 import org.voltdb.StoredProcedureInvocationHints;
-import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
+import org.voltdb.VoltType;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Table;
@@ -21,14 +21,12 @@ import org.voltdb.regressionsuites.specexecprocs.BlockingSendPayment;
 import org.voltdb.utils.VoltTableUtil;
 
 import edu.brown.BaseTestCase;
+import edu.brown.HStoreSiteTestUtil;
 import edu.brown.HStoreSiteTestUtil.LatchableProcedureCallback;
-import edu.brown.benchmark.smallbank.SmallBankConstants;
 import edu.brown.benchmark.smallbank.SmallBankProjectBuilder;
-import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.utils.CollectionUtil;
-import edu.brown.utils.ThreadUtil;
 
 /**
  * REad/Write Set Tracking
@@ -38,14 +36,17 @@ public class TestReadWriteTracking extends BaseTestCase {
 
     private static final int NUM_PARTITONS = 1;
     private static final int BASE_PARTITION = 0;
-    private static final int NOTIFY_TIMEOUT = 1000; // ms
+    
+    public static final VoltTable.ColumnInfo[] RESULT_COLS = {
+        new VoltTable.ColumnInfo("TABLE_NAME", VoltType.STRING),
+        new VoltTable.ColumnInfo("TUPLE_ID", VoltType.INTEGER),
+    };
     
     private HStoreSite hstore_site;
     private HStoreConf hstore_conf;
     private Client client;
     private PartitionExecutor executor;
     private ExecutionEngine ee;
-    private PartitionExecutor.Debug executorDebug;
     private Procedure blockingProc;
     
     private final SmallBankProjectBuilder builder = new SmallBankProjectBuilder() {
@@ -86,20 +87,6 @@ public class TestReadWriteTracking extends BaseTestCase {
     // UTILITY METHODS
     // --------------------------------------------------------------------------------------------
     
-    @SuppressWarnings("unchecked")
-    private <T extends VoltProcedure> T getCurrentVoltProcedure(PartitionExecutor executor, Class<T> expectedType) {
-        int tries = 3;
-        VoltProcedure voltProc = null;
-        while (tries-- > 0) {
-            voltProc = executor.getDebugContext().getCurrentVoltProcedure();
-            if (voltProc != null) break;
-            ThreadUtil.sleep(NOTIFY_TIMEOUT);    
-        } // WHILE
-        assertNotNull(String.format("Failed to get %s from %s", expectedType, executor), voltProc);
-        assertEquals(expectedType, voltProc.getClass());
-        return ((T)voltProc);
-    }
-    
     private BlockingSendPayment startTxn() throws Exception {
         // Fire off a distributed a txn that will block.
         Object dtxnParams[] = new Object[]{ BASE_PARTITION, BASE_PARTITION+1, 1.0 };
@@ -109,14 +96,14 @@ public class TestReadWriteTracking extends BaseTestCase {
         this.client.callProcedure(dtxnCallback, this.blockingProc.getName(), dtxnHints, dtxnParams);
         
         // Block until we know that the txn has started running
-        BlockingSendPayment voltProc = this.getCurrentVoltProcedure(this.executor, BlockingSendPayment.class); 
+        BlockingSendPayment voltProc = HStoreSiteTestUtil.getCurrentVoltProcedure(this.executor, BlockingSendPayment.class); 
         assertNotNull(voltProc);
-        boolean result = voltProc.NOTIFY_BEFORE.tryAcquire(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
+        boolean result = voltProc.NOTIFY_BEFORE.tryAcquire(HStoreSiteTestUtil.NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
         assertTrue(result);
         
         // Ok now we're going to release our txn. It will execute a bunch of stuff.
         voltProc.LOCK_BEFORE.release();
-        result = voltProc.NOTIFY_AFTER.tryAcquire(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
+        result = voltProc.NOTIFY_AFTER.tryAcquire(HStoreSiteTestUtil.NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
         assertTrue(result);
         
         
@@ -129,6 +116,14 @@ public class TestReadWriteTracking extends BaseTestCase {
         // VoltTable result[] = dtxnCallback.latch.await(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
         // assertTrue("DTXN LATCH"+dtxnCallback.latch, result);
         // assertEquals(Status.OK, CollectionUtil.first(dtxnCallback.responses).getStatus());
+    }
+    
+    private void verifySchema(VoltTable vt) {
+        assertEquals(RESULT_COLS.length, vt.getColumnCount());
+        for (int i = 0; i < vt.getColumnCount(); i++) {
+            assertEquals(Integer.toString(i), RESULT_COLS[i].getName(), vt.getColumnName(i));
+            assertEquals(Integer.toString(i), RESULT_COLS[i].getType(), vt.getColumnType(i));
+        } // FOR
     }
     
     // --------------------------------------------------------------------------------------------
@@ -158,6 +153,7 @@ public class TestReadWriteTracking extends BaseTestCase {
         // Let's take a peek at its ReadSet
         VoltTable result = this.ee.trackingReadSet(txnId);
         assertNotNull(result);
+        this.verifySchema(result);
         Set<String> foundTables = new HashSet<String>();
         while (result.advanceRow()) {
             String tableName = result.getString(0);
@@ -194,6 +190,7 @@ public class TestReadWriteTracking extends BaseTestCase {
         // Let's take a peek at its WriteSet
         VoltTable result = this.ee.trackingWriteSet(txnId);
         assertNotNull(result);
+        this.verifySchema(result);
         Set<String> foundTables = new HashSet<String>();
         while (result.advanceRow()) {
             String tableName = result.getString(0);
