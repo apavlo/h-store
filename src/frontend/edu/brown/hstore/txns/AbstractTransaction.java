@@ -962,7 +962,7 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
      * @param partition
      * @param catalog_tbl
      */
-    public final void markTableAsRead(int partition, Table catalog_tbl) {
+    public final void markTableRead(int partition, Table catalog_tbl) {
         if (this.readTables[partition] == null) {
             this.readTables[partition] = new boolean[hstore_site.getCatalogContext().numberOfTables + 1];
         }

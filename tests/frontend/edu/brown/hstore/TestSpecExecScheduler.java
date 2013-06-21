@@ -280,7 +280,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
         
         // Reads aren't allowed either
         dtxnDebug.clearReadWriteSets();
-        dtxn.markTableAsRead(BASE_PARTITION, CollectionUtil.first(conflictTables));
+        dtxn.markTableRead(BASE_PARTITION, CollectionUtil.first(conflictTables));
         ts.testInit(this.idManager.getNextUniqueTransactionId(), BASE_PARTITION, null, catalogContext.getPartitionSetSingleton(BASE_PARTITION), proc);
         assertTrue(ts.isPredictSinglePartition());
         this.addToQueue(ts);
@@ -328,7 +328,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
         
         // Reads are allowed!
         dtxnDebug.clearReadWriteSets();
-        dtxn.markTableAsRead(BASE_PARTITION, CollectionUtil.first(conflictTables));
+        dtxn.markTableRead(BASE_PARTITION, CollectionUtil.first(conflictTables));
         ts.testInit(this.idManager.getNextUniqueTransactionId(), BASE_PARTITION, null, catalogContext.getPartitionSetSingleton(BASE_PARTITION), proc);
         assertTrue(ts.isPredictSinglePartition());
         this.addToQueue(ts);
