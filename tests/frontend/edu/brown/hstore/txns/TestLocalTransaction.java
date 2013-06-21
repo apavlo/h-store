@@ -1,7 +1,9 @@
 package edu.brown.hstore.txns;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.voltdb.ParameterSet;
 import org.voltdb.SQLStmt;
@@ -155,27 +157,61 @@ public class TestLocalTransaction extends BaseTestCase {
         for (Statement catalog_stmt : catalog_proc.getStatements()) {
             this.tsDebug.clearReadWriteSets();
             for (PlanFragment catalog_frag : catalog_stmt.getFragments()) {
+//                System.err.println(catalog_frag.fullName());
+                
                 tableIds = catalogContext.getReadTableIds(Long.valueOf(catalog_frag.getId()));
                 if (tableIds != null) {
-                    ts.markTableIdsAsRead(BASE_PARTITION, tableIds);
+                    ts.markTableIdsRead(BASE_PARTITION, tableIds);
+//                    System.err.printf("*** %s -- READ:%s\n",
+//                                      catalog_frag, Arrays.toString(tableIds));
                 }
                 
                 tableIds = catalogContext.getWriteTableIds(Long.valueOf(catalog_frag.getId()));
                 if (tableIds != null) {
-                    ts.markTableIdsAsWritten(BASE_PARTITION, tableIds);
+                    ts.markTableIdsWritten(BASE_PARTITION, tableIds);
+//                    System.err.printf("*** %s -- WRITE:%s\n",
+//                                      catalog_frag, Arrays.toString(tableIds));
                 }
             } // FOR
 
+            Set<Table> readTables = new HashSet<Table>();
+            Set<Integer> readTableIds = new HashSet<Integer>();
+            Set<Table> writeTables = new HashSet<Table>();
+            Set<Integer> writeTableIds = new HashSet<Integer>();
             for (Table catalog_tbl : CatalogUtil.getReferencedTables(catalog_stmt)) {
                 if (catalog_stmt.getReadonly()) {
+                    readTables.add(catalog_tbl);
+                    readTableIds.add(catalog_tbl.getRelativeIndex());
                     assertTrue(catalog_tbl.toString(), ts.isTableRead(BASE_PARTITION, catalog_tbl));
                     assertFalse(catalog_tbl.toString(), ts.isTableWritten(BASE_PARTITION, catalog_tbl));
                 } else {
+                    writeTables.add(catalog_tbl);
+                    writeTableIds.add(catalog_tbl.getRelativeIndex());
                     assertFalse(catalog_tbl.toString(), ts.isTableRead(BASE_PARTITION, catalog_tbl));
                     assertTrue(catalog_tbl.toString(), ts.isTableWritten(BASE_PARTITION, catalog_tbl));
                 }
             } // FOR
-        } // FOR
+//            System.err.printf("%s -- READ:%s / WRITE:%s\n",
+//                              catalog_stmt, readTableIds, writeTableIds);
+            
+            int readIds[] = ts.getTableIdsMarkedRead(BASE_PARTITION);
+            assertEquals(readTables.size(), readIds.length);
+            for (int tableId : readIds) {
+                Table tbl = catalogContext.getTableById(tableId);
+                assertNotNull(tbl);
+                assertTrue(catalog_stmt.fullName()+"->"+tbl.toString(), readTables.contains(tbl));
+            } // FOR
+            
+            int writeIds[] = ts.getTableIdsMarkedWritten(BASE_PARTITION);
+            assertEquals(writeTables.size(), writeIds.length);
+            for (int tableId : writeIds) {
+                Table tbl = catalogContext.getTableById(tableId);
+                assertNotNull(tbl);
+                assertTrue(catalog_stmt.fullName()+"->"+tbl.toString(), writeTables.contains(tbl));
+            } // FOR
+            
+//            System.err.println(StringUtil.repeat("-", 100));
+        } // FOR (stmt)
     }
     
 }

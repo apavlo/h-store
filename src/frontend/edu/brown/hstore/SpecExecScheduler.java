@@ -403,7 +403,7 @@ public class SpecExecScheduler implements Configurable {
                     // is expected to execute in the future.
                     case SP1_LOCAL:
                     case SP2_REMOTE_AFTER: {
-                        if (this.checker.canExecute(dtxn, localTxn, this.partitionId) == false) {
+                        if (this.checker.hasConflict(dtxn, localTxn, this.partitionId)) {
                             if (debug.val)
                                 LOG.debug(String.format("Skipping %s because it conflicts with current transaction", localTxn));
                             continue;

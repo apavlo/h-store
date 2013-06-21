@@ -929,6 +929,34 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
     // READ/WRITE TABLE TRACKING
     // ----------------------------------------------------------------------------
     
+    private final int[] getMarkedTableIds(boolean bitmap[]) {
+        int cnt = 0;
+        if (bitmap != null) {
+            for (int i = 0; i < bitmap.length; i++) {
+                if (bitmap[i]) cnt++;
+            } // FOR
+        }
+        int ret[] = new int[cnt];
+        if (bitmap != null) {
+            cnt = 0;
+            for (int i = 0; i < bitmap.length; i++) {
+                if (bitmap[i]) {
+                    ret[cnt++] = i;
+                }
+            } // FOR
+        }
+        return (ret);
+    }
+    
+    /**
+     * Return an array of the tableIds that are marked as read by the txn at 
+     * the given partition id.
+     * @param partition
+     * @return
+     */
+    public final int[] getTableIdsMarkedRead(int partition) {
+        return (this.getMarkedTableIds(this.readTables[partition]));
+    }
     /**
      * Mark that this txn read from the Table at the given partition 
      * @param partition
@@ -945,7 +973,7 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
      * @param partition
      * @param tableIds
      */
-    public final void markTableIdsAsRead(int partition, int...tableIds) {
+    public final void markTableIdsRead(int partition, int...tableIds) {
         if (this.readTables[partition] == null) {
             this.readTables[partition] = new boolean[hstore_site.getCatalogContext().numberOfTables + 1];
         }
@@ -968,13 +996,22 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
     }
     
     /**
+     * Return an array of the tableIds that are marked as written by the txn at 
+     * the given partition id.
+     * @param partition
+     * @return
+     */
+    public final int[] getTableIdsMarkedWritten(int partition) {
+        return (this.getMarkedTableIds(this.writeTables[partition]));
+    }
+    /**
      * Mark that this txn has executed a modifying query for the Table at the given partition.
      * <B>Note:</B> This is just tracking that we executed a query.
      * It does not necessarily mean that the query actually changed anything. 
      * @param partition
      * @param catalog_tbl
      */
-    public final void markTableAsWritten(int partition, Table catalog_tbl) {
+    public final void markTableWritten(int partition, Table catalog_tbl) {
         if (this.writeTables[partition] == null) {
             this.writeTables[partition] = new boolean[hstore_site.getCatalogContext().numberOfTables + 1];
         }
@@ -987,7 +1024,7 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
      * @param partition
      * @param tableIds
      */
-    public final void markTableIdsAsWritten(int partition, int...tableIds) {
+    public final void markTableIdsWritten(int partition, int...tableIds) {
         if (this.writeTables[partition] == null) {
             this.writeTables[partition] = new boolean[hstore_site.getCatalogContext().numberOfTables + 1];
         }
