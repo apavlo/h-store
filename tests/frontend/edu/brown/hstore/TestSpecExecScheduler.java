@@ -269,7 +269,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
         
         // Now have the dtxn "write" to one of the tables in our ConflictSet
         dtxnDebug.clearReadWriteSets();
-        dtxn.markTableAsWritten(BASE_PARTITION, CollectionUtil.first(conflictTables));
+        dtxn.markTableWritten(BASE_PARTITION, CollectionUtil.first(conflictTables));
         ts.testInit(this.idManager.getNextUniqueTransactionId(), BASE_PARTITION, null, catalogContext.getPartitionSetSingleton(BASE_PARTITION), proc);
         assertTrue(ts.isPredictSinglePartition());
         this.addToQueue(ts);
@@ -340,7 +340,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
         
         // But writes are not!
         dtxnDebug.clearReadWriteSets();
-        dtxn.markTableAsWritten(BASE_PARTITION, CollectionUtil.first(conflictTables));
+        dtxn.markTableWritten(BASE_PARTITION, CollectionUtil.first(conflictTables));
         ts.testInit(this.idManager.getNextUniqueTransactionId(), BASE_PARTITION, null, catalogContext.getPartitionSetSingleton(BASE_PARTITION), proc);
         assertTrue(ts.isPredictSinglePartition());
         this.addToQueue(ts);

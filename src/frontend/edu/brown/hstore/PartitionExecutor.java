@@ -2998,10 +2998,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             if (speculative || singlePartition == false) {
                 if (fragReadOnly) {
                     tableIds = catalogContext.getReadTableIds(Long.valueOf(fragmentIds[i]));
-                    if (tableIds != null) ts.markTableIdsAsRead(this.partitionId, tableIds);
+                    if (tableIds != null) ts.markTableIdsRead(this.partitionId, tableIds);
                 } else {
                     tableIds = catalogContext.getWriteTableIds(Long.valueOf(fragmentIds[i]));
-                    if (tableIds != null) ts.markTableIdsAsWritten(this.partitionId, tableIds);
+                    if (tableIds != null) ts.markTableIdsWritten(this.partitionId, tableIds);
                 }
             }
             readonly = readonly && fragReadOnly;

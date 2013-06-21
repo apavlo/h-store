@@ -169,10 +169,10 @@ public class MarkovConflictChecker extends TableConflictChecker {
     }
 
     @Override
-    public boolean canExecute(AbstractTransaction dtxn, LocalTransaction candidate, int partitionId) {
+    public boolean hasConflict(AbstractTransaction dtxn, LocalTransaction candidate, int partitionId) {
         // If the TableConflictChecker says that it's ok, then we know that we don't need
         // to check anything else.
-        if (super.canExecute(dtxn, candidate, partitionId)) {
+        if (super.hasConflict(dtxn, candidate, partitionId)) {
             if (debug.val)
                 LOG.debug(String.format("No table-level conflicts between %s and %s. Safe to execute!",
                           dtxn, candidate));
@@ -231,7 +231,7 @@ public class MarkovConflictChecker extends TableConflictChecker {
         List<CountedStatement> queries0 = dtxnEst.getQueryEstimate(partitionId);
         List<CountedStatement> queries1 = tsEst.getQueryEstimate(partitionId);
         
-        return this.canExecute(dtxn, queries0, candidate, queries1);
+        return (this.canExecute(dtxn, queries0, candidate, queries1) == false);
     }
     
     /**

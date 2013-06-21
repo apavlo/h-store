@@ -96,7 +96,7 @@ public class TestPartitionExecutorEarly2PC extends BaseTestCase {
             return (false);
         }
         @Override
-        public boolean canExecute(AbstractTransaction dtxn, LocalTransaction candidate, int partitionId) {
+        public boolean hasConflict(AbstractTransaction dtxn, LocalTransaction candidate, int partitionId) {
             return (true);
         }
     };

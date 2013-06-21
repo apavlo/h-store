@@ -36,15 +36,15 @@ public class UnsafeConflictChecker extends AbstractConflictChecker {
     }
 
     @Override
-    public boolean canExecute(AbstractTransaction dtxn, LocalTransaction candidate, int partitionId) {
+    public boolean hasConflict(AbstractTransaction dtxn, LocalTransaction candidate, int partitionId) {
         if (this.lastDtxn != dtxn) {
             this.counter = 1;
             this.lastDtxn = dtxn;
-            return (true);
+            return (false);
         }
         if (this.limit < 0 || ++this.counter < this.limit) {
-            return (true);
+            return (false);
         }
-        return (false);
+        return (true);
     }
 }
