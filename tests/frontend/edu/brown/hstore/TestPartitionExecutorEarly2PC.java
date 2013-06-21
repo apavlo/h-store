@@ -9,7 +9,6 @@ import java.util.concurrent.TimeUnit;
 import org.junit.Before;
 import org.junit.Test;
 import org.voltdb.StoredProcedureInvocationHints;
-import org.voltdb.VoltProcedure;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
 import org.voltdb.client.Client;
@@ -19,6 +18,7 @@ import org.voltdb.regressionsuites.specexecprocs.NonBlockingSendPayment;
 import org.voltdb.types.SpeculationType;
 
 import edu.brown.BaseTestCase;
+import edu.brown.HStoreSiteTestUtil;
 import edu.brown.HStoreSiteTestUtil.LatchableProcedureCallback;
 import edu.brown.benchmark.smallbank.SmallBankProjectBuilder;
 import edu.brown.benchmark.smallbank.procedures.SendPayment;
@@ -54,7 +54,6 @@ public class TestPartitionExecutorEarly2PC extends BaseTestCase {
     
     private static final int NUM_PARTITIONS = 2;
     private static final int BASE_PARTITION = 0;
-    private static final int NOTIFY_TIMEOUT = 1000; // ms
     private static final int WORKLOAD_XACT_LIMIT = 1000;
 
     // We want to make sure that the PartitionExecutor only spec execs 
@@ -234,7 +233,7 @@ public class TestPartitionExecutorEarly2PC extends BaseTestCase {
             while (tries-- > 0) {
                 ts = executor.getDebugContext().getCurrentDtxn();
                 if (ts != null) break;
-                ThreadUtil.sleep(NOTIFY_TIMEOUT);
+                ThreadUtil.sleep(HStoreSiteTestUtil.NOTIFY_TIMEOUT);
             } // WHILE
             assertNotNull("No dtxn at " + executor.getPartition(), ts);
             if (dtxn == null) {
@@ -246,32 +245,7 @@ public class TestPartitionExecutorEarly2PC extends BaseTestCase {
         assertNotNull(dtxn);
     }
     
-    private void checkQueuedTxns(PartitionExecutor executor, int expected) {
-        // Wait until they have all been executed but make sure that nobody actually returned yet
-        int tries = 3;
-        int blocked = -1;
-        PartitionLockQueue queue = hstore_site.getTransactionQueueManager().getLockQueue(executor.getPartitionId()); 
-        while (tries-- > 0) {
-            blocked = queue.size();
-            if (blocked == expected) break;
-            ThreadUtil.sleep(NOTIFY_TIMEOUT);    
-        } // WHILE
-        assertEquals(executor.toString(), expected, blocked);
-    }
     
-    @SuppressWarnings("unchecked")
-    private <T extends VoltProcedure> T getCurrentVoltProcedure(PartitionExecutor executor, Class<T> expectedType) {
-        int tries = 3;
-        VoltProcedure voltProc = null;
-        while (tries-- > 0) {
-            voltProc = executor.getDebugContext().getCurrentVoltProcedure();
-            if (voltProc != null) break;
-            ThreadUtil.sleep(NOTIFY_TIMEOUT);    
-        } // WHILE
-        assertNotNull(String.format("Failed to get %s from %s", expectedType, executor), voltProc);
-        assertEquals(expectedType, voltProc.getClass());
-        return ((T)voltProc);
-    }
     
 //    private void checkClientResponses(Collection<ClientResponse> responses, Status status, boolean speculative, Integer restarts) {
 //        for (ClientResponse cr : responses) {
@@ -311,9 +285,9 @@ public class TestPartitionExecutorEarly2PC extends BaseTestCase {
         this.client.callProcedure(dtxnCallback, this.blockingProc.getName(), dtxnHints, dtxnParams);
         
         // Block until we know that the txn has started running
-        BlockingSendPayment dtxnVoltProc = this.getCurrentVoltProcedure(this.baseExecutor, BlockingSendPayment.class); 
+        BlockingSendPayment dtxnVoltProc = HStoreSiteTestUtil.getCurrentVoltProcedure(this.baseExecutor, BlockingSendPayment.class); 
         assertNotNull(dtxnVoltProc);
-        boolean result = dtxnVoltProc.NOTIFY_BEFORE.tryAcquire(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
+        boolean result = dtxnVoltProc.NOTIFY_BEFORE.tryAcquire(HStoreSiteTestUtil.NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
         assertTrue(result);
         this.checkCurrentDtxn();
         
@@ -324,13 +298,13 @@ public class TestPartitionExecutorEarly2PC extends BaseTestCase {
         spHints.basePartition = BASE_PARTITION+1;
         LatchableProcedureCallback spCallback0 = new LatchableProcedureCallback(1);
         this.client.callProcedure(spCallback0, this.nonblockingProc.getName(), spHints, spParams);
-        this.checkQueuedTxns(this.remoteExecutor, 1);
+        HStoreSiteTestUtil.checkQueuedTxns(this.remoteExecutor, 1);
         
         // Ok now we're going to release our txn. It will execute a bunch of stuff.
         // It should be able to identify that it is finished with the remote partition without
         // having to be explicitly told in the code.
         dtxnVoltProc.LOCK_BEFORE.release();
-        result = dtxnVoltProc.NOTIFY_AFTER.tryAcquire(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
+        result = dtxnVoltProc.NOTIFY_AFTER.tryAcquire(HStoreSiteTestUtil.NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
         assertTrue(result);
         
         LocalTransaction dtxn = (LocalTransaction)this.baseExecutor.getDebugContext().getCurrentDtxn();
@@ -348,12 +322,12 @@ public class TestPartitionExecutorEarly2PC extends BaseTestCase {
         // We're looking good!
         // Check to make sure that the dtxn succeeded
         dtxnVoltProc.LOCK_AFTER.release();
-        result = dtxnCallback.latch.await(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
+        result = dtxnCallback.latch.await(HStoreSiteTestUtil.NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
         assertTrue("DTXN LATCH"+dtxnCallback.latch, result);
         assertEquals(Status.OK, CollectionUtil.first(dtxnCallback.responses).getStatus());
 
         // The other transaction should be executed now on the remote partition
-        result = spCallback0.latch.await(NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
+        result = spCallback0.latch.await(HStoreSiteTestUtil.NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
         assertTrue("SP LATCH"+spCallback0.latch, result);
         ClientResponse spResponse = CollectionUtil.first(spCallback0.responses);
         assertEquals(Status.OK, spResponse.getStatus());

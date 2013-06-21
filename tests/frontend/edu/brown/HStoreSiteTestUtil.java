@@ -5,17 +5,22 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 
+import org.voltdb.VoltProcedure;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.ProcedureCallback;
 
 import junit.framework.TestCase;
 
 import edu.brown.hstore.HStoreSite;
+import edu.brown.hstore.PartitionExecutor;
+import edu.brown.hstore.PartitionLockQueue;
 import edu.brown.pools.TypedObjectPool;
 import edu.brown.pools.TypedPoolableObjectFactory;
 import edu.brown.utils.ThreadUtil;
 
 public abstract class HStoreSiteTestUtil extends TestCase {
+    
+    public static final int NOTIFY_TIMEOUT = 1000; // ms
 
     public static class LatchableProcedureCallback implements ProcedureCallback {
         public final List<ClientResponse> responses = new ArrayList<ClientResponse>();
@@ -82,5 +87,35 @@ public abstract class HStoreSiteTestUtil extends TestCase {
             } // FOR
         } // FOR
     }
+    
+    @SuppressWarnings("unchecked")
+    public static <T extends VoltProcedure> T getCurrentVoltProcedure(PartitionExecutor executor, Class<T> expectedType) {
+        int tries = 3;
+        VoltProcedure voltProc = null;
+        while (tries-- > 0) {
+            voltProc = executor.getDebugContext().getCurrentVoltProcedure();
+            if (voltProc != null) break;
+            ThreadUtil.sleep(NOTIFY_TIMEOUT);    
+        } // WHILE
+        assertNotNull(String.format("Failed to get %s from %s", expectedType, executor), voltProc);
+        assertEquals(expectedType, voltProc.getClass());
+        return ((T)voltProc);
+    }
+
+    public static void checkQueuedTxns(PartitionExecutor executor, int expected) {
+        // Wait until they have all been executed but make sure that nobody actually returned yet
+        int tries = 3;
+        int blocked = -1;
+        PartitionLockQueue queue = executor.getHStoreSite()
+                                           .getTransactionQueueManager()
+                                           .getLockQueue(executor.getPartitionId()); 
+        while (tries-- > 0) {
+            blocked = queue.size();
+            if (blocked == expected) break;
+            ThreadUtil.sleep(NOTIFY_TIMEOUT);    
+        } // WHILE
+        assertEquals(executor.toString(), expected, blocked);
+    }
+    
 
 }

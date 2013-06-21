@@ -111,6 +111,7 @@ public abstract class VoltTableUtil {
         return (sb.toString());
     }
 
+    @SuppressWarnings("unchecked")
     public static VoltTable sort(VoltTable table, Pair<Integer, SortDirectionType>...cols) {
         if (cols.length == 0) return (table);
         

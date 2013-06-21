@@ -1,7 +1,6 @@
 package edu.brown.hstore.specexec.checkers;
 
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -13,14 +12,19 @@ import org.voltdb.CatalogContext;
 import org.voltdb.VoltTable;
 import org.voltdb.catalog.Table;
 import org.voltdb.jni.ExecutionEngine;
+import org.voltdb.utils.VoltTableUtil;
 
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
-import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.StringUtil;
 
+/**
+ * OCC Conflict Checker
+ * This relies on the EE to generate the txn's read/write tracking sets 
+ * @author pavlo
+ */
 public class OptimisticConflictChecker extends AbstractConflictChecker {
     private static final Logger LOG = Logger.getLogger(OptimisticConflictChecker.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
@@ -29,8 +33,8 @@ public class OptimisticConflictChecker extends AbstractConflictChecker {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
     
-    private static final int READ = 0;
-    private static final int WRITE = 0;
+    protected static final int READ = 0;
+    protected static final int WRITE = 1;
     
     private final ExecutionEngine ee;
     
@@ -52,7 +56,11 @@ public class OptimisticConflictChecker extends AbstractConflictChecker {
             String.format("Uninitialized speculative transaction handle [%s]", ts1);
         
         VoltTable tsTracking0[] = this.getReadWriteSets(ts0); // TODO: Cache this somehow!
+        if (trace.val)
+            LOG.trace(String.format("%s READ/WRITE SETS:\n%s", ts0, VoltTableUtil.format(tsTracking0)));
         VoltTable tsTracking1[] = this.getReadWriteSets(ts1);
+        if (trace.val)
+            LOG.trace(String.format("%s READ/WRITE SETS:\n%s", ts1, VoltTableUtil.format(tsTracking1)));
         
         // SPECIAL CASE
         // Either txn did not actually read or write anything at this partition, so we can just
@@ -93,6 +101,11 @@ public class OptimisticConflictChecker extends AbstractConflictChecker {
         Set<Integer> tupleIds0 = new HashSet<Integer>();
         Set<Integer> tupleIds1 = new HashSet<Integer>();
         
+        if (trace.val)
+            LOG.trace("\n"+
+                      StringUtil.columns(ts0+"\n"+VoltTableUtil.format(tsTracking0),
+                                         ts1+"\n"+VoltTableUtil.format(tsTracking1)));
+        
         for (int tableId : tableIds) {
             Table targetTbl = catalogContext.getTableById(tableId);
             
@@ -105,7 +118,7 @@ public class OptimisticConflictChecker extends AbstractConflictChecker {
             tupleIds0.clear();
             this.getTupleIds(targetTbl.getName(), tsTracking0, tupleIds0);
             tupleIds1.clear();
-            this.getTupleIds(targetTbl.getName(), tsTracking0, tupleIds1);
+            this.getTupleIds(targetTbl.getName(), tsTracking1, tupleIds1);
             
             if (debug.val) {
                 Map<String, Object> m = new LinkedHashMap<String, Object>();
