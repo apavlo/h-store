@@ -390,6 +390,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
     // SPECULATIVE EXECUTION STATE
     // ----------------------------------------------------------------------------
     
+    private SpeculationConflictCheckerType specExecCheckerType;
     private AbstractConflictChecker specExecChecker;
     private SpecExecScheduler specExecScheduler;
     
@@ -500,10 +501,14 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
      * Reusable int array for input dependency ids
      */
     private final IntArrayCache tmp_inputDepIds = new IntArrayCache(10);
-    
-    LinkedList<Pair<LocalTransaction, ClientResponseImpl>> tmp_toCommit = new LinkedList<Pair<LocalTransaction,ClientResponseImpl>>();
-    LinkedList<Pair<LocalTransaction, ClientResponseImpl>> tmp_toRestart = new LinkedList<Pair<LocalTransaction,ClientResponseImpl>>();
-
+    /**
+     * Reusable queue of speculative txns that need to be commited.
+     */
+    private final Queue<Pair<LocalTransaction, ClientResponseImpl>> tmp_toCommit = new LinkedList<Pair<LocalTransaction,ClientResponseImpl>>();
+    /**
+     * Reusable queue of speculative txns that need to be aborted + restarted
+     */
+    private final Queue<Pair<LocalTransaction, ClientResponseImpl>> tmp_toRestart = new LinkedList<Pair<LocalTransaction,ClientResponseImpl>>();
     
     /**
      * The following three arrays are used by utilityWork() to create transactions
@@ -520,7 +525,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
     private final PartitionExecutorProfiler profiler = new PartitionExecutorProfiler();
     
     // ----------------------------------------------------------------------------
-    // CALLBACKS
+    // WORK REQUEST CALLBACK
     // ----------------------------------------------------------------------------
     
     /**
@@ -807,8 +812,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         assert(this.specExecScheduler == null);
         assert(this.hstore_site != null);
         
-        SpeculationConflictCheckerType checkerType = SpeculationConflictCheckerType.get(hstore_conf.site.specexec_scheduler_checker);
-        switch (checkerType) {
+        this.specExecCheckerType = SpeculationConflictCheckerType.get(hstore_conf.site.specexec_scheduler_checker);
+        switch (this.specExecCheckerType) {
             // -------------------------------
             // ROW-LEVEL
             // -------------------------------
@@ -845,8 +850,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 String msg = String.format("Invalid %s '%s'",
                                            SpeculationConflictCheckerType.class.getSimpleName(),
                                            hstore_conf.site.specexec_scheduler_checker);
-                assert(false) : msg;
-                LOG.warn(msg);
+                throw new RuntimeException(msg);
             }
         } // SWITCH
         
@@ -4315,17 +4319,19 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
      * @param txn_id
      * @return true if speculative execution was enabled at this partition
      */
-    private boolean prepareTransaction(AbstractTransaction ts) {
+    private Status prepareTransaction(AbstractTransaction ts) {
         assert(ts != null) :
             "Unexpected null transaction handle at partition " + this.partitionId;
         assert(ts.isInitialized()) :
             String.format("Trying to prepare uninitialized transaction %s at partition %d", ts, this.partitionId);
         assert(ts.isMarkedFinished(this.partitionId) == false) :
-            String.format("Trying to commit %s twice at partition %d", ts, this.partitionId);
+            String.format("Trying to prepare %s again after it was already finished at partition %d", ts, this.partitionId);
         
         if (debug.val)
             LOG.debug(String.format("%s - Preparing to commit txn at partition %d",
                       ts, this.partitionId));
+        
+        Status status = Status.OK; 
         
         // Skip if we've already invoked prepared for this txn at this partition
         if (ts.isMarkedPrepared(this.partitionId) == false) {
@@ -4337,15 +4343,26 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 profiler.sp3_remote_time.start();
             }
             
-            // Set the speculative execution commit mode
             if (hstore_conf.site.specexec_enable) {
-                if (debug.val)
-                    LOG.debug(String.format("%s - Checking whether txn is read-only at partition %d [readOnly=%s]",
-                              ts, this.partitionId, ts.isExecReadOnly(this.partitionId)));
-                
+                // Check to see if there were any conflicts with the dtxn and any of its speculative
+                // txns at this partition. If there were, then we know that we can't commit the txn here.
+                LocalTransaction spec_ts;
+                for (Pair<LocalTransaction, ClientResponseImpl> pair : this.specExecBlocked) {
+                    spec_ts = pair.getFirst();
+                    if (this.specExecChecker.hasConflictAfter(ts, spec_ts, this.partitionId)) {
+                        if (trace.val)
+                            LOG.trace(String.format("%s - Conflict found with speculative txn %s at partition %d",
+                                      ts, spec_ts, this.partitionId));
+                        status = Status.ABORT_RESTART;
+                        break;
+                    }
+                } // FOR
                 // Check whether the txn that we're waiting for is read-only.
                 // If it is, then that means all read-only transactions can commit right away
-                if (ts.isExecReadOnly(this.partitionId)) {
+                if (status == Status.OK && ts.isExecReadOnly(this.partitionId)) {
+                    if (trace.val)
+                        LOG.trace(String.format("%s - Txn is read-only at partition %d [readOnly=%s]",
+                                  ts, this.partitionId, ts.isExecReadOnly(this.partitionId)));
                     newMode = ExecutionMode.COMMIT_READONLY;
                 }
             }
@@ -4362,18 +4379,22 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         // because we don't know what callback to use to send the acknowledgements
         // back over the network
         PartitionCountingCallback<AbstractTransaction> callback = ts.getPrepareCallback();
-        if (callback.isInitialized()) {
-            try {
-                callback.run(this.partitionId);
-            } catch (Throwable ex) {
-                LOG.warn("Unexpected error for " + ts, ex);
+        
+        if (status == Status.OK) {
+            if (callback.isInitialized()) {
+                try {
+                    callback.run(this.partitionId);
+                } catch (Throwable ex) {
+                    LOG.warn("Unexpected error for " + ts, ex);
+                }
             }
+            // But we will always mark ourselves as prepared at this partition
+            ts.markPrepared(this.partitionId);
+        } else {
+            callback.abort(this.partitionId, status);
         }
         
-        // But we will always mark ourselves as prepared at this partition
-        ts.markPrepared(this.partitionId);
-
-        return (true);
+        return (status);
     }
         
     /**
@@ -4569,6 +4590,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                     long max_token = HStoreConstants.NULL_UNDO_LOGGING_TOKEN;
                     LocalTransaction max_ts = null;
                     for (Pair<LocalTransaction, ClientResponseImpl> pair : this.specExecBlocked) {
+                        boolean shouldCommit = false;
                         spec_ts = pair.getFirst(); 
                         spec_token = spec_ts.getFirstUndoToken(this.partitionId);
                         if (trace.val)
@@ -4581,17 +4603,30 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                         
                         // If the speculative undoToken is null, then this txn didn't execute
                         // any queries. That means we can always commit it
-                        // We need to keep track of what the last undoToken was when this txn started.
-                        // That will tell us what version of the database this txn read from. 
-                        if (spec_token == HStoreConstants.NULL_UNDO_LOGGING_TOKEN || spec_token < dtxnUndoToken) {
-                            tmp_toCommit.push(pair);
+                        if (spec_token == HStoreConstants.NULL_UNDO_LOGGING_TOKEN) {
+                            shouldCommit = true;
+                        }
+                        // Otherwise, look to see if this txn was speculatively executed before the 
+                        // first undo token of the distributed txn. That means we know that this guy
+                        // didn't read any modifications made by the dtxn.
+                        else if (spec_token < dtxnUndoToken) {
+                            shouldCommit = true;
+                        }
+                        // Ok so at this point we know that our spec txn came *after* the distributed txn
+                        // started. So we need to use our checker to see whether there is a conflict
+                        else if (this.specExecChecker.hasConflictAfter(ts, spec_ts, this.partitionId) == false) {
+                            shouldCommit = true;
+                        }
+                        
+                        if (shouldCommit) {
+                            tmp_toCommit.add(pair);
                             if (spec_token != HStoreConstants.NULL_UNDO_LOGGING_TOKEN && spec_token > max_token) {
                                 max_token = spec_token;
                                 max_ts = spec_ts;
                             }
                         }
                         else {
-                            tmp_toRestart.push(pair);
+                            tmp_toRestart.add(pair);
                         }
                     } // FOR
                     if (debug.val)
@@ -4599,17 +4634,17 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                         		  "committed *before* we abort this txn",
                                   ts, tmp_toCommit.size(), this.partitionId));
     
-                    // Commit the greatest token that we've seen. This means that
-                    // all our other txns can be safely processed without needing
-                    // to go down in the EE
+                    // (1) Commit the greatest token that we've seen. This means that
+                    //     all our other txns can be safely processed without needing
+                    //     to go down in the EE
                     if (max_token != HStoreConstants.NULL_UNDO_LOGGING_TOKEN) {
                         assert(max_ts != null);
                         this.finishWorkEE(max_ts, max_token, true);
                     }
                     
-                    // Process all the txns that need to be committed
+                    // (2) Process all the txns that need to be committed
                     Pair<LocalTransaction, ClientResponseImpl> pair = null;
-                    while ((pair = tmp_toCommit.pollFirst()) != null) {
+                    while ((pair = tmp_toCommit.poll()) != null) {
                         spec_ts = pair.getFirst(); 
                         spec_cr = pair.getSecond();
                         spec_ts.markFinished(this.partitionId);
@@ -4625,11 +4660,11 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                         }
                     } // FOR
                     
-                    // (2) Abort the distributed txn
+                    // (3) Abort the distributed txn
                     this.finishTransaction(ts, status);
                     
-                    // (3) Restart all the other txns
-                    while ((pair = tmp_toRestart.pollFirst()) != null) {
+                    // (4) Restart all the other txns
+                    while ((pair = tmp_toRestart.poll()) != null) {
                         spec_ts = pair.getFirst(); 
                         spec_cr = pair.getSecond();
                         
