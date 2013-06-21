@@ -47,9 +47,14 @@ public class OptimisticConflictChecker extends AbstractConflictChecker {
     public boolean shouldIgnoreTransaction(AbstractTransaction ts) {
         return (false);
     }
+    
+    @Override
+    public boolean hasConflictBefore(AbstractTransaction ts0, LocalTransaction ts1, int partitionId) {
+        return (false);
+    }
 
     @Override
-    public boolean hasConflict(AbstractTransaction ts0, LocalTransaction ts1, int partitionId) {
+    public boolean hasConflictAfter(AbstractTransaction ts0, LocalTransaction ts1, int partitionId) {
         assert(ts0.isInitialized()) :
             String.format("Uninitialized distributed transaction handle [%s]", ts0);
         assert(ts1.isInitialized()) :

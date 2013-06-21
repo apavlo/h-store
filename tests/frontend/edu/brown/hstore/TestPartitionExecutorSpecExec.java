@@ -86,8 +86,12 @@ public class TestPartitionExecutorSpecExec extends BaseTestCase {
             return (false);
         }
         @Override
-        public boolean hasConflict(AbstractTransaction dtxn, LocalTransaction candidate, int partitionId) {
-            return (true);
+        public boolean hasConflictBefore(AbstractTransaction dtxn, LocalTransaction candidate, int partitionId) {
+            return (false);
+        }
+        @Override
+        public boolean hasConflictAfter(AbstractTransaction ts0, LocalTransaction ts1, int partitionId) {
+            return (false);
         }
     };
     
