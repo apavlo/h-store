@@ -101,6 +101,7 @@ import org.voltdb.jni.MockExecutionEngine;
 import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.messaging.FastSerializer;
 import org.voltdb.types.SpecExecSchedulerPolicyType;
+import org.voltdb.types.SpeculationConflictCheckerType;
 import org.voltdb.types.SpeculationType;
 import org.voltdb.utils.DBBPool;
 import org.voltdb.utils.DBBPool.BBContainer;
@@ -147,6 +148,7 @@ import edu.brown.hstore.internal.WorkFragmentMessage;
 import edu.brown.hstore.specexec.QueryTracker;
 import edu.brown.hstore.specexec.checkers.AbstractConflictChecker;
 import edu.brown.hstore.specexec.checkers.MarkovConflictChecker;
+import edu.brown.hstore.specexec.checkers.OptimisticConflictChecker;
 import edu.brown.hstore.specexec.checkers.TableConflictChecker;
 import edu.brown.hstore.specexec.checkers.UnsafeConflictChecker;
 import edu.brown.hstore.txns.AbstractTransaction;
@@ -805,21 +807,48 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         assert(this.specExecScheduler == null);
         assert(this.hstore_site != null);
         
-        // Row-level Conflict Detection
-        if (hstore_conf.site.specexec_markov) {
-            // The MarkovConflictChecker is thread-safe, so we all of the partitions
-            // at this site can reuse the same one.
-            this.specExecChecker = MarkovConflictChecker.singleton(this.catalogContext, this.thresholds);
-        }
-        // Unsafe Conflict Detection
-        // NOTE: You probably don't want to use this!
-        else if (hstore_conf.site.specexec_unsafe) {
-            this.specExecChecker = new UnsafeConflictChecker(this.catalogContext, hstore_conf.site.specexec_unsafe_limit);
-        }
-        // Table-level Conflict Detection
-        else {
-            this.specExecChecker = new TableConflictChecker(this.catalogContext);
-        }
+        SpeculationConflictCheckerType checkerType = SpeculationConflictCheckerType.get(hstore_conf.site.specexec_scheduler_checker);
+        switch (checkerType) {
+            // -------------------------------
+            // ROW-LEVEL
+            // -------------------------------
+            case MARKOV:
+                // The MarkovConflictChecker is thread-safe, so we all of the partitions
+                // at this site can reuse the same one.
+                this.specExecChecker = MarkovConflictChecker.singleton(this.catalogContext, this.thresholds);
+                break;
+            // -------------------------------
+            // TABLE-LEVEL
+            // -------------------------------
+            case TABLE:
+                this.specExecChecker = new TableConflictChecker(this.catalogContext);
+                break;
+            // -------------------------------
+            // UNSAFE
+            // NOTE: You probably don't want to use this!
+            // -------------------------------
+            case UNSAFE:
+                this.specExecChecker = new UnsafeConflictChecker(this.catalogContext, hstore_conf.site.specexec_unsafe_limit);
+                LOG.warn(String.format("Using %s in the %s for partition %d. This is a bad idea!",
+                         this.specExecChecker.getClass().getSimpleName(),
+                         this.getClass().getSimpleName(),
+                         this.partitionId));
+                break;
+            // -------------------------------
+            // OPTIMISTIC
+            // -------------------------------
+            case OPTIMISTIC:
+                this.specExecChecker = new OptimisticConflictChecker(this.catalogContext, this.ee);
+                break;
+            // BUSTED!
+            default: {
+                String msg = String.format("Invalid %s '%s'",
+                                           SpeculationConflictCheckerType.class.getSimpleName(),
+                                           hstore_conf.site.specexec_scheduler_checker);
+                assert(false) : msg;
+                LOG.warn(msg);
+            }
+        } // SWITCH
         
         SpecExecSchedulerPolicyType policy = SpecExecSchedulerPolicyType.get(hstore_conf.site.specexec_scheduler_policy);
         assert(policy != null) : String.format("Invalid %s '%s'",

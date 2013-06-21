@@ -173,11 +173,6 @@ public class SpecExecScheduler implements Configurable {
                 this.setDisabled(partitions.contains(this.partitionId));
             }
         }
-        
-        if (hstore_conf.site.specexec_unsafe) {
-            // this.specExecScheduler.setIgnoreQueueSizeChange(true);
-            // this.specExecScheduler.setIgnoreSpeculationTypeChange(true);
-        }
     }
     
     // ----------------------------------------------------------------------------
