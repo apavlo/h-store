@@ -1023,9 +1023,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 }
                 // Check if we have any utility work to do while we wait
                 else if (hstore_conf.site.specexec_enable) {
-                    if (trace.val)
-                        LOG.trace(String.format("The %s for partition %s empty. Checking for utility work...",
-                                  this.work_queue.getClass().getSimpleName(), this.partitionId));
+//                    if (trace.val)
+//                        LOG.trace(String.format("The %s for partition %s empty. Checking for utility work...",
+//                                  this.work_queue.getClass().getSimpleName(), this.partitionId));
                     if (this.utilityWork()) {
                         nextWork = UTIL_WORK_MSG;
                     }
@@ -1076,11 +1076,11 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         
         // Check whether there is something we can speculatively execute right now
         if (this.specExecIgnoreCurrent == false && this.lockQueue.approximateIsEmpty() == false) {
-            if (trace.val)
-                LOG.trace(String.format("Checking %s for something to do at partition %d while %s",
-                          this.specExecScheduler.getClass().getSimpleName(),
-                          this.partitionId,
-                          (this.currentDtxn != null ? "blocked on " + this.currentDtxn : "idle")));
+//            if (trace.val)
+//                LOG.trace(String.format("Checking %s for something to do at partition %d while %s",
+//                          this.specExecScheduler.getClass().getSimpleName(),
+//                          this.partitionId,
+//                          (this.currentDtxn != null ? "blocked on " + this.currentDtxn : "idle")));
             assert(hstore_conf.site.specexec_enable) :
                 "Trying to schedule speculative txn even though it is disabled";
             SpeculationType specType = this.calculateSpeculationType();
@@ -1137,16 +1137,16 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                     if (hstore_conf.site.exec_profiling) profiler.specexec_time.stopIfStarted();
                 }
             }
-            else if (trace.val) {
-                LOG.trace(String.format("%s - No speculative execution candidates found at partition %d [queueSize=%d]",
-                          this.currentDtxn, this.partitionId, this.queueManager.getLockQueue(this.partitionId).size()));
-            }
+//            else if (trace.val) {
+//                LOG.trace(String.format("%s - No speculative execution candidates found at partition %d [queueSize=%d]",
+//                          this.currentDtxn, this.partitionId, this.queueManager.getLockQueue(this.partitionId).size()));
+//            }
         }
-        else if (trace.val && this.currentDtxn != null) {
-            LOG.trace(String.format("%s - Skipping check for speculative execution txns at partition %d " +
-            		  "[lockQueue=%d, specExecIgnoreCurrent=%s]",
-                      this.currentDtxn, this.partitionId, this.lockQueue.size(), this.specExecIgnoreCurrent));
-        }
+//        else if (trace.val && this.currentDtxn != null) {
+//            LOG.trace(String.format("%s - Skipping check for speculative execution txns at partition %d " +
+//            		  "[lockQueue=%d, specExecIgnoreCurrent=%s]",
+//                      this.currentDtxn, this.partitionId, this.lockQueue.size(), this.specExecIgnoreCurrent));
+//        }
         
         if (hstore_conf.site.exec_profiling) this.profiler.util_time.stopIfStarted();
         return (specTxn != null || work != null);

@@ -672,7 +672,7 @@ public class TransactionInitializer {
                     if (debug.val)
                         LOG.debug(String.format("%s - Using %s to populate txn properties [clientHandle=%d]",
                                   TransactionUtil.formatTxnName(catalog_proc, txn_id),
-                                  t_estimator.getClass().getSimpleName(), ts.getClientHandle()));
+                                  t_estimator.getClass().getSimpleName(), client_handle));
                     t_state = t_estimator.startTransaction(txn_id, base_partition, catalog_proc, params.toArray());
                 }
                 
@@ -770,7 +770,7 @@ public class TransactionInitializer {
                 if (debug.val)
                     LOG.debug(String.format("The \"Always Single-Partitioned\" flag is true. " +
                     		  "Marking new %s transaction as single-partitioned on partition %d [clientHandle=%d]",
-                              catalog_proc.getName(), base_partition, ts.getClientHandle()));
+                              catalog_proc.getName(), base_partition, client_handle));
                 predict_partitions = catalogContext.getPartitionSetSingleton(base_partition);
             }
             // -------------------------------
