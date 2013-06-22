@@ -1066,7 +1066,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
      */
     private boolean utilityWork() {
         if (hstore_conf.site.exec_profiling) this.profiler.util_time.start();
-        if (trace.val) LOG.trace("Entering utilityWork");
         
         // -------------------------------
         // Poll Lock Queue

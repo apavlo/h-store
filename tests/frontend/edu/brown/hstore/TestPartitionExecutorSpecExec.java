@@ -213,17 +213,6 @@ public class TestPartitionExecutorSpecExec extends BaseTestCase {
         assertNotNull(dtxn);
     }
     
-    private void checkBlockedSpeculativeTxns(PartitionExecutor executor, int expected) {
-        // Wait until they have all been executed but make sure that nobody actually returned yet
-        int tries = 3;
-        while (tries-- > 0) {
-            int blocked = executor.getDebugContext().getBlockedSpecExecCount();
-            if (blocked == expected) break;
-            ThreadUtil.sleep(NOTIFY_TIMEOUT);    
-        } // WHILE
-        assertEquals(expected, executor.getDebugContext().getBlockedSpecExecCount());
-    }
-    
     private void checkClientResponses(Collection<ClientResponse> responses, Status status, boolean speculative, Integer restarts) {
         for (ClientResponse cr : responses) {
             assertNotNull(cr);
@@ -334,7 +323,7 @@ public class TestPartitionExecutorSpecExec extends BaseTestCase {
             this.client.callProcedure(spCallback, this.spProc.getName(), params);
         } // FOR
         ThreadUtil.sleep(NOTIFY_TIMEOUT);
-        this.checkBlockedSpeculativeTxns(this.remoteExecutor, NUM_SPECEXEC_TXNS);
+        HStoreSiteTestUtil.checkBlockedSpeculativeTxns(this.remoteExecutor, NUM_SPECEXEC_TXNS);
         
         // Now release the locks and then wait until the dtxn returns and all 
         // of the single-partition txns return
@@ -461,7 +450,7 @@ public class TestPartitionExecutorSpecExec extends BaseTestCase {
         for (int i = 0; i < NUM_SPECEXEC_TXNS; i++) {
             this.client.callProcedure(spCallback1, spProc1.getName(), params);
         } // FOR
-        this.checkBlockedSpeculativeTxns(this.remoteExecutor, NUM_SPECEXEC_TXNS);
+        HStoreSiteTestUtil.checkBlockedSpeculativeTxns(this.remoteExecutor, NUM_SPECEXEC_TXNS);
         
         // Release all of the dtxn's locks
         this.lockAfter.release();
