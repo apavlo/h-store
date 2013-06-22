@@ -522,8 +522,8 @@ public class SpecExecScheduler implements Configurable {
          */
         protected void setConflictChecker(AbstractConflictChecker checker) {
             LOG.warn(String.format("Replacing original checker %s with %s",
-                     SpecExecScheduler.this.checker.getClass().getSimpleName(),
-                     checker.getClass().getCanonicalName()));
+                     SpecExecScheduler.this.checker.getClass().getName(),
+                     checker.getClass().getName()));
             SpecExecScheduler.this.checker = checker;
         }
     } // CLASS

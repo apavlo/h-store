@@ -116,6 +116,17 @@ public abstract class HStoreSiteTestUtil extends TestCase {
         } // WHILE
         assertEquals(executor.toString(), expected, blocked);
     }
+
+    public static void checkBlockedSpeculativeTxns(PartitionExecutor executor, int expected) {
+        // Wait until they have all been executed but make sure that nobody actually returned yet
+        int tries = 3;
+        while (tries-- > 0) {
+            int blocked = executor.getDebugContext().getBlockedSpecExecCount();
+            if (blocked == expected) break;
+            ThreadUtil.sleep(NOTIFY_TIMEOUT);    
+        } // WHILE
+        assertEquals(expected, executor.getDebugContext().getBlockedSpecExecCount());
+    }
     
 
 }
