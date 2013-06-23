@@ -11,7 +11,9 @@ import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.utils.ClassUtil;
 import edu.brown.utils.PartitionSet;
+import edu.brown.utils.StringUtil;
 
 public abstract class PartitionCountingCallback<X extends AbstractTransaction> implements TransactionCallback {
     private static final Logger LOG = Logger.getLogger(PartitionCountingCallback.class);
@@ -189,8 +191,9 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
         assert(this.ts != null) :
             "Null transaction handle for txn #" + this.orig_txn_id;
         if (debug.val)
-            LOG.debug(String.format("%s - Invoking TransactionFinish protocol from %s [status=%s]",
-                      this.ts, this.getClass().getSimpleName(), status));
+            LOG.debug(String.format("%s - Invoking TransactionFinish protocol from %s [status=%s]\n%s",
+                      this.ts, this.getClass().getSimpleName(), status,
+                      StringUtil.join("\n", ClassUtil.getStackTrace())));
         
         // Let everybody know that the party is over!
         if (this.ts instanceof LocalTransaction) {
@@ -318,8 +321,8 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
                 this.abortCallback(partition, status);
             } catch (RuntimeException ex) {
                 String msg = String.format("Failed to invoke %s.abortCallback() for %s [partition=%d, status=%s]",
-                                           this.getClass().getSimpleName(), this.ts,
-                                           partition, status);
+                             this.getClass().getSimpleName(), this.ts,
+                             partition, status);
                 LOG.error(msg, ex);
                 throw ex;
             }

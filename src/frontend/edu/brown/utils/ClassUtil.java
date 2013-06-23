@@ -110,6 +110,24 @@ public abstract class ClassUtil {
     }
     
     /**
+     * Return the stack trace for the location that calls this method.
+     * @return
+     */
+    public static String[] getStackTrace() {
+        String ret[] = null;
+        try {
+            throw new Exception();
+        } catch (Exception ex) {
+            StackTraceElement stack[] = ex.getStackTrace();
+            ret = new String[stack.length-1];
+            for (int i = 1; i < stack.length; i++) {
+                ret[i-1] = stack[i].toString();
+            } // FOR
+        }
+        return (ret);
+    }
+    
+    /**
      * Check if the given object is an array (primitve or native).
      * http://www.java2s.com/Code/Java/Reflection/Checkifthegivenobjectisanarrayprimitveornative.htm
      * 

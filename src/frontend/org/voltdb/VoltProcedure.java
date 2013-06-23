@@ -212,8 +212,8 @@ public abstract class VoltProcedure implements Poolable {
      * <B>NOTE:</B> This should only be used for debugging/testing.
      * @return
      */
-    protected final AbstractTransaction getTransactionState() {
-        return m_currentTxnState;
+    protected final LocalTransaction getTransactionState() {
+        return m_localTxnState;
     }
     
     /**

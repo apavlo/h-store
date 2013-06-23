@@ -1,8 +1,6 @@
 package edu.brown.hstore;
 
 import java.io.File;
-import java.util.Collection;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -10,19 +8,23 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.Before;
 import org.junit.Test;
 import org.voltdb.StoredProcedureInvocationHints;
+import org.voltdb.VoltTable;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
+import org.voltdb.catalog.Table;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.regressionsuites.specexecprocs.BlockingSendPayment;
 import org.voltdb.regressionsuites.specexecprocs.NonBlockingSendPayment;
 import org.voltdb.types.SpeculationType;
+import org.voltdb.utils.CatalogUtil;
+import org.voltdb.utils.VoltTableUtil;
 
 import edu.brown.BaseTestCase;
 import edu.brown.HStoreSiteTestUtil;
 import edu.brown.HStoreSiteTestUtil.LatchableProcedureCallback;
 import edu.brown.benchmark.smallbank.SmallBankProjectBuilder;
-import edu.brown.benchmark.smallbank.procedures.Balance;
+import edu.brown.benchmark.smallbank.procedures.DepositChecking;
 import edu.brown.benchmark.smallbank.procedures.SendPayment;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.conf.HStoreConf;
@@ -39,7 +41,6 @@ import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.PartitionSet;
 import edu.brown.utils.ProjectType;
-import edu.brown.utils.StringUtil;
 import edu.brown.utils.ThreadUtil;
 import edu.brown.workload.TransactionTrace;
 import edu.brown.workload.Workload;
@@ -58,14 +59,6 @@ public class TestPartitionExecutor2PC extends BaseTestCase {
     private static final int BASE_PARTITION = 0;
     private static final int WORKLOAD_XACT_LIMIT = 500;
 
-    // We want to make sure that the PartitionExecutor only spec execs 
-    // at the 2PC stall points.
-    private static final Collection<SpeculationType> IGNORED_STALLPOINTS = new HashSet<SpeculationType>();
-    static {
-        CollectionUtil.addAll(IGNORED_STALLPOINTS, SpeculationType.values());
-        IGNORED_STALLPOINTS.remove(SpeculationType.SP3_REMOTE);
-    } // STATIC
-    
     private static Workload workload;
     private static File markovsFile;
     
@@ -77,6 +70,7 @@ public class TestPartitionExecutor2PC extends BaseTestCase {
     private Procedure blockingProc;
     
     private PartitionExecutor executors[];
+    private PartitionExecutor.Debug executorDbgs[];
     private PartitionExecutor baseExecutor;
     private PartitionExecutor remoteExecutor;
     
@@ -165,7 +159,6 @@ public class TestPartitionExecutor2PC extends BaseTestCase {
         Site catalog_site = CollectionUtil.first(catalogContext.sites);
         this.hstore_conf = HStoreConf.singleton();
         this.hstore_conf.site.specexec_enable = true;
-        this.hstore_conf.site.specexec_ignore_stallpoints = StringUtil.join(",", IGNORED_STALLPOINTS);
         this.hstore_conf.site.txn_client_debug = true;
         this.hstore_conf.site.txn_counters = true;
         this.hstore_conf.site.exec_force_singlepartitioned = true;
@@ -185,9 +178,14 @@ public class TestPartitionExecutor2PC extends BaseTestCase {
         
         // Make sure the HStoreSite initializes all of its PartitionExecutors with
         // a MarkovEstimator.
-        this.executors = new PartitionExecutor[]{ this.baseExecutor, this.remoteExecutor };
-        for (PartitionExecutor executor : this.executors) {
-            TransactionEstimator t_estimator = executor.getTransactionEstimator();
+        this.executors = new PartitionExecutor[]{
+                this.baseExecutor,
+                this.remoteExecutor
+        };
+        this.executorDbgs = new PartitionExecutor.Debug[this.executors.length];
+        for (int i = 0; i < this.executors.length; i++) {
+            this.executorDbgs[i] = this.executors[i].getDebugContext();
+            TransactionEstimator t_estimator = this.executors[i].getTransactionEstimator();
             assertNotNull(t_estimator);
             assertEquals(MarkovEstimator.class, t_estimator.getClass());
         } // FOR
@@ -251,86 +249,100 @@ public class TestPartitionExecutor2PC extends BaseTestCase {
     // TEST CASES
     // --------------------------------------------------------------------------------------------
     
-//    /**
-//     * testPrepareAbort
-//     */
-//    public void testPrepareAbort() throws Exception {
-//        // Run a distributed partition txn where one of the remote 
-//        // partitions will decide to abort the txn in the 2PC prepare phase
-//        final int remotePartition = BASE_PARTITION+1;
-//        final PartitionExecutor remoteExecutor = hstore_site.getPartitionExecutor(remotePartition);
-//        final AtomicBoolean remotePartitionCheck = new AtomicBoolean(false);
-//        
-//        AbstractConflictChecker remoteChecker = new AbstractConflictChecker(catalogContext) {
-//            @Override
-//            public boolean shouldIgnoreTransaction(AbstractTransaction ts) {
-//                return false;
-//            }
-//            @Override
-//            public boolean hasConflictBefore(AbstractTransaction ts0, LocalTransaction ts1, int partitionId) {
-//                return false;
-//            }
-//            @Override
-//            public boolean hasConflictAfter(AbstractTransaction ts0, LocalTransaction ts1, int partitionId) {
-//                if (partitionId == remotePartition) {
-//                    assertTrue(remotePartitionCheck.compareAndSet(false, true));
-//                    return (true);
-//                }
-//                return (false);
-//            }
-//        };
-//        PartitionExecutor.Debug remoteDebug = remoteExecutor.getDebugContext();
-//        remoteDebug.getSpecExecScheduler().getDebugContext().setConflictChecker(remoteChecker);
-//        
-//        // Fire off a distributed a txn that will block.
-//        Object dtxnParams[] = new Object[]{ BASE_PARTITION, BASE_PARTITION+1, 1.0 };
-//        StoredProcedureInvocationHints dtxnHints = new StoredProcedureInvocationHints();
-//        dtxnHints.basePartition = BASE_PARTITION;
-//        LatchableProcedureCallback dtxnCallback = new LatchableProcedureCallback(1);
-//        this.client.callProcedure(dtxnCallback, this.blockingProc.getName(), dtxnHints, dtxnParams);
-//        
-//        // Block until we know that the txn has started running
-//        BlockingSendPayment dtxnVoltProc = HStoreSiteTestUtil.getCurrentVoltProcedure(this.baseExecutor, BlockingSendPayment.class); 
-//        assertNotNull(dtxnVoltProc);
-//        boolean result = dtxnVoltProc.NOTIFY_BEFORE.tryAcquire(HStoreSiteTestUtil.NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
-//        assertTrue(result);
-//        this.checkCurrentDtxn();
-//        
-//        // Fire off a single-partition txn that will get executed right away but held
-//        Procedure spProc = this.getProcedure(Balance.class);
-//        Object spParams[] = new Object[]{ remotePartition };
-//        StoredProcedureInvocationHints spHints = new StoredProcedureInvocationHints();
-//        spHints.basePartition = remotePartition;
-//        LatchableProcedureCallback spCallback0 = new LatchableProcedureCallback(1);
-//        this.client.callProcedure(spCallback0, spProc.getName(), spHints, spParams);
-//        result = spCallback0.latch.await(HStoreSiteTestUtil.NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
-//        assertFalse("SP LATCH"+spCallback0.latch, result);
-//        
-//        HStoreSiteTestUtil.checkBlockedSpeculativeTxns(remoteExecutor, 1);
-//        
-//        // Ok now we're going to release our txn.
-//        // It should finish but come back indicating that it's been restarted once
-//        dtxnVoltProc.LOCK_BEFORE.release();
-//        result = dtxnVoltProc.NOTIFY_AFTER.tryAcquire(HStoreSiteTestUtil.NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
-//        assertTrue(result);
-//        dtxnVoltProc.LOCK_AFTER.release();
-//        result = dtxnCallback.latch.await(HStoreSiteTestUtil.NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
-//        assertTrue("DTXN LATCH"+dtxnCallback.latch, result);
-//        ClientResponse dtxnResponse = CollectionUtil.first(dtxnCallback.responses);
-//        assertEquals(dtxnResponse.toString(), Status.OK, dtxnResponse.getStatus());
-//        assertEquals(dtxnResponse.toString(), 1, dtxnResponse.getRestartCounter());
-//        
-//        // The other transaction should be executed now on the remote partition
-//        result = spCallback0.latch.await(HStoreSiteTestUtil.NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
-//        assertTrue("SP LATCH"+spCallback0.latch, result);
-//        ClientResponse spResponse = CollectionUtil.first(spCallback0.responses);
-//        assertEquals(Status.OK, spResponse.getStatus());
-//        assertTrue(spResponse.isSpeculative());
-//        assertEquals(spResponse.toString(), 1, spResponse.getRestartCounter());
-//        
-//        assertTrue(remotePartitionCheck.get());
-//        
-//    }
+    /**
+     * testPrepareAbort
+     */
+    public void testPrepareAbort() throws Exception {
+        // Run a distributed partition txn where one of the remote 
+        // partitions will decide to abort the txn in the 2PC prepare phase
+        final int remotePartition = BASE_PARTITION+1;
+        final PartitionExecutor remoteExecutor = hstore_site.getPartitionExecutor(remotePartition);
+        final AtomicBoolean remotePartitionCheck = new AtomicBoolean(false);
+        remoteExecutor.getDebugContext().getSpecExecScheduler().ignoreSpeculationType(SpeculationType.SP2_REMOTE_BEFORE);
+        hstore_conf.site.exec_early_prepare = false;
+        
+        // Load in some test data so the txn doesn't abort
+        for (Table tbl : catalogContext.database.getTables()) {
+            VoltTable vt = CatalogUtil.getVoltTable(tbl);
+            Object row[] = VoltTableUtil.getRandomRow(tbl);
+            row[0] = remotePartition;
+            vt.addRow(row);
+            this.remoteExecutor.loadTable(100l, tbl, vt, false);
+        } // FOR
+        
+        AbstractConflictChecker remoteChecker = new AbstractConflictChecker(catalogContext) {
+            @Override
+            public boolean shouldIgnoreTransaction(AbstractTransaction ts) {
+                return false;
+            }
+            @Override
+            public boolean hasConflictBefore(AbstractTransaction ts0, LocalTransaction ts1, int partitionId) {
+                return false;
+            }
+            @Override
+            public boolean hasConflictAfter(AbstractTransaction ts0, LocalTransaction ts1, int partitionId) {
+                System.err.printf("PARTITION:%d -- %s<-->%s\n", partitionId, ts0, ts1);
+                if (partitionId == remotePartition) {
+                    remotePartitionCheck.set(true);
+                    return (true);
+                }
+                return (false);
+            }
+        };
+        for (PartitionExecutor.Debug dbg : this.executorDbgs) {
+            dbg.setConflictChecker(remoteChecker);
+        } // FOR
+        
+        // Fire off a distributed a txn that will block.
+        Object dtxnParams[] = new Object[]{ BASE_PARTITION, BASE_PARTITION+1, 1.0 };
+        StoredProcedureInvocationHints dtxnHints = new StoredProcedureInvocationHints();
+        dtxnHints.basePartition = BASE_PARTITION;
+        LatchableProcedureCallback dtxnCallback = new LatchableProcedureCallback(1);
+        this.client.callProcedure(dtxnCallback, this.blockingProc.getName(), dtxnHints, dtxnParams);
+        
+        // Block until we know that the txn has started running
+        BlockingSendPayment dtxnVoltProc = HStoreSiteTestUtil.getCurrentVoltProcedure(this.baseExecutor, BlockingSendPayment.class); 
+        assertNotNull(dtxnVoltProc);
+        boolean result = dtxnVoltProc.NOTIFY_BEFORE.tryAcquire(HStoreSiteTestUtil.NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
+        assertTrue(result);
+        this.checkCurrentDtxn();
+        
+        // Let the dtxn execute some queries that modify the remote partition
+        dtxnVoltProc.LOCK_BEFORE.release();
+        result = dtxnVoltProc.NOTIFY_AFTER.tryAcquire(HStoreSiteTestUtil.NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
+        assertTrue(result);
+        
+        // Fire off a single-partition txn that will get executed right away but 
+        // have its ClientResponse held until it learns whether the dtxn
+        // will commit successfully
+        Procedure spProc = this.getProcedure(DepositChecking.class);
+        Object spParams[] = new Object[]{ remotePartition, 1.0 };
+        StoredProcedureInvocationHints spHints = new StoredProcedureInvocationHints();
+        spHints.basePartition = remotePartition;
+        LatchableProcedureCallback spCallback0 = new LatchableProcedureCallback(1);
+        this.client.callProcedure(spCallback0, spProc.getName(), spHints, spParams);
+        HStoreSiteTestUtil.checkBlockedSpeculativeTxns(remoteExecutor, 1);
+
+        // Now release the dtxn. When it goes to commit with 2PC it will
+        // find that there is a conflict with the single-partition txn.
+        // Everyone should get restarted.
+        dtxnVoltProc.LOCK_AFTER.release();
+        result = dtxnCallback.latch.await(HStoreSiteTestUtil.NOTIFY_TIMEOUT*3, TimeUnit.MILLISECONDS);
+        assertTrue("DTXN LATCH: "+dtxnCallback.latch, result);
+        ClientResponse dtxnResponse = CollectionUtil.first(dtxnCallback.responses);
+        assertEquals(dtxnResponse.toString(), Status.OK, dtxnResponse.getStatus());
+        assertTrue(dtxnResponse.toString(), dtxnResponse.getRestartCounter() >= 1);
+        
+        // The other transaction should be executed now on the remote partition
+        result = spCallback0.latch.await(HStoreSiteTestUtil.NOTIFY_TIMEOUT, TimeUnit.MILLISECONDS);
+        assertTrue("SP LATCH: "+spCallback0.latch, result);
+        ClientResponse spResponse = CollectionUtil.first(spCallback0.responses);
+        assertEquals(Status.OK, spResponse.getStatus());
+        assertTrue(spResponse.isSpeculative());
+        assertTrue(spResponse.toString(), spResponse.getRestartCounter() >= 1);
+        
+        assertTrue(remotePartitionCheck.get());
+    }
     
     /**
      * testEarly2PCWithQuery
@@ -341,6 +353,16 @@ public class TestPartitionExecutor2PC extends BaseTestCase {
         // finished with a partition at the moment that it sends a query request. The
         // remote PartitionExecutor should process the query and then immediately send
         // back the 2PC acknowledgment.
+        hstore_conf.site.exec_early_prepare = true;
+
+        // We want to make sure that the PartitionExecutor only spec execs 
+        // at the 2PC stall points.
+        for (SpeculationType specType : SpeculationType.values()) {
+            if (specType == SpeculationType.SP3_REMOTE) continue;
+            for (int i = 0; i < this.executors.length; i++) {
+                this.executorDbgs[i].getSpecExecScheduler().ignoreSpeculationType(specType);
+            }
+        }
         
         AbstractConflictChecker checker = new AbstractConflictChecker(null) {
             @Override
