@@ -401,44 +401,14 @@ public final class HStoreConf {
             experimental=true
         )
         public boolean exec_validate_work;
-
-//        @ConfigProperty(
-//            description="If enabled, log all transaction requests to disk",
-//            defaultBoolean=false,
-//            replacedBy="site.commandlog_enable",
-//            experimental=true
-//        )
-//        @Deprecated
-//        public boolean exec_command_logging;
-//        
-//        @ConfigProperty(
-//            description="Directory for storage of command logging files",
-//            defaultString="${global.temp_dir}/wal",
-//            replacedBy="site.commandlog_dir",
-//            experimental=true
-//        )
-//        @Deprecated
-//        public String exec_command_logging_directory = HStoreConf.this.global.temp_dir + "/wal";
-//        
-//        @ConfigProperty(
-//            description="Timeout in milliseconds before group commit buffer flushes, if it does not fill",
-//            defaultInt=50,
-//            replacedBy="site.commandlog_timeout",
-//            experimental=true
-//        )
-//        @Deprecated
-//        public int exec_command_logging_group_commit_timeout;
-//        
-//        @ConfigProperty(
-//            description="If enabled, then the CommandLogWriter will keep track of various internal " +
-//                        "profile statistics.",
-//            defaultBoolean=false,
-//            replacedBy="site.commandlog_profiling",
-//            experimental=true
-//        )
-//        @Deprecated
-//        public boolean exec_command_logging_profile;
         
+        @ConfigProperty(
+            description="Enables the early 2PC prepare optimization.",
+            defaultBoolean=true,
+            experimental=false
+        )
+        public boolean exec_early_prepare;
+
         @ConfigProperty(
             description="Setting this configuration parameter to true allows clients to " +
                         "issue ad hoc query requests use the @AdHoc sysproc. This should be " +

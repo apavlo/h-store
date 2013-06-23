@@ -37,6 +37,11 @@ public class BlockingSendPayment extends SendPayment {
     }
         
     private VoltTable[] _run(long sendAcct, long destAcct, double amount) {
+        // If this is the second time that we are running (i.e., this 
+        // txn has been restarted before), then we don't want to block on
+        // any of the locks.
+        boolean takeLocks = (this.getTransactionState().getRestartCounter() == 0);
+        
         // -------------------- LOCK BEFORE QUERY -------------------- 
         ProfileMeasurement pm_before = new ProfileMeasurement("BEFORE");
         LOG.info(this.getTransactionState() + " - Blocking until LOCK_BEFORE is released");
@@ -44,7 +49,7 @@ public class BlockingSendPayment extends SendPayment {
         try {
             // Notify others before we lock
             NOTIFY_BEFORE.release();
-            LOCK_BEFORE.acquire();
+            if (takeLocks) LOCK_BEFORE.acquire();
         } catch (InterruptedException ex) {
             ex.printStackTrace();
             throw new VoltAbortException(ex.getMessage());
@@ -77,7 +82,7 @@ public class BlockingSendPayment extends SendPayment {
         try {
             // Notify others before we lock
             NOTIFY_AFTER.release();
-            LOCK_AFTER.acquire();
+            if (takeLocks) LOCK_AFTER.acquire();
         } catch (InterruptedException ex) {
             ex.printStackTrace();
             throw new VoltAbortException(ex.getMessage());
