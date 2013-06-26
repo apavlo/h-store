@@ -84,13 +84,23 @@ public class neworder extends VoltProcedure {
         new SQLStmt("SELECT W_TAX FROM WAREHOUSE WHERE W_ID = ?;"); //w_id
 
     public final SQLStmt getDistrict =
-        new SQLStmt("SELECT D_TAX, D_NEXT_O_ID FROM DISTRICT WHERE D_ID = ? AND D_W_ID = ?;"); //d_id, w_id
+        new SQLStmt("SELECT D_TAX, D_NEXT_O_ID " +
+        		    "  FROM DISTRICT " +
+        		    " WHERE D_ID = ? " +
+        		    "   AND D_W_ID = ?;"); //d_id, w_id
 
     public final SQLStmt incrementNextOrderId =
-        new SQLStmt("UPDATE DISTRICT SET D_NEXT_O_ID = ? WHERE D_ID = ? AND D_W_ID = ?;"); //d_next_o_id, d_id, w_id
+        new SQLStmt("UPDATE DISTRICT " +
+        		    "   SET D_NEXT_O_ID = ? " +
+        		    " WHERE D_ID = ? " +
+        		    "   AND D_W_ID = ?;"); //d_next_o_id, d_id, w_id
 
     public final SQLStmt getCustomer =
-        new SQLStmt("SELECT C_DISCOUNT, C_LAST, C_CREDIT FROM CUSTOMER WHERE C_W_ID = ? AND C_D_ID = ? AND C_ID = ?;"); //w_id, d_id, c_id
+        new SQLStmt("SELECT C_DISCOUNT, C_LAST, C_CREDIT " +
+        		    "  FROM CUSTOMER " +
+        		    " WHERE C_W_ID = ? " +
+        		    "   AND C_D_ID = ? " +
+        		    "   AND C_ID = ?;"); //w_id, d_id, c_id
 
     public final SQLStmt createOrder =
         new SQLStmt("INSERT INTO ORDERS (O_ID, O_D_ID, O_W_ID, O_C_ID, O_ENTRY_D, O_CARRIER_ID, O_OL_CNT, O_ALL_LOCAL) VALUES (?, ?, ?, ?, ?, ?, ?, ?);"); //d_next_o_id, d_id, w_id, c_id, timestamp, o_carrier_id, o_ol_cnt, o_all_local
