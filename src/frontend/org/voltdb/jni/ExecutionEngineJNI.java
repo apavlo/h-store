@@ -635,27 +635,34 @@ public class ExecutionEngineJNI extends ExecutionEngine {
     
     @Override
     public void trackingEnable(Long txnId) throws EEException {
-        LOG.info(String.format("Enabling read/write set tracking for txn #%d at partition %d",
-                 txnId, this.site.getPartitionId()));
+        if (debug.val)
+            LOG.debug(String.format("Enabling read/write set tracking for txn #%d at partition %d",
+                      txnId, this.site.getPartitionId()));
         final int errorCode = nativeTrackingEnable(this.pointer, txnId.longValue());
         checkErrorCode(errorCode);
     }
     
     @Override
     public void trackingFinish(Long txnId) throws EEException {
-        LOG.info(String.format("Deleting read/write set tracker for txn #%d at partition %d",
-                 txnId, this.site.getPartitionId()));
+        if (debug.val)
+            LOG.debug(String.format("Deleting read/write set tracker for txn #%d at partition %d",
+                      txnId, this.site.getPartitionId()));
         final int errorCode = nativeTrackingFinish(this.pointer, txnId.longValue());
         checkErrorCode(errorCode);
     }
     
     @Override
     public VoltTable trackingReadSet(Long txnId) throws EEException {
-        LOG.info(String.format("Get READ tracking set for txn #%d at partition %d",
-                 txnId, this.site.getPartitionId()));
+        if (debug.val)
+            LOG.debug(String.format("Get READ tracking set for txn #%d at partition %d",
+                      txnId, this.site.getPartitionId()));
         deserializer.clear();
         final int errorCode = nativeTrackingReadSet(this.pointer, txnId.longValue());
-        checkErrorCode(errorCode);
+        if (errorCode == ERRORCODE_NO_DATA) {
+            LOG.error("No READ tracking set for txn #" + txnId);
+            return (null);
+        } else checkErrorCode(errorCode);
+        
         try {
             deserializer.readInt();//Ignore the length of the result tables
             final VoltTable resultTable = PrivateVoltTableFactory.createUninitializedVoltTable();
@@ -668,11 +675,16 @@ public class ExecutionEngineJNI extends ExecutionEngine {
     
     @Override
     public VoltTable trackingWriteSet(Long txnId) throws EEException {
-        LOG.info(String.format("Get WRITE tracking set for txn #%d at partition %d",
-                 txnId, this.site.getPartitionId()));
+        if (debug.val)
+            LOG.debug(String.format("Get WRITE tracking set for txn #%d at partition %d",
+                      txnId, this.site.getPartitionId()));
         deserializer.clear();
         final int errorCode = nativeTrackingWriteSet(this.pointer, txnId.longValue());
-        checkErrorCode(errorCode);
+        if (errorCode == ERRORCODE_NO_DATA) {
+            LOG.error("No WRITE tracking set for txn #" + txnId);
+            return (null);
+        } else checkErrorCode(errorCode);
+        
         try {
             deserializer.readInt();//Ignore the length of the result tables
             final VoltTable resultTable = PrivateVoltTableFactory.createUninitializedVoltTable();

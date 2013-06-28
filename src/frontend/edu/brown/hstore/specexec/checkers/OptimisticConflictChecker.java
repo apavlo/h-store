@@ -70,10 +70,12 @@ public class OptimisticConflictChecker extends AbstractConflictChecker {
         // SPECIAL CASE
         // Either txn did not actually read or write anything at this partition, so we can just
         // say that everything kosher.
-        if (tsTracking0[READ].getRowCount() == 0 && tsTracking0[WRITE].getRowCount() == 0) {
+        if ((tsTracking0[READ] == null || tsTracking0[READ].getRowCount() == 0) && 
+            (tsTracking0[WRITE] == null || tsTracking0[WRITE].getRowCount() == 0)) {
             return (false);
         }
-        else if (tsTracking1[READ].getRowCount() == 0 && tsTracking1[WRITE].getRowCount() == 0) {
+        else if ((tsTracking1[READ] == null || tsTracking1[READ].getRowCount() == 0) && 
+                (tsTracking1[WRITE] == null || tsTracking1[WRITE].getRowCount() == 0)) { 
             return (false);
         }
 
