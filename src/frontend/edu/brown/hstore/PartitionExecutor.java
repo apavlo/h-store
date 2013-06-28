@@ -3363,7 +3363,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 tmp_fragmentsPerPartition.clearValues();
                 tmp_fragmentsPerPartition.put(this.partitionId, batchSize);
                 DonePartitionsNotification notify = this.computeDonePartitions(ts, null, tmp_fragmentsPerPartition, finalTask);
-                if (notify.hasSitesToNotify()) this.notifyDonePartitions(ts, notify);
+                if (notify != null && notify.hasSitesToNotify())
+                    this.notifyDonePartitions(ts, notify);
             }
 
             // Execute the queries right away.
@@ -3858,7 +3859,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         DonePartitionsNotification notify = null;
         if (hstore_conf.site.exec_early_prepare && ts.isSysProc() == false && ts.allowEarlyPrepare()) {
             notify = this.computeDonePartitions(ts, lastEstimate, tmp_fragmentsPerPartition, finalTask);
-            if (notify.hasSitesToNotify()) this.notifyDonePartitions(ts, notify);
+            if (notify != null && notify.hasSitesToNotify())
+                this.notifyDonePartitions(ts, notify);
         }
         
         // Attach the ParameterSets to our transaction handle so that anybody on this HStoreSite
