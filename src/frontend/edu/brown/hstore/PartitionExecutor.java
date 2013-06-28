@@ -516,7 +516,12 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
          */
         private PartitionSet[] notificationsPerSite;
         
-        public void addSiteNotification(Site remoteSite, int partitionId) {
+        /**
+         * Sites that we need to notify separately about the done partitions.
+         */
+        private Collection<Site> _sitesToNotify;
+        
+        public void addSiteNotification(Site remoteSite, int partitionId, boolean noQueriesInBatch) {
             int remoteSiteId = remoteSite.getId();
             if (this.notificationsPerSite == null) {
                 this.notificationsPerSite = new PartitionSet[catalogContext.numberOfSites];
@@ -525,6 +530,16 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 this.notificationsPerSite[remoteSiteId] = new PartitionSet();
             }
             this.notificationsPerSite[remoteSiteId].add(partitionId);
+            if (noQueriesInBatch) {
+                if (this._sitesToNotify == null) {
+                    this._sitesToNotify = new HashSet<Site>();
+                }
+                this._sitesToNotify.add(remoteSite);
+            }
+        }
+        
+        public boolean hasSitesToNotify() {
+            return (this._sitesToNotify != null && this._sitesToNotify.isEmpty() == false);
         }
     }
     
@@ -3325,10 +3340,13 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 LOG.trace(String.format("%s - Sending %s directly to the ExecutionEngine at partition %d",
                           ts, plan.getClass().getSimpleName(), this.partitionId));
             
-            // TODO: If this the finalTask flag is set to true, and we're only executing queries at this
-            //       partition, then we need to notify the other partitions that we're done with them.
+            // If this the finalTask flag is set to true, and we're only executing queries at this
+            // partition, then we need to notify the other partitions that we're done with them.
             if (finalTask && ts.isPredictSinglePartition() == false) {
-                
+                tmp_fragmentsPerPartition.clearValues();
+                tmp_fragmentsPerPartition.put(this.partitionId, batchSize);
+                DonePartitionNotification notify = this.computeDonePartitions(ts, null, tmp_fragmentsPerPartition, finalTask);
+                if (notify.hasSitesToNotify()) this.notifyDonePartitions(ts, notify);
             }
 
             // Execute the queries right away.
@@ -3617,14 +3635,18 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         }
         // Otherwise, we'll rely on the transaction's current estimate to figure it out.
         else {
+            assert(estimate != null) :
+                String.format("Unexpected null %s for %s when finalTask is not true", ts);
             estDonePartitions = estimate.getDonePartitions(this.thresholds);
+            if (estDonePartitions == null || estDonePartitions.isEmpty()) {
+                if (debug.val)
+                    LOG.debug(String.format("%s - There are no new done partitions identified by %s",
+                              ts, estimate.getClass().getSimpleName()));
+                return (null);
+            }
         }
-        if (estDonePartitions == null || estDonePartitions.isEmpty()) {
-            if (debug.val)
-                LOG.debug(String.format("%s - There are no new done partitions identified by %s",
-                          ts, estimate.getClass().getSimpleName()));
-            return (null);
-        }
+        assert(estDonePartitions != null) : "Null done partitions for " + ts;
+        assert(estDonePartitions.isEmpty() == false) : "Empty done partitions for " + ts;
         
         if (debug.val)
             LOG.debug(String.format("%s - New estimated done partitions %s%s",
@@ -3639,7 +3661,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         
         // Make sure that we only tell partitions that we actually touched, otherwise they will
         // be stuck waiting for a finish request that will never come!
-        final Collection<Site> toNotify = new HashSet<Site>();
         DonePartitionNotification notify = new DonePartitionNotification();
         for (int partition : estDonePartitions.values()) {
             // Only mark the txn done at this partition if the Estimate says we were done
@@ -3668,8 +3689,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 // the same site
                 else {
                     Site remoteSite = catalogContext.getSiteForPartition(partition);
-                    notify.addSiteNotification(remoteSite, partition);
-                    
                     boolean found = false;
                     for (Partition remotePartition : remoteSite.getPartitions().values()) {
                         if (fragmentsPerPartition.get(remotePartition.getId(), 0) != 0) {
@@ -3677,36 +3696,36 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                             break;
                         }
                     } // FOR
-                    if (found == false) toNotify.add(remoteSite);
+                    notify.addSiteNotification(remoteSite, partition, (found == false));
                 }
             }
         } // FOR
-        
-        // BLAST OUT NOTIFICATIONS!
-        if (toNotify.isEmpty() == false) {
-            for (Site remoteSite : toNotify) {
-                int remoteSiteId = remoteSite.getId(); 
-                if (debug.val)
-                    LOG.info(String.format("%s - Notifying %s that txn is finished with partitions %s",
-                             ts, HStoreThreadManager.formatSiteName(remoteSiteId),
-                             notify.notificationsPerSite[remoteSite.getId()]));
-                hstore_coordinator.transactionPrepare(ts, ts.getPrepareCallback(),
-                                                      notify.notificationsPerSite[remoteSiteId]);
-                notify.notificationsPerSite[remoteSiteId] = null; // play it safe!
-            } // FOR
-        }
-        
         return (notify);
     }
     
     /**
-     * 
-     * @param ts 
-     * @param parameters
-     * @param allFragmentBuilders
-     * @param finalTask Whether the txn has marked this as the last batch that they will ever execute
-     * @return
+     * Send asynchronous notification messages to any remote site to tell them that we
+     * are done with partitions that they have. 
+     * @param ts
+     * @param notify
      */
+    private void notifyDonePartitions(LocalTransaction ts, DonePartitionNotification notify) {
+        // BLAST OUT NOTIFICATIONS!
+        for (Site remoteSite : notify._sitesToNotify) {
+            int remoteSiteId = remoteSite.getId(); 
+            if (debug.val)
+                LOG.info(String.format("%s - Notifying %s that txn is finished with partitions %s",
+                         ts, HStoreThreadManager.formatSiteName(remoteSiteId),
+                         notify.notificationsPerSite[remoteSite.getId()]));
+            hstore_coordinator.transactionPrepare(ts, ts.getPrepareCallback(),
+                                                  notify.notificationsPerSite[remoteSiteId]);
+            
+            // Make sure that we remove the PartitionSet for this site so that we don't
+            // try to send the notifications again.
+            notify.notificationsPerSite[remoteSiteId] = null; 
+        } // FOR
+    }
+    
     
     /**
      * Execute the given tasks and then block the current thread waiting for the list of dependency_ids to come
@@ -3820,6 +3839,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 lastEstimate != null &&
                 lastEstimate.isValid()) {
             notify = this.computeDonePartitions(ts, lastEstimate, tmp_fragmentsPerPartition, finalTask);
+            if (notify.hasSitesToNotify()) this.notifyDonePartitions(ts, notify);
         }
         
         // Attach the ParameterSets to our transaction handle so that anybody on this HStoreSite
