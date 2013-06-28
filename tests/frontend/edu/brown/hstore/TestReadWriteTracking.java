@@ -29,7 +29,7 @@ import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.utils.CollectionUtil;
 
 /**
- * REad/Write Set Tracking
+ * Read/Write Set Tracking
  * @author pavlo
  */
 public class TestReadWriteTracking extends BaseTestCase {
