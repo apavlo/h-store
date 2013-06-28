@@ -505,7 +505,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
     // INTERNAL CLASSES
     // ----------------------------------------------------------------------------
     
-    private class DonePartitionNotification {
+    private class DonePartitionsNotification {
         /**
          * All of the partitions that a transaction is currently done with.
          */
@@ -3345,7 +3345,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             if (finalTask && ts.isPredictSinglePartition() == false) {
                 tmp_fragmentsPerPartition.clearValues();
                 tmp_fragmentsPerPartition.put(this.partitionId, batchSize);
-                DonePartitionNotification notify = this.computeDonePartitions(ts, null, tmp_fragmentsPerPartition, finalTask);
+                DonePartitionsNotification notify = this.computeDonePartitions(ts, null, tmp_fragmentsPerPartition, finalTask);
                 if (notify.hasSitesToNotify()) this.notifyDonePartitions(ts, notify);
             }
 
@@ -3451,7 +3451,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
     private void requestWork(LocalTransaction ts,
                              Collection<WorkFragment.Builder> fragmentBuilders,
                              List<ByteString> parameterSets,
-                             PartitionSet doneNotificationsPerSite[]) {
+                             DonePartitionsNotification notify) {
         assert(fragmentBuilders.isEmpty() == false);
         assert(ts != null);
         Long txn_id = ts.getTransactionId();
@@ -3477,7 +3477,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             assert(this.depTracker.isBlocked(ts, fragmentBuilder) == false);
             final int target_partition = fragmentBuilder.getPartitionId();
             final int target_site = catalogContext.getSiteIdForPartitionId(target_partition);
-            final PartitionSet doneNotifications = (doneNotificationsPerSite != null ? doneNotificationsPerSite[target_site] : null);
+            final PartitionSet doneNotifications = (notify != null ? notify.notificationsPerSite[target_site] : null);
             
             // Make sure that this isn't a single-partition txn trying to access a remote partition
             if (predict_singlepartition && target_partition != this.partitionId) {
@@ -3618,10 +3618,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
      * @param finalTask Whether the txn has marked this as the last batch that they will ever execute
      * @return A notification object that can be used to notify partitions that this txn is done with them.
      */
-    private DonePartitionNotification computeDonePartitions(final LocalTransaction ts,
-                                                            final Estimate estimate,
-                                                            final FastIntHistogram fragmentsPerPartition,
-                                                            final boolean finalTask) {
+    private DonePartitionsNotification computeDonePartitions(final LocalTransaction ts,
+                                                             final Estimate estimate,
+                                                             final FastIntHistogram fragmentsPerPartition,
+                                                             final boolean finalTask) {
         final PartitionSet touchedPartitions = ts.getPredictTouchedPartitions();
         final PartitionSet donePartitions = ts.getDonePartitions();
         
@@ -3661,7 +3661,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         
         // Make sure that we only tell partitions that we actually touched, otherwise they will
         // be stuck waiting for a finish request that will never come!
-        DonePartitionNotification notify = new DonePartitionNotification();
+        DonePartitionsNotification notify = new DonePartitionsNotification();
         for (int partition : estDonePartitions.values()) {
             // Only mark the txn done at this partition if the Estimate says we were done
             // with it after executing this batch and it's a partition that we've locked.
@@ -3709,7 +3709,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
      * @param ts
      * @param notify
      */
-    private void notifyDonePartitions(LocalTransaction ts, DonePartitionNotification notify) {
+    private void notifyDonePartitions(LocalTransaction ts, DonePartitionsNotification notify) {
         // BLAST OUT NOTIFICATIONS!
         for (Site remoteSite : notify._sitesToNotify) {
             int remoteSiteId = remoteSite.getId(); 
@@ -3832,7 +3832,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         
         // Calculate whether we are finished with partitions now
         final Estimate lastEstimate = ts.getLastEstimate();
-        DonePartitionNotification notify = null;
+        DonePartitionsNotification notify = null;
         if (hstore_conf.site.exec_early_prepare && 
                 ts.isSysProc() == false &&
                 ts.allowEarlyPrepare() &&
@@ -4074,7 +4074,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                         LOG.trace(String.format("%s - Requesting %d %s to be executed on remote partitions " +
                                   "[doneNotifications=%s]",
                                   ts, WorkFragment.class.getSimpleName(), num_remote, notify!=null));
-                    this.requestWork(ts, tmp_remoteFragmentBuilders, tmp_serializedParams, notify.notificationsPerSite);
+                    this.requestWork(ts, tmp_remoteFragmentBuilders, tmp_serializedParams, notify);
                     if (needs_profiling) ts.profiler.markRemoteQuery();
                 }
                 
