@@ -1416,8 +1416,7 @@ void VoltDBEngine::trackingFinish(int64_t txnId) {
 
 int VoltDBEngine::trackingTupleSet(int64_t txnId, bool writes) {
     if (m_executorContext->isTrackingEnabled() == false) {
-        // throwFatalException("Tracking is not enable for txn #%ld at Partition %d", txnId, m_partitionId);
-        return (ENGINE_ERRORCODE_ERROR);
+        return (ENGINE_ERRORCODE_NO_DATA);
     }
 
     ReadWriteTrackerManager *trackerMgr = m_executorContext->getTrackerManager();

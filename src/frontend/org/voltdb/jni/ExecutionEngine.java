@@ -73,6 +73,7 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
     public static final int ERRORCODE_SUCCESS = 0;
     public static final int ERRORCODE_ERROR = 1; // just error or not so far.
     public static final int ERRORCODE_WRONG_SERIALIZED_BYTES = 101;
+    public static final int ERRORCODE_NO_DATA = 102;
 
     /** Create an ee and load the volt shared library */
     public ExecutionEngine(final PartitionExecutor site) {
