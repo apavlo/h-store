@@ -3990,8 +3990,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                     // time this txn will ever need to go to that txn. If so, then we'll want to 
                     if (notify != null && notify.donePartitions.contains(partition) &&
                         tmp_fragmentsPerPartition.dec(partition) == 0) {
-//                        if (debug.val)
-                            LOG.info(String.format("%s - Setting last fragment flag in %s for partition %d",
+                        if (debug.val)
+                            LOG.debug(String.format("%s - Setting last fragment flag in %s for partition %d",
                                       ts, WorkFragment.class.getSimpleName(), partition));
                         fragmentBuilder.setLastFragment(true);
                     }
