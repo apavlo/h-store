@@ -517,9 +517,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         private PartitionSet[] notificationsPerSite;
         
         /**
-         * Sites that we need to notify separately about the done partitions.
+         * Site ids that we need to notify separately about the done partitions.
          */
-        private Collection<Site> _sitesToNotify;
+        private Collection<Integer> _sitesToNotify;
         
         public void addSiteNotification(Site remoteSite, int partitionId, boolean noQueriesInBatch) {
             int remoteSiteId = remoteSite.getId();
@@ -532,10 +532,23 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             this.notificationsPerSite[remoteSiteId].add(partitionId);
             if (noQueriesInBatch) {
                 if (this._sitesToNotify == null) {
-                    this._sitesToNotify = new HashSet<Site>();
+                    this._sitesToNotify = new HashSet<Integer>();
                 }
-                this._sitesToNotify.add(remoteSite);
+                this._sitesToNotify.add(Integer.valueOf(remoteSiteId));
             }
+        }
+        
+        /**
+         * Return the set of partitions that needed to be notified separately
+         * for the given site id. The return value may be null.
+         * @param remoteSiteId
+         * @return
+         */
+        public PartitionSet getNotifications(int remoteSiteId) {
+            if (this.notificationsPerSite != null) {
+                return (this.notificationsPerSite[remoteSiteId]);
+            }
+            return (null);
         }
         
         public boolean hasSitesToNotify() {
@@ -3477,7 +3490,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             assert(this.depTracker.isBlocked(ts, fragmentBuilder) == false);
             final int target_partition = fragmentBuilder.getPartitionId();
             final int target_site = catalogContext.getSiteIdForPartitionId(target_partition);
-            final PartitionSet doneNotifications = (notify != null ? notify.notificationsPerSite[target_site] : null);
+            final PartitionSet doneNotifications = (notify != null ? notify.getNotifications(target_site) : null);
             
             // Make sure that this isn't a single-partition txn trying to access a remote partition
             if (predict_singlepartition && target_partition != this.partitionId) {
@@ -3711,12 +3724,12 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
      */
     private void notifyDonePartitions(LocalTransaction ts, DonePartitionsNotification notify) {
         // BLAST OUT NOTIFICATIONS!
-        for (Site remoteSite : notify._sitesToNotify) {
-            int remoteSiteId = remoteSite.getId(); 
+        for (int remoteSiteId : notify._sitesToNotify) {
+            assert(notify.notificationsPerSite[remoteSiteId] != null);
             if (debug.val)
                 LOG.info(String.format("%s - Notifying %s that txn is finished with partitions %s",
                          ts, HStoreThreadManager.formatSiteName(remoteSiteId),
-                         notify.notificationsPerSite[remoteSite.getId()]));
+                         notify.notificationsPerSite[remoteSiteId]));
             hstore_coordinator.transactionPrepare(ts, ts.getPrepareCallback(),
                                                   notify.notificationsPerSite[remoteSiteId]);
             
