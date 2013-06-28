@@ -61,7 +61,7 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
     }
 
 //    private static boolean voltSharedLibraryLoaded = false;
-    protected PartitionExecutor site;
+    protected PartitionExecutor executor;
 
     // is the execution site dirty
     protected boolean m_dirty;
@@ -76,8 +76,8 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
     public static final int ERRORCODE_NO_DATA = 102;
 
     /** Create an ee and load the volt shared library */
-    public ExecutionEngine(final PartitionExecutor site) {
-        this.site = site;
+    public ExecutionEngine(final PartitionExecutor executor) {
+        this.executor = executor;
     }
     
     /** Make the EE clean and ready to do new transactional work. */

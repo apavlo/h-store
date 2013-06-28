@@ -91,7 +91,7 @@ public class ExecutionEngineJNI extends ExecutionEngine {
      * initialize the native Engine object.
      */
     public ExecutionEngineJNI(
-            final PartitionExecutor site,
+            final PartitionExecutor executor,
             final int clusterIndex,
             final int siteId,
             final int partitionId,
@@ -99,7 +99,7 @@ public class ExecutionEngineJNI extends ExecutionEngine {
             final String hostname)
     {
         // base class loads the volt shared library
-        super(site);
+        super(executor);
         //exceptionBuffer.order(ByteOrder.nativeOrder());
         if (debug.val) LOG.debug("Creating Execution Engine [site#=" + siteId + ", partition#=" + partitionId + "]");
         /*
@@ -637,7 +637,7 @@ public class ExecutionEngineJNI extends ExecutionEngine {
     public void trackingEnable(Long txnId) throws EEException {
         if (debug.val)
             LOG.debug(String.format("Enabling read/write set tracking for txn #%d at partition %d",
-                      txnId, this.site.getPartitionId()));
+                      txnId, this.executor.getPartitionId()));
         final int errorCode = nativeTrackingEnable(this.pointer, txnId.longValue());
         checkErrorCode(errorCode);
     }
@@ -646,7 +646,7 @@ public class ExecutionEngineJNI extends ExecutionEngine {
     public void trackingFinish(Long txnId) throws EEException {
         if (debug.val)
             LOG.debug(String.format("Deleting read/write set tracker for txn #%d at partition %d",
-                      txnId, this.site.getPartitionId()));
+                      txnId, this.executor.getPartitionId()));
         final int errorCode = nativeTrackingFinish(this.pointer, txnId.longValue());
         checkErrorCode(errorCode);
     }
@@ -655,11 +655,13 @@ public class ExecutionEngineJNI extends ExecutionEngine {
     public VoltTable trackingReadSet(Long txnId) throws EEException {
         if (debug.val)
             LOG.debug(String.format("Get READ tracking set for txn #%d at partition %d",
-                      txnId, this.site.getPartitionId()));
+                      txnId, this.executor.getPartitionId()));
         deserializer.clear();
         final int errorCode = nativeTrackingReadSet(this.pointer, txnId.longValue());
         if (errorCode == ERRORCODE_NO_DATA) {
-            LOG.error("No READ tracking set for txn #" + txnId);
+//            if (debug.val)
+                LOG.warn(String.format("No READ tracking set for txn #%d at partition %d",
+                         txnId, this.executor.getPartitionId()));
             return (null);
         } else checkErrorCode(errorCode);
         
@@ -677,11 +679,13 @@ public class ExecutionEngineJNI extends ExecutionEngine {
     public VoltTable trackingWriteSet(Long txnId) throws EEException {
         if (debug.val)
             LOG.debug(String.format("Get WRITE tracking set for txn #%d at partition %d",
-                      txnId, this.site.getPartitionId()));
+                      txnId, this.executor.getPartitionId()));
         deserializer.clear();
         final int errorCode = nativeTrackingWriteSet(this.pointer, txnId.longValue());
         if (errorCode == ERRORCODE_NO_DATA) {
-            LOG.error("No WRITE tracking set for txn #" + txnId);
+//            if (debug.val)
+                LOG.warn(String.format("No WRITE tracking set for txn #%d at partition %d",
+                         txnId, this.executor.getPartitionId()));
             return (null);
         } else checkErrorCode(errorCode);
         
@@ -704,9 +708,9 @@ public class ExecutionEngineJNI extends ExecutionEngine {
         assert(m_anticache == false);
         
         // TODO: Switch to LOG.debug
-        LOG.info("Initializing anti-cache feature at partition " + this.site.getPartitionId());
+        LOG.info("Initializing anti-cache feature at partition " + this.executor.getPartitionId());
         LOG.info(String.format("Partition #%d AntiCache Directory: %s",
-                 this.site.getPartitionId(), dbDir.getAbsolutePath()));
+                 this.executor.getPartitionId(), dbDir.getAbsolutePath()));
         final int errorCode = nativeAntiCacheInitialize(this.pointer, dbDir.getAbsolutePath(), blockSize);
         checkErrorCode(errorCode);
         m_anticache = true;
