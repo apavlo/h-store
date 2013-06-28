@@ -12,11 +12,11 @@ function onexit() {
 
 DATA_DIR="/home/pavlo/Documents/H-Store/Papers/speculative/data"
 FABRIC_TYPE="ssh"
-FIRST_PARAM_OFFSET=1
+FIRST_PARAM_OFFSET=0
 
 EXP_TYPES=( \
-    "spec" \
-#     "occ" \
+#     "spec" \
+    "occ" \
 )
 
 PERCENTAGES=( \

@@ -15,11 +15,12 @@ FABRIC_TYPE="ssh"
 FIRST_PARAM_OFFSET=0
 
 EXP_TYPES=( \
-    "row" \
-    "table" \
+    "spec" \
+    "occ" \
 )
 PARTITIONS=( 16 )
 PERCENTAGES=( \
+    00
     25
     50
     75
@@ -47,7 +48,7 @@ for b in smallbank ; do
         while [ "$j" -lt "$eCnt" ]; do
             ./experiment-runner.py $FABRIC_TYPE \
                 ${PARAMS[@]:$FIRST_PARAM_OFFSET} \
-                --exp-type="conflictshotspot-${PERCENTAGES[$i]}-${EXP_TYPES[$j]}" || break
+                --exp-type="hotspots-${PERCENTAGES[$i]}-${EXP_TYPES[$j]}" || break
             FIRST_PARAM_OFFSET=0
             j=`expr $j + 1`
         done
