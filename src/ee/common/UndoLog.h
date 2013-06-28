@@ -106,8 +106,8 @@ namespace voltdb
             // exist; this will just result in all undo quanta being undone.
             #ifdef VOLT_ERROR_ENABLED
             if (undoToken < m_lastReleaseToken) {
-                VOLT_ERROR("undoToken[%ld] is less than m_lastReleaseToken[%ld] -- [undoToken=%ld]",
-                           undoToken, m_lastReleaseToken, undoToken);
+                VOLT_ERROR("undoToken[%ld] is less than m_lastReleaseToken[%ld]",
+                           undoToken, m_lastReleaseToken);
             }
             #endif
             assert(undoToken >= m_lastReleaseToken);
