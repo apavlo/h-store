@@ -748,12 +748,20 @@ public class LocalTransaction extends AbstractTransaction {
     // DISTRIBUTED TXN EXECUTION
     // ----------------------------------------------------------------------------
     
+    /**
+     * Returns true if this transaction has partitions that has notified that
+     * it is done with them. Note that even though the txn has marked a partition
+     * as done doesn't mean that the partition has been notified yet.  
+     * @return
+     */
     public boolean hasDonePartitions() {
         return (this.dtxnState.exec_donePartitions.isEmpty() == false);
     }
     
     /**
-     * Get all of the partitions that have been marked done for this txn
+     * Get all of the partitions that have been marked done for this txn.
+     * If a partition is in this set, then the DBMS has sent a message to
+     * its PartitionExecutor notifying that the txn is finished with them.
      * @return
      */
     public PartitionSet getDonePartitions() {
@@ -802,7 +810,12 @@ public class LocalTransaction extends AbstractTransaction {
         return (this.exec_specExecType != SpeculationType.NULL);
     }
     
-    public SpeculationType getSpeculativeType() {
+    /**
+     * Returns the speculation type (i.e., stall point) that this txn was executed at.
+     * Will be null if this transaction was not speculatively executed
+     * @return
+     */
+    public SpeculationType getSpeculationType() {
         return (this.exec_specExecType);
     }
     
@@ -892,7 +905,7 @@ public class LocalTransaction extends AbstractTransaction {
         // Run Time Stuff
         m = new LinkedHashMap<String, Object>();
         m.put("Status", (this.status != null ? this.status : "null"));
-        m.put("Speculative Type", this.getSpeculativeType());
+        m.put("Speculative Type", this.getSpeculationType());
         m.put("Exec Java", this.exec_controlCode);
         m.put("Exec Read Only", Arrays.toString(this.exec_readOnly));
         m.put("Exec Touched Partitions", this.exec_touchedPartitions.toString(30));
