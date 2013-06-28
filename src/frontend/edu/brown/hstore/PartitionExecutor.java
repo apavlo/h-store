@@ -3355,7 +3355,11 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             
             // If this the finalTask flag is set to true, and we're only executing queries at this
             // partition, then we need to notify the other partitions that we're done with them.
-            if (finalTask && ts.isPredictSinglePartition() == false) {
+            if (hstore_conf.site.exec_early_prepare &&
+                    finalTask == true &&
+                    ts.isPredictSinglePartition() == false &&
+                    ts.isSysProc() == false &&
+                    ts.allowEarlyPrepare() == true) {
                 tmp_fragmentsPerPartition.clearValues();
                 tmp_fragmentsPerPartition.put(this.partitionId, batchSize);
                 DonePartitionsNotification notify = this.computeDonePartitions(ts, null, tmp_fragmentsPerPartition, finalTask);
@@ -3648,8 +3652,14 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         }
         // Otherwise, we'll rely on the transaction's current estimate to figure it out.
         else {
-            assert(estimate != null) :
-                String.format("Unexpected null %s for %s when finalTask is not true", ts);
+            if (estimate == null || estimate.isValid() == false) {
+                if (debug.val)
+                    LOG.debug(String.format("%s - Unable to compute new done partitions because there " +
+                    		  "is no valid estimate for the txn",
+                              ts, estimate.getClass().getSimpleName()));
+                return (null);
+            }
+            
             estDonePartitions = estimate.getDonePartitions(this.thresholds);
             if (estDonePartitions == null || estDonePartitions.isEmpty()) {
                 if (debug.val)
@@ -3846,11 +3856,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         // Calculate whether we are finished with partitions now
         final Estimate lastEstimate = ts.getLastEstimate();
         DonePartitionsNotification notify = null;
-        if (hstore_conf.site.exec_early_prepare && 
-                ts.isSysProc() == false &&
-                ts.allowEarlyPrepare() &&
-                lastEstimate != null &&
-                lastEstimate.isValid()) {
+        if (hstore_conf.site.exec_early_prepare && ts.isSysProc() == false && ts.allowEarlyPrepare()) {
             notify = this.computeDonePartitions(ts, lastEstimate, tmp_fragmentsPerPartition, finalTask);
             if (notify.hasSitesToNotify()) this.notifyDonePartitions(ts, notify);
         }
