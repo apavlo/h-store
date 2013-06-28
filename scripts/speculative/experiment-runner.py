@@ -160,6 +160,7 @@ BASE_SETTINGS = {
     "site.exec_force_singlepartitioned":        True,
     "site.memory":                              6144,
     "site.exec_db2_redirects":                  False,
+    "site.exec_readwrite_tracking":             False,
     "site.cpu_affinity":                        True,
     "site.cpu_affinity_one_partition_per_core": True,
 }
@@ -182,14 +183,18 @@ EXPERIMENT_SETTINGS = [
     "conflicts-row",
     "conflictsperf-table",
     "conflictsperf-row",
-    "conflictshotspot-25-table",
-    "conflictshotspot-25-row",
-    "conflictshotspot-50-table",
-    "conflictshotspot-50-row",
-    "conflictshotspot-75-table",
-    "conflictshotspot-75-row",
-    "conflictshotspot-100-table",
-    "conflictshotspot-100-row",
+    
+    # Hotpsot Experiments
+    "hotspots-00-spec",
+    "hotspots-00-occ",
+    "hotspots-25-spec",
+    "hotspots-25-occ",
+    "hotspots-50-spec",
+    "hotspots-50-occ",
+    "hotspots-75-spec",
+    "hotspots-75-occ",
+    "hotspots-100-spec",
+    "hotspots-100-occ",
     
     # Abort Experiments
     "aborts-00-spec",
@@ -213,17 +218,14 @@ def updateExperimentEnv(fabric, args, benchmark, partitions):
     targetType = args['exp_type']
   
     ## ----------------------------------------------
-    ## CONFLICTS
+    ## CONFLICTS + HOTSPOTS + ABORTS
     ## ----------------------------------------------
-    if targetType.startswith("conflicts"):
-        targetType = "performance-spec-txn"
+    for prefix in ("conflicts", "hotspots", "aborts"):
+        if targetType.startswith(prefix):
+            targetType = "performance-spec-txn"
+            break
+    ## FOR
         
-    ## ----------------------------------------------
-    ## ABORTS
-    ## ----------------------------------------------
-    if targetType.startswith("aborts"):
-        targetType = "performance-spec-txn"
-  
     ## ----------------------------------------------
     ## MOTIVATION
     ## ----------------------------------------------
@@ -417,16 +419,7 @@ def updateExperimentEnv(fabric, args, benchmark, partitions):
         if args['exp_type'].startswith("conflictsperf"):
             fabric.env["site.specexec_scheduler_policy"] = "FIRST"
             fabric.env["site.specexec_scheduler_window"] = 1
-        ## ----------------------------------------------
-        ## HOTSPOT
-        ## ----------------------------------------------
-        if args['exp_type'].startswith("conflictshotspot"):
-            hotspot = int(args['exp_type'].split("-")[1])
-            fabric.env["benchmark.prob_account_hotspot"] = hotspot
-            fabric.env["benchmark.hotspot_use_fixed_size"] = False
-            fabric.env["benchmark.hotspot_percentage"] = 1
-            fabric.env["site.specexec_scheduler_policy"] = "FIRST"
-            fabric.env["site.specexec_scheduler_window"] = 1
+        
         ## ----------------------------------------------
         ## ANALYSIS
         ## ----------------------------------------------
@@ -447,6 +440,36 @@ def updateExperimentEnv(fabric, args, benchmark, partitions):
         ## ----------------------------------------------
         elif conflictType == "table":
             fabric.env["site.specexec_scheduler_checker"] = "TABLE"
+    ## IF
+    
+    ## ----------------------------------------------
+    ## HOTSPOT
+    ## ----------------------------------------------
+    if args['exp_type'].startswith("hotspots"):
+        hotspotPcnt = int(args['exp_type'].split("-")[1])
+        schedulerType = args['exp_type'].split("-")[2]
+
+        fabric.env["site.specexec_scheduler_policy"] = "FIRST"
+        fabric.env["site.specexec_scheduler_window"] = 1
+
+        # SMALLBANK
+        fabric.env["benchmark.hotspot_use_fixed_size"] = False
+        fabric.env["benchmark.hotspot_percentage"] = 1
+        fabric.env["benchmark.prob_account_hotspot"] = hotspotPcnt
+        fabric.env["benchmark.hotspot_use_fixed_size"] = False
+        fabric.env["benchmark.hotspot_percentage"] = 1
+        
+        ## ----------------------------------------------
+        ## HERMES!
+        ## ----------------------------------------------
+        if schedulerType == "spec":
+            fabric.env["site.specexec_scheduler_checker"] = "MARKOV"
+        ## ----------------------------------------------
+        ## OCC
+        ## ----------------------------------------------
+        elif schedulerType == "occ":
+            fabric.env["site.specexec_scheduler_checker"] = "OPTIMISTIC"
+            fabric.env["site.exec_readwrite_tracking"] = True
     ## IF
     
     ## ----------------------------------------------
@@ -471,6 +494,7 @@ def updateExperimentEnv(fabric, args, benchmark, partitions):
         ## ----------------------------------------------
         elif schedulerType == "occ":
             fabric.env["site.specexec_scheduler_checker"] = "OPTIMISTIC"
+            fabric.env["site.exec_readwrite_tracking"] = True
     ## IF
 
     ## ----------------------------------------------
