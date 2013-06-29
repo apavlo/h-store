@@ -391,6 +391,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
     
     private SpeculationConflictCheckerType specExecCheckerType;
     private AbstractConflictChecker specExecChecker;
+    private boolean specExecSkipAfter = false;
     private SpecExecScheduler specExecScheduler;
     
     /**
@@ -837,6 +838,15 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         this.initSpecExecScheduler();
     }
     
+    private void setSpecExecChecker(AbstractConflictChecker checker) {
+        this.specExecChecker = checker;
+        this.specExecSkipAfter = this.specExecChecker.skipConflictAfter();
+        
+        if (this.specExecScheduler != null) {
+            this.specExecScheduler.getDebugContext().setConflictChecker(checker);
+        }
+    }
+    
     /**
      * Initialize this PartitionExecutor' speculative execution scheduler
      */
@@ -845,6 +855,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         assert(this.hstore_site != null);
         
         this.specExecCheckerType = SpeculationConflictCheckerType.get(hstore_conf.site.specexec_scheduler_checker);
+        AbstractConflictChecker checker = null;
         switch (this.specExecCheckerType) {
             // -------------------------------
             // ROW-LEVEL
@@ -852,22 +863,22 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             case MARKOV:
                 // The MarkovConflictChecker is thread-safe, so we all of the partitions
                 // at this site can reuse the same one.
-                this.specExecChecker = MarkovConflictChecker.singleton(this.catalogContext, this.thresholds);
+                checker = MarkovConflictChecker.singleton(this.catalogContext, this.thresholds);
                 break;
             // -------------------------------
             // TABLE-LEVEL
             // -------------------------------
             case TABLE:
-                this.specExecChecker = new TableConflictChecker(this.catalogContext);
+                checker = new TableConflictChecker(this.catalogContext);
                 break;
             // -------------------------------
             // UNSAFE
             // NOTE: You probably don't want to use this!
             // -------------------------------
             case UNSAFE:
-                this.specExecChecker = new UnsafeConflictChecker(this.catalogContext, hstore_conf.site.specexec_unsafe_limit);
+                checker = new UnsafeConflictChecker(this.catalogContext, hstore_conf.site.specexec_unsafe_limit);
                 LOG.warn(String.format("Using %s in the %s for partition %d. This is a bad idea!",
-                         this.specExecChecker.getClass().getSimpleName(),
+                         checker.getClass().getSimpleName(),
                          this.getClass().getSimpleName(),
                          this.partitionId));
                 break;
@@ -875,7 +886,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             // OPTIMISTIC
             // -------------------------------
             case OPTIMISTIC:
-                this.specExecChecker = new OptimisticConflictChecker(this.catalogContext, this.ee);
+                checker = new OptimisticConflictChecker(this.catalogContext, this.ee);
                 break;
             // BUSTED!
             default: {
@@ -885,6 +896,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 throw new RuntimeException(msg);
             }
         } // SWITCH
+        this.setSpecExecChecker(checker);
+        assert(this.specExecChecker != null);
         
         SpecExecSchedulerPolicyType policy = SpecExecSchedulerPolicyType.get(hstore_conf.site.specexec_scheduler_policy);
         assert(policy != null) : String.format("Invalid %s '%s'",
@@ -4325,7 +4338,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             if (hstore_conf.site.specexec_enable) {
                 // Check to see if there were any conflicts with the dtxn and any of its speculative
                 // txns at this partition. If there were, then we know that we can't commit the txn here.
-                if (this.specExecChecker.skipConflictAfter() == false) {
+                if (this.specExecSkipAfter == false) {
                     for (LocalTransaction spec_ts : this.specExecBlocked) {
                         // Check whether we can quickly ignore this speculative txn because
                         // it was executed at a stall point where conflicts don't matter.
@@ -4589,9 +4602,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                     allTxns.addAll(this.specExecBlocked);
                     allTxns.add(ts);
                     final List<LocalTransaction> toCommit = new ArrayList<LocalTransaction>();
-                    final LinkedList<LocalTransaction> toAbortBefore = new LinkedList<LocalTransaction>();
-                    final LinkedList<LocalTransaction> toAbortAfter = new LinkedList<LocalTransaction>();
-                    final boolean skipConflictChecker = this.specExecChecker.skipConflictAfter();
+                    final List<LocalTransaction> toAbortBefore = new ArrayList<LocalTransaction>();
+                    final List<LocalTransaction> toAbortAfter = new ArrayList<LocalTransaction>();
                     
                     // Go through once and figure out which txns we need to abort
                     // We have to do this first because if we abort our dtxn then we
@@ -4635,7 +4647,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                         }
                         // Ok so at this point we know that our spec txn came *after* the distributed txn
                         // started. So we need to use our checker to see whether there is a conflict
-                        else if (skipConflictChecker || this.specExecChecker.hasConflictAfter(ts, spec_ts, this.partitionId) == false) {
+                        else if (this.specExecSkipAfter || this.specExecChecker.hasConflictAfter(ts, spec_ts, this.partitionId) == false) {
                             if (debug.val)
                                 LOG.debug(String.format("Speculative Txn %s does not conflict with dtxn %s at partition %d",
                                           spec_ts, ts, this.partitionId));
@@ -4647,7 +4659,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                                                                                       spec_ts.getTouchedPartitions());
                             spec_ts.setPendingError(error, false);
                             spec_cr.setStatus(Status.ABORT_SPECULATIVE);
-                            (useAfterQueue ? toAbortAfter : toAbortBefore).addFirst(spec_ts);
+                            (useAfterQueue ? toAbortAfter : toAbortBefore).add(spec_ts);
                         } else {
                             toCommit.add(spec_ts);
                         }
@@ -4656,16 +4668,19 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                     
                     // (1) Process all of the aborting txns that need to come *before* 
                     //     we abort the dtxn
-                    this.processClientResponseBatch(toAbortBefore, Status.ABORT_SPECULATIVE);
+                    if (toAbortBefore.isEmpty() == false)
+                        this.processClientResponseBatch(toAbortBefore, Status.ABORT_SPECULATIVE);
                     
                     // (2) Now abort the dtxn
                     this.finishTransaction(ts, status);
                     
                     // (3) Then abort all of the txn that need to come *after* we abort the dtxn
-                    this.processClientResponseBatch(toAbortAfter, Status.ABORT_SPECULATIVE);
+                    if (toAbortAfter.isEmpty() == false)
+                        this.processClientResponseBatch(toAbortAfter, Status.ABORT_SPECULATIVE);
                     
                     // (4) Then blast out all of the txns that we want to commit
-                    this.processClientResponseBatch(toCommit, Status.OK);
+                    if (toCommit.isEmpty() == false)
+                        this.processClientResponseBatch(toCommit, Status.OK);
                 }
                 // -------------------------------
                 // DTXN READ-ONLY ABORT or DTXN COMMIT
@@ -4708,10 +4723,14 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                     // committing (since we just committed any change that they could have made
                     // up above).
                     LocalTransaction spec_ts = null;
+                    boolean fastFinish = (hstore_conf.site.exec_readwrite_tracking == false);
                     while ((spec_ts = this.specExecBlocked.pollFirst()) != null) {
                         ClientResponseImpl spec_cr = spec_ts.getClientResponse();
                         assert(spec_cr != null);
-                        this.markTransactionFinished(spec_ts);
+                        if (fastFinish) 
+                            spec_ts.markFinished(this.partitionId);
+                        else
+                            this.markTransactionFinished(spec_ts);
                         try {
                             if (trace.val)
                                 LOG.trace(String.format("%s - Releasing blocked ClientResponse for %s [status=%s]",
@@ -4820,10 +4839,15 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
     private void processClientResponseBatch(Collection<LocalTransaction> batch, Status status) {
         // Only processs the last txn in the list, since it will have the
         // the greatest undo token value.
-        LocalTransaction lastTxn = CollectionUtil.last(batch);
-        assert(lastTxn != null);
-        long lastUndoToken = lastTxn.getFirstUndoToken(this.partitionId);
-        this.finishWorkEE(lastTxn, lastUndoToken, (status == Status.OK));
+        LocalTransaction targetTxn = null;
+        if (status == Status.OK) {
+            targetTxn = CollectionUtil.last(batch);
+        } else {
+            targetTxn = CollectionUtil.first(batch);
+        }
+        assert(targetTxn != null);
+        long lastUndoToken = targetTxn.getFirstUndoToken(this.partitionId);
+        this.finishWorkEE(targetTxn, lastUndoToken, (status == Status.OK));
         
         for (LocalTransaction ts : batch) {
             // Marking the txn as finished will prevent us from going down
@@ -5055,8 +5079,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                      specExecChecker.getClass().getSimpleName(),
                      checker.getClass().getSimpleName(),
                      partitionId));
-            specExecChecker = checker;
-            specExecScheduler.getDebugContext().setConflictChecker(checker);
+            setSpecExecChecker(checker);
         }
     }
     

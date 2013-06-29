@@ -15,15 +15,15 @@ FABRIC_TYPE="ssh"
 FIRST_PARAM_OFFSET=1
 
 EXP_TYPES=( \
-#      "performance-spec-query" \
+     "performance-spec-query" \
      "performance-spec-all" \
      "performance-spec-txn" \
-#      "performance-nospec" \
+     "performance-nospec" \
 )
 PARTITIONS=( \
      8 \
     16 \
-#     32 \
+    32 \
 )
 
 # for b in smallbank tpcc seats; do
