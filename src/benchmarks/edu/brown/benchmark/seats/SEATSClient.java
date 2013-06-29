@@ -52,7 +52,6 @@ package edu.brown.benchmark.seats;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.BitSet;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumMap;
 import java.util.EnumSet;
@@ -86,9 +85,8 @@ import edu.brown.benchmark.seats.procedures.FindOpenSeats;
 import edu.brown.benchmark.seats.procedures.NewReservation;
 import edu.brown.benchmark.seats.procedures.UpdateCustomer;
 import edu.brown.benchmark.seats.procedures.UpdateReservation;
-import edu.brown.benchmark.seats.util.CustomerId;
 import edu.brown.benchmark.seats.util.ErrorType;
-import edu.brown.benchmark.seats.util.FlightId;
+import edu.brown.benchmark.seats.util.Reservation;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
@@ -206,8 +204,8 @@ public class SEATSClient extends BenchmarkComponent {
     }
     
     private static final Map<CacheType, Buffer<Reservation>> CACHE_RESERVATIONS = new EnumMap<CacheType, Buffer<Reservation>>(CacheType.class);
-    private static final Map<CustomerId, Set<FlightId>> CACHE_CUSTOMER_BOOKED_FLIGHTS = new ConcurrentHashMap<CustomerId, Set<FlightId>>();
-    private static final Map<FlightId, BitSet> CACHE_BOOKED_SEATS = new ConcurrentHashMap<FlightId, BitSet>();
+    private static final Map<Long, Set<Long>> CACHE_CUSTOMER_BOOKED_FLIGHTS = new ConcurrentHashMap<Long, Set<Long>>();
+    private static final Map<Long, BitSet> CACHE_BOOKED_SEATS = new ConcurrentHashMap<Long, BitSet>();
     private static final BitSet FULL_FLIGHT_BITSET = new BitSet(SEATSConstants.FLIGHTS_NUM_SEATS);
     static {
         FULL_FLIGHT_BITSET.set(0, SEATSConstants.FLIGHTS_NUM_SEATS);
@@ -227,48 +225,6 @@ public class SEATSClient extends BenchmarkComponent {
     private final AtomicBoolean first = new AtomicBoolean(true);
     private final RandomDistribution.FlatHistogram<Transaction> xacts;
     
-    /**
-     * When a customer looks for an open seat, they will then attempt to book that seat in
-     * a new reservation. Some of them will want to change their seats. This data structure
-     * represents a customer that is queued to change their seat. 
-     */
-    protected static class Reservation {
-        public final long id;
-        public final FlightId flight_id;
-        public final CustomerId customer_id;
-        public final int seatnum;
-        
-        public Reservation(long id, FlightId flight_id, CustomerId customer_id, int seatnum) {
-            this.id = id;
-            this.flight_id = flight_id;
-            this.customer_id = customer_id;
-            this.seatnum = seatnum;
-            
-            assert(this.id != VoltType.NULL_BIGINT) : "Null reservation id\n" + this;
-            assert(this.seatnum >= 0) : "Invalid seat number\n" + this;
-            assert(this.seatnum < SEATSConstants.FLIGHTS_NUM_SEATS) : "Invalid seat number\n" + this;
-        }
-        
-        @Override
-        public boolean equals(Object obj) {
-            if (obj instanceof Reservation) {
-                Reservation r = (Reservation)obj;
-                // Ignore id!
-                return (this.seatnum == r.seatnum &&
-                        this.flight_id.equals(r.flight_id) &&
-                        this.customer_id.equals(r.customer_id));
-                        
-            }
-            return (false);
-        }
-        
-        @Override
-        public String toString() {
-            return String.format("{Id:%d / %s / %s / SeatNum:%d}",
-                                 this.id, this.flight_id, this.customer_id, this.seatnum);
-        }
-    } // END CLASS
-
     // -----------------------------------------------------------------
     // REQUIRED METHODS
     // -----------------------------------------------------------------
@@ -311,7 +267,8 @@ public class SEATSClient extends BenchmarkComponent {
         this.xacts = new RandomDistribution.FlatHistogram<Transaction>(rng, weights);
         assert(weights.getSampleCount() == 100) :
             "The total weight for the transactions is " + weights.getSampleCount() + ". It needs to be 100";
-        if (debug.val) LOG.debug("Transaction Execution Distribution:\n" + weights);
+        if (debug.val)
+            LOG.debug("Transaction Execution Distribution:\n" + weights);
     }
     
     protected SEATSProfile getProfile() {
@@ -444,7 +401,7 @@ public class SEATSClient extends BenchmarkComponent {
         if (debug.val)
             LOG.debug(String.format("Queued %s for %s [cacheSize=%d]\nFlightId: %d\nCustomerId: %d",
                       r, ctype, cache.size(),
-                      r.flight_id.encode(), r.customer_id.encode()));
+                      r.flight_id, r.customer_id));
     }
     
     /**
@@ -463,15 +420,15 @@ public class SEATSClient extends BenchmarkComponent {
      * @param flight_id
      * @return
      */
-    protected boolean isCustomerBookedOnFlight(CustomerId customer_id, FlightId flight_id) {
-        Set<FlightId> flights = CACHE_CUSTOMER_BOOKED_FLIGHTS.get(customer_id);
+    protected boolean isCustomerBookedOnFlight(long customer_id, long flight_id) {
+        Set<Long> flights = CACHE_CUSTOMER_BOOKED_FLIGHTS.get(customer_id);
         return (flights != null && flights.contains(flight_id));
     }
     
-    protected final Set<FlightId> getCustomerBookedFlights(CustomerId customer_id) {
-        Set<FlightId> f_ids = CACHE_CUSTOMER_BOOKED_FLIGHTS.get(customer_id);
+    protected final Set<Long> getCustomerBookedFlights(long customer_id) {
+        Set<Long> f_ids = CACHE_CUSTOMER_BOOKED_FLIGHTS.get(customer_id);
         if (f_ids == null) {
-            f_ids = new HashSet<FlightId>();
+            f_ids = new HashSet<Long>();
             CACHE_CUSTOMER_BOOKED_FLIGHTS.put(customer_id, f_ids);
         }
         return (f_ids);
@@ -484,7 +441,7 @@ public class SEATSClient extends BenchmarkComponent {
         for (Buffer<Reservation> queue : CACHE_RESERVATIONS.values()) {
             queue.clear();
         } // FOR
-        for (Set<FlightId> f_ids : CACHE_CUSTOMER_BOOKED_FLIGHTS.values()) {
+        for (Set<Long> f_ids : CACHE_CUSTOMER_BOOKED_FLIGHTS.values()) {
             synchronized (f_ids) {
                 f_ids.clear();
             } // SYNCH
@@ -529,7 +486,7 @@ public class SEATSClient extends BenchmarkComponent {
                 }
             } else if (debug.val) {
                 LOG.info("DeleteReservation " + clientResponse.getStatus() + ": " + clientResponse.getStatusString(), clientResponse.getException());
-                LOG.info("BUSTED ID: " + element.flight_id + " / " + element.flight_id.encode());
+                LOG.info("BUSTED ID: " + element.flight_id + " / " + element.flight_id);
             }
         }
     }
@@ -558,24 +515,22 @@ public class SEATSClient extends BenchmarkComponent {
         }
         
         // Parameters
-        long f_id = r.flight_id.encode();
+        long f_id = r.flight_id;
         long c_id = VoltType.NULL_BIGINT;
         String c_id_str = "";
         String ff_c_id_str = "";
-        long ff_al_id = VoltType.NULL_BIGINT;
         
         // Delete with the Customer's id as a string 
         if (rand <= SEATSConstants.PROB_DELETE_WITH_CUSTOMER_ID_STR) {
-            c_id_str = Long.toString(r.customer_id.encode());
+            c_id_str = String.format(SEATSConstants.CUSTOMER_ID_STR, r.customer_id);
         }
         // Delete using their FrequentFlyer information
         else if (rand <= SEATSConstants.PROB_DELETE_WITH_CUSTOMER_ID_STR + SEATSConstants.PROB_DELETE_WITH_FREQUENTFLYER_ID_STR) {
-            ff_c_id_str = Long.toString(r.customer_id.encode());
-            ff_al_id = r.flight_id.getAirlineId();
+            ff_c_id_str = String.format(SEATSConstants.CUSTOMER_ID_STR, r.customer_id);
         }
         // Delete using their Customer id
         else {
-            c_id = r.customer_id.encode();
+            c_id = r.customer_id;
         }
         
         Object params[] = new Object[]{
@@ -583,7 +538,6 @@ public class SEATSClient extends BenchmarkComponent {
             c_id,           // [1] c_id
             c_id_str,       // [2] c_id_str
             ff_c_id_str,    // [3] ff_c_id_str
-            ff_al_id,       // [4] ff_al_id
         };
         
         if (trace.val) LOG.trace("Calling " + txn.getExecName());
@@ -602,15 +556,10 @@ public class SEATSClient extends BenchmarkComponent {
             VoltTable[] results = clientResponse.getResults();
             if (results.length > 1) {
                 // Convert the data into a FlightIds that other transactions can use
-                int ctr = 0;
                 while (results[0].advanceRow()) {
-                    FlightId flight_id = new FlightId(results[0].getLong(0));
-                    assert(flight_id != null);
-                    boolean added = profile.addFlightId(flight_id);
-                    if (added) ctr++;
+                    long flight_id = results[0].getLong(0);
+                    assert(flight_id != VoltType.NULL_BIGINT);
                 } // WHILE
-                if (debug.val) LOG.debug(String.format("Added %d out of %d FlightIds to local cache",
-                                           ctr, results[0].getRowCount()));
             }
         }
     }
@@ -623,37 +572,14 @@ public class SEATSClient extends BenchmarkComponent {
     protected Pair<Object[], ProcedureCallback> getFindFlightsParams() {
         Transaction txn = Transaction.FIND_FLIGHTS;
         
-        long depart_airport_id;
-        long arrive_airport_id;
-        TimestampType start_date;
-        TimestampType stop_date;
-        
         // Select two random airport ids
-        if (rng.nextInt(100) < SEATSConstants.PROB_FIND_FLIGHTS_RANDOM_AIRPORTS) {
-            // Does it matter whether the one airport actually flies to the other one?
-            depart_airport_id = this.profile.getRandomAirportId();
-            arrive_airport_id = this.profile.getRandomOtherAirport(depart_airport_id);
-            
-            // Select a random date from our upcoming dates
-            start_date = this.profile.getRandomUpcomingDate();
-            stop_date = new TimestampType(start_date.getTime() + (SEATSConstants.MICROSECONDS_PER_DAY * 2));
-        }
+        // Does it matter whether the one airport actually flies to the other one?
+        long depart_airport_id = this.profile.getRandomAirportId();
+        long arrive_airport_id = this.profile.getRandomOtherAirport(depart_airport_id);
         
-        // Use an existing flight so that we guaranteed to get back results
-        else {
-            FlightId flight_id = this.profile.getRandomFlightId();
-            depart_airport_id = flight_id.getDepartAirportId();
-            arrive_airport_id = flight_id.getArriveAirportId();
-            
-            TimestampType flightDate = flight_id.getDepartDate(this.profile.getFlightStartDate());
-            long range = Math.round(SEATSConstants.MICROSECONDS_PER_DAY * 0.5);
-            start_date = new TimestampType(flightDate.getTime() - range);
-            stop_date = new TimestampType(flightDate.getTime() + range);
-            
-            if (debug.val)
-                LOG.debug(String.format("Using %s as look up in %s: %d / %s",
-                          flight_id, txn, flight_id.encode(), flightDate));
-        }
+        // Select a random date from our upcoming dates
+        TimestampType start_date = this.profile.getRandomUpcomingDate();
+        TimestampType stop_date = new TimestampType(start_date.getTime() + (SEATSConstants.MICROSECONDS_PER_DAY * 2));
         
         // If distance is greater than zero, then we will also get flights from nearby airports
         long distance = -1;
@@ -676,21 +602,26 @@ public class SEATSClient extends BenchmarkComponent {
     // FindOpenSeats
     // ----------------------------------------------------------------
 
-    class FindOpenSeatsCallback extends AbstractCallback<FlightId> {
-        final long airport_depart_id;
+    class FindOpenSeatsCallback extends AbstractCallback<Long> {
         final List<Reservation> tmp_reservations = new ArrayList<Reservation>();
-        public FindOpenSeatsCallback(FlightId f) {
+        public FindOpenSeatsCallback(long f) {
             super(Transaction.FIND_OPEN_SEATS, f);
-            this.airport_depart_id = f.getDepartAirportId(); 
         }
         @Override
         public void clientCallbackImpl(ClientResponse clientResponse) {
             VoltTable[] results = clientResponse.getResults();
-            if (results.length != 1) {
-                if (debug.val) LOG.warn("Results is " + results.length);
-                return;
-            }
-            int rowCount = results[0].getRowCount();
+            assert(results.length == 2);
+
+            // FLIGHT INFORMATION
+            VoltTable flightInfo = results[0];
+            boolean adv = flightInfo.advanceRow();
+            assert(adv);
+            long flight_id = flightInfo.getLong("F_ID");
+            assert(flight_id == element.longValue());
+
+            // OPEN SEAT INFORMATION
+            VoltTable seatInfo = results[1];
+            int rowCount = seatInfo.getRowCount();
             assert (rowCount <= SEATSConstants.FLIGHTS_NUM_SEATS) :
                 String.format("Unexpected %d open seats returned for %s", rowCount, element);
     
@@ -702,37 +633,22 @@ public class SEATSClient extends BenchmarkComponent {
             BitSet seats = getSeatsBitSet(element);
             
             int clientId = getClientId();
-            while (results[0].advanceRow()) {
-                int seatnum = (int)results[0].getLong(1);
+            while (seatInfo.advanceRow()) {
+                int seatnum = (int)seatInfo.getLong(1);
                 if (seatnum < SEATSConstants.FLIGHTS_RESERVED_SEATS) { 
                     continue;
                 }
               
-                // We first try to get a CustomerId based at this departure airport
+                // Just get a random customer to through on this flight
                 if (trace.val)
-                    LOG.trace("Looking for a random customer to fly on " + element);
-                CustomerId customer_id = profile.getRandomCustomerId(airport_depart_id);
-              
-                // We will go for a random one if:
-                //  (1) The Customer is already booked on this Flight
-                //  (2) We already made a new Reservation just now for this Customer
-                int tries = SEATSConstants.FLIGHTS_NUM_SEATS;
-                while (tries-- > 0 && (customer_id == null)) { //  || isCustomerBookedOnFlight(customer_id, flight_id))) {
-                    customer_id = profile.getRandomCustomerId();
-                    if (trace.val)
-                        LOG.trace("RANDOM CUSTOMER: " + customer_id);
-                } // WHILE
-                assert(customer_id != null) :
-                    String.format("Failed to find a unique Customer to reserve for seat #%d on %s", seatnum, element);
-        
+                    LOG.trace("Looking for a random customer to fly on " + flight_id);
+                long customer_id = profile.getRandomCustomerId();
                 Reservation r = new Reservation(profile.getNextReservationId(clientId),
-                                                element,
-                                                customer_id,
-                                                seatnum);
+                                                flight_id, customer_id, seatnum);
                 tmp_reservations.add(r);
                 seats.set(seatnum);
                 if (trace.val)
-                    LOG.trace("QUEUED INSERT: " + element + " / " + element.encode() + " -> " + customer_id);
+                    LOG.trace(String.format("QUEUED INSERT: %s -> %s", flight_id, customer_id));
             } // WHILE
           
             if (tmp_reservations.isEmpty() == false) {
@@ -745,7 +661,7 @@ public class SEATSClient extends BenchmarkComponent {
                 } // SYNCH
                 if (debug.val)
                     LOG.debug(String.format("Stored %d pending inserts for %s [totalPendingInserts=%d]",
-                              tmp_reservations.size(), element, cache.size()));
+                              tmp_reservations.size(), flight_id, cache.size()));
             }
         }
     }
@@ -755,11 +671,9 @@ public class SEATSClient extends BenchmarkComponent {
      * @throws IOException
      */
     protected Pair<Object[], ProcedureCallback> getFindOpenSeatsParams(Transaction txn) {
-        FlightId flight_id = profile.getRandomFlightId();
-        assert(flight_id != null);
-        
+        long flight_id = profile.getRandomFlightId();
         Object params[] = new Object[] {
-            flight_id.encode()
+            flight_id
         };
         if (trace.val) LOG.trace("Calling " + txn.getExecName());
         return new Pair<Object[], ProcedureCallback>(params, new FindOpenSeatsCallback(flight_id));
@@ -807,7 +721,7 @@ public class SEATSClient extends BenchmarkComponent {
                         break;
                     }
                     case CUSTOMER_ALREADY_HAS_SEAT: {
-                        Set<FlightId> f_ids = getCustomerBookedFlights(element.customer_id);
+                        Set<Long> f_ids = getCustomerBookedFlights(element.customer_id);
                         f_ids.add(element.flight_id);
                         if (debug.val)
                             LOG.debug(String.format("ALREADY BOOKED: %s -> %s", element.customer_id, f_ids));
@@ -834,7 +748,7 @@ public class SEATSClient extends BenchmarkComponent {
                         break;
                     }
                     default: {
-                        if (debug.val) LOG.debug("BUSTED ID: " + element.flight_id + " / " + element.flight_id.encode());
+                        if (debug.val) LOG.debug("BUSTED ID: " + element.flight_id + " / " + element.flight_id);
                     }
                 } // SWITCH
             }
@@ -901,8 +815,8 @@ public class SEATSClient extends BenchmarkComponent {
         
         Object params[] = new Object[] {
             reservation.id,
-            reservation.customer_id.encode(),
-            reservation.flight_id.encode(),
+            reservation.customer_id,
+            reservation.flight_id,
             reservation.seatnum,
             price,
             attributes
@@ -915,8 +829,8 @@ public class SEATSClient extends BenchmarkComponent {
     // UpdateCustomer
     // ----------------------------------------------------------------
     
-    class UpdateCustomerCallback extends AbstractCallback<CustomerId> {
-        public UpdateCustomerCallback(CustomerId c) {
+    class UpdateCustomerCallback extends AbstractCallback<Long> {
+        public UpdateCustomerCallback(long c) {
             super(Transaction.UPDATE_CUSTOMER, c);
         }
         @Override
@@ -934,7 +848,7 @@ public class SEATSClient extends BenchmarkComponent {
         
     protected Pair<Object[], ProcedureCallback> getUpdateCustomerParams(Transaction txn) {
         // Pick a random customer and then have at it!
-        CustomerId customer_id = profile.getRandomCustomerId();
+        long customer_id = profile.getRandomCustomerId();
         
         long c_id = VoltType.NULL_BIGINT;
         String c_id_str = null;
@@ -945,11 +859,11 @@ public class SEATSClient extends BenchmarkComponent {
         
         // Update with the Customer's id as a string 
         if (rng.nextInt(100) < SEATSConstants.PROB_UPDATE_WITH_CUSTOMER_ID_STR) {
-            c_id_str = Long.toString(customer_id.encode());
+            c_id_str = String.format(SEATSConstants.CUSTOMER_ID_STR, customer_id);
         }
         // Update using their Customer id
         else {
-            c_id = customer_id.encode();
+            c_id = customer_id;
         }
         
         Object params[] = new Object[]{
@@ -1003,12 +917,12 @@ public class SEATSClient extends BenchmarkComponent {
         long seatnum = rng.nextInt(SEATSConstants.FLIGHTS_RESERVED_SEATS);
         if (debug.val)
             LOG.debug(String.format("UpdateReservation: FlightId:%d / CustomerId:%d / SeatNum:%d",
-                      r.flight_id.encode(), r.customer_id.encode(), seatnum)); 
+                      r.flight_id, r.customer_id, seatnum)); 
 
         Object params[] = new Object[] {
             r.id,
-            r.customer_id.encode(),
-            r.flight_id.encode(),
+            r.customer_id,
+            r.flight_id,
             seatnum,
             attribute_idx,
             value
@@ -1018,7 +932,7 @@ public class SEATSClient extends BenchmarkComponent {
         return new Pair<Object[], ProcedureCallback>(params, new UpdateReservationCallback(r));
     }
     
-    protected BitSet getSeatsBitSet(FlightId flight_id) {
+    protected BitSet getSeatsBitSet(long flight_id) {
         BitSet seats = CACHE_BOOKED_SEATS.get(flight_id);
         if (seats == null) {
 //            synchronized (CACHE_BOOKED_SEATS) {

@@ -42,54 +42,72 @@ import edu.brown.benchmark.seats.SEATSConstants;
 public class DeleteReservation extends VoltProcedure {
     private static final Logger LOG = Logger.getLogger(DeleteReservation.class);
     
+    public final SQLStmt GetFlight = new SQLStmt(
+        "SELECT F_AL_ID, F_SEATS_LEFT, " +
+        "       F_IATTR00, F_IATTR01,  F_IATTR02, F_IATTR03, " + 
+        "       F_IATTR04, F_IATTR05,  F_IATTR06, F_IATTR07 " +
+        "  FROM " + SEATSConstants.TABLENAME_FLIGHT + 
+        " WHERE F_ID = ?");
+    
     public final SQLStmt GetCustomerByIdStr = new SQLStmt(
-            "SELECT C_ID " + 
-            "  FROM " + SEATSConstants.TABLENAME_CUSTOMER + 
-            " WHERE C_ID_STR = ?");
+        "SELECT C_ID " + 
+        "  FROM " + SEATSConstants.TABLENAME_CUSTOMER + 
+        " WHERE C_ID_STR = ?");
     
     public final SQLStmt GetCustomerByFFNumber = new SQLStmt(
-            "SELECT C_ID, FF_AL_ID " +
-            "  FROM " + SEATSConstants.TABLENAME_CUSTOMER + ", " + 
-                        SEATSConstants.TABLENAME_FREQUENT_FLYER + 
-            " WHERE FF_C_ID_STR = ? AND FF_C_ID = C_ID");
+        "SELECT C_ID, FF_AL_ID " +
+        "  FROM " + SEATSConstants.TABLENAME_CUSTOMER + ", " + 
+                    SEATSConstants.TABLENAME_FREQUENT_FLYER + 
+        " WHERE FF_C_ID_STR = ? AND FF_C_ID = C_ID");
     
     public final SQLStmt GetCustomerReservation = new SQLStmt(
-            "SELECT C_SATTR00, C_SATTR02, C_SATTR04, " +
-            "       C_IATTR00, C_IATTR02, C_IATTR04, C_IATTR06, " +
-            "       F_SEATS_LEFT, " +
-            "       R_ID, R_SEAT, R_PRICE, R_IATTR00 " +
-            "  FROM " + SEATSConstants.TABLENAME_CUSTOMER + ", " +
-                        SEATSConstants.TABLENAME_FLIGHT + ", " +
-                        SEATSConstants.TABLENAME_RESERVATION +
-            " WHERE C_ID = ? AND C_ID = R_C_ID " +
-            "   AND F_ID = ? AND F_ID = R_F_ID "
+        "SELECT C_SATTR00, C_SATTR02, C_SATTR04, " +
+        "       C_IATTR00, C_IATTR02, C_IATTR04, C_IATTR06, " +
+        "       F_SEATS_LEFT, " +
+        "       R_ID, R_SEAT, R_PRICE, R_IATTR00 " +
+        "  FROM " + SEATSConstants.TABLENAME_CUSTOMER + ", " +
+                    SEATSConstants.TABLENAME_FLIGHT + ", " +
+                    SEATSConstants.TABLENAME_RESERVATION +
+        " WHERE C_ID = ? AND C_ID = R_C_ID " +
+        "   AND F_ID = ? AND F_ID = R_F_ID "
     );
     
     public final SQLStmt DeleteReservation = new SQLStmt(
-            "DELETE FROM " + SEATSConstants.TABLENAME_RESERVATION +
-            " WHERE R_ID = ? AND R_C_ID = ? AND R_F_ID = ?");
+        "DELETE FROM " + SEATSConstants.TABLENAME_RESERVATION +
+        " WHERE R_ID = ? AND R_C_ID = ? AND R_F_ID = ?");
 
     public final SQLStmt UpdateFlight = new SQLStmt(
-            "UPDATE " + SEATSConstants.TABLENAME_FLIGHT +
-            "   SET F_SEATS_LEFT = F_SEATS_LEFT + 1 " + 
-            " WHERE F_ID = ? ");
+        "UPDATE " + SEATSConstants.TABLENAME_FLIGHT +
+        "   SET F_SEATS_LEFT = F_SEATS_LEFT + 1 " + 
+        " WHERE F_ID = ? ");
     
     public final SQLStmt UpdateCustomer = new SQLStmt(
-            "UPDATE " + SEATSConstants.TABLENAME_CUSTOMER +
-            "   SET C_BALANCE = C_BALANCE + ?, " +
-            "       C_IATTR00 = ?, " +
-            "       C_IATTR10 = C_IATTR10 - 1, " + 
-            "       C_IATTR11 = C_IATTR10 - 1 " +
-            " WHERE C_ID = ? ");
+        "UPDATE " + SEATSConstants.TABLENAME_CUSTOMER +
+        "   SET C_BALANCE = C_BALANCE + ?, " +
+        "       C_IATTR00 = ?, " +
+        "       C_IATTR10 = C_IATTR10 - 1, " + 
+        "       C_IATTR11 = C_IATTR10 - 1 " +
+        " WHERE C_ID = ? ");
     
     public final SQLStmt UpdateFrequentFlyer = new SQLStmt(
-            "UPDATE " + SEATSConstants.TABLENAME_FREQUENT_FLYER +
-            "   SET FF_IATTR10 = FF_IATTR10 - 1 " + 
-            " WHERE FF_C_ID = ? " +
-            "   AND FF_AL_ID = ?");
+        "UPDATE " + SEATSConstants.TABLENAME_FREQUENT_FLYER +
+        "   SET FF_IATTR10 = FF_IATTR10 - 1 " + 
+        " WHERE FF_C_ID = ? " +
+        "   AND FF_AL_ID = ?");
     
-    public long run(long f_id, long c_id, String c_id_str, String ff_c_id_str, long ff_al_id) {
+    public long run(long f_id, long c_id, String c_id_str, String ff_c_id_str) {
         final boolean debug = LOG.isDebugEnabled();
+        
+        // Get flight information
+        voltQueueSQL(GetFlight, f_id);
+        final VoltTable flight[] = voltExecuteSQL();
+        long ff_al_id = VoltType.NULL_BIGINT;
+        if (flight[0].advanceRow()) {
+            ff_al_id = flight[0].getLong(0);
+        } else {
+            String msg = String.format("Invalid flight id [f_id=%d]", f_id);
+            throw new VoltAbortException(msg);
+        }
         
         // If we weren't given the customer id, then look it up
         if (c_id == VoltType.NULL_BIGINT) {
@@ -110,8 +128,9 @@ public class DeleteReservation extends VoltProcedure {
                 c_id = customerIdResults[0].getLong(0);
                 if (has_al_id) ff_al_id = customerIdResults[0].getLong(1);
             } else {
-                throw new VoltAbortException(String.format("No Customer record was found [c_id_str=%s, ff_c_id_str=%s, ff_al_id=%s]",
-                                                           c_id_str, ff_c_id_str, ff_al_id));
+                String msg = String.format("No Customer record was found [c_id_str=%s, ff_c_id_str=%s, ff_al_id=%s]",
+                                           c_id_str, ff_c_id_str, ff_al_id);
+                throw new VoltAbortException(msg);
             }
         }
 
@@ -122,7 +141,8 @@ public class DeleteReservation extends VoltProcedure {
         VoltTable customer[] = voltExecuteSQL();
         assert(customer.length == 1);
         if (customer[0].advanceRow() == false) {
-            throw new VoltAbortException(String.format("No Customer information record found for id '%d'", c_id));
+            String msg = String.format("No Customer information record found for id '%d'", c_id);
+            throw new VoltAbortException(msg);
         }
         long c_iattr00 = customer[0].getLong(3) + 1;
         long seats_left = customer[0].getLong(7); 

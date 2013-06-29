@@ -33,20 +33,17 @@ import org.voltdb.types.TimestampType;
 
 public class TestReturnFlight extends TestCase {
     
-    private final int customer_base_id  = 1000;
     private final long depart_airport_id = 9999;
     private final int return_days[]      = { 1, 5, 14 };
     
     private TimestampType flight_date;
-    private CustomerId customer_id;
+    private long customer_id;
     
     @Override
     protected void setUp() throws Exception {
         super.setUp();
-        this.customer_id = new CustomerId(this.customer_base_id, this.depart_airport_id);
-        assertNotNull(this.customer_id);
+        this.customer_id = 100000l;
         this.flight_date = new TimestampType();
-        assertNotNull(this.flight_date);
     }
 
     /**
