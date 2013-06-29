@@ -133,7 +133,6 @@ import edu.brown.hstore.estimators.EstimatorUtil;
 import edu.brown.hstore.estimators.TransactionEstimator;
 import edu.brown.hstore.internal.DeferredQueryMessage;
 import edu.brown.hstore.internal.FinishTxnMessage;
-import edu.brown.hstore.internal.InitializeRequestMessage;
 import edu.brown.hstore.internal.InternalMessage;
 import edu.brown.hstore.internal.InternalTxnMessage;
 import edu.brown.hstore.internal.PotentialSnapshotWorkMessage;
@@ -294,7 +293,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
     private HStoreSite hstore_site;
     private HStoreCoordinator hstore_coordinator;
     private HStoreConf hstore_conf;
-    private TransactionInitializer txnInitializer;
     private TransactionQueueManager queueManager;
     private PartitionLockQueue lockQueue;
     private DependencyTracker depTracker;
@@ -802,7 +800,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         this.hstore_site = hstore_site;
         this.depTracker = hstore_site.getDependencyTracker(this.partitionId);
         this.thresholds = hstore_site.getThresholds();
-        this.txnInitializer = hstore_site.getTransactionInitializer();
         this.queueManager = hstore_site.getTransactionQueueManager();
         this.lockQueue = this.queueManager.getLockQueue(this.partitionId);
         
@@ -1214,12 +1211,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             }
         }
         // -------------------------------
-        // TRANSACTION INITIALIZATION
-        // -------------------------------
-        else if (work instanceof InitializeRequestMessage) {
-            this.processInitializeRequestMessage((InitializeRequestMessage)work);
-        }
-        // -------------------------------
         // DEFERRED QUERIES
         // -------------------------------
         else if (work instanceof DeferredQueryMessage) {
@@ -1257,49 +1248,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         }
     }
 
-    
-    /**
-     * Process an InitializeRequestMessage
-     * @param work
-     */
-    protected void processInitializeRequestMessage(InitializeRequestMessage work) {
-
-        LocalTransaction ts = this.txnInitializer.createLocalTransaction(
-                                       work.getSerializedRequest(),
-                                       work.getInitiateTime(),
-                                       work.getClientHandle(),
-                                       this.partitionId,
-                                       work.getProcedure(),
-                                       work.getProcParams(),
-                                       work.getClientCallback());
-        // -------------------------------
-        // SINGLE-PARTITION TRANSACTION
-        // -------------------------------
-        if (ts.isPredictSinglePartition() && ts.isMapReduce() == false && ts.isSysProc() == false) {
-            if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.startQueueExec();
-            
-            // If we are in the middle of a distributed txn at this partition, then we can't
-            // just go and fire off this txn. We actually need to use our SpecExecScheduler to
-            // decide whether it is safe to speculatively execute this txn. But the problem is that
-            // the SpecExecScheduler is only examining the work queue when utilityWork() is called
-            // But it will never be called at this point because if we add this txn back to the queue
-            // it will get picked up right away.
-            if (this.currentDtxn != null) {
-                this.blockTransaction(ts);
-            }
-            else {
-                this.executeTransaction(ts);
-            }
-        }
-        // -------------------------------    
-        // DISTRIBUTED TRANSACTION
-        // -------------------------------
-        else {
-            if (debug.val) LOG.debug(ts + " - Queuing up txn at local HStoreSite for further processing");
-            this.hstore_site.transactionQueue(ts);    
-        }
-    }
-    
     /**
      * Process an InternalTxnMessage
      * @param work
@@ -1680,20 +1628,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         InternalMessage msg = null;
         while ((msg = this.work_queue.poll()) != null) {
             // -------------------------------
-            // InitializeRequestMessage
-            // -------------------------------
-            if (msg instanceof InitializeRequestMessage) {
-                InitializeRequestMessage initMsg = (InitializeRequestMessage)msg;
-                hstore_site.responseError(initMsg.getClientHandle(),
-                                          Status.ABORT_REJECT,
-                                          hstore_site.getRejectionMessage() + " - [2]",
-                                          initMsg.getClientCallback(),
-                                          EstTime.currentTimeMillis());
-            }
-            // -------------------------------
             // StartTxnMessage
             // -------------------------------
-            else if (msg instanceof StartTxnMessage) {
+            if (msg instanceof StartTxnMessage) {
                 StartTxnMessage startMsg = (StartTxnMessage)msg;
                 hstore_site.transactionReject((LocalTransaction)startMsg.getTransaction(), Status.ABORT_REJECT);
             }
