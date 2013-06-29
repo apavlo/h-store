@@ -316,7 +316,9 @@ public class SEATSLoader extends Loader {
                 Iterable<Object[]> iterable = this.getScalingIterable(catalog_tbl); 
                 this.loadTable(catalog_tbl, iterable, 5000);
             } catch (Throwable ex) {
-                throw new RuntimeException("Failed to load data files for scaling-sized table '" + table_name + "'", ex);
+                ex.printStackTrace();
+                String msg = "Failed to load data files for scaling-sized table '" + table_name + "'";
+                throw new RuntimeException(msg, ex);
             }
         } // FOR
     }
@@ -1201,7 +1203,7 @@ public class SEATSLoader extends Loader {
                     } while (remaining <= 0 && this.day_idx + 1 < this.flights_per_day.size());
                     assert(date != null);
                     
-                    this.flight_id = NEXT_FLIGHT_ID++;
+                    value = this.flight_id = NEXT_FLIGHT_ID++;
                     this.flightInfo = this.populate(this.flight_id, date);
                     this.todays_flights.add(this.flight_id);
                     break;
@@ -1523,15 +1525,6 @@ public class SEATSLoader extends Loader {
 //        });
 //    }
 
-    /**
-     * Return the index offset of when future flights 
-     * @return
-     */
-    public long getFlightIdStartingOffset() {
-        return (this.profile.flight_upcoming_offset);
-    }
-    
-    
     // ----------------------------------------------------------------
     // DISTANCE METHODS
     // ----------------------------------------------------------------

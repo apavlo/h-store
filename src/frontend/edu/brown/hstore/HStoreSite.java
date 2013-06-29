@@ -2727,7 +2727,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                         else if (status == Status.ABORT_MISPREDICT) {
                             TransactionCounter.MISPREDICTED.inc(catalog_proc);
                         }
-                        else {
+                        // Don't count restarted txns more than once
+                        else if (ts.getRestartCounter() == 0) {
                             TransactionCounter.RESTARTED.inc(catalog_proc);
                         }
                     }

@@ -94,14 +94,6 @@ public class SEATSProfile {
      */
     protected long flight_future_days;
     /**
-     * The offset of when upcoming flights begin in the seats_remaining list
-     */
-    protected Long flight_upcoming_offset = null;
-    /**
-     * The offset of when reservations for upcoming flights begin
-     */
-    protected Long reservation_upcoming_offset = null;
-    /**
      * The number of FLIGHT rows created.
      */
     protected long num_flights = 0l;
@@ -220,8 +212,6 @@ public class SEATSProfile {
             this.flight_upcoming_date,          // CFP_FLIGHT_UPCOMING
             this.flight_past_days,              // CFP_FLIGHT_PAST_DAYS
             this.flight_future_days,            // CFP_FLIGHT_FUTURE_DAYS
-            this.flight_upcoming_offset,        // CFP_FLIGHT_OFFSET
-            this.reservation_upcoming_offset,   // CFP_RESERVATION_OFFSET
             this.num_flights,                   // CFP_NUM_FLIGHTS
             this.num_customers,                 // CFP_NUM_CUSTOMERS
             this.num_reservations,              // CFP_NUM_RESERVATIONS
@@ -269,8 +259,6 @@ public class SEATSProfile {
         this.flight_upcoming_date = other.flight_upcoming_date;
         this.flight_past_days = other.flight_past_days;
         this.flight_future_days = other.flight_future_days;
-        this.flight_upcoming_offset = other.flight_upcoming_offset;
-        this.reservation_upcoming_offset = other.reservation_upcoming_offset;
         this.num_flights = other.num_flights;
         this.num_customers = other.num_customers;
         this.num_reservations = other.num_reservations;
@@ -343,8 +331,6 @@ public class SEATSProfile {
         this.flight_upcoming_date = vt.getTimestampAsTimestamp(col++);
         this.flight_past_days = vt.getLong(col++);
         this.flight_future_days = vt.getLong(col++);
-        this.flight_upcoming_offset = vt.getLong(col++);
-        this.reservation_upcoming_offset = vt.getLong(col++);
         this.num_flights = vt.getLong(col++);
         this.num_customers = vt.getLong(col++);
         this.num_reservations = vt.getLong(col++);
@@ -405,49 +391,9 @@ public class SEATSProfile {
         return (m);
     }
 
-    /**
-     * The offset of when upcoming reservation ids begin
-     * @return
-     */
-    public Long getReservationUpcomingOffset() {
-        return (this.reservation_upcoming_offset);
-    }
-    
-    /**
-     * Set the number of upcoming reservation offset
-     * @param numReservations
-     */
-    public void setReservationUpcomingOffset(long offset) {
-        this.reservation_upcoming_offset = offset;
-    }
-
     // -----------------------------------------------------------------
     // FLIGHTS
     // -----------------------------------------------------------------
-    
-//    /**
-//     * Add a new FlightId for this benchmark instance
-//     * This method will decide whether to store the id or not in its cache
-//     * @return True if the FlightId was added to the cache
-//     */
-//    public boolean addFlightId(FlightId flight_id) {
-//        boolean added = false;
-//        synchronized (this.cached_flight_ids) {
-//            // If we have room, shove it right in
-//            // We'll throw it in the back because we know it hasn't been used yet
-//            if (this.cached_flight_ids.size() < SEATSConstants.CACHE_LIMIT_FLIGHT_IDS) {
-//                this.cached_flight_ids.addLast(flight_id);
-//                added = true;
-//            
-//            // Otherwise, we can will randomly decide whether to pop one out
-//            } else if (rng.nextBoolean()) {
-//                this.cached_flight_ids.pop();
-//                this.cached_flight_ids.addLast(flight_id);
-//                added = true;
-//            }
-//        } // SYNCH
-//        return (added);
-//    }
     
     public long getRandomFlightId() {
         return (long)this.rng.nextInt((int)this.num_flights);
@@ -466,7 +412,7 @@ public class SEATSProfile {
      * @param name
      * @return
      */
-    public Histogram<String> getHistogram(String name) {
+    protected Histogram<String> getHistogram(String name) {
         Histogram<String> h = this.histograms.get(name);
         assert(h != null) : "Invalid histogram '" + name + "'";
         return (h);
@@ -499,7 +445,7 @@ public class SEATSProfile {
      * @return
      */
     public long getRandomAirportId() {
-        return (rng.number(1, (int)this.getAirportCount()));
+        return (this.rng.number(1, (int)this.getAirportCount()));
     }
     
     public long getRandomOtherAirport(long airport_id) {
@@ -527,7 +473,7 @@ public class SEATSProfile {
      */
     public TimestampType getRandomUpcomingDate() {
         TimestampType upcoming_start_date = this.flight_upcoming_date;
-        int offset = rng.nextInt((int)this.getFlightFutureDays());
+        int offset = rng.nextInt((int)this.flight_future_days);
         return (new TimestampType(upcoming_start_date.getTime() + (offset * SEATSConstants.MICROSECONDS_PER_DAY)));
     }
     
@@ -736,8 +682,6 @@ public class SEATSProfile {
         m.put("Flight Upcoming Date", this.flight_upcoming_date);
         m.put("Flight Past Days", this.flight_past_days);
         m.put("Flight Future Days", this.flight_future_days);
-        m.put("Flight Upcoming Offset", this.flight_upcoming_offset);
-        m.put("Reservation Upcoming Offset", this.reservation_upcoming_offset);
         return (StringUtil.formatMaps(m));
     }
 }
