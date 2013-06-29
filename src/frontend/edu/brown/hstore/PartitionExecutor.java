@@ -4633,12 +4633,14 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                             if (debug.val)
                                 LOG.debug(String.format("Speculative Txn %s has a null undoToken at partition %d",
                                           spec_ts, this.partitionId));
-                            shouldCommit = true;
+                            toCommit.add(spec_ts);
+                            continue;
                         }
+                        
                         // Otherwise, look to see if this txn was speculatively executed before the 
                         // first undo token of the distributed txn. That means we know that this guy
                         // didn't read any modifications made by the dtxn.
-                        else if (spec_token < dtxnUndoToken) {
+                        if (spec_token < dtxnUndoToken) {
                             if (debug.val)
                                 LOG.debug(String.format("Speculative Txn %s has an undoToken less than the dtxn %s " +
                                           "at partition %d [%d < %d]",
@@ -4717,20 +4719,23 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                     
                     // Make sure that we mark the dtxn as finished so that we don't
                     // try to do anything with it later on.
-                    this.markTransactionFinished(ts);
+                    if (hstore_conf.site.exec_readwrite_tracking)
+                        this.markTransactionFinished(ts);
+                    else
+                        ts.markFinished(this.partitionId);
                 
                     // Now make sure that all of the speculative txns are processed without 
                     // committing (since we just committed any change that they could have made
                     // up above).
                     LocalTransaction spec_ts = null;
-                    boolean fastFinish = (hstore_conf.site.exec_readwrite_tracking == false);
                     while ((spec_ts = this.specExecBlocked.pollFirst()) != null) {
                         ClientResponseImpl spec_cr = spec_ts.getClientResponse();
                         assert(spec_cr != null);
-                        if (fastFinish) 
-                            spec_ts.markFinished(this.partitionId);
-                        else
+                        if (hstore_conf.site.exec_readwrite_tracking) 
                             this.markTransactionFinished(spec_ts);
+                        else
+                            spec_ts.markFinished(this.partitionId);
+                            
                         try {
                             if (trace.val)
                                 LOG.trace(String.format("%s - Releasing blocked ClientResponse for %s [status=%s]",
@@ -4836,6 +4841,12 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         ts.markFinished(this.partitionId);
     }
     
+    /**
+     * Process a batch of completed txns. The first txn in the batch will be
+     * committed/aborted in the EE. The rest will be marked as finished. 
+     * @param batch
+     * @param status
+     */
     private void processClientResponseBatch(Collection<LocalTransaction> batch, Status status) {
         // Only processs the last txn in the list, since it will have the
         // the greatest undo token value.
@@ -4852,7 +4863,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         for (LocalTransaction ts : batch) {
             // Marking the txn as finished will prevent us from going down
             // into the EE to finish up the transaction.
-            this.markTransactionFinished(ts);
+            if (hstore_conf.site.exec_readwrite_tracking)
+                this.markTransactionFinished(ts);
+            else
+                ts.markFinished(this.partitionId);
             
             // Send out the ClientResponse to whomever wants it!
             if (debug.val)
