@@ -70,7 +70,8 @@ public class FindOpenSeats extends VoltProcedure {
     };
     
     public final SQLStmt GetFlight = new SQLStmt(
-        "SELECT F_BASE_PRICE, F_SEATS_TOTAL, F_SEATS_LEFT, " +
+        "SELECT F_ID, F_AL_ID, F_DEPART_AP_ID, F_DEPART_TIME, F_ARRIVE_AP_ID, F_ARRIVE_TIME, " +
+        "       F_BASE_PRICE, F_SEATS_TOTAL, F_SEATS_LEFT, " +
         "       (F_BASE_PRICE + (F_BASE_PRICE * (1 - (F_SEATS_LEFT / F_SEATS_TOTAL)))) AS F_PRICE " +
         "  FROM " + SEATSConstants.TABLENAME_FLIGHT +
         " WHERE F_ID = ?"
@@ -82,7 +83,7 @@ public class FindOpenSeats extends VoltProcedure {
         " WHERE R_F_ID = ?"
     );
     
-    public VoltTable run(long f_id) {
+    public VoltTable[] run(long f_id) {
         final boolean debug = LOG.isDebugEnabled();
         
         // 150 seats
@@ -98,23 +99,25 @@ public class FindOpenSeats extends VoltProcedure {
         // and the number of seats that remaining
         boolean adv = results[0].advanceRow();
         assert(adv);
-        double base_price = results[0].getDouble(0);
-        long seats_total = results[0].getLong(1);
-        long seats_left = results[0].getLong(2);
-        double seat_price = results[0].getDouble(3);
+        int col = 6;
+        double base_price = results[0].getDouble(col++);    // F_BASE_PRICE
+        long seats_total = results[0].getLong(col++);       // F_SEATS_TOTAL
+        long seats_left = results[0].getLong(col++);        // F_SEATS_LEFT
+        double seat_price = results[0].getDouble(col++);    // MATHS!
         
         if (debug) {
             // TODO: Figure out why this doesn't match the SQL
             double _seat_price = base_price + (base_price * (1.0 - (seats_left/(double)seats_total)));
             LOG.debug(String.format("Flight %d - SQL[%.2f] <-> JAVA[%.2f] [basePrice=%f, total=%d, left=%d]",
-                                    f_id, seat_price, _seat_price, base_price, seats_total, seats_left));
+                      f_id, seat_price, _seat_price, base_price, seats_total, seats_left));
         }
         
         // Then build the seat map of the remaining seats
         while (results[1].advanceRow()) {
             long r_id = results[1].getLong(0);
             int seatnum = (int)results[1].getLong(2);
-            if (debug) LOG.debug(String.format("ROW fid %d rid %d seat %d", f_id, r_id, seatnum));
+            if (debug)
+                LOG.debug(String.format("ROW fid %d rid %d seat %d", f_id, r_id, seatnum));
             assert(seatmap[seatnum] == -1) : "Duplicate seat reservation: R_ID=" + r_id;
             seatmap[seatnum] = 1; // results[1].getLong(1);
         } // WHILE
@@ -133,7 +136,7 @@ public class FindOpenSeats extends VoltProcedure {
        
         if (LOG.isTraceEnabled())
             LOG.trace(String.format("Flight %d Open Seats:\n%s", f_id, returnResults));
-        return returnResults;
+        return new VoltTable[]{ results[0], returnResults };
     }
             
 }
