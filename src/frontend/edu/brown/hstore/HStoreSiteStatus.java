@@ -650,7 +650,6 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
         Map<String, Object> m = new LinkedHashMap<String, Object>();
         m.put("Dependency Trackers", null);
         
-        TransactionQueueManager queueManager = hstore_site.getTransactionQueueManager();
         for (int partition : hstore_site.getLocalPartitionIds()) {
             DependencyTracker depTracker = hstore_site.getDependencyTracker(partition);
             DependencyTracker.Debug depTrackerDbg = depTracker.getDebugContext();

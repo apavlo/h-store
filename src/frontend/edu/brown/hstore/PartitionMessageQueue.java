@@ -8,7 +8,6 @@ import java.util.concurrent.PriorityBlockingQueue;
 
 import edu.brown.hstore.internal.FinishTxnMessage;
 import edu.brown.hstore.internal.InitializeRequestMessage;
-import edu.brown.hstore.internal.InitializeTxnMessage;
 import edu.brown.hstore.internal.InternalMessage;
 import edu.brown.hstore.internal.InternalTxnMessage;
 import edu.brown.hstore.internal.PrepareTxnMessage;
@@ -50,16 +49,10 @@ public class PartitionMessageQueue extends PriorityBlockingQueue<InternalMessage
         return (ctr);
     }
     
-//    @Override
-//    public InternalMessage poll() {
-//        return super.poll();
-//    }
-    
     private static final Comparator<InternalMessage> WORK_COMPARATOR = new Comparator<InternalMessage>() {
         @SuppressWarnings("unchecked")
         private final Class<? extends InternalMessage> compareOrder[] = (Class<? extends InternalMessage>[])new Class<?>[]{
             SetDistributedTxnMessage.class,
-            InitializeTxnMessage.class,
             PrepareTxnMessage.class,
             FinishTxnMessage.class,
             WorkFragmentMessage.class,
