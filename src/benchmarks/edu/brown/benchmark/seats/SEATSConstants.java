@@ -126,6 +126,8 @@ public abstract class SEATSConstants {
     
     public static final int MAX_OPEN_SEATS_PER_TXN = 100;
     
+    public static final int NEW_RESERVATION_ATTRS_SIZE = 9;
+    
     // ----------------------------------------------------------------
     // PROBABILITIES
     // ----------------------------------------------------------------

@@ -1,9 +1,13 @@
 package edu.brown.benchmark.seats;
 
 import java.io.File;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
@@ -14,7 +18,8 @@ import org.voltdb.CatalogContext;
 import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
-import org.voltdb.catalog.Catalog;
+import org.voltdb.catalog.Column;
+import org.voltdb.catalog.Table;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.ProcCallException;
@@ -26,19 +31,13 @@ import org.voltdb.regressionsuites.RegressionSuite;
 import org.voltdb.regressionsuites.RegressionSuiteUtil;
 import org.voltdb.regressionsuites.VoltServerConfig;
 import org.voltdb.sysprocs.AdHoc;
+import org.voltdb.types.TimestampType;
 import org.voltdb.utils.Pair;
-import org.voltdb.utils.VoltTableUtil;
 
 import edu.brown.HStoreSiteTestUtil.WrapperProcedureCallback;
-import edu.brown.benchmark.seats.RandomGenerator;
 import edu.brown.benchmark.seats.SEATSClient.Transaction;
-import edu.brown.benchmark.seats.SEATSConstants;
-import edu.brown.benchmark.seats.SEATSLoader;
-import edu.brown.benchmark.seats.SEATSProfile;
-import edu.brown.benchmark.seats.SEATSProjectBuilder;
 import edu.brown.benchmark.seats.util.SEATSHistogramUtil;
 import edu.brown.hstore.Hstoreservice.Status;
-import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.utils.CollectionUtil;
 
 /**
@@ -48,7 +47,7 @@ import edu.brown.utils.CollectionUtil;
 public class TestSEATSSuite extends RegressionSuite {
     
     private static final String PREFIX = "seats";
-    private static final double SCALEFACTOR = 0.01;
+    private static final double SCALEFACTOR = 0.001;
     
     /**
      * Constructor needed for JUnit. Should just pass on parameters to superclass.
@@ -77,6 +76,10 @@ public class TestSEATSSuite extends RegressionSuite {
             public CatalogContext getCatalogContext() {
                 return (catalogContext);
             }
+            @Override
+            public double getScaleFactor() {
+                return (SCALEFACTOR);
+            }
         };
         loader.load();
         return (loader);
@@ -100,11 +103,15 @@ public class TestSEATSSuite extends RegressionSuite {
             public CatalogContext getCatalogContext() {
                 return (catalogContext);
             }
+            @Override
+            public double getScaleFactor() {
+                return (SCALEFACTOR);
+            }
         };
         benchmarkClient.getProfile().loadProfile(client);
         
         // Fire off a FindOpenSeats so that we can prime ourselves
-        Pair<Object[], ProcedureCallback> pair = benchmarkClient.getFindOpenSeatsParams(Transaction.FIND_OPEN_SEATS);
+        Pair<Object[], ProcedureCallback> pair = benchmarkClient.getFindOpenSeatsParams();
         assert(pair != null);
         Object params[] = pair.getFirst();
         WrapperProcedureCallback callback = new WrapperProcedureCallback(1, pair.getSecond());
@@ -116,7 +123,6 @@ public class TestSEATSSuite extends RegressionSuite {
         
         return (benchmarkClient);
     }
-    
     
     /**
      * testInitialize
@@ -153,6 +159,25 @@ public class TestSEATSSuite extends RegressionSuite {
                 assertTrue(tableName + " -> " + count, count > 0);
             }
         } // FOR
+        
+        // Make sure that our FLIGHT rows are correct
+        String query = "SELECT * FROM " + SEATSConstants.TABLENAME_FLIGHT;
+        ClientResponse cresponse = RegressionSuiteUtil.sql(client, query);
+        VoltTable results[] = cresponse.getResults();
+        assertEquals(profile.num_flights, results[0].getRowCount());
+        Table tbl = catalogContext.getTableByName(SEATSConstants.TABLENAME_FLIGHT);
+        assertEquals(tbl.getColumns().size(), results[0].getColumnCount());
+        List<Column> notNullCols = new ArrayList<Column>();
+        for (Column col : tbl.getColumns()) {
+            if (col.getNullable() == false) notNullCols.add(col);
+        }
+        
+        while (results[0].advanceRow()) {
+            for (Column col : notNullCols) {
+                results[0].get(col.getIndex());
+                assertFalse(col.fullName(), results[0].wasNull());
+            }
+        } // WHILE
     }
     
     /**
@@ -194,7 +219,7 @@ public class TestSEATSSuite extends RegressionSuite {
         assertNotNull(benchmarkClient);
      
         Transaction txn = Transaction.FIND_OPEN_SEATS;
-        Pair<Object[], ProcedureCallback> pair = benchmarkClient.getFindOpenSeatsParams(txn);
+        Pair<Object[], ProcedureCallback> pair = benchmarkClient.getFindOpenSeatsParams();
         assertNotNull(pair);
         Object params[] = pair.getFirst();
      
@@ -223,33 +248,54 @@ public class TestSEATSSuite extends RegressionSuite {
         } // WHILE
     }
     
-//    /**
-//     * testDeleteReservation
-//     */
-//    public void testDeleteReservation() throws Exception {
-//        Client client = this.getClient();
-//        CatalogContext catalogContext = this.getCatalogContext();
-//        this.initializeSEATSDatabase(catalogContext, client);
-//        SEATSClient benchmarkClient = this.initializeSEATSClient(catalogContext, client);
-//        assertNotNull(benchmarkClient);
-//        
-//        // First insert a new reservation
-//        Transaction txn = Transaction.FIND_FLIGHTS;
-//        Pair<Object[], ProcedureCallback> pair = benchmarkClient.getNewReservationParams();
-//        assertNotNull(pair);
-//        Object params[] = pair.getFirst();
-//        ClientResponse cresponse = null;
-//        try {
-//            cresponse = client.callProcedure(txn.getExecName(), params);
-//            assertEquals(Status.OK, cresponse.getStatus());
-//        } catch (ProcCallException ex) {
-//            cresponse = ex.getClientResponse();
-//            assertEquals(cresponse.toString(), Status.ABORT_USER, cresponse.getStatus());
-//        }
-//        
-//        
-//        System.err.println(VoltTableUtil.format(cresponse.getResults()[0]));
-//    }
+    /**
+     * testNewReservation
+     */
+    public void testNewReservation() throws Exception {
+        Client client = this.getClient();
+        CatalogContext catalogContext = this.getCatalogContext();
+        this.initializeSEATSDatabase(catalogContext, client);
+
+        ClientResponse cresponse;
+        String sql;
+        
+        Random rng = new Random();
+        long r_id = 1000l;
+        long c_id = 10; // rng.nextInt((int)profile.num_customers);
+        long f_id = 10; // rng.nextInt((int)profile.num_flights);
+        long seatnum = rng.nextInt(SEATSConstants.FLIGHTS_NUM_SEATS);
+        long attrs[] = new long[SEATSConstants.NEW_RESERVATION_ATTRS_SIZE];
+        Arrays.fill(attrs, 9999l);
+        Object params[] = { r_id, c_id, f_id, seatnum, 100d, attrs, new TimestampType() };
+        
+        // Check the number of available seats for this flight
+        sql = "SELECT F_SEATS_LEFT " +
+              "  FROM " + SEATSConstants.TABLENAME_FLIGHT +
+              " WHERE F_ID = " + f_id;
+        cresponse = RegressionSuiteUtil.sql(client, sql);
+        long orig_num_seats = cresponse.getResults()[0].asScalarLong();
+        assert(orig_num_seats > 0);
+        
+        // Then insert a new reservation
+        Transaction txn = Transaction.NEW_RESERVATION;
+        cresponse = client.callProcedure(txn.getExecName(), params);
+        assertEquals(cresponse.toString(), Status.OK, cresponse.getStatus());
+        
+        // Then check that the number of available seats is reduced by one 
+        cresponse = RegressionSuiteUtil.sql(client, sql);
+        long new_num_seats = cresponse.getResults()[0].asScalarLong();
+        assert(new_num_seats > 0);
+        assertEquals(orig_num_seats-1, new_num_seats);
+        
+        // Make sure that our customer has the reservation
+        sql = "SELECT R_C_ID " +
+              " FROM " + SEATSConstants.TABLENAME_RESERVATION +
+              " WHERE R_F_ID = " + f_id +
+              "   AND R_SEAT = " + seatnum;
+        cresponse = RegressionSuiteUtil.sql(client, sql);
+        long r_c_id = cresponse.getResults()[0].asScalarLong();
+        assertEquals(c_id, r_c_id);
+    }
     
 //    /**
 //     * testFindFlights
@@ -299,10 +345,10 @@ public class TestSEATSSuite extends RegressionSuite {
         /////////////////////////////////////////////////////////////
         // CONFIG #2: 1 Local Site with 2 Partitions running on JNI backend
         /////////////////////////////////////////////////////////////
-        config = new LocalSingleProcessServer(PREFIX + "-2part.jar", 2, BackendTarget.NATIVE_EE_JNI);
-        success = config.compile(project);
-        assert(success);
-        builder.addServerConfig(config);
+//        config = new LocalSingleProcessServer(PREFIX + "-2part.jar", 2, BackendTarget.NATIVE_EE_JNI);
+//        success = config.compile(project);
+//        assert(success);
+//        builder.addServerConfig(config);
 
         ////////////////////////////////////////////////////////////
         // CONFIG #3: cluster of 2 nodes running 2 site each, one replica
