@@ -4326,6 +4326,13 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 // Check to see if there were any conflicts with the dtxn and any of its speculative
                 // txns at this partition. If there were, then we know that we can't commit the txn here.
                 for (LocalTransaction spec_ts : this.specExecBlocked) {
+                    // Check whether we can quickly ignore this speculative txn because
+                    // it was executed at a stall point where conflicts don't matter.
+                    SpeculationType specType = spec_ts.getSpeculationType();
+                    if (specType != SpeculationType.SP2_REMOTE_AFTER && specType != SpeculationType.SP1_LOCAL) {
+                        continue;
+                    }
+                    
                     if (debug.val)
                         LOG.debug(String.format("%s - Checking for conflicts with speculative %s at partition %d [%s]",
                                   ts, spec_ts, this.partitionId,
