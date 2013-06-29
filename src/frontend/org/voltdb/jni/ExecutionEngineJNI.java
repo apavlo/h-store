@@ -21,6 +21,8 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 
 import org.apache.log4j.Logger;
 import org.voltdb.DependencyPair;
@@ -87,6 +89,11 @@ public class ExecutionEngineJNI extends ExecutionEngine {
     private final BBContainer exceptionBufferOrigin = org.voltdb.utils.DBBPool.allocateDirect(1024 * 1024 * 20);
     private ByteBuffer exceptionBuffer = exceptionBufferOrigin.b;
 
+    /**
+     * Java cache for read/write tracking sets
+     */
+    private Map<Long, VoltTable[]> trackingCache;
+    
     /**
      * initialize the native Engine object.
      */
@@ -230,6 +237,10 @@ public class ExecutionEngineJNI extends ExecutionEngine {
       throws EEException
     {
         if (trace.val) LOG.trace("Executing planfragment:" + planFragmentId + ", params=" + parameterSet.toString());
+        
+        if (this.trackingCache != null) {
+            this.trackingResetCacheEntry(txnId);
+        }
 
         // serialize the param set
         fsForParameterSet.clear();
@@ -274,6 +285,10 @@ public class ExecutionEngineJNI extends ExecutionEngine {
             final int inputDepId, final long txnId, final long lastCommittedTxnId,
             final long undoQuantumToken) throws EEException
     {
+        if (this.trackingCache != null) {
+            this.trackingResetCacheEntry(txnId);
+        }
+        
         fsForParameterSet.clear();
         deserializer.clear();
         //C++ JSON deserializer is not thread safe, must synchronize
@@ -329,6 +344,10 @@ public class ExecutionEngineJNI extends ExecutionEngine {
         if (batchSize == 0) {
             LOG.warn("No fragments to execute. Returning empty DependencySet");
             return (new DependencySet(new int[0], HStoreConstants.EMPTY_RESULT));
+        }
+        
+        if (this.trackingCache != null) {
+            this.trackingResetCacheEntry(txnId);
         }
 
         // serialize the param sets
@@ -647,6 +666,7 @@ public class ExecutionEngineJNI extends ExecutionEngine {
         if (debug.val)
             LOG.debug(String.format("Deleting read/write set tracker for txn #%d at partition %d",
                       txnId, this.executor.getPartitionId()));
+        this.trackingRemoveCacheEntry(txnId);
         final int errorCode = nativeTrackingFinish(this.pointer, txnId.longValue());
         checkErrorCode(errorCode);
     }
@@ -656,6 +676,11 @@ public class ExecutionEngineJNI extends ExecutionEngine {
         if (debug.val)
             LOG.debug(String.format("Get READ tracking set for txn #%d at partition %d",
                       txnId, this.executor.getPartitionId()));
+        
+        // Always check our cache first
+        VoltTable cache[] = this.trackingGetCacheEntry(txnId);
+        if (cache[0] != null) return (cache[0]);
+        
         deserializer.clear();
         final int errorCode = nativeTrackingReadSet(this.pointer, txnId.longValue());
         if (errorCode == ERRORCODE_NO_DATA) {
@@ -668,7 +693,8 @@ public class ExecutionEngineJNI extends ExecutionEngine {
         try {
             deserializer.readInt();//Ignore the length of the result tables
             final VoltTable resultTable = PrivateVoltTableFactory.createUninitializedVoltTable();
-            return (VoltTable)deserializer.readObject(resultTable, this);
+            cache[0] = (VoltTable)deserializer.readObject(resultTable, this);
+            return (cache[0]);
         } catch (final IOException ex) {
             LOG.error("Failed to deserialze result table for getStats" + ex);
             throw new EEException(ERRORCODE_WRONG_SERIALIZED_BYTES);
@@ -680,6 +706,11 @@ public class ExecutionEngineJNI extends ExecutionEngine {
         if (debug.val)
             LOG.debug(String.format("Get WRITE tracking set for txn #%d at partition %d",
                       txnId, this.executor.getPartitionId()));
+        
+        // Always check our cache first
+        VoltTable cache[] = this.trackingGetCacheEntry(txnId);
+        if (cache[1] != null) return (cache[1]);
+        
         deserializer.clear();
         final int errorCode = nativeTrackingWriteSet(this.pointer, txnId.longValue());
         if (errorCode == ERRORCODE_NO_DATA) {
@@ -692,12 +723,40 @@ public class ExecutionEngineJNI extends ExecutionEngine {
         try {
             deserializer.readInt();//Ignore the length of the result tables
             final VoltTable resultTable = PrivateVoltTableFactory.createUninitializedVoltTable();
-            return (VoltTable)deserializer.readObject(resultTable, this);
+            cache[1] = (VoltTable)deserializer.readObject(resultTable, this);
+            return (cache[1]);
         } catch (final IOException ex) {
             LOG.error("Failed to deserialze result table for getStats" + ex);
             throw new EEException(ERRORCODE_WRONG_SERIALIZED_BYTES);
         }
     }
+    
+    private final void trackingRemoveCacheEntry(Long txnId) {
+        if (this.trackingCache != null) {
+            this.trackingCache.remove(txnId);
+        }
+    }
+    
+    private final void trackingResetCacheEntry(Long txnId) {
+        if (this.trackingCache != null) {
+            VoltTable ret[] = this.trackingGetCacheEntry(txnId);
+            ret[0] = null;
+            ret[1] = null;
+        }
+    }
+    
+    private final VoltTable[] trackingGetCacheEntry(Long txnId) {
+        if (this.trackingCache == null) {
+            this.trackingCache = new HashMap<Long, VoltTable[]>();
+        }
+        VoltTable ret[] = this.trackingCache.get(txnId);
+        if (ret == null) {
+            ret = new VoltTable[2];
+            this.trackingCache.put(txnId, ret);
+        }
+        return (ret);
+    }
+    
     
     // ----------------------------------------------------------------------------
     // ANTI-CACHING
