@@ -154,7 +154,7 @@ public class TestReadWriteTracking extends BaseTestCase {
         try {
             VoltTable result0 = this.ee.trackingReadSet(txnId);
             VoltTable result1 = this.ee.trackingReadSet(txnId);
-        assert(result0 == result1);
+            assert(result0 == result1);
         } finally {
             this.finishTxn(voltProc);
         }
