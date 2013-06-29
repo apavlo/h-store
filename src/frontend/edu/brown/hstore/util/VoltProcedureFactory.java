@@ -58,8 +58,7 @@ public class VoltProcedureFactory extends TypedPoolableObjectFactory<VoltProcedu
             }
             volt_proc.init(this.executor,
                            this.catalog_proc,
-                           this.executor.getBackendTarget(),
-                           this.executor.getPartitionEstimator());
+                           this.executor.getBackendTarget());
         } catch (Exception e) {
             LOG.error("Failed to created VoltProcedure instance for " + catalog_proc.getName() , e);
             throw e;

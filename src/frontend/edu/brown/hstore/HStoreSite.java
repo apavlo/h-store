@@ -1016,12 +1016,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         return (this.local_partition_offsets[partition] != -1);
     }
     /**
-     * Returns true if the given PartitoinSet contains partitions that are all
-     * is managed by this HStoreSite
+     * Returns true if the given PartitionSite contains partitions that are
+     * all managed by this HStoreSite.
      * @param partitions
      * @return
      */
-    public boolean isLocalPartitions(PartitionSet partitions) {
+    public boolean allLocalPartitions(PartitionSet partitions) {
         for (int p : partitions.values()) {
             if (this.local_partition_offsets[p] == -1) {
                 return (false);
