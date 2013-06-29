@@ -55,7 +55,7 @@ public enum TransactionCounter {
     ABORT_GRACEFUL,
     /** The number of transactions that were aborted while being speculatively executed */
     ABORT_SPECULATIVE,
-    /** The number of transactions that were speculative and had to be restarted */
+    /** The number of transactions that had to be restarted (non-speculative txns) */
     RESTARTED,
     /** The number of transactions that were aborted because they tried to access evicted data */
     EVICTEDACCESS,
@@ -144,6 +144,7 @@ public enum TransactionCounter {
             case ABORTED:
             case ABORT_UNEXPECTED:
             case ABORT_GRACEFUL:
+            case ABORT_SPECULATIVE:
             case RESTARTED:
             case MISPREDICTED:
                 total = EXECUTED.get() - SYSPROCS.get();

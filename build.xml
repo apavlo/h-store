@@ -1050,9 +1050,6 @@ TEST CASES
                 <exclude name="**/TestWikipediaLoader.class" />
 <!--                 <exclude name="**/TestAntiCache*.class" /> -->
                 
-                <!-- Tests that use too much memory -->
-                <exclude name='edu/brown/benchmark/seats/TestSEATSSuite.class'/>
-                
                 <!-- Misc VoltDB stuff -->
                 <exclude name='org/voltdb/TestHSQLBackend*'/>
                 <exclude name="**/*$*.class"/>
@@ -1137,7 +1134,6 @@ TEST CASES
 <!--                 <exclude name="**/TestAntiCache*.class" /> -->
 
                 <!-- Tests that use too much memory -->
-                <exclude name='edu/brown/benchmark/seats/TestSEATSSuite.class'/>
                 <exclude name='edu/brown/benchmark/tpce/*'/>
             </fileset>
         </tests>
