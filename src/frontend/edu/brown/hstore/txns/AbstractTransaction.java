@@ -52,7 +52,6 @@ import edu.brown.hstore.estimators.Estimate;
 import edu.brown.hstore.estimators.EstimatorState;
 import edu.brown.hstore.internal.FinishTxnMessage;
 import edu.brown.hstore.internal.InitializeTxnMessage;
-import edu.brown.hstore.internal.PrepareTxnMessage;
 import edu.brown.hstore.internal.SetDistributedTxnMessage;
 import edu.brown.hstore.internal.WorkFragmentMessage;
 import edu.brown.interfaces.DebugContext;
@@ -145,8 +144,6 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
     private final InitializeTxnMessage init_task;
     
     private SetDistributedTxnMessage setdtxn_task;
-    
-    private PrepareTxnMessage prepare_task;
     
     private FinishTxnMessage finish_task;
     
@@ -731,13 +728,15 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
         return (this.pending_error != null);
     }
     /**
-     * Return the pending error for this transaction
-     * Does not clear it.
-     * @return
+     * Return the pending error for this transaction.
+     * This does not clear it.
      */
     public final SerializableException getPendingError() {
         return (this.pending_error);
     }
+    /**
+     * Return the message for the pending error of this transaction.
+     */
     public final String getPendingErrorMessage() {
         return (this.pending_error != null ? this.pending_error.getMessage() : null);
     }
@@ -770,12 +769,6 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
             this.setdtxn_task = new SetDistributedTxnMessage(this);
         }
         return (this.setdtxn_task);
-    }
-    public final PrepareTxnMessage getPrepareTxnMessage() {
-        if (this.prepare_task == null) {
-            this.prepare_task = new PrepareTxnMessage(this);
-        }
-        return (this.prepare_task);
     }
     public final FinishTxnMessage getFinishTxnMessage(Status status) {
         if (this.finish_task == null) {
