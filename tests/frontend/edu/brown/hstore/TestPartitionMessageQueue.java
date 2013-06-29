@@ -1,22 +1,14 @@
 package edu.brown.hstore;
 
-import java.nio.ByteBuffer;
-
-import org.voltdb.ClientResponseImpl;
-import org.voltdb.ParameterSet;
 import org.voltdb.catalog.Procedure;
-
-import com.google.protobuf.RpcCallback;
 
 import edu.brown.BaseTestCase;
 import edu.brown.benchmark.tm1.procedures.UpdateLocation;
-import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.conf.HStoreConf;
-import edu.brown.hstore.internal.FinishTxnMessage;
-import edu.brown.hstore.internal.InitializeRequestMessage;
 import edu.brown.hstore.internal.InternalMessage;
 import edu.brown.hstore.internal.StartTxnMessage;
+import edu.brown.hstore.internal.UtilityWorkMessage;
 import edu.brown.hstore.internal.WorkFragmentMessage;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.utils.PartitionSet;
@@ -34,16 +26,11 @@ public class TestPartitionMessageQueue extends BaseTestCase {
     private LocalTransaction ts0;
     private LocalTransaction ts1;
 
-    private final ByteBuffer mockSerialized = ByteBuffer.allocate(10);
-    private final ParameterSet mockParams = new ParameterSet(123); 
-    private final RpcCallback<ClientResponseImpl> mockCallback = new RpcCallback<ClientResponseImpl>() {
-        public void run(ClientResponseImpl parameter) { }
-    };
     private final WorkFragment mockFragment = null;
     
-    private InitializeRequestMessage initRequestMsg;
     private StartTxnMessage startMsg;
     private WorkFragmentMessage workMsg;
+    private UtilityWorkMessage utilMsg;
     
     @Override
     protected void setUp() throws Exception {
@@ -60,7 +47,7 @@ public class TestPartitionMessageQueue extends BaseTestCase {
         this.ts1.testInit(NEXT_TXN_ID++, BASE_PARTITION, null, new PartitionSet(BASE_PARTITION), catalog_proc);
         
         // Initialize some messages that we can use
-        this.initRequestMsg = new InitializeRequestMessage(mockSerialized, System.currentTimeMillis(), catalog_proc, mockParams, mockCallback);
+        this.utilMsg = new UtilityWorkMessage();
         this.startMsg = new StartTxnMessage(ts1);
         this.workMsg = new WorkFragmentMessage(ts1, mockFragment);
     }
@@ -107,7 +94,7 @@ public class TestPartitionMessageQueue extends BaseTestCase {
      * testWorkBeforeOthers
      */
     public void testWorkBeforeOthers() throws Exception {
-        InternalMessage messages[] = { initRequestMsg, startMsg };
+        InternalMessage messages[] = { utilMsg, startMsg };
         this.checkOutputOrder(workMsg, messages);
     }
     
