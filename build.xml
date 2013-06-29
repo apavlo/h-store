@@ -826,6 +826,11 @@ NATIVE EE STUFF
 
 <target name="eecheck" depends="ee, eecheck-build"
     description="Build and execute testcases for C++ JNI library.">
+    <exec dir='.' executable='python' failonerror='true'>
+        <env key='M1CATALOG_PATH' value='${m1catalog}' />
+        <env key="TEST_DIR" value="${build.testobjects.dir}" />
+        <arg line="build.py ${build} test" />
+    </exec>
 </target>
 
 <target name="eecheck-build"
@@ -833,7 +838,7 @@ NATIVE EE STUFF
     <exec dir='.' executable='python' failonerror='true'>
         <env key='M1CATALOG_PATH' value='${m1catalog}' />
         <env key="TEST_DIR" value="${build.testobjects.dir}" />
-        <arg line="build.py ${build} test" />
+        <arg line="build.py ${build} LOG_LEVEL=${site.exec_ee_log_level} buildtest" />
     </exec>
 </target>
 

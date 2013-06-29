@@ -68,6 +68,7 @@ if CTX.COVERAGE:
 # Override the default log level if they gave us one
 if CTX.VOLT_LOG_LEVEL != None: volt_log_level = CTX.VOLT_LOG_LEVEL
 CTX.EXTRAFLAGS += " -DVOLT_LOG_LEVEL=%d" % volt_log_level
+CTX.TEST_EXTRAFLAGS += " -DVOLT_LOG_LEVEL=%d" % volt_log_level
 
 CTX.OUTPUT_PREFIX += "/"
 
@@ -105,11 +106,11 @@ CTX.SYSTEM_DIRS = [
 
 # extra flags that will get added to building test source
 if CTX.LEVEL == "MEMCHECK":
-    CTX.TEST_EXTRAFLAGS = """ -g3 -DDEBUG -DMEMCHECK"""
+    CTX.TEST_EXTRAFLAGS += """ -g3 -DDEBUG -DMEMCHECK"""
 elif CTX.LEVEL == "MEMCHECK_NOFREELIST":
-    CTX.TEST_EXTRAFLAGS = """ -g3 -DDEBUG -DMEMCHECK -DMEMCHECK_NOFREELIST"""
+    CTX.TEST_EXTRAFLAGS += """ -g3 -DDEBUG -DMEMCHECK -DMEMCHECK_NOFREELIST"""
 else:
-    CTX.TEST_EXTRAFLAGS = """ -g3 -DDEBUG """
+    CTX.TEST_EXTRAFLAGS += """ -g3 -DDEBUG """
 
 # don't worry about checking for changes in header files in the following
 #  directories
@@ -433,7 +434,9 @@ if retval != 0:
 ###############################################################################
 
 retval = 0
-if CTX.TARGET == "TEST":
+if CTX.TARGET == "BUILDTEST":
+    retval = buildTests(CTX)
+elif CTX.TARGET == "TEST":
     retval = runTests(CTX)
 elif CTX.TARGET == "VOLTDBIPC":
     retval = buildIPC(CTX)
