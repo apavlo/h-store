@@ -96,7 +96,14 @@ public class DistributedState implements Poolable {
     
     public DistributedState init(LocalTransaction ts) {
         this.ts = ts;
-        for (int partition : ts.getPredictTouchedPartitions().values()) {
+        
+        // Initialize the prepare callback.
+        // We have to do this in order to support early 2PC prepares
+        PartitionSet partitions = ts.getPredictTouchedPartitions();
+        this.prepare_callback.init(this.ts, partitions);
+        
+        // Compute whether all of the partitions for this txn are at the same local site
+        for (int partition : partitions.values()) {
             if (ts.hstore_site.isLocalPartition(partition) == false) {
                 this.is_all_local = false;
                 break;

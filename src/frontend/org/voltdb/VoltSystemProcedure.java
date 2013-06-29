@@ -25,7 +25,6 @@ import java.util.Map;
 
 import org.apache.log4j.Logger;
 import org.voltdb.VoltTable.ColumnInfo;
-import org.voltdb.catalog.Cluster;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Procedure;
@@ -75,28 +74,17 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
     
     protected CatalogContext catalogContext;
     
-    @Deprecated
-    protected Database database = null;
-    @Deprecated
-    protected Cluster cluster = null;
-    @Deprecated
-    protected int num_partitions;
-    
     protected final List<WorkFragment.Builder> fragments = new ArrayList<WorkFragment.Builder>();
 
     public abstract void initImpl();
     
     @Override
-    public final void globalInit(PartitionExecutor executor,
-                                 Procedure catalog_proc,
-                                 BackendTarget eeType,
-                                 HsqlBackend hsql,
-                                 PartitionEstimator pEstimator) {
-        super.globalInit(executor, catalog_proc, eeType, hsql, pEstimator);
+    public final void init(PartitionExecutor executor,
+                           Procedure catalog_proc,
+                           BackendTarget eeType,
+                           PartitionEstimator pEstimator) {
+        super.init(executor, catalog_proc, eeType, pEstimator);
         this.catalogContext = executor.getCatalogContext();
-        this.database = CatalogUtil.getDatabase(catalog_proc);
-        this.cluster = CatalogUtil.getCluster(this.database);
-        this.num_partitions = this.catalogContext.numberOfPartitions;
         this.initImpl();
     }
 
@@ -288,7 +276,7 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
 
             if (debug.val)
                 LOG.debug(String.format("%s - Creating PlanFragment #%d for %s on %s",
-                          this.m_localTxnState, distributeId, catalog_part, catalog_site));
+                          this.localTxnState, distributeId, catalog_part, catalog_site));
             pfs[i] = new SynthesizedPlanFragment();
             pfs[i].fragmentId = distributeId;
             pfs[i].inputDependencyIds = new int[] { };
