@@ -4577,12 +4577,11 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                     allTxns.addAll(this.specExecBlocked);
                     allTxns.add(ts);
                     
+                    // Go through once and figure out which txns we need to abort
+                    // We have to do this first because if we abort our dtxn then we
+                    // could lose its read/write tracking set if we're using OCC
                     for (AbstractTransaction next : allTxns) {
-                        // If this is the dtxn, then we need to abort it right here
-                        if (ts == next) {
-                            this.finishTransaction(ts, status);
-                            continue;
-                        }
+                        if (ts == next) continue;
                         // Otherwise it's as speculative txn. Let's figure out what we need to
                         // do with it.
                         LocalTransaction spec_ts = (LocalTransaction)next;
@@ -4622,29 +4621,35 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                                           spec_ts, ts, this.partitionId));
                             shouldCommit = true;
                         }
-                        
-                        // Commit this mofo!
-                        if (shouldCommit) {
-                            ClientResponseImpl spec_cr = spec_ts.getClientResponse();
-                            if (debug.val)
-                                LOG.debug(String.format("%s - Releasing blocked ClientResponse for %s [status=%s]",
-                                          ts, spec_ts, spec_cr.getStatus()));
-                            try {
-                                this.processClientResponse(spec_ts, spec_cr);
-                            } catch (Throwable ex) {
-                                String msg = "Failed to complete queued response for " + spec_ts;
-                                throw new ServerFaultException(msg, ex, ts.getTransactionId());
-                            }
-                            
-                        }
-                        // Otherwise restart that hot mess!
-                        else {
+                        if (shouldCommit == false) {
                             ClientResponseImpl spec_cr = spec_ts.getClientResponse();
                             MispredictionException error = new MispredictionException(spec_ts.getTransactionId(),
                                                                                       spec_ts.getTouchedPartitions());
                             spec_ts.setPendingError(error, false);
                             spec_cr.setStatus(Status.ABORT_SPECULATIVE);
+                        }
+                        
+                    } // FOR
+                    
+                    // Go back through our boys again, this time we will actually 
+                    // process them.
+                    for (AbstractTransaction next : allTxns) {
+                        // If this is the dtxn, then we need to abort it right here
+                        if (ts == next) {
+                            this.finishTransaction(ts, status);
+                            continue;
+                        }
+                        
+                        LocalTransaction spec_ts = (LocalTransaction)next;
+                        ClientResponseImpl spec_cr = spec_ts.getClientResponse();
+                        if (debug.val)
+                            LOG.debug(String.format("%s - Releasing blocked ClientResponse for %s [status=%s]",
+                                      ts, spec_ts, spec_cr.getStatus()));
+                        try {
                             this.processClientResponse(spec_ts, spec_cr);
+                        } catch (Throwable ex) {
+                            String msg = "Failed to complete queued response for " + spec_ts;
+                            throw new ServerFaultException(msg, ex, ts.getTransactionId());
                         }
                     } // FOR
 
