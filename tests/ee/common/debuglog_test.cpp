@@ -51,7 +51,9 @@
 
 #include "harness.h"
 
+#ifndef VOLT_LOG_LEVEL
 #define VOLT_LOG_LEVEL 200 //test DEBUG level
+#endif
 #include "common/debuglog.h"
 
 using namespace std;
