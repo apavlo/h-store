@@ -4424,11 +4424,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             this.finishWorkEE(ts, undoToken, commit);
         }
         
-        // Clear out the tracking sets in the EE
-        if (hstore_conf.site.exec_readwrite_tracking && ts.hasExecutedWork(this.partitionId)) {
-            this.ee.trackingFinish(ts.getTransactionId());
-        }
-        
         // We always need to do the following things regardless if we hit up the EE or not
         if (commit) this.lastCommittedTxnId = ts.getTransactionId();
         
@@ -4440,7 +4435,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         if (debug.val)
             LOG.debug(String.format("%s - Successfully %sed transaction at partition %d",
                       ts, (commit ? "committ" : "abort"), this.partitionId));
-        ts.markFinished(this.partitionId);
+        this.markTransactionFinished(ts);
     }
     
     /**
@@ -4704,7 +4699,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                     
                     // Make sure that we mark the dtxn as finished so that we don't
                     // try to do anything with it later on.
-                    ts.markFinished(this.partitionId);
+                    this.markTransactionFinished(ts);
                 
                     // Now make sure that all of the speculative txns are processed without 
                     // committing (since we just committed any change that they could have made
@@ -4713,7 +4708,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                     while ((spec_ts = this.specExecBlocked.pollFirst()) != null) {
                         ClientResponseImpl spec_cr = spec_ts.getClientResponse();
                         assert(spec_cr != null);
-                        spec_ts.markFinished(this.partitionId);
+                        this.markTransactionFinished(spec_ts);
                         try {
                             if (trace.val)
                                 LOG.trace(String.format("%s - Releasing blocked ClientResponse for %s [status=%s]",
@@ -4807,6 +4802,18 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         }
     }
     
+    /**
+     * Mark a transaction as being finished at this partition and clear out
+     * any internal tracking stuff that we may have down in the EE.
+     * @param ts
+     */
+    private void markTransactionFinished(AbstractTransaction ts) {
+        if (hstore_conf.site.exec_readwrite_tracking && ts.hasExecutedWork(this.partitionId)) {
+            this.ee.trackingFinish(ts.getTransactionId());
+        }
+        ts.markFinished(this.partitionId);
+    }
+    
     private void processClientResponseBatch(Collection<LocalTransaction> batch, Status status) {
         // Only processs the last txn in the list, since it will have the
         // the greatest undo token value.
@@ -4818,7 +4825,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         for (LocalTransaction ts : batch) {
             // Marking the txn as finished will prevent us from going down
             // into the EE to finish up the transaction.
-            ts.markFinished(this.partitionId);
+            this.markTransactionFinished(ts);
             
             // Send out the ClientResponse to whomever wants it!
             if (debug.val)
