@@ -56,6 +56,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Queue;
+import java.util.TreeSet;
 import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Semaphore;
@@ -159,6 +160,7 @@ import edu.brown.hstore.util.ArrayCache.IntArrayCache;
 import edu.brown.hstore.util.ArrayCache.LongArrayCache;
 import edu.brown.hstore.util.ParameterSetArrayCache;
 import edu.brown.hstore.util.TransactionCounter;
+import edu.brown.hstore.util.TransactionUndoTokenComparator;
 import edu.brown.hstore.util.TransactionWorkRequestBuilder;
 import edu.brown.interfaces.Configurable;
 import edu.brown.interfaces.DebugContext;
@@ -397,6 +399,11 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
      * Any transaction in this list should have its ClientResponse member set.
      */
     private final LinkedList<LocalTransaction> specExecBlocked = new LinkedList<LocalTransaction>();
+    
+    /**
+     * Special comparator that will sort txns in the order according to their undo tokens.
+     */
+    private final TransactionUndoTokenComparator specExecComparator;
     
     /**
      * If this flag is set to true, that means some txn has modified the database
@@ -657,6 +664,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         this.hsql = null;
         this.specExecChecker = null;
         this.specExecScheduler = null;
+        this.specExecComparator = null;
         this.p_estimator = null;
         this.localTxnEstimator = null;
         this.m_snapshotter = null;
@@ -697,6 +705,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         this.lastUndoToken = this.partitionId * 1000000;
         this.p_estimator = p_estimator;
         this.localTxnEstimator = t_estimator;
+        this.specExecComparator = new TransactionUndoTokenComparator(this.partitionId);
         
         // VoltProcedure Queues
         @SuppressWarnings("unchecked")
@@ -4557,23 +4566,21 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                         LOG.debug(String.format("%s - Looking for speculative txns to commit before we rollback undoToken %d",
                                   ts, dtxnUndoToken));
                     
-                    // Queue of speculative txns that should be committed either 
+                    // Queue of speculative txns that should be committed/aborted either 
                     // *before* or *after* we abort the distributed transaction
-                    @SuppressWarnings("unchecked")
-                    final Queue<LocalTransaction> txnsToCommit[] = (Queue<LocalTransaction>[])new Queue<?>[]{
-                        new LinkedList<LocalTransaction>(),
-                        new LinkedList<LocalTransaction>()
-                    };
-                    long max_tokens[] = {
-                        HStoreConstants.NULL_UNDO_LOGGING_TOKEN,
-                        HStoreConstants.NULL_UNDO_LOGGING_TOKEN
-                    };
-                    LocalTransaction max_txns[] = { null, null };
+                    Collection<AbstractTransaction> allTxns = new TreeSet<AbstractTransaction>(this.specExecComparator);
+                    allTxns.addAll(this.specExecBlocked);
+                    allTxns.add(ts);
                     
-                    // Queue of speculative txns that need to be aborted + restarted
-                    final Queue<LocalTransaction> txnsToRestart = new LinkedList<LocalTransaction>();
-                    
-                    for (LocalTransaction spec_ts : this.specExecBlocked) {
+                    for (AbstractTransaction next : allTxns) {
+                        // If this is the dtxn, then we need to abort it right here
+                        if (ts == next) {
+                            this.finishTransaction(ts, status);
+                            continue;
+                        }
+                        // Otherwise it's as speculative txn. Let's figure out what we need to
+                        // do with it.
+                        LocalTransaction spec_ts = (LocalTransaction)next;
                         boolean shouldCommit = false;
                         long spec_token = spec_ts.getFirstUndoToken(this.partitionId);
                         if (debug.val)
@@ -4582,7 +4589,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                         
                         // Speculative txns should never be executed without an undo token
                         assert(spec_token != HStoreConstants.DISABLE_UNDO_LOGGING_TOKEN);
-                        assert(spec_ts.isSpeculative()) : spec_ts + " isn't marked as speculative!";
+                        assert(spec_ts.isSpeculative()) : spec_ts + " is not marked as speculative!";
                         
                         // If the speculative undoToken is null, then this txn didn't execute
                         // any queries. That means we can always commit it
@@ -4611,83 +4618,31 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                             shouldCommit = true;
                         }
                         
-                        // If we need to commit this txn, then we need to check whether
-                        // it has an undo token that is greater than any other token we've seen
-                        // for the other specexec txns.
+                        // Commit this mofo!
                         if (shouldCommit) {
-                            if (spec_token == HStoreConstants.NULL_UNDO_LOGGING_TOKEN) {
-                                txnsToCommit[0].add(spec_ts);
-                            }
-                            else {
-                                int idx = (spec_token < dtxnUndoToken ? 0 : 1);
-                                txnsToCommit[idx].add(spec_ts);
-                                if (spec_token > max_tokens[idx]) {
-                                    max_tokens[idx] = spec_token;
-                                    max_txns[idx] = spec_ts;
-                                }
-                            }
-                        }
-                        else {
-                            txnsToRestart.add(spec_ts);
-                        }
-                    } // FOR
-                    if (debug.val) {
-                        LOG.debug(String.format("%s - Found %d speculative txns at partition %d that need to be " +
-                                  "committed *before* we abort this txn",
-                                  ts, txnsToCommit[0].size(), this.partitionId));
-                        LOG.debug(String.format("%s - Found %d speculative txns at partition %d that need to be " +
-                                  "committed *after* we abort this txn",
-                                  ts, txnsToCommit[1].size(), this.partitionId));
-                    }
-    
-                    for (int i = 0; i < max_txns.length; i++) {
-                        // (1) Commit the txn with the greatest undo token that we saw in all of the
-                        //     queued specexec txns. This allows all the other txns that we want to 
-                        //     commit right now to be safely processed without needing to go down to the EE.
-                        if (max_tokens[i] != HStoreConstants.NULL_UNDO_LOGGING_TOKEN) {
-                            assert(max_txns[i] != null);
-                            this.finishWorkEE(max_txns[i], max_tokens[i], true);
-                        }
-                    
-                        // (2) Process the ClientResponses for all of the txns that will commit
-                        LocalTransaction spec_ts = null;
-                        while ((spec_ts = txnsToCommit[i].poll()) != null) {
                             ClientResponseImpl spec_cr = spec_ts.getClientResponse();
-                            spec_ts.markFinished(this.partitionId);
-                            
+                            if (debug.val)
+                                LOG.debug(String.format("%s - Releasing blocked ClientResponse for %s [status=%s]",
+                                          ts, spec_ts, spec_cr.getStatus()));
                             try {
-                                if (debug.val)
-                                    LOG.debug(String.format("%s - Releasing blocked ClientResponse for %s [status=%s]",
-                                              ts, spec_ts, spec_cr.getStatus()));
                                 this.processClientResponse(spec_ts, spec_cr);
                             } catch (Throwable ex) {
                                 String msg = "Failed to complete queued response for " + spec_ts;
                                 throw new ServerFaultException(msg, ex, ts.getTransactionId());
                             }
-                        } // WHILE
-                    
-                        // (3) Abort the distributed txn
-                        if (i == 0) {
-                            try {
-                                this.finishTransaction(ts, status);
-                            } catch (AssertionError ex) {
-                                LOG.warn("MAX TOKEN: " + Arrays.toString(max_tokens));
-                                LOG.warn("MAX TXN: " + Arrays.toString(max_txns));
-                                throw ex;
-                            }
+                            
+                        }
+                        // Otherwise restart that hot mess!
+                        else {
+                            ClientResponseImpl spec_cr = spec_ts.getClientResponse();
+                            MispredictionException error = new MispredictionException(spec_ts.getTransactionId(),
+                                                                                      spec_ts.getTouchedPartitions());
+                            spec_ts.setPendingError(error, false);
+                            spec_cr.setStatus(Status.ABORT_SPECULATIVE);
+                            this.processClientResponse(spec_ts, spec_cr);
                         }
                     } // FOR
-                    
-                    // (4) Restart all the other txns
-                    LocalTransaction spec_ts = null;
-                    while ((spec_ts = txnsToRestart.poll()) != null) {
-                        ClientResponseImpl spec_cr = spec_ts.getClientResponse();
-                        MispredictionException error = new MispredictionException(spec_ts.getTransactionId(),
-                                                                                  spec_ts.getTouchedPartitions());
-                        spec_ts.setPendingError(error, false);
-                        spec_cr.setStatus(Status.ABORT_SPECULATIVE);
-                        this.processClientResponse(spec_ts, spec_cr);
-                    } // FOR
+
                 }
                 // -------------------------------
                 // DTXN READ-ONLY ABORT or DTXN COMMIT
