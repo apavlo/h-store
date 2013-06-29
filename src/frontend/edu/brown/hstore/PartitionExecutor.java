@@ -4591,12 +4591,19 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                     Collection<AbstractTransaction> allTxns = new TreeSet<AbstractTransaction>(this.specExecComparator);
                     allTxns.addAll(this.specExecBlocked);
                     allTxns.add(ts);
+                    final List<LocalTransaction> toCommit = new ArrayList<LocalTransaction>();
+                    final LinkedList<LocalTransaction> toAbortBefore = new LinkedList<LocalTransaction>();
+                    final LinkedList<LocalTransaction> toAbortAfter = new LinkedList<LocalTransaction>();
                     
                     // Go through once and figure out which txns we need to abort
                     // We have to do this first because if we abort our dtxn then we
                     // could lose its read/write tracking set if we're using OCC
+                    boolean useAfterQueue = true;
                     for (AbstractTransaction next : allTxns) {
-                        if (ts == next) continue;
+                        if (ts == next) {
+                            useAfterQueue = false;
+                            continue;
+                        }
                         // Otherwise it's as speculative txn.
                         // Let's figure out what we need to do with it.
                         LocalTransaction spec_ts = (LocalTransaction)next;
@@ -4636,54 +4643,31 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                                           spec_ts, ts, this.partitionId));
                             shouldCommit = true;
                         }
-                        if (shouldCommit == false) {
+                        if (useAfterQueue == false || shouldCommit == false) {
                             ClientResponseImpl spec_cr = spec_ts.getClientResponse();
                             MispredictionException error = new MispredictionException(spec_ts.getTransactionId(),
                                                                                       spec_ts.getTouchedPartitions());
                             spec_ts.setPendingError(error, false);
                             spec_cr.setStatus(Status.ABORT_SPECULATIVE);
+                            (useAfterQueue ? toAbortAfter : toAbortBefore).addFirst(spec_ts);
+                        } else {
+                            toCommit.add(spec_ts);
                         }
                         
                     } // FOR
                     
-                    // Go back through our boys again.
-                    // This time we will actually process them.
-                    Status lastStatus = null;
-                    final List<LocalTransaction> batch = new ArrayList<LocalTransaction>();
-                    for (AbstractTransaction next : allTxns) {
-                        // If this is the dtxn, then we need to abort it right here
-                        if (ts == next) {
-                            // Flush current batch if they're suppose to commit
-                            if (lastStatus == Status.OK) {
-                                assert(batch.isEmpty() == false);
-                                this.processClientResponseBatch(batch, lastStatus);
-                                batch.clear();
-                            }
-                            // This will rollback the undo the dtxn's log 
-                            this.finishTransaction(ts, status);
-                            continue;
-                        }
-                        
-                        LocalTransaction spec_ts = (LocalTransaction)next;
-                        ClientResponseImpl spec_cr = spec_ts.getClientResponse();
-                        Status spec_status = spec_cr.getStatus();
-                        
-                        // If we reached a new txn that doesn't match our current batch
-                        // status, then we need to flush out the batch.
-                        if (lastStatus != null && spec_status != lastStatus) {
-                            this.processClientResponseBatch(batch, lastStatus);
-                            batch.clear();
-                        }
-                        
-                        // Add it to our batch
-                        batch.add(spec_ts);
-                        lastStatus = spec_status;
-                    } // FOR
-                    if (batch.isEmpty() == false) {
-                        assert(lastStatus != null);
-                        this.processClientResponseBatch(batch, lastStatus);
-                    }
-
+                    // (1) Process all of the aborting txns that need to come *before* 
+                    //     we abort the dtxn
+                    this.processClientResponseBatch(toAbortBefore, Status.ABORT_SPECULATIVE);
+                    
+                    // (2) Now abort the dtxn
+                    this.finishTransaction(ts, status);
+                    
+                    // (3) Then abort all of the txn that need to come *after* we abort the dtxn
+                    this.processClientResponseBatch(toAbortAfter, Status.ABORT_SPECULATIVE);
+                    
+                    // (4) Then blast out all of the txns that we want to commit
+                    this.processClientResponseBatch(toCommit, Status.OK);
                 }
                 // -------------------------------
                 // DTXN READ-ONLY ABORT or DTXN COMMIT
