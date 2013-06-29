@@ -80,7 +80,7 @@ public class EvictHistory extends VoltSystemProcedure {
                 result = new DependencySet(DISTRIBUTE_ID, vt);
                 if (debug.val)
                     LOG.info(String.format("%s - Sending back result for partition %d",
-                             localTxnState, this.executor.getPartitionId()));
+                             hstore_site.getTransaction(txn_id), this.executor.getPartitionId()));
                 break;
             }
             // Aggregate Results

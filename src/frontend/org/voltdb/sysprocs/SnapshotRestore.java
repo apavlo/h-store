@@ -57,6 +57,7 @@ import org.voltdb.sysprocs.saverestore.TableSaveFileState;
 import org.voltdb.utils.DBBPool.BBContainer;
 
 import edu.brown.hstore.PartitionExecutor.SystemProcedureExecutionContext;
+import edu.brown.hstore.txns.AbstractTransaction;
 
 @ProcInfo (
     singlePartition = false
@@ -166,6 +167,7 @@ public class SnapshotRestore extends VoltSystemProcedure
                         ParameterSet params,
                         final SystemProcedureExecutionContext context)
     {
+        AbstractTransaction ts = hstore_site.getTransaction(txn_id);
         String hostname = ConnectionUtil.getHostnameOrAddress();
         if (fragmentId == SysProcFragmentId.PF_restoreScan)
         {
@@ -323,9 +325,10 @@ public class SnapshotRestore extends VoltSystemProcedure
                 }
                 try
                 {
-                    super.voltLoadTable(context.getCluster().getTypeName(),
-                                        context.getDatabase().getTypeName(),
-                                        table_name, table, allowExport);
+                    this.executor.loadTable(ts,
+                                            context.getCluster().getTypeName(),
+                                            context.getDatabase().getTypeName(),
+                                            table_name, table, allowExport);
                 }
                 catch (VoltAbortException e)
                 {
@@ -380,9 +383,10 @@ public class SnapshotRestore extends VoltSystemProcedure
             String error_msg = "";
             try
             {
-                super.voltLoadTable(context.getCluster().getTypeName(),
-                                    context.getDatabase().getTypeName(),
-                                    table_name, table, allowExport);
+                this.executor.loadTable(ts,
+                                        context.getCluster().getTypeName(),
+                                        context.getDatabase().getTypeName(),
+                                        table_name, table, allowExport);
             }
             catch (VoltAbortException e)
             {
@@ -498,9 +502,10 @@ public class SnapshotRestore extends VoltSystemProcedure
             String error_msg = "";
             try
             {
-                super.voltLoadTable(context.getCluster().getTypeName(),
-                                    context.getDatabase().getTypeName(),
-                                    table_name, table, allowExport);
+                this.executor.loadTable(ts,
+                                        context.getCluster().getTypeName(),
+                                        context.getDatabase().getTypeName(),
+                                        table_name, table, allowExport);
             }
             catch (VoltAbortException e)
             {

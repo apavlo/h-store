@@ -913,9 +913,21 @@ public class HStoreCoordinator implements Shutdownable {
             LOG.debug(String.format("Notifying partitions %s that %s is preparing to commit",
                       partitions, ts));
         
+        // Remove any partitions that we have notified previously *and* we have
+        // already gotten a response from.
+        PartitionSet receivedPartitions = callback.getReceivedPartitions(); 
+        if (receivedPartitions.isEmpty() == false) {
+            if (debug.val)
+                LOG.debug(String.format("Removed partitions %s from %s for %s [origPartitions=%s]",
+                          receivedPartitions, TransactionPrepareRequest.class.getSimpleName(),
+                          ts, partitions));
+            partitions = new PartitionSet(partitions);
+            partitions.removeAll(receivedPartitions);
+        }
+        
         // FAST PATH: If all of the partitions that this txn needs are on this
         // HStoreSite, then we don't need to bother with making this request
-        if (hstore_site.isLocalPartitions(partitions)) {
+        if (hstore_site.allLocalPartitions(partitions)) {
             hstore_site.transactionPrepare(ts, partitions);
         }
         // SLOW PATH: Since we have to go over the network, we have to use our trusty ol'

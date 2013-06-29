@@ -56,7 +56,6 @@ import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.PartitionExecutor;
 import edu.brown.hstore.conf.HStoreConf;
-import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.interfaces.DebugContext;
 import edu.brown.logging.LoggerUtil;
@@ -163,8 +162,8 @@ public abstract class VoltProcedure implements Poolable {
     // INVOCATION MEMBERS
     // ----------------------------------------------------------------------------
     
-//    protected AbstractTransaction localTxnState;  // assigned in call()
-    protected LocalTransaction localTxnState;  // assigned in call()
+//    protected AbstractTransaction txnState;  // assigned in call()
+    private LocalTransaction localTxnState;  // assigned in call()
     private int batchId = 0;
     private SQLStmt batchQueryStmts[];
     private int batchQueryStmtIndex = 0;
@@ -191,21 +190,12 @@ public abstract class VoltProcedure implements Poolable {
 
     /**
      * Allow VoltProcedures access to their transaction id.
+     * <B>NOTE:</B> This should only be used by code running at the txn's base partition.
+     * If you invoke it at a remote partition, you may get a null pointer.
      * @return transaction id
      */
     public Long getTransactionId() {
         return this.localTxnState.getTransactionId();
-    }
-
-    /**
-     * Allow sysprocs to update m_currentTxnState manually. User procedures are
-     * passed this state in call(); sysprocs have other entry points on
-     * non-coordinator sites.
-     */
-    public void setTransactionState(AbstractTransaction txnState) {
-        if (txnState instanceof LocalTransaction) {
-            this.localTxnState = (LocalTransaction)txnState;
-        }
     }
 
     /**
@@ -223,12 +213,10 @@ public abstract class VoltProcedure implements Poolable {
      * @param catalog_proc
      * @param eeType
      * @param hsql
-     * @param p_estimator
      */
     public void init(PartitionExecutor executor,
                      Procedure catalog_proc,
-                     BackendTarget eeType,
-                     PartitionEstimator p_estimator) {
+                     BackendTarget eeType) {
         if (m_initialized) {
             throw new IllegalStateException("VoltProcedure has already been initialized");
         } else {
@@ -332,14 +320,14 @@ public abstract class VoltProcedure implements Poolable {
                 }
             }
             
-            paramTypesLength = tempParamTypesLength;
-            procMethod = tempProcMethod;
-            paramTypes = tempParamTypes;
-            paramTypeIsPrimitive = tempParamTypeIsPrimitive;
-            paramTypeIsArray = tempParamTypeIsArray;
-            paramTypeComponentType = tempParamTypeComponentType;
+            this.paramTypesLength = tempParamTypesLength;
+            this.procMethod = tempProcMethod;
+            this.paramTypes = tempParamTypes;
+            this.paramTypeIsPrimitive = tempParamTypeIsPrimitive;
+            this.paramTypeIsArray = tempParamTypeIsArray;
+            this.paramTypeComponentType = tempParamTypeComponentType;
 
-            if (procMethod == null) {
+            if (this.procMethod == null) {
                 LOG.fatal("No good method found in: " + getClass().getName());
             }
 
@@ -442,8 +430,8 @@ public abstract class VoltProcedure implements Poolable {
     
     @Override
     public void finish() {
+//        this.txnState = null;
         this.localTxnState = null;
-//        this.localTxnState = null;
     }
     
     /**
@@ -492,7 +480,7 @@ public abstract class VoltProcedure implements Poolable {
      */
     public final ClientResponseImpl call(LocalTransaction txnState, Object... paramList) {
         ClientResponseImpl response = null;
-        this.localTxnState = txnState;
+//        this.txnState = txnState;
         this.localTxnState = txnState;
         this.procParams = paramList;
         this.results = HStoreConstants.EMPTY_RESULT;
@@ -512,8 +500,8 @@ public abstract class VoltProcedure implements Poolable {
             String msg = "PROCEDURE " + procedure_name + " EXPECTS " + String.valueOf(paramTypesLength) +
                          " PARAMS, BUT RECEIVED " + String.valueOf(this.procParams.length);
             if (debug.val) LOG.error(msg);
-            status = Status.ABORT_GRACEFUL;
-            status_msg = msg;
+            this.status = Status.ABORT_GRACEFUL;
+            this.status_msg = msg;
             response = new ClientResponseImpl(txnState.getTransactionId(),
                                               txnState.getClientHandle(),
                                               this.partitionId,
@@ -907,10 +895,10 @@ public abstract class VoltProcedure implements Poolable {
     public void voltLoadTable(String clusterName, String databaseName,
                               String tableName, VoltTable data, int allowELT) throws VoltAbortException {
         if (data == null || data.getRowCount() == 0) return;
-        assert(localTxnState != null);
         try {
-            assert(executor != null);
-            executor.loadTable(localTxnState, clusterName, databaseName, tableName, data, allowELT);
+            assert(this.localTxnState != null);
+            assert(this.executor != null);
+            this.executor.loadTable(this.localTxnState, clusterName, databaseName, tableName, data, allowELT);
         } catch (EEException e) {
             throw new VoltAbortException("Failed to load table: " + tableName);
         }
@@ -926,7 +914,7 @@ public abstract class VoltProcedure implements Poolable {
      * UTC (Universal Coordinated Time is like GMT).
      */
     public Date getTransactionTime() {
-        long ts = TransactionIdManager.getTimestampFromTransactionId(localTxnState.getTransactionId());
+        long ts = TransactionIdManager.getTimestampFromTransactionId(this.localTxnState.getTransactionId());
         return new Date(ts);
     }
 
@@ -938,7 +926,7 @@ public abstract class VoltProcedure implements Poolable {
      * @see <a href="#allowable_params">List of allowable parameter types</a>
      */
     public void voltQueueSQL(final SQLStmt stmt, Object... args) {
-        if (!isNative) {
+        if (!this.isNative) {
             //HSQLProcedureWrapper does nothing smart. it just implements this interface with runStatement()
             HsqlBackend hsql = this.executor.getHsqlBackend();
             VoltTable table = hsql.runSQLWithSubstitutions(stmt, args);
@@ -946,13 +934,13 @@ public abstract class VoltProcedure implements Poolable {
             return;
         }
 
-        if (batchQueryStmtIndex == batchQueryStmts.length) {
+        if (this.batchQueryStmtIndex == this.batchQueryStmts.length) {
             throw new RuntimeException("Procedure attempted to queue more than " + batchQueryStmts.length +
                     " statements in a batch.");
         } else {
-            batchQueryStmts[batchQueryStmtIndex] = stmt;
-            batchQueryArgs[batchQueryStmtIndex] = args;
-            batchQueryStmtIndex += 1;
+            this.batchQueryStmts[batchQueryStmtIndex] = stmt;
+            this.batchQueryArgs[batchQueryStmtIndex] = args;
+            this.batchQueryStmtIndex += 1;
         }
         if (trace.val) LOG.trace("Batching Statement: " + stmt.getText());
     }
@@ -968,7 +956,7 @@ public abstract class VoltProcedure implements Poolable {
      * @return
      */
     public final int voltRemainingQueue() {
-        return (batchQueryStmts.length - batchQueryStmtIndex);
+        return (this.batchQueryStmts.length - this.batchQueryStmtIndex);
     }
     
     /**
@@ -1040,7 +1028,7 @@ public abstract class VoltProcedure implements Poolable {
         // We know that any error that we get here is because of us and not their user code 
         } catch (Throwable ex) {
             String message = "Unexpected error while executing queries";
-            throw new ServerFaultException(message, ex, this.getTransactionId());
+            throw new ServerFaultException(message, ex, this.localTxnState.getTransactionId());
         }
 
         // Workload Trace - Stop Query
@@ -1070,8 +1058,8 @@ public abstract class VoltProcedure implements Poolable {
      * @return
      */
     public SQLStmt[] voltLastQueriesExecuted() {
-        if (last_batchQueryStmtIndex != -1) {
-            return Arrays.copyOf(batchQueryStmts, last_batchQueryStmtIndex);
+        if (this.last_batchQueryStmtIndex != -1) {
+            return Arrays.copyOf(this.batchQueryStmts, this.last_batchQueryStmtIndex);
         }
         return new SQLStmt[0];
     }
@@ -1450,7 +1438,14 @@ public abstract class VoltProcedure implements Poolable {
         public void unregisterCallback(EventObserver<ClientResponse> observer) {
             VoltProcedure.this.observable.deleteObserver(observer);
         }
-        
+        /**
+         * Allow sysprocs to update m_currentTxnState manually. User procedures are
+         * passed this state in call(); sysprocs have other entry points on
+         * non-coordinator sites.
+         */
+        public void setTransactionState(LocalTransaction txnState) {
+            VoltProcedure.this.localTxnState = txnState;
+        }
     }
     
     public Debug getDebugContext() {
