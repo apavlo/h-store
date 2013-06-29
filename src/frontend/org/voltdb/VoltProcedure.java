@@ -57,6 +57,7 @@ import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.PartitionExecutor;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.txns.LocalTransaction;
+import edu.brown.hstore.util.ParameterSetArrayCache;
 import edu.brown.interfaces.DebugContext;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
@@ -145,6 +146,11 @@ public abstract class VoltProcedure implements Poolable {
     
     private VoltTable lastScalarResultTable[] = null;
     private Long lastScalarResult = null;
+    
+    /**
+     * Reusable cache of ParameterSet arrays for VoltProcedures
+     */
+    private final ParameterSetArrayCache procParameterSets = new ParameterSetArrayCache(10);
     
     // ----------------------------------------------------------------------------
     // WORKLOAD TRACE HANDLES
@@ -1049,7 +1055,6 @@ public abstract class VoltProcedure implements Poolable {
         }
 
         this.batchQueryStmtIndex = 0;
-        
         return retval;
     }
 
@@ -1084,8 +1089,7 @@ public abstract class VoltProcedure implements Poolable {
         if (batchSize == 0) return (HStoreConstants.EMPTY_RESULT);
         
         // Create a list of clean parameters
-        ParameterSet params[] = this.localTxnState.getExecutionState().
-                                     procParameterSets.getParameterSet(batchSize);
+        ParameterSet params[] = this.procParameterSets.getParameterSet(batchSize);
         assert(params != null);
         for (int i = 0; i < batchSize; i++) {
             params[i] = getCleanParams(batchStmts[i], batchArgs[i], params[i]);
@@ -1093,7 +1097,7 @@ public abstract class VoltProcedure implements Poolable {
         
         VoltTable results[] = null;
         try {
-            results = this.executor.executeSQLStmtBatch(localTxnState,
+            results = this.executor.executeSQLStmtBatch(this.localTxnState,
                                                         batchSize,
                                                         batchStmts,
                                                         params,

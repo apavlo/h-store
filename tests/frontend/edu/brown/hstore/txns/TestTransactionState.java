@@ -30,7 +30,6 @@ import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.DependencyInfo;
-import edu.brown.hstore.txns.ExecutionState;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.statistics.FastIntHistogram;
 import edu.brown.utils.PartitionEstimator;
@@ -73,7 +72,6 @@ public class TestTransactionState extends BaseTestCase {
     private DependencyTracker.Debug depTrackerDbg;
     
     private LocalTransaction ts;
-    private ExecutionState execState;
     private ListOrderedSet<Integer> dependency_ids = new ListOrderedSet<Integer>();
     private List<Integer> internal_dependency_ids = new ArrayList<Integer>();
     private List<Integer> output_dependency_ids = new ArrayList<Integer>();
@@ -126,14 +124,13 @@ public class TestTransactionState extends BaseTestCase {
         assertFalse(ftasks.isEmpty());
         assertNotNull(ftasks);
         
-        this.execState = new ExecutionState(executor);
         this.ts = new LocalTransaction(hstore_site);
         this.ts.testInit(TXN_ID,
                          LOCAL_PARTITION,
                          null,
                          catalogContext.getAllPartitionIds(),
                          this.getProcedure(TARGET_PROCEDURE));
-        this.ts.setExecutionState(this.execState);
+        this.ts.markControlCodeExecuted();
         this.depTracker.addTransaction(ts);
         assertNull(this.ts.getCurrentRoundState(LOCAL_PARTITION));
     }
