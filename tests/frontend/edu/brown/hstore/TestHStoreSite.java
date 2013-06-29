@@ -1,17 +1,11 @@
 package edu.brown.hstore;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -28,7 +22,6 @@ import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Table;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
-import org.voltdb.client.ProcedureCallback;
 import org.voltdb.regressionsuites.specexecprocs.DtxnTester;
 import org.voltdb.sysprocs.ExecutorStatus;
 import org.voltdb.sysprocs.Statistics;
@@ -50,10 +43,6 @@ import edu.brown.hstore.callbacks.MockClientCallback;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.hstore.util.TransactionCounter;
-import edu.brown.pools.TypedObjectPool;
-import edu.brown.pools.TypedPoolableObjectFactory;
-import edu.brown.statistics.Histogram;
-import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
@@ -72,7 +61,6 @@ public class TestHStoreSite extends BaseTestCase {
     
     private HStoreSite hstore_site;
     private HStoreSite.Debug hstore_debug;
-    private HStoreObjectPools objectPools;
     private HStoreConf hstore_conf;
     private TransactionQueueManager.Debug queue_debug;
     private Client client;
@@ -105,7 +93,6 @@ public class TestHStoreSite extends BaseTestCase {
         Site catalog_site = CollectionUtil.first(catalogContext.sites);
         this.hstore_conf = HStoreConf.singleton();
         this.hstore_conf.site.pool_profiling = true;
-        this.hstore_conf.site.pool_txn_enable = true;
         this.hstore_conf.site.status_enable = false;
         this.hstore_conf.site.status_interval = 4000;
         this.hstore_conf.site.anticache_enable = false;
@@ -114,7 +101,6 @@ public class TestHStoreSite extends BaseTestCase {
         this.hstore_conf.site.exec_voltdb_procinfo = true;
         
         this.hstore_site = createHStoreSite(catalog_site, hstore_conf);
-        this.objectPools = this.hstore_site.getObjectPools();
         this.hstore_debug = this.hstore_site.getDebugContext();
         this.queue_debug = this.hstore_site.getTransactionQueueManager().getDebugContext();
         this.client = createClient();
@@ -184,7 +170,6 @@ public class TestHStoreSite extends BaseTestCase {
             assertEquals(Status.OK, cr.getStatus());
         }
 //        System.err.println(cr);
-        HStoreSiteTestUtil.checkObjectPools(hstore_site);
         this.statusSnapshot();
     }
     
@@ -204,7 +189,6 @@ public class TestHStoreSite extends BaseTestCase {
             assertEquals(Status.OK, cr.getStatus());
         }
 //        System.err.println(cr);
-        HStoreSiteTestUtil.checkObjectPools(hstore_site);
         this.statusSnapshot();
     }
     
@@ -256,7 +240,6 @@ public class TestHStoreSite extends BaseTestCase {
             assertEquals(cr.toString(), Status.OK, cr.getStatus());
         } // FOR
         
-        HStoreSiteTestUtil.checkObjectPools(hstore_site);
         this.statusSnapshot();
     }
     
@@ -360,7 +343,6 @@ public class TestHStoreSite extends BaseTestCase {
             lastTxnIds[basePartition] = txnId;
         } // FOR
         
-        HStoreSiteTestUtil.checkObjectPools(hstore_site);
         this.statusSnapshot();
     }
     

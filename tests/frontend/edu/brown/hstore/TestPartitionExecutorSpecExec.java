@@ -289,8 +289,6 @@ public class TestPartitionExecutorSpecExec extends BaseTestCase {
         assertTrue("SINGLE-P0 LATCH"+spCallback0.latch, result);
         assertEquals(1, spCallback0.responses.size());
         this.checkClientResponses(spCallback0.responses, Status.OK, false, 0);
-        
-        HStoreSiteTestUtil.checkObjectPools(hstore_site);
     }
     
     /**
@@ -340,8 +338,6 @@ public class TestPartitionExecutorSpecExec extends BaseTestCase {
         // And that all of our single-partition txns succeeded and were speculatively executed
         this.checkClientResponses(spCallback.responses, Status.OK, true, null);
         assertEquals(NUM_SPECEXEC_TXNS, spCallback.responses.size());
-        
-        HStoreSiteTestUtil.checkObjectPools(hstore_site);
     }
     
     /**
@@ -412,8 +408,6 @@ public class TestPartitionExecutorSpecExec extends BaseTestCase {
         // The second batch should all have been aborted
         this.checkClientResponses(spCallback1.responses, Status.ABORT_USER, true, 0);
         assertEquals(NUM_SPECEXEC_TXNS, spCallback1.responses.size());
-        
-        HStoreSiteTestUtil.checkObjectPools(hstore_site);
     }
     
     /**
@@ -472,8 +466,6 @@ public class TestPartitionExecutorSpecExec extends BaseTestCase {
         // with no restarts
         this.checkClientResponses(spCallback1.responses, Status.OK, true, 0);
         assertEquals(NUM_SPECEXEC_TXNS, spCallback1.responses.size());
-        
-        HStoreSiteTestUtil.checkObjectPools(hstore_site);
     }
     
 //    /**
@@ -548,7 +540,5 @@ public class TestPartitionExecutorSpecExec extends BaseTestCase {
 //        assertEquals(1+(NUM_SPECEXEC_TXNS*2), TransactionCounter.COMPLETED.get());
 //        assertEquals(NUM_SPECEXEC_TXNS, TransactionCounter.SPECULATIVE.get());
 //        assertEquals(NUM_SPECEXEC_TXNS, TransactionCounter.ABORT_SPECULATIVE.get());
-//        
-//        HStoreSiteTestUtil.checkObjectPools(hstore_site);
 //    }
 }

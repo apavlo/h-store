@@ -1191,20 +1191,20 @@ public final class HStoreConf {
         )
         public boolean pool_profiling;
         
-        @ConfigProperty(
-            description="Whether to enable object pooling for AbstractTransaction handles. This includes" +
-                        "all local transactions, remote transactions, and MapReduce transactions.",
-            defaultBoolean=false,
-            experimental=false
-        )
-        public boolean pool_txn_enable;
-        
-        @ConfigProperty(
-            description="The max number of MapReduceTransactionStates to keep in the pool per partition.",
-            defaultInt=10,
-            experimental=false
-        )
-        public int pool_mapreducetxnstate_idle;
+//        @ConfigProperty(
+//            description="Whether to enable object pooling for AbstractTransaction handles. This includes" +
+//                        "all local transactions, remote transactions, and MapReduce transactions.",
+//            defaultBoolean=false,
+//            experimental=false
+//        )
+//        public boolean pool_txn_enable;
+//        
+//        @ConfigProperty(
+//            description="The max number of MapReduceTransactionStates to keep in the pool per partition.",
+//            defaultInt=10,
+//            experimental=false
+//        )
+//        public int pool_mapreducetxnstate_idle;
         
         @ConfigProperty(
             description="The max number of MarkovPathEstimators to keep in the pool per partition",

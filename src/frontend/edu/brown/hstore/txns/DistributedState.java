@@ -51,7 +51,7 @@ public class DistributedState implements Poolable {
      */
     private final ProtoRpcController rpc_transactionInit[];
     private final ProtoRpcController rpc_transactionWork[];
-    private final ProtoRpcController rpc_transactionPrepare[];
+    // private final ProtoRpcController rpc_transactionPrepare[];
     private final ProtoRpcController rpc_transactionFinish[];
     
     // ----------------------------------------------------------------------------
@@ -90,7 +90,7 @@ public class DistributedState implements Poolable {
         
         this.rpc_transactionInit = new ProtoRpcController[catalogContext.numberOfSites];
         this.rpc_transactionWork = new ProtoRpcController[catalogContext.numberOfSites];
-        this.rpc_transactionPrepare = new ProtoRpcController[catalogContext.numberOfSites];
+        // this.rpc_transactionPrepare = new ProtoRpcController[catalogContext.numberOfSites];
         this.rpc_transactionFinish = new ProtoRpcController[catalogContext.numberOfSites];
     }
     
@@ -131,8 +131,8 @@ public class DistributedState implements Poolable {
                 this.rpc_transactionInit[i].reset();
             if (this.rpc_transactionWork[i] != null)
                 this.rpc_transactionWork[i].reset();
-            if (this.rpc_transactionPrepare[i] != null)
-                this.rpc_transactionPrepare[i].reset();
+//            if (this.rpc_transactionPrepare[i] != null)
+//                this.rpc_transactionPrepare[i].reset();
             if (this.rpc_transactionFinish[i] != null)
                 this.rpc_transactionFinish[i].reset();
         } // FOR
@@ -147,7 +147,9 @@ public class DistributedState implements Poolable {
         return this.getProtoRpcController(this.rpc_transactionWork, site_id);
     }
     protected ProtoRpcController getTransactionPrepareController(int site_id) {
-        return this.getProtoRpcController(this.rpc_transactionPrepare, site_id);
+        // Always create a new ProtoRpcController
+        return new ProtoRpcController();
+        // return this.getProtoRpcController(this.rpc_transactionPrepare, site_id);
     }
     protected ProtoRpcController getTransactionFinishController(int site_id) {
         return this.getProtoRpcController(this.rpc_transactionFinish, site_id);
