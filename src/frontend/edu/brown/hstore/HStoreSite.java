@@ -86,8 +86,8 @@ import edu.brown.hstore.Hstoreservice.QueryEstimate;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.callbacks.ClientResponseCallback;
-import edu.brown.hstore.callbacks.LocalInitQueueCallback;
 import edu.brown.hstore.callbacks.LocalFinishCallback;
+import edu.brown.hstore.callbacks.LocalInitQueueCallback;
 import edu.brown.hstore.callbacks.PartitionCountingCallback;
 import edu.brown.hstore.callbacks.RedirectCallback;
 import edu.brown.hstore.cmdlog.CommandLogWriter;
@@ -101,7 +101,6 @@ import edu.brown.hstore.stats.AntiCacheManagerProfilerStats;
 import edu.brown.hstore.stats.BatchPlannerProfilerStats;
 import edu.brown.hstore.stats.MarkovEstimatorProfilerStats;
 import edu.brown.hstore.stats.PartitionExecutorProfilerStats;
-import edu.brown.hstore.stats.PoolCounterStats;
 import edu.brown.hstore.stats.SiteProfilerStats;
 import edu.brown.hstore.stats.SpecExecProfilerStats;
 import edu.brown.hstore.stats.TransactionCounterStats;
@@ -110,7 +109,6 @@ import edu.brown.hstore.stats.TransactionQueueManagerProfilerStats;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.DependencyTracker;
 import edu.brown.hstore.txns.LocalTransaction;
-import edu.brown.hstore.txns.MapReduceTransaction;
 import edu.brown.hstore.txns.RemoteTransaction;
 import edu.brown.hstore.util.MapReduceHelperThread;
 import edu.brown.hstore.util.TransactionCounter;
@@ -231,11 +229,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * This is primarily used for debugging
      */
     private final CircularFifoBuffer<String> deletable_last = new CircularFifoBuffer<String>(10);
-    
-    /**
-     * Reusable Object Pools
-     */
-    private final HStoreObjectPools objectPools;
     
     /**
      * This TransactionEstimator is a stand-in for transactions that need to access
@@ -493,9 +486,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         for (int partition : this.local_partitions) {
             this.local_partition_offsets[partition] = offset++;
         } // FOR
-        
-        // Object Pools
-        this.objectPools = new HStoreObjectPools(this);
         
         // -------------------------------
         // THREADS
@@ -836,9 +826,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         statsSource = new BatchPlannerProfilerStats(this, this.catalogContext);
         this.statsAgent.registerStatsSource(SysProcSelector.PLANNERPROFILER, 0, statsSource);
         
-        // OBJECT POOL COUNTERS
-        statsSource = new PoolCounterStats(this.objectPools);
-        this.statsAgent.registerStatsSource(SysProcSelector.POOL, 0, statsSource);
     }
     
     /**
@@ -927,7 +914,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         // Update all our other boys
         this.clientInterface.updateConf(hstore_conf, null);
-        this.objectPools.updateConf(hstore_conf, null);
         this.txnQueueManager.updateConf(hstore_conf, null);
     }
     
@@ -1095,9 +1081,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     public HStoreConf getHStoreConf() {
         return (this.hstore_conf);
     }
-    public HStoreObjectPools getObjectPools() {
-        return (this.objectPools);
-    }
     public TransactionQueueManager getTransactionQueueManager() {
         return (this.txnQueueManager);
     }
@@ -1140,7 +1123,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @return
      */
     public String statusSnapshot() {
-        return new HStoreSiteStatus(this, hstore_conf).snapshot(true, true, false, false);
+        return new HStoreSiteStatus(this, hstore_conf).snapshot(true, true, false);
     }
     
     public HStoreThreadManager getThreadManager() {
@@ -2645,13 +2628,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             this.remoteTxnEstimator.destroyEstimatorState(t_state);
         }
         
-        if (hstore_conf.site.pool_txn_enable) {
-            if (debug.val) {
-                LOG.warn(String.format("%s - Returning %s to ObjectPool [hashCode=%d]",
-                          ts, ts.getClass().getSimpleName(), ts.hashCode()));
-                this.deletable_last.add(String.format("%s :: %s", ts, status));
-            }
-            this.objectPools.getRemoteTransactionPool(ts.getBasePartition()).returnObject(ts);
+        if (debug.val) {
+            LOG.warn(String.format("%s - Finished with %s [hashCode=%d]",
+                     ts, ts.getClass().getSimpleName(), ts.hashCode()));
+            this.deletable_last.add(String.format("%s :: %s", ts, status));
         }
         return;
     }
@@ -2846,18 +2826,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             LOG.trace(String.format("Deleted %s [%s / inflightRemoval:%s]", ts, status, (rm != null)));
         
         assert(ts.isInitialized()) : "Trying to return uninitialized txn #" + txn_id;
-        if (hstore_conf.site.pool_txn_enable) {
-            if (debug.val) {
-                LOG.warn(String.format("%s - Returning %s to ObjectPool [hashCode=%d]",
-                         ts, ts.getClass().getSimpleName(), ts.hashCode()));
-                this.deletable_last.add(String.format("%s :: %s [SPECULATIVE=%s]",
-                                        ts, status, ts.isSpeculative()));
-            }
-            if (this.mr_helper_started == true && ts.isMapReduce()) {
-                this.objectPools.getMapReduceTransactionPool(base_partition).returnObject((MapReduceTransaction)ts);
-            } else {
-                this.objectPools.getLocalTransactionPool(base_partition).returnObject(ts);
-            }
+        if (debug.val) {
+            LOG.warn(String.format("%s - Finished with %s [hashCode=%d]",
+                     ts, ts.getClass().getSimpleName(), ts.hashCode()));
+            this.deletable_last.add(String.format("%s :: %s [SPECULATIVE=%s]",
+                                    ts, status, ts.isSpeculative()));
         }
     }
 

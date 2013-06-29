@@ -117,6 +117,7 @@
 <arg value="site.exec_queued_response_ee_bypass=${site.exec_queued_response_ee_bypass}" />
 <arg value="site.exec_response_timeout=${site.exec_response_timeout}" />
 <arg value="site.exec_validate_work=${site.exec_validate_work}" />
+<arg value="site.exec_early_prepare=${site.exec_early_prepare}" />
 <arg value="site.exec_adhoc_sql=${site.exec_adhoc_sql}" />
 <arg value="site.exec_prefetch_queries=${site.exec_prefetch_queries}" />
 <arg value="site.exec_deferrable_queries=${site.exec_deferrable_queries}" />
@@ -203,7 +204,5 @@
 <arg value="site.status_thread_info=${site.status_thread_info}" />
 <arg value="site.pool_scale_factor=${site.pool_scale_factor}" />
 <arg value="site.pool_profiling=${site.pool_profiling}" />
-<arg value="site.pool_txn_enable=${site.pool_txn_enable}" />
-<arg value="site.pool_mapreducetxnstate_idle=${site.pool_mapreducetxnstate_idle}" />
 <arg value="site.pool_pathestimators_idle=${site.pool_pathestimators_idle}" />
 

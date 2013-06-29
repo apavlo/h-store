@@ -2,20 +2,16 @@ package edu.brown;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CountDownLatch;
+
+import junit.framework.TestCase;
 
 import org.voltdb.VoltProcedure;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.ProcedureCallback;
 
-import junit.framework.TestCase;
-
-import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.PartitionExecutor;
 import edu.brown.hstore.PartitionLockQueue;
-import edu.brown.pools.TypedObjectPool;
-import edu.brown.pools.TypedPoolableObjectFactory;
 import edu.brown.utils.ThreadUtil;
 
 public abstract class HStoreSiteTestUtil extends TestCase {
@@ -60,33 +56,33 @@ public abstract class HStoreSiteTestUtil extends TestCase {
     }
 
 
-    /**
-     * This checks to make sure that there aren't any active objects in the
-     * the various object pools
-     */
-    public static void checkObjectPools(HStoreSite hstore_site) throws Exception {
-        // Sleep just a little bit to give the HStoreSite time to clean things up
-        ThreadUtil.sleep(1000);
-        
-        Map<String, TypedObjectPool<?>[]> allPools = hstore_site.getObjectPools().getPartitionedPools(); 
-        assertNotNull(allPools);
-        assertFalse(allPools.isEmpty());
-        for (String name : allPools.keySet()) {
-            TypedObjectPool<?> pools[] = allPools.get(name);
-            TypedPoolableObjectFactory<?> factory = null;
-            assertNotNull(name, pools);
-            assertNotSame(0, pools.length);
-            for (int i = 0; i < pools.length; i++) {
-                if (pools[i] == null) continue;
-                String poolName = String.format("%s-%02d", name, i);  
-                factory = (TypedPoolableObjectFactory<?>)pools[i].getFactory();
-                assertTrue(poolName, factory.isCountingEnabled());
-              
-                System.err.println(poolName + ": " + pools[i].toString());
-                assertEquals(poolName, 0, pools[i].getNumActive());
-            } // FOR
-        } // FOR
-    }
+//    /**
+//     * This checks to make sure that there aren't any active objects in the
+//     * the various object pools
+//     */
+//    public static void checkObjectPools(HStoreSite hstore_site) throws Exception {
+//        // Sleep just a little bit to give the HStoreSite time to clean things up
+//        ThreadUtil.sleep(1000);
+//        
+//        Map<String, TypedObjectPool<?>[]> allPools = hstore_site.getObjectPools().getPartitionedPools(); 
+//        assertNotNull(allPools);
+//        assertFalse(allPools.isEmpty());
+//        for (String name : allPools.keySet()) {
+//            TypedObjectPool<?> pools[] = allPools.get(name);
+//            TypedPoolableObjectFactory<?> factory = null;
+//            assertNotNull(name, pools);
+//            assertNotSame(0, pools.length);
+//            for (int i = 0; i < pools.length; i++) {
+//                if (pools[i] == null) continue;
+//                String poolName = String.format("%s-%02d", name, i);  
+//                factory = (TypedPoolableObjectFactory<?>)pools[i].getFactory();
+//                assertTrue(poolName, factory.isCountingEnabled());
+//              
+//                System.err.println(poolName + ": " + pools[i].toString());
+//                assertEquals(poolName, 0, pools[i].getNumActive());
+//            } // FOR
+//        } // FOR
+//    }
     
     @SuppressWarnings("unchecked")
     public static <T extends VoltProcedure> T getCurrentVoltProcedure(PartitionExecutor executor, Class<T> expectedType) {

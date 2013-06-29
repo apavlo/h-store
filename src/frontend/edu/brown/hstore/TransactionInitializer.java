@@ -85,7 +85,6 @@ public class TransactionInitializer {
 
     private final HStoreSite hstore_site;
     private final HStoreConf hstore_conf;
-    private final HStoreObjectPools objectPools;
     private final CatalogContext catalogContext;
     private final PartitionEstimator p_estimator;
     private final PartitionSet local_partitions;
@@ -119,7 +118,6 @@ public class TransactionInitializer {
     public TransactionInitializer(HStoreSite hstore_site) {
         this.hstore_site = hstore_site;
         this.hstore_conf = hstore_site.getHStoreConf();
-        this.objectPools = hstore_site.getObjectPools();
         this.local_partitions = hstore_site.getLocalPartitionIds();
         this.catalogContext = hstore_site.getCatalogContext();
         this.inflight_txns = hstore_site.getInflightTxns();
@@ -286,17 +284,9 @@ public class TransactionInitializer {
         LocalTransaction ts = null;
         try {
             if (this.isMapReduce[procId]) {
-                if (hstore_conf.site.pool_txn_enable) {
-                    ts = this.objectPools.getMapReduceTransactionPool(base_partition).borrowObject();
-                } else {
-                    ts = new MapReduceTransaction(this.hstore_site);
-                }
+                ts = new MapReduceTransaction(this.hstore_site);
             } else {
-                if (hstore_conf.site.pool_txn_enable) {
-                    ts = this.objectPools.getLocalTransactionPool(base_partition).borrowObject();
-                } else {
-                    ts = new LocalTransaction(this.hstore_site);
-                }
+                ts = new LocalTransaction(this.hstore_site);
             }
             assert(ts.isInitialized() == false);
         } catch (Throwable ex) {
@@ -345,19 +335,7 @@ public class TransactionInitializer {
                                                    boolean predict_readOnly,
                                                    boolean predict_abortable) {
         
-        LocalTransaction new_ts = null;
-        try {
-            if (hstore_conf.site.pool_txn_enable) {
-                new_ts = this.objectPools.getLocalTransactionPool(base_partition).borrowObject();
-            } else {
-                new_ts = new LocalTransaction(hstore_site);
-            }
-            assert(new_ts.isInitialized() == false);
-        } catch (Throwable ex) {
-            String msg = String.format("Failed to instantiate new %s for mispredicted %s",
-                                       orig_ts.getClass().getSimpleName(), orig_ts);
-            throw new RuntimeException(msg, ex);
-        }
+        LocalTransaction new_ts = new LocalTransaction(hstore_site);
         
         // Setup TransactionProfiler
         if (hstore_conf.site.txn_profiling) {
@@ -416,11 +394,7 @@ public class TransactionInitializer {
         RemoteTransaction ts = null;
         Procedure catalog_proc = this.catalogContext.getProcedureById(proc_id);
         try {
-            if (hstore_conf.site.pool_txn_enable) {
-                ts = this.objectPools.getRemoteTransactionPool(base_partition).borrowObject();
-            } else {
-                ts = new RemoteTransaction(this.hstore_site);
-            }
+            ts = new RemoteTransaction(this.hstore_site);
             assert(ts.isInitialized() == false);
             ts.init(txn_id, base_partition, procParams, catalog_proc, partitions, true);
             if (debug.val)
@@ -469,18 +443,8 @@ public class TransactionInitializer {
         assert(procParams != null) :
             "The parameters object is null for new txn from client #" + client_handle;
         
-        MapReduceTransaction ts = null;
-        try {
-            if (hstore_conf.site.pool_txn_enable) {
-                ts = this.objectPools.getMapReduceTransactionPool(base_partition).borrowObject();
-            } else {
-                ts = new MapReduceTransaction(hstore_site);
-            }
-            assert(ts.isInitialized() == false);
-        } catch (Throwable ex) {
-            String msg = "Failed to instantiate new MapReduce transaction handle for " + TransactionUtil.formatTxnName(catalog_proc, txn_id);
-            throw new RuntimeException(msg, ex);
-        }
+        MapReduceTransaction ts = new MapReduceTransaction(hstore_site);
+        
         // We should never already have a transaction handle for this txnId
         AbstractTransaction dupe = this.inflight_txns.put(txn_id, ts);
         assert(dupe == null) : "Trying to create multiple transaction handles for " + dupe;
