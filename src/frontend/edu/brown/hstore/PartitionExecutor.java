@@ -3681,7 +3681,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 // We need to let them know that the party is over!
                 if (hstore_site.isLocalPartition(partition)) {
                     if (debug.val)
-                        LOG.debug(String.format("%s - Notifying local partition %d that txn is finished it",
+                        LOG.debug(String.format("%s - Notifying local partition %d that the txn is finished with it",
                                   ts, partition));
                     hstore_site.getPartitionExecutor(partition).queuePrepare(ts);
                 }
@@ -3710,14 +3710,15 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
      * @param notify
      */
     private void notifyDonePartitions(LocalTransaction ts, DonePartitionsNotification notify) {
-        LOG.info(String.format("%s - Sending done partitions notifications to remote sites %s",
-                 ts, notify._sitesToNotify));
+        if (debug.val)
+            LOG.debug(String.format("%s - Sending done partitions notifications to remote sites %s",
+                      ts, notify._sitesToNotify));
         
         // BLAST OUT NOTIFICATIONS!
         for (int remoteSiteId : notify._sitesToNotify) {
             assert(notify.notificationsPerSite[remoteSiteId] != null);
-//            if (debug.val)
-                LOG.info(String.format("%s - Notifying %s that txn is finished with partitions %s",
+            if (debug.val)
+                LOG.debug(String.format("%s - Notifying %s that txn is finished with partitions %s",
                          ts, HStoreThreadManager.formatSiteName(remoteSiteId),
                          notify.notificationsPerSite[remoteSiteId]));
             hstore_coordinator.transactionPrepare(ts, ts.getPrepareCallback(),

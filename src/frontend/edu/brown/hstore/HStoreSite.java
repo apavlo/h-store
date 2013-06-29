@@ -1200,6 +1200,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
 
     @SuppressWarnings("unchecked")
     public <T extends AbstractTransaction> T getTransaction(Long txn_id) {
+        assert(txn_id != null) : "Null txnId";
         return ((T)this.inflight_txns.get(txn_id));
     }
 

@@ -295,7 +295,7 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
             String.format("Null transaction handle for txn #%s in %s [counter=%d/%d]\n%s",
                           this.orig_txn_id, this.getClass().getSimpleName(),
                           this.counter, this.orig_counter,
-                          this.hstore_site.getTransaction(this.orig_txn_id));
+                          (this.orig_txn_id != null ? this.hstore_site.getTransaction(this.orig_txn_id) : null));
         assert(this.ts.isInitialized()) :
             String.format("Uninitialized transaction handle for txn #%s in %s [lastTxn=%s / origCounter=%d/%d]",
                           this.orig_txn_id, this.getClass().getSimpleName(),
