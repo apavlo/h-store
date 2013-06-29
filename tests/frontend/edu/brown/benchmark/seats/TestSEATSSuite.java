@@ -1,7 +1,9 @@
 package edu.brown.benchmark.seats;
 
 import java.io.File;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
@@ -116,29 +118,42 @@ public class TestSEATSSuite extends RegressionSuite {
     }
     
     
-//    /**
-//     * testInitialize
-//     */
-//    public void testInitialize() throws Exception {
-//        Client client = this.getClient();
-//        this.initializeSEATSDatabase(this.getCatalogContext(), client);
-//        
-//        Set<String> allTables = new HashSet<String>();
-//        CollectionUtil.addAll(allTables, SEATSConstants.TABLES_SCALING);
-//        CollectionUtil.addAll(allTables, SEATSConstants.TABLES_DATAFILES);
-//        
-//        String procName = VoltSystemProcedure.procCallName(AdHoc.class);
-//        for (String tableName : allTables) {
-//            String query = "SELECT COUNT(*) FROM " + tableName;
-//            ClientResponse cresponse = client.callProcedure(procName, query);
-//            assertEquals(Status.OK, cresponse.getStatus());
-//            VoltTable results[] = cresponse.getResults();
-//            assertEquals(1, results.length);
-//            long count = results[0].asScalarLong();
-//            assertTrue(tableName + " -> " + count, count > 0);
-//            // System.err.println(tableName + "\n" + results[0]);
-//        } // FOR
-//    }
+    /**
+     * testInitialize
+     */
+    public void testInitialize() throws Exception {
+        Client client = this.getClient();
+        CatalogContext catalogContext = this.getCatalogContext();
+        SEATSLoader loader = this.initializeSEATSDatabase(catalogContext, client);
+        SEATSProfile profile = loader.getProfile();
+        assertNotNull(profile);
+        
+        Set<String> allTables = new HashSet<String>();
+        CollectionUtil.addAll(allTables, SEATSConstants.TABLES_SCALING);
+        CollectionUtil.addAll(allTables, SEATSConstants.TABLES_DATAFILES);
+        
+        Map<String, Long> expected = new HashMap<String, Long>();
+        expected.put(SEATSConstants.TABLENAME_FLIGHT, profile.num_flights);
+        expected.put(SEATSConstants.TABLENAME_CUSTOMER, profile.num_customers);
+        expected.put(SEATSConstants.TABLENAME_RESERVATION, profile.num_reservations);
+        
+        String procName = VoltSystemProcedure.procCallName(AdHoc.class);
+        for (String tableName : allTables) {
+            String query = "SELECT COUNT(*) FROM " + tableName;
+            ClientResponse cresponse = client.callProcedure(procName, query);
+            assertEquals(Status.OK, cresponse.getStatus());
+            VoltTable results[] = cresponse.getResults();
+            assertEquals(1, results.length);
+            long count = results[0].asScalarLong();
+            
+            if (expected.containsKey(tableName)) {
+                assertEquals(tableName, expected.get(tableName).longValue(), count);
+            }
+            else {
+                assertTrue(tableName + " -> " + count, count > 0);
+            }
+        } // FOR
+    }
     
     /**
      * testSaveLoadProfile

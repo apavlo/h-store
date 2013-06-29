@@ -504,13 +504,13 @@ public class SEATSLoader extends Loader {
         
         // Record the number of tuples that we loaded for various tables in the profile
         if (is_flight) {
-            this.profile.num_flights = row_idx + 1;
+            this.profile.num_flights = row_idx;
         }
         else if (is_reservation) {
-            this.profile.num_reservations = row_idx + 1;
+            this.profile.num_reservations = row_idx;
         }
         else if (is_customer) {
-            this.profile.num_customers = row_idx + 1;
+            this.profile.num_customers = row_idx;
         }
         
         LOG.info(String.format("Finished loading all %d tuples for %s [%d / %d]",
