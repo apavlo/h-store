@@ -36,10 +36,12 @@ for b in smallbank ; do
         --benchmark=$b \
         --stop-on-error \
         --overwrite \
-#         --retry-on-zero \
-        --exp-trials=1 \
+        --retry-on-zero \
+#         --site.jvm_asserts=True \
+        --exp-trials=2 \
+#         --exp-attempts=1 \
         --partitions ${PARTITIONS[@]} \
-        --client.duration=300000 \
+        --client.duration=60000 \
     )
     
     i=0

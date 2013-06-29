@@ -451,6 +451,7 @@ def updateExperimentEnv(fabric, args, benchmark, partitions):
 
         fabric.env["site.specexec_scheduler_policy"] = "FIRST"
         fabric.env["site.specexec_scheduler_window"] = 1
+        fabric.env["site.exec_early_prepare"] = True
 
         # SMALLBANK
         fabric.env["benchmark.hotspot_use_fixed_size"] = False
@@ -464,6 +465,7 @@ def updateExperimentEnv(fabric, args, benchmark, partitions):
         ## ----------------------------------------------
         if schedulerType == "spec":
             fabric.env["site.specexec_scheduler_checker"] = "MARKOV"
+            fabric.env["site.exec_readwrite_tracking"] = False
         ## ----------------------------------------------
         ## OCC
         ## ----------------------------------------------
