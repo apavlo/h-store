@@ -117,6 +117,7 @@ import edu.brown.catalog.special.CountedStatement;
 import edu.brown.hstore.Hstoreservice.QueryEstimate;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.TransactionPrefetchResult;
+import edu.brown.hstore.Hstoreservice.TransactionPrepareResponse;
 import edu.brown.hstore.Hstoreservice.TransactionWorkRequest;
 import edu.brown.hstore.Hstoreservice.TransactionWorkResponse;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
@@ -124,7 +125,7 @@ import edu.brown.hstore.Hstoreservice.WorkResult;
 import edu.brown.hstore.callbacks.LocalFinishCallback;
 import edu.brown.hstore.callbacks.LocalPrepareCallback;
 import edu.brown.hstore.callbacks.PartitionCountingCallback;
-import edu.brown.hstore.callbacks.TransactionCallback;
+import edu.brown.hstore.callbacks.RemotePrepareCallback;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.estimators.Estimate;
 import edu.brown.hstore.estimators.EstimatorState;
@@ -133,7 +134,6 @@ import edu.brown.hstore.estimators.TransactionEstimator;
 import edu.brown.hstore.internal.DeferredQueryMessage;
 import edu.brown.hstore.internal.FinishTxnMessage;
 import edu.brown.hstore.internal.InitializeRequestMessage;
-import edu.brown.hstore.internal.InitializeTxnMessage;
 import edu.brown.hstore.internal.InternalMessage;
 import edu.brown.hstore.internal.InternalTxnMessage;
 import edu.brown.hstore.internal.PotentialSnapshotWorkMessage;
@@ -168,6 +168,7 @@ import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.EstimationThresholds;
 import edu.brown.profilers.PartitionExecutorProfiler;
+import edu.brown.protorpc.NullCallback;
 import edu.brown.statistics.FastIntHistogram;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.CollectionUtil;
@@ -1422,12 +1423,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 this.setCurrentDtxn(((SetDistributedTxnMessage)work).getTransaction());
             }
         }
-        // -------------------------------
-        // Add Transaction to Lock Queue
-        // -------------------------------
-        else if (work instanceof InitializeTxnMessage) {
-            this.queueManager.lockQueueInsert(ts, this.partitionId, ts.getInitCallback());
-        }
     }
 
     // ----------------------------------------------------------------------------
@@ -1694,15 +1689,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                                           hstore_site.getRejectionMessage() + " - [2]",
                                           initMsg.getClientCallback(),
                                           EstTime.currentTimeMillis());
-            }
-            // -------------------------------
-            // InitializeTxnMessage
-            // -------------------------------
-            if (msg instanceof InitializeTxnMessage) {
-                InitializeTxnMessage initMsg = (InitializeTxnMessage)msg;
-                AbstractTransaction ts = initMsg.getTransaction();
-                TransactionCallback callback = ts.getInitCallback();
-                callback.abort(this.partitionId, Status.ABORT_REJECT);
             }
             // -------------------------------
             // StartTxnMessage
@@ -2050,7 +2036,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
      * @param status The final status of the transaction
      */
     public void queuePrepare(AbstractTransaction ts, PartitionCountingCallback<? extends AbstractTransaction> callback) {
-        assert(ts.isInitialized()) : "Unexpected uninitialized transaction: " + ts;
+        assert(ts.isInitialized()) : "Uninitialized transaction: " + ts;
+        assert(callback.isInitialized()) : "Uninitialized callback: " + ts;
+        
         PrepareTxnMessage work = new PrepareTxnMessage(ts, callback);
         boolean success = this.work_queue.offer(work);
         assert(success) :
@@ -2084,35 +2072,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         // if (success) this.specExecScheduler.haltSearch();
     }
 
-    /**
-     * Queue a new transaction invocation request at this partition
-     * @param serializedRequest
-     * @param catalog_proc
-     * @param procParams
-     * @param clientCallback
-     * @return
-     */
-    public boolean queueNewTransaction(ByteBuffer serializedRequest,
-                                       long initiateTime,
-                                       Procedure catalog_proc,
-                                       ParameterSet procParams,
-                                       RpcCallback<ClientResponseImpl> clientCallback) {
-        boolean sysproc = catalog_proc.getSystemproc();
-        if (this.currentExecMode == ExecutionMode.DISABLED_REJECT && sysproc == false) return (false);
-        
-        InitializeRequestMessage work = new InitializeRequestMessage(serializedRequest,
-                                                             initiateTime,
-                                                             catalog_proc,
-                                                             procParams,
-                                                             clientCallback);
-        if (debug.val)
-            LOG.debug(String.format("Queuing %s for '%s' request on partition %d " +
-                      "[currentDtxn=%s, queueSize=%d, mode=%s]",
-                      work.getClass().getSimpleName(), catalog_proc.getName(), this.partitionId,
-                      this.currentDtxn, this.work_queue.size(), this.currentExecMode));
-        return (this.work_queue.offer(work));
-    }
-    
     /**
      * Queue a new transaction invocation request at this partition
      * @param ts
@@ -2776,7 +2735,18 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             if (debug.val)
                 LOG.debug(String.format("%s - Invoking early 2PC:PREPARE at partition %d",
                           ts, this.partitionId));
-            this.queuePrepare(ts, ts.getPrepareCallback());
+            PartitionCountingCallback<? extends AbstractTransaction> callback = ts.getPrepareCallback();
+            
+            // If we are at a remote site, then we have to be careful here.
+            // We don't actually have the real callback that the RemotePrepareCallback needs.
+            // So that we have to use a null callback that doesn't actually do anything. The 
+            // RemotePrepareCallback will make sure that we mark the partition as prepared.
+            if (ts instanceof RemoteTransaction) {
+                PartitionSet partitions = catalogContext.getPartitionSetSingleton(this.partitionId);
+                RpcCallback<TransactionPrepareResponse> origCallback = NullCallback.getInstance(); 
+                ((RemotePrepareCallback)callback).init((RemoteTransaction)ts, partitions, origCallback);
+            }
+            this.queuePrepare(ts, callback);
         }
     }
     

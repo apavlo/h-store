@@ -15,7 +15,6 @@ import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.internal.FinishTxnMessage;
 import edu.brown.hstore.internal.InitializeRequestMessage;
-import edu.brown.hstore.internal.InitializeTxnMessage;
 import edu.brown.hstore.internal.InternalMessage;
 import edu.brown.hstore.internal.StartTxnMessage;
 import edu.brown.hstore.internal.WorkFragmentMessage;
@@ -102,17 +101,6 @@ public class TestPartitionMessageQueue extends BaseTestCase {
         assertEquals(target, this.queue.peek());
         next = this.queue.poll();
         assertEquals(target, next);
-    }
-    
-    /**
-     * testInitializeTxnBeforeOthers
-     */
-    public void testInitializeTxnBeforeOthers() throws Exception {
-        // We want to make sure that we always get the init before the FinishTxnMessage
-        InitializeTxnMessage initTxnMsg = new InitializeTxnMessage(ts0);
-        FinishTxnMessage finishTxnMsg = new FinishTxnMessage(ts0, Status.OK);
-        InternalMessage messages[] = { initRequestMsg, startMsg, workMsg, finishTxnMsg };
-        this.checkOutputOrder(initTxnMsg, messages);
     }
     
     /**

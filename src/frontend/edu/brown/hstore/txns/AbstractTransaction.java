@@ -51,7 +51,6 @@ import edu.brown.hstore.callbacks.PartitionCountingCallback;
 import edu.brown.hstore.estimators.Estimate;
 import edu.brown.hstore.estimators.EstimatorState;
 import edu.brown.hstore.internal.FinishTxnMessage;
-import edu.brown.hstore.internal.InitializeTxnMessage;
 import edu.brown.hstore.internal.SetDistributedTxnMessage;
 import edu.brown.hstore.internal.WorkFragmentMessage;
 import edu.brown.interfaces.DebugContext;
@@ -140,8 +139,6 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
     // ----------------------------------------------------------------------------
     // INTERNAL MESSAGE WRAPPERS
     // ----------------------------------------------------------------------------
-    
-    private final InitializeTxnMessage init_task;
     
     private SetDistributedTxnMessage setdtxn_task;
     
@@ -262,8 +259,6 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
         this.exec_firstUndoToken = new long[numPartitions];
         this.exec_lastUndoToken = new long[numPartitions];
         this.exec_noUndoBuffer = new boolean[numPartitions];
-        
-        this.init_task = new InitializeTxnMessage(this);
         
         this.readTables = new boolean[numPartitions][];
         this.writeTables = new boolean[numPartitions][];
@@ -761,9 +756,6 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
     // INTERNAL MESSAGE WRAPPERS
     // ----------------------------------------------------------------------------
     
-    public final InitializeTxnMessage getInitializeTxnMessage() {
-        return (this.init_task);
-    }
     public final SetDistributedTxnMessage getSetDistributedTxnMessage() {
         if (this.setdtxn_task == null) {
             this.setdtxn_task = new SetDistributedTxnMessage(this);
