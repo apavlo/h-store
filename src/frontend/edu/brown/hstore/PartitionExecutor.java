@@ -3649,7 +3649,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         // If the finalTask flag is set to true, then the new done partitions
         // is every partition that this txn has locked
         if (finalTask) {
-            estDonePartitions = touchedPartitions;
+            estDonePartitions = new PartitionSet(touchedPartitions);
         }
         // Otherwise, we'll rely on the transaction's current estimate to figure it out.
         else {
