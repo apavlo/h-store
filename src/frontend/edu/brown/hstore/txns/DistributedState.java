@@ -43,7 +43,16 @@ public class DistributedState implements Poolable {
      * then this bit map is used to keep track whether we have sent the Procedure
      * ParameterSet to a remote site.
      */
-    protected final BitSet sent_parameters; 
+    protected final BitSet sent_parameters;
+    
+    /**
+     * Cached ProtoRpcControllers
+     * SiteId -> Controller
+     */
+    private final ProtoRpcController rpc_transactionInit[];
+    private final ProtoRpcController rpc_transactionWork[];
+    private final ProtoRpcController rpc_transactionPrepare[];
+    private final ProtoRpcController rpc_transactionFinish[];
     
     // ----------------------------------------------------------------------------
     // CALLBACKS
@@ -62,20 +71,10 @@ public class DistributedState implements Poolable {
      * HStoreSite.deleteTransaction()
      */
     protected final LocalFinishCallback finish_callback;
-    
+
     // ----------------------------------------------------------------------------
-    // CACHED CONTROLLERS
+    // INITIALIZATION
     // ----------------------------------------------------------------------------
-    
-    /**
-     * Cached ProtoRpcControllers
-     * SiteId -> Controller
-     */
-    private final ProtoRpcController rpc_transactionInit[];
-    private final ProtoRpcController rpc_transactionWork[];
-    private final ProtoRpcController rpc_transactionPrepare[];
-    private final ProtoRpcController rpc_transactionFinish[];
-    
     
     /**
      * Constructor
@@ -119,6 +118,18 @@ public class DistributedState implements Poolable {
         this.exec_donePartitions.clear();
         this.notified_prepare.clear();
         this.sent_parameters.clear();
+        
+        for (int i = 0; i < this.rpc_transactionInit.length; i++) {
+            if (this.rpc_transactionInit[i] != null)
+                this.rpc_transactionInit[i].reset();
+            if (this.rpc_transactionWork[i] != null)
+                this.rpc_transactionWork[i].reset();
+            if (this.rpc_transactionPrepare[i] != null)
+                this.rpc_transactionPrepare[i].reset();
+            if (this.rpc_transactionFinish[i] != null)
+                this.rpc_transactionFinish[i].reset();
+        } // FOR
+        
         this.ts = null;
     }
     
@@ -138,8 +149,6 @@ public class DistributedState implements Poolable {
     private final ProtoRpcController getProtoRpcController(ProtoRpcController cache[], int site_id) {
         if (cache[site_id] == null) {
             cache[site_id] = new ProtoRpcController();
-        } else {
-            cache[site_id].reset();
         }
         return (cache[site_id]);
     }
