@@ -345,7 +345,7 @@ public class BenchmarkController {
         this.projectBuilder = tempBuilder;
         this.projectBuilder.addAllDefaults();
         this.jarFileName = FileUtil.join(hstore_conf.client.jar_dir, this.projectBuilder.getJarName(false));
-        assert(this.jarFileName.getPath().isEmpty()) :
+        assert(this.jarFileName.getPath().isEmpty() == false) :
             "Invalid Project jar file name '" + this.jarFileName + "'";
 
         if (config.snapshotFrequency != null
