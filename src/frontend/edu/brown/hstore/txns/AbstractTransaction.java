@@ -565,7 +565,7 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
     
     /**
      * Returns true if this transaction has done something at this partition and therefore
-     * the PartitionExecutor needs to be told that they are finished
+     * the PartitionExecutor needs to be told that they are finished.
      * This could be either executing a query or executing the transaction's control code
      */
     public final boolean needsFinish(int partition) {

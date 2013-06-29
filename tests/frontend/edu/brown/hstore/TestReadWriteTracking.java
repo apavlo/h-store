@@ -131,6 +131,37 @@ public class TestReadWriteTracking extends BaseTestCase {
     // --------------------------------------------------------------------------------------------
     
     /**
+     * testCaching
+     */
+    @Test
+    public void testCaching() throws Exception {
+        TestSmallBankSuite.initializeSmallBankDatabase(catalogContext, this.client);
+        
+        BlockingSendPayment voltProc = this.startTxn();
+        Long txnId = voltProc.getTransactionId();
+        assertNotNull(txnId);
+        LocalTransaction ts = hstore_site.getTransaction(txnId);
+        assertNotNull(ts);
+        
+        Set<String> expectedTables = new HashSet<String>();
+        for (Table tbl : catalogContext.database.getTables()) {
+            if (ts.isTableRead(BASE_PARTITION, tbl)) {
+                expectedTables.add(tbl.getName());
+            }
+        } // FOR
+        
+        // We should always get back the same handle each time.
+        try {
+            VoltTable result0 = this.ee.trackingReadSet(txnId);
+            VoltTable result1 = this.ee.trackingReadSet(txnId);
+        assert(result0 == result1);
+        } finally {
+            this.finishTxn(voltProc);
+        }
+    }
+    
+    
+    /**
      * testReadSets
      */
     @Test

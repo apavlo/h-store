@@ -4409,6 +4409,11 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             this.finishWorkEE(ts, undoToken, commit);
         }
         
+        // Clear out the tracking sets in the EE
+        if (hstore_conf.site.exec_readwrite_tracking && ts.hasExecutedWork(this.partitionId)) {
+            this.ee.trackingFinish(ts.getTransactionId());
+        }
+        
         // We always need to do the following things regardless if we hit up the EE or not
         if (commit) this.lastCommittedTxnId = ts.getTransactionId();
         
