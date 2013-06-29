@@ -69,7 +69,8 @@ public:
     std::vector<int64_t> generateQuantumsAndActions(int numUndoQuantums, int numUndoActions) {
         std::vector<int64_t> undoTokens;
         for (int ii = 0; ii < numUndoQuantums; ii++) {
-            const int64_t undoToken = (INT64_MIN + 1) + (ii * 3);
+//             const int64_t undoToken = (INT64_MIN + 1) + (ii * 3);
+            const int64_t undoToken = (ii * 3);
             undoTokens.push_back(undoToken);
             voltdb::UndoQuantum *quantum = m_undoLog->generateUndoQuantum(undoToken);
             voltdb::Pool *pool = quantum->getDataPool();
@@ -288,6 +289,50 @@ TEST_F(UndoLogTest, TestTwoQuantumTwoActionUndoOneReleaseOne) {
     m_undoLog->release(undoTokens[0]);
     startingIndex = 0;
     confirmReleaseActionHistoryOrder(m_undoActionHistoryByQuantum[0], startingIndex);
+}
+
+TEST_F(UndoLogTest, TestUndoRange) {
+    std::vector<int64_t> undoTokens = generateQuantumsAndActions(5, 1);
+    ASSERT_EQ(5, undoTokens.size());
+
+    int startIndex = 2;
+    int stopIndex = 1;
+    
+    // Undo the inner two tokens
+    m_undoLog->undoRange(undoTokens[startIndex], undoTokens[stopIndex]);
+    
+    // Release the other two tokens
+    m_undoLog->release(undoTokens[0]);
+    m_undoLog->release(undoTokens[3]);
+    m_undoLog->release(undoTokens[4]);
+    
+    // Check that everything went in the right order
+    int index = 0;
+    int undoIndex = (startIndex - stopIndex);
+    int releaseIndex = 0;
+    
+    std::vector<std::vector<MockUndoActionHistory*> >::iterator i;
+    for (i = m_undoActionHistoryByQuantum.begin(); i != m_undoActionHistoryByQuantum.end(); i++) {
+        for (std::vector<MockUndoActionHistory*>::iterator q = (*i).begin(); q != (*i).end(); q++) {
+            const MockUndoActionHistory *history = (*q);
+            if (index < stopIndex || index > startIndex) {
+                VOLT_INFO("[%02d] RELEASE: expected=%d / actual=%d",
+                          index, releaseIndex, history->m_releasedIndex);
+                ASSERT_FALSE(history->m_undone);
+                ASSERT_TRUE(history->m_released);
+                ASSERT_EQ(history->m_releasedIndex, releaseIndex++);
+            } else {
+                VOLT_INFO("[%02d] UNDO: expected=%d / actual=%d",
+                          index, undoIndex, history->m_undoneIndex);
+                ASSERT_TRUE(history->m_undone);
+                ASSERT_FALSE(history->m_released);
+                ASSERT_EQ(history->m_undoneIndex, undoIndex--);
+            }
+            index++;
+            break;
+        } // FOR
+    } // FOR
+
 }
 
 int main() {
