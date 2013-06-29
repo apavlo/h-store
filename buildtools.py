@@ -42,7 +42,7 @@ class BuildContext:
         for arg in [x.strip().upper() for x in args]:
             if arg in ["DEBUG", "RELEASE", "MEMCHECK", "MEMCHECK_NOFREELIST"]:
                 self.LEVEL = arg
-            if arg in ["BUILD", "CLEAN", "TEST", "VOLTRUN", "VOLTDBIPC"]:
+            if arg in ["BUILD", "CLEAN", "BUILDTEST", "TEST", "VOLTRUN", "VOLTDBIPC"]:
                 self.TARGET = arg
             if arg in ["COVERAGE"]:
                 self.COVERAGE = True
@@ -201,7 +201,7 @@ def buildMakefile(CTX):
     makefile.write(".PHONY: main\n")
     if CTX.TARGET == "VOLTRUN":
         makefile.write("main: prod/voltrun\n")
-    elif CTX.TARGET == "TEST":
+    elif CTX.TARGET.endswith("TEST"):
         makefile.write("main: ")
     else:
         makefile.write("main: nativelibs/%s.$(JNIEXT)\n" % baselibname)
@@ -328,12 +328,15 @@ def buildIPC(CTX):
     retval = os.system("make --directory=%s prod/voltdbipc -j4" % (CTX.OUTPUT_PREFIX))
     return retval
 
-def runTests(CTX):
-    failedTests = []
-
+def buildTests(CTX):
     retval = os.system("make --directory=%s test -j4" % (CTX.OUTPUT_PREFIX))
     if retval != 0:
         return -1
+    return retval
+
+def runTests(CTX):
+    failedTests = []
+
     CATALOG_PATH = os.environ['M1CATALOG_PATH']
     TESTOBJECTS_DIR = os.environ['TEST_DIR']
     TEST_PREFIX = CTX.TEST_PREFIX.rstrip("/")
