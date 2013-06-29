@@ -4399,7 +4399,15 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         assert(ts.isMarkedFinished(this.partitionId) == false) :
             String.format("Trying to commit %s twice at partition %d", ts, this.partitionId);
         
-        // This can be null if they haven't submitted anything
+        // Figure out what undoToken we need to process. This can be null if they haven't
+        // submitted any work to the EE at this partition.
+        // The logic for what we're doing is as follows:
+        // (1) If we are committing, then we want the *last* undoToken because that
+        //     will automatically commit everything up to that token (i.e., all the earlier
+        //     tokens used by the txn.
+        // (2) If we are aborting, then we want the *first* undo token
+        //     because that will automatically rollback all of the tokens used by the txn
+        //     that came after it.
         boolean commit = (status == Status.OK);
         long undoToken = (commit ? ts.getLastUndoToken(this.partitionId) :
                                    ts.getFirstUndoToken(this.partitionId));
@@ -4589,8 +4597,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                     // could lose its read/write tracking set if we're using OCC
                     for (AbstractTransaction next : allTxns) {
                         if (ts == next) continue;
-                        // Otherwise it's as speculative txn. Let's figure out what we need to
-                        // do with it.
+                        // Otherwise it's as speculative txn.
+                        // Let's figure out what we need to do with it.
                         LocalTransaction spec_ts = (LocalTransaction)next;
                         boolean shouldCommit = false;
                         long spec_token = spec_ts.getFirstUndoToken(this.partitionId);
@@ -4638,27 +4646,43 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                         
                     } // FOR
                     
-                    // Go back through our boys again, this time we will actually 
-                    // process them.
+                    // Go back through our boys again.
+                    // This time we will actually process them.
+                    Status lastStatus = null;
+                    final List<LocalTransaction> batch = new ArrayList<LocalTransaction>();
                     for (AbstractTransaction next : allTxns) {
                         // If this is the dtxn, then we need to abort it right here
                         if (ts == next) {
+                            // Flush current batch if they're suppose to commit
+                            if (lastStatus == Status.OK) {
+                                assert(batch.isEmpty() == false);
+                                this.processClientResponseBatch(batch, lastStatus);
+                                batch.clear();
+                            }
+                            // This will rollback the undo the dtxn's log 
                             this.finishTransaction(ts, status);
                             continue;
                         }
                         
                         LocalTransaction spec_ts = (LocalTransaction)next;
                         ClientResponseImpl spec_cr = spec_ts.getClientResponse();
-                        if (debug.val)
-                            LOG.debug(String.format("%s - Releasing blocked ClientResponse for %s [status=%s]",
-                                      ts, spec_ts, spec_cr.getStatus()));
-                        try {
-                            this.processClientResponse(spec_ts, spec_cr);
-                        } catch (Throwable ex) {
-                            String msg = "Failed to complete queued response for " + spec_ts;
-                            throw new ServerFaultException(msg, ex, ts.getTransactionId());
+                        Status spec_status = spec_cr.getStatus();
+                        
+                        // If we reached a new txn that doesn't match our current batch
+                        // status, then we need to flush out the batch.
+                        if (lastStatus != null && spec_status != lastStatus) {
+                            this.processClientResponseBatch(batch, lastStatus);
+                            batch.clear();
                         }
+                        
+                        // Add it to our batch
+                        batch.add(spec_ts);
+                        lastStatus = spec_status;
                     } // FOR
+                    if (batch.isEmpty() == false) {
+                        assert(lastStatus != null);
+                        this.processClientResponseBatch(batch, lastStatus);
+                    }
 
                 }
                 // -------------------------------
@@ -4797,7 +4821,33 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                           ts, callback.getClass().getSimpleName(), this.partitionId));
             callback.run(this.partitionId);
         }
-    }    
+    }
+    
+    private void processClientResponseBatch(Collection<LocalTransaction> batch, Status status) {
+        // Only processs the last txn in the list, since it will have the
+        // the greatest undo token value.
+        LocalTransaction lastTxn = CollectionUtil.last(batch);
+        assert(lastTxn != null);
+        long lastUndoToken = lastTxn.getFirstUndoToken(this.partitionId);
+        this.finishWorkEE(lastTxn, lastUndoToken, (status == Status.OK));
+        
+        for (LocalTransaction ts : batch) {
+            // Marking the txn as finished will prevent us from going down
+            // into the EE to finish up the transaction.
+            ts.markFinished(this.partitionId);
+            
+            // Send out the ClientResponse to whomever wants it!
+            if (debug.val)
+                LOG.debug(String.format("%s - Releasing blocked ClientResponse for %s [status=%s]",
+                          ts, ts, ts.getClientResponse().getStatus()));
+            try {
+                this.processClientResponse(ts, ts.getClientResponse());
+            } catch (Throwable ex) {
+                String msg = "Failed to complete queued response for " + ts;
+                throw new ServerFaultException(msg, ex, ts.getTransactionId());
+            }
+        } // FOR
+    }
     
     private void blockTransaction(InternalTxnMessage work) {
         if (debug.val)
