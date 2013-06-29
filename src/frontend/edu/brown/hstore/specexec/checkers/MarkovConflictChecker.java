@@ -167,7 +167,12 @@ public class MarkovConflictChecker extends TableConflictChecker {
         // We're good to go!
         return (false);
     }
-
+    
+    @Override
+    public boolean skipConflictAfter() {
+        return (true);
+    }
+    
     @Override
     public boolean hasConflictBefore(AbstractTransaction dtxn, LocalTransaction candidate, int partitionId) {
         // If the TableConflictChecker says that it's ok, then we know that we don't need

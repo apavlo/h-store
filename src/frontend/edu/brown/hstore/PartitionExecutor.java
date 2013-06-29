@@ -4325,26 +4325,28 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             if (hstore_conf.site.specexec_enable) {
                 // Check to see if there were any conflicts with the dtxn and any of its speculative
                 // txns at this partition. If there were, then we know that we can't commit the txn here.
-                for (LocalTransaction spec_ts : this.specExecBlocked) {
-                    // Check whether we can quickly ignore this speculative txn because
-                    // it was executed at a stall point where conflicts don't matter.
-                    SpeculationType specType = spec_ts.getSpeculationType();
-                    if (specType != SpeculationType.SP2_REMOTE_AFTER && specType != SpeculationType.SP1_LOCAL) {
-                        continue;
-                    }
-                    
-                    if (debug.val)
-                        LOG.debug(String.format("%s - Checking for conflicts with speculative %s at partition %d [%s]",
-                                  ts, spec_ts, this.partitionId,
-                                  this.specExecChecker.getClass().getSimpleName()));
-                    if (this.specExecChecker.hasConflictAfter(ts, spec_ts, this.partitionId)) {
+                if (this.specExecChecker.skipConflictAfter() == false) {
+                    for (LocalTransaction spec_ts : this.specExecBlocked) {
+                        // Check whether we can quickly ignore this speculative txn because
+                        // it was executed at a stall point where conflicts don't matter.
+                        SpeculationType specType = spec_ts.getSpeculationType();
+                        if (specType != SpeculationType.SP2_REMOTE_AFTER && specType != SpeculationType.SP1_LOCAL) {
+                            continue;
+                        }
+                        
                         if (debug.val)
-                            LOG.debug(String.format("%s - Conflict found with speculative txn %s at partition %d",
-                                      ts, spec_ts, this.partitionId));
-                        status = Status.ABORT_RESTART;
-                        break;
-                    }
-                } // FOR
+                            LOG.debug(String.format("%s - Checking for conflicts with speculative %s at partition %d [%s]",
+                                      ts, spec_ts, this.partitionId,
+                                      this.specExecChecker.getClass().getSimpleName()));
+                        if (this.specExecChecker.hasConflictAfter(ts, spec_ts, this.partitionId)) {
+                            if (debug.val)
+                                LOG.debug(String.format("%s - Conflict found with speculative txn %s at partition %d",
+                                          ts, spec_ts, this.partitionId));
+                            status = Status.ABORT_RESTART;
+                            break;
+                        }
+                    } // FOR
+                }
                 // Check whether the txn that we're waiting for is read-only.
                 // If it is, then that means all read-only transactions can commit right away
                 if (status == Status.OK && ts.isExecReadOnly(this.partitionId)) {
@@ -4589,6 +4591,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                     final List<LocalTransaction> toCommit = new ArrayList<LocalTransaction>();
                     final LinkedList<LocalTransaction> toAbortBefore = new LinkedList<LocalTransaction>();
                     final LinkedList<LocalTransaction> toAbortAfter = new LinkedList<LocalTransaction>();
+                    final boolean skipConflictChecker = this.specExecChecker.skipConflictAfter();
                     
                     // Go through once and figure out which txns we need to abort
                     // We have to do this first because if we abort our dtxn then we
@@ -4632,7 +4635,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                         }
                         // Ok so at this point we know that our spec txn came *after* the distributed txn
                         // started. So we need to use our checker to see whether there is a conflict
-                        else if (this.specExecChecker.hasConflictAfter(ts, spec_ts, this.partitionId) == false) {
+                        else if (skipConflictChecker || this.specExecChecker.hasConflictAfter(ts, spec_ts, this.partitionId) == false) {
                             if (debug.val)
                                 LOG.debug(String.format("Speculative Txn %s does not conflict with dtxn %s at partition %d",
                                           spec_ts, ts, this.partitionId));

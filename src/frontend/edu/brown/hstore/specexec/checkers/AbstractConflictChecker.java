@@ -28,6 +28,14 @@ public abstract class AbstractConflictChecker {
         return (this.disabled);
     }
     
+    public boolean skipConflictBefore() {
+        return (false);
+    }
+    
+    public boolean skipConflictAfter() {
+        return (false);
+    }
+    
     /**
      * Returns true if the given transaction should be ignored from conflict checking
      * @param ts
