@@ -121,8 +121,11 @@ public class SEATSLoader extends Loader {
     private final Map<Long, FlightInfo> flight_infos = new HashMap<Long, FlightInfo>();
     
     private static class FlightInfo {
-        private long depart_airport;
-        private long arrive_airport;
+        // NOTE: These need to be strings.
+        //       We will automagically convert them to their proper 
+        //       ids in loadTable()
+        private String depart_airport;
+        private String arrive_airport;
         private String airline_code;
         private TimestampType depart_time;
         private TimestampType arrive_time;
@@ -465,14 +468,17 @@ public class SEATSLoader extends Loader {
                         tuple[col_code_idx] = mapping_columns.get(col_code_idx).get(code);
                         if (trace.val) {
                             Column catalog_fkey_col = CatalogUtil.getForeignKeyParent(catalog_col);
-                            LOG.trace(String.format("Mapped %s '%s' -> %s '%s'", catalog_col.fullName(), code, catalog_fkey_col.fullName(), tuple[col_code_idx]));
+                            LOG.trace(String.format("Mapped %s '%s' -> %s '%s'",
+                                      catalog_col.fullName(), code, catalog_fkey_col.fullName(), tuple[col_code_idx]));
                         }
                     }
                 } // FOR
                 
                 vt.addRow(tuple);
                 if (is_flight) {
-                	if (debug.val) LOG.debug(String.format("#1#FlightInfo is adding row...\nVT: %s\nVTFlightINFO:%s", tuple.toString(), vt.toString(), vtFilghtInfo.toString()));
+                	if (debug.val)
+                	    LOG.debug(String.format("#1#FlightInfo is adding row...\nVT: %s\nVTFlightINFO:%s",
+                	              tuple.toString(), vt.toString(), vtFilghtInfo.toString()));
                 	Object[] partTuple = new Object[vtFilghtInfo.getColumnCount()];
                 	for (int i = 0 ;i < partTuple.length; i++)
                 		partTuple[i] = tuple[flightInfoOffsets[i]];
@@ -484,7 +490,9 @@ public class SEATSLoader extends Loader {
                     this.loadVoltTable(tableName, vt);
                     vt.clearRowData();
                     if (is_flight) {
-                    	if (debug.val) LOG.debug(String.format("#1#FlightInfo is adding row...\nVT: %s\nVTFlightINFO:%s", tuple.toString(), vt.toString(), vtFilghtInfo.toString()));
+                    	if (debug.val)
+                    	    LOG.debug(String.format("#1#FlightInfo is adding row...\nVT: %s\nVTFlightINFO:%s",
+                    	              tuple.toString(), vt.toString(), vtFilghtInfo.toString()));
                     	this.loadVoltTable(SEATSConstants.TABLENAME_FLIGHT_INFO, vtFilghtInfo);
                     	vtFilghtInfo.clearRowData();
                     }
@@ -1081,9 +1089,10 @@ public class SEATSLoader extends Loader {
             // Figure out how many flights that we want for each day
             this.today = new TimestampType();
             
-            // Sometimes there are more flights per day, and sometimes there are fewer 
-            Gaussian gaussian = new Gaussian(rng, SEATSConstants.FLIGHTS_PER_DAY_MIN,
-                                                  SEATSConstants.FLIGHTS_PER_DAY_MAX);
+            // Sometimes there are more flights per day, and sometimes there are fewer
+            int flightsPerDayMin = (int)Math.round(SEATSConstants.FLIGHTS_PER_DAY_MIN * getScaleFactor());
+            int flightsPerDayMax = (int)Math.round(SEATSConstants.FLIGHTS_PER_DAY_MAX * getScaleFactor());
+            Gaussian gaussian = new Gaussian(rng, flightsPerDayMin, flightsPerDayMax);
             
             this.total = 0;
             boolean first = true;
@@ -1156,8 +1165,11 @@ public class SEATSLoader extends Loader {
             
             // Depart/Arrive Airports
             String airport_code = this.airports.nextValue();
-            flightInfo.depart_airport = profile.getAirportId(airport_code);
-            flightInfo.arrive_airport = profile.getAirportId(this.flights_per_airport.get(airport_code).nextValue());
+            flightInfo.depart_airport = airport_code;
+            flightInfo.arrive_airport = this.flights_per_airport.get(airport_code).nextValue();
+            if (trace.val)
+                LOG.trace(String.format("DEPART:%d / ARRIVE:%d",
+                          flightInfo.depart_airport, flightInfo.arrive_airport));
 
             // Depart/Arrive Times
             flightInfo.depart_time = this.convertTimeString(date, this.flight_times.nextValue());
@@ -1217,6 +1229,8 @@ public class SEATSLoader extends Loader {
                 // DEPART AIRPORT
                 case (2): {
                     value = this.flightInfo.depart_airport;
+                    if (trace.val)
+                        LOG.trace("Flight=" + this.flight_id + " / DEPART:" + this.flightInfo.depart_airport);
                     break;
                 }
                 // DEPART TIME
@@ -1227,6 +1241,8 @@ public class SEATSLoader extends Loader {
                 // ARRIVE AIRPORT
                 case (4): {
                     value = this.flightInfo.arrive_airport;
+                    if (trace.val)
+                        LOG.trace("Flight=" + this.flight_id + " / ARRIVE:" + this.flightInfo.arrive_airport);
                     break;
                 }
                 // ARRIVE TIME
@@ -1336,8 +1352,8 @@ public class SEATSLoader extends Loader {
             // Loop through the flights and generate reservations
             for (long flight_id = 0, cnt = profile.num_flights; flight_id < cnt; flight_id++) {
                 FlightInfo flightInfo = SEATSLoader.this.flight_infos.remove(flight_id);
-                long depart_airport_id = flightInfo.depart_airport;
-                long arrive_airport_id = flightInfo.arrive_airport;
+                String depart_airport = flightInfo.depart_airport;
+                String arrive_airport = flightInfo.arrive_airport;
                 TimestampType depart_time = flightInfo.depart_time;
                 TimestampType arrive_time = flightInfo.arrive_time;
                 flight_customer_ids.clear();
@@ -1350,8 +1366,8 @@ public class SEATSLoader extends Loader {
                 if (trace.val) {
                     Map<String, Object> m = new ListOrderedMap<String, Object>();
                     m.put("Flight Id", flight_id);
-                    m.put("Departure", String.format("%s / %s", profile.getAirportCode(depart_airport_id), depart_time));
-                    m.put("Arrival", String.format("%s / %s", profile.getAirportCode(arrive_airport_id), arrive_time));
+                    m.put("Departure", String.format("%s / %s", depart_airport, depart_time));
+                    m.put("Arrival", String.format("%s / %s", arrive_airport, arrive_time));
                     m.put("Booked Seats", booked_seats);
                     m.put(String.format("Returning Customers[%d]", returning_customers.size()), StringUtil.join("\n", returning_customers));
                     LOG.trace("Flight Information\n" + StringUtil.formatMaps(m));
@@ -1359,7 +1375,7 @@ public class SEATSLoader extends Loader {
                 
                 for (int seatnum = SEATSConstants.FLIGHTS_RESERVED_SEATS; seatnum < booked_seats; seatnum++) {
                     Long customer_id = null;
-                    Long airport_customer_cnt = profile.getCustomerIdCount(depart_airport_id);
+                    Long airport_customer_cnt = profile.getCustomerIdCount(profile.getAirportId(depart_airport));
                     boolean local_customer = airport_customer_cnt != null && (flight_customer_ids.size() < airport_customer_cnt.intValue());
                     int tries = 2000;
                     ReturnFlight return_flight = null;
@@ -1399,8 +1415,8 @@ public class SEATSLoader extends Loader {
                         // back to their original depart airport
                         } else {
                             int return_days = rand_returns.nextInt();
-                            return_flight = new ReturnFlight(customer_id, depart_airport_id, depart_time, return_days);
-                            this.airport_returns.get(arrive_airport_id).add(return_flight);
+                            return_flight = new ReturnFlight(customer_id, profile.getAirportId(depart_airport), depart_time, return_days);
+                            this.airport_returns.get(arrive_airport).add(return_flight);
                         }
                     }
                     assert(customer_id != null) : "Null customer id on " + flight_id;
@@ -1431,7 +1447,7 @@ public class SEATSLoader extends Loader {
             if (!returns.isEmpty()) {
                 for (ReturnFlight return_flight : returns) {
                     if (return_flight.getReturnDate().compareTo(flight_date) > 0) break;
-                    if (return_flight.getReturnAirportId() == flightInfo.arrive_airport) {
+                    if (return_flight.getReturnAirportId() == profile.getAirportId(flightInfo.arrive_airport)) {
                         returning_customers.add(return_flight);
                     }
                 } // FOR
@@ -1554,9 +1570,8 @@ public class SEATSLoader extends Loader {
      * @param depart_time
      * @return
      */
-    public TimestampType calculateArrivalTime(long depart_airport, long arrive_airport, TimestampType depart_time) {
-        Integer distance = this.getDistance(profile.getAirportCode(depart_airport),
-                                            profile.getAirportCode(arrive_airport));
+    public TimestampType calculateArrivalTime(String depart_airport, String arrive_airport, TimestampType depart_time) {
+        Integer distance = this.getDistance(depart_airport, arrive_airport);
         assert(distance != null) :
             String.format("The calculated distance between '%s' and '%s' is null",
                           depart_airport, arrive_airport);
