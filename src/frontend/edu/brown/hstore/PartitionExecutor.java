@@ -1528,11 +1528,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         } else {
             volt_proc = new VoltProcedure.StmtProcedure();
         }
-        volt_proc.globalInit(PartitionExecutor.this,
-                             catalog_proc,
-                             this.backend_target,
-                             this.hsql,
-                             this.p_estimator);
+        volt_proc.init(this, catalog_proc, this.backend_target, this.p_estimator);
         return (volt_proc);
     }
     
@@ -3363,8 +3359,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 tmp_fragmentsPerPartition.clearValues();
                 tmp_fragmentsPerPartition.put(this.partitionId, batchSize);
                 DonePartitionsNotification notify = this.computeDonePartitions(ts, null, tmp_fragmentsPerPartition, finalTask);
-                if (notify != null && notify.hasSitesToNotify())
+                if (notify != null && notify.hasSitesToNotify()) {
                     this.notifyDonePartitions(ts, notify);
+                }
             }
 
             // Execute the queries right away.
@@ -3734,10 +3731,13 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
      * @param notify
      */
     private void notifyDonePartitions(LocalTransaction ts, DonePartitionsNotification notify) {
+        LOG.info(String.format("%s - Sending done partitions notifications to remote sites %s",
+                 ts, notify._sitesToNotify));
+        
         // BLAST OUT NOTIFICATIONS!
         for (int remoteSiteId : notify._sitesToNotify) {
             assert(notify.notificationsPerSite[remoteSiteId] != null);
-            if (debug.val)
+//            if (debug.val)
                 LOG.info(String.format("%s - Notifying %s that txn is finished with partitions %s",
                          ts, HStoreThreadManager.formatSiteName(remoteSiteId),
                          notify.notificationsPerSite[remoteSiteId]));
@@ -4349,24 +4349,16 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             this.setExecutionMode(ts, newMode);
 
             // We have to send a prepare message to all of our remote HStoreSites
-            // We want to make sure that we don't go back to ones that we've already told
-            PartitionSet donePartitions = ts.getDonePartitions();
-            PartitionSet notifyPartitions = new PartitionSet();
-            for (int partition : ts.getPredictTouchedPartitions().values()) {
-                if (donePartitions.contains(partition) == false) {
-                    notifyPartitions.add(partition);
-                }
-            } // FOR
-            
             if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.startPostPrepare();
             ts.setClientResponse(cresponse);
             if (hstore_conf.site.exec_profiling) {
                 this.profiler.network_time.start();
                 this.profiler.sp3_local_time.start();
             }
+            
+            // 
             LocalPrepareCallback callback = ts.getPrepareCallback();
-            callback.init(ts, notifyPartitions);
-            this.hstore_coordinator.transactionPrepare(ts, callback, notifyPartitions);
+            this.hstore_coordinator.transactionPrepare(ts, callback, ts.getPredictTouchedPartitions());
             if (hstore_conf.site.exec_profiling) this.profiler.network_time.stopIfStarted();
         }
         // -------------------------------

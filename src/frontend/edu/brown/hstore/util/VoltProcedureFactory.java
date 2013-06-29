@@ -56,11 +56,10 @@ public class VoltProcedureFactory extends TypedPoolableObjectFactory<VoltProcedu
             } else {
                 volt_proc = new VoltProcedure.StmtProcedure();
             }
-            volt_proc.globalInit(this.executor,
-                                 this.catalog_proc,
-                                 this.executor.getBackendTarget(),
-                                 this.executor.getHsqlBackend(),
-                                 this.executor.getPartitionEstimator());
+            volt_proc.init(this.executor,
+                           this.catalog_proc,
+                           this.executor.getBackendTarget(),
+                           this.executor.getPartitionEstimator());
         } catch (Exception e) {
             LOG.error("Failed to created VoltProcedure instance for " + catalog_proc.getName() , e);
             throw e;

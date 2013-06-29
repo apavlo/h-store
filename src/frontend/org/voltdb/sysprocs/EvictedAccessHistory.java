@@ -84,7 +84,7 @@ public class EvictedAccessHistory extends VoltSystemProcedure {
                 result = new DependencySet(DISTRIBUTE_ID, vt);
                 if (debug.val)
                     LOG.info(String.format("%s - Sending back result for partition %d",
-                             m_localTxnState, this.executor.getPartitionId()));
+                             localTxnState, this.executor.getPartitionId()));
                 break;
             }
             

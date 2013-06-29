@@ -77,13 +77,13 @@ public class AdHoc extends VoltSystemProcedure {
             
             // Always mark this information for the txn so that we can
             // rollback anything that it may do
-            m_currentTxnState.markExecNotReadOnly(this.partitionId);
-            m_currentTxnState.markExecutedWork(this.partitionId);
+            localTxnState.markExecNotReadOnly(this.partitionId);
+            localTxnState.markExecutedWork(this.partitionId);
             
             table = context.getExecutionEngine().
                 executeCustomPlanFragment(plan, outputDepId, inputDepId, getTransactionId(),
                                           context.getLastCommittedTxnId(),
-                                          m_currentTxnState.getLastUndoToken(this.partitionId));
+                                          localTxnState.getLastUndoToken(this.partitionId));
         }
 
         return new DependencySet(new int[]{ outputDepId }, new VoltTable[]{ table });

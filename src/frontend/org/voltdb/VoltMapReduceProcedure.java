@@ -73,9 +73,8 @@ public abstract class VoltMapReduceProcedure<K> extends VoltProcedure {
     // -----------------------------------------------------------------
     
     @Override
-    public void globalInit(PartitionExecutor site, Procedure catalogProc, BackendTarget eeType, HsqlBackend hsql,
-            PartitionEstimator pEstimator) {
-        super.globalInit(site, catalogProc, eeType, hsql, pEstimator);
+    public void init(PartitionExecutor site, Procedure catalogProc, BackendTarget eeType, PartitionEstimator pEstimator) {
+        super.init(site, catalogProc, eeType, pEstimator);
         
         // Get the SQLStmt handles for the input queries
         this.mapInputQuery = this.getSQLStmt(catalogProc.getMapinputquery());
@@ -95,7 +94,7 @@ public abstract class VoltMapReduceProcedure<K> extends VoltProcedure {
         // The MapReduceTransaction handle will have all the key information we need about this txn
         long txn_id = this.getTransactionId();
         this.mr_ts = this.hstore_site.getTransaction(txn_id);
-        assert (mr_ts != null) : "Unexpected null MapReduceTransaction handle for " + this.m_localTxnState;
+        assert (mr_ts != null) : "Unexpected null MapReduceTransaction handle for " + this.localTxnState;
 
 
         // If this invocation is at the txn's base partition, then it is
@@ -132,7 +131,7 @@ public abstract class VoltMapReduceProcedure<K> extends VoltProcedure {
             
             if (debug.val)
                 LOG.debug(String.format("MAP: About to process %d records for %s on partition %d",
-                          mapResult[0].getRowCount(), this.m_localTxnState, this.partitionId));
+                          mapResult[0].getRowCount(), this.localTxnState, this.partitionId));
 
             if (debug.val)
                 LOG.debug(String.format("<MapInputTable> Partition:%d\n %s", this.partitionId,mapResult[0]));
@@ -143,7 +142,7 @@ public abstract class VoltMapReduceProcedure<K> extends VoltProcedure {
             
             if (debug.val)
                 LOG.debug(String.format("MAP: %s generated %d results on partition %d",
-                          this.m_localTxnState, this.map_output.getRowCount(), this.partitionId));
+                          this.localTxnState, this.map_output.getRowCount(), this.partitionId));
             if (debug.val)
                 LOG.debug(String.format("<MapOutputTable> Partition:%d\n %s", this.partitionId,this.map_output));
             
@@ -191,7 +190,7 @@ public abstract class VoltMapReduceProcedure<K> extends VoltProcedure {
             // Loop over that iterator and call runReduce
             if (debug.val)
                 LOG.debug(String.format("REDUCE: About to process %d records for %s on partition %d",
-                          sorted.getRowCount(), this.m_localTxnState, this.partitionId));
+                          sorted.getRowCount(), this.localTxnState, this.partitionId));
             
             while (rows.hasNext()) {
                 K key = rows.getKey();
@@ -204,7 +203,7 @@ public abstract class VoltMapReduceProcedure<K> extends VoltProcedure {
             // Loop over that iterator and call runReduce
             if (debug.val)
                 LOG.debug(String.format("REDUCE: %s generated %d results on partition %d",
-                          this.m_localTxnState, this.reduce_output.getRowCount(), this.partitionId));
+                          this.localTxnState, this.reduce_output.getRowCount(), this.partitionId));
             ByteString reduceOutData = null;
             try {
                 ByteBuffer b = ByteBuffer.wrap(FastSerializer.serialize(reduce_output));

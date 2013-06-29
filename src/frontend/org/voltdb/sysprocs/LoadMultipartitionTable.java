@@ -167,8 +167,8 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
             
             if (partitionedTables[p] == null) {
                 partitionedTables[p] = table.clone(1024 * 1024);
-                this.m_localTxnState.getTouchedPartitions().put(p);
-                if (this.m_localTxnState.getPredictTouchedPartitions().contains(p) == false) {
+                this.localTxnState.getTouchedPartitions().put(p);
+                if (this.localTxnState.getPredictTouchedPartitions().contains(p) == false) {
                     mispredict = true;
                 }
                 if (trace.val) LOG.trace("Cloned VoltTable for Partition #" + p);
@@ -187,8 +187,8 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
         // data on. This will help speed up concurrent bulk loading
         if (mispredict) {
             if (debug.val) LOG.warn(String.format("%s - Restarting as a distributed transaction on partitions %s",
-                                      this.m_localTxnState, this.m_localTxnState.getTouchedPartitions().values()));
-            throw new MispredictionException(this.getTransactionId(), this.m_localTxnState.getTouchedPartitions());
+                                      this.localTxnState, this.localTxnState.getTouchedPartitions().values()));
+            throw new MispredictionException(this.getTransactionId(), this.localTxnState.getTouchedPartitions());
         }
         StringBuilder sb = null;
         if (trace.val) {
@@ -279,7 +279,7 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
         if (catalog_tbl.getIsreplicated()) {
             // If they haven't locked all of the partitions in the cluster, then we'll 
             // stop them right here and force them to get those
-            if (this.m_localTxnState.getPredictTouchedPartitions().size() != this.allPartitionsHistogram.getValueCount()) { 
+            if (this.localTxnState.getPredictTouchedPartitions().size() != this.allPartitionsHistogram.getValueCount()) { 
                 throw new MispredictionException(this.getTransactionId(), this.allPartitionsHistogram);
             }
             pfs = this.createReplicatedPlan(catalog_tbl, table);
@@ -301,7 +301,7 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
         if (debug.val) LOG.debug(String.format("%s Vertical Partition: %s", catalog_tbl.getName(), catalog_view));
         if (catalog_view != null) {
             if (debug.val) LOG.debug(String.format("%s - Updating %s's vertical partition %s",
-                                                     this.m_localTxnState, catalog_tbl.getName(), catalog_view.getDest().getName()));
+                                                     this.localTxnState, catalog_tbl.getName(), catalog_view.getDest().getName()));
             executeSysProcPlanFragments(createVerticalPartitionPlan(catalog_view, table), (int)DEP_aggregate);
         }
         
