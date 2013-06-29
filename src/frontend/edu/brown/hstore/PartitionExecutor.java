@@ -1402,18 +1402,15 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         // Finish Transaction
         // -------------------------------
         else if (work instanceof FinishTxnMessage) {
-            FinishTxnMessage ftask = (FinishTxnMessage)work;
-            this.finishDistributedTransaction(ftask.getTransaction(), ftask.getStatus());
+            FinishTxnMessage fTask = (FinishTxnMessage)work;
+            this.finishDistributedTransaction(fTask.getTransaction(), fTask.getStatus());
         }
         // -------------------------------
         // Prepare Transaction
         // -------------------------------
         else if (work instanceof PrepareTxnMessage) {
-            PrepareTxnMessage ftask = (PrepareTxnMessage)work;
-//            assert(this.currentDtxn.equals(ftask.getTransaction())) :
-//                String.format("The current dtxn %s does not match %s given in the %s",
-//                              this.currentTxn, ftask.getTransaction(), ftask.getClass().getSimpleName());
-            this.prepareTransaction(ftask.getTransaction());
+            PrepareTxnMessage pTask = (PrepareTxnMessage)work;
+            this.prepareTransaction(pTask.getTransaction(), pTask.getCallback());
         }
         // -------------------------------
         // Set Distributed Transaction 
@@ -2052,9 +2049,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
      * @param task
      * @param status The final status of the transaction
      */
-    public void queuePrepare(AbstractTransaction ts) {
+    public void queuePrepare(AbstractTransaction ts, PartitionCountingCallback<? extends AbstractTransaction> callback) {
         assert(ts.isInitialized()) : "Unexpected uninitialized transaction: " + ts;
-        PrepareTxnMessage work = ts.getPrepareTxnMessage();
+        PrepareTxnMessage work = new PrepareTxnMessage(ts, callback);
         boolean success = this.work_queue.offer(work);
         assert(success) :
             String.format("Failed to queue %s at partition %d for %s",
@@ -2779,7 +2776,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             if (debug.val)
                 LOG.debug(String.format("%s - Invoking early 2PC:PREPARE at partition %d",
                           ts, this.partitionId));
-            this.queuePrepare(ts);
+            this.queuePrepare(ts, ts.getPrepareCallback());
         }
     }
     
@@ -3662,6 +3659,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         // Make sure that we only tell partitions that we actually touched, otherwise they will
         // be stuck waiting for a finish request that will never come!
         DonePartitionsNotification notify = new DonePartitionsNotification();
+        LocalPrepareCallback callback = null;
         for (int partition : estDonePartitions.values()) {
             // Only mark the txn done at this partition if the Estimate says we were done
             // with it after executing this batch and it's a partition that we've locked.
@@ -3683,7 +3681,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                     if (debug.val)
                         LOG.debug(String.format("%s - Notifying local partition %d that the txn is finished with it",
                                   ts, partition));
-                    hstore_site.getPartitionExecutor(partition).queuePrepare(ts);
+                    if (callback == null) callback = ts.getPrepareCallback();
+                    hstore_site.getPartitionExecutor(partition).queuePrepare(ts, callback);
                 }
                 // Check whether we can piggyback on another WorkFragment that is going to
                 // the same site
@@ -3717,8 +3716,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         // BLAST OUT NOTIFICATIONS!
         for (int remoteSiteId : notify._sitesToNotify) {
             assert(notify.notificationsPerSite[remoteSiteId] != null);
-            if (debug.val)
-                LOG.debug(String.format("%s - Notifying %s that txn is finished with partitions %s",
+//            if (debug.val)
+                LOG.info(String.format("%s - Notifying %s that txn is finished with partitions %s",
                          ts, HStoreThreadManager.formatSiteName(remoteSiteId),
                          notify.notificationsPerSite[remoteSiteId]));
             hstore_coordinator.transactionPrepare(ts, ts.getPrepareCallback(),
@@ -4341,9 +4340,11 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             // The coordinator needs to be smart enough to know whether a txn 
             // has already been marked as prepared at a partition (i.e., it's gotten
             // responses).
+            PartitionSet partitions = ts.getPredictTouchedPartitions();
             LocalPrepareCallback callback = ts.getPrepareCallback();
-            this.hstore_coordinator.transactionPrepare(ts, callback, ts.getPredictTouchedPartitions());
+            this.hstore_coordinator.transactionPrepare(ts, callback, partitions);
             if (hstore_conf.site.exec_profiling) this.profiler.network_time.stopIfStarted();
+            ts.getDonePartitions().addAll(partitions);
         }
         // -------------------------------
         // ABORT: Distributed Transaction
@@ -4380,7 +4381,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
      * @param txn_id
      * @return true if speculative execution was enabled at this partition
      */
-    private Status prepareTransaction(AbstractTransaction ts) {
+    private Status prepareTransaction(AbstractTransaction ts,
+                                      PartitionCountingCallback<? extends AbstractTransaction> callback) {
         assert(ts != null) :
             "Unexpected null transaction handle at partition " + this.partitionId;
         assert(ts.isInitialized()) :
@@ -4441,8 +4443,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         // When we do an early 2PC-PREPARE, we won't have this callback ready
         // because we don't know what callback to use to send the acknowledgements
         // back over the network
-        PartitionCountingCallback<AbstractTransaction> callback = ts.getPrepareCallback();
-        
         if (status == Status.OK) {
             if (callback.isInitialized()) {
                 try {
@@ -4514,7 +4514,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
      * instead of calling this directly.
      * @param ts
      * @param undoToken
-     * @param commit
+     * @param commit If true, then this txn will be committed. If false, the txn will be aborted.
      */
     private void finishWorkEE(AbstractTransaction ts, long undoToken, boolean commit) {
         assert(ts.isMarkedFinished(this.partitionId) == false) :
@@ -4697,6 +4697,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                             shouldCommit = true;
                         }
                         
+                        // If we need to commit this txn, then we need to check whether
+                        // it has an undo token that is greater than any other token we've seen
+                        // for the other specexec txns.
                         if (shouldCommit) {
                             txnsToCommit.add(spec_ts);
                             if (spec_token != HStoreConstants.NULL_UNDO_LOGGING_TOKEN && spec_token > max_token) {
@@ -4713,15 +4716,15 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                                   "committed *before* we abort this txn",
                                   ts, txnsToCommit.size(), this.partitionId));
     
-                    // (1) Commit the greatest token that we've seen. This means that
-                    //     all our other txns can be safely processed without needing
-                    //     to go down in the EE
+                    // (1) Commit the txn with the greatest undo token that we saw in all of the
+                    //     queued specexec txns. This allows all the other txns that we want to 
+                    //     commit right now to be safely processed without needing to go down to the EE.
                     if (max_token != HStoreConstants.NULL_UNDO_LOGGING_TOKEN) {
                         assert(max_ts != null);
                         this.finishWorkEE(max_ts, max_token, true);
                     }
                     
-                    // (2) Process all the txns that need to be committed
+                    // (2) Process the ClientResponses for all of the txns that will commit
                     LocalTransaction spec_ts = null;
                     while ((spec_ts = txnsToCommit.poll()) != null) {
                         ClientResponseImpl spec_cr = spec_ts.getClientResponse();
@@ -4744,7 +4747,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                     // (4) Restart all the other txns
                     while ((spec_ts = txnsToRestart.poll()) != null) {
                         ClientResponseImpl spec_cr = spec_ts.getClientResponse();
-                        
                         MispredictionException error = new MispredictionException(spec_ts.getTransactionId(),
                                                                                   spec_ts.getTouchedPartitions());
                         spec_ts.setPendingError(error, false);

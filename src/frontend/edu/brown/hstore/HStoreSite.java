@@ -1961,21 +1961,23 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * that are blocked on this transaction to be released immediately and queued 
      * If the second PartitionSet in the arguments is not null, it will be updated with
      * the partitionIds that we called PREPARE on for this transaction 
-     * @param txn_id
-     * @param partitions
-     * @param updated
+     * @param ts The transaction handle that we want to prepare.
+     * @param partitions The set of partitions to notify that this txn is ready to commit.
+     * @param callback The txn's prepare callback for this invocation.
      */
-    public void transactionPrepare(AbstractTransaction ts, PartitionSet partitions) {
+    public void transactionPrepare(AbstractTransaction ts,
+                                   PartitionSet partitions,
+                                   PartitionCountingCallback<? extends AbstractTransaction> callback) {
         if (debug.val)
             LOG.debug(String.format("2PC:PREPARE %s [partitions=%s]", ts, partitions));
         
-        PartitionCountingCallback<? extends AbstractTransaction> callback = ts.getPrepareCallback();
         assert(callback.isInitialized());
         for (int partition : this.local_partitions.values()) {
             if (partitions.contains(partition) == false) continue;
             
             // If this txn is already prepared at this partition, then we 
-            // can skip it
+            // can skip processing it at the PartitionExecutor and update
+            // the callback right here
             if (ts.isMarkedPrepared(partition)) {
                 callback.run(partition);
             }
@@ -1992,7 +1994,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 // More Info: https://github.com/apavlo/h-store/issues/31
                 // If speculative execution is enabled, then we'll turn it on at the PartitionExecutor
                 // for this partition
-                this.executors[partition].queuePrepare(ts);
+                this.executors[partition].queuePrepare(ts, callback);
             }
         } // FOR
     }

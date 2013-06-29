@@ -928,7 +928,7 @@ public class HStoreCoordinator implements Shutdownable {
         // FAST PATH: If all of the partitions that this txn needs are on this
         // HStoreSite, then we don't need to bother with making this request
         if (hstore_site.allLocalPartitions(partitions)) {
-            hstore_site.transactionPrepare(ts, partitions);
+            hstore_site.transactionPrepare(ts, partitions, callback);
         }
         // SLOW PATH: Since we have to go over the network, we have to use our trusty ol'
         // TransactionPrepareHandler to route the request to proper sites.
