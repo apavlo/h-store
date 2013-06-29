@@ -176,14 +176,6 @@ public class LocalTransaction extends AbstractTransaction {
     // ----------------------------------------------------------------------------
     
     /**
-     * A handle to the execution state of this transaction
-     * This will only get set when the transaction starts running.
-     * No two transactions are allowed to hold the same ExecutionState
-     * at the same time.
-     */
-    private ExecutionState state;
-    
-    /**
      * Whether this txn was speculatively executed
      */
     private SpeculationType exec_specExecType = SpeculationType.NULL;
@@ -358,7 +350,6 @@ public class LocalTransaction extends AbstractTransaction {
             this.dtxnState = null;
         }
         
-        this.resetExecutionState();
         super.finish();
         
         this.client_callback = null;
@@ -399,45 +390,6 @@ public class LocalTransaction extends AbstractTransaction {
      */
     public void setTransactionId(Long txn_id) { 
         this.txn_id = txn_id;
-    }
-    
-    public void setExecutionState(ExecutionState state) {
-        if (debug.val)
-            LOG.debug(String.format("%s - Setting ExecutionState handle [isNull=%s]",
-                      this, (this.state == null)));
-        assert(state != null);
-        assert(this.state == null);
-        this.state = state;
-        this.exec_controlCode = true;
-        
-        // Reset this so that we will call finish() on the cached DependencyInfos
-        // before we try to use it again
-//        for (int i = 0; i < this.state.dinfo_lastRound.length; i++) {
-//            this.state.dinfo_lastRound[i] = -1;
-//        } // FOR
-    }
-    
-    public ExecutionState getExecutionState() {
-        return (this.state);
-    }
-    public void resetExecutionState() {
-        if (debug.val)
-            LOG.debug(String.format("%s - Resetting ExecutionState handle [isNull=%s]",
-                      this, (this.state == null)));
-        this.lock.lock();
-        try {
-            this.state = null;
-        } finally {
-            this.lock.unlock();
-        }
-    }
-    
-    /**
-     * Returns true if the control code for this LocalTransaction was actually started
-     * in the PartitionExecutor
-     */
-    public final boolean isMarkExecuted() {
-        return (this.exec_controlCode);
     }
     
     public final ReentrantLock getTransactionLock() {
@@ -560,7 +512,6 @@ public class LocalTransaction extends AbstractTransaction {
         this.round_state[partition] = RoundState.STARTED;
         super.finishRound(partition);
         if (this.base_partition == partition) {
-            assert(this.state != null) : "Unexpected null ExecutionState for " + this;
             if (this.depTracker != null) this.depTracker.finishRound(this);
         }
     }
@@ -635,6 +586,22 @@ public class LocalTransaction extends AbstractTransaction {
     // ACCESS METHODS
     // ----------------------------------------------------------------------------
 
+    /**
+     * Mark that we have invoked this txn's control code.
+     */
+    public final void markControlCodeExecuted() {
+        assert(this.exec_controlCode == false);
+        this.exec_controlCode = true;
+    }
+    
+    /**
+     * Returns true if the control code for this LocalTransaction was actually started
+     * in the PartitionExecutor
+     */
+    public final boolean isMarkedControlCodeExecuted() {
+        return (this.exec_controlCode);
+    }
+    
     /**
      * Mark this transaction as needing to be restarted. This will prevent it from
      * being deleted immediately

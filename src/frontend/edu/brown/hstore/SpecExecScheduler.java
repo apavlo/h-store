@@ -365,7 +365,7 @@ public class SpecExecScheduler implements Configurable {
             LocalTransaction localTxn = (LocalTransaction)txn;
             
             // Skip anything already executed
-            if (localTxn.isMarkExecuted()) {
+            if (localTxn.isMarkedControlCodeExecuted()) {
                 if (trace.val)
                     LOG.trace(String.format("Skipping %s because it was already executed", txn));
                 continue;

@@ -152,7 +152,6 @@ import edu.brown.hstore.specexec.checkers.TableConflictChecker;
 import edu.brown.hstore.specexec.checkers.UnsafeConflictChecker;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.DependencyTracker;
-import edu.brown.hstore.txns.ExecutionState;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.hstore.txns.MapReduceTransaction;
 import edu.brown.hstore.txns.PrefetchState;
@@ -418,12 +417,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
     // SHARED VOLTPROCEDURE DATA MEMBERS
     // ----------------------------------------------------------------------------
 
-    /**
-     * This is the execution state for a running transaction.
-     * We have a circular queue so that we can reuse them for speculatively execute txns
-     */
-    private final Queue<ExecutionState> execStates = new LinkedList<ExecutionState>();
-    
     /**
      * Mapping from SQLStmt batch hash codes (computed by VoltProcedure.getBatchHashCode()) to BatchPlanners
      * The idea is that we can quickly derived the partitions for each unique set of SQLStmt list
@@ -905,14 +898,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                       this.specExecChecker.getClass().getSimpleName(), policy));
     }
     
-    private ExecutionState initExecutionState() {
-        ExecutionState state = this.execStates.poll();
-        if (state == null) {
-            state = new ExecutionState(this);
-        }
-        return (state);
-    }
-
     @Override
     public void updateConf(HStoreConf hstore_conf, String[] changed) {
         if (this.specExecScheduler != null) {
@@ -1158,7 +1143,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 assert(specTxn.getBasePartition() == this.partitionId) :
                     String.format("Trying to speculatively execute %s at partition %d but its base partition is %d\n%s",
                                   specTxn, this.partitionId, specTxn.getBasePartition(), specTxn.debug());
-                assert(specTxn.isMarkExecuted() == false) :
+                assert(specTxn.isMarkedControlCodeExecuted() == false) :
                     String.format("Trying to speculatively execute %s at partition %d but was already executed\n%s",
                                   specTxn, this.partitionId, specTxn.getBasePartition(), specTxn.debug());
                 assert(specTxn.isSpeculative() == false) :
@@ -1757,7 +1742,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         }
         // LOCAL
         else if (this.currentDtxn.getBasePartition() == this.partitionId) {
-            if (((LocalTransaction)this.currentDtxn).isMarkExecuted() == false) {
+            if (((LocalTransaction)this.currentDtxn).isMarkedControlCodeExecuted() == false) {
                 specType = SpeculationType.IDLE;
             } else if (this.currentDtxn.isMarkedPrepared(this.partitionId)) {
                 specType = SpeculationType.SP3_LOCAL;
@@ -2367,9 +2352,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         // Make sure the dependency tracker knows about us
         if (ts.hasDependencyTracker()) this.depTracker.addTransaction(ts);
         
-        // Grab a new ExecutionState for this txn
-        ExecutionState execState = this.initExecutionState(); 
-        ts.setExecutionState(execState);
+        // Grab a VoltProcedure handle for this txn
+        // Two txns can't use the same VoltProcedure at the same time.
         VoltProcedure volt_proc = this.getVoltProcedure(ts.getProcedure().getId());
         assert(volt_proc != null) : "No VoltProcedure for " + ts;
         
@@ -2387,6 +2371,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         VoltProcedure previous = this.currentVoltProc;
         try {
             this.currentVoltProc = volt_proc;
+            ts.markControlCodeExecuted();
             cresponse = volt_proc.call(ts, ts.getProcedureParameters().toArray()); // Blocking...
         // VoltProcedure.call() should handle any exceptions thrown by the transaction
         // If we get anything out here then that's bad news
@@ -2403,9 +2388,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             }
         } finally {
             this.currentVoltProc = previous;
-            ts.resetExecutionState();
-            execState.finish();
-            this.execStates.add(execState);
             this.finishVoltProcedure(volt_proc);
             if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.startPost();
             
@@ -2970,8 +2952,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             throw new ServerFaultException(msg, ts.getTransactionId());
         }
         
-        // HACK: We have to set the TransactionState for sysprocs manually
-        // volt_proc.setTransactionState(ts);
         ts.markExecNotReadOnly(this.partitionId);
         DependencySet result = null;
         try {
@@ -3014,8 +2994,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         assert(this.ee != null) : "The EE object is null. This is bad!";
         Long txn_id = ts.getTransactionId();
 
-        //LOG.info("in executePlanFragments()");
-        
         // *********************************** DEBUG ***********************************
         if (debug.val) {
             StringBuilder sb = new StringBuilder();
@@ -3374,12 +3352,11 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         // Otherwise, we need to generate WorkFragments and then send the messages out 
         // to our remote partitions using the HStoreCoordinator
         else {
-            ExecutionState execState = ts.getExecutionState();
-            execState.tmp_partitionFragments.clear();
-            plan.getWorkFragmentsBuilders(ts.getTransactionId(), stmtCounters, execState.tmp_partitionFragments);
+            List<WorkFragment.Builder> partitionFragments = new ArrayList<WorkFragment.Builder>();
+            plan.getWorkFragmentsBuilders(ts.getTransactionId(), stmtCounters, partitionFragments);
             if (debug.val)
                 LOG.debug(String.format("%s - Using dispatchWorkFragments to execute %d %ss",
-                          ts, execState.tmp_partitionFragments.size(), WorkFragment.class.getSimpleName()));
+                          ts, partitionFragments.size(), WorkFragment.class.getSimpleName()));
             
             if (needs_profiling) {
                 int remote_cnt = 0;
@@ -3394,9 +3371,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 ts.profiler.addRemoteQuery(remote_cnt);
             }
             
-            // Block until we get all of our responses.
-            results = this.dispatchWorkFragments(ts, batchSize, batchParams,
-                                                 execState.tmp_partitionFragments, finalTask);
+            // This will block until we get all of our responses.
+            results = this.dispatchWorkFragments(ts, batchSize, batchParams, partitionFragments, finalTask);
         }
         if (debug.val && results == null)
             LOG.warn("Got back a null results array for " + ts + "\n" + plan.toString());
@@ -3704,8 +3680,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             if (fragmentsPerPartition.get(partition, 0) == 0) {
                 // We need to let them know that the party is over!
                 if (hstore_site.isLocalPartition(partition)) {
-//                    if (debug.val)
-                        LOG.info(String.format("%s - Notifying local partition %d that txn is finished it",
+                    if (debug.val)
+                        LOG.debug(String.format("%s - Notifying local partition %d that txn is finished it",
                                   ts, partition));
                     hstore_site.getPartitionExecutor(partition).queuePrepare(ts);
                 }

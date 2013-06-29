@@ -66,7 +66,6 @@ public class TestTransactionStateComplex extends BaseTestCase {
     
     private FastIntHistogram touched_partitions = new FastIntHistogram();
     private LocalTransaction ts;
-    private ExecutionState execState;
     private ListOrderedSet<Integer> dependency_ids = new ListOrderedSet<Integer>();
     private List<Integer> internal_dependency_ids = new ArrayList<Integer>();
     private List<Integer> output_dependency_ids = new ArrayList<Integer>();
@@ -115,14 +114,13 @@ public class TestTransactionStateComplex extends BaseTestCase {
         this.plan.getWorkFragmentsBuilders(TXN_ID, stmtCounters, this.ftasks);
         assertFalse(ftasks.isEmpty());
         
-        this.execState = new ExecutionState(executor);
         this.ts = new LocalTransaction(hstore_site);
         this.ts.testInit(TXN_ID,
                          LOCAL_PARTITION,
                          null,
                          catalogContext.getAllPartitionIds(),
                          this.catalog_proc);
-        this.ts.setExecutionState(this.execState);
+        this.ts.markControlCodeExecuted();
         this.depTracker.addTransaction(this.ts);
     }
 

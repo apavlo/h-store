@@ -18,7 +18,6 @@ import edu.brown.BaseTestCase;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.conf.HStoreConf;
-import edu.brown.hstore.txns.ExecutionState;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.utils.ProjectType;
 import edu.brown.hstore.BatchPlanner;
@@ -113,9 +112,7 @@ public class TestLocalTransaction extends BaseTestCase {
      * testStartRound
      */
     public void testStartRound() throws Exception {
-        
-        ExecutionState state = new ExecutionState(this.executor);
-        this.ts.setExecutionState(state);
+        this.ts.markControlCodeExecuted();
         this.ts.initFirstRound(UNDO_TOKEN, this.batchStmts.length);
         
         // We need to get all of our WorkFragments for this batch
@@ -149,8 +146,7 @@ public class TestLocalTransaction extends BaseTestCase {
      * testReadWriteSets
      */
     public void testReadWriteSets() throws Exception {
-        ExecutionState state = new ExecutionState(this.executor);
-        this.ts.setExecutionState(state);
+        this.ts.markControlCodeExecuted();
         this.ts.initFirstRound(UNDO_TOKEN, this.batchStmts.length);
         
         int tableIds[] = null;
