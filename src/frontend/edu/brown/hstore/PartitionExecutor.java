@@ -3632,10 +3632,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         // BLAST OUT NOTIFICATIONS!
         for (int remoteSiteId : notify._sitesToNotify) {
             assert(notify.notificationsPerSite[remoteSiteId] != null);
-//            if (debug.val)
-                LOG.info(String.format("%s - Notifying %s that txn is finished with partitions %s",
-                         ts, HStoreThreadManager.formatSiteName(remoteSiteId),
-                         notify.notificationsPerSite[remoteSiteId]));
+            if (debug.val)
+                LOG.debug(String.format("%s - Notifying %s that txn is finished with partitions %s",
+                          ts, HStoreThreadManager.formatSiteName(remoteSiteId),
+                          notify.notificationsPerSite[remoteSiteId]));
             hstore_coordinator.transactionPrepare(ts, ts.getPrepareCallback(),
                                                   notify.notificationsPerSite[remoteSiteId]);
             
