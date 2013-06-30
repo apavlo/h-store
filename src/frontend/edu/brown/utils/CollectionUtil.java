@@ -422,7 +422,8 @@ public abstract class CollectionUtil {
             return ((ListOrderedSet<T>) items).get(idx);
         }
         else if (items instanceof SortedSet<?> && idx == 0) {
-            return ((SortedSet<T>)items).first();
+            SortedSet<T> set = (SortedSet<T>)items;
+            return (set.isEmpty() ? null : set.first());
         }
         int ctr = 0;
         for (T t : items) {
@@ -445,7 +446,8 @@ public abstract class CollectionUtil {
             last = (list.isEmpty() ? null : list.get(list.size() - 1));
         }
         else if (items instanceof SortedSet<?>) {
-            last = ((SortedSet<T>)items).last();
+            SortedSet<T> set = (SortedSet<T>)items;
+            last = (set.isEmpty() ? null : set.last());
         }
         else {
             for (T t : items) {
