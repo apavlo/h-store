@@ -214,7 +214,9 @@ public class PrefetchQueryPlanner {
                                                                 counted_stmt.statement,
                                                                 counted_stmt.counter,
                                                                 catalog_param);
-                assert(pmSets != null) : String.format("Unexpected %s for %s", counted_stmt, catalog_param);
+                assert(pmSets != null) : 
+                    String.format("Unexpected null %s %s set for %s",
+                                  counted_stmt, ParameterMapping.class.getSimpleName(), catalog_param);
                 ParameterMapping pm = CollectionUtil.first(pmSets);
                 assert(pm != null) :
                     String.format("Unexpected null %s for %s [%s]",
