@@ -12,7 +12,7 @@ function onexit() {
 
 DATA_DIR="/home/pavlo/Documents/H-Store/Papers/speculative/data"
 FABRIC_TYPE="ssh"
-FIRST_PARAM_OFFSET=1
+FIRST_PARAM_OFFSET=0
 
 EXP_TYPES=( \
      "performance-spec-query" \
@@ -23,11 +23,11 @@ EXP_TYPES=( \
 PARTITIONS=( \
      8 \
     16 \
-    32 \
+#     32 \
 )
 
 # for b in smallbank tpcc seats; do
-for b in tpcc smallbank ; do
+for b in seats ; do
     PARAMS=( \
         --no-update \
         --results-dir=$DATA_DIR \

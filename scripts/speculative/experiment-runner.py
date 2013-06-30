@@ -362,6 +362,12 @@ def updateExperimentEnv(fabric, args, benchmark, partitions):
             fabric.env["benchmark.force_all_distributed"] = False
             fabric.env["benchmark.force_all_singlepartition"] = False
             fabric.env["benchmark.prob_multiaccount_dtxn"] = 50
+            fabric.env["client.weights"] =  "DeleteReservation:1," + \
+                                            "FindOpenSeats:65," + \
+                                            "NewReservation:30," + \
+                                            "UpdateCustomer:2," + \
+                                            "UpdateReservation:2," + \
+                                            "*:0"
         elif benchmark == "smallbank":
             fabric.env["client.weights"] = "SendPayment:25,*:15"
             fabric.env["client.scalefactor"] = OPT_BASE_SCALE_FACTOR * int(partitions/4)
@@ -383,7 +389,7 @@ def updateExperimentEnv(fabric, args, benchmark, partitions):
         if targetType in ("performance-spec-txn", "performance-spec-all"):
             fabric.env["site.specexec_enable"] = True
             fabric.env["site.specexec_ignore_stallpoints"] = ""
-            fabric.env["site.specexec_scheduler_checker"] = "TABLE"
+            fabric.env["site.specexec_scheduler_checker"] = "MARKOV"
 
             spFactor = 0.65 if targetType == "performance-spec-all" else 0.5
             fabric.env["client.singlepartition_threads"] = int(fabric.env["client.threads_per_host"] * spFactor)
@@ -443,7 +449,7 @@ def updateExperimentEnv(fabric, args, benchmark, partitions):
     ## IF
     
     ## ----------------------------------------------
-    ## HOTSPOT
+    ## HOTSPOTS
     ## ----------------------------------------------
     if args['exp_type'].startswith("hotspots"):
         hotspotPcnt = int(args['exp_type'].split("-")[1])
@@ -452,24 +458,31 @@ def updateExperimentEnv(fabric, args, benchmark, partitions):
         fabric.env["site.specexec_scheduler_policy"] = "FIRST"
         fabric.env["site.specexec_scheduler_window"] = 1
         fabric.env["site.exec_early_prepare"] = True
+        fabric.env["client.scalefactor"] = 1
+        
+        #if partitions == 16:
+            #fabric.env["client.blocking_concurrent"] = 8 * int(partitions/8)
 
         # SMALLBANK
         fabric.env["benchmark.hotspot_use_fixed_size"] = False
-        fabric.env["benchmark.hotspot_percentage"] = 1
-        fabric.env["benchmark.prob_account_hotspot"] = hotspotPcnt
+        fabric.env["benchmark.hotspot_percentage"] = 0.25
         fabric.env["benchmark.hotspot_use_fixed_size"] = False
-        fabric.env["benchmark.hotspot_percentage"] = 1
+        fabric.env["benchmark.prob_account_hotspot"] = hotspotPcnt
+        fabric.env["benchmark.prob_multiaccount_dtxn"] = 100
+        fabric.env["benchmark.force_multisite_dtxns"] = True
         
         ## ----------------------------------------------
         ## HERMES!
         ## ----------------------------------------------
         if schedulerType == "spec":
+            fabric.env["site.markov_enable"] = True
             fabric.env["site.specexec_scheduler_checker"] = "MARKOV"
             fabric.env["site.exec_readwrite_tracking"] = False
         ## ----------------------------------------------
         ## OCC
         ## ----------------------------------------------
         elif schedulerType == "occ":
+            fabric.env["site.markov_enable"] = False
             fabric.env["site.specexec_scheduler_checker"] = "OPTIMISTIC"
             fabric.env["site.exec_readwrite_tracking"] = True
     ## IF
@@ -515,7 +528,7 @@ def updateExperimentEnv(fabric, args, benchmark, partitions):
         #fabric.env["hstore.exec_prefix"] += " -Dmarkov.recompute_end=true"
         
         fabric.env["site.markov_singlep_updates"] = False
-        fabric.env["site.markov_dtxn_updates"] = False
+        fabric.env["site.markov_dtxn_updates"] = True
         fabric.env["site.markov_path_caching"] = True
         fabric.env["site.markov_endpoint_caching"] = False
         fabric.env["site.markov_fixed"] = False
