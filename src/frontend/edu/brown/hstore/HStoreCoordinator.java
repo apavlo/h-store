@@ -951,6 +951,11 @@ public class HStoreCoordinator implements Shutdownable {
      * @param callback
      */
     public void transactionFinish(LocalTransaction ts, Status status, LocalFinishCallback callback) {
+        // Check whether we have already begun the finish process for this txn
+        if (ts.shouldInvokeFinish() == false) {
+            return;
+        }
+        
         PartitionSet partitions = ts.getPredictTouchedPartitions();
         if (debug.val)
             LOG.debug(String.format("Notifying partitions %s that %s is finished [status=%s]",
