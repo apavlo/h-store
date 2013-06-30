@@ -324,7 +324,7 @@ public class PrefetchQueryPlanner {
             builders[site_id].addPrefetchFragments(fragment);
         } // FOR (WorkFragment)
         if (first == true) {
-//            if (debug.val)
+            if (debug.val)
                 LOG.warn(ts + " - No remote partition prefetchable queries were found in the transaction's " +
                 		 "initial path estimate. Unable to schedule prefetch queries.");
             return (null);
