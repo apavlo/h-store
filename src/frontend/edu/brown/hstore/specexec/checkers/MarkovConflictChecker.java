@@ -175,29 +175,30 @@ public class MarkovConflictChecker extends TableConflictChecker {
     
     @Override
     public boolean hasConflictBefore(AbstractTransaction dtxn, LocalTransaction candidate, int partitionId) {
-        // If the TableConflictChecker says that it's ok, then we know that we don't need
-        // to check anything else.
-        if (super.hasConflictBefore(dtxn, candidate, partitionId)) {
+        // If the TableConflictChecker says that there is no conflict, then we know that 
+        // we don't need to check anything else.
+        if (super.hasConflictBefore(dtxn, candidate, partitionId) == false) {
             if (debug.val)
                 LOG.debug(String.format("No table-level conflicts between %s and %s. Safe to execute!",
                           dtxn, candidate));
-            return (true);
+            return (false);
         }
         
-        // Get the transaction estimates for both of the txns
+        // Get the estimates for both of the txns
+        // If we don't have an estimate, then we have to say that there is a conflict. 
         EstimatorState dtxnState = dtxn.getEstimatorState();
         EstimatorState tsState = candidate.getEstimatorState();
         if (dtxnState == null) {
             if (debug.val)
                 LOG.debug(String.format("No %s available for distributed txn %s",
                           EstimatorState.class.getSimpleName(), dtxn));
-            return (false);
+            return (true);
         }
         else if (tsState == null) {
             if (debug.val)
                 LOG.debug(String.format("No %s available for candidate txn %s",
                           EstimatorState.class.getSimpleName(), candidate));
-            return (false);
+            return (true);
         }
         
         // Get the current TransactionEstimate for the DTXN and the 
@@ -209,19 +210,19 @@ public class MarkovConflictChecker extends TableConflictChecker {
             if (debug.val)
                 LOG.warn(String.format("Unexpected null %s in the %s for %s",
                          Estimate.class.getSimpleName(), dtxnState.getClass().getSimpleName(), dtxn));
-            return (false);
+            return (true);
         }
         else if (dtxnEst.hasQueryEstimate(partitionId) == false) {
             if (debug.val)
                 LOG.warn(String.format("No query list estimate is available for dtxn %s", dtxn));
-            return (false);
+            return (true);
         }
         Estimate tsEst = tsState.getInitialEstimate();
         assert(tsEst != null);
         if (tsEst.hasQueryEstimate(partitionId) == false) {
             if (debug.val)
                 LOG.warn(String.format("No query list estimate is available for candidate %s", candidate));
-            return (false);
+            return (true);
         }
         
         // If both txns are read-only, then we can let our homeboy go
