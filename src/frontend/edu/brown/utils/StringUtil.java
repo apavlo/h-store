@@ -601,6 +601,7 @@ public abstract class StringUtil {
      * @param items
      * @return
      */
+    @SuppressWarnings("unchecked")
     public static <T> String join(String delimiter, T... items) {
         return (join(null, delimiter, Arrays.asList(items)));
     }
