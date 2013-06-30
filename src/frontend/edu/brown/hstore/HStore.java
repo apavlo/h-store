@@ -141,7 +141,7 @@ public abstract class HStore {
                 MarkovGraphsContainerUtil.setHasher(markovs, singleton.getPartitionEstimator().getHasher());
                 long load_time = System.currentTimeMillis() - start;
                 LOG.info(String.format("Finished loading %s '%s' in %.1f sec",
-                         path, MarkovGraphsContainer.class.getSimpleName(), (load_time / 1000d)));
+                         MarkovGraphsContainer.class.getSimpleName(), path, (load_time / 1000d)));
             } else if (debug.val) LOG.warn("The Markov Graphs file '" + path + "' does not exist");
             ThreadUtil.shutdownGlobalPool(); // HACK
         }

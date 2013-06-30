@@ -52,10 +52,12 @@ public abstract class BenchmarkControllerUtil {
     
     /**
      * Return an array with stats about latencies recorded in a Histogram:
-     * [0] - Min Latency
-     * [1] - Max Latency
-     * [2] - Average Latency
-     * [3] - Stdev Latency
+     * <ol>
+     *  <li> Min Latency
+     *  <li> Max Latency
+     *  <li> Average Latency
+     *  <li> Stdev Latency
+     * </ol>
      * @param latencies
      * @return
      */
