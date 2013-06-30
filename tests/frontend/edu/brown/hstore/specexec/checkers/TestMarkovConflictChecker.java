@@ -10,8 +10,11 @@ import java.util.Set;
 import org.junit.Before;
 import org.voltdb.ParameterSet;
 import org.voltdb.VoltProcedure;
+import org.voltdb.benchmark.tpcc.TPCCProjectBuilder;
+import org.voltdb.benchmark.tpcc.procedures.UpdateNewOrder;
 import org.voltdb.benchmark.tpcc.procedures.neworder;
 import org.voltdb.benchmark.tpcc.procedures.ostatByCustomerId;
+import org.voltdb.benchmark.tpcc.procedures.paymentByCustomerId;
 import org.voltdb.benchmark.tpcc.procedures.slev;
 import org.voltdb.catalog.Column;
 import org.voltdb.catalog.ConflictPair;
@@ -26,15 +29,14 @@ import edu.brown.catalog.special.CountedStatement;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.MockHStoreSite;
 import edu.brown.hstore.conf.HStoreConf;
-import edu.brown.hstore.specexec.checkers.MarkovConflictChecker;
 import edu.brown.hstore.specexec.checkers.MarkovConflictChecker.StatementCache;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.mappings.ParameterMapping;
 import edu.brown.mappings.ParametersUtil;
 import edu.brown.markov.EstimationThresholds;
-import edu.brown.markov.containers.MarkovGraphsContainerUtil;
 import edu.brown.markov.containers.MarkovGraphsContainer;
+import edu.brown.markov.containers.MarkovGraphsContainerUtil;
 import edu.brown.statistics.Histogram;
 import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.CollectionUtil;
@@ -66,10 +68,17 @@ public class TestMarkovConflictChecker extends BaseTestCase {
     private MarkovConflictChecker checker;
     private HStoreSite hstore_site;
     
+    private final TPCCProjectBuilder builder = new TPCCProjectBuilder() {
+        {
+            this.addAllDefaults();
+            this.addProcedure(UpdateNewOrder.class);
+        }
+    };
+    
     @Before
     public void setUp() throws Exception {
         this.reset(ProjectType.TPCC);
-        super.setUp(ProjectType.TPCC);
+        super.setUp(this.builder);
         this.addPartitions(NUM_PARTITIONS);
         
         if (isFirstSetup()) {
@@ -185,6 +194,51 @@ public class TestMarkovConflictChecker extends BaseTestCase {
     // ----------------------------------------------------------------------------------
     // TESTS
     // ----------------------------------------------------------------------------------
+    
+    /**
+     * testNonConflictingReadOnly
+     */
+    public void testNonConflictingReadOnly() throws Exception {
+        // Quickly check that two read-only txns are non-conflicting 
+        // even without a txn estimate
+        Procedure proc = this.getProcedure(slev.class);
+        int basePartition = 0;
+        PartitionSet partitions = catalogContext.getAllPartitionIds(); 
+        
+        LocalTransaction ts0 = new LocalTransaction(this.hstore_site);
+        Object params0[] = new Object[]{ 0, 1, 2 };
+        ts0.testInit(10000l, basePartition, partitions, proc, params0);
+        
+        LocalTransaction ts1 = new LocalTransaction(this.hstore_site);
+        Object params1[] = new Object[]{ 0, 1, 2 };
+        ts1.testInit(10001l, basePartition, partitions, proc, params1);
+        
+        boolean ret = this.checker.hasConflictBefore(ts0, ts1, basePartition);
+        assertFalse(ret);
+    }
+    
+    /**
+     * testNonConflictingDisparateTables
+     */
+    public void testNonConflictingDisparateTables() throws Exception {
+        // Quickly check that two read-only txns are non-conflicting 
+        // even without a txn estimate
+        int basePartition = 0;
+        PartitionSet partitions = catalogContext.getAllPartitionIds(); 
+
+        Procedure proc0 = this.getProcedure(paymentByCustomerId.class);
+        LocalTransaction ts0 = new LocalTransaction(this.hstore_site);
+        Object params0[] = new Object[]{ 0, 1, 2 };
+        ts0.testInit(10000l, basePartition, partitions, proc0, params0);
+        
+        Procedure proc1 = this.getProcedure(UpdateNewOrder.class);
+        LocalTransaction ts1 = new LocalTransaction(this.hstore_site);
+        Object params1[] = new Object[]{ 0, 0 };
+        ts1.testInit(10001l, basePartition, partitions, proc1, params1);
+        
+        boolean ret = this.checker.hasConflictBefore(ts0, ts1, basePartition);
+        assertFalse(ret);
+    }
     
     /**
      * testColumnStmtParameters
