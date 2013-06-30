@@ -31,6 +31,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantLock;
 
 import org.apache.log4j.Logger;
@@ -104,7 +105,9 @@ public class LocalTransaction extends AbstractTransaction {
     private final ReentrantLock lock = new ReentrantLock();
     
     /**
-     * 
+     * The DependencyTracker from this txn's base partition.
+     * This is just here for caching purposes. We could always just
+     * get it from the HStoreSite if we really needed it.
      */
     private DependencyTracker depTracker;
     
@@ -736,6 +739,18 @@ public class LocalTransaction extends AbstractTransaction {
             return (this.dtxnState.exec_donePartitions);
         }
         return (null);
+    }
+    
+    /**
+     * Check whether the calling thread should initiate the finish phase of 2PC.
+     * This method will return true if this is the first time that somebody has
+     * asked us whether we can finish things up. Multiple invocations of this
+     * method will always return false.
+     * @return
+     */
+    public boolean shouldInvokeFinish() {
+        assert(this.dtxnState != null);
+        return (this.dtxnState.notified_finish.compareAndSet(false, true));
     }
     
     public ProtoRpcController getTransactionInitController(int site_id) {

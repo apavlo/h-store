@@ -1,6 +1,7 @@
 package edu.brown.hstore.txns;
 
 import java.util.BitSet;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.voltdb.CatalogContext;
 
@@ -31,6 +32,12 @@ public class DistributedState implements Poolable {
      * 
      */
     protected final BitSet notified_prepare;
+    
+    /**
+     * We need to make sure that we only blast out a finish
+     * notification once per transaction.
+     */
+    protected final AtomicBoolean notified_finish = new AtomicBoolean(false);
     
     /**
      * If true, then all of the partitions that this txn needs is on the same
@@ -124,6 +131,7 @@ public class DistributedState implements Poolable {
         this.is_all_local = true;
         this.exec_donePartitions.clear();
         this.notified_prepare.clear();
+        this.notified_finish.set(false);
         this.sent_parameters.clear();
         
         for (int i = 0; i < this.rpc_transactionInit.length; i++) {
