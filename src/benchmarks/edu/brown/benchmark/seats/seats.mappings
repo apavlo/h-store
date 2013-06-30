@@ -297,6 +297,15 @@
   "COEFFICIENT": 1.0
  },
  {
+  "STATEMENT": "{'NewReservation':'GetCustomer'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewReservation.GetCustomer':'0'}",
+  "STATEMENT_COLUMN": "{'CUSTOMER':'C_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewReservation':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": -1,
+  "COEFFICIENT": 1.0
+ },
+ {
   "STATEMENT": "{'NewReservation':'InsertReservation'}",
   "STATEMENT_INDEX": 0,
   "STATEMENT_PARAMETER": "{'NewReservation.InsertReservation':'12'}",
