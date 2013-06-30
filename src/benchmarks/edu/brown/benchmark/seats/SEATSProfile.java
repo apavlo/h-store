@@ -49,6 +49,7 @@ import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.rand.AbstractRandomGenerator;
 import edu.brown.rand.RandomDistribution.FlatHistogram;
 import edu.brown.statistics.Histogram;
 import edu.brown.statistics.ObjectHistogram;
@@ -142,7 +143,7 @@ public class SEATSProfile {
     /**
      * Specialized random number generator
      */
-    protected transient final RandomGenerator rng;
+    protected transient final AbstractRandomGenerator rng;
     
     /**
      * Depart Airport Code -> Arrive Airport Code
@@ -154,7 +155,7 @@ public class SEATSProfile {
     // CONSTRUCTOR
     // ----------------------------------------------------------------
     
-    public SEATSProfile(CatalogContext catalogContext, RandomGenerator rng) {
+    public SEATSProfile(CatalogContext catalogContext, AbstractRandomGenerator rng) {
         this.catalogContext = catalogContext;
         this.rng = rng;
         

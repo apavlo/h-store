@@ -90,6 +90,8 @@ import edu.brown.benchmark.seats.util.Reservation;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.rand.AbstractRandomGenerator;
+import edu.brown.rand.DefaultRandomGenerator;
 import edu.brown.rand.RandomDistribution;
 import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.StringUtil;
@@ -221,7 +223,7 @@ public class SEATSClient extends BenchmarkComponent {
     
     private final SEATSProfile profile;
     private final SEATSConfig config;
-    private final RandomGenerator rng;
+    private final AbstractRandomGenerator rng;
     private final AtomicBoolean first = new AtomicBoolean(true);
     private final RandomDistribution.FlatHistogram<Transaction> xacts;
     
@@ -236,7 +238,7 @@ public class SEATSClient extends BenchmarkComponent {
     public SEATSClient(String[] args) {
         super(args);
 
-        this.rng = new RandomGenerator(0); // FIXME
+        this.rng = new DefaultRandomGenerator();
         this.config = SEATSConfig.createConfig(this.getCatalogContext(), m_extraParams);
         this.profile = new SEATSProfile(this.getCatalogContext(), this.rng);
     
@@ -263,8 +265,14 @@ public class SEATSClient extends BenchmarkComponent {
             weights.put(t, weight);
         } // FOR
         
+        if (this.isSinglePartitionOnly()) {
+            weights.clear();
+            weights.put(Transaction.FIND_OPEN_SEATS, 75);
+            weights.put(Transaction.UPDATE_CUSTOMER, 25);
+        }
+        
         // Create xact lookup array
-        this.xacts = new RandomDistribution.FlatHistogram<Transaction>(rng, weights);
+        this.xacts = new RandomDistribution.FlatHistogram<Transaction>(this.rng, weights);
         assert(weights.getSampleCount() == 100) :
             "The total weight for the transactions is " + weights.getSampleCount() + ". It needs to be 100";
         if (debug.val)
