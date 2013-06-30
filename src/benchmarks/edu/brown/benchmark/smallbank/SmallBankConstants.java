@@ -63,7 +63,8 @@ public abstract class SmallBankConstants {
     // ----------------------------------------------------------------
     
     // Initial balance amount
-    public static final int MIN_BALANCE             = 1000;
-    public static final int MAX_BALANCE             = 5000;
+    // We'll just make it really big so that they never run out of money
+    public static final int MIN_BALANCE             = 10000;
+    public static final int MAX_BALANCE             = 50000;
 
 }
