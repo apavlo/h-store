@@ -4206,7 +4206,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             // We don't want to delete the transaction here because whoever is going to requeue it for
             // us will need to know what partitions that the transaction touched when it executed before
             if (ts.isPredictSinglePartition()) {
-                this.finishTransaction(ts, status);
+                if (ts.isMarkedFinished(this.partitionId) == false)
+                    this.finishTransaction(ts, status);
                 this.hstore_site.transactionRequeue(ts, status);
             }
             // Send a message all the partitions involved that the party is over
