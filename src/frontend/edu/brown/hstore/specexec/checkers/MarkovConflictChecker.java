@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.SortedSet;
@@ -67,7 +68,7 @@ public class MarkovConflictChecker extends TableConflictChecker {
          * We maintain a list of the StmtParameters that are used in predicates with 
          * the target table's primary key
          */
-        final Map<Column, StmtParameter> colParams = new HashMap<Column, StmtParameter>();
+        final Map<Column, StmtParameter> colParams = new IdentityHashMap<Column, StmtParameter>();
     } // CLASS
     
     /**
@@ -377,7 +378,8 @@ public class MarkovConflictChecker extends TableConflictChecker {
         return (true);
     }
     
-    protected boolean equalParameters(ParameterSet params0, ParameterMapping pm0, ParameterSet params1, ParameterMapping pm1) {
+    protected boolean equalParameters(ParameterSet params0, ParameterMapping pm0,
+                                      ParameterSet params1, ParameterMapping pm1) {
         Object val0 = ParametersUtil.getValue(params0, pm0);
         Object val1 = ParametersUtil.getValue(params1, pm1);
         if (val0 == null) {

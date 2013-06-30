@@ -34,6 +34,14 @@ public class UnsafeConflictChecker extends AbstractConflictChecker {
     public boolean shouldIgnoreTransaction(AbstractTransaction ts) {
         return (false);
     }
+    @Override
+    public boolean skipConflictBefore() {
+        return (true);
+    }
+    @Override
+    public boolean skipConflictAfter() {
+        return (true);
+    }
 
     @Override
     public boolean hasConflictBefore(AbstractTransaction dtxn, LocalTransaction candidate, int partitionId) {
