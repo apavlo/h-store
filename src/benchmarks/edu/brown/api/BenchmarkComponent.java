@@ -738,6 +738,9 @@ public abstract class BenchmarkComponent {
                 clientClass.getConstructor(new Class<?>[] { new String[0].getClass() });
             clientMain = constructor.newInstance(new Object[] { args });
             if (uploader != null) clientMain.uploader = uploader;
+            
+            clientMain.invokeInitCallback();
+            
             if (startImmediately) {
                 final ControlWorker worker = new ControlWorker(clientMain);
                 worker.start();
@@ -1220,7 +1223,7 @@ public abstract class BenchmarkComponent {
     // ----------------------------------------------------------------------------
     
     protected final void invokeInitCallback() {
-        
+        this.initCallback();
     }
     
     protected final void invokeStartCallback() {
@@ -1275,6 +1278,13 @@ public abstract class BenchmarkComponent {
             LOG.debug("Client Queue Time: " + this.m_voltClient.getQueueTime().debug());
             this.m_voltClient.getQueueTime().reset();
         }
+    }
+    
+    /**
+     * Optional callback for when this BenchmarkComponent has been initialized
+     */
+    public void initCallback() {
+        // Default is to do nothing
     }
     
     /**

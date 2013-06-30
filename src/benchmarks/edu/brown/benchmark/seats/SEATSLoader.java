@@ -63,6 +63,8 @@ import edu.brown.benchmark.seats.util.SEATSHistogramUtil;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.rand.AbstractRandomGenerator;
+import edu.brown.rand.DefaultRandomGenerator;
 import edu.brown.rand.RandomDistribution;
 import edu.brown.rand.RandomDistribution.Flat;
 import edu.brown.rand.RandomDistribution.FlatHistogram;
@@ -113,7 +115,7 @@ public class SEATSLoader extends Loader {
      */
     private final Histogram<String> flights_per_airline = new ObjectHistogram<String>(true);
     
-    private final RandomGenerator rng; // FIXME
+    private final AbstractRandomGenerator rng;
     
     /**
      * 
@@ -181,7 +183,7 @@ public class SEATSLoader extends Loader {
             throw new RuntimeException(msg);
         }
         
-        this.rng = new RandomGenerator(0); // FIXME
+        this.rng = new DefaultRandomGenerator();
         this.profile = new SEATSProfile(this.getCatalogContext(), this.rng);
         this.profile.scale_factor = this.getScaleFactor();
         

@@ -38,6 +38,7 @@ import edu.brown.HStoreSiteTestUtil.WrapperProcedureCallback;
 import edu.brown.benchmark.seats.SEATSClient.Transaction;
 import edu.brown.benchmark.seats.util.SEATSHistogramUtil;
 import edu.brown.hstore.Hstoreservice.Status;
+import edu.brown.rand.DefaultRandomGenerator;
 import edu.brown.utils.CollectionUtil;
 
 /**
@@ -191,7 +192,7 @@ public class TestSEATSSuite extends RegressionSuite {
         SEATSProfile orig = loader.getProfile();
         assertNotNull(orig);
         
-        SEATSProfile copy = new SEATSProfile(catalogContext, new RandomGenerator(0));
+        SEATSProfile copy = new SEATSProfile(catalogContext, new DefaultRandomGenerator(0));
         assert(copy.airport_histograms.isEmpty());
         copy.loadProfile(client);
         
