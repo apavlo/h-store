@@ -46,6 +46,9 @@ public class OptimisticConflictChecker extends AbstractConflictChecker {
 
     @Override
     public boolean shouldIgnoreTransaction(AbstractTransaction ts) {
+        if (ts instanceof LocalTransaction) {
+            return (((LocalTransaction)ts).getRestartCounter() > 0);
+        }
         return (false);
     }
     
@@ -62,7 +65,7 @@ public class OptimisticConflictChecker extends AbstractConflictChecker {
             String.format("Uninitialized speculative transaction handle [%s]", ts1);
         
         // Get the READ/WRITE tracking sets from the EE
-        VoltTable tsTracking0[] = this.getReadWriteSets(ts0); // TODO: Cache this somehow!
+        VoltTable tsTracking0[] = this.getReadWriteSets(ts0);
         if (trace.val)
             LOG.trace(String.format("%s READ/WRITE SETS:\n%s", ts0, VoltTableUtil.format(tsTracking0)));
         VoltTable tsTracking1[] = this.getReadWriteSets(ts1);
