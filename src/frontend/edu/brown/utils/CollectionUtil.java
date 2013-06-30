@@ -38,6 +38,7 @@ import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 import java.util.SortedMap;
+import java.util.SortedSet;
 import java.util.TreeMap;
 
 import org.apache.commons.collections15.set.ListOrderedSet;
@@ -420,6 +421,9 @@ public abstract class CollectionUtil {
         else if (items instanceof ListOrderedSet<?>) {
             return ((ListOrderedSet<T>) items).get(idx);
         }
+        else if (items instanceof SortedSet<?> && idx == 0) {
+            return ((SortedSet<T>)items).first();
+        }
         int ctr = 0;
         for (T t : items) {
             if (ctr++ == idx) return (t);
@@ -439,7 +443,11 @@ public abstract class CollectionUtil {
         if (items instanceof List<?>) {
             List<T> list = (List<T>) items;
             last = (list.isEmpty() ? null : list.get(list.size() - 1));
-        } else {
+        }
+        else if (items instanceof SortedSet<?>) {
+            last = ((SortedSet<T>)items).last();
+        }
+        else {
             for (T t : items) {
                 last = t;
             }
