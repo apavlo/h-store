@@ -15,10 +15,10 @@ FABRIC_TYPE="ssh"
 FIRST_PARAM_OFFSET=1
 
 EXP_TYPES=( \
-    "conflictsperf-row" \
-    "conflictsperf-table" \
     "conflicts-row" \
     "conflicts-table" \
+    "conflictsperf-row" \
+    "conflictsperf-table" \
 )
 PARTITIONS=( \
 #     8 \
@@ -26,7 +26,7 @@ PARTITIONS=( \
 )
 
 # for b in smallbank tpcc seats; do
-for b in tpcc smallbank seats ; do
+for b in seats ; do
     PARAMS=( \
         --no-update \
         --results-dir=$DATA_DIR \

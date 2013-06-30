@@ -15,7 +15,7 @@ FABRIC_TYPE="ssh"
 FIRST_PARAM_OFFSET=0
 
 EXP_TYPES=( \
-    "spec" \
+#     "spec" \
     "occ" \
 )
 PARTITIONS=( 16 )
@@ -38,7 +38,7 @@ for b in smallbank ; do
         --overwrite \
         --retry-on-zero \
 #         --site.jvm_asserts=True \
-        --exp-trials=2 \
+        --exp-trials=3 \
 #         --exp-attempts=1 \
         --partitions ${PARTITIONS[@]} \
         --client.duration=60000 \
