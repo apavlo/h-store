@@ -877,10 +877,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             // -------------------------------
             case UNSAFE:
                 checker = new UnsafeConflictChecker(this.catalogContext, hstore_conf.site.specexec_unsafe_limit);
-                LOG.warn(String.format("Using %s in the %s for partition %d. This is a bad idea!",
-                         checker.getClass().getSimpleName(),
-                         this.getClass().getSimpleName(),
-                         this.partitionId));
+                LOG.warn(StringUtil.bold(String.format("Using %s in %s for partition %d. This is a bad idea!",
+                         checker.getClass().getSimpleName(), this.getClass().getSimpleName(), this.partitionId)));
                 break;
             // -------------------------------
             // OPTIMISTIC
