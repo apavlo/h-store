@@ -85,7 +85,8 @@ def txnCount(path):
     lines = output.split("\n")
     if len(lines) > 1: assert lines[-1].find("total") != -1
     logging.debug("\n".join(lines))
-    total = int(lines[-1].strip().split(" ")[0]) 
+    total = int(lines[-1].strip().split(" ")[0])
+    #print output
     # print "TOTAL:", total
     return total
 ## DEF
@@ -132,9 +133,12 @@ if __name__ == '__main__':
         # Check whether it already exists, then we can skip this round
         existing_file = trace + "-0"
         if args['overwrite'] == False and os.path.exists(existing_file) and txnCount(existing_file) > 0:
-            cnt = txnCount(existing_file)
-            logging.info("Trace file '%s' already exists with %d lines. Skipping..." % (trace, cnt))
-
+            cnt = 0
+            for f in glob.glob(trace + "-*"):
+                fileCnt = txnCount(f) 
+                logging.info("Trace file '%s' already exists with %d lines. Skipping..." % (f, fileCnt))
+                cnt += fileCnt
+            ## FOR
         ## Otherwise light 'em up!
         else:
             cmd = "ant hstore-benchmark -Dtrace=%s %s" % (trace, hstore_opts_cmd)
