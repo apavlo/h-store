@@ -606,7 +606,8 @@ public class SEATSClient extends BenchmarkComponent {
         @Override
         public void clientCallbackImpl(ClientResponse clientResponse) {
             VoltTable[] results = clientResponse.getResults();
-            assert(results.length == 2);
+            assert(results.length == 2) :
+                String.format("Unexpected result set with %d tables", results.length);
 
             // FLIGHT INFORMATION
             VoltTable flightInfo = results[0];
