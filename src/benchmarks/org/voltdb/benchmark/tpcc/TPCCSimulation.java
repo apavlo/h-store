@@ -257,7 +257,11 @@ public class TPCCSimulation {
         else if (config.neworder_skew_warehouse) {
             assert(this.zipf != null);
             //w_id = (short)this.zipf.nextInt();
-			w_id = (short)this.custom_skew.nextInt(); 
+            if (generator.number(1, 100) <= config.temporal_skew_mix) {
+                w_id = (short)this.custom_skew.nextInt();
+            } else {
+                w_id = (short)generator.number(parameters.starting_warehouse, parameters.last_warehouse);
+            }
         }
         // GAUSSIAN SKEWED WAREHOUSE ID
         else if (skewFactor > 0.0d) {
