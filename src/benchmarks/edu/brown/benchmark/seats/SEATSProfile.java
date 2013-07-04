@@ -218,7 +218,8 @@ public class SEATSProfile {
             this.num_reservations,              // CFP_NUM_RESERVATIONS
             JSONUtil.toJSONString(this.code_id_xref) // CFP_CODE_ID_XREF
         );
-        if (debug.val) LOG.debug("Saving profile information into " + catalog_tbl);
+        if (debug.val)
+            LOG.debug(String.format("Saving profile information into %s\n%s", catalog_tbl, this));
         baseClient.loadVoltTable(catalog_tbl.getName(), vt);
         
         // CONFIG_HISTOGRAMS
@@ -297,7 +298,7 @@ public class SEATSProfile {
             int result_idx = 0;
             
             // CONFIG_PROFILE
-            this.loadConfigProfile(results[result_idx++]); 
+            this.loadConfigProfile(results[result_idx++]);
             
             // CONFIG_HISTOGRAMS
             this.loadConfigHistograms(results[result_idx++]);
@@ -683,6 +684,9 @@ public class SEATSProfile {
         m.put("Flight Upcoming Date", this.flight_upcoming_date);
         m.put("Flight Past Days", this.flight_past_days);
         m.put("Flight Future Days", this.flight_future_days);
+        m.put("Num Flights", this.num_flights);
+        m.put("Num Customers", this.num_customers);
+        m.put("Num Reservations", this.num_reservations);
         return (StringUtil.formatMaps(m));
     }
 }
