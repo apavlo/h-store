@@ -56,6 +56,7 @@ import org.apache.log4j.Logger;
 import org.voltdb.*;
 
 import edu.brown.benchmark.seats.SEATSConstants;
+import edu.brown.benchmark.seats.util.ErrorType;
 
 @ProcInfo(
     partitionInfo = "RESERVATION.R_F_ID: 0"
@@ -86,7 +87,7 @@ public class FindOpenSeats extends VoltProcedure {
     public VoltTable[] run(long f_id) {
         final boolean debug = LOG.isDebugEnabled();
         
-        // 150 seats
+        // Empty seats bitmap
         final long seatmap[] = new long[SEATSConstants.FLIGHTS_NUM_SEATS];
         Arrays.fill(seatmap, -1);
         
@@ -97,8 +98,11 @@ public class FindOpenSeats extends VoltProcedure {
         
         // First calculate the seat price using the flight's base price
         // and the number of seats that remaining
-        boolean adv = results[0].advanceRow();
-        assert(adv);
+        if (results[0].advanceRow() == false) {
+            throw new VoltAbortException(ErrorType.INVALID_FLIGHT_ID +
+                                         String.format(" Invalid flight #%d", f_id));
+        }
+        
         int col = 6;
         double base_price = results[0].getDouble(col++);    // F_BASE_PRICE
         long seats_total = results[0].getLong(col++);       // F_SEATS_TOTAL
@@ -134,8 +138,8 @@ public class FindOpenSeats extends VoltProcedure {
 //        assert(seats_left == returnResults.getRowCount()) :
 //            String.format("Flight %d - Expected[%d] != Actual[%d]", f_id, seats_left, returnResults.getRowCount());
        
-        if (LOG.isTraceEnabled())
-            LOG.trace(String.format("Flight %d Open Seats:\n%s", f_id, returnResults));
+        if (debug)
+            LOG.debug(String.format("Flight %d Open Seats:\n%s", f_id, returnResults));
         return new VoltTable[]{ results[0], returnResults };
     }
             

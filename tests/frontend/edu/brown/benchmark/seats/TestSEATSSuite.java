@@ -40,6 +40,7 @@ import edu.brown.benchmark.seats.util.SEATSHistogramUtil;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.rand.DefaultRandomGenerator;
 import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.StringUtil;
 
 /**
  * Simple test suite for the SEATS benchmark
@@ -48,7 +49,7 @@ import edu.brown.utils.CollectionUtil;
 public class TestSEATSSuite extends RegressionSuite {
     
     private static final String PREFIX = "seats";
-    private static final double SCALEFACTOR = 0.001;
+    private static final double SCALEFACTOR = 0.01;
     
     /**
      * Constructor needed for JUnit. Should just pass on parameters to superclass.
@@ -60,6 +61,7 @@ public class TestSEATSSuite extends RegressionSuite {
     
     
     public SEATSLoader initializeSEATSDatabase(final CatalogContext catalogContext, final Client client) throws Exception {
+        SEATSProfile.clearCachedProfile();
         File dataDir = SEATSHistogramUtil.findDataDir();
         assert(dataDir != null);
         
@@ -192,21 +194,37 @@ public class TestSEATSSuite extends RegressionSuite {
         SEATSProfile orig = loader.getProfile();
         assertNotNull(orig);
         
-        SEATSProfile copy = new SEATSProfile(catalogContext, new DefaultRandomGenerator(0));
+        String sql = "SELECT CFP_NUM_FLIGHTS, CFP_NUM_CUSTOMERS, CFP_NUM_RESERVATIONS " +
+                     "  FROM " + SEATSConstants.TABLENAME_CONFIG_PROFILE;
+        ClientResponse cresponse = RegressionSuiteUtil.sql(client, sql);
+        VoltTable results[] = cresponse.getResults();
+        assertEquals(1, results.length);
+        assertEquals(1, results[0].getRowCount());
+        assertTrue(results[0].advanceRow());
+        assertEquals("num_flights", orig.num_flights, results[0].getLong("CFP_NUM_FLIGHTS"));
+        assertEquals("num_customers", orig.num_customers, results[0].getLong("CFP_NUM_CUSTOMERS"));
+        assertEquals("num_reservations", orig.num_reservations, results[0].getLong("CFP_NUM_RESERVATIONS"));
+        
+        SEATSProfile copy = new SEATSProfile(catalogContext, orig.rng);
         assert(copy.airport_histograms.isEmpty());
         copy.loadProfile(client);
-        
-        assertEquals(orig.scale_factor, copy.scale_factor);
-        // BUSTED??? assertEquals(orig.airport_max_customer_id, copy.airport_max_customer_id);
-        // BUSTED??? assertEquals(orig.flight_start_date, copy.flight_start_date);
-        // BUSTED??? assertEquals(orig.flight_upcoming_date, copy.flight_upcoming_date);
-        assertEquals(orig.flight_past_days, copy.flight_past_days);
-        assertEquals(orig.flight_future_days, copy.flight_future_days);
-        assertEquals(orig.num_flights, copy.num_flights);
-        assertEquals(orig.num_customers, copy.num_customers);
-        assertEquals(orig.num_reservations, copy.num_reservations);
-        assertEquals(orig.histograms, copy.histograms);
-        assertEquals(orig.airport_histograms, copy.airport_histograms);
+
+        try {
+            assertEquals("scale_factor", orig.scale_factor, copy.scale_factor);
+            // BUSTED??? assertEquals(orig.airport_max_customer_id, copy.airport_max_customer_id);
+            // BUSTED??? assertEquals(orig.flight_start_date, copy.flight_start_date);
+            // BUSTED??? assertEquals(orig.flight_upcoming_date, copy.flight_upcoming_date);
+            assertEquals("flight_past_days", orig.flight_past_days, copy.flight_past_days);
+            assertEquals("flight_future_days", orig.flight_future_days, copy.flight_future_days);
+            assertEquals("num_flights", orig.num_flights, copy.num_flights);
+            assertEquals("num_customers", orig.num_customers, copy.num_customers);
+            assertEquals("num_reservations", orig.num_reservations, copy.num_reservations);
+            assertEquals("histograms", orig.histograms, copy.histograms);
+            assertEquals("airport_histograms", orig.airport_histograms, copy.airport_histograms);
+        } catch (AssertionError ex) {
+            System.err.println(StringUtil.columns(orig.toString(), copy.toString()));
+            throw ex;
+        }
     }
     
     /**
