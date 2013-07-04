@@ -20,16 +20,17 @@ EXP_TYPES=( \
 )
 PARTITIONS=( 16 )
 PERCENTAGES=( \
-    00
-    25
-    50
-    75
+#     00
+#     25
+#     50
+#     75
     100
 )
 
 pCnt=${#PERCENTAGES[@]}
 eCnt=${#EXP_TYPES[@]}
-for b in smallbank ; do
+# for b in smallbank ; do
+for b in tpcc ; do
     PARAMS=( \
         --no-update \
         --results-dir=$DATA_DIR \

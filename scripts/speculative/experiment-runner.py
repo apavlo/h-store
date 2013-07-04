@@ -84,7 +84,7 @@ LOG.setLevel(logging.INFO)
 OPT_BASE_BLOCKING_CONCURRENT = 1
 OPT_BASE_TXNRATE = 100000
 OPT_BASE_CLIENT_COUNT = 1
-OPT_BASE_CLIENT_THREADS_PER_HOST = 200
+OPT_BASE_CLIENT_THREADS_PER_HOST = 100
 OPT_BASE_SCALE_FACTOR = float(1.0)
 OPT_BASE_PARTITIONS_PER_SITE = 8
 OPT_PARTITION_PLAN_DIR = "files/designplans"
@@ -329,7 +329,6 @@ def updateExperimentEnv(fabric, args, benchmark, partitions):
     ## PERFORMANCE EXPERIMENTS
     ## ----------------------------------------------
     elif targetType.startswith("performance"):
-        OPT_BASE_CLIENT_THREADS_PER_HOST = 100
         fabric.env["site.markov_enable"] = True
         fabric.env["site.exec_prefetch_queries"] = False
         fabric.env["site.specexec_enable"] = False
@@ -362,12 +361,15 @@ def updateExperimentEnv(fabric, args, benchmark, partitions):
             fabric.env["benchmark.force_all_distributed"] = False
             fabric.env["benchmark.force_all_singlepartition"] = False
             fabric.env["benchmark.prob_multiaccount_dtxn"] = 50
+            fabric.env["client.threads_per_host"] = int(OPT_BASE_CLIENT_THREADS_PER_HOST * 0.5)
+            fabric.env["client.scalefactor"] = 1.0
             fabric.env["client.weights"] =  "DeleteReservation:1," + \
                                             "FindOpenSeats:65," + \
                                             "NewReservation:30," + \
                                             "UpdateCustomer:2," + \
                                             "UpdateReservation:2," + \
                                             "*:0"
+                                        
         elif benchmark == "smallbank":
             fabric.env["client.weights"] = "SendPayment:25,*:15"
             fabric.env["client.scalefactor"] = OPT_BASE_SCALE_FACTOR * int(partitions/4)
@@ -381,7 +383,8 @@ def updateExperimentEnv(fabric, args, benchmark, partitions):
         if targetType == "performance-nospec":
             #fabric.env["site.markov_enable"] = False
             if partitions>16: fabric.env["client.blocking_concurrent"] = 8 # HACK
-            pass
+            if benchmark == "seats":
+                fabric.env["client.blocking_concurrent"] = int(partitions/8)
             
         ## ----------------------------------------------
         ## SPECULATIVE TXNS
@@ -392,16 +395,16 @@ def updateExperimentEnv(fabric, args, benchmark, partitions):
             fabric.env["site.specexec_scheduler_checker"] = "MARKOV"
 
             spFactor = 0.65 if targetType == "performance-spec-all" else 0.5
-            fabric.env["client.singlepartition_threads"] = int(fabric.env["client.threads_per_host"] * spFactor)
-            #fabric.env["benchmark.neworder_multip_mix"] = 0.1
-            #fabric.env["benchmark.payment_multip_mix"] = 0.1
-            #fabric.env["benchmark.prob_multiaccount_dtxn"] = 1
+            spThreads = int(fabric.env["client.threads_per_host"] * spFactor)
+            fabric.env["client.singlepartition_threads"] = spThreads
             
         ## ----------------------------------------------
         ## SPECULATIVE QUERIES
         ## ----------------------------------------------
         if targetType in ("performance-spec-query", "performance-spec-all"):
             fabric.env["site.exec_prefetch_queries"] = True
+            if targetType == "performance-spec-query" and benchmark == "seats":
+                fabric.env["client.blocking_concurrent"] = int(partitions/8)
             
     ## ----------------------------------------------
     ## CONFLICTS
@@ -425,6 +428,7 @@ def updateExperimentEnv(fabric, args, benchmark, partitions):
         if args['exp_type'].startswith("conflictsperf"):
             fabric.env["site.specexec_scheduler_policy"] = "FIRST"
             fabric.env["site.specexec_scheduler_window"] = 1
+            fabric.env["client.singlepartition_threads"] = 0
         
         ## ----------------------------------------------
         ## ANALYSIS
@@ -464,12 +468,19 @@ def updateExperimentEnv(fabric, args, benchmark, partitions):
             #fabric.env["client.blocking_concurrent"] = 8 * int(partitions/8)
 
         # SMALLBANK
-        fabric.env["benchmark.hotspot_use_fixed_size"] = False
-        fabric.env["benchmark.hotspot_percentage"] = 0.25
-        fabric.env["benchmark.hotspot_use_fixed_size"] = False
-        fabric.env["benchmark.prob_account_hotspot"] = hotspotPcnt
-        fabric.env["benchmark.prob_multiaccount_dtxn"] = 100
-        fabric.env["benchmark.force_multisite_dtxns"] = True
+        if benchmark == "smallbank":
+            fabric.env["benchmark.hotspot_use_fixed_size"] = False
+            fabric.env["benchmark.hotspot_percentage"] = 0.25
+            fabric.env["benchmark.hotspot_use_fixed_size"] = False
+            fabric.env["benchmark.prob_account_hotspot"] = hotspotPcnt
+            fabric.env["benchmark.prob_multiaccount_dtxn"] = 100
+            fabric.env["benchmark.force_multisite_dtxns"] = True
+        # TPC-C
+        elif benchmark == "tpcc":
+            fabric.env["benchmark.neworder_multip_remote"] = True
+            fabric.env["benchmark.payment_multip_remote"] = True
+            fabric.env["benchmark.temporal_skew_mix"] = hotspotPcnt
+            fabric.env["benchmark.neworder_skew_warehouse"] = True
         
         ## ----------------------------------------------
         ## HERMES!
@@ -478,11 +489,14 @@ def updateExperimentEnv(fabric, args, benchmark, partitions):
             fabric.env["site.markov_enable"] = True
             fabric.env["site.specexec_scheduler_checker"] = "MARKOV"
             fabric.env["site.exec_readwrite_tracking"] = False
+            fabric.env["site.exec_prefetch_queries"] = False
+            #fabric.env["client.singlepartition_threads"] = int(fabric.env["client.threads_per_host"] * 0.75)
+            #fabric.env["client.blocking_concurrent"] = 6 * int(partitions/8)
         ## ----------------------------------------------
         ## OCC
         ## ----------------------------------------------
         elif schedulerType == "occ":
-            fabric.env["site.markov_enable"] = False
+            #fabric.env["site.markov_enable"] = False
             fabric.env["site.specexec_scheduler_checker"] = "OPTIMISTIC"
             fabric.env["site.exec_readwrite_tracking"] = True
     ## IF
@@ -528,7 +542,7 @@ def updateExperimentEnv(fabric, args, benchmark, partitions):
         #fabric.env["hstore.exec_prefix"] += " -Dmarkov.recompute_end=true"
         
         fabric.env["site.markov_singlep_updates"] = False
-        fabric.env["site.markov_dtxn_updates"] = True
+        fabric.env["site.markov_dtxn_updates"] = False
         fabric.env["site.markov_path_caching"] = True
         fabric.env["site.markov_endpoint_caching"] = False
         fabric.env["site.markov_fixed"] = False
