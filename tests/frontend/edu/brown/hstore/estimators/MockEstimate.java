@@ -47,18 +47,18 @@ public class MockEstimate implements Estimate {
     public List<CountedStatement> getQueryEstimate(int partition) {
         return null;
     }
-    @Override
-    public boolean isSinglePartitionProbabilitySet() {
-        return false;
-    }
+//    @Override
+//    public boolean isSinglePartitionProbabilitySet() {
+//        return false;
+//    }
     @Override
     public boolean isSinglePartitioned(EstimationThresholds t) {
         return false;
     }
-    @Override
-    public boolean isReadOnlyProbabilitySet(int partition) {
-        return false;
-    }
+//    @Override
+//    public boolean isReadOnlyProbabilitySet(int partition) {
+//        return false;
+//    }
     @Override
     public boolean isReadOnlyPartition(EstimationThresholds t, int partition) {
         return false;
@@ -67,10 +67,10 @@ public class MockEstimate implements Estimate {
     public boolean isReadOnlyAllPartitions(EstimationThresholds t) {
         return false;
     }
-    @Override
-    public PartitionSet getReadOnlyPartitions(EstimationThresholds t) {
-        return null;
-    }
+//    @Override
+//    public PartitionSet getReadOnlyPartitions(EstimationThresholds t) {
+//        return null;
+//    }
     @Override
     public boolean isWriteProbabilitySet(int partition) {
         return false;
@@ -84,15 +84,15 @@ public class MockEstimate implements Estimate {
         return null;
     }
     @Override
-    public boolean isFinishProbabilitySet(int partition) {
+    public boolean isDoneProbabilitySet(int partition) {
         return false;
     }
     @Override
-    public boolean isFinishPartition(EstimationThresholds t, int partition) {
+    public boolean isDonePartition(EstimationThresholds t, int partition) {
         return false;
     }
     @Override
-    public PartitionSet getFinishPartitions(EstimationThresholds t) {
+    public PartitionSet getDonePartitions(EstimationThresholds t) {
         return null;
     }
     @Override

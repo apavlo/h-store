@@ -442,7 +442,7 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
                                                   (short) (m_scaleParams.warehouses * 2) + m_scaleParams.starting_warehouse);
         Expression ol_number = Verification.inRange("OL_NUMBER", 1,
                                                     TPCCConstants.MAX_OL_CNT);
-        Expression ol_i_id = Verification.inRange("OL_I_ID", 1, m_scaleParams.items);
+        Expression ol_i_id = Verification.inRange("OL_I_ID", 1, m_scaleParams.num_items);
         Expression ol_supply_w_id = Verification.inRange("OL_SUPPLY_W_ID", (short) m_scaleParams.starting_warehouse,
                                                          (short) (m_scaleParams.warehouses * 2) + m_scaleParams.starting_warehouse);
         Expression ol_quantity = Verification.inRange("OL_QUANTITY", 0,
@@ -457,7 +457,7 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
                                                          ol_amount, ol_fk);
 
         // ITEM table
-        Expression i_id = Verification.inRange("I_ID", 1, m_scaleParams.items);
+        Expression i_id = Verification.inRange("I_ID", 1, m_scaleParams.num_items);
         Expression i_im_id = Verification.inRange("I_IM_ID", TPCCConstants.MIN_IM,
                                                   TPCCConstants.MAX_IM);
         Expression i_price = Verification.inRange("I_PRICE", TPCCConstants.MIN_PRICE,
@@ -467,7 +467,7 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
                                                    i_id, i_im_id, i_price, i_fk);
 
         // STOCK table
-        Expression s_i_id = Verification.inRange("S_I_ID", 1, m_scaleParams.items);
+        Expression s_i_id = Verification.inRange("S_I_ID", 1, m_scaleParams.num_items);
         Expression s_w_id = Verification.inRange("S_W_ID", (short) m_scaleParams.starting_warehouse,
                                                  (short) (m_scaleParams.warehouses * 2) + m_scaleParams.starting_warehouse);
         Expression s_quantity = Verification.inRange("S_QUANTITY", TPCCConstants.MIN_QUANTITY,

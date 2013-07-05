@@ -141,6 +141,10 @@ class AbstractFabric(object):
         raise NotImplementedError("Unimplemented %s" % self.__init__.im_class)
     ## DEF
     
+    def updateLog4j(self, reset=False, debug=[], trace=[]):
+        raise NotImplementedError("Unimplemented %s" % self.__init__.im_class)
+    ## DEF
+    
     def sync_time(self):
         raise NotImplementedError("Unimplemented %s" % self.__init__.im_class)
     ## DEF
@@ -235,17 +239,17 @@ class AbstractFabric(object):
             ## FOR (SITES)
             if lastPartition+1 == self.env["hstore.partitions"]: break
         ## FOR
-        assert len(hosts) > 0
         LOG.debug("Last Partition: %d", lastPartition)
         LOG.debug("Site Hosts: %s" % site_hosts)
-        
+        assert len(hosts) > 0
+
         ## HStore Clients
-        for clientInst in self.getRunningClientInstances():
+        for clientInst in self.getRunningInstances():
             if clientInst.private_dns_name in site_hosts: continue
             clients.append(clientInst.private_dns_name)
         ## FOR
-        assert len(clients) > 0
         LOG.debug("Client Hosts: %s" % clients)
+        assert len(clients) > 0
 
         ## Make sure the the checkout is up to date
         if updateRepo: 
@@ -259,7 +263,7 @@ class AbstractFabric(object):
 
         if resetLog4j:
             LOG.info("Reverting log4j.properties")
-            self.reset_debugging()
+            self.resetLog4j()
 
         ## Construct dict of command-line H-Store options
         hstore_options = {
@@ -306,10 +310,10 @@ class AbstractFabric(object):
                 if trace:
                     output = "/tmp/hstore/workloads/%s.trace" % project
                     combine_opts = {
-                        "project":              project,
-                        "volt.server.memory":   5000,
-                        "output":               output,
-                        "workload":             hstore_options["trace"] + "*",
+                        "project":       project,
+                        "global.memory": 5000,
+                        "output":        output,
+                        "workload":      hstore_options["trace"] + "*",
                     }
                     LOG.debug("Combine %s workload traces into '%s'" % (project.upper(), output))
                     combine_opts_cmd = " ".join(map(lambda x: "-D%s=%s" % (x, combine_opts[x]), combine_opts.keys()))
@@ -467,7 +471,7 @@ class AbstractFabric(object):
                 run("git checkout %s -- %s" % (self.env["hstore.git_options"], "log4j.properties"))
     ## DEF
     
-    def __enableDebugging__(self, inst, debug=[], trace=[]):
+    def __updateLog4j__(self, inst, debug=[], trace=[]):
         LOG.info("Updating log4j properties - DEBUG[%d] / TRACE[%d]", len(debug), len(trace))
         
         conf_file = os.path.join(self.hstore_dir, "log4j.properties")

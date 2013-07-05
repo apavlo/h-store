@@ -15,6 +15,7 @@ import org.voltdb.regressionsuites.specexecprocs.RemoteIdle;
 import org.voltdb.regressionsuites.specexecprocs.UpdateAll;
 import org.voltdb.regressionsuites.specexecprocs.UpdateOne;
 import org.voltdb.sysprocs.AdHoc;
+import org.voltdb.types.SpeculationConflictCheckerType;
 
 import edu.brown.HStoreSiteTestUtil.LatchableProcedureCallback;
 import edu.brown.benchmark.tm1.TM1Client;
@@ -176,7 +177,7 @@ public class TestSpecExecSuite extends RegressionSuite {
         builder.setGlobalConfParameter("site.txn_client_debug", true);
         builder.setGlobalConfParameter("site.specexec_enable", true);
         builder.setGlobalConfParameter("site.specexec_ignore_all_local", false);
-        builder.setGlobalConfParameter("site.specexec_markov", false);
+        builder.setGlobalConfParameter("site.specexec_scheduler_checker", SpeculationConflictCheckerType.TABLE);
 
         // build up a project builder for the TPC-C app
         TM1ProjectBuilder project = new TM1ProjectBuilder();

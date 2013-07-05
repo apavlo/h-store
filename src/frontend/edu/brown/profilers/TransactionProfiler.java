@@ -12,6 +12,7 @@ import org.apache.log4j.Logger;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.pools.Poolable;
+import edu.brown.utils.PartitionSet;
 import edu.brown.utils.StringUtil;
 
 /**
@@ -92,6 +93,11 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
      * will have speculative txns interleaved with it.
      */
     private int num_speculative = 0;
+    
+    /**
+     * Early 2PC Optimization Partitions
+     */
+    private final PartitionSet early_2pc_partitions = new PartitionSet();
     
     // ---------------------------------------------------------------
     // INTERNAL HELPER METHODS
@@ -716,6 +722,13 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
 
     public boolean isSinglePartitioned() {
         return (this.singlePartitioned);
+    }
+    
+    public void markEarly2PCPartition(int partition) {
+        this.early_2pc_partitions.add(partition);
+    }
+    public PartitionSet getEarlyPreparePartitions() {
+        return (this.early_2pc_partitions);
     }
     
     @Override

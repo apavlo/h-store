@@ -15,12 +15,10 @@ FABRIC_TYPE="ssh"
 FIRST_PARAM_OFFSET=0
 
 EXP_TYPES=( \
-#      "performance-spec-query" \
-#      "performance-spec-all" \
-     "performance-spec-txn" \
+    "performance-spec-all" \
+    "performance-spec-query" \
+    "performance-spec-txn" \
 #      "performance-nospec" \
-#    "conflicts-row" \
-#    "conflicts-table" \
 )
 PARTITIONS=( \
 #      8 \
@@ -28,7 +26,7 @@ PARTITIONS=( \
     32 \
 )
 
-# for b in smallbank tpcc seats; do
+# for b in seats smallbank tpcc ; do
 for b in tpcc ; do
     PARAMS=( \
         --no-update \
@@ -37,10 +35,10 @@ for b in tpcc ; do
         --stop-on-error \
         --overwrite \
 #         --retry-on-zero \
-        --exp-trials=1 \
+        --exp-trials=3 \
         --partitions ${PARTITIONS[@]} \
 #         --client.warmup=0 \
-        --client.duration=300000 \
+        --client.duration=180000 \
 #         --client.blocking_concurrent=2 \
 #         --site.exec_force_undo_logging_all=true \
 #         --site.jvm_asserts=true \

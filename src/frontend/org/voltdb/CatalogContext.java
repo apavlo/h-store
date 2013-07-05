@@ -196,28 +196,30 @@ public class CatalogContext {
         // ------------------------------------------------------------
         // TABLES
         // ------------------------------------------------------------
-        for (Table tbl : database.getTables()) {
+        for (Table tbl : this.database.getTables()) {
+            // SYSTEM TABLE
             if (tbl.getSystable()) {
-                sysTables.add(tbl);
+                this.sysTables.add(tbl);
             }
+            // MAPREDUCE TABLE
             else if (tbl.getMapreduce()) {
-                mapReduceTables.add(tbl);
+                this.mapReduceTables.add(tbl);
             }
+            // MATERIALIZED VIEW TABLE
             else if (tbl.getMaterializer() != null) {
-                viewTables.add(tbl);
+                this.viewTables.add(tbl);
             }
+            // REGULAR DATA TABLE
             else {
-                dataTables.add(tbl);
+                this.dataTables.add(tbl);
                 if (tbl.getIsreplicated()) {
-                    replicatedTables.add(tbl);
+                    this.replicatedTables.add(tbl);
                 }
                 if (tbl.getEvictable()) {
-                    evictableTables.add(tbl);
+                    this.evictableTables.add(tbl);
                 }
             }
         } // FOR
-        
-        // count tables
         this.numberOfTables = database.getTables().size();
         
         // PLANFRAGMENTS
@@ -302,6 +304,16 @@ public class CatalogContext {
     public int getSiteIdForPartitionId(int partition_id) {
         return (this.partitionSiteXref[partition_id]);
     }
+    
+    /**
+     * Return the site for the given partition
+     * @param partition
+     * @return
+     */
+    public Site getSiteForPartition(int partition) {
+        int siteId = this.partitionSiteXref[partition]; 
+        return (this.getSiteById(siteId));
+    }
 
     // ------------------------------------------------------------
     // PARTITIONS
@@ -355,6 +367,21 @@ public class CatalogContext {
      */
     public Table getTableByName(String tableName) {
         return (this.database.getTables().getIgnoreCase(tableName));
+    }
+    
+    /**
+     * Return the Table for the given id
+     * @param tableId
+     */
+    public Table getTableById(int tableId) {
+        // HACK HACK HACK
+        assert(tableId-1 >= 0);
+        Table tables[] = this.database.getTables().values();
+        if (tableId-1 >= tables.length) {
+            String msg = "Invalid tableId '" + tableId + "'";
+            throw new IllegalArgumentException(msg);
+        }
+        return (tables[tableId-1]);
     }
     
     /**

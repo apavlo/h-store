@@ -93,7 +93,14 @@ public class paymentByCustomerId extends VoltProcedure {
     );
 
     // c_id, d_id, w_id
-    public final SQLStmt getCustomersByCustomerId = new SQLStmt("SELECT C_ID, C_FIRST, C_MIDDLE, C_LAST, C_STREET_1, C_STREET_2, C_CITY, C_STATE, C_ZIP, C_PHONE, C_SINCE, C_CREDIT, C_CREDIT_LIM, C_DISCOUNT, C_BALANCE, C_YTD_PAYMENT, C_PAYMENT_CNT, C_DATA FROM CUSTOMER WHERE C_ID = ? AND C_D_ID = ? AND C_W_ID = ?;");
+    public final SQLStmt getCustomersByCustomerId = new SQLStmt(
+        "SELECT C_ID, C_FIRST, C_MIDDLE, C_LAST, C_STREET_1, C_STREET_2, " +
+        "       C_CITY, C_STATE, C_ZIP, C_PHONE, C_SINCE, C_CREDIT, C_CREDIT_LIM, " +
+        "       C_DISCOUNT, C_BALANCE, C_YTD_PAYMENT, C_PAYMENT_CNT, C_DATA " +
+        "  FROM " + TPCCConstants.TABLENAME_CUSTOMER + 
+        " WHERE C_ID = ? AND C_D_ID = ? AND C_W_ID = ?;"
+    );
+
     // private final int C_ID_IDX = 0;
     private final int C_FIRST_IDX = 1;
     private final int C_MIDDLE_IDX = 2;

@@ -23,7 +23,7 @@ import edu.brown.markov.EstimationThresholds;
 import edu.brown.markov.MarkovGraph;
 import edu.brown.markov.MarkovVertex;
 import edu.brown.markov.MarkovVertex.Type;
-import edu.brown.markov.containers.MarkovGraphContainersUtil;
+import edu.brown.markov.containers.MarkovGraphsContainerUtil;
 import edu.brown.markov.containers.MarkovGraphsContainer;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PartitionSet;
@@ -68,7 +68,7 @@ public class TestMarkovCostModel extends BaseTestCase {
             catalog_proc = this.getProcedure(TARGET_PROCEDURE);
             
             File file = this.getWorkloadFile(ProjectType.TPCC);
-            workload = new Workload(catalog);
+            workload = new Workload(catalogContext.catalog);
 
             // Check out this beauty:
             // (1) Filter by procedure name
@@ -86,7 +86,7 @@ public class TestMarkovCostModel extends BaseTestCase {
             workload.load(file, catalogContext.database, filter);
             
             // Make a copy that doesn't have the first TransactionTrace
-            Workload clone = new Workload(workload, new Filter() {
+            Workload clone = new Workload(catalogContext.catalog, new Filter() {
                 private boolean first = true;
                 @Override
                 protected FilterResult filter(AbstractTraceElement<? extends CatalogType> element) {
@@ -100,7 +100,7 @@ public class TestMarkovCostModel extends BaseTestCase {
                 public String debugImpl() { return null; }
                 @Override
                 protected void resetImpl() { }
-            });
+            }, workload);
             TransactionTrace txn0 = CollectionUtil.first(workload.getTransactions());
             assertNotNull(txn0);
             TransactionTrace txn1 = CollectionUtil.first(clone.getTransactions());
@@ -116,7 +116,7 @@ public class TestMarkovCostModel extends BaseTestCase {
             // Generate MarkovGraphs per base partition
 //            file = this.getMarkovFile(ProjectType.TPCC);
 //            markovs = MarkovUtil.load(catalogContext.database, file.getAbsolutePath());
-            markovs = MarkovGraphContainersUtil.createBasePartitionMarkovGraphsContainer(catalogContext.database, clone, p_estimator);
+            markovs = MarkovGraphsContainerUtil.createBasePartitionMarkovGraphsContainer(catalogContext, clone, p_estimator);
             assertNotNull(markovs);
             
             // And then populate the MarkovCostModel

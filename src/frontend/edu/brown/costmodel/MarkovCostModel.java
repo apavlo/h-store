@@ -37,7 +37,7 @@ import edu.brown.markov.MarkovGraph;
 import edu.brown.markov.MarkovProbabilityCalculator;
 import edu.brown.markov.MarkovUtil;
 import edu.brown.markov.MarkovVertex;
-import edu.brown.markov.containers.MarkovGraphContainersUtil;
+import edu.brown.markov.containers.MarkovGraphsContainerUtil;
 import edu.brown.markov.containers.MarkovGraphsContainer;
 import edu.brown.profilers.ProfileMeasurement;
 import edu.brown.statistics.ObjectHistogram;
@@ -291,7 +291,7 @@ public class MarkovCostModel extends AbstractCostModel {
         assert(initialEst != null);
         assert(initialEst.isInitialized());
         for (Integer partition : initialEst.getTouchedPartitions(this.thresholds)) {
-            if (initialEst.isFinishPartition(this.thresholds, partition.intValue()) == false) {
+            if (initialEst.isDonePartition(this.thresholds, partition.intValue()) == false) {
                 for (MarkovVertex v : initialEst.getMarkovPath()) {
                     if (v.getPartitions().contains(partition) == false)
                         continue;
@@ -681,7 +681,7 @@ public class MarkovCostModel extends AbstractCostModel {
             // that causes the partition to get touched. This is because our initial 
             // estimation of what partitions we are done at will be based on the total
             // path estimation and not directly on the finished probabilities
-            for (Integer finished_p : est.getFinishPartitions(this.thresholds)) {
+            for (Integer finished_p : est.getDonePartitions(this.thresholds)) {
                 if (touched_partitions.contains(finished_p)) {
                     // We are late with identifying that a partition is finished
                     // if it was idle for more than one batch round
@@ -820,7 +820,8 @@ public class MarkovCostModel extends AbstractCostModel {
         }
 
         final File input_path = args.getFileParam(ArgumentsParser.PARAM_MARKOV);
-        final Map<Integer, MarkovGraphsContainer> m = MarkovGraphContainersUtil.load(args.catalog_db, input_path, procedures, partitions);
+        final Map<Integer, MarkovGraphsContainer> m = MarkovGraphsContainerUtil.load(args.catalogContext,
+                                                                                     input_path, procedures, partitions);
         assert (m != null);
         final boolean global = m.containsKey(MarkovUtil.GLOBAL_MARKOV_CONTAINER_ID);
         final Map<Integer, MarkovGraphsContainer> thread_markovs[] = (Map<Integer, MarkovGraphsContainer>[]) new Map<?, ?>[num_threads];
@@ -829,14 +830,14 @@ public class MarkovCostModel extends AbstractCostModel {
         // there is no thread contention
         if (global && num_threads > 2) {
             LOG.info("Loading multiple copies of GLOBAL MarkovGraphsContainer");
-
             for (int i = 0; i < num_threads; i++) {
                 final int thread_id = i;
                 runnables.add(new Runnable() {
                     @Override
                     public void run() {
                         try {
-                            thread_markovs[thread_id] = MarkovGraphContainersUtil.load(args.catalog_db, input_path, procedures, null);
+                            thread_markovs[thread_id] = MarkovGraphsContainerUtil.load(args.catalogContext,
+                                                                                       input_path, procedures, null);
                         } catch (Throwable ex) {
                             throw new RuntimeException(ex);
                         }

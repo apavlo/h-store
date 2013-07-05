@@ -166,6 +166,26 @@ TupleSchema* TupleSchema::createEvictedTupleSchema() {
     return (blockids_schema);
 }
 
+TupleSchema* TupleSchema::createTrackerTupleSchema() {
+    std::vector<ValueType> columnTypes(2);
+    std::vector<int32_t> columnSizes(2);
+    std::vector<bool> allowNull(2);
+    
+    // COLUMN 0: TABLE_NAME
+    columnTypes[0] = VALUE_TYPE_VARCHAR; 
+    columnSizes[0] = static_cast<int32_t>(32); 
+    allowNull[0] = false;
+    
+    // COLUMN 1: TUPLE_ID
+    columnTypes[1] = VALUE_TYPE_INTEGER;
+    columnSizes[1] = static_cast<int32_t>(NValue::getTupleStorageSize(VALUE_TYPE_INTEGER));
+    allowNull[1] = false; 
+    
+    TupleSchema *schema = TupleSchema::createTupleSchema(columnTypes, columnSizes, allowNull, false);
+    
+    return (schema);
+}
+
 void TupleSchema::freeTupleSchema(TupleSchema *schema) {
     delete[] reinterpret_cast<char*>(schema);
 }

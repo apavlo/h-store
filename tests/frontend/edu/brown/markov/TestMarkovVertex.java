@@ -15,17 +15,20 @@ import org.voltdb.catalog.Statement;
 
 import edu.brown.BaseTestCase;
 import edu.brown.benchmark.tm1.procedures.GetNewDestination;
-import edu.brown.catalog.CatalogUtil;
 import edu.brown.graphs.AbstractVertex;
 import edu.brown.markov.MarkovVertex.Type;
 import edu.brown.utils.PartitionSet;
 import edu.brown.utils.ProjectType;
 import edu.brown.workload.Workload;
 
-public class TestVertex extends BaseTestCase {
+/**
+ * 
+ * @author svelagap
+ * @author pavlo
+ */
+public class TestMarkovVertex extends BaseTestCase {
 
     private static final int NUM_PARTITIONS = 5;
-    private static final double EPSILON = 0.00001;
     Workload g;
     MarkovGraph graph;
     MarkovVertex commit;
@@ -109,7 +112,7 @@ public class TestVertex extends BaseTestCase {
             graph.addToEdge(vertices[5], vertices[6]);
             graph.addToEdge(vertices[7], commit);
         }
-        graph.calculateProbabilities();
+        graph.calculateProbabilities(catalogContext.getAllPartitionIds());
         // assert(graph.isSane());
         
         // System.out.println(GraphvizExport.export(graph, "markov"));
@@ -119,12 +122,6 @@ public class TestVertex extends BaseTestCase {
 
     }
 
-    private void roughlyEqual(double prob, double d) {
-        double diff = Math.abs(prob - d);
-        assert(diff <= EPSILON) : "Difference between " + prob + " and " + d + " is " + diff + ". " +
-                                  "Must be at most " + String.format("%.5f", EPSILON);
-    }
-    
     // ----------------------------------------------------------------------------
     // TEST METHODS
     // ----------------------------------------------------------------------------
@@ -220,7 +217,7 @@ public class TestVertex extends BaseTestCase {
         MarkovVertex v = new MarkovVertex(catalog_stmt,
                                           Type.QUERY,
                                           0,
-                                          CatalogUtil.getAllPartitionIds(catalog_stmt),
+                                          catalogContext.getAllPartitionIds(),
                                           new PartitionSet());
         
         
@@ -228,21 +225,21 @@ public class TestVertex extends BaseTestCase {
         
         assertNotNull(start);
         v.setAbortProbability(0.50f);
-        v.setSinglePartitionProbability(0.50f);
+//        v.setSinglePartitionProbability(0.50f);
         for (int i = 0; i < NUM_PARTITIONS; i++) {
-            v.setFinishProbability(i, 0.50f);
+            v.setDoneProbability(i, 0.50f);
             v.setWriteProbability(i, 0.50f);
-            v.setReadOnlyProbability(i, 0.50f);
+//            v.setReadOnlyProbability(i, 0.50f);
         } // FOR
         
         v.resetAllProbabilities();
         
         assertEquals(0.0f, v.getAbortProbability());
-        assertEquals(0.0f, v.getSinglePartitionProbability());
+//        assertEquals(0.0f, v.getSinglePartitionProbability());
         for (int i = 0; i < NUM_PARTITIONS; i++) {
-            assertEquals(1.0f, v.getFinishProbability(i));
+            assertEquals(1.0f, v.getDoneProbability(i));
             assertEquals(0.0f, v.getWriteProbability(i));
-            assertEquals(0.0f, v.getReadOnlyProbability(i));
+//            assertEquals(0.0f, v.getReadOnlyProbability(i));
         } // FOR
     }
 

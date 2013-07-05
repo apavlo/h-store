@@ -70,7 +70,7 @@ class ReceiveExecutor : public AbstractExecutor {
         bool needsPostExecuteClear() { return true; }
     protected:
         bool p_init(AbstractPlanNode*, const catalog::Database* catalog_db, int* tempTableMemoryInBytes);
-        bool p_execute(const NValueArray &params);
+        bool p_execute(const NValueArray &params, ReadWriteTracker *tracker);
     private:
         VoltDBEngine *engine;
 };

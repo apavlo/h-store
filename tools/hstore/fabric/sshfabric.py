@@ -159,14 +159,15 @@ class SSHFabric(AbstractFabric):
             self.__writeConf__(inst, project, removals, revertFirst)
     ## DEF
     
-    def reset_debugging(self):
+    def resetLog4j(self):
         for inst in self.unique_hosts:
             self.__resetDebugging__(inst)
     ## DEF
     
-    def enable_debugging(self, debug=[], trace=[]):
+    def updateLog4j(self, reset=False, debug=[], trace=[]):
+        if reset: self.resetLog4j()
         for inst in self.unique_hosts:
-            self.__enableDebugging__(inst, debug, trace)
+            self.__updateLog4j__(inst, debug, trace)
     ## DEF
     
     def clear_logs(self):

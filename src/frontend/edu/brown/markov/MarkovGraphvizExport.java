@@ -9,7 +9,7 @@ import java.util.Set;
 import org.voltdb.catalog.Procedure;
 
 import edu.brown.graphs.GraphvizExport;
-import edu.brown.markov.containers.MarkovGraphContainersUtil;
+import edu.brown.markov.containers.MarkovGraphsContainerUtil;
 import edu.brown.markov.containers.MarkovGraphsContainer;
 import edu.brown.utils.ArgumentsParser;
 
@@ -41,7 +41,8 @@ public class MarkovGraphvizExport {
         } // FOR
         assert(procedures.size() > 0) : "No procedures";
         
-        Map<Integer, MarkovGraphsContainer> m = MarkovGraphContainersUtil.loadProcedures(args.catalog_db, input_path, procedures);
+        Map<Integer, MarkovGraphsContainer> m = MarkovGraphsContainerUtil.loadProcedures(args.catalogContext,
+                                                                                         input_path, procedures);
         for (Procedure catalog_proc : procedures) {
             MarkovGraphsContainer markovs = null;
             

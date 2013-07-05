@@ -145,9 +145,10 @@ public class LocalCluster extends VoltServerConfig {
         }
     }
 
-    public LocalCluster(String jarFileName, int siteCount,
+    public LocalCluster(String prefix, int siteCount,
                         int partitionsPerSite, int replication, BackendTarget target)
     {
+        String jarFileName = prefix; // FIXME String.format("%s-")
         System.out.println("Instantiating LocalCluster for " + jarFileName);
         System.out.println("Sites: " + siteCount + " hosts: " + partitionsPerSite
                            + " replication factor: " + replication);

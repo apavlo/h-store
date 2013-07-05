@@ -155,14 +155,9 @@
 ******************************************************************************
 -->
 
-<!-- Default heap size for Volt server (MB)  -->
-<condition property="volt.server.memory" value="2048">
-    <not><isset property="volt.server.memory"/></not>
-</condition>
-
-<!-- Default heap size for Volt clients+loaders (MB)  -->
-<condition property="volt.client.memory" value="1024">
-    <not><isset property="volt.client.memory"/></not>
+<!-- Default heap size for utility programs (MB)  -->
+<condition property="global.memory" value="2048">
+    <not><isset property="global.memory"/></not>
 </condition>
 
 <!-- Overridden in the Hudson test script. -->
@@ -831,6 +826,11 @@ NATIVE EE STUFF
 
 <target name="eecheck" depends="ee, eecheck-build"
     description="Build and execute testcases for C++ JNI library.">
+    <exec dir='.' executable='python' failonerror='true'>
+        <env key='M1CATALOG_PATH' value='${m1catalog}' />
+        <env key="TEST_DIR" value="${build.testobjects.dir}" />
+        <arg line="build.py ${build} test" />
+    </exec>
 </target>
 
 <target name="eecheck-build"
@@ -838,7 +838,7 @@ NATIVE EE STUFF
     <exec dir='.' executable='python' failonerror='true'>
         <env key='M1CATALOG_PATH' value='${m1catalog}' />
         <env key="TEST_DIR" value="${build.testobjects.dir}" />
-        <arg line="build.py ${build} test" />
+        <arg line="build.py ${build} LOG_LEVEL=${site.exec_ee_log_level} buildtest" />
     </exec>
 </target>
 
@@ -1050,9 +1050,6 @@ TEST CASES
                 <exclude name="**/TestWikipediaLoader.class" />
 <!--                 <exclude name="**/TestAntiCache*.class" /> -->
                 
-                <!-- Tests that use too much memory -->
-                <exclude name='edu/brown/benchmark/seats/TestSEATSSuite.class'/>
-                
                 <!-- Misc VoltDB stuff -->
                 <exclude name='org/voltdb/TestHSQLBackend*'/>
                 <exclude name="**/*$*.class"/>
@@ -1137,7 +1134,6 @@ TEST CASES
 <!--                 <exclude name="**/TestAntiCache*.class" /> -->
 
                 <!-- Tests that use too much memory -->
-                <exclude name='edu/brown/benchmark/seats/TestSEATSSuite.class'/>
                 <exclude name='edu/brown/benchmark/tpce/*'/>
             </fileset>
         </tests>
@@ -1782,41 +1778,6 @@ TEST CASES
     </java>
 </target>
 
-<target name="benchmarkenv" description="Run second cluster using parameters from the environment">
-    <antcall target="benchmark" inheritAll='true'>
-        <param name="local" value="false"/>
-        <param name="client" value="${env.BMCLIENT}"/>
-
-        <param name="hostcount" value="${env.BMHOSTCOUNT}"/>
-        <param name="sitesperhost" value="${env.BMSITESPERHOST}"/>
-        <!-- use env.FIRSTSERVER to override host1 from volt3a -->
-        <param name="manualhost1" value="${env.HOST1}"/>
-        <param name="manualhost2" value="${env.HOST2}"/>
-        <param name="manualhost3" value="${env.HOST3}"/>
-        <param name="manualhost4" value="${env.HOST4}"/>
-        <param name="manualhost5" value="${env.HOST5}"/>
-        <param name="manualhost6" value="${env.HOST6}"/>
-
-        <param name="clientcount" value="${env.BMCLIENTCOUNT}"/>
-        <param name="processesperclient" value="1"/>
-        <!-- use env.FIRSTCLIENT to override clienthost1 from volt4a -->
-
-        <param name="duration" value="${env.BMDURATION}000"/>
-        <param name="interval" value="${env.BMINTERVAL}000"/>
-        <param name="txnrate" value="${env.BMRATELIMIT}"/>
-        <param name="warehouses" value="${env.BMTPCCWAREHOUSES}"/>
-        <param name="volt.server.memory" value="2048"/>
-        <param name="kfactor" value="${env.BMKFACTOR}"/>
-        <param name="os" value="${env.MACHTYPE}"/>
-
-        <!-- all four of these have to be set for it to do anything -->
-        <param name="snapshotPath" value="/tmp"/>
-        <param name="snapshotFrequency" value="${env.BMSNAPSHOTFREQUENCY}"/>
-        <param name="snapshotPrefix" value="volt_snapshot"/>
-        <param name="snapshotRetain" value="${env.BMSNAPSHOTRETAIN}"/>
-    </antcall>
-</target>
-
 <target name='proccallmicrobench' depends='ee, compile'
     description="Run client-server stored procedure call overhead microbenchmark. [-Dclients={# clients}]">
     <java fork="true" failonerror="true"
@@ -2048,7 +2009,7 @@ UTILITIES
 
 <target name='workload-combine'>
     <java fork="yes" failonerror="true" classname="edu.brown.workload.CombineWorkloadTraces">
-        <jvmarg value="-Xmx${volt.server.memory}m" />
+        <jvmarg value="-Xmx${global.memory}m" />
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
         <arg value="catalog.jar=${jar}" />
         <arg value="workload.output=${output}" />
@@ -2062,7 +2023,7 @@ UTILITIES
 
 <target name='workload-compress'>
     <java fork="yes" failonerror="true" classname="edu.brown.workload.WorkloadSummarizer">
-        <jvmarg value="-Xmx${volt.server.memory}m" />
+        <jvmarg value="-Xmx${global.memory}m" />
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
         <arg value="catalog.jar=${jar}" />
         <arg value="catalog.hosts=${hosts}" />
@@ -2085,7 +2046,7 @@ UTILITIES
 <target name='workload-stats'
         description="Generate workload statistics">
     <java fork="yes" classname="edu.brown.statistics.WorkloadStatistics" failonerror='true'>
-        <jvmarg value="-Xmx${volt.client.memory}m" />
+        <jvmarg value="-Xmx${global.memory}m" />
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
         <arg value="catalog.jar=${jar}" />
         <arg value="workload=${workload}" />
@@ -2108,8 +2069,20 @@ UTILITIES
 -->
 
 <target name='markov-generate' description="Generate Markov Graphs" depends="getcpus">
+    <!-- Benchmarks Configuration File -->
+    <condition property="benchmark.conf" value="${benchmark.dir}/${project}.properties">
+        <not>
+            <isset property="benchmark.conf"/>
+        </not>
+    </condition>
+    <property file="${benchmark.conf}" prefix="benchmark" />
+    
+    <condition property="exclude" value="${benchmark.workload.ignore}">
+        <not><isset property="exclude"/></not>
+    </condition>
+    
     <java fork="yes" classname="edu.brown.markov.MarkovGraph" failonerror='true'>
-        <jvmarg value="-Xmx${volt.client.memory}m" />
+        <jvmarg value="-Xmx${global.memory}m" />
         <jvmarg value="-Dhstore.max_threads=${numcpus}" />
         <arg value="catalog.jar=${jar}" />
         <arg value="workload=${workload}" />
@@ -2128,7 +2101,7 @@ UTILITIES
 
 <target name='markov-cost' description="Estimate MarkovGraph Costs" depends="getcpus">
     <java fork="yes" classname="edu.brown.costmodel.MarkovCostModel" failonerror='true'>
-        <jvmarg value="-Xmx${volt.client.memory}m" />
+        <jvmarg value="-Xmx${global.memory}m" />
         <jvmarg value="-Dhstore.max_threads=${numcpus}" />
         <arg value="catalog.jar=${jar}" />
         <arg value="workload=${workload}" />
@@ -2148,7 +2121,7 @@ UTILITIES
 
 <target name='markov-graphviz' description="Create MarkovGraphs Graphviz files">
     <java fork="yes" classname="edu.brown.markov.MarkovGraphvizExport" failonerror='true'>
-        <jvmarg value="-Xmx${volt.client.memory}m" />
+        <jvmarg value="-Xmx${global.memory}m" />
         <arg value="catalog.jar=${jar}" />
         <arg value="markov=${markov}" />
         <arg value="${procedure}" />
@@ -2160,7 +2133,7 @@ UTILITIES
 
 <target name='markov-extractor' description="Generate Weka Feature Files">
     <java fork="yes" classname="edu.brown.markov.FeatureExtractor" failonerror='true'>
-        <jvmarg value="-Xmx${volt.client.memory}m" />
+        <jvmarg value="-Xmx${global.memory}m" />
         <arg value="catalog.jar=${jar}" />
         <arg value="workload=${workload}" />
         <arg value="workload.xactlimit=${limit}" />
@@ -2176,7 +2149,7 @@ UTILITIES
 
 <target name='markov-cluster' description="Generate Markov Cluster-based File" depends="getcpus">
     <java fork="yes" classname="edu.brown.markov.FeatureClusterer" failonerror='true'>
-        <jvmarg value="-Xmx${volt.client.memory}m" />
+        <jvmarg value="-Xmx${global.memory}m" />
         <jvmarg value="-server" />
 <!--         <jvmarg value="-verbose:gc" /> -->
         <jvmarg value="-XX:+UseParNewGC" />
@@ -2208,7 +2181,7 @@ UTILITIES
 
 <target name='weka' description="Launch Weka GUI">
     <java fork="yes" classname="weka.gui.GUIChooser">
-        <jvmarg value="-Xmx${volt.client.memory}m" />
+        <jvmarg value="-Xmx${global.memory}m" />
         <classpath refid='project.classpath' />
         <!-- <assertions><enable /></assertions> -->
     </java>
@@ -2223,7 +2196,7 @@ UTILITIES
 <target name='mappings-generate'
         description="Generate Parameter Mappings">
     <java fork="yes" classname="edu.brown.mappings.MappingCalculator" failonerror='true'>
-        <jvmarg value="-Xmx${volt.client.memory}m" />
+        <jvmarg value="-Xmx${global.memory}m" />
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
         <arg value="catalog.jar=${jar}" />
         <arg value="workload=${workload}" />
@@ -2255,7 +2228,7 @@ UTILITIES
 
     <echo>Creating table stats file for ${project}...</echo>
     <java fork="yes" classname="edu.brown.statistics.AbstractTableStatisticsGenerator" failonerror='true'>
-        <jvmarg value="-Xmx${volt.client.memory}m" />
+        <jvmarg value="-Xmx${global.memory}m" />
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
         <arg value="catalog.jar=${jar}" />
         <arg value="stats.scalefactor=${scalefactor}" />
@@ -2303,7 +2276,7 @@ UTILITIES
    <java fork="yes" failonerror="true" classname="edu.brown.designer.Designer">
         <jvmarg value="-server" />
         <jvmarg value="-Xms256m" />
-        <jvmarg value="-Xmx${volt.client.memory}m" />
+        <jvmarg value="-Xmx${global.memory}m" />
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
         <jvmarg value="-Dhstore.max_threads=${numcpus}" />
         <arg value="conf=${conf}" />
@@ -2344,7 +2317,7 @@ UTILITIES
     <java fork="yes" failonerror="true" classname="${costmodel}">
         <jvmarg value="-client" />
         <jvmarg value="-Xms256m" />
-        <jvmarg value="-Xmx${volt.client.memory}m" />
+        <jvmarg value="-Xmx${global.memory}m" />
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
         <arg value="conf=${conf}" />
         <arg value="catalog.jar=${jar}" />
@@ -2374,7 +2347,7 @@ UTILITIES
    <java fork="yes" failonerror="true" classname="edu.brown.designer.LowerBoundsCalculator">
         <jvmarg value="-client" />
         <jvmarg value="-Xms256m" />
-        <jvmarg value="-Xmx${volt.client.memory}m" />
+        <jvmarg value="-Xmx${global.memory}m" />
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
         <arg value="catalog.jar=${jar}" />
         <arg value="catalog.type=${project}" />

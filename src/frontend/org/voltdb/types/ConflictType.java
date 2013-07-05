@@ -24,30 +24,23 @@ public enum ConflictType {
         return this.ordinal();
     }
 
-    protected static final Map<Integer, ConflictType> idx_lookup = new HashMap<Integer, ConflictType>();
-    protected static final Map<String, ConflictType> name_lookup = new HashMap<String, ConflictType>();
+    private static final Map<String, ConflictType> name_lookup = new HashMap<String, ConflictType>();
     static {
         for (ConflictType vt : EnumSet.allOf(ConflictType.class)) {
-            ConflictType.idx_lookup.put(vt.ordinal(), vt);
-            ConflictType.name_lookup.put(vt.name().toLowerCase().intern(), vt);
+            ConflictType.name_lookup.put(vt.name().toLowerCase(), vt);
         }
     }
 
-    public static Map<Integer, ConflictType> getIndexMap() {
-        return idx_lookup;
-    }
-
-    public static Map<String, ConflictType> getNameMap() {
-        return name_lookup;
-    }
-
     public static ConflictType get(Integer idx) {
-        ConflictType ret = ConflictType.idx_lookup.get(idx);
-        return (ret == null ? ConflictType.INVALID : ret);
+        ConflictType values[] = ConflictType.values();
+        if (idx < 0 || idx >= values.length) {
+            return (ConflictType.INVALID);
+        }
+        return (values[idx]);
     }
 
     public static ConflictType get(String name) {
-        ConflictType ret = ConflictType.name_lookup.get(name.toLowerCase().intern());
+        ConflictType ret = ConflictType.name_lookup.get(name.toLowerCase());
         return (ret == null ? ConflictType.INVALID : ret);
     }
 

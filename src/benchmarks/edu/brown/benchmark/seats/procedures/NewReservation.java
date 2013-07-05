@@ -32,6 +32,7 @@ import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
+import org.voltdb.VoltType;
 import org.voltdb.types.TimestampType;
 
 import edu.brown.benchmark.seats.SEATSConstants;
@@ -127,8 +128,9 @@ public class NewReservation extends VoltProcedure {
             "   ? " +   // R_UPDATED
             ")");
     
-    public VoltTable[] run(long r_id, long c_id, long f_id, long seatnum, double price, long attrs[]) {
+    public VoltTable[] run(long r_id, long c_id, long f_id, long seatnum, double price, long attrs[], TimestampType timestamp) {
         final boolean debug = LOG.isDebugEnabled();
+        assert(attrs.length == SEATSConstants.NEW_RESERVATION_ATTRS_SIZE);
         
         voltQueueSQL(GetFlight, f_id);
         voltQueueSQL(CheckSeat, f_id, seatnum);
@@ -159,19 +161,18 @@ public class NewReservation extends VoltProcedure {
                                          String.format(" Customer %d already owns on a reservations on flight #%d", c_id, f_id));
         }
         
-//        if (c_id != VoltType.NULL_BIGINT) {
-//            voltQueueSQL(GetCustomer, c_id);
-//            VoltTable[] customerResults = voltExecuteSQL();
-//            assert(customerResults.length == 1);
-//            
-//            // Customer Information
-//            if (customerResults[0].advanceRow() == false) {
-//                throw new VoltAbortException(ErrorType.INVALID_CUSTOMER_ID + 
-//                                             String.format(" Invalid customer id: %d / %s", c_id, new CustomerId(c_id)));
-//            }
-//        }
+        if (c_id != VoltType.NULL_BIGINT) {
+            voltQueueSQL(GetCustomer, c_id);
+            VoltTable[] customerResults = voltExecuteSQL();
+            assert(customerResults.length == 1);
+            
+            // Customer Information
+            if (customerResults[0].advanceRow() == false) {
+                throw new VoltAbortException(ErrorType.INVALID_CUSTOMER_ID + 
+                                             String.format(" Invalid customer id: %d", c_id));
+            }
+        }
         
-        TimestampType timestamp = new TimestampType();
         voltQueueSQL(InsertReservation, r_id, c_id, f_id, seatnum, price,
                             attrs[0], attrs[1], attrs[2], attrs[3],
                             attrs[4], attrs[5], attrs[6], attrs[7],
@@ -198,7 +199,9 @@ public class NewReservation extends VoltProcedure {
             }
         } // FOR
         
-        if (debug) LOG.debug(String.format("Reserved new seat on flight %d for customer %d [seatsLeft=%d]", f_id, c_id, seats_left-1));
+        if (debug)
+            LOG.debug(String.format("Reserved new seat on flight %d for customer %d [seatsLeft=%d]",
+                      f_id, c_id, seats_left-1));
         
         return (results);
     }

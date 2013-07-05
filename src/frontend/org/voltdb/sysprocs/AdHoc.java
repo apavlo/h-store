@@ -30,6 +30,7 @@ import org.voltdb.VoltType;
 import org.voltdb.dtxn.DtxnConstants;
 
 import edu.brown.hstore.PartitionExecutor.SystemProcedureExecutionContext;
+import edu.brown.hstore.txns.AbstractTransaction;
 
 /**
  * Execute a user-provided SQL statement. This code coordinates the execution of
@@ -77,13 +78,14 @@ public class AdHoc extends VoltSystemProcedure {
             
             // Always mark this information for the txn so that we can
             // rollback anything that it may do
-            m_currentTxnState.markExecNotReadOnly(this.partitionId);
-            m_currentTxnState.markExecutedWork(this.partitionId);
+            AbstractTransaction ts = this.hstore_site.getTransaction(txn_id);
+            ts.markExecNotReadOnly(this.partitionId);
+            ts.markExecutedWork(this.partitionId);
             
             table = context.getExecutionEngine().
-                executeCustomPlanFragment(plan, outputDepId, inputDepId, getTransactionId(),
+                executeCustomPlanFragment(plan, outputDepId, inputDepId, txn_id,
                                           context.getLastCommittedTxnId(),
-                                          m_currentTxnState.getLastUndoToken(this.partitionId));
+                                          ts.getLastUndoToken(this.partitionId));
         }
 
         return new DependencySet(new int[]{ outputDepId }, new VoltTable[]{ table });

@@ -17,6 +17,11 @@ public enum SpecExecSchedulerPolicyType {
      */
     FIRST,
     /**
+     * Pick the last matching candidate that we find.
+     * This is only useful for testing and experiments.
+     */
+    LAST,
+    /**
      * Pick the candidate with the shortest estimated execution time.
      * This requires using a transaction estimator that supports run time calculations
      */

@@ -18,6 +18,7 @@ import org.voltdb.catalog.Table;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.ProcCallException;
+import org.voltdb.sysprocs.AdHoc;
 import org.voltdb.sysprocs.LoadMultipartitionTable;
 import org.voltdb.sysprocs.SetConfiguration;
 import org.voltdb.sysprocs.Statistics;
@@ -50,6 +51,13 @@ public abstract class RegressionSuiteUtil {
         String procName = VoltSystemProcedure.procCallName(Statistics.class);
         Object params[] = { statsType.name(), 0 };
         ClientResponse cresponse = client.callProcedure(procName, params);
+        assert(cresponse.getStatus() == Status.OK) : cresponse.toString();
+        return (cresponse);
+    }
+    
+    public static ClientResponse sql(Client client, String sql) throws Exception {
+        String procName = VoltSystemProcedure.procCallName(AdHoc.class);
+        ClientResponse cresponse = client.callProcedure(procName, sql);
         assert(cresponse.getStatus() == Status.OK) : cresponse.toString();
         return (cresponse);
     }
@@ -113,11 +121,15 @@ public abstract class RegressionSuiteUtil {
     }
 
     public static final void initializeTPCCDatabase(final CatalogContext catalogContext, final Client client) throws Exception {
+        initializeTPCCDatabase(catalogContext, client, false);
+    }
+    
+    public static final void initializeTPCCDatabase(final CatalogContext catalogContext, final Client client, boolean scaleItems) throws Exception {
         String args[] = {
             "NOCONNECTIONS=true",
             "BENCHMARK.WAREHOUSE_PER_PARTITION=true",
             "BENCHMARK.NUM_LOADTHREADS=1",
-            // "BENCHMARK.SCALE_ITEMS=true",
+            "BENCHMARK.SCALE_ITEMS="+scaleItems,
         };
         TPCCLoader loader = new TPCCLoader(args) {
             {

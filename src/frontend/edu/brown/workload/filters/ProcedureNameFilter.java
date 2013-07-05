@@ -16,6 +16,7 @@ import edu.brown.workload.AbstractTraceElement;
 import edu.brown.workload.TransactionTrace;
 
 /**
+ * Filter TransactionTrace records based on their procedure name
  * @author pavlo
  */
 public class ProcedureNameFilter extends Filter {
@@ -57,6 +58,7 @@ public class ProcedureNameFilter extends Filter {
         return (this);
     }
     
+    @SuppressWarnings("unchecked")
     public ProcedureNameFilter include(Class<? extends VoltProcedure>...procClasses) {
         for (Class<? extends VoltProcedure> procClass : procClasses) {
             this.include(procClass.getSimpleName(), INCLUDE_UNLIMITED);

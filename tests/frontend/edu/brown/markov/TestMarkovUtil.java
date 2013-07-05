@@ -9,8 +9,7 @@ import org.voltdb.catalog.Procedure;
 
 import edu.brown.BaseTestCase;
 import edu.brown.benchmark.tm1.procedures.GetNewDestination;
-import edu.brown.catalog.CatalogUtil;
-import edu.brown.markov.containers.MarkovGraphContainersUtil;
+import edu.brown.markov.containers.MarkovGraphsContainerUtil;
 import edu.brown.markov.containers.MarkovGraphsContainer;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.ProjectType;
@@ -40,7 +39,7 @@ public class TestMarkovUtil extends BaseTestCase {
         Map<Integer, MarkovGraphsContainer> markovs = new HashMap<Integer, MarkovGraphsContainer>();
         for (int i = 1000; i < 1010; i++) {
             MarkovGraphsContainer m = new MarkovGraphsContainer();
-            for (Integer p : CatalogUtil.getAllPartitionIds(catalog_db)) {
+            for (int p : catalogContext.getAllPartitionIds()) {
                 m.getOrCreate(p, catalog_proc).initialize();
             } // FOR
             markovs.put(i, m);
@@ -49,11 +48,11 @@ public class TestMarkovUtil extends BaseTestCase {
         // Serialize them out to a file. This will also make a nice little index in the file
         File temp = FileUtil.getTempFile("markovs", true);
         assertNotNull(temp);
-        MarkovGraphContainersUtil.save(markovs, temp.getAbsolutePath());
+        MarkovGraphsContainerUtil.save(markovs, temp);
 //        System.err.println("MARKOV FILE: " + temp);
         
         // Now read it back in make sure everything is there
-        Map<Integer, MarkovGraphsContainer> clone = MarkovUtil.load(catalog_db, temp);
+        Map<Integer, MarkovGraphsContainer> clone = MarkovUtil.load(catalogContext, temp);
         assertNotNull(clone);
         assertEquals(markovs.size(), clone.size());
         assert(markovs.keySet().containsAll(clone.keySet()));
@@ -67,21 +66,21 @@ public class TestMarkovUtil extends BaseTestCase {
      * testGetStartVertex
      */
     public void testGetStartVertex() throws Exception {
-        this.examineVertices(MarkovUtil.getStartVertex(catalog_db), MarkovUtil.getStartVertex(catalog_db)); 
+        this.examineVertices(MarkovUtil.getStartVertex(catalogContext), MarkovUtil.getStartVertex(catalogContext)); 
     }
 
     /**
      * testGetStopVertex
      */
     public void testGetStopVertex() throws Exception {
-        this.examineVertices(MarkovUtil.getCommitVertex(catalog_db), MarkovUtil.getCommitVertex(catalog_db)); 
+        this.examineVertices(MarkovUtil.getCommitVertex(catalogContext), MarkovUtil.getCommitVertex(catalogContext)); 
     }
 
     /**
      * testGetAbortVertex
      */
     public void testGetAbortVertex() throws Exception {
-        this.examineVertices(MarkovUtil.getAbortVertex(catalog_db), MarkovUtil.getAbortVertex(catalog_db)); 
+        this.examineVertices(MarkovUtil.getAbortVertex(catalogContext), MarkovUtil.getAbortVertex(catalogContext)); 
     }
 
     /**
@@ -94,7 +93,7 @@ public class TestMarkovUtil extends BaseTestCase {
                 MarkovVertex.Type.ABORT,
         };
         for (MarkovVertex.Type type : types) {
-            MarkovVertex v = MarkovUtil.getSpecialVertex(catalog_db, type);
+            MarkovVertex v = MarkovUtil.getSpecialVertex(catalogContext.database, type);
             assertNotNull(v);
             
             String json = v.toJSONString();
@@ -113,7 +112,7 @@ public class TestMarkovUtil extends BaseTestCase {
                 MarkovVertex.Type.ABORT,
         };
         for (MarkovVertex.Type type : types) {
-            MarkovVertex v = MarkovUtil.getSpecialVertex(catalog_db, type);
+            MarkovVertex v = MarkovUtil.getSpecialVertex(catalogContext.database, type);
             assertNotNull(v);
             
             String json = v.toJSONString();
@@ -122,7 +121,7 @@ public class TestMarkovUtil extends BaseTestCase {
             //System.err.println(json_obj.toString(2));
             
             MarkovVertex clone = new MarkovVertex();
-            clone.fromJSON(json_obj, catalog_db);
+            clone.fromJSON(json_obj, catalogContext.database);
             this.examineVertices(v, clone);
             
 //            System.err.println(clone.getCatalogItem());

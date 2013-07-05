@@ -4,9 +4,6 @@
  *  Massachusetts Institute of Technology                                  *
  *  Yale University                                                        *
  *                                                                         *
- *  Original By: VoltDB Inc.											   *
- *  Ported By:  Justin A. DeBrabant (http://www.cs.brown.edu/~debrabant/)  *                                                                      *
- *                                                                         *
  *  Permission is hereby granted, free of charge, to any person obtaining  *
  *  a copy of this software and associated documentation files (the        *
  *  "Software"), to deal in the Software without restriction, including    *
@@ -57,14 +54,17 @@ public abstract class SmallBankConstants {
     // Default number of customers in bank
     public static final int NUM_ACCOUNTS            = 1000000;
     
-    public static final int HOTSPOT_SIZE            = 100;
+    public static final boolean HOTSPOT_USE_FIXED_SIZE  = false;
+    public static final double HOTSPOT_PERCENTAGE       = 25; // [0% - 100%]
+    public static final int HOTSPOT_FIXED_SIZE          = 100; // fixed number of tuples
     
     // ----------------------------------------------------------------
     // ADDITIONAL CONFIGURATION SETTINGS
     // ----------------------------------------------------------------
     
     // Initial balance amount
-    public static final int MIN_BALANCE             = 1000;
-    public static final int MAX_BALANCE             = 5000;
+    // We'll just make it really big so that they never run out of money
+    public static final int MIN_BALANCE             = 10000;
+    public static final int MAX_BALANCE             = 50000;
 
 }

@@ -229,11 +229,11 @@ public class ResultsPrinter implements BenchmarkInterest {
         long txnDelta = p.getSecond();
         
         // INTERVAL LATENCY
-        Histogram<Integer> lastLatencies = results.getLastSinglePartitionLatencies();
+        Histogram<Integer> lastLatencies = results.getLastTotalLatencies();
         double intervalLatency = HistogramUtil.sum(lastLatencies) / (double)lastLatencies.getSampleCount();
         
         // TOTAL LATENCY
-        Histogram<Integer> allLatencies = results.getAllSinglePartitionLatencies();        
+        Histogram<Integer> allLatencies = results.getAllTotalLatencies();        
         double totalLatency = HistogramUtil.sum(allLatencies) / (double)allLatencies.getSampleCount();
 
         int pollIndex = results.getCompletedIntervalCount();

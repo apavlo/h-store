@@ -63,9 +63,9 @@ public class TestTableConflictChecker extends BaseTestCase {
             Collection<Table> tables0 = CatalogUtil.getReferencedTables(proc0);
             for (Table tbl : tables0) {
                 if (proc0.getReadonly()) {
-                    txn0.markTableAsRead(BASE_PARTITION, tbl);
+                    txn0.markTableRead(BASE_PARTITION, tbl);
                 } else {
-                    txn0.markTableAsWritten(BASE_PARTITION, tbl);
+                    txn0.markTableWritten(BASE_PARTITION, tbl);
                 }
             } // FOR
 
@@ -76,9 +76,9 @@ public class TestTableConflictChecker extends BaseTestCase {
                 Collection<Table> tables1 = CatalogUtil.getReferencedTables(proc1);
                 for (Table tbl : tables1) {
                     if (proc1.getReadonly()) {
-                        txn1.markTableAsRead(BASE_PARTITION, tbl);
+                        txn1.markTableRead(BASE_PARTITION, tbl);
                     } else {
-                        txn1.markTableAsWritten(BASE_PARTITION, tbl);
+                        txn1.markTableWritten(BASE_PARTITION, tbl);
                     }
                 } // FOR
                 
@@ -88,8 +88,8 @@ public class TestTableConflictChecker extends BaseTestCase {
                 // any unexpected problems.
                 
                 Collection<Table> intersection = CollectionUtils.intersection(tables0, tables1); 
-                boolean expected = intersection.isEmpty();
-                boolean result = this.checker.canExecute(txn0, txn1, BASE_PARTITION);
+                boolean expected = (intersection.isEmpty() == false);
+                boolean result = this.checker.hasConflictBefore(txn0, txn1, BASE_PARTITION);
                 System.err.printf("   %s\n", intersection);
                 System.err.printf("   %s -> %s {%s}\n\n", proc1.getName(), tables1, result);
                 // assertEquals(proc0+"->"+proc1, expected, result);

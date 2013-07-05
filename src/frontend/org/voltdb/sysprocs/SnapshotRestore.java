@@ -40,13 +40,11 @@ import org.voltdb.ParameterSet;
 import org.voltdb.PrivateVoltTableFactory;
 import org.voltdb.ProcInfo;
 import org.voltdb.TheHashinator;
-import org.voltdb.VoltDB;
 import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltTable.ColumnInfo;
 import org.voltdb.VoltType;
 import org.voltdb.VoltTypeException;
-import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Table;
 import org.voltdb.client.ConnectionUtil;
@@ -58,8 +56,8 @@ import org.voltdb.sysprocs.saverestore.TableSaveFile;
 import org.voltdb.sysprocs.saverestore.TableSaveFileState;
 import org.voltdb.utils.DBBPool.BBContainer;
 
-import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.PartitionExecutor.SystemProcedureExecutionContext;
+import edu.brown.hstore.txns.AbstractTransaction;
 
 @ProcInfo (
     singlePartition = false
@@ -169,6 +167,7 @@ public class SnapshotRestore extends VoltSystemProcedure
                         ParameterSet params,
                         final SystemProcedureExecutionContext context)
     {
+        AbstractTransaction ts = hstore_site.getTransaction(txn_id);
         String hostname = ConnectionUtil.getHostnameOrAddress();
         if (fragmentId == SysProcFragmentId.PF_restoreScan)
         {
@@ -326,9 +325,10 @@ public class SnapshotRestore extends VoltSystemProcedure
                 }
                 try
                 {
-                    super.voltLoadTable(context.getCluster().getTypeName(),
-                                        context.getDatabase().getTypeName(),
-                                        table_name, table, allowExport);
+                    this.executor.loadTable(ts,
+                                            context.getCluster().getTypeName(),
+                                            context.getDatabase().getTypeName(),
+                                            table_name, table, allowExport);
                 }
                 catch (VoltAbortException e)
                 {
@@ -383,9 +383,10 @@ public class SnapshotRestore extends VoltSystemProcedure
             String error_msg = "";
             try
             {
-                super.voltLoadTable(context.getCluster().getTypeName(),
-                                    context.getDatabase().getTypeName(),
-                                    table_name, table, allowExport);
+                this.executor.loadTable(ts,
+                                        context.getCluster().getTypeName(),
+                                        context.getDatabase().getTypeName(),
+                                        table_name, table, allowExport);
             }
             catch (VoltAbortException e)
             {
@@ -501,9 +502,10 @@ public class SnapshotRestore extends VoltSystemProcedure
             String error_msg = "";
             try
             {
-                super.voltLoadTable(context.getCluster().getTypeName(),
-                                    context.getDatabase().getTypeName(),
-                                    table_name, table, allowExport);
+                this.executor.loadTable(ts,
+                                        context.getCluster().getTypeName(),
+                                        context.getDatabase().getTypeName(),
+                                        table_name, table, allowExport);
             }
             catch (VoltAbortException e)
             {
@@ -728,7 +730,7 @@ public class SnapshotRestore extends VoltSystemProcedure
     private Set<Table> getTablesToRestore(Set<String> savedTableNames)
     {
         Set<Table> tables_to_restore = new HashSet<Table>();
-        for (Table table : this.database.getTables())
+        for (Table table : this.catalogContext.database.getTables())
         {
             if (savedTableNames.contains(table.getTypeName()))
             {
@@ -1043,8 +1045,8 @@ public class SnapshotRestore extends VoltSystemProcedure
     private VoltTable[] createPartitionedTables(String tableName,
                                                 VoltTable loadedTable)
     {
-        int number_of_partitions = CatalogUtil.getNumberOfPartitions(this.cluster);
-        Table catalog_table = this.database.getTables().getIgnoreCase(tableName);
+        int number_of_partitions = this.catalogContext.numberOfPartitions;
+        Table catalog_table = catalogContext.database.getTables().getIgnoreCase(tableName);
         assert(!catalog_table.getIsreplicated());
         // XXX blatantly stolen from LoadMultipartitionTable
         // find the index and type of the partitioning attribute
@@ -1084,7 +1086,7 @@ public class SnapshotRestore extends VoltSystemProcedure
 
     private Table getCatalogTable(String tableName)
     {
-        return this.database.getTables().get(tableName);
+        return this.catalogContext.database.getTables().get(tableName);
     }
 
     private int m_siteId;

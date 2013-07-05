@@ -119,7 +119,7 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         this.appStatusString = appStatusString;
         this.restartCounter = ts.getRestartCounter();
         this.singlepartition = ts.isPredictSinglePartition();
-        this.speculative = ts.getSpeculativeType();
+        this.speculative = ts.getSpeculationType();
         this.setResults(status, results, statusString, e);
     }
     

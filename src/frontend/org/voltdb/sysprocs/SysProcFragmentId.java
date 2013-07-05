@@ -41,8 +41,6 @@ public class SysProcFragmentId {
     public static final int PF_partitionCount = 17;
     public static final int PF_ioData = 18;
     public static final int PF_ioDataAggregator = 19;
-    public static final int PF_poolData = 20;
-    public static final int PF_poolAggregator = 21;
     public static final int PF_txnCounterData = 22;
     public static final int PF_txnCounterAggregator = 23;
     public static final int PF_txnProfilerData = 24;

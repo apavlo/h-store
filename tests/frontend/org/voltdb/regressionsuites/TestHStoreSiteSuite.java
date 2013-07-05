@@ -78,7 +78,7 @@ public class TestHStoreSiteSuite extends RegressionSuite {
     }
     
     /**
-     * testNetworkThreadInitialization
+     * testTransactionRedirect
      */
     public void testTransactionRedirect() throws Exception {
         CatalogContext catalogContext = this.getCatalogContext();
@@ -104,7 +104,7 @@ public class TestHStoreSiteSuite extends RegressionSuite {
     public void testStoredProcedureInvocationHints() throws Exception {
         CatalogContext catalogContext = this.getCatalogContext();
         Client client = this.getClient();
-        RegressionSuiteUtil.initializeTPCCDatabase(catalogContext, client);
+        RegressionSuiteUtil.initializeTPCCDatabase(catalogContext, client, true);
         
         final int repeat = 100;
         final StoredProcedureInvocationHints hints = new StoredProcedureInvocationHints();

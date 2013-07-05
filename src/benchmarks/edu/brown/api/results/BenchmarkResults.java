@@ -194,41 +194,53 @@ public class BenchmarkResults {
         return (this.responseStatuses);
     }
 
-    private Histogram<Integer> getAllLatencies(boolean dtxn) {
+    private Histogram<Integer> getAllLatencies(boolean singlep, boolean dtxn) {
         ObjectHistogram<Integer> latencies = new ObjectHistogram<Integer>();
         for (Map<String, List<Result>> clientResults : data.values()) {
             for (List<Result> txnResults : clientResults.values()) {
                 for (Result r : txnResults) {
-                    latencies.put(dtxn ? r.dtxnLatencies : r.spLatencies);
+                    if (r != null) {
+                        if (singlep) latencies.put(r.spLatencies);
+                        if (dtxn) latencies.put(r.dtxnLatencies);
+                    }
                 } // FOR
             } // FOR
         } // FOR
         return (latencies);
     }
     
+    public Histogram<Integer> getAllTotalLatencies() {
+        return this.getAllLatencies(true, true);
+    }
     public Histogram<Integer> getAllSinglePartitionLatencies() {
-        return this.getAllLatencies(false);
+        return this.getAllLatencies(true, false);
     }
     public Histogram<Integer> getAllDistributedLatencies() {
-        return this.getAllLatencies(true);
+        return this.getAllLatencies(false, true);
     }
     
-    private Histogram<Integer> getLastLatencies(boolean dtxn) {
+    private Histogram<Integer> getLastLatencies(boolean singlep, boolean dtxn) {
         Histogram<Integer> latencies = new ObjectHistogram<Integer>();
         for (Map<String, List<Result>> clientResults : data.values()) {
             for (List<Result> txnResults : clientResults.values()) {
                 Result r = CollectionUtil.last(txnResults);
-                if (r != null) latencies.put(dtxn ? r.dtxnLatencies : r.spLatencies);
+                if (r != null) {
+                    if (singlep) latencies.put(r.spLatencies);
+                    if (dtxn) latencies.put(r.dtxnLatencies);
+                }
             } // FOR
         } // FOR
         return (latencies);
     }
     
+    public Histogram<Integer> getLastTotalLatencies() {
+        return this.getLastLatencies(true, true);
+    }
     public Histogram<Integer> getLastSinglePartitionLatencies() {
-        return this.getLastLatencies(false);
+        return this.getLastLatencies(true, false);
     }
     public Histogram<Integer> getLastDistributedLatencies() {
-        return this.getLastLatencies(true);
+        return this.getLastLatencies(false, true);
     }
     
     private Histogram<Integer> getClientLatencies(String clientName, boolean dtxn) {

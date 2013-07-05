@@ -129,65 +129,145 @@ public class ParameterMangler {
                                 byte arr[] = (byte[]) orig[i];
                                 inner = new Byte[arr.length];
                                 for (int j = 0; j < arr.length; j++) {
-                                    inner[j] = arr[j];
+                                    inner[j] = (byte)arr[j];
+                                } // FOR
+                            }
+                            else if (orig[i] instanceof short[]) {
+                                short arr[] = (short[]) orig[i];
+                                inner = new Byte[arr.length];
+                                for (int j = 0; j < arr.length; j++) {
+                                    inner[j] = (byte)arr[j];
+                                } // FOR
+                            }
+                            else if (orig[i] instanceof int[]) {
+                                int arr[] = (int[]) orig[i];
+                                inner = new Byte[arr.length];
+                                for (int j = 0; j < arr.length; j++) {
+                                    inner[j] = (byte)arr[j];
+                                } // FOR
+                            }
+                            else if (orig[i] instanceof long[]) {
+                                long arr[] = (long[]) orig[i];
+                                inner = new Byte[arr.length];
+                                for (int j = 0; j < arr.length; j++) {
+                                    inner[j] = (byte)arr[j];
                                 } // FOR
                             }
                             else {
-                                Byte arr[] = (Byte[]) orig[i];
-                                inner = new Byte[arr.length];
-                                for (int j = 0; j < arr.length; j++) {
-                                    inner[j] = arr[j];
+                                inner = new Byte[((Object[])orig[i]).length];
+                                for (int j = 0; j < inner.length; j++) {
+                                    inner[j] = ((Number)((Object[])orig[i])[j]).byteValue();
                                 } // FOR
                             }
                             break;
                         }
                         case SMALLINT: {
-                            if (orig[i] instanceof short[]) {
+                            if (orig[i] instanceof byte[]) {
+                                byte arr[] = (byte[]) orig[i];
+                                inner = new Short[arr.length];
+                                for (int j = 0; j < arr.length; j++) {
+                                    inner[j] = (short)arr[j];
+                                } // FOR
+                            }
+                            else if (orig[i] instanceof short[]) {
                                 short arr[] = (short[]) orig[i];
                                 inner = new Short[arr.length];
                                 for (int j = 0; j < arr.length; j++) {
-                                    inner[j] = arr[j];
+                                    inner[j] = (short)arr[j];
+                                } // FOR
+                            }
+                            else if (orig[i] instanceof int[]) {
+                                int arr[] = (int[]) orig[i];
+                                inner = new Short[arr.length];
+                                for (int j = 0; j < arr.length; j++) {
+                                    inner[j] = (short)arr[j];
+                                } // FOR
+                            }
+                            else if (orig[i] instanceof long[]) {
+                                long arr[] = (long[]) orig[i];
+                                inner = new Short[arr.length];
+                                for (int j = 0; j < arr.length; j++) {
+                                    inner[j] = (short)arr[j];
                                 } // FOR
                             }
                             else {
-                                Short arr[] = (Short[]) orig[i];
-                                inner = new Short[arr.length];
-                                for (int j = 0; j < arr.length; j++) {
-                                    inner[j] = arr[j];
+                                inner = new Short[((Object[])orig[i]).length];
+                                for (int j = 0; j < inner.length; j++) {
+                                    inner[j] = ((Number)((Object[])orig[i])[j]).shortValue();
                                 } // FOR
                             }
                             break;
                         }
                         case INTEGER: {
-                            if (orig[i] instanceof int[]) {
+                            if (orig[i] instanceof byte[]) {
+                                byte arr[] = (byte[]) orig[i];
+                                inner = new Integer[arr.length];
+                                for (int j = 0; j < arr.length; j++) {
+                                    inner[j] = (int)arr[j];
+                                } // FOR
+                            }
+                            else if (orig[i] instanceof short[]) {
+                                short arr[] = (short[]) orig[i];
+                                inner = new Integer[arr.length];
+                                for (int j = 0; j < arr.length; j++) {
+                                    inner[j] = (int)arr[j];
+                                } // FOR
+                            }
+                            else if (orig[i] instanceof int[]) {
                                 int arr[] = (int[]) orig[i];
                                 inner = new Integer[arr.length];
                                 for (int j = 0; j < arr.length; j++) {
-                                    inner[j] = arr[j];
+                                    inner[j] = (int)arr[j];
+                                } // FOR
+                            }
+                            else if (orig[i] instanceof long[]) {
+                                long arr[] = (long[]) orig[i];
+                                inner = new Integer[arr.length];
+                                for (int j = 0; j < arr.length; j++) {
+                                    inner[j] = (int)arr[j];
                                 } // FOR
                             }
                             else {
-                                Integer arr[] = (Integer[]) orig[i];
-                                inner = new Integer[arr.length];
-                                for (int j = 0; j < arr.length; j++) {
-                                    inner[j] = arr[j];
+                                inner = new Integer[((Object[])orig[i]).length];
+                                for (int j = 0; j < inner.length; j++) {
+                                    inner[j] = ((Number)((Object[])orig[i])[j]).intValue();
                                 } // FOR    
                             }
                             break;
                         }
                         case BIGINT: {
-                            if (orig[i] instanceof long[]) {
+                            if (orig[i] instanceof byte[]) {
+                                byte arr[] = (byte[]) orig[i];
+                                inner = new Long[arr.length];
+                                for (int j = 0; j < arr.length; j++) {
+                                    inner[j] = (long)arr[j];
+                                } // FOR
+                            }
+                            else if (orig[i] instanceof short[]) {
+                                short arr[] = (short[]) orig[i];
+                                inner = new Long[arr.length];
+                                for (int j = 0; j < arr.length; j++) {
+                                    inner[j] = (long)arr[j];
+                                } // FOR
+                            }
+                            else if (orig[i] instanceof int[]) {
+                                int arr[] = (int[]) orig[i];
+                                inner = new Long[arr.length];
+                                for (int j = 0; j < arr.length; j++) {
+                                    inner[j] = (long)arr[j];
+                                } // FOR
+                            }
+                            else if (orig[i] instanceof long[]) {
                                 long arr[] = (long[]) orig[i];
                                 inner = new Long[arr.length];
                                 for (int j = 0; j < arr.length; j++) {
-                                    inner[j] = arr[j];
+                                    inner[j] = (long)arr[j];
                                 } // FOR
                             }
                             else {
-                                Long arr[] = (Long[]) orig[i];
-                                inner = new Long[arr.length];
-                                for (int j = 0; j < arr.length; j++) {
-                                    inner[j] = arr[j];
+                                inner = new Long[((Object[])orig[i]).length];
+                                for (int j = 0; j < inner.length; j++) {
+                                    inner[j] = ((Number)((Object[])orig[i])[j]).longValue();
                                 } // FOR
                             }
                             break;
@@ -208,17 +288,15 @@ public class ParameterMangler {
                                 } // FOR
                             }
                             else if (orig[i] instanceof Float[]) {
-                                Float arr[] = (Float[]) orig[i];
-                                inner = new Double[arr.length];
-                                for (int j = 0; j < arr.length; j++) {
-                                    inner[j] = Double.valueOf(arr[j]);
+                                inner = new Double[((Object[])orig[i]).length];
+                                for (int j = 0; j < inner.length; j++) {
+                                    inner[j] = ((Number)((Object[])orig[i])[j]).doubleValue();
                                 } // FOR
                             }
                             else {
-                                Double arr[] = (Double[]) orig[i];
-                                inner = new Double[arr.length];
-                                for (int j = 0; j < arr.length; j++) {
-                                    inner[j] = arr[j];
+                                inner = new Double[((Object[])orig[i]).length];
+                                for (int j = 0; j < inner.length; j++) {
+                                    inner[j] = ((Number)((Object[])orig[i])[j]).doubleValue();
                                 } // FOR
                             }
                             break;

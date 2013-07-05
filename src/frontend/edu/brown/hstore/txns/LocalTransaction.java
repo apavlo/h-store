@@ -27,11 +27,11 @@ package edu.brown.hstore.txns;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantLock;
 
 import org.apache.log4j.Logger;
@@ -53,12 +53,9 @@ import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.callbacks.LocalFinishCallback;
 import edu.brown.hstore.callbacks.LocalInitQueueCallback;
 import edu.brown.hstore.callbacks.LocalPrepareCallback;
-import edu.brown.hstore.estimators.Estimate;
-import edu.brown.hstore.estimators.EstimatorState;
 import edu.brown.hstore.internal.StartTxnMessage;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
-import edu.brown.markov.EstimationThresholds;
 import edu.brown.profilers.TransactionProfiler;
 import edu.brown.protorpc.ProtoRpcController;
 import edu.brown.statistics.FastIntHistogram;
@@ -108,7 +105,9 @@ public class LocalTransaction extends AbstractTransaction {
     private final ReentrantLock lock = new ReentrantLock();
     
     /**
-     * 
+     * The DependencyTracker from this txn's base partition.
+     * This is just here for caching purposes. We could always just
+     * get it from the HStoreSite if we really needed it.
      */
     private DependencyTracker depTracker;
     
@@ -178,14 +177,6 @@ public class LocalTransaction extends AbstractTransaction {
     // ----------------------------------------------------------------------------
     // RUN TIME DATA MEMBERS
     // ----------------------------------------------------------------------------
-    
-    /**
-     * A handle to the execution state of this transaction
-     * This will only get set when the transaction starts running.
-     * No two transactions are allowed to hold the same ExecutionState
-     * at the same time.
-     */
-    private ExecutionState state;
     
     /**
      * Whether this txn was speculatively executed
@@ -273,13 +264,13 @@ public class LocalTransaction extends AbstractTransaction {
         // to execute a distributed transaction
         if (this.predict_singlePartition == false) {
             try {
-                if (hstore_site.getHStoreConf().site.pool_txn_enable) {
-                    this.dtxnState = hstore_site.getObjectPools()
-                                                .getDistributedStatePool(base_partition)
-                                                .borrowObject();
-                } else {
+//                if (hstore_site.getHStoreConf().site.pool_txn_enable) {
+//                    this.dtxnState = hstore_site.getObjectPools()
+//                                                .getDistributedStatePool(base_partition)
+//                                                .borrowObject();
+//                } else {
                     this.dtxnState = new DistributedState(hstore_site);
-                }
+//                }
                 this.dtxnState.init(this);
             } catch (Exception ex) {
                 throw new RuntimeException("Unexpected error when trying to initialize " + this, ex);
@@ -355,14 +346,13 @@ public class LocalTransaction extends AbstractTransaction {
             LOG.debug(String.format("%s - Invoking finish() cleanup", this));
         
         // Return our DistributedState
-        if (this.dtxnState != null && hstore_site.getHStoreConf().site.pool_txn_enable) {
-            hstore_site.getObjectPools()
-                       .getDistributedStatePool(this.base_partition)
-                       .returnObject(this.dtxnState);
-            this.dtxnState = null;
-        }
+//        if (this.dtxnState != null && hstore_site.getHStoreConf().site.pool_txn_enable) {
+//            hstore_site.getObjectPools()
+//                       .getDistributedStatePool(this.base_partition)
+//                       .returnObject(this.dtxnState);
+//            this.dtxnState = null;
+//        }
         
-        this.resetExecutionState();
         super.finish();
         
         this.client_callback = null;
@@ -403,45 +393,6 @@ public class LocalTransaction extends AbstractTransaction {
      */
     public void setTransactionId(Long txn_id) { 
         this.txn_id = txn_id;
-    }
-    
-    public void setExecutionState(ExecutionState state) {
-        if (debug.val)
-            LOG.debug(String.format("%s - Setting ExecutionState handle [isNull=%s]",
-                      this, (this.state == null)));
-        assert(state != null);
-        assert(this.state == null);
-        this.state = state;
-        this.exec_controlCode = true;
-        
-        // Reset this so that we will call finish() on the cached DependencyInfos
-        // before we try to use it again
-//        for (int i = 0; i < this.state.dinfo_lastRound.length; i++) {
-//            this.state.dinfo_lastRound[i] = -1;
-//        } // FOR
-    }
-    
-    public ExecutionState getExecutionState() {
-        return (this.state);
-    }
-    public void resetExecutionState() {
-        if (debug.val)
-            LOG.debug(String.format("%s - Resetting ExecutionState handle [isNull=%s]",
-                      this, (this.state == null)));
-        this.lock.lock();
-        try {
-            this.state = null;
-        } finally {
-            this.lock.unlock();
-        }
-    }
-    
-    /**
-     * Returns true if the control code for this LocalTransaction was actually started
-     * in the PartitionExecutor
-     */
-    public final boolean isMarkExecuted() {
-        return (this.exec_controlCode);
     }
     
     public final ReentrantLock getTransactionLock() {
@@ -564,7 +515,6 @@ public class LocalTransaction extends AbstractTransaction {
         this.round_state[partition] = RoundState.STARTED;
         super.finishRound(partition);
         if (this.base_partition == partition) {
-            assert(this.state != null) : "Unexpected null ExecutionState for " + this;
             if (this.depTracker != null) this.depTracker.finishRound(this);
         }
     }
@@ -639,6 +589,22 @@ public class LocalTransaction extends AbstractTransaction {
     // ACCESS METHODS
     // ----------------------------------------------------------------------------
 
+    /**
+     * Mark that we have invoked this txn's control code.
+     */
+    public final void markControlCodeExecuted() {
+        assert(this.exec_controlCode == false);
+        this.exec_controlCode = true;
+    }
+    
+    /**
+     * Returns true if the control code for this LocalTransaction was actually started
+     * in the PartitionExecutor
+     */
+    public final boolean isMarkedControlCodeExecuted() {
+        return (this.exec_controlCode);
+    }
+    
     /**
      * Mark this transaction as needing to be restarted. This will prevent it from
      * being deleted immediately
@@ -752,66 +718,39 @@ public class LocalTransaction extends AbstractTransaction {
     // DISTRIBUTED TXN EXECUTION
     // ----------------------------------------------------------------------------
     
+    /**
+     * Returns true if this transaction has partitions that has notified that
+     * it is done with them. Note that even though the txn has marked a partition
+     * as done doesn't mean that the partition has been notified yet.  
+     * @return
+     */
     public boolean hasDonePartitions() {
         return (this.dtxnState.exec_donePartitions.isEmpty() == false);
     }
     
     /**
-     * Get all of the partitions that have been marked done for this txn
+     * Get all of the partitions that have been marked done for this txn.
+     * If a partition is in this set, then the DBMS has sent a message to
+     * its PartitionExecutor notifying that the txn is finished with them.
      * @return
      */
     public PartitionSet getDonePartitions() {
-        return (this.dtxnState.exec_donePartitions);
+        if (this.dtxnState != null) {
+            return (this.dtxnState.exec_donePartitions);
+        }
+        return (null);
     }
     
     /**
-     * Figure out what partitions this transaction is done with and notify those partitions
-     * that they are done
-     * Returns true if the done partitions has changed for this transaction
-     * @param ts
+     * Check whether the calling thread should initiate the finish phase of 2PC.
+     * This method will return true if this is the first time that somebody has
+     * asked us whether we can finish things up. Multiple invocations of this
+     * method will always return false.
+     * @return
      */
-    public PartitionSet calculateDonePartitions(EstimationThresholds thresholds) {
-        final int ts_done_partitions_size = this.dtxnState.exec_donePartitions.size();
-        PartitionSet new_done = null;
-
-        EstimatorState t_state = this.getEstimatorState();
-        if (t_state == null) {
-            return (null);
-        }
-        
-        if (debug.val)
-            LOG.debug(String.format("%s - Checking to see whether we can notify any partitions " +
-                      "that we're done with them [round=%d]",
-                      this, this.getCurrentRound(this.base_partition)));
-        
-        Estimate estimate = t_state.getLastEstimate();
-        assert(estimate != null) : "Got back null MarkovEstimate for " + this;
-        if (estimate.isValid()) {
-            return (null);
-        }
-        
-        new_done = estimate.getFinishPartitions(thresholds);
-        
-        if (new_done.isEmpty() == false) { 
-            // Note that we can actually be done with ourself, if this txn is only going to execute queries
-            // at remote partitions. But we can't actually execute anything because this partition's only 
-            // execution thread is going to be blocked. So we always do this so that we're not sending a 
-            // useless message
-            new_done.remove(this.base_partition);
-            
-            // Make sure that we only tell partitions that we actually touched, otherwise they will
-            // be stuck waiting for a finish request that will never come!
-            Collection<Integer> ts_touched = this.exec_touchedPartitions.values();
-
-            // Mark the txn done at this partition if the MarkovEstimate said we were done
-            for (Integer p : new_done) {
-                if (this.dtxnState.exec_donePartitions.contains(p.intValue()) == false && ts_touched.contains(p)) {
-                    if (trace.val) LOG.trace(String.format("Marking partition %d as done for %s", p, this));
-                    this.dtxnState.exec_donePartitions.add(p.intValue());
-                }
-            } // FOR
-        }
-        return (this.dtxnState.exec_donePartitions.size() != ts_done_partitions_size ? new_done : null);
+    public boolean shouldInvokeFinish() {
+        assert(this.dtxnState != null);
+        return (this.dtxnState.notified_finish.compareAndSet(false, true));
     }
     
     public ProtoRpcController getTransactionInitController(int site_id) {
@@ -853,7 +792,12 @@ public class LocalTransaction extends AbstractTransaction {
         return (this.exec_specExecType != SpeculationType.NULL);
     }
     
-    public SpeculationType getSpeculativeType() {
+    /**
+     * Returns the speculation type (i.e., stall point) that this txn was executed at.
+     * Will be null if this transaction was not speculatively executed
+     * @return
+     */
+    public SpeculationType getSpeculationType() {
         return (this.exec_specExecType);
     }
     
@@ -943,7 +887,7 @@ public class LocalTransaction extends AbstractTransaction {
         // Run Time Stuff
         m = new LinkedHashMap<String, Object>();
         m.put("Status", (this.status != null ? this.status : "null"));
-        m.put("Speculative Type", this.getSpeculativeType());
+        m.put("Speculative Type", this.getSpeculationType());
         m.put("Exec Java", this.exec_controlCode);
         m.put("Exec Read Only", Arrays.toString(this.exec_readOnly));
         m.put("Exec Touched Partitions", this.exec_touchedPartitions.toString(30));
