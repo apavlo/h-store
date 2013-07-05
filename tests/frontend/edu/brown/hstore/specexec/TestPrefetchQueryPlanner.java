@@ -12,6 +12,8 @@ import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.StmtParameter;
+import org.voltdb.messaging.FastSerializer;
+import org.voltdb.types.TimestampType;
 
 import edu.brown.BaseTestCase;
 import edu.brown.benchmark.seats.procedures.NewReservation;
@@ -45,6 +47,7 @@ public class TestPrefetchQueryPlanner extends BaseTestCase {
 
     private final MockHStoreSite[] hstore_sites = new MockHStoreSite[NUM_SITES];
     private final HStoreCoordinator[] coordinators = new HStoreCoordinator[NUM_SITES];
+    private final FastSerializer fs = new FastSerializer();
     private DependencyTracker depTracker;
 
     private LocalTransaction ts;
@@ -60,6 +63,7 @@ public class TestPrefetchQueryPlanner extends BaseTestCase {
         this.rand.nextInt(100), // seatnum
         100d, // price
         new long[0], // attrs
+        new TimestampType()
     };
 
     @Override
@@ -153,7 +157,8 @@ public class TestPrefetchQueryPlanner extends BaseTestCase {
         this.ts.setTransactionId(TXN_ID);
         TransactionInitRequest.Builder[] builders = this.prefetcher.plan(this.ts,
                                                                          this.ts.getProcedureParameters(),
-                                                                         this.depTracker);
+                                                                         this.depTracker,
+                                                                         this.fs);
         TransactionInitRequest[] requests = new TransactionInitRequest[builders.length];
         for (int i = 0; i < builders.length; i++) {
             if (builders[i] != null) requests[i] = builders[i].build();

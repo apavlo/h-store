@@ -2,6 +2,7 @@ package edu.brown.hstore.conf;
 
 import java.io.File;
 import java.lang.reflect.Field;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.Map.Entry;
 
@@ -28,6 +29,38 @@ public class TestHStoreConf extends BaseTestCase {
     protected void setUp() throws Exception {
         assert(HStoreConf.isInitialized());
         hstore_conf = HStoreConf.singleton();
+    }
+    
+    /**
+     * testEnumOptions
+     */
+    public void testEnumOptions() throws Exception {
+        for (Conf handle : hstore_conf.getHandles().values()) {
+            assertNotNull(handle);
+            Map<Field, ConfigProperty> fields = handle.getConfigProperties();
+            assertFalse(fields.isEmpty());
+            for (Entry<Field, ConfigProperty> e : fields.entrySet()) {
+                Field f = e.getKey();
+                ConfigProperty cp = e.getValue();
+                
+                if (cp.enumOptions() != null && cp.enumOptions().isEmpty() == false) {
+                    Enum<?> options[] = hstore_conf.getEnumOptions(f, cp);
+                    assertNotNull(options);
+                    assert(options.length > 0);
+                    System.err.printf("%s.%s -> %s\n", handle.prefix, f.getName(), Arrays.toString(options));
+                    
+                    // Make sure that the default is in our list
+                    if (cp.defaultNull() == false) {
+                        String defaultValue = cp.defaultString();
+                        @SuppressWarnings("unchecked")
+                        Enum<?> value = Enum.valueOf(options[0].getClass(), defaultValue);
+                        assertNotNull(String.format("Invalid %s default value for %s.%s: %s",
+                                      options[0].getClass(), handle.prefix, f.getName(), defaultValue),
+                                      value);
+                    }
+                }
+            } // FOR
+        } // FOR
     }
     
     /**

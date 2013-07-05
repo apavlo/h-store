@@ -31,6 +31,7 @@ import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.estimators.markov.MarkovEstimatorState;
 import edu.brown.hstore.txns.DependencyTracker;
 import edu.brown.hstore.txns.LocalTransaction;
+import edu.brown.hstore.txns.TransactionUtil;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.mappings.ParameterMapping;
@@ -63,11 +64,7 @@ public class PrefetchQueryPlanner {
             return (new HashMap<Integer, BatchPlanner>());
         }
     };
-    private final ThreadLocal<FastSerializer> serializers = new ThreadLocal<FastSerializer>() {
-        protected FastSerializer initialValue() {
-            return new FastSerializer(); // TODO: Use pooled memory
-        };
-    };
+
 
     /**
      * Constructor
@@ -147,14 +144,16 @@ public class PrefetchQueryPlanner {
     /**
      * Generate a list of TransactionInitRequest builders that contain WorkFragments
      * for queries that can be prefetched.
-     * @param ts
-     * @param procParams
-     * @param depTracker
+     * @param ts The txn handle to generate plans for.
+     * @param procParams The txn's procedure input parameters.
+     * @param depTracker The DependencyTracker for this txn's base partition.
+     * @param fs The FastSerializer handle to use to serialize various data items.
      * @return
      */
     public TransactionInitRequest.Builder[] plan(LocalTransaction ts,
                                                  ParameterSet procParams,
-                                                 DependencyTracker depTracker) {
+                                                 DependencyTracker depTracker,
+                                                 FastSerializer fs) {
         // We can't do this without a ParameterMappingSet
         if (this.catalogContext.paramMappings == null) {
             if (debug.val)
@@ -200,7 +199,6 @@ public class PrefetchQueryPlanner {
         // to send over to the remote sites so that they can execute our
         // prefetchable queries
         Object proc_params[] = procParams.toArray();
-        FastSerializer fs = this.serializers.get();
         for (int i = 0; i < prefetchParams.length; i++) {
             CountedStatement counted_stmt = prefetchable.get(i);
             if (debug.val)
@@ -216,7 +214,9 @@ public class PrefetchQueryPlanner {
                                                                 counted_stmt.statement,
                                                                 counted_stmt.counter,
                                                                 catalog_param);
-                assert(pmSets != null) : String.format("Unexpected %s for %s", counted_stmt, catalog_param);
+                assert(pmSets != null) : 
+                    String.format("Unexpected null %s %s set for %s",
+                                  counted_stmt, ParameterMapping.class.getSimpleName(), catalog_param);
                 ParameterMapping pm = CollectionUtil.first(pmSets);
                 assert(pm != null) :
                     String.format("Unexpected null %s for %s [%s]",
@@ -285,7 +285,7 @@ public class PrefetchQueryPlanner {
             // IMPORTANT: We need to check whether our estimator goofed and is trying to have us
             // prefetch a query at our base partition. This is bad for all sorts of reasons...
             if (basePartition == fragment.getPartitionId()) {
-//                if (debug.val)
+                if (debug.val)
                     LOG.warn(String.format("%s - Trying to schedule prefetch %s at base partition %d. Skipping...\n" +
                 		 "ProcParameters: %s\n",
                          ts, WorkFragment.class.getSimpleName(), basePartition, procParams));
@@ -314,11 +314,7 @@ public class PrefetchQueryPlanner {
             }
             
             if (builders[site_id] == null) {
-                builders[site_id] = TransactionInitRequest.newBuilder()
-                                            .setTransactionId(ts.getTransactionId().longValue())
-                                            .setProcedureId(ts.getProcedure().getId())
-                                            .setBasePartition(basePartition)
-                                            .addAllPartitions(ts.getPredictTouchedPartitions());
+                builders[site_id] = TransactionUtil.createTransactionInitBuilder(ts, fs);
                 for (ByteString bs : prefetchParamsSerialized) {
                     builders[site_id].addPrefetchParams(bs);
                 } // FOR
@@ -328,7 +324,7 @@ public class PrefetchQueryPlanner {
             builders[site_id].addPrefetchFragments(fragment);
         } // FOR (WorkFragment)
         if (first == true) {
-//            if (debug.val)
+            if (debug.val)
                 LOG.warn(ts + " - No remote partition prefetchable queries were found in the transaction's " +
                 		 "initial path estimate. Unable to schedule prefetch queries.");
             return (null);
@@ -348,11 +344,7 @@ public class PrefetchQueryPlanner {
             // default TransactionInitRequest.
             if (builders[site_id] == null && touched_sites[site_id]) {
                 if (default_request == null) {
-                    default_request = TransactionInitRequest.newBuilder()
-                                            .setTransactionId(ts.getTransactionId())
-                                            .setProcedureId(ts.getProcedure().getId())
-                                            .setBasePartition(basePartition)
-                                            .addAllPartitions(ts.getPredictTouchedPartitions());
+                    default_request = TransactionUtil.createTransactionInitBuilder(ts, fs);
                 }
                 builders[site_id] = default_request;
                 if (debug.val)

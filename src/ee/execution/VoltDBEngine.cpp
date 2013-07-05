@@ -323,6 +323,13 @@ int VoltDBEngine::executeQuery(int64_t planfragmentId,
     assert (iter != m_executorMap.end());
     boost::shared_ptr<ExecutorVector> execsForFrag = iter->second;
 
+    // Read/Write Set Tracking
+    ReadWriteTracker *tracker = NULL;
+    if (m_executorContext->isTrackingEnabled()) {
+        ReadWriteTrackerManager *trackerMgr = m_executorContext->getTrackerManager();
+        tracker = trackerMgr->getTracker(txnId);
+    }
+    
     // PAVLO: If we see a SendPlanNode with the "fake" flag set to true,
     // then we won't really execute it and instead will send back the 
     // number of tuples that we modified
@@ -349,14 +356,13 @@ int VoltDBEngine::executeQuery(int64_t planfragmentId,
                        (intmax_t)planfragmentId, executor->getPlanNode()->getPlanNodeId(),
                        (intmax_t)txnId, m_currentOutputDepId);
         } else {
-            VOLT_DEBUG("_[PlanFragment %jd] Executing PlanNode #%02d for txn #%jd [OutputDep=%d]",
+            VOLT_DEBUG("[PlanFragment %jd] Executing PlanNode #%02d for txn #%jd [OutputDep=%d]",
                        (intmax_t)planfragmentId, executor->getPlanNode()->getPlanNodeId(),
                        (intmax_t)txnId, m_currentOutputDepId);
             try {
                 // Now call the execute method to actually perform whatever action
                 // it is that the node is supposed to do...
-
-                if (!executor->execute(params)) {
+                if (!executor->execute(params, tracker)) {
                     VOLT_DEBUG("The Executor's execution at position '%d' failed for PlanFragment '%jd'",
                                ctr, (intmax_t)planfragmentId);
                     if (cleanUpTable != NULL)
@@ -1379,6 +1385,85 @@ size_t VoltDBEngine::tableHashCode(int32_t tableId) {
     }
     return table->hashCode();
 }
+
+// -------------------------------------------------
+// READ/WRITE SET TRACKING FUNCTIONS
+// -------------------------------------------------
+
+void VoltDBEngine::trackingEnable(int64_t txnId) {
+    // If this our first txn that wants tracking, then
+    // we need to setup the tracking manager
+    if (m_executorContext->isTrackingEnabled() == false) {
+        VOLT_INFO("Setting up Tracking Manager at Partition %d", m_partitionId);
+        m_executorContext->enableTracking();
+    }
+    VOLT_INFO("Creating ReadWriteTracker for txn #%ld at Partition %d", txnId, m_partitionId);
+    ReadWriteTrackerManager *trackerMgr = m_executorContext->getTrackerManager();
+    trackerMgr->enableTracking(txnId);
+}
+
+void VoltDBEngine::trackingFinish(int64_t txnId) {
+    if (m_executorContext->isTrackingEnabled() == false) {
+        VOLT_WARN("Tracking is not enable for txn #%ld at Partition %d", txnId, m_partitionId);
+        return;
+    }
+    ReadWriteTrackerManager *trackerMgr = m_executorContext->getTrackerManager();
+    VOLT_INFO("Deleting ReadWriteTracker for txn #%ld at Partition %d",
+              txnId, m_partitionId);
+    trackerMgr->removeTracker(txnId);
+    return;
+}
+
+int VoltDBEngine::trackingTupleSet(int64_t txnId, bool writes) {
+    if (m_executorContext->isTrackingEnabled() == false) {
+        return (ENGINE_ERRORCODE_NO_DATA);
+    }
+
+    ReadWriteTrackerManager *trackerMgr = m_executorContext->getTrackerManager();
+    ReadWriteTracker *tracker = trackerMgr->getTracker(txnId);
+    
+    Table *resultTable = NULL;
+    if (writes) {
+        VOLT_INFO("Getting WRITE tracking set for txn #%ld at Partition %d", txnId, m_partitionId);
+        resultTable = trackerMgr->getTuplesWritten(tracker);
+    } else {
+        VOLT_INFO("Getting READ tracking set for txn #%ld at Partition %d", txnId, m_partitionId);
+        resultTable = trackerMgr->getTuplesRead(tracker);
+    }
+    
+    // Serialize the output table so that we can read it up in Java
+    if (resultTable != NULL) {
+        VOLT_DEBUG("TRACKING TABLE TXN #%ld\n%s\n", txnId, resultTable->debug().c_str());
+        
+        size_t lengthPosition = m_resultOutput.reserveBytes(sizeof(int32_t));
+        resultTable->serializeTo(m_resultOutput);
+        m_resultOutput.writeIntAt(lengthPosition,
+                                  static_cast<int32_t>(m_resultOutput.size() - sizeof(int32_t)));
+        VOLT_INFO("Returning tracking set for txn #%ld at Partition %d", txnId, m_partitionId);
+        return (ENGINE_ERRORCODE_SUCCESS);
+    }
+    return (ENGINE_ERRORCODE_ERROR);
+}
+
+// std::vector<std::string> VoltDBEngine::trackingTablesRead(int64_t txnId) {
+//     if (m_executorContext->isTrackingEnabled()) {
+//         ReadWriteTracker *tracker = m_executorContext->getTrackerManager(txnId);
+//         if (tracker != NULL) {
+//             return tracker->getTablesRead();
+//         }
+//     }
+//     return (NULL);
+// }
+// std::vector<std::string> VoltDBEngine::trackingTablesWritten(int64_t txnId) {
+//     if (m_executorContext->isTrackingEnabled()) {
+//         ReadWriteTracker *tracker = m_executorContext->getTrackerManager(txnId);
+//         if (tracker != NULL) {
+//             return tracker->getTablesWritten();
+//         }
+//     }
+//     return (NULL);
+// }
+    
 
 // -------------------------------------------------
 // ANTI-CACHE FUNCTIONS

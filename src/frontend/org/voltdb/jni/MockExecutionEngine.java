@@ -185,28 +185,41 @@ public class MockExecutionEngine extends ExecutionEngine {
     }
 
     @Override
-    public int hashinate(Object value, int partitionCount)
-    {
+    public int hashinate(Object value, int partitionCount) {
         // TODO Auto-generated method stub
         return 0;
     }
 
     @Override
+    public void trackingEnable(Long txnId) throws EEException {
+        // TODO Auto-generated method stub
+    }
+    @Override
+    public void trackingFinish(Long txnId) throws EEException {
+        // TODO Auto-generated method stub
+    }
+    @Override
+    public VoltTable trackingReadSet(Long txnId) throws EEException {
+        // TODO Auto-generated method stub
+        return null;
+    }
+    @Override
+    public VoltTable trackingWriteSet(Long txnId) throws EEException {
+        // TODO Auto-generated method stub
+        return null;
+    }
+    
+    @Override
     public void antiCacheInitialize(File dbFilePath, long blockSize) throws EEException {
         // TODO Auto-generated method stub
-        
     }
-
     @Override
     public void antiCacheReadBlocks(Table catalog_tbl, short[] block_ids, int[] tuple_offsets) {
         // TODO Auto-generated method stub
-        
     }
-
     @Override
     public void antiCacheMergeBlocks(Table catalog_tbl) {
         // TODO Auto-generated method stub
-        
     }
 
     @Override

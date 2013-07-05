@@ -101,7 +101,7 @@ public class ResetTestMain {
                     b_ol_o_id[batch_cnt] = o_id;
                     b_ol_d_id[batch_cnt] = d_id;
                     b_ol_number[batch_cnt] = ol_number;
-                    b_ol_i_id[batch_cnt] = generator.number(1, parameters.items);
+                    b_ol_i_id[batch_cnt] = generator.number(1, parameters.num_items);
                     b_ol_supply_w_id[batch_cnt] = w_id;
                     b_ol_delivery_d[batch_cnt] = generationDateTime;
                     b_ol_quantity[batch_cnt] = TPCCConstants.INITIAL_QUANTITY;

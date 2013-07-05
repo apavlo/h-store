@@ -307,11 +307,11 @@ bool PersistentTable::evictBlockToDisk(const long block_size, int num_blocks) {
             m_bytesWritten += out.size();
         
             #ifdef VOLT_INFO_ENABLED
-            VOLT_DEBUG("AntiCacheDB Time: %.2f sec", timer.elapsed());
-            VOLT_DEBUG("Evicted Block #%d for %s [tuples=%d / size=%ld / tupleLen=%d]",
+            VOLT_INFO("AntiCacheDB Time: %.2f sec", timer.elapsed());
+            VOLT_INFO("Evicted Block #%d for %s [tuples=%d / size=%ld / tupleLen=%d]",
                       block_id, name().c_str(),
                       num_tuples_evicted, m_bytesEvicted, tuple_length);
-            VOLT_DEBUG("%s EvictedTable [origCount:%ld / newCount:%ld]",
+            VOLT_INFO("%s EvictedTable [origCount:%ld / newCount:%ld]",
                       name().c_str(), (long)origEvictedTableSize, (long)m_evictedTable->activeTupleCount());
             #endif
         } else {

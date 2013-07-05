@@ -40,7 +40,7 @@ public abstract class MarkovPathEstimatorDumper {
         
         // Create MarkovGraphsContainer
         File input_path = args.getFileParam(ArgumentsParser.PARAM_MARKOV);
-        Map<Integer, MarkovGraphsContainer> m = MarkovUtil.load(args.catalog_db, input_path);
+        Map<Integer, MarkovGraphsContainer> m = MarkovUtil.load(args.catalogContext, input_path);
         
         // Blah blah blah...
         Map<Integer, MarkovEstimator> t_estimators = new HashMap<Integer, MarkovEstimator>();

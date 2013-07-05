@@ -124,7 +124,8 @@ public class ProtoRpcController implements RpcController {
 
     private void finishRpc(Protocol.Status status, ByteString response, String errorText) {
         assert this.status == Protocol.Status.INVALID :
-            String.format("Trying to invoke finishRPC more than once (status=%s, errorText=%s)", this.status, errorText);
+            String.format("Trying to invoke finishRPC more than once [status=%s, errorText=%s]\n%s",
+                          this.status, errorText, response);
         assert callback != null;
 
         assert status != Protocol.Status.INVALID;

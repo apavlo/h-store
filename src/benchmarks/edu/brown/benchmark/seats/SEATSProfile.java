@@ -29,7 +29,6 @@ package edu.brown.benchmark.seats;
 
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.Map;
 import java.util.Map.Entry;
 
@@ -39,7 +38,6 @@ import org.voltdb.CatalogContext;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
 import org.voltdb.catalog.Column;
-import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Table;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
@@ -47,12 +45,11 @@ import org.voltdb.types.TimestampType;
 
 import edu.brown.api.BenchmarkComponent;
 import edu.brown.benchmark.seats.procedures.LoadConfig;
-import edu.brown.benchmark.seats.util.CustomerId;
-import edu.brown.benchmark.seats.util.FlightId;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.rand.AbstractRandomGenerator;
 import edu.brown.rand.RandomDistribution.FlatHistogram;
 import edu.brown.statistics.Histogram;
 import edu.brown.statistics.ObjectHistogram;
@@ -61,8 +58,8 @@ import edu.brown.utils.StringUtil;
 
 public class SEATSProfile {
     private static final Logger LOG = Logger.getLogger(SEATSProfile.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
+    private static final LoggerBoolean trace = new LoggerBoolean();
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
@@ -98,15 +95,15 @@ public class SEATSProfile {
      */
     protected long flight_future_days;
     /**
-     * The offset of when upcoming flights begin in the seats_remaining list
+     * The number of FLIGHT rows created.
      */
-    protected Long flight_upcoming_offset = null;
+    protected long num_flights = 0l;
     /**
-     * The offset of when reservations for upcoming flights begin
+     * The number of CUSTOMER rows
      */
-    protected Long reservation_upcoming_offset = null;
+    protected long num_customers = 0l;
     /**
-     * The number of reservations initially created.
+     * The number of RESERVATION rows
      */
     protected long num_reservations = 0l;
 
@@ -133,12 +130,6 @@ public class SEATSProfile {
     protected transient final CatalogContext catalogContext;
     
     /**
-     * We want to maintain a small cache of FlightIds so that the SEATSClient
-     * has something to work with. We obviously don't want to store the entire set here
-     */    
-    protected transient final LinkedList<FlightId> cached_flight_ids = new LinkedList<FlightId>();
-    
-    /**
      * Key -> Id Mappings
      */
     protected transient final Map<String, String> code_columns = new HashMap<String, String>();
@@ -152,7 +143,7 @@ public class SEATSProfile {
     /**
      * Specialized random number generator
      */
-    protected transient final RandomGenerator rng;
+    protected transient final AbstractRandomGenerator rng;
     
     /**
      * Depart Airport Code -> Arrive Airport Code
@@ -164,7 +155,7 @@ public class SEATSProfile {
     // CONSTRUCTOR
     // ----------------------------------------------------------------
     
-    public SEATSProfile(CatalogContext catalogContext, RandomGenerator rng) {
+    public SEATSProfile(CatalogContext catalogContext, AbstractRandomGenerator rng) {
         this.catalogContext = catalogContext;
         this.rng = rng;
         
@@ -222,12 +213,13 @@ public class SEATSProfile {
             this.flight_upcoming_date,          // CFP_FLIGHT_UPCOMING
             this.flight_past_days,              // CFP_FLIGHT_PAST_DAYS
             this.flight_future_days,            // CFP_FLIGHT_FUTURE_DAYS
-            this.flight_upcoming_offset,        // CFP_FLIGHT_OFFSET
-            this.reservation_upcoming_offset,   // CFP_RESERVATION_OFFSET
+            this.num_flights,                   // CFP_NUM_FLIGHTS
+            this.num_customers,                 // CFP_NUM_CUSTOMERS
             this.num_reservations,              // CFP_NUM_RESERVATIONS
             JSONUtil.toJSONString(this.code_id_xref) // CFP_CODE_ID_XREF
         );
-        if (debug.val) LOG.debug("Saving profile information into " + catalog_tbl);
+        if (debug.val)
+            LOG.debug(String.format("Saving profile information into %s\n%s", catalog_tbl, this));
         baseClient.loadVoltTable(catalog_tbl.getName(), vt);
         
         // CONFIG_HISTOGRAMS
@@ -269,11 +261,10 @@ public class SEATSProfile {
         this.flight_upcoming_date = other.flight_upcoming_date;
         this.flight_past_days = other.flight_past_days;
         this.flight_future_days = other.flight_future_days;
-        this.flight_upcoming_offset = other.flight_upcoming_offset;
-        this.reservation_upcoming_offset = other.reservation_upcoming_offset;
+        this.num_flights = other.num_flights;
+        this.num_customers = other.num_customers;
         this.num_reservations = other.num_reservations;
         this.code_id_xref.putAll(other.code_id_xref);
-        this.cached_flight_ids.addAll(other.cached_flight_ids);
         this.airport_histograms.putAll(other.airport_histograms);
         this.histograms.putAll(other.histograms);
         return (this);
@@ -307,7 +298,7 @@ public class SEATSProfile {
             int result_idx = 0;
             
             // CONFIG_PROFILE
-            this.loadConfigProfile(results[result_idx++]); 
+            this.loadConfigProfile(results[result_idx++]);
             
             // CONFIG_HISTOGRAMS
             this.loadConfigHistograms(results[result_idx++]);
@@ -320,11 +311,11 @@ public class SEATSProfile {
             } // FOR
             
             // CACHED FLIGHT IDS
-            this.loadCachedFlights(results[result_idx++]);
+            // this.loadCachedFlights(results[result_idx++]);
             
             if (debug.val)
                 LOG.debug("Loaded profile:\n" + this.toString());
-            if (LOG.isTraceEnabled())
+            if (trace.val)
                 LOG.trace("Airport Max Customer Id:\n" + this.airport_max_customer_id);
             
             cachedProfile = new SEATSProfile(this.catalogContext, this.rng).copy(this);
@@ -342,8 +333,8 @@ public class SEATSProfile {
         this.flight_upcoming_date = vt.getTimestampAsTimestamp(col++);
         this.flight_past_days = vt.getLong(col++);
         this.flight_future_days = vt.getLong(col++);
-        this.flight_upcoming_offset = vt.getLong(col++);
-        this.reservation_upcoming_offset = vt.getLong(col++);
+        this.num_flights = vt.getLong(col++);
+        this.num_customers = vt.getLong(col++);
         this.num_reservations = vt.getLong(col++);
         if (debug.val)
             LOG.debug(String.format("Loaded %s data", SEATSConstants.TABLENAME_CONFIG_PROFILE));
@@ -380,15 +371,15 @@ public class SEATSProfile {
         if (debug.val) LOG.debug(String.format("Loaded %d xrefs for %s -> %s", m.size(), codeCol, idCol));
     }
     
-    private final void loadCachedFlights(VoltTable vt) {
-        while (vt.advanceRow()) {
-            long f_id = vt.getLong(0);
-            FlightId flight_id = new FlightId(f_id);
-            this.cached_flight_ids.add(flight_id);
-        } // WHILE
-        if (debug.val)
-            LOG.debug(String.format("Loaded %d cached FlightIds", this.cached_flight_ids.size()));
-    }
+//    private final void loadCachedFlights(VoltTable vt) {
+//        while (vt.advanceRow()) {
+//            long f_id = vt.getLong(0);
+//            FlightId flight_id = new FlightId(f_id);
+//            this.cached_flight_ids.add(flight_id);
+//        } // WHILE
+//        if (debug.val)
+//            LOG.debug(String.format("Loaded %d cached FlightIds", this.cached_flight_ids.size()));
+//    }
     
     // ----------------------------------------------------------------
     // DATA ACCESS METHODS
@@ -402,52 +393,16 @@ public class SEATSProfile {
         return (m);
     }
 
-    /**
-     * The offset of when upcoming reservation ids begin
-     * @return
-     */
-    public Long getReservationUpcomingOffset() {
-        return (this.reservation_upcoming_offset);
-    }
-    
-    /**
-     * Set the number of upcoming reservation offset
-     * @param numReservations
-     */
-    public void setReservationUpcomingOffset(long offset) {
-        this.reservation_upcoming_offset = offset;
-    }
-
     // -----------------------------------------------------------------
     // FLIGHTS
     // -----------------------------------------------------------------
     
-    /**
-     * Add a new FlightId for this benchmark instance
-     * This method will decide whether to store the id or not in its cache
-     * @return True if the FlightId was added to the cache
-     */
-    public boolean addFlightId(FlightId flight_id) {
-        boolean added = false;
-        synchronized (this.cached_flight_ids) {
-            // If we have room, shove it right in
-            // We'll throw it in the back because we know it hasn't been used yet
-            if (this.cached_flight_ids.size() < SEATSConstants.CACHE_LIMIT_FLIGHT_IDS) {
-                this.cached_flight_ids.addLast(flight_id);
-                added = true;
-            
-            // Otherwise, we can will randomly decide whether to pop one out
-            } else if (rng.nextBoolean()) {
-                this.cached_flight_ids.pop();
-                this.cached_flight_ids.addLast(flight_id);
-                added = true;
-            }
-        } // SYNCH
-        return (added);
+    public long getRandomFlightId() {
+        return (long)this.rng.nextInt((int)this.num_flights);
     }
     
     public long getFlightIdCount() {
-        return (this.cached_flight_ids.size());
+        return (this.num_flights);
     }
     
     // ----------------------------------------------------------------
@@ -459,7 +414,7 @@ public class SEATSProfile {
      * @param name
      * @return
      */
-    public Histogram<String> getHistogram(String name) {
+    protected Histogram<String> getHistogram(String name) {
         Histogram<String> h = this.histograms.get(name);
         assert(h != null) : "Invalid histogram '" + name + "'";
         return (h);
@@ -492,7 +447,7 @@ public class SEATSProfile {
      * @return
      */
     public long getRandomAirportId() {
-        return (rng.number(1, (int)this.getAirportCount()));
+        return (this.rng.number(1, (int)this.getAirportCount()));
     }
     
     public long getRandomOtherAirport(long airport_id) {
@@ -515,59 +470,30 @@ public class SEATSProfile {
     }
     
     /**
-     * Return a random customer id based at the given airport_id 
-     * @param airport_id
-     * @return
-     */
-    public CustomerId getRandomCustomerId(Long airport_id) {
-        Long cnt = this.getCustomerIdCount(airport_id);
-        if (cnt != null) {
-            int base_id = rng.nextInt(cnt.intValue());
-            return (new CustomerId(base_id, airport_id));
-        }
-        return (null);
-    }
-    
-    /**
-     * Return a random customer id based out of any airport 
-     * @return
-     */
-    public CustomerId getRandomCustomerId() {
-        int num_airports = this.airport_max_customer_id.getValueCount();
-        if (LOG.isTraceEnabled())
-            LOG.trace(String.format("Selecting a random airport with customers [numAirports=%d]", num_airports));
-        CustomerId c_id = null;
-        while (c_id == null) {
-            Long airport_id = (long)this.rng.number(1, num_airports);
-            c_id = this.getRandomCustomerId(airport_id);
-        } // WHILE
-        return (c_id);
-    }
-    
-    /**
      * Return a random date in the future (after the start of upcoming flights)
      * @return
      */
     public TimestampType getRandomUpcomingDate() {
         TimestampType upcoming_start_date = this.flight_upcoming_date;
-        int offset = rng.nextInt((int)this.getFlightFutureDays());
+        int offset = rng.nextInt((int)this.flight_future_days);
         return (new TimestampType(upcoming_start_date.getTime() + (offset * SEATSConstants.MICROSECONDS_PER_DAY)));
     }
     
-    /**
-     * Return a random FlightId from our set of cached ids
-     * @return
-     */
-    public FlightId getRandomFlightId() {
-        assert(this.cached_flight_ids.isEmpty() == false);
-        if (LOG.isTraceEnabled())
-            LOG.trace("Attempting to get a random FlightId");
-        int idx = rng.nextInt(this.cached_flight_ids.size());
-        FlightId flight_id = this.cached_flight_ids.get(idx);
-        if (LOG.isTraceEnabled())
-            LOG.trace("Got random " + flight_id);
-        return (flight_id);
-    }
+//    /**
+//     * Return a random FlightId from our set of cached ids
+//     * @return
+//     */
+//    public FlightId getRandomFlightId() {
+//        assert(this.cached_flight_ids.isEmpty() == false);
+//        if (trace.val)
+//            LOG.trace("Attempting to get a random FlightId");
+//        int idx = rng.nextInt(this.cached_flight_ids.size());
+//        FlightId flight_id = this.cached_flight_ids.get(idx);
+//        if (trace.val)
+//            LOG.trace("Got random " + flight_id);
+//        return (flight_id);
+//    }
+    
     // ----------------------------------------------------------------
     // AIRLINE METHODS
     // ----------------------------------------------------------------
@@ -592,13 +518,24 @@ public class SEATSProfile {
         this.airport_max_customer_id.put(airport_id);
         return (next_id);
     }
+    
+    // ----------------------------------------------------------------
+    // CUSTOMER METHODS
+    // ----------------------------------------------------------------
+    
     public Long getCustomerIdCount(Long airport_id) {
         return (this.airport_max_customer_id.get(airport_id));
     }
     public long getCustomerIdCount() {
-        return (this.airport_max_customer_id.getSampleCount());
+        return (this.num_customers);
     }
-    
+    /**
+     * Return a random customer id based out of any airport 
+     * @return
+     */
+    public long getRandomCustomerId() {
+        return (long)this.rng.nextInt((int)this.num_customers);
+    }
     
     // ----------------------------------------------------------------
     // AIRPORT METHODS
@@ -747,8 +684,9 @@ public class SEATSProfile {
         m.put("Flight Upcoming Date", this.flight_upcoming_date);
         m.put("Flight Past Days", this.flight_past_days);
         m.put("Flight Future Days", this.flight_future_days);
-        m.put("Flight Upcoming Offset", this.flight_upcoming_offset);
-        m.put("Reservation Upcoming Offset", this.reservation_upcoming_offset);
+        m.put("Num Flights", this.num_flights);
+        m.put("Num Customers", this.num_customers);
+        m.put("Num Reservations", this.num_reservations);
         return (StringUtil.formatMaps(m));
     }
 }

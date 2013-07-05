@@ -2,7 +2,6 @@ package edu.brown.hstore.specexec.checkers;
 
 import org.apache.log4j.Logger;
 import org.voltdb.CatalogContext;
-import org.voltdb.catalog.Procedure;
 
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
@@ -32,20 +31,36 @@ public class UnsafeConflictChecker extends AbstractConflictChecker {
     }
 
     @Override
-    public boolean shouldIgnoreProcedure(Procedure proc) {
+    public boolean shouldIgnoreTransaction(AbstractTransaction ts) {
         return (false);
+    }
+    @Override
+    public boolean skipConflictBefore() {
+        return (true);
+    }
+    @Override
+    public boolean skipConflictAfter() {
+        return (true);
     }
 
     @Override
-    public boolean canExecute(AbstractTransaction dtxn, LocalTransaction ts, int partitionId) {
-        if (this.lastDtxn != dtxn) {
+    public boolean hasConflictBefore(AbstractTransaction ts0, LocalTransaction candidate, int partitionId) {
+        return this.hasConflict(ts0);
+    }
+    
+    @Override
+    public boolean hasConflictAfter(AbstractTransaction ts0, LocalTransaction ts1, int partitionId) {
+        return this.hasConflict(ts0);
+    }
+    
+    private boolean hasConflict(AbstractTransaction ts) {
+        if (this.limit < 0) return (false);
+        
+        if (this.lastDtxn != ts) {
             this.counter = 1;
-            this.lastDtxn = dtxn;
-            return (true);
+            this.lastDtxn = ts;
+            return (false);
         }
-        if (this.limit < 0 || ++this.counter < this.limit) {
-            return (true);
-        }
-        return (false);
+        return (++this.counter < this.limit ? false : true);
     }
 }

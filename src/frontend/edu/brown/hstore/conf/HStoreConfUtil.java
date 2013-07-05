@@ -3,6 +3,7 @@ package edu.brown.hstore.conf;
 import java.io.File;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -92,17 +93,24 @@ public abstract class HStoreConfUtil {
         final Map<Field, ConfigProperty> props = handle.getConfigProperties();
         
         // Parameters:
+        //  (1) Row Type Name
+        //  (2) Row Key
+        //  (3) Row Value
+        final String htmlRow = "<tr><td class=\"prop-%s\">%s:</td><td><tt>%s</tt></td>\n";
+        
+        // Parameters:
         //  (1) parameter
         //  (2) parameter
         //  (3) experimental
         //  (4) default value
         //  (5) description 
         final String template = "<a name=\"@@PROP@@\"></a>\n" +
-                                "<li><tt class=\"property\">@@PROPFULL@@</tt>@@EXP@@ @@DEP@@\n" +
+                                "<li><tt class=\"property\">@@PROPFULL@@</tt>@@EXP@@ @@DEPRECATED@@\n" +
                                 "<table>\n" +
-                                "<tr><td class=\"prop-default\">Default:</td><td><tt>@@DEFAULT@@</tt></td>\n" +
-                                "<tr><td class=\"prop-type\">Permitted Type:</td><td><tt>@@TYPE@@</tt></td>\n" +
-                                "@@DEP_FULL@@" +
+                                String.format(htmlRow, "default", "Default", "@@DEFAULT@@") +
+                                String.format(htmlRow, "type", "Permitted Tye", "@@TYPE@@") +
+                                "@@VALUES_FULL@@" +
+                                "@@DEPRECATED_FULL@@" +
                                 "<tr><td colspan=\"2\">@@DESC@@</td></tr>\n" +
                                 "</table></li>\n\n";
         // Configuraiton Section Header
@@ -160,22 +168,30 @@ public abstract class HStoreConfUtil {
                 values.put("TYPE", f.getType().getSimpleName().toLowerCase());
                 
                 // EXPERIMENTAL
+                values.put("EXP", "");
                 if (cp.experimental()) {
                     values.put("EXP", " <b class=\"experimental\">Experimental</b>");
-                } else {
-                    values.put("EXP", "");   
+                }
+                
+                // PERMITED VALUES (for Enums)
+                values.put("VALUES_FULL", "");
+                if (cp.enumOptions() != null && !cp.enumOptions().isEmpty()) {
+                    Enum<?> permitted[] = conf.getEnumOptions(f, cp);
+                    values.put("VALUES_FULL",
+                               String.format(htmlRow, "values", "Permitted Values", Arrays.toString(permitted)) +
+                               String.format(htmlRow, "values", "See Also", cp.enumOptions())
+                    );
                 }
                 
                 // DEPRECATED
+                values.put("DEPRECATED", "");   
+                values.put("DEPRECATED_FULL", "");
                 if (cp.replacedBy() != null && !cp.replacedBy().isEmpty()) {
                     String replacedBy = "${" + cp.replacedBy() + "}";
                     Matcher m = REGEX_CONFIG.matcher(replacedBy);
                     if (m.find()) replacedBy = m.replaceAll(REGEX_CONFIG_REPLACE);
-                    values.put("DEP", " <b class=\"deprecated\">Deprecated</b>");
-                    values.put("DEP_FULL", "<tr><td class=\"prop-replaced\">Replaced By:</td><td><tt>" + replacedBy + "</tt></td>\n");
-                } else {
-                    values.put("DEP", "");   
-                    values.put("DEP_FULL", "");
+                    values.put("DEPRECATED", " <b class=\"deprecated\">Deprecated</b>");
+                    values.put("DEPRECATED_FULL", String.format(htmlRow, "replaced", "Replaced By", replacedBy));
                 }
                 
                 // DESC

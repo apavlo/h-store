@@ -9,6 +9,11 @@ import edu.brown.hstore.conf.HStoreConf;
  */
 public interface Configurable {
 
-    public void updateConf(HStoreConf hstore_conf);
+    /**
+     * Notification that some parameters in the HStoreConf have changed.
+     * @param hstore_conf
+     * @param changed The list of the parameters that have changed (will include prefix handle).
+     */
+    public void updateConf(HStoreConf hstore_conf, String[] changed);
     
 }

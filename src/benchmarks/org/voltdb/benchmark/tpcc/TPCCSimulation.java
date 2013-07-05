@@ -202,7 +202,7 @@ public class TPCCSimulation {
         m.put("Districts per Warehouse", parameters.districtsPerWarehouse);
         m.put("Custers per District", parameters.customersPerDistrict);
         m.put("Initial Orders per District", parameters.newOrdersPerDistrict);
-        m.put("Items", parameters.items);
+        m.put("Items", parameters.num_items);
         m.put("Affine Warehouse", lastAssignedWarehouseId);
         m.put("Skew Factor", this.skewFactor);
         if (this.zipf != null && this.zipf.isHistoryEnabled()) {
@@ -257,7 +257,11 @@ public class TPCCSimulation {
         else if (config.neworder_skew_warehouse) {
             assert(this.zipf != null);
             //w_id = (short)this.zipf.nextInt();
-			w_id = (short)this.custom_skew.nextInt(); 
+            if (generator.number(1, 100) <= config.temporal_skew_mix) {
+                w_id = (short)this.custom_skew.nextInt();
+            } else {
+                w_id = (short)generator.number(parameters.starting_warehouse, parameters.last_warehouse);
+            }
         }
         // GAUSSIAN SKEWED WAREHOUSE ID
         else if (skewFactor > 0.0d) {
@@ -301,7 +305,7 @@ public class TPCCSimulation {
     }
 
     private int generateItemID() {
-        return generator.NURand(8191, 1, parameters.items);
+        return generator.NURand(8191, 1, parameters.num_items);
     }
 
     /** Executes a reset warehouse transaction. */
@@ -406,7 +410,7 @@ public class TPCCSimulation {
             if (rollback && i + 1 == ol_cnt) {
                 // LOG.fine("[NOT_ERROR] Causing a rollback on purpose defined in TPCC spec. "
                 //     + "You can ignore following 'ItemNotFound' exception.");
-                item_id[i] = parameters.items + 1;
+                item_id[i] = parameters.num_items + 1;
             } else {
                 item_id[i] = generateItemID();
             }
@@ -456,7 +460,16 @@ public class TPCCSimulation {
                 	remote_w_id = (short)generator.numberExcluding(parameters.starting_warehouse, parameters.last_warehouse, (int) warehouse_id);
                 }
                 supply_w_id[idx] = remote_w_id;
+                if (supply_w_id[idx] != warehouse_id) remote_warehouses++;
+                else local_warehouses++;
             }
+        }
+        // Prevent aborts
+        if (rollback && (
+            (remote_warehouses > 0 && config.neworder_abort_no_multip) ||
+            (remote_warehouses == 0 && config.neworder_abort_no_singlep))
+           ) {
+            item_id[ol_cnt-1] = generateItemID();
         }
 
         if (trace.val)

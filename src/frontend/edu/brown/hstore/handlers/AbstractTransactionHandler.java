@@ -85,7 +85,8 @@ public abstract class AbstractTransactionHandler<T extends GeneratedMessage, U e
             
             if (trace.val)
                 LOG.trace(String.format("Sending %s message to %s for %s",
-                          request.getClass().getSimpleName(), HStoreThreadManager.formatSiteName(dest_site_id), ts));
+                          request.getClass().getSimpleName(),
+                          HStoreThreadManager.formatSiteName(dest_site_id), ts));
             
             // Local Partition
             if (this.local_site_id == dest_site_id) {

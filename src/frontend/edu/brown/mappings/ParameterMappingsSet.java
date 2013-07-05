@@ -237,7 +237,20 @@ public class ParameterMappingsSet extends HashSet<ParameterMapping> implements J
     }
 
     /**
-     * 
+     * Convenience method to return all of the ParameterMappings for a Procedure
+     * @param catalog_proc
+     * @return
+     */
+    public Collection<ParameterMapping> get(Procedure catalog_proc) {
+        Collection<ParameterMapping> ret = new ArrayList<ParameterMapping>();
+        for (ProcParameter catalog_param : catalog_proc.getParameters()) {
+            ret.addAll(this.get(catalog_param));
+        } // FOR
+        return (ret);
+    }
+
+    /**
+     * Convenience method to return all of the ParameterMappings for a Statement
      * @param catalog_stmt
      * @return
      */

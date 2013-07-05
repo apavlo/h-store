@@ -34,8 +34,6 @@ import edu.brown.interfaces.Shutdownable;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.logging.RingBufferAppender;
-import edu.brown.pools.TypedPoolableObjectFactory;
-import edu.brown.pools.TypedObjectPool;
 import edu.brown.profilers.AbstractProfiler;
 import edu.brown.profilers.HStoreSiteProfiler;
 import edu.brown.profilers.PartitionExecutorProfiler;
@@ -68,7 +66,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
     // STATIC CONFIGURATION
     // ----------------------------------------------------------------------------
     
-    private static final String POOL_FORMAT = "Active:%-5d / Idle:%-5d / Created:%-5d / Destroyed:%-5d / Passivated:%-7d";
+//    private static final String POOL_FORMAT = "Active:%-5d / Idle:%-5d / Created:%-5d / Destroyed:%-5d / Passivated:%-7d";
 
     private static final Set<TransactionCounter> TXNINFO_COL_DELIMITERS = new HashSet<TransactionCounter>();
     private static final Set<TransactionCounter> TXNINFO_ALWAYS_SHOW = new HashSet<TransactionCounter>();
@@ -206,8 +204,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
         LOG.info("STATUS #" + this.snapshot_ctr.incrementAndGet() + "\n" +
                  StringBoxUtil.box(this.snapshot(hstore_conf.site.txn_counters,
                                                  hstore_conf.site.status_exec_info,
-                                                 hstore_conf.site.status_thread_info,
-                                                 hstore_conf.site.pool_profiling)));
+                                                 hstore_conf.site.status_thread_info)));
     }
     
     // ----------------------------------------------------------------------------
@@ -224,8 +221,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
      */
     public synchronized String snapshot(boolean show_txns,
                                         boolean show_exec,
-                                        boolean show_threads,
-                                        boolean show_poolinfo) {
+                                        boolean show_threads) {
         // ----------------------------------------------------------------------------
         // Site Information
         // ----------------------------------------------------------------------------
@@ -276,7 +272,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
         // ----------------------------------------------------------------------------
         // Object Pool Information
         // ----------------------------------------------------------------------------
-        Map<String, Object> poolInfo = (show_poolinfo ? this.poolInfo() : null);
+//        Map<String, Object> poolInfo = (show_poolinfo ? this.poolInfo() : null);
         
         // ----------------------------------------------------------------------------
         // Dependency Tracker
@@ -291,7 +287,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
                                      cpuThreads,
                                      txnProfiles,
                                      plannerInfo,
-                                     poolInfo,
+//                                     poolInfo,
                                      depInfo);
     }
     
@@ -654,7 +650,6 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
         Map<String, Object> m = new LinkedHashMap<String, Object>();
         m.put("Dependency Trackers", null);
         
-        TransactionQueueManager queueManager = hstore_site.getTransactionQueueManager();
         for (int partition : hstore_site.getLocalPartitionIds()) {
             DependencyTracker depTracker = hstore_site.getDependencyTracker(partition);
             DependencyTracker.Debug depTrackerDbg = depTracker.getDebugContext();
@@ -1018,93 +1013,91 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
         return (TableUtil.tableMap(this.txn_profile_format, this.txn_profiler_header, rows));
     }
     
-    // ----------------------------------------------------------------------------
-    // OBJECT POOL PROFILING
-    // ----------------------------------------------------------------------------
-    private Map<String, Object> poolInfo() {
-        TypedObjectPool<?> pool = null;
-        TypedPoolableObjectFactory<?> factory = null;
-        
-        // HStoreObjectPools
-        Map<String, TypedObjectPool<?>> pools = hstore_site.getObjectPools().getGlobalPools(); 
-        
-        // MarkovPathEstimators
-        // pools.put("Estimators", (TypedObjectPool<?>)MarkovEstimator.POOL_ESTIMATORS); 
-
-        // TransactionEstimator.States
-        // pools.put("EstimationStates", (TypedObjectPool<?>)MarkovEstimator.POOL_STATES);
-        
-        final Map<String, Object> m_pool = new LinkedHashMap<String, Object>();
-        for (String key : pools.keySet()) {
-            pool = pools.get(key);
-            if (pool == null) continue;
-            factory = (TypedPoolableObjectFactory<?>)pool.getFactory();
-            if (factory.getCreatedCount() > 0) m_pool.put(key, this.formatPoolCounts(pool, factory));
-        } // FOR
-
-        // Partition Specific
-        String labels[] = new String[] {
-            "STATES_TXN_LOCAL",
-            "STATES_TXN_REMOTE",
-            "STATES_TXN_MAPREDUCE",
-            "STATES_DISTRIBUTED",
-        };
-        HStoreObjectPools objPool = hstore_site.getObjectPools();
-        for (int i = 0, cnt = labels.length; i < cnt; i++) {
-            int total_active = 0;
-            int total_idle = 0;
-            int total_created = 0;
-            int total_passivated = 0;
-            int total_destroyed = 0;
-            
-            boolean found = false;
-            for (int p : hstore_site.getLocalPartitionIds()) {
-                pool = null;
-                switch (i) {
-                    case 0:
-                        pool = objPool.getLocalTransactionPool(p);
-                        break;
-                    case 1:
-                        pool = objPool.getRemoteTransactionPool(p);
-                        break;
-                    case 2:
-                        pool = objPool.getMapReduceTransactionPool(p);
-                        break;
-                    case 3:
-                        pool = objPool.getDistributedStatePool(p);
-                        break;
-                } // SWITCH
-                if (pool == null) continue;
-                found = true;
-                factory = (TypedPoolableObjectFactory<?>)pool.getFactory();
-            
-                total_active += pool.getNumActive();
-                total_idle += pool.getNumIdle(); 
-                total_created += factory.getCreatedCount();
-                total_passivated += factory.getPassivatedCount();
-                total_destroyed += factory.getDestroyedCount();
-            } // FOR (partitions)
-            if (found == false) continue;
-            m_pool.put(labels[i], String.format(POOL_FORMAT, total_active,
-                                                             total_idle,
-                                                             total_created,
-                                                             total_destroyed,
-                                                             total_passivated));
-        } // FOR
-        
-        return (m_pool);
-    }
-    
-    
-
-    
-    private String formatPoolCounts(TypedObjectPool<?> pool, TypedPoolableObjectFactory<?> factory) {
-        return (String.format(POOL_FORMAT, pool.getNumActive(),
-                                           pool.getNumIdle(),
-                                           factory.getCreatedCount(),
-                                           factory.getDestroyedCount(),
-                                           factory.getPassivatedCount()));
-    }
+//    // ----------------------------------------------------------------------------
+//    // OBJECT POOL PROFILING
+//    // ----------------------------------------------------------------------------
+//    private Map<String, Object> poolInfo() {
+//        TypedObjectPool<?> pool = null;
+//        TypedPoolableObjectFactory<?> factory = null;
+//        
+//        // HStoreObjectPools
+//        Map<String, TypedObjectPool<?>> pools = hstore_site.getObjectPools().getGlobalPools(); 
+//        
+//        // MarkovPathEstimators
+//        // pools.put("Estimators", (TypedObjectPool<?>)MarkovEstimator.POOL_ESTIMATORS); 
+//
+//        // TransactionEstimator.States
+//        // pools.put("EstimationStates", (TypedObjectPool<?>)MarkovEstimator.POOL_STATES);
+//        
+//        final Map<String, Object> m_pool = new LinkedHashMap<String, Object>();
+//        for (String key : pools.keySet()) {
+//            pool = pools.get(key);
+//            if (pool == null) continue;
+//            factory = (TypedPoolableObjectFactory<?>)pool.getFactory();
+//            if (factory.getCreatedCount() > 0) m_pool.put(key, this.formatPoolCounts(pool, factory));
+//        } // FOR
+//
+//        // Partition Specific
+//        String labels[] = new String[] {
+//            "STATES_TXN_LOCAL",
+//            "STATES_TXN_REMOTE",
+//            "STATES_TXN_MAPREDUCE",
+////            "STATES_DISTRIBUTED",
+//        };
+//        HStoreObjectPools objPool = hstore_site.getObjectPools();
+//        for (int i = 0, cnt = labels.length; i < cnt; i++) {
+//            int total_active = 0;
+//            int total_idle = 0;
+//            int total_created = 0;
+//            int total_passivated = 0;
+//            int total_destroyed = 0;
+//            
+//            boolean found = false;
+//            for (int p : hstore_site.getLocalPartitionIds()) {
+//                pool = null;
+//                switch (i) {
+//                    case 0:
+//                        pool = objPool.getLocalTransactionPool(p);
+//                        break;
+//                    case 1:
+//                        pool = objPool.getRemoteTransactionPool(p);
+//                        break;
+//                    case 2:
+//                        pool = objPool.getMapReduceTransactionPool(p);
+//                        break;
+////                    case 3:
+////                        pool = objPool.getDistributedStatePool(p);
+////                        break;
+//                } // SWITCH
+//                if (pool == null) continue;
+//                found = true;
+//                factory = (TypedPoolableObjectFactory<?>)pool.getFactory();
+//            
+//                total_active += pool.getNumActive();
+//                total_idle += pool.getNumIdle(); 
+//                total_created += factory.getCreatedCount();
+//                total_passivated += factory.getPassivatedCount();
+//                total_destroyed += factory.getDestroyedCount();
+//            } // FOR (partitions)
+//            if (found == false) continue;
+//            m_pool.put(labels[i], String.format(POOL_FORMAT, total_active,
+//                                                             total_idle,
+//                                                             total_created,
+//                                                             total_destroyed,
+//                                                             total_passivated));
+//        } // FOR
+//        
+//        return (m_pool);
+//    }
+//    
+//    
+//    private String formatPoolCounts(TypedObjectPool<?> pool, TypedPoolableObjectFactory<?> factory) {
+//        return (String.format(POOL_FORMAT, pool.getNumActive(),
+//                                           pool.getNumIdle(),
+//                                           factory.getCreatedCount(),
+//                                           factory.getDestroyedCount(),
+//                                           factory.getPassivatedCount()));
+//    }
     
     // ----------------------------------------------------------------------------
     // SHUTDOWN METHODS

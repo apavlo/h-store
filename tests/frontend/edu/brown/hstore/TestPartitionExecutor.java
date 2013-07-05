@@ -50,8 +50,8 @@ import edu.brown.utils.ProjectType;
 import edu.brown.utils.StringUtil;
 
 /**
+ * Partition Executor Tests
  * @author pavlo
- *
  */
 public class TestPartitionExecutor extends BaseTestCase {
 

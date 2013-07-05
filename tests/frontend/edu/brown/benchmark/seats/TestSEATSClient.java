@@ -11,9 +11,7 @@ import org.voltdb.types.TimestampType;
 
 import edu.brown.BaseTestCase;
 import edu.brown.benchmark.seats.SEATSClient.NewReservationCallback;
-import edu.brown.benchmark.seats.SEATSClient.Reservation;
-import edu.brown.benchmark.seats.util.CustomerId;
-import edu.brown.benchmark.seats.util.FlightId;
+import edu.brown.benchmark.seats.util.Reservation;
 import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.Hstoreservice.Status;
 
@@ -52,19 +50,15 @@ public class TestSEATSClient extends SEATSBaseTestCase {
         }
     }
     
-    private FlightId flight_id;
-    private CustomerId customer_id;
+    private long flight_id;
+    private long customer_id;
     private SEATSClient client; 
     
     @Override
     protected void setUp() throws Exception {
         super.setUp();
-        this.flight_id = new FlightId(AIRLINE_ID,
-                                      DEPART_AIRPORT_ID,
-                                      ARRIVE_AIRPORT_ID,
-                                      BENCHMARK_START,
-                                      FLIGHT_DATE);
-        this.customer_id = new CustomerId(1001, DEPART_AIRPORT_ID);
+        this.flight_id = 10000l;
+        this.customer_id = 99999l;
         
         MOCK_ARGS[MOCK_ARGS.length-1] = HStoreConstants.BENCHMARK_PARAM_PREFIX + "DATADIR=" + SEATSBaseTestCase.AIRLINE_DATA_DIR;
 //        System.err.println(StringUtil.join("\n", MOCK_ARGS));

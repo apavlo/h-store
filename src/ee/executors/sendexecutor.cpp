@@ -84,7 +84,7 @@ bool SendExecutor::p_init(AbstractPlanNode *abstractNode,
     return true;
 }
 
-bool SendExecutor::p_execute(const NValueArray &params) {
+bool SendExecutor::p_execute(const NValueArray &params, ReadWriteTracker *tracker) {
     VOLT_DEBUG("started SEND");
 
     // PAVLO

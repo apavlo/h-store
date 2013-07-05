@@ -111,6 +111,15 @@ public abstract class VoltTableUtil {
         return (sb.toString());
     }
 
+    /**
+     * Sort a VoltTable based on a series of columns and directions.
+     * Note that this utility method is not a sort in place and thus it 
+     * will create a second copy of the table's data. 
+     * @param table
+     * @param cols
+     * @return
+     */
+    @SuppressWarnings("unchecked")
     public static VoltTable sort(VoltTable table, Pair<Integer, SortDirectionType>...cols) {
         if (cols.length == 0) return (table);
         

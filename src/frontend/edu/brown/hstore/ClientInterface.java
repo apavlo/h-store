@@ -684,7 +684,7 @@ public class ClientInterface implements Shutdownable, Configurable {
     }
 
     @Override
-    public void updateConf(HStoreConf hstore_conf) {
+    public void updateConf(HStoreConf hstore_conf, String[] changed) {
         int num_partitions = hstore_site.getLocalPartitionIds().size();
         this.maxPendingTxnCount = hstore_conf.site.network_incoming_limit_txns * num_partitions;
         this.maxPendingTxnBytes = hstore_conf.site.network_incoming_limit_bytes * num_partitions;

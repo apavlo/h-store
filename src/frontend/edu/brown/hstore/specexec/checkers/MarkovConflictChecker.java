@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.SortedSet;
@@ -33,27 +34,27 @@ import edu.brown.mappings.ParameterMappingsSet;
 import edu.brown.mappings.ParametersUtil;
 import edu.brown.markov.EstimationThresholds;
 import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.StringUtil;
 
 /**
  * A more fine-grained ConflictChecker based on estimations of what 
  * rows the txns will read/write.
  * @author pavlo
  */
-public class MarkovConflictChecker extends AbstractConflictChecker {
+public class MarkovConflictChecker extends TableConflictChecker {
     private static final Logger LOG = Logger.getLogger(MarkovConflictChecker.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
+    private static final LoggerBoolean trace = new LoggerBoolean();
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
     
     private final ParameterMappingsSet paramMappings;
-    private final boolean disabled;
     @SuppressWarnings("unused")
     private EstimationThresholds thresholds;
 
     // ----------------------------------------------------------------------------
-    // PRECOMPUTED CACHE
+    // PRE-COMPUTED CACHE
     // ----------------------------------------------------------------------------
 
     protected static class StatementCache {
@@ -67,7 +68,7 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
          * We maintain a list of the StmtParameters that are used in predicates with 
          * the target table's primary key
          */
-        final Map<Column, StmtParameter> colParams = new HashMap<Column, StmtParameter>();
+        final Map<Column, StmtParameter> colParams = new IdentityHashMap<Column, StmtParameter>();
     } // CLASS
     
     /**
@@ -85,7 +86,7 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
     // ----------------------------------------------------------------------------
     
     /**
-     * 
+     * Constructor
      * @param catalogContext
      * @param thresholds
      */
@@ -93,7 +94,14 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
         super(catalogContext);
         this.paramMappings = catalogContext.paramMappings;
         this.thresholds = thresholds;
-        this.disabled = (this.paramMappings == null);
+        
+        if (this.paramMappings == null) {
+            LOG.warn(String.format("Disabling %s because the %s in the %s is null",
+                     this.getClass().getSimpleName(),
+                     ParameterMappingsSet.class.getSimpleName(),
+                     catalogContext.getClass().getSimpleName()));
+            this.disabled = true;
+        }
         
         for (Table catalog_tbl : CatalogUtil.getDataTables(this.catalogContext.database)) {
             this.pkeysCache.put(catalog_tbl, CatalogUtil.getPrimaryKeyColumns(catalog_tbl).toArray(new Column[0]));
@@ -149,18 +157,49 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
     }
     
     @Override
-    public boolean shouldIgnoreProcedure(Procedure proc) {
-        return (this.disabled);
-    }
+    public boolean shouldIgnoreTransaction(AbstractTransaction ts) {
+        if (this.disabled) return (true);
 
+        // NOTE: We actually don't want to check whether we have a transaction estimate here
+        // because this is a global flag. There may be times when the txn doesn't 
+        // actually need an estimate (e.g., when we're stalled because of 2PC), so we 
+        // just want to always return false here!
+        
+        // We're good to go!
+        return (false);
+    }
+    
     @Override
-    public boolean canExecute(AbstractTransaction dtxn, LocalTransaction ts, int partitionId) {
-        // Get the queries for both of the txns
-        EstimatorState dtxnState = dtxn.getEstimatorState();
-        EstimatorState tsState = ts.getEstimatorState();
-        if (dtxnState == null || tsState == null) {
-            if (debug.val) LOG.debug(String.format("No EstimatorState available for %s<->%s", dtxn, ts));
+    public boolean skipConflictAfter() {
+        return (true);
+    }
+    
+    @Override
+    public boolean hasConflictBefore(AbstractTransaction dtxn, LocalTransaction candidate, int partitionId) {
+        // If the TableConflictChecker says that there is no conflict, then we know that 
+        // we don't need to check anything else.
+        if (super.hasConflictBefore(dtxn, candidate, partitionId) == false) {
+            if (debug.val)
+                LOG.debug(String.format("No table-level conflicts between %s and %s. Safe to execute!",
+                          dtxn, candidate));
             return (false);
+        }
+        
+        // Get the estimates for both of the txns
+        // If we don't have an estimate, then we have to say that there is a conflict. 
+        EstimatorState dtxnState = dtxn.getEstimatorState();
+        EstimatorState tsState = candidate.getEstimatorState();
+        if (dtxnState == null) {
+            if (debug.val)
+                LOG.debug(String.format("No %s available for distributed txn %s",
+                          EstimatorState.class.getSimpleName(), dtxn));
+            return (true);
+        }
+        else if (tsState == null) {
+            if (debug.val)
+                LOG.debug(String.format("No %s available for candidate txn %s",
+                          EstimatorState.class.getSimpleName(), candidate));
+            return (true);
         }
         
         // Get the current TransactionEstimate for the DTXN and the 
@@ -169,18 +208,22 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
         // queries that the transaction is going to execute
         Estimate dtxnEst = dtxnState.getLastEstimate();
         if (dtxnEst == null) {
-            LOG.warn("Unexpected null Estimate for " + dtxn);
-            return (false);
+            if (debug.val)
+                LOG.warn(String.format("Unexpected null %s in the %s for %s",
+                         Estimate.class.getSimpleName(), dtxnState.getClass().getSimpleName(), dtxn));
+            return (true);
         }
-        if (dtxnEst.hasQueryEstimate(partitionId) == false) {
-            if (debug.val) LOG.debug(String.format("No query list estimate is available for dtxn %s", dtxn));
-            return (false);
+        else if (dtxnEst.hasQueryEstimate(partitionId) == false) {
+            if (debug.val)
+                LOG.warn(String.format("No query list estimate is available for dtxn %s", dtxn));
+            return (true);
         }
         Estimate tsEst = tsState.getInitialEstimate();
         assert(tsEst != null);
         if (tsEst.hasQueryEstimate(partitionId) == false) {
-            if (debug.val) LOG.debug(String.format("No query list estimate is available for candidate %s", ts));
-            return (false);
+            if (debug.val)
+                LOG.warn(String.format("No query list estimate is available for candidate %s", candidate));
+            return (true);
         }
         
         // If both txns are read-only, then we can let our homeboy go
@@ -195,9 +238,18 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
         List<CountedStatement> queries0 = dtxnEst.getQueryEstimate(partitionId);
         List<CountedStatement> queries1 = tsEst.getQueryEstimate(partitionId);
         
-        return this.canExecute(dtxn, queries0, ts, queries1);
+        return (this.canExecute(dtxn, queries0, candidate, queries1) == false);
     }
     
+    /**
+     * Internal method that checks whether the txns conflict based on their list
+     * queries that they're expected to execute in the future.
+     * @param ts0
+     * @param queries0
+     * @param ts1
+     * @param queries1
+     * @return
+     */
     protected boolean canExecute(AbstractTransaction ts0, List<CountedStatement> queries0,
                                  AbstractTransaction ts1, List<CountedStatement> queries1) {
         ParameterSet params0 = ts0.getProcedureParameters();
@@ -207,13 +259,18 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
         Map<StmtParameter, SortedSet<ParameterMapping>> mappings0, mappings1;
         
         if (params0 == null) {
-            if (debug.val) LOG.warn(String.format("The ParameterSet for %s is null.", ts0));
+            LOG.error(String.format("The ParameterSet for %s is null.", ts0));
             return (false);
         }
         else if (params1 == null) {
-            if (debug.val) LOG.warn(String.format("The ParameterSet for %s is null.", ts1));
+            LOG.error(String.format("The ParameterSet for %s is null.", ts1));
             return (false);
         }
+        
+        if (debug.val)
+            LOG.debug(String.format("Comparing expected query execution for dtxn %s [#queries=%d] " +
+            		  "with candidate txn %s [#queries=%d]",
+            		  ts0, queries0.size(), ts1, queries1.size()));
         
         // TODO: Rather than checking the values referenced in each ConflictPair
         // individually, we should go through all of them first and just get the 
@@ -230,6 +287,11 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
             stmt0 = queries0.get(i0);
             cache0 = this.stmtCache.get(stmt0.statement);
             mappings0 = this.catalogContext.paramMappings.get(stmt0.statement, stmt0.counter);
+            if (mappings0 == null) {
+                LOG.warn(String.format("The ParameterMappings for %s in dtxn %s is null?\n%s",
+                         stmt0, ts0, StringUtil.join("\n", queries0)));
+                return (false);
+            }
             
             for (int i1 = 0, cnt1 = queries1.size(); i1 < cnt1; i1++) {
                 stmt1 = queries1.get(i1);
@@ -252,6 +314,11 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
                 // of the primary keys referenced in the queries to see whether they conflict
                 cache1 = this.stmtCache.get(stmt1.statement);
                 mappings1 = this.catalogContext.paramMappings.get(stmt1.statement, stmt1.counter);
+                if (mappings1 == null) {
+                    LOG.warn(String.format("The ParameterMappings for %s in candidate %s is null?\n%s",
+                             stmt1, ts1, StringUtil.join("\n", queries1)));
+                    return (false);
+                }
                 
                 boolean allEqual = true;
                 for (Column col : cache0.colParams.keySet()) {
@@ -264,8 +331,9 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
                     // all the same because we have no idea know whether they're 
                     // actually the same or not
                     if (param0 == null || param1 == null) {
-                        if (trace.val) LOG.trace(String.format("%s - Missing StmtParameters for %s [param0=%s / param1=%s]",
-                                         cp.fullName(), col.fullName(), param0, param1));
+                        if (trace.val)
+                            LOG.trace(String.format("%s - Missing StmtParameters for %s [param0=%s / param1=%s]",
+                                      cp.fullName(), col.fullName(), param0, param1));
                         continue;
                     }
                     
@@ -275,21 +343,24 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
                     ParameterMapping pm0 = CollectionUtil.first(mappings0.get(param0));
                     ParameterMapping pm1 = CollectionUtil.first(mappings1.get(param1));
                     if (pm0 == null) {
-                        if (trace.val) LOG.trace(String.format("%s - No ParameterMapping for %s",
-                                         cp.fullName(), param0.fullName()));
+                        if (trace.val)
+                            LOG.trace(String.format("%s - No ParameterMapping for %s",
+                                      cp.fullName(), param0.fullName()));
                         continue;
                     }
                     else if (pm1 == null) {
-                        if (trace.val) LOG.trace(String.format("%s - No ParameterMapping for %s",
-                                         cp.fullName(), param1.fullName()));
+                        if (trace.val)
+                            LOG.trace(String.format("%s - No ParameterMapping for %s",
+                                      cp.fullName(), param1.fullName()));
                         continue;
                     }
                     
                     // If the values are not equal, then we can stop checking the 
                     // other columns right away.
                     if (this.equalParameters(params0, pm0, params1, pm1) == false) {
-                        if (trace.val) LOG.trace(String.format("%s - Parameter values are equal for %s [param0=%s / param1=%s]",
-                                         cp.fullName(), col.fullName(), param0, param1));
+                        if (trace.val)
+                            LOG.trace(String.format("%s - Parameter values are equal for %s [param0=%s / param1=%s]",
+                                      cp.fullName(), col.fullName(), param0, param1));
                         allEqual = false;
                         break;
                     }
@@ -298,16 +369,17 @@ public class MarkovConflictChecker extends AbstractConflictChecker {
                 // If all the parameters are equal, than means they are likely to be
                 // accessing the same row in the table. That's a conflict!
                 if (allEqual) {
-                    if (debug.val) LOG.debug(String.format("%s - All known parameter values are equal", cp.fullName()));
+                    if (debug.val)
+                        LOG.debug(String.format("%s - All known parameter values are equal", cp.fullName()));
                     return (false);
                 }
-                
             } // FOR (stmt1)
         } // FOR (stmt0)
         return (true);
     }
     
-    protected boolean equalParameters(ParameterSet params0, ParameterMapping pm0, ParameterSet params1, ParameterMapping pm1) {
+    protected boolean equalParameters(ParameterSet params0, ParameterMapping pm0,
+                                      ParameterSet params1, ParameterMapping pm1) {
         Object val0 = ParametersUtil.getValue(params0, pm0);
         Object val1 = ParametersUtil.getValue(params1, pm1);
         if (val0 == null) {

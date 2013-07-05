@@ -17,7 +17,7 @@ import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.utils.JSONSerializable;
 import edu.brown.utils.JSONUtil;
 
-public class ParameterMapping implements Comparable<ParameterMapping>, JSONSerializable {
+public class ParameterMapping implements Comparable<ParameterMapping>, JSONSerializable, Cloneable {
     enum Members {
         STATEMENT,
         STATEMENT_INDEX,
@@ -84,6 +84,11 @@ public class ParameterMapping implements Comparable<ParameterMapping>, JSONSeria
             ex.printStackTrace();
             throw new RuntimeException(ex);
         }
+    }
+    
+    @Override
+    public ParameterMapping clone() throws CloneNotSupportedException {
+        return (ParameterMapping)super.clone();
     }
 
     public Statement getStatement() {

@@ -69,7 +69,7 @@ namespace voltdb {
     protected:
         bool p_init(AbstractPlanNode* abstract_node,
                     const catalog::Database* catalog_db, int* tempTableMemoryInBytes);
-        bool p_execute(const NValueArray &params);
+        bool p_execute(const NValueArray &params, ReadWriteTracker *tracker);
 
     private:
         LimitPlanNode *limit_node;

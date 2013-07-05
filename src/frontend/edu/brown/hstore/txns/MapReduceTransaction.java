@@ -341,11 +341,6 @@ public class MapReduceTransaction extends LocalTransaction {
     
     public void setReducePhase() {
         assert(this.isShufflePhase());
-        
-        for (int i = 0; i < this.partitions_size; i++) {
-            this.local_txns[i].resetExecutionState();
-        }
-        
         this.mr_state = State.REDUCE;
     }
     

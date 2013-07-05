@@ -51,6 +51,7 @@
 package org.voltdb.benchmark.tpcc.procedures;
 
 import org.voltdb.*;
+import org.voltdb.benchmark.tpcc.TPCCConstants;
 
 //Notes on Stored Procedure:
 //return VoltTable[] has 1 element:
@@ -64,13 +65,14 @@ public class slev extends VoltProcedure {
 
     public final SQLStmt GetOId = new SQLStmt(
         "SELECT D_NEXT_O_ID " +
-        "  FROM DISTRICT " +
+        "  FROM " + TPCCConstants.TABLENAME_DISTRICT + 
         " WHERE D_W_ID = ? AND D_ID = ?;"
     );
 
     public final SQLStmt GetStockCount = new SQLStmt(
         "SELECT COUNT(DISTINCT(OL_I_ID)) " +
-        "  FROM ORDER_LINE, STOCK " +
+        "  FROM " + TPCCConstants.TABLENAME_ORDER_LINE + ", " +
+                    TPCCConstants.TABLENAME_STOCK +
         " WHERE OL_W_ID = ? " +
         "   AND OL_D_ID = ? " +
         "   AND OL_O_ID < ? " +

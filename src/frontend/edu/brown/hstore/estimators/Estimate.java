@@ -1,6 +1,5 @@
 package edu.brown.hstore.estimators;
 
-
 import java.util.List;
 
 import edu.brown.catalog.special.CountedStatement;
@@ -32,7 +31,8 @@ public interface Estimate extends Poolable {
     public boolean isValid();
     
     /**
-     * Get the partitions that this transaction will need to read/write data on 
+     * Get the partitions that this transaction will need to execute a query
+     * on in the future. 
      * @param t
      */
     public PartitionSet getTouchedPartitions(EstimationThresholds t);
@@ -69,21 +69,28 @@ public interface Estimate extends Poolable {
     // ----------------------------------------------------------------------------
     // SINGLE-PARTITION PROBABILITY
     // ----------------------------------------------------------------------------
-    public boolean isSinglePartitionProbabilitySet();
+//    public boolean isSinglePartitionProbabilitySet();
+    
+    /**
+     * Returns true if the number of partitions that this txn is expected
+     * to touch from this estimate forward is one.
+     * @param t
+     * @return
+     */
     public boolean isSinglePartitioned(EstimationThresholds t);
     
     // ----------------------------------------------------------------------------
     // READ-ONLY PROBABILITY
     // ----------------------------------------------------------------------------
-    public boolean isReadOnlyProbabilitySet(int partition);
+//    public boolean isReadOnlyProbabilitySet(int partition);
     public boolean isReadOnlyPartition(EstimationThresholds t, int partition);
     public boolean isReadOnlyAllPartitions(EstimationThresholds t);
     
-    /**
-     * Get the partitions that this transaction will only read from
-     * @param t
-     */
-    public PartitionSet getReadOnlyPartitions(EstimationThresholds t);
+//    /**
+//     * Get the partitions that this transaction will only read from
+//     * @param t
+//     */
+//    public PartitionSet getReadOnlyPartitions(EstimationThresholds t);
     
     // ----------------------------------------------------------------------------
     // WRITE PROBABILITY
@@ -97,16 +104,16 @@ public interface Estimate extends Poolable {
     public PartitionSet getWritePartitions(EstimationThresholds t);
     
     // ----------------------------------------------------------------------------
-    // FINISH PROBABILITY
+    // DONE PROBABILITY
     // ----------------------------------------------------------------------------
-    public boolean isFinishProbabilitySet(int partition);
-    public boolean isFinishPartition(EstimationThresholds t, int partition);
+    public boolean isDoneProbabilitySet(int partition);
+    public boolean isDonePartition(EstimationThresholds t, int partition);
     
     /**
      * Get the partitions that this transaction is finished with at this point in the transaction
      * @param t
      */
-    public PartitionSet getFinishPartitions(EstimationThresholds t);
+    public PartitionSet getDonePartitions(EstimationThresholds t);
 
     // ----------------------------------------------------------------------------
     // ABORT PROBABILITY

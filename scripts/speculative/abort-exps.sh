@@ -12,16 +12,23 @@ function onexit() {
 
 DATA_DIR="/home/pavlo/Documents/H-Store/Papers/speculative/data"
 FABRIC_TYPE="ssh"
-FIRST_PARAM_OFFSET=1
+FIRST_PARAM_OFFSET=0
+
+EXP_TYPES=( \
+#     "spec" \
+    "occ" \
+)
 
 PERCENTAGES=( \
-    00
-    20
-    40
-    60
+    40 \
+    60 \
+    80 \
+    100 \
 )
 PARTITIONS=( 16 )
 
+pCnt=${#PERCENTAGES[@]}
+eCnt=${#EXP_TYPES[@]}
 for b in tpcc ; do
     PARAMS=( \
         --no-update \
@@ -35,13 +42,15 @@ for b in tpcc ; do
     )
     
     i=0
-    cnt=${#PERCENTAGES[@]}
-    while [ "$i" -lt "$cnt" ]; do
-        ./experiment-runner.py $FABRIC_TYPE \
-            ${PARAMS[@]:$FIRST_PARAM_OFFSET} \
-            --exp-type="aborts-${PERCENTAGES[$i]}" || break
-        FIRST_PARAM_OFFSET=0
+    while [ "$i" -lt "$pCnt" ]; do
+        j=0
+        while [ "$j" -lt "$eCnt" ]; do
+            ./experiment-runner.py $FABRIC_TYPE \
+                ${PARAMS[@]:$FIRST_PARAM_OFFSET} \
+                --exp-type="aborts-${PERCENTAGES[$i]}-${EXP_TYPES[$j]}" || break
+            FIRST_PARAM_OFFSET=0
+            j=`expr $j + 1`
+        done
         i=`expr $i + 1`
     done
-
 done

@@ -87,7 +87,7 @@ bool ReceiveExecutor::p_init(AbstractPlanNode *abstract_node,
     return true;
 }
 
-bool ReceiveExecutor::p_execute(const NValueArray &params) {
+bool ReceiveExecutor::p_execute(const NValueArray &params, ReadWriteTracker *tracker) {
     int loadedDeps = 0;
     ReceivePlanNode* node = dynamic_cast<ReceivePlanNode*>(abstract_node);
     Table* output_table = dynamic_cast<Table*>(node->getOutputTable());
