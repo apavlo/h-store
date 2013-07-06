@@ -25,8 +25,8 @@ import edu.brown.pools.Poolable;
  */
 public class TransactionRedirectResponseCallback implements RpcCallback<ClientResponseImpl>, Poolable {
     private static final Logger LOG = Logger.getLogger(TransactionRedirectResponseCallback.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
+    private static final LoggerBoolean trace = new LoggerBoolean();
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }

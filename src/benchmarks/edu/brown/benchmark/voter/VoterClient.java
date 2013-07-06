@@ -48,7 +48,7 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
 
 public class VoterClient extends BenchmarkComponent {
     private static final Logger LOG = Logger.getLogger(VoterClient.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
 
     // Phone number generator
     PhoneCallGenerator switchboard;

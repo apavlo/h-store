@@ -42,7 +42,7 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
 
 public class BingoClient extends BenchmarkComponent {
     private static final Logger LOG = Logger.getLogger(BingoClient.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
     
     public static enum Transaction {
         CREATE("Create Tournament"),

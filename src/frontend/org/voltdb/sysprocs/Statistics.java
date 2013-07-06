@@ -55,8 +55,8 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
 
 public class Statistics extends VoltSystemProcedure {
     private static final Logger HOST_LOG = Logger.getLogger(Statistics.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(HOST_LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(HOST_LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
+    private static final LoggerBoolean trace = new LoggerBoolean();
     static {
         LoggerUtil.attachObserver(HOST_LOG, debug, trace);
     }

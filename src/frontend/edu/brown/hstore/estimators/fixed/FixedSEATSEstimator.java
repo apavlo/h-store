@@ -16,7 +16,7 @@ import edu.brown.utils.PartitionSet;
  */
 public class FixedSEATSEstimator extends AbstractFixedEstimator {
     private static final Logger LOG = Logger.getLogger(FixedSEATSEstimator.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
     static {
         LoggerUtil.attachObserver(LOG, debug);
     }

@@ -27,7 +27,7 @@ import edu.brown.utils.CollectionUtil;
 
 public class RemoveRedundantProjectionsOptimizations extends AbstractOptimization {
     private static final Logger LOG = Logger.getLogger(RemoveRedundantProjectionsOptimizations.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
 
     private AbstractPlanNode new_root;
     final AtomicBoolean modified = new AtomicBoolean(false);

@@ -23,7 +23,7 @@ import edu.brown.utils.CollectionUtil;
  */
 public class LimitPushdownOptimization extends AbstractOptimization {
     private static final Logger LOG = Logger.getLogger(LimitPushdownOptimization.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
 
     public LimitPushdownOptimization(PlanOptimizerState state) {
         super(state);

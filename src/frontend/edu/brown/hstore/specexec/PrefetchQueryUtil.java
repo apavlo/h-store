@@ -22,7 +22,7 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
  */
 public abstract class PrefetchQueryUtil {
     private static final Logger LOG = Logger.getLogger(PrefetchQueryUtil.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
     static {
         LoggerUtil.attachObserver(LOG, debug);
     }

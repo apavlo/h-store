@@ -49,8 +49,8 @@ import edu.brown.utils.StringUtil;
  */
 public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManager.QueueEntry> {
     private static final Logger LOG = Logger.getLogger(AntiCacheManager.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
+    private static final LoggerBoolean trace = new LoggerBoolean();
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
