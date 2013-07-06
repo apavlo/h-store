@@ -28,7 +28,7 @@ import edu.brown.profilers.AntiCacheManagerProfiler.EvictionHistory;
 @ProcInfo(singlePartition = false)
 public class EvictHistory extends VoltSystemProcedure {
     private static final Logger LOG = Logger.getLogger(EvictHistory.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
 
     private static final ColumnInfo ResultsColumns[] = {
         new ColumnInfo("TIMESTAMP", VoltType.TIMESTAMP),

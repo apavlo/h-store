@@ -30,8 +30,8 @@ import edu.brown.utils.MathUtil;
 
 public class TransactionProfilerStats extends StatsSource {
     private static final Logger LOG = Logger.getLogger(TransactionProfilerStats.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
+    private static final LoggerBoolean trace = new LoggerBoolean();
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }

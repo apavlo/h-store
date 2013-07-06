@@ -34,7 +34,7 @@ import edu.brown.utils.StringUtil;
  */
 public class ProjectionPushdownOptimization extends AbstractOptimization {
     private static final Logger LOG = Logger.getLogger(ProjectionPushdownOptimization.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
 
     private final Set<PlanColumn> new_output_cols = new ListOrderedSet<PlanColumn>();
     private final Set<Table> new_output_tables = new HashSet<Table>();

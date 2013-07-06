@@ -19,7 +19,7 @@ import edu.brown.profilers.ProfileMeasurement;
 
 public class AntiCacheManagerProfilerStats extends StatsSource {
     private static final Logger LOG = Logger.getLogger(AntiCacheManagerProfilerStats.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
     static {
         LoggerUtil.attachObserver(LOG, debug);
     }

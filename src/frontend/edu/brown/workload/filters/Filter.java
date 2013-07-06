@@ -16,8 +16,8 @@ import edu.brown.workload.AbstractTraceElement;
  */
 public abstract class Filter {
     public static final Logger LOG = Logger.getLogger(Filter.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
+    private static final LoggerBoolean trace = new LoggerBoolean();
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }

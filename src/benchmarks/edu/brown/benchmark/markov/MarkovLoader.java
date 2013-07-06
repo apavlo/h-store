@@ -46,8 +46,8 @@ import edu.brown.statistics.ObjectHistogram;
 
 public class MarkovLoader extends BenchmarkComponent {
     private static final Logger LOG = Logger.getLogger(MarkovLoader.class);
-    private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private final static LoggerBoolean debug = new LoggerBoolean();
+    private final static LoggerBoolean trace = new LoggerBoolean();
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }

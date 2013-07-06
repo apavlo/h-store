@@ -18,7 +18,7 @@ import edu.brown.workload.TransactionTrace;
  */
 public class MultiPartitionTxnFilter extends Filter {
     private static final Logger LOG = Logger.getLogger(MultiPartitionTxnFilter.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
     
     private final PartitionEstimator p_estimator;
     private final Database catalog_db;
