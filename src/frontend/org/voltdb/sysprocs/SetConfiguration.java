@@ -30,7 +30,7 @@ import edu.brown.utils.StringUtil;
 @ProcInfo(singlePartition = false)
 public class SetConfiguration extends VoltSystemProcedure {
     private static final Logger LOG = Logger.getLogger(SetConfiguration.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
 
     public static final ColumnInfo nodeResultsColumns[] = {
         new ColumnInfo("SITE", VoltType.INTEGER),

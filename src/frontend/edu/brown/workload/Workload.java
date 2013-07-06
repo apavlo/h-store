@@ -76,8 +76,8 @@ import edu.brown.workload.filters.ProcedureNameFilter;
  */
 public class Workload implements WorkloadTrace, Iterable<TransactionTrace> {
     private static final Logger LOG = Logger.getLogger(Workload.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
+    private static final LoggerBoolean trace = new LoggerBoolean();
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }

@@ -95,8 +95,8 @@ import edu.brown.utils.EventObserver;
  */
 public class AuctionMarkLoader extends BenchmarkComponent {
     private static final Logger LOG = Logger.getLogger(AuctionMarkLoader.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
+    private static final LoggerBoolean trace = new LoggerBoolean();
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }

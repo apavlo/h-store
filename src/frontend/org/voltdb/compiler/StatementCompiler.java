@@ -62,8 +62,8 @@ import edu.brown.plannodes.PlanNodeUtil;
  */
 public abstract class StatementCompiler {
     private static final Logger LOG = Logger.getLogger(StatementCompiler.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
+    private static final LoggerBoolean trace = new LoggerBoolean();
 
     private static AtomicInteger NEXT_FRAGMENT_ID = null;
     

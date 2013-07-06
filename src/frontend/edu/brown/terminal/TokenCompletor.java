@@ -27,7 +27,7 @@ import edu.brown.utils.StringUtil;
  */
 public class TokenCompletor implements Completor {
     private static final Logger LOG = Logger.getLogger(TokenCompletor.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
 
     protected static final String DELIMITER = " ";
     protected static final Pattern SPLIT = Pattern.compile("[" + DELIMITER + "]+");

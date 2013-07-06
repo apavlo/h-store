@@ -66,7 +66,7 @@ import edu.brown.utils.StringUtil;
  */
 public abstract class AbstractTransaction implements Poolable, Comparable<AbstractTransaction> {
     private static final Logger LOG = Logger.getLogger(AbstractTransaction.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
     static {
         LoggerUtil.attachObserver(LOG, debug);
     }

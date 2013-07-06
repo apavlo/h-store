@@ -38,7 +38,6 @@ import edu.brown.HStoreSiteTestUtil.WrapperProcedureCallback;
 import edu.brown.benchmark.seats.SEATSClient.Transaction;
 import edu.brown.benchmark.seats.util.SEATSHistogramUtil;
 import edu.brown.hstore.Hstoreservice.Status;
-import edu.brown.rand.DefaultRandomGenerator;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.StringUtil;
 

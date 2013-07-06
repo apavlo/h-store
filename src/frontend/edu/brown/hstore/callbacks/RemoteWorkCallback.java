@@ -19,7 +19,7 @@ import edu.brown.utils.PartitionSet;
  */
 public class RemoteWorkCallback extends PartitionCountingCallback<AbstractTransaction> implements RpcCallback<WorkResult> {
     private static final Logger LOG = Logger.getLogger(RemoteWorkCallback.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
     static {
         LoggerUtil.attachObserver(LOG, debug);
     }

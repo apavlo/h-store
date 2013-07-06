@@ -28,8 +28,8 @@ import edu.brown.workload.filters.Filter.FilterResult;
 
 public abstract class WorkloadUtil {
     private static final Logger LOG = Logger.getLogger(WorkloadUtil.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
+    private static final LoggerBoolean trace = new LoggerBoolean();
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }

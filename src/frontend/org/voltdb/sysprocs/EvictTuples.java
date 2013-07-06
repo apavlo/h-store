@@ -30,7 +30,7 @@ import edu.brown.profilers.AntiCacheManagerProfiler.EvictionHistory;
 )
 public class EvictTuples extends VoltSystemProcedure {
     private static final Logger LOG = Logger.getLogger(EvictTuples.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
     static {
         LoggerUtil.attachObserver(LOG, debug);
     }

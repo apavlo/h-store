@@ -20,7 +20,7 @@ import edu.brown.utils.PartitionSet;
 
 public class TransactionPrepareHandler extends AbstractTransactionHandler<TransactionPrepareRequest, TransactionPrepareResponse> {
     private static final Logger LOG = Logger.getLogger(TransactionPrepareHandler.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
     static {
         LoggerUtil.attachObserver(LOG, debug);
     }

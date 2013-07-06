@@ -33,7 +33,7 @@ import edu.brown.utils.CollectionUtil;
  */
 public class MemoryStatsPrinter implements BenchmarkInterest {
     private static final Logger LOG = Logger.getLogger(MemoryStatsPrinter.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
     static {
         LoggerUtil.attachObserver(LOG, debug);
     }
