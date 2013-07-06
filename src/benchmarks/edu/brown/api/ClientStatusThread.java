@@ -28,7 +28,7 @@ import edu.brown.utils.StringUtil;
  */
 public class ClientStatusThread extends Thread {
     private static final Logger LOG = Logger.getLogger(ClientStatusThread.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
     static {
         LoggerUtil.attachObserver(LOG, debug);
     }

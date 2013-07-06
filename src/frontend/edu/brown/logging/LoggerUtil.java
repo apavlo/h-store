@@ -54,6 +54,7 @@ public abstract class LoggerUtil {
         public LoggerBoolean() {
             this(false);
         }
+        @Deprecated
         public LoggerBoolean(boolean val) {
             this.val = val;
         }

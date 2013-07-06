@@ -24,7 +24,7 @@ import edu.brown.utils.PartitionSet;
  */
 public class LocalPrepareCallback extends PartitionCountingCallback<LocalTransaction> implements RpcCallback<TransactionPrepareResponse> {
     private static final Logger LOG = Logger.getLogger(LocalPrepareCallback.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
     static {
         LoggerUtil.attachObserver(LOG, debug);
     }

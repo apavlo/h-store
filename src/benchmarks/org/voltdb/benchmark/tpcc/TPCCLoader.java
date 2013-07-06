@@ -70,7 +70,7 @@ import edu.brown.utils.EventObserver;
  */
 public class TPCCLoader extends Loader {
     private static final Logger LOG = Logger.getLogger(TPCCLoader.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
     static {
         LoggerUtil.attachObserver(LOG, debug);
     }

@@ -26,8 +26,8 @@ import edu.brown.utils.CollectionUtil;
 
 public class AggregatePushdownOptimization extends AbstractOptimization {
     private static final Logger LOG = Logger.getLogger(AggregatePushdownOptimization.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
+    private static final LoggerBoolean trace = new LoggerBoolean();
 
     public AggregatePushdownOptimization(PlanOptimizerState state) {
         super(state);

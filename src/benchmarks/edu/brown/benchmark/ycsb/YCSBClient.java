@@ -53,7 +53,7 @@ import edu.brown.statistics.ObjectHistogram;
  */
 public class YCSBClient extends BenchmarkComponent {
     private static final Logger LOG = Logger.getLogger(YCSBClient.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
     static {
         LoggerUtil.attachObserver(LOG, debug);
     }

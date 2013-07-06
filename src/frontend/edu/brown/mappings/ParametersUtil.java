@@ -32,7 +32,7 @@ import edu.brown.utils.ProjectType;
  */
 public abstract class ParametersUtil {
     private static final Logger LOG = Logger.getLogger(ParametersUtil.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
     static {
         LoggerUtil.attachObserver(LOG, debug);
     }

@@ -50,7 +50,7 @@ import edu.brown.utils.StringUtil;
  */
 public class SmallBankClient extends BenchmarkComponent {
     private static final Logger LOG = Logger.getLogger(SmallBankClient.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
     static {
         LoggerUtil.attachObserver(LOG, debug);
     }

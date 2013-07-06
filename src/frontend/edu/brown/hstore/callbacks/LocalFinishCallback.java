@@ -21,7 +21,7 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
  */
 public class LocalFinishCallback extends PartitionCountingCallback<LocalTransaction> implements RpcCallback<TransactionFinishResponse> {
     private static final Logger LOG = Logger.getLogger(LocalFinishCallback.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
     static {
         LoggerUtil.attachObserver(LOG, debug);
     }

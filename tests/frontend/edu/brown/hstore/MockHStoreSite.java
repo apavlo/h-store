@@ -25,8 +25,8 @@ import edu.brown.utils.ThreadUtil;
 
 public class MockHStoreSite extends HStoreSite {
     private static final Logger LOG = Logger.getLogger(MockHStoreSite.class);
-    private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private final static LoggerBoolean debug = new LoggerBoolean();
+    private final static LoggerBoolean trace = new LoggerBoolean();
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }

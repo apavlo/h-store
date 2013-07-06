@@ -14,7 +14,7 @@ import edu.brown.workload.TransactionTrace;
 
 public class BasePartitionTxnFilter extends Filter {
     private static final Logger LOG = Logger.getLogger(BasePartitionTxnFilter.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
     
     private final PartitionEstimator p_estimator;
     private final PartitionSet allowedPartitions = new PartitionSet();

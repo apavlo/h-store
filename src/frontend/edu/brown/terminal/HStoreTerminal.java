@@ -40,7 +40,7 @@ import edu.brown.utils.StringUtil;
  */
 public class HStoreTerminal implements Runnable {
     private static final Logger LOG = Logger.getLogger(HStoreTerminal.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
     
     /**
      * Special non-standard commands that we can execute

@@ -46,18 +46,19 @@ import edu.brown.utils.CollectionUtil;
 
 public abstract class PlanOptimizerUtil {
     private static final Logger LOG = Logger.getLogger(PlanOptimizerUtil.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
+    private static final LoggerBoolean trace = new LoggerBoolean();
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
 
     /**
-* @param state
-* @param orig_pc
-* @param output_cols
-* @return
-*/
+     * 
+     * @param state
+     * @param orig_pc
+     * @param output_cols
+     * @return
+     */
     protected static Pair<PlanColumn, Integer> findMatchingColumn(final PlanOptimizerState state, PlanColumn orig_pc, List<Integer> output_cols) {
         PlanColumn new_pc = null;
         int new_idx = 0;
@@ -77,9 +78,11 @@ public abstract class PlanOptimizerUtil {
     }
 
     /**
-* Populates the two data structures with information on the planNodes and
-* Tables and their referenced columns
-*/
+     * Populates the two data structures with information on the planNodes and
+     * Tables and their referenced columns
+     * @param state
+     * @param rootNode
+     */
     public static void populateTableNodeInfo(final PlanOptimizerState state, final AbstractPlanNode rootNode) {
         // Traverse tree and build up our data structures that maps all nodes to
         // the columns they affect
@@ -98,12 +101,11 @@ public abstract class PlanOptimizerUtil {
     }
 
     /**
-* Populate the mappings between AbstractPlanNodes and the tableNames, and
-* the element id(?) to set of columns
-*
-* @param state
-* @param rootNode
-*/
+     * Populate the mappings between AbstractPlanNodes and the tableNames, and
+     * the element id(?) to set of columns
+     * @param state
+     * @param rootNode
+     */
     public static void populateJoinTableInfo(final PlanOptimizerState state, final AbstractPlanNode rootNode) {
         final Set<String> join_tbls = new HashSet<String>();
 
@@ -157,10 +159,12 @@ public abstract class PlanOptimizerUtil {
     }
 
     /**
-* @param node
-* @param is_root
-* @throws Exception
-*/
+     * 
+     * @param state
+     * @param node
+     * @param is_root
+     * @throws Exception
+     */
     protected static void extractColumnInfo(final PlanOptimizerState state, final AbstractPlanNode node, final boolean is_root) throws Exception {
         if (trace.val)
             LOG.trace("Extracting Column Info for " + node);
@@ -259,15 +263,13 @@ public abstract class PlanOptimizerUtil {
     // ------------------------------------------------------------
 
     /**
-* @param state
-* @param rootNode
-* @param force
-* TODO
-* @return
-*/
+     * Walk up the tree in reverse so that we get all the Column offsets right
+     * @param state
+     * @param rootNode
+     * @param force
+     * @return
+     */
     public static boolean updateAllColumns(final PlanOptimizerState state, final AbstractPlanNode rootNode, final boolean force) {
-        // Walk up the tree in reverse so that we get all the Column offsets
-        // right
         for (AbstractPlanNode leafNode : PlanNodeUtil.getLeafPlanNodes(rootNode)) {
             new PlanNodeTreeWalker(false, true) {
                 @Override
@@ -355,9 +357,11 @@ public abstract class PlanOptimizerUtil {
     }
 
     /**
-* @param node
-* @return
-*/
+     * Update DISTINCT columns
+     * @param state
+     * @param node
+     * @return
+     */
     public static boolean updateDistinctColumns(final PlanOptimizerState state, DistinctPlanNode node) {
         // We really have one child here
         assert (node.getChildPlanNodeCount() == 1) : node;
@@ -416,11 +420,11 @@ public abstract class PlanOptimizerUtil {
     }
 
     /**
-* Update OrderBy columns
-*
-* @param node
-* @return
-*/
+     * Update OrderBy columns
+     * @param state
+     * @param node
+     * @return
+     */
     public static boolean updateOrderByColumns(final PlanOptimizerState state, OrderByPlanNode node) {
         if (debug.val)
             LOG.debug("Updating Sort Columns for " + node);
@@ -482,11 +486,11 @@ public abstract class PlanOptimizerUtil {
     }
 
     /**
-* Update AggregatePlanNode columns
-*
-* @param node
-* @return
-*/
+     * Update AggregatePlanNode columns
+     * @param state
+     * @param node
+     * @return
+     */
     public static boolean updateAggregateColumns(final PlanOptimizerState state, AggregatePlanNode node) {
         // We really have one child here
         assert (node.getChildPlanNodeCount() == 1) : node;
@@ -577,10 +581,11 @@ public abstract class PlanOptimizerUtil {
     }
 
     /**
-* @param node
-* @return
-* @throws Exception
-*/
+     * 
+     * @param state
+     * @param node
+     * @return
+     */
     public static boolean updateProjectionColumns(final PlanOptimizerState state, final ProjectionPlanNode node) {
         assert (node.getChildPlanNodeCount() == 1) : node;
         final AbstractPlanNode child_node = node.getChild(0);
@@ -669,10 +674,11 @@ public abstract class PlanOptimizerUtil {
     }
 
     /**
-* @param node
-* @return
-* @throws Exception
-*/
+     * 
+     * @param state
+     * @param node
+     * @return
+     */
     public static boolean updateOutputOffsets(final PlanOptimizerState state, AbstractPlanNode node) {
         for (int i = 0, cnt = node.getOutputColumnGUIDCount(); i < cnt; i++) {
             // Check to make sure that the offset in the tuple value expression
@@ -719,9 +725,9 @@ public abstract class PlanOptimizerUtil {
     }
 
     /**
-* @param node
-* @return
-*/
+     * @param node
+     * @return
+     */
     public static boolean updateJoinsColumns(final PlanOptimizerState state, final AbstractJoinPlanNode node) {
 
         // There's always going to be two input tables. One is always going to
@@ -1088,10 +1094,10 @@ public abstract class PlanOptimizerUtil {
     }
 
     /**
-* Correct any offsets in join nodes
-*
-* @param root
-*/
+     * Correct any offsets in join nodes
+     *
+     * @param root
+     */
     public static void fixJoinColumnOffsets(final PlanOptimizerState state, AbstractPlanNode root) {
         new PlanNodeTreeWalker(false) {
             @Override
@@ -1137,13 +1143,13 @@ public abstract class PlanOptimizerUtil {
     }
 
     /**
-* Extract all the PlanColumns that we are going to need in the query plan
-* tree above the given node.
-*
-* @param node
-* @param tables
-* @return
-*/
+     * Extract all the PlanColumns that we are going to need in the query plan
+     * tree above the given node.
+     *
+     * @param node
+     * @param tables
+     * @return
+     */
     public static Set<PlanColumn> extractReferencedColumns(final PlanOptimizerState state, final AbstractPlanNode node) {
         if (debug.val)
             LOG.debug("Extracting referenced column set for " + node);
