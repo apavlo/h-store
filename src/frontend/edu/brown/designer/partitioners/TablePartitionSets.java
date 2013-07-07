@@ -17,9 +17,9 @@ import edu.brown.designer.DesignerEdge.Members;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PredicatePairs;
 
-public class PartitionSets extends HashSet<PartitionSets.Entry> {
+public class TablePartitionSets extends HashSet<TablePartitionSets.Entry> {
     private static final long serialVersionUID = 3462969885348478117L;
-    private static final Logger LOG = Logger.getLogger(PartitionSets.class.getName());
+    private static final Logger LOG = Logger.getLogger(TablePartitionSets.class.getName());
 
     private final Map<Table, Set<Entry>> table_entry_xref = new HashMap<Table, Set<Entry>>();
     private final Map<PredicatePairs, Entry> cset_entry_xref = new HashMap<PredicatePairs, Entry>();
@@ -81,7 +81,7 @@ public class PartitionSets extends HashSet<PartitionSets.Entry> {
          * @return
          */
         public Table getParent() {
-            return (PartitionSets.this.parent_table);
+            return (TablePartitionSets.this.parent_table);
         }
 
         /**
@@ -134,7 +134,7 @@ public class PartitionSets extends HashSet<PartitionSets.Entry> {
         }
     } // END CLASS
 
-    public PartitionSets(Table parent_table) {
+    public TablePartitionSets(Table parent_table) {
         super();
         this.parent_table = parent_table;
     }
