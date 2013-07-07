@@ -1,4 +1,4 @@
-package org.voltdb.regressionsuites.testprocs;
+package org.voltdb.regressionsuites.sqlfeatureprocs;
 
 import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;

@@ -27,16 +27,21 @@ import java.io.IOException;
 
 import junit.framework.Test;
 import org.voltdb.BackendTarget;
+import org.voltdb.CatalogContext;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTableRow;
+import org.voltdb.benchmark.tpcc.TPCCConstants;
+import org.voltdb.catalog.Table;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.VoltTable;
 import org.voltdb.client.ProcCallException;
 import org.voltdb.compiler.VoltProjectBuilder;
 import org.voltdb.regressionsuites.sqlfeatureprocs.*;
+import org.voltdb.utils.CatalogUtil;
+import org.voltdb.utils.VoltTableUtil;
 
-import edu.brown.catalog.CatalogUtil;
+import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.utils.ClassUtil;
 
 public class TestSQLFeaturesSuite extends RegressionSuite {
@@ -48,10 +53,15 @@ public class TestSQLFeaturesSuite extends RegressionSuite {
     // procedures used by these tests
     @SuppressWarnings("unchecked")
     static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
-        FeaturesSelectAll.class, UpdateTests.class,
-        SelfJoinTest.class, SelectOrderLineByDistInfo.class,
-        BatchedMultiPartitionTest.class, WorkWithBigString.class, PassByteArrayArg.class,
-        PassAllArgTypes.class
+        FeaturesSelectAll.class,
+        UpdateTests.class,
+        SelfJoinTest.class,
+        SelectOrderLineByDistInfo.class,
+        BatchedMultiPartitionTest.class,
+        WorkWithBigString.class,
+        PassByteArrayArg.class,
+        PassAllArgTypes.class,
+        UpdateItemName.class,
     };
 
     /**
@@ -62,6 +72,49 @@ public class TestSQLFeaturesSuite extends RegressionSuite {
         super(name);
     }
 
+    /**
+     * testQueryOrder
+     */
+    public void testQueryOrder() throws Exception {
+        System.err.println("CURRENT: " + ClassUtil.getCurrentMethodName());
+        // This checks that we get the execution order of queries correct.
+        // In a single query batch we will first execute an update on a replicated
+        // table and then execute a second query that will read from that table. The 
+        // second query should get the new value from the first query and not the 
+        // original value.
+        Client client = this.getClient();
+        CatalogContext catalogContext = this.getCatalogContext();
+        Table catalog_tbl = catalogContext.getTableByName(TPCCConstants.TABLENAME_ITEM);
+        assertTrue(catalog_tbl.getIsreplicated());
+        int expectedNumItems = 10;
+        VoltTable vt = CatalogUtil.getVoltTable(catalog_tbl);
+        for (int i = 0; i < expectedNumItems; i++) {
+            Object row[] = VoltTableUtil.getRandomRow(catalog_tbl);
+            row[0] = i;
+            vt.addRow(row);
+        } // FOR
+        RegressionSuiteUtil.load(client, catalog_tbl, vt);
+        
+        long numItems = RegressionSuiteUtil.getRowCount(client, catalog_tbl);
+        assertEquals(expectedNumItems, numItems);
+        
+        String procName = UpdateItemName.class.getSimpleName();
+        long itemId = this.getRandom().number(TPCCConstants.STARTING_ITEM, numItems);
+        String itemName = "Tone Loc";
+        ClientResponse cr = client.callProcedure(procName, itemId, itemName);
+        assertEquals(cr.toString(), Status.OK, cr.getStatus());
+        assertEquals(cr.toString(), 1, cr.getResults().length);
+        try {
+            assertTrue(cr.toString(), cr.getResults()[0].advanceRow());
+        } catch (Throwable ex) {
+            System.err.printf("TARGET: %d/%s\n", itemId, itemName);
+            cr = RegressionSuiteUtil.sql(client, "SELECT * FROM " + TPCCConstants.TABLENAME_ITEM);
+            System.err.println(VoltTableUtil.format(cr.getResults()));
+            throw new Exception(ex);
+        }
+        assertEquals(itemName, cr.getResults()[0].getString(0));
+    }
+    
     public void testUpdates() throws IOException {
         System.err.println("CURRENT: " + ClassUtil.getCurrentMethodName());
         Client client = getClient();
@@ -186,7 +239,7 @@ public class TestSQLFeaturesSuite extends RegressionSuite {
         assertEquals(5, results.length);
         assertEquals(1, results[0].asScalarLong());
         assertEquals(1, results[1].asScalarLong());
-        assertEquals(CatalogUtil.getNumberOfPartitions(this.getCatalog()), results[2].asScalarLong());
+        assertEquals(1, results[2].asScalarLong());
         assertEquals(2, results[3].getRowCount());
         assertEquals(1, results[4].getRowCount());
     }
@@ -300,45 +353,22 @@ public class TestSQLFeaturesSuite extends RegressionSuite {
         /////////////////////////////////////////////////////////////
         // CONFIG #1: 1 Local Site/Partitions running on JNI backend
         /////////////////////////////////////////////////////////////
-
-        // get a server config for the native backend with one sites/partitions
         config = new LocalSingleProcessServer("sqlfeatures-onepartition.jar", 1, BackendTarget.NATIVE_EE_JNI);
-
-        // build the jarfile
         success = config.compile(project);
         assert(success);
-
-        // add this config to the set of tests to run
         builder.addServerConfig(config);
 
         /////////////////////////////////////////////////////////////
         // CONFIG #2: 2 Local Site/Partitions running on JNI backend
         /////////////////////////////////////////////////////////////
-
-        // get a server config for the native backend with two sites/partitions
         config = new LocalSingleProcessServer("sqlfeatures-twopartition.jar", 2, BackendTarget.NATIVE_EE_JNI);
-
-        // build the jarfile (note the reuse of the TPCC project)
         success = config.compile(project);
         assert(success);
-
-        // add this config to the set of tests to run
         builder.addServerConfig(config);
-
-        /////////////////////////////////////////////////////////////
-        // CONFIG #3: 1 Local Site/Partition running on HSQL backend
-        /////////////////////////////////////////////////////////////
-
-//        config = new LocalSingleProcessServer("sqlfeatures-hsql.jar", 1, BackendTarget.HSQLDB_BACKEND);
-//        success = config.compile(project);
-//        assert(success);
-//        builder.addServerConfig(config);
-
 
         /////////////////////////////////////////////////////////////
         // CONFIG #4: Local Cluster (of processes)
         /////////////////////////////////////////////////////////////
-
         config = new LocalCluster("sqlfeatures-cluster.jar", 2, 2, 1, BackendTarget.NATIVE_EE_JNI);
         success = config.compile(project);
         assert(success);
