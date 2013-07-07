@@ -6,6 +6,7 @@ import org.voltdb.BackendTarget;
 import org.voltdb.CatalogContext;
 import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
+import org.voltdb.catalog.Table;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.ProcCallException;
@@ -47,7 +48,8 @@ public class TestSmallBankSuite extends RegressionSuite {
         ClientResponse cresponse;
         VoltTable results[];
 
-        long num_rows = RegressionSuiteUtil.getRowCount(client, SmallBankConstants.TABLENAME_ACCOUNTS);
+        Table catalog_tbl = catalogContext.getTableByName(SmallBankConstants.TABLENAME_ACCOUNTS);
+        long num_rows = RegressionSuiteUtil.getRowCount(client, catalog_tbl);
         assert(num_rows > acctIds[acctIds.length-1]);
         // System.err.println("# of Rows: " + num_rows);
         
