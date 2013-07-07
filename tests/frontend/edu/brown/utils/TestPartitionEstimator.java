@@ -9,6 +9,8 @@ import org.voltdb.VoltTable;
 import org.voltdb.VoltTableRow;
 import org.voltdb.VoltType;
 import org.voltdb.VoltTable.ColumnInfo;
+import org.voltdb.benchmark.tpcc.TPCCConstants;
+import org.voltdb.benchmark.tpcc.TPCCProjectBuilder;
 import org.voltdb.benchmark.tpcc.procedures.neworder;
 import org.voltdb.benchmark.tpcc.procedures.paymentByCustomerId;
 import org.voltdb.catalog.*;
@@ -36,21 +38,65 @@ public class TestPartitionEstimator extends BaseTestCase {
     
     private final PartitionSet partitions = new PartitionSet();
     
-    {
-        // super.reset(ProjectType.TPCC);
-    }
+    private final TPCCProjectBuilder builder = new TPCCProjectBuilder() {
+        {
+            addAllDefaults();
+            addStmtProcedure("TestSinglePartitionOR",
+                             "SELECT * FROM " + TPCCConstants.TABLENAME_DISTRICT +
+                             " WHERE D_W_ID = ? AND (D_STREET_1 = ? OR D_STREET_2 = ?)");
+            addStmtProcedure("TestMultiPartitionOR",
+                             "SELECT * FROM " + TPCCConstants.TABLENAME_DISTRICT +
+                             " WHERE D_W_ID = ? OR D_W_ID = ?");
+        }
+    };
     
     @Override
     protected void setUp() throws Exception {
-        super.setUp(ProjectType.TPCC);
+        super.setUp(builder);
         this.addPartitions(NUM_PARTITIONS);
         if (hasher == null) {
             hasher = new DefaultHasher(catalogContext, NUM_PARTITIONS); // CatalogUtil.getNumberOfPartitions(catalog_db));
         }
         
-        Table catalog_tbl = this.getTable("WAREHOUSE");
+        Table catalog_tbl = this.getTable(TPCCConstants.TABLENAME_WAREHOUSE);
         Column catalog_col = this.getColumn(catalog_tbl, "W_ID");
         catalog_tbl.setPartitioncolumn(catalog_col);
+        this.partitions.clear();
+    }
+    
+    /**
+     * testSinglePartitionOR
+     */
+    public void testSinglePartitionOR() throws Exception {
+        // Check that if we have a query that does a look up on a partitioning column
+        // but has an OR in it, it's still a single-partition query.
+        Procedure catalog_proc = this.getProcedure("TestSinglePartitionOR");
+        Statement catalog_stmt = CollectionUtil.first(catalog_proc.getStatements());
+        assertNotNull(catalog_stmt);
+        
+        Object params[] = new Object[] { BASE_PARTITION, "XXX", "YYY" };
+        p_estimator.getAllPartitions(partitions, catalog_stmt, params, BASE_PARTITION);
+        // System.out.println(catalog_stmt.getName() + " Partitions: " + partitions);
+        assertEquals(1, partitions.size());
+        assertEquals(BASE_PARTITION, partitions.get());
+        
+    }
+    
+    /**
+     * testMultiPartitionOR
+     */
+    public void testMultiPartitionOR() throws Exception {
+        // Check that if we have a query that does a look up on a partitioning column
+        // but has an OR in it, then it has to be sent to exactly the number of partitions
+        // that we expected
+        Procedure catalog_proc = this.getProcedure("TestMultiPartitionOR");
+        Statement catalog_stmt = CollectionUtil.first(catalog_proc.getStatements());
+        assertNotNull(catalog_stmt);
+        
+        Object params[] = new Object[] { BASE_PARTITION, BASE_PARTITION+1 };
+        p_estimator.getAllPartitions(partitions, catalog_stmt, params, BASE_PARTITION);
+        // System.out.println(catalog_stmt.getName() + " Partitions: " + partitions);
+        assertEquals(2, partitions.size());
     }
     
     /**
@@ -59,7 +105,7 @@ public class TestPartitionEstimator extends BaseTestCase {
     public void testMultiAttributePartitioning() throws Exception {
         // This checks that the ProcParameters and the StmtParameters get mapped to
         // the same partition for a multi-attribute partitioned Procedure+Table
-        Database clone_db = CatalogCloner.cloneDatabase(catalog_db);
+        Database clone_db = CatalogCloner.cloneDatabase(catalogContext.database);
         CatalogContext clone_catalogContext = new CatalogContext(clone_db.getCatalog());
         PartitionEstimator p_estimator = new PartitionEstimator(clone_catalogContext);
 
@@ -75,7 +121,7 @@ public class TestPartitionEstimator extends BaseTestCase {
         catalog_proc.setPartitionparameter(mpp.getIndex());
 
         // Table
-        Table catalog_tbl = this.getTable(clone_db, "DISTRICT");
+        Table catalog_tbl = this.getTable(clone_db, TPCCConstants.TABLENAME_DISTRICT);
         String table_key = CatalogKey.createKey(catalog_tbl);
         Column catalog_cols[] = new Column[] {
             this.getColumn(clone_db, catalog_tbl, "D_ID"),
@@ -116,7 +162,7 @@ public class TestPartitionEstimator extends BaseTestCase {
      */
     public void testMultiProcParameter() throws Exception {
         //  Try to partition TPC-C's neworder on W_ID and D_ID parameters
-        Database clone_db = CatalogCloner.cloneDatabase(catalog_db);
+        Database clone_db = CatalogCloner.cloneDatabase(catalogContext.database);
         Procedure catalog_proc = this.getProcedure(clone_db, neworder.class);
         CatalogContext clone_catalogContext = new CatalogContext(clone_db.getCatalog());
         PartitionEstimator p_estimator = new PartitionEstimator(clone_catalogContext);
@@ -171,9 +217,9 @@ public class TestPartitionEstimator extends BaseTestCase {
     public void testMultiColumn() throws Exception {
         // Try to use multi-column partitioning on DISTRICT and see whether we can
         // actually get the right answer for neworder.getDistrict
-        Database clone_db = CatalogCloner.cloneDatabase(catalog_db);
+        Database clone_db = CatalogCloner.cloneDatabase(catalogContext.database);
         CatalogContext clone_catalogContext = new CatalogContext(clone_db.getCatalog());
-        Table catalog_tbl = this.getTable(clone_db, "DISTRICT");
+        Table catalog_tbl = this.getTable(clone_db, TPCCConstants.TABLENAME_DISTRICT);
         String table_key = CatalogKey.createKey(catalog_tbl);
         
         Column catalog_col0 = this.getColumn(clone_db, catalog_tbl, "D_ID");
@@ -217,7 +263,7 @@ public class TestPartitionEstimator extends BaseTestCase {
     public void testArrayParameters() throws Exception {
         // Grab TPC-C's neworder and pass an array of W_ID's to getWarehouseTaxRate
         // Check that we get back all of the partitions that we expect from the array
-        Table catalog_tbl = this.getTable("WAREHOUSE");
+        Table catalog_tbl = this.getTable(TPCCConstants.TABLENAME_WAREHOUSE);
         String table_key = CatalogKey.createKey(catalog_tbl);
         Procedure catalog_proc = this.getProcedure(neworder.class);
         Statement catalog_stmt = this.getStatement(catalog_proc, "getWarehouseTaxRate");
@@ -261,7 +307,7 @@ public class TestPartitionEstimator extends BaseTestCase {
         Procedure catalog_proc = this.getProcedure(neworder.class);
         Statement catalog_stmt = this.getStatement(catalog_proc, "getDistrict");
         assertNotNull(catalog_stmt);
-//        System.err.println(CatalogUtil.getDisplayName(this.getTable("DISTRICT").getPartitioncolumn()));
+//        System.err.println(CatalogUtil.getDisplayName(this.getTable(TPCCConstants.TABLENAME_DISTRICT).getPartitioncolumn()));
         
         for (int w_id = 1; w_id < NUM_PARTITIONS; w_id++) {
             Object params[] = new Integer[]{ 2, w_id }; // d_id, d_w_id
@@ -277,9 +323,9 @@ public class TestPartitionEstimator extends BaseTestCase {
      */
     @Ignore
     public void testFragments() throws Exception {
-        Table catalog_tbl = catalog_db.getTables().get("DISTRICT");
+        Table catalog_tbl = this.getTable(TPCCConstants.TABLENAME_DISTRICT);
         assertNotNull(catalog_tbl);
-        Procedure catalog_proc = catalog_db.getProcedures().get("neworder");
+        Procedure catalog_proc = this.getProcedure("neworder");
         assertNotNull(catalog_proc);
         Statement catalog_stmt = catalog_proc.getStatements().get("getDistrict");
         assertNotNull(catalog_stmt);
@@ -297,9 +343,9 @@ public class TestPartitionEstimator extends BaseTestCase {
      * testGetPartitionsInsert
      */
     public void testInsert() throws Exception {
-        Table catalog_tbl = catalog_db.getTables().get("ORDERS");
+        Table catalog_tbl = this.getTable(TPCCConstants.TABLENAME_ORDERS);
         assertNotNull(catalog_tbl);
-        Procedure catalog_proc = catalog_db.getProcedures().get("neworder");
+        Procedure catalog_proc = this.getProcedure("neworder");
         assertNotNull(catalog_proc);
         Statement catalog_stmt = catalog_proc.getStatements().get("createOrder");
         assertNotNull(catalog_stmt);
@@ -332,9 +378,9 @@ public class TestPartitionEstimator extends BaseTestCase {
     @Test
     public void testReplicatedSelect() throws Exception {
         Catalog new_catalog = new Catalog();
-        new_catalog.execute(catalog.serialize());
+        new_catalog.execute(catalogContext.catalog.serialize());
         CatalogContext new_catalogContext = new CatalogContext(new_catalog);
-        final Table new_table = new_catalogContext.database.getTables().get("WAREHOUSE");
+        final Table new_table = new_catalogContext.database.getTables().get(TPCCConstants.TABLENAME_WAREHOUSE);
         assertNotNull(new_table);
         new_table.setIsreplicated(true);
         new_table.setPartitioncolumn(new Column() {
@@ -364,10 +410,10 @@ public class TestPartitionEstimator extends BaseTestCase {
     @Test
     public void testInvalidateCache() throws Exception {
         Catalog new_catalog = new Catalog();
-        new_catalog.execute(catalog.serialize());
+        new_catalog.execute(catalogContext.catalog.serialize());
         CatalogContext new_catalogContext = new CatalogContext(new_catalog);
         
-        final Table new_table = new_catalogContext.database.getTables().get("WAREHOUSE");
+        final Table new_table = new_catalogContext.database.getTables().get(TPCCConstants.TABLENAME_WAREHOUSE);
         assertNotNull(new_table);
         new_table.setPartitioncolumn(new Column() {
             @SuppressWarnings("unchecked")
@@ -415,7 +461,7 @@ public class TestPartitionEstimator extends BaseTestCase {
     @Ignore
     public void testPopulateColumnJoinsAll() {
         Map<Column, Set<Column>> column_joins = new TreeMap<Column, Set<Column>>();
-        Table catalog_tbl = this.getTable("DISTRICT");
+        Table catalog_tbl = this.getTable(TPCCConstants.TABLENAME_DISTRICT);
         
         Column last = null;
         List<Column> order = new ArrayList<Column>();
@@ -443,7 +489,7 @@ public class TestPartitionEstimator extends BaseTestCase {
     @SuppressWarnings("unchecked")
     public void testPopulateColumnJoinsSplit() {
         Map<Column, Set<Column>> column_joins = new TreeMap<Column, Set<Column>>();
-        Table catalog_tbl = this.getTable("DISTRICT");
+        Table catalog_tbl = this.getTable(TPCCConstants.TABLENAME_DISTRICT);
         
         Column last[] = { null, null };
         @SuppressWarnings("rawtypes")
@@ -485,7 +531,7 @@ public class TestPartitionEstimator extends BaseTestCase {
      * testGetTableRowPartitionNumeric
      */
     public void testGetTableRowPartitionNumeric() throws Exception {
-        Table catalog_tbl = this.getTable("WAREHOUSE");
+        Table catalog_tbl = this.getTable(TPCCConstants.TABLENAME_WAREHOUSE);
         Column catalog_col = this.getColumn(catalog_tbl, "W_ID");
         catalog_tbl.setPartitioncolumn(catalog_col);
         PartitionEstimator p_estimator = new PartitionEstimator(catalogContext);
@@ -527,7 +573,7 @@ public class TestPartitionEstimator extends BaseTestCase {
      * testGetTableRowPartitionString
      */
     public void testGetTableRowPartitionString() throws Exception {
-        Table catalog_tbl = this.getTable("WAREHOUSE");
+        Table catalog_tbl = this.getTable(TPCCConstants.TABLENAME_WAREHOUSE);
         Column catalog_col = this.getColumn(catalog_tbl, "W_NAME");
         catalog_tbl.setPartitioncolumn(catalog_col);
         PartitionEstimator p_estimator = new PartitionEstimator(catalogContext);

@@ -423,7 +423,8 @@ public class PartitionEstimator {
 
     /**
      * This is the method that actually picks the Statement apart and figures
-     * out where the columns and parameters are used together
+     * out where the columns and parameters are used together. This is probably the most
+     * important method in the entire code base, so tread lightly in here...
      * 
      * @param catalog_stmt
      * @throws Exception
