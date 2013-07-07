@@ -55,7 +55,7 @@ public abstract class RegressionSuiteUtil {
         return (cresponse);
     }
     
-    public static ClientResponse sql(Client client, String sql) throws Exception {
+    public static ClientResponse sql(Client client, String sql) throws IOException, ProcCallException {
         String procName = VoltSystemProcedure.procCallName(AdHoc.class);
         ClientResponse cresponse = client.callProcedure(procName, sql);
         assert(cresponse.getStatus() == Status.OK) : cresponse.toString();

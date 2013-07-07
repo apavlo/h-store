@@ -117,7 +117,7 @@ public class MarkovConflictChecker extends TableConflictChecker {
                     }
                 } // FOR
                 
-                PredicatePairs cset = CatalogUtil.extractStatementColumnSet(stmt, false);
+                PredicatePairs cset = CatalogUtil.extractStatementPredicates(stmt, false);
                 Map<Table, StmtParameter[]> tableParams = new HashMap<Table, StmtParameter[]>();
                 List<StmtParameter> stmtParamOffsets = new ArrayList<StmtParameter>();
                 for (Table tbl : CatalogUtil.getReferencedTables(stmt)) {

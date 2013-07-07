@@ -614,7 +614,7 @@ public class TestCatalogUtil extends BaseTestCase {
         assertNotNull(catalog_tbl);
         Procedure catalog_proc = this.getProcedure("neworder");
         Statement catalog_stmt = this.getStatement(catalog_proc, "getDistrict");
-        PredicatePairs cset = CatalogUtil.extractStatementColumnSet(catalog_stmt, false, catalog_tbl);
+        PredicatePairs cset = CatalogUtil.extractStatementPredicates(catalog_stmt, false, catalog_tbl);
 
         // Column -> StmtParameter Index
         Set<Pair<Column, Integer>> expected_columns = new HashSet<Pair<Column, Integer>>();
@@ -652,7 +652,7 @@ public class TestCatalogUtil extends BaseTestCase {
         Statement catalog_stmt = this.getStatement(catalog_proc, "insertHistory");
 
         assertNotNull(catalog_stmt);
-        PredicatePairs cset = CatalogUtil.extractStatementColumnSet(catalog_stmt, false, catalog_tbl);
+        PredicatePairs cset = CatalogUtil.extractStatementPredicates(catalog_stmt, false, catalog_tbl);
         // System.out.println(cset.debug());
 
         // Column -> StmtParameter Index
@@ -686,7 +686,7 @@ public class TestCatalogUtil extends BaseTestCase {
         for (Table catalog_tbl : tables) {
             Set<Table> table_set = new HashSet<Table>();
             table_set.add(catalog_tbl);
-            CatalogUtil.extractPlanNodeColumnSet(catalog_stmt, catalogContext.database, cset, root_node, false, table_set);
+            CatalogUtil.extractPlanNodePredicates(catalog_stmt, catalogContext.database, cset, root_node, false, table_set);
         }
         // System.err.println(cset.debug() + "\n-------------------------\n");
 

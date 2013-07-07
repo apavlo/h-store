@@ -827,7 +827,7 @@ public abstract class PlanNodeUtil {
             Statement catalog_stmt = catalog_stmt_param.getParent();
             PredicatePairs cset = null;
             try {
-                cset = CatalogUtil.extractStatementColumnSet(catalog_stmt, false);
+                cset = CatalogUtil.extractStatementPredicates(catalog_stmt, false);
             } catch (Throwable ex) {
                 throw new RuntimeException("Failed to extract ColumnSet for " + catalog_stmt_param.fullName(), ex);
             }
