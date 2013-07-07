@@ -24,6 +24,7 @@ import edu.brown.catalog.special.MultiColumn;
 import edu.brown.catalog.special.MultiProcParameter;
 import edu.brown.hashing.*;
 import edu.brown.hstore.HStoreConstants;
+import edu.brown.plannodes.PlanNodeUtil;
 
 /**
  * 
@@ -47,6 +48,9 @@ public class TestPartitionEstimator extends BaseTestCase {
             addStmtProcedure("TestMultiPartitionOR",
                              "SELECT * FROM " + TPCCConstants.TABLENAME_DISTRICT +
                              " WHERE D_W_ID = ? OR D_W_ID = ?");
+            addStmtProcedure("TestConstantOR",
+                             "SELECT * FROM " + TPCCConstants.TABLENAME_DISTRICT +
+                             " WHERE D_W_ID = " + BASE_PARTITION + " OR D_W_ID = ?");
         }
     };
     
@@ -76,7 +80,6 @@ public class TestPartitionEstimator extends BaseTestCase {
         
         Object params[] = new Object[] { BASE_PARTITION, "XXX", "YYY" };
         p_estimator.getAllPartitions(partitions, catalog_stmt, params, BASE_PARTITION);
-        // System.out.println(catalog_stmt.getName() + " Partitions: " + partitions);
         assertEquals(1, partitions.size());
         assertEquals(BASE_PARTITION, partitions.get());
         
@@ -95,7 +98,30 @@ public class TestPartitionEstimator extends BaseTestCase {
         
         Object params[] = new Object[] { BASE_PARTITION, BASE_PARTITION+1 };
         p_estimator.getAllPartitions(partitions, catalog_stmt, params, BASE_PARTITION);
-        // System.out.println(catalog_stmt.getName() + " Partitions: " + partitions);
+        assertEquals(2, partitions.size());
+    }
+    
+    /**
+     * testConstantOR
+     */
+    public void testConstantOR() throws Exception {
+        // Check that if we have a query that does a look up on a partitioning column
+        // using a constant but then it has an OR in it, then it has to be sent to 
+        // exactly the number of partitions that we expected
+        Procedure catalog_proc = this.getProcedure("TestConstantOR");
+        Statement catalog_stmt = CollectionUtil.first(catalog_proc.getStatements());
+        assertNotNull(catalog_stmt);
+        
+//        System.err.println(PlanNodeUtil.debug(PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, true)));
+        
+        Object params[] = new Object[] { BASE_PARTITION };
+        p_estimator.getAllPartitions(partitions, catalog_stmt, params, BASE_PARTITION);
+        assertEquals(1, partitions.size());
+        assertEquals(BASE_PARTITION, partitions.get());
+        
+        partitions.clear();
+        params = new Object[] { BASE_PARTITION+1 };
+        p_estimator.getAllPartitions(partitions, catalog_stmt, params, BASE_PARTITION);
         assertEquals(2, partitions.size());
     }
     
