@@ -15,6 +15,7 @@ import org.voltdb.benchmark.tpcc.procedures.neworder;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.ProcedureCallback;
+import org.voltdb.regressionsuites.testprocs.UpdateItemName;
 import org.voltdb.sysprocs.AdHoc;
 
 import edu.brown.hstore.Hstoreservice.Status;
@@ -49,6 +50,36 @@ public class TestHStoreSiteSuite extends RegressionSuite {
     }
     
     /**
+     * testQueryOrder
+     */
+    public void testQueryOrder() throws Exception {
+        // This checks that we get the execution order of queries correct.
+        // In a single query batch we will first execute an update on a replicated
+        // table and then execute a second query that will read from that table. The 
+        // second query should get the new value from the first query and not the 
+        // original value.
+        
+        Client client = this.getClient();
+        RegressionSuiteUtil.initializeTPCCDatabase(this.getCatalogContext(), client, true);
+        ClientResponse cr;
+        
+        cr = RegressionSuiteUtil.sql(client, "SELECT COUNT(*) FROM " + TPCCConstants.TABLENAME_ITEM);
+        long numItems = cr.getResults()[0].asScalarLong();
+        assert(numItems > 0);
+        
+        String procName = UpdateItemName.class.getSimpleName();
+        long itemId = this.getRandom().number(TPCCConstants.STARTING_ITEM, numItems);
+        String itemName = "Tone Loc";
+        cr = client.callProcedure(procName, itemId, itemName);
+        assertEquals(cr.toString(), Status.OK, cr.getStatus());
+        assertEquals(cr.toString(), 1, cr.getResults().length);
+        
+        VoltTable vt = cr.getResults()[0];
+        assertTrue(cr.toString(), vt.advanceRow());
+        assertEquals(itemName, vt.getString(0));
+    }
+    
+    /**
      * testAdHocSQL
      */
     public void testAdHocSQL() throws Exception {
@@ -66,7 +97,7 @@ public class TestHStoreSiteSuite extends RegressionSuite {
         cr = client.callProcedure(procName, "SELECT * FROM NEW_ORDER;");
         VoltTable result = cr.getResults()[0];
         assertTrue(result.getRowCount() == 1);
-        System.out.println(result.toString());
+        // System.out.println(result.toString());
 
         boolean caught = false;
         try {
@@ -150,11 +181,12 @@ public class TestHStoreSiteSuite extends RegressionSuite {
         TPCCProjectBuilder project = new TPCCProjectBuilder();
         project.addAllDefaults();
         project.addStmtProcedure("GetItem", "SELECT * FROM " + TPCCConstants.TABLENAME_ITEM + " WHERE I_ID = ?");
+        project.addProcedure(UpdateItemName.class);
         
         boolean success;
         
         /////////////////////////////////////////////////////////////
-        // CONFIG #1: 1 Local Site/Partition running on JNI backend
+        // CONFIG #1: 1 Local Site/Partition
         /////////////////////////////////////////////////////////////
         config = new LocalSingleProcessServer(PREFIX + "-1part.jar", 1, BackendTarget.NATIVE_EE_JNI);
         success = config.compile(project);
