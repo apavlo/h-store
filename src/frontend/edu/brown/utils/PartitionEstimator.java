@@ -69,7 +69,6 @@ import edu.brown.catalog.special.MultiProcParameter;
 import edu.brown.catalog.special.NullProcParameter;
 import edu.brown.catalog.special.RandomProcParameter;
 import edu.brown.catalog.special.VerticalPartitionColumn;
-import edu.brown.designer.ColumnSet;
 import edu.brown.hashing.AbstractHasher;
 import edu.brown.hashing.DefaultHasher;
 import edu.brown.hstore.HStoreConstants;
@@ -513,7 +512,7 @@ public class PartitionEstimator {
                 // If it's not in there, then this query has to be broadcasted to all nodes
                 // Note that we pass all the tables that are part of the fragment, since 
                 // we need to be able to handle joins
-                ColumnSet cset = CatalogUtil.extractFragmentColumnSet(catalog_frag, false, frag_tables);
+                PredicatePairs cset = CatalogUtil.extractFragmentColumnSet(catalog_frag, false, frag_tables);
                 assert (cset != null);
                 Map<Column, Set<Column>> column_joins = new TreeMap<Column, Set<Column>>();
                 if (trace.val)
@@ -683,7 +682,7 @@ public class PartitionEstimator {
             // know the value...
             if (stmt_type == QueryType.UPDATE) {
                 List<Table> tables = new ArrayList<Table>();
-                ColumnSet update_cset = new ColumnSet();
+                PredicatePairs update_cset = new PredicatePairs();
                 for (Table catalog_tbl : CatalogUtil.getReferencedTables(catalog_stmt)) {
                     update_cset.clear();
                     tables.clear();

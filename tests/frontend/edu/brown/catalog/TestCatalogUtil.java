@@ -36,9 +36,9 @@ import org.voltdb.utils.Pair;
 
 import edu.brown.BaseTestCase;
 import edu.brown.catalog.special.ReplicatedColumn;
-import edu.brown.designer.ColumnSet;
 import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.PredicatePairs;
 import edu.brown.utils.ProjectType;
 import edu.brown.utils.StringUtil;
 
@@ -576,7 +576,7 @@ public class TestCatalogUtil extends BaseTestCase {
      * @param cset
      * @param expected
      */
-    private void checkColumnSet(ColumnSet cset, Collection<Pair<Column, Integer>> expected) {
+    private void checkColumnSet(PredicatePairs cset, Collection<Pair<Column, Integer>> expected) {
         for (CatalogPair entry : cset) {
             int column_idx = (entry.getFirst() instanceof StmtParameter ? 1 : 0);
             int param_idx = (column_idx == 0 ? 1 : 0);
@@ -614,7 +614,7 @@ public class TestCatalogUtil extends BaseTestCase {
         assertNotNull(catalog_tbl);
         Procedure catalog_proc = this.getProcedure("neworder");
         Statement catalog_stmt = this.getStatement(catalog_proc, "getDistrict");
-        ColumnSet cset = CatalogUtil.extractStatementColumnSet(catalog_stmt, false, catalog_tbl);
+        PredicatePairs cset = CatalogUtil.extractStatementColumnSet(catalog_stmt, false, catalog_tbl);
 
         // Column -> StmtParameter Index
         Set<Pair<Column, Integer>> expected_columns = new HashSet<Pair<Column, Integer>>();
@@ -633,7 +633,7 @@ public class TestCatalogUtil extends BaseTestCase {
         Procedure catalog_proc = this.getProcedure(neworder.class);
         Statement catalog_stmt = this.getStatement(catalog_proc, "incrementNextOrderId");
 
-        ColumnSet cset = CatalogUtil.extractUpdateColumnSet(catalog_stmt, false, catalog_tbl);
+        PredicatePairs cset = CatalogUtil.extractUpdateColumnSet(catalog_stmt, false, catalog_tbl);
         // System.out.println(cset.debug());
 
         // Column -> StmtParameter Index
@@ -652,7 +652,7 @@ public class TestCatalogUtil extends BaseTestCase {
         Statement catalog_stmt = this.getStatement(catalog_proc, "insertHistory");
 
         assertNotNull(catalog_stmt);
-        ColumnSet cset = CatalogUtil.extractStatementColumnSet(catalog_stmt, false, catalog_tbl);
+        PredicatePairs cset = CatalogUtil.extractStatementColumnSet(catalog_stmt, false, catalog_tbl);
         // System.out.println(cset.debug());
 
         // Column -> StmtParameter Index
@@ -678,7 +678,7 @@ public class TestCatalogUtil extends BaseTestCase {
         assertNotNull(root_node);
         // System.out.println(PlanNodeUtil.debug(root_node));
 
-        ColumnSet cset = new ColumnSet();
+        PredicatePairs cset = new PredicatePairs();
         Table tables[] = new Table[] {
                 this.getTable(TPCCConstants.TABLENAME_ORDER_LINE),
                 this.getTable("STOCK")

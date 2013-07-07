@@ -30,7 +30,6 @@ import edu.brown.catalog.special.ReplicatedColumn;
 import edu.brown.costmodel.SingleSitedCostModel;
 import edu.brown.costmodel.TimeIntervalCostModel;
 import edu.brown.designer.AccessGraph;
-import edu.brown.designer.ColumnSet;
 import edu.brown.designer.Designer;
 import edu.brown.designer.DesignerEdge;
 import edu.brown.designer.DesignerHints;
@@ -44,6 +43,7 @@ import edu.brown.graphs.AbstractDirectedGraph;
 import edu.brown.graphs.IGraph;
 import edu.brown.graphs.VertexTreeWalker;
 import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.PredicatePairs;
 import edu.brown.utils.ThreadUtil;
 
 public class HeuristicPartitioner extends AbstractPartitioner {
@@ -294,7 +294,7 @@ public class HeuristicPartitioner extends AbstractPartitioner {
                 Column max_column = null;
                 Column max_conflict_column = null;
                 for (DesignerEdge conflict_edge : rtree.getInEdges(conflict_vertex)) {
-                    ColumnSet cset = (ColumnSet) conflict_edge.getAttribute(AccessGraph.EdgeAttributes.COLUMNSET.name());
+                    PredicatePairs cset = (PredicatePairs) conflict_edge.getAttribute(AccessGraph.EdgeAttributes.COLUMNSET.name());
                     for (Column conflict_column : cset.findAllForParent(Column.class, conflict_tbl)) {
                         Column ancestor_column = CollectionUtil.last(info.dependencies.getAncestors(conflict_column));
                         Integer count = ancestors.get(ancestor_column);
@@ -732,7 +732,7 @@ public class HeuristicPartitioner extends AbstractPartitioner {
                     // If no edge exists, then the child can't be linked to the
                     // parent
                     //
-                    ColumnSet cset = (ColumnSet) edge.getAttribute(AccessGraph.EdgeAttributes.COLUMNSET.name());
+                    PredicatePairs cset = (PredicatePairs) edge.getAttribute(AccessGraph.EdgeAttributes.COLUMNSET.name());
                     Collection<Column> entries = cset.findAllForOther(Column.class, parent_attribute);
                     if (!entries.isEmpty()) {
                         next_to_visit.add(child);
@@ -796,7 +796,7 @@ public class HeuristicPartitioner extends AbstractPartitioner {
                 }
             } // FOR
             if (partition_edge != null) {
-                ColumnSet cset = (ColumnSet) partition_edge.getAttribute(AccessGraph.EdgeAttributes.COLUMNSET.name());
+                PredicatePairs cset = (PredicatePairs) partition_edge.getAttribute(AccessGraph.EdgeAttributes.COLUMNSET.name());
                 Collection<Column> attributes = cset.findAllForParent(Column.class, parent_table);
                 parent.setAttribute(ptree, PartitionTree.VertexAttributes.ATTRIBUTE.name(), CollectionUtil.first(attributes));
                 parent.setAttribute(ptree, PartitionTree.VertexAttributes.METHOD.name(), PartitionMethodType.HASH);

@@ -14,11 +14,11 @@ import edu.brown.catalog.special.MultiColumn;
 import edu.brown.catalog.special.ReplicatedColumn;
 import edu.brown.catalog.special.VerticalPartitionColumn;
 import edu.brown.designer.AccessGraph;
-import edu.brown.designer.ColumnSet;
 import edu.brown.designer.DesignerEdge;
 import edu.brown.designer.DesignerVertex;
 import edu.brown.designer.AccessGraph.EdgeAttributes;
 import edu.brown.designer.generators.AccessGraphGenerator;
+import edu.brown.utils.PredicatePairs;
 import edu.brown.utils.ProjectType;
 
 public class TestConstraintPropagator extends BasePartitionerTestCase {
@@ -188,7 +188,7 @@ public class TestConstraintPropagator extends BasePartitionerTestCase {
                     if (targets.contains(other_tbl) == false || other_tbl.getPartitioncolumn() == null) continue;
                     
                     // Get the ColumnSet, which should only have one entry
-                    ColumnSet cset = e.getAttribute(EdgeAttributes.COLUMNSET);
+                    PredicatePairs cset = e.getAttribute(EdgeAttributes.COLUMNSET);
                     assertNotNull(cset);
                     assertEquals(cset.toString(), 1, cset.size());
                     CatalogPair entry = cset.get(0);

@@ -35,7 +35,6 @@ import edu.brown.catalog.special.MultiColumn;
 import edu.brown.catalog.special.MultiProcParameter;
 import edu.brown.catalog.special.ReplicatedColumn;
 import edu.brown.designer.AccessGraph;
-import edu.brown.designer.ColumnSet;
 import edu.brown.designer.DependencyGraph;
 import edu.brown.designer.DesignerEdge;
 import edu.brown.designer.DesignerHints;
@@ -52,6 +51,7 @@ import edu.brown.statistics.ObjectHistogram;
 import edu.brown.statistics.TableStatistics;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.MathUtil;
+import edu.brown.utils.PredicatePairs;
 
 public abstract class PartitionerUtil {
     private static final Logger LOG = Logger.getLogger(PartitionerUtil.class);
@@ -433,11 +433,11 @@ public abstract class PartitionerUtil {
                 LOG.warn("No edges were found for " + vertex + " in AccessGraph");
         } else {
             for (DesignerEdge edge : agraph.getIncidentEdges(vertex)) {
-                ColumnSet orig_cset = (ColumnSet) edge.getAttribute(AccessGraph.EdgeAttributes.COLUMNSET.name());
+                PredicatePairs orig_cset = (PredicatePairs) edge.getAttribute(AccessGraph.EdgeAttributes.COLUMNSET.name());
                 assert (orig_cset != null);
 
                 // Skip any ColumnSets that were used only for INSERTs
-                ColumnSet cset = new ColumnSet();
+                PredicatePairs cset = new PredicatePairs();
                 for (CatalogPair entry : orig_cset) {
                     if (!(entry.containsQueryType(QueryType.INSERT) && entry.getQueryTypeCount() == 1)) {
                         cset.add(entry);
@@ -523,7 +523,7 @@ public abstract class PartitionerUtil {
                 }
 
                 double edge_weight = e.getTotalWeight();
-                ColumnSet cset = e.getAttribute(AccessGraph.EdgeAttributes.COLUMNSET.name());
+                PredicatePairs cset = e.getAttribute(AccessGraph.EdgeAttributes.COLUMNSET.name());
                 ObjectHistogram<Column> cset_histogram = cset.buildHistogramForType(Column.class);
                 for (Column catalog_col : cset_histogram.values()) {
                     if (!catalog_col.getParent().equals(catalog_tbl))
