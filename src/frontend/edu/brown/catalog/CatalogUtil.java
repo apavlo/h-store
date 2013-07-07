@@ -171,7 +171,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
          */
         private final Map<Integer, Set<Pair<String, Integer>>> EXECUTION_SITES = new HashMap<Integer, Set<Pair<String, Integer>>>();
 
-        private final Map<Pair<String, Collection<String>>, PredicatePairs> EXTRACTED_COLUMNSETS = new HashMap<Pair<String, Collection<String>>, PredicatePairs>();
+        private final Map<Pair<String, Collection<String>>, PredicatePairs> EXTRACTED_PREDICATES = new HashMap<Pair<String, Collection<String>>, PredicatePairs>();
 
         /**
          * Construct the internal PARTITION_XREF cache map
@@ -1449,11 +1449,9 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
             Set<Column> modified = new TreeSet<Column>(comparator);
             Set<Column> readOnly = new TreeSet<Column>(comparator);
 
-            // 2010-07-14: Always use the AbstractPlanNodes from the
-            // PlanFragments to figure out
-            // what columns the query touches. It's more accurate because we
-            // will pick apart plan nodes
-            // and expression trees to figure things out
+            // 2010-07-14: Always use the AbstractPlanNodes from the PlanFragments 
+            // to figure out what columns the query touches. It's more accurate 
+            // because we will pick apart plan nodes and expression trees to figure things out
             AbstractPlanNode node = null;
             Set<Column> columns = null;
             try {
@@ -1838,10 +1836,10 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @return
      * @throws Exception
      */
-    public static PredicatePairs extractStatementColumnSet(final Statement catalog_stmt, final boolean convert_params) {
+    public static PredicatePairs extractStatementPredicates(final Statement catalog_stmt, final boolean convert_params) {
         Database catalog_db = CatalogUtil.getDatabase(catalog_stmt);
         Table tables[] = catalog_db.getTables().values();
-        return (CatalogUtil.extractStatementColumnSet(catalog_stmt, convert_params, tables));
+        return (CatalogUtil.extractStatementPredicates(catalog_stmt, convert_params, tables));
     }
 
     /**
@@ -1854,7 +1852,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      */
     public static boolean isEqualityIndexScan(Statement catalog_stmt) {
         Collection<Table> tables = getReferencedTables(catalog_stmt);
-        PredicatePairs cset = extractStatementColumnSet(catalog_stmt, false, tables.toArray(new Table[0]));
+        PredicatePairs cset = extractStatementPredicates(catalog_stmt, false, tables.toArray(new Table[0]));
         
         Collection<Index> indexes = getReferencedIndexes(catalog_stmt);
         
@@ -1904,15 +1902,14 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @return
      * @throws Exception
      */
-    public static PredicatePairs extractStatementColumnSet(final Statement catalog_stmt,
-                                                      final boolean convert_params,
-                                                      final Table... catalog_tables) {
+    public static PredicatePairs extractStatementPredicates(final Statement catalog_stmt,
+                                                            final boolean convert_params,
+                                                            final Table... catalog_tables) {
         final Database catalog_db = (Database) catalog_stmt.getParent().getParent();
         final Set<Table> tables = new HashSet<Table>();
         final Collection<String> table_keys = new HashSet<String>();
         for (Table table : catalog_tables) {
-            // For some reason we get a null table when we use itemsArray up
-            // above
+            // For some reason we get a null table when we use itemsArray up above
             if (table == null)
                 continue;
             assert (table != null) : "Null table object? " + Arrays.toString(catalog_tables);
@@ -1922,7 +1919,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
 
         final CatalogUtil.Cache cache = CatalogUtil.getCatalogCache(catalog_stmt);
         Pair<String, Collection<String>> key = Pair.of(CatalogKey.createKey(catalog_stmt), table_keys);
-        PredicatePairs cset = cache.EXTRACTED_COLUMNSETS.get(key);
+        PredicatePairs cset = cache.EXTRACTED_PREDICATES.get(key);
         if (cset == null) {
             cset = new PredicatePairs();
             AbstractPlanNode root_node = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, true);
@@ -1931,7 +1928,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
                 // WHERE Clause
                 if (catalog_stmt.getExptree() != null && !catalog_stmt.getExptree().isEmpty()) {
                     AbstractExpression root_exp = ExpressionUtil.deserializeExpression(catalog_db, catalog_stmt.getExptree());
-                    CatalogUtil.extractExpressionColumnSet(catalog_stmt,
+                    CatalogUtil.extractExpressionPredicates(catalog_stmt,
                                                            catalog_db,
                                                            cset,
                                                            root_exp,
@@ -1940,7 +1937,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
                 }
                 // INSERT
                 if (catalog_stmt.getQuerytype() == QueryType.INSERT.getValue()) {
-                    CatalogUtil.extractInsertColumnSet(catalog_stmt,
+                    CatalogUtil.extractInsertPredicates(catalog_stmt,
                                                        cset,
                                                        root_node,
                                                        convert_params,
@@ -1948,7 +1945,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
                     // UPDATE
                     // XXX: Should we be doing this?
                 } else if (catalog_stmt.getQuerytype() == QueryType.UPDATE.getValue()) {
-                    CatalogUtil.extractUpdateColumnSet(catalog_stmt,
+                    CatalogUtil.extractUpdatePredicates(catalog_stmt,
                                                        catalog_db,
                                                        cset,
                                                        root_node,
@@ -1959,7 +1956,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
                 throw new RuntimeException("Failed to extract ColumnSet for " + catalog_stmt, ex);
             }
 
-            cache.EXTRACTED_COLUMNSETS.put(key, cset);
+            cache.EXTRACTED_PREDICATES.put(key, cset);
         }
         return (cset);
     }
@@ -1987,12 +1984,12 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
 
         final CatalogUtil.Cache cache = CatalogUtil.getCatalogCache(catalog_stmt);
         Pair<String, Collection<String>> key = Pair.of(CatalogKey.createKey(catalog_stmt), table_keys);
-        PredicatePairs cset = cache.EXTRACTED_COLUMNSETS.get(key);
+        PredicatePairs cset = cache.EXTRACTED_PREDICATES.get(key);
         if (cset == null) {
             cset = new PredicatePairs();
             AbstractPlanNode root_node = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, true);
-            CatalogUtil.extractUpdateColumnSet(catalog_stmt, catalog_db, cset, root_node, convert_params, tables);
-            cache.EXTRACTED_COLUMNSETS.put(key, cset);
+            CatalogUtil.extractUpdatePredicates(catalog_stmt, catalog_db, cset, root_node, convert_params, tables);
+            cache.EXTRACTED_PREDICATES.put(key, cset);
         }
         return (cset);
     }
@@ -2003,7 +2000,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @param root_exp
      * @param catalog_tables
      */
-    public static PredicatePairs extractFragmentColumnSet(final PlanFragment catalog_frag,
+    public static PredicatePairs extractFragmentPredicates(final PlanFragment catalog_frag,
                                                      final boolean convert_params,
                                                      final Collection<Table> catalog_tables) throws Exception {
         final Statement catalog_stmt = (Statement) catalog_frag.getParent();
@@ -2020,14 +2017,14 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
             LOG.debug("Extracting column set for fragment #" + catalog_frag.getName() + ": " + catalog_tables);
         final CatalogUtil.Cache cache = CatalogUtil.getCatalogCache(catalog_stmt);
         Pair<String, Collection<String>> key = Pair.of(CatalogKey.createKey(catalog_frag), table_keys);
-        PredicatePairs cset = cache.EXTRACTED_COLUMNSETS.get(key);
+        PredicatePairs cset = cache.EXTRACTED_PREDICATES.get(key);
         if (cset == null) {
             AbstractPlanNode root_node = PlanNodeUtil.getPlanNodeTreeForPlanFragment(catalog_frag);
             // LOG.debug("PlanFragment Node:\n" +
             // PlanNodeUtil.debug(root_node));
             cset = new PredicatePairs();
-            CatalogUtil.extractPlanNodeColumnSet(catalog_stmt, catalog_db, cset, root_node, convert_params, catalog_tables);
-            cache.EXTRACTED_COLUMNSETS.put(key, cset);
+            CatalogUtil.extractPlanNodePredicates(catalog_stmt, catalog_db, cset, root_node, convert_params, catalog_tables);
+            cache.EXTRACTED_PREDICATES.put(key, cset);
         }
 
         return (cset);
@@ -2041,11 +2038,11 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @param tables
      * @throws Exception
      */
-    public static void extractInsertColumnSet(final Statement catalog_stmt,
-                                              final PredicatePairs cset,
-                                              final AbstractPlanNode root_node,
-                                              final boolean convert_params,
-                                              final Table... catalog_tables) throws Exception {
+    public static void extractInsertPredicates(final Statement catalog_stmt,
+                                               final PredicatePairs cset,
+                                               final AbstractPlanNode root_node,
+                                               final boolean convert_params,
+                                               final Table... catalog_tables) throws Exception {
         assert (catalog_stmt.getQuerytype() == QueryType.INSERT.getValue());
         final Database catalog_db = CatalogUtil.getDatabase(catalog_stmt);
         final List<List<CatalogType>> materialize_elements = new ArrayList<List<CatalogType>>();
@@ -2155,12 +2152,12 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @param tables
      * @throws Exception
      */
-    public static void extractPlanNodeColumnSet(final Statement catalog_stmt,
-                                                final Database catalog_db,
-                                                final PredicatePairs cset,
-                                                final AbstractPlanNode root_node,
-                                                final boolean convert_params,
-                                                final Collection<Table> tables) throws Exception {
+    public static void extractPlanNodePredicates(final Statement catalog_stmt,
+                                                 final Database catalog_db,
+                                                 final PredicatePairs cset,
+                                                 final AbstractPlanNode root_node,
+                                                 final boolean convert_params,
+                                                 final Collection<Table> tables) throws Exception {
         // Walk through the tree and figure out how the tables are being
         // referenced
         new PlanNodeTreeWalker() {
@@ -2287,7 +2284,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
                 for (AbstractExpression exp : exps) {
                     if (exp == null)
                         continue;
-                    CatalogUtil.extractExpressionColumnSet(catalog_stmt, catalog_db, cset, exp, convert_params, tables);
+                    CatalogUtil.extractExpressionPredicates(catalog_stmt, catalog_db, cset, exp, convert_params, tables);
                 } // FOR
                 return;
             }
@@ -2303,12 +2300,12 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @param tables
      * @throws Exception
      */
-    public static void extractExpressionColumnSet(final Statement catalog_stmt,
-                                                  final Database catalog_db,
-                                                  final PredicatePairs cset,
-                                                  final AbstractExpression root_exp,
-                                                  final boolean convert_params,
-                                                  final Collection<Table> tables) throws Exception {
+    public static void extractExpressionPredicates(final Statement catalog_stmt,
+                                                   final Database catalog_db,
+                                                   final PredicatePairs cset,
+                                                   final AbstractExpression root_exp,
+                                                   final boolean convert_params,
+                                                   final Collection<Table> tables) throws Exception {
         if (debug.val)
             LOG.debug(catalog_stmt + "\n" + ExpressionUtil.debug(root_exp));
 
@@ -2494,8 +2491,12 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @param tables
      * @throws Exception
      */
-    public static void extractUpdateColumnSet(final Statement catalog_stmt, final Database catalog_db, final PredicatePairs cset, final AbstractPlanNode root_node, final boolean convert_params,
-            final Collection<Table> tables) throws Exception {
+    public static void extractUpdatePredicates(final Statement catalog_stmt,
+                                               final Database catalog_db,
+                                               final PredicatePairs cset,
+                                               final AbstractPlanNode root_node,
+                                               final boolean convert_params,
+                                               final Collection<Table> tables) throws Exception {
         // Grab the columns that the plannode is going to update from the
         // children feeding into us.
         Collection<UpdatePlanNode> update_nodes = PlanNodeUtil.getPlanNodes(root_node, UpdatePlanNode.class);
@@ -2542,7 +2543,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
                         assert (catalog_col != null) : "Missing column '" + catalog_tbl.getName() + "." + column_name + "'";
                         AbstractExpression root_exp = CatalogUtil.createTempExpression(catalog_col, exp);
                         // System.out.println(ExpressionUtil.debug(root_exp));
-                        CatalogUtil.extractExpressionColumnSet(catalog_stmt, catalog_db, cset, root_exp, convert_params, tables);
+                        CatalogUtil.extractExpressionPredicates(catalog_stmt, catalog_db, cset, root_exp, convert_params, tables);
                     }
                 } // FOR
             }

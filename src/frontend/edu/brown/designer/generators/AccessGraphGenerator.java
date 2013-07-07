@@ -333,7 +333,7 @@ public class AccessGraphGenerator extends AbstractGenerator<AccessGraph> {
             // --------------------------------------------------------------
             for (int ctr2 = ctr + 1; ctr2 < cnt; ctr2++) {
                 Table table1 = tables.get(ctr2);
-                PredicatePairs cset = CatalogUtil.extractStatementColumnSet(catalog_stmt, true, table0, table1);
+                PredicatePairs cset = CatalogUtil.extractStatementPredicates(catalog_stmt, true, table0, table1);
                 if (debug_table)
                     LOG.trace("Creating join edge between " + table0 + "<->" + table1 + " for " + catalog_stmt);
                 this.addEdge(agraph, AccessType.SQL_JOIN, cset, agraph.getVertex(table0), agraph.getVertex(table1), catalog_stmt);
@@ -346,7 +346,7 @@ public class AccessGraphGenerator extends AbstractGenerator<AccessGraph> {
             // --------------------------------------------------------------
             if (debug_table)
                 LOG.trace("Looking for scan ColumnSet on table '" + table0.getName() + "'");
-            PredicatePairs cset = CatalogUtil.extractStatementColumnSet(catalog_stmt, true, table0);
+            PredicatePairs cset = CatalogUtil.extractStatementPredicates(catalog_stmt, true, table0);
             if (!cset.isEmpty()) {
                 if (debug_table)
                     LOG.trace("Creating scan edge to " + table0 + " for " + catalog_stmt);

@@ -24,12 +24,10 @@ import edu.brown.catalog.special.MultiColumn;
 import edu.brown.catalog.special.MultiProcParameter;
 import edu.brown.hashing.*;
 import edu.brown.hstore.HStoreConstants;
-import edu.brown.plannodes.PlanNodeUtil;
 
 /**
- * 
+ * Simple PartitionEstimator Tests
  * @author pavlo
- *
  */
 public class TestPartitionEstimator extends BaseTestCase {
 
@@ -42,15 +40,18 @@ public class TestPartitionEstimator extends BaseTestCase {
     private final TPCCProjectBuilder builder = new TPCCProjectBuilder() {
         {
             addAllDefaults();
-            addStmtProcedure("TestSinglePartitionOR",
+            addStmtProcedure("SinglePartitionOR",
                              "SELECT * FROM " + TPCCConstants.TABLENAME_DISTRICT +
                              " WHERE D_W_ID = ? AND (D_STREET_1 = ? OR D_STREET_2 = ?)");
-            addStmtProcedure("TestMultiPartitionOR",
+            addStmtProcedure("MultiPartitionOR",
                              "SELECT * FROM " + TPCCConstants.TABLENAME_DISTRICT +
                              " WHERE D_W_ID = ? OR D_W_ID = ?");
-            addStmtProcedure("TestConstantOR",
+            addStmtProcedure("ConstantOR",
                              "SELECT * FROM " + TPCCConstants.TABLENAME_DISTRICT +
                              " WHERE D_W_ID = " + BASE_PARTITION + " OR D_W_ID = ?");
+            addStmtProcedure("ConstantRange",
+                             "SELECT * FROM " + TPCCConstants.TABLENAME_DISTRICT +
+                             " WHERE D_W_ID > " + BASE_PARTITION);
         }
     };
     
@@ -74,7 +75,7 @@ public class TestPartitionEstimator extends BaseTestCase {
     public void testSinglePartitionOR() throws Exception {
         // Check that if we have a query that does a look up on a partitioning column
         // but has an OR in it, it's still a single-partition query.
-        Procedure catalog_proc = this.getProcedure("TestSinglePartitionOR");
+        Procedure catalog_proc = this.getProcedure("SinglePartitionOR");
         Statement catalog_stmt = CollectionUtil.first(catalog_proc.getStatements());
         assertNotNull(catalog_stmt);
         
@@ -92,7 +93,7 @@ public class TestPartitionEstimator extends BaseTestCase {
         // Check that if we have a query that does a look up on a partitioning column
         // but has an OR in it, then it has to be sent to exactly the number of partitions
         // that we expected
-        Procedure catalog_proc = this.getProcedure("TestMultiPartitionOR");
+        Procedure catalog_proc = this.getProcedure("MultiPartitionOR");
         Statement catalog_stmt = CollectionUtil.first(catalog_proc.getStatements());
         assertNotNull(catalog_stmt);
         
@@ -108,7 +109,7 @@ public class TestPartitionEstimator extends BaseTestCase {
         // Check that if we have a query that does a look up on a partitioning column
         // using a constant but then it has an OR in it, then it has to be sent to 
         // exactly the number of partitions that we expected
-        Procedure catalog_proc = this.getProcedure("TestConstantOR");
+        Procedure catalog_proc = this.getProcedure("ConstantOR");
         Statement catalog_stmt = CollectionUtil.first(catalog_proc.getStatements());
         assertNotNull(catalog_stmt);
         
@@ -123,6 +124,22 @@ public class TestPartitionEstimator extends BaseTestCase {
         params = new Object[] { BASE_PARTITION+1 };
         p_estimator.getAllPartitions(partitions, catalog_stmt, params, BASE_PARTITION);
         assertEquals(2, partitions.size());
+    }
+    
+    /**
+     * testConstantRange
+     */
+    public void testConstantRange() throws Exception {
+        // Check that if we have a query that does a look up on a partitioning column
+        // using a constant value with a range expression, the it should be sent
+        // to all partitions in the cluster
+        Procedure catalog_proc = this.getProcedure("ConstantRange");
+        Statement catalog_stmt = CollectionUtil.first(catalog_proc.getStatements());
+        assertNotNull(catalog_stmt);
+        
+        Object params[] = new Object[] { };
+        p_estimator.getAllPartitions(partitions, catalog_stmt, params, BASE_PARTITION);
+        assertEquals(catalogContext.getAllPartitionIds(), partitions);
     }
     
     /**
