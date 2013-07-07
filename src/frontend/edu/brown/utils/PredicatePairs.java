@@ -46,6 +46,7 @@ import org.voltdb.utils.Pair;
 import edu.brown.catalog.CatalogPair;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.statistics.Histogram;
 import edu.brown.statistics.ObjectHistogram;
 
 public class PredicatePairs extends ListOrderedSet<CatalogPair> {
@@ -302,8 +303,8 @@ public class PredicatePairs extends ListOrderedSet<CatalogPair> {
     }
 
     @SuppressWarnings("unchecked")
-    public <T extends CatalogType> ObjectHistogram<T> buildHistogramForType(Class<T> search_key) {
-        ObjectHistogram<T> h = new ObjectHistogram<T>();
+    public <T extends CatalogType> Histogram<T> buildHistogramForType(Class<T> search_key) {
+        Histogram<T> h = new ObjectHistogram<T>();
         for (CatalogPair e : this) {
             if (ClassUtil.getSuperClasses(e.getFirst().getClass()).contains(search_key)) {
                 h.put((T) e.getFirst());
@@ -329,7 +330,7 @@ public class PredicatePairs extends ListOrderedSet<CatalogPair> {
     }
 
     public String debug() {
-        String ret = "ColumnSet: {\n";
+        String ret = this.getClass().getSimpleName()+": {\n";
         for (CatalogPair pair : this) {
             ret += StringUtil.SPACER + pair.toString() + "\n";
         } // FOR

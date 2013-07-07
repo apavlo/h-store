@@ -30,6 +30,7 @@ import edu.brown.designer.partitioners.plan.TableEntry;
 import edu.brown.gui.common.GraphVisualizationPanel;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.statistics.Histogram;
 import edu.brown.statistics.ObjectHistogram;
 import edu.brown.statistics.TableStatistics;
 import edu.brown.utils.CollectionUtil;
@@ -155,7 +156,7 @@ public class MostPopularPartitioner extends AbstractPartitioner {
                     if (trace.val)
                         LOG.trace("Examining ColumnSet for " + e.toString(true));
 
-                    ObjectHistogram<Column> cset_histogram = cset.buildHistogramForType(Column.class);
+                    Histogram<Column> cset_histogram = cset.buildHistogramForType(Column.class);
                     Collection<Column> columns = cset_histogram.values();
                     if (trace.val)
                         LOG.trace("Constructed Histogram for " + catalog_tbl + " from ColumnSet:\n"
