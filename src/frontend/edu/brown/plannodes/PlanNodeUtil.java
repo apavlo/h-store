@@ -55,12 +55,12 @@ import org.voltdb.utils.Encoder;
 
 import edu.brown.catalog.CatalogKey;
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.designer.ColumnSet;
 import edu.brown.expressions.ExpressionUtil;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.PredicatePairs;
 
 /**
  * Utility methods for extracting information from AbstractPlanNode trees/nodes
@@ -825,7 +825,7 @@ public abstract class PlanNodeUtil {
 
         if (col_key == null) {
             Statement catalog_stmt = catalog_stmt_param.getParent();
-            ColumnSet cset = null;
+            PredicatePairs cset = null;
             try {
                 cset = CatalogUtil.extractStatementColumnSet(catalog_stmt, false);
             } catch (Throwable ex) {

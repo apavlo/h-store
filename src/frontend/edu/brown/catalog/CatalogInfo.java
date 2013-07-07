@@ -18,7 +18,6 @@ import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Table;
 
 import edu.brown.designer.AccessGraph;
-import edu.brown.designer.ColumnSet;
 import edu.brown.designer.DesignerEdge;
 import edu.brown.designer.DesignerInfo;
 import edu.brown.designer.DesignerVertex;
@@ -26,6 +25,7 @@ import edu.brown.designer.generators.AccessGraphGenerator;
 import edu.brown.hstore.HStoreThreadManager;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.MathUtil;
+import edu.brown.utils.PredicatePairs;
 import edu.brown.utils.StringUtil;
 import edu.brown.workload.Workload;
 
@@ -57,7 +57,7 @@ public class CatalogInfo {
             if (edges == null)
                 continue;
             for (DesignerEdge e : edges) {
-                ColumnSet cset = e.getAttribute(agraph, AccessGraph.EdgeAttributes.COLUMNSET);
+                PredicatePairs cset = e.getAttribute(agraph, AccessGraph.EdgeAttributes.COLUMNSET);
                 assert (cset != null) : e.debug();
                 Collection<Column> cols = cset.findAllForParent(Column.class, catalog_tbl);
                 assert (cols != null) : catalog_tbl + "\n" + cset.debug();
