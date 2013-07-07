@@ -252,7 +252,7 @@ public class PartitionEstimator {
             sb.append("[IsValid=" + this.is_valid + ", ")
               .append("Tables=" + this.table_keys + ", ")
               .append("Broadcast=" + this.broadcast_tables + ", ")
-              .append("ParameterMappings=" + super.toString() + "]");
+              .append("Predicates=" + this.predicates + "]");
             return (sb.toString());
         }
     }; // END CLASS
@@ -486,7 +486,7 @@ public class PartitionEstimator {
                 // tables_arr = frag_tables.toArray(tables_arr);
                 // assert (tables_arr.length == frag_tables.size());
                 if (trace.val)
-                    LOG.trace("Analyzing fragment #" + catalog_frag);
+                    LOG.trace("Analyzing " + catalog_frag.fullName());
 
                 // Check whether the predicate expression in this PlanFragment contains an OR
                 // We need to know this if we get hit with Multi-Column Partitioning
@@ -505,7 +505,7 @@ public class PartitionEstimator {
                 // on a persistent table in the database. We'll add an entry in the cache using our
                 // special "no tables" flag. This means that the fragment needs to be executed locally.
                 if (frag_tables.isEmpty()) {
-                    String msg = catalog_frag + " in " + catalog_stmt.fullName() + " does not reference any tables";
+                    String msg = catalog_frag.fullName() + " does not reference any tables";
                     if (!catalog_frag.getNontransactional()) {
                         LOG.warn(catalog_stmt.fullName() + "\n" + PlanNodeUtil.debug(PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, false)));
                         for (PlanFragment f : fragments) {
@@ -516,7 +516,7 @@ public class PartitionEstimator {
                     if (trace.val)
                         LOG.trace(msg);
                 }
-                if (trace.val)
+                if (trace.val && frag_tables.isEmpty() == false )
                     LOG.trace("Fragment Tables: " + frag_tables);
 
                 // We only need to find where the partition column is referenced
@@ -527,7 +527,7 @@ public class PartitionEstimator {
                 assert (predicates != null);
                 Map<Column, Set<Column>> column_joins = new TreeMap<Column, Set<Column>>();
                 if (trace.val)
-                    LOG.trace("Extracted Column Set for " + frag_tables + ":\n" + predicates.debug());
+                    LOG.trace("Extracted PredicatePairs for " + frag_tables + ":\n" + predicates.debug());
 
                 // -------------------------------
                 // If there are no columns, then this fragment is doing a full table scan
@@ -546,7 +546,8 @@ public class PartitionEstimator {
                     // Columns to StmtParameters to our stmt_cache
                     for (CatalogPair pair : predicates) {
                         if (trace.val)
-                            LOG.trace("Examining extracted ColumnSetEntry: " + pair);
+                            LOG.trace(String.format("Examining extracted %s: %s",
+                                      pair.getClass().getSimpleName(), pair));
 
                         // Column = Column
                         if (pair.getFirst() instanceof Column && pair.getSecond() instanceof Column) {

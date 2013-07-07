@@ -523,8 +523,8 @@ public abstract class PartitionerUtil {
                 }
 
                 double edge_weight = e.getTotalWeight();
-                PredicatePairs cset = e.getAttribute(AccessGraph.EdgeAttributes.COLUMNSET.name());
-                ObjectHistogram<Column> cset_histogram = cset.buildHistogramForType(Column.class);
+                PredicatePairs predicates = e.getAttribute(AccessGraph.EdgeAttributes.COLUMNSET.name());
+                Histogram<Column> cset_histogram = predicates.buildHistogramForType(Column.class);
                 for (Column catalog_col : cset_histogram.values()) {
                     if (!catalog_col.getParent().equals(catalog_tbl))
                         continue;
