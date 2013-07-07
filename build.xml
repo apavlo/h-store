@@ -1041,7 +1041,6 @@ TEST CASES
                 <!-- VoltDB Regression Suite -->
                 <exclude name="**/TestCatalogUpdateSuite.class" />
                 <exclude name="**/TestFailureDetectSuite.class" />
-                <exclude name="**/TestReplicationSuite.class" />
                 <exclude name="**/TestSneakyExecutionOrderSuite.class" />
                 <exclude name="**/TestMaliciousClientSuite.class" />
                 <exclude name="**/TestSaveRestoreSysprocSuite.class" />
@@ -1124,7 +1123,6 @@ TEST CASES
                 <!-- VoltDB Regression Suite -->
                 <exclude name="**/TestCatalogUpdateSuite.class" />
                 <exclude name="**/TestFailureDetectSuite.class" />
-                <exclude name="**/TestReplicationSuite.class" />
                 <exclude name="**/TestSneakyExecutionOrderSuite.class" />
                 <exclude name="**/TestMaliciousClientSuite.class" />
                 <exclude name="**/TestSaveRestoreSysprocSuite.class" />
@@ -1202,7 +1200,6 @@ TEST CASES
                     <exclude name="**/*$*.class"/>
                     <exclude name="**/TestCatalogUpdateSuite.class" />
                     <exclude name="**/TestFailureDetectSuite.class" />
-                    <exclude name="**/TestReplicationSuite.class" />
                     <exclude name="**/TestSneakyExecutionOrderSuite.class" />
                     <exclude name="**/TestMaliciousClientSuite.class" />
                     <exclude name="**/TestSaveRestoreSysprocSuite.class" />
