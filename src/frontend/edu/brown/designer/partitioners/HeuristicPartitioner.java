@@ -635,7 +635,7 @@ public class HeuristicPartitioner extends AbstractPartitioner {
             // attribute
             //
             if (is_root) {
-                PartitionSets attributes = new PartitionSets((Table) parent.getCatalogItem());
+                TablePartitionSets attributes = new TablePartitionSets((Table) parent.getCatalogItem());
                 boolean debug = parent.getCatalogItem().getName().equals("STOCK");
                 for (DesignerVertex child : next) {
                     //
@@ -671,12 +671,12 @@ public class HeuristicPartitioner extends AbstractPartitioner {
                 // Now get the list of AttributeSets that have the highest
                 // weights
                 //
-                Set<PartitionSets.Entry> asets = attributes.getMaxWeightAttributes();
+                Set<TablePartitionSets.Entry> asets = attributes.getMaxWeightAttributes();
                 if (debug) {
                     System.out.println(asets);
                 }
 
-                PartitionSets.Entry aset = null;
+                TablePartitionSets.Entry aset = null;
                 if (asets.isEmpty()) {
                     LOG.debug("Skipping vertex " + parent + " because no attributes to its children were found");
                     return; // throw new
@@ -687,9 +687,9 @@ public class HeuristicPartitioner extends AbstractPartitioner {
                     // XXX: Pick the attribute with the longest path to a root
                     // in the dependency graph
                     //
-                    PartitionSets.Entry best_entry = null;
+                    TablePartitionSets.Entry best_entry = null;
                     int best_length = Integer.MIN_VALUE;
-                    for (PartitionSets.Entry entry : asets) {
+                    for (TablePartitionSets.Entry entry : asets) {
                         for (Column catalog_col : entry) {
                             List<Column> ancestors = info.dependencies.getAncestors(catalog_col);
                             int length = ancestors.size();
