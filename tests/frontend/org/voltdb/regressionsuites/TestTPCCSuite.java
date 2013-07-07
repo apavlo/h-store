@@ -30,6 +30,7 @@ import java.util.regex.Pattern;
 import junit.framework.Test;
 
 import org.voltdb.BackendTarget;
+import org.voltdb.CatalogContext;
 import org.voltdb.TPCDataPrinter;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltTableRow;
@@ -38,14 +39,12 @@ import org.voltdb.benchmark.tpcc.TPCCProjectBuilder;
 import org.voltdb.benchmark.tpcc.procedures.ByteBuilder;
 import org.voltdb.benchmark.tpcc.procedures.GetTableCounts;
 import org.voltdb.benchmark.tpcc.procedures.slev;
-import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Table;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.ProcCallException;
 import org.voltdb.types.TimestampType;
 
-import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.Hstoreservice.Status;
 
 /**
@@ -96,7 +95,7 @@ public class TestTPCCSuite extends RegressionSuite {
             assertEquals(1L, results[0].asScalarLong());
 
             results = client.callProcedure("InsertItem", 5L, 21L, "An Item", 7.33, "Some Data").getResults();
-            assertEquals(m_config.getPartitionCount(), results[0].asScalarLong());
+            assertEquals(1L, results[0].asScalarLong());
 
             results = client.callProcedure("InsertCustomer", 2L, 7L, 8L, "I", "Is", "Name", "Place", "Place2", "BiggerPlace", "AL", "91083", "(913) 909 - 0928", new TimestampType(), "GC", 19298943.12, .13, 15.75, 18832.45, 45L, 15L, "Some History").getResults();
             assertEquals(1L, results[0].asScalarLong());
@@ -150,9 +149,8 @@ public class TestTPCCSuite extends RegressionSuite {
         VoltTable result = results[0];
         assertNotNull(result);
         long stockCount = result.asScalarLong();
-        // check count was 0 (should be, for we have empty stock and order-line
-        // tables.
-        // FIXME assertEquals(0L, stockCount);
+        // check count was 0 (should be, for we have empty stock and order-line tables.
+        assertEquals(0L, stockCount);
 
         // Now we repeat the same thing, but adding a valid order-line.
         // long ol_o_id, long ol_d_id, long ol_w_id, long ol_number, long
@@ -178,7 +176,7 @@ public class TestTPCCSuite extends RegressionSuite {
                 assertNotNull(result);
                 stockCount = result.asScalarLong();
                 // check count was 0 (should be, for we have an empty stock table.
-                // FIXME assertEquals(0L, stockCount);
+                assertEquals(0L, stockCount);
             //
             // Otherwise it's the "hand-crafted" SLEV, which should return an error
             //
@@ -207,7 +205,7 @@ public class TestTPCCSuite extends RegressionSuite {
         assertNotNull(result);
         stockCount = result.asScalarLong();
         // check count is 1
-        // FIXME assertEquals(1L, stockCount);
+        assertEquals(1L, stockCount);
 
         // On more test: this test that Distinct is working properly.
         VoltTable[] ol2results = client.callProcedure("InsertOrderLine", 5L, 7L,
@@ -318,11 +316,9 @@ public class TestTPCCSuite extends RegressionSuite {
         assertEquals(1L, stock1.asScalarLong());
         assertEquals(1L, stock2.asScalarLong());
         assertEquals(1L, stock3.asScalarLong());
-//        assertEquals(1L, item1.asScalarLong());
-//        assertEquals(1L, item2.asScalarLong());
-        assertEquals(m_config.getPartitionCount(), item1.asScalarLong());
-        assertEquals(m_config.getPartitionCount(), item2.asScalarLong());
-        assertEquals(m_config.getPartitionCount(), item3.asScalarLong());
+        assertEquals(1L, item1.asScalarLong());
+        assertEquals(1L, item2.asScalarLong());
+        assertEquals(1L, item3.asScalarLong());
 
         // call the neworder transaction:
         // if(ol_supply_w_id != w_id) all_local = 0;
@@ -782,17 +778,17 @@ public class TestTPCCSuite extends RegressionSuite {
     public void testTABLECOUNTS() throws IOException, ProcCallException {
         Client client = getClient();
         ClientResponse cr = null;
-        Database catalog_db = CatalogUtil.getDatabase(this.getCatalog());
+        CatalogContext catalogContext = this.getCatalogContext();
         
-        Random rand = new Random();
+        Random rand = this.getRandom();
         int num_tuples = 11;
-        for (Table catalog_tbl : catalog_db.getTables()) {
+        for (Table catalog_tbl : catalogContext.database.getTables()) {
             RegressionSuiteUtil.loadRandomData(client, catalog_tbl, rand, num_tuples);
         } // FOR (table)
         
         // Now get the counts for the tables that we just loaded
         cr = client.callProcedure(GetTableCounts.class.getSimpleName());
-        System.err.println(cr);
+        // System.err.println(cr);
         assertEquals(Status.OK, cr.getStatus());
         assertEquals(1, cr.getResults().length);
         VoltTable vt = cr.getResults()[0];

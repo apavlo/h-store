@@ -167,16 +167,20 @@ public class AdHoc extends VoltSystemProcedure {
         // rather icky hack to handle how the number of modified tuples will always be
         // inflated when changing replicated tables - the user really doesn't want to know
         // the big number, just the small one
-        if (replicatedTableDML) {
-            assert(results.length == 1);
-            long changedTuples = results[0].asScalarLong();
-            int num_partitions = catalogContext.numberOfPartitions;
-            assert((changedTuples % num_partitions) == 0);
-
-            VoltTable retval = new VoltTable(new VoltTable.ColumnInfo("", VoltType.BIGINT));
-            retval.addRow(changedTuples / num_partitions);
-            results[0] = retval;
-        }
+        // PAVLO: 2013-07-07
+        // This hack is no longer needed because we will aggregate the # of modified
+        // tuples in the EE correctly.
+//        if (replicatedTableDML) {
+//            assert(results.length == 1);
+//            long changedTuples = results[0].asScalarLong();
+//            // int num_partitions = catalogContext.numberOfPartitions;
+//            // assert((changedTuples % num_partitions) == 0);
+//
+//            VoltTable retval = new VoltTable(new VoltTable.ColumnInfo("", VoltType.BIGINT));
+////            retval.addRow(changedTuples / num_partitions);
+//            retval.addRow(changedTuples);
+//            results[0] = retval;
+//        }
 
         return results;
     }
