@@ -1,4 +1,31 @@
-package edu.brown.designer;
+/***************************************************************************
+ *  Copyright (C) 2013 by H-Store Project                                  *
+ *  Brown University                                                       *
+ *  Massachusetts Institute of Technology                                  *
+ *  Yale University                                                        *
+ *                                                                         *
+ *  http://hstore.cs.brown.edu/                                            *
+ *                                                                         *
+ *  Permission is hereby granted, free of charge, to any person obtaining  *
+ *  a copy of this software and associated documentation files (the        *
+ *  "Software"), to deal in the Software without restriction, including    *
+ *  without limitation the rights to use, copy, modify, merge, publish,    *
+ *  distribute, sublicense, and/or sell copies of the Software, and to     *
+ *  permit persons to whom the Software is furnished to do so, subject to  *
+ *  the following conditions:                                              *
+ *                                                                         *
+ *  The above copyright notice and this permission notice shall be         *
+ *  included in all copies or substantial portions of the Software.        *
+ *                                                                         *
+ *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        *
+ *  EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     *
+ *  MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. *
+ *  IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR      *
+ *  OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,  *
+ *  ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR  *
+ *  OTHER DEALINGS IN THE SOFTWARE.                                        *
+ ***************************************************************************/
+package edu.brown.utils;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -17,26 +44,30 @@ import org.voltdb.types.QueryType;
 import org.voltdb.utils.Pair;
 
 import edu.brown.catalog.CatalogPair;
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.statistics.Histogram;
 import edu.brown.statistics.ObjectHistogram;
-import edu.brown.utils.ClassUtil;
-import edu.brown.utils.StringUtil;
 
-public class ColumnSet extends ListOrderedSet<CatalogPair> {
+public class PredicatePairs extends ListOrderedSet<CatalogPair> {
     private static final long serialVersionUID = -7735075759916955292L;
-    private static final Logger LOG = Logger.getLogger(ColumnSet.class);
-    private static final boolean d = LOG.isDebugEnabled();
-    private static final boolean t = LOG.isTraceEnabled();
+    private static final Logger LOG = Logger.getLogger(PredicatePairs.class);
+    private static final LoggerBoolean debug = new LoggerBoolean();
+    private static final LoggerBoolean trace = new LoggerBoolean();
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
 
     private final Set<Statement> catalog_stmts = new HashSet<Statement>();
 
     /**
      * 
      */
-    public ColumnSet() {
+    public PredicatePairs() {
         super();
     }
 
-    public ColumnSet(Collection<Statement> catalog_stmts) {
+    public PredicatePairs(Collection<Statement> catalog_stmts) {
         this();
         this.catalog_stmts.addAll(catalog_stmts);
     }
@@ -108,8 +139,8 @@ public class ColumnSet extends ListOrderedSet<CatalogPair> {
      * @param search_key
      * @return
      */
-    public ColumnSet createColumnSetForParent(Class<? extends CatalogType> match_class, CatalogType parent_search_key) {
-        ColumnSet ret = new ColumnSet(this.catalog_stmts);
+    public PredicatePairs createPredicatePairsForParent(Class<? extends CatalogType> match_class, CatalogType parent_search_key) {
+        PredicatePairs ret = new PredicatePairs(this.catalog_stmts);
         // We're looking for Pairs where one of the elements matches the search_key,
         // and the other element is of the same type of match_class
         for (CatalogPair e : this) {
@@ -188,7 +219,7 @@ public class ColumnSet extends ListOrderedSet<CatalogPair> {
      */
     @SuppressWarnings("unchecked")
     private <T extends CatalogType> Collection<T> find(Class<T> match_class, CatalogType search_key, boolean use_parent, boolean use_other) {
-        if (d)
+        if (debug.val)
             LOG.debug(String.format("find(match_class=%s, search_key=%s, use_parent=%s, use_other=%s)", match_class.getSimpleName(), search_key.fullName(), use_parent, use_other));
         assert (search_key != null) : "Invalid search key";
 
@@ -201,7 +232,7 @@ public class ColumnSet extends ListOrderedSet<CatalogPair> {
         // search_key, and
         // the other element is of the same type of match_class
         for (Pair<CatalogType, CatalogType> pair : this) {
-            if (t)
+            if (trace.val)
                 LOG.trace(pair);
             int ctr = 0;
             for (int idxs[] : lookup_idxs) {
@@ -212,7 +243,7 @@ public class ColumnSet extends ListOrderedSet<CatalogPair> {
                 if (use_parent)
                     cur_value = cur_value.getParent();
 
-                if (t) {
+                if (trace.val) {
                     LOG.trace("[" + ctr + "] cur: " + cur);
                     LOG.trace("[" + ctr + "] class: " + cur_class.equals(match_class) + " " + cur_class);
                     LOG.trace("[" + (ctr++) + "] cur_value: " + cur_value);
@@ -272,8 +303,8 @@ public class ColumnSet extends ListOrderedSet<CatalogPair> {
     }
 
     @SuppressWarnings("unchecked")
-    public <T extends CatalogType> ObjectHistogram<T> buildHistogramForType(Class<T> search_key) {
-        ObjectHistogram<T> h = new ObjectHistogram<T>();
+    public <T extends CatalogType> Histogram<T> buildHistogramForType(Class<T> search_key) {
+        Histogram<T> h = new ObjectHistogram<T>();
         for (CatalogPair e : this) {
             if (ClassUtil.getSuperClasses(e.getFirst().getClass()).contains(search_key)) {
                 h.put((T) e.getFirst());
@@ -289,17 +320,17 @@ public class ColumnSet extends ListOrderedSet<CatalogPair> {
     public boolean equals(Object o) {
         if (this == o)
             return (true);
-        if (!(o instanceof ColumnSet))
+        if (!(o instanceof PredicatePairs))
             return (false);
 
         // Otherwise, we need to loop through each of our Pairs and see if there
         // is a matching Pair of items on the other side
-        ColumnSet cset = (ColumnSet) o;
+        PredicatePairs cset = (PredicatePairs) o;
         return (this.containsAll(cset) && cset.containsAll(this));
     }
 
     public String debug() {
-        String ret = "ColumnSet: {\n";
+        String ret = this.getClass().getSimpleName()+": {\n";
         for (CatalogPair pair : this) {
             ret += StringUtil.SPACER + pair.toString() + "\n";
         } // FOR

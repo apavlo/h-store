@@ -66,7 +66,7 @@ public class TestHStoreSiteSuite extends RegressionSuite {
         cr = client.callProcedure(procName, "SELECT * FROM NEW_ORDER;");
         VoltTable result = cr.getResults()[0];
         assertTrue(result.getRowCount() == 1);
-        System.out.println(result.toString());
+        // System.out.println(result.toString());
 
         boolean caught = false;
         try {
@@ -154,7 +154,7 @@ public class TestHStoreSiteSuite extends RegressionSuite {
         boolean success;
         
         /////////////////////////////////////////////////////////////
-        // CONFIG #1: 1 Local Site/Partition running on JNI backend
+        // CONFIG #1: 1 Local Site/Partition
         /////////////////////////////////////////////////////////////
         config = new LocalSingleProcessServer(PREFIX + "-1part.jar", 1, BackendTarget.NATIVE_EE_JNI);
         success = config.compile(project);

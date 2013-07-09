@@ -33,8 +33,10 @@ import org.voltdb.compiler.VoltProjectBuilder;
 import org.voltdb.regressionsuites.replication.EvilDeterminism;
 import org.voltdb.regressionsuites.replication.SelectEmptyTable;
 
-public class TestReplicationSuite extends RegressionSuite
-{
+public class TestReplicationSuite extends RegressionSuite {
+    
+    private static final String PREFIX = "repl";
+    
     /** Procedures used by this suite */
     @SuppressWarnings("unchecked")
     public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
@@ -137,30 +139,32 @@ public class TestReplicationSuite extends RegressionSuite
                                  "UPDATE R1 SET R1.NUM = ?");
         project.addProcedures(PROCEDURES);
 
-
+        /////////////////////////////////////////////////////////////
         // CLUSTER, two hosts, each with two sites, replication of 1
-        config = new LocalCluster("replication-1-cluster.jar", 2, 2,
-                                  1, BackendTarget.NATIVE_EE_JNI);
+        /////////////////////////////////////////////////////////////
+        config = new LocalCluster(PREFIX+"-1-cluster.jar", 2, 2, 1, BackendTarget.NATIVE_EE_JNI);
+        config.compile(project);
+        builder.addServerConfig(config);
+        
+        /////////////////////////////////////////////////////////////
+        // CLUSTER, 3 hosts, each with two sites, replication of 1
+        /////////////////////////////////////////////////////////////
+        config = new LocalCluster(PREFIX+"-offset-cluster.jar", 2, 3, 1, BackendTarget.NATIVE_EE_JNI);
+        config.compile(project);
+        builder.addServerConfig(config);
+        
+        /////////////////////////////////////////////////////////////
+        // CLUSTER, 3 hosts, each with one site, replication of 1
+        /////////////////////////////////////////////////////////////
+        config = new LocalSingleProcessServer(PREFIX+"-odd-local.jar", 3, BackendTarget.NATIVE_EE_JNI);
         config.compile(project);
         builder.addServerConfig(config);
 
         // CLUSTER, four hosts, each with three sites, replication of 2
-        config = new LocalCluster("replication-2-cluster.jar", 3, 4,
-                                  2, BackendTarget.NATIVE_EE_JNI);
-        config.compile(project);
-        builder.addServerConfig(config);
-
-        // CLUSTER, 3 hosts, each with two sites, replication of 1
-        config = new LocalCluster("replication-offset-cluster.jar", 2, 3,
-                                  1, BackendTarget.NATIVE_EE_JNI);
-        config.compile(project);
-        builder.addServerConfig(config);
-
-        // CLUSTER, 3 hosts, each with one site, replication of 1
-        config = new LocalCluster("replication-odd-cluster.jar", 1, 3,
-                                  1, BackendTarget.NATIVE_EE_JNI);
-        config.compile(project);
-        builder.addServerConfig(config);
+//        config = new LocalCluster("replication-2-cluster.jar", 3, 4,
+//                                  2, BackendTarget.NATIVE_EE_JNI);
+//        config.compile(project);
+//        builder.addServerConfig(config);
 
         return builder;
     }

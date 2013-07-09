@@ -14,12 +14,12 @@ import org.voltdb.catalog.Constraint;
 import org.voltdb.catalog.Table;
 import org.voltdb.types.ConstraintType;
 
-import edu.brown.designer.ColumnSet;
 import edu.brown.designer.DependencyGraph;
 import edu.brown.designer.DesignerEdge;
 import edu.brown.designer.DesignerInfo;
 import edu.brown.designer.DesignerVertex;
 import edu.brown.graphs.AbstractDirectedGraph;
+import edu.brown.utils.PredicatePairs;
 import edu.brown.workload.Workload;
 import edu.uci.ics.jung.graph.util.EdgeType;
 
@@ -119,7 +119,7 @@ public class DependencyGraphGenerator extends AbstractGenerator<AbstractDirected
                 if (other_vertex == null) {
                     throw new Exception("ERROR: The constraint '" + catalog_const + "' on '" + vertex + "' uses an unknown table '" + catalog_fkey_table.getName() + "'");
                 }
-                ColumnSet cset = new ColumnSet();
+                PredicatePairs cset = new PredicatePairs();
                 // FIXME cset.add(catalog_const.getFkeycolumn, catalog_col);
                 DesignerEdge edge = new DesignerEdge(graph);
                 edge.setAttribute(DependencyGraph.EdgeAttributes.CONSTRAINT.name(), catalog_const);

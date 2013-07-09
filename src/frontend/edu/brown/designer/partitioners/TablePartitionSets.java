@@ -12,17 +12,17 @@ import org.voltdb.catalog.Column;
 import org.voltdb.catalog.Table;
 
 import edu.brown.designer.AccessGraph;
-import edu.brown.designer.ColumnSet;
 import edu.brown.designer.DesignerEdge;
 import edu.brown.designer.DesignerEdge.Members;
 import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.PredicatePairs;
 
-public class PartitionSets extends HashSet<PartitionSets.Entry> {
+public class TablePartitionSets extends HashSet<TablePartitionSets.Entry> {
     private static final long serialVersionUID = 3462969885348478117L;
-    private static final Logger LOG = Logger.getLogger(PartitionSets.class.getName());
+    private static final Logger LOG = Logger.getLogger(TablePartitionSets.class.getName());
 
     private final Map<Table, Set<Entry>> table_entry_xref = new HashMap<Table, Set<Entry>>();
-    private final Map<ColumnSet, Entry> cset_entry_xref = new HashMap<ColumnSet, Entry>();
+    private final Map<PredicatePairs, Entry> cset_entry_xref = new HashMap<PredicatePairs, Entry>();
     private final Table parent_table;
 
     /**
@@ -33,7 +33,7 @@ public class PartitionSets extends HashSet<PartitionSets.Entry> {
 
         protected double weight = 0;
 
-        private final Map<Table, Set<ColumnSet>> table_cset_xref = new HashMap<Table, Set<ColumnSet>>();
+        private final Map<Table, Set<PredicatePairs>> table_cset_xref = new HashMap<Table, Set<PredicatePairs>>();
         private final Map<Table, Set<DesignerEdge>> table_edge_xref = new HashMap<Table, Set<DesignerEdge>>();
         private final Map<Table, Collection<Column>> table_partition_xref = new HashMap<Table, Collection<Column>>();
 
@@ -53,7 +53,7 @@ public class PartitionSets extends HashSet<PartitionSets.Entry> {
                     // and remove the attribute from them
                     //
                     for (Table catalog_tbl : other.table_cset_xref.keySet()) {
-                        for (ColumnSet cset : other.table_cset_xref.get(catalog_tbl)) {
+                        for (PredicatePairs cset : other.table_cset_xref.get(catalog_tbl)) {
                             cset.removeAll(cset.findAll(catalog_item));
                         } // FOR
                     } // FOR
@@ -81,7 +81,7 @@ public class PartitionSets extends HashSet<PartitionSets.Entry> {
          * @return
          */
         public Table getParent() {
-            return (PartitionSets.this.parent_table);
+            return (TablePartitionSets.this.parent_table);
         }
 
         /**
@@ -121,7 +121,7 @@ public class PartitionSets extends HashSet<PartitionSets.Entry> {
          * @param catalog_tbl
          * @return
          */
-        public Set<ColumnSet> getColumnSets(Table catalog_tbl) {
+        public Set<PredicatePairs> getColumnSets(Table catalog_tbl) {
             return (this.table_cset_xref.get(catalog_tbl));
         }
 
@@ -134,7 +134,7 @@ public class PartitionSets extends HashSet<PartitionSets.Entry> {
         }
     } // END CLASS
 
-    public PartitionSets(Table parent_table) {
+    public TablePartitionSets(Table parent_table) {
         super();
         this.parent_table = parent_table;
     }
@@ -148,13 +148,13 @@ public class PartitionSets extends HashSet<PartitionSets.Entry> {
         // We first need to convert the ColumnSet into a set of attributes
         // that "connect" the child table with the parent
         //
-        ColumnSet cset = null;
+        PredicatePairs cset = null;
         Entry entry = new Entry();
         if (this.parent_table == child_table) {
-            cset = (ColumnSet) edge.getAttribute(AccessGraph.EdgeAttributes.COLUMNSET.name());
+            cset = (PredicatePairs) edge.getAttribute(AccessGraph.EdgeAttributes.COLUMNSET.name());
             entry.addAll(cset.findAllForParent(Column.class, child_table));
         } else {
-            cset = ((ColumnSet) edge.getAttribute(AccessGraph.EdgeAttributes.COLUMNSET.name())).createColumnSetForParent(Column.class, child_table);
+            cset = ((PredicatePairs) edge.getAttribute(AccessGraph.EdgeAttributes.COLUMNSET.name())).createPredicatePairsForParent(Column.class, child_table);
             entry.addAll(cset.findAllForOtherParent(Column.class, child_table));
         }
         double weight = (Double) edge.getAttribute(Members.WEIGHTS.name());
@@ -188,7 +188,7 @@ public class PartitionSets extends HashSet<PartitionSets.Entry> {
         // Table -> ColumnSets
         //
         if (!entry.table_cset_xref.containsKey(child_table)) {
-            entry.table_cset_xref.put(child_table, new HashSet<ColumnSet>());
+            entry.table_cset_xref.put(child_table, new HashSet<PredicatePairs>());
         }
         entry.table_cset_xref.get(child_table).add(cset);
 

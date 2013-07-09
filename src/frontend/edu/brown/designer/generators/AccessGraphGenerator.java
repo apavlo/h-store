@@ -31,7 +31,6 @@ import edu.brown.catalog.CatalogUtil;
 import edu.brown.designer.AccessGraph;
 import edu.brown.designer.AccessGraph.AccessType;
 import edu.brown.designer.AccessGraph.EdgeAttributes;
-import edu.brown.designer.ColumnSet;
 import edu.brown.designer.DesignerEdge;
 import edu.brown.designer.DesignerInfo;
 import edu.brown.designer.DesignerVertex;
@@ -39,6 +38,7 @@ import edu.brown.graphs.GraphvizExport;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.FileUtil;
+import edu.brown.utils.PredicatePairs;
 import edu.brown.workload.QueryTrace;
 import edu.brown.workload.TransactionTrace;
 import edu.uci.ics.jung.graph.util.EdgeType;
@@ -57,7 +57,7 @@ public class AccessGraphGenerator extends AbstractGenerator<AccessGraph> {
     private final Set<Table> debug_tables = new HashSet<Table>();
 
     private final List<ProcParameter> shared_params = new ArrayList<ProcParameter>();
-    private final Map<Pair<CatalogType, CatalogType>, ColumnSet> table_csets = new HashMap<Pair<CatalogType, CatalogType>, ColumnSet>();
+    private final Map<Pair<CatalogType, CatalogType>, PredicatePairs> table_csets = new HashMap<Pair<CatalogType, CatalogType>, PredicatePairs>();
     
     /**
      * @param stats_catalog_db
@@ -113,7 +113,7 @@ public class AccessGraphGenerator extends AbstractGenerator<AccessGraph> {
 
         for (DesignerEdge e : orig_agraph.getEdges()) {
             // Split up the ColumnSet into separate edges, one per entry
-            ColumnSet cset = e.getAttribute(EdgeAttributes.COLUMNSET);
+            PredicatePairs cset = e.getAttribute(EdgeAttributes.COLUMNSET);
             assert (cset != null);
             Collection<DesignerVertex> vertices = orig_agraph.getIncidentVertices(e);
             DesignerVertex v0 = CollectionUtil.first(vertices);
@@ -133,7 +133,7 @@ public class AccessGraphGenerator extends AbstractGenerator<AccessGraph> {
             for (CatalogPair entry : cset) {
                 DesignerEdge new_e = entry_edges.get(entry);
                 if (new_e == null) {
-                    ColumnSet new_cset = new ColumnSet(cset.getStatements());
+                    PredicatePairs new_cset = new PredicatePairs(cset.getStatements());
                     new_cset.add(entry);
                     new_e = new DesignerEdge(agraph, e);
                     new_e.setAttribute(EdgeAttributes.COLUMNSET, new_cset);
@@ -333,7 +333,7 @@ public class AccessGraphGenerator extends AbstractGenerator<AccessGraph> {
             // --------------------------------------------------------------
             for (int ctr2 = ctr + 1; ctr2 < cnt; ctr2++) {
                 Table table1 = tables.get(ctr2);
-                ColumnSet cset = CatalogUtil.extractStatementColumnSet(catalog_stmt, true, table0, table1);
+                PredicatePairs cset = CatalogUtil.extractStatementPredicates(catalog_stmt, true, table0, table1);
                 if (debug_table)
                     LOG.trace("Creating join edge between " + table0 + "<->" + table1 + " for " + catalog_stmt);
                 this.addEdge(agraph, AccessType.SQL_JOIN, cset, agraph.getVertex(table0), agraph.getVertex(table1), catalog_stmt);
@@ -346,7 +346,7 @@ public class AccessGraphGenerator extends AbstractGenerator<AccessGraph> {
             // --------------------------------------------------------------
             if (debug_table)
                 LOG.trace("Looking for scan ColumnSet on table '" + table0.getName() + "'");
-            ColumnSet cset = CatalogUtil.extractStatementColumnSet(catalog_stmt, true, table0);
+            PredicatePairs cset = CatalogUtil.extractStatementPredicates(catalog_stmt, true, table0);
             if (!cset.isEmpty()) {
                 if (debug_table)
                     LOG.trace("Creating scan edge to " + table0 + " for " + catalog_stmt);
@@ -394,13 +394,13 @@ public class AccessGraphGenerator extends AbstractGenerator<AccessGraph> {
 
             if (this.stmt_edge_xref.containsKey(catalog_stmt0)) {
                 for (DesignerEdge edge : this.stmt_edge_xref.get(catalog_stmt0)) {
-                    ColumnSet cset = (ColumnSet) edge.getAttribute(EdgeAttributes.COLUMNSET.name());
+                    PredicatePairs cset = (PredicatePairs) edge.getAttribute(EdgeAttributes.COLUMNSET.name());
                     columns0.addAll(cset.findAllForOther(Column.class, param));
                 } // FOR
             }
             if (this.stmt_edge_xref.containsKey(catalog_stmt1)) {
                 for (DesignerEdge edge : this.stmt_edge_xref.get(catalog_stmt1)) {
-                    ColumnSet cset = (ColumnSet) edge.getAttribute(EdgeAttributes.COLUMNSET.name());
+                    PredicatePairs cset = (PredicatePairs) edge.getAttribute(EdgeAttributes.COLUMNSET.name());
                     columns1.addAll(cset.findAllForOther(Column.class, param));
                 } // FOR
             }
@@ -450,11 +450,11 @@ public class AccessGraphGenerator extends AbstractGenerator<AccessGraph> {
                     if (table0 == table1)
                         continue;
                     Pair<CatalogType, CatalogType> table_pair = CatalogUtil.pair(table0, table1);
-                    ColumnSet cset = null;
+                    PredicatePairs cset = null;
                     if (table_csets.containsKey(table_pair)) {
                         cset = table_csets.get(table_pair);
                     } else {
-                        cset = new ColumnSet();
+                        cset = new PredicatePairs();
                     }
                     for (Column column0 : table_column_xref0.get(table0)) {
                         for (Column column1 : table_column_xref1.get(table1)) {
@@ -472,7 +472,7 @@ public class AccessGraphGenerator extends AbstractGenerator<AccessGraph> {
         for (Pair<CatalogType, CatalogType> table_pair : table_csets.keySet()) {
             DesignerVertex vertex0 = agraph.getVertex((Table) table_pair.getFirst());
             DesignerVertex vertex1 = agraph.getVertex((Table) table_pair.getSecond());
-            ColumnSet cset = table_csets.get(table_pair);
+            PredicatePairs cset = table_csets.get(table_pair);
 
             if (t) {
                 LOG.trace("Vertex0: " + vertex0.getCatalogKey());
@@ -511,13 +511,13 @@ public class AccessGraphGenerator extends AbstractGenerator<AccessGraph> {
                                                                  AccessType.SCAN);
         if (t) LOG.trace("\t" + catalog_tbl.getName() + " Incident Edges: " + scanEdges);
         for (DesignerEdge edge : scanEdges) {
-            ColumnSet scan_cset = (ColumnSet) edge.getAttribute(AccessGraph.EdgeAttributes.COLUMNSET.name());
+            PredicatePairs scan_cset = (PredicatePairs) edge.getAttribute(AccessGraph.EdgeAttributes.COLUMNSET.name());
             if (t) LOG.trace("\tSCAN EDGE: " + edge); // + "\n" +
                                                    // scan_cset.debug());
 
             // For each table that our foreign keys reference, will construct a
             // ColumnSet mapping
-            Map<Table, ColumnSet> fkey_column_xrefs = new HashMap<Table, ColumnSet>();
+            Map<Table, PredicatePairs> fkey_column_xrefs = new HashMap<Table, PredicatePairs>();
             if (t) LOG.trace("\tOUR COLUMNS: " + scan_cset.findAllForParent(Column.class, catalog_tbl));
             for (Column catalog_col : scan_cset.findAllForParent(Column.class, catalog_tbl)) {
                 // Get the foreign key constraint for this column and then add
@@ -538,7 +538,7 @@ public class AccessGraphGenerator extends AbstractGenerator<AccessGraph> {
 
                         // TODO: Use real ExpressionType from the entry
                         if (!fkey_column_xrefs.containsKey(catalog_fkey_tbl)) {
-                            fkey_column_xrefs.put(catalog_fkey_tbl, new ColumnSet());
+                            fkey_column_xrefs.put(catalog_fkey_tbl, new PredicatePairs());
                         }
                         // if (debug) System.err.println("Foreign Keys: " +
                         // CollectionUtil.getFirst(catalog_const.getForeignkeycols()).getColumn());
@@ -564,7 +564,7 @@ public class AccessGraphGenerator extends AbstractGenerator<AccessGraph> {
             // key using all the columdns referenced by in the SCAN predicates
             for (Table catalog_fkey_tbl : fkey_column_xrefs.keySet()) {
                 DesignerVertex other_vertex = agraph.getVertex(catalog_fkey_tbl);
-                ColumnSet implicit_cset = fkey_column_xrefs.get(catalog_fkey_tbl);
+                PredicatePairs implicit_cset = fkey_column_xrefs.get(catalog_fkey_tbl);
                 if (t)
                     LOG.trace("\t" + catalog_tbl + "->" + catalog_fkey_tbl + "\n" + implicit_cset.debug());
                 Collection<DesignerEdge> edges = agraph.findEdgeSet(vertex, other_vertex);
@@ -596,7 +596,7 @@ public class AccessGraphGenerator extends AbstractGenerator<AccessGraph> {
      * @param vertices
      * @param catalog_stmt
      */
-    protected DesignerEdge addEdge(AccessGraph agraph, AccessType access_type, ColumnSet cset, DesignerVertex v0, DesignerVertex v1, Statement... catalog_stmts) {
+    protected DesignerEdge addEdge(AccessGraph agraph, AccessType access_type, PredicatePairs cset, DesignerVertex v0, DesignerVertex v1, Statement... catalog_stmts) {
 
         // Sort the vertices by their CatalogTypes
         if (v0.getCatalogItem().compareTo(v1.getCatalogItem()) > 0) {
@@ -621,7 +621,7 @@ public class AccessGraphGenerator extends AbstractGenerator<AccessGraph> {
         DesignerEdge new_edge = null;
         for (DesignerEdge edge : agraph.getEdges()) {
             Collection<DesignerVertex> vertices = agraph.getIncidentVertices(edge);
-            ColumnSet other_cset = (ColumnSet) edge.getAttribute(EdgeAttributes.COLUMNSET.name());
+            PredicatePairs other_cset = (PredicatePairs) edge.getAttribute(EdgeAttributes.COLUMNSET.name());
             if (vertices.contains(v0) && vertices.contains(v1) && cset.equals(other_cset)) {
                 if (t)
                     LOG.trace("FOUND DUPLICATE COLUMN SET: " + other_cset.debug() + "\n" + cset.toString() + "\n[" + edge.hashCode() + "] + " + cset.size() + " == " + other_cset.size() + "\n");

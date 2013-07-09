@@ -22,7 +22,6 @@ import org.voltdb.catalog.Table;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.conflicts.ConflictSetUtil;
 import edu.brown.catalog.special.CountedStatement;
-import edu.brown.designer.ColumnSet;
 import edu.brown.hstore.estimators.Estimate;
 import edu.brown.hstore.estimators.EstimatorState;
 import edu.brown.hstore.txns.AbstractTransaction;
@@ -34,6 +33,7 @@ import edu.brown.mappings.ParameterMappingsSet;
 import edu.brown.mappings.ParametersUtil;
 import edu.brown.markov.EstimationThresholds;
 import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.PredicatePairs;
 import edu.brown.utils.StringUtil;
 
 /**
@@ -117,7 +117,7 @@ public class MarkovConflictChecker extends TableConflictChecker {
                     }
                 } // FOR
                 
-                ColumnSet cset = CatalogUtil.extractStatementColumnSet(stmt, false);
+                PredicatePairs cset = CatalogUtil.extractStatementPredicates(stmt, false);
                 Map<Table, StmtParameter[]> tableParams = new HashMap<Table, StmtParameter[]>();
                 List<StmtParameter> stmtParamOffsets = new ArrayList<StmtParameter>();
                 for (Table tbl : CatalogUtil.getReferencedTables(stmt)) {

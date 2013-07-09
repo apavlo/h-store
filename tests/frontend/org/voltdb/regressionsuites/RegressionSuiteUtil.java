@@ -3,8 +3,6 @@ package org.voltdb.regressionsuites;
 import java.io.IOException;
 import java.util.Random;
 
-import junit.framework.TestCase;
-
 import org.voltdb.CatalogContext;
 import org.voltdb.SysProcSelector;
 import org.voltdb.VoltSystemProcedure;
@@ -55,27 +53,35 @@ public abstract class RegressionSuiteUtil {
         return (cresponse);
     }
     
-    public static ClientResponse sql(Client client, String sql) throws Exception {
+    public static ClientResponse sql(Client client, String sql) throws IOException, ProcCallException {
         String procName = VoltSystemProcedure.procCallName(AdHoc.class);
         ClientResponse cresponse = client.callProcedure(procName, sql);
         assert(cresponse.getStatus() == Status.OK) : cresponse.toString();
         return (cresponse);
     }
     
-    public static long getRowCount(Client client, String tableName) throws Exception {
+    public static ClientResponse load(Client client, Table tbl, VoltTable data) throws IOException, ProcCallException {
+        String procName = VoltSystemProcedure.procCallName(LoadMultipartitionTable.class);
+        ClientResponse cresponse = client.callProcedure(procName, tbl.getName(), data);
+        assert(cresponse.getStatus() == Status.OK) : cresponse.toString();
+        return (cresponse);
+    }
+    
+    public static long getRowCount(Client client, Table tbl) throws Exception {
         ClientResponse cresponse = getStats(client, SysProcSelector.TABLE);
         VoltTable result = cresponse.getResults()[0];
         
         long count = 0;
         boolean found = false;
         while (result.advanceRow()) {
-            if (tableName.equalsIgnoreCase(result.getString("TABLE_NAME"))) {
+            if (tbl.getName().equalsIgnoreCase(result.getString("TABLE_NAME"))) {
                 found = true;
                 count += result.getLong("TUPLE_COUNT");
+                if (tbl.getIsreplicated()) break;
             }
         } // WHILE
         if (found == false) {
-            throw new IllegalArgumentException("Invalid table '" + tableName + "'");
+            throw new IllegalArgumentException("Invalid table '" + tbl + "'");
         }
         return (count);
     }
@@ -115,9 +121,7 @@ public abstract class RegressionSuiteUtil {
             vt.addRow(row);
         } // FOR (row)
         // System.err.printf("Loading %d rows for %s\n%s\n\n", vt.getRowCount(), catalog_tbl, vt.toString());
-        String procName = VoltSystemProcedure.procCallName(LoadMultipartitionTable.class);
-        ClientResponse cr = client.callProcedure(procName, catalog_tbl.getName(), vt);
-        TestCase.assertEquals(Status.OK, cr.getStatus());
+        load(client, catalog_tbl, vt);
     }
 
     public static final void initializeTPCCDatabase(final CatalogContext catalogContext, final Client client) throws Exception {

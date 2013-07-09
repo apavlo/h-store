@@ -575,9 +575,8 @@ public class PlanAssembler {
             scanNode.addInlinePlanNode(projectionNode);
             deleteNode.addAndLinkChild(scanNode);
 
-            AbstractPlanNode countNode = insertCountInDMLPlan(deleteNode);
-
-            sendNode.addAndLinkChild(countNode);
+            AbstractPlanNode combineNode = insertCountInDMLPlan(deleteNode);
+            sendNode.addAndLinkChild(combineNode);
 
             // fix the receive node's output columns
             recvNode.updateOutputColumns(m_catalogDb);
@@ -592,7 +591,7 @@ public class PlanAssembler {
              */
 
             // add a sum and send on top of the union
-            return addSumAndSendToDMLNode(subSelectRoot);
+            return addSumAndSendToDMLNode(subSelectRoot, targetTable.getIsreplicated());
         }
     }
 
@@ -686,7 +685,6 @@ public class PlanAssembler {
             updateNode.addAndLinkChild(scanNode);
 
             AbstractPlanNode countNode = insertCountInDMLPlan(updateNode);
-
             sendNode.addAndLinkChild(countNode);
 
             // fix the receive node's output columns
@@ -702,7 +700,7 @@ public class PlanAssembler {
              */
 
             // add a count and send on top of the union
-            return addSumAndSendToDMLNode(subSelectRoot);
+            return addSumAndSendToDMLNode(subSelectRoot, targetTable.getIsreplicated());
         }
     }
 
@@ -744,8 +742,7 @@ public class PlanAssembler {
         // get the ordered list of columns for the targettable using a helper
         // function they're not guaranteed to be in order in the catalog
         List<Column> columns =
-            CatalogUtil
-                    .getSortedCatalogItems(targetTable.getColumns(), "index");
+            CatalogUtil.getSortedCatalogItems(targetTable.getColumns(), "index");
 
         // for each column in the table in order...
         for (Column column : columns) {
@@ -796,9 +793,7 @@ public class PlanAssembler {
         if (m_singlePartition == false) {
             // all sites to a scan -> send
             // root site has many recvs feeding into a union
-
             rootNode = insertCountInDMLPlan(rootNode);
-
 
             SendPlanNode sendNode = new SendPlanNode(m_context, getNextPlanNodeId());
             // this will make the child planfragment be sent to all partitions
@@ -813,7 +808,7 @@ public class PlanAssembler {
             recvNode.updateOutputColumns(m_catalogDb);
 
             // add a count and send on top of the union
-            rootNode = addSumAndSendToDMLNode(rootNode);
+            rootNode = addSumAndSendToDMLNode(rootNode, targetTable.getIsreplicated());
             
         } else if (INCLUDE_SEND_FOR_ALL) {
             // XXX: PAVLO
@@ -869,7 +864,7 @@ public class PlanAssembler {
         return countNode;
     }
 
-    AbstractPlanNode addSumAndSendToDMLNode(AbstractPlanNode dmlRoot) {
+    AbstractPlanNode addSumAndSendToDMLNode(AbstractPlanNode dmlRoot, boolean isReplicated) {
         // do some output column organizing...
         dmlRoot.updateOutputColumns(m_catalogDb);
 
@@ -890,7 +885,9 @@ public class PlanAssembler {
         countColumnNames.add(m_context.get(colGuid).getDisplayName());
         countColumnGuids.add(colGuid);
         countOutputColumns.add(0);
-        countColumnTypes.add(ExpressionType.AGGREGATE_SUM);
+        // IMPORTANT: If this is for a replicated table, then we want to compute
+        // the max. If it's not a replicated table, then we want to compute the SUM
+        countColumnTypes.add(isReplicated ? ExpressionType.AGGREGATE_MAX : ExpressionType.AGGREGATE_SUM);
         countNode.setAggregateColumnNames(countColumnNames);
         countNode.setAggregateColumnGuids(countColumnGuids);
         countNode.setAggregateTypes(countColumnTypes);

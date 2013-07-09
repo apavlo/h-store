@@ -19,7 +19,6 @@ import edu.brown.catalog.CatalogKey;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.special.ReplicatedColumn;
 import edu.brown.designer.AccessGraph;
-import edu.brown.designer.ColumnSet;
 import edu.brown.designer.Designer;
 import edu.brown.designer.DesignerEdge;
 import edu.brown.designer.DesignerHints;
@@ -31,11 +30,13 @@ import edu.brown.designer.partitioners.plan.TableEntry;
 import edu.brown.gui.common.GraphVisualizationPanel;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.statistics.Histogram;
 import edu.brown.statistics.ObjectHistogram;
 import edu.brown.statistics.TableStatistics;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
+import edu.brown.utils.PredicatePairs;
 import edu.brown.utils.StringUtil;
 
 /**
@@ -151,11 +152,11 @@ public class MostPopularPartitioner extends AbstractPartitioner {
                     column_histogram = (self ? self_column_histogram : join_column_histogram);
 
                     double edge_weight = e.getTotalWeight();
-                    ColumnSet cset = e.getAttribute(AccessGraph.EdgeAttributes.COLUMNSET);
+                    PredicatePairs cset = e.getAttribute(AccessGraph.EdgeAttributes.COLUMNSET);
                     if (trace.val)
                         LOG.trace("Examining ColumnSet for " + e.toString(true));
 
-                    ObjectHistogram<Column> cset_histogram = cset.buildHistogramForType(Column.class);
+                    Histogram<Column> cset_histogram = cset.buildHistogramForType(Column.class);
                     Collection<Column> columns = cset_histogram.values();
                     if (trace.val)
                         LOG.trace("Constructed Histogram for " + catalog_tbl + " from ColumnSet:\n"
