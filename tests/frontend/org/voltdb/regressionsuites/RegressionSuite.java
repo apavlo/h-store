@@ -39,6 +39,8 @@ import org.voltdb.client.ConnectionUtil;
 
 import edu.brown.hstore.HStoreConstants;
 import edu.brown.logging.LoggerUtil;
+import edu.brown.rand.AbstractRandomGenerator;
+import edu.brown.rand.DefaultRandomGenerator;
 
 /**
  * Base class for a set of JUnit tests that perform regression tests
@@ -61,6 +63,7 @@ public class RegressionSuite extends TestCase {
     protected String m_password = "password";
     private final ArrayList<Client> m_clients = new ArrayList<Client>();
     private final ArrayList<SocketChannel> m_clientChannels = new ArrayList<SocketChannel>();
+    private final DefaultRandomGenerator random = new DefaultRandomGenerator();
 
     /**
      * Trivial constructor that passes parameter on to superclass.
@@ -144,6 +147,10 @@ public class RegressionSuite extends TestCase {
         return m_config.getCatalogContext();
     }
 
+    public final AbstractRandomGenerator getRandom() {
+        return (this.random);
+    }
+    
     /**
      * Get a VoltClient instance connected to the server driven by the
      * VoltServerConfig instance. Just pick from the list of listeners

@@ -19,7 +19,6 @@ import org.voltdb.catalog.Table;
 import edu.brown.BaseTestCase;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.designer.AccessGraph;
-import edu.brown.designer.ColumnSet;
 import edu.brown.designer.DesignerInfo;
 import edu.brown.designer.DesignerEdge;
 import edu.brown.designer.DesignerVertex;
@@ -27,6 +26,7 @@ import edu.brown.designer.AccessGraph.EdgeAttributes;
 import edu.brown.statistics.Histogram;
 import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.PredicatePairs;
 import edu.brown.utils.ProjectType;
 import edu.brown.workload.TransactionTrace;
 import edu.brown.workload.Workload;
@@ -118,7 +118,7 @@ public class TestAccessGraphGenerator extends BaseTestCase {
             assertFalse(v0 + "<->" + v1, edges.isEmpty());
             
             for (DesignerEdge e : edges) {
-                ColumnSet cset = e.getAttribute(EdgeAttributes.COLUMNSET);
+                PredicatePairs cset = e.getAttribute(EdgeAttributes.COLUMNSET);
                 assertNotNull(cset);
                 assertEquals(cset.toString(), 1, cset.size());
             }

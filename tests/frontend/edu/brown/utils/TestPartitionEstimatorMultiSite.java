@@ -165,7 +165,7 @@ public class TestPartitionEstimatorMultiSite extends BaseTestCase {
      * testMultiColumnPartitioning
      */
     public void testMultiColumnPartitioning() throws Exception {
-        Database clone_db = CatalogCloner.cloneDatabase(catalog_db);
+        Database clone_db = CatalogCloner.cloneDatabase(catalogContext.database);
         CatalogContext clone_catalogContext = new CatalogContext(clone_db.getCatalog()); 
         PartitionEstimator p_estimator = new PartitionEstimator(clone_catalogContext);
 
@@ -240,7 +240,7 @@ public class TestPartitionEstimatorMultiSite extends BaseTestCase {
      * testMultiColumnPartitioningIncomplete
      */
     public void testMultiColumnPartitioningIncomplete() throws Exception {
-        Database clone_db = CatalogCloner.cloneDatabase(catalog_db);
+        Database clone_db = CatalogCloner.cloneDatabase(catalogContext.database);
         CatalogContext clone_catalogContext = new CatalogContext(clone_db.getCatalog()); 
         PartitionEstimator p_estimator = new PartitionEstimator(clone_catalogContext);
 

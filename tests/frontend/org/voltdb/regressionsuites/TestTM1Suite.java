@@ -92,6 +92,7 @@ public class TestTM1Suite extends RegressionSuite {
         ClientResponse cresponse = client.callProcedure(txn.callName, params);
         assertNotNull(cresponse);
         assertEquals(Status.OK, cresponse.getStatus());
+        assertTrue(cresponse.toString(), cresponse.isSinglePartition());
     }
     
     /**
@@ -111,7 +112,7 @@ public class TestTM1Suite extends RegressionSuite {
             assertEquals(cresponse.toString(), Status.ABORT_USER, cresponse.getStatus());
         }
         assertNotNull(cresponse);
-        
+        assertTrue(cresponse.toString(), cresponse.isSinglePartition());
     }
     
     /**
@@ -124,6 +125,7 @@ public class TestTM1Suite extends RegressionSuite {
         Object params[] = txn.generateParams(NUM_SUBSCRIBERS);
         ClientResponse cresponse = client.callProcedure(txn.callName, params);
         assertNotNull(cresponse);
+        assertTrue(cresponse.toString(), cresponse.isSinglePartition());
     }
     
     /**
@@ -175,6 +177,7 @@ public class TestTM1Suite extends RegressionSuite {
             assertEquals(Status.ABORT_USER, cresponse.getStatus());
         }
         assertNotNull(cresponse);
+        assertTrue(cresponse.toString(), cresponse.isSinglePartition());
     }
 
     public static Test suite() {

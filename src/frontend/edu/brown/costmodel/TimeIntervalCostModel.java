@@ -34,6 +34,7 @@ import edu.brown.designer.partitioners.plan.PartitionPlan;
 import edu.brown.hstore.HStoreConstants;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.statistics.Histogram;
 import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.ClassUtil;
@@ -458,8 +459,8 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
             sb = new StringBuilder();
         }
         for (int i = 0; i < this.num_intervals; i++) {
-            ObjectHistogram<Integer> histogram_txn = this.cost_models[i].getTxnPartitionAccessHistogram();
-            ObjectHistogram<Integer> histogram_query = this.cost_models[i].getQueryPartitionAccessHistogram();
+            Histogram<Integer> histogram_txn = this.cost_models[i].getTxnPartitionAccessHistogram();
+            Histogram<Integer> histogram_query = this.cost_models[i].getQueryPartitionAccessHistogram();
             this.histogram_query_partitions.put(histogram_query);
             long num_queries = this.cost_models[i].query_ctr.get();
             this.query_ctr.addAndGet(num_queries);
@@ -811,7 +812,7 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
         double cost = costmodel.estimateWorkloadCost(args.catalogContext, args.workload);
 
         Map<String, Object> m = new LinkedHashMap<String, Object>();
-        m.put("PARTITIONS", CatalogUtil.getNumberOfPartitions(args.catalog_db));
+        m.put("PARTITIONS", args.catalogContext.numberOfPartitions);
         m.put("INTERVALS", args.num_intervals);
         m.put("EXEC COST", costmodel.last_execution_cost);
         m.put("SKEW COST", costmodel.last_skew_cost);

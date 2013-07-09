@@ -74,7 +74,7 @@ public class TestSingleSitedCostModel extends BaseTestCase {
         // Super hack! Walk back the directories and find out workload directory
         if (workload == null) {
             File workload_file = this.getWorkloadFile(ProjectType.TM1); 
-            workload = new Workload(catalog);
+            workload = new Workload(catalogContext.catalog);
             
             // Workload Filter
             ProcedureNameFilter filter = new ProcedureNameFilter(false);
@@ -83,7 +83,7 @@ public class TestSingleSitedCostModel extends BaseTestCase {
                 filter.include(proc_name, PROC_COUNT);
                 total += PROC_COUNT;
             }
-            ((Workload)workload).load(workload_file, catalog_db, filter);
+            ((Workload)workload).load(workload_file, catalogContext.database, filter);
             assertEquals(total, workload.getTransactionCount());
             assertEquals(TARGET_PROCEDURES.length, workload.getProcedureHistogram().getValueCount());
             // System.err.println(workload.getProcedureHistogram());
@@ -101,7 +101,7 @@ public class TestSingleSitedCostModel extends BaseTestCase {
         assertNotNull(catalog_proc);
         TransactionTrace multip_txn = null;
         for (TransactionTrace txn_trace : workload) {
-            if (txn_trace.getCatalogItem(catalog_db).equals(catalog_proc)) {
+            if (txn_trace.getCatalogItem(catalogContext.database).equals(catalog_proc)) {
                 multip_txn = txn_trace;
                 break;
             }
@@ -127,10 +127,10 @@ public class TestSingleSitedCostModel extends BaseTestCase {
      */
     public void testWeightedTxnEstimation() throws Exception {
         // Make a new workload that only has multiple copies of the same multi-partition transaction
-        Workload new_workload = new Workload(catalog);
+        Workload new_workload = new Workload(catalogContext.catalog);
         int num_txns = 13;
         TransactionTrace multip_txn = this.getMultiPartitionTransaction();
-        Procedure catalog_proc = multip_txn.getCatalogItem(catalog_db);
+        Procedure catalog_proc = multip_txn.getCatalogItem(catalogContext.database);
         for (int i = 0; i < num_txns; i++) {
             TransactionTrace clone = (TransactionTrace)multip_txn.clone();
             clone.setTransactionId(i);
@@ -161,7 +161,7 @@ public class TestSingleSitedCostModel extends BaseTestCase {
         // Now change make a new workload that has the same multi-partition transaction
         // but this time it only has one but with a transaction weight
         // We should get back the exact same cost
-        new_workload = new Workload(catalog);
+        new_workload = new Workload(catalogContext.catalog);
         TransactionTrace clone = (TransactionTrace)multip_txn.clone();
         clone.setTransactionId(1000);
         clone.setWeight(num_txns);
@@ -191,10 +191,10 @@ public class TestSingleSitedCostModel extends BaseTestCase {
      */
     public void testWeightedQueryEstimation() throws Exception {
         // Make a new workload that has its single queries duplicated multiple times
-        Workload new_workload = new Workload(catalog);
+        Workload new_workload = new Workload(catalogContext.catalog);
         int num_dupes = 7;
         TransactionTrace multip_txn = this.getMultiPartitionTransaction();
-        Procedure catalog_proc = multip_txn.getCatalogItem(catalog_db);
+        Procedure catalog_proc = multip_txn.getCatalogItem(catalogContext.database);
         
         final TransactionTrace orig_txn = (TransactionTrace)multip_txn.clone();
         List<QueryTrace> clone_queries = new ArrayList<QueryTrace>();
@@ -222,7 +222,7 @@ public class TestSingleSitedCostModel extends BaseTestCase {
         // Now change make a new workload that has the same multi-partition transaction
         // but this time it only has one but with a transaction weight
         // We should get back the exact same cost
-        new_workload = new Workload(catalog);
+        new_workload = new Workload(catalogContext.catalog);
         final TransactionTrace new_txn = (TransactionTrace)multip_txn.clone();
         clone_queries = new ArrayList<QueryTrace>();
         for (QueryTrace query_trace : multip_txn.getQueries()) {
@@ -273,10 +273,10 @@ public class TestSingleSitedCostModel extends BaseTestCase {
      */
     public void testWeightedTxnInvalidateCache() throws Throwable {
         // Make a new workload that only has a single weighted copy of our multi-partition transaction
-        Workload new_workload = new Workload(catalog);
+        Workload new_workload = new Workload(catalogContext.catalog);
         int weight = 16;
         TransactionTrace multip_txn = this.getMultiPartitionTransaction();
-        Procedure catalog_proc = multip_txn.getCatalogItem(catalog_db);
+        Procedure catalog_proc = multip_txn.getCatalogItem(catalogContext.database);
         TransactionTrace clone = (TransactionTrace)multip_txn.clone();
         clone.setTransactionId(1000);
         clone.setWeight(weight);
@@ -300,7 +300,7 @@ public class TestSingleSitedCostModel extends BaseTestCase {
         } // FOR
         
         
-//        System.err.println(cost_model.debugHistograms(catalog_db));
+//        System.err.println(cost_model.debugHistograms(catalogContext.database));
 //        System.err.println("+++++++++++++++++++++++++++++++++++++++++++++++++");
         
         // Now invalidate the cache for the first query in the procedure
@@ -324,10 +324,10 @@ public class TestSingleSitedCostModel extends BaseTestCase {
      */
     public void testWeightedQueryInvalidateCache() throws Throwable {
         // Make a new workload that only has a single weighted copy of our multi-partition transaction
-        Workload new_workload = new Workload(catalog);
+        Workload new_workload = new Workload(catalogContext.catalog);
         int weight = 6;
         TransactionTrace multip_txn = this.getMultiPartitionTransaction();
-        Procedure catalog_proc = multip_txn.getCatalogItem(catalog_db);
+        Procedure catalog_proc = multip_txn.getCatalogItem(catalogContext.database);
         TransactionTrace clone = (TransactionTrace)multip_txn.clone();
         clone.setTransactionId(1000);
         for (QueryTrace qt : clone.getQueries()) {
@@ -397,7 +397,7 @@ public class TestSingleSitedCostModel extends BaseTestCase {
         assertNotNull(xact_trace);
 
         // Change the catalog so that the data from the tables are in different partitions
-        Database clone_db = CatalogCloner.cloneDatabase(catalog_db);
+        Database clone_db = CatalogCloner.cloneDatabase(catalogContext.database);
         assertNotNull(clone_db);
         CatalogContext clone_catalogContext = new CatalogContext(clone_db.getCatalog());
         Table catalog_tbl = clone_db.getTables().get(TM1Constants.TABLENAME_CALL_FORWARDING);
@@ -424,12 +424,15 @@ public class TestSingleSitedCostModel extends BaseTestCase {
         
         // ---------------------------------------------
         // Partitions Touched by Txns
+        // This should be all partitions because the query is trying to do a 
+        // range look-up on the partitioning column
         // ---------------------------------------------
         Histogram<Integer> txn_h = cost_model.getTxnPartitionAccessHistogram();
         assertNotNull(txn_h);
+//        System.err.println(xact_trace.debug(catalogContext.database));
 //        System.err.println("Transaction Partitions:\n" + txn_h);
-        assertEquals(2, txn_h.getSampleCount());
-        assertEquals(2, txn_h.getValueCount());
+        assertEquals(NUM_PARTITIONS, txn_h.getSampleCount());
+        assertEquals(NUM_PARTITIONS, txn_h.getValueCount());
 
         // ---------------------------------------------
         // Partitions Touched By Queries
@@ -437,8 +440,8 @@ public class TestSingleSitedCostModel extends BaseTestCase {
         Histogram<Integer> query_h = cost_model.getQueryPartitionAccessHistogram();
         assertNotNull(query_h);
 //        System.err.println("Query Partitions:\n" + query_h);
-        assertEquals(2, query_h.getSampleCount());
-        assertEquals(2, query_h.getValueCount());
+        assertEquals(NUM_PARTITIONS, query_h.getSampleCount());
+        assertEquals(NUM_PARTITIONS, query_h.getValueCount());
         
         // ---------------------------------------------
         // Partitions Executing Java Control Code 
@@ -506,7 +509,7 @@ public class TestSingleSitedCostModel extends BaseTestCase {
         } // FOR
         assertNotNull(xact_trace);
         
-        // System.err.println(xact_trace.debug(catalog_db));
+        // System.err.println(xact_trace.debug(catalogContext.database));
         SingleSitedCostModel cost_model = new SingleSitedCostModel(catalogContext);
         cost_model.estimateTransactionCost(catalogContext, xact_trace);
         TransactionCacheEntry entry = cost_model.getTransactionCacheEntry(xact_trace);
@@ -651,7 +654,7 @@ public class TestSingleSitedCostModel extends BaseTestCase {
         // So here we want to throw a txn at the cost model first without a partitioning ProcParameter
         // and then with one. We should see that the TransactionCacheEntry gets updated properly
         // and that the txn becomes multi-sited
-        Database clone_db = CatalogCloner.cloneDatabase(catalog_db);
+        Database clone_db = CatalogCloner.cloneDatabase(catalogContext.database);
         assertNotNull(clone_db);
         CatalogContext clone_catalogContext = new CatalogContext(clone_db.getCatalog()); 
         
@@ -703,7 +706,7 @@ public class TestSingleSitedCostModel extends BaseTestCase {
      * testMultiColumnPartitioning
      */
     public void testMultiColumnPartitioning() throws Exception {
-        Database clone_db = CatalogCloner.cloneDatabase(catalog_db);
+        Database clone_db = CatalogCloner.cloneDatabase(catalogContext.database);
         CatalogContext clone_catalogContext = new CatalogContext(clone_db.getCatalog());
         Procedure catalog_proc = this.getProcedure(clone_db, GetAccessData.class);
         TransactionTrace target_txn = null;
@@ -714,7 +717,7 @@ public class TestSingleSitedCostModel extends BaseTestCase {
             }
         } // FOR
         assertNotNull(target_txn);
-        System.err.println(target_txn.debug(catalog_db));
+        System.err.println(target_txn.debug(catalogContext.database));
         
         // Now change partitioning
         MultiProcParameter catalog_param = MultiProcParameter.get(catalog_proc.getParameters().get(0), catalog_proc.getParameters().get(1));

@@ -17,12 +17,12 @@ import edu.brown.BaseTestCase;
 import edu.brown.catalog.CatalogPair;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.designer.AccessGraph;
-import edu.brown.designer.ColumnSet;
 import edu.brown.designer.DesignerEdge;
 import edu.brown.designer.DesignerInfo;
 import edu.brown.designer.DesignerVertex;
 import edu.brown.designer.AccessGraph.EdgeAttributes;
 import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.PredicatePairs;
 import edu.brown.utils.ProjectType;
 import edu.brown.workload.Workload;
 import edu.brown.workload.filters.ProcedureLimitFilter;
@@ -153,7 +153,7 @@ public class TestAccessGraphGenerator2 extends BaseTestCase {
                 }
                 if (catalog_tbl0.equals(catalog_tbl1)) continue;
             
-                ColumnSet global_cset = new ColumnSet();
+                PredicatePairs global_cset = new PredicatePairs();
                 try {
                     edges = agraph.findEdgeSet(v0, v1);
                 } catch (IllegalArgumentException ex) {
@@ -161,7 +161,7 @@ public class TestAccessGraphGenerator2 extends BaseTestCase {
                 }
                 found = true;
                 for (DesignerEdge e : edges) {
-                    ColumnSet e_cset = e.getAttribute(EdgeAttributes.COLUMNSET);
+                    PredicatePairs e_cset = e.getAttribute(EdgeAttributes.COLUMNSET);
                     assertNotNull(e_cset);
                     global_cset.addAll(e_cset);
                 } // FOR
@@ -170,7 +170,7 @@ public class TestAccessGraphGenerator2 extends BaseTestCase {
                 // Now check to make sure that there are no edges that have some funky ColumnSet entry that
                 // wasn't in our original graph
                 for (DesignerEdge e : single_agraph.findEdgeSet(v0, v1)) {
-                    ColumnSet e_cset = e.getAttribute(EdgeAttributes.COLUMNSET);
+                    PredicatePairs e_cset = e.getAttribute(EdgeAttributes.COLUMNSET);
                     assertNotNull(e_cset);
                     assertEquals(e_cset.toString(), 1, e_cset.size());
                     CatalogPair entry = CollectionUtil.first(e_cset);
