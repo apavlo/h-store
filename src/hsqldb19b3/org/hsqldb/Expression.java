@@ -210,7 +210,7 @@ public class Expression {
         nodes  = emptyExpressionArray;
     }
 
-    // IN condition optimisation
+    // IN condition optimization
 
     /**
      * Creates a SCALAR SUBQUERY expression. Is called as ROW_SUBQUERY
