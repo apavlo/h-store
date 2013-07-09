@@ -76,7 +76,7 @@ public class TestPlansInsertInto extends TestCase{
         AbstractPlanNode pn = null;
         //pn = compile("INSERT INTO D1 (D1_PKEY, D1_NAME) VALUES (1,'AAA')",0);//SELECT * from D2", 0);
        pn = compile("INSERT INTO D1 (D1_PKEY, D1_NAME) SELECT * from D2", 0);
-        pn = compile("SELECT * from D2", 0);
+        //pn = compile("SELECT * from D2", 0);
         assertNotNull(pn);
         if (pn != null)
             System.out.println(pn.toJSONString());
