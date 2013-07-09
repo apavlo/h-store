@@ -250,7 +250,10 @@ public class StatementInsert extends StatementDML {
             sb.append(indent).append("<column table=\"").append(targetTable.tableName.name);
             sb.append("\" name=\"").append(targetTable.getColumn(insertColumnMap[i]).getName().name);
             sb.append("\">\n");
-            sb.append(insertExpression.nodes[0].nodes[i].voltGetXML(session, indent + HSQLInterface.XML_INDENT)).append("\n");
+            if(insertExpression != null)
+            	sb.append(insertExpression.nodes[0].nodes[i].voltGetXML(session, indent + HSQLInterface.XML_INDENT)).append("\n");
+            //else
+            	//sb.append(queryExpression.getCheckCondition())
             sb.append(indent).append("</column>\n");
         }
         sb.append(orig_indent).append("</columns>");
