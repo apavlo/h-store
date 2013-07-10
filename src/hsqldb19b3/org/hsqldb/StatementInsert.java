@@ -252,8 +252,6 @@ public class StatementInsert extends StatementDML {
             sb.append("\">\n");
             if(insertExpression != null)
             	sb.append(insertExpression.nodes[0].nodes[i].voltGetXML(session, indent + HSQLInterface.XML_INDENT)).append("\n");
-            //else
-            	//sb.append(queryExpression.getCheckCondition())
             sb.append(indent).append("</column>\n");
         }
         sb.append(orig_indent).append("</columns>");
@@ -295,7 +293,6 @@ public class StatementInsert extends StatementDML {
         sb = new StringBuffer();
         String indent = orig_indent + HSQLInterface.XML_INDENT;
         
-        //System.out.println(sb.toString());
       //sb.replace(0, sb.length(), "<insert table=\"D1\"> <columns><columnref id=\"1667513825\" table=\"D2\" column=\"D2_PKEY\" alias=\"D2_PKEY\" /><columnref id=\"1243263425\" table=\"D2\" column=\"D2_NAME\" alias=\"D2_NAME\" /></columns><select><columns><columnref id=\"1667513825\" table=\"D2\" column=\"D2_PKEY\" alias=\"D2_PKEY\" /><columnref id=\"1243263425\" table=\"D2\" column=\"D2_NAME\" alias=\"D2_NAME\" /></columns><parameters></parameters><tablescans><tablescan type=\"sequential\" table=\"D2\"></tablescan></tablescans></select>");
 
 
@@ -305,7 +302,14 @@ public class StatementInsert extends StatementDML {
                 sb.append(orig_indent).append("<insert table=\"");
                 sb.append(targetTable.getName().name).append("\">\n");
                 voltAppendInsertColumns(session, sb, indent).append('\n');
-                voltAppendParameters(session, sb, indent).append('\n');
+                if(queryExpression != null)	//INSERT INTO ... SELECT
+                {
+                	StatementQuery select = new StatementQuery(session, queryExpression, queryExpression.getCompileContext());
+                	sb.append(select.voltGetXML(session, indent));	
+                	sb.append('\n');
+                }
+                else
+                	voltAppendParameters(session, sb, indent).append('\n');
                 sb.append(orig_indent).append("</insert>");
                 break;
 
@@ -314,7 +318,6 @@ public class StatementInsert extends StatementDML {
                 break;
 
         }
-        System.out.println(sb.toString());
         
         return sb.toString();
     }

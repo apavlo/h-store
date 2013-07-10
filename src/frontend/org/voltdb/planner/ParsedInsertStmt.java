@@ -71,6 +71,9 @@ public class ParsedInsertStmt extends AbstractParsedStmt {
                     }
                 }
             }
+            if (node.getNodeName().equalsIgnoreCase("select")) {
+            	parseInsertSelect(node, db);
+            }
         }
     }
 
@@ -98,6 +101,12 @@ public class ParsedInsertStmt extends AbstractParsedStmt {
 
         columns.put(column, expr);
     }
+    
+    void parseInsertSelect(Node selectNode, Database db) {
+        AbstractParsedStmt select = new ParsedSelectStmt();
+        select.parse(selectNode, db);
+        
+    }
 
     @Override
     public String toString() {
@@ -105,8 +114,9 @@ public class ParsedInsertStmt extends AbstractParsedStmt {
 
         retval += "COLUMNS:\n";
         for (Entry<Column, AbstractExpression> col : columns.entrySet()) {
-            retval += "\tColumn: " + col.getKey().getTypeName() + ": ";
-            retval += col.getValue().toString() + "\n";
+            retval += "\tColumn: " + col.getKey().getTypeName();
+            if (col.getValue() != null) //to avoid breaking on INSERT INTO ... SELECT
+            	retval +=  ": " + col.getValue().toString() + "\n";
         }
         retval = retval.trim();
 
