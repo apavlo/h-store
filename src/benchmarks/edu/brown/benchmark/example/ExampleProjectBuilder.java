@@ -20,7 +20,7 @@ public class ExampleProjectBuilder extends AbstractProjectBuilder {
     };
     public static final String PARTITIONING[][] = new String[][] {
             // { "TABLE NAME", "PARTITIONING COLUMN NAME" }
-            { "TABLEA", "A_ID" }, { "TABLEB", "B_A_ID" }, };
+            { "TABLEA", "A_ID" }, { "TABLEB", "B_A_ID" }, { "TABLEC", "A_ID" },};
 
     public ExampleProjectBuilder() {
         super("example", ExampleProjectBuilder.class, PROCEDURES, PARTITIONING);

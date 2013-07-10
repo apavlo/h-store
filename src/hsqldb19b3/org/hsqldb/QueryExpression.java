@@ -786,4 +786,9 @@ public class QueryExpression {
         leftQueryExpression.getBaseTableNames(set);
         rightQueryExpression.getBaseTableNames(set);
     }
+    
+    CompileContext getCompileContext()
+    {
+    	return compileContext;
+    }
 }

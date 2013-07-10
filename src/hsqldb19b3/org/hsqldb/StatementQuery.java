@@ -459,8 +459,7 @@ public class StatementQuery extends StatementDMQL {
         }
 
         sb.append(orig_indent).append("</select>");
-        
-        System.out.println(sb.toString());
+       
         return sb.toString();
     }
 }
