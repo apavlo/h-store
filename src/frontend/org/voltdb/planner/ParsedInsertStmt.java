@@ -37,6 +37,8 @@ import org.w3c.dom.NodeList;
 public class ParsedInsertStmt extends AbstractParsedStmt {
 
     public HashMap<Column, AbstractExpression> columns = new HashMap<Column, AbstractExpression>();
+    public ParsedSelectStmt select;
+    public boolean hasSelect = false;
 
     ParsedInsertStmt() {
         columns = new HashMap<Column, AbstractExpression>();
@@ -103,9 +105,14 @@ public class ParsedInsertStmt extends AbstractParsedStmt {
     }
     
     void parseInsertSelect(Node selectNode, Database db) {
-        AbstractParsedStmt select = new ParsedSelectStmt();
+    	hasSelect = true;
+        select = new ParsedSelectStmt();
         select.parse(selectNode, db);
-        
+    }
+    
+    ParsedSelectStmt getSelectStmt()
+    {
+    	return select;
     }
 
     @Override
@@ -121,5 +128,10 @@ public class ParsedInsertStmt extends AbstractParsedStmt {
         retval = retval.trim();
 
         return retval;
+    }
+    
+    public boolean hasSelect()
+    {
+    	return hasSelect;
     }
 }

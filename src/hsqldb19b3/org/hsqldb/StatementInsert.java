@@ -48,6 +48,8 @@ import org.hsqldb.types.Type;
  * @since 1.9.0
  */
 public class StatementInsert extends StatementDML {
+	
+	boolean hasSelect;
 
     /**
      * Instantiate this as an INSERT_VALUES statement.
@@ -65,6 +67,7 @@ public class StatementInsert extends StatementDML {
         this.insertCheckColumns     = checkColumns;
         this.insertExpression       = insertExpression;
         this.isTransactionStatement = true;
+        hasSelect = false;
 
         setDatabseObjects(compileContext);
         checkAccessRights(session);
@@ -86,6 +89,7 @@ public class StatementInsert extends StatementDML {
         this.insertCheckColumns     = checkColumns;
         this.queryExpression        = queryExpression;
         this.isTransactionStatement = true;
+        hasSelect = true;
 
         setDatabseObjects(compileContext);
         checkAccessRights(session);
@@ -321,4 +325,9 @@ public class StatementInsert extends StatementDML {
         
         return sb.toString();
     }
+     
+     boolean hasSelect()
+     {
+    	 return hasSelect;
+     }
 }

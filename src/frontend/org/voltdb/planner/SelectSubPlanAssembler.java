@@ -71,6 +71,8 @@ public class SelectSubPlanAssembler extends SubPlanAssembler {
         // inserts can't have predicates
         assert(((m_parsedStmt instanceof ParsedInsertStmt) && (m_parsedStmt.where != null)) == false);
         // only selects can have more than one table
+        
+        
         if (m_parsedStmt.tableList.size() > 1)
             assert(m_parsedStmt instanceof ParsedSelectStmt);
 
