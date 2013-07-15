@@ -107,7 +107,19 @@ public class ParsedInsertStmt extends AbstractParsedStmt {
     void parseInsertSelect(Node selectNode, Database db) {
     	hasSelect = true;
         select = new ParsedSelectStmt();
+        NodeList children = selectNode.getChildNodes();
+        for (int i = 0; i < children.getLength(); i++) {
+            Node node = children.item(i);
+            if (node.getNodeName().equalsIgnoreCase("parameters")) {
+                select.parseParameters(node, db);
+            }
+            if (node.getNodeName().equalsIgnoreCase("tablescans")) {
+                select.parseTables(node, db);
+            }
+        }
         select.parse(selectNode, db);
+        select.analyzeWhereExpression(db);
+        select.sql = sql;
     }
     
     ParsedSelectStmt getSelectStmt()
