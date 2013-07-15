@@ -405,7 +405,7 @@ public abstract class AbstractParsedStmt {
      * @param tablesNode
      * @param db
      */
-    private void parseTables(Node tablesNode, Database db) {
+    public void parseTables(Node tablesNode, Database db) {
         NodeList children = tablesNode.getChildNodes();
         for (int i = 0; i < children.getLength(); i++) {
             Node node = children.item(i);
@@ -418,7 +418,7 @@ public abstract class AbstractParsedStmt {
         }
     }
 
-    private void parseParameters(Node paramsNode, Database db) {
+    public void parseParameters(Node paramsNode, Database db) {
         NodeList children = paramsNode.getChildNodes();
         for (int i = 0; i < children.getLength(); i++) {
             Node node = children.item(i);
