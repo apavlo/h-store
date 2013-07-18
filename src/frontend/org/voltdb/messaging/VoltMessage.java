@@ -105,33 +105,33 @@ public abstract class VoltMessage {
         VoltMessage message = null;
 
         switch (messageType) {
-        case INITIATE_TASK_ID:
-            message = new InitiateTaskMessage();
-            break;
-        case INITIATE_RESPONSE_ID:
-            message = new InitiateResponseMessage();
-            break;
-        case FRAGMENT_TASK_ID:
-            message = new FragmentTaskMessage();
-            break;
-        case FRAGMENT_RESPONSE_ID:
-            message = new FragmentResponseMessage();
-            break;
-        case PARTICIPANT_NOTICE_ID:
-            message = new MultiPartitionParticipantMessage();
-            break;
+//        case INITIATE_TASK_ID:
+//            message = new InitiateTaskMessage();
+//            break;
+//        case INITIATE_RESPONSE_ID:
+//            message = new InitiateResponseMessage();
+//            break;
+//        case FRAGMENT_TASK_ID:
+//            message = new FragmentTaskMessage();
+//            break;
+//        case FRAGMENT_RESPONSE_ID:
+//            message = new FragmentResponseMessage();
+//            break;
+//        case PARTICIPANT_NOTICE_ID:
+//            message = new MultiPartitionParticipantMessage();
+//            break;
 //        case HEARTBEAT_ID:
 //            message = new HeartbeatMessage();
 //            break;
 //        case HEARTBEAT_RESPONSE_ID:
 //            message = new HeartbeatResponseMessage();
 //            break;
-        case DEBUG_MESSAGE_ID:
-            message = new DebugMessage();
-            break;
-        case FAILURE_SITE_UPDATE_ID:
-            message = new FailureSiteUpdateMessage();
-            break;
+//        case DEBUG_MESSAGE_ID:
+//            message = new DebugMessage();
+//            break;
+//        case FAILURE_SITE_UPDATE_ID:
+//            message = new FailureSiteUpdateMessage();
+//            break;
         default:
             Class<? extends VoltMessage> cls = externals.get(messageType);
             assert(cls != null);
