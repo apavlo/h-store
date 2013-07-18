@@ -120,12 +120,12 @@ public abstract class VoltMessage {
         case PARTICIPANT_NOTICE_ID:
             message = new MultiPartitionParticipantMessage();
             break;
-        case HEARTBEAT_ID:
-            message = new HeartbeatMessage();
-            break;
-        case HEARTBEAT_RESPONSE_ID:
-            message = new HeartbeatResponseMessage();
-            break;
+//        case HEARTBEAT_ID:
+//            message = new HeartbeatMessage();
+//            break;
+//        case HEARTBEAT_RESPONSE_ID:
+//            message = new HeartbeatResponseMessage();
+//            break;
         case DEBUG_MESSAGE_ID:
             message = new DebugMessage();
             break;

@@ -31,9 +31,9 @@ import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltTable.ColumnInfo;
 import org.voltdb.VoltType;
-import org.voltdb.dtxn.DtxnConstants;
 import org.voltdb.sysprocs.saverestore.SnapshotUtil;
 
+import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.PartitionExecutor.SystemProcedureExecutionContext;
 
 @ProcInfo(singlePartition = false)
@@ -41,7 +41,7 @@ public class SnapshotDelete extends VoltSystemProcedure {
     private static final Logger LOG = Logger.getLogger(SnapshotDelete.class);
 
     private static final int DEP_snapshotDelete = (int)
-        SysProcFragmentId.PF_snapshotDelete | DtxnConstants.MULTIPARTITION_DEPENDENCY;
+        SysProcFragmentId.PF_snapshotDelete | HStoreConstants.MULTIPARTITION_DEPENDENCY;
 
     private static final int DEP_snapshotDeleteResults = (int)
         SysProcFragmentId.PF_snapshotDeleteResults;

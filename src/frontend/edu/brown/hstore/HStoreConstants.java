@@ -103,4 +103,7 @@ public abstract class HStoreConstants {
     
     public static final String HSTORE_WEBSITE = "http://hstore.cs.brown.edu";
 
+    /** Dtxn requires 1 dependency response per partition */
+    public static final int MULTIPARTITION_DEPENDENCY = 0x40000000;
+
 }

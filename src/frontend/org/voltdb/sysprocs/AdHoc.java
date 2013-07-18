@@ -27,8 +27,8 @@ import org.voltdb.ProcInfo;
 import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
-import org.voltdb.dtxn.DtxnConstants;
 
+import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.PartitionExecutor.SystemProcedureExecutionContext;
 import edu.brown.hstore.txns.AbstractTransaction;
 
@@ -41,7 +41,7 @@ public class AdHoc extends VoltSystemProcedure {
 
 
     final int AGG_DEPID = 1;
-    final int COLLECT_DEPID = 2 | DtxnConstants.MULTIPARTITION_DEPENDENCY;
+    final int COLLECT_DEPID = 2 | HStoreConstants.MULTIPARTITION_DEPENDENCY;
 
     @Override
     public void initImpl() {

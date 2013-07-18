@@ -32,10 +32,10 @@ import org.voltdb.VoltType;
 import org.voltdb.catalog.Column;
 import org.voltdb.catalog.MaterializedViewInfo;
 import org.voltdb.catalog.Table;
-import org.voltdb.dtxn.DtxnConstants;
 import org.voltdb.exceptions.MispredictionException;
 
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.PartitionExecutor.SystemProcedureExecutionContext;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
@@ -57,7 +57,7 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
     
-    private static final long DEP_distribute = SysProcFragmentId.PF_loadDistribute | DtxnConstants.MULTIPARTITION_DEPENDENCY;
+    private static final long DEP_distribute = SysProcFragmentId.PF_loadDistribute | HStoreConstants.MULTIPARTITION_DEPENDENCY;
     private static final long DEP_aggregate = SysProcFragmentId.PF_loadAggregate;
 
     private ObjectHistogram<Integer> allPartitionsHistogram = new ObjectHistogram<Integer>();

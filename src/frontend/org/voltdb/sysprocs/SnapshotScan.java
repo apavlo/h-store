@@ -39,10 +39,10 @@ import org.voltdb.VoltTable.ColumnInfo;
 import org.voltdb.VoltTableRow;
 import org.voltdb.VoltType;
 import org.voltdb.client.ConnectionUtil;
-import org.voltdb.dtxn.DtxnConstants;
 import org.voltdb.sysprocs.saverestore.SnapshotUtil;
 import org.voltdb.sysprocs.saverestore.TableSaveFile;
 
+import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.PartitionExecutor.SystemProcedureExecutionContext;
 
 @ProcInfo(singlePartition = false)
@@ -50,18 +50,18 @@ public class SnapshotScan extends VoltSystemProcedure {
     private static final Logger LOG = Logger.getLogger(SnapshotScan.class);
 
     private static final int DEP_snapshotDigestScan = (int)
-        SysProcFragmentId.PF_snapshotDigestScan | DtxnConstants.MULTIPARTITION_DEPENDENCY;
+        SysProcFragmentId.PF_snapshotDigestScan | HStoreConstants.MULTIPARTITION_DEPENDENCY;
     private static final int DEP_snapshotDigestScanResults = (int)
         SysProcFragmentId.PF_snapshotDigestScanResults;
 
     private static final int DEP_snapshotScan = (int)
-        SysProcFragmentId.PF_snapshotScan | DtxnConstants.MULTIPARTITION_DEPENDENCY;
+        SysProcFragmentId.PF_snapshotScan | HStoreConstants.MULTIPARTITION_DEPENDENCY;
 
     private static final int DEP_snapshotScanResults = (int)
         SysProcFragmentId.PF_snapshotScanResults;
 
     private static final int DEP_hostDiskFreeScan = (int)
-        SysProcFragmentId.PF_hostDiskFreeScan | DtxnConstants.MULTIPARTITION_DEPENDENCY;
+        SysProcFragmentId.PF_hostDiskFreeScan | HStoreConstants.MULTIPARTITION_DEPENDENCY;
 
     private static final int DEP_hostDiskFreeScanResults = (int)
         SysProcFragmentId.PF_hostDiskFreeScanResults;

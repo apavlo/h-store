@@ -35,11 +35,11 @@ import org.voltdb.VoltTable.ColumnInfo;
 import org.voltdb.VoltType;
 import org.voltdb.catalog.CatalogMap;
 import org.voltdb.catalog.Table;
-import org.voltdb.dtxn.DtxnConstants;
 import org.voltdb.exceptions.ServerFaultException;
 import org.voltdb.utils.Pair;
 import org.voltdb.utils.VoltTableUtil;
 
+import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.PartitionExecutor.SystemProcedureExecutionContext;
 import edu.brown.hstore.internal.UtilityWorkMessage.UpdateMemoryMessage;
 import edu.brown.logging.LoggerUtil;
@@ -62,21 +62,21 @@ public class Statistics extends VoltSystemProcedure {
     }
 
     static final int DEP_tableData = (int)
-        SysProcFragmentId.PF_tableData | DtxnConstants.MULTIPARTITION_DEPENDENCY;
+        SysProcFragmentId.PF_tableData | HStoreConstants.MULTIPARTITION_DEPENDENCY;
     static final int DEP_tableAggregator = (int) SysProcFragmentId.PF_tableAggregator;
 
     static final int DEP_procedureData = (int)
-        SysProcFragmentId.PF_procedureData | DtxnConstants.MULTIPARTITION_DEPENDENCY;
+        SysProcFragmentId.PF_procedureData | HStoreConstants.MULTIPARTITION_DEPENDENCY;
     static final int DEP_procedureAggregator = (int)
         SysProcFragmentId.PF_procedureAggregator;
 
     static final int DEP_initiatorData = (int)
-        SysProcFragmentId.PF_initiatorData | DtxnConstants.MULTIPARTITION_DEPENDENCY;
+        SysProcFragmentId.PF_initiatorData | HStoreConstants.MULTIPARTITION_DEPENDENCY;
     static final int DEP_initiatorAggregator = (int)
         SysProcFragmentId.PF_initiatorAggregator;
 
     static final int DEP_ioData = (int)
-        SysProcFragmentId.PF_ioData | DtxnConstants.MULTIPARTITION_DEPENDENCY;
+        SysProcFragmentId.PF_ioData | HStoreConstants.MULTIPARTITION_DEPENDENCY;
     static final int DEP_ioDataAggregator = (int)
         SysProcFragmentId.PF_ioDataAggregator;
 
