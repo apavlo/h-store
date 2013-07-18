@@ -34,6 +34,8 @@ import com.google.protobuf.RpcController;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.Hstoreservice.HStoreService;
+import edu.brown.hstore.Hstoreservice.HeartbeatRequest;
+import edu.brown.hstore.Hstoreservice.HeartbeatResponse;
 import edu.brown.hstore.Hstoreservice.InitializeRequest;
 import edu.brown.hstore.Hstoreservice.InitializeResponse;
 import edu.brown.hstore.Hstoreservice.SendDataRequest;
@@ -174,6 +176,9 @@ public class HStoreCoordinator implements Shutdownable {
     private final TransactionPrefetchCallback transactionPrefetch_callback;
     private final PrefetchQueryPlanner prefetchPlanner;
     
+    // ----------------------------------------------------------------------------
+    // MESSENGER LISTENER THREAD
+    // ----------------------------------------------------------------------------
     
     /**
      * 
@@ -219,6 +224,30 @@ public class HStoreCoordinator implements Shutdownable {
         }
     }
     
+    // ----------------------------------------------------------------------------
+    // HEARTBEAT CALLBACK
+    // ----------------------------------------------------------------------------
+    
+    private final RpcCallback<HeartbeatResponse> heartbeatCallback = new RpcCallback<HeartbeatResponse>() {
+        @Override
+        public void run(HeartbeatResponse response) {
+            if (response.getStatus() == Status.OK) {
+                if (trace.val)
+                    LOG.trace(String.format("%s %s -> %s [%s]",
+                              response.getClass().getSimpleName(),
+                              HStoreThreadManager.formatSiteName(response.getSenderSite()),
+                              HStoreThreadManager.formatSiteName(local_site_id),
+                              response.getStatus()));
+                // FIXME: We need to actually store the heartbeat updates somewhere...
+                assert(response.getSenderSite() != local_site_id);
+            }
+        }
+    };
+
+    // ----------------------------------------------------------------------------
+    // INITIALIZATION
+    // ----------------------------------------------------------------------------
+
     /**
      * Constructor
      * @param hstore_site
@@ -232,7 +261,9 @@ public class HStoreCoordinator implements Shutdownable {
         this.num_sites = this.hstore_site.getCatalogContext().numberOfSites;
         this.channels = new HStoreService[this.num_sites];
         
-        if (debug.val) LOG.debug("Local Partitions for Site #" + hstore_site.getSiteId() + ": " + hstore_site.getLocalPartitionIds());
+        if (debug.val)
+            LOG.debug(String.format("Local Partitions for Site #%d: %s",
+                      hstore_site.getSiteId(), hstore_site.getLocalPartitionIds()));
 
         // Incoming RPC Handler
         this.remoteService = this.initHStoreService();
@@ -709,6 +740,18 @@ public class HStoreCoordinator implements Shutdownable {
             HStoreCoordinator.this.hstore_site.shutdown();
             if (debug.val) LOG.debug(String.format("ForwardDispatcher Queue Idle Time: %.2fms",
                              transactionRedirect_dispatcher.getIdleTime().getTotalThinkTimeMS()));
+        }
+        
+        @Override
+        public void heartbeat(RpcController controller, HeartbeatRequest request, RpcCallback<HeartbeatResponse> done) {
+            if (debug.val)
+                LOG.debug(String.format("Received %s from HStoreSite %s",
+                          request.getClass().getSimpleName(),
+                          HStoreThreadManager.formatSiteName(request.getSenderSite())));
+            HeartbeatResponse.Builder builder = HeartbeatResponse.newBuilder()
+                                                    .setSenderSite(local_site_id)
+                                                    .setStatus(Status.OK);
+            done.run(builder.build());            
         }
 
         @Override
@@ -1201,6 +1244,28 @@ public class HStoreCoordinator implements Shutdownable {
                      this.num_sites-1));
         }
         return (responses);
+    }
+    
+    // ----------------------------------------------------------------------------
+    // HEARTBEAT METHODS
+    // ----------------------------------------------------------------------------
+    
+    /**
+     * Send a heartbeat notification message to all the other sites in the cluster.
+     */
+    public void sendHeartbeat() {
+        HeartbeatRequest request = HeartbeatRequest.newBuilder()
+                                    .setSenderSite(this.local_site_id)
+                                    .setLastTransactionId(-1) // FIXME
+                                    .build();
+        for (int site_id = 0; site_id < this.num_sites; site_id++) {
+            if (site_id == this.local_site_id) continue;
+            this.channels[site_id].heartbeat(new ProtoRpcController(), request, this.heartbeatCallback);
+            if (trace.val)
+                LOG.trace(String.format("Sent %s to %s",
+                          request.getClass().getSimpleName(),
+                          HStoreThreadManager.formatSiteName(site_id)));
+        } // FOR
     }
     
     // ----------------------------------------------------------------------------

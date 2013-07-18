@@ -6,6 +6,8 @@ import com.google.protobuf.RpcCallback;
 import com.google.protobuf.RpcController;
 
 import edu.brown.hstore.Hstoreservice.HStoreService;
+import edu.brown.hstore.Hstoreservice.HeartbeatRequest;
+import edu.brown.hstore.Hstoreservice.HeartbeatResponse;
 import edu.brown.hstore.Hstoreservice.InitializeRequest;
 import edu.brown.hstore.Hstoreservice.InitializeResponse;
 import edu.brown.hstore.Hstoreservice.SendDataRequest;
@@ -154,6 +156,12 @@ public class MockHStoreCoordinator extends HStoreCoordinator {
                                                      .build();
             System.exit(1);
             done.run(response);
+            
+        }
+        
+        @Override
+        public void heartbeat(RpcController controller, HeartbeatRequest request, RpcCallback<HeartbeatResponse> done) {
+            // TODO Auto-generated method stub
             
         }
 
