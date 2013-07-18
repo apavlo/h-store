@@ -346,76 +346,81 @@ public class TestPlansGroupBySuite extends RegressionSuite {
         }
     }
 
-// FIXME
-//    /**
-//     * distributed sums of a view
-//     * select sum(V.SUM_V1), sum(V.SUM_V2), sum(V.SUM_V3) from V
-//     * @throws InterruptedException
-//     */
-//    public void testDistributedSum_View() throws IOException, ProcCallException, InterruptedException {
-//        VoltTable vt;
-//        Client client = getClient();
-//        loadF(client, 0);
-//
-//        String qs = "select sum(V.SUM_v1), sum(V.SUM_V2), sum(V.SUM_V3) from V";
-//
-//        vt = client.callProcedure("@AdHoc", qs).getResults()[0];
-//        System.out.println("testDistributedSum_View result: " + vt);
-//        assertTrue(vt.getRowCount() == 1);
-//        while (vt.advanceRow()) {
-//            Integer sum1 = (Integer) vt.get(0, VoltType.INTEGER);
-//            assertEquals(2000, sum1.intValue());
-//            Integer sum2 = (Integer) vt.get(1, VoltType.INTEGER);
-//            assertEquals(4995000, sum2.intValue());
-//            Integer sum3 = (Integer) vt.get(2, VoltType.INTEGER);
-//            assertEquals(500, sum3.intValue());
-//        }
-//    }
-//
-//    /**
-//     * distributed sums of a view (REDUNDANT GROUP BY)
-//     * select V.D1_PKEY, sum(V.SUM_V1), sum(V.SUM_V2), sum(V.SUM_V3)
-//     * from V group by V.V_D1_PKEY
-//     * @throws InterruptedException
-//     */
-//    public void testDistributedSumAndGroup() throws NoConnectionsException,
-//    ProcCallException, IOException, InterruptedException {
-//        VoltTable vt;
-//        Client client = getClient();
-//        loadF(client, 0);
-//
-//        String qs = "select V.V_D1_PKEY, sum(V.SUM_V1), sum(V.SUM_V2), sum(V.SUM_V3) "
+    /**
+     * distributed sums of a view
+     * select sum(V.SUM_V1), sum(V.SUM_V2), sum(V.SUM_V3) from V
+     * @throws InterruptedException
+     */
+    public void testDistributedSum_View() throws IOException, ProcCallException, InterruptedException {
+        VoltTable vt;
+        Client client = getClient();
+        loadF(client, 0);
+
+        // FIXME String qs = "select sum(V.SUM_v1), sum(V.SUM_V2), sum(V.SUM_V3) from V";
+        String qs = "select sum(V.SUM_v1), sum(V.SUM_V2) from V";
+
+        vt = client.callProcedure("@AdHoc", qs).getResults()[0];
+        System.out.println("testDistributedSum_View result: " + vt);
+        assertTrue(vt.getRowCount() == 1);
+        while (vt.advanceRow()) {
+            Integer sum1 = (Integer) vt.get(0, VoltType.INTEGER);
+            assertEquals(2000, sum1.intValue());
+            Integer sum2 = (Integer) vt.get(1, VoltType.INTEGER);
+            assertEquals(4995000, sum2.intValue());
+            // FIXME Integer sum3 = (Integer) vt.get(2, VoltType.INTEGER);
+            // FIXME assertEquals(500, sum3.intValue());
+        }
+    }
+
+    /**
+     * distributed sums of a view (REDUNDANT GROUP BY)
+     * select V.D1_PKEY, sum(V.SUM_V1), sum(V.SUM_V2), sum(V.SUM_V3)
+     * from V group by V.V_D1_PKEY
+     * @throws InterruptedException
+     */
+    public void testDistributedSumAndGroup() throws NoConnectionsException,
+    ProcCallException, IOException, InterruptedException {
+        VoltTable vt;
+        Client client = getClient();
+        loadF(client, 0);
+
+        // FIXME String qs = "select V.V_D1_PKEY, sum(V.SUM_V1), sum(V.SUM_V2), sum(V.SUM_V3) "
 //            + "from V group by V.V_D1_PKEY";
-//
-//        vt = client.callProcedure("@AdHoc", qs).getResults()[0];
-//        System.out.println("testDistributedSumAndJoin result: " + vt);
-//        assert (vt.getRowCount() == 10); // 10 unique values for dim1 which is
-//        // the grouping col
-//
-//        int found[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-//        while (vt.advanceRow()) {
-//            Integer d1 = (Integer) vt.get(0, VoltType.INTEGER);
-//            Integer s1 = (Integer) vt.get(1, VoltType.INTEGER);
-//            Integer s2 = (Integer) vt.get(2, VoltType.INTEGER);
-//            Integer s3 = (Integer) vt.get(3, VoltType.INTEGER);
-//
-//            // track that 10 dim1s are in the final group
-//            found[d1.intValue()] += 1;
-//            // sum1 is const 2. 100 dim1 instances / group
-//            assertEquals(200, s1.intValue());
-//            // sum of every 10th i * 10 in this range
-//            assertTrue(495000 <= s2.intValue() && 504000 >= s2.intValue());
-//            // sum3 alternates 0|1. There are 100 dim1 instances / group
+        String qs = "select V.V_D1_PKEY, sum(V.SUM_V1), sum(V.SUM_V2) "
+                + "from V group by V.V_D1_PKEY";
+        
+
+        vt = client.callProcedure("@AdHoc", qs).getResults()[0];
+        System.out.println("testDistributedSumAndJoin result: " + vt);
+        assert (vt.getRowCount() == 10); // 10 unique values for dim1 which is
+        // the grouping col
+
+        int found[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+        while (vt.advanceRow()) {
+            Integer d1 = (Integer) vt.get(0, VoltType.INTEGER);
+            Integer s1 = (Integer) vt.get(1, VoltType.INTEGER);
+            Integer s2 = (Integer) vt.get(2, VoltType.INTEGER);
+            // FIXME Integer s3 = (Integer) vt.get(3, VoltType.INTEGER);
+
+            // track that 10 dim1s are in the final group
+            found[d1.intValue()] += 1;
+            // sum1 is const 2. 100 dim1 instances / group
+            assertEquals(200, s1.intValue());
+            // sum of every 10th i * 10 in this range
+            assertTrue(495000 <= s2.intValue() && 504000 >= s2.intValue());
+            
+            // FIXME
+            // sum3 alternates 0|1. There are 100 dim1 instances / group
 //            if ((d1.intValue() % 2) == 0)
 //                assertEquals(s3.intValue(), 0);
 //            else
 //                assertEquals(s3.intValue(), 100);
-//
-//        }
-//        for (int i = 0; i < 10; i++)
-//            assertEquals(1, found[i]);
-//
-//    }
+
+        }
+        for (int i = 0; i < 10; i++)
+            assertEquals(1, found[i]);
+
+    }
 //
 //    /**
 //     * distributed sum of a view with a group by and join on a replicated table.
