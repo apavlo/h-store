@@ -1260,11 +1260,16 @@ public class HStoreCoordinator implements Shutdownable {
                                     .build();
         for (int site_id = 0; site_id < this.num_sites; site_id++) {
             if (site_id == this.local_site_id) continue;
-            this.channels[site_id].heartbeat(new ProtoRpcController(), request, this.heartbeatCallback);
-            if (trace.val)
-                LOG.trace(String.format("Sent %s to %s",
-                          request.getClass().getSimpleName(),
-                          HStoreThreadManager.formatSiteName(site_id)));
+            if (this.isShuttingDown()) break;
+            try {
+                this.channels[site_id].heartbeat(new ProtoRpcController(), request, this.heartbeatCallback);
+                if (trace.val)
+                    LOG.trace(String.format("Sent %s to %s",
+                              request.getClass().getSimpleName(),
+                              HStoreThreadManager.formatSiteName(site_id)));
+            } catch (RuntimeException ex) {
+                // Silently ignore these errors...
+            }
         } // FOR
     }
     
