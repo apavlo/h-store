@@ -686,6 +686,14 @@ public final class HStoreConf {
         // ----------------------------------------------------------------------------
 
         @ConfigProperty(
+            description="How often in milliseconds the HStoreCoordinator at each HStoreSite should send " +
+            		    "heartbeat notifications to the other coordinators in the cluster. ",
+            defaultInt=10000,
+            experimental=false
+        )
+        public int network_heartbeats_interval;
+        
+        @ConfigProperty(
             description="How long in milliseconds should the HStoreCoordinator wait to establish " +
                         "the initial connections to other nodes in the cluster at start-up. " +
                         "Increasing this number will help with larger cluster deployments.",

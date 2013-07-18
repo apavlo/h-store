@@ -446,6 +446,21 @@ message ShutdownResponse {
 }
 
 // -----------------------------------
+// NODE HEARTBEAT MESSAGES
+// -----------------------------------
+
+message HeartbeatRequest {
+    required int32 sender_site = 1;
+    // This is the largest txn acked at the sender site
+    required int64 last_transaction_id = 2;
+}
+
+message HeartbeatResponse {
+    required int32 sender_site = 1;
+    required Status status = 2;
+}
+
+// -----------------------------------
 // TIME SYNC MESSAGE
 // -----------------------------------
 
@@ -486,5 +501,6 @@ service HStoreService {
     rpc Initialize(InitializeRequest) returns (InitializeResponse);
     rpc ShutdownPrepare(ShutdownPrepareRequest) returns (ShutdownPrepareResponse);
     rpc Shutdown(ShutdownRequest) returns (ShutdownResponse);
+    rpc Heartbeat(HeartbeatRequest) returns (HeartbeatResponse);
     rpc TimeSync(TimeSyncRequest) returns (TimeSyncResponse);
 }
