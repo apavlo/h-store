@@ -21,7 +21,6 @@ import java.nio.ByteBuffer;
 import java.util.HashMap;
 
 import org.voltdb.VoltDB;
-import org.voltdb.debugstate.MailboxHistory.MessageState;
 import org.voltdb.utils.DBBPool;
 import org.voltdb.utils.DBBPool.BBContainer;
 
@@ -181,14 +180,14 @@ public abstract class VoltMessage {
         return m_container;
     }
 
-    public MessageState getDumpContents() {
-        MessageState ms = new MessageState();
-        ms.summary = toString();
-        ms.toSiteId = receivedFromSiteId;
-        ms.fromSiteId = -1;
-        ms.txnId = -1;
-        return ms;
-    }
+//    public MessageState getDumpContents() {
+//        MessageState ms = new MessageState();
+//        ms.summary = toString();
+//        ms.toSiteId = receivedFromSiteId;
+//        ms.fromSiteId = -1;
+//        ms.txnId = -1;
+//        return ms;
+//    }
 
     /**
      * Discard the container if there is one.

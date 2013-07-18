@@ -17,8 +17,6 @@
 
 package org.voltdb.messaging;
 
-import org.voltdb.debugstate.MailboxHistory.MessageState;
-
 /**
  * Message from an initiator to an execution site, informing the
  * site that it may be requested to do work for a multi-partition
@@ -126,11 +124,11 @@ public abstract class TransactionInfoBaseMessage extends VoltMessage {
         m_isReadOnly = m_buffer.get() == 1;
     }
 
-    @Override
-    public MessageState getDumpContents() {
-        MessageState ms = super.getDumpContents();
-        ms.fromSiteId = m_srcPartition;
-        ms.txnId = m_txnId;
-        return ms;
-    }
+//    @Override
+//    public MessageState getDumpContents() {
+//        MessageState ms = super.getDumpContents();
+//        ms.fromSiteId = m_srcPartition;
+//        ms.txnId = m_txnId;
+//        return ms;
+//    }
 }

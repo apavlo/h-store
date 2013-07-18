@@ -21,7 +21,6 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 
 import org.voltdb.VoltTable;
-import org.voltdb.debugstate.MailboxHistory.MessageState;
 import org.voltdb.exceptions.SerializableException;
 import org.voltdb.utils.DBBPool;
 
@@ -259,12 +258,12 @@ public class FragmentResponseMessage extends TransactionInfoBaseMessage {
         return sb.toString();
     }
 
-    @Override
-    public MessageState getDumpContents() {
-        MessageState ms = super.getDumpContents();
-        ms.txnId = m_txnId;
-        ms.fromSiteId = this.getSourcePartitionId();
-        ms.toSiteId = this.getDestinationPartitionId();
-        return ms;
-    }
+//    @Override
+//    public MessageState getDumpContents() {
+//        MessageState ms = super.getDumpContents();
+//        ms.txnId = m_txnId;
+//        ms.fromSiteId = this.getSourcePartitionId();
+//        ms.toSiteId = this.getDestinationPartitionId();
+//        return ms;
+//    }
 }

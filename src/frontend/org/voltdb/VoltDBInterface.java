@@ -20,12 +20,11 @@ import java.util.List;
 import java.util.Map;
 
 import org.voltdb.fault.FaultDistributorInterface;
-import org.voltdb.messaging.HostMessenger;
-import org.voltdb.messaging.Messenger;
 import org.voltdb.network.VoltNetwork;
 
 import edu.brown.hstore.PartitionExecutor;
 
+@Deprecated
 public interface VoltDBInterface
 {
     /**
@@ -60,8 +59,6 @@ public interface VoltDBInterface
     public String getBuildString();
     public String getVersionString();
     public Object[] getInstanceId();
-    public Messenger getMessenger();
-    public HostMessenger getHostMessenger();
     public Map<Integer, PartitionExecutor> getLocalSites();
     public VoltNetwork getNetwork();
     public StatsAgent getStatsAgent();

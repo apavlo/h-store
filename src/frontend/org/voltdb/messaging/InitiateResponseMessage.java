@@ -21,7 +21,6 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 
 import org.voltdb.ClientResponseImpl;
-import org.voltdb.debugstate.MailboxHistory.MessageState;
 import org.voltdb.utils.DBBPool;
 
 import edu.brown.hstore.Hstoreservice;
@@ -176,10 +175,10 @@ public class InitiateResponseMessage extends VoltMessage {
         return sb.toString();
     }
 
-    @Override
-    public MessageState getDumpContents() {
-        MessageState ms = super.getDumpContents();
-        ms.txnId = m_txnId;
-        return ms;
-    }
+//    @Override
+//    public MessageState getDumpContents() {
+//        MessageState ms = super.getDumpContents();
+//        ms.txnId = m_txnId;
+//        return ms;
+//    }
 }
