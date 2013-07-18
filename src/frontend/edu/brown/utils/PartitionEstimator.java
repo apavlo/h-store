@@ -491,7 +491,7 @@ public class PartitionEstimator {
                 // Check whether the predicate expression in this PlanFragment contains an OR
                 // We need to know this if we get hit with Multi-Column Partitioning
                 // XXX: Why does this matter??
-                Collection<ExpressionType> exp_types = PlanNodeUtil.getScanExpressionTypes(catalogContext.database, root);
+                Collection<ExpressionType> exp_types = PlanNodeUtil.getScanExpressionTypes(root);
                 if (exp_types.contains(ExpressionType.CONJUNCTION_OR)) {
                     if (debug.val)
                         LOG.warn(String.format("%s contains %s. Cannot be used with multi-column partitioning",

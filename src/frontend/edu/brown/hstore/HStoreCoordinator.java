@@ -318,8 +318,8 @@ public class HStoreCoordinator implements Shutdownable {
         this.listener_thread.setDaemon(true);
         this.eventLoop.setExitOnSigInt(true);
         
-        // Initialized QueryPrefetchPlanner if we're allowed to execute
-        // prefetch queries and we actually have some in the catalog 
+        // Initialize the PrefetchQueryPlanner if we're allowed to execute
+        // speculative queries and we actually have some in the catalog 
         PrefetchQueryPlanner tmpPlanner = null;
         if (hstore_conf.site.exec_prefetch_queries) {
             boolean has_prefetch = false;
