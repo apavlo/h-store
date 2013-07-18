@@ -157,8 +157,8 @@ public abstract class PlanNodeUtil {
      * @param rootNode
      * @return
      */
-    public static boolean isRangeQuery(Database catalog_db, AbstractPlanNode rootNode) {
-        for (ExpressionType expType : getScanExpressionTypes(catalog_db, rootNode)) {
+    public static boolean isRangeQuery(AbstractPlanNode rootNode) {
+        for (ExpressionType expType : getScanExpressionTypes(rootNode)) {
             switch (expType) {
                 case COMPARE_GREATERTHAN:
                 case COMPARE_GREATERTHANOREQUALTO:
@@ -303,12 +303,10 @@ public abstract class PlanNodeUtil {
 
     /**
      * Return all the ExpressionTypes used for scan predicates in the given PlanNode
-     * 
-     * @param catalog_db
      * @param node
      * @return
      */
-    public static Collection<ExpressionType> getScanExpressionTypes(final Database catalog_db, AbstractPlanNode root) {
+    public static Collection<ExpressionType> getScanExpressionTypes(AbstractPlanNode root) {
         final Set<ExpressionType> found = new HashSet<ExpressionType>();
         new PlanNodeTreeWalker(true) {
             @Override

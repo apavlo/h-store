@@ -345,7 +345,7 @@ public class ConflictSetCalculator {
             return (true);
         }
         // Any range query must always be conflicting
-        else if (PlanNodeUtil.isRangeQuery(this.catalog_db, root)) {
+        else if (PlanNodeUtil.isRangeQuery(root)) {
             return (true);
         }
         return (false);
@@ -373,7 +373,7 @@ public class ConflictSetCalculator {
                 return (true);
             }
             // Or any UPDATE or DELETE with a range predicate in its WHERE clause always conflicts
-            else if (PlanNodeUtil.isRangeQuery(this.catalog_db, PlanNodeUtil.getRootPlanNodeForStatement(stmt, true))) {
+            else if (PlanNodeUtil.isRangeQuery(PlanNodeUtil.getRootPlanNodeForStatement(stmt, true))) {
                 return (true);
             }
         }

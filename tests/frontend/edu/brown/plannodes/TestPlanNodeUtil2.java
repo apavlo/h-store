@@ -40,7 +40,7 @@ public class TestPlanNodeUtil2 extends BaseTestCase {
         for (Statement stmt : stmts) {
             AbstractPlanNode root = PlanNodeUtil.getRootPlanNodeForStatement(stmt, true);
             assertNotNull(stmt.fullName(), root);
-            assertTrue(stmt.fullName(), PlanNodeUtil.isRangeQuery(catalog_db, root));
+            assertTrue(stmt.fullName(), PlanNodeUtil.isRangeQuery(root));
         } // FOR
         
         // Not ranges
@@ -51,7 +51,7 @@ public class TestPlanNodeUtil2 extends BaseTestCase {
         for (Statement stmt : stmts) {
             AbstractPlanNode root = PlanNodeUtil.getRootPlanNodeForStatement(stmt, true);
             assertNotNull(stmt.fullName(), root);
-            assertFalse(stmt.fullName(), PlanNodeUtil.isRangeQuery(catalog_db, root));
+            assertFalse(stmt.fullName(), PlanNodeUtil.isRangeQuery(root));
         } // FOR
     }
     
