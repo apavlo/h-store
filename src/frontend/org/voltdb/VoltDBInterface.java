@@ -19,7 +19,6 @@ package org.voltdb;
 import java.util.List;
 import java.util.Map;
 
-import org.voltdb.fault.FaultDistributorInterface;
 import org.voltdb.network.VoltNetwork;
 
 import edu.brown.hstore.PartitionExecutor;
@@ -62,7 +61,6 @@ public interface VoltDBInterface
     public Map<Integer, PartitionExecutor> getLocalSites();
     public VoltNetwork getNetwork();
     public StatsAgent getStatsAgent();
-    public FaultDistributorInterface getFaultDistributor();
     public BackendTarget getBackendTargetType();
 
     /**

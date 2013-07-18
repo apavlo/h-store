@@ -48,7 +48,6 @@ import org.voltdb.VoltTypeException;
 import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Table;
 import org.voltdb.client.ConnectionUtil;
-import org.voltdb.dtxn.DtxnConstants;
 import org.voltdb.sysprocs.saverestore.ClusterSaveFileState;
 import org.voltdb.sysprocs.saverestore.SavedTableConverter;
 import org.voltdb.sysprocs.saverestore.SnapshotUtil;
@@ -56,6 +55,7 @@ import org.voltdb.sysprocs.saverestore.TableSaveFile;
 import org.voltdb.sysprocs.saverestore.TableSaveFileState;
 import org.voltdb.utils.DBBPool.BBContainer;
 
+import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.PartitionExecutor.SystemProcedureExecutionContext;
 import edu.brown.hstore.txns.AbstractTransaction;
 
@@ -67,7 +67,7 @@ public class SnapshotRestore extends VoltSystemProcedure
     private static final Logger LOG = Logger.getLogger(SnapshotRestore.class);
 
     private static final int DEP_restoreScan = (int)
-        SysProcFragmentId.PF_restoreScan | DtxnConstants.MULTIPARTITION_DEPENDENCY;
+        SysProcFragmentId.PF_restoreScan | HStoreConstants.MULTIPARTITION_DEPENDENCY;
     private static final int DEP_restoreScanResults = (int)
         SysProcFragmentId.PF_restoreScanResults;
 

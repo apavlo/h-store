@@ -175,34 +175,34 @@ public class TestVoltMessageSerialization extends TestCase {
         pool.clear();
     }
 
-    public void testHeartbeat() {
-        DBBPool pool = new DBBPool();
-        HeartbeatMessage mn = new HeartbeatMessage(100222, 555555555555L, 97L);
-
-        HeartbeatMessage mn2 = (HeartbeatMessage) checkVoltMessage(mn, pool);
-
-        assertEquals(mn.getSourcePartitionId(), mn2.getSourcePartitionId());
-        assertEquals(mn.getDestinationPartitionId(), mn2.getDestinationPartitionId());
-        assertEquals(mn.getTxnId(), mn2.getTxnId());
-        assertEquals(mn.isReadOnly(), mn2.isReadOnly());
-        assertEquals(mn.getLastSafeTxnId(), mn2.getLastSafeTxnId());
-        mn.discard();
-        mn2.discard();
-        pool.clear();
-    }
-
-    public void testHeartbeatResponse() {
-        DBBPool pool = new DBBPool();
-        HeartbeatResponseMessage mn = new HeartbeatResponseMessage(55, 100222, true);
-
-        HeartbeatResponseMessage mn2 = (HeartbeatResponseMessage) checkVoltMessage(mn, pool);
-
-        assertEquals(mn.getExecSiteId(), mn2.getExecSiteId());
-        assertEquals(mn.getLastReceivedTxnId(), mn2.getLastReceivedTxnId());
-        assertEquals(mn.isBlocked(), mn2.isBlocked());
-        mn.discard();
-        mn2.discard();
-        pool.clear();
-    }
+//    public void testHeartbeat() {
+//        DBBPool pool = new DBBPool();
+//        HeartbeatMessage mn = new HeartbeatMessage(100222, 555555555555L, 97L);
+//
+//        HeartbeatMessage mn2 = (HeartbeatMessage) checkVoltMessage(mn, pool);
+//
+//        assertEquals(mn.getSourcePartitionId(), mn2.getSourcePartitionId());
+//        assertEquals(mn.getDestinationPartitionId(), mn2.getDestinationPartitionId());
+//        assertEquals(mn.getTxnId(), mn2.getTxnId());
+//        assertEquals(mn.isReadOnly(), mn2.isReadOnly());
+//        assertEquals(mn.getLastSafeTxnId(), mn2.getLastSafeTxnId());
+//        mn.discard();
+//        mn2.discard();
+//        pool.clear();
+//    }
+//
+//    public void testHeartbeatResponse() {
+//        DBBPool pool = new DBBPool();
+//        HeartbeatResponseMessage mn = new HeartbeatResponseMessage(55, 100222, true);
+//
+//        HeartbeatResponseMessage mn2 = (HeartbeatResponseMessage) checkVoltMessage(mn, pool);
+//
+//        assertEquals(mn.getExecSiteId(), mn2.getExecSiteId());
+//        assertEquals(mn.getLastReceivedTxnId(), mn2.getLastReceivedTxnId());
+//        assertEquals(mn.isBlocked(), mn2.isBlocked());
+//        mn.discard();
+//        mn2.discard();
+//        pool.clear();
+//    }
 
 }

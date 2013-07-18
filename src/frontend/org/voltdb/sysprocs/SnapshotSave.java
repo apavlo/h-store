@@ -36,10 +36,10 @@ import org.voltdb.catalog.Host;
 import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Table;
 import org.voltdb.client.ConnectionUtil;
-import org.voltdb.dtxn.DtxnConstants;
 import org.voltdb.sysprocs.saverestore.SnapshotUtil;
 
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.PartitionExecutor.SystemProcedureExecutionContext;
 import edu.brown.utils.CollectionUtil;
 
@@ -49,11 +49,11 @@ public class SnapshotSave extends VoltSystemProcedure
     private static final Logger LOG = Logger.getLogger(SnapshotSave.class);
 
     private static final int DEP_saveTest = (int)
-        SysProcFragmentId.PF_saveTest | DtxnConstants.MULTIPARTITION_DEPENDENCY;
+        SysProcFragmentId.PF_saveTest | HStoreConstants.MULTIPARTITION_DEPENDENCY;
     private static final int DEP_saveTestResults = (int)
         SysProcFragmentId.PF_saveTestResults;
     private static final int DEP_createSnapshotTargets = (int)
-        SysProcFragmentId.PF_createSnapshotTargets | DtxnConstants.MULTIPARTITION_DEPENDENCY;
+        SysProcFragmentId.PF_createSnapshotTargets | HStoreConstants.MULTIPARTITION_DEPENDENCY;
     private static final int DEP_createSnapshotTargetsResults = (int)
         SysProcFragmentId.PF_createSnapshotTargetsResults;
 
