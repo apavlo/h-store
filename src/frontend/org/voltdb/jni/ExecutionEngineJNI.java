@@ -25,7 +25,6 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.apache.log4j.Logger;
-import org.voltdb.DependencyPair;
 import org.voltdb.DependencySet;
 import org.voltdb.ParameterSet;
 import org.voltdb.PrivateVoltTableFactory;
@@ -227,7 +226,7 @@ public class ExecutionEngineJNI extends ExecutionEngine {
      * @param undoToken Token identifying undo quantum for generated undo info
      */
     @Override
-    public DependencyPair executePlanFragment(final long planFragmentId,
+    public DependencySet executePlanFragment(final long planFragmentId,
                                               final int outputDepId,
                                               final int inputDepId,
                                               final ParameterSet parameterSet,
@@ -272,7 +271,7 @@ public class ExecutionEngineJNI extends ExecutionEngine {
                 dependencies[i] = deserializer.readObject(VoltTable.class);
             } // FOR
             assert(depIds.length == 1);
-            return new DependencyPair(depIds[0], dependencies[0]);
+            return new DependencySet(depIds, dependencies);
         } catch (final IOException ex) {
             LOG.error("Failed to deserialze result dependencies" + ex);
             throw new EEException(ERRORCODE_WRONG_SERIALIZED_BYTES);
