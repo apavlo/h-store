@@ -35,7 +35,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.voltdb.BackendTarget;
-import org.voltdb.DependencyPair;
 import org.voltdb.DependencySet;
 import org.voltdb.ParameterSet;
 import org.voltdb.PrivateVoltTableFactory;
@@ -544,7 +543,7 @@ public class ExecutionEngineIPC extends ExecutionEngine {
          * Read the result dependencies returned from the execution of a plan fragment.
          * Returns a list of pairs of dependency ids and dependency tables.
          */
-        public DependencyPair readDependencies() throws IOException {
+        public DependencySet readDependencies() throws IOException {
             // read the result set size, which doesn't include this 4 byte
             // length notification!
             final ByteBuffer resultSetSizeBuff = ByteBuffer.allocate(4);
@@ -586,7 +585,7 @@ public class ExecutionEngineIPC extends ExecutionEngine {
             assert(depIds.length == 1);
 
             // and finally return the constructed dependency set
-            return new DependencyPair(depIds[0], dependencies[0]);
+            return new DependencySet(depIds, dependencies);
         }
 
         public void throwException(final int errorCode) throws IOException {
@@ -853,7 +852,7 @@ public class ExecutionEngineIPC extends ExecutionEngine {
     }
 
     @Override
-    public DependencyPair executePlanFragment(final long planFragmentId, final int outputDepId,
+    public DependencySet executePlanFragment(final long planFragmentId, final int outputDepId,
             final int inputDepId, final ParameterSet parameterSet, final long txnId,
             final long lastCommittedTxnId, final long undoToken)
             throws EEException {

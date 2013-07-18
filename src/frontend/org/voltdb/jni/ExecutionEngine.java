@@ -27,7 +27,6 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
-import org.voltdb.DependencyPair;
 import org.voltdb.DependencySet;
 import org.voltdb.ParameterSet;
 import org.voltdb.SysProcSelector;
@@ -310,7 +309,7 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
     abstract public void updateCatalog(final String diffCommands, int catalogVersion) throws EEException;
 
     /** Run a plan fragment */
-    abstract public DependencyPair executePlanFragment(
+    abstract public DependencySet executePlanFragment(
         long planFragmentId, int outputDepId,
         int inputDepId, ParameterSet parameterSet,
         long txnId, long lastCommittedTxnId, long undoQuantumToken)

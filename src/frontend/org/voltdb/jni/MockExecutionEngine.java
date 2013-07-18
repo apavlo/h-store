@@ -19,7 +19,6 @@ package org.voltdb.jni;
 
 import java.io.File;
 
-import org.voltdb.DependencyPair;
 import org.voltdb.DependencySet;
 import org.voltdb.ParameterSet;
 import org.voltdb.SysProcSelector;
@@ -39,7 +38,7 @@ public class MockExecutionEngine extends ExecutionEngine {
     }
 
     @Override
-    public DependencyPair executePlanFragment(final long planFragmentId, int outputDepId,
+    public DependencySet executePlanFragment(final long planFragmentId, int outputDepId,
             int inputDepIdfinal, ParameterSet parameterSet, final long txnId,
             final long lastCommittedTxnId, final long undoToken) throws EEException
     {
@@ -48,7 +47,7 @@ public class MockExecutionEngine extends ExecutionEngine {
         vt = new VoltTable(new ColumnInfo[] {
                            new ColumnInfo("foo", VoltType.INTEGER)});
         vt.addRow(Integer.valueOf(1));
-        return new DependencyPair(outputDepId, vt);
+        return new DependencySet(outputDepId, vt);
     }
 
     @Override
