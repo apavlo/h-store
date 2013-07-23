@@ -67,6 +67,9 @@ public interface SchemaObject {
     int LABEL      = 21;
     int VARIABLE   = 22;
     int PARAMETER  = 23;
+    
+    //stream
+    int STREAM     = 101;
 
     //
     SchemaObject[] emptyArray = new SchemaObject[]{};

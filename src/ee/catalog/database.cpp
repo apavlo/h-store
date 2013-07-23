@@ -24,9 +24,10 @@
 #include "catalog.h"
 #include "user.h"
 #include "group.h"
-#include "connector.h"
+#include "stream.h"
 #include "procedure.h"
 #include "snapshotschedule.h"
+#include "connector.h"
 #include "program.h"
 #include "table.h"
 
@@ -35,7 +36,7 @@ using namespace std;
 
 Database::Database(Catalog *catalog, CatalogType *parent, const string &path, const string &name)
 : CatalogType(catalog, parent, path, name),
-  m_users(catalog, this, path + "/" + "users"), m_groups(catalog, this, path + "/" + "groups"), m_tables(catalog, this, path + "/" + "tables"), m_programs(catalog, this, path + "/" + "programs"), m_procedures(catalog, this, path + "/" + "procedures"), m_connectors(catalog, this, path + "/" + "connectors"), m_snapshotSchedule(catalog, this, path + "/" + "snapshotSchedule")
+  m_users(catalog, this, path + "/" + "users"), m_groups(catalog, this, path + "/" + "groups"), m_tables(catalog, this, path + "/" + "tables"), m_streams(catalog, this, path + "/" + "streams"), m_programs(catalog, this, path + "/" + "programs"), m_procedures(catalog, this, path + "/" + "procedures"), m_connectors(catalog, this, path + "/" + "connectors"), m_snapshotSchedule(catalog, this, path + "/" + "snapshotSchedule")
 {
     CatalogValue value;
     m_fields["project"] = value;
@@ -43,6 +44,7 @@ Database::Database(Catalog *catalog, CatalogType *parent, const string &path, co
     m_childCollections["users"] = &m_users;
     m_childCollections["groups"] = &m_groups;
     m_childCollections["tables"] = &m_tables;
+    m_childCollections["streams"] = &m_streams;
     m_childCollections["programs"] = &m_programs;
     m_childCollections["procedures"] = &m_procedures;
     m_childCollections["connectors"] = &m_connectors;
@@ -70,6 +72,13 @@ Database::~Database() {
         table_iter++;
     }
     m_tables.clear();
+
+    std::map<std::string, Stream*>::const_iterator stream_iter = m_streams.begin();
+    while (stream_iter != m_streams.end()) {
+        delete stream_iter->second;
+        stream_iter++;
+    }
+    m_streams.clear();
 
     std::map<std::string, Program*>::const_iterator program_iter = m_programs.begin();
     while (program_iter != m_programs.end()) {
@@ -125,6 +134,12 @@ CatalogType * Database::addChild(const std::string &collectionName, const std::s
             return NULL;
         return m_tables.add(childName);
     }
+    if (collectionName.compare("streams") == 0) {
+        CatalogType *exists = m_streams.get(childName);
+        if (exists)
+            return NULL;
+        return m_streams.add(childName);
+    }
     if (collectionName.compare("programs") == 0) {
         CatalogType *exists = m_programs.get(childName);
         if (exists)
@@ -159,6 +174,8 @@ CatalogType * Database::getChild(const std::string &collectionName, const std::s
         return m_groups.get(childName);
     if (collectionName.compare("tables") == 0)
         return m_tables.get(childName);
+    if (collectionName.compare("streams") == 0)
+        return m_streams.get(childName);
     if (collectionName.compare("programs") == 0)
         return m_programs.get(childName);
     if (collectionName.compare("procedures") == 0)
@@ -180,6 +197,9 @@ bool Database::removeChild(const std::string &collectionName, const std::string 
     }
     if (collectionName.compare("tables") == 0) {
         return m_tables.remove(childName);
+    }
+    if (collectionName.compare("streams") == 0) {
+        return m_streams.remove(childName);
     }
     if (collectionName.compare("programs") == 0) {
         return m_programs.remove(childName);
@@ -214,6 +234,10 @@ const CatalogMap<Group> & Database::groups() const {
 
 const CatalogMap<Table> & Database::tables() const {
     return m_tables;
+}
+
+const CatalogMap<Stream> & Database::streams() const {
+    return m_streams;
 }
 
 const CatalogMap<Program> & Database::programs() const {

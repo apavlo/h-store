@@ -60,6 +60,7 @@ public class SchemaObjectSet {
 
             case SchemaObject.VIEW :
             case SchemaObject.TABLE :
+            case SchemaObject.STREAM :
             case SchemaObject.SEQUENCE :
             case SchemaObject.CHARSET :
             case SchemaObject.DOMAIN :
@@ -85,6 +86,7 @@ public class SchemaObjectSet {
 
             case SchemaObject.VIEW :
             case SchemaObject.TABLE :
+            case SchemaObject.STREAM :
             case SchemaObject.SEQUENCE :
             case SchemaObject.CHARSET :
             case SchemaObject.DOMAIN :
@@ -114,6 +116,7 @@ public class SchemaObjectSet {
 
             case SchemaObject.VIEW :
             case SchemaObject.TABLE :
+            case SchemaObject.STREAM :
             case SchemaObject.SEQUENCE :
             case SchemaObject.CHARSET :
             case SchemaObject.DOMAIN :
@@ -211,6 +214,7 @@ public class SchemaObjectSet {
 
             case SchemaObject.VIEW :
             case SchemaObject.TABLE :
+            case SchemaObject.STREAM :
             case SchemaObject.SEQUENCE :
             case SchemaObject.CHARSET :
             case SchemaObject.COLLATION :
@@ -255,6 +259,7 @@ public class SchemaObjectSet {
 
             case SchemaObject.VIEW :
             case SchemaObject.TABLE :
+            case SchemaObject.STREAM :
             case SchemaObject.SEQUENCE :
             case SchemaObject.CHARSET :
             case SchemaObject.DOMAIN :
@@ -284,6 +289,7 @@ public class SchemaObjectSet {
 
             case SchemaObject.VIEW :
             case SchemaObject.TABLE :
+            case SchemaObject.STREAM :
             case SchemaObject.SEQUENCE :
             case SchemaObject.CHARSET :
             case SchemaObject.DOMAIN :
@@ -314,6 +320,9 @@ public class SchemaObjectSet {
 
             case SchemaObject.TABLE :
                 return Tokens.T_TABLE;
+                
+            case SchemaObject.STREAM :
+            	return Tokens.T_STREAM;
 
             case SchemaObject.SEQUENCE :
                 return Tokens.T_SEQUENCE;
@@ -423,7 +432,7 @@ public class SchemaObjectSet {
 
             resolved.add(object.getName());
 
-            if (object.getType() == SchemaObject.TABLE) {
+            if (object.getType() == SchemaObject.TABLE || object.getType() == SchemaObject.STREAM) {
                 list.addAll(((Table) object).getSQL(resolved, unresolved));
             } else {
                 list.add(object.getSQL());

@@ -31,6 +31,7 @@ namespace catalog {
 class User;
 class Group;
 class Table;
+class Stream;
 class Program;
 class Procedure;
 class Connector;
@@ -49,6 +50,7 @@ protected:
     CatalogMap<User> m_users;
     CatalogMap<Group> m_groups;
     CatalogMap<Table> m_tables;
+    CatalogMap<Stream> m_streams;
     CatalogMap<Program> m_programs;
     CatalogMap<Procedure> m_procedures;
     CatalogMap<Connector> m_connectors;
@@ -73,6 +75,8 @@ public:
     const CatalogMap<Group> & groups() const;
     /** GETTER: The set of Tables for the database */
     const CatalogMap<Table> & tables() const;
+    /** GETTER: The set of Streams for the database */
+    const CatalogMap<Stream> & streams() const;
     /** GETTER: The set of programs allowed to access this database */
     const CatalogMap<Program> & programs() const;
     /** GETTER: The set of stored procedures/transactions for this database */

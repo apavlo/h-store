@@ -133,6 +133,7 @@ public class StatementSchema extends Statement {
             case StatementTypes.DROP_INDEX :
             case StatementTypes.DROP_CONSTRAINT :
             case StatementTypes.DROP_COLUMN :
+            case StatementTypes.DROP_STREAM :
                 group = StatementTypes.X_SQL_SCHEMA_MANIPULATION;
                 break;
 
@@ -171,6 +172,11 @@ public class StatementSchema extends Statement {
                 break;
 
             case StatementTypes.CREATE_TABLE :
+                group = StatementTypes.X_SQL_SCHEMA_DEFINITION;
+                order = 2;
+                break;
+                
+            case StatementTypes.CREATE_STREAM :
                 group = StatementTypes.X_SQL_SCHEMA_DEFINITION;
                 order = 2;
                 break;
@@ -861,6 +867,51 @@ public class StatementSchema extends Statement {
                     return Result.newErrorResult(e, sql);
                 }
             }
+            
+            case StatementTypes.CREATE_STREAM : {
+                Table         stream              = (Table) arguments[0];
+                HsqlArrayList tempConstraints = (HsqlArrayList) arguments[1];
+                StatementDMQL statement = (StatementDMQL) arguments[2];
+                HsqlArrayList foreignConstraints = null;
+
+                try {
+                    setOrCheckObjectName(session, null, stream.getName(), true);
+                } catch (HsqlException e) {
+                    return Result.newErrorResult(e, sql);
+                }
+
+                try {
+                	
+                    if (isSchemaDefinition) {
+                        foreignConstraints = new HsqlArrayList();
+                    }
+
+                    if (tempConstraints != null) {
+                    	stream =
+                            ParserDDL.addTableConstraintDefinitions(session,
+                            		stream, tempConstraints, foreignConstraints);
+                        arguments[1] = foreignConstraints;
+                    }
+
+                    session.database.schemaManager.addSchemaObject(stream);
+
+                    
+                    if (statement != null) {
+                        Result result = statement.execute(session);
+
+                        stream.insertIntoTable(session, result);
+                    }
+					
+                    return Result.updateZeroResult;
+                } catch (HsqlException e) {
+                    session.database.schemaManager.removeExportedKeys(stream);
+                    session.database.schemaManager.removeDependentObjects(
+                        stream.getName());
+
+                    return Result.newErrorResult(e, sql);
+                }
+            }
+            
             case StatementTypes.CREATE_TRANSFORM :
                 return Result.updateZeroResult;
 

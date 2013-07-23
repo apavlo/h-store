@@ -233,6 +233,10 @@ public interface StatementTypes {
     int X_HSQLDB_OPERATION        = 2013;
     int X_HSQLDB_TRANSACTION      = 2014;
     int X_DYNAMIC                 = 2015;
+    
+    // stream additions
+    int CREATE_STREAM			  = 10001;
+    int DROP_STREAM				  = 10002;
 
     // Expected types of Result returned for an SQL statement
     int RETURN_ANY    = 0;

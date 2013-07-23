@@ -46,6 +46,7 @@ begin Database          "A set of schema, procedures and other metadata that tog
     User*      users      "The set of users"
     Group*     groups     "The set of groups"
     Table*     tables     "The set of Tables for the database"
+    Stream*    streams	  "The set of Streams for the database"
     Program*   programs   "The set of programs allowed to access this database"
     Procedure* procedures "The set of stored procedures/transactions for this database"
     Connector* connectors  "Export connector configuration"
@@ -130,6 +131,15 @@ begin Table                   "A table (relation) in the database"
 end
 begin TableRef
     Table? table
+end
+
+begin Stream                   "A stream (relation) in the database"
+    Column* columns             "The set of columns in the stream"
+    Index* indexes              "The set of indexes on the columns in the stream"
+    Column? partitioncolumn     "On which column is the stream horizontally partitioned"
+end
+begin StreamRef
+	Stream? stream
 end
 
 begin MaterializedViewInfo "Information used to build and update a materialized view"
@@ -251,4 +261,3 @@ begin ConflictSet               "A set of conflicts with another procedures"
     ConflictPair* readWriteConflicts  "ConflictPairs that the parent Procedure has a read-write conflict with the target procedure"
     ConflictPair* writeWriteConflicts "ConflictPairs that the parent Procedure has a write-write conflict with the target procedure"
 end
-

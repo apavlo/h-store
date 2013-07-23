@@ -135,7 +135,7 @@ public class Table extends TableBase implements SchemaObject {
     NumberSequence        identitySequence;    // next value of identity column
 
 // -----------------------------------------------------------------------
-    Constraint[]    constraintList;            // constrainst for the table
+    Constraint[]    constraintList;            // constraints for the table
     Constraint[]    fkPath;                    //
     Constraint[]    fkConstraints;             //
     Constraint[]    fkMainConstraints;
@@ -227,6 +227,13 @@ public class Table extends TableBase implements SchemaObject {
                 persistenceScope = SCOPE_SESSION;
                 isSessionBased   = true;
                 break;
+                
+            case STREAM_TABLE :
+            	persistenceScope = SCOPE_FULL;
+                isSchemaBased    = true;
+                isLogged         = !database.isFilesReadOnly();
+                isStream		 = true;
+                break;
 
             default :
                 throw Error.runtimeError(ErrorCode.U_S0500, "Table");
@@ -287,7 +294,7 @@ public class Table extends TableBase implements SchemaObject {
     }
 
     /**
-     *  Returns the HsqlName object fo the table
+     *  Returns the HsqlName object for the table
      */
     public final HsqlName getName() {
         return tableName;
@@ -2613,8 +2620,12 @@ public class Table extends TableBase implements SchemaObject {
     {
         StringBuilder sb = new StringBuilder();
 
+        //check to see if the table is a stream
+        if(isStream)
+        	sb.append(indent).append("<stream");
         // append open table tag
-        sb.append(indent).append("<table");
+        else
+        	sb.append(indent).append("<table");
         // add table metadata
         sb.append(" name='").append(getName().name).append("'");
         sb.append(">\n");
@@ -2644,8 +2655,11 @@ public class Table extends TableBase implements SchemaObject {
         }
         sb.append(indent + "  ").append("</constraints>\n");
 
+        if(isStream)
+        	sb.append(indent).append("</stream>\n");
         // close table tag
-        sb.append(indent).append("</table>\n");
+        else
+        	sb.append(indent).append("</table>\n");
 
         return sb.toString();
     }
