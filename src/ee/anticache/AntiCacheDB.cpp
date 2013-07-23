@@ -119,7 +119,7 @@ void AntiCacheDB::writeBlock(const std::string tableName,
     
 void AntiCacheDB::flushBlocks()
 {
-    m_db->sync(0); 
+//    m_db->sync(0); 
 }
 
 AntiCacheBlock AntiCacheDB::readBlock(std::string tableName, int16_t blockId) {

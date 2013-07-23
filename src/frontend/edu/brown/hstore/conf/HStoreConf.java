@@ -632,7 +632,7 @@ public final class HStoreConf {
         
         @ConfigProperty(
             description="The size (in bytes) for the anti-cache's blocks on disk.",
-            defaultLong=524288,
+            defaultLong=262144, // 256kb
             experimental=true
         )
         public long anticache_block_size;
@@ -654,11 +654,41 @@ public final class HStoreConf {
         public int anticache_check_interval;
         
         @ConfigProperty(
-            description="", // TODO
+                description="Memory usage threshold, in MB, at which to start evicting",
+                defaultInt=200,
+                experimental=true
+        )
+        public int anticache_threshold_mb;
+        
+        // TODO
+        @ConfigProperty(
+            description="Not yet implemented. Ratio of system memory used at which to start evicting",
             defaultDouble=0.75,
             experimental=true
         )
-        public double anticache_threshold;
+        public double anticache_threshold_ratio;
+        
+        @ConfigProperty(
+                description="Maximum number of blocks evicted on this site",
+                defaultInt=200000,
+                experimental=true
+        )
+        public int anticache_max_evicted_blocks;
+        
+        @ConfigProperty(
+                description="Maximum number of blocks per eviction",
+                defaultInt=200,
+                experimental=true
+        )
+        public int anticache_blocks_per_eviction;
+        
+        @ConfigProperty(
+                description="Policy specifying how to distribute eviction load over partitions and tables. " +
+                                        "Possible values are 'even', 'proportional', and 'uneviction_ratio' (default)",
+                defaultString="uneviction_ratio",
+                experimental=true
+        )
+        public String anticache_eviction_distribution;
         
         // ----------------------------------------------------------------------------
         // MapReduce Options
@@ -1799,6 +1829,15 @@ public final class HStoreConf {
             experimental=false
         )
         public String output_table_stats;
+
+        @ConfigProperty(
+                description="Defines the path where the BenchmarkController will dump a CSV containing " +
+                            "the memory stats information about the cluster periodically. This will periodically invoke " +
+                            "the @Statistics system stored procedure to collect SysProcSelector.TABLE data.",
+                defaultNull=true,
+                experimental=false
+            )
+        public String output_table_stats_periodically;
         
         @ConfigProperty(
             description="Defines the path where the BenchmarkController will dump a CSV containing " +

@@ -405,12 +405,13 @@ TEST_F(CopyOnWriteTest, BigTestWithUndo) {
                 totalInserted++;
                 ii += 12;
             }
+            
             for (int jj = 0; jj < 10; jj++) {
                 doRandomTableMutation(m_table);
             }
             doRandomUndo();
         }
-
+        
         std::vector<int64_t> diff;
         std::insert_iterator<std::vector<int64_t> > ii( diff, diff.begin());
         std::set_difference(originalTuples.begin(), originalTuples.end(), COWTuples.begin(), COWTuples.end(), ii);

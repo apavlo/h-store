@@ -441,7 +441,14 @@ protected:
  * is valid.
  */
 inline char* Table::dataPtrForTuple(const int index) const {
+    
+//    VOLT_INFO("index: %d", index);
+    
     size_t blockIndex = index / m_tuplesPerBlock;
+    
+//    if(blockIndex >= m_data.size())
+//        VOLT_INFO("index: %d, block index: %d", index, (int)blockIndex);
+    
     assert (blockIndex < m_data.size());
     char *block = m_data[blockIndex];
     char *retval = block + ((index % m_tuplesPerBlock) * m_tupleLength);

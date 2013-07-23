@@ -59,8 +59,11 @@ protected:
     // TODO void initReadResultTable();
     Table *m_readResultTable;
     
-    bool removeTuple(PersistentTable* table, int removal_id); 
-
+    bool removeTupleSingleLinkedList(PersistentTable* table, uint32_t removal_id);
+    bool removeTupleDoubleLinkedList(PersistentTable* table, uint32_t removal_id);
+    
+    void printLRUChain(PersistentTable* table, int max, bool forward);
+    char *itoa(uint32_t i);
     
 }; // AntiCacheEvictionManager class
 
