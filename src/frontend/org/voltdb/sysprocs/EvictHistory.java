@@ -37,9 +37,9 @@ public class EvictHistory extends VoltSystemProcedure {
         new ColumnInfo("PARTITION", VoltType.INTEGER),
         new ColumnInfo("START", VoltType.BIGINT), // TIMESTAMP (MS)
         new ColumnInfo("STOP", VoltType.BIGINT), // TIMESTAMP (MS)
-        new ColumnInfo("TUPLES_EVICTED", VoltType.INTEGER),
-        new ColumnInfo("BLOCKS_EVICTED", VoltType.INTEGER),
-        new ColumnInfo("BYTES_EVICTED", VoltType.BIGINT),
+        new ColumnInfo("ANTICACHE_TUPLES_EVICTED", VoltType.INTEGER),
+        new ColumnInfo("ANTICACHE_BLOCKS_EVICTED", VoltType.INTEGER),
+        new ColumnInfo("ANTICACHE_BYTES_EVICTED", VoltType.BIGINT),
     };
     
     private static final int DISTRIBUTE_ID = SysProcFragmentId.PF_anitCacheHistoryDistribute;

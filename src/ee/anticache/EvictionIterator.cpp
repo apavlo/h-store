@@ -54,8 +54,9 @@ EvictionIterator::EvictionIterator(Table *t)
 {
     //ptable = static_cast<PersistentTable*>(table); 
     table = t; 
-    current_tuple_id = -1;
-    current_tuple = new TableTuple(table->schema()); 
+    current_tuple_id = 0;
+    current_tuple = new TableTuple(table->schema());
+    is_first = true; 
 }
 
 EvictionIterator::~EvictionIterator()
@@ -88,8 +89,9 @@ bool EvictionIterator::next(TableTuple &tuple)
         return false; 
     }
 
-    if(current_tuple_id == -1) // this is the first call to next
+    if(is_first) // this is the first call to next
     {
+        is_first = false; 
         VOLT_DEBUG("This is the first tuple in the chain.");
 
         if(ptable->getNumTuplesInEvictionChain() == 0)  // there are no tuples in the chain
@@ -102,7 +104,7 @@ bool EvictionIterator::next(TableTuple &tuple)
     }
     else  // advance the iterator to the next tuple in the chain
     {        
-        current_tuple_id = current_tuple->getTupleID(); 
+        current_tuple_id = current_tuple->getNextTupleInChain();
     }
 
     current_tuple->move(ptable->dataPtrForTuple(current_tuple_id)); 

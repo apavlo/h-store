@@ -110,6 +110,7 @@ import edu.brown.api.results.BenchmarkResults;
 import edu.brown.api.results.CSVResultsPrinter;
 import edu.brown.api.results.JSONResultsPrinter;
 import edu.brown.api.results.MemoryStatsPrinter;
+import edu.brown.api.results.TableStatsPrinter;
 import edu.brown.api.results.ResponseEntries;
 import edu.brown.api.results.ResultsChecker;
 import edu.brown.api.results.ResultsPrinter;
@@ -945,6 +946,15 @@ public class BenchmarkController {
             }
             File f = new File(hstore_conf.client.output_memory);
             this.registerInterest(new MemoryStatsPrinter(this.getClientConnection(), f));
+        }
+        
+        // Table Stats Output
+        if (hstore_conf.client.output_table_stats_periodically != null && hstore_conf.client.output_table_stats_periodically.isEmpty() == false) {
+            if (hstore_conf.client.output_table_stats_periodically.equalsIgnoreCase("true")) {
+                LOG.warn("The HStoreConf parameter 'hstore_conf.client.output_table_stats_periodically' should be a file path, not a boolean value");
+            }
+            File f = new File(hstore_conf.client.output_table_stats_periodically);
+            this.registerInterest(new TableStatsPrinter(this.getClientConnection(), f));
         }
 
         // Kill Benchmark on Zero Results
