@@ -11,8 +11,8 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
 
 public class BenchmarkCompiler {
     private static final Logger LOG = Logger.getLogger(BenchmarkCompiler.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
+    private static final LoggerBoolean trace = new LoggerBoolean();
     static {
         LoggerUtil.setupLogging();
         LoggerUtil.attachObserver(LOG, debug, trace);

@@ -18,14 +18,18 @@ import edu.brown.catalog.conflicts.ConflictSetUtil;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.estimators.EstimatorState;
 import edu.brown.hstore.estimators.MockEstimate;
-import edu.brown.hstore.specexec.AbstractConflictChecker;
-import edu.brown.hstore.specexec.TableConflictChecker;
+import edu.brown.hstore.specexec.checkers.AbstractConflictChecker;
+import edu.brown.hstore.specexec.checkers.TableConflictChecker;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.profilers.SpecExecProfiler;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.ProjectType;
 
+/**
+ * SpecExecScheduler Test Cases
+ * @author pavlo
+ */
 public class TestSpecExecScheduler extends BaseTestCase {
     
     private static final int NUM_PARTITIONS = 5;
@@ -41,6 +45,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
     private AbstractConflictChecker checker;
     private LocalTransaction dtxn;
     private AbstractTransaction.Debug dtxnDebug;
+    private List<LocalTransaction> addedTxns = new ArrayList<LocalTransaction>();
     
     @Override
     protected void setUp() throws Exception {
@@ -50,6 +55,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
         
         HStoreConf hstore_conf = HStoreConf.singleton();
         hstore_conf.site.specexec_profiling = true;
+        hstore_conf.site.specexec_profiling_sample = 1.0;
         
         this.checker = new TableConflictChecker(catalogContext);
         this.hstore_site = new MockHStoreSite(0, catalogContext, HStoreConf.singleton());
@@ -79,7 +85,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
     // UTILITY METHODS
     // --------------------------------------------------------------------------------------------
     
-    private LocalTransaction populateQueue(int size) throws Exception {
+    private LocalTransaction populateQueue(Collection<LocalTransaction> txns, int size) throws Exception {
         Collection<Procedure> conflicts = ConflictSetUtil.getAllConflicts(dtxn.getProcedure());
         List<Procedure> procList = new ArrayList<Procedure>();
         for (Procedure p : catalogContext.getRegularProcedures()) {
@@ -103,6 +109,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
                 tsWithoutEstimatorState = ts;
             assertTrue(ts.isPredictSinglePartition());
             this.addToQueue(ts);
+            txns.add(ts);
         } // FOR
         EstTimeUpdater.update(System.currentTimeMillis());
         return (tsWithoutEstimatorState);
@@ -126,10 +133,30 @@ public class TestSpecExecScheduler extends BaseTestCase {
         assertNotNull(profiler);
         assertTrue(profiler.num_comparisons.isEmpty());
         
-        this.populateQueue(10);
+        this.populateQueue(this.addedTxns, 10);
+        this.scheduler.setPolicyType(SpecExecSchedulerPolicyType.FIRST);
         LocalTransaction next = this.scheduler.next(this.dtxn, SpeculationType.SP2_REMOTE_BEFORE);
         assertNotNull(next);
+        assertEquals(CollectionUtil.first(this.addedTxns), next);
         assertEquals(1, profiler.num_comparisons.get(1));
+    }
+    
+    /**
+     * testLastMatchPolicy
+     */
+    public void testLastMatchPolicy() throws Exception {
+        // We should be able to get one match with only one evaluation
+        SpecExecProfiler profiler = this.schedulerDebug.getProfiler(SpeculationType.SP2_REMOTE_BEFORE);
+        assertNotNull(profiler);
+        assertTrue(profiler.num_comparisons.isEmpty());
+        this.scheduler.setPolicyType(SpecExecSchedulerPolicyType.LAST);
+        this.scheduler.setWindowSize(Integer.MAX_VALUE);
+        
+        this.populateQueue(this.addedTxns, 10);
+        LocalTransaction next = this.scheduler.next(this.dtxn, SpeculationType.SP2_REMOTE_BEFORE);
+        assertNotNull(next);
+        assertEquals(CollectionUtil.last(this.addedTxns), next);
+        assertEquals(this.addedTxns.size(), profiler.num_comparisons.getMaxValue().intValue());
     }
   
     /**
@@ -142,7 +169,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
         assertTrue(profiler.num_comparisons.isEmpty());
         
         // Add a bunch and then set the last one to have the shortest time
-        this.populateQueue(20);
+        this.populateQueue(this.addedTxns, 20);
         AbstractTransaction shortest = CollectionUtil.last(this.work_queue);
         for (AbstractTransaction ts : this.work_queue) {
             final long remaining = (ts == shortest ? 10 : 1000);
@@ -169,7 +196,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
      * testLongestPolicy
      */
     public void testLongestPolicy() throws Exception {
-        LocalTransaction tsWithoutEstimatorState = this.populateQueue(3);
+        LocalTransaction tsWithoutEstimatorState = this.populateQueue(this.addedTxns, 3);
         LocalTransaction next = this.scheduler.next(this.dtxn, SpeculationType.IDLE);
         // System.err.println(this.dtxn.debug());
         assertNotNull(next);
@@ -242,7 +269,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
         
         // Now have the dtxn "write" to one of the tables in our ConflictSet
         dtxnDebug.clearReadWriteSets();
-        dtxn.markTableAsWritten(BASE_PARTITION, CollectionUtil.first(conflictTables));
+        dtxn.markTableWritten(BASE_PARTITION, CollectionUtil.first(conflictTables));
         ts.testInit(this.idManager.getNextUniqueTransactionId(), BASE_PARTITION, null, catalogContext.getPartitionSetSingleton(BASE_PARTITION), proc);
         assertTrue(ts.isPredictSinglePartition());
         this.addToQueue(ts);
@@ -253,7 +280,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
         
         // Reads aren't allowed either
         dtxnDebug.clearReadWriteSets();
-        dtxn.markTableAsRead(BASE_PARTITION, CollectionUtil.first(conflictTables));
+        dtxn.markTableRead(BASE_PARTITION, CollectionUtil.first(conflictTables));
         ts.testInit(this.idManager.getNextUniqueTransactionId(), BASE_PARTITION, null, catalogContext.getPartitionSetSingleton(BASE_PARTITION), proc);
         assertTrue(ts.isPredictSinglePartition());
         this.addToQueue(ts);
@@ -301,7 +328,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
         
         // Reads are allowed!
         dtxnDebug.clearReadWriteSets();
-        dtxn.markTableAsRead(BASE_PARTITION, CollectionUtil.first(conflictTables));
+        dtxn.markTableRead(BASE_PARTITION, CollectionUtil.first(conflictTables));
         ts.testInit(this.idManager.getNextUniqueTransactionId(), BASE_PARTITION, null, catalogContext.getPartitionSetSingleton(BASE_PARTITION), proc);
         assertTrue(ts.isPredictSinglePartition());
         this.addToQueue(ts);
@@ -313,7 +340,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
         
         // But writes are not!
         dtxnDebug.clearReadWriteSets();
-        dtxn.markTableAsWritten(BASE_PARTITION, CollectionUtil.first(conflictTables));
+        dtxn.markTableWritten(BASE_PARTITION, CollectionUtil.first(conflictTables));
         ts.testInit(this.idManager.getNextUniqueTransactionId(), BASE_PARTITION, null, catalogContext.getPartitionSetSingleton(BASE_PARTITION), proc);
         assertTrue(ts.isPredictSinglePartition());
         this.addToQueue(ts);

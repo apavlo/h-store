@@ -3,8 +3,6 @@ package org.voltdb.regressionsuites;
 import java.io.IOException;
 import java.util.Random;
 
-import junit.framework.TestCase;
-
 import org.voltdb.CatalogContext;
 import org.voltdb.SysProcSelector;
 import org.voltdb.VoltSystemProcedure;
@@ -18,6 +16,7 @@ import org.voltdb.catalog.Table;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.ProcCallException;
+import org.voltdb.sysprocs.AdHoc;
 import org.voltdb.sysprocs.LoadMultipartitionTable;
 import org.voltdb.sysprocs.SetConfiguration;
 import org.voltdb.sysprocs.Statistics;
@@ -52,6 +51,39 @@ public abstract class RegressionSuiteUtil {
         ClientResponse cresponse = client.callProcedure(procName, params);
         assert(cresponse.getStatus() == Status.OK) : cresponse.toString();
         return (cresponse);
+    }
+    
+    public static ClientResponse sql(Client client, String sql) throws IOException, ProcCallException {
+        String procName = VoltSystemProcedure.procCallName(AdHoc.class);
+        ClientResponse cresponse = client.callProcedure(procName, sql);
+        assert(cresponse.getStatus() == Status.OK) : cresponse.toString();
+        return (cresponse);
+    }
+    
+    public static ClientResponse load(Client client, Table tbl, VoltTable data) throws IOException, ProcCallException {
+        String procName = VoltSystemProcedure.procCallName(LoadMultipartitionTable.class);
+        ClientResponse cresponse = client.callProcedure(procName, tbl.getName(), data);
+        assert(cresponse.getStatus() == Status.OK) : cresponse.toString();
+        return (cresponse);
+    }
+    
+    public static long getRowCount(Client client, Table tbl) throws Exception {
+        ClientResponse cresponse = getStats(client, SysProcSelector.TABLE);
+        VoltTable result = cresponse.getResults()[0];
+        
+        long count = 0;
+        boolean found = false;
+        while (result.advanceRow()) {
+            if (tbl.getName().equalsIgnoreCase(result.getString("TABLE_NAME"))) {
+                found = true;
+                count += result.getLong("TUPLE_COUNT");
+                if (tbl.getIsreplicated()) break;
+            }
+        } // WHILE
+        if (found == false) {
+            throw new IllegalArgumentException("Invalid table '" + tbl + "'");
+        }
+        return (count);
     }
     
     /**
@@ -89,16 +121,19 @@ public abstract class RegressionSuiteUtil {
             vt.addRow(row);
         } // FOR (row)
         // System.err.printf("Loading %d rows for %s\n%s\n\n", vt.getRowCount(), catalog_tbl, vt.toString());
-        String procName = VoltSystemProcedure.procCallName(LoadMultipartitionTable.class);
-        ClientResponse cr = client.callProcedure(procName, catalog_tbl.getName(), vt);
-        TestCase.assertEquals(Status.OK, cr.getStatus());
+        load(client, catalog_tbl, vt);
     }
 
     public static final void initializeTPCCDatabase(final CatalogContext catalogContext, final Client client) throws Exception {
+        initializeTPCCDatabase(catalogContext, client, false);
+    }
+    
+    public static final void initializeTPCCDatabase(final CatalogContext catalogContext, final Client client, boolean scaleItems) throws Exception {
         String args[] = {
             "NOCONNECTIONS=true",
             "BENCHMARK.WAREHOUSE_PER_PARTITION=true",
             "BENCHMARK.NUM_LOADTHREADS=1",
+            "BENCHMARK.SCALE_ITEMS="+scaleItems,
         };
         TPCCLoader loader = new TPCCLoader(args) {
             {
@@ -145,7 +180,7 @@ public abstract class RegressionSuiteUtil {
         short supwares[] = new short[num_items];
         int quantities[] = new int[num_items];
         for (int i = 0; i < num_items; i++) { 
-            item_ids[i] = rng.nextInt((int)(TPCCConstants.NUM_ITEMS));
+            item_ids[i] = rng.nextInt(100);
             supwares[i] = (i == 1 && dtxn ? supply_w_id : (short)w_id);
             quantities[i] = 1;
         } // FOR

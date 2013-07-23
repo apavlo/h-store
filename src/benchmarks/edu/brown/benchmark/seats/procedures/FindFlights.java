@@ -62,6 +62,12 @@ public class FindFlights extends VoltProcedure {
         new VoltTable.ColumnInfo("ARRIVE_AP_COUNTRY", VoltType.STRING),
     };
     
+    private static final int MAX_NUM_FLIGHTS = 10;
+    
+    // -----------------------------------------------------------------
+    // QUERIES
+    // -----------------------------------------------------------------
+    
     public final SQLStmt GetNearbyAirports = new SQLStmt(
             "SELECT * " +
             "  FROM " + SEATSConstants.TABLENAME_AIRPORT_DISTANCE +
@@ -86,11 +92,16 @@ public class FindFlights extends VoltProcedure {
                         SEATSConstants.TABLENAME_AIRLINE +
             " WHERE F_DEPART_AP_ID = ? " +
             "   AND F_DEPART_TIME >= ? AND F_DEPART_TIME <= ? " +
-            "   AND F_AL_ID = AL_ID ";
+            "   AND F_AL_ID = AL_ID " +
+            "   AND (%s) " +  // <--- SPECIAL WHERE PREDICATE! 
+            " LIMIT " + MAX_NUM_FLIGHTS;
     
-    public final SQLStmt GetFlights1 = new SQLStmt(BaseGetFlights + " AND F_ARRIVE_AP_ID = ?");
-    public final SQLStmt GetFlights2 = new SQLStmt(BaseGetFlights + " AND (F_ARRIVE_AP_ID = ? OR F_ARRIVE_AP_ID = ?)");
-    public final SQLStmt GetFlights3 = new SQLStmt(BaseGetFlights + " AND (F_ARRIVE_AP_ID = ? OR F_ARRIVE_AP_ID = ? OR F_ARRIVE_AP_ID = ?)");
+    public final SQLStmt GetFlights1 = new SQLStmt(String.format(BaseGetFlights, "F_ARRIVE_AP_ID = ?"));
+    public final SQLStmt GetFlights2 = new SQLStmt(String.format(BaseGetFlights, "F_ARRIVE_AP_ID = ? OR " +
+    		                                                                     "F_ARRIVE_AP_ID = ?"));
+    public final SQLStmt GetFlights3 = new SQLStmt(String.format(BaseGetFlights, "F_ARRIVE_AP_ID = ? OR " +
+    		                                                                     "F_ARRIVE_AP_ID = ? OR " +
+    		                                                                     "F_ARRIVE_AP_ID = ?"));
  
     public VoltTable run(long depart_aid, long arrive_aid, TimestampType start_date, TimestampType end_date, long distance) {
         final boolean debug = LOG.isDebugEnabled();
@@ -127,10 +138,13 @@ public class FindFlights extends VoltProcedure {
             }
             final VoltTable[] flightResults = voltExecuteSQL();
             assert(flightResults.length == 1);
-
-            if (debug) LOG.debug(String.format("Found %d flights between %d->%s [start=%s, end=%s]",
-                                               flightResults[0].getRowCount(), depart_aid, arrive_aids,
-                                               start_date, end_date));
+            assert(flightResults[0].getRowCount() <= MAX_NUM_FLIGHTS) :
+                String.format("Expected[%d] < Actual[%d] / num_nearby=%d",
+                              MAX_NUM_FLIGHTS, flightResults[0].getRowCount(), num_nearby);
+            if (debug)
+                LOG.debug(String.format("Found %d flights between %d->%s [start=%s, end=%s]",
+                          flightResults[0].getRowCount(), depart_aid, arrive_aids,
+                          start_date, end_date));
             
             while (flightResults[0].advanceRow()) {
                 long f_depart_airport = flightResults[0].getLong(2);

@@ -28,7 +28,7 @@ import edu.brown.profilers.AntiCacheManagerProfiler.AccessHistory;
 @ProcInfo(singlePartition = false)
 public class EvictedAccessHistory extends VoltSystemProcedure {
     private static final Logger LOG = Logger.getLogger(EvictedAccessHistory.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
 
     private static final ColumnInfo ACCESS_HISTORY[] = {
         new ColumnInfo("TIMESTAMP", VoltType.TIMESTAMP),
@@ -84,7 +84,7 @@ public class EvictedAccessHistory extends VoltSystemProcedure {
                 result = new DependencySet(DISTRIBUTE_ID, vt);
                 if (debug.val)
                     LOG.info(String.format("%s - Sending back result for partition %d",
-                             m_localTxnState, this.executor.getPartitionId()));
+                             hstore_site.getTransaction(txn_id), this.executor.getPartitionId()));
                 break;
             }
             

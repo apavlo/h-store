@@ -34,8 +34,8 @@ import edu.brown.utils.StringUtil;
 
 public class VerticalPartitionPlanner {
     private static final Logger LOG = Logger.getLogger(VerticalPartitionPlanner.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
+    private static final LoggerBoolean trace = new LoggerBoolean();
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }

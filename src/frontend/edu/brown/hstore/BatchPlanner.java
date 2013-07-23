@@ -68,8 +68,8 @@ import edu.uci.ics.jung.graph.DirectedSparseMultigraph;
  */
 public class BatchPlanner {
     private static final Logger LOG = Logger.getLogger(BatchPlanner.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
+    private static final LoggerBoolean trace = new LoggerBoolean();
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
@@ -81,9 +81,8 @@ public class BatchPlanner {
     private static final int FIRST_DEPENDENCY_ID = 1;
 
     /**
-     * If the unique dependency ids option is enabled, all input/output DependencyIds for WorkFragments will be globally
-     * unique.
-     * 
+     * If the unique dependency ids option is enabled, all input/output
+     * DependencyIds for WorkFragments will be globally unique.
      * @see HStoreConf.SiteConf.planner_unique_dependency_ids
      */
     private static final AtomicInteger NEXT_DEPENDENCY_ID = new AtomicInteger(FIRST_DEPENDENCY_ID);
@@ -235,13 +234,6 @@ public class BatchPlanner {
         private final Map<PlanFragment, PartitionSet> frag_partitions_swap[];
 
         /**
-         * Bitmap that indicates that the query for the given StmtIndex was already
-         * sent out to prefetched.
-         */
-        private boolean already_prefetched[];
-        
-        
-        /**
          * A bitmap of whether each query at the given index in the batch was single-partitioned or not
          */
         private final boolean singlepartition_bitmap[];
@@ -306,10 +298,6 @@ public class BatchPlanner {
             this.all_local = true;
             this.all_singlepartitioned = true;
             
-            if (this.already_prefetched != null) {
-                Arrays.fill(this.already_prefetched, false);
-            }
-
             for (int i = 0; i < this.frag_list.length; i++) {
                 if (this.frag_list[i] != null)
                     this.frag_list[i] = null;
@@ -325,27 +313,42 @@ public class BatchPlanner {
             return (this);
         }
 
-        public BatchPlanner getPlanner() {
+        protected BatchPlanner getPlanner() {
             return (BatchPlanner.this);
         }
-
         protected PlanGraph getPlanGraph() {
             return (this.graph);
         }
 
+        /**
+         * Returns true if this txn was hit by a MispredictionException when we were
+         * constructing this batch plan.
+         */
         public boolean hasMisprediction() {
             return (this.mispredict != null);
         }
 
+        /**
+         * Returns the MispredictionException for this batch plan.
+         */
         public MispredictionException getMisprediction() {
             return (this.mispredict);
         }
 
-        public void getWorkFragmentsBuilders(Long txn_id, List<WorkFragment.Builder> builders) {
-            BatchPlanner.this.createWorkFragmentsBuilders(txn_id, this, graph, builders);
+        /**
+         * Convert this batch plan into a list of WorkFragment builders.
+         * The stmtCounters is a list of the number of times that we have executed each 
+         * query in the past for this transaction. The offset of each element in stmtCounters
+         * corresponds to the stmtIndex in the SQLStmt batch. 
+         * @param txn_id
+         * @param stmtCounters
+         * @param builders
+         */
+        public void getWorkFragmentsBuilders(Long txn_id, int[] stmtCounters, List<WorkFragment.Builder> builders) {
+            BatchPlanner.this.createWorkFragmentsBuilders(txn_id, this, stmtCounters, builders);
         }
 
-        public int getBatchSize() {
+        protected int getBatchSize() {
             return (BatchPlanner.this.batchSize);
         }
 
@@ -365,20 +368,13 @@ public class BatchPlanner {
             return (this.graph.input_ids);
         }
         
-        public void markStatementAsAlreadyPrefetched(int stmtIndex) {
-            if (this.already_prefetched == null) {
-                this.already_prefetched = new boolean[batchSize];
-                Arrays.fill(this.already_prefetched, false);
-            }
-            this.already_prefetched[stmtIndex] = true;
-        }
-        
         /**
-         * Get an array of sets of partition ids for this plan Note that you can't rely on the
-         * 
+         * Return an array of PartitionSets where each element in the array
+         * corresponds to the partitions that the SQLStmt in the batch will need
+         * to execute on.
          * @return
          */
-        public PartitionSet[] getStatementPartitions() {
+        public final PartitionSet[] getStatementPartitions() {
             return (this.stmt_partitions);
         }
         
@@ -414,13 +410,24 @@ public class BatchPlanner {
 
     /**
      * Testing Constructor
+     * The batchSize is assumed to be the length of batchStmts
+     * @param batchStmts
+     * @param catalog_proc
+     * @param p_estimator
      */
     public BatchPlanner(SQLStmt[] batchStmts, Procedure catalog_proc, PartitionEstimator p_estimator) {
-        this(batchStmts, batchStmts.length, catalog_proc, p_estimator);
+        this(batchStmts, batchStmts.length, catalog_proc, p_estimator, false);
     }
 
+    /**
+     * Testing constructor where the planner is forced to choose single-partition queries
+     * @param batchStmts
+     * @param catalog_proc
+     * @param p_estimator
+     * @param forceSinglePartition
+     */
     protected BatchPlanner(SQLStmt[] batchStmts, Procedure catalog_proc, PartitionEstimator p_estimator,
-            boolean forceSinglePartition) {
+                           boolean forceSinglePartition) {
         this(batchStmts, batchStmts.length, catalog_proc, p_estimator, forceSinglePartition);
     }
 
@@ -552,7 +559,6 @@ public class BatchPlanner {
      * @param txn_id
      * @param base_partition
      * @param predict_partitions
-     * @param predict_singlePartitioned
      * @param touched_partitions
      * @param batchArgs
      * @return
@@ -560,9 +566,10 @@ public class BatchPlanner {
     public BatchPlan plan(final Long txn_id,
                           final int base_partition,
                           final PartitionSet predict_partitions,
-                          final boolean predict_singlePartitioned,
                           final FastIntHistogram touched_partitions,
                           final ParameterSet[] batchArgs) {
+        final boolean predict_singlePartitioned = (predict_partitions.size() == 1);
+        
         if (hstore_conf.site.planner_profiling) {
             if (this.profiler == null)
                 this.profiler = new BatchPlannerProfiler();
@@ -760,9 +767,10 @@ public class BatchPlanner {
                     while (true) {
                         if (is_singlePartition == false) stmt_all_partitions.clear();
                         fragments = (is_singlePartition ? catalog_stmt.getFragments() : catalog_stmt.getMs_fragments());
-                        if (debug.val) LOG.debug(String.format("[#%d-%02d] Estimating for %d %s-partition fragments",
-                                                 txn_id, stmt_index, fragments.size(),
-                                                 (is_singlePartition ? "single" : "multi")));
+                        if (debug.val)
+                            LOG.debug(String.format("[#%d-%02d] Estimating for %d %s-partition fragments",
+                                      txn_id, stmt_index, fragments.size(),
+                                      (is_singlePartition ? "single" : "multi")));
 
                         // PARTITION ESTIMATOR
                         if (hstore_conf.site.planner_profiling && profiler != null)
@@ -957,7 +965,7 @@ public class BatchPlanner {
         if (mispredict_h != null) {
             plan.mispredict = new MispredictionException(txn_id, mispredict_h);
             if (debug.val)
-                LOG.warn(String.format("Created %s for txn #%d\n%s\n%s\n%s",
+                LOG.warn(String.format("Created %s for txn #%d\n%s",
                          plan.mispredict.getClass().getSimpleName(), txn_id,
                          plan.mispredict.getPartitions()));
         }
@@ -979,23 +987,30 @@ public class BatchPlanner {
     }
 
     /**
+     * Utility method for converting a BatchPlan into WorkFragment.Builders.
+     * The stmtCounters is a list of the number of times that we have executed each 
+     * query in the past for this transaction. The offset of each element in stmtCounters
+     * corresponds to the stmtIndex in the SQLStmt batch. 
+     * @param txn_id
      * @param plan
+     * @param stmtCounters
      * @param graph
      * @param builders
      */
     protected void createWorkFragmentsBuilders(final Long txn_id,
                                                final BatchPlanner.BatchPlan plan,
-                                               final PlanGraph graph,
+                                               final int[] stmtCounters,
                                                final List<WorkFragment.Builder> builders) {
 
         if (hstore_conf.site.planner_profiling && profiler != null)
             profiler.fragment_time.start();
         if (debug.val)
-            LOG.debug(String.format("Constructing list of WorkFragments to execute" +
+            LOG.debug(String.format("Constructing list of WorkFragments to execute " +
             		  "[txn_id=#%d, base_partition=%d]",
                       txn_id, plan.base_partition));
 
-        for (PlanVertex v : graph.sorted_vertices) {
+        // 2013-05-14: I feel like that we could probably cache this somehow...
+        for (PlanVertex v : plan.graph.sorted_vertices) {
             int stmt_index = v.stmt_index;
             for (int partition : plan.frag_partitions[stmt_index].get(v.catalog_frag).values()) {
                 if (plan.rounds[v.round][partition] == null) {
@@ -1023,6 +1038,7 @@ public class BatchPlanner {
                         partitionBuilder = WorkFragment.newBuilder().setPartitionId(partition);
                         this.round_builders.put(v.input_dependency_id, partitionBuilder);
                         partitionBuilder.setReadOnly(true);
+                        partitionBuilder.setPrefetch(this.prefetch);
                     }
 
                     // Fragment Id
@@ -1038,24 +1054,23 @@ public class BatchPlanner {
                     // All fragments will produce some output
                     partitionBuilder.addOutputDepId(v.output_dependency_id);
 
-                    // SQLStmt Index (in batch)
-                    partitionBuilder.addStmtIndex(v.stmt_index);
+                    // SQLStmt Counter
+                    partitionBuilder.addStmtCounter(stmtCounters[v.stmt_index]);
 
+                    // SQLStmt Index
+                    partitionBuilder.addStmtIndex(v.stmt_index);
+                    
+                    // SQLStmt Ignore
+                    // This query was already dispatched for prefetching, so we 
+                    // actually don't want to really execute it.
+                    partitionBuilder.addStmtIgnore(false);
+                    
                     // ParameterSet Index
                     partitionBuilder.addParamIndex(v.stmt_index);
 
                     // Read-Only
                     if (v.read_only == false) {
                         partitionBuilder.setReadOnly(v.read_only);
-                    }
-
-                    // Prefetch
-                    if (this.prefetch) partitionBuilder.setPrefetch(true);
-                    
-                    // This query was already dispatched for prefetching, so we 
-                    // actually don't want to really execute it.
-                    if (plan.already_prefetched != null && plan.already_prefetched[v.stmt_index]) {
-                        
                     }
 
                     if (trace.val)
@@ -1067,8 +1082,9 @@ public class BatchPlanner {
                     
                 } // FOR (frag_idx)
 
-                for (WorkFragment.Builder partitionBuilder : this.round_builders.values()) {
-                    if (partitionBuilder.getFragmentIdCount() == 0) {
+                for (WorkFragment.Builder builder : this.round_builders.values()) {
+                    int fragmentCount = builder.getFragmentIdCount();
+                    if (fragmentCount == 0) {
                         if (trace.val) {
                             LOG.warn(String.format("For some reason we thought it would be a good idea to " +
                             		 "construct a %s with no fragments! [txn_id=#%d]",
@@ -1077,7 +1093,20 @@ public class BatchPlanner {
                         }
                         continue;
                     }
-                    builders.add(partitionBuilder);
+                    assert(builder.getOutputDepIdCount() == fragmentCount) :
+                        "OutputDepId:" + builder.getOutputDepIdCount() + "!=" + fragmentCount;
+                    assert(builder.getInputDepIdCount() == fragmentCount) :
+                        "InputDepId:" + builder.getInputDepIdCount() + "!=" + fragmentCount;
+                    assert(builder.getParamIndexCount() == fragmentCount) :
+                        "ParamIndex:" + builder.getParamIndexCount() + "!=" + fragmentCount;
+                    assert(builder.getStmtCounterCount() == fragmentCount) :
+                        "StmtCounter:" + builder.getStmtCounterCount() + "!=" + fragmentCount;
+                    assert(builder.getStmtIndexCount() == fragmentCount) :
+                        "StmtIndex:" + builder.getStmtIndexCount() + "!=" + fragmentCount;
+                    assert(builder.getStmtIgnoreCount() == fragmentCount) :
+                        "StmtIgnore:" + builder.getStmtIgnoreCount() + "!=" + fragmentCount;
+                    
+                    builders.add(builder);
                 } // FOR
 
                 // if (debug.val) {

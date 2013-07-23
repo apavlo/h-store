@@ -13,11 +13,12 @@ import org.voltdb.types.ExpressionType;
 import edu.brown.BaseTestCase;
 import edu.brown.catalog.CatalogPair;
 import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.PredicatePairs;
 import edu.brown.utils.ProjectType;
 
 public class TestColumnSet extends BaseTestCase {
 
-    private ColumnSet cset;
+    private PredicatePairs cset;
     private Procedure catalog_proc;
     private Table catalog_tbl0;
     private Table catalog_tbl1;
@@ -26,7 +27,7 @@ public class TestColumnSet extends BaseTestCase {
     protected void setUp() throws Exception {
         super.setUp(ProjectType.TPCC);
         
-        this.cset = new ColumnSet();
+        this.cset = new PredicatePairs();
         this.catalog_proc = this.getProcedure(neworder.class); 
         this.catalog_tbl0 = this.getTable("CUSTOMER");
         this.catalog_tbl1 = this.getTable("ORDERS");

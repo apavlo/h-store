@@ -23,8 +23,8 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
  */
 public class TransactionMapWrapperCallback extends BlockingRpcCallback<TransactionMapResponse, Integer> {
     private static final Logger LOG = Logger.getLogger(TransactionMapWrapperCallback.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
+    private static final LoggerBoolean trace = new LoggerBoolean();
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }

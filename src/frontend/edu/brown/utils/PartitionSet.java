@@ -30,6 +30,7 @@ import java.io.IOException;
 import java.util.BitSet;
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.regex.Pattern;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -71,11 +72,20 @@ public class PartitionSet implements Collection<Integer>, JSONSerializable, Fast
     }
     
     /**
-     * Initialize PartitionSet from Integer array
+     * Initialize PartitionSet from an Integer array
      * @param partitions
      */
     public PartitionSet(Integer...partitions) {
         for (Integer partition : partitions)
+            this.add(partition);
+    }
+    
+    /**
+     * Initialize PartitionSet from an int array
+     * @param partitions
+     */
+    public PartitionSet(int partitions[]) {
+        for (int partition : partitions)
             this.add(partition);
     }
     
@@ -331,12 +341,48 @@ public class PartitionSet implements Collection<Integer>, JSONSerializable, Fast
         return (ret);
     }
     
+    /**
+     * Convert a bitmap into a PartitionSet and print it out
+     * @param bitmap
+     * @return
+     */
     public static String toString(boolean bitmap[]) {
         PartitionSet ps = new PartitionSet();
         for (int i = 0; i < bitmap.length; i++) {
             if (bitmap[i]) ps.add(i);
         } // FOR
         return (ps.toString());
+    }
+    
+    /**
+     * Parse a description of partition ids and populate a PartitionSet.
+     * This supports comma-separated lists (e.g., "1,2,3,4") and 
+     * ranges (e.g., "1-4"). You can also mix and match them together 
+     * (e.g., "1,2-3,4").
+     * @param partitionList
+     * @return
+     */
+    public static PartitionSet parse(String partitionList) {
+        Pattern HYPHEN_SPLIT = Pattern.compile(Pattern.quote("-"));
+        
+        // Partition Ranges
+        PartitionSet partitions = new PartitionSet();
+        for (String p : StringUtil.splitList(partitionList)) {
+            int start = -1;
+            int stop = -1;
+            String range[] = HYPHEN_SPLIT.split(p);
+            if (range.length == 2) {
+                start = Integer.parseInt(range[0].trim());
+                stop = Integer.parseInt(range[1].trim());
+            } else {
+                start = Integer.parseInt(p.trim());
+                stop = start;
+            }
+            for (int partition = start; partition < stop + 1; partition++) {
+                partitions.add(partition);
+            } // FOR
+        } // FOR
+        return (partitions);
     }
     
     // ----------------------------------------------------------------------------

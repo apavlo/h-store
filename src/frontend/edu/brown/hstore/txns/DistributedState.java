@@ -1,6 +1,7 @@
 package edu.brown.hstore.txns;
 
 import java.util.BitSet;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.voltdb.CatalogContext;
 
@@ -33,18 +34,32 @@ public class DistributedState implements Poolable {
     protected final BitSet notified_prepare;
     
     /**
+     * We need to make sure that we only blast out a finish
+     * notification once per transaction.
+     */
+    protected final AtomicBoolean notified_finish = new AtomicBoolean(false);
+    
+    /**
      * If true, then all of the partitions that this txn needs is on the same
      * site as the base partition
      */
     protected boolean is_all_local = true;
-    
     
     /**
      * If this is a distributed transaction and we are doing aggressive spec exec,
      * then this bit map is used to keep track whether we have sent the Procedure
      * ParameterSet to a remote site.
      */
-    protected final BitSet sent_parameters; 
+    protected final BitSet sent_parameters;
+    
+    /**
+     * Cached ProtoRpcControllers
+     * SiteId -> Controller
+     */
+    private final ProtoRpcController rpc_transactionInit[];
+    private final ProtoRpcController rpc_transactionWork[];
+    // private final ProtoRpcController rpc_transactionPrepare[];
+    private final ProtoRpcController rpc_transactionFinish[];
     
     // ----------------------------------------------------------------------------
     // CALLBACKS
@@ -63,19 +78,10 @@ public class DistributedState implements Poolable {
      * HStoreSite.deleteTransaction()
      */
     protected final LocalFinishCallback finish_callback;
-    
+
     // ----------------------------------------------------------------------------
-    // CACHED CONTROLLERS
+    // INITIALIZATION
     // ----------------------------------------------------------------------------
-    
-    /**
-     * Cached ProtoRpcControllers
-     */
-    protected final ProtoRpcController rpc_transactionInit[];
-    protected final ProtoRpcController rpc_transactionWork[];
-    protected final ProtoRpcController rpc_transactionPrepare[];
-    protected final ProtoRpcController rpc_transactionFinish[];
-    
     
     /**
      * Constructor
@@ -91,13 +97,20 @@ public class DistributedState implements Poolable {
         
         this.rpc_transactionInit = new ProtoRpcController[catalogContext.numberOfSites];
         this.rpc_transactionWork = new ProtoRpcController[catalogContext.numberOfSites];
-        this.rpc_transactionPrepare = new ProtoRpcController[catalogContext.numberOfSites];
+        // this.rpc_transactionPrepare = new ProtoRpcController[catalogContext.numberOfSites];
         this.rpc_transactionFinish = new ProtoRpcController[catalogContext.numberOfSites];
     }
     
     public DistributedState init(LocalTransaction ts) {
         this.ts = ts;
-        for (int partition : ts.getPredictTouchedPartitions().values()) {
+        
+        // Initialize the prepare callback.
+        // We have to do this in order to support early 2PC prepares
+        PartitionSet partitions = ts.getPredictTouchedPartitions();
+        this.prepare_callback.init(this.ts, partitions);
+        
+        // Compute whether all of the partitions for this txn are at the same local site
+        for (int partition : partitions.values()) {
             if (ts.hstore_site.isLocalPartition(partition) == false) {
                 this.is_all_local = false;
                 break;
@@ -118,15 +131,41 @@ public class DistributedState implements Poolable {
         this.is_all_local = true;
         this.exec_donePartitions.clear();
         this.notified_prepare.clear();
+        this.notified_finish.set(false);
         this.sent_parameters.clear();
+        
+        for (int i = 0; i < this.rpc_transactionInit.length; i++) {
+            if (this.rpc_transactionInit[i] != null)
+                this.rpc_transactionInit[i].reset();
+            if (this.rpc_transactionWork[i] != null)
+                this.rpc_transactionWork[i].reset();
+//            if (this.rpc_transactionPrepare[i] != null)
+//                this.rpc_transactionPrepare[i].reset();
+            if (this.rpc_transactionFinish[i] != null)
+                this.rpc_transactionFinish[i].reset();
+        } // FOR
+        
         this.ts = null;
     }
     
-    protected ProtoRpcController getProtoRpcController(ProtoRpcController cache[], int site_id) {
+    protected ProtoRpcController getTransactionInitController(int site_id) {
+        return this.getProtoRpcController(this.rpc_transactionInit, site_id);
+    }
+    protected ProtoRpcController getTransactionWorkController(int site_id) {
+        return this.getProtoRpcController(this.rpc_transactionWork, site_id);
+    }
+    protected ProtoRpcController getTransactionPrepareController(int site_id) {
+        // Always create a new ProtoRpcController
+        return new ProtoRpcController();
+        // return this.getProtoRpcController(this.rpc_transactionPrepare, site_id);
+    }
+    protected ProtoRpcController getTransactionFinishController(int site_id) {
+        return this.getProtoRpcController(this.rpc_transactionFinish, site_id);
+    }
+    
+    private final ProtoRpcController getProtoRpcController(ProtoRpcController cache[], int site_id) {
         if (cache[site_id] == null) {
             cache[site_id] = new ProtoRpcController();
-        } else {
-            cache[site_id].reset();
         }
         return (cache[site_id]);
     }

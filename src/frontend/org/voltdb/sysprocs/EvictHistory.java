@@ -28,7 +28,7 @@ import edu.brown.profilers.AntiCacheManagerProfiler.EvictionHistory;
 @ProcInfo(singlePartition = false)
 public class EvictHistory extends VoltSystemProcedure {
     private static final Logger LOG = Logger.getLogger(EvictHistory.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
 
     private static final ColumnInfo ResultsColumns[] = {
         new ColumnInfo("TIMESTAMP", VoltType.TIMESTAMP),
@@ -37,9 +37,9 @@ public class EvictHistory extends VoltSystemProcedure {
         new ColumnInfo("PARTITION", VoltType.INTEGER),
         new ColumnInfo("START", VoltType.BIGINT), // TIMESTAMP (MS)
         new ColumnInfo("STOP", VoltType.BIGINT), // TIMESTAMP (MS)
-        new ColumnInfo("TUPLES_EVICTED", VoltType.INTEGER),
-        new ColumnInfo("BLOCKS_EVICTED", VoltType.INTEGER),
-        new ColumnInfo("BYTES_EVICTED", VoltType.BIGINT),
+        new ColumnInfo("ANTICACHE_TUPLES_EVICTED", VoltType.INTEGER),
+        new ColumnInfo("ANTICACHE_BLOCKS_EVICTED", VoltType.INTEGER),
+        new ColumnInfo("ANTICACHE_BYTES_EVICTED", VoltType.BIGINT),
     };
     
     private static final int DISTRIBUTE_ID = SysProcFragmentId.PF_anitCacheHistoryDistribute;
@@ -80,7 +80,7 @@ public class EvictHistory extends VoltSystemProcedure {
                 result = new DependencySet(DISTRIBUTE_ID, vt);
                 if (debug.val)
                     LOG.info(String.format("%s - Sending back result for partition %d",
-                             m_localTxnState, this.executor.getPartitionId()));
+                             hstore_site.getTransaction(txn_id), this.executor.getPartitionId()));
                 break;
             }
             // Aggregate Results

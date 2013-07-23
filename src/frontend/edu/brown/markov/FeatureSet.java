@@ -43,8 +43,8 @@ import edu.brown.workload.TransactionTrace;
 
 public class FeatureSet implements JSONSerializable {
     private static final Logger LOG = Logger.getLogger(FeatureSet.class);
-    private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private final static LoggerBoolean debug = new LoggerBoolean();
+    private final static LoggerBoolean trace = new LoggerBoolean();
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }

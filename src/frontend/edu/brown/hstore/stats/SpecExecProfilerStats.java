@@ -2,6 +2,7 @@ package edu.brown.hstore.stats;
 
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 
@@ -24,15 +25,22 @@ import edu.brown.profilers.SpecExecProfiler;
 import edu.brown.statistics.HistogramUtil;
 import edu.brown.utils.MathUtil;
 
+/**
+ * Stats Source for SpecExecProfiler
+ * @author pavlo
+ */
 public class SpecExecProfilerStats extends StatsSource {
     private static final Logger LOG = Logger.getLogger(SpecExecProfilerStats.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
     static {
-        LoggerUtil.attachObserver(LOG, debug, trace);
+        LoggerUtil.attachObserver(LOG, debug);
     }
 
     private final HStoreSite hstore_site;
+    
+    /**
+     * PartitionId+SpeculationType
+     */
     private Set<Pair<Integer, SpeculationType>> sortedPair = new TreeSet<Pair<Integer,SpeculationType>>();
 
     public SpecExecProfilerStats(HStoreSite hstore_site) {
@@ -40,7 +48,7 @@ public class SpecExecProfilerStats extends StatsSource {
         this.hstore_site = hstore_site;
         
         for (int partition: hstore_site.getLocalPartitionIds().values()) {
-        	for (SpeculationType type: SpeculationType.getNameMap().values()) {
+        	for (SpeculationType type: SpeculationType.values()) {
         	    if (type != SpeculationType.NULL) {
             		Pair<Integer, SpeculationType> pair = new Pair<Integer, SpeculationType>(partition, type);
             		this.sortedPair.add(pair);
@@ -84,6 +92,8 @@ public class SpecExecProfilerStats extends StatsSource {
         columns.add(new VoltTable.ColumnInfo("QUEUE_SIZE_STDEV", VoltType.FLOAT));
         columns.add(new VoltTable.ColumnInfo("COMPARISONS_AVG", VoltType.BIGINT));
         columns.add(new VoltTable.ColumnInfo("COMPARISONS_STDEV", VoltType.FLOAT));
+        columns.add(new VoltTable.ColumnInfo("MATCHES_AVG", VoltType.BIGINT));
+        columns.add(new VoltTable.ColumnInfo("MATCHES_STDEV", VoltType.FLOAT));
         columns.add(new VoltTable.ColumnInfo("EXECUTED_PER_TXN_AVG", VoltType.BIGINT));
         columns.add(new VoltTable.ColumnInfo("EXECUTED_PER_TXN_STDEV", VoltType.FLOAT));
         
@@ -96,6 +106,7 @@ public class SpecExecProfilerStats extends StatsSource {
             //  (2) The number of invocations
             columns.add(new VoltTable.ColumnInfo(name, VoltType.BIGINT));
             columns.add(new VoltTable.ColumnInfo(name+"_CNT", VoltType.BIGINT));
+            columns.add(new VoltTable.ColumnInfo(name+"_STDEV", VoltType.FLOAT));
         } // FOR
     }
 
@@ -122,12 +133,17 @@ public class SpecExecProfilerStats extends StatsSource {
         rowValues[offset++] = HistogramUtil.stdev(profiler.queue_size);
         rowValues[offset++] = MathUtil.weightedMean(profiler.num_comparisons);
         rowValues[offset++] = HistogramUtil.stdev(profiler.num_comparisons);
+        rowValues[offset++] = MathUtil.weightedMean(profiler.num_matches);
+        rowValues[offset++] = HistogramUtil.stdev(profiler.num_matches);
         rowValues[offset++] = MathUtil.weightedMean(profiler.num_executed);
         rowValues[offset++] = HistogramUtil.stdev(profiler.num_executed);
         
+        List<Long> history = new ArrayList<Long>();
         for (ProfileMeasurement pm : profiler.getProfileMeasurements()) {
             rowValues[offset++] = pm.getTotalThinkTime();
             rowValues[offset++] = pm.getInvocations();
+            rowValues[offset++] = MathUtil.stdev(pm.getHistory(history));
+            history.clear();
         } // FOR
         super.updateStatsRow(rowKey, rowValues);
     }

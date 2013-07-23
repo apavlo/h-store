@@ -117,9 +117,10 @@ class SSHFabric(AbstractFabric):
                 raise Exception("The ssh.hosts file '%s' does not exist" % self.env["ssh.hosts"])
             with open(self.env["ssh.hosts"]) as fd:
                 for line in fd:
-                    map(allHostnames.append, re.split(r"[\s,]+", line.strip()))
+                    for host in re.split(r"[\s,]+", line.strip()):
+                        if not host.startswith("#"): allHostnames.append(host)
+                ## FOR
             ## WITH
-                                  
         # HOSTS LIST
         else:
             allHostnames = self.env["ssh.hosts"]
@@ -158,14 +159,15 @@ class SSHFabric(AbstractFabric):
             self.__writeConf__(inst, project, removals, revertFirst)
     ## DEF
     
-    def reset_debugging(self):
+    def resetLog4j(self):
         for inst in self.unique_hosts:
             self.__resetDebugging__(inst)
     ## DEF
     
-    def enable_debugging(self, debug=[], trace=[]):
+    def updateLog4j(self, reset=False, debug=[], trace=[]):
+        if reset: self.resetLog4j()
         for inst in self.unique_hosts:
-            self.__enableDebugging__(inst, debug, trace)
+            self.__updateLog4j__(inst, debug, trace)
     ## DEF
     
     def clear_logs(self):

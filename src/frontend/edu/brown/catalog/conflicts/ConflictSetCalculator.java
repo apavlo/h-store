@@ -36,8 +36,8 @@ import edu.brown.utils.CollectionUtil;
  */
 public class ConflictSetCalculator {
     private static final Logger LOG = Logger.getLogger(ConflictSetCalculator.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
+    private static final LoggerBoolean trace = new LoggerBoolean();
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
@@ -136,14 +136,16 @@ public class ConflictSetCalculator {
                 conflicts = this.checkReadWriteConflict(proc0, proc1);
                 if (conflicts.isEmpty() == false) {
                     if (debug.val) 
-                        LOG.debug(String.format("**RW-CONFLICT** %s <-> %s", proc0.getName(), proc1.getName()));
+                        LOG.debug(String.format("**RW-CONFLICT** %s <-> %s",
+                                  proc0.getName(), proc1.getName()));
                     this.procedures.get(proc0).rwConflicts.put(proc1, conflicts);
                 }
                 
                 conflicts = this.checkWriteWriteConflict(proc0, proc1);
                 if (conflicts.isEmpty() == false) {
                     if (debug.val) 
-                        LOG.debug(String.format("**WW-CONFLICT** %s <-> %s", proc0.getName(), proc1.getName()));
+                        LOG.debug(String.format("**WW-CONFLICT** %s <-> %s",
+                                  proc0.getName(), proc1.getName()));
                     this.procedures.get(proc0).wwConflicts.put(proc1, conflicts);
                 }
             } // FOR
@@ -234,8 +236,9 @@ public class ConflictSetCalculator {
                 Collection<Table> intersectTables = CollectionUtils.intersection(tables0, tables1);
                 Collection<Column> cols1 = CatalogUtil.getReferencedColumns(stmt1);
                 boolean alwaysConflicting1 = this.alwaysWriteConflicting(stmt1, type1, tables1, cols1);
-                if (debug.val) LOG.debug(String.format("RW %s <-> %s - Intersection Tables %s",
-                                           stmt0.fullName(), stmt1.fullName(), intersectTables));
+                if (debug.val)
+                    LOG.debug(String.format("RW %s <-> %s - Intersection Tables %s",
+                              stmt0.fullName(), stmt1.fullName(), intersectTables));
                 if (intersectTables.isEmpty()) continue;
                 
                 // Ok let's be crafty here...
@@ -246,13 +249,15 @@ public class ConflictSetCalculator {
                     cols1 = CatalogUtil.getModifiedColumns(stmt1);
                     assert(cols1.isEmpty() == false) : "No columns for " + stmt1.fullName();
                     Collection<Column> intersectColumns = CollectionUtils.intersection(cols0, cols1);
-                    if (debug.val) LOG.debug(String.format("RW %s <-> %s - Intersection Columns %s",
-                                               stmt0.fullName(), stmt1.fullName(), intersectColumns));
+                    if (debug.val)
+                        LOG.debug(String.format("RW %s <-> %s - Intersection Columns %s",
+                                  stmt0.fullName(), stmt1.fullName(), intersectColumns));
                     if (intersectColumns.isEmpty()) continue;
                 }
                 
-                if (debug.val) LOG.debug(String.format("RW %s <-> %s CONFLICTS",
-                                           stmt0.fullName(), stmt1.fullName()));
+                if (debug.val)
+                    LOG.debug(String.format("RW %s <-> %s CONFLICTS",
+                              stmt0.fullName(), stmt1.fullName()));
                 Conflict c = new Conflict(stmt0, stmt1, intersectTables, (alwaysConflicting0 || alwaysConflicting1));
                 conflicts.add(c);
             } // FOR (proc1)
@@ -293,8 +298,9 @@ public class ConflictSetCalculator {
                 boolean alwaysConflicting1 = this.alwaysWriteConflicting(stmt1, type1, tables1, cols1);
                 
                 Collection<Table> intersectTables = CollectionUtils.intersection(tables0, tables1);
-                if (debug.val) LOG.debug(String.format("WW %s <-> %s - Intersection Tables %s",
-                                           stmt0.fullName(), stmt1.fullName(), intersectTables));
+                if (debug.val)
+                    LOG.debug(String.format("WW %s <-> %s - Intersection Tables %s",
+                              stmt0.fullName(), stmt1.fullName(), intersectTables));
                 if (intersectTables.isEmpty()) continue;
                 
                 // If both queries are INSERTs, then this is always a conflict since
@@ -305,8 +311,9 @@ public class ConflictSetCalculator {
                 }
                     
                 Collection<Column> intersectColumns = CollectionUtils.intersection(cols0, cols1);
-                if (debug.val) LOG.debug(String.format("WW %s <-> %s - Intersection Columns %s",
-                                           stmt0.fullName(), stmt1.fullName(), intersectColumns));
+                if (debug.val)
+                    LOG.debug(String.format("WW %s <-> %s - Intersection Columns %s",
+                              stmt0.fullName(), stmt1.fullName(), intersectColumns));
                 if (alwaysConflicting0 == false && alwaysConflicting1 == false && intersectColumns.isEmpty()) continue;
                 Conflict c = new Conflict(stmt0, stmt1, intersectTables, (alwaysConflicting0 || alwaysConflicting1));
                 conflicts.add(c);
@@ -338,7 +345,7 @@ public class ConflictSetCalculator {
             return (true);
         }
         // Any range query must always be conflicting
-        else if (PlanNodeUtil.isRangeQuery(this.catalog_db, root)) {
+        else if (PlanNodeUtil.isRangeQuery(root)) {
             return (true);
         }
         return (false);
@@ -366,7 +373,7 @@ public class ConflictSetCalculator {
                 return (true);
             }
             // Or any UPDATE or DELETE with a range predicate in its WHERE clause always conflicts
-            else if (PlanNodeUtil.isRangeQuery(this.catalog_db, PlanNodeUtil.getRootPlanNodeForStatement(stmt, true))) {
+            else if (PlanNodeUtil.isRangeQuery(PlanNodeUtil.getRootPlanNodeForStatement(stmt, true))) {
                 return (true);
             }
         }

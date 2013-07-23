@@ -68,12 +68,20 @@ public class UpdateReservation extends VoltProcedure {
     public final SQLStmt CheckSeat = new SQLStmt(
         "SELECT R_ID " +
         "  FROM " + SEATSConstants.TABLENAME_RESERVATION +
-        " WHERE R_F_ID = ? and R_SEAT = ?");
+        " WHERE R_F_ID = ? and R_SEAT = ?"
+    );
 
     public final SQLStmt CheckCustomer = new SQLStmt(
         "SELECT R_ID " + 
         "  FROM " + SEATSConstants.TABLENAME_RESERVATION +
-        " WHERE R_F_ID = ? AND R_C_ID = ?");
+        " WHERE R_F_ID = ? AND R_C_ID = ?"
+    );
+    
+    public final SQLStmt GetSeats = new SQLStmt(
+        "SELECT R_ID, R_F_ID, R_SEAT " + 
+        "  FROM " + SEATSConstants.TABLENAME_RESERVATION +
+        " WHERE R_F_ID = ? ORDER BY R_SEAT ASC "
+    );
 
     private static final String BASE_SQL = "UPDATE " + SEATSConstants.TABLENAME_RESERVATION +
                                            "   SET R_SEAT = ?, R_UPDATED = ?, %s = ? " +

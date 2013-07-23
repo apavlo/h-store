@@ -1,16 +1,13 @@
 package edu.brown.hstore.txns;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import org.voltdb.ParameterSet;
-import org.voltdb.catalog.Statement;
 
 import com.google.protobuf.ByteString;
 
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
-import edu.brown.hstore.Hstoreservice.WorkResult;
 import edu.brown.hstore.specexec.QueryTracker;
 import edu.brown.pools.Poolable;
 import edu.brown.utils.PartitionSet;
@@ -21,21 +18,16 @@ import edu.brown.utils.PartitionSet;
  */
 public class PrefetchState implements Poolable {
     
-
-    protected final QueryTracker prefetchTracker = new QueryTracker();
-    
+    /**
+     * Keep track of every query invocation made by the transaction so that
+     * we can check whether we have already submitted the query as a prefetch
+     */
     protected final QueryTracker queryTracker = new QueryTracker();
 
     /**
-     * Which partitions have received prefetch WorkFragments
+     * Which partitions have executed prefetch WorkFragments
      */
     protected final PartitionSet partitions = new PartitionSet();
-    
-    /**
-     * The list of the FragmentIds that were sent out in a prefetch request
-     * This should only be access from LocalTransaction
-     */
-    protected final List<Integer> fragmentIds = new ArrayList<Integer>();
     
     /** 
      * The list of prefetchable WorkFragments that were sent for this transaction, if any
@@ -52,11 +44,6 @@ public class PrefetchState implements Poolable {
      * The deserialized ParameterSets for the prefetched WorkFragments,
      */
     protected ParameterSet[] params = null;
-    
-    /**
-     * 
-     */
-    protected final List<WorkResult> results = new ArrayList<WorkResult>();
     
     // ----------------------------------------------------------------------------
     // INITIALIZATION
@@ -78,56 +65,13 @@ public class PrefetchState implements Poolable {
     @Override
     public void finish() {
         this.partitions.clear();
-        this.fragmentIds.clear();
         this.fragments = null;
         this.paramsRaw = null;
         this.params = null;
-        this.results.clear();
     }
     
     public QueryTracker getExecQueryTracker() {
         return (this.queryTracker);
-    }
-    
-    public QueryTracker getPrefetchQueryTracker() {
-        return (this.prefetchTracker);
-    }
-    
-    
-    // ----------------------------------------------------------------------------
-    // INTERNAL METHODS
-    // ----------------------------------------------------------------------------
-    
-    
-
-    
-
-    // ----------------------------------------------------------------------------
-    // API METHODS
-    // ----------------------------------------------------------------------------
-
-    /**
-     * Mark the given query instance as being prefetched. This doesn't keep track
-     * of whether the result has returned, only that we sent the prefetch request
-     * out to the given partitions.
-     * @param stmt
-     * @param counter
-     * @param partitions
-     * @param stmtParams
-     */
-    public void markPrefetchedQuery(Statement stmt, int counter,
-                                    PartitionSet partitions, ParameterSet stmtParams) {
-        this.prefetchTracker.addQuery(stmt, partitions, stmtParams);
-    }
-    
-    /**
-     * Returns true if this query 
-     * @param stmt
-     * @param counter
-     * @return
-     */
-    public final boolean isMarkedPrefetched(Statement stmt, int counter) {
-        return (this.prefetchTracker.findPrefetchedQuery(stmt, counter) != null);
     }
     
 }

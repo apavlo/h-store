@@ -1,7 +1,9 @@
 package edu.brown.hstore.txns;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.voltdb.ParameterSet;
 import org.voltdb.SQLStmt;
@@ -16,9 +18,7 @@ import edu.brown.BaseTestCase;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.conf.HStoreConf;
-import edu.brown.hstore.txns.ExecutionState;
 import edu.brown.hstore.txns.LocalTransaction;
-import edu.brown.utils.PartitionSet;
 import edu.brown.utils.ProjectType;
 import edu.brown.hstore.BatchPlanner;
 import edu.brown.hstore.MockPartitionExecutor;
@@ -49,11 +49,13 @@ public class TestLocalTransaction extends BaseTestCase {
     
     MockHStoreSite hstore_site;
     MockPartitionExecutor executor;
+    DependencyTracker depTracker;
     Procedure catalog_proc;
     LocalTransaction ts;
     AbstractTransaction.Debug tsDebug;
     SQLStmt batchStmts[];
     ParameterSet batchParams[];
+    int batchCtrs[];
     
     @Override
     protected void setUp() throws Exception {
@@ -67,10 +69,12 @@ public class TestLocalTransaction extends BaseTestCase {
         } // FOR
         
         this.batchStmts = new SQLStmt[TARGET_REPEAT * TARGET_STMTS.length];
-        this.batchParams = new ParameterSet[TARGET_REPEAT * 2];
+        this.batchParams = new ParameterSet[this.batchStmts.length];
+        this.batchCtrs = new int[this.batchStmts.length];
         for (int i = 0; i < this.batchStmts.length; ) {
             for (int j = 0; j < catalog_stmts.length; j++) {
                 this.batchStmts[i] = new SQLStmt(catalog_stmts[j]);
+                this.batchCtrs[i] = i;
                 
                 // Generate random input parameters for the Statement but make sure that
                 // the W_IDs always point to our BASE_PARTITION
@@ -91,39 +95,43 @@ public class TestLocalTransaction extends BaseTestCase {
         
         this.hstore_site = new MockHStoreSite(0, catalogContext, HStoreConf.singleton());
         this.executor = (MockPartitionExecutor)this.hstore_site.getPartitionExecutor(BASE_PARTITION);
-        assertNotNull(this.executor);
+        this.depTracker = this.executor.getDependencyTracker();
+        assertNotNull(this.depTracker);
+        
         this.ts = new LocalTransaction(this.hstore_site);
+        this.ts.testInit(TXN_ID,
+                         BASE_PARTITION,
+                         null,
+                         catalogContext.getAllPartitionIds(),
+                         this.catalog_proc);
         this.tsDebug = this.ts.getDebugContext();
+        this.depTracker.addTransaction(this.ts);
     }
     
     /**
      * testStartRound
      */
     public void testStartRound() throws Exception {
-        this.ts.testInit(TXN_ID, BASE_PARTITION, null, new PartitionSet(BASE_PARTITION), this.catalog_proc);
-        ExecutionState state = new ExecutionState(this.executor);
-        this.ts.setExecutionState(state);
-        this.ts.initRound(BASE_PARTITION, UNDO_TOKEN);
-        this.ts.setBatchSize(this.batchStmts.length);
+        this.ts.markControlCodeExecuted();
+        this.ts.initFirstRound(UNDO_TOKEN, this.batchStmts.length);
         
         // We need to get all of our WorkFragments for this batch
         BatchPlanner planner = new BatchPlanner(this.batchStmts, this.catalog_proc, p_estimator);
         BatchPlanner.BatchPlan plan = planner.plan(TXN_ID,
                                                    BASE_PARTITION,
                                                    ts.getPredictTouchedPartitions(),
-                                                   false,
                                                    ts.getTouchedPartitions(),
                                                    this.batchParams);
         assertNotNull(plan);
         assertFalse(plan.hasMisprediction());
         
         List<WorkFragment.Builder> builders = new ArrayList<WorkFragment.Builder>();
-        plan.getWorkFragmentsBuilders(TXN_ID, builders);
+        plan.getWorkFragmentsBuilders(TXN_ID, this.batchCtrs, builders);
         assertFalse(builders.isEmpty());
         
         List<WorkFragment.Builder> ready = new ArrayList<WorkFragment.Builder>();
         for (WorkFragment.Builder builder : builders) {
-            boolean blocked = this.ts.addWorkFragment(builder);
+            boolean blocked = (this.depTracker.addWorkFragment(this.ts, builder, this.batchParams) == false);
             if (blocked == false) {
                 assertFalse(builder.toString(), ready.contains(builder));
                 ready.add(builder);
@@ -138,35 +146,68 @@ public class TestLocalTransaction extends BaseTestCase {
      * testReadWriteSets
      */
     public void testReadWriteSets() throws Exception {
-        ExecutionState state = new ExecutionState(this.executor);
-        this.ts.setExecutionState(state);
-        this.ts.initRound(BASE_PARTITION, UNDO_TOKEN);
+        this.ts.markControlCodeExecuted();
+        this.ts.initFirstRound(UNDO_TOKEN, this.batchStmts.length);
         
         int tableIds[] = null;
         for (Statement catalog_stmt : catalog_proc.getStatements()) {
             this.tsDebug.clearReadWriteSets();
             for (PlanFragment catalog_frag : catalog_stmt.getFragments()) {
+//                System.err.println(catalog_frag.fullName());
+                
                 tableIds = catalogContext.getReadTableIds(Long.valueOf(catalog_frag.getId()));
                 if (tableIds != null) {
-                    ts.markTableIdsAsRead(BASE_PARTITION, tableIds);
+                    ts.markTableIdsRead(BASE_PARTITION, tableIds);
+//                    System.err.printf("*** %s -- READ:%s\n",
+//                                      catalog_frag, Arrays.toString(tableIds));
                 }
                 
                 tableIds = catalogContext.getWriteTableIds(Long.valueOf(catalog_frag.getId()));
                 if (tableIds != null) {
-                    ts.markTableIdsAsWritten(BASE_PARTITION, tableIds);
+                    ts.markTableIdsWritten(BASE_PARTITION, tableIds);
+//                    System.err.printf("*** %s -- WRITE:%s\n",
+//                                      catalog_frag, Arrays.toString(tableIds));
                 }
             } // FOR
 
-            for (Table catalog_tbl : CatalogUtil.getAllTables(catalog_stmt)) {
+            Set<Table> readTables = new HashSet<Table>();
+            Set<Integer> readTableIds = new HashSet<Integer>();
+            Set<Table> writeTables = new HashSet<Table>();
+            Set<Integer> writeTableIds = new HashSet<Integer>();
+            for (Table catalog_tbl : CatalogUtil.getReferencedTables(catalog_stmt)) {
                 if (catalog_stmt.getReadonly()) {
+                    readTables.add(catalog_tbl);
+                    readTableIds.add(catalog_tbl.getRelativeIndex());
                     assertTrue(catalog_tbl.toString(), ts.isTableRead(BASE_PARTITION, catalog_tbl));
                     assertFalse(catalog_tbl.toString(), ts.isTableWritten(BASE_PARTITION, catalog_tbl));
                 } else {
+                    writeTables.add(catalog_tbl);
+                    writeTableIds.add(catalog_tbl.getRelativeIndex());
                     assertFalse(catalog_tbl.toString(), ts.isTableRead(BASE_PARTITION, catalog_tbl));
                     assertTrue(catalog_tbl.toString(), ts.isTableWritten(BASE_PARTITION, catalog_tbl));
                 }
             } // FOR
-        } // FOR
+//            System.err.printf("%s -- READ:%s / WRITE:%s\n",
+//                              catalog_stmt, readTableIds, writeTableIds);
+            
+            int readIds[] = ts.getTableIdsMarkedRead(BASE_PARTITION);
+            assertEquals(readTables.size(), readIds.length);
+            for (int tableId : readIds) {
+                Table tbl = catalogContext.getTableById(tableId);
+                assertNotNull(tbl);
+                assertTrue(catalog_stmt.fullName()+"->"+tbl.toString(), readTables.contains(tbl));
+            } // FOR
+            
+            int writeIds[] = ts.getTableIdsMarkedWritten(BASE_PARTITION);
+            assertEquals(writeTables.size(), writeIds.length);
+            for (int tableId : writeIds) {
+                Table tbl = catalogContext.getTableById(tableId);
+                assertNotNull(tbl);
+                assertTrue(catalog_stmt.fullName()+"->"+tbl.toString(), writeTables.contains(tbl));
+            } // FOR
+            
+//            System.err.println(StringUtil.repeat("-", 100));
+        } // FOR (stmt)
     }
     
 }

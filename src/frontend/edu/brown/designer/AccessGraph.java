@@ -10,6 +10,7 @@ import org.voltdb.catalog.Column;
 import org.voltdb.catalog.Database;
 
 import edu.brown.graphs.AbstractUndirectedGraph;
+import edu.brown.utils.PredicatePairs;
 
 /**
  * @author Andy Pavlo <pavlo@cs.brown.edu>
@@ -58,7 +59,7 @@ public class AccessGraph extends AbstractUndirectedGraph<DesignerVertex, Designe
         assert (v != null);
         Set<DesignerEdge> edges = new HashSet<DesignerEdge>();
         for (DesignerEdge e : this.getIncidentEdges(v)) {
-            ColumnSet cset = e.getAttribute(EdgeAttributes.COLUMNSET);
+            PredicatePairs cset = e.getAttribute(EdgeAttributes.COLUMNSET);
             assert (cset != null);
             if (cset.findAll(catalog_col).isEmpty() == false) {
                 edges.add(e);
@@ -87,7 +88,7 @@ public class AccessGraph extends AbstractUndirectedGraph<DesignerVertex, Designe
             // sb.append(String.format("\n => %-15s%s", entry.getKey()+":",
             // entry.getValue().toString()));
             // }
-            ColumnSet cset = e.getAttribute(EdgeAttributes.COLUMNSET.name());
+            PredicatePairs cset = e.getAttribute(EdgeAttributes.COLUMNSET.name());
             assert (cset != null);
             sb.append("\n").append(cset.debug());
         }

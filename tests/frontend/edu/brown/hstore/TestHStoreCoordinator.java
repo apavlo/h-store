@@ -33,7 +33,7 @@ import edu.brown.utils.ProjectType;
 import edu.brown.utils.ThreadUtil;
 
 /**
- * 
+ * HStoreCoordinator Tests
  * @author pavlo
  */
 public class TestHStoreCoordinator extends BaseTestCase {
@@ -56,7 +56,8 @@ public class TestHStoreCoordinator extends BaseTestCase {
     public void setUp() throws Exception {
         super.setUp(ProjectType.TM1);
         
-        HStoreConf.singleton().site.coordinator_sync_time = false;
+        HStoreConf hstore_conf = HStoreConf.singleton(); 
+        hstore_conf.site.coordinator_sync_time = false;
         
         // Create a fake cluster of two HStoreSites, each with two partitions
         // This will allow us to test same site communication as well as cross-site communication
@@ -68,9 +69,8 @@ public class TestHStoreCoordinator extends BaseTestCase {
             
             // We have to make our fake ExecutionSites for each Partition at this site
             for (Partition catalog_part : catalog_site.getPartitions()) {
-                MockPartitionExecutor es = new MockPartitionExecutor(catalog_part.getId(), catalog, p_estimator);
+                MockPartitionExecutor es = new MockPartitionExecutor(catalog_part.getId(), catalogContext, p_estimator);
                 this.hstore_sites[i].addPartitionExecutor(catalog_part.getId(), es);
-                es.initHStoreSite(this.hstore_sites[i]);
             } // FOR
         } // FOR
 

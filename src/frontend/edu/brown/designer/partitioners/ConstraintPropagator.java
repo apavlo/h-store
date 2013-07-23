@@ -28,7 +28,6 @@ import edu.brown.catalog.special.MultiProcParameter;
 import edu.brown.catalog.special.ReplicatedColumn;
 import edu.brown.catalog.special.VerticalPartitionColumn;
 import edu.brown.designer.AccessGraph;
-import edu.brown.designer.ColumnSet;
 import edu.brown.designer.DesignerEdge;
 import edu.brown.designer.DesignerHints;
 import edu.brown.designer.DesignerInfo;
@@ -36,12 +35,13 @@ import edu.brown.designer.DesignerVertex;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.PredicatePairs;
 import edu.brown.utils.StringUtil;
 
 public class ConstraintPropagator {
     private static final Logger LOG = Logger.getLogger(ConstraintPropagator.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
+    private static final LoggerBoolean trace = new LoggerBoolean();
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
@@ -189,7 +189,7 @@ public class ConstraintPropagator {
             }
 
             for (DesignerEdge e : this.agraph.getIncidentEdges(v)) {
-                ColumnSet cset = e.getAttribute(AccessGraph.EdgeAttributes.COLUMNSET);
+                PredicatePairs cset = e.getAttribute(AccessGraph.EdgeAttributes.COLUMNSET);
                 assert (cset != null);
                 Column catalog_col = CollectionUtil.first(cset.findAllForParent(Column.class, catalog_tbl));
                 Collection<Column> candidates = new HashSet<Column>();

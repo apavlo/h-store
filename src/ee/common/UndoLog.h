@@ -41,8 +41,7 @@ namespace voltdb
          */
         void clear();
 
-        inline UndoQuantum* generateUndoQuantum(int64_t nextUndoToken)
-        {
+        inline UndoQuantum* generateUndoQuantum(int64_t nextUndoToken) {
             VOLT_TRACE("Generating token %ld / lastUndo:%ld / lastRelease:%ld / undoQuantums:%ld",
                        nextUndoToken, m_lastUndoToken, m_lastReleaseToken, m_undoQuantums.size());
             
@@ -90,24 +89,14 @@ namespace voltdb
             VOLT_TRACE("Attempting to undo token %ld [lastUndo:%ld / lastRelease:%ld / undoQuantums:%ld]",
                        undoToken, m_lastUndoToken, m_lastReleaseToken, m_undoQuantums.size());
             
-            // This ensures that undo is only ever called after
-            // generateUndoToken has been called
-//             #ifdef VOLT_ERROR_ENABLED
-//             if (m_lastReleaseToken >= m_lastUndoToken) {
-//                 VOLT_ERROR("m_lastReleaseToken[%ld] is greater or equal to than m_lastUndoToken[%ld] -- [undoToken=%ld]",
-//                            m_lastReleaseToken, m_lastUndoToken, undoToken);
-//             }
-//             #endif
-//             assert(m_lastReleaseToken < m_lastUndoToken);
-            
             // This ensures that we don't attempt to undo something in
             // the distant past.  In some cases ExecutionSite may hand
             // us the largest token value that definitely doesn't
             // exist; this will just result in all undo quanta being undone.
             #ifdef VOLT_ERROR_ENABLED
             if (undoToken < m_lastReleaseToken) {
-                VOLT_ERROR("undoToken[%ld] is less than m_lastReleaseToken[%ld] -- [undoToken=%ld]",
-                           undoToken, m_lastReleaseToken, undoToken);
+                VOLT_ERROR("undoToken[%ld] is less than m_lastReleaseToken[%ld]",
+                           undoToken, m_lastReleaseToken);
             }
             #endif
             assert(undoToken >= m_lastReleaseToken);
@@ -138,13 +127,103 @@ namespace voltdb
                 pool->purge();
                 m_undoDataPools.push_back(pool);
 
-                if(undoQuantumToken == undoToken) {
+                if (undoQuantumToken == undoToken) {
                     VOLT_TRACE("FINISH Aborting UndoQuantum %ld", undoQuantumToken);
                     return;
                 }
             }
             VOLT_WARN("Unable to find token %ld [lastUndo:%ld / lastRelease:%ld / undoQuantums:%ld]",
                        undoToken, m_lastUndoToken, m_lastReleaseToken, m_undoQuantums.size());
+        }
+        
+        /*
+         * Undo all undoable actions for the given range
+         */
+        inline void undoRange(const int64_t startToken, const int64_t stopToken) {
+            assert(startToken >= stopToken);
+            
+            VOLT_TRACE("Attempting to undo range %ld->%ld [lastUndo:%ld / lastRelease:%ld / undoQuantums:%ld]",
+                       startToken, stopToken,
+                       m_lastUndoToken, m_lastReleaseToken, m_undoQuantums.size());
+            
+            // This ensures that we don't attempt to undo something in
+            // the distant past.  In some cases ExecutionSite may hand
+            // us the largest token value that definitely doesn't
+            // exist; this will just result in all undo quanta being undone.
+            #ifdef VOLT_ERROR_ENABLED
+            if (startToken < m_lastReleaseToken) {
+                VOLT_ERROR("startToken[%ld] is less than m_lastReleaseToken[%ld]",
+                           startToken, m_lastReleaseToken);
+            }
+            if (stopToken < m_lastReleaseToken) {
+                VOLT_ERROR("stopToken[%ld] is less than m_lastReleaseToken[%ld]",
+                           stopToken, m_lastReleaseToken);
+            }
+            #endif
+            assert(startToken >= m_lastReleaseToken);
+            assert(stopToken >= m_lastReleaseToken);
+
+            if (startToken > m_lastUndoToken) {
+                // a procedure may abort before it sends work to the EE
+                // (informing the EE of its undo token. For example, it
+                // may have invalid parameter values or, possibly, aborts
+                // in user java code before executing any SQL.  Just
+                // return. There is no work to do here.
+                return;
+            }
+
+            while (m_undoQuantums.size() > 0) {
+                UndoQuantum *undoQuantum = m_undoQuantums.back();
+                const int64_t undoQuantumToken = undoQuantum->getUndoToken();
+                
+                // If this token is *before* our stop token, then we know that we've
+                // successfully gone through the entire range that we were looking
+                if (undoQuantumToken < stopToken) {
+                    VOLT_TRACE("Halting search at UndoQuantum %ld because it is before stop token %ld",
+                               undoQuantumToken, stopToken);
+                    break;
+                }
+                
+                m_undoQuantums.pop_back();
+                
+                // If this token is *after* our start token, then we haven't found the 
+                // starting point of the range we're looking for. We'll put this token
+                // into a temporary queue so that we can add it back after remove our range
+                if (undoQuantumToken > startToken) {
+                    VOLT_TRACE("Skipping UndoQuantum %ld because it is after start token %ld",
+                               undoQuantumToken, startToken);
+                    m_temp.push_back(undoQuantum);
+                    continue;
+                }
+
+                // Here we go! We have something in the range that we are looking for
+                VOLT_TRACE("START Aborting UndoQuantum %ld", undoQuantumToken);
+                Pool *pool = undoQuantum->getDataPool();
+                undoQuantum->undo();
+                pool->purge();
+                m_undoDataPools.push_back(pool);
+
+                if (undoQuantumToken == stopToken) {
+                    VOLT_TRACE("FINISH Aborting UndoQuantum %ld", undoQuantumToken);
+                    break;
+                }
+            } // WHILE
+            // Make sure that we add back the tokens that were outside of our range
+            // in the right order.
+            if (m_temp.size() != 0) {
+                do {
+                    UndoQuantum *undoQuantum = m_temp.back();
+                    m_temp.pop_back();
+                    m_undoQuantums.push_back(undoQuantum);
+                } while (m_temp.size() > 0);
+            }
+            else {
+                VOLT_WARN("Unable to find tokens in range %ld->%ld "\
+                          "[lastUndo:%ld / lastRelease:%ld / undoQuantums:%ld]",
+                          startToken, stopToken,
+                          m_lastUndoToken, m_lastReleaseToken, m_undoQuantums.size());
+            }
+            m_lastUndoToken = m_undoQuantums.back()->getUndoToken();
         }
 
         /*
@@ -178,7 +257,7 @@ namespace voltdb
                 undoQuantum->release();
                 pool->purge();
                 m_undoDataPools.push_back(pool);
-                if(undoQuantumToken == undoToken) {
+                if (undoQuantumToken == undoToken) {
                     VOLT_TRACE("FINISH Releasing UndoQuantum %ld", undoQuantumToken);
                     return;
                 }
@@ -215,6 +294,7 @@ namespace voltdb
 
         std::vector<Pool*> m_undoDataPools;
         std::deque<UndoQuantum*> m_undoQuantums;
+        std::deque<UndoQuantum*> m_temp;
     };
 }
 #endif /* UNDOLOG_H_ */

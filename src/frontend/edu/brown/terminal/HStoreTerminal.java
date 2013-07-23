@@ -13,7 +13,6 @@ import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
 import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.Database;
-import org.voltdb.catalog.Host;
 import org.voltdb.catalog.ProcParameter;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
@@ -23,12 +22,11 @@ import org.voltdb.client.ClientResponse;
 import org.voltdb.client.NoConnectionsException;
 import org.voltdb.types.TimestampType;
 import org.voltdb.utils.NotImplementedException;
-import org.voltdb.utils.Pair;
 import org.voltdb.utils.VoltTableUtil;
 import org.voltdb.utils.VoltTypeUtil;
 
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.hstore.HStoreThreadManager;
+import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.ArgumentsParser;
@@ -42,7 +40,7 @@ import edu.brown.utils.StringUtil;
  */
 public class HStoreTerminal implements Runnable {
     private static final Logger LOG = Logger.getLogger(HStoreTerminal.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
     
     /**
      * Special non-standard commands that we can execute
@@ -60,6 +58,18 @@ public class HStoreTerminal implements Runnable {
             this.usage = usage;
         }
     };
+    
+    private class TerminalConnection {
+        final Client client;
+        final String hostname;
+        final int port;
+        
+        public TerminalConnection(Client client, String hostname, int port) {
+            this.client = client;
+            this.hostname = hostname;
+            this.port = port;
+        }
+    } // CLASS
     
     // ---------------------------------------------------------------
     // STATIC CONFIGURATION MEMBERS
@@ -84,6 +94,8 @@ public class HStoreTerminal implements Runnable {
     // OPTIONS
     private boolean enable_csv = false; 
     private boolean enable_debug = false;
+    private String hostname = null;
+    private int port = HStoreConstants.DEFAULT_PORT;
     
     // ---------------------------------------------------------------
     // CONSTRUCTOR
@@ -101,15 +113,11 @@ public class HStoreTerminal implements Runnable {
     
     @Override
     public void run() {
-        Pair<Client, Site> p = this.getClientConnection();
-        Client client = p.getFirst();
-        Site catalog_site = p.getSecond();
+        TerminalConnection tc = this.getClientConnection();
         if (this.enable_csv == false) {
             this.printHeader();
             System.out.printf("Connected to %s:%d / Server Version: %s\n",
-                              catalog_site.getHost().getIpaddr(),
-                              catalog_site.getProc_port(),
-                              client.getBuildString());
+                              tc.hostname, tc.port, tc.client.getBuildString());
         }
         
         String query = "";
@@ -146,11 +154,11 @@ public class HStoreTerminal implements Runnable {
                                         if (tokens.length < 2) {
                                             usage = true;
                                         } else {
-                                            cresponse = this.execProcedure(client, tokens[1], query, reconnect);
+                                            cresponse = this.execProcedure(tc.client, tokens[1], query, reconnect);
                                         }
                                         break;
                                     case ENABLE:
-                                        this.processEnable(client, tokens[1], query, reconnect);
+                                        this.processEnable(tc.client, tokens[1], query, reconnect);
                                         break;
                                     case QUIT:
                                         stop = true;
@@ -164,13 +172,11 @@ public class HStoreTerminal implements Runnable {
                             }
                             // Otherwise we'll send it to the server to deal with as an ad-hoc query
                             else {
-                                cresponse = this.execQuery(client, query);
+                                cresponse = this.execQuery(tc.client, query);
                             }
                         } catch (NoConnectionsException ex) {
                             LOG.warn("Connection lost. Going to try to connect again...");
-                            p = this.getClientConnection();
-                            client = p.getFirst();
-                            catalog_site = p.getSecond();
+                            tc = this.getClientConnection();
                             reconnect = true;
                             continue;
                         }
@@ -214,7 +220,7 @@ public class HStoreTerminal implements Runnable {
             } while (query != null && stop == false);
         } finally {
             try {
-                client.close();
+                if (tc != null) tc.client.close();
             } catch (InterruptedException ex) {
                 // Ignore
             }
@@ -236,25 +242,42 @@ public class HStoreTerminal implements Runnable {
      * The return value includes what site the client connected to
      * @return
      */
-    private Pair<Client, Site> getClientConnection() {
-        // Connect to random host and using a random port that it's listening on
-        Site catalog_site = CollectionUtil.random(CatalogUtil.getAllSites(this.catalog));
-        Host catalog_host = catalog_site.getHost();
+    private TerminalConnection getClientConnection() {
+        String hostname = null;
+        int port = -1;
         
-        String hostname = catalog_host.getIpaddr();
-        int port = catalog_site.getProc_port();
-        if (debug.val) LOG.debug(String.format("Creating new client connection to HStoreSite %s",
-                                HStoreThreadManager.formatSiteName(catalog_site.getId())));
-        
-        Client new_client = ClientFactory.createClient(128, null, false, null);
-        try {
-            new_client.createConnection(null, hostname, port, "user", "password");
-        } catch (Exception ex) {
-            throw new RuntimeException(String.format("Failed to connect to HStoreSite %s at %s:%d",
-                                                     HStoreThreadManager.formatSiteName(catalog_site.getId()),
-                                                     hostname, port));
+        // Fixed hostname
+        if (this.hostname != null) {
+            if (this.hostname.contains(":")) {
+                String split[] = this.hostname.split("\\:", 2);
+                hostname = split[0];
+                port = Integer.valueOf(split[1]);
+            } else {
+                hostname = this.hostname;
+                port = this.port;
+            }
         }
-        return Pair.of(new_client, catalog_site);
+        // Connect to random host and using a random port that it's listening on
+        else if (this.catalog != null) {
+            Site catalog_site = CollectionUtil.random(CatalogUtil.getAllSites(this.catalog));
+            hostname = catalog_site.getHost().getIpaddr();
+            port = catalog_site.getProc_port();
+        }
+        assert(hostname != null);
+        assert(port > 0);
+        
+        if (debug.val)
+            LOG.debug(String.format("Creating new client connection to %s:%d",
+                      hostname, port));
+        
+        Client client = ClientFactory.createClient(128, null, false, null);
+        try {
+            client.createConnection(null, hostname, port, "user", "password");
+        } catch (Exception ex) {
+            String msg = String.format("Failed to connect to HStoreSite at %s:%d", hostname, port);
+            throw new RuntimeException(msg);
+        }
+        return new TerminalConnection(client, hostname, port);
     }
     
     /**
@@ -452,9 +475,17 @@ public class HStoreTerminal implements Runnable {
         );
         HStoreTerminal term = new HStoreTerminal(args.catalog);
         
-        // Check for CSV output
-        if (args.getBooleanParam(ArgumentsParser.PARAM_TERMINAL_CSV) == true) {
-            term.enable_csv = true;
+        // CSV OUTPUT
+        if (args.hasBooleanParam(ArgumentsParser.PARAM_TERMINAL_CSV)) {
+            term.enable_csv = args.getBooleanParam(ArgumentsParser.PARAM_TERMINAL_CSV);
+        }
+        // HOSTNAME
+        if (args.hasParam(ArgumentsParser.PARAM_TERMINAL_HOST)) {
+            term.hostname = args.getParam(ArgumentsParser.PARAM_TERMINAL_HOST);
+        }
+        // PORT
+        if (args.hasParam(ArgumentsParser.PARAM_TERMINAL_PORT)) {
+            term.port = args.getIntParam(ArgumentsParser.PARAM_TERMINAL_PORT);
         }
         
         term.run();

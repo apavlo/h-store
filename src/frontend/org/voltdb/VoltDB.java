@@ -46,6 +46,7 @@ public class VoltDB {
     }
 
     /** Encapsulates VoltDB configuration parameters */
+    @Deprecated
     public static class Configuration {
 
         /** Whether to enable watchdogs to check for possible deadlocks **/

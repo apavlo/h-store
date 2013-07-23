@@ -144,7 +144,7 @@ bool UpdateExecutor::p_init(AbstractPlanNode *abstract_node, const catalog::Data
     return true;
 }
 
-bool UpdateExecutor::p_execute(const NValueArray &params) {
+bool UpdateExecutor::p_execute(const NValueArray &params, ReadWriteTracker *tracker) {
     assert(m_inputTable);
     assert(m_targetTable);
 
@@ -164,6 +164,11 @@ bool UpdateExecutor::p_execute(const NValueArray &params) {
         //
         void *target_address = m_inputTuple.getNValue(0).castAsAddress();
         m_targetTuple.move(target_address);
+        
+        // Read/Write Set Tracking
+        if (tracker != NULL) {
+            tracker->markTupleWritten(m_targetTable->name(), &m_targetTuple);
+        }
 
         // Loop through INPUT_COL_IDX->TARGET_COL_IDX mapping and only update
         // the values that we need to. The key thing to note here is that we

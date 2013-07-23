@@ -24,32 +24,24 @@ import org.voltdb.catalog.Statement;
 
 import edu.brown.BaseTestCase;
 import edu.brown.benchmark.auctionmark.procedures.GetUserInfo;
-import edu.brown.hashing.DefaultHasher;
-import edu.brown.hstore.Hstoreservice.WorkFragment;
-import edu.brown.hstore.conf.HStoreConf;
-import edu.brown.hstore.txns.DependencyInfo;
-import edu.brown.hstore.txns.ExecutionState;
-import edu.brown.hstore.txns.LocalTransaction;
-import edu.brown.statistics.FastIntHistogram;
-import edu.brown.utils.CollectionUtil;
-import edu.brown.utils.PartitionEstimator;
-import edu.brown.utils.PartitionSet;
-import edu.brown.utils.ProjectType;
 import edu.brown.hstore.BatchPlanner;
 import edu.brown.hstore.BatchPlanner.BatchPlan;
-import edu.brown.hstore.PartitionExecutor;
 import edu.brown.hstore.HStore;
 import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.HStoreSite;
+import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.MockPartitionExecutor;
+import edu.brown.hstore.PartitionExecutor;
+import edu.brown.hstore.conf.HStoreConf;
+import edu.brown.statistics.FastIntHistogram;
+import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.ProjectType;
 
 /**
  * @author pavlo
  */
 public class TestTransactionStateComplex extends BaseTestCase {
     private static final long TXN_ID = 1000l;
-    private static final long CLIENT_HANDLE = 99999l;
-    private static final boolean SINGLE_PARTITIONED = false;
     private static final long UNDO_TOKEN = 10l;
     
     private static final String TARGET_PROCEDURE = GetUserInfo.class.getSimpleName();
@@ -65,14 +57,15 @@ public class TestTransactionStateComplex extends BaseTestCase {
     };
     private static final VoltTable FAKE_RESULT = new VoltTable(FAKE_RESULTS_COLUMNS);
     
-    private static HStoreSite hstore_site;
-    private static PartitionExecutor executor;
-    private static BatchPlan plan;
-    private static List<WorkFragment.Builder> ftasks = new ArrayList<WorkFragment.Builder>();
+    private HStoreSite hstore_site;
+    private PartitionExecutor executor;
+    private BatchPlan plan;
+    private List<WorkFragment.Builder> ftasks = new ArrayList<WorkFragment.Builder>();
+    private DependencyTracker depTracker;
+    private DependencyTracker.Debug depTrackerDbg;
     
     private FastIntHistogram touched_partitions = new FastIntHistogram();
     private LocalTransaction ts;
-    private ExecutionState execState;
     private ListOrderedSet<Integer> dependency_ids = new ListOrderedSet<Integer>();
     private List<Integer> internal_dependency_ids = new ArrayList<Integer>();
     private List<Integer> output_dependency_ids = new ArrayList<Integer>();
@@ -80,50 +73,55 @@ public class TestTransactionStateComplex extends BaseTestCase {
     private Map<Integer, Set<Integer>> dependency_partitions = new HashMap<Integer, Set<Integer>>();
     private Procedure catalog_proc;
     private Statement catalog_stmt;
+    
+    SQLStmt batch[] = new SQLStmt[NUM_DUPLICATE_STATEMENTS];
+    ParameterSet args[] = new ParameterSet[batch.length];
+    int stmtCounters[] = new int[batch.length];
 
     @Override
     protected void setUp() throws Exception {
         super.setUp(ProjectType.AUCTIONMARK);
         this.addPartitions(NUM_PARTITIONS);
         
-        catalog_proc = this.getProcedure(TARGET_PROCEDURE);
-        catalog_stmt = this.getStatement(catalog_proc, TARGET_STATEMENT);
+        this.catalog_proc = this.getProcedure(TARGET_PROCEDURE);
+        this.catalog_stmt = this.getStatement(catalog_proc, TARGET_STATEMENT);
         
-        if (executor == null) {
-            PartitionEstimator p_estimator = new PartitionEstimator(catalogContext);
-            executor = new MockPartitionExecutor(LOCAL_PARTITION, catalog, p_estimator);
-            p_estimator = new PartitionEstimator(catalogContext, new DefaultHasher(catalogContext));
-            
-            // Setup a BatchPlanner for ourselves here
-
-
-            // Create a SQLStmt batch
-            SQLStmt batch[] = new SQLStmt[NUM_DUPLICATE_STATEMENTS];
-            ParameterSet args[] = new ParameterSet[NUM_DUPLICATE_STATEMENTS];
-            
-            for (int i = 0; i < batch.length; i++) {
-                Object raw_args[] = new Object[] {
-                    new Long(i + 1),    // U_ID
-                };
-                batch[i] = new SQLStmt(catalog_stmt, catalog_stmt.getMs_fragments());
-                args[i] = VoltProcedure.getCleanParams(batch[i], raw_args); 
-            } // FOR
-            
-            Partition catalog_part = catalogContext.getPartitionById(LOCAL_PARTITION);
-            hstore_site = HStore.initialize(catalogContext, ((Site)catalog_part.getParent()).getId(), HStoreConf.singleton());
-            hstore_site.addPartitionExecutor(LOCAL_PARTITION, executor);
-            
-            BatchPlanner batchPlan = new BatchPlanner(batch, catalog_proc, p_estimator);
-            plan = batchPlan.plan(TXN_ID, LOCAL_PARTITION, new PartitionSet(LOCAL_PARTITION), SINGLE_PARTITIONED, this.touched_partitions, args);
-            assertNotNull(plan);
-            plan.getWorkFragmentsBuilders(TXN_ID, ftasks);
-            assertFalse(ftasks.isEmpty());
-        }
+        this.executor = new MockPartitionExecutor(LOCAL_PARTITION, catalogContext, p_estimator);
         assertNotNull(executor);
         
-        this.execState = new ExecutionState(executor);
-        this.ts = new LocalTransaction(hstore_site).testInit(TXN_ID, LOCAL_PARTITION, null, new PartitionSet(LOCAL_PARTITION), catalog_proc);
-        this.ts.setExecutionState(this.execState);
+        // Create a SQLStmt batch
+        for (int i = 0; i < batch.length; i++) {
+            Object raw_args[] = new Object[] {
+                new Long(i + 1),    // U_ID
+            };
+            batch[i] = new SQLStmt(this.catalog_stmt, this.catalog_stmt.getMs_fragments());
+            args[i] = VoltProcedure.getCleanParams(batch[i], raw_args);
+            stmtCounters[i] = i;
+        } // FOR
+        
+        Partition catalog_part = catalogContext.getPartitionById(LOCAL_PARTITION);
+        hstore_site = HStore.initialize(catalogContext, ((Site)catalog_part.getParent()).getId(), HStoreConf.singleton());
+        hstore_site.addPartitionExecutor(LOCAL_PARTITION, executor);
+        this.depTracker = hstore_site.getDependencyTracker(LOCAL_PARTITION);
+        this.depTrackerDbg = this.depTracker.getDebugContext();
+        
+        BatchPlanner batchPlan = new BatchPlanner(batch, catalog_proc, p_estimator);
+        this.plan = batchPlan.plan(TXN_ID,
+                                   LOCAL_PARTITION,
+                                   catalogContext.getAllPartitionIds(),
+                                   this.touched_partitions,
+                                   args);
+        this.plan.getWorkFragmentsBuilders(TXN_ID, stmtCounters, this.ftasks);
+        assertFalse(ftasks.isEmpty());
+        
+        this.ts = new LocalTransaction(hstore_site);
+        this.ts.testInit(TXN_ID,
+                         LOCAL_PARTITION,
+                         null,
+                         catalogContext.getAllPartitionIds(),
+                         this.catalog_proc);
+        this.ts.markControlCodeExecuted();
+        this.depTracker.addTransaction(this.ts);
     }
 
     /**
@@ -131,11 +129,10 @@ public class TestTransactionStateComplex extends BaseTestCase {
      * We will also populate our list of dependency ids
      */
     private void addFragments() {
-        this.ts.setBatchSize(NUM_DUPLICATE_STATEMENTS);
         for (WorkFragment.Builder ftask : ftasks) {
 //            System.err.println(ftask);
 //            System.err.println("+++++++++++++++++++++++++++++++++++");
-            this.ts.addWorkFragment(ftask);
+            this.depTracker.addWorkFragment(this.ts, ftask, this.args);
             for (int i = 0, cnt = ftask.getFragmentIdCount(); i < cnt; i++) {
                 int dep_id = ftask.getOutputDepId(i);
                 this.dependency_ids.add(dep_id);
@@ -164,7 +161,7 @@ public class TestTransactionStateComplex extends BaseTestCase {
      * testTwoRoundQueryPlan
      */
     public void testTwoRoundQueryPlan() throws Exception {
-        this.ts.initRound(LOCAL_PARTITION, UNDO_TOKEN);
+        this.ts.initFirstRound(UNDO_TOKEN, NUM_DUPLICATE_STATEMENTS);
         this.addFragments();
         this.ts.startRound(LOCAL_PARTITION);
         
@@ -172,7 +169,7 @@ public class TestTransactionStateComplex extends BaseTestCase {
         // we only unblock one of them. First we need to find an internal dependency that has blocked tasks 
         Integer internal_d_id = this.internal_dependency_ids.get(0);
         assertNotNull(internal_d_id);
-        DependencyInfo internal_dinfo = this.ts.getDependencyInfo(internal_d_id);
+        DependencyInfo internal_dinfo = this.depTrackerDbg.getDependencyInfo(this.ts, internal_d_id);
         assertNotNull(internal_dinfo);
         
         // System.err.println(this.ts);
@@ -185,21 +182,21 @@ public class TestTransactionStateComplex extends BaseTestCase {
         assertNotNull(first_ftask);
         int partition = first_ftask.getPartitionId();
         int first_output_dependency_id = first_ftask.getOutputDepId(0);
-        DependencyInfo first_dinfo = this.ts.getDependencyInfo(first_output_dependency_id);
+        DependencyInfo first_dinfo = this.depTrackerDbg.getDependencyInfo(this.ts, first_output_dependency_id);
         assertNotNull(first_dinfo);
         assertEquals(NUM_PARTITIONS, first_dinfo.getBlockedWorkFragments().size());
-        this.ts.addResult(partition, first_output_dependency_id, FAKE_RESULT);
+        this.depTracker.addResult(this.ts, partition, first_output_dependency_id, FAKE_RESULT);
         assert(first_dinfo.hasTasksReleased());
 
         // (2) Now add outputs for each of the tasks that became unblocked in the previous step
         first_ftask = CollectionUtil.first(first_dinfo.getBlockedWorkFragments());
-        DependencyInfo second_dinfo = this.ts.getDependencyInfo(first_ftask.getOutputDepId(0));
+        DependencyInfo second_dinfo = this.depTrackerDbg.getDependencyInfo(this.ts, first_ftask.getOutputDepId(0));
         for (WorkFragment.Builder ftask : first_dinfo.getBlockedWorkFragments()) {
             assertFalse(second_dinfo.hasTasksReady());
             partition = ftask.getPartitionId();
             for (int i = 0, cnt = ftask.getFragmentIdCount(); i < cnt; i++) {
                 int output_dependency_id = ftask.getOutputDepId(i);
-                this.ts.addResult(partition, output_dependency_id, FAKE_RESULT);
+                this.depTracker.addResult(this.ts, partition, output_dependency_id, FAKE_RESULT);
             } // FOR
         } // FOR
         assert(second_dinfo.hasTasksReleased());
@@ -210,7 +207,7 @@ public class TestTransactionStateComplex extends BaseTestCase {
      * testAddResultsBeforeStart
      */
     public void testAddResultsBeforeStart() throws Exception {
-        this.ts.initRound(LOCAL_PARTITION, UNDO_TOKEN);
+        this.ts.initFirstRound(UNDO_TOKEN, NUM_DUPLICATE_STATEMENTS);
         this.addFragments();
         
         // We need to test to make sure that we don't get a CountDownLatch with the wrong count
@@ -228,18 +225,18 @@ public class TestTransactionStateComplex extends BaseTestCase {
                     if (partition != LOCAL_PARTITION) continue;
                     VoltTable copy = new VoltTable(FAKE_RESULTS_COLUMNS);
                     copy.addRow(marker, "XXXX");
-                    this.ts.addResult(partition, dependency_id, copy);
+                    this.depTracker.addResult(this.ts, partition, dependency_id, copy);
                     markers.add(marker++);
                 // Otherwise just stuff in our fake result (if they actually need it)
                 } else if (this.dependency_partitions.get(dependency_id).contains(partition)) {
-                    this.ts.addResult(partition, dependency_id, FAKE_RESULT);
+                    this.depTracker.addResult(this.ts, partition, dependency_id, FAKE_RESULT);
                 }
             } // FOR (partition)
         } // FOR (dependency ids)
         assertEquals(NUM_DUPLICATE_STATEMENTS, markers.size());
 
         this.ts.startRound(LOCAL_PARTITION);
-        CountDownLatch latch = this.execState.getDependencyLatch(); 
+        CountDownLatch latch = this.depTracker.getDependencyLatch(this.ts); 
         assertNotNull(latch);
         assertEquals(0, latch.getCount());
     }
@@ -248,7 +245,7 @@ public class TestTransactionStateComplex extends BaseTestCase {
      * testGetResults
      */
     public void testGetResults() throws Exception {
-        this.ts.initRound(LOCAL_PARTITION, UNDO_TOKEN);
+        this.ts.initFirstRound(UNDO_TOKEN, NUM_DUPLICATE_STATEMENTS);
         this.addFragments();
         this.ts.startRound(LOCAL_PARTITION);
 //        System.err.println(this.ts);
@@ -271,12 +268,12 @@ public class TestTransactionStateComplex extends BaseTestCase {
                     
                     VoltTable copy = new VoltTable(FAKE_RESULTS_COLUMNS);
                     copy.addRow(marker, "XXXX");
-                    this.ts.addResult(partition, dependency_id, copy);
+                    this.depTracker.addResult(this.ts, partition, dependency_id, copy);
                     markers.add(marker++);
                     
                 // Otherwise just stuff in our fake result (if they actually need it)
                 } else if (this.dependency_partitions.get(dependency_id).contains(partition)) {
-                    this.ts.addResult(partition, dependency_id, FAKE_RESULT);
+                    this.depTracker.addResult(this.ts, partition, dependency_id, FAKE_RESULT);
                 }
             } // FOR (partition)
         } // FOR (dependency ids)
@@ -284,7 +281,7 @@ public class TestTransactionStateComplex extends BaseTestCase {
         assert(this.ts instanceof LocalTransaction);
         System.err.println(this.ts.toString());
 
-        VoltTable results[] = this.ts.getResults();
+        VoltTable results[] = this.depTracker.getResults(this.ts);
         assertNotNull(results);
         assertEquals(NUM_DUPLICATE_STATEMENTS, results.length);
         

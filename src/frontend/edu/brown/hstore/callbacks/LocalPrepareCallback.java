@@ -24,7 +24,7 @@ import edu.brown.utils.PartitionSet;
  */
 public class LocalPrepareCallback extends PartitionCountingCallback<LocalTransaction> implements RpcCallback<TransactionPrepareResponse> {
     private static final Logger LOG = Logger.getLogger(LocalPrepareCallback.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
     static {
         LoggerUtil.attachObserver(LOG, debug);
     }
@@ -76,21 +76,29 @@ public class LocalPrepareCallback extends PartitionCountingCallback<LocalTransac
     @Override
     protected void abortCallback(int partition, Status status) {
         if (debug.val)
-            LOG.debug(String.format("%s - Aborting callback and sending back %s ClientResponse", this.ts, status));
+            LOG.debug(String.format("%s - Aborting callback [status=%s]", this.ts, status));
         if (hstore_conf.site.txn_profiling && this.ts.profiler != null) {
-            if (debug.val) LOG.debug(ts + " - TransactionProfiler.stopPostPrepare() / " + status);
+            if (debug.val)
+                LOG.debug(ts + " - TransactionProfiler.stopPostPrepare() / " + status);
             this.ts.profiler.stopPostPrepare();
             this.ts.profiler.startPostFinish();
         }
         
-        // As soon as we get an ABORT from any partition, fire off the final ABORT 
-        // to all of the partitions
-        this.finishTransaction(status);
-        
+        // We don't care whether our transaction was rejected or not because we 
+        // know that we still need to call TransactionFinish, which will delete
+        // the final transaction state
+        if (status == Status.ABORT_RESTART || status == Status.ABORT_SPECULATIVE) {
+            hstore_site.getTransactionQueueManager().restartTransaction(this.ts, status);
+        }
         // Change the response's status and send back the result to the client
-        ClientResponseImpl cresponse = this.ts.getClientResponse();
-        cresponse.setStatus(status);
-        this.hstore_site.responseSend(this.ts, cresponse);
+        else {
+            ClientResponseImpl cresponse = this.ts.getClientResponse();
+            cresponse.setStatus(status);
+            if (debug.val)
+                LOG.debug(String.format("%s - Sending back %s %s",
+                          this.ts, status, cresponse.getClass().getSimpleName()));
+            this.hstore_site.responseSend(this.ts, cresponse);
+        }
     }
     
     // ----------------------------------------------------------------------------
@@ -101,9 +109,9 @@ public class LocalPrepareCallback extends PartitionCountingCallback<LocalTransac
     public void run(TransactionPrepareResponse response) {
         if (debug.val)
             LOG.debug(String.format("Got %s with %d partitions for %s",
-                                    response.getClass().getSimpleName(),
-                                    response.getPartitionsCount(),
-                                    this.ts));
+                      response.getClass().getSimpleName(),
+                      response.getPartitionsCount(),
+                      this.ts));
         assert(this.ts != null) :
             String.format("Missing LocalTransaction handle for txn #%d [status=%s]",
                           response.getTransactionId(), response.getStatus());

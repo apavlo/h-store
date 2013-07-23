@@ -4,10 +4,6 @@
  *  Massachusetts Institute of Technology                                  *
  *  Yale University                                                        *
  *                                                                         *
- *  Original By: VoltDB Inc.											   *
- *  Ported By:  Justin A. DeBrabant (http://www.cs.brown.edu/~debrabant/)  *								   
- *                                                                         *
- *                                                                         *
  *  Permission is hereby granted, free of charge, to any person obtaining  *
  *  a copy of this software and associated documentation files (the        *
  *  "Software"), to deal in the Software without restriction, including    *
@@ -51,7 +47,7 @@ import edu.brown.utils.ThreadUtil;
 
 public class SmallBankLoader extends Loader {
     private static final Logger LOG = Logger.getLogger(SmallBankLoader.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
     static {
         LoggerUtil.attachObserver(LOG, debug);
     }
@@ -132,16 +128,10 @@ public class SmallBankLoader extends Loader {
                 this.acctsTable.addRow(acctId, acctName);
                 
                 // CHECKINGS
-                if (rand.nextInt(100) > SmallBankConstants.PERCENTAGE_NO_CHECKING) {
-                    double balance = this.randBalance.nextInt();
-                    this.checkingTable.addRow(acctId, balance);
-                }
+                this.checkingTable.addRow(acctId, this.randBalance.nextInt());
                 
                 // SAVINGS
-                if (rand.nextInt(100) > SmallBankConstants.PERCENTAGE_NO_SAVINGS) {
-                    double balance = this.randBalance.nextInt();
-                    this.savingsTable.addRow(acctId, balance);
-                }
+                this.savingsTable.addRow(acctId, this.randBalance.nextInt());
                 
                 if (++batchSize >= SmallBankConstants.BATCH_SIZE) {
                     this.loadTables();

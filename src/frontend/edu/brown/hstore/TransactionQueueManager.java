@@ -41,8 +41,8 @@ import edu.brown.utils.StringUtil;
  */
 public class TransactionQueueManager extends ExceptionHandlingRunnable implements Shutdownable, Configurable {
     private static final Logger LOG = Logger.getLogger(TransactionQueueManager.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
+    private static final LoggerBoolean trace = new LoggerBoolean();
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
@@ -149,7 +149,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
         Arrays.fill(this.lockQueueLastTxns, Long.valueOf(-1l));
         
         // Use updateConf() to initialize our internal values from the HStoreConf
-        this.updateConf(this.hstore_conf);
+        this.updateConf(this.hstore_conf, null);
         
         // Add a EventObservable that will tell us when the first non-sysproc
         // request arrives from a client. This will then tell the queues that its ok
@@ -169,7 +169,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
     }
     
     @Override
-    public void updateConf(HStoreConf hstore_conf) {
+    public void updateConf(HStoreConf hstore_conf, String[] changed) {
         this.initThrottleThreshold = (int)(hstore_conf.site.network_incoming_limit_txns * hstore_conf.site.queue_threshold_factor);
         this.initThrottleRelease = hstore_conf.site.queue_release_factor;
         for (PartitionLockQueue queue : this.lockQueues) {
@@ -836,6 +836,9 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
                 }
             }
             return (allTxns.size());
+        }
+        public int getLockQueueSize(int partition) {
+            return (lockQueues[partition].size());
         }
         public int getRestartQueueSize() {
             return (restartQueue.size());

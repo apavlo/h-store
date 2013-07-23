@@ -125,7 +125,7 @@ bool SeqScanExecutor::needsOutputTableClear() {
     return node->needsOutputTableClear();
 }
 
-bool SeqScanExecutor::p_execute(const NValueArray &params) {
+bool SeqScanExecutor::p_execute(const NValueArray &params, ReadWriteTracker *tracker) {
     SeqScanPlanNode* node = dynamic_cast<SeqScanPlanNode*>(abstract_node);
     assert(node);
     Table* output_table = node->getOutputTable();
@@ -205,6 +205,11 @@ bool SeqScanExecutor::p_execute(const NValueArray &params) {
         int tuple_ctr = 0;
         while (iterator.next(tuple))
         {
+            // Read/Write Set Tracking
+            if (tracker != NULL) {
+                tracker->markTupleRead(target_table->name(), &tuple);
+            }
+            
             target_table->updateTupleAccessCount();
             VOLT_TRACE("INPUT TUPLE: %s, %d/%d\n",
                        tuple.debug(target_table->name()).c_str(), tuple_ctr,

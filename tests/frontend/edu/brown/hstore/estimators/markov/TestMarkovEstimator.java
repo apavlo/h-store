@@ -22,7 +22,7 @@ import edu.brown.markov.EstimationThresholds;
 import edu.brown.markov.MarkovGraph;
 import edu.brown.markov.MarkovUtil.StatementWrapper;
 import edu.brown.markov.MarkovVertex;
-import edu.brown.markov.containers.MarkovGraphContainersUtil;
+import edu.brown.markov.containers.MarkovGraphsContainerUtil;
 import edu.brown.markov.containers.MarkovGraphsContainer;
 import edu.brown.utils.*;
 import edu.brown.workload.QueryTrace;
@@ -69,10 +69,12 @@ public class TestMarkovEstimator extends BaseTestCase {
         HStoreConf hstore_conf = HStoreConf.singleton();
         hstore_conf.site.markov_path_caching = false;
         hstore_conf.site.markov_fast_path = false;
+        hstore_conf.site.markov_force_traversal = true;
+        hstore_conf.site.markov_learning_enable = false;
         
         this.catalog_proc = this.getProcedure(TARGET_PROCEDURE);
         
-        if (markovs == null) {
+        if (isFirstSetup()) {
             Filter filter = new ProcedureNameFilter(false)
                     .include(TARGET_PROCEDURE.getSimpleName())
                     .attach(new NoAbortFilter())
@@ -87,7 +89,7 @@ public class TestMarkovEstimator extends BaseTestCase {
             assert(workload.getTransactionCount() > 0);
             
             // Generate MarkovGraphs
-            markovs = MarkovGraphContainersUtil.createBasePartitionMarkovGraphsContainer(catalogContext.database, workload, p_estimator);
+            markovs = MarkovGraphsContainerUtil.createBasePartitionMarkovGraphsContainer(catalogContext, workload, p_estimator);
             assertNotNull(markovs);
             
             // Find a single-partition and multi-partition trace
@@ -214,19 +216,20 @@ public class TestMarkovEstimator extends BaseTestCase {
     @Test
     public void testStartTransaction() throws Exception {
         long txn_id = XACT_ID.getAndIncrement();
-        MarkovEstimatorState state = (MarkovEstimatorState)t_estimator.startTransaction(txn_id, this.catalog_proc, singlep_trace.getParams());
+        MarkovEstimatorState state = t_estimator.startTransaction(txn_id, this.catalog_proc, singlep_trace.getParams());
         assertNotNull(state);
         assertNotNull(state.getLastEstimate());
         
         MarkovEstimate est = state.getInitialEstimate();
+        System.err.println(est);
         assertNotNull(est);
         assertTrue(est.toString(), est.isInitialized());
-        assertTrue(est.toString(), est.isSinglePartitionProbabilitySet());
+//        assertTrue(est.toString(), est.isSinglePartitionProbabilitySet());
         assertTrue(est.toString(), est.isAbortProbabilitySet());
-        assertTrue(est.toString(), est.getSinglePartitionProbability() < 1.0f);
         assertTrue(est.toString(), est.isConfidenceCoefficientSet());
-        assertTrue(est.toString(), est.getConfidenceCoefficient() >= 0f);
-        assertTrue(est.toString(), est.getConfidenceCoefficient() <= 1f);
+        // assertTrue(est.toString(), est.getConfidenceCoefficient() >= 0f);
+//        assertEquals(est.toString(), 1.0f, est.getSinglePartitionProbability());
+        assertEquals(est.toString(), 1.0f, est.getConfidenceCoefficient());
 
         //        System.err.println(est.toString());
         
@@ -261,13 +264,13 @@ public class TestMarkovEstimator extends BaseTestCase {
         assert(est.isSinglePartitioned(this.thresholds));
         assertTrue(est.isAbortable(this.thresholds));
         
-        for (Integer partition : catalogContext.getAllPartitionIds()) {
+        for (int partition : catalogContext.getAllPartitionIds()) {
             if (partitions.contains(partition)) { //  == BASE_PARTITION) {
-                assertFalse("isFinishedPartition(" + partition + ")", est.isFinishPartition(thresholds, partition));
+                assertFalse("isFinishedPartition(" + partition + ")", est.isDonePartition(thresholds, partition));
                 assertTrue("isWritePartition(" + partition + ")", est.isWritePartition(thresholds, partition));
                 assertTrue("isTargetPartition(" + partition + ")", est.isTargetPartition(thresholds, partition));
             } else {
-                assertTrue("isFinishedPartition(" + partition + ")", est.isFinishPartition(thresholds, partition));
+                assertTrue("isFinishedPartition(" + partition + ")", est.isDonePartition(thresholds, partition));
                 assertFalse("isWritePartition(" + partition + ")", est.isWritePartition(thresholds, partition));
                 assertFalse("isTargetPartition(" + partition + ")", est.isTargetPartition(thresholds, partition));
             }
@@ -288,9 +291,9 @@ public class TestMarkovEstimator extends BaseTestCase {
         MarkovEstimate initialEst = state.getInitialEstimate();
         assertNotNull(initialEst);
         assertTrue(initialEst.toString(), initialEst.isInitialized());
-        assertTrue(initialEst.toString(), initialEst.isSinglePartitionProbabilitySet());
+//        assertTrue(initialEst.toString(), initialEst.isSinglePartitionProbabilitySet());
         assertTrue(initialEst.toString(), initialEst.isAbortProbabilitySet());
-        assertTrue(initialEst.toString(), initialEst.getSinglePartitionProbability() < 1.0f);
+//        assertTrue(initialEst.toString(), initialEst.getSinglePartitionProbability() < 1.0f);
         assertTrue(initialEst.toString(), initialEst.isConfidenceCoefficientSet());
         assertTrue(initialEst.toString(), initialEst.getConfidenceCoefficient() >= 0f);
         assertTrue(initialEst.toString(), initialEst.getConfidenceCoefficient() <= 1f);
@@ -332,9 +335,9 @@ public class TestMarkovEstimator extends BaseTestCase {
         MarkovEstimate initialEst = state.getInitialEstimate();
         assertNotNull(initialEst);
         assertTrue(initialEst.toString(), initialEst.isInitialized());
-        assertTrue(initialEst.toString(), initialEst.isSinglePartitionProbabilitySet());
+//        assertTrue(initialEst.toString(), initialEst.isSinglePartitionProbabilitySet());
         assertTrue(initialEst.toString(), initialEst.isAbortProbabilitySet());
-        assertTrue(initialEst.toString(), initialEst.getSinglePartitionProbability() < 1.0f);
+//        assertTrue(initialEst.toString(), initialEst.getSinglePartitionProbability() < 1.0f);
         assertTrue(initialEst.toString(), initialEst.isConfidenceCoefficientSet());
         assertTrue(initialEst.toString(), initialEst.getConfidenceCoefficient() >= 0f);
         assertTrue(initialEst.toString(), initialEst.getConfidenceCoefficient() <= 1f);
@@ -376,18 +379,18 @@ public class TestMarkovEstimator extends BaseTestCase {
             MarkovEstimate est = t_estimator.executeQueries(state, stmts, partitions);
             assertNotNull(est);
             
-            for (Integer partition : catalogContext.getAllPartitionIds()) {
-                String debug = String.format("Batch %02d / Partition %02d\n%s",
-                                             est.getBatchId(), partition, est.toString());
-                assertTrue(debug, est.isFinishProbabilitySet(partition));
+            for (int partition : catalogContext.getAllPartitionIds()) {
+                String debug = String.format("Batch %02d / Partition %02d / isLast=%s\n%s",
+                                             est.getBatchId(), partition, is_last, est.toString());
+                assertTrue(debug, est.isDoneProbabilitySet(partition));
                 assertTrue(debug, est.isWriteProbabilitySet(partition));
-                assertTrue(debug, est.isReadOnlyProbabilitySet(partition));
+//                assertTrue(debug, est.isReadOnlyProbabilitySet(partition));
                 
-                if (touched.contains(partition) && (is_last == false || partition == state.getBasePartition())) {
-                    assertFalse(debug, est.isFinishPartition(thresholds, partition));
+                if (touched.contains(partition) && is_last == false) { //  || partition == state.getBasePartition())) {
+                    assertFalse(debug, est.isDonePartition(thresholds, partition));
                     assertTrue(debug, est.isWritePartition(thresholds, partition));
                 } else {
-                    assertTrue(debug, est.isFinishPartition(thresholds, partition));
+                    assertTrue(debug, est.isDonePartition(thresholds, partition));
                 }
             } // FOR
         } // FOR 
@@ -431,7 +434,7 @@ public class TestMarkovEstimator extends BaseTestCase {
                 assertEquals(states[i].getBasePartition(), states[ii].getBasePartition());
                 assertEquals(ests[i].getTouchedPartitions(thresholds), ests[ii].getTouchedPartitions(thresholds));
                 assertEquals(ests[i].getBatchId(), ests[ii].getBatchId());
-                assertEquals(ests[i].getSinglePartitionProbability(), ests[ii].getSinglePartitionProbability());
+//                assertEquals(ests[i].getSinglePartitionProbability(), ests[ii].getSinglePartitionProbability());
                 assertEquals(ests[i].getAbortProbability(), ests[ii].getAbortProbability());
                 
                 for (Integer partition : catalogContext.getAllPartitionIds()) {
@@ -439,10 +442,10 @@ public class TestMarkovEstimator extends BaseTestCase {
                                                  ests[i].getBatchId(), partition, ests[i].toString());
                     
                     assertEquals(debug, ests[i].getTouchedCounter(partition), ests[ii].getTouchedCounter(partition));
-                    assertEquals(debug, ests[i].isFinishProbabilitySet(partition), ests[ii].isFinishProbabilitySet(partition));
+                    assertEquals(debug, ests[i].isDoneProbabilitySet(partition), ests[ii].isDoneProbabilitySet(partition));
                     assertEquals(debug, ests[i].isWriteProbabilitySet(partition), ests[ii].isWriteProbabilitySet(partition));
-                    assertEquals(debug, ests[i].isReadOnlyProbabilitySet(partition), ests[ii].isReadOnlyProbabilitySet(partition));
-                    assertEquals(debug, ests[i].isFinishPartition(thresholds, partition), ests[ii].isFinishPartition(thresholds, partition));
+//                    assertEquals(debug, ests[i].isReadOnlyProbabilitySet(partition), ests[ii].isReadOnlyProbabilitySet(partition));
+                    assertEquals(debug, ests[i].isDonePartition(thresholds, partition), ests[ii].isDonePartition(thresholds, partition));
                     assertEquals(debug, ests[i].isWritePartition(thresholds, partition), ests[ii].isWritePartition(thresholds, partition));
                     assertEquals(debug, ests[i].isReadOnlyPartition(thresholds, partition), ests[ii].isReadOnlyPartition(thresholds, partition));
                 } // FOR
@@ -463,9 +466,9 @@ public class TestMarkovEstimator extends BaseTestCase {
         MarkovEstimate initialEst = s.getInitialEstimate();
         assertNotNull(initialEst);
         assertTrue(initialEst.toString(), initialEst.isInitialized());
-        assertTrue(initialEst.toString(), initialEst.isSinglePartitionProbabilitySet());
+//        assertTrue(initialEst.toString(), initialEst.isSinglePartitionProbabilitySet());
         assertTrue(initialEst.toString(), initialEst.isAbortProbabilitySet());
-        assertTrue(initialEst.toString(), initialEst.getSinglePartitionProbability() < 1.0f);
+//        assertTrue(initialEst.toString(), initialEst.getSinglePartitionProbability() < 1.0f);
         assertTrue(initialEst.toString(), initialEst.isConfidenceCoefficientSet());
         assertTrue(initialEst.toString(), initialEst.getConfidenceCoefficient() >= 0f);
         assertTrue(initialEst.toString(), initialEst.getConfidenceCoefficient() <= 1f);
@@ -481,7 +484,7 @@ public class TestMarkovEstimator extends BaseTestCase {
             MarkovEstimate est = (MarkovEstimate)estimates.get(i);
             assertNotSame(initialEst, est);
             assertNotNull(est);
-            assertTrue(est.toString(), est.isSinglePartitionProbabilitySet());
+//            assertTrue(est.toString(), est.isSinglePartitionProbabilitySet());
             assertTrue(est.toString(), est.isAbortProbabilitySet());
             assertTrue(est.toString(), est.isSinglePartitioned(thresholds));
             assertTrue(est.toString(), est.isConfidenceCoefficientSet());

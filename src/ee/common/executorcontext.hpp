@@ -20,6 +20,7 @@
 
 #include "Topend.h"
 #include "common/UndoQuantum.h"
+#include "storage/ReadWriteTracker.h"
 
 #ifdef ANTICACHE
 #include "anticache/AntiCacheDB.h"
@@ -28,10 +29,12 @@
 
 namespace voltdb {
     
-#ifdef ANTICACHE
+    class ReadWriteTrackerManager;
+    
+    #ifdef ANTICACHE
     class AntiCacheDB;
     class AntiCacheEvictionManager; 
-#endif
+    #endif
     
     /*
      * EE site global data required by executors at runtime.
@@ -47,6 +50,10 @@ namespace voltdb {
     class ExecutorContext {
     public:
         ~ExecutorContext() {
+            
+            if (m_trackingEnabled) {
+                delete m_trackingManager;
+            }
             
             #ifdef ANTICACHE
             if (m_antiCacheEnabled) {
@@ -74,6 +81,7 @@ namespace voltdb {
             m_lastCommittedTxnId = 0;
             m_lastTickTime = 0;
             m_antiCacheEnabled = false;
+            m_trackingEnabled = false;
         }
         
         // not always known at initial construction
@@ -176,6 +184,27 @@ namespace voltdb {
         }
         #endif
         
+        // ------------------------------------------------------------------
+        // READ-WRITE TRACKERS
+        // ------------------------------------------------------------------ 
+        
+        inline bool isTrackingEnabled() const {
+            return (m_trackingEnabled);
+        }
+        
+        inline ReadWriteTrackerManager* getTrackerManager() const {
+            return (m_trackingManager);
+        }
+        
+        /**
+         * Enable the read/write set tracking feature in the EE.
+         */
+        void enableTracking() {
+            assert(m_trackingEnabled == false);
+            m_trackingEnabled = true;
+            m_trackingManager = new ReadWriteTrackerManager(this);
+        }
+        
     private:
         Topend *m_topEnd;
         UndoQuantum *m_undoQuantum;
@@ -185,6 +214,10 @@ namespace voltdb {
         AntiCacheDB *m_antiCacheDB;
         AntiCacheEvictionManager *m_antiCacheEvictionManager; 
         #endif
+        
+        /** ReadWrite Trackers */
+        bool m_trackingEnabled;
+        ReadWriteTrackerManager *m_trackingManager;
         
     public:
         int64_t m_lastCommittedTxnId;

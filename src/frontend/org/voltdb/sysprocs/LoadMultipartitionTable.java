@@ -32,11 +32,13 @@ import org.voltdb.VoltType;
 import org.voltdb.catalog.Column;
 import org.voltdb.catalog.MaterializedViewInfo;
 import org.voltdb.catalog.Table;
-import org.voltdb.dtxn.DtxnConstants;
 import org.voltdb.exceptions.MispredictionException;
 
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.PartitionExecutor.SystemProcedureExecutionContext;
+import edu.brown.hstore.txns.AbstractTransaction;
+import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.statistics.ObjectHistogram;
@@ -49,15 +51,14 @@ import edu.brown.statistics.ObjectHistogram;
 @ProcInfo(singlePartition = false)
 public class LoadMultipartitionTable extends VoltSystemProcedure {
     private static final Logger LOG = Logger.getLogger(LoadMultipartitionTable.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
+    private static final LoggerBoolean trace = new LoggerBoolean();
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
     
-
-    static final long DEP_distribute = SysProcFragmentId.PF_loadDistribute | DtxnConstants.MULTIPARTITION_DEPENDENCY;
-    static final long DEP_aggregate = SysProcFragmentId.PF_loadAggregate;
+    private static final long DEP_distribute = SysProcFragmentId.PF_loadDistribute | HStoreConstants.MULTIPARTITION_DEPENDENCY;
+    private static final long DEP_aggregate = SysProcFragmentId.PF_loadAggregate;
 
     private ObjectHistogram<Integer> allPartitionsHistogram = new ObjectHistogram<Integer>();
     
@@ -94,9 +95,11 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
                                        table.getRowCount(), table_name, txn_id));
             assert(this.isInitialized()) : " The sysproc " + this.getClass().getSimpleName() + " was not initialized properly";
             try {
-                // voltLoadTable is void. Assume success or exception.
-                super.voltLoadTable(context.getCluster().getName(), context.getDatabase().getName(),
-                                    table_name, table, 0);
+                AbstractTransaction ts = this.hstore_site.getTransaction(txn_id); 
+                this.executor.loadTable(ts,
+                                        context.getCluster().getName(),
+                                        context.getDatabase().getName(),
+                                        table_name, table, 0);    
             } catch (VoltAbortException e) {
                 // must continue and reply with dependency.
                 e.printStackTrace();
@@ -113,9 +116,10 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
         return null;
     }
     
-    private SynthesizedPlanFragment[] createReplicatedPlan(Table catalog_tbl, VoltTable table) {
-        if (debug.val) LOG.debug(String.format("%s - %s is replicated. Creating %d fragments to send to all partitions",
-                                   this.getTransactionState(), catalog_tbl.getName(), catalogContext.numberOfPartitions));
+    private SynthesizedPlanFragment[] createReplicatedPlan(LocalTransaction ts, Table catalog_tbl, VoltTable table) {
+        if (debug.val)
+            LOG.debug(String.format("%s - %s is replicated. Creating %d fragments to send to all partitions",
+                      ts, catalog_tbl.getName(), catalogContext.numberOfPartitions));
         ParameterSet params = new ParameterSet(catalog_tbl.getName(), table);
         
         final SynthesizedPlanFragment pfs[] = new SynthesizedPlanFragment[2];
@@ -144,15 +148,17 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
         return (pfs);
     }
 
-    private SynthesizedPlanFragment[] createNonReplicatedPlan(Table catalog_tbl, VoltTable table) {
-        if (debug.val) LOG.debug(catalog_tbl + " is not replicated. Splitting table data into separate pieces for partitions");
+    private SynthesizedPlanFragment[] createNonReplicatedPlan(LocalTransaction ts, Table catalog_tbl, VoltTable table) {
+        if (debug.val)
+            LOG.debug(catalog_tbl + " is not replicated. Splitting table data into separate pieces for partitions");
         
         // Create a table for each partition
         VoltTable partitionedTables[] = new VoltTable[catalogContext.numberOfPartitions];
 
         // Split the input table into per-partition units
-        if (debug.val) LOG.debug(String.format("Splitting original %d %s rows into partitioned tables",
-                                   table.getRowCount(), catalog_tbl));
+        if (debug.val)
+            LOG.debug(String.format("Splitting original %d %s rows into partitioned tables",
+                      table.getRowCount(), catalog_tbl));
         boolean mispredict = false;
         table.resetRowPosition();
         while (table.advanceRow()) {
@@ -167,8 +173,8 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
             
             if (partitionedTables[p] == null) {
                 partitionedTables[p] = table.clone(1024 * 1024);
-                this.m_localTxnState.getTouchedPartitions().put(p);
-                if (this.m_localTxnState.getPredictTouchedPartitions().contains(p) == false) {
+                ts.getTouchedPartitions().put(p);
+                if (ts.getPredictTouchedPartitions().contains(p) == false) {
                     mispredict = true;
                 }
                 if (trace.val) LOG.trace("Cloned VoltTable for Partition #" + p);
@@ -186,9 +192,10 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
         // Allow them to restart and lock on the partitions that they need to load
         // data on. This will help speed up concurrent bulk loading
         if (mispredict) {
-            if (debug.val) LOG.warn(String.format("%s - Restarting as a distributed transaction on partitions %s",
-                                      this.m_localTxnState, this.m_localTxnState.getTouchedPartitions().values()));
-            throw new MispredictionException(this.getTransactionId(), this.m_localTxnState.getTouchedPartitions());
+            if (debug.val)
+                LOG.warn(String.format("%s - Restarting as a distributed transaction on partitions %s",
+                         ts, ts.getTouchedPartitions().values()));
+            throw new MispredictionException(ts.getTransactionId(), ts.getTouchedPartitions());
         }
         StringBuilder sb = null;
         if (trace.val) {
@@ -214,8 +221,9 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
             pf.parameters = params;
             pf.last_task = false;
             pfs.add(pf);
-            if (trace.val) sb.append("\n  Partition #").append(partition).append(": ")
-                               .append(partitionedTables[partition].getRowCount()).append(" tuples");
+            if (trace.val)
+                sb.append(String.format("\n  Partition #%d: %d tuples",
+                          partition, partitionedTables[partition].getRowCount()));
         } // FOR
         if (trace.val) LOG.trace(sb.toString());
 
@@ -234,7 +242,7 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
         return (pfs.toArray(new SynthesizedPlanFragment[0]));
     }
     
-    private SynthesizedPlanFragment[] createVerticalPartitionPlan(MaterializedViewInfo catalog_view, VoltTable table) {
+    private SynthesizedPlanFragment[] createVerticalPartitionPlan(LocalTransaction ts, MaterializedViewInfo catalog_view, VoltTable table) {
         Table virtual_tbl = catalog_view.getDest();
         VoltTable vt = CatalogUtil.getVoltTable(virtual_tbl);
         Collection<Column> virtual_cols = CatalogUtil.getColumns(catalog_view.getGroupbycols());
@@ -246,23 +254,26 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
             for (Column catalog_col : CatalogUtil.getSortedCatalogItems(virtual_cols, "index")) {
                 if (trace.val)
                     LOG.trace(String.format("Adding %s [%d] to virtual column %d",
-                                            table.getColumnName(catalog_col.getIndex()), catalog_col.getIndex(), i));
+                              table.getColumnName(catalog_col.getIndex()), catalog_col.getIndex(), i));
                 row[catalog_col.getIndex()] = table.get(catalog_col.getIndex());
             } // FOR
             vt.addRow(row);
         } // WHILE
-        if (debug.val) LOG.info(String.format("Vertical Partition %s -> %s\n", catalog_view.getParent().getName(), virtual_tbl.getName()) + vt);
+        if (debug.val)
+            LOG.info(String.format("Vertical Partition %s -> %s\n",
+                     catalog_view.getParent().getName(), virtual_tbl.getName()) + vt);
         
-        return (createReplicatedPlan(virtual_tbl, vt));
+        return (createReplicatedPlan(ts, virtual_tbl, vt));
     }
     
     
     public VoltTable[] run(String tableName, VoltTable table) throws VoltAbortException {
-        assert(table != null) : "VoltTable to be loaded into " + tableName + " is null in txn #" + this.getTransactionId();
+        assert(table != null) : 
+            "VoltTable to be loaded into " + tableName + " is null in txn #" + this.getTransactionId();
         
-        if (debug.val) LOG.debug("Executing multi-partition loader for " + tableName + " with " + table.getRowCount() + 
-                                   " tuples in txn #" + this.getTransactionId() +
-                                   " [bytes="  + table.getUnderlyingBufferSize() + "]");
+        if (debug.val)
+            LOG.debug(String.format("Executing multi-partition loader for %s with %d tuples in txn #%d [bytes=%d]",
+                      tableName, table.getRowCount(), this.getTransactionId(), table.getUnderlyingBufferSize()));
         
         VoltTable[] results;
         SynthesizedPlanFragment pfs[];
@@ -275,19 +286,21 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
             throw new VoltAbortException("The VoltTable for table '" + tableName + "' is empty");
         }
 
+        LocalTransaction ts = this.getTransactionState();
+        
         // if tableName is replicated, just send table everywhere.
         if (catalog_tbl.getIsreplicated()) {
             // If they haven't locked all of the partitions in the cluster, then we'll 
             // stop them right here and force them to get those
-            if (this.m_localTxnState.getPredictTouchedPartitions().size() != this.allPartitionsHistogram.getValueCount()) { 
+            if (ts.getPredictTouchedPartitions().size() != this.allPartitionsHistogram.getValueCount()) { 
                 throw new MispredictionException(this.getTransactionId(), this.allPartitionsHistogram);
             }
-            pfs = this.createReplicatedPlan(catalog_tbl, table);
+            pfs = this.createReplicatedPlan(ts, catalog_tbl, table);
         }
         // Otherwise, create a VoltTable for each partition and split up the incoming table
         // then send those partial tables to the appropriate sites.
         else {
-            pfs = this.createNonReplicatedPlan(catalog_tbl, table);
+            pfs = this.createNonReplicatedPlan(ts, catalog_tbl, table);
         }
         
         // distribute and execute the fragments providing pfs and id
@@ -298,11 +311,14 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
         // Check whether this table has a vertical partition
         // If so, then we'll automatically blast out the data that it needs
         MaterializedViewInfo catalog_view = CatalogUtil.getVerticalPartition(catalog_tbl);
-        if (debug.val) LOG.debug(String.format("%s Vertical Partition: %s", catalog_tbl.getName(), catalog_view));
+        if (debug.val)
+            LOG.debug(String.format("%s - %s Vertical Partition: %s",
+                      ts, catalog_tbl.getName(), catalog_view));
         if (catalog_view != null) {
-            if (debug.val) LOG.debug(String.format("%s - Updating %s's vertical partition %s",
-                                                     this.m_localTxnState, catalog_tbl.getName(), catalog_view.getDest().getName()));
-            executeSysProcPlanFragments(createVerticalPartitionPlan(catalog_view, table), (int)DEP_aggregate);
+            if (debug.val)
+                LOG.debug(String.format("%s - Updating %s's vertical partition %s",
+                          ts, catalog_tbl.getName(), catalog_view.getDest().getName()));
+            executeSysProcPlanFragments(createVerticalPartitionPlan(ts, catalog_view, table), (int)DEP_aggregate);
         }
         
         return (results);

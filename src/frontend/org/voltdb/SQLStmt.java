@@ -76,7 +76,7 @@ public class SQLStmt {
     
     protected void computeHashCode() {
         if (this.catStmt != null) {
-            this.hashCode = this.catStmt.fullName().hashCode();
+            this.hashCode = this.catStmt.hashCode();
         } else {
             this.hashCode = this.sqlText.hashCode();
         }

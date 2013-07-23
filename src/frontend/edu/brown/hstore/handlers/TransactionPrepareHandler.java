@@ -20,7 +20,7 @@ import edu.brown.utils.PartitionSet;
 
 public class TransactionPrepareHandler extends AbstractTransactionHandler<TransactionPrepareRequest, TransactionPrepareResponse> {
     private static final Logger LOG = Logger.getLogger(TransactionPrepareHandler.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
     static {
         LoggerUtil.attachObserver(LOG, debug);
     }
@@ -35,7 +35,7 @@ public class TransactionPrepareHandler extends AbstractTransactionHandler<Transa
         // pass in a set to get the partitions that were updated here.
         LocalTransaction ts = this.hstore_site.getTransaction(txn_id);
         assert(ts != null) : "Unexpected null transaction handle for txn #" + txn_id;
-        this.hstore_site.transactionPrepare(ts, partitions);
+        this.hstore_site.transactionPrepare(ts, partitions, ts.getPrepareCallback());
     }
     @Override
     public void sendRemote(HStoreService channel, ProtoRpcController controller, TransactionPrepareRequest request, RpcCallback<TransactionPrepareResponse> callback) {
@@ -69,11 +69,14 @@ public class TransactionPrepareHandler extends AbstractTransactionHandler<Transa
         
         RemoteTransaction ts = this.hstore_site.getTransaction(txn_id);
         assert(ts != null) : "Unexpected null transaction handle for txn #" + txn_id;
+        
+        // Always create a new prepare callback because we may get multiple messages
+        // to prepare this txn for commit. 
         RemotePrepareCallback wrapper = ts.getPrepareCallback();
-        if (wrapper.isInitialized()) wrapper.finish();
+        assert(wrapper.isInitialized() == false);
         wrapper.init(ts, partitions, callback);
         
-        this.hstore_site.transactionPrepare(ts, partitions);
+        this.hstore_site.transactionPrepare(ts, partitions, wrapper);
     }
     @Override
     protected ProtoRpcController getProtoRpcController(LocalTransaction ts, int site_id) {

@@ -110,6 +110,7 @@ import edu.brown.api.results.BenchmarkResults;
 import edu.brown.api.results.CSVResultsPrinter;
 import edu.brown.api.results.JSONResultsPrinter;
 import edu.brown.api.results.MemoryStatsPrinter;
+import edu.brown.api.results.TableStatsPrinter;
 import edu.brown.api.results.ResponseEntries;
 import edu.brown.api.results.ResultsChecker;
 import edu.brown.api.results.ResultsPrinter;
@@ -122,7 +123,8 @@ import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
-import edu.brown.markov.containers.MarkovGraphContainersUtil;
+import edu.brown.markov.containers.MarkovGraphsContainer;
+import edu.brown.markov.containers.MarkovGraphsContainerUtil;
 import edu.brown.profilers.ProfileMeasurement;
 import edu.brown.statistics.Histogram;
 import edu.brown.statistics.ObjectHistogram;
@@ -138,8 +140,8 @@ import edu.brown.utils.ThreadUtil;
 
 public class BenchmarkController {
     public static final Logger LOG = Logger.getLogger(BenchmarkController.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
+    private static final LoggerBoolean trace = new LoggerBoolean();
     static {
         LoggerUtil.setupLogging();
         LoggerUtil.attachObserver(LOG, debug, trace);
@@ -161,10 +163,10 @@ public class BenchmarkController {
     // ============================================================================
     
     /** Clients **/
-    final ProcessSetManager m_clientPSM;
+    final ProcessSetManager clientPSM;
     
     /** Server Sites **/
-    final ProcessSetManager m_sitePSM;
+    final ProcessSetManager sitePSM;
     
     Thread self = null;
     boolean stop = false;
@@ -172,7 +174,7 @@ public class BenchmarkController {
     boolean cleaned = false;
     final BenchmarkConfig m_config;
     HStoreConf hstore_conf;
-    BenchmarkResults m_currentResults = null;
+    BenchmarkResults currentResults = null;
     
     // ----------------------------------------------------------------------------
     // CLIENT INFORMATION
@@ -205,8 +207,8 @@ public class BenchmarkController {
     Class<? extends AbstractProjectBuilder> m_builderClass = null;
     Class<? extends BenchmarkComponent> m_loaderClass = null;
 
-    final AbstractProjectBuilder m_projectBuilder;
-    final File m_jarFileName;
+    final AbstractProjectBuilder projectBuilder;
+    final File jarFileName;
     
     /**
      * SiteId -> Set[Host, Port]
@@ -266,8 +268,8 @@ public class BenchmarkController {
                 } // FOR
                 
                 ThreadUtil.sleep(1500);
-                m_clientPSM.prepareShutdown(false);
-                m_sitePSM.prepareShutdown(false);
+                clientPSM.prepareShutdown(false);
+                sitePSM.prepareShutdown(false);
                 if (self != null) BenchmarkController.this.self.interrupt();
             }
         }
@@ -281,14 +283,14 @@ public class BenchmarkController {
         if (catalogContext != null) this.initializeCatalog(catalogContext);
         
         // Setup ProcessSetManagers...
-        m_clientPSM = new ProcessSetManager(hstore_conf.client.log_dir,
-                                            hstore_conf.client.log_backup,
-                                            0,
-                                            this.failure_observer);
-        m_sitePSM = new ProcessSetManager(hstore_conf.site.log_dir,
-                                          hstore_conf.site.log_backup,
-                                          config.client_initialPollingDelay,
-                                          this.failure_observer);
+        this.clientPSM = new ProcessSetManager(hstore_conf.client.log_dir,
+                                               hstore_conf.client.log_backup,
+                                               0,
+                                               this.failure_observer);
+        this.sitePSM = new ProcessSetManager(hstore_conf.site.log_dir,
+                                             hstore_conf.site.log_backup,
+                                             config.client_initialPollingDelay,
+                                             this.failure_observer);
 
         Map<String, Field> builderFields = new HashMap<String, Field>();
         builderFields.put("m_clientClass", null);
@@ -318,7 +320,7 @@ public class BenchmarkController {
             m_clientClass = (Class<? extends BenchmarkComponent>)builderFields.get("m_clientClass").get(null);
             m_loaderClass = (Class<? extends BenchmarkComponent>)builderFields.get("m_loaderClass").get(null);
 //            if (m_config.localmode == false) {
-//                m_jarFileName = config.hosts[0] + "." + m_jarFileName;
+//                this.jarFileName = config.hosts[0] + "." + this.jarFileName;
 //            }
         } catch (Exception e) {
             LogKeys logkey = LogKeys.benchmark_BenchmarkController_ErrorDuringReflectionForClient;
@@ -341,17 +343,17 @@ public class BenchmarkController {
             System.exit(-1);
         }
         assert(tempBuilder != null);
-        m_projectBuilder = tempBuilder;
-        m_projectBuilder.addAllDefaults();
-        m_jarFileName = new File(hstore_conf.client.jar_dir +
-                                 File.separator + m_projectBuilder.getJarName(false));
-        assert(m_jarFileName != null) : "Invalid ProjectJar file name";
+        this.projectBuilder = tempBuilder;
+        this.projectBuilder.addAllDefaults();
+        this.jarFileName = FileUtil.join(hstore_conf.client.jar_dir, this.projectBuilder.getJarName(false));
+        assert(this.jarFileName.getPath().isEmpty() == false) :
+            "Invalid Project jar file name '" + this.jarFileName + "'";
 
         if (config.snapshotFrequency != null
                 && config.snapshotPath != null
                 && config.snapshotPrefix != null
                 && config.snapshotRetain > 0) {
-            m_projectBuilder.setSnapshotSettings(
+            this.projectBuilder.setSnapshotSettings(
                     config.snapshotFrequency,
                     config.snapshotRetain,
                     config.snapshotPath,
@@ -384,7 +386,7 @@ public class BenchmarkController {
     }
     
     public String getProjectName() {
-        return (m_projectBuilder.getProjectName().toUpperCase());
+        return (this.projectBuilder.getProjectName().toUpperCase());
     }
     
     public Catalog getCatalog() {
@@ -392,16 +394,16 @@ public class BenchmarkController {
     }
     
     protected BenchmarkResults getBenchmarkResults() {
-        return (this.m_currentResults);
+        return (this.currentResults);
     }
     protected CountDownLatch getResultsToReadLatch() {
         return (this.resultsToRead);
     }
     protected ProcessSetManager getClientProcessSetManager() {
-        return (this.m_clientPSM);
+        return (this.clientPSM);
     }
     protected ProcessSetManager getSiteProcessSetManager() {
-        return (this.m_sitePSM);
+        return (this.sitePSM);
     }
     protected void clientIsReady(String clientName) {
         m_clientsNotReady.decrementAndGet();
@@ -421,8 +423,8 @@ public class BenchmarkController {
      */
     public void setupBenchmark() {
         // Load the catalog that we just made
-        if (debug.val) LOG.debug("Loading catalog from '" + m_jarFileName + "'");
-        this.initializeCatalog(CatalogUtil.loadCatalogContextFromJar(m_jarFileName));
+        if (debug.val) LOG.debug("Loading catalog from '" + this.jarFileName + "'");
+        this.initializeCatalog(CatalogUtil.loadCatalogContextFromJar(this.jarFileName));
         
         // Clear out any HStoreConf parameters that we're not suppose to
         // forward to the sites and clients
@@ -505,7 +507,7 @@ public class BenchmarkController {
         } else {
             // START A SERVER LOCALLY IN-PROCESS
 //            VoltDB.Configuration localconfig = new VoltDB.Configuration();
-//            localconfig.m_pathToCatalog = m_jarFileName.getAbsolutePath();
+//            localconfig.m_pathToCatalog = this.jarFileName.getAbsolutePath();
 //            m_localserver = null;//new ServerThread(localconfig);
 //            m_localserver.start();
 //            m_localserver.waitForInitialization();
@@ -513,19 +515,21 @@ public class BenchmarkController {
 
         
         if (m_loaderClass != null && m_config.noLoader == false) {
-            ProfileMeasurement load_time = new ProfileMeasurement("load").start();
+            ProfileMeasurement stopwatch = new ProfileMeasurement("load").start();
             this.startLoader();
-            load_time.stop();
+            stopwatch.stop();
             if (this.failed) System.exit(1);
             LOG.info(String.format("Completed %s loading phase in %.2f sec",
-                                   m_projectBuilder.getProjectName().toUpperCase(),
-                                   load_time.getTotalThinkTimeSeconds()));
+                                   this.projectBuilder.getProjectName().toUpperCase(),
+                                   stopwatch.getTotalThinkTimeSeconds()));
         } else if (debug.val && m_config.noLoader) {
             LOG.debug("Skipping data loading phase");
         }
 
         // Start the clients
-        if (m_config.noExecute == false) this.startClients();
+        if (m_config.noExecute == false) {
+            this.startClients();
+        }
         
         // registerInterest(uploader);
     }
@@ -537,12 +541,6 @@ public class BenchmarkController {
         LOG.info(makeHeader("BENCHMARK INITIALIZE"));
         if (debug.val) LOG.debug("Number of hosts to start: " + m_launchHosts.size());
         int hosts_started = 0;
-        
-        // If they want to dump profiling information, then we need to make sure
-        // that these parameters are turned on 
-        if (hstore_conf.client.output_specexec) {
-            m_config.siteParameters.put("site.txn_client_debug", Boolean.TRUE.toString());
-        }
         
         // For each client output option, we'll enable the corresponding
         // site config parameter so that we can collect the proper data
@@ -568,7 +566,7 @@ public class BenchmarkController {
         }
         siteBaseCommand.add("ant hstore-site");
         siteBaseCommand.add("-Dconf=" + m_config.hstore_conf_path);
-        siteBaseCommand.add("-Dproject=" + m_projectBuilder.getProjectName());
+        siteBaseCommand.add("-Dproject=" + this.projectBuilder.getProjectName());
         for (Entry<String, String> e : m_config.siteParameters.entrySet()) {
             String value = e.getValue();
             if (value.startsWith("\"") == false) {
@@ -614,7 +612,7 @@ public class BenchmarkController {
             String fullCommand = StringUtil.join(" ", exec_command);
             resultsUploader.setCommandLineForHost(host, fullCommand);
             if (trace.val) LOG.trace("START " + HStoreThreadManager.formatSiteName(site_id) + ": " + fullCommand);
-            m_sitePSM.startProcess(host_id, exec_command);
+            sitePSM.startProcess(host_id, exec_command);
             hosts_started++;
         } // FOR
 
@@ -625,7 +623,7 @@ public class BenchmarkController {
                                    waiting, (waiting > 1 ? "s" : ""),
                                    catalogContext.numberOfPartitions, (catalogContext.numberOfPartitions > 1 ? "s" : "")));
             do {
-                ProcessSetManager.OutputLine line = m_sitePSM.nextBlocking();
+                ProcessSetManager.OutputLine line = sitePSM.nextBlocking();
                 if (line == null) break;
                 if (line.value.contains(HStoreConstants.SITE_READY_MSG)) {
                     waiting--;
@@ -652,7 +650,7 @@ public class BenchmarkController {
     public void startLoader() {
         LOG.info(makeHeader("BENCHMARK LOAD"));
         String title = String.format("Starting %s Benchmark Loader - %s / ScaleFactor %.2f",
-                                     m_projectBuilder.getProjectName().toUpperCase(),
+                                     this.projectBuilder.getProjectName().toUpperCase(),
                                      m_loaderClass.getSimpleName(),
                                      hstore_conf.client.scalefactor);
         if (hstore_conf.client.blocking_loader) title += " / Blocking";
@@ -696,7 +694,7 @@ public class BenchmarkController {
         
         if (debugString.isEmpty() == false) loaderCommand.add(debugString); 
         
-        String classpath = ""; // Disable this so that we just pull from the build dir -> "hstore.jar" + ":" + m_jarFileName;
+        String classpath = ""; // Disable this so that we just pull from the build dir -> "hstore.jar" + ":" + this.jarFileName;
         if (System.getProperty("java.class.path") != null) {
             classpath = classpath + ":" + System.getProperty("java.class.path");
         }
@@ -705,7 +703,7 @@ public class BenchmarkController {
         
         this.addHostConnections(allLoaderArgs);
         allLoaderArgs.add("CONF=" + m_config.hstore_conf_path);
-        allLoaderArgs.add("NAME=" + m_projectBuilder.getProjectName());
+        allLoaderArgs.add("NAME=" + this.projectBuilder.getProjectName());
         allLoaderArgs.add("BENCHMARK.CONF=" + m_config.benchmark_conf_path);
         allLoaderArgs.add("NUMCLIENTS=" + totalNumClients);
         allLoaderArgs.add("LOADER=true");
@@ -793,7 +791,7 @@ public class BenchmarkController {
          */
         allClientArgs.add("-Djava.library.path=.");
 
-        String classpath = ""; // "voltdbfat.jar" + ":" + m_jarFileName;
+        String classpath = ""; // "voltdbfat.jar" + ":" + this.jarFileName;
         if (System.getProperty("java.class.path") != null) {
             classpath = classpath + ":" + System.getProperty("java.class.path");
         }
@@ -818,7 +816,7 @@ public class BenchmarkController {
 
         this.addHostConnections(allClientArgs);
         allClientArgs.add("CONF=" + m_config.hstore_conf_path);
-        allClientArgs.add("NAME=" + m_projectBuilder.getProjectName());
+        allClientArgs.add("NAME=" + this.projectBuilder.getProjectName());
         allClientArgs.add("CHECKTRANSACTION=" + m_config.checkTransaction);
         allClientArgs.add("CHECKTABLES=" + m_config.checkTables);
         allClientArgs.add("LOADER=false");
@@ -909,7 +907,7 @@ public class BenchmarkController {
     
                     resultsUploader.setCommandLineForClient(clientHostId, fullCommand);
                     if (trace.val) LOG.trace("Client Commnand: " + fullCommand);
-                    m_clientPSM.startProcess(clientHostId, args);
+                    clientPSM.startProcess(clientHostId, args);
                 }
             });
         } // FOR
@@ -925,19 +923,19 @@ public class BenchmarkController {
         // ----------------------------------------------------------------------------
         
         // JSON Output
-        if (hstore_conf.client.output_json) {
+        if (hstore_conf.client.output_results_json) {
             this.registerInterest(new JSONResultsPrinter(hstore_conf));
         }
         // CSV Output
-        else if (hstore_conf.client.output_csv != null && hstore_conf.client.output_csv.isEmpty() == false) {
-            if (hstore_conf.client.output_csv.equalsIgnoreCase("true")) {
+        if (hstore_conf.client.output_results_csv != null && hstore_conf.client.output_results_csv.isEmpty() == false) {
+            if (hstore_conf.client.output_results_csv.equalsIgnoreCase("true")) {
                 LOG.warn("The HStoreConf parameter 'hstore_conf.client.output_csv' should be a file path, not a boolean value");
             }
-            File f = new File(hstore_conf.client.output_csv);
+            File f = new File(hstore_conf.client.output_results_csv);
             this.registerInterest(new CSVResultsPrinter(f));
         }
         // Default Table Output
-        else {
+        if (hstore_conf.client.output_results_table) {
             this.registerInterest(new ResultsPrinter(hstore_conf));
         }
         
@@ -948,6 +946,15 @@ public class BenchmarkController {
             }
             File f = new File(hstore_conf.client.output_memory);
             this.registerInterest(new MemoryStatsPrinter(this.getClientConnection(), f));
+        }
+        
+        // Table Stats Output
+        if (hstore_conf.client.output_table_stats_periodically != null && hstore_conf.client.output_table_stats_periodically.isEmpty() == false) {
+            if (hstore_conf.client.output_table_stats_periodically.equalsIgnoreCase("true")) {
+                LOG.warn("The HStoreConf parameter 'hstore_conf.client.output_table_stats_periodically' should be a file path, not a boolean value");
+            }
+            File f = new File(hstore_conf.client.output_table_stats_periodically);
+            this.registerInterest(new TableStatsPrinter(this.getClientConnection(), f));
         }
 
         // Kill Benchmark on Zero Results
@@ -965,7 +972,6 @@ public class BenchmarkController {
             this.evictorThread = new PeriodicEvictionThread(catalogContext, getClientConnection(),
                                                             hstore_conf.client.anticache_evict_size, m_interested);
         }
-        
     }
     
     private void addHostConnections(Collection<String> params) {
@@ -986,7 +992,9 @@ public class BenchmarkController {
         assert(site_id != null);
         Pair<String, Integer> p = CollectionUtil.random(m_launchHosts.get(site_id));
         assert(p != null);
-        if (debug.val) LOG.debug(String.format("Creating new client connection to HStoreSite %s", HStoreThreadManager.formatSiteName(site_id)));
+        if (debug.val)
+            LOG.debug(String.format("Creating new client connection to HStoreSite %s",
+                      HStoreThreadManager.formatSiteName(site_id)));
         
         Client new_client = ClientFactory.createClient(128, null, false, null);
         try {
@@ -1038,7 +1046,7 @@ public class BenchmarkController {
                 if (debug.val)
                     LOG.debug(String.format("Copying %s file '%s' to '%s' on client %s [clientId=%d]",
                               param, local_file, remote_file, clientHost, clientId)); 
-                SSHTools.copyToRemote(local_file.getPath(), m_config.remoteUser, clientHost, remote_file.getPath(), m_config.sshOptions);
+                SSHTools.copyToRemote(local_file, m_config.remoteUser, clientHost, remote_file, m_config.sshOptions);
                 files.put(remote_file, local_file);
                 m_clientFilesUploaded.incrementAndGet();
             }
@@ -1067,8 +1075,10 @@ public class BenchmarkController {
             debugOpts += ", concurrent=" + hstore_conf.client.blocking_concurrent; 
         }
         debugOpts += "]";
+        
+        ProfileMeasurement stopwatch = new ProfileMeasurement("clients").start();
         LOG.info(String.format("Starting %s execution with %d %sclient%s %s",
-                 m_projectBuilder.getProjectName().toUpperCase(),
+                 this.projectBuilder.getProjectName().toUpperCase(),
                  m_clientThreads.size(), 
                  (hstore_conf.client.blocking ? "blocking " : ""),
                  (m_clientThreads.size() > 1 ? "s" : ""),
@@ -1086,10 +1096,10 @@ public class BenchmarkController {
             ThreadUtil.sleep(gdb_sleep*1000);
         }
         
-        m_currentResults = new BenchmarkResults(hstore_conf.client.interval,
+        currentResults = new BenchmarkResults(hstore_conf.client.interval,
                                                 hstore_conf.client.duration,
                                                 m_clientThreads.size());
-        m_currentResults.setEnableBasePartitions(hstore_conf.client.output_basepartitions);
+        currentResults.setEnableBasePartitions(hstore_conf.client.output_basepartitions);
         
         
         long nextIntervalTime = hstore_conf.client.interval;
@@ -1101,7 +1111,7 @@ public class BenchmarkController {
         } // FOR
         if (debug.val)
             LOG.debug(String.format("Started %d %s",
-                                    m_statusThreads.size(), ClientStatusThread.class.getSimpleName()));
+                      m_statusThreads.size(), ClientStatusThread.class.getSimpleName()));
 
         // Get a connection to the cluster
         Client local_client = this.getClientConnection();
@@ -1117,6 +1127,12 @@ public class BenchmarkController {
                 return;
             }
         } // WHILE
+        stopwatch.stop();
+        LOG.info(String.format("Initialized %d %s client threads in %.2f sec",
+                 m_clientThreads.size(), 
+                 this.projectBuilder.getProjectName().toUpperCase(),
+                 stopwatch.getTotalThinkTimeSeconds()));
+        
         if (this.stop) {
             if (debug.val) LOG.debug("Stop flag is set to true");
             return;
@@ -1136,7 +1152,7 @@ public class BenchmarkController {
         for (String clientName : m_clients) {
             if (debug.val)
                 LOG.debug(String.format("Sending %s to %s", ControlCommand.START, clientName)); 
-            m_clientPSM.writeToProcess(clientName, ControlCommand.START.name());
+            clientPSM.writeToProcess(clientName, ControlCommand.START.name());
         } // FOR
 
         // Warm-up
@@ -1176,7 +1192,7 @@ public class BenchmarkController {
                 
                 // Reset the counters
                 for (String clientName : m_clients)
-                    m_clientPSM.writeToProcess(clientName, ControlCommand.CLEAR.name());
+                    clientPSM.writeToProcess(clientName, ControlCommand.CLEAR.name());
                 
                 LOG.info("Starting benchmark stats collection");
             }
@@ -1212,7 +1228,7 @@ public class BenchmarkController {
                 // make all the clients poll
                 if (debug.val) LOG.debug(String.format("Sending %s to %d clients", ControlCommand.POLL, m_clients.size()));
                 for (String clientName : m_clients)
-                    m_clientPSM.writeToProcess(clientName, ControlCommand.POLL.name() + " " + m_pollIndex);
+                    clientPSM.writeToProcess(clientName, ControlCommand.POLL.name() + " " + m_pollIndex);
 
                 // get ready for the next interval
                 nextIntervalTime = hstore_conf.client.interval * (m_pollIndex + 1) + startTime;
@@ -1227,21 +1243,21 @@ public class BenchmarkController {
 //        }
         
         this.stop = true;
-        if (m_config.noShutdown == false && this.failed == false) m_sitePSM.prepareShutdown(false);
+        if (m_config.noShutdown == false && this.failed == false) sitePSM.prepareShutdown(false);
         
         // shut down all the clients
-        m_clientPSM.prepareShutdown(false);
+        clientPSM.prepareShutdown(false);
         boolean first = true;
         for (String clientName : m_clients) {
             if (first && m_config.noShutdown == false) {
-                m_clientPSM.writeToProcess(clientName, ControlCommand.SHUTDOWN.name());
+                clientPSM.writeToProcess(clientName, ControlCommand.SHUTDOWN.name());
                 first = false;
             } else {
-                m_clientPSM.writeToProcess(clientName, ControlCommand.STOP.name());
+                clientPSM.writeToProcess(clientName, ControlCommand.STOP.name());
             }
         } // FOR
         LOG.info("Waiting for " + m_clients.size() + " clients to finish");
-        m_clientPSM.joinAll();
+        clientPSM.joinAll();
 
         if (this.failed == false) {
             if (this.resultsToRead.getCount() > 0) {
@@ -1269,7 +1285,7 @@ public class BenchmarkController {
                 LOG.info("Computing final benchmark results...");
             }
             for (BenchmarkInterest interest : m_interested) {
-                String finalResults = interest.formatFinalResults(m_currentResults);
+                String finalResults = interest.formatFinalResults(currentResults);
                 if (finalResults != null) System.out.println(finalResults);
             } // FOR
         } else if (debug.val) {
@@ -1286,7 +1302,7 @@ public class BenchmarkController {
         if (debug.val) LOG.debug("Performing post-processing on benchmark");
         
         // We have to tell all our clients to pause first
-        m_clientPSM.writeToAll(ControlCommand.PAUSE.name());
+        clientPSM.writeToAll(ControlCommand.PAUSE.name());
         
         // Then tell the cluster to drain all txns
         if (debug.val) LOG.debug("Draining execution queues on cluster");
@@ -1340,7 +1356,7 @@ public class BenchmarkController {
         
         // Now tell everybody that part is over and we want them to dump their 
         // results back to us
-        m_clientPSM.writeToAll(ControlCommand.DUMP_TXNS.name());
+        clientPSM.writeToAll(ControlCommand.DUMP_TXNS.name());
         
         // Wait until we get all of the responses that we need
         boolean result = latch.await(10, TimeUnit.SECONDS);
@@ -1366,7 +1382,7 @@ public class BenchmarkController {
         
         // Convert to a VoltTable and then write out to a CSV file
         LOG.info(String.format("Writing %d ClientResponse entries to '%s'", fullDump.size(), outputPath));
-        String txnNames[] = m_currentResults.getTransactionNames();
+        String txnNames[] = currentResults.getTransactionNames();
         FileWriter out = new FileWriter(outputPath);
         VoltTable vt = ResponseEntries.toVoltTable(fullDump, txnNames);
         VoltTableUtil.csv(out, vt, true);
@@ -1469,7 +1485,7 @@ public class BenchmarkController {
                 Object row[] = totalRows.get(procName);
                 for (int i = 1; i < row.length; i++) {
                     if (stdevs[i] != null) {
-                        row[i] = MathUtil.geometricMean(CollectionUtil.toDoubleArray(stdevs[i]));
+                        row[i] = MathUtil.arithmeticMean(CollectionUtil.toDoubleArray(stdevs[i]));
                         if (trace.val) 
                             LOG.trace(String.format("%s STDEV -> %s -> %s", procName, stdevs[i], row[i]));
                     }
@@ -1529,6 +1545,13 @@ public class BenchmarkController {
         this.invokeSysProcs(client, sysprocs, params);
     }
     
+    /**
+     * Instruct the cluster to recompute the edge weight probabilities for its markov models.
+     * If retrieveFiles is set to true, then the BenchmarkController automatically will download
+     * the updated models and write them to a temp directory on the BenchmarkController's host. 
+     * @param client
+     * @param retrieveFiles
+     */
     private void recomputeMarkovs(Client client, boolean retrieveFiles) {
         LOG.info("Requesting HStoreSites to recalculate Markov models");
         ClientResponse cr = null;
@@ -1542,8 +1565,9 @@ public class BenchmarkController {
         assert(cr != null);
         if (retrieveFiles == false) return;
 
-        String output_directory = hstore_conf.global.temp_dir + "/markovs/" + m_projectBuilder.getProjectName();
-        FileUtil.makeDirIfNotExists(output_directory);
+        File outputDir = FileUtil.join(hstore_conf.global.temp_dir, "markovs",
+                                       this.projectBuilder.getProjectName());
+        FileUtil.makeDirIfNotExists(outputDir);
         
         // The return should be a list of SiteIds->RemotePath
         // We just need to then pull down the files and then combine them into
@@ -1561,24 +1585,30 @@ public class BenchmarkController {
             Pair<String, Integer> p = CollectionUtil.first(m_launchHosts.get(site_id));
             assert(p != null) : "Invalid SiteId " + site_id;
             
-            if (debug.val) LOG.debug(String.format("Retrieving MarkovGraph file '%s' from %s", remote_path, HStoreThreadManager.formatSiteName(site_id)));
-            SSHTools.copyFromRemote(output_directory, m_config.remoteUser, p.getFirst(), remote_path.getPath(), m_config.sshOptions);
-            File local_file = new File(output_directory + "/" + remote_path.getName());
+            if (debug.val)
+                LOG.debug(String.format("Retrieving %s file '%s' from %s",
+                          MarkovGraphsContainer.class.getSimpleName(),
+                          remote_path, HStoreThreadManager.formatSiteName(site_id)));
+            SSHTools.copyFromRemote(outputDir, m_config.remoteUser, p.getFirst(), remote_path, m_config.sshOptions);
+            File local_file = new File(outputDir + "/" + remote_path.getName());
             markovs.put(partition_id, local_file);
             files_to_remove.add(Pair.of((String)null, local_file));
             files_to_remove.add(Pair.of(p.getFirst(), remote_path));
         } // FOR
         
-        String new_output = output_directory + "/" + m_projectBuilder.getProjectName() + "-new.markovs";
-        if (debug.val) LOG.debug(String.format("Writing %d updated MarkovGraphsContainers to '%s'", markovs.size(),  new_output));
-        MarkovGraphContainersUtil.combine(markovs, new_output, catalogContext.database);
+        File new_output = FileUtil.join(outputDir.getPath(),
+                                        this.projectBuilder.getProjectName() + "-new.markovs");
+        if (debug.val)
+            LOG.debug(String.format("Writing %d updated MarkovGraphsContainers to '%s'",
+                      markovs.size(),  new_output));
+        MarkovGraphsContainerUtil.combine(markovs, new_output, catalogContext.database);
         
         // Clean up the remote files
         for (Pair<String, File> p : files_to_remove) {
             if (p.getFirst() == null) {
                 p.getSecond().delete();
             } else {
-                SSHTools.deleteFile(m_config.remoteUser, p.getFirst(), p.getSecond().getPath(), m_config.sshOptions);
+                SSHTools.deleteFile(m_config.remoteUser, p.getFirst(), p.getSecond(), m_config.sshOptions);
             }
         } // FOR
     }
@@ -1592,13 +1622,13 @@ public class BenchmarkController {
         if (m_config.noExecute == false) {
             if (debug.val) 
                 LOG.warn("Killing clients");
-            m_clientPSM.shutdown();
+            clientPSM.shutdown();
         }
         
         if (m_config.noShutdown == false && this.failed == false) {
             if (debug.val) 
                 LOG.warn("Killing HStoreSites");
-            m_sitePSM.shutdown();
+            sitePSM.shutdown();
         }
         
         this.cleaned = true;
@@ -1610,9 +1640,9 @@ public class BenchmarkController {
      * @return A ResultSet instance for the ongoing or just finished benchmark run.
      */
     public BenchmarkResults getResults() {
-        assert(m_currentResults != null);
-        synchronized(m_currentResults) {
-            return m_currentResults.copy();
+        assert(currentResults != null);
+        synchronized(currentResults) {
+            return currentResults.copy();
         }
     }
 
@@ -2157,21 +2187,21 @@ public class BenchmarkController {
         if (config.compileBenchmark) {
             boolean success = false;
             BenchmarkCompiler compiler = new BenchmarkCompiler(controller.m_config,
-                                                               controller.m_projectBuilder,
+                                                               controller.projectBuilder,
                                                                hstore_conf);
             try {
                 // Actually compile and write the catalog to disk
-                success = compiler.compileBenchmark(controller.m_jarFileName);
-                assert(controller.m_jarFileName.exists()) : 
-                    "Failed to create jar file '" + controller.m_jarFileName + "'";
+                success = compiler.compileBenchmark(controller.jarFileName);
+                assert(controller.jarFileName.exists()) : 
+                    "Failed to create jar file '" + controller.jarFileName + "'";
             } catch (Throwable ex) {
                 LOG.error(String.format("Unexected error when trying to compile %s benchmark",
-                                        controller.m_projectBuilder.getProjectName()), ex);
+                                        controller.projectBuilder.getProjectName()), ex);
                 System.exit(1);
             }
             if (config.compileOnly) {
                 if (success) {
-                    LOG.info("Compilation Complete. Exiting [" + controller.m_jarFileName.getAbsolutePath() + "]");
+                    LOG.info("Compilation Complete. Exiting [" + controller.jarFileName.getAbsolutePath() + "]");
                 } else {
                     LOG.info("Compilation Failed");
                 }
@@ -2195,7 +2225,7 @@ public class BenchmarkController {
         
         // Upload Results to CodeSpeed
         if (hstore_conf.client.codespeed_url != null) {
-            String codespeed_benchmark = controller.m_projectBuilder.getProjectName();
+            String codespeed_benchmark = controller.projectBuilder.getProjectName();
             double txnrate = controller.getResults().getFinalResult().getTotalTxnPerSecond();
             
             BenchmarkResultsUploader uploader = new BenchmarkResultsUploader(new URL(hstore_conf.client.codespeed_url),

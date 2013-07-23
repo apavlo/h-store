@@ -40,7 +40,6 @@ public class TestBatchPlannerUtil extends BaseTestCase {
     private static final int NUM_PARTITIONS = 50;
     private static final int BASE_PARTITION = 0;
     private static final long TXN_ID = 123l;
-    private static final long CLIENT_HANDLE = Long.MAX_VALUE;
 
     private static Procedure catalog_proc;
     private static Workload workload;
@@ -65,7 +64,7 @@ public class TestBatchPlannerUtil extends BaseTestCase {
             all_partitions = catalogContext.getAllPartitionIds();
             
             File file = this.getWorkloadFile(ProjectType.TPCC);
-            workload = new Workload(catalog);
+            workload = new Workload(catalogContext.catalog);
 
             // Check out this beauty:
             // (1) Filter by procedure name
@@ -77,7 +76,7 @@ public class TestBatchPlannerUtil extends BaseTestCase {
                     .attach(new BasePartitionTxnFilter(p_estimator, BASE_PARTITION))
                     .attach(new MultiPartitionTxnFilter(p_estimator, false))
                     .attach(new ProcedureLimitFilter(WORKLOAD_XACT_LIMIT));
-            workload.load(file, catalog_db, filter);
+            workload.load(file, catalogContext.database, filter);
             assert(workload.getTransactionCount() > 0);
             
             // Convert the first QueryTrace batch into a SQLStmt+ParameterSet batch
@@ -95,7 +94,7 @@ public class TestBatchPlannerUtil extends BaseTestCase {
                 for (int ii = 0; ii < batch[i].length; ii++) {
                     QueryTrace query_trace = query_batch[i].get(ii);
                     assertNotNull(query_trace);
-                    batch[i][ii] = new SQLStmt(query_trace.getCatalogItem(catalog_db));
+                    batch[i][ii] = new SQLStmt(query_trace.getCatalogItem(catalogContext.database));
                     args[i][ii] = VoltProcedure.getCleanParams(batch[i][ii], query_trace.getParams());
                 } // FOR
             } // FOR
@@ -103,8 +102,8 @@ public class TestBatchPlannerUtil extends BaseTestCase {
         
         VoltProcedure volt_proc = ClassUtil.newInstance(TARGET_PROCEDURE, new Object[0], new Class<?>[0]);
         assert(volt_proc != null);
-        this.executor = new MockPartitionExecutor(BASE_PARTITION, catalog, p_estimator);
-        volt_proc.globalInit(this.executor, catalog_proc, BackendTarget.NONE, null, p_estimator);
+        this.executor = new MockPartitionExecutor(BASE_PARTITION, catalogContext, p_estimator);
+        volt_proc.init(this.executor, catalog_proc, BackendTarget.NONE);
     }
     
     /**
@@ -163,7 +162,7 @@ public class TestBatchPlannerUtil extends BaseTestCase {
      */
     public void testPlanMultiPartition() throws Exception {
         BatchPlanner batchPlan = new BatchPlanner(batch[TARGET_BATCH], catalog_proc, p_estimator);
-        BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, BASE_PARTITION, all_partitions, false, this.touched_partitions, args[TARGET_BATCH]);
+        BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, BASE_PARTITION, all_partitions, this.touched_partitions, args[TARGET_BATCH]);
         assertNotNull(plan);
         assertFalse(plan.hasMisprediction());
     }
@@ -180,7 +179,7 @@ public class TestBatchPlannerUtil extends BaseTestCase {
         partitions.add(BASE_PARTITION);
         partitions.add(BASE_PARTITION+1);
         
-        BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, BASE_PARTITION+1, partitions, true, this.touched_partitions, args[TARGET_BATCH]);
+        BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, BASE_PARTITION+1, partitions, this.touched_partitions, args[TARGET_BATCH]);
         assert(plan.hasMisprediction());
         if (plan != null) System.err.println(plan.toString());
     }
@@ -197,7 +196,7 @@ public class TestBatchPlannerUtil extends BaseTestCase {
         partitions.add(BASE_PARTITION);
 //        partitions.add(BASE_PARTITION+1);
         
-        BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, BASE_PARTITION+1, partitions, false, this.touched_partitions, args[TARGET_BATCH]);
+        BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, BASE_PARTITION+1, partitions, this.touched_partitions, args[TARGET_BATCH]);
         assert(plan.hasMisprediction());
         if (plan != null) System.err.println(plan.toString());
     }
@@ -208,7 +207,7 @@ public class TestBatchPlannerUtil extends BaseTestCase {
     public void testGetStatementPartitions() throws Exception {
         for (int batch_idx = 0; batch_idx < query_batch.length; batch_idx++) {
             BatchPlanner batchPlan = new BatchPlanner(batch[batch_idx], catalog_proc, p_estimator);
-            BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, BASE_PARTITION, all_partitions, false, this.touched_partitions, args[batch_idx]);
+            BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, BASE_PARTITION, all_partitions, this.touched_partitions, args[batch_idx]);
             assertNotNull(plan);
             assertFalse(plan.hasMisprediction());
             
@@ -220,7 +219,7 @@ public class TestBatchPlannerUtil extends BaseTestCase {
             assertNotNull(partitions);
             
             for (int i = 0; i < catalog_stmts.length; i++) {
-                assertEquals(query_batch[batch_idx].get(i).getCatalogItem(catalog_db), catalog_stmts[i]);
+                assertEquals(query_batch[batch_idx].get(i).getCatalogItem(catalogContext.database), catalog_stmts[i]);
                 PartitionSet p = partitions[i];
                 assertNotNull(p);
                 assertFalse(p.isEmpty());
@@ -245,7 +244,7 @@ public class TestBatchPlannerUtil extends BaseTestCase {
         // Check to make sure that if we do a SELECT on a replicated table, that
         // it doesn't get added to our touched partitions histogram
         BatchPlanner batchPlan = new BatchPlanner(batch, catalog_proc, p_estimator);
-        BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, BASE_PARTITION, partitions, true, this.touched_partitions, params);
+        BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, BASE_PARTITION, partitions, this.touched_partitions, params);
         assertNotNull(plan);
         assertFalse(plan.hasMisprediction());
         

@@ -47,6 +47,7 @@ import edu.brown.hstore.HStoreConstants;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.profilers.ProfileMeasurement;
+import edu.brown.statistics.Histogram;
 import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CollectionUtil;
@@ -64,8 +65,8 @@ import edu.brown.workload.filters.Filter;
  */
 public class SingleSitedCostModel extends AbstractCostModel {
     private static final Logger LOG = Logger.getLogger(SingleSitedCostModel.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
+    private static final LoggerBoolean trace = new LoggerBoolean();
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
@@ -1378,7 +1379,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
         // long total_partitions_touched_queries =
         // costmodel.getQueryPartitionAccessHistogram().getSampleCount();
 
-        ObjectHistogram<Integer> h = null;
+        Histogram<Integer> h = null;
         if (!table_output) {
             System.out.println("Workload Procedure Histogram:");
             System.out.println(StringUtil.addSpacers(args.workload.getProcedureHistogram().toString()));
@@ -1432,7 +1433,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
         // System.out.println("Partitions Touched By Queries: " +
         // total_partitions_touched_queries);
 
-        ObjectHistogram<Integer> entropy_h = costmodel.getJavaExecutionHistogram();
+        Histogram<Integer> entropy_h = costmodel.getJavaExecutionHistogram();
         m.put("JAVA SKEW", SkewFactorUtil.calculateSkew(all_partitions.size(), entropy_h.getSampleCount(), entropy_h));
 
         entropy_h = costmodel.getTxnPartitionAccessHistogram();

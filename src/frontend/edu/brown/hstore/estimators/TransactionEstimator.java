@@ -28,8 +28,8 @@ import edu.brown.utils.StringUtil;
  */
 public abstract class TransactionEstimator {
     private static final Logger LOG = Logger.getLogger(TransactionEstimator.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
+    private static final LoggerBoolean trace = new LoggerBoolean();
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
@@ -89,7 +89,7 @@ public abstract class TransactionEstimator {
      * @return
      */
     public final <T extends EstimatorState> T startTransaction(Long txn_id, int base_partition, Procedure catalog_proc, Object args[]) {
-        if (debug.val) LOG.debug(String.format("Checking %s input parameters:\nARGS: %s",
+        if (debug.val) LOG.debug(String.format("Checking %s input parameters: %s",
                                    catalog_proc.getName(),
                                    StringUtil.toString(args, true, true)));
 

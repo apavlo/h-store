@@ -25,11 +25,18 @@ package org.voltdb.regressionsuites;
 
 import java.io.IOException;
 
-import org.voltdb.*;
-import org.voltdb.client.*;
+import org.voltdb.BackendTarget;
+import org.voltdb.VoltProcedure;
+import org.voltdb.VoltTable;
+import org.voltdb.client.Client;
+import org.voltdb.client.ClientResponse;
+import org.voltdb.client.NullCallback;
+import org.voltdb.client.ProcCallException;
 import org.voltdb.compiler.VoltProjectBuilder;
 import org.voltdb.regressionsuites.indexes.CheckMultiMultiIntGTEFailure;
 import org.voltdb.regressionsuites.indexes.Insert;
+
+import edu.brown.hstore.Hstoreservice.Status;
 
 /**
  * Actual regression tests for SQL that I found that was broken and
@@ -39,6 +46,8 @@ import org.voltdb.regressionsuites.indexes.Insert;
 
 public class TestIndexesSuite extends RegressionSuite {
 
+    private static final String[] ALL_TABLES = {"P1", "R1", "P2", "R2"};
+    
     /** Procedures used by this suite */
     @SuppressWarnings("unchecked")
     static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
@@ -53,31 +62,32 @@ public class TestIndexesSuite extends RegressionSuite {
     // - multi-column
     // - multi-map
 
-    public void testParameterizedLimitOnIndexScan()
-    throws IOException, ProcCallException {
-        String[] tables = {"P1", "R1", "P2", "R2"};
+    public void testParameterizedLimitOnIndexScan() throws IOException, ProcCallException {
         Client client = getClient();
-        for (String table : tables)
-        {
+        ClientResponse cr = null;
+        for (String table : ALL_TABLES) {
             client.callProcedure("Insert", table, 1, "a", 100, 1, 14.5);
             client.callProcedure("Insert", table, 2, "b", 100, 2, 15.5);
             client.callProcedure("Insert", table, 3, "c", 200, 3, 16.5);
             client.callProcedure("Insert", table, 6, "f", 200, 6, 17.5);
             client.callProcedure("Insert", table, 7, "g", 300, 7, 18.5);
             client.callProcedure("Insert", table, 8, "h", 300, 8, 19.5);
+            
+            cr = RegressionSuiteUtil.sql(client, "SELECT * FROM " + table);
+            assertEquals(cr.toString(), Status.OK, cr.getStatus());
 
-            VoltTable[] results = client.callProcedure("Eng397LimitIndex" + table, new Integer(2)).getResults();
-            assertEquals(2, results[0].getRowCount());
+            cr = client.callProcedure("Eng397LimitIndex"+table, 2);
+            assertEquals(cr.toString(), Status.OK, cr.getStatus());
+            VoltTable[] results = cr.getResults();
+            assertEquals(cr.toString(), 2, results[0].getRowCount());
         }
     }
 
     public void testOrderedUniqueOneColumnIntIndex()
     throws IOException, ProcCallException
     {
-        String[] tables = {"P1", "R1", "P2", "R2"};
         Client client = getClient();
-        for (String table : tables)
-        {
+        for (String table : ALL_TABLES) {
             client.callProcedure("Insert", table, 1, "a", 100, 1, 14.5);
             client.callProcedure("Insert", table, 2, "b", 100, 2, 15.5);
             client.callProcedure("Insert", table, 3, "c", 200, 3, 16.5);
@@ -151,10 +161,8 @@ public class TestIndexesSuite extends RegressionSuite {
     public void testOrderedMultiOneColumnIntIndex()
     throws IOException, ProcCallException
     {
-        String[] tables = {"P1", "R1", "P2", "R2"};
         Client client = getClient();
-        for (String table : tables)
-        {
+        for (String table : ALL_TABLES) {
             client.callProcedure("Insert", table, 1, "a", 100, 1, 14.5);
             client.callProcedure("Insert", table, 2, "b", 100, 2, 15.5);
             client.callProcedure("Insert", table, 3, "c", 200, 3, 16.5);
@@ -214,9 +222,8 @@ public class TestIndexesSuite extends RegressionSuite {
     public void testTicket195()
     throws IOException, ProcCallException
     {
-        String[] tables = {"P1", "R1", "P2", "R2"};
         Client client = getClient();
-        for (String table : tables)
+        for (String table : ALL_TABLES)
         {
             client.callProcedure("Insert", table, 1, "a", 100, 1, 14.5);
             client.callProcedure("Insert", table, 2, "b", 100, 2, 15.5);
@@ -514,8 +521,7 @@ public class TestIndexesSuite extends RegressionSuite {
     static public junit.framework.Test suite() {
 
         VoltServerConfig config = null;
-        MultiConfigSuiteBuilder builder =
-            new MultiConfigSuiteBuilder(TestIndexesSuite.class);
+        MultiConfigSuiteBuilder builder = new MultiConfigSuiteBuilder(TestIndexesSuite.class);
 
         VoltProjectBuilder project = new VoltProjectBuilder("indexes");
         project.addSchema(Insert.class.getResource("indexes-ddl.sql"));
@@ -523,38 +529,29 @@ public class TestIndexesSuite extends RegressionSuite {
         project.addTablePartitionInfo("P2", "ID");
         project.addTablePartitionInfo("P3", "ID");
         project.addProcedures(PROCEDURES);
-        project.addStmtProcedure("Eng397LimitIndexR1", "select * from R1 where R1.ID > 2 Limit ?");
-        project.addStmtProcedure("Eng397LimitIndexP1", "select * from P1 where P1.ID > 2 Limit ?");
-        project.addStmtProcedure("Eng397LimitIndexR2", "select * from R2 where R2.ID > 2 Limit ?");
-        project.addStmtProcedure("Eng397LimitIndexP2", "select * from P2 where P2.ID > 2 Limit ?");
+        
+        for (String tableName : ALL_TABLES) {
+            String procName = "Eng397LimitIndex" + tableName;
+            String sql = String.format("SELECT * FROM %s WHERE %s.ID > 2 LIMIT ?", tableName, tableName);
+            project.addStmtProcedure(procName, sql);
+        } // FOR
         project.addStmtProcedure("Eng506UpdateRange", "UPDATE P1IX SET NUM = ? WHERE (P1IX.ID>P1IX.NUM) AND (P1IX.NUM>?)");
         project.addStmtProcedure("InsertP1IX", "insert into P1IX values (?, ?, ?, ?);");
 
         boolean success;
 
-    /*
-        // CONFIG #1: Local Site/Partitions running on IPC backend
-        config = new LocalSingleProcessServer("sqltypes-onesite.jar", 1, BackendTarget.NATIVE_EE_IPC);
-        config.compile(project);
-        builder.addServerConfig(config);*/
-        // CONFIG #2: HSQL
-
-//        config = new LocalSingleProcessServer("testindexes-hsql.jar", 1, BackendTarget.HSQLDB_BACKEND);
-//        success = config.compile(project);
-//        assertTrue(success);
-//        builder.addServerConfig(config);
-
-
-
-        // JNI
+        /////////////////////////////////////////////////////////////
+        // CONFIG #1: 1 Local Site/Partition
+        /////////////////////////////////////////////////////////////
         config = new LocalSingleProcessServer("testindexes-onesite.jar", 1, BackendTarget.NATIVE_EE_JNI);
         success = config.compile(project);
         assertTrue(success);
         builder.addServerConfig(config);
 
-        // CLUSTER?
-        config = new LocalCluster("testindexes-cluster.jar", 2, 2,
-                                  1, BackendTarget.NATIVE_EE_JNI);
+        ////////////////////////////////////////////////////////////
+        // CONFIG #2: cluster of 2 nodes running 2 site each, one replica
+        ////////////////////////////////////////////////////////////
+        config = new LocalCluster("testindexes-cluster.jar", 2, 2, 1, BackendTarget.NATIVE_EE_JNI);
         success = config.compile(project);
         assertTrue(success);
         builder.addServerConfig(config);

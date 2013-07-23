@@ -33,8 +33,6 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 
-import org.voltdb.debugstate.VoltThreadContext;
-
 /**
  * <p>Provide a robust, flexible and totally self-contained way for pieces of the
  * system to dump state (initially to disk).</p>
@@ -174,18 +172,18 @@ public class DumpManager extends Thread {
      * collected in an unsafe way.
      * @param dumpvalue The contents to be written to the file.
      */
-    public synchronized static void putDump(String id, long timestamp, boolean wasThreadsafeDump, VoltThreadContext dumpvalue) {
-        File outpath = getPathForDumper(id, timestamp, wasThreadsafeDump);
-        ObjectOutputStream oos;
-        try {
-            oos = new ObjectOutputStream(new FileOutputStream(outpath));
-            oos.writeObject(dumpvalue);
-            oos.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
-    }
+//    public synchronized static void putDump(String id, long timestamp, boolean wasThreadsafeDump, VoltThreadContext dumpvalue) {
+//        File outpath = getPathForDumper(id, timestamp, wasThreadsafeDump);
+//        ObjectOutputStream oos;
+//        try {
+//            oos = new ObjectOutputStream(new FileOutputStream(outpath));
+//            oos.writeObject(dumpvalue);
+//            oos.close();
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//        }
+//
+//    }
 
     /**
      * Given info about the dump, return the path to the file where information should be put.

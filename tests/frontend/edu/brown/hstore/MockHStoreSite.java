@@ -25,8 +25,8 @@ import edu.brown.utils.ThreadUtil;
 
 public class MockHStoreSite extends HStoreSite {
     private static final Logger LOG = Logger.getLogger(MockHStoreSite.class);
-    private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private final static LoggerBoolean debug = new LoggerBoolean();
+    private final static LoggerBoolean trace = new LoggerBoolean();
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
@@ -74,7 +74,7 @@ public class MockHStoreSite extends HStoreSite {
         hstore_conf.site.status_enable = false;
         
         for (int p : this.getLocalPartitionIds().values()) {
-            MockPartitionExecutor executor = new MockPartitionExecutor(p, catalogContext.catalog,
+            MockPartitionExecutor executor = new MockPartitionExecutor(p, catalogContext,
                                                                        this.getPartitionEstimator());
             this.addPartitionExecutor(p, executor);
         } // FOR

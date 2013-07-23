@@ -24,12 +24,12 @@ import edu.brown.pools.Poolable;
  */
 public class RedirectCallback implements RpcCallback<TransactionRedirectResponse>, Poolable {
     private static final Logger LOG = Logger.getLogger(RedirectCallback.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
     static {
         LoggerUtil.attachObserver(LOG, debug);
     }
     
-    private final HStoreSite hstore_site;
+    // private final HStoreSite hstore_site;
     private final FastDeserializer fds = new FastDeserializer();
     private RpcCallback<ClientResponseImpl> orig_callback;
 
@@ -37,7 +37,7 @@ public class RedirectCallback implements RpcCallback<TransactionRedirectResponse
      * Default Constructor
      */
     public RedirectCallback(HStoreSite hstore_site) {
-        this.hstore_site = hstore_site;
+        // this.hstore_site = hstore_site;
     }
     
     public void init(RpcCallback<ClientResponseImpl> orig_callback) {
@@ -91,7 +91,7 @@ public class RedirectCallback implements RpcCallback<TransactionRedirectResponse
             
         // Always return ourselves to the HStoreObjectPool
         } finally {
-            this.hstore_site.getObjectPools().CALLBACKS_TXN_REDIRECT_REQUEST.returnObject(this);
+            // this.hstore_site.getObjectPools().CALLBACKS_TXN_REDIRECT_REQUEST.returnObject(this);
         }
         
     }

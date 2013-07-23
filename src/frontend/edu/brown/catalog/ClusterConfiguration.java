@@ -18,6 +18,7 @@ import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.FileUtil;
+import edu.brown.utils.PartitionSet;
 import edu.brown.utils.StringUtil;
 
 /**
@@ -26,15 +27,13 @@ import edu.brown.utils.StringUtil;
  */
 public class ClusterConfiguration extends ClusterConfig {
     private static final Logger LOG = Logger.getLogger(ClusterConfiguration.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
+    private static final LoggerBoolean trace = new LoggerBoolean();
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
 
     private static final Pattern COLON_SPLIT = Pattern.compile(":");
-    private static final Pattern COMMA_SPLIT = Pattern.compile(",");
-    private static final Pattern HYPHEN_SPLIT = Pattern.compile(Pattern.quote("-"));
 
     /**
      * Host -> SiteId -> Set<PartitionConfiguration>
@@ -133,20 +132,9 @@ public class ClusterConfiguration extends ClusterConfig {
         int site = Integer.parseInt(data[1]);
 
         // Partition Ranges
-        for (String p : COMMA_SPLIT.split(data[2])) {
-            int start = -1;
-            int stop = -1;
-            String range[] = HYPHEN_SPLIT.split(p);
-            if (range.length == 2) {
-                start = Integer.parseInt(range[0]);
-                stop = Integer.parseInt(range[1]);
-            } else {
-                start = Integer.parseInt(p);
-                stop = start;
-            }
-            for (int partition = start; partition < stop + 1; partition++) {
-                this.addPartition(host, site, partition);
-            } // FOR
+        PartitionSet partitions = PartitionSet.parse(data[2]);
+        for (int partition : partitions) {
+            this.addPartition(host, site, partition);
         } // FOR
     }
 

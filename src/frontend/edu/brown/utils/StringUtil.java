@@ -44,11 +44,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
 import org.voltdb.types.TimestampType;
-import org.voltdb.utils.Pair;
 
 import com.google.protobuf.ByteString;
-
-import edu.brown.hstore.HStoreConstants;
 
 /**
  * @author pavlo
@@ -60,16 +57,13 @@ public abstract class StringUtil {
     public static final String SINGLE_LINE = StringUtil.repeat("-", 64) + "\n";
 
     private static final Pattern LINE_SPLIT = Pattern.compile("\n");
+    private static final Pattern LIST_SPLIT = Pattern.compile("[ ]*,");
     private static final Pattern TITLE_SPLIT = Pattern.compile(" ");
-
-    private static String CACHE_REPEAT_STR = null;
-    private static Integer CACHE_REPEAT_SIZE = null;
-    private static String CACHE_REPEAT_RESULT = null;
 
     public static final String SET_PLAIN_TEXT = "\033[0;0m";
     public static final String SET_BOLD_TEXT = "\033[0;1m";
     
-    private static final double BASE = 1024, KB = BASE, MB = KB * BASE, GB = MB * BASE;
+    private static final float BASE = 1024, KB = BASE, MB = KB * BASE, GB = MB * BASE;
     private static final DecimalFormat df = new DecimalFormat("#.##");
 
     private static final String HEADER_MARKER = "-";
@@ -148,11 +142,17 @@ public abstract class StringUtil {
     }
 
     /**
-     * @param str
-     * @return
+     * Split the given string into based on newlines 
      */
     public static String[] splitLines(String str) {
         return (str != null ? LINE_SPLIT.split(str) : null);
+    }
+    /**
+     * Split the given string into based on list delimiters
+     * This will strip out any whitespace 
+     */
+    public static String[] splitList(String str) {
+        return (str != null ? LIST_SPLIT.split(str) : null);
     }
 
     public static String header(String msg) {
@@ -480,19 +480,10 @@ public abstract class StringUtil {
      * @return
      */
     public static String repeat(String str, int size) {
-        // We cache the last call in case they are making repeated calls for the
-        // same thing
-        if (CACHE_REPEAT_STR != null && CACHE_REPEAT_STR.equals(str) && CACHE_REPEAT_SIZE.equals(size)) {
-            return (CACHE_REPEAT_RESULT);
-        }
-
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < size; i++)
             sb.append(str);
-        CACHE_REPEAT_RESULT = sb.toString();
-        CACHE_REPEAT_STR = str;
-        CACHE_REPEAT_SIZE = size;
-        return (CACHE_REPEAT_RESULT);
+        return (sb.toString());
     }
 
     /**
@@ -558,16 +549,14 @@ public abstract class StringUtil {
 
     /**
      * Converts a string to title case (ala Python)
-     * 
      * @param string
-     * @param keep_upper
-     *            If true, then any non-first character that is uppercase stays
-     *            uppercase
+     * @param keep_upper If true, then any non-first character that is uppercase stays uppercase
      * @return
      */
     public static String title(String string, boolean keep_upper) {
         StringBuilder sb = new StringBuilder();
         String add = "";
+        boolean first = true;
         for (String part : TITLE_SPLIT.split(string)) {
             sb.append(add).append(part.substring(0, 1).toUpperCase());
             int len = part.length();
@@ -582,7 +571,10 @@ public abstract class StringUtil {
                     sb.append(part.substring(1).toLowerCase());
                 }
             }
-            add = " ";
+            if (first) {
+                add = " ";
+                first = false;
+            }
         } // FOR
         return (sb.toString());
     }
@@ -602,30 +594,38 @@ public abstract class StringUtil {
     }
 
     /**
-     * Python join()
+     * Python join() for arrays
      * 
      * @param <T>
      * @param delimiter
      * @param items
      * @return
      */
+    @SuppressWarnings("unchecked")
     public static <T> String join(String delimiter, T... items) {
-        return (join(delimiter, Arrays.asList(items)));
-    }
-
-    public static <T> String join(String delimiter, final Iterator<T> items) {
-        return (join("", delimiter, CollectionUtil.iterable(items)));
+        return (join(null, delimiter, Arrays.asList(items)));
     }
 
     /**
-     * Python join()
+     * Python join() for iterators
+     * 
+     * @param delimiter
+     * @param items
+     * @return
+     */
+    public static <T> String join(String delimiter, final Iterator<T> items) {
+        return (join(null, delimiter, CollectionUtil.iterable(items)));
+    }
+
+    /**
+     * Python join() for iterables
      * 
      * @param delimiter
      * @param items
      * @return
      */
     public static String join(String delimiter, Iterable<?> items) {
-        return (join("", delimiter, items));
+        return (join(null, delimiter, items));
     }
 
     /**
@@ -639,14 +639,12 @@ public abstract class StringUtil {
     public static String join(String prefix, String delimiter, Iterable<?> items) {
         if (items == null)
             return ("");
-        if (prefix == null)
-            prefix = "";
-
+        
+        boolean hasPrefix = (prefix != null);
         StringBuilder sb = new StringBuilder();
         int i = 0;
         for (Object x : items) {
-            if (prefix.isEmpty() == false)
-                sb.append(prefix);
+            if (hasPrefix) sb.append(String.format(prefix, i));
             sb.append(x != null ? x.toString() : x).append(delimiter);
             i++;
         }
@@ -657,27 +655,6 @@ public abstract class StringUtil {
         return sb.toString();
     }
 
-    /**
-     * Return the HOST+PORT pair extracted from a string with
-     * "<hostname>:<portnum>"
-     * 
-     * @param hostnport
-     * @return
-     */
-    public static Pair<String, Integer> getHostPort(String hostnport) {
-        return (getHostPort(hostnport, HStoreConstants.DEFAULT_PORT));
-    }
-
-    public static Pair<String, Integer> getHostPort(String hostnport, int port) {
-        String host = hostnport;
-        if (host.contains(":")) {
-            String split[] = hostnport.split("\\:", 2);
-            host = split[0];
-            port = Integer.valueOf(split[1]);
-        }
-        return (Pair.of(host, port));
-    }
-
     private static final char[] CHARACTERS = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
 
     private static char nibbleToHexChar(int nibble) {
@@ -686,11 +663,8 @@ public abstract class StringUtil {
     }
 
     /**
-     * Dump a ByteString to a text representation Copied from:
-     * http://people.csail
-     * .mit.edu/evanj/hg/index.cgi/javatxn/file/tip/src/edu/mit
-     * /ExampleServer.java
-     * 
+     * Dump a ByteString to a text representation
+     * Copied from: http://people.csail.mit.edu/evanj/hg/index.cgi/javatxn/file/tip/src/edu/mit/ExampleServer.java
      * @param bytes
      * @return
      */

@@ -18,8 +18,8 @@ import edu.brown.hstore.txns.MapReduceTransaction;
  */
 public class TransactionMapCallback extends AbstractTransactionCallback<MapReduceTransaction, TransactionMapResponse, TransactionMapResponse> {
     private static final Logger LOG = Logger.getLogger(TransactionMapCallback.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
+    private static final LoggerBoolean trace = new LoggerBoolean();
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }

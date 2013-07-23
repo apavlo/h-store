@@ -27,6 +27,7 @@ package edu.brown.workload;
 
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -63,6 +64,7 @@ import edu.brown.statistics.Histogram;
 import edu.brown.statistics.ObjectHistogram;
 import edu.brown.statistics.TableStatistics;
 import edu.brown.statistics.WorkloadStatistics;
+import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.ThreadUtil;
 import edu.brown.workload.filters.Filter;
@@ -74,8 +76,8 @@ import edu.brown.workload.filters.ProcedureNameFilter;
  */
 public class Workload implements WorkloadTrace, Iterable<TransactionTrace> {
     private static final Logger LOG = Logger.getLogger(Workload.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
+    private static final LoggerBoolean trace = new LoggerBoolean();
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
@@ -98,7 +100,7 @@ public class Workload implements WorkloadTrace, Iterable<TransactionTrace> {
     private Database catalog_db;
 
     // The following data structures are specific to Transactions
-    private final transient ListOrderedMap<Long, TransactionTrace> xact_trace = new ListOrderedMap<Long, TransactionTrace>();
+    private final transient ListOrderedMap<Long, TransactionTrace> txn_traces = new ListOrderedMap<Long, TransactionTrace>();
 
     // Reverse mapping from QueryTraces to TxnIds
     private final transient Map<QueryTrace, Long> query_txn_xref = new ConcurrentHashMap<QueryTrace, Long>();
@@ -115,8 +117,8 @@ public class Workload implements WorkloadTrace, Iterable<TransactionTrace> {
     // We can have a list of Procedure names that we want to ignore, which we make transparent
     // to whomever is calling us. But this means that we need to keep track of transaction ids
     // that are being ignored. 
-    protected Set<String> ignored_procedures = new HashSet<String>();
-    protected Set<Long> ignored_xact_ids = new HashSet<Long>();
+    protected Set<String> ignored_procedures = null;
+    protected final Set<Long> ignored_xact_ids = new HashSet<Long>();
     
     // We also have a list of procedures that are used for bulk loading so that we can determine
     // the number of tuples and other various information about the tables.
@@ -204,15 +206,15 @@ public class Workload implements WorkloadTrace, Iterable<TransactionTrace> {
             this.peek = null;
             
             // Now figure out what the next element should be the next time next() is called
-            int size = Workload.this.xact_trace.size();
+            int size = Workload.this.txn_traces.size();
             while (this.peek == null && this.idx++ < size) {
-                Long next_id = Workload.this.xact_trace.get(this.idx - 1);
-                TransactionTrace element = Workload.this.xact_trace.get(next_id);
+                Long next_id = Workload.this.txn_traces.get(this.idx - 1);
+                TransactionTrace element = Workload.this.txn_traces.get(next_id);
                 if (element == null) {
                     LOG.warn("idx: " + this.idx);
                     LOG.warn("next_id: " + next_id);
                     // System.err.println("elements: " + Workload.this.element_id_xref);
-                    LOG.warn("size: " + Workload.this.xact_trace.size());
+                    LOG.warn("size: " + Workload.this.txn_traces.size());
                 }
                 if (this.filter == null || (this.filter != null && this.filter.apply(element) == Filter.FilterResult.ALLOW)) {
                     this.peek = element;
@@ -258,18 +260,29 @@ public class Workload implements WorkloadTrace, Iterable<TransactionTrace> {
     }
     
     /**
-     * Copy Constructor with a Filter!
+     * Copy Constructor!
+     * @param catalog
      * @param workload
-     * @param filter
      */
-    public Workload(Workload workload, Filter filter) {
-        this(workload.catalog);
-        
-        Iterator<TransactionTrace> it = workload.iterator(filter);
-        while (it.hasNext()) {
-            TransactionTrace txn = it.next();
-            this.addTransaction(txn.getCatalogItem(CatalogUtil.getDatabase(this.catalog)), txn, false);
-        } // WHILE
+    public Workload(Catalog catalog, Workload...workloads) {
+        this(catalog, null, workloads);
+    }
+    
+    /**
+     * Copy Constructor with a Filter!
+     * @param catalog
+     * @param filter
+     * @param workload
+     */
+    public Workload(Catalog catalog, Filter filter, Workload...workloads) {
+        this(catalog);
+        Database catalog_db = CatalogUtil.getDatabase(this.catalog);
+        for (Workload w : workloads) {
+            assert(w != null);
+            for (TransactionTrace txn : CollectionUtil.iterable(w.iterator(filter))) {
+                this.addTransaction(txn.getCatalogItem(catalog_db), txn, false);
+            } // WHILE
+        } // FOR
     }
     
     /**
@@ -281,18 +294,20 @@ public class Workload implements WorkloadTrace, Iterable<TransactionTrace> {
         if (this.out != null) {
             System.err.println("Flushing workload trace output and closing files...");
             
-            //
             // Workload Statistics
-            //
             if (this.stats != null) this.saveStats();
-            //
             // This was here in case I wanted to dump out auxillary data structures
             // As of right now, I don't need to do that, so we'll just flush and close the file
-            //
             this.out.flush();
             this.out.close();
         }
         super.finalize();
+    }
+    
+    public void flush() throws IOException {
+        if (this.out != null) {
+            this.out.flush();
+        }
     }
 
     /**
@@ -334,8 +349,8 @@ public class Workload implements WorkloadTrace, Iterable<TransactionTrace> {
      * @param catalog_db
      * @throws Exception
      */
-    public void load(File input_path, Database catalog_db) throws Exception {
-        this.load(input_path, catalog_db, null);
+    public Workload load(File input_path, Database catalog_db) throws Exception {
+        return this.load(input_path, catalog_db, null);
     }
     
     /**
@@ -345,8 +360,9 @@ public class Workload implements WorkloadTrace, Iterable<TransactionTrace> {
      * @param limit
      * @throws Exception
      */
-    public void load(File input_path, Database catalog_db, Filter filter) throws Exception {
-        if (debug.val) LOG.debug("Reading workload trace from file '" + input_path + "'");
+    public Workload load(File input_path, Database catalog_db, Filter filter) throws Exception {
+        if (debug.val)
+            LOG.debug("Reading workload trace from file '" + input_path + "'");
         this.input_path = input_path;
         long start = System.currentTimeMillis();
         
@@ -389,25 +405,31 @@ public class Workload implements WorkloadTrace, Iterable<TransactionTrace> {
         
         // Then create all of our processing threads
         for (int i = 0; i < num_threads; i++) {
-            WorkloadUtil.ProcessingThread lt = new WorkloadUtil.ProcessingThread(this, this.input_path, rt, catalog_db, filter, counters);
+            WorkloadUtil.ProcessingThread lt = new WorkloadUtil.ProcessingThread(this,
+                                                                                 this.input_path,
+                                                                                 rt,
+                                                                                 catalog_db,
+                                                                                 filter,
+                                                                                 counters);
             rt.processingThreads.add(lt);
             all_runnables.add(lt);
         } // FOR
         
-        if (debug.val) LOG.debug(String.format("Loading workload trace using %d ProcessThreads", rt.processingThreads.size())); 
+        if (debug.val)
+            LOG.debug(String.format("Loading workload trace using %d ProcessThreads",
+                      rt.processingThreads.size())); 
         ThreadUtil.runNewPool(all_runnables, all_runnables.size());
         VerifyWorkload.verify(catalog_db, this);
         
         long stop = System.currentTimeMillis();
         LOG.info(String.format("Loaded %d txns / %d queries from '%s' in %.1f seconds using %d threads",
-                               this.xact_trace.size(), counters[2].get(), this.input_path.getName(), (stop - start) / 1000d, num_threads));
+                 this.txn_traces.size(), counters[2].get(), this.input_path.getName(), (stop - start) / 1000d, num_threads));
         if (counters[1].get() != counters[3].get() || counters[2].get() != counters[4].get()) {
-            LOG.info(String.format("Weighted Workload: %d txns / %d queries", counters[3].get(), counters[4].get()));
+            LOG.info(String.format("Weighted Workload: %d txns / %d queries",
+                     counters[3].get(), counters[4].get()));
         }
-        return;
+        return (this);
     }
-    
-
     
     // ----------------------------------------------------------
     // ITERATORS METHODS
@@ -445,6 +467,13 @@ public class Workload implements WorkloadTrace, Iterable<TransactionTrace> {
      */
     @Override
     public void addIgnoredProcedure(String name) {
+        if (this.ignored_procedures == null) {
+            synchronized (this) {
+                if (this.ignored_procedures == null) {
+                    this.ignored_procedures = new HashSet<String>();
+                }
+            } // SYNCH
+        }
         this.ignored_procedures.add(name.toUpperCase());
     }
     
@@ -464,7 +493,7 @@ public class Workload implements WorkloadTrace, Iterable<TransactionTrace> {
      * @return
      */
     public int getTransactionCount() {
-        return (this.xact_trace.size());
+        return (this.txn_traces.size());
     }
     
     /**
@@ -578,7 +607,7 @@ public class Workload implements WorkloadTrace, Iterable<TransactionTrace> {
      * @param txn_trace the transaction handle to remove
      */
     protected void removeTransaction(TransactionTrace txn_trace) {
-        this.xact_trace.remove(txn_trace.getTransactionId());
+        this.txn_traces.remove(txn_trace.getTransactionId());
         this.xact_open_queries.remove(txn_trace.getTransactionId());
     }
     
@@ -599,10 +628,10 @@ public class Workload implements WorkloadTrace, Iterable<TransactionTrace> {
      */
     protected synchronized void addTransaction(Procedure catalog_proc, TransactionTrace txn_trace, boolean force_index_update) {
         if (debug.val)
-            LOG.debug(String.format("Adding new %s [numTraces=%d]", txn_trace, this.xact_trace.size()));
+            LOG.debug(String.format("Adding new %s [numTraces=%d]", txn_trace, this.txn_traces.size()));
         
         long txn_id = txn_trace.getTransactionId();
-        this.xact_trace.put(txn_id, txn_trace);
+        this.txn_traces.put(txn_id, txn_trace);
         this.xact_open_queries.put(txn_id, new HashMap<Integer, AtomicInteger>());
         
         String proc_key = CatalogKey.createKey(catalog_proc);
@@ -626,7 +655,7 @@ public class Workload implements WorkloadTrace, Iterable<TransactionTrace> {
      * @return
      */
     public Collection<TransactionTrace> getTransactions() {
-        return (this.xact_trace.values());
+        return (this.txn_traces.values());
     }
     
     /**
@@ -635,7 +664,7 @@ public class Workload implements WorkloadTrace, Iterable<TransactionTrace> {
      * @return
      */
     public TransactionTrace getTransaction(long txn_id) { 
-        return this.xact_trace.get(txn_id);
+        return this.txn_traces.get(txn_id);
     }
     
     /**
@@ -773,14 +802,15 @@ public class Workload implements WorkloadTrace, Iterable<TransactionTrace> {
         // Bulk-loader Procedure
         if (this.bulkload_procedures.contains(proc_name)) {
             this.processBulkLoader(xact_id, catalog_proc, args);
-            
+        }
         // Ignored/Sysproc Procedures
-        } else if (this.ignored_procedures.contains(proc_name) || catalog_proc.getSystemproc()) {
+        else if (catalog_proc.getSystemproc() ||
+                (this.ignored_procedures != null && this.ignored_procedures.contains(proc_name))) {
             if (debug.val) LOG.debug("Ignoring start transaction call for procedure '" + proc_name + "'");
             this.ignored_xact_ids.add(xact_id);
-            
+        }
         // Procedures we want to trace
-        } else {
+        else {
             xact_handle = new TransactionTrace(xact_id, catalog_proc, args);
             this.addTransaction(catalog_proc, xact_handle, false);
             if (debug.val) LOG.debug(String.format("Created %s TransactionTrace with %d parameters", proc_name, args.length));
@@ -816,12 +846,14 @@ public class Workload implements WorkloadTrace, Iterable<TransactionTrace> {
             boolean unclean = false;
             for (QueryTrace query : txn_trace.getQueries()) {
                 if (!query.isStopped()) {
-                    if (debug.val) LOG.warn("Trace for '" + query + "' was not stopped before the transaction. Assuming it was aborted");
+                    if (debug.val)
+                        LOG.warn("Trace for '" + query + "' was not stopped before the transaction. Assuming it was aborted");
                     query.aborted = true;
                     unclean = true;
                 }
             } // FOR
-            if (unclean) LOG.warn("The entries in " + txn_trace + " were not stopped cleanly before the transaction was stopped");
+            if (unclean)
+                LOG.warn("The entries in " + txn_trace + " were not stopped cleanly before the transaction was stopped");
             
             // Mark the txn as stopped
             txn_trace.stop();
@@ -997,7 +1029,7 @@ public class Workload implements WorkloadTrace, Iterable<TransactionTrace> {
      */
     public String debug(Database catalog_db) {
         StringBuilder builder = new StringBuilder();
-        for (TransactionTrace xact : this.xact_trace.values()) {
+        for (TransactionTrace xact : this.txn_traces.values()) {
             builder.append(xact.toJSONString(catalog_db));
         } // FOR
         JSONObject jsonObject = null;

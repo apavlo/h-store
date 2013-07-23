@@ -1,14 +1,9 @@
 package edu.brown.hstore;
 
-import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Comparator;
-import java.util.List;
 import java.util.concurrent.PriorityBlockingQueue;
 
 import edu.brown.hstore.internal.FinishTxnMessage;
-import edu.brown.hstore.internal.InitializeRequestMessage;
-import edu.brown.hstore.internal.InitializeTxnMessage;
 import edu.brown.hstore.internal.InternalMessage;
 import edu.brown.hstore.internal.InternalTxnMessage;
 import edu.brown.hstore.internal.PrepareTxnMessage;
@@ -18,48 +13,42 @@ import edu.brown.hstore.internal.WorkFragmentMessage;
 public class PartitionMessageQueue extends PriorityBlockingQueue<InternalMessage> {
     
     private static final long serialVersionUID = 1L;
-    private List<InternalMessage> swap = null;
+//    private List<InternalMessage> swap = null;
     
     public PartitionMessageQueue() {
         super(1000, WORK_COMPARATOR); // FIXME
     }
     
-    @Override
-    public int drainTo(Collection<? super InternalMessage> c) {
-        assert(c != null);
-        InternalMessage msg = null;
-        int ctr = 0;
-        
-        if (this.swap == null) {
-            this.swap = new ArrayList<InternalMessage>();
-        } else {
-            this.swap.clear();
-        }
-        
-        while ((msg = this.poll()) != null) {
-            // All new transaction requests must be put in the new collection
-            if (msg instanceof InitializeRequestMessage) {
-                c.add(msg);
-                ctr++;
-            // Everything else will get added back in afterwards 
-            } else {
-                this.swap.add(msg);
-            }
-        } // WHILE
-        if (this.swap.isEmpty() == false) this.addAll(this.swap);
-        return (ctr);
-    }
-    
 //    @Override
-//    public InternalMessage poll() {
-//        return super.poll();
+//    public int drainTo(Collection<? super InternalMessage> c) {
+//        assert(c != null);
+//        InternalMessage msg = null;
+//        int ctr = 0;
+//        
+//        if (this.swap == null) {
+//            this.swap = new ArrayList<InternalMessage>();
+//        } else {
+//            this.swap.clear();
+//        }
+//        
+//        while ((msg = this.poll()) != null) {
+//            // All new transaction requests must be put in the new collection
+//            if (msg instanceof InitializeRequestMessage) {
+//                c.add(msg);
+//                ctr++;
+//            // Everything else will get added back in afterwards 
+//            } else {
+//                this.swap.add(msg);
+//            }
+//        } // WHILE
+//        if (this.swap.isEmpty() == false) this.addAll(this.swap);
+//        return (ctr);
 //    }
     
     private static final Comparator<InternalMessage> WORK_COMPARATOR = new Comparator<InternalMessage>() {
         @SuppressWarnings("unchecked")
         private final Class<? extends InternalMessage> compareOrder[] = (Class<? extends InternalMessage>[])new Class<?>[]{
             SetDistributedTxnMessage.class,
-            InitializeTxnMessage.class,
             PrepareTxnMessage.class,
             FinishTxnMessage.class,
             WorkFragmentMessage.class,

@@ -55,31 +55,39 @@ message WorkFragment {
     // The DependencyIds that this work message will generate as output
     repeated int32 output_dep_id = 4 [packed=true];
     
-    // What SQLStmt in the batch this PlanFragment belongs to
-    repeated int32 stmt_index = 6 [packed=true];
-    
     // What ParameterSet offset do we need for each PlanFragment
-    repeated int32 param_index = 7 [packed=true];
+    repeated int32 param_index = 5 [packed=true];
+
+    // The number of times that we have executed this Statement in the past
+    // for this transaction.
+    repeated int32 stmt_counter = 6 [packed=true];
     
+    // The offset of this fragment's corresponding SQLStmt in the current batch.
+    repeated int32 stmt_index = 7 [packed=true];
+    
+    // If a value is set to true in this array, then the PartitionExecutor
+    // should not execute the fragment id at the corresponding offset.
+    repeated bool stmt_ignore = 8 [packed=true];
+
     // Are all of the PlanFragments read only?
-    required bool read_only = 8;
+    required bool read_only = 9;
     
     // If true, then the Work embedded in this WorkFragment needs input
-    optional bool needs_input = 9 [default = false];
+    optional bool needs_input = 10 [default = false];
     
     // If true, then this is the final fragment for this transaction at this partition.
-    optional bool last_fragment = 10 [default = false];
+    optional bool last_fragment = 11 [default = false];
 
     // If true, then this is a prefetch fragment
-    optional bool prefetch = 11 [default = false];
+    optional bool prefetch = 12 [default = false];
     
     // If true, then this fragment should always be executed regardless 
     // of whether its result is cached.
-    optional bool force = 12 [default = false];
+    optional bool force = 13 [default = false];
 
     // An estimate of the Statements that the transaction might
     // execute at this partition
-    optional QueryEstimate future_statements = 13;
+    optional QueryEstimate future_statements = 14;
 }
 
 // The output results of WorkFragments
@@ -229,13 +237,14 @@ message TransactionPrefetchResult {
     // The global status for this response
     required Status status = 5;
 
-    // FragmentIds + ParameterSet hashes for the results
+    // StmtCounters + FragmentIds + ParameterSet hashes for the results
     // The offsets of these arrays will correspond with the
     // offsets in the WorkResult. I decided to put these separately
     // here because other parts of the system that use WorkResult do
     // not need this information
-    repeated int32 fragment_id = 6 [packed=true];
-    repeated int32 param_hash = 7 [packed=true];
+    repeated int32 stmt_counter = 6 [packed=true];
+    repeated int32 fragment_id = 7 [packed=true];
+    repeated int32 param_hash = 8 [packed=true];
 }
 
 message TransactionPrefetchAcknowledgement {
@@ -437,6 +446,21 @@ message ShutdownResponse {
 }
 
 // -----------------------------------
+// NODE HEARTBEAT MESSAGES
+// -----------------------------------
+
+message HeartbeatRequest {
+    required int32 sender_site = 1;
+    // This is the largest txn acked at the sender site
+    required int64 last_transaction_id = 2;
+}
+
+message HeartbeatResponse {
+    required int32 sender_site = 1;
+    required Status status = 2;
+}
+
+// -----------------------------------
 // TIME SYNC MESSAGE
 // -----------------------------------
 
@@ -477,5 +501,6 @@ service HStoreService {
     rpc Initialize(InitializeRequest) returns (InitializeResponse);
     rpc ShutdownPrepare(ShutdownPrepareRequest) returns (ShutdownPrepareResponse);
     rpc Shutdown(ShutdownRequest) returns (ShutdownResponse);
+    rpc Heartbeat(HeartbeatRequest) returns (HeartbeatResponse);
     rpc TimeSync(TimeSyncRequest) returns (TimeSyncResponse);
 }

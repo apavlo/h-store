@@ -2,7 +2,9 @@ package edu.brown.utils;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 import java.util.TreeSet;
@@ -321,5 +323,23 @@ public class TestPartitionSet extends TestCase {
     public void testRemoveAllPartitionSet() {
         this.initialize(rand.nextInt(NUM_PARTITIONS));
         this._removeAll(new PartitionSet());
+    }
+    
+    /**
+     * testParse
+     */
+    public void testParse() {
+        PartitionSet expected = new PartitionSet(new int[]{ 0,1,2,3,4,5 });
+        String parseStrs[] = {
+            "0-5",
+            "1,0-5",
+            "0,1-5",
+            "0, 1, 2, 3, 4, 5",
+            "0,1, 2,3,4,5",
+        };
+        for (String s : parseStrs) {
+            PartitionSet actual = PartitionSet.parse(s);
+            assertEquals(expected, actual);
+        } // FOR
     }
 }

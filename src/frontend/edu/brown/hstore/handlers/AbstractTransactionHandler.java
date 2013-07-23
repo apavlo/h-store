@@ -28,8 +28,8 @@ import edu.brown.utils.PartitionSet;
  */
 public abstract class AbstractTransactionHandler<T extends GeneratedMessage, U extends GeneratedMessage> {
     private static final Logger LOG = Logger.getLogger(AbstractTransactionHandler.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
+    private static final LoggerBoolean trace = new LoggerBoolean();
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
@@ -85,7 +85,8 @@ public abstract class AbstractTransactionHandler<T extends GeneratedMessage, U e
             
             if (trace.val)
                 LOG.trace(String.format("Sending %s message to %s for %s",
-                          request.getClass().getSimpleName(), HStoreThreadManager.formatSiteName(dest_site_id), ts));
+                          request.getClass().getSimpleName(),
+                          HStoreThreadManager.formatSiteName(dest_site_id), ts));
             
             // Local Partition
             if (this.local_site_id == dest_site_id) {

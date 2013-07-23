@@ -33,11 +33,11 @@ public class LoadConfig extends VoltProcedure {
         " WHERE AL_IATA_CODE != ''"
     );
     
-    public final SQLStmt getFlights = new SQLStmt(
-        "SELECT f_id FROM " + SEATSConstants.TABLENAME_FLIGHT +
-        " ORDER BY F_DEPART_TIME DESC " + 
-        " LIMIT " + SEATSConstants.CACHE_LIMIT_FLIGHT_IDS
-    );
+//    public final SQLStmt getFlights = new SQLStmt(
+//        "SELECT f_id FROM " + SEATSConstants.TABLENAME_FLIGHT +
+//        " ORDER BY F_DEPART_TIME DESC " + 
+//        " LIMIT " + SEATSConstants.CACHE_LIMIT_FLIGHT_IDS
+//    );
     
     public VoltTable[] run() {
         voltQueueSQL(getConfigProfile);
@@ -45,7 +45,7 @@ public class LoadConfig extends VoltProcedure {
         voltQueueSQL(getCountryCodes);
         voltQueueSQL(getAirportCodes);
         voltQueueSQL(getAirlineCodes);
-        voltQueueSQL(getFlights);
+//        voltQueueSQL(getFlights);
         return voltExecuteSQL(true);
     }
 }

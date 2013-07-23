@@ -41,8 +41,7 @@ public class GetCatalog extends VoltSystemProcedure {
         
         // Serialize the catalog and throw it back to the client
         VoltTable vt = new VoltTable(nodeResultsColumns);
-        vt.addRow(database.getCatalog().serialize(),
-                  new TimestampType());
+        vt.addRow(catalogContext.catalog.serialize(), new TimestampType());
         DependencySet result = new DependencySet(SysProcFragmentId.PF_getCatalog, vt);
         return (result);
     }

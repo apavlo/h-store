@@ -36,15 +36,27 @@ public abstract class LoggerUtil {
     private static final EventObservable<Object> OBSERVABLE = new EventObservable<Object>();
     private static HStoreThreadManager THREAD_MANAGER;
     
+    /**
+     * Simple boolean object used to determine whether to output a log4j message.
+     * When this object is attached to the LoggerUtil observerable, it will automatically
+     * get updated when its corresponding logger's debug level changes.
+     * I did this so that I didn't have to call LOG.isDebugEnabled() all over the place.
+     * @author pavlo
+     */
     public static class LoggerBoolean {
+        /**
+         * Whether the log output tracked by this object is set to enabled.
+         * This will be updated automatically if this LoggerBoolean is attached
+         * to the LoggerObserver managed by the LoggerUtil.
+         */
         public boolean val;
     
-        public LoggerBoolean(boolean val) {
-            this.val = val;
+        public LoggerBoolean() {
+            this(false);
         }
         @Deprecated
-        public boolean get() {
-            return (this.val);
+        public LoggerBoolean(boolean val) {
+            this.val = val;
         }
         public void set(boolean val) {
             this.val = val;
@@ -65,6 +77,9 @@ public abstract class LoggerUtil {
             this.logger = logger;
             this.debug = debug;
             this.trace = trace;
+            
+            if (this.debug != null) this.debug.set(logger.isDebugEnabled());
+            if (this.trace != null) this.trace.set(logger.isTraceEnabled());
         }
         
         @Override
@@ -233,6 +248,12 @@ public abstract class LoggerUtil {
         }
     }
     
+    /**
+     * Add the LoggerBooleans to be automatically updated by the LoggerUtil thread.
+     * @param logger
+     * @param debug
+     * @param trace
+     */
     public static void attachObserver(Logger logger, LoggerBoolean debug, LoggerBoolean trace) {
         LoggerUtil.attachObserver(new LoggerObserver(logger, debug, trace));
     }

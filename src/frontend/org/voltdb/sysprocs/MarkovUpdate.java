@@ -27,8 +27,8 @@ import edu.brown.utils.FileUtil;
 @ProcInfo(singlePartition = false)
 public class MarkovUpdate extends VoltSystemProcedure {
     private static final Logger LOG = Logger.getLogger(MarkovUpdate.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
+    private static final LoggerBoolean trace = new LoggerBoolean();
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
@@ -84,7 +84,7 @@ public class MarkovUpdate extends VoltSystemProcedure {
                     int ctr = 0;
                     for (MarkovGraph m : markovs.getAll()) {
                         try {
-                             m.calculateProbabilities();
+                             m.calculateProbabilities(this.catalogContext.getAllPartitionIds());
                         } catch (Throwable ex) {
                             LOG.fatal(String.format("Failed to recalculate probabilities for %s MarkovGraph #%d: %s", m.getProcedure().getName(), m.getGraphId(), ex.getMessage()));
                             File output = MarkovUtil.exportGraphviz(m, true, false, true, null).writeToTempFile();

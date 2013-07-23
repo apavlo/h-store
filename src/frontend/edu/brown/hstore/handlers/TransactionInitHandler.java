@@ -1,6 +1,9 @@
 package edu.brown.hstore.handlers;
 
 import org.apache.log4j.Logger;
+import org.voltdb.ParameterSet;
+import org.voltdb.exceptions.ServerFaultException;
+import org.voltdb.messaging.FastDeserializer;
 
 import com.google.protobuf.RpcCallback;
 import com.google.protobuf.RpcController;
@@ -10,6 +13,7 @@ import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice.HStoreService;
 import edu.brown.hstore.Hstoreservice.TransactionInitRequest;
 import edu.brown.hstore.Hstoreservice.TransactionInitResponse;
+import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.callbacks.RemoteInitQueueCallback;
 import edu.brown.hstore.dispatchers.AbstractDispatcher;
 import edu.brown.hstore.txns.AbstractTransaction;
@@ -29,8 +33,8 @@ import edu.brown.utils.PartitionSet;
  */
 public class TransactionInitHandler extends AbstractTransactionHandler<TransactionInitRequest, TransactionInitResponse> {
     private static final Logger LOG = Logger.getLogger(TransactionInitHandler.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
+    private static final LoggerBoolean trace = new LoggerBoolean();
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
@@ -85,14 +89,26 @@ public class TransactionInitHandler extends AbstractTransactionHandler<Transacti
             // partitions that are local at this site.
             partitions = new PartitionSet(request.getPartitionsList());
 
+            ParameterSet procParams = null;
+            if (request.hasProcParams()) {
+                FastDeserializer fds = new FastDeserializer(request.getProcParams().asReadOnlyByteBuffer());
+                try {
+                    procParams = fds.readObject(ParameterSet.class);
+                } catch (Exception ex) {
+                    String msg = String.format("Failed to deserialize procedure ParameterSet for txn #%d from %s",
+                                               txn_id, request.getClass().getSimpleName()); 
+                    throw new ServerFaultException(msg, ex, txn_id);
+                }
+            }
+            
             // If we don't have a handle, we need to make one so that we can stick in the
             // things that we need to keep track of at this site. At this point we know that we're on
             // a remote site from the txn's base partition
-            int base_partition = request.getBasePartition();
             ts = this.hstore_site.getTransactionInitializer()
                                  .createRemoteTransaction(txn_id,
                                                           partitions,
-                                                          base_partition,
+                                                          procParams,
+                                                          request.getBasePartition(),
                                                           request.getProcedureId());
             
             // Make sure that we initialize the RemoteTransactionInitCallback too!
@@ -102,12 +118,23 @@ public class TransactionInitHandler extends AbstractTransactionHandler<Transacti
         
         // If (request.getPrefetchFragmentsCount() > 0), then we need to
         // make a RemoteTransaction handle for ourselves so that we can keep track of 
-        // our state when pre-fetching queries.
+        // our state when prefetching queries.
         if (request.getPrefetchFragmentsCount() > 0) {
             // Stick the prefetch information into the transaction
-            if (debug.val)
-                LOG.debug(String.format("%s - Attaching %d prefetch WorkFragments at %s",
-                          ts, request.getPrefetchFragmentsCount(), hstore_site.getSiteName()));
+            if (debug.val) {
+                PartitionSet prefetchPartitions = new PartitionSet();
+                for (WorkFragment fragment : request.getPrefetchFragmentsList())
+                    prefetchPartitions.add(fragment.getPartitionId());
+                LOG.debug(String.format("%s - Attaching %d prefetch %s at partitions %s",
+                          ts, request.getPrefetchFragmentsCount(),
+                          WorkFragment.class.getSimpleName(), prefetchPartitions));
+            }
+//            for (int i = 0; i < request.getPrefetchParamsCount(); i++) {
+//                LOG.info(String.format("%s - XXX INBOUND PREFETCH RAW [%02d]: %s",
+//                         ts, i,
+//                         StringUtil.md5sum(request.getPrefetchParams(i).asReadOnlyByteBuffer())));
+//            }
+            
             ts.initializePrefetch();
             ts.attachPrefetchQueries(request.getPrefetchFragmentsList(),
                                      request.getPrefetchParamsList());

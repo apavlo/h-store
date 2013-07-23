@@ -7,12 +7,12 @@ public class SpecExecProfiler extends AbstractProfiler {
     /**
      * The total amount time spent in SpecExecScheduler.next()
      */
-    public final ProfileMeasurement total_time = new ProfileMeasurement("TOTAL");
+    public final ProfileMeasurement total_time = new ProfileMeasurement("TOTAL_TIME", true);
     
     /**
      * The amount of time spent performing the conflict calculations
      */
-    public final ProfileMeasurement compute_time = new ProfileMeasurement("COMPUTE");
+    public final ProfileMeasurement compute_time = new ProfileMeasurement("COMPUTE_TIME", true);
     
     /**
      * The current queue size when SpecExecScheduler.next() is invoked
@@ -20,9 +20,15 @@ public class SpecExecProfiler extends AbstractProfiler {
     public final FastIntHistogram queue_size = new FastIntHistogram(100);
     
     /**
-     * The number of messages analyzed per invocation of SpecExecScheduler.next()
+     * The number of txns analyzed per invocation of SpecExecScheduler.next()
      */
     public final FastIntHistogram num_comparisons = new FastIntHistogram(100);
+    
+    /**
+     * The number of txns that are valid matches during the scan of the partition's lock queue
+     * in SpecExecScheduler.next(). This is only useful for certain experiments.
+     */
+    public final FastIntHistogram num_matches = new FastIntHistogram(100);
     
     /**
      * The number of txns executed per stalled txn
@@ -47,6 +53,7 @@ public class SpecExecProfiler extends AbstractProfiler {
         this.success = 0;
         this.interrupts = 0;
         this.num_comparisons.clear();
+        this.num_matches.clear();
         this.num_executed.clear();
         this.queue_size.clear();
     }

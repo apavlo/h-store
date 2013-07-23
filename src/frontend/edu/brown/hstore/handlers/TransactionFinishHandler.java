@@ -22,7 +22,7 @@ import edu.brown.utils.PartitionSet;
 
 public class TransactionFinishHandler extends AbstractTransactionHandler<TransactionFinishRequest, TransactionFinishResponse> {
     private static final Logger LOG = Logger.getLogger(TransactionFinishHandler.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
     static {
         LoggerUtil.attachObserver(LOG, debug);
     }

@@ -19,7 +19,6 @@ package org.voltdb.jni;
 
 import java.io.File;
 
-import org.voltdb.DependencyPair;
 import org.voltdb.DependencySet;
 import org.voltdb.ParameterSet;
 import org.voltdb.SysProcSelector;
@@ -39,7 +38,7 @@ public class MockExecutionEngine extends ExecutionEngine {
     }
 
     @Override
-    public DependencyPair executePlanFragment(final long planFragmentId, int outputDepId,
+    public DependencySet executePlanFragment(final long planFragmentId, int outputDepId,
             int inputDepIdfinal, ParameterSet parameterSet, final long txnId,
             final long lastCommittedTxnId, final long undoToken) throws EEException
     {
@@ -48,7 +47,7 @@ public class MockExecutionEngine extends ExecutionEngine {
         vt = new VoltTable(new ColumnInfo[] {
                            new ColumnInfo("foo", VoltType.INTEGER)});
         vt.addRow(Integer.valueOf(1));
-        return new DependencyPair(outputDepId, vt);
+        return new DependencySet(outputDepId, vt);
     }
 
     @Override
@@ -172,7 +171,6 @@ public class MockExecutionEngine extends ExecutionEngine {
         // TODO Auto-generated method stub
         return null;
     }
-
     @Override
     public void processRecoveryMessage( java.nio.ByteBuffer buffer, long pointer) {
         // TODO Auto-generated method stub
@@ -185,28 +183,41 @@ public class MockExecutionEngine extends ExecutionEngine {
     }
 
     @Override
-    public int hashinate(Object value, int partitionCount)
-    {
+    public int hashinate(Object value, int partitionCount) {
         // TODO Auto-generated method stub
         return 0;
     }
 
     @Override
+    public void trackingEnable(Long txnId) throws EEException {
+        // TODO Auto-generated method stub
+    }
+    @Override
+    public void trackingFinish(Long txnId) throws EEException {
+        // TODO Auto-generated method stub
+    }
+    @Override
+    public VoltTable trackingReadSet(Long txnId) throws EEException {
+        // TODO Auto-generated method stub
+        return null;
+    }
+    @Override
+    public VoltTable trackingWriteSet(Long txnId) throws EEException {
+        // TODO Auto-generated method stub
+        return null;
+    }
+    
+    @Override
     public void antiCacheInitialize(File dbFilePath, long blockSize) throws EEException {
         // TODO Auto-generated method stub
-        
     }
-
     @Override
     public void antiCacheReadBlocks(Table catalog_tbl, short[] block_ids, int[] tuple_offsets) {
         // TODO Auto-generated method stub
-        
     }
-
     @Override
     public void antiCacheMergeBlocks(Table catalog_tbl) {
         // TODO Auto-generated method stub
-        
     }
 
     @Override

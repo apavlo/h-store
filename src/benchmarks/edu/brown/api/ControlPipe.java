@@ -24,7 +24,7 @@ import edu.brown.profilers.ProfileMeasurementUtil;
  */
 public class ControlPipe implements Runnable {
     private static final Logger LOG = Logger.getLogger(ControlPipe.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
     static {
         LoggerUtil.setupLogging();
         LoggerUtil.attachObserver(LOG, debug);

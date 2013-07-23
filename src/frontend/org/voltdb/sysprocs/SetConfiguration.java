@@ -30,7 +30,7 @@ import edu.brown.utils.StringUtil;
 @ProcInfo(singlePartition = false)
 public class SetConfiguration extends VoltSystemProcedure {
     private static final Logger LOG = Logger.getLogger(SetConfiguration.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
 
     public static final ColumnInfo nodeResultsColumns[] = {
         new ColumnInfo("SITE", VoltType.INTEGER),
@@ -83,7 +83,7 @@ public class SetConfiguration extends VoltSystemProcedure {
                               m.size(), executor.getHStoreSite().getSiteName()));
                 
                 // Update our local HStoreSite
-                context.getHStoreSite().updateConf(hstore_conf);
+                context.getHStoreSite().updateConf(hstore_conf, confNames);
 
                 // Create the result table
                 VoltTable vt = new VoltTable(nodeResultsColumns);
@@ -98,7 +98,7 @@ public class SetConfiguration extends VoltSystemProcedure {
                 result = new DependencySet(DISTRIBUTE_ID, vt);
                 if (debug.val)
                     LOG.info(String.format("%s - Sending back result for partition %d",
-                             m_localTxnState, this.executor.getPartitionId()));
+                             hstore_site.getTransaction(txn_id), this.executor.getPartitionId()));
                 break;
             }
             // Aggregate Results

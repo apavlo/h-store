@@ -26,7 +26,9 @@
 package edu.brown.hstore;
 
 import java.nio.ByteBuffer;
+import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Random;
 
 import org.apache.log4j.Logger;
 import org.voltdb.CatalogContext;
@@ -48,6 +50,7 @@ import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.hstore.txns.MapReduceTransaction;
 import edu.brown.hstore.txns.RemoteTransaction;
+import edu.brown.hstore.txns.TransactionUtil;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.EstimationThresholds;
@@ -57,7 +60,7 @@ import edu.brown.utils.EventObservable;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.PartitionSet;
 import edu.brown.utils.StringBoxUtil;
-import edu.brown.hstore.estimators.markov.MarkovEstimator;
+import edu.brown.utils.StringUtil;
 
 /**
  * This class is responsible for figuring out everything about a txn before it 
@@ -70,8 +73,8 @@ import edu.brown.hstore.estimators.markov.MarkovEstimator;
  */
 public class TransactionInitializer {
     private static final Logger LOG = Logger.getLogger(TransactionInitializer.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
+    private static final LoggerBoolean trace = new LoggerBoolean();
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
@@ -82,12 +85,12 @@ public class TransactionInitializer {
 
     private final HStoreSite hstore_site;
     private final HStoreConf hstore_conf;
-    private final HStoreObjectPools objectPools;
     private final CatalogContext catalogContext;
     private final PartitionEstimator p_estimator;
     private final PartitionSet local_partitions;
     private final TransactionEstimator t_estimators[];
     private final TransactionIdManager txnIdManagers[];
+    private final Random rng = new Random();
     private EstimationThresholds thresholds;
     
     /**
@@ -97,8 +100,7 @@ public class TransactionInitializer {
     private final Map<Long, AbstractTransaction> inflight_txns;
     
     /**
-     * This is fired whenever we create a new txn handle is grabbed from the
-     * the object pools.
+     * This is fired whenever we create a new txn handle is initialized.
      * It is only used for debugging+testing 
      */
     private EventObservable<LocalTransaction> newTxnObservable; 
@@ -116,7 +118,6 @@ public class TransactionInitializer {
     public TransactionInitializer(HStoreSite hstore_site) {
         this.hstore_site = hstore_site;
         this.hstore_conf = hstore_site.getHStoreConf();
-        this.objectPools = hstore_site.getObjectPools();
         this.local_partitions = hstore_site.getLocalPartitionIds();
         this.catalogContext = hstore_site.getCatalogContext();
         this.inflight_txns = hstore_site.getInflightTxns();
@@ -144,7 +145,7 @@ public class TransactionInitializer {
         } // FOR
     }
     
-    protected synchronized EventObservable<LocalTransaction> getNewTxnObservable() {
+    public synchronized EventObservable<LocalTransaction> getNewTxnObservable() {
         if (this.newTxnObservable == null) {
             this.newTxnObservable = new EventObservable<LocalTransaction>();
         }
@@ -283,17 +284,9 @@ public class TransactionInitializer {
         LocalTransaction ts = null;
         try {
             if (this.isMapReduce[procId]) {
-                if (hstore_conf.site.pool_txn_enable) {
-                    ts = this.objectPools.getMapReduceTransactionPool(base_partition).borrowObject();
-                } else {
-                    ts = new MapReduceTransaction(this.hstore_site);
-                }
+                ts = new MapReduceTransaction(this.hstore_site);
             } else {
-                if (hstore_conf.site.pool_txn_enable) {
-                    ts = this.objectPools.getLocalTransactionPool(base_partition).borrowObject();
-                } else {
-                    ts = new LocalTransaction(this.hstore_site);
-                }
+                ts = new LocalTransaction(this.hstore_site);
             }
             assert(ts.isInitialized() == false);
         } catch (Throwable ex) {
@@ -319,12 +312,6 @@ public class TransactionInitializer {
             }
         }
         
-        if (hstore_conf.site.txn_profiling && ts.profiler != null) {
-            // Disable transaction profiling for sysprocs
-            if (this.isSysProc[procId]) {
-                ts.profiler.disableProfiling();
-            }
-        }
         // Notify anybody that cares about this new txn
         if (this.newTxnObservable != null) this.newTxnObservable.notifyObservers(ts);
         
@@ -348,31 +335,18 @@ public class TransactionInitializer {
                                                    boolean predict_readOnly,
                                                    boolean predict_abortable) {
         
-        LocalTransaction new_ts = null;
-        try {
-            if (hstore_conf.site.pool_txn_enable) {
-                new_ts = this.objectPools.getLocalTransactionPool(base_partition).borrowObject();
-            } else {
-                new_ts = new LocalTransaction(hstore_site);
-            }
-            assert(new_ts.isInitialized() == false);
-        } catch (Throwable ex) {
-            String msg = String.format("Failed to instantiate new %s for mispredicted %s", orig_ts.getClass().getSimpleName(), orig_ts);
-            throw new RuntimeException(msg, ex);
-        }
+        LocalTransaction new_ts = new LocalTransaction(hstore_site);
         
         // Setup TransactionProfiler
-        if (hstore_conf.site.txn_profiling && orig_ts.isSysProc() == false) {
-            if (new_ts.profiler == null) {
-                new_ts.setProfiler(new TransactionProfiler());
+        if (hstore_conf.site.txn_profiling) {
+            if (this.setupTransactionProfiler(new_ts, orig_ts.isSysProc())) {
+                // Since we're restarting the txn, we should probably include
+                // the original profiler information the original txn.
+                // new_ts.profiler.startTransaction(ProfileMeasurement.getTime());
+                new_ts.profiler.setSingledPartitioned(predict_touchedPartitions.size() == 1);                
             }
-            new_ts.profiler.enableProfiling();
-            
-            // Since we're restarting the txn, we should probably include
-            // the original profiler information the original txn.
-            new_ts.profiler.startTransaction(ProfileMeasurement.getTime());
-            new_ts.profiler.setSingledPartitioned(predict_touchedPartitions.size() == 1);
-        } else if (new_ts.profiler != null) {
+        }
+        else if (new_ts.profiler != null) {
             new_ts.profiler.disableProfiling();
         }
         
@@ -399,9 +373,12 @@ public class TransactionInitializer {
         // Notify anybody that cares about this new txn
         if (this.newTxnObservable != null) this.newTxnObservable.notifyObservers(new_ts);
         
+        if (debug.val)
+            LOG.debug(String.format("Restarted %s as %s [handle=%d, basePartition=%d]",
+                      orig_ts, new_ts, orig_ts.getClientHandle(), base_partition));
+        
         return (new_ts);
     }
-    
     
     /**
      * Create a RemoteTransaction handle. This obviously only for a remote site.
@@ -411,24 +388,21 @@ public class TransactionInitializer {
      */
     public RemoteTransaction createRemoteTransaction(Long txn_id,
                                                      PartitionSet partitions,
+                                                     ParameterSet procParams,
                                                      int base_partition,
                                                      int proc_id) {
         RemoteTransaction ts = null;
         Procedure catalog_proc = this.catalogContext.getProcedureById(proc_id);
         try {
-            if (hstore_conf.site.pool_txn_enable) {
-                ts = this.objectPools.getRemoteTransactionPool(base_partition).borrowObject();
-            } else {
-                ts = new RemoteTransaction(this.hstore_site);
-            }
+            ts = new RemoteTransaction(this.hstore_site);
             assert(ts.isInitialized() == false);
-            ts.init(txn_id, base_partition, null, catalog_proc, partitions, true);
+            ts.init(txn_id, base_partition, procParams, catalog_proc, partitions, true);
             if (debug.val)
                 LOG.debug(String.format("Creating new RemoteTransactionState %s from " +
                 		  "remote partition %d [partitions=%s, hashCode=%d]",
                           ts, base_partition, partitions, ts.hashCode()));
         } catch (Throwable ex) {
-            String msg = "Failed to instantiate new remote transaction handle for " + AbstractTransaction.formatTxnName(catalog_proc, txn_id);
+            String msg = "Failed to instantiate new remote transaction handle for " + TransactionUtil.formatTxnName(catalog_proc, txn_id);
             throw new RuntimeException(msg, ex);
         }
         AbstractTransaction dupe = this.inflight_txns.put(txn_id, ts);
@@ -469,18 +443,8 @@ public class TransactionInitializer {
         assert(procParams != null) :
             "The parameters object is null for new txn from client #" + client_handle;
         
-        MapReduceTransaction ts = null;
-        try {
-            if (hstore_conf.site.pool_txn_enable) {
-                ts = this.objectPools.getMapReduceTransactionPool(base_partition).borrowObject();
-            } else {
-                ts = new MapReduceTransaction(hstore_site);
-            }
-            assert(ts.isInitialized() == false);
-        } catch (Throwable ex) {
-            String msg = "Failed to instantiate new MapReduce transaction handle for " + AbstractTransaction.formatTxnName(catalog_proc, txn_id);
-            throw new RuntimeException(msg, ex);
-        }
+        MapReduceTransaction ts = new MapReduceTransaction(hstore_site);
+        
         // We should never already have a transaction handle for this txnId
         AbstractTransaction dupe = this.inflight_txns.put(txn_id, ts);
         assert(dupe == null) : "Trying to create multiple transaction handles for " + dupe;
@@ -552,6 +516,29 @@ public class TransactionInitializer {
     }
 
     /**
+     * Initialize the TransactionProfiler for the given txn handle.
+     * Returns true if profiling is enabled for this txn.
+     * @param ts
+     * @param sysproc
+     * @return
+     */
+    private boolean setupTransactionProfiler(LocalTransaction ts, boolean sysproc) {
+        if (hstore_conf.site.txn_profiling &&
+                sysproc == false &&
+                this.rng.nextDouble() < hstore_conf.site.txn_profiling_sample) {
+            if (ts.profiler == null) {
+                ts.setProfiler(new TransactionProfiler());
+            }
+            ts.profiler.enableProfiling();
+            ts.profiler.startTransaction(ProfileMeasurement.getTime());
+            return (true);
+        } else if (ts.profiler != null) {
+            ts.profiler.disableProfiling();
+        }
+        return (false);
+    }
+    
+    /**
      * Initialize the execution properties for a new transaction.
      * This is the important part where we try to figure out:
      * <ol>
@@ -583,13 +570,7 @@ public class TransactionInitializer {
         
         // Setup TransactionProfiler
         if (hstore_conf.site.txn_profiling) {
-            if (ts.profiler == null) {
-                ts.setProfiler(new TransactionProfiler());
-            }
-            ts.profiler.enableProfiling();
-            ts.profiler.startTransaction(ProfileMeasurement.getTime());
-        } else if (ts.profiler != null) {
-            ts.profiler.disableProfiling();
+            this.setupTransactionProfiler(ts, this.isSysProc[procId]);
         }
         
         // -------------------------------
@@ -640,11 +621,6 @@ public class TransactionInitializer {
         // TRANSACTION ESTIMATORS
         // -------------------------------
         else if (hstore_conf.site.markov_enable || hstore_conf.site.markov_fixed) {
-            if (debug.val)
-                LOG.debug(String.format("%s - Using TransactionEstimator to check whether txn is single-partitioned " +
-            	          "[clientHandle=%d]",
-            		      AbstractTransaction.formatTxnName(catalog_proc, txn_id), ts.getClientHandle()));
-            
             // Grab the TransactionEstimator for the destination partition and figure out whether
             // this mofo is likely to be single-partition or not. Anything that we can't estimate
             // will just have to be multi-partitioned. This includes sysprocs
@@ -653,29 +629,27 @@ public class TransactionInitializer {
                 t_estimator = this.hstore_site.getPartitionExecutor(base_partition).getTransactionEstimator();
                 this.t_estimators[base_partition] = t_estimator;
             }
-            if (debug.val && t_estimator instanceof MarkovEstimator) {
-                LOG.debug("We are in fact using a MarkovEstimator@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
-            }
             
             try {
                 if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.startInitEstimation();
                 if (t_estimator != null) {
+                    if (debug.val)
+                        LOG.debug(String.format("%s - Using %s to populate txn properties [clientHandle=%d]",
+                                  TransactionUtil.formatTxnName(catalog_proc, txn_id),
+                                  t_estimator.getClass().getSimpleName(), client_handle));
                     t_state = t_estimator.startTransaction(txn_id, base_partition, catalog_proc, params.toArray());
                 }
-                else if (debug.val) {
-                    LOG.debug("t_estimator is null@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
-                }
                 
-                // If there is no TransactinEstimator.State, then there is nothing we can do
+                // If there is no EstimatorState, then there is nothing we can do
                 // It has to be executed as multi-partitioned
                 if (t_state == null) {
                     if (debug.val) {
-                        LOG.debug("No EstimationState was returned. Using default estimate@@@@@@@@@@");
-                        LOG.debug(String.format("%s - No EstimationState was returned. Using default estimate.",
-                                  AbstractTransaction.formatTxnName(catalog_proc, txn_id)));
+                        LOG.debug(String.format("%s - No %s was returned. Using default estimate.",
+                                  TransactionUtil.formatTxnName(catalog_proc, txn_id),
+                                  EstimatorState.class.getSimpleName()));
                     }
                 }
-                // We have a TransactionEstimator, so let's see what it says...
+                // We have a EstimatorState handle, so let's see what it says...
                 else {
                     if (trace.val)
                         LOG.trace("\n" + StringBoxUtil.box(t_state.toString()));
@@ -684,41 +658,55 @@ public class TransactionInitializer {
                     // Bah! We didn't get back a Estimation for some reason...
                     if (t_estimate == null) {
                         if (debug.val)
-                            LOG.debug(String.format("%s - No Estimation was recieved. " +
-                        		      "Using default estimate.",
-                                      AbstractTransaction.formatTxnName(catalog_proc, txn_id)));
+                            LOG.debug(String.format("%s - No %s handle was return. Using default estimate.",
+                                      TransactionUtil.formatTxnName(catalog_proc, txn_id),
+                                      Estimate.class.getSimpleName()));
                     }
                     // Invalid Estimation. Stick with defaults
                     else if (t_estimate.isValid() == false) {
                         if (debug.val)
-                            LOG.debug(String.format("%s - Estimation is invalid. " +
-                            		  "Using default estimate.\n%s",
-                                      AbstractTransaction.formatTxnName(catalog_proc, txn_id), t_estimate));
+                            LOG.debug(String.format("%s - %s is marked as invalid. Using default estimate.\n%s",
+                                      TransactionUtil.formatTxnName(catalog_proc, txn_id),
+                                      t_estimate.getClass().getSimpleName(), t_estimate));
                     }    
                     // Use Estimation to determine things
                     else {
                         if (debug.val) {
-                            LOG.debug(String.format("%s - Using Estimation to determine if txn is single-partitioned",
-                                      AbstractTransaction.formatTxnName(catalog_proc, txn_id)));
+                            LOG.debug(String.format("%s - Using %s to determine if txn is single-partitioned",
+                                      TransactionUtil.formatTxnName(catalog_proc, txn_id),
+                                      t_estimate.getClass().getSimpleName()));
                             LOG.trace(String.format("%s %s:\n%s",
-                                      AbstractTransaction.formatTxnName(catalog_proc, txn_id),
+                                      TransactionUtil.formatTxnName(catalog_proc, txn_id),
                                       t_estimate.getClass().getSimpleName(), t_estimate));
                         }
                         predict_partitions = t_estimate.getTouchedPartitions(this.thresholds);
                         predict_readOnly = t_estimate.isReadOnlyAllPartitions(this.thresholds);
-                        predict_abortable = (predict_partitions.size() == 1 || t_estimate.isAbortable(this.thresholds)); // || predict_readOnly == false
+                        predict_abortable = (predict_partitions.size() == 1 ||
+                                             predict_readOnly == false ||
+                                             t_estimate.isAbortable(this.thresholds));
                         
-                        if (predict_partitions.size() == 1) {
-                            if (hstore_conf.site.markov_singlep_updates == false) t_state.disableUpdates();
-                        }
-                        else if (hstore_conf.site.markov_dtxn_updates == false) {
-                            t_state.disableUpdates();
+                        // Check whether the TransactionEstimator *really* thinks that we should 
+                        // give it updates about this txn. If the flag is false, then we'll
+                        // check whether the updates are enabled in the HStoreConf parameters
+                        if (t_state.shouldAllowUpdates() == false) {
+                            if (predict_partitions.size() == 1) {
+                                if (hstore_conf.site.markov_singlep_updates == false) t_state.disableUpdates();
+                            }
+                            else if (hstore_conf.site.markov_dtxn_updates == false) {
+                                t_state.disableUpdates();
+                            }
                         }
                         
                         if (debug.val && predict_partitions.isEmpty()) {
-                            LOG.warn(String.format("%s - Unexpected empty predicted PartitonSet from %s\n%s",
-                            		AbstractTransaction.formatTxnName(catalog_proc, txn_id),
-                            		t_estimator, t_estimate));
+                            LOG.warn(String.format("%s - Unexpected empty predicted %s from %s [updatesEnabled=%s]\n%s",
+                            		TransactionUtil.formatTxnName(catalog_proc, txn_id),
+                            		PartitionSet.class.getSimpleName(),
+                            		t_estimator.getClass().getSimpleName(),
+                            		t_state.isUpdatesEnabled(), t_estimate));
+                            ts.setAllowEarlyPrepare(false);
+//                            System.err.println("WROTE MARKOVGRAPH: " + ((MarkovEstimatorState)t_state).dumpMarkovGraph());
+//                            System.err.flush();
+//                            HStore.crashDB();
                         }
                     }
                 }
@@ -727,7 +715,7 @@ public class TransactionInitializer {
                     LOG.warn("WROTE MARKOVGRAPH: " + ((MarkovEstimatorState)t_state).dumpMarkovGraph());
                 }
                 LOG.error(String.format("Failed calculate estimate for %s request\nParameters: %s",
-                          AbstractTransaction.formatTxnName(catalog_proc, txn_id),
+                          TransactionUtil.formatTxnName(catalog_proc, txn_id),
                           params), ex);
                 ex.printStackTrace();
                 predict_partitions = catalogContext.getAllPartitionIds();
@@ -746,7 +734,7 @@ public class TransactionInitializer {
                 if (debug.val)
                     LOG.debug(String.format("The \"Always Single-Partitioned\" flag is true. " +
                     		  "Marking new %s transaction as single-partitioned on partition %d [clientHandle=%d]",
-                              catalog_proc.getName(), base_partition, ts.getClientHandle()));
+                              catalog_proc.getName(), base_partition, client_handle));
                 predict_partitions = catalogContext.getPartitionSetSingleton(base_partition);
             }
             // -------------------------------
@@ -778,14 +766,14 @@ public class TransactionInitializer {
             ts.profiler.setSingledPartitioned(ts.isPredictSinglePartition());
         
         if (debug.val) {
-            LOG.debug(String.format("Initializing %s on partition %d " +
-            		                "[clientHandle=%d, partitions=%s, singlePartition=%s, readOnly=%s, abortable=%s]",
-                      ts, base_partition,
-                      client_handle,
-                      ts.getPredictTouchedPartitions(),
-                      ts.isPredictSinglePartition(),
-                      ts.isPredictReadOnly(),
-                      ts.isPredictAbortable()));
+            Map<String, Object> m = new LinkedHashMap<String, Object>();
+            m.put("ClientHandle", client_handle);
+            m.put("Partitions", ts.getPredictTouchedPartitions());
+            m.put("Single Partition", ts.isPredictSinglePartition());
+            m.put("Read Only", ts.isPredictReadOnly());
+            m.put("Abortable", ts.isPredictAbortable()); 
+            LOG.debug(String.format("Initializing %s on partition %d\n%s",
+                      ts, base_partition, StringUtil.formatMaps(m).trim()));
         }
     }
 

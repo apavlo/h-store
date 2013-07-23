@@ -34,6 +34,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import junit.framework.TestCase;
 
@@ -124,7 +125,7 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
     protected static PartitionEstimator p_estimator;
     private static final Map<ProjectType, PartitionEstimator> project_p_estimators = new HashMap<ProjectType, PartitionEstimator>();
 
-    private static Boolean is_first = null;
+    private final static AtomicBoolean is_first = new AtomicBoolean(true);
     
     /**
      * Setup the test case for the given project type
@@ -152,7 +153,6 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
     
     protected void setUp(AbstractProjectBuilder projectBuilder, boolean force) throws Exception {
         super.setUp();
-        is_first = (is_first == null ? true : false);
         this.last_type = ProjectType.TEST;
         if (force == false) {
             catalogContext = project_catalogs.get(this.last_type);
@@ -195,7 +195,6 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
      */
     protected void setUp(ProjectType type, boolean fkeys, boolean full_catalog) throws Exception {
         super.setUp();
-        is_first = (is_first == null ? true : false);
         this.last_type = type;
         catalogContext = project_catalogs.get(type);
         
@@ -287,12 +286,13 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
         return (new File(getProjectBuilder(type).getDDLURL(true).getFile()));
     }
     /**
-     * Returns true if this is the first time setup() has been called
-     * Useful for updating the catalog
-     * @return
+     * Returns true if this is the first time setup() has been called.
+     * This method will always return true the first time it is invoked.
+     * All subsequent calls will return false.
+     * Useful for updating the catalog.
      */
-    protected final static Boolean isFirstSetup() {
-        return (is_first);
+    protected final static boolean isFirstSetup() {
+        return (is_first.compareAndSet(true, false));
     }
     
     /**
