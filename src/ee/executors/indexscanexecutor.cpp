@@ -648,6 +648,19 @@ bool IndexScanExecutor::p_execute(const NValueArray &params, ReadWriteTracker *t
                 m_outputTable->insertTupleNonVirtual(m_tuple);
                 tuples_written++;
             }
+            
+#ifdef ANTICACHE
+            if(m_targetTable->getEvictedTable() != NULL)  
+            {
+                if(!m_tuple.isEvicted())
+                {
+                    // update the tuple in the LRU eviction chain
+                    AntiCacheEvictionManager* eviction_manager = m_targetTable->m_executorContext->getAntiCacheEvictionManager();
+                    eviction_manager->updateTuple(m_targetTable, &m_tuple, false);
+                }
+            }
+#endif
+            
 
             //
             // INLINE LIMIT
@@ -706,7 +719,7 @@ bool IndexScanExecutor::p_execute(const NValueArray &params, ReadWriteTracker *t
     // throw exception indicating evicted blocks are needed
     if (evicted_block_ids.size() > 0)
     {
-        //evicted_block_ids.unique();
+        evicted_block_ids.unique();
         
         int num_block_ids = static_cast<int>(evicted_block_ids.size()); 
         
@@ -716,12 +729,14 @@ bool IndexScanExecutor::p_execute(const NValueArray &params, ReadWriteTracker *t
         int16_t* block_ids = new int16_t[num_block_ids];
         int32_t* tuple_ids = new int32_t[num_block_ids];
         
+//        VOLT_INFO("%d evicted block ids.", num_block_ids);
+        
         // copy the block ids into an array 
         int i = 0; 
         for(list<int16_t>::iterator itr = evicted_block_ids.begin(); itr != evicted_block_ids.end(); ++itr, ++i)
         {
             block_ids[i] = *itr; 
-            VOLT_INFO("Unevicting block %d", *itr); 
+//            VOLT_INFO("Unevicting block %d", *itr); 
         }
 
         // copy the tuple offsets into an array
@@ -730,8 +745,10 @@ bool IndexScanExecutor::p_execute(const NValueArray &params, ReadWriteTracker *t
         {
             tuple_ids[i] = *itr;
         }
+        
+        evicted_block_ids.clear(); 
 
-        VOLT_DEBUG("Throwing EvictedTupleAccessException for table %s (%d)", m_catalogTable->name().c_str(), m_catalogTable->relativeIndex());
+//        VOLT_INFO("Throwing EvictedTupleAccessException for table %s (%d)", m_catalogTable->name().c_str(), m_catalogTable->relativeIndex());
         
         throw EvictedTupleAccessException(m_catalogTable->relativeIndex(), num_block_ids, block_ids, tuple_ids);
     }

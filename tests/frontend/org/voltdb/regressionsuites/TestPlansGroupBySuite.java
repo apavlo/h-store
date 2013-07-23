@@ -48,7 +48,6 @@ public class TestPlansGroupBySuite extends RegressionSuite {
 
     private static final String PREFIX = "plansgroupby";
 
-    
     @SuppressWarnings("unchecked")
     public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
         org.voltdb.regressionsuites.plansgroupbyprocs.CountT1A1.class,
@@ -411,6 +410,7 @@ public class TestPlansGroupBySuite extends RegressionSuite {
             
             // FIXME
             // sum3 alternates 0|1. There are 100 dim1 instances / group
+
 //            if ((d1.intValue() % 2) == 0)
 //                assertEquals(s3.intValue(), 0);
 //            else
@@ -704,6 +704,7 @@ public class TestPlansGroupBySuite extends RegressionSuite {
         config = new LocalCluster(PREFIX + "-cluster.jar", 2, 2, 1, BackendTarget.NATIVE_EE_JNI);
         success = config.compile(project);
         assert(success);
+
         builder.addServerConfig(config);
 
 

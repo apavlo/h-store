@@ -66,8 +66,9 @@ public:
 private: 
     
     Table *table;     
-    int current_tuple_id; 
-	TableTuple* current_tuple;
+    uint32_t current_tuple_id;
+    TableTuple* current_tuple;
+    bool is_first; 
 }; 
 
 }
