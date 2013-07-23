@@ -482,6 +482,7 @@ public class Logger {
 
             case TableBase.MEMORY_TABLE :
             case TableBase.SYSTEM_TABLE :
+            case TableBase.STREAM_TABLE :
                 return new RowStoreAVLMemory(collection, (Table) table);
 
             case TableBase.TEXT_TABLE :

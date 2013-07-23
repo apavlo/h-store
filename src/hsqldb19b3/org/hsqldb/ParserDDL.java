@@ -138,6 +138,13 @@ public class ParserDDL extends ParserRoutine {
                 isTable   = true;
                 tableType = database.schemaManager.getDefaultTableType();
                 break;
+            	
+            case Tokens.STREAM :
+                read();
+
+                isTable   = true;
+                tableType = TableBase.STREAM_TABLE;
+                break;
 
             default :
         }

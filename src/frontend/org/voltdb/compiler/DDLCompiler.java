@@ -36,6 +36,8 @@ import org.hsqldb.HSQLInterface;
 import org.hsqldb.HSQLInterface.HSQLParseException;
 import org.voltdb.VoltType;
 import org.voltdb.catalog.Catalog;
+import org.voltdb.catalog.CatalogMap;
+import org.voltdb.catalog.CatalogType;
 import org.voltdb.catalog.Column;
 import org.voltdb.catalog.ColumnRef;
 import org.voltdb.catalog.Constraint;
@@ -43,6 +45,7 @@ import org.voltdb.catalog.ConstraintRef;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Index;
 import org.voltdb.catalog.MaterializedViewInfo;
+import org.voltdb.catalog.Stream;
 import org.voltdb.catalog.Table;
 import org.voltdb.compiler.VoltCompiler.VoltCompilerException;
 import org.voltdb.expressions.AbstractExpression;
@@ -80,6 +83,7 @@ public class DDLCompiler {
     HashMap<String, Column> columnMap = new HashMap<String, Column>();
     HashMap<String, Index> indexMap = new HashMap<String, Index>();
     HashMap<Table, String> matViewMap = new HashMap<Table, String>();
+    HashMap<Stream, String> matStreamMap = new HashMap<Stream, String>();
 
     private class DDLStatement {
         String statement;
@@ -240,6 +244,8 @@ public class DDLCompiler {
             Node node = tableNodes.item(i);
             if (node.getNodeName().equals("table"))
                 addTableToCatalog(catalog, db, node);
+            else if (node.getNodeName().equals("stream"))
+            	addStreamToCatalog(catalog, db, node);
         }
 
         processMaterializedViews(db);
@@ -282,7 +288,7 @@ public class DDLCompiler {
                 for (int j = 0; j < columnNodes.getLength(); j++) {
                     Node columnNode = columnNodes.item(j);
                     if (columnNode.getNodeName().equals("column"))
-                        addColumnToCatalog(table, columnNode, colIndex++);
+                        addColumnToCatalog(table, table.getColumns(), columnNode, colIndex++);
                 }
                 // limit the total number of columns in a table
                 if (colIndex > MAX_COLUMNS) {
@@ -297,7 +303,7 @@ public class DDLCompiler {
                 for (int j = 0; j < indexNodes.getLength(); j++) {
                     Node indexNode = indexNodes.item(j);
                     if (indexNode.getNodeName().equals("index"))
-                        addIndexToCatalog(table, indexNode);
+                        addIndexToCatalog(table.getIndexes(), indexNode);
                 }
             }
 
@@ -333,8 +339,100 @@ public class DDLCompiler {
                     " but the maximum supported row size is " + MAX_ROW_SIZE);
         }
     }
+    
+    void addStreamToCatalog(Catalog catalog, Database db, Node node) throws VoltCompilerException {
+        assert node.getNodeName().equals("stream");
 
-    void addColumnToCatalog(Table table, Node node, int index) throws VoltCompilerException {
+        // clear these maps, as they're table specific
+        columnMap.clear();
+        indexMap.clear();
+
+        NamedNodeMap attrs = node.getAttributes();
+        String name = attrs.getNamedItem("name").getNodeValue();
+
+        Stream stream = db.getStreams().add(name);
+        //stream.setEvictable(false);
+
+        // handle the case where this is a materialized view
+        Node queryAttr = attrs.getNamedItem("query");
+        if (queryAttr != null) {
+            String query = queryAttr.getNodeValue();
+            assert(query.length() > 0);
+            matStreamMap.put(stream, query);
+        }
+
+        // all tables start replicated
+        // if a partition is found in the project file later,
+        //  then this is reversed
+        //stream.setIsreplicated(true);
+
+        NodeList childNodes = node.getChildNodes();
+
+        for (int i = 0; i < childNodes.getLength(); i++) {
+            Node subNode = childNodes.item(i);
+
+            if (subNode.getNodeName().equals("columns")) {
+                NodeList columnNodes = subNode.getChildNodes();
+                int colIndex = 0;
+                for (int j = 0; j < columnNodes.getLength(); j++) {
+                    Node columnNode = columnNodes.item(j);
+                    if (columnNode.getNodeName().equals("column"))
+                        addColumnToCatalog(stream, stream.getColumns(), columnNode, colIndex++);
+                }
+                // limit the total number of columns in a table
+                if (colIndex > MAX_COLUMNS) {
+                    String msg = "Table " + name + " has " +
+                        colIndex + " columns (max is " + MAX_COLUMNS + ")";
+                    throw m_compiler.new VoltCompilerException(msg);
+                }
+            }
+
+            if (subNode.getNodeName().equals("indexes")) {
+                NodeList indexNodes = subNode.getChildNodes();
+                for (int j = 0; j < indexNodes.getLength(); j++) {
+                    Node indexNode = indexNodes.item(j);
+                    if (indexNode.getNodeName().equals("index"))
+                        addIndexToCatalog(stream.getIndexes(), indexNode);
+                }
+            }
+            /**
+             * FIXME: Streams should not need constraints, but if they do,
+             * this is where to add them.
+            if (subNode.getNodeName().equals("constraints")) {
+                NodeList constraintNodes = subNode.getChildNodes();
+                for (int j = 0; j < constraintNodes.getLength(); j++) {
+                    Node constraintNode = constraintNodes.item(j);
+                    if (constraintNode.getNodeName().equals("constraint"))
+                        addConstraintToCatalog(stream, constraintNode);
+                }
+            }
+            */
+        }
+
+        /*
+         * Validate that the total size
+         */
+        int maxRowSize = 0;
+        for (Column c : columnMap.values()) {
+            VoltType t = VoltType.get((byte)c.getType());
+            if (t == VoltType.STRING) {
+                if (c.getSize() > 1024 * 1024) {
+                    throw m_compiler.new VoltCompilerException("Table name " + name + " column " + c.getName() +
+                            " has a maximum size of " + c.getSize() + " bytes" +
+                            " but the maximum supported size is " + VoltType.MAX_VALUE_LENGTH_STR);
+                }
+                maxRowSize += 4 + c.getSize();
+            } else {
+                maxRowSize += t.getLengthInBytesForFixedTypes();
+            }
+        }
+        if (maxRowSize > MAX_ROW_SIZE) {
+            throw m_compiler.new VoltCompilerException("Table name " + name + " has a maximum row size of " + maxRowSize +
+                    " but the maximum supported row size is " + MAX_ROW_SIZE);
+        }
+    }
+
+    void addColumnToCatalog(CatalogType parent, CatalogMap<Column> columns, Node node, int index) throws VoltCompilerException {
         assert node.getNodeName().equals("column");
 
         NamedNodeMap attrs = node.getAttributes();
@@ -383,12 +481,12 @@ public class DDLCompiler {
         // check valid length if varchar
         if (type == VoltType.STRING) {
             if ((size == 0) || (size > VoltType.MAX_VALUE_LENGTH)) {
-                String msg = "VARCHAR Column " + name + " in table " + table.getTypeName() + " has unsupported length " + sizeString;
+                String msg = "VARCHAR Column " + name + " in table " + parent.getTypeName() + " has unsupported length " + sizeString;
                 throw m_compiler.new VoltCompilerException(msg);
             }
         }
 
-        Column column = table.getColumns().add(name);
+        Column column = columns.add(name);
         // need to set other column data here (default, nullable, etc)
         // column.setName(name);
         column.setIndex(index);
@@ -403,8 +501,8 @@ public class DDLCompiler {
 
         columnMap.put(name, column);
     }
-
-    void addIndexToCatalog(Table table, Node node) throws VoltCompilerException {
+    
+    void addIndexToCatalog(CatalogMap<Index> indexes, Node node) throws VoltCompilerException {
         assert node.getNodeName().equals("index");
 
         NamedNodeMap attrs = node.getAttributes();
@@ -425,7 +523,7 @@ public class DDLCompiler {
             }
         }
 
-        Index index = table.getIndexes().add(name);
+        Index index = indexes.add(name);
         // all indexes default to hash tables
         // if they are used in a non-equality lookup, the planner
         //  will change this to a binary tree
@@ -447,12 +545,13 @@ public class DDLCompiler {
         }
 
         String msg = "Created index: " + name + " on table: " +
-                     table.getTypeName() + " of type: " + IndexType.get(index.getType()).name();
+                     index.getParent().getTypeName() + " of type: " + IndexType.get(index.getType()).name();
 
         m_compiler.addInfo(msg);
 
         indexMap.put(name, index);
     }
+    
 
     /**
      * Add a constraint on a given table to the catalog

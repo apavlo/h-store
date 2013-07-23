@@ -46,6 +46,7 @@ public final class Schema implements SchemaObject {
     SchemaObjectSet constraintLookup;
     SchemaObjectSet indexLookup;
     SchemaObjectSet tableLookup;
+    SchemaObjectSet streamLookup;
     SchemaObjectSet sequenceLookup;
     SchemaObjectSet typeLookup;
     SchemaObjectSet charsetLookup;
@@ -64,6 +65,7 @@ public final class Schema implements SchemaObject {
         indexLookup      = new SchemaObjectSet(SchemaObject.INDEX);
         constraintLookup = new SchemaObjectSet(SchemaObject.CONSTRAINT);
         tableLookup      = new SchemaObjectSet(SchemaObject.TABLE);
+        streamLookup	 = new SchemaObjectSet(SchemaObject.STREAM);
         sequenceLookup   = new SchemaObjectSet(SchemaObject.SEQUENCE);
         typeLookup       = new SchemaObjectSet(SchemaObject.TYPE);
         charsetLookup    = new SchemaObjectSet(SchemaObject.CHARSET);
@@ -160,6 +162,10 @@ public final class Schema implements SchemaObject {
         subList = tableLookup.getSQL(resolved, unresolved);
 
         list.addAll(subList);
+        
+        subList = streamLookup.getSQL(resolved, unresolved);
+        
+        list.addAll(subList);
 
         subList = functionLookup.getSQL(resolved, unresolved);
 
@@ -233,6 +239,9 @@ public final class Schema implements SchemaObject {
             case SchemaObject.TABLE :
             case SchemaObject.VIEW :
                 return tableLookup.map.values().iterator();
+                
+            case SchemaObject.STREAM :
+            	return streamLookup.map.values().iterator();
 
             case SchemaObject.CHARSET :
                 return charsetLookup.map.values().iterator();
@@ -281,6 +290,7 @@ public final class Schema implements SchemaObject {
         functionLookup   = null;
         sequenceLookup   = null;
         tableLookup      = null;
+        streamLookup	 = null;
         typeLookup       = null;
     }
 }

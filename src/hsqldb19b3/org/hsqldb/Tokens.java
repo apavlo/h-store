@@ -316,6 +316,7 @@ public class Tokens {
     static final String        T_STATIC            = "STATIC";
     static final String        T_STDDEV_POP        = "STDDEV_POP";
     static final String        T_STDDEV_SAMP       = "STDDEV_SAMP";
+    static final String        T_STREAM            = "STREAM";
     static final String        T_SUBMULTISET       = "SUBMULTISET";
     static final String        T_SUBSTRING         = "SUBSTRING";
     static final String        T_SUBSTRING_REGEX   = "SUBSTRING_REGEX";
@@ -1536,6 +1537,9 @@ public class Tokens {
     public static final int X_MALFORMED_COMMENT        = 737;
     public static final int X_MALFORMED_IDENTIFIER     = 738;
     public static final int X_MALFORMED_UNICODE_ESCAPE = 739;
+    
+    //stream tokens
+    public static final int STREAM		= 1001;
 
     //
     public static final int X_UNKNOWN_TOKEN = -1;
@@ -1814,6 +1818,7 @@ public class Tokens {
         reservedKeys.put(Tokens.T_STATIC, STATIC);
         reservedKeys.put(Tokens.T_STDDEV_POP, STDDEV_POP);
         reservedKeys.put(Tokens.T_STDDEV_SAMP, STDDEV_SAMP);
+        reservedKeys.put(Tokens.T_STREAM, STREAM);
         reservedKeys.put(Tokens.T_SUBMULTISET, SUBMULTISET);
         reservedKeys.put(Tokens.T_SUBSTRING, SUBSTRING);
         reservedKeys.put(Tokens.T_SUBSTRING_REGEX, SUBSTRING_REGEX);

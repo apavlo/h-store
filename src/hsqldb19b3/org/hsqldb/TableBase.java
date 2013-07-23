@@ -70,6 +70,9 @@ public class TableBase {
     //
     public static final int COLUMNS_UNREFERENCED = 15;
     public static final int COLUMNS_REFERENCED   = 16;
+    
+    //stream additions
+    public static final int STREAM_TABLE     = 101;
 
     //
     public PersistentStore store;
@@ -106,6 +109,7 @@ public class TableBase {
     protected boolean isLogged;
     private boolean   isTransactional = true;
     boolean           hasLobColumn;
+    boolean			  isStream;
 
     //
     TableBase() {}
@@ -141,6 +145,7 @@ public class TableBase {
         copy.primaryKeyCols   = primaryKeyCols;
         copy.primaryKeyTypes  = primaryKeyTypes;
         copy.indexList        = indexList;
+        copy.isStream		  = isStream;
 
         return copy;
     }
