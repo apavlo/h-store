@@ -23,6 +23,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
+import java.lang.management.ManagementFactory;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.concurrent.atomic.AtomicLong;
@@ -205,6 +206,7 @@ public class PlannerTool {
         ArrayList<String> cmd = new ArrayList<String>();
 
         cmd.add("java");
+        cmd.add("-Dhstore.tag=planner");
         cmd.add("-cp");
         cmd.add(classpath);
         cmd.add("-Xmx256m");
@@ -223,21 +225,20 @@ public class PlannerTool {
         try {
             process = pb.start();
         } catch (IOException e) {
-            // TODO Auto-generated catch block
             e.printStackTrace();
         }
+        
         OutputStreamWriter in = new OutputStreamWriter(process.getOutputStream());
-
         String encodedCatalog = Encoder.compressAndBase64Encode(serializedCatalog);
 
         try {
             in.write(encodedCatalog + "\n");
             in.flush();
         } catch (IOException e) {
-            // TODO Auto-generated catch block
             e.printStackTrace();
         }
 
+        LOG.debug("Planner Process: " + process);
         return new PlannerTool(process, in);
     }
 
@@ -274,6 +275,7 @@ public class PlannerTool {
         FileUtil.makeDirIfNotExists(m_logfile.getParent());
 
         log("\ngetting started at: " + new Date().toString());
+        log("pid=" + ManagementFactory.getRuntimeMXBean().getName());
 
         //////////////////////
         // LOAD THE CATALOG
@@ -300,13 +302,13 @@ public class PlannerTool {
         catalog.execute(serializedCatalog);
         Cluster cluster = catalog.getClusters().get("cluster");
         Database db = cluster.getDatabases().get("database");
-
         log("catalog loaded");
 
         //////////////////////
         // LOAD HSQL
         //////////////////////
 
+        log("creating HSQLInterface");
         HSQLInterface hsql = HSQLInterface.loadHsqldb();
         String hexDDL = db.getSchema();
         String ddl = Encoder.hexDecodeToString(hexDDL);
@@ -331,7 +333,6 @@ public class PlannerTool {
         //////////////////////
 
         String inputLine = "";
-
         while (true) {
 
             //////////////////////
@@ -427,7 +428,7 @@ public class PlannerTool {
             // print a newline to delimit
             System.out.println();
             System.out.flush();
-        }
+        } // WHILE
     }
 
 }

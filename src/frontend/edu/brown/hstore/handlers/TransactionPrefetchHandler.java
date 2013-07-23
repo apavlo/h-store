@@ -30,8 +30,8 @@ import edu.brown.utils.PartitionSet;
  */
 public class TransactionPrefetchHandler extends AbstractTransactionHandler<TransactionPrefetchResult, TransactionPrefetchAcknowledgement> {
     private static final Logger LOG = Logger.getLogger(TransactionWorkHandler.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
+    private static final LoggerBoolean trace = new LoggerBoolean();
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
@@ -85,6 +85,7 @@ public class TransactionPrefetchHandler extends AbstractTransactionHandler<Trans
         } else {
             for (int i = 0, cnt = result.getDepIdCount(); i < cnt; i++) {
                 int fragmentId = request.getFragmentId(i);
+                int stmtCounter = request.getStmtCounter(i);
                 int paramsHash = request.getParamHash(i);
                 
                 VoltTable vt = null;
@@ -95,11 +96,9 @@ public class TransactionPrefetchHandler extends AbstractTransactionHandler<Trans
                     throw new RuntimeException(ex);
                 }
         
-                executor.addPrefetchResult(txn_id,
-                                           fragmentId,
+                executor.addPrefetchResult(ts, stmtCounter, fragmentId,
                                            request.getSourcePartition(),
-                                           paramsHash,
-                                           vt);
+                                           paramsHash, vt);
             } // FOR
         }
         

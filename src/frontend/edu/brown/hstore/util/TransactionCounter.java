@@ -19,6 +19,11 @@ import edu.brown.statistics.Histogram;
 import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.StringUtil;
 
+/**
+ * Internal counters for how transactions were executed.
+ * These are updated in various parts of the txn's lifetime.
+ * TODO: This should be better integrated into the Statistics framework.
+ */
 public enum TransactionCounter {
     /** The number of transaction requests that have arrived at this site */
     RECEIVED,
@@ -50,16 +55,14 @@ public enum TransactionCounter {
     ABORT_GRACEFUL,
     /** The number of transactions that were aborted while being speculatively executed */
     ABORT_SPECULATIVE,
-    /** The number of transactions that were speculative and had to be restarted */
+    /** The number of transactions that had to be restarted (non-speculative txns) */
     RESTARTED,
     /** The number of transactions that were aborted because they tried to access evicted data */
     EVICTEDACCESS,
     /** No undo buffers! Naked transactions! */
     NO_UNDO,
     /** The number of transactions that were sent out with prefetch queries */
-    PREFETCH_LOCAL,
-    /** The number of transactions with prefetch queries that were received and prefetched before needed by the sender */
-    PREFETCH_REMOTE,
+    PREFETCH,
     
     // --------------------------------------------------------
     // Speculative Execution Stall Points
@@ -127,6 +130,7 @@ public enum TransactionCounter {
         switch (this) {
             case SINGLE_PARTITION:
             case MULTI_PARTITION:
+            case MULTI_SITE:
                 if (this.get() == 0) return (null);
                 total = SINGLE_PARTITION.get() + MULTI_PARTITION.get();
                 break;
@@ -140,6 +144,7 @@ public enum TransactionCounter {
             case ABORTED:
             case ABORT_UNEXPECTED:
             case ABORT_GRACEFUL:
+            case ABORT_SPECULATIVE:
             case RESTARTED:
             case MISPREDICTED:
                 total = EXECUTED.get() - SYSPROCS.get();
@@ -148,8 +153,7 @@ public enum TransactionCounter {
             case REJECTED:
             case RECEIVED:
             case EXECUTED:
-            case PREFETCH_LOCAL:
-            case PREFETCH_REMOTE:
+            case PREFETCH:
                 total = RECEIVED.get();
                 break;
             case SPECULATIVE_IDLE:
@@ -163,21 +167,17 @@ public enum TransactionCounter {
             case COMPLETED:
                 return (null);
             default:
-                assert(false) : "Unexpected TxnCounter: " + this;
+                assert(false) :
+                    String.format("Unexpected %s.%s", this.getClass().getSimpleName(), this);
         }
         return (total == 0 ? null : cnt / (double)total);
     }
     
-    protected static final Map<Integer, TransactionCounter> idx_lookup = new HashMap<Integer, TransactionCounter>();
     protected static final Map<String, TransactionCounter> name_lookup = new HashMap<String, TransactionCounter>();
     static {
         for (TransactionCounter vt : EnumSet.allOf(TransactionCounter.class)) {
-            TransactionCounter.idx_lookup.put(vt.ordinal(), vt);
             TransactionCounter.name_lookup.put(vt.name().toLowerCase(), vt);
         }
-    }
-    public static TransactionCounter get(Integer idx) {
-        return TransactionCounter.idx_lookup.get(idx);
     }
     public static TransactionCounter get(String name) {
         return TransactionCounter.name_lookup.get(name.toLowerCase());

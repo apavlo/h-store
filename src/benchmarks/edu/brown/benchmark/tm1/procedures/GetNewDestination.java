@@ -39,7 +39,10 @@ import org.voltdb.VoltTable;
 
 import edu.brown.benchmark.tm1.TM1Constants;
 
-@ProcInfo(partitionInfo = "SUBSCRIBER.S_ID: 0", singlePartition = true)
+@ProcInfo(
+    partitionInfo = "SUBSCRIBER.S_ID: 0",
+    singlePartition = true
+)
 public class GetNewDestination extends VoltProcedure {
 
     public final SQLStmt GetData = new SQLStmt(

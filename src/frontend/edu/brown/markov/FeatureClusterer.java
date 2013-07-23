@@ -1,5 +1,6 @@
 package edu.brown.markov;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -39,7 +40,7 @@ import edu.brown.costmodel.MarkovCostModel;
 import edu.brown.hstore.estimators.markov.MarkovEstimator;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
-import edu.brown.markov.containers.MarkovGraphContainersUtil;
+import edu.brown.markov.containers.MarkovGraphsContainerUtil;
 import edu.brown.markov.containers.MarkovGraphsContainer;
 import edu.brown.markov.features.BasePartitionFeature;
 import edu.brown.markov.features.FeatureUtil;
@@ -62,8 +63,8 @@ import edu.brown.workload.Workload;
  */
 public class FeatureClusterer {
     private static final Logger LOG = Logger.getLogger(FeatureClusterer.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
+    private static final LoggerBoolean trace = new LoggerBoolean();
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
@@ -627,7 +628,7 @@ public class FeatureClusterer {
         for (Integer partition : FeatureClusterer.this.all_partitions) {
             MarkovGraph m = this.global_markov.get(partition, this.catalog_proc);
             assert(m != null);
-            m.calculateProbabilities();
+            m.calculateProbabilities(catalogContext.getAllPartitionIds());
             assert(m.isValid()) : "The MarkovGraph at Partition #" + partition + " is not valid!";
         } // FOR
         if (debug.val) LOG.debug(String.format("Finished initializing GLOBAL MarkovCostModel"));
@@ -775,7 +776,7 @@ public class FeatureClusterer {
                 
                 // So that we can improve our predictions...
                 markov.processTransaction(txn_trace, p_estimator);
-                markov.calculateProbabilities();
+                markov.calculateProbabilities(catalogContext.getAllPartitionIds());
                 
 //                if (c_counters[singlepartitioned ? 0 : 1] == 1) {
 ////                    MarkovPathEstimator.LOG.setLevel(Level.TRACE);
@@ -889,7 +890,7 @@ public class FeatureClusterer {
                 
                 // Calculate the probabilities for each graph
                 for (MarkovGraph markov : e.getValue().values()) {
-                    markov.calculateProbabilities();
+                    markov.calculateProbabilities(catalogContext.getAllPartitionIds());
                 } // FOR
             } // FOR
             if (trace.val) LOG.trace(String.format("Finished processing MarkovGraphs for Partition #%d [count=%d]", partition, costmodel_latch.getCount()));
@@ -1152,8 +1153,8 @@ public class FeatureClusterer {
         MarkovAttributeSet aset = new MarkovAttributeSet(attributes);
         Map<Integer, MarkovGraphsContainer> markovs = fclusterer.constructMarkovModels(aset, data);
         
-        String output = catalog_proc.getName() + ".markovs";
-        MarkovGraphContainersUtil.save(markovs, output);
+        File output = new File(catalog_proc.getName() + ".markovs");
+        MarkovGraphsContainerUtil.save(markovs, output);
         
 //        fclusterer.calculateGlobalCost();
 //        AbstractClusterer clusterer = fclusterer.calculateAttributeSetCost(aset);

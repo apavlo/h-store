@@ -4,6 +4,7 @@
 
 <!-- GLOBAL -->
 <arg value="global.jvm_version=${global.jvm_version}" />
+<arg value="global.memory=${global.memory}" />
 <arg value="global.temp_dir=${global.temp_dir}" />
 <arg value="global.log_dir=${global.log_dir}" />
 <arg value="global.sshoptions=${global.sshoptions}" />
@@ -30,6 +31,7 @@
 <arg value="client.processesperclient_per_partition=${client.processesperclient_per_partition}" />
 <arg value="client.shared_connection=${client.shared_connection}" />
 <arg value="client.count=${client.count}" />
+<arg value="client.singlepartition_threads=${client.singlepartition_threads}" />
 <arg value="client.duration=${client.duration}" />
 <arg value="client.warmup=${client.warmup}" />
 <arg value="client.interval=${client.interval}" />
@@ -58,9 +60,11 @@
 <arg value="client.output_basepartitions=${client.output_basepartitions}" />
 <arg value="client.output_response_status=${client.output_response_status}" />
 <arg value="client.output_status=${client.output_status}" />
-<arg value="client.output_specexec=${client.output_specexec}" />
+<arg value="client.output_results_table=${client.output_results_table}" />
 <arg value="client.output_json=${client.output_json}" />
+<arg value="client.output_results_json=${client.output_results_json}" />
 <arg value="client.output_csv=${client.output_csv}" />
+<arg value="client.output_results_csv=${client.output_results_csv}" />
 <arg value="client.output_memory=${client.output_memory}" />
 <arg value="client.output_responses=${client.output_responses}" />
 <arg value="client.output_exec_profiling=${client.output_exec_profiling}" />
@@ -77,6 +81,7 @@
 <arg value="client.output_planner_profiling_combine=${client.output_planner_profiling_combine}" />
 <arg value="client.output_markov_profiling=${client.output_markov_profiling}" />
 <arg value="client.output_table_stats=${client.output_table_stats}" />
+<arg value="client.output_table_stats_periodically=${client.output_table_stats_periodically}" />
 <arg value="client.output_txn_counters=${client.output_txn_counters}" />
 <arg value="client.output_txn_counters_combine=${client.output_txn_counters_combine}" />
 <arg value="client.profiling=${client.profiling}" />
@@ -113,23 +118,25 @@
 <arg value="site.exec_queued_response_ee_bypass=${site.exec_queued_response_ee_bypass}" />
 <arg value="site.exec_response_timeout=${site.exec_response_timeout}" />
 <arg value="site.exec_validate_work=${site.exec_validate_work}" />
-<arg value="site.exec_command_logging=${site.exec_command_logging}" />
-<arg value="site.exec_command_logging_directory=${site.exec_command_logging_directory}" />
-<arg value="site.exec_command_logging_group_commit_timeout=${site.exec_command_logging_group_commit_timeout}" />
-<arg value="site.exec_command_logging_profile=${site.exec_command_logging_profile}" />
+<arg value="site.exec_early_prepare=${site.exec_early_prepare}" />
 <arg value="site.exec_adhoc_sql=${site.exec_adhoc_sql}" />
 <arg value="site.exec_prefetch_queries=${site.exec_prefetch_queries}" />
 <arg value="site.exec_deferrable_queries=${site.exec_deferrable_queries}" />
 <arg value="site.exec_periodic_interval=${site.exec_periodic_interval}" />
+<arg value="site.exec_readwrite_tracking=${site.exec_readwrite_tracking}" />
 <arg value="site.specexec_enable=${site.specexec_enable}" />
-<arg value="site.specexec_ignore_all_local=${site.specexec_ignore_all_local}" />
-<arg value="site.specexec_nonblocking=${site.specexec_nonblocking}" />
-<arg value="site.specexec_markov=${site.specexec_markov}" />
-<arg value="site.specexec_unsafe=${site.specexec_unsafe}" />
-<arg value="site.specexec_unsafe_limit=${site.specexec_unsafe_limit}" />
-<arg value="site.specexec_profiling=${site.specexec_profiling}" />
+<arg value="site.specexec_scheduler_checker=${site.specexec_scheduler_checker}" />
 <arg value="site.specexec_scheduler_policy=${site.specexec_scheduler_policy}" />
 <arg value="site.specexec_scheduler_window=${site.specexec_scheduler_window}" />
+<arg value="site.specexec_ignore_all_local=${site.specexec_ignore_all_local}" />
+<arg value="site.specexec_ignore_queue_size_change=${site.specexec_ignore_queue_size_change}" />
+<arg value="site.specexec_ignore_interruptions=${site.specexec_ignore_interruptions}" />
+<arg value="site.specexec_ignore_stallpoints=${site.specexec_ignore_stallpoints}" />
+<arg value="site.specexec_nonblocking=${site.specexec_nonblocking}" />
+<arg value="site.specexec_unsafe_limit=${site.specexec_unsafe_limit}" />
+<arg value="site.specexec_profiling=${site.specexec_profiling}" />
+<arg value="site.specexec_profiling_sample=${site.specexec_profiling_sample}" />
+<arg value="site.specexec_disable_partitions=${site.specexec_disable_partitions}" />
 <arg value="site.commandlog_enable=${site.commandlog_enable}" />
 <arg value="site.commandlog_dir=${site.commandlog_dir}" />
 <arg value="site.commandlog_timeout=${site.commandlog_timeout}" />
@@ -140,9 +147,14 @@
 <arg value="site.anticache_block_size=${site.anticache_block_size}" />
 <arg value="site.anticache_reset=${site.anticache_reset}" />
 <arg value="site.anticache_check_interval=${site.anticache_check_interval}" />
-<arg value="site.anticache_threshold=${site.anticache_threshold}" />
+<arg value="site.anticache_threshold_mb=${site.anticache_threshold_mb}" />
+<arg value="site.anticache_threshold_ratio=${site.anticache_threshold_ratio}" />
+<arg value="site.anticache_max_evicted_blocks=${site.anticache_max_evicted_blocks}" />
+<arg value="site.anticache_blocks_per_eviction=${site.anticache_blocks_per_eviction}" />
+<arg value="site.anticache_eviction_distribution=${site.anticache_eviction_distribution}" />
 <arg value="site.mr_map_blocking=${site.mr_map_blocking}" />
 <arg value="site.mr_reduce_blocking=${site.mr_reduce_blocking}" />
+<arg value="site.network_heartbeats_interval=${site.network_heartbeats_interval}" />
 <arg value="site.network_startup_wait=${site.network_startup_wait}" />
 <arg value="site.network_startup_retries=${site.network_startup_retries}" />
 <arg value="site.network_incoming_max_per_partition=${site.network_incoming_max_per_partition}" />
@@ -150,6 +162,7 @@
 <arg value="site.network_incoming_limit_bytes=${site.network_incoming_limit_bytes}" />
 <arg value="site.txn_client_debug=${site.txn_client_debug}" />
 <arg value="site.txn_profiling=${site.txn_profiling}" />
+<arg value="site.txn_profiling_sample=${site.txn_profiling_sample}" />
 <arg value="site.txn_counters=${site.txn_counters}" />
 <arg value="site.txn_incoming_delay=${site.txn_incoming_delay}" />
 <arg value="site.txn_restart_limit=${site.txn_restart_limit}" />
@@ -165,6 +178,8 @@
 <arg value="site.queue_release_factor=${site.queue_release_factor}" />
 <arg value="site.mappings_path=${site.mappings_path}" />
 <arg value="site.markov_enable=${site.markov_enable}" />
+<arg value="site.markov_force_traversal=${site.markov_force_traversal}" />
+<arg value="site.markov_learning_enable=${site.markov_learning_enable}" />
 <arg value="site.markov_singlep_updates=${site.markov_singlep_updates}" />
 <arg value="site.markov_dtxn_updates=${site.markov_dtxn_updates}" />
 <arg value="site.markov_mispredict_recompute=${site.markov_mispredict_recompute}" />
@@ -174,7 +189,6 @@
 <arg value="site.markov_fast_path=${site.markov_fast_path}" />
 <arg value="site.markov_endpoint_caching=${site.markov_endpoint_caching}" />
 <arg value="site.markov_batch_caching_min=${site.markov_batch_caching_min}" />
-<arg value="site.exec_neworder_cheat=${site.exec_neworder_cheat}" />
 <arg value="site.markov_fixed=${site.markov_fixed}" />
 <arg value="site.markov_profiling=${site.markov_profiling}" />
 <arg value="site.planner_profiling=${site.planner_profiling}" />
@@ -196,10 +210,5 @@
 <arg value="site.status_thread_info=${site.status_thread_info}" />
 <arg value="site.pool_scale_factor=${site.pool_scale_factor}" />
 <arg value="site.pool_profiling=${site.pool_profiling}" />
-<arg value="site.pool_txn_enable=${site.pool_txn_enable}" />
-<arg value="site.pool_mapreducetxnstate_idle=${site.pool_mapreducetxnstate_idle}" />
 <arg value="site.pool_pathestimators_idle=${site.pool_pathestimators_idle}" />
-<arg value="site.pool_prefetchstates_idle=${site.pool_prefetchstates_idle}" />
-<arg value="site.pool_txnredirect_idle=${site.pool_txnredirect_idle}" />
-<arg value="site.pool_txnredirectresponses_idle=${site.pool_txnredirectresponses_idle}" />
 

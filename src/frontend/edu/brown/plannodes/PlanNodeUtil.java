@@ -55,12 +55,12 @@ import org.voltdb.utils.Encoder;
 
 import edu.brown.catalog.CatalogKey;
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.designer.ColumnSet;
 import edu.brown.expressions.ExpressionUtil;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.PredicatePairs;
 
 /**
  * Utility methods for extracting information from AbstractPlanNode trees/nodes
@@ -69,8 +69,8 @@ import edu.brown.utils.CollectionUtil;
  */
 public abstract class PlanNodeUtil {
     private static final Logger LOG = Logger.getLogger(PlanNodeUtil.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
+    private static final LoggerBoolean trace = new LoggerBoolean();
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
@@ -157,8 +157,8 @@ public abstract class PlanNodeUtil {
      * @param rootNode
      * @return
      */
-    public static boolean isRangeQuery(Database catalog_db, AbstractPlanNode rootNode) {
-        for (ExpressionType expType : getScanExpressionTypes(catalog_db, rootNode)) {
+    public static boolean isRangeQuery(AbstractPlanNode rootNode) {
+        for (ExpressionType expType : getScanExpressionTypes(rootNode)) {
             switch (expType) {
                 case COMPARE_GREATERTHAN:
                 case COMPARE_GREATERTHANOREQUALTO:
@@ -303,12 +303,10 @@ public abstract class PlanNodeUtil {
 
     /**
      * Return all the ExpressionTypes used for scan predicates in the given PlanNode
-     * 
-     * @param catalog_db
      * @param node
      * @return
      */
-    public static Collection<ExpressionType> getScanExpressionTypes(final Database catalog_db, AbstractPlanNode root) {
+    public static Collection<ExpressionType> getScanExpressionTypes(AbstractPlanNode root) {
         final Set<ExpressionType> found = new HashSet<ExpressionType>();
         new PlanNodeTreeWalker(true) {
             @Override
@@ -347,12 +345,11 @@ public abstract class PlanNodeUtil {
         }.traverse(root);
         return (found);
     }
-
+    
     /**
-     * Get the columns referenced in the output portion of a SELECT query
-     * 
+     * Get the Columns referenced in the output portion of a SELECT query
      * @param catalog_stmt
-     * @return
+     * @return A collection of the output Columns
      * @throws Exception
      */
     public static Collection<Column> getOutputColumnsForStatement(Statement catalog_stmt) throws Exception {
@@ -411,7 +408,7 @@ public abstract class PlanNodeUtil {
         final PlannerContext pcontext = PlannerContext.singleton();
         final Collection<Integer> planColumnIds = getOutputColumnIdsForPlanNode(node);
 
-        final Set<AbstractExpression> exps = new ListOrderedSet<AbstractExpression>();
+        final Collection<AbstractExpression> exps = new ListOrderedSet<AbstractExpression>();
         for (Integer column_guid : planColumnIds) {
             PlanColumn planColumn = pcontext.get(column_guid);
             assert (planColumn != null);
@@ -428,7 +425,7 @@ public abstract class PlanNodeUtil {
      * @return
      */
     public static Collection<Integer> getOutputColumnIdsForPlanNode(AbstractPlanNode node) {
-        final Set<Integer> planColumnIds = new HashSet<Integer>();
+        final Collection<Integer> planColumnIds = new ListOrderedSet<Integer>();
 
         // 2011-07-20: Using the AbstractExpressions is the more accurate way of
         // getting the
@@ -826,9 +823,9 @@ public abstract class PlanNodeUtil {
 
         if (col_key == null) {
             Statement catalog_stmt = catalog_stmt_param.getParent();
-            ColumnSet cset = null;
+            PredicatePairs cset = null;
             try {
-                cset = CatalogUtil.extractStatementColumnSet(catalog_stmt, false);
+                cset = CatalogUtil.extractStatementPredicates(catalog_stmt, false);
             } catch (Throwable ex) {
                 throw new RuntimeException("Failed to extract ColumnSet for " + catalog_stmt_param.fullName(), ex);
             }

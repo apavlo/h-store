@@ -17,7 +17,7 @@ import edu.brown.utils.PartitionSet;
  */
 public class RemoteFinishCallback extends PartitionCountingCallback<AbstractTransaction> {
     private static final Logger LOG = Logger.getLogger(RemoteFinishCallback.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
     static {
         LoggerUtil.attachObserver(LOG, debug);
     }

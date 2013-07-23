@@ -29,8 +29,12 @@ package edu.brown.profilers;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Collection;
 
+import org.apache.commons.collections15.Buffer;
+import org.apache.commons.collections15.buffer.CircularFifoBuffer;
 import org.apache.log4j.Logger;
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.JSONStringer;
@@ -48,8 +52,8 @@ import edu.brown.utils.JSONUtil;
  */
 public class ProfileMeasurement implements JSONSerializable {
     private static final Logger LOG = Logger.getLogger(ProfileMeasurement.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
+    private static final LoggerBoolean trace = new LoggerBoolean();
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
@@ -63,6 +67,8 @@ public class ProfileMeasurement implements JSONSerializable {
     /** The number of times that this ProfileMeasurement has been started */
     private int invocations = 0;
 
+    private Buffer<Long> history = null;
+    
     /**
      * This marker is used to set when the boundary area of the code we are
      * trying to profile starts and stops. When it is zero, the system is
@@ -85,11 +91,20 @@ public class ProfileMeasurement implements JSONSerializable {
 
     /**
      * Constructor
-     * 
      * @param pmtype
      */
     public ProfileMeasurement(String pmtype) {
+        this(pmtype, false);
+    }
+    
+    /**
+     * Constructor
+     * @param pmtype
+     * @param history Enable history tracking
+     */
+    public ProfileMeasurement(String pmtype, boolean history) {
         this.name = pmtype;
+        if (history) this.enableHistoryTracking();
         this.reset();
     }
 
@@ -99,7 +114,10 @@ public class ProfileMeasurement implements JSONSerializable {
      * @param orig
      */
     public ProfileMeasurement(ProfileMeasurement orig) {
-        this(orig.name);
+        this(orig.name, (orig.history != null));
+        if (this.history != null) {
+            this.history.addAll(orig.history);
+        }
         this.appendTime(orig);
     }
 
@@ -107,18 +125,32 @@ public class ProfileMeasurement implements JSONSerializable {
     // UTILITY METHODS
     // ----------------------------------------------------------------------------
 
+    public void enableHistoryTracking() {
+        if (this.history == null) {
+            synchronized (this) {
+                if (this.history == null) {
+                    this.history = new CircularFifoBuffer<Long>(10000);
+                }
+            } // SYNCH
+            if (debug.val)
+                LOG.debug("Enabled history tracking in " + this);
+        }
+    }
+    
     public void reset() {
         if (this.marker != NULL_MARKER) {
             this.reset = true;
         }
         this.total_time = 0;
         this.invocations = 0;
+        if (this.history != null) this.history.clear();
     }
 
     public void clear() {
         this.marker = NULL_MARKER;
         this.invocations = 0;
         this.total_time = 0;
+        if (this.history != null) this.history.clear();
     }
 
     /**
@@ -195,6 +227,11 @@ public class ProfileMeasurement implements JSONSerializable {
         return (this.marker);
     }
     
+    public Collection<Long> getHistory(Collection<Long> to_fill) {
+        to_fill.addAll(this.history);
+        return (to_fill);
+    }
+    
     // ----------------------------------------------------------------------------
     // START METHODS
     // ----------------------------------------------------------------------------
@@ -262,6 +299,7 @@ public class ProfileMeasurement implements JSONSerializable {
                                    this.name, timestamp, this.marker, added));
         } else {
             this.total_time += added;
+            if (this.history != null) this.history.add(added);
         }
         this.marker = NULL_MARKER;
         if (this.stop_observable != null)
@@ -420,6 +458,13 @@ public class ProfileMeasurement implements JSONSerializable {
         stringer.key("NAME").value(this.name);
         stringer.key("TIME").value(this.total_time);
         stringer.key("INVOCATIONS").value(this.invocations);
+        if (this.history != null) {
+            stringer.key("HISTORY").array();
+            for (long val : this.history) {
+                stringer.value(val);
+            } // FOR
+            stringer.endArray();
+        }
     }
 
     @Override
@@ -427,5 +472,13 @@ public class ProfileMeasurement implements JSONSerializable {
         this.name = json_object.getString("NAME");
         this.total_time = json_object.getLong("TIME");
         this.invocations = json_object.getInt("INVOCATIONS");
+        if (json_object.has("HISTORY")) {
+            this.history = null;
+            this.enableHistoryTracking();
+            JSONArray json_arr = json_object.getJSONArray("HISTORY");
+            for (int i = 0, cnt = json_arr.length(); i < cnt; i++) {
+                this.history.add(json_arr.getLong(i));
+            } // FOR
+        }
     }
 }

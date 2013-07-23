@@ -60,15 +60,36 @@ class CopyOnWriteTest_TestTableTupleFlags;
 class TableTupleTest_MarkAsEvicted;
 
 namespace voltdb {
+    
+/*
+ 
+ The tuple header is of the following structures:
+ 
+ (a). No anti-caching
+ -----------------------------------
+ |  flags (1 byte)  |  tuple data  |
+ -----------------------------------
+ 
+ (b). Anti-Caching with single-linked list
+ ---------------------------------------------------------------
+ |  flags (1 byte)  |  "next" tuple id (4 bytes) | tuple data  |
+ ---------------------------------------------------------------
+ 
+ (c). Anti-Caching with double-linked list
+ ---------------------------------------------------------------------------------------------------
+ |  flags (1 byte)  |  "previous" tuple id  (4 bytes)  |  "next" tuple id (4 bytes)  | tuple data  |
+ ---------------------------------------------------------------------------------------------------
+ 
+ */
 
 #ifdef ANTICACHE
-    
-#define TUPLE_HEADER_SIZE 5
-
+    #ifdef DOUBLE_LINKED_LIST
+        #define TUPLE_HEADER_SIZE 9
+    #else
+        #define TUPLE_HEADER_SIZE 5
+    #endif
 #else
-
-#define TUPLE_HEADER_SIZE 1
-
+    #define TUPLE_HEADER_SIZE 1
 #endif
     
 #define DELETED_MASK 1
@@ -258,6 +279,34 @@ public:
     /** Get the type of a particular column in the tuple */
     inline ValueType getType(int idx) const {
         return m_schema->columnType(idx);
+    }
+    
+    inline uint32_t getNextTupleInChain()
+    {
+        uint32_t tuple_id = 0;
+        memcpy(&tuple_id, m_data+TUPLE_HEADER_SIZE-4, 4);
+        
+        return tuple_id; 
+    }
+    
+    inline void setNextTupleInChain(uint32_t next)
+    {
+        memcpy(m_data+TUPLE_HEADER_SIZE-4, &next, 4);
+
+    }
+    
+    inline uint32_t getPreviousTupleInChain()
+    {
+        uint32_t tuple_id = 0;
+        memcpy(&tuple_id, m_data+TUPLE_HEADER_SIZE-8, 4);
+        
+        return tuple_id;
+    }
+    
+    inline void setPreviousTupleInChain(uint32_t prev)
+    {
+        memcpy(m_data+TUPLE_HEADER_SIZE-8, &prev, 4);
+        
     }
 
     inline uint32_t getTupleID()

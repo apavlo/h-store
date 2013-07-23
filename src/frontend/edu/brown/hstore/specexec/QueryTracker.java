@@ -6,6 +6,7 @@ import java.util.List;
 import org.voltdb.ParameterSet;
 import org.voltdb.catalog.Statement;
 
+import edu.brown.hstore.txns.QueryInvocation;
 import edu.brown.statistics.Histogram;
 import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.PartitionSet;
@@ -17,21 +18,7 @@ import edu.brown.utils.PartitionSet;
  */
 public class QueryTracker {
 
-    public static class QueryInvocation {
-        public final Statement stmt;
-        public final int counter;
-        public final PartitionSet partitions;
-        public final int paramsHash;
-        
-        public QueryInvocation(Statement stmt, int counter, PartitionSet partitions, int paramsHash) {
-            this.stmt = stmt;
-            this.counter = counter;
-            this.partitions = partitions;
-            this.paramsHash = paramsHash;
-        }
-    }
-    
-    private final List<QueryInvocation> invocations = new ArrayList<>(); 
+    private final List<QueryInvocation> invocations = new ArrayList<QueryInvocation>(); 
     
     /**
      * Internal counter for the number of times that we've executed queries in the past.
@@ -71,6 +58,20 @@ public class QueryTracker {
             }
         } // FOR
         return (null);
+    }
+    
+    public int getQueryCount(Statement stmt) {
+        // FIXME
+        return (0);
+    }
+    
+    public void clear() {
+        this.invocations.clear();
+        this.stmtCounters.clear();
+    }
+    
+    public int size() {
+        return (this.invocations.size());
     }
     
     

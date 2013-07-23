@@ -46,7 +46,7 @@ import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.mappings.ParameterMappingsSet;
 import edu.brown.markov.MarkovUtil;
-import edu.brown.markov.containers.MarkovGraphContainersUtil;
+import edu.brown.markov.containers.MarkovGraphsContainerUtil;
 import edu.brown.markov.containers.MarkovGraphsContainer;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.ClassUtil;
@@ -61,8 +61,8 @@ import edu.brown.workload.Workload;
  */
 public abstract class HStore {
     private static final Logger LOG = Logger.getLogger(HStore.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
+    private static final LoggerBoolean trace = new LoggerBoolean();
     static {
         LoggerUtil.setupLogging();
         LoggerUtil.attachObserver(LOG, debug, trace);
@@ -133,16 +133,15 @@ public abstract class HStore {
             if (path.exists()) {
                 long start = System.currentTimeMillis();
                 try {
-                    markovs = MarkovGraphContainersUtil.loadIds(catalogContext.database,
-                                                                path, 
+                    markovs = MarkovGraphsContainerUtil.loadIds(catalogContext, path, 
                                                                 singleton.getLocalPartitionIds());
                 } catch (Exception ex) {
                     throw new RuntimeException(ex);
                 }
-                MarkovGraphContainersUtil.setHasher(markovs, singleton.getPartitionEstimator().getHasher());
+                MarkovGraphsContainerUtil.setHasher(markovs, singleton.getPartitionEstimator().getHasher());
                 long load_time = System.currentTimeMillis() - start;
-                LOG.info(String.format("Finished loading MarkovGraphsContainer '%s' in %.1f sec",
-                                       path, (load_time / 1000d)));
+                LOG.info(String.format("Finished loading %s '%s' in %.1f sec",
+                         MarkovGraphsContainer.class.getSimpleName(), path, (load_time / 1000d)));
             } else if (debug.val) LOG.warn("The Markov Graphs file '" + path + "' does not exist");
             ThreadUtil.shutdownGlobalPool(); // HACK
         }
@@ -183,7 +182,9 @@ public abstract class HStore {
             // Load the Markov models if we were given an input path and pass them to t_estimator
             // Load in all the partition-specific TransactionEstimators and ExecutionSites in order to 
             // stick them into the HStoreSite
-            if (debug.val) LOG.debug("Creating TransactionEstimator for " + singleton.getSiteName());
+            if (debug.val)
+                LOG.debug(String.format("Creating %s for %s",
+                          TransactionEstimator.class.getSimpleName(), singleton.getSiteName()));
             TransactionEstimator t_estimator = null;
             if (hstore_conf.site.markov_enable) {
                 if (hstore_conf.site.markov_fixed == false && markovs != null) {
@@ -192,13 +193,14 @@ public abstract class HStore {
                     t_estimator = AbstractFixedEstimator.factory(p_estimator, singleton.getCatalogContext());
                 }
             }
-            if (first && t_estimator != null) {
+            if (first && t_estimator != null)
                 LOG.info(String.format("All incoming txn requests will be processed with %s at this site",
                          t_estimator.getClass().getSimpleName()));
-            }
 
             // setup the EE
-            if (debug.val) LOG.debug("Creating ExecutionSite for Partition #" + local_partition);
+            if (debug.val)
+                LOG.debug(String.format("Creating %s for Partition #%02d",
+                          PartitionExecutor.class.getSimpleName(), local_partition));
             PartitionExecutor executor = new PartitionExecutor(
                                                 local_partition,
                                                 singleton.getCatalogContext(),

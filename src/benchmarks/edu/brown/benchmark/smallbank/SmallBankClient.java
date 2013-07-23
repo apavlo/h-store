@@ -4,10 +4,6 @@
  *  Massachusetts Institute of Technology                                  *
  *  Yale University                                                        *
  *                                                                         *
- *  Original By: VoltDB Inc.											   *
- *  Ported By:  Justin A. DeBrabant (http://www.cs.brown.edu/~debrabant/)  *								   
- *                                                                         *
- *                                                                         *
  *  Permission is hereby granted, free of charge, to any person obtaining  *
  *  a copy of this software and associated documentation files (the        *
  *  "Software"), to deal in the Software without restriction, including    *
@@ -54,7 +50,7 @@ import edu.brown.utils.StringUtil;
  */
 public class SmallBankClient extends BenchmarkComponent {
     private static final Logger LOG = Logger.getLogger(SmallBankClient.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
     static {
         LoggerUtil.attachObserver(LOG, debug);
     }
@@ -77,7 +73,7 @@ public class SmallBankClient extends BenchmarkComponent {
      * Set of transactions structs with their appropriate parameters
      */
     public static enum Transaction {
-        AMALGAMATE(SmallBankConstants.FREQUENCY_AMALGAMATE, new ArgGenerator() {
+        AMALGAMATE(SmallBankConstants.FREQUENCY_AMALGAMATE, true, new ArgGenerator() {
             public Object[] genArgs(long acct0, long acct1) {
                 return new Object[] {
                     acct0,  // acctId0
@@ -85,14 +81,14 @@ public class SmallBankClient extends BenchmarkComponent {
                 };
             }
         }),
-        BALANCE(SmallBankConstants.FREQUENCY_BALANCE, new ArgGenerator() {
+        BALANCE(SmallBankConstants.FREQUENCY_BALANCE, false, new ArgGenerator() {
             public Object[] genArgs(long acct0, long acct1) {
                 return new Object[] {
                     acct0,  // acctId
                 };
             }
         }),
-        DEPOSIT_CHECKING(SmallBankConstants.FREQUENCY_DEPOSIT_CHECKING, new ArgGenerator() {
+        DEPOSIT_CHECKING(SmallBankConstants.FREQUENCY_DEPOSIT_CHECKING, false, new ArgGenerator() {
             public Object[] genArgs(long acct0, long acct1) {
                 return new Object[] {
                     acct0,  // acctId0
@@ -100,7 +96,7 @@ public class SmallBankClient extends BenchmarkComponent {
                 };
             }
         }),
-        SEND_PAYMENT(SmallBankConstants.FREQUENCY_SEND_PAYMENT, new ArgGenerator() {
+        SEND_PAYMENT(SmallBankConstants.FREQUENCY_SEND_PAYMENT, true, new ArgGenerator() {
             public Object[] genArgs(long acct0, long acct1) {
                 return new Object[] {
                     acct0,  // sendAcct
@@ -109,7 +105,7 @@ public class SmallBankClient extends BenchmarkComponent {
                 };
             }
         }),
-        TRANSACT_SAVINGS(SmallBankConstants.FREQUENCY_TRANSACT_SAVINGS, new ArgGenerator() {
+        TRANSACT_SAVINGS(SmallBankConstants.FREQUENCY_TRANSACT_SAVINGS, false, new ArgGenerator() {
             public Object[] genArgs(long acct0, long acct1) {
                 return new Object[] {
                     acct0,  // acctId
@@ -117,7 +113,7 @@ public class SmallBankClient extends BenchmarkComponent {
                 };
             }
         }),
-        WRITE_CHECK(SmallBankConstants.FREQUENCY_WRITE_CHECK, new ArgGenerator() {
+        WRITE_CHECK(SmallBankConstants.FREQUENCY_WRITE_CHECK, false, new ArgGenerator() {
             public Object[] genArgs(long acct0, long acct1) {
                 return new Object[] {
                     acct0,  // acctId
@@ -125,72 +121,26 @@ public class SmallBankClient extends BenchmarkComponent {
                 };
             }
         });
-        
-        /**
-         * Constructor
-         */
-        private Transaction(int weight, ArgGenerator ag) {
-            this.displayName = StringUtil.title(this.name().replace("_", " ").toLowerCase());
-            this.callName = this.displayName.replace(" ", "");
-            this.weight = weight;
-            this.ag = ag;
-        }
-        
-        public Object[] generateParams(SmallBankClient client) {
-            final CatalogContext catalogContext = client.getCatalogContext();
-            long acctIds[] = new long[2];
-            int partitions[] = new int[acctIds.length];
-            int sites[] = new int[acctIds.length];
-            
-            boolean is_hotspot = (client.rand.nextInt(100) < client.prob_account_hotspot);
-            boolean is_dtxn = (client.rand.nextInt(100) < client.prob_multiaccount_dtxn);
-            
-            for (int i = 0; i < acctIds.length; i++) {
-                // Outside the hotspot
-                if (is_hotspot == false) {
-                    acctIds[i] = client.rand.nextInt(client.numAccounts - SmallBankConstants.HOTSPOT_SIZE) + SmallBankConstants.HOTSPOT_SIZE;
-                }
-                // Inside the hotspot
-                else { 
-                    acctIds[i] = client.rand.nextInt(SmallBankConstants.HOTSPOT_SIZE);
-                }
-                
-                // DTXN
-                if (is_dtxn) {
-                    boolean retry = false;
-                    partitions[i] = TheHashinator.hashToPartition(acctIds[i]);
-                    sites[i] = catalogContext.getSiteIdForPartitionId(partitions[i]);
-                    
-                    // Check whether the accounts need to be on different sites 
-                    if (client.force_multisite_dtxns) {
-                        retry = (sites[0] == sites[1]);
-                    }
-                    // Or they need to be on the same site
-                    else if (client.force_singlesite_dtxns) {
-                        retry = (sites[0] != sites[1] || partitions[0] == partitions[1]);
-                    }
-                    // Or at least on the same partition
-                    else {
-                        retry = (partitions[0] == partitions[1]);
-                    }
-                    
-                    if (retry) {
-                        i -= 1;
-                        continue;
-                    }
-                }
-            } // FOR
-            if (debug.val)
-                LOG.debug(String.format("Accounts: %s [hotspot=%s, dtxn=%s]",
-                          Arrays.toString(acctIds), is_hotspot, is_dtxn));
-
-            return (this.ag.genArgs(acctIds[0], acctIds[1]));
-        }
 
         private final String displayName;
         private final String callName;
         private final int weight;
         private final ArgGenerator ag;
+        private final boolean needsTwoAccts;
+
+        /**
+         * Constructor
+         * @param weight Default txn frequency rate
+         * @param needsTwoAccts If set to true, then generateParams() will create two acctIds for this txn type 
+         * @param ag The parameter generator
+         */
+        private Transaction(int weight, boolean needsTwoAccts, ArgGenerator ag) {
+            this.displayName = StringUtil.title(this.name().replace("_", " ").toLowerCase());
+            this.callName = this.displayName.replace(" ", "");
+            this.weight = weight;
+            this.needsTwoAccts = needsTwoAccts;
+            this.ag = ag;
+        }
     };
     
     /**
@@ -214,8 +164,15 @@ public class SmallBankClient extends BenchmarkComponent {
     private final SmallBankCallback callbacks[];
     private final int numAccounts;
     private final Random rand = new Random();
-    private double prob_account_hotspot = 90d;
-    private double prob_multiaccount_dtxn = 0.0d;
+    
+    // HOTSPOT INFO
+    private double hotspot_percentage = SmallBankConstants.HOTSPOT_PERCENTAGE;
+    private boolean hotspot_use_fixed_size = SmallBankConstants.HOTSPOT_USE_FIXED_SIZE;
+    private int hotspot_size = SmallBankConstants.HOTSPOT_FIXED_SIZE;
+    
+    // DTXN CONTROL PARAMETERS
+    private double prob_account_hotspot = 0d;
+    private double prob_multiaccount_dtxn = 50d;
     private boolean force_multisite_dtxns = false;
     private boolean force_singlesite_dtxns = false;
     
@@ -249,12 +206,33 @@ public class SmallBankClient extends BenchmarkComponent {
             else if (key.equalsIgnoreCase("force_singlesite_dtxns")) {
                 this.force_singlesite_dtxns = Boolean.parseBoolean(value);
             }
+            // Percentage-based hotspot
+            else if (key.equalsIgnoreCase("hotspot_percentage")) {
+                this.hotspot_percentage = Double.parseDouble(value);
+            }
+            // Use a fixed-size hotspot
+            else if (key.equalsIgnoreCase("hotspot_use_fixed_size")) {
+                this.hotspot_use_fixed_size = Boolean.parseBoolean(value);
+            }
+            // Fixed-size hotspot
+            else if (key.equalsIgnoreCase("hotspot_fixed_size")) {
+                this.hotspot_size = Integer.parseInt(value);
+            }
         } // FOR
         if (catalogContext.numberOfPartitions == 1) {
             this.prob_multiaccount_dtxn = 0;
         }
         if (catalogContext.sites.size() == 1) {
             this.force_multisite_dtxns = false;
+        }
+        // Disable all multi-partition txns
+        if (this.isSinglePartitionOnly()) {
+            this.force_multisite_dtxns = false;
+            this.prob_multiaccount_dtxn = 0;
+        }
+        // Compute hotspot size
+        if (this.hotspot_use_fixed_size == false) {
+            this.hotspot_size = (int)((this.hotspot_percentage/100d) * this.numAccounts);
         }
         
         // Initialize the sampling table
@@ -287,13 +265,82 @@ public class SmallBankClient extends BenchmarkComponent {
         Transaction target = this.txnWeights.nextValue();
 
         this.startComputeTime(target.displayName);
-        Object params[] = target.generateParams(this);
+        Object params[] = this.generateParams(target);
         this.stopComputeTime(target.displayName);
 
         ProcedureCallback callback = this.callbacks[target.ordinal()];
         boolean ret = this.getClientHandle().callProcedure(callback, target.callName, params);
         if (debug.val) LOG.debug("Executing txn " + target);
         return (ret);
+    }
+    
+    /**
+     * Generate the txn input parameters for a new invocation.
+     * @param target
+     * @return
+     */
+    protected Object[] generateParams(Transaction target) {
+        final CatalogContext catalogContext = this.getCatalogContext();
+        long acctIds[] = new long[]{ -1, -1 };
+        int partitions[] = new int[acctIds.length];
+        int sites[] = new int[acctIds.length];
+        
+        boolean is_hotspot = (this.rand.nextInt(100) < this.prob_account_hotspot);
+        boolean is_dtxn = (this.rand.nextInt(100) < this.prob_multiaccount_dtxn);
+        
+        boolean retry = false;
+        for (int i = 0; i < acctIds.length; i++) {
+            // Outside the hotspot
+            if (is_hotspot == false) {
+                acctIds[i] = this.rand.nextInt(this.numAccounts - this.hotspot_size) + this.hotspot_size;
+            }
+            // Inside the hotspot
+            else {
+                acctIds[i] = this.rand.nextInt(this.hotspot_size);
+            }
+            
+            // They can never be the same!
+            if (i > 0 && acctIds[i-1] == acctIds[i]) {
+                continue;
+            }
+            
+            partitions[i] = TheHashinator.hashToPartition(acctIds[i]);
+            sites[i] = catalogContext.getSiteIdForPartitionId(partitions[i]);
+            
+            // If we only need one acctId, break out here.
+            if (i == 0 && target.needsTwoAccts == false) break;
+            // If we need two acctIds, then we need to go generate the second one
+            if (i == 0) continue;
+            
+            // DTXN
+            if (is_dtxn) {
+                // Check whether the accounts need to be on different sites 
+                if (this.force_multisite_dtxns) {
+                    retry = (sites[0] == sites[1]);
+                }
+                // Or they need to be on the same site
+                else if (this.force_singlesite_dtxns) {
+                    retry = (sites[0] != sites[1] || partitions[0] == partitions[1]);
+                }
+                // Or at least on the same partition
+                else {
+                    retry = (partitions[0] == partitions[1]);
+                }
+            }
+            // SINGLE-PARTITON
+            else {
+                retry = (partitions[0] != partitions[1]);
+            }
+            if (retry) {
+                i -= 1;
+                continue;
+            }
+        } // FOR
+        if (debug.val)
+            LOG.debug(String.format("Accounts: %s [hotspot=%s, dtxn=%s]",
+                      Arrays.toString(acctIds), is_hotspot, is_dtxn));
+
+        return (target.ag.genArgs(acctIds[0], acctIds[1]));
     }
     
     @Override

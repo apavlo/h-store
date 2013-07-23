@@ -37,6 +37,7 @@ import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.JSONSerializable;
 import edu.brown.utils.JSONUtil;
+import edu.brown.utils.PartitionSet;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.ThreadUtil;
 
@@ -47,8 +48,8 @@ import edu.brown.utils.ThreadUtil;
  */
 public class MarkovGraphsContainer implements JSONSerializable {
     private static final Logger LOG = Logger.getLogger(MarkovGraphsContainer.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
+    private static final LoggerBoolean trace = new LoggerBoolean();
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
@@ -140,7 +141,9 @@ public class MarkovGraphsContainer implements JSONSerializable {
             synchronized (this) {
                 markov = this.get(id, catalog_proc);
                 if (markov == null) {
-                    if (LOG.isDebugEnabled()) LOG.warn(String.format("Creating a new %s MarkovGraph for id %d", catalog_proc.getName(), id));
+                    if (debug.val)
+                        LOG.warn(String.format("Creating a new %s MarkovGraph for id %d",
+                                 catalog_proc.getName(), id));
                     markov = new MarkovGraph(catalog_proc);
                     if (initialize) markov.initialize();
                     this.put(id, markov);
@@ -199,11 +202,11 @@ public class MarkovGraphsContainer implements JSONSerializable {
     /**
      * Invoke MarkovGraph.calculateProbabilities() for all of the graphs stored within this container 
      */
-    public void calculateProbabilities() {
+    public void calculateProbabilities(PartitionSet partitions) {
         for (Map<Procedure, MarkovGraph> inner : this.markovs.values()) {
             for (Entry<Procedure, MarkovGraph> e : inner.entrySet()) {
                 MarkovGraph m = e.getValue();
-                m.calculateProbabilities();
+                m.calculateProbabilities(partitions);
                 boolean is_valid = m.isValid();
                 if (is_valid == false) {
                     try {
@@ -326,7 +329,8 @@ public class MarkovGraphsContainer implements JSONSerializable {
         stringer.key(Members.MARKOVS.name()).object();
         for (Integer id : this.markovs.keySet()) {
             // Roll through each id and create a new JSONObject per id
-            LOG.debug("Serializing " + this.markovs.get(id).size() + " graphs for id " + id);
+            if (debug.val)
+                LOG.debug("Serializing " + this.markovs.get(id).size() + " graphs for id " + id);
             stringer.key(id.toString()).object();
             for (Entry<Procedure, MarkovGraph> e : this.markovs.get(id).entrySet()) {
                 // Optimization: Hex-encode all of the MarkovGraphs so that we don't get crushed
@@ -393,7 +397,8 @@ public class MarkovGraphsContainer implements JSONSerializable {
         args.require(ArgumentsParser.PARAM_CATALOG,
                      ArgumentsParser.PARAM_MARKOV);
         
-        Map<Integer, MarkovGraphsContainer> all_markovs = MarkovUtil.load(args.catalog_db, args.getFileParam(ArgumentsParser.PARAM_MARKOV));
+        Map<Integer, MarkovGraphsContainer> all_markovs = MarkovUtil.load(args.catalogContext,
+                                                                          args.getFileParam(ArgumentsParser.PARAM_MARKOV));
         int cnt_invalid = 0;
         int cnt_total = 0;
         boolean save = true;
@@ -406,7 +411,7 @@ public class MarkovGraphsContainer implements JSONSerializable {
                     boolean dump = false;
                     String before = MarkovUtil.exportGraphviz(markov, true, false, true, null).export(markov.getProcedure().getName());
                     try {
-                        markov.calculateProbabilities();
+                        markov.calculateProbabilities(args.catalogContext.getAllPartitionIds());
                         markov.validate();
                         if (markov.getGraphId() == 10014) dump = true;
                     } catch (InvalidGraphElementException ex) {
@@ -426,7 +431,7 @@ public class MarkovGraphsContainer implements JSONSerializable {
         }
         LOG.info("VALID: " + (cnt_total - cnt_invalid) + " / "+ cnt_total);
         if (save && cnt_invalid == 0) {
-            MarkovGraphContainersUtil.save(all_markovs, args.getParam(ArgumentsParser.PARAM_MARKOV));
+            MarkovGraphsContainerUtil.save(all_markovs, args.getFileParam(ArgumentsParser.PARAM_MARKOV));
         }
     }
 }

@@ -43,12 +43,12 @@ public enum ConstraintType {
         return this.ordinal();
     }
 
-    protected static final Map<Integer, ConstraintType> idx_lookup = new HashMap<Integer, ConstraintType>();
-    protected static final Map<String, ConstraintType> name_lookup = new HashMap<String, ConstraintType>();
+    private static final Map<Integer, ConstraintType> idx_lookup = new HashMap<Integer, ConstraintType>();
+    private static final Map<String, ConstraintType> name_lookup = new HashMap<String, ConstraintType>();
     static {
         for (ConstraintType vt : EnumSet.allOf(ConstraintType.class)) {
             ConstraintType.idx_lookup.put(vt.ordinal(), vt);
-            ConstraintType.name_lookup.put(vt.name().toLowerCase().intern(), vt);
+            ConstraintType.name_lookup.put(vt.name().toLowerCase(), vt);
         }
     }
 
@@ -71,7 +71,7 @@ public enum ConstraintType {
     }
 
     public static ConstraintType get(String name) {
-        ConstraintType ret = ConstraintType.name_lookup.get(name.toLowerCase().intern());
+        ConstraintType ret = ConstraintType.name_lookup.get(name.toLowerCase());
         return (ret);
         //return (ret == null ? ConstraintType.INVALID : ret);
     }

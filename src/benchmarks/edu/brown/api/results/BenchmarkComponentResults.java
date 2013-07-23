@@ -42,7 +42,8 @@ public class BenchmarkComponentResults implements JSONSerializable {
     /**
      * Transaction Name Index -> Latencies
      */
-    public final Map<Integer, ObjectHistogram<Integer>> latencies = new HashMap<Integer, ObjectHistogram<Integer>>();
+    public final Map<Integer, ObjectHistogram<Integer>> spLatencies = new HashMap<Integer, ObjectHistogram<Integer>>();
+    public final Map<Integer, ObjectHistogram<Integer>> dtxnLatencies = new HashMap<Integer, ObjectHistogram<Integer>>();
     
     public FastIntHistogram basePartitions = new FastIntHistogram(true);
     private boolean enableBasePartitions = false;
@@ -72,14 +73,27 @@ public class BenchmarkComponentResults implements JSONSerializable {
         copy.dtxns.setDebugLabels(this.transactions.getDebugLabels());
         copy.dtxns.put(this.dtxns);
         
-        copy.latencies.clear();
-        for (Entry<Integer, ObjectHistogram<Integer>> e : this.latencies.entrySet()) {
-            ObjectHistogram<Integer> h = new ObjectHistogram<Integer>();
-            synchronized (e.getValue()) {
-                h.put(e.getValue());
-            } // SYNCH
-            copy.latencies.put(e.getKey(), h);
-        } // FOR
+        copy.spLatencies.clear();
+        synchronized (this.spLatencies) {
+            for (Entry<Integer, ObjectHistogram<Integer>> e : this.spLatencies.entrySet()) {
+                ObjectHistogram<Integer> h = new ObjectHistogram<Integer>();
+                synchronized (e.getValue()) {
+                    h.put(e.getValue());
+                } // SYNCH
+                copy.spLatencies.put(e.getKey(), h);
+            } // FOR
+        } // SYNCH
+        
+        copy.dtxnLatencies.clear();
+        synchronized (this.dtxnLatencies) {
+            for (Entry<Integer, ObjectHistogram<Integer>> e : this.dtxnLatencies.entrySet()) {
+                ObjectHistogram<Integer> h = new ObjectHistogram<Integer>();
+                synchronized (e.getValue()) {
+                    h.put(e.getValue());
+                } // SYNCH
+                copy.dtxnLatencies.put(e.getKey(), h);
+            } // FOR
+        } // SYNCH
         
         copy.enableBasePartitions = this.enableBasePartitions;
         copy.basePartitions.put(this.basePartitions);
@@ -110,7 +124,8 @@ public class BenchmarkComponentResults implements JSONSerializable {
             this.specexecs.clearValues();
             this.dtxns.clearValues();
         }
-        this.latencies.clear();
+        this.spLatencies.clear();
+        this.dtxnLatencies.clear();
         this.basePartitions.clearValues();
         this.responseStatuses.clearValues();
     }
@@ -136,16 +151,33 @@ public class BenchmarkComponentResults implements JSONSerializable {
             (this.enableBasePartitions == false ? "basePartitions" : ""),
             (this.enableResponseStatuses == false ? "responseStatuses" : ""),
         };
+        
+        // HACK
+        this.specexecs.setDebugLabels(null);
+        this.dtxns.setDebugLabels(null);
+        
         Field fields[] = JSONUtil.getSerializableFields(this.getClass(), exclude);
         JSONUtil.fieldsToJSON(stringer, this, BenchmarkComponentResults.class, fields);
+        
+        this.specexecs.setDebugLabels(this.transactions.getDebugLabels());
+        this.dtxns.setDebugLabels(this.transactions.getDebugLabels());
     }
     @Override
     public void fromJSON(JSONObject json_object, Database catalog_db) throws JSONException {
-        this.latencies.clear();
+        this.spLatencies.clear();
+        this.dtxnLatencies.clear();
         Field fields[] = JSONUtil.getSerializableFields(this.getClass());
         JSONUtil.fieldsFromJSON(json_object, catalog_db, this, BenchmarkComponentResults.class, true, fields);
         assert(this.transactions != null);
         assert(this.specexecs != null);
         assert(this.dtxns != null);
+        
+        // HACK: Copy the transaction's debug labels into these histograms
+        if (this.specexecs.hasDebugLabels() == false) {
+            this.specexecs.setDebugLabels(this.transactions.getDebugLabels());
+        }
+        if (this.dtxns.hasDebugLabels() == false) {
+            this.dtxns.setDebugLabels(this.transactions.getDebugLabels());
+        }
     }
 } // END CLASS

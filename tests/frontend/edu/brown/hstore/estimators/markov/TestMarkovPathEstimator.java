@@ -2,25 +2,33 @@ package edu.brown.hstore.estimators.markov;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
+import org.apache.log4j.Logger;
 import org.voltdb.VoltProcedure;
 import org.voltdb.benchmark.tpcc.procedures.neworder;
 import org.voltdb.catalog.ProcParameter;
 import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.Statement;
 import org.voltdb.types.ExpressionType;
 
 import edu.brown.BaseTestCase;
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.hstore.estimators.EstimatorUtil;
 import edu.brown.mappings.ParameterMappingsSet;
 import edu.brown.markov.MarkovGraph;
 import edu.brown.markov.MarkovVertex;
-import edu.brown.markov.containers.MarkovGraphContainersUtil;
+import edu.brown.markov.containers.MarkovGraphsContainerUtil;
 import edu.brown.markov.containers.MarkovGraphsContainer;
+import edu.brown.statistics.Histogram;
+import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.MathUtil;
 import edu.brown.utils.PartitionSet;
 import edu.brown.utils.ProjectType;
+import edu.brown.utils.StringUtil;
+import edu.brown.workload.QueryTrace;
 import edu.brown.workload.TransactionTrace;
 import edu.brown.workload.Workload;
 import edu.brown.workload.filters.BasePartitionTxnFilter;
@@ -57,10 +65,10 @@ public class TestMarkovPathEstimator extends BaseTestCase {
         this.addPartitions(NUM_PARTITIONS);
         this.catalog_proc = this.getProcedure(TARGET_PROCEDURE);
         
-        if (markovs == null) {
+        if (isFirstSetup()) {
             File file = this.getParameterMappingsFile(ProjectType.TPCC);
             mappings = new ParameterMappingsSet();
-            mappings.load(file, catalog_db);
+            mappings.load(file, catalogContext.database);
             
             // Workload Filter:
             //  (1) Only include TARGET_PROCEDURE traces
@@ -76,15 +84,15 @@ public class TestMarkovPathEstimator extends BaseTestCase {
                   .attach(new ProcedureLimitFilter(WORKLOAD_XACT_LIMIT));
             
             file = this.getWorkloadFile(ProjectType.TPCC);
-            workload = new Workload(catalog);
-            ((Workload) workload).load(file, catalog_db, filter);
+            workload = new Workload(catalogContext.catalog);
+            ((Workload) workload).load(file, catalogContext.database, filter);
 //             for (TransactionTrace xact : workload.getTransactions()) {
-//                 System.err.println(xact.debug(catalog_db));
+//                 System.err.println(xact.debug(catalogContext.database));
 //                 System.err.println(StringUtil.repeat("+", 100));
 //             }
             
             // Generate MarkovGraphs
-            markovs = MarkovGraphContainersUtil.createBasePartitionMarkovGraphsContainer(catalog_db, workload, p_estimator);
+            markovs = MarkovGraphsContainerUtil.createBasePartitionMarkovGraphsContainer(catalogContext, workload, p_estimator);
             assertNotNull(markovs);
             
             // Find a single-partition and multi-partition trace
@@ -122,10 +130,99 @@ public class TestMarkovPathEstimator extends BaseTestCase {
     }
     
     /**
+     * testAutoLearning
+     */
+    public void testAutoLearning() throws Exception {
+        Logger LOG = Logger.getRootLogger();
+        
+        // Use a blank MarkovGraph and check to see whether the MarkovPathEstimator
+        // can automatically learn what the states and transitions
+        graph = new MarkovGraph(this.catalog_proc);
+        graph.initialize();
+        
+        pathEstimator.setLearningEnabled(true);
+        pathEstimator.setForceTraversal(true);
+        boolean first = true;
+        boolean found_autolearn = false;
+        for (TransactionTrace tt : workload) {
+            MarkovVertex last_v = graph.getStartVertex();
+            
+            // We have to inject at least one path through the system first
+            // so that it knows what Statements it should be considering
+            if (first) {
+                assertEquals(estimate.toString(), 0, estimate.getMarkovPath().size());
+                Histogram<Statement> stmtCounter = new ObjectHistogram<Statement>();
+                PartitionSet allPartitions = new PartitionSet();
+                for (QueryTrace qt : tt.getQueries()) {
+                    Statement stmt = qt.getCatalogItem(catalogContext.database);
+                    int stmtCnt = (int)stmtCounter.get(stmt, 0);
+                    PartitionSet partitions = new PartitionSet(); 
+                    p_estimator.getAllPartitions(partitions, qt, BASE_PARTITION);
+                    
+                    MarkovVertex next_v = new MarkovVertex(stmt,
+                                                           MarkovVertex.Type.QUERY,
+                                                           stmtCnt,
+                                                           partitions,
+                                                           allPartitions);
+                    graph.addVertex(next_v);
+                    graph.addToEdge(last_v, next_v);
+                    
+                    stmtCounter.put(stmt);
+                    allPartitions.addAll(partitions);
+                    last_v = next_v;
+                } // FOR
+                // Don't forget to connect the last vertex with the COMMIT
+                // and then we can calculate the edge probabilities.
+                assert(last_v != null);
+                graph.addToEdge(last_v, graph.getCommitVertex());
+                graph.calculateProbabilities(catalogContext.getAllPartitionIds());
+            }
+            // Then after we do that, we should always be able to get a path
+            // even if the states aren't there. We just need to make sure that
+            // we always have a complete path and at least one of the traces
+            // caused new vertices to be created.
+            else {
+//                LOG.info(StringUtil.repeat("=", 150));
+//                LOG.info(StringUtil.repeat("=", 150));
+//                LOG.info(StringUtil.repeat("=", 150));
+                
+                estimate = new MarkovEstimate(catalogContext);
+                estimate.init(last_v, EstimatorUtil.INITIAL_ESTIMATE_BATCH);
+                pathEstimator.init(graph, estimate, tt.getParams(), BASE_PARTITION);
+                pathEstimator.traverse(last_v);
+                
+                List<MarkovVertex> path = estimate.getMarkovPath();
+//                System.err.println(StringUtil.join("\n", path));
+                
+                assertEquals(graph.getStartVertex(), CollectionUtil.first(path));
+
+                // If the estimator created new vertices, then that means that we couldn't figure
+                // our complete path. This is because once we create the new vertex we won't
+                // know what the next vertex should be after that because the new vertex
+                // won't have any children.
+                Collection<MarkovVertex> createdVertices = pathEstimator.getCreatedVertices();
+                if (createdVertices != null) {
+                    found_autolearn = true;
+                    LOG.info("Automatically created new vertices:\n" + StringUtil.join("\n", createdVertices));
+                }
+                else {
+                    assertEquals(graph.getCommitVertex(), CollectionUtil.last(path));
+                }
+                pathEstimator.finish();
+            }
+            
+            // if (first == false) break;
+            first = false;
+        } // FOR
+        
+        assertTrue("No txn needed the estimator to create new vertices", found_autolearn);
+    }
+    
+    /**
      * testFinish
      */
     public void testFinish() throws Exception {
-        pathEstimator.init(this.graph, this.estimate, BASE_PARTITION, singlep_trace.getParams());
+        pathEstimator.init(this.graph, this.estimate, singlep_trace.getParams(), BASE_PARTITION);
         assertTrue(pathEstimator.isInitialized());
         pathEstimator.setForceTraversal(true);
         
@@ -140,7 +237,7 @@ public class TestMarkovPathEstimator extends BaseTestCase {
      * testMarkovEstimate
      */
     public void testMarkovEstimate() throws Exception {
-        pathEstimator.init(this.graph, this.estimate, BASE_PARTITION, singlep_trace.getParams());
+        pathEstimator.init(this.graph, this.estimate, singlep_trace.getParams(), BASE_PARTITION);
         assert(pathEstimator.isInitialized());
         pathEstimator.setForceTraversal(true);
         pathEstimator.traverse(this.graph.getStartVertex());
@@ -151,28 +248,28 @@ public class TestMarkovPathEstimator extends BaseTestCase {
         assertFalse(singlep_trace.isAborted());
         assertFalse(visitPath.contains(this.graph.getAbortVertex()));
         
-//        System.err.println(singlep_trace.debug(catalog_db));
+//        System.err.println(singlep_trace.debug(catalogContext.database));
 //        System.err.println("Base Partition = " + p_estimator.getBasePartition(singlep_trace));
 //        for (QueryTrace qtrace : singlep_trace.getQueries()) {
-//            System.err.println(qtrace.debug(catalog_db) + " => " + p_estimator.getAllPartitions(qtrace, BASE_PARTITION));
+//            System.err.println(qtrace.debug(catalogContext.database) + " => " + p_estimator.getAllPartitions(qtrace, BASE_PARTITION));
 //        }
         
         for (int p : catalogContext.getAllPartitionIdArray()) {
-            assertTrue(estimate.toString(), estimate.isReadOnlyProbabilitySet(p));
+//            assertTrue(estimate.toString(), estimate.isReadOnlyProbabilitySet(p));
             assertTrue(estimate.toString(), estimate.isWriteProbabilitySet(p));
-            assertTrue(estimate.toString(), estimate.isFinishProbabilitySet(p));
+            assertTrue(estimate.toString(), estimate.isDoneProbabilitySet(p));
             
-            if (estimate.getFinishProbability(p) < 0.9f) {
+            if (estimate.getDoneProbability(p) < 0.9f) {
                 assert(estimate.getTouchedCounter(p) > 0) : String.format("TOUCHED[%d]: %d", p, estimate.getTouchedCounter(p)); 
                 assert(MathUtil.greaterThan(estimate.getWriteProbability(p), 0.0f, 0.01f)) : String.format("WRITE[%d]: %f", p, estimate.getWriteProbability(p));
-            } else if (MathUtil.equals(estimate.getFinishProbability(p), 0.01f, 0.03f)) {
+            } else if (MathUtil.equals(estimate.getDoneProbability(p), 0.01f, 0.03f)) {
                 assertEquals(0, estimate.getTouchedCounter(p));
                 assertEquals(0.0f, estimate.getWriteProbability(p), MarkovGraph.PROBABILITY_EPSILON);
             }
         } // FOR
-        assert(estimate.isSinglePartitionProbabilitySet());
         assert(estimate.isAbortProbabilitySet());
-        assert(estimate.getSinglePartitionProbability() < 1.0f);
+//        assert(estimate.isSinglePartitionProbabilitySet());
+//        assert(estimate.getSinglePartitionProbability() < 1.0f);
         
         assertTrue(estimate.toString(), estimate.isConfidenceCoefficientSet());
         assert(estimate.getConfidenceCoefficient() >= 0f);
@@ -187,7 +284,7 @@ public class TestMarkovPathEstimator extends BaseTestCase {
         MarkovVertex commit = this.graph.getCommitVertex();
         MarkovVertex abort = this.graph.getAbortVertex();
         
-        pathEstimator.init(this.graph, this.estimate, BASE_PARTITION, singlep_trace.getParams());
+        pathEstimator.init(this.graph, this.estimate, singlep_trace.getParams(), BASE_PARTITION);
         pathEstimator.setForceTraversal(true);
         pathEstimator.traverse(this.graph.getStartVertex());
         assertTrue(estimate.isConfidenceCoefficientSet());
@@ -196,7 +293,7 @@ public class TestMarkovPathEstimator extends BaseTestCase {
 //        System.err.println("INITIAL PATH:\n" + StringUtil.join("\n", path));
 //        System.err.println("CONFIDENCE: " + confidence);
 //        System.err.println("DUMPED FILE: " + MarkovUtil.exportGraphviz(this.graph, false, this.graph.getPath(path)).writeToTempFile());
-//        System.err.println(singlep_trace.debug(catalog_db));
+//        System.err.println(singlep_trace.debug(catalogContext.database));
 //        System.err.println(StringUtil.columns(StringUtil.join("\n", path), this.estimate.toString()));
 
         ArrayList<MarkovVertex> path = new ArrayList<MarkovVertex>(this.estimate.getMarkovPath());
@@ -226,14 +323,14 @@ public class TestMarkovPathEstimator extends BaseTestCase {
         MarkovVertex commit = this.graph.getCommitVertex();
         MarkovVertex abort = this.graph.getAbortVertex();
         
-        pathEstimator.init(this.graph, this.estimate, BASE_PARTITION, multip_trace.getParams());
+        pathEstimator.init(this.graph, this.estimate, multip_trace.getParams(), BASE_PARTITION);
         pathEstimator.setForceTraversal(true);
         pathEstimator.traverse(this.graph.getStartVertex());
         
 //      System.err.println("INITIAL PATH:\n" + StringUtil.join("\n", path));
 //      System.err.println("CONFIDENCE: " + confidence);
 //      System.err.println("DUMPED FILE: " + MarkovUtil.exportGraphviz(this.graph, false, this.graph.getPath(path)).writeToTempFile());
-//      System.err.println(multip_trace.debug(catalog_db));
+//      System.err.println(multip_trace.debug(catalogContext.database));
 //      System.err.println(StringUtil.columns(StringUtil.join("\n", path), this.estimate.toString()));
         
         ArrayList<MarkovVertex> path = new ArrayList<MarkovVertex>(this.estimate.getMarkovPath());

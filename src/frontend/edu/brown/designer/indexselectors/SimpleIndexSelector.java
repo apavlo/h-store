@@ -16,7 +16,6 @@ import org.voltdb.types.QueryType;
 import org.voltdb.utils.CatalogUtil;
 
 import edu.brown.designer.AccessGraph;
-import edu.brown.designer.ColumnSet;
 import edu.brown.designer.Designer;
 import edu.brown.designer.DesignerEdge;
 import edu.brown.designer.DesignerEdge.Members;
@@ -26,6 +25,7 @@ import edu.brown.designer.IndexPlan;
 import edu.brown.designer.PartitionTree;
 import edu.brown.designer.partitioners.plan.PartitionEntry;
 import edu.brown.designer.partitioners.plan.PartitionPlan;
+import edu.brown.utils.PredicatePairs;
 
 /**
  * @author pavlo
@@ -59,7 +59,7 @@ public class SimpleIndexSelector extends AbstractIndexSelector {
                 vertices.addAll(agraph.getIncidentVertices(edge));
                 // FIXME
                 if (true || !(ptree.getPath(vertices.get(0), vertices.get(1)).isEmpty() && ptree.getPath(vertices.get(1), vertices.get(0)).isEmpty())) {
-                    ColumnSet cset = (ColumnSet) (edge.getAttribute(AccessGraph.EdgeAttributes.COLUMNSET.name()));
+                    PredicatePairs cset = (PredicatePairs) (edge.getAttribute(AccessGraph.EdgeAttributes.COLUMNSET.name()));
                     for (DesignerVertex vertex : vertices) {
                         Table catalog_tbl = vertex.getCatalogItem();
                         Collection<Column> edge_columns = cset.findAllForParent(Column.class, catalog_tbl);

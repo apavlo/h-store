@@ -74,7 +74,7 @@ class DeleteExecutor : public OperationExecutor {
         ~DeleteExecutor();
     protected:
         bool p_init(AbstractPlanNode*, const catalog::Database* catalog_db, int* tempTableMemoryInBytes);
-        bool p_execute(const NValueArray &params);
+        bool p_execute(const NValueArray &params, ReadWriteTracker *tracker);
 
         /** true if all tuples are deleted, truncate is the only case we don't need PK to delete tuples. */
         bool m_truncate;

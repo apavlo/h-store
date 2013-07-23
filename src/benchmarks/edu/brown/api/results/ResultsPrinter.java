@@ -35,6 +35,7 @@ import edu.brown.api.BenchmarkInterest;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.statistics.Histogram;
 import edu.brown.statistics.HistogramUtil;
+import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.TableUtil;
 
@@ -64,17 +65,11 @@ public class ResultsPrinter implements BenchmarkInterest {
     private static final String RESULT_FORMAT = "%.2f";
     private static final String SPACER = "  ";
     
-    protected final boolean output_interval;
-    protected final boolean output_clients;
-    protected final boolean output_basepartitions;
-    protected final boolean output_responses;
+    private final HStoreConf hstore_conf;
     private boolean stop = false;
     
     public ResultsPrinter(HStoreConf hstore_conf) {
-        this.output_interval = hstore_conf.client.output_interval;
-        this.output_clients = hstore_conf.client.output_clients;
-        this.output_basepartitions = hstore_conf.client.output_basepartitions;
-        this.output_responses = hstore_conf.client.output_status;
+        this.hstore_conf = hstore_conf;
     }
     
     public void stop() {
@@ -135,7 +130,7 @@ public class ResultsPrinter implements BenchmarkInterest {
         // -------------------------------
         Collection<String> txnNames = fr.getTransactionNames();
         Collection<String> clientNames = fr.getClientNames();
-        int num_rows = txnNames.size() + (this.output_clients ? clientNames.size() + 1 : 0) + 1; // HEADER
+        int num_rows = txnNames.size() + (hstore_conf.client.output_clients ? clientNames.size() + 1 : 0) + 1; // HEADER
         Object rows[][] = new String[num_rows][COL_FORMATS.length];
         int row_idx = 0;
         
@@ -143,52 +138,23 @@ public class ResultsPrinter implements BenchmarkInterest {
         for (String txnName : txnNames) {
             EntityResult er = fr.getTransactionResult(txnName);
             assert(er != null);
-            int col_idx = 0;
-            rows[row_idx][col_idx++] = String.format(COL_FORMATS[col_idx-1], txnName);
-            
-            // TXN COUNT + PERCENTAGE
-            rows[row_idx][col_idx++] = String.format(COL_FORMATS[col_idx-1],
-                                                     er.getTxnCount(),
-                                                     er.getTxnPercentage());
-            
-            // SINGLE-PARTITON COUNT + PERCENTAGE
-            rows[row_idx][col_idx++] = String.format(COL_FORMATS[col_idx-1],
-                                                     er.getDistributedTxnCount(),
-                                                     er.getDistributedTxnPercentage());
-            
-            // TXN / MS
-            rows[row_idx][col_idx++] = String.format(COL_FORMATS[col_idx-1], er.getTxnPerMilli());
-            
-            // AVG LATENCY
-            String txnAvgLatency = "-";
-            if (er.getTxnCount() > 0) {
-                txnAvgLatency = String.format(RESULT_FORMAT, er.getTxnAvgLatency());
-            }
-            rows[row_idx][col_idx++] = String.format(COL_FORMATS[col_idx-1], txnAvgLatency);
-            
-            row_idx++;
+            this.makeRow(er, txnName, rows[row_idx++]);
         } // FOR
 
         // -------------------------------
         // CLIENT TOTALS
         // -------------------------------
-        if (this.output_clients) {
+        if (hstore_conf.client.output_clients) {
             rows[row_idx][0] = "\nBreakdown by client:";
             for (int i = 1; i < COL_FORMATS.length; i++) {
                 rows[row_idx][i] = "";
             } // FOR
             row_idx++;
             
-            for (String clientName : clientNames) {
+            for (String clientName : CollectionUtil.sort(clientNames)) {
                 EntityResult er = fr.getClientResult(clientName);
                 assert(er != null);
-                int col_idx = 0;
-                rows[row_idx][col_idx++] = String.format(COL_FORMATS[col_idx-1], clientName);
-                rows[row_idx][col_idx++] = String.format(COL_FORMATS[col_idx-1], er.getTxnCount());
-                rows[row_idx][col_idx++] = String.format(COL_FORMATS[col_idx-1], er.getTxnPercentage());
-                rows[row_idx][col_idx++] = String.format(COL_FORMATS[col_idx-1], er.getTxnPerMilli());
-                rows[row_idx][col_idx++] = String.format(COL_FORMATS[col_idx-1], er.getTxnPerSecond());
-                row_idx++;
+                this.makeRow(er, clientName, rows[row_idx++]);
             } // FOR
         }
         
@@ -199,7 +165,7 @@ public class ResultsPrinter implements BenchmarkInterest {
         // -------------------------------
         // TXNS PER PARTITION
         // -------------------------------
-        if (this.output_basepartitions) {
+        if (hstore_conf.client.output_basepartitions) {
             sb.append("Transaction Base Partitions:\n");
             Histogram<Integer> h = results.getBasePartitions();
             h.enablePercentages();
@@ -215,7 +181,7 @@ public class ResultsPrinter implements BenchmarkInterest {
         // -------------------------------
         // CLIENT RESPONSES
         // -------------------------------
-        if (this.output_responses) {
+        if (hstore_conf.client.output_status) {
             sb.append("Client Response Statuses:\n");
             Histogram<String> h = results.getResponseStatuses();
             h.enablePercentages();
@@ -226,10 +192,36 @@ public class ResultsPrinter implements BenchmarkInterest {
         return (sb.toString());
     }
     
+    private void makeRow(EntityResult er, String label, Object row[]) {
+        
+        int col_idx = 0;
+        row[col_idx++] = String.format(COL_FORMATS[col_idx-1], label);
+        
+        // TXN COUNT + PERCENTAGE
+        row[col_idx++] = String.format(COL_FORMATS[col_idx-1],
+                                                 er.getTxnCount(),
+                                                 er.getTxnPercentage());
+        
+        // SINGLE-PARTITON COUNT + PERCENTAGE
+        row[col_idx++] = String.format(COL_FORMATS[col_idx-1],
+                                                 er.getDistributedTxnCount(),
+                                                 er.getDistributedTxnPercentage());
+        
+        // TXN / MS
+        row[col_idx++] = String.format(COL_FORMATS[col_idx-1], er.getTxnPerMilli());
+        
+        // AVG LATENCY
+        String txnAvgLatency = "-";
+        if (er.getTxnCount() > 0) {
+            txnAvgLatency = String.format(RESULT_FORMAT, er.getTotalAvgLatency());
+        }
+        row[col_idx++] = String.format(COL_FORMATS[col_idx-1], txnAvgLatency);
+    }
+    
     @Override
     public void benchmarkHasUpdated(BenchmarkResults results) {
         if (this.stop) return;
-        if (this.output_interval == false) return;
+        if (hstore_conf.client.output_interval == false) return;
         
         Pair<Long, Long> p = results.computeTotalAndDelta();
         assert(p != null);
@@ -237,11 +229,11 @@ public class ResultsPrinter implements BenchmarkInterest {
         long txnDelta = p.getSecond();
         
         // INTERVAL LATENCY
-        Histogram<Integer> lastLatencies = results.getLastLatencies();
+        Histogram<Integer> lastLatencies = results.getLastTotalLatencies();
         double intervalLatency = HistogramUtil.sum(lastLatencies) / (double)lastLatencies.getSampleCount();
         
         // TOTAL LATENCY
-        Histogram<Integer> allLatencies = results.getAllLatencies();        
+        Histogram<Integer> allLatencies = results.getAllTotalLatencies();        
         double totalLatency = HistogramUtil.sum(allLatencies) / (double)allLatencies.getSampleCount();
 
         int pollIndex = results.getCompletedIntervalCount();

@@ -28,10 +28,8 @@ public class AsyncCompilerWork implements Serializable {
 
     @Override
     public String toString() {
-        String retval = "shouldShutdown:" + String.valueOf(shouldShutdown) + ", ";
-        retval += "clientHandle:" + String.valueOf(clientHandle) + ", ";
-//        retval += "connectionId:" + String.valueOf(connectionId) + ", ";
-//        retval += "sequenceNumber:" + String.valueOf(sequenceNumber) + ", ";
-        return retval;
+        return String.format("%s[shouldShutdown=%s, clientHandle=%d]",
+                             this.getClass().getSimpleName(),
+                             this.shouldShutdown, this.clientHandle);
     }
 }

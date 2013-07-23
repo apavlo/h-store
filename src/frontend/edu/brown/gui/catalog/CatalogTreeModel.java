@@ -159,18 +159,6 @@ public class CatalogTreeModel extends DefaultTreeModel {
         }
     }
     
-    private static class CatalogMapTreeNode extends DefaultMutableTreeNode {
-        private static final long serialVersionUID = 1L;
-
-        public CatalogMapTreeNode(String label, CatalogMap<? extends CatalogType> items) {
-            this(label, items.size());
-        }
-        
-        public CatalogMapTreeNode(String label, int size) {
-            super(label + " (" + size + ")");
-        }
-    }
-    
     /**
      * 
      */
@@ -192,7 +180,7 @@ public class CatalogTreeModel extends DefaultTreeModel {
                 buildSearchIndex(database_cat, database_node);
             
                 // Tables
-                tables_node = new CatalogMapTreeNode("Tables", database_cat.getTables());
+                tables_node = new CatalogMapTreeNode(Table.class, "Tables", database_cat.getTables());
                 database_node.add(tables_node);
 
                 // List data tables first, views second
@@ -212,7 +200,7 @@ public class CatalogTreeModel extends DefaultTreeModel {
                     buildSearchIndex(catalog_tbl, table_node);
                     
                     // Columns
-                    DefaultMutableTreeNode columns_node = new CatalogMapTreeNode("Columns", catalog_tbl.getColumns());
+                    DefaultMutableTreeNode columns_node = new CatalogMapTreeNode(Column.class, "Columns", catalog_tbl.getColumns());
                     table_node.add(columns_node);
                     for (Column catalog_col : CatalogUtil.getSortedCatalogItems(catalog_tbl.getColumns(), "index")) {
                         DefaultMutableTreeNode column_node = new DefaultMutableTreeNode(new WrapperNode(catalog_col) {
@@ -228,7 +216,7 @@ public class CatalogTreeModel extends DefaultTreeModel {
                     } // FOR (columns)
                     // Indexes
                     if (!catalog_tbl.getIndexes().isEmpty()) {
-                        DefaultMutableTreeNode indexes_node = new CatalogMapTreeNode("Indexes", catalog_tbl.getIndexes());
+                        DefaultMutableTreeNode indexes_node = new CatalogMapTreeNode(Index.class, "Indexes", catalog_tbl.getIndexes());
                         table_node.add(indexes_node);
                         for (Index catalog_idx : catalog_tbl.getIndexes()) {
                             DefaultMutableTreeNode index_node = new DefaultMutableTreeNode(new WrapperNode(catalog_idx));
@@ -238,7 +226,7 @@ public class CatalogTreeModel extends DefaultTreeModel {
                     }
                     // Constraints
                     if (!catalog_tbl.getConstraints().isEmpty()) {
-                        DefaultMutableTreeNode constraints_node = new CatalogMapTreeNode("Constraints", catalog_tbl.getConstraints());
+                        DefaultMutableTreeNode constraints_node = new CatalogMapTreeNode(Constraint.class, "Constraints", catalog_tbl.getConstraints());
                         table_node.add(constraints_node);
                         for (Constraint catalog_cnst : catalog_tbl.getConstraints()) {  
                             DefaultMutableTreeNode constraint_node = new DefaultMutableTreeNode(new WrapperNode(catalog_cnst));
@@ -249,7 +237,7 @@ public class CatalogTreeModel extends DefaultTreeModel {
                     // Vertical Partitions
                     final MaterializedViewInfo catalog_vp = vertical_partitions.get(catalog_tbl); 
                     if (catalog_vp != null) {
-                        DefaultMutableTreeNode vp_node = new CatalogMapTreeNode("Vertical Partition", catalog_vp.getGroupbycols());
+                        DefaultMutableTreeNode vp_node = new CatalogMapTreeNode(MaterializedViewInfo.class, "Vertical Partition", catalog_vp.getGroupbycols());
                         table_node.add(vp_node);
                         for (Column catalog_col : CatalogUtil.getSortedCatalogItems(CatalogUtil.getColumns(catalog_vp.getGroupbycols()), "index")) {
                             DefaultMutableTreeNode column_node = new DefaultMutableTreeNode(new WrapperNode(catalog_col) {
@@ -268,14 +256,14 @@ public class CatalogTreeModel extends DefaultTreeModel {
             
                 // System Stored Procedures
                 Collection<Procedure> sysProcs = CatalogUtil.getSysProcedures(database_cat);
-                procedures_node = new CatalogMapTreeNode("System Procedures", sysProcs.size());
+                procedures_node = new CatalogMapTreeNode(Procedure.class, "System Procedures", sysProcs.size());
                 database_node.add(procedures_node);
                 this.buildProceduresTree(procedures_node, sysProcs);
                 
                 // Benchmark Stored Procedures
                 List<Procedure> procs = new ArrayList<Procedure>(database_cat.getProcedures());
                 procs.removeAll(sysProcs);
-                procedures_node = new CatalogMapTreeNode("Stored Procedures", procs.size());
+                procedures_node = new CatalogMapTreeNode(Procedure.class, "Stored Procedures", procs.size());
                 database_node.add(procedures_node);
                 
                 // Conflicts Graph
@@ -305,7 +293,7 @@ public class CatalogTreeModel extends DefaultTreeModel {
             } // FOR
             
             // Hosts
-            DefaultMutableTreeNode hosts_node = new CatalogMapTreeNode("Hosts", cluster_cat.getHosts());
+            DefaultMutableTreeNode hosts_node = new CatalogMapTreeNode(Host.class, "Hosts", cluster_cat.getHosts());
             cluster_node.add(hosts_node);
             for (Host host_cat : cluster_cat.getHosts()) {
                 DefaultMutableTreeNode host_node = new DefaultMutableTreeNode(new WrapperNode(host_cat, host_cat.getIpaddr()));
@@ -340,7 +328,7 @@ public class CatalogTreeModel extends DefaultTreeModel {
             buildSearchIndex(catalog_proc, procNode);
 
             // Parameters
-            DefaultMutableTreeNode parameters_node = new CatalogMapTreeNode("Parameters", catalog_proc.getParameters());
+            DefaultMutableTreeNode parameters_node = new CatalogMapTreeNode(ProcParameter.class, "Parameters", catalog_proc.getParameters());
             procNode.add(parameters_node);
             for (ProcParameter param_cat : CatalogUtil.getSortedCatalogItems(catalog_proc.getParameters(), "index")) {
                 DefaultMutableTreeNode param_node = new DefaultMutableTreeNode(new WrapperNode(param_cat) {
@@ -357,7 +345,7 @@ public class CatalogTreeModel extends DefaultTreeModel {
             
             // Statements
             if (catalog_proc.getSystemproc() == false) {
-                DefaultMutableTreeNode statementRootNode = new CatalogMapTreeNode("Statements", catalog_proc.getStatements());
+                DefaultMutableTreeNode statementRootNode = new CatalogMapTreeNode(Statement.class, "Statements", catalog_proc.getStatements());
                 procNode.add(statementRootNode);                  
                 for (Statement statement_cat : catalog_proc.getStatements()) {
                     DefaultMutableTreeNode statement_node = new DefaultMutableTreeNode(new WrapperNode(statement_cat));
@@ -398,7 +386,7 @@ public class CatalogTreeModel extends DefaultTreeModel {
                     }
                 
                     // Statement Parameter
-                    DefaultMutableTreeNode paramRootNode = new CatalogMapTreeNode("Parameters", statement_cat.getParameters());
+                    DefaultMutableTreeNode paramRootNode = new CatalogMapTreeNode(StmtParameter.class, "Parameters", statement_cat.getParameters());
                     statement_node.add(paramRootNode);
                     for (StmtParameter param_cat : CatalogUtil.getSortedCatalogItems(statement_cat.getParameters(), "index")) {
                         DefaultMutableTreeNode param_node = new DefaultMutableTreeNode(new WrapperNode(param_cat) {
@@ -431,7 +419,7 @@ public class CatalogTreeModel extends DefaultTreeModel {
             
                 // Conflicts
                 if (catalog_proc.getConflicts().isEmpty() == false) {
-                    DefaultMutableTreeNode conflictRootNode = new CatalogMapTreeNode("Conflicts", catalog_proc.getConflicts());
+                    DefaultMutableTreeNode conflictRootNode = new CatalogMapTreeNode(ConflictSet.class, "Conflicts", catalog_proc.getConflicts());
                     procNode.add(conflictRootNode);
                     Database catalog_db = CatalogUtil.getDatabase(catalog_proc);
                     

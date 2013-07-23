@@ -65,8 +65,8 @@ import edu.brown.utils.EventObserver;
  */
 public class ClientInterface implements Shutdownable, Configurable {
     private static final Logger LOG = Logger.getLogger(ClientInterface.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
+    private static final LoggerBoolean trace = new LoggerBoolean();
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
@@ -684,7 +684,7 @@ public class ClientInterface implements Shutdownable, Configurable {
     }
 
     @Override
-    public void updateConf(HStoreConf hstore_conf) {
+    public void updateConf(HStoreConf hstore_conf, String[] changed) {
         int num_partitions = hstore_site.getLocalPartitionIds().size();
         this.maxPendingTxnCount = hstore_conf.site.network_incoming_limit_txns * num_partitions;
         this.maxPendingTxnBytes = hstore_conf.site.network_incoming_limit_bytes * num_partitions;

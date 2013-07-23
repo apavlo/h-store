@@ -10,6 +10,7 @@ import java.util.Set;
 
 import org.apache.commons.collections15.CollectionUtils;
 import org.apache.commons.collections15.set.ListOrderedSet;
+import org.voltdb.benchmark.tpcc.TPCCConstants;
 import org.voltdb.benchmark.tpcc.procedures.GetTableCounts;
 import org.voltdb.benchmark.tpcc.procedures.ResetWarehouse;
 import org.voltdb.benchmark.tpcc.procedures.SelectAll;
@@ -35,9 +36,9 @@ import org.voltdb.utils.Pair;
 
 import edu.brown.BaseTestCase;
 import edu.brown.catalog.special.ReplicatedColumn;
-import edu.brown.designer.ColumnSet;
 import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.PredicatePairs;
 import edu.brown.utils.ProjectType;
 import edu.brown.utils.StringUtil;
 
@@ -54,6 +55,9 @@ public class TestCatalogUtil extends BaseTestCase {
         this.addPartitions(NUM_PARTITIONS);
     }
     
+    /**
+     * testCatalogMapValues
+     */
     public void testCatalogMapValues() {
         Database catalog_db = CatalogUtil.getDatabase(CatalogCloner.cloneBaseCatalog(this.getCatalog()));
         Procedure catalog_proc = this.getProcedure(catalog_db, neworder.class);
@@ -116,7 +120,7 @@ public class TestCatalogUtil extends BaseTestCase {
     public void testGetOrderByColumns() throws Exception {
         Procedure catalog_proc = this.getProcedure(ostatByCustomerId.class);
         Statement catalog_stmt = this.getStatement(catalog_proc, "getLastOrder");
-        Table catalog_tbl = this.getTable("ORDERS");
+        Table catalog_tbl = this.getTable(TPCCConstants.TABLENAME_ORDERS);
         Column expected[] = { this.getColumn(catalog_tbl, "O_ID") };
 
         Collection<Column> cols = CatalogUtil.getOrderByColumns(catalog_stmt);
@@ -233,8 +237,8 @@ public class TestCatalogUtil extends BaseTestCase {
     public void testGetReadOnlyColumns() throws Exception {
         // The columns that we know are modified for these tables
         Map<String, Collection<String>> modified = new HashMap<String, Collection<String>>();
-        modified.put("WAREHOUSE", CollectionUtil.addAll(new HashSet<String>(), "W_YTD"));
-        modified.put("CUSTOMER", CollectionUtil.addAll(new HashSet<String>(), "C_BALANCE", "C_YTD_PAYMENT", "C_PAYMENT_CNT", "C_DATA"));
+        modified.put(TPCCConstants.TABLENAME_WAREHOUSE, CollectionUtil.addAll(new HashSet<String>(), "W_YTD"));
+        modified.put(TPCCConstants.TABLENAME_CUSTOMER, CollectionUtil.addAll(new HashSet<String>(), "C_BALANCE", "C_YTD_PAYMENT", "C_PAYMENT_CNT", "C_DATA"));
 
         for (String tableName : modified.keySet()) {
             Table catalog_tbl = this.getTable(tableName);
@@ -266,22 +270,65 @@ public class TestCatalogUtil extends BaseTestCase {
     }
 
     /**
-     * testGetTables
+     * testGetReferencedTablesProcedure
      */
-    public void testGetReferencedTables() throws Exception {
-        // Get the SLEV procedure and make sure that we get all of our tables
-        // back
-        String expected[] = { "DISTRICT", "ORDER_LINE", "STOCK" };
+    public void testGetReferencedTablesProcedure() throws Exception {
+        // Get the SLEV procedure and make sure that we get all of our tables back
+        String expected[] = { TPCCConstants.TABLENAME_DISTRICT, TPCCConstants.TABLENAME_ORDER_LINE, "STOCK" };
         Procedure catalog_proc = this.getProcedure(slev.class);
 
         Collection<Table> tables = CatalogUtil.getReferencedTables(catalog_proc);
         assertEquals(expected.length, tables.size());
         for (String table_name : expected) {
-            Table catalog_tbl = catalog_db.getTables().get(table_name);
-            assertNotNull(catalog_tbl);
-            assertTrue(tables.contains(catalog_tbl));
+            Table catalog_tbl = this.getTable(table_name);
+            assertTrue(table_name, tables.contains(catalog_tbl));
         } // FOR
         return;
+    }
+    
+    /**
+     * testGetReferencedTablesPlanFragment
+     */
+    public void testGetReferencedTablesPlanFragment() throws Exception {
+        Procedure catalog_proc = this.getProcedure(neworder.class);
+        String expected[] = null;
+        Statement stmt = null;
+        
+        // SELECT
+        stmt = this.getStatement(catalog_proc, "getDistrict");
+        expected = new String[]{ TPCCConstants.TABLENAME_DISTRICT };
+        for (PlanFragment frag : stmt.getFragments()) {
+            Collection<Table> tables = CatalogUtil.getReferencedTables(frag);
+            assertEquals(frag.fullName(), expected.length, tables.size());
+            for (String tableName : expected) {
+                Table tbl = this.getTable(tableName);
+                assertTrue(tableName, tables.contains(tbl));
+            } // FOR
+        } // FOR
+        
+        // INSERT
+        stmt = this.getStatement(catalog_proc, "createNewOrder");
+        expected = new String[]{ TPCCConstants.TABLENAME_NEW_ORDER };
+        for (PlanFragment frag : stmt.getFragments()) {
+            Collection<Table> tables = CatalogUtil.getReferencedTables(frag);
+            assertEquals(frag.fullName(), expected.length, tables.size());
+            for (String tableName : expected) {
+                Table tbl = this.getTable(tableName);
+                assertTrue(tableName, tables.contains(tbl));
+            } // FOR
+        } // FOR
+        
+        // UPDATE
+        stmt = this.getStatement(catalog_proc, "updateStock");
+        expected = new String[]{ TPCCConstants.TABLENAME_STOCK };
+        for (PlanFragment frag : stmt.getFragments()) {
+            Collection<Table> tables = CatalogUtil.getReferencedTables(frag);
+            assertEquals(frag.fullName(), expected.length, tables.size());
+            for (String tableName : expected) {
+                Table tbl = this.getTable(tableName);
+                assertTrue(tableName, tables.contains(tbl));
+            } // FOR
+        } // FOR
     }
 
     /**
@@ -290,7 +337,7 @@ public class TestCatalogUtil extends BaseTestCase {
     public void testGetReferencedColumnsSelect() throws Exception {
         Procedure catalog_proc = this.getProcedure(neworder.class);
         Statement catalog_stmt = this.getStatement(catalog_proc, "getDistrict");
-        Table catalog_tbl = this.getTable("DISTRICT");
+        Table catalog_tbl = this.getTable(TPCCConstants.TABLENAME_DISTRICT);
         Column expected[] = { this.getColumn(catalog_tbl, "D_ID"), this.getColumn(catalog_tbl, "D_W_ID") };
 
         Collection<Column> columns = CatalogUtil.getReferencedColumns(catalog_stmt);
@@ -307,7 +354,7 @@ public class TestCatalogUtil extends BaseTestCase {
     public void testGetReferencedColumnsInsert() throws Exception {
         Procedure catalog_proc = this.getProcedure(neworder.class);
         Statement catalog_stmt = this.getStatement(catalog_proc, "createNewOrder");
-        Table catalog_tbl = this.getTable("NEW_ORDER");
+        Table catalog_tbl = this.getTable(TPCCConstants.TABLENAME_NEW_ORDER);
         Column expected[] = new Column[catalog_tbl.getColumns().size()];
         catalog_tbl.getColumns().toArray(expected);
 
@@ -325,7 +372,7 @@ public class TestCatalogUtil extends BaseTestCase {
     public void testGetReferencedColumnsDelete() throws Exception {
         Procedure catalog_proc = this.getProcedure(delivery.class);
         Statement catalog_stmt = this.getStatement(catalog_proc, "deleteNewOrder");
-        Table catalog_tbl = this.getTable("NEW_ORDER");
+        Table catalog_tbl = this.getTable(TPCCConstants.TABLENAME_NEW_ORDER);
         Column expected[] = { this.getColumn(catalog_tbl, "NO_D_ID"), this.getColumn(catalog_tbl, "NO_W_ID"), this.getColumn(catalog_tbl, "NO_O_ID") };
 
         Collection<Column> columns = CatalogUtil.getReferencedColumns(catalog_stmt);
@@ -342,7 +389,7 @@ public class TestCatalogUtil extends BaseTestCase {
     public void testGetReferencedColumnsUpdate() throws Exception {
         Procedure catalog_proc = this.getProcedure(neworder.class);
         Statement catalog_stmt = this.getStatement(catalog_proc, "incrementNextOrderId");
-        Table catalog_tbl = this.getTable("DISTRICT");
+        Table catalog_tbl = this.getTable(TPCCConstants.TABLENAME_DISTRICT);
         Column expectedReadOnly[] = { this.getColumn(catalog_tbl, "D_ID"), this.getColumn(catalog_tbl, "D_W_ID") };
         Column expectedModified[] = { this.getColumn(catalog_tbl, "D_NEXT_O_ID"), };
         Column expectedAll[] = new Column[expectedReadOnly.length + expectedModified.length];
@@ -391,7 +438,7 @@ public class TestCatalogUtil extends BaseTestCase {
             this.getProcedure(SelectAll.class),
             
         };
-        Table catalog_tbl = this.getTable("NEW_ORDER");
+        Table catalog_tbl = this.getTable(TPCCConstants.TABLENAME_NEW_ORDER);
         Collection<Procedure> procedures = CatalogUtil.getReferencingProcedures(catalog_tbl);
         assertNotNull(procedures);
         assertEquals(procedures.toString(), expected.length, procedures.size());
@@ -405,7 +452,7 @@ public class TestCatalogUtil extends BaseTestCase {
      */
     public void testGetProceduresReplicatedColumn() throws Exception {
         Procedure expected[] = { this.getProcedure(delivery.class), this.getProcedure(neworder.class), this.getProcedure(ResetWarehouse.class), };
-        Table catalog_tbl = this.getTable("NEW_ORDER");
+        Table catalog_tbl = this.getTable(TPCCConstants.TABLENAME_NEW_ORDER);
         Column catalog_col = ReplicatedColumn.get(catalog_tbl);
 
         Collection<Procedure> procedures = CatalogUtil.getReferencingProcedures(catalog_col);
@@ -423,7 +470,7 @@ public class TestCatalogUtil extends BaseTestCase {
         //
         // Add in some fake partitions
         //
-        Cluster cluster = CatalogUtil.getCluster(catalog);
+        Cluster cluster = catalogContext.cluster;
         assertNotNull(cluster);
         Map<Host, Set<Partition>> host_partitions = new HashMap<Host, Set<Partition>>();
 
@@ -440,7 +487,7 @@ public class TestCatalogUtil extends BaseTestCase {
             Set<Partition> partitions = host_partitions.get(catalog_host);
             Partition catalog_part = CollectionUtil.first(partitions);
             int base_partition = catalog_part.getId();
-            Set<Partition> local_partitions = CatalogUtil.getLocalPartitions(catalog_db, base_partition);
+            Collection<Partition> local_partitions = CatalogUtil.getLocalPartitions(catalogContext.database, base_partition);
             assertEquals(partitions.size(), local_partitions.size());
 
             for (Partition other_part : local_partitions) {
@@ -456,7 +503,7 @@ public class TestCatalogUtil extends BaseTestCase {
      */
     public void testGetSitesForHost() throws Exception {
         Map<Host, List<Site>> host_sites = new HashMap<Host, List<Site>>();
-        Cluster catalog_clus = CatalogUtil.getCluster(catalog);
+        Cluster catalog_clus = catalogContext.cluster;
 
         for (Site catalog_site : catalog_clus.getSites()) {
             Host catalog_host = catalog_site.getHost();
@@ -478,8 +525,9 @@ public class TestCatalogUtil extends BaseTestCase {
     /**
      * testGetCluster
      */
+    @SuppressWarnings("deprecation")
     public void testGetCluster() {
-        Cluster catalog_clus = CatalogUtil.getCluster(catalog);
+        Cluster catalog_clus = catalogContext.cluster;
         assertNotNull(catalog_clus);
 
         Set<Cluster> clusters = new HashSet<Cluster>();
@@ -493,12 +541,13 @@ public class TestCatalogUtil extends BaseTestCase {
     /**
      * testGetDatabase
      */
+    @SuppressWarnings("deprecation")
     public void testGetDatabase() {
         Database db0 = CatalogUtil.getDatabase(catalog);
         assertNotNull(db0);
 
         Set<Database> dbs = new HashSet<Database>();
-        for (Database db1 : CatalogUtil.getCluster(catalog).getDatabases()) {
+        for (Database db1 : catalogContext.cluster.getDatabases()) {
             dbs.add(db1);
         } // FOR
         assertEquals(1, dbs.size());
@@ -509,7 +558,7 @@ public class TestCatalogUtil extends BaseTestCase {
      * testCatalogMapGet
      */
     public void testCatalogMapGet() {
-        Table catalog_tbl = this.getTable("ORDER_LINE");
+        Table catalog_tbl = this.getTable(TPCCConstants.TABLENAME_ORDER_LINE);
         CatalogMap<Column> catalog_cols = catalog_tbl.getColumns();
         List<Column> sorted_cols = org.voltdb.utils.CatalogUtil.getSortedCatalogItems(catalog_cols, "index");
         assertEquals(catalog_cols.size(), sorted_cols.size());
@@ -527,7 +576,7 @@ public class TestCatalogUtil extends BaseTestCase {
      * @param cset
      * @param expected
      */
-    private void checkColumnSet(ColumnSet cset, Collection<Pair<Column, Integer>> expected) {
+    private void checkColumnSet(PredicatePairs cset, Collection<Pair<Column, Integer>> expected) {
         for (CatalogPair entry : cset) {
             int column_idx = (entry.getFirst() instanceof StmtParameter ? 1 : 0);
             int param_idx = (column_idx == 0 ? 1 : 0);
@@ -561,13 +610,11 @@ public class TestCatalogUtil extends BaseTestCase {
      * testExtractStatementColumnSet
      */
     public void testExtractStatementColumnSet() throws Exception {
-        Table catalog_tbl = this.getTable("DISTRICT");
+        Table catalog_tbl = this.getTable(TPCCConstants.TABLENAME_DISTRICT);
         assertNotNull(catalog_tbl);
-        Procedure catalog_proc = catalog_db.getProcedures().get("neworder");
-        assertNotNull(catalog_proc);
-        Statement catalog_stmt = catalog_proc.getStatements().get("getDistrict");
-        assertNotNull(catalog_stmt);
-        ColumnSet cset = CatalogUtil.extractStatementColumnSet(catalog_stmt, false, catalog_tbl);
+        Procedure catalog_proc = this.getProcedure("neworder");
+        Statement catalog_stmt = this.getStatement(catalog_proc, "getDistrict");
+        PredicatePairs cset = CatalogUtil.extractStatementPredicates(catalog_stmt, false, catalog_tbl);
 
         // Column -> StmtParameter Index
         Set<Pair<Column, Integer>> expected_columns = new HashSet<Pair<Column, Integer>>();
@@ -582,11 +629,11 @@ public class TestCatalogUtil extends BaseTestCase {
      * testExtractUpdateColumnSet
      */
     public void testExtractUpdateColumnSet() throws Exception {
-        Table catalog_tbl = this.getTable("DISTRICT");
+        Table catalog_tbl = this.getTable(TPCCConstants.TABLENAME_DISTRICT);
         Procedure catalog_proc = this.getProcedure(neworder.class);
         Statement catalog_stmt = this.getStatement(catalog_proc, "incrementNextOrderId");
 
-        ColumnSet cset = CatalogUtil.extractUpdateColumnSet(catalog_stmt, false, catalog_tbl);
+        PredicatePairs cset = CatalogUtil.extractUpdateColumnSet(catalog_stmt, false, catalog_tbl);
         // System.out.println(cset.debug());
 
         // Column -> StmtParameter Index
@@ -605,7 +652,7 @@ public class TestCatalogUtil extends BaseTestCase {
         Statement catalog_stmt = this.getStatement(catalog_proc, "insertHistory");
 
         assertNotNull(catalog_stmt);
-        ColumnSet cset = CatalogUtil.extractStatementColumnSet(catalog_stmt, false, catalog_tbl);
+        PredicatePairs cset = CatalogUtil.extractStatementPredicates(catalog_stmt, false, catalog_tbl);
         // System.out.println(cset.debug());
 
         // Column -> StmtParameter Index
@@ -631,12 +678,15 @@ public class TestCatalogUtil extends BaseTestCase {
         assertNotNull(root_node);
         // System.out.println(PlanNodeUtil.debug(root_node));
 
-        ColumnSet cset = new ColumnSet();
-        Table tables[] = new Table[] { catalog_db.getTables().get("ORDER_LINE"), catalog_db.getTables().get("STOCK") };
+        PredicatePairs cset = new PredicatePairs();
+        Table tables[] = new Table[] {
+                this.getTable(TPCCConstants.TABLENAME_ORDER_LINE),
+                this.getTable("STOCK")
+        };
         for (Table catalog_tbl : tables) {
             Set<Table> table_set = new HashSet<Table>();
             table_set.add(catalog_tbl);
-            CatalogUtil.extractPlanNodeColumnSet(catalog_stmt, catalog_db, cset, root_node, false, table_set);
+            CatalogUtil.extractPlanNodePredicates(catalog_stmt, catalogContext.database, cset, root_node, false, table_set);
         }
         // System.err.println(cset.debug() + "\n-------------------------\n");
 

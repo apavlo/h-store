@@ -60,4 +60,9 @@ public @interface ConfigProperty {
      * @return
      */
     String replacedBy() default "";
+    
+    /**
+     * The enum class to use to validate options.
+     */
+    String enumOptions() default "";
 }

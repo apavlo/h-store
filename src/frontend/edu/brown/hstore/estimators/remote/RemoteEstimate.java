@@ -83,14 +83,13 @@ public class RemoteEstimate implements Estimate {
     public List<CountedStatement> getQueryEstimate(int partition) {
         if (this.countedStmts[partition] == null) {
             this.countedStmts[partition] = new ArrayList<CountedStatement>();
+            QueryEstimate est = this.query_estimates[partition];
+            for (int i = 0, cnt = est.getStmtIdsCount(); i < cnt; i++) {
+                Statement catalog_stmt = this.catalogContext.getStatementById(est.getStmtIds(i));
+                assert(catalog_stmt != null) : "Invalid Statement id '" + est.getStmtIds(i) + "'";
+                this.countedStmts[partition].add(new CountedStatement(catalog_stmt, est.getStmtCounters(i)));
+            } // FOR
         }
-        
-        QueryEstimate est = this.query_estimates[partition];
-        for (int i = 0, cnt = est.getStmtIdsCount(); i < cnt; i++) {
-            Statement catalog_stmt = this.catalogContext.getStatementById(est.getStmtIds(i));
-            assert(catalog_stmt != null) : "Invalid Statement id '" + est.getStmtIds(i) + "'";
-            this.countedStmts[partition].add(new CountedStatement(catalog_stmt, est.getStmtIds(i)));
-        } // FOR
         return (this.countedStmts[partition]);
     }
 
@@ -99,20 +98,20 @@ public class RemoteEstimate implements Estimate {
         throw new NotImplementedException(this.getClass().getSimpleName() + " does not implement this method");
     }
 
-    @Override
-    public boolean isSinglePartitionProbabilitySet() {
-        return (false);
-    }
+//    @Override
+//    public boolean isSinglePartitionProbabilitySet() {
+//        return (false);
+//    }
 
     @Override
     public boolean isSinglePartitioned(EstimationThresholds t) {
         throw new NotImplementedException(this.getClass().getSimpleName() + " does not implement this method");
     }
 
-    @Override
-    public boolean isReadOnlyProbabilitySet(int partition) {
-        throw new NotImplementedException(this.getClass().getSimpleName() + " does not implement this method");
-    }
+//    @Override
+//    public boolean isReadOnlyProbabilitySet(int partition) {
+//        throw new NotImplementedException(this.getClass().getSimpleName() + " does not implement this method");
+//    }
 
     @Override
     public boolean isReadOnlyPartition(EstimationThresholds t, int partition) {
@@ -124,10 +123,10 @@ public class RemoteEstimate implements Estimate {
         throw new NotImplementedException(this.getClass().getSimpleName() + " does not implement this method");
     }
 
-    @Override
-    public PartitionSet getReadOnlyPartitions(EstimationThresholds t) {
-        throw new NotImplementedException(this.getClass().getSimpleName() + " does not implement this method");
-    }
+//    @Override
+//    public PartitionSet getReadOnlyPartitions(EstimationThresholds t) {
+//        throw new NotImplementedException(this.getClass().getSimpleName() + " does not implement this method");
+//    }
 
     @Override
     public boolean isWriteProbabilitySet(int partition) {
@@ -145,17 +144,17 @@ public class RemoteEstimate implements Estimate {
     }
 
     @Override
-    public boolean isFinishProbabilitySet(int partition) {
+    public boolean isDoneProbabilitySet(int partition) {
         return (false);
     }
 
     @Override
-    public boolean isFinishPartition(EstimationThresholds t, int partition) {
+    public boolean isDonePartition(EstimationThresholds t, int partition) {
         throw new NotImplementedException(this.getClass().getSimpleName() + " does not implement this method");
     }
 
     @Override
-    public PartitionSet getFinishPartitions(EstimationThresholds t) {
+    public PartitionSet getDonePartitions(EstimationThresholds t) {
         throw new NotImplementedException(this.getClass().getSimpleName() + " does not implement this method");
     }
 

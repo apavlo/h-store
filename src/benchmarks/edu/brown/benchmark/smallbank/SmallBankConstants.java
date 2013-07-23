@@ -4,9 +4,6 @@
  *  Massachusetts Institute of Technology                                  *
  *  Yale University                                                        *
  *                                                                         *
- *  Original By: VoltDB Inc.											   *
- *  Ported By:  Justin A. DeBrabant (http://www.cs.brown.edu/~debrabant/)  *                                                                      *
- *                                                                         *
  *  Permission is hereby granted, free of charge, to any person obtaining  *
  *  a copy of this software and associated documentation files (the        *
  *  "Software"), to deal in the Software without restriction, including    *
@@ -34,12 +31,12 @@ public abstract class SmallBankConstants {
     // ----------------------------------------------------------------
     // STORED PROCEDURE EXECUTION FREQUENCIES (0-100)
     // ----------------------------------------------------------------
-    public static final int FREQUENCY_AMALGAMATE        = 20;
-    public static final int FREQUENCY_BALANCE           = 20;
-    public static final int FREQUENCY_DEPOSIT_CHECKING  = 20;
-    public static final int FREQUENCY_SEND_PAYMENT      = 0;
-    public static final int FREQUENCY_TRANSACT_SAVINGS  = 20;
-    public static final int FREQUENCY_WRITE_CHECK       = 20;
+    public static final int FREQUENCY_AMALGAMATE        = 15;
+    public static final int FREQUENCY_BALANCE           = 15;
+    public static final int FREQUENCY_DEPOSIT_CHECKING  = 15;
+    public static final int FREQUENCY_SEND_PAYMENT      = 25;
+    public static final int FREQUENCY_TRANSACT_SAVINGS  = 15;
+    public static final int FREQUENCY_WRITE_CHECK       = 15;
 
     // ----------------------------------------------------------------
     // TABLE NAMES
@@ -48,7 +45,7 @@ public abstract class SmallBankConstants {
     public static final String TABLENAME_SAVINGS    = "SAVINGS";
     public static final String TABLENAME_CHECKING   = "CHECKING";
     
-    public static final int BATCH_SIZE              = 1000;
+    public static final int BATCH_SIZE              = 5000;
     
     // ----------------------------------------------------------------
     // ACCOUNT INFORMATION
@@ -57,20 +54,17 @@ public abstract class SmallBankConstants {
     // Default number of customers in bank
     public static final int NUM_ACCOUNTS            = 1000000;
     
-    public static final int HOTSPOT_SIZE            = 100;
+    public static final boolean HOTSPOT_USE_FIXED_SIZE  = false;
+    public static final double HOTSPOT_PERCENTAGE       = 25; // [0% - 100%]
+    public static final int HOTSPOT_FIXED_SIZE          = 100; // fixed number of tuples
     
     // ----------------------------------------------------------------
     // ADDITIONAL CONFIGURATION SETTINGS
     // ----------------------------------------------------------------
     
-    // Percentage of customers that do not have a SAVINGS account [0-100%]
-    public static final int PERCENTAGE_NO_SAVINGS   = 0;
-    
-    // Percentage of customers that do not have a CHECKING account [0-100%]
-    public static final int PERCENTAGE_NO_CHECKING  = 0;
-    
     // Initial balance amount
-    public static final int MIN_BALANCE             = 100;
-    public static final int MAX_BALANCE             = 5000;
+    // We'll just make it really big so that they never run out of money
+    public static final int MIN_BALANCE             = 10000;
+    public static final int MAX_BALANCE             = 50000;
 
 }

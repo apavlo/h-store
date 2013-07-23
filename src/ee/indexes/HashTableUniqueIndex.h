@@ -95,11 +95,12 @@ public:
         // set the key from the tuple 
         m_tmp1.setFromTuple(tuple, column_indices_, m_keySchema);
         ++m_updates;
-                
+        
         // erase the entry and add a entry with the same key and a NULL value
-        m_entries.erase(m_tmp1); 
+        bool deleted = deleteEntryPrivate(m_tmp1);
+//        m_entries.erase(m_tmp1); 
         std::pair<typename MapType::iterator, bool> retval = m_entries.insert(std::pair<KeyType, const void*>(m_tmp1, address));
-        return retval.second;
+        return (retval.second & deleted);
     }
 
     bool checkForIndexChange(const TableTuple *lhs, const TableTuple *rhs) {

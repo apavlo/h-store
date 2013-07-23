@@ -46,6 +46,7 @@ import edu.brown.catalog.CatalogUtil;
 import edu.brown.designer.DesignerHints;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.statistics.Histogram;
 import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.StringUtil;
@@ -58,8 +59,8 @@ import edu.brown.workload.filters.Filter;
  */
 public abstract class AbstractCostModel {
     private static final Logger LOG = Logger.getLogger(AbstractCostModel.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
+    private static final LoggerBoolean trace = new LoggerBoolean();
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
@@ -445,15 +446,15 @@ public abstract class AbstractCostModel {
     // return (this.java_exec_weight);
     // }
 
-    public ObjectHistogram<String> getProcedureHistogram() {
+    public Histogram<String> getProcedureHistogram() {
         return this.histogram_procs;
     }
 
-    public ObjectHistogram<String> getSinglePartitionProcedureHistogram() {
+    public Histogram<String> getSinglePartitionProcedureHistogram() {
         return this.histogram_sp_procs;
     }
 
-    public ObjectHistogram<String> getMultiPartitionProcedureHistogram() {
+    public Histogram<String> getMultiPartitionProcedureHistogram() {
         return this.histogram_mp_procs;
     }
 
@@ -463,7 +464,7 @@ public abstract class AbstractCostModel {
      * 
      * @return
      */
-    public ObjectHistogram<Integer> getJavaExecutionHistogram() {
+    public Histogram<Integer> getJavaExecutionHistogram() {
         return this.histogram_java_partitions;
     }
 
@@ -472,7 +473,7 @@ public abstract class AbstractCostModel {
      * 
      * @return
      */
-    public ObjectHistogram<Integer> getTxnPartitionAccessHistogram() {
+    public Histogram<Integer> getTxnPartitionAccessHistogram() {
         return this.histogram_txn_partitions;
     }
 
@@ -481,7 +482,7 @@ public abstract class AbstractCostModel {
      * 
      * @return
      */
-    public ObjectHistogram<Integer> getQueryPartitionAccessHistogram() {
+    public Histogram<Integer> getQueryPartitionAccessHistogram() {
         return this.histogram_query_partitions;
     }
 

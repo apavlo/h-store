@@ -1,10 +1,10 @@
 package org.voltdb.benchmark.tpcc;
 
 import java.lang.reflect.Field;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import org.apache.commons.collections15.map.ListOrderedMap;
 import org.voltdb.CatalogContext;
 
 import edu.brown.utils.StringUtil;
@@ -29,9 +29,15 @@ public final class TPCCConfig {
     
     public boolean noop = false;
     public boolean neworder_only = false;
-    public boolean neworder_abort = false;
     public boolean neworder_multip = true;
     public boolean neworder_skew_warehouse = false;
+    /** Percentage of neworder txns that will abort */
+    public int neworder_abort = TPCCConstants.NEWORDER_ABORT;
+    /** Prevent all distributed neworder txns from being aborted*/
+    public boolean neworder_abort_no_multip = false;
+    /** Prevent all single-partition neworder txns from being aborted*/
+    public boolean neworder_abort_no_singlep = false;
+    
     /** Percentage of neworder txns that are forced to be multi-partitioned */
     public double neworder_multip_mix = -1;
     /** Whether neworder txns that are forced to be remote or not */
@@ -48,6 +54,12 @@ public final class TPCCConfig {
     /** Percentage of warehouse ids that will be temporally skewed during the benchmark run */
     public int temporal_skew_mix = 0;
     public boolean temporal_skew_rotate = false;
+    
+    /**
+     * Scale the number of items based on the client scalefactor.
+     * @see HStoreConf.ClientConf.scalefactor
+     */
+    public boolean scale_items = false;
     
     private TPCCConfig() {
         // Nothing
@@ -104,7 +116,15 @@ public final class TPCCConfig {
             }
             // ALLOW NEWORDER ABORTS
             else if (key.equalsIgnoreCase("neworder_abort") && !val.isEmpty()) {
-                neworder_abort = Boolean.parseBoolean(val);
+                neworder_abort = Integer.parseInt(val);
+            }
+            // PREVENT ABORTS FOR NEWORDER DTXNS
+            else if (key.equalsIgnoreCase("neworder_abort_no_multip") && !val.isEmpty()) {
+                neworder_abort_no_multip = Boolean.parseBoolean(val);
+            }
+            // PREVENT ABORTS FOR SINGLE-PARTITION NEWORDER TXNS
+            else if (key.equalsIgnoreCase("neworder_abort_np_singlep") && !val.isEmpty()) {
+                neworder_abort_no_singlep = Boolean.parseBoolean(val);
             }
             // NEWORDER DTXN PERCENTAGE
             else if (key.equalsIgnoreCase("neworder_multip") && !val.isEmpty()) {
@@ -152,6 +172,11 @@ public final class TPCCConfig {
             else if (key.equalsIgnoreCase("temporal_skew_rotate") && !val.isEmpty()) {
                 temporal_skew_rotate = Boolean.parseBoolean(val);
             }
+            
+            // # OF ITEMS
+            else if (key.equalsIgnoreCase("scale_items") && !val.isEmpty()) {
+                scale_items = Boolean.parseBoolean(val);
+            }
         } // FOR
         
         if (warehouse_per_partition) num_warehouses = catalogContext.numberOfPartitions;
@@ -170,6 +195,13 @@ public final class TPCCConfig {
         return new TPCCConfig(catalogContext, params);
     }
     
+    public void disableDistributedTransactions() {
+        this.neworder_multip = false;
+        this.neworder_multip_mix = 0;
+        this.payment_multip = false;
+        this.payment_multip_mix = 0;
+    }
+    
     @Override
     public String toString() {
         return StringUtil.formatMaps(this.debugMap());
@@ -177,7 +209,7 @@ public final class TPCCConfig {
     
     public Map<String, Object> debugMap() {
         Class<?> confClass = this.getClass();
-        Map<String, Object> m = new ListOrderedMap<String, Object>();
+        Map<String, Object> m = new LinkedHashMap<String, Object>();
         for (Field f : confClass.getFields()) {
             Object obj = null;
             try {

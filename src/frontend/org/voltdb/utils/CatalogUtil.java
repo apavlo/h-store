@@ -129,16 +129,22 @@ public abstract class CatalogUtil {
     public static VoltTable getVoltTable(Table catalogTable) {
         assert(catalogTable != null) : "Unexpected null catalog table";
         List<Column> catalogColumns = CatalogUtil.getSortedCatalogItems(catalogTable.getColumns(), "index");
-
-        VoltTable.ColumnInfo[] columns = new VoltTable.ColumnInfo[catalogColumns.size()];
-
-        int i = 0;
-        for (Column catCol : catalogColumns) {
-            columns[i++] = new VoltTable.ColumnInfo(catCol.getTypeName(), VoltType.get((byte)catCol.getType()));
-        }
-
-        return new VoltTable(columns);
+        return CatalogUtil.getVoltTable(catalogColumns);
     }
+    
+    /**
+    *
+    * @param catalogTable
+    * @return An empty table with the same schema as a given catalog table.
+    */
+    public static VoltTable getVoltTable(Collection<Column> catalogColumns) {
+       VoltTable.ColumnInfo[] columns = new VoltTable.ColumnInfo[catalogColumns.size()];
+       int i = 0;
+       for (Column catCol : catalogColumns) {
+           columns[i++] = new VoltTable.ColumnInfo(catCol.getTypeName(), VoltType.get((byte)catCol.getType()));
+       }
+       return new VoltTable(columns);
+   }
 
     /**
      * Given a set of catalog items, return a sorted list of them, sorted by

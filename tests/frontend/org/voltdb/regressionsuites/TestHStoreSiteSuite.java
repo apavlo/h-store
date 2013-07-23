@@ -7,11 +7,15 @@ import junit.framework.Test;
 import org.voltdb.BackendTarget;
 import org.voltdb.CatalogContext;
 import org.voltdb.StoredProcedureInvocationHints;
+import org.voltdb.VoltSystemProcedure;
+import org.voltdb.VoltTable;
+import org.voltdb.benchmark.tpcc.TPCCConstants;
 import org.voltdb.benchmark.tpcc.TPCCProjectBuilder;
 import org.voltdb.benchmark.tpcc.procedures.neworder;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.ProcedureCallback;
+import org.voltdb.sysprocs.AdHoc;
 
 import edu.brown.hstore.Hstoreservice.Status;
 
@@ -45,6 +49,45 @@ public class TestHStoreSiteSuite extends RegressionSuite {
     }
     
     /**
+     * testAdHocSQL
+     */
+    public void testAdHocSQL() throws Exception {
+        // This was originally from org.voltdb.TestAdHocQueries
+        
+        Client client = this.getClient();
+        String procName = VoltSystemProcedure.procCallName(AdHoc.class);
+        ClientResponse cr;
+        
+        cr = client.callProcedure(procName, "INSERT INTO NEW_ORDER VALUES (1, 1, 1);");
+        VoltTable modCount = cr.getResults()[0];
+        assertTrue(modCount.getRowCount() == 1);
+        assertTrue(modCount.asScalarLong() == 1);
+
+        cr = client.callProcedure(procName, "SELECT * FROM NEW_ORDER;");
+        VoltTable result = cr.getResults()[0];
+        assertTrue(result.getRowCount() == 1);
+        // System.out.println(result.toString());
+
+        boolean caught = false;
+        try {
+            client.callProcedure("@AdHoc", "SLEECT * FROOM NEEEW_OOORDERERER;");
+        } catch (Exception e) {
+            caught = true;
+        }
+        assertTrue("Bad SQL failed to throw expected exception", caught);
+    }
+    
+    /**
+     * testTransactionRedirect
+     */
+    public void testTransactionRedirect() throws Exception {
+        CatalogContext catalogContext = this.getCatalogContext();
+        if (catalogContext.numberOfPartitions == 1) return;
+        
+        // TODO
+    }
+    
+    /**
      * testNetworkThreadInitialization
      */
     public void testNetworkThreadInitialization() throws Exception {
@@ -61,7 +104,7 @@ public class TestHStoreSiteSuite extends RegressionSuite {
     public void testStoredProcedureInvocationHints() throws Exception {
         CatalogContext catalogContext = this.getCatalogContext();
         Client client = this.getClient();
-        RegressionSuiteUtil.initializeTPCCDatabase(catalogContext, client);
+        RegressionSuiteUtil.initializeTPCCDatabase(catalogContext, client, true);
         
         final int repeat = 100;
         final StoredProcedureInvocationHints hints = new StoredProcedureInvocationHints();
@@ -106,12 +149,12 @@ public class TestHStoreSiteSuite extends RegressionSuite {
         // build up a project builder for the TPC-C app
         TPCCProjectBuilder project = new TPCCProjectBuilder();
         project.addAllDefaults();
-        project.addStmtProcedure("GetItem", "SELECT * FROM ITEM WHERE I_ID = ?");
+        project.addStmtProcedure("GetItem", "SELECT * FROM " + TPCCConstants.TABLENAME_ITEM + " WHERE I_ID = ?");
         
         boolean success;
         
         /////////////////////////////////////////////////////////////
-        // CONFIG #1: 1 Local Site/Partition running on JNI backend
+        // CONFIG #1: 1 Local Site/Partition
         /////////////////////////////////////////////////////////////
         config = new LocalSingleProcessServer(PREFIX + "-1part.jar", 1, BackendTarget.NATIVE_EE_JNI);
         success = config.compile(project);

@@ -27,8 +27,8 @@ import org.voltdb.ProcInfo;
 import org.voltdb.ProcedureProfiler;
 import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
-import org.voltdb.dtxn.DtxnConstants;
 
+import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.PartitionExecutor;
 
 /** A wholly improper shutdown. The only guarantee is that a transaction
@@ -45,7 +45,7 @@ import edu.brown.hstore.PartitionExecutor;
 public class Shutdown extends VoltSystemProcedure {
     private static final Logger LOG = Logger.getLogger(Shutdown.class);
 
-    static final long DEP_distribute = SysProcFragmentId.PF_loadDistribute | DtxnConstants.MULTIPARTITION_DEPENDENCY;
+    static final long DEP_distribute = SysProcFragmentId.PF_loadDistribute | HStoreConstants.MULTIPARTITION_DEPENDENCY;
     static final long DEP_aggregate = SysProcFragmentId.PF_loadAggregate;
 
     @Override

@@ -18,7 +18,6 @@ import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.PartitionExecutor;
 import edu.brown.hstore.callbacks.SendDataCallback;
 import edu.brown.hstore.txns.AbstractTransaction;
-import edu.brown.hstore.txns.ExecutionState;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.hstore.txns.MapReduceTransaction;
 import edu.brown.logging.LoggerUtil;
@@ -27,14 +26,13 @@ import edu.brown.utils.PartitionEstimator;
 
 public class MapReduceHelperThread extends AbstractProcessingRunnable<MapReduceTransaction> {
     private static final Logger LOG = Logger.getLogger(MapReduceHelperThread.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
+    private static final LoggerBoolean trace = new LoggerBoolean();
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
 
     private final PartitionEstimator p_estimator;
-    private ExecutionState execState = null;
     private PartitionExecutor executor;
 
     public MapReduceHelperThread(HStoreSite hstore_site) {
@@ -70,7 +68,6 @@ public class MapReduceHelperThread extends AbstractProcessingRunnable<MapReduceT
         if (hstore_conf.site.mr_reduce_blocking == false && this.executor == null) {
             // Initialization
             this.executor = this.initPartitionExecutor();
-            this.execState = new ExecutionState(this.executor);
         }
 
         // Take all of the Map output tables and perform the shuffle operation

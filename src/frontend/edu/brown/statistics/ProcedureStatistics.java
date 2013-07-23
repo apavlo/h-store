@@ -195,7 +195,7 @@ public class ProcedureStatistics extends AbstractStatistics<Procedure> {
         //
         // Get the tables used by this query
         //
-        Collection<Table> catalog_tbls = CatalogUtil.getAllTables(catalog_stmt);
+        Collection<Table> catalog_tbls = CatalogUtil.getReferencedTables(catalog_stmt);
         if (catalog_tbls.isEmpty()) {
             LOG.fatal("Failed to get the target table for " + CatalogUtil.getDisplayName(catalog_stmt));
             System.exit(1);

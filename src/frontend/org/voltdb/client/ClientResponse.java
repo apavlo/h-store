@@ -130,6 +130,7 @@ public interface ClientResponse extends Poolable {
      * Returns true if this ClientResponse has an embedded ClientResponseDebug handle
      * with additional information about the transaction.
      * @return
+     * @see HStoreConf.site.txn_client_debug
      */
     public boolean hasDebug();
     public ClientResponseDebug getDebug();

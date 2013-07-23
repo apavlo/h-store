@@ -15,7 +15,7 @@ import edu.brown.optimizer.PlanOptimizerState;
  */
 public class CombineOptimization extends AbstractOptimization {
     private static final Logger LOG = Logger.getLogger(CombineOptimization.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
 
     public CombineOptimization(PlanOptimizerState state) {
         super(state);

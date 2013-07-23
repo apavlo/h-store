@@ -29,8 +29,8 @@ import edu.brown.utils.ProjectType;
  */
 public abstract class AbstractProjectBuilder extends VoltProjectBuilder {
     private static final Logger LOG = Logger.getLogger(AbstractProjectBuilder.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
+    private static final LoggerBoolean trace = new LoggerBoolean();
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }

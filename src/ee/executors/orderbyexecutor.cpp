@@ -164,7 +164,7 @@ private:
 };
 
 bool
-OrderByExecutor::p_execute(const NValueArray &params)
+OrderByExecutor::p_execute(const NValueArray &params, ReadWriteTracker *tracker)
 {
     OrderByPlanNode* node = dynamic_cast<OrderByPlanNode*>(abstract_node);
     assert(node);

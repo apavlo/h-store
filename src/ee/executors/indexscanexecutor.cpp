@@ -343,7 +343,7 @@ bool IndexScanExecutor::p_init(AbstractPlanNode *abstractNode,
     return true;
 }
 
-bool IndexScanExecutor::p_execute(const NValueArray &params)
+bool IndexScanExecutor::p_execute(const NValueArray &params, ReadWriteTracker *tracker)
 {
     assert(m_node);
     assert(m_node == dynamic_cast<IndexScanPlanNode*>(abstract_node));
@@ -508,7 +508,7 @@ bool IndexScanExecutor::p_execute(const NValueArray &params)
         return false;
     }
     
-#ifdef ANTICACHE
+    #ifdef ANTICACHE
     // anti-cache variables
     //EvictedTable* m_evictedTable = static_cast<EvictedTable*> (m_targetTable->getEvictedTable()); 
     list<int16_t> evicted_block_ids;
@@ -522,11 +522,9 @@ bool IndexScanExecutor::p_execute(const NValueArray &params)
     if (m_targetTable->getEvictedTable() != NULL)
         m_evicted_tuple = new TableTuple(m_targetTable->getEvictedTable()->schema()); 
 
-    
     int16_t block_id;
     int32_t tuple_id;
-    
-#endif        
+    #endif        
 
 
     //
@@ -539,9 +537,13 @@ bool IndexScanExecutor::p_execute(const NValueArray &params)
     {
         m_targetTable->updateTupleAccessCount();
         
-#ifdef ANTICACHE
+        // Read/Write Set Tracking
+        if (tracker != NULL) {
+            tracker->markTupleRead(m_targetTable->name(), &m_tuple);
+        }
+        
+        #ifdef ANTICACHE
         // We are pointing to an entry for an evicted tuple
-
         if (m_tuple.isEvicted()) {            
             if (m_evicted_tuple == NULL) {
                 VOLT_INFO("Evicted Tuple found in table without EvictedTable!"); 
@@ -558,7 +560,7 @@ bool IndexScanExecutor::p_execute(const NValueArray &params)
                 evicted_offsets.push_back(tuple_id);
             }
         }
-#endif        
+        #endif        
         
         //
         // First check whether the end_expression is now false
@@ -646,6 +648,19 @@ bool IndexScanExecutor::p_execute(const NValueArray &params)
                 m_outputTable->insertTupleNonVirtual(m_tuple);
                 tuples_written++;
             }
+            
+#ifdef ANTICACHE
+            if(m_targetTable->getEvictedTable() != NULL)  
+            {
+                if(!m_tuple.isEvicted())
+                {
+                    // update the tuple in the LRU eviction chain
+                    AntiCacheEvictionManager* eviction_manager = m_targetTable->m_executorContext->getAntiCacheEvictionManager();
+                    eviction_manager->updateTuple(m_targetTable, &m_tuple, false);
+                }
+            }
+#endif
+            
 
             //
             // INLINE LIMIT
@@ -704,7 +719,7 @@ bool IndexScanExecutor::p_execute(const NValueArray &params)
     // throw exception indicating evicted blocks are needed
     if (evicted_block_ids.size() > 0)
     {
-        //evicted_block_ids.unique();
+        evicted_block_ids.unique();
         
         int num_block_ids = static_cast<int>(evicted_block_ids.size()); 
         
@@ -714,12 +729,14 @@ bool IndexScanExecutor::p_execute(const NValueArray &params)
         int16_t* block_ids = new int16_t[num_block_ids];
         int32_t* tuple_ids = new int32_t[num_block_ids];
         
+//        VOLT_INFO("%d evicted block ids.", num_block_ids);
+        
         // copy the block ids into an array 
         int i = 0; 
         for(list<int16_t>::iterator itr = evicted_block_ids.begin(); itr != evicted_block_ids.end(); ++itr, ++i)
         {
             block_ids[i] = *itr; 
-            VOLT_INFO("Unevicting block %d", *itr); 
+//            VOLT_INFO("Unevicting block %d", *itr); 
         }
 
         // copy the tuple offsets into an array
@@ -728,8 +745,10 @@ bool IndexScanExecutor::p_execute(const NValueArray &params)
         {
             tuple_ids[i] = *itr;
         }
+        
+        evicted_block_ids.clear(); 
 
-        VOLT_DEBUG("Throwing EvictedTupleAccessException for table %s (%d)", m_catalogTable->name().c_str(), m_catalogTable->relativeIndex());
+//        VOLT_INFO("Throwing EvictedTupleAccessException for table %s (%d)", m_catalogTable->name().c_str(), m_catalogTable->relativeIndex());
         
         throw EvictedTupleAccessException(m_catalogTable->relativeIndex(), num_block_ids, block_ids, tuple_ids);
     }

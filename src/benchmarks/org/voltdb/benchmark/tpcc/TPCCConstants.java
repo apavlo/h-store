@@ -54,7 +54,6 @@ import org.voltdb.benchmark.tpcc.procedures.*;
 
 /** Holds TPC-C constants.  */
 public final class TPCCConstants {
-    public static int STARTING_WAREHOUSE = 1;
 
     private TPCCConstants() { assert false; }
     
@@ -95,13 +94,17 @@ public final class TPCCConstants {
     // 2 digits after the decimal point for money types
     public static final int MONEY_DECIMALS = 2;
 
-	// skew constants
-    public static final int HOT_DATA_WORKLOAD_SKEW = 50;
-	public static final int HOT_DATA_SIZE = 50;
-	public static final int WARM_DATA_SIZE = 0;
-	public static final int WARM_DATA_WORKLOAD_SKEW = 0;
+        // skew constants
+    public static final int HOT_DATA_WORKLOAD_SKEW = 100;
+        public static final int HOT_DATA_SIZE = 0;
+        public static final int WARM_DATA_SIZE = 0;
+        public static final int WARM_DATA_WORKLOAD_SKEW = 0;
+        
+	// Percentage of neworder txns that will abort
+	public static final int NEWORDER_ABORT = 1; // 1%
 
-    // Item constants
+    // ITEM constants
+	public static final int STARTING_ITEM = 0;
     public static final int NUM_ITEMS = 100000;
     public static final int MIN_IM = 1;
     public static final int MAX_IM = 10000;
@@ -112,7 +115,8 @@ public final class TPCCConstants {
     public static final int MIN_I_DATA = 26;
     public static final int MAX_I_DATA = 50;
 
-    // Warehouse constants
+    // WAREHOUSE constants
+    public static final int STARTING_WAREHOUSE = 1;
     public static final double MIN_TAX = 0;
     public static final double MAX_TAX = 0.2000;
     public static final int TAX_DECIMALS = 4;
@@ -127,18 +131,18 @@ public final class TPCCConstants {
     public static final int ZIP_LENGTH = 9;
     public static final String ZIP_SUFFIX = "11111";
 
-    // Stock constants
+    // STOCK constants
     public static final int MIN_QUANTITY = 10;
     public static final int MAX_QUANTITY = 100;
     public static final int DIST = 24;
     public static final int STOCK_PER_WAREHOUSE = 100000;
 
-    // District constants
+    // DISTRICT constants
     public static final int DISTRICTS_PER_WAREHOUSE = 10;
     public static final double INITIAL_D_YTD = 30000.00;  // different from Warehouse
     public static final int INITIAL_NEXT_O_ID = 3001;
 
-    // Customer constants
+    // CUSTOMER constants
     public static final int CUSTOMERS_PER_DISTRICT = 3000;
     public static final double INITIAL_CREDIT_LIM = 50000.00;
     public static final double MIN_DISCOUNT = 0.0000;
@@ -158,7 +162,7 @@ public final class TPCCConstants {
     public static final String BAD_CREDIT = "BC";
     public static final byte[] BAD_CREDIT_BYTES = BAD_CREDIT.getBytes();
 
-    // Order constants
+    // ORDERS constants
     public static final int MIN_CARRIER_ID = 1;
     public static final int MAX_CARRIER_ID = 10;
     // HACK: This is not strictly correct, but it works
@@ -172,16 +176,16 @@ public final class TPCCConstants {
     // Used to generate new order transactions
     public static final int MAX_OL_QUANTITY = 10;
 
-    // Order line constants
+    // ORDER LINE constants
     public static final int INITIAL_QUANTITY = 5;
     public static final double MIN_AMOUNT = 0.01;
 
-    // History constants
+    // HISTORY constants
     public static final int MIN_DATA = 12;
     public static final int MAX_DATA = 24;
     public static final double INITIAL_AMOUNT = 10.00f;
 
-    // New order constants
+    // NEW ORDER constants
     public static final int INITIAL_NEW_ORDERS_PER_DISTRICT = 900;
 
     // TPC-C 2.4.3.4 (page 31) says this must be displayed when new order rolls back.
@@ -219,11 +223,7 @@ public final class TPCCConstants {
     public static final String ORDER_STATUS_BY_ID = ostatByCustomerId.class.getSimpleName();
     public static final String DELIVERY = delivery.class.getSimpleName();
     public static final String PAYMENT_BY_NAME = paymentByCustomerName.class.getSimpleName();
-//    public static final String PAYMENT_BY_NAME_C = paymentByCustomerNameC.class.getSimpleName();
-//    public static final String PAYMENT_BY_NAME_W = paymentByCustomerNameW.class.getSimpleName();
     public static final String PAYMENT_BY_ID = paymentByCustomerId.class.getSimpleName();
-//    public static final String PAYMENT_BY_ID_C = paymentByCustomerIdC.class.getSimpleName();
-//    public static final String PAYMENT_BY_ID_W = paymentByCustomerIdW.class.getSimpleName();
     public static final String NEWORDER = neworder.class.getSimpleName();
     public static final String NOOP = noop.class.getSimpleName();
     public static final String STOCK_LEVEL = slev.class.getSimpleName();

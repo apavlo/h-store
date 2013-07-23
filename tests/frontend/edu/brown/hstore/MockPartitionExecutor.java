@@ -11,7 +11,6 @@ import org.voltdb.CatalogContext;
 import org.voltdb.ClientResponseImpl;
 import org.voltdb.ParameterSet;
 import org.voltdb.VoltTable;
-import org.voltdb.catalog.Catalog;
 
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.utils.PartitionEstimator;
@@ -28,8 +27,8 @@ public class MockPartitionExecutor extends PartitionExecutor {
     private final Map<Long, VoltTable> dependencies = new HashMap<Long, VoltTable>();
     private final Map<Long, CountDownLatch> latches = new HashMap<Long, CountDownLatch>();
     
-    public MockPartitionExecutor(int partition_id, Catalog catalog, PartitionEstimator p_estimator) {
-        super(partition_id, new CatalogContext(catalog), BACKEND_TARGET, p_estimator, null);
+    public MockPartitionExecutor(int partition_id, CatalogContext catalogContext, PartitionEstimator p_estimator) {
+        super(partition_id, catalogContext, BACKEND_TARGET, p_estimator, null);
         this.initializeVoltProcedures();
     }
 
@@ -39,7 +38,7 @@ public class MockPartitionExecutor extends PartitionExecutor {
     }
     
     @Override
-    public VoltTable[] dispatchWorkFragments(LocalTransaction ts, ParameterSet[] parameters, int batchSize, Collection<WorkFragment.Builder> fragments) {
+    public VoltTable[] dispatchWorkFragments(LocalTransaction ts, int batchSize, ParameterSet[] parameters, Collection<WorkFragment.Builder> fragments, boolean finalTask) {
         return (new VoltTable[]{ });
     }
     

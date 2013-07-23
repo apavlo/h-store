@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.apache.log4j.Logger;
+import org.voltdb.CatalogContext;
 import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.CatalogType;
 import org.voltdb.catalog.Database;
@@ -23,7 +24,7 @@ import edu.brown.graphs.GraphvizExport.Attribute;
 import edu.brown.graphs.GraphvizExport.AttributeValues;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
-import edu.brown.markov.containers.MarkovGraphContainersUtil;
+import edu.brown.markov.containers.MarkovGraphsContainerUtil;
 import edu.brown.markov.containers.MarkovGraphsContainer;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PartitionSet;
@@ -42,8 +43,8 @@ import edu.brown.utils.StringUtil;
  */
 public abstract class MarkovUtil {
     private static final Logger LOG = Logger.getLogger(MarkovUtil.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
+    private static final LoggerBoolean trace = new LoggerBoolean();
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
@@ -138,8 +139,10 @@ public abstract class MarkovUtil {
             v.setAbortProbability(1.0f);
         }
         if (type != MarkovVertex.Type.START) {
-            for (int i : CatalogUtil.getAllPartitionIds(catalog_db)) {
-                v.setFinishProbability(i, 1.0f);
+            @SuppressWarnings("deprecation")
+            PartitionSet partitions = CatalogUtil.getAllPartitionIds(catalog_db);
+            for (int partition : partitions.values()) {
+                v.setDoneProbability(partition, 1.0f);
             } // FOR
         }
         assert(v != null);
@@ -150,22 +153,22 @@ public abstract class MarkovUtil {
      * Return a new instance of the special start vertex
      * @return
      */
-    public static MarkovVertex getStartVertex(Database catalog_db) {
-        return (MarkovUtil.getSpecialVertex(catalog_db, MarkovVertex.Type.START));
+    public static MarkovVertex getStartVertex(CatalogContext catalogContext) {
+        return (MarkovUtil.getSpecialVertex(catalogContext.database, MarkovVertex.Type.START));
     }
     /**
      * A stop vertex has done probability of 1.0 at all partitions
      * @return a stop Vertex
      */
-    public static MarkovVertex getCommitVertex(Database catalog_db) {
-        return (MarkovUtil.getSpecialVertex(catalog_db, MarkovVertex.Type.COMMIT));
+    public static MarkovVertex getCommitVertex(CatalogContext catalogContext) {
+        return (MarkovUtil.getSpecialVertex(catalogContext.database, MarkovVertex.Type.COMMIT));
     }
     /**
      * An aborted vertex has an abort and done probability of 1.0 at all partitions
      * @return an abort Vertex
      */
-    public static MarkovVertex getAbortVertex(Database catalog_db) {
-        return (MarkovUtil.getSpecialVertex(catalog_db, MarkovVertex.Type.ABORT));
+    public static MarkovVertex getAbortVertex(CatalogContext catalogContext) {
+        return (MarkovUtil.getSpecialVertex(catalogContext.database, MarkovVertex.Type.ABORT));
     }
     
     /**
@@ -175,15 +178,14 @@ public abstract class MarkovUtil {
      * @param catalog_proc - the given procedure
      * @return mapping of Partition to MarkovGraph
      */
-    public static Map<Integer, MarkovGraph> getBlankPartitionGraphs(Procedure catalog_proc) {
+    public static Map<Integer, MarkovGraph> getBlankPartitionGraphs(CatalogContext catalogContext, Procedure catalog_proc) {
         HashMap<Integer, MarkovGraph> graphs = new HashMap<Integer, MarkovGraph>();
-        Database catalog_db = CatalogUtil.getDatabase(catalog_proc);
-        for (int i : CatalogUtil.getAllPartitionIds(catalog_db)) {
+        for (int partition : catalogContext.getAllPartitionIds().values()) {
             MarkovGraph g = new MarkovGraph(catalog_proc);
-            g.addVertex(MarkovUtil.getStartVertex(catalog_db));
-            g.addVertex(MarkovUtil.getAbortVertex(catalog_db));
-            g.addVertex(MarkovUtil.getCommitVertex(catalog_db));
-            graphs.put(i, g);
+            g.addVertex(MarkovUtil.getStartVertex(catalogContext));
+            g.addVertex(MarkovUtil.getAbortVertex(catalogContext));
+            g.addVertex(MarkovUtil.getCommitVertex(catalogContext));
+            graphs.put(partition, g);
         } // FOR
         return (graphs);
     }
@@ -212,16 +214,16 @@ public abstract class MarkovUtil {
      * @return
      * @throws Exception
      */
-    public static MarkovGraphsContainer loadId(Database catalog_db, File input_path, int id) throws Exception {
+    public static MarkovGraphsContainer loadId(CatalogContext catalogContext, File input_path, int id) throws Exception {
         Set<Integer> idset = (Set<Integer>)CollectionUtil.addAll(new HashSet<Integer>(), Integer.valueOf(id));
-        Map<Integer, MarkovGraphsContainer> markovs = MarkovGraphContainersUtil.load(catalog_db, input_path, null, idset);
+        Map<Integer, MarkovGraphsContainer> markovs = MarkovGraphsContainerUtil.load(catalogContext, input_path, null, idset);
         assert(markovs.size() == 1);
         assert(markovs.containsKey(id));
         return (markovs.get(id));
     }
     
-    public static Map<Integer, MarkovGraphsContainer> load(final Database catalog_db, File input_path) throws Exception {
-        return (MarkovGraphContainersUtil.load(catalog_db, input_path, null, null));
+    public static Map<Integer, MarkovGraphsContainer> load(CatalogContext catalogContext, File input_path) throws Exception {
+        return (MarkovGraphsContainerUtil.load(catalogContext, input_path, null, null));
     }
     
     /**

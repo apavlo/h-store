@@ -132,7 +132,7 @@ public class TestPlanNodeUtil extends BaseTestCase {
 
         AbstractPlanNode root = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, true);
         assertNotNull(root);
-        Collection<ExpressionType> result = PlanNodeUtil.getScanExpressionTypes(catalog_db, root);
+        Collection<ExpressionType> result = PlanNodeUtil.getScanExpressionTypes(root);
         assertNotNull(result);
         assertFalse(result.isEmpty());
         for (ExpressionType e : expected) {

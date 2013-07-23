@@ -1,7 +1,34 @@
+/***************************************************************************
+ *  Copyright (C) 2013 by H-Store Project                                  *
+ *  Brown University                                                       *
+ *  Massachusetts Institute of Technology                                  *
+ *  Yale University                                                        *
+ *                                                                         *
+ *  Permission is hereby granted, free of charge, to any person obtaining  *
+ *  a copy of this software and associated documentation files (the        *
+ *  "Software"), to deal in the Software without restriction, including    *
+ *  without limitation the rights to use, copy, modify, merge, publish,    *
+ *  distribute, sublicense, and/or sell copies of the Software, and to     *
+ *  permit persons to whom the Software is furnished to do so, subject to  *
+ *  the following conditions:                                              *
+ *                                                                         *
+ *  The above copyright notice and this permission notice shall be         *
+ *  included in all copies or substantial portions of the Software.        *
+ *                                                                         *
+ *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        *
+ *  EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     *
+ *  MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. *
+ *  IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR      *
+ *  OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,  *
+ *  ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR  *
+ *  OTHER DEALINGS IN THE SOFTWARE.                                        *
+ ***************************************************************************/
 package edu.brown.benchmark.smallbank.procedures;
 
+import org.apache.log4j.Logger;
 import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
+import org.voltdb.TheHashinator;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 
@@ -16,6 +43,7 @@ import edu.brown.benchmark.smallbank.SmallBankConstants;
     partitionParam=0
 )
 public class Amalgamate extends VoltProcedure {
+    private static final Logger LOG = Logger.getLogger(Amalgamate.class);
     
     // 2013-05-05
     // In the original version of the benchmark, this is suppose to be a look up
@@ -60,15 +88,15 @@ public class Amalgamate extends VoltProcedure {
         voltQueueSQL(GetAccount, acctId0);
         final VoltTable acctResults[] = voltExecuteSQL();
         if (acctResults[0].getRowCount() != 1) {
-            String msg = "Invalid account '" + acctId0 + "'";
+            String msg = "Invalid account '" + acctId0 + "'\n" + acctResults[0]; 
+            LOG.error(this.getTransactionState() + " - " + msg + " / hash=" + TheHashinator.hashToPartition(acctId0));
             throw new VoltAbortException(msg);
         }
         if (acctResults[1].getRowCount() != 1) {
-            String msg = "Invalid account '" + acctId1 + "'";
+            String msg = "Invalid account '" + acctId1 + "'\n" + acctResults[1];
+            LOG.error(this.getTransactionState() + " - " + msg + " / hash=" + TheHashinator.hashToPartition(acctId1));
             throw new VoltAbortException(msg);
         }
-        // long acctId0 = acctResults[0].asScalarLong();
-        // long acctId1 = acctResults[1].asScalarLong();
         
         // Get Balance Information
         voltQueueSQL(GetSavingsBalance, acctId0);
@@ -78,12 +106,14 @@ public class Amalgamate extends VoltProcedure {
             String msg = String.format("No %s for customer #%d",
                                        SmallBankConstants.TABLENAME_SAVINGS, 
                                        acctId0);
+            LOG.error(msg);
             throw new VoltAbortException(msg);
         }
         if (balResults[1].getRowCount() != 1) {
             String msg = String.format("No %s for customer #%d",
                                        SmallBankConstants.TABLENAME_CHECKING, 
                                        acctId0);
+            LOG.error(msg);
             throw new VoltAbortException(msg);
         }
         balResults[0].advanceRow();

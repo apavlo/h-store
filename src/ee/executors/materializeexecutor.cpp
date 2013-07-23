@@ -107,7 +107,7 @@ bool MaterializeExecutor::p_init(AbstractPlanNode* abstract_node, const catalog:
     return (true);
 }
 
-bool MaterializeExecutor::p_execute(const NValueArray &params) {
+bool MaterializeExecutor::p_execute(const NValueArray &params, ReadWriteTracker *tracker) {
     assert (node == dynamic_cast<MaterializePlanNode*>(abstract_node));
     assert(node);
     assert (!node->isInline()); // inline projection's execute() should not be called

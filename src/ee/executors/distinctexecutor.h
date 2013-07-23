@@ -68,7 +68,7 @@ class DistinctExecutor : public AbstractExecutor {
         ~DistinctExecutor();
     protected:
         bool p_init(AbstractPlanNode*, const catalog::Database* catalog_db, int* tempTableMemoryInBytes);
-        bool p_execute(const NValueArray &params);
+        bool p_execute(const NValueArray &params, ReadWriteTracker *tracker);
 
         int distinct_column;
         ValueType distinct_column_type;

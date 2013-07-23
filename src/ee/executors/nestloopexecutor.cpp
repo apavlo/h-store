@@ -187,7 +187,7 @@ bool NestLoopExecutor::p_init(AbstractPlanNode* abstract_node, const catalog::Da
 }
 
 
-bool NestLoopExecutor::p_execute(const NValueArray &params) {
+bool NestLoopExecutor::p_execute(const NValueArray &params, ReadWriteTracker *tracker) {
     VOLT_DEBUG("executing NestLoop...");
 
     NestLoopPlanNode* node = dynamic_cast<NestLoopPlanNode*>(abstract_node);

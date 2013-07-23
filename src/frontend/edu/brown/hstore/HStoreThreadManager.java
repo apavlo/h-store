@@ -38,8 +38,8 @@ import edu.brown.utils.ThreadUtil;
  */
 public class HStoreThreadManager {
     private static final Logger LOG = Logger.getLogger(HStoreThreadManager.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
+    private static final LoggerBoolean trace = new LoggerBoolean();
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
@@ -183,7 +183,7 @@ public class HStoreThreadManager {
         }
         else if (this.num_cores <= host_partitions.size()) {
             LOG.warn(String.format("Unable to set CPU affinity on %s because there are %d partitions " +
-                     "but only %d available cores",
+                     "but only %d available CPU cores",
                      host.getIpaddr(), host_partitions.size(), this.num_cores));
             this.disable = true;
         }

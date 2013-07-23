@@ -6,6 +6,8 @@ import com.google.protobuf.RpcCallback;
 import com.google.protobuf.RpcController;
 
 import edu.brown.hstore.Hstoreservice.HStoreService;
+import edu.brown.hstore.Hstoreservice.HeartbeatRequest;
+import edu.brown.hstore.Hstoreservice.HeartbeatResponse;
 import edu.brown.hstore.Hstoreservice.InitializeRequest;
 import edu.brown.hstore.Hstoreservice.InitializeResponse;
 import edu.brown.hstore.Hstoreservice.SendDataRequest;
@@ -45,8 +47,8 @@ import edu.brown.hstore.txns.RemoteTransaction;
 
 public class MockHStoreCoordinator extends HStoreCoordinator {
     private static final Logger LOG = Logger.getLogger(MockHStoreCoordinator.class);
-    private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private final static LoggerBoolean debug = new LoggerBoolean();
+    private final static LoggerBoolean trace = new LoggerBoolean();
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
@@ -109,6 +111,7 @@ public class MockHStoreCoordinator extends HStoreCoordinator {
             RemoteTransaction ts = hstore_site.getTransactionInitializer()
                                              .createRemoteTransaction(request.getTransactionId(),
                                                                       partitions,
+                                                                      null,
                                                                       request.getBasePartition(),
                                                                       request.getProcedureId());
             // FIXME hstore_site.transactionInit(ts, done);
@@ -153,6 +156,12 @@ public class MockHStoreCoordinator extends HStoreCoordinator {
                                                      .build();
             System.exit(1);
             done.run(response);
+            
+        }
+        
+        @Override
+        public void heartbeat(RpcController controller, HeartbeatRequest request, RpcCallback<HeartbeatResponse> done) {
+            // TODO Auto-generated method stub
             
         }
 

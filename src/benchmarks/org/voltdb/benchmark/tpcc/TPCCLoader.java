@@ -55,6 +55,8 @@ import org.voltdb.utils.Pair;
 import edu.brown.api.BenchmarkComponent;
 import edu.brown.api.Loader;
 import edu.brown.hstore.conf.HStoreConf;
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.EventObservableExceptionHandler;
 import edu.brown.utils.EventObserver;
 
@@ -68,6 +70,10 @@ import edu.brown.utils.EventObserver;
  */
 public class TPCCLoader extends Loader {
     private static final Logger LOG = Logger.getLogger(TPCCLoader.class);
+    private static final LoggerBoolean debug = new LoggerBoolean();
+    static {
+        LoggerUtil.attachObserver(LOG, debug);
+    }
 
     /**
      * Number of threads to create to do the loading.
@@ -101,12 +107,12 @@ public class TPCCLoader extends Loader {
         // Scale the MAX_BATCH_SIZE based on the number of partitions
         this.replicated_batch_size = MAX_BATCH_SIZE / catalogContext.numberOfPartitions;
         
-        if (LOG.isDebugEnabled())
+        if (debug.val)
             LOG.debug("Loader Configuration:\n" + m_tpccConfig);
         
         HStoreConf hstore_conf = this.getHStoreConf();
         for (int ii = 0; ii < m_tpccConfig.num_loadthreads; ii++) {
-            ScaleParameters parameters = ScaleParameters.makeWithScaleFactor(m_tpccConfig.num_warehouses, hstore_conf.client.scalefactor);
+            ScaleParameters parameters = ScaleParameters.makeWithScaleFactor(m_tpccConfig, hstore_conf.client.scalefactor);
             assert parameters != null;
 
             RandomGenerator generator = new RandomGenerator.Implementation();
@@ -180,7 +186,7 @@ public class TPCCLoader extends Loader {
             this.m_generationDateTime = generationDateTime;
             this.m_parameters = parameters;
             
-            int itemsPerThread = parameters.items / m_tpccConfig.num_loadthreads; 
+            int itemsPerThread = parameters.num_items / m_tpccConfig.num_loadthreads; 
             this.itemStart = itemsPerThread * threadIndex;
             this.itemEnd = this.itemStart + itemsPerThread;
         }
@@ -188,9 +194,11 @@ public class TPCCLoader extends Loader {
         @Override
         public void run() {
             Integer warehouseId = null;
-            LOG.debug("Total # of Remaining Warehouses: " + availableWarehouseIds.size());
+            if (debug.val)
+                LOG.debug("Total # of Remaining Warehouses: " + availableWarehouseIds.size());
             while (this.stop == false && (warehouseId = availableWarehouseIds.poll()) != null) {
-                LOG.debug(String.format("Loading warehouse %d / %d", (m_tpccConfig.num_warehouses - availableWarehouseIds.size()), m_tpccConfig.num_warehouses));
+                if (debug.val)
+                    LOG.debug(String.format("Loading warehouse %d / %d", (m_tpccConfig.num_warehouses - availableWarehouseIds.size()), m_tpccConfig.num_warehouses));
                 makeStock(warehouseId); // STOCK is made separately to reduce
                                         // memory consumption
                 createDataTables();
@@ -440,7 +448,7 @@ public class TPCCLoader extends Loader {
         }
 
         public void generateOrderLine(long ol_w_id, long ol_d_id, long ol_o_id, long ol_number, boolean newOrder) {
-            long ol_i_id = m_generator.number(1, m_parameters.items);
+            long ol_i_id = m_generator.number(1, m_parameters.num_items);
             long ol_supply_w_id = ol_w_id;
             TimestampType ol_delivery_d = m_generationDateTime;
             long ol_quantity = TPCCConstants.INITIAL_QUANTITY;
@@ -496,14 +504,17 @@ public class TPCCLoader extends Loader {
             // t.ensureStringCapacity(parameters.items * (32 * 10 + 64) /
             // BATCH);
 
-            HashSet<Integer> selectedRows = selectUniqueIds(m_parameters.items / 10, 1, m_parameters.items);
+            HashSet<Integer> selectedRows = selectUniqueIds(m_parameters.num_items / 10, 1, m_parameters.num_items);
 
-            for (int i_id = 1; i_id <= m_parameters.items; ++i_id) {
+            int firstItemId = TPCCConstants.STARTING_ITEM;
+            int lastItemId = (TPCCConstants.STARTING_ITEM + m_parameters.num_items);
+            for (int i_id = firstItemId; i_id < lastItemId; i_id++) {
                 boolean original = selectedRows.contains(i_id);
                 generateStock(w_id, i_id, original);
-                if (i_id % MAX_BATCH_SIZE == 0) {
+                if (i_id > 0 && i_id % MAX_BATCH_SIZE == 0) {
                     commitDataTables(w_id);
-                    LOG.debug(String.format("%d/%d", i_id, m_parameters.items));
+                    if (debug.val)
+                        LOG.debug(String.format("%d/%d", i_id, m_parameters.num_items));
                 }
             }
             if (data_tables[IDX_STOCKS].getRowCount() != 0) {
@@ -593,8 +604,9 @@ public class TPCCLoader extends Loader {
             // items.ensureRowCapacity(parameters.items);
             // items.ensureStringCapacity(parameters.items * 96);
             // Select 10% of the rows to be marked "original"
-            LOG.debug(String.format("Loading replicated ITEM table [tuples=%d]", m_parameters.items));
-            HashSet<Integer> originalRows = selectUniqueIds(m_parameters.items / 10, 1, m_parameters.items);
+            if (debug.val)
+                LOG.debug(String.format("Loading replicated ITEM table [tuples=%d]", m_parameters.num_items));
+            HashSet<Integer> originalRows = selectUniqueIds(m_parameters.num_items / 10, 1, m_parameters.num_items);
             for (int i = itemStart; i < itemFinish; ++i) {
                 // if we're on a 10% boundary, print out some nice status info
                 // if (i % (m_parameters.items / 10) == 0)
@@ -606,8 +618,8 @@ public class TPCCLoader extends Loader {
                 
                 // Items! Sail yo ho!
                 if (items.getRowCount() == replicated_batch_size) {
-                    if (LOG.isDebugEnabled())
-                        LOG.debug(String.format("Loading replicated ITEM table [tuples=%d/%d]", i, m_parameters.items));
+                    if (debug.val)
+                        LOG.debug(String.format("Loading replicated ITEM table [tuples=%d/%d]", i, m_parameters.num_items));
                     loadVoltTable("ITEM", items);
                     items.clearRowData();
                 }
@@ -615,8 +627,8 @@ public class TPCCLoader extends Loader {
             } // FOR
             if (items.getRowCount() > 0) {
                 String extra = "";
-                if (items.getRowCount() < m_parameters.items) extra = String.format(" [tuples=%d/%d]", m_parameters.items-items.getRowCount(), m_parameters.items);
-                if (LOG.isDebugEnabled())
+                if (items.getRowCount() < m_parameters.num_items) extra = String.format(" [tuples=%d/%d]", m_parameters.num_items-items.getRowCount(), m_parameters.num_items);
+                if (debug.val)
                     LOG.debug("Loading replicated ITEM table" + extra);
                 loadVoltTable("ITEM", items);
                 items.clearRowData();
@@ -627,13 +639,15 @@ public class TPCCLoader extends Loader {
         private void makeCustomerName(VoltTable table) {
             // Customer Name! Booyah! Shaq Attaq!
             VoltTable batch = new VoltTable(table);
-            LOG.debug(String.format("Loading replicated CUSTOMER_NAME table [tuples=%d]", table.getRowCount()));
+            if (debug.val)
+                LOG.debug(String.format("Loading replicated CUSTOMER_NAME table [tuples=%d]", table.getRowCount()));
             try {
                 for (int i = 0, cnt = table.getRowCount(); i < cnt; i++) {
                     if (this.stop) return;
                     batch.add(table.fetchRow(i));
                     if (batch.getRowCount() == replicated_batch_size) {
-                        LOG.debug(String.format("Loading replicated CUSTOMER_NAME table [tuples=%d/%d]", i, cnt));
+                        if (debug.val)
+                            LOG.debug(String.format("Loading replicated CUSTOMER_NAME table [tuples=%d/%d]", i, cnt));
                         loadVoltTable("CUSTOMER_NAME", batch);
                         batch.clearRowData();
                     }
@@ -673,10 +687,10 @@ public class TPCCLoader extends Loader {
 //            }
             // PAVLO: We don't want to use LoadWarehouse because we want to let
             // the system figure out where to put all of the tuples
-            final boolean debug = LOG.isDebugEnabled();
             for (int i = 0; i < data_tables.length; ++i) {
                 if (data_tables[i] != null && data_tables[i].getRowCount() > 0) {
-                    if (debug) LOG.debug(String.format("WAREHOUSE[%02d]: %s %d tuples", w_id, table_names[i], data_tables[i].getRowCount()));
+                    if (debug.val)
+                        LOG.debug(String.format("WAREHOUSE[%02d]: %s %d tuples", w_id, table_names[i], data_tables[i].getRowCount()));
                     loadVoltTable(table_names[i], data_tables[i]);
                 }
             }
@@ -694,76 +708,101 @@ public class TPCCLoader extends Loader {
             // non replicated tables
             for (int i = 0; i < data_tables.length; ++i)
                 data_tables[i] = null;
-            data_tables[IDX_WAREHOUSES] = new VoltTable(new VoltTable.ColumnInfo("W_ID", VoltType.SMALLINT),
-                    new VoltTable.ColumnInfo("W_NAME", VoltType.STRING), new VoltTable.ColumnInfo("W_STREET_1",
-                            VoltType.STRING), new VoltTable.ColumnInfo("W_STREET_2", VoltType.STRING),
-                    new VoltTable.ColumnInfo("W_CITY", VoltType.STRING), new VoltTable.ColumnInfo("W_STATE",
-                            VoltType.STRING), new VoltTable.ColumnInfo("W_ZIP", VoltType.STRING),
+            data_tables[IDX_WAREHOUSES] = new VoltTable(
+                    new VoltTable.ColumnInfo("W_ID", VoltType.SMALLINT),
+                    new VoltTable.ColumnInfo("W_NAME", VoltType.STRING),
+                    new VoltTable.ColumnInfo("W_STREET_1", VoltType.STRING),
+                    new VoltTable.ColumnInfo("W_STREET_2", VoltType.STRING),
+                    new VoltTable.ColumnInfo("W_CITY", VoltType.STRING),
+                    new VoltTable.ColumnInfo("W_STATE", VoltType.STRING),
+                    new VoltTable.ColumnInfo("W_ZIP", VoltType.STRING),
                     new VoltTable.ColumnInfo("W_TAX", VoltType.FLOAT),
                     new VoltTable.ColumnInfo("W_YTD", VoltType.FLOAT));
             // t.ensureRowCapacity(1);
             // t.ensureStringCapacity(200);
 
-            data_tables[IDX_DISTRICTS] = new VoltTable(new VoltTable.ColumnInfo("D_ID", VoltType.TINYINT),
-                    new VoltTable.ColumnInfo("D_W_ID", VoltType.SMALLINT), new VoltTable.ColumnInfo("D_NAME",
-                            VoltType.STRING), new VoltTable.ColumnInfo("D_STREET_1", VoltType.STRING),
-                    new VoltTable.ColumnInfo("D_STREET_2", VoltType.STRING), new VoltTable.ColumnInfo("D_CITY",
-                            VoltType.STRING), new VoltTable.ColumnInfo("D_STATE", VoltType.STRING),
-                    new VoltTable.ColumnInfo("D_ZIP", VoltType.STRING), new VoltTable.ColumnInfo("D_TAX",
-                            VoltType.FLOAT), new VoltTable.ColumnInfo("D_YTD", VoltType.FLOAT),
+            data_tables[IDX_DISTRICTS] = new VoltTable(
+                    new VoltTable.ColumnInfo("D_ID", VoltType.TINYINT),
+                    new VoltTable.ColumnInfo("D_W_ID", VoltType.SMALLINT),
+                    new VoltTable.ColumnInfo("D_NAME", VoltType.STRING),
+                    new VoltTable.ColumnInfo("D_STREET_1", VoltType.STRING),
+                    new VoltTable.ColumnInfo("D_STREET_2", VoltType.STRING),
+                    new VoltTable.ColumnInfo("D_CITY", VoltType.STRING),
+                    new VoltTable.ColumnInfo("D_STATE", VoltType.STRING),
+                    new VoltTable.ColumnInfo("D_ZIP", VoltType.STRING),
+                    new VoltTable.ColumnInfo("D_TAX", VoltType.FLOAT),
+                    new VoltTable.ColumnInfo("D_YTD", VoltType.FLOAT),
                     new VoltTable.ColumnInfo("D_NEXT_O_ID", VoltType.INTEGER));
             // t.ensureRowCapacity(1);
             // t.ensureStringCapacity(1 * (16 + 96 + 2 + 9));
 
-            data_tables[IDX_CUSTOMERS] = new VoltTable(new VoltTable.ColumnInfo("C_ID", VoltType.INTEGER),
-                    new VoltTable.ColumnInfo("C_D_ID", VoltType.TINYINT), new VoltTable.ColumnInfo("C_W_ID",
-                            VoltType.SMALLINT), new VoltTable.ColumnInfo("C_FIRST", VoltType.STRING),
-                    new VoltTable.ColumnInfo("C_MIDDLE", VoltType.STRING), new VoltTable.ColumnInfo("C_LAST",
-                            VoltType.STRING), new VoltTable.ColumnInfo("C_STREET_1", VoltType.STRING),
-                    new VoltTable.ColumnInfo("C_STREET_2", VoltType.STRING), new VoltTable.ColumnInfo("C_CITY",
-                            VoltType.STRING), new VoltTable.ColumnInfo("C_STATE", VoltType.STRING),
-                    new VoltTable.ColumnInfo("C_ZIP", VoltType.STRING), new VoltTable.ColumnInfo("C_PHONE",
-                            VoltType.STRING), new VoltTable.ColumnInfo("C_SINCE", VoltType.TIMESTAMP),
-                    new VoltTable.ColumnInfo("C_CREDIT", VoltType.STRING), new VoltTable.ColumnInfo("C_CREDIT_LIM",
-                            VoltType.FLOAT), new VoltTable.ColumnInfo("C_DISCOUNT", VoltType.FLOAT),
-                    new VoltTable.ColumnInfo("C_BALANCE", VoltType.FLOAT), new VoltTable.ColumnInfo("C_YTD_PAYMENT",
-                            VoltType.FLOAT), new VoltTable.ColumnInfo("C_PAYMENT_CNT", VoltType.INTEGER),
-                    new VoltTable.ColumnInfo("C_DELIVERY_CNT", VoltType.INTEGER), new VoltTable.ColumnInfo("C_DATA",
-                            VoltType.STRING));
+            data_tables[IDX_CUSTOMERS] = new VoltTable(
+                    new VoltTable.ColumnInfo("C_ID", VoltType.INTEGER),
+                    new VoltTable.ColumnInfo("C_D_ID", VoltType.TINYINT),
+                    new VoltTable.ColumnInfo("C_W_ID", VoltType.SMALLINT),
+                    new VoltTable.ColumnInfo("C_FIRST", VoltType.STRING),
+                    new VoltTable.ColumnInfo("C_MIDDLE", VoltType.STRING),
+                    new VoltTable.ColumnInfo("C_LAST", VoltType.STRING),
+                    new VoltTable.ColumnInfo("C_STREET_1", VoltType.STRING),
+                    new VoltTable.ColumnInfo("C_STREET_2", VoltType.STRING),
+                    new VoltTable.ColumnInfo("C_CITY", VoltType.STRING),
+                    new VoltTable.ColumnInfo("C_STATE", VoltType.STRING),
+                    new VoltTable.ColumnInfo("C_ZIP", VoltType.STRING),
+                    new VoltTable.ColumnInfo("C_PHONE", VoltType.STRING),
+                    new VoltTable.ColumnInfo("C_SINCE", VoltType.TIMESTAMP),
+                    new VoltTable.ColumnInfo("C_CREDIT", VoltType.STRING),
+                    new VoltTable.ColumnInfo("C_CREDIT_LIM", VoltType.FLOAT),
+                    new VoltTable.ColumnInfo("C_DISCOUNT", VoltType.FLOAT),
+                    new VoltTable.ColumnInfo("C_BALANCE", VoltType.FLOAT),
+                    new VoltTable.ColumnInfo("C_YTD_PAYMENT", VoltType.FLOAT),
+                    new VoltTable.ColumnInfo("C_PAYMENT_CNT", VoltType.INTEGER),
+                    new VoltTable.ColumnInfo("C_DELIVERY_CNT", VoltType.INTEGER),
+                    new VoltTable.ColumnInfo("C_DATA", VoltType.STRING));
             // t.ensureRowCapacity(parameters.customersPerDistrict);
             // t.ensureStringCapacity(parameters.customersPerDistrict * (32 * 6
             // + 2 * 3 + 9 + 500));
 
-            data_tables[IDX_ORDERS] = new VoltTable(new VoltTable.ColumnInfo("O_ID", VoltType.INTEGER),
-                    new VoltTable.ColumnInfo("O_D_ID", VoltType.TINYINT), new VoltTable.ColumnInfo("O_W_ID",
-                            VoltType.SMALLINT), new VoltTable.ColumnInfo("O_C_ID", VoltType.INTEGER),
-                    new VoltTable.ColumnInfo("O_ENTRY_D", VoltType.TIMESTAMP), new VoltTable.ColumnInfo("O_CARRIER_ID",
-                            VoltType.INTEGER), new VoltTable.ColumnInfo("O_OL_CNT", VoltType.INTEGER),
+            data_tables[IDX_ORDERS] = new VoltTable(
+                    new VoltTable.ColumnInfo("O_ID", VoltType.INTEGER),
+                    new VoltTable.ColumnInfo("O_D_ID", VoltType.TINYINT),
+                    new VoltTable.ColumnInfo("O_W_ID", VoltType.SMALLINT),
+                    new VoltTable.ColumnInfo("O_C_ID", VoltType.INTEGER),
+                    new VoltTable.ColumnInfo("O_ENTRY_D", VoltType.TIMESTAMP),
+                    new VoltTable.ColumnInfo("O_CARRIER_ID", VoltType.INTEGER),
+                    new VoltTable.ColumnInfo("O_OL_CNT", VoltType.INTEGER),
                     new VoltTable.ColumnInfo("O_ALL_LOCAL", VoltType.INTEGER));
             // t.ensureRowCapacity(parameters.customersPerDistrict);
 
-            data_tables[IDX_NEWORDERS] = new VoltTable(new VoltTable.ColumnInfo("NO_O_ID", VoltType.INTEGER),
-                    new VoltTable.ColumnInfo("NO_D_ID", VoltType.TINYINT), new VoltTable.ColumnInfo("NO_W_ID",
-                            VoltType.SMALLINT));
+            data_tables[IDX_NEWORDERS] = new VoltTable(
+                    new VoltTable.ColumnInfo("NO_O_ID", VoltType.INTEGER),
+                    new VoltTable.ColumnInfo("NO_D_ID", VoltType.TINYINT),
+                    new VoltTable.ColumnInfo("NO_W_ID", VoltType.SMALLINT));
             // t.ensureRowCapacity(parameters.customersPerDistrict);
 
-            data_tables[IDX_ORDERLINES] = new VoltTable(new VoltTable.ColumnInfo("OL_O_ID", VoltType.INTEGER),
-                    new VoltTable.ColumnInfo("OL_D_ID", VoltType.TINYINT), new VoltTable.ColumnInfo("OL_W_ID",
-                            VoltType.SMALLINT), new VoltTable.ColumnInfo("OL_NUMBER", VoltType.INTEGER),
-                    new VoltTable.ColumnInfo("OL_I_ID", VoltType.INTEGER), new VoltTable.ColumnInfo("OL_SUPPLY_W_ID",
-                            VoltType.SMALLINT), new VoltTable.ColumnInfo("OL_DELIVERY_D", VoltType.TIMESTAMP),
-                    new VoltTable.ColumnInfo("OL_QUANTITY", VoltType.INTEGER), new VoltTable.ColumnInfo("OL_AMOUNT",
-                            VoltType.FLOAT), new VoltTable.ColumnInfo("OL_DIST_INFO", VoltType.STRING));
+            data_tables[IDX_ORDERLINES] = new VoltTable(
+                    new VoltTable.ColumnInfo("OL_O_ID", VoltType.INTEGER),
+                    new VoltTable.ColumnInfo("OL_D_ID", VoltType.TINYINT),
+                    new VoltTable.ColumnInfo("OL_W_ID", VoltType.SMALLINT),
+                    new VoltTable.ColumnInfo("OL_NUMBER", VoltType.INTEGER),
+                    new VoltTable.ColumnInfo("OL_I_ID", VoltType.INTEGER),
+                    new VoltTable.ColumnInfo("OL_SUPPLY_W_ID", VoltType.SMALLINT),
+                    new VoltTable.ColumnInfo("OL_DELIVERY_D", VoltType.TIMESTAMP),
+                    new VoltTable.ColumnInfo("OL_QUANTITY", VoltType.INTEGER),
+                    new VoltTable.ColumnInfo("OL_AMOUNT", VoltType.FLOAT),
+                    new VoltTable.ColumnInfo("OL_DIST_INFO", VoltType.STRING));
             // t.ensureRowCapacity(parameters.customersPerDistrict *
             // Constants.MAX_OL_CNT);
             // t.ensureStringCapacity(parameters.customersPerDistrict *
             // Constants.MAX_OL_CNT * (32));
 
-            data_tables[IDX_HISTORIES] = new VoltTable(new VoltTable.ColumnInfo("H_C_ID", VoltType.INTEGER),
-                    new VoltTable.ColumnInfo("H_C_D_ID", VoltType.TINYINT), new VoltTable.ColumnInfo("H_C_W_ID",
-                            VoltType.SMALLINT), new VoltTable.ColumnInfo("H_D_ID", VoltType.TINYINT),
-                    new VoltTable.ColumnInfo("H_W_ID", VoltType.SMALLINT), new VoltTable.ColumnInfo("H_DATE",
-                            VoltType.TIMESTAMP), new VoltTable.ColumnInfo("H_AMOUNT", VoltType.FLOAT),
+            data_tables[IDX_HISTORIES] = new VoltTable(
+                    new VoltTable.ColumnInfo("H_C_ID", VoltType.INTEGER),
+                    new VoltTable.ColumnInfo("H_C_D_ID", VoltType.TINYINT),
+                    new VoltTable.ColumnInfo("H_C_W_ID", VoltType.SMALLINT),
+                    new VoltTable.ColumnInfo("H_D_ID", VoltType.TINYINT),
+                    new VoltTable.ColumnInfo("H_W_ID", VoltType.SMALLINT),
+                    new VoltTable.ColumnInfo("H_DATE", VoltType.TIMESTAMP),
+                    new VoltTable.ColumnInfo("H_AMOUNT", VoltType.FLOAT),
                     new VoltTable.ColumnInfo("H_DATA", VoltType.STRING));
             // t.ensureRowCapacity(parameters.customersPerDistrict);
             // t.ensureStringCapacity(parameters.customersPerDistrict * (32));
@@ -815,7 +854,7 @@ public class TPCCLoader extends Loader {
         LOG.info(String.format("Loading %d warehouses using %d load threads", warehouseIds.size(), m_loadThreads.length));
 //        boolean doMakeReplicated = true;
         for (LoadThread loadThread : m_loadThreads) {
-            LOG.debug("Starting LoadThread...");
+            if (debug.val) LOG.debug("Starting LoadThread...");
             loadThread.setUncaughtExceptionHandler(handler);
             // loadThread.start(true);
             loadThread.start(false);

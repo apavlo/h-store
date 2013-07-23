@@ -35,11 +35,11 @@ import org.voltdb.VoltTable.ColumnInfo;
 import org.voltdb.VoltType;
 import org.voltdb.catalog.CatalogMap;
 import org.voltdb.catalog.Table;
-import org.voltdb.dtxn.DtxnConstants;
 import org.voltdb.exceptions.ServerFaultException;
 import org.voltdb.utils.Pair;
 import org.voltdb.utils.VoltTableUtil;
 
+import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.PartitionExecutor.SystemProcedureExecutionContext;
 import edu.brown.hstore.internal.UtilityWorkMessage.UpdateMemoryMessage;
 import edu.brown.logging.LoggerUtil;
@@ -55,28 +55,29 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
 
 public class Statistics extends VoltSystemProcedure {
     private static final Logger HOST_LOG = Logger.getLogger(Statistics.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(HOST_LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(HOST_LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
+    private static final LoggerBoolean trace = new LoggerBoolean();
     static {
         LoggerUtil.attachObserver(HOST_LOG, debug, trace);
     }
 
     static final int DEP_tableData = (int)
-        SysProcFragmentId.PF_tableData | DtxnConstants.MULTIPARTITION_DEPENDENCY;
+        SysProcFragmentId.PF_tableData | HStoreConstants.MULTIPARTITION_DEPENDENCY;
     static final int DEP_tableAggregator = (int) SysProcFragmentId.PF_tableAggregator;
 
     static final int DEP_procedureData = (int)
-        SysProcFragmentId.PF_procedureData | DtxnConstants.MULTIPARTITION_DEPENDENCY;
+        SysProcFragmentId.PF_procedureData | HStoreConstants.MULTIPARTITION_DEPENDENCY;
+
     static final int DEP_procedureAggregator = (int)
         SysProcFragmentId.PF_procedureAggregator;
 
     static final int DEP_initiatorData = (int)
-        SysProcFragmentId.PF_initiatorData | DtxnConstants.MULTIPARTITION_DEPENDENCY;
+        SysProcFragmentId.PF_initiatorData | HStoreConstants.MULTIPARTITION_DEPENDENCY;
     static final int DEP_initiatorAggregator = (int)
         SysProcFragmentId.PF_initiatorAggregator;
 
     static final int DEP_ioData = (int)
-        SysProcFragmentId.PF_ioData | DtxnConstants.MULTIPARTITION_DEPENDENCY;
+        SysProcFragmentId.PF_ioData | HStoreConstants.MULTIPARTITION_DEPENDENCY;
     static final int DEP_ioDataAggregator = (int)
         SysProcFragmentId.PF_ioDataAggregator;
 
@@ -102,7 +103,6 @@ public class Statistics extends VoltSystemProcedure {
         addStatsFragments(SysProcSelector.SITEPROFILER, SysProcFragmentId.PF_siteProfilerData, SysProcFragmentId.PF_siteProfilerAggregator);
         addStatsFragments(SysProcSelector.PLANNERPROFILER, SysProcFragmentId.PF_plannerProfilerData, SysProcFragmentId.PF_plannerProfilerAggregator);
         addStatsFragments(SysProcSelector.ANTICACHE, SysProcFragmentId.PF_anticacheProfilerData, SysProcFragmentId.PF_anticacheProfilerAggregator);
-        addStatsFragments(SysProcSelector.POOL, SysProcFragmentId.PF_poolData, SysProcFragmentId.PF_poolAggregator);
     } // STATIC
     
     @Override
@@ -146,8 +146,7 @@ public class Statistics extends VoltSystemProcedure {
             case SysProcFragmentId.PF_specexecProfilerData:
             case SysProcFragmentId.PF_siteProfilerData:
             case SysProcFragmentId.PF_plannerProfilerData:
-            case SysProcFragmentId.PF_anticacheProfilerData:
-            case SysProcFragmentId.PF_poolData: {
+            case SysProcFragmentId.PF_anticacheProfilerData: {
                 assert(params.toArray().length == 2);
                 final boolean interval =
                     ((Byte)params.toArray()[0]).byteValue() == 0 ? false : true;
@@ -188,8 +187,7 @@ public class Statistics extends VoltSystemProcedure {
             case SysProcFragmentId.PF_specexecProfilerAggregator:
             case SysProcFragmentId.PF_siteProfilerAggregator:
             case SysProcFragmentId.PF_plannerProfilerAggregator:
-            case SysProcFragmentId.PF_anticacheProfilerAggregator:
-            case SysProcFragmentId.PF_poolAggregator: {
+            case SysProcFragmentId.PF_anticacheProfilerAggregator: {
                 // Do a reverse look up to find the input dependency id
                 int dataFragmentId = -1;
                 for (Integer id : STATS_DATA.keySet()) {

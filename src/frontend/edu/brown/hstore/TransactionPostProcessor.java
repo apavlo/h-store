@@ -17,7 +17,7 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
  */
 public final class TransactionPostProcessor extends AbstractProcessingRunnable<Object[]> {
     private static final Logger LOG = Logger.getLogger(TransactionPostProcessor.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
     static {
         LoggerUtil.attachObserver(LOG, debug);
     }

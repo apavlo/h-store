@@ -111,6 +111,15 @@ public abstract class VoltTableUtil {
         return (sb.toString());
     }
 
+    /**
+     * Sort a VoltTable based on a series of columns and directions.
+     * Note that this utility method is not a sort in place and thus it 
+     * will create a second copy of the table's data. 
+     * @param table
+     * @param cols
+     * @return
+     */
+    @SuppressWarnings("unchecked")
     public static VoltTable sort(VoltTable table, Pair<Integer, SortDirectionType>...cols) {
         if (cols.length == 0) return (table);
         
@@ -156,6 +165,25 @@ public abstract class VoltTableUtil {
         return (result);
     }
     
+    
+    /**
+     * Returns a row with random data that can be added to this VoltTable
+     * @param table
+     * @return
+     */
+    public static Object[] getRandomRow(VoltTable volt_tbl) {
+        Object row[] = new Object[volt_tbl.getColumnCount()];
+        for (int i = 0; i < row.length; i++) {
+            VoltType vtype = volt_tbl.getColumnType(i);
+            row[i] = VoltTypeUtil.getRandomValue(vtype);
+            // HACK: We don't actually now the VARCHAR length here, 
+            // so we'll just leave it at 8
+            if (vtype == VoltType.STRING) {
+                row[i] = StringUtil.abbrv(row[i].toString(), 8, false);
+            }
+        } // FOR
+        return (row);
+    }
 
     /**
      * Returns a row with random data that can be added to this VoltTable

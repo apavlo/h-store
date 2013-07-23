@@ -53,8 +53,8 @@ import edu.brown.utils.StringUtil;
  */
 public class RemoteTransaction extends AbstractTransaction {
     protected static final Logger LOG = Logger.getLogger(RemoteTransaction.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
+    private static final LoggerBoolean trace = new LoggerBoolean();
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
@@ -65,7 +65,7 @@ public class RemoteTransaction extends AbstractTransaction {
     
     private final RemoteInitQueueCallback init_callback;
     private final RemoteWorkCallback work_callback;
-    private final RemotePrepareCallback prepare_callback;
+    private final List<RemotePrepareCallback> prepare_callbacks = new ArrayList<RemotePrepareCallback>();
     private final RemoteFinishCallback finish_callback;
     
     // ----------------------------------------------------------------------------
@@ -88,7 +88,6 @@ public class RemoteTransaction extends AbstractTransaction {
         super(hstore_site);
         this.init_callback = new RemoteInitQueueCallback(hstore_site);
         this.work_callback = new RemoteWorkCallback(hstore_site);
-        this.prepare_callback = new RemotePrepareCallback(hstore_site);
         this.finish_callback = new RemoteFinishCallback(hstore_site);
         
         CatalogContext catalogContext = hstore_site.getCatalogContext();
@@ -122,7 +121,7 @@ public class RemoteTransaction extends AbstractTransaction {
                    false               // ExecLocal
         );
         
-        // Initialize FinishCallback
+        // Initialize Prepare + Finish Callbacks
         // NOTE: This must come *after* our call to AbstractTransaction.init()
         this.finish_callback.init(this, partitions);
         
@@ -132,10 +131,16 @@ public class RemoteTransaction extends AbstractTransaction {
     @Override
     public void finish() {
         super.finish();
+        
+        // Callbacks
         this.init_callback.finish();
         this.work_callback.finish();
         this.finish_callback.finish();
+        for (RemotePrepareCallback callback : this.prepare_callbacks) {
+            callback.finish();
+        } // FOR
         
+        // ProtoRpcControllers
         for (int i = 0; i < this.rpc_transactionPrefetch.length; i++) {
             // Tell the PretchQuery ProtoRpcControllers to cancel themselves
             // if we actually tried used them for this txn
@@ -187,10 +192,15 @@ public class RemoteTransaction extends AbstractTransaction {
     public RemoteInitQueueCallback getInitCallback() {
         return (this.init_callback);
     }
+    /**
+     * This will always create a new callback
+     */
     @SuppressWarnings("unchecked")
     @Override
     public RemotePrepareCallback getPrepareCallback() {
-        return (this.prepare_callback);
+        RemotePrepareCallback callback = new RemotePrepareCallback(hstore_site);
+        this.prepare_callbacks.add(callback);
+        return (callback);
     }
     @SuppressWarnings("unchecked")
     @Override
@@ -242,10 +252,10 @@ public class RemoteTransaction extends AbstractTransaction {
         
         // Additional Info
         m = new LinkedHashMap<String, Object>();
-        m.put(this.init_callback.getClass().getSimpleName(), this.init_callback);
-        m.put(this.work_callback.getClass().getSimpleName(), this.work_callback);
-        m.put(this.prepare_callback.getClass().getSimpleName(), this.prepare_callback);
-        m.put(this.finish_callback.getClass().getSimpleName(), this.finish_callback);
+        m.put(RemoteInitQueueCallback.class.getSimpleName(), this.init_callback);
+        m.put(RemoteWorkCallback.class.getSimpleName(), this.work_callback);
+        m.put(RemotePrepareCallback.class.getSimpleName(), this.prepare_callbacks);
+        m.put(RemoteFinishCallback.class.getSimpleName(), this.finish_callback);
         maps.add(m);
         
         return (StringUtil.formatMaps(maps.toArray(new Map<?, ?>[maps.size()])));

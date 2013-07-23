@@ -26,10 +26,10 @@ import org.voltdb.ParameterSet;
 import org.voltdb.ProcInfo;
 import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
-import org.voltdb.VoltType;
-import org.voltdb.dtxn.DtxnConstants;
 
+import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.PartitionExecutor.SystemProcedureExecutionContext;
+import edu.brown.hstore.txns.AbstractTransaction;
 
 /**
  * Execute a user-provided SQL statement. This code coordinates the execution of
@@ -40,7 +40,7 @@ public class AdHoc extends VoltSystemProcedure {
 
 
     final int AGG_DEPID = 1;
-    final int COLLECT_DEPID = 2 | DtxnConstants.MULTIPARTITION_DEPENDENCY;
+    final int COLLECT_DEPID = 2 | HStoreConstants.MULTIPARTITION_DEPENDENCY;
 
     @Override
     public void initImpl() {
@@ -77,13 +77,14 @@ public class AdHoc extends VoltSystemProcedure {
             
             // Always mark this information for the txn so that we can
             // rollback anything that it may do
-            m_currentTxnState.markExecNotReadOnly(this.partitionId);
-            m_currentTxnState.markExecutedWork(this.partitionId);
+            AbstractTransaction ts = this.hstore_site.getTransaction(txn_id);
+            ts.markExecNotReadOnly(this.partitionId);
+            ts.markExecutedWork(this.partitionId);
             
             table = context.getExecutionEngine().
-                executeCustomPlanFragment(plan, outputDepId, inputDepId, getTransactionId(),
+                executeCustomPlanFragment(plan, outputDepId, inputDepId, txn_id,
                                           context.getLastCommittedTxnId(),
-                                          m_currentTxnState.getLastUndoToken(this.partitionId));
+                                          ts.getLastUndoToken(this.partitionId));
         }
 
         return new DependencySet(new int[]{ outputDepId }, new VoltTable[]{ table });
@@ -165,16 +166,20 @@ public class AdHoc extends VoltSystemProcedure {
         // rather icky hack to handle how the number of modified tuples will always be
         // inflated when changing replicated tables - the user really doesn't want to know
         // the big number, just the small one
-        if (replicatedTableDML) {
-            assert(results.length == 1);
-            long changedTuples = results[0].asScalarLong();
-            int num_partitions = catalogContext.numberOfPartitions;
-            assert((changedTuples % num_partitions) == 0);
-
-            VoltTable retval = new VoltTable(new VoltTable.ColumnInfo("", VoltType.BIGINT));
-            retval.addRow(changedTuples / num_partitions);
-            results[0] = retval;
-        }
+        // PAVLO: 2013-07-07
+        // This hack is no longer needed because we will aggregate the # of modified
+        // tuples in the EE correctly.
+//        if (replicatedTableDML) {
+//            assert(results.length == 1);
+//            long changedTuples = results[0].asScalarLong();
+//            // int num_partitions = catalogContext.numberOfPartitions;
+//            // assert((changedTuples % num_partitions) == 0);
+//
+//            VoltTable retval = new VoltTable(new VoltTable.ColumnInfo("", VoltType.BIGINT));
+////            retval.addRow(changedTuples / num_partitions);
+//            retval.addRow(changedTuples);
+//            results[0] = retval;
+//        }
 
         return results;
     }

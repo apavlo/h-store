@@ -36,10 +36,10 @@ public abstract class SEATSConstants {
     // ----------------------------------------------------------------
     
     public static final int FREQUENCY_DELETE_RESERVATION        = 1;
-    public static final int FREQUENCY_FIND_FLIGHTS              = 10;
-    public static final int FREQUENCY_FIND_OPEN_SEATS           = 50;
-    public static final int FREQUENCY_NEW_RESERVATION           = 35;
-    public static final int FREQUENCY_UPDATE_CUSTOMER           = 3;
+    public static final int FREQUENCY_FIND_FLIGHTS              = 1;
+    public static final int FREQUENCY_FIND_OPEN_SEATS           = 65;
+    public static final int FREQUENCY_NEW_RESERVATION           = 30;
+    public static final int FREQUENCY_UPDATE_CUSTOMER           = 2;
     public static final int FREQUENCY_UPDATE_RESERVATION        = 1;
 
 //    public static final int FREQUENCY_DELETE_RESERVATION        = 0;
@@ -111,6 +111,11 @@ public abstract class SEATSConstants {
      */
     public static final int CUSTOMER_RETURN_FLIGHT_DAYS_MIN = 1;
     public static final int CUSTOMER_RETURN_FLIGHT_DAYS_MAX = 14;
+    
+    /**
+     * The format to use when converting customer ids to strings
+     */
+    public static final String CUSTOMER_ID_STR = "%064d";
 
     // ----------------------------------------------------------------
     // RESERVATION CONSTANTS
@@ -120,6 +125,8 @@ public abstract class SEATSConstants {
     public static final int RESERVATION_PRICE_MAX = 1000;
     
     public static final int MAX_OPEN_SEATS_PER_TXN = 100;
+    
+    public static final int NEW_RESERVATION_ATTRS_SIZE = 9;
     
     // ----------------------------------------------------------------
     // PROBABILITIES
@@ -191,11 +198,6 @@ public abstract class SEATSConstants {
     // ----------------------------------------------------------------
     // CACHE SIZES
     // ----------------------------------------------------------------
-    
-    /**
-     * The number of FlightIds we want to keep cached locally at a client
-     */
-    public static final int CACHE_LIMIT_FLIGHT_IDS = 5000;
     
     public static final int CACHE_LIMIT_PENDING_INSERTS = 5000;
     public static final int CACHE_LIMIT_PENDING_UPDATES = 5000;

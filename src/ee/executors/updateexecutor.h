@@ -75,7 +75,7 @@ class UpdateExecutor : public OperationExecutor {
         ~UpdateExecutor();
     protected:
         bool p_init(AbstractPlanNode*, const catalog::Database* catalog_db, int* tempTableMemoryInBytes);
-        bool p_execute(const NValueArray &params);
+        bool p_execute(const NValueArray &params, ReadWriteTracker *tracker);
 
 
         std::vector<std::pair<int, int> > m_inputTargetMap;

@@ -75,8 +75,8 @@ import edu.brown.utils.StringUtil;
 
 public class TPCCSimulation {
     private static final Logger LOG = Logger.getLogger(TPCCSimulation.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
+    private static final LoggerBoolean trace = new LoggerBoolean();
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
@@ -202,7 +202,7 @@ public class TPCCSimulation {
         m.put("Districts per Warehouse", parameters.districtsPerWarehouse);
         m.put("Custers per District", parameters.customersPerDistrict);
         m.put("Initial Orders per District", parameters.newOrdersPerDistrict);
-        m.put("Items", parameters.items);
+        m.put("Items", parameters.num_items);
         m.put("Affine Warehouse", lastAssignedWarehouseId);
         m.put("Skew Factor", this.skewFactor);
         if (this.zipf != null && this.zipf.isHistoryEnabled()) {
@@ -257,7 +257,11 @@ public class TPCCSimulation {
         else if (config.neworder_skew_warehouse) {
             assert(this.zipf != null);
             //w_id = (short)this.zipf.nextInt();
-			w_id = (short)this.custom_skew.nextInt(); 
+            if (generator.number(1, 100) <= config.temporal_skew_mix) {
+                w_id = (short)this.custom_skew.nextInt();
+            } else {
+                w_id = (short)generator.number(parameters.starting_warehouse, parameters.last_warehouse);
+            }
         }
         // GAUSSIAN SKEWED WAREHOUSE ID
         else if (skewFactor > 0.0d) {
@@ -301,7 +305,7 @@ public class TPCCSimulation {
     }
 
     private int generateItemID() {
-        return generator.NURand(8191, 1, parameters.items);
+        return generator.NURand(8191, 1, parameters.num_items);
     }
 
     /** Executes a reset warehouse transaction. */
@@ -394,8 +398,8 @@ public class TPCCSimulation {
         short warehouse_id = generateWarehouseId();
         int ol_cnt = generator.number(TPCCConstants.MIN_OL_CNT, TPCCConstants.MAX_OL_CNT);
 
-        // 1% of transactions roll back
-        boolean rollback = (config.neworder_abort && generator.number(1, 100) == 1);
+        // % of transactions that roll back
+        boolean rollback = (generator.number(1, 100) < config.neworder_abort);
         int local_warehouses = 0;
         int remote_warehouses = 0;
 
@@ -406,7 +410,7 @@ public class TPCCSimulation {
             if (rollback && i + 1 == ol_cnt) {
                 // LOG.fine("[NOT_ERROR] Causing a rollback on purpose defined in TPCC spec. "
                 //     + "You can ignore following 'ItemNotFound' exception.");
-                item_id[i] = parameters.items + 1;
+                item_id[i] = parameters.num_items + 1;
             } else {
                 item_id[i] = generateItemID();
             }
@@ -435,23 +439,37 @@ public class TPCCSimulation {
             quantity[i] = generator.number(1, TPCCConstants.MAX_OL_QUANTITY);
         }
         // Whether to force this transaction to be multi-partitioned
-        if (parameters.warehouses > 1 &&
-                config.neworder_multip == true && 
-                config.neworder_multip_mix > 0 && 
-                (generator.number(1, 1000) <= (config.neworder_multip_mix*100))) {
-            if (trace.val) LOG.trace("Forcing Multi-Partition NewOrder Transaction");
-            // Flip a random one
-            int idx = generator.number(0, ol_cnt-1);
-            short remote_w_id;
-            if (config.warehouse_pairing) {
-                remote_w_id = generatePairedWarehouse(warehouse_id, parameters.starting_warehouse, parameters.last_warehouse);
+        if (parameters.warehouses > 1 && config.neworder_multip == true && config.neworder_multip_mix > 0) {
+            // First force the entire thing to be single-partitioned
+            for (int idx = 0; idx < ol_cnt; idx++) {
+                supply_w_id[idx] = warehouse_id;
+            } // FOR
+
+            // Then check whether we should flip a random SUPPLY_W_ID to be remote
+            if (generator.number(1, 1000) <= (config.neworder_multip_mix*100)) {
+                if (trace.val) LOG.trace("Forcing Multi-Partition NewOrder Transaction");
+                // Flip a random one
+                int idx = generator.number(0, ol_cnt-1);
+                short remote_w_id;
+                if (config.warehouse_pairing) {
+                    remote_w_id = generatePairedWarehouse(warehouse_id, parameters.starting_warehouse, parameters.last_warehouse);
+                }
+                else if (config.neworder_multip_remote) {
+                	remote_w_id = (short)generator.numberRemoteWarehouseId(parameters.starting_warehouse, parameters.last_warehouse, (int) warehouse_id);
+                } else {
+                	remote_w_id = (short)generator.numberExcluding(parameters.starting_warehouse, parameters.last_warehouse, (int) warehouse_id);
+                }
+                supply_w_id[idx] = remote_w_id;
+                if (supply_w_id[idx] != warehouse_id) remote_warehouses++;
+                else local_warehouses++;
             }
-            else if (config.neworder_multip_remote) {
-            	remote_w_id = (short)generator.numberRemoteWarehouseId(parameters.starting_warehouse, parameters.last_warehouse, (int) warehouse_id);
-            } else {
-            	remote_w_id = (short)generator.numberExcluding(parameters.starting_warehouse, parameters.last_warehouse, (int) warehouse_id);
-            }
-            supply_w_id[idx] = remote_w_id;
+        }
+        // Prevent aborts
+        if (rollback && (
+            (remote_warehouses > 0 && config.neworder_abort_no_multip) ||
+            (remote_warehouses == 0 && config.neworder_abort_no_singlep))
+           ) {
+            item_id[ol_cnt-1] = generateItemID();
         }
 
         if (trace.val)

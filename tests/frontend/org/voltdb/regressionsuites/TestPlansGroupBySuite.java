@@ -46,6 +46,8 @@ import org.voltdb.planner.TestPlansGroupBy;
 
 public class TestPlansGroupBySuite extends RegressionSuite {
 
+    private static final String PREFIX = "plansgroupby";
+
     @SuppressWarnings("unchecked")
     public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
         org.voltdb.regressionsuites.plansgroupbyprocs.CountT1A1.class,
@@ -53,6 +55,46 @@ public class TestPlansGroupBySuite extends RegressionSuite {
         org.voltdb.regressionsuites.plansgroupbyprocs.InsertDims.class,
         org.voltdb.regressionsuites.plansgroupbyprocs.SumGroupSingleJoin.class };
 
+
+    @SuppressWarnings("unchecked")
+    public class VRowComparator<T> implements Comparator {
+
+        @Override
+        public int compare(Object arg0, Object arg1) {
+            VoltTableRow r1 = (VoltTableRow)arg0;
+            VoltTableRow r2 = (VoltTableRow)arg1;
+
+            String r1d1 = (String) r1.get(0, VoltType.STRING);
+            String r1d2 = (String) r1.get(1, VoltType.STRING);
+            String r2d1 = (String) r2.get(0, VoltType.STRING);
+            String r2d2 = (String) r2.get(1, VoltType.STRING);
+
+            int r1d1_pos = Integer.valueOf(r1d1.substring(3));
+            int r1d2_pos = Integer.valueOf(r1d2.substring(3));
+            int r2d1_pos = Integer.valueOf(r2d1.substring(3));
+            int r2d2_pos = Integer.valueOf(r2d2.substring(3));
+
+            System.out.printf("comparing (%s, %s) to (%s, %s)\n",
+                    r1d1, r1d2, r2d1, r2d2);
+
+            if (r1d1_pos != r2d1_pos)
+                return r1d1_pos - r2d1_pos;
+
+            if (r1d2_pos != r2d2_pos)
+                return r1d2_pos - r2d2_pos;
+
+            return 0;
+        }
+    }
+
+    private void debug(ArrayList<VoltTableRow> sorted) {
+        for (VoltTableRow row : sorted) {
+            String d1 = (String) row.get(0, VoltType.STRING);
+            String d2 = (String) row.get(1, VoltType.STRING);
+            System.out.println("Row: " + d1 + ", " + d2);
+        }
+    }
+    
     /** Load 1 1's, 2 2's, 3 3's .. 10 10's and 1 11 */
     private int loaderNxN(Client client, int pkey) throws ProcCallException,
     IOException, NoConnectionsException {
@@ -283,97 +325,102 @@ public class TestPlansGroupBySuite extends RegressionSuite {
      * select sum(F_VAL1), sum(F_VAL2), sum(F_VAL3) from F
      * @throws InterruptedException
      */
-// FIXME
-//    public void testDistributedSum() throws IOException, ProcCallException, InterruptedException {
-//        VoltTable vt;
-//        Client client = getClient();
-//        loadF(client, 0);
-//
-//        String qs = "select sum(F_VAL1), sum(F_VAL2), sum(F_VAL3) from F";
-//
-//        vt = client.callProcedure("@AdHoc", qs).getResults()[0];
-//        System.out.println("testDistributedSum result: " + vt);
-//        assertTrue(vt.getRowCount() == 1);
-//        while (vt.advanceRow()) {
-//            Integer sum1 = (Integer) vt.get(0, VoltType.INTEGER);
-//            assertEquals(2000, sum1.intValue());
-//            Integer sum2 = (Integer) vt.get(1, VoltType.INTEGER);
-//            assertEquals(4995000, sum2.intValue());
-//            Integer sum3 = (Integer) vt.get(2, VoltType.INTEGER);
-//            assertEquals(500, sum3.intValue());
-//        }
-//    }
+    public void testDistributedSum() throws IOException, ProcCallException, InterruptedException {
+        VoltTable vt;
+        Client client = getClient();
+        loadF(client, 0);
 
-// FIXME
-//    /**
-//     * distributed sums of a view
-//     * select sum(V.SUM_V1), sum(V.SUM_V2), sum(V.SUM_V3) from V
-//     * @throws InterruptedException
-//     */
-//    public void testDistributedSum_View() throws IOException, ProcCallException, InterruptedException {
-//        VoltTable vt;
-//        Client client = getClient();
-//        loadF(client, 0);
-//
-//        String qs = "select sum(V.SUM_v1), sum(V.SUM_V2), sum(V.SUM_V3) from V";
-//
-//        vt = client.callProcedure("@AdHoc", qs).getResults()[0];
-//        System.out.println("testDistributedSum_View result: " + vt);
-//        assertTrue(vt.getRowCount() == 1);
-//        while (vt.advanceRow()) {
-//            Integer sum1 = (Integer) vt.get(0, VoltType.INTEGER);
-//            assertEquals(2000, sum1.intValue());
-//            Integer sum2 = (Integer) vt.get(1, VoltType.INTEGER);
-//            assertEquals(4995000, sum2.intValue());
-//            Integer sum3 = (Integer) vt.get(2, VoltType.INTEGER);
-//            assertEquals(500, sum3.intValue());
-//        }
-//    }
-//
-//    /**
-//     * distributed sums of a view (REDUNDANT GROUP BY)
-//     * select V.D1_PKEY, sum(V.SUM_V1), sum(V.SUM_V2), sum(V.SUM_V3)
-//     * from V group by V.V_D1_PKEY
-//     * @throws InterruptedException
-//     */
-//    public void testDistributedSumAndGroup() throws NoConnectionsException,
-//    ProcCallException, IOException, InterruptedException {
-//        VoltTable vt;
-//        Client client = getClient();
-//        loadF(client, 0);
-//
-//        String qs = "select V.V_D1_PKEY, sum(V.SUM_V1), sum(V.SUM_V2), sum(V.SUM_V3) "
+        String qs = "select sum(F_VAL1), sum(F_VAL2), sum(F_VAL3) from F";
+
+        vt = client.callProcedure("@AdHoc", qs).getResults()[0];
+        System.out.println("testDistributedSum result: " + vt);
+        assertTrue(vt.getRowCount() == 1);
+        while (vt.advanceRow()) {
+            Integer sum1 = (Integer) vt.get(0, VoltType.INTEGER);
+            assertEquals(2000, sum1.intValue());
+            Integer sum2 = (Integer) vt.get(1, VoltType.INTEGER);
+            assertEquals(4995000, sum2.intValue());
+            Integer sum3 = (Integer) vt.get(2, VoltType.INTEGER);
+            assertEquals(500, sum3.intValue());
+        }
+    }
+
+    /**
+     * distributed sums of a view
+     * select sum(V.SUM_V1), sum(V.SUM_V2), sum(V.SUM_V3) from V
+     * @throws InterruptedException
+     */
+    public void testDistributedSum_View() throws IOException, ProcCallException, InterruptedException {
+        VoltTable vt;
+        Client client = getClient();
+        loadF(client, 0);
+
+        // FIXME String qs = "select sum(V.SUM_v1), sum(V.SUM_V2), sum(V.SUM_V3) from V";
+        String qs = "select sum(V.SUM_v1), sum(V.SUM_V2) from V";
+
+        vt = client.callProcedure("@AdHoc", qs).getResults()[0];
+        System.out.println("testDistributedSum_View result: " + vt);
+        assertTrue(vt.getRowCount() == 1);
+        while (vt.advanceRow()) {
+            Integer sum1 = (Integer) vt.get(0, VoltType.INTEGER);
+            assertEquals(2000, sum1.intValue());
+            Integer sum2 = (Integer) vt.get(1, VoltType.INTEGER);
+            assertEquals(4995000, sum2.intValue());
+            // FIXME Integer sum3 = (Integer) vt.get(2, VoltType.INTEGER);
+            // FIXME assertEquals(500, sum3.intValue());
+        }
+    }
+
+    /**
+     * distributed sums of a view (REDUNDANT GROUP BY)
+     * select V.D1_PKEY, sum(V.SUM_V1), sum(V.SUM_V2), sum(V.SUM_V3)
+     * from V group by V.V_D1_PKEY
+     * @throws InterruptedException
+     */
+    public void testDistributedSumAndGroup() throws NoConnectionsException,
+    ProcCallException, IOException, InterruptedException {
+        VoltTable vt;
+        Client client = getClient();
+        loadF(client, 0);
+
+        // FIXME String qs = "select V.V_D1_PKEY, sum(V.SUM_V1), sum(V.SUM_V2), sum(V.SUM_V3) "
 //            + "from V group by V.V_D1_PKEY";
-//
-//        vt = client.callProcedure("@AdHoc", qs).getResults()[0];
-//        System.out.println("testDistributedSumAndJoin result: " + vt);
-//        assert (vt.getRowCount() == 10); // 10 unique values for dim1 which is
-//        // the grouping col
-//
-//        int found[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-//        while (vt.advanceRow()) {
-//            Integer d1 = (Integer) vt.get(0, VoltType.INTEGER);
-//            Integer s1 = (Integer) vt.get(1, VoltType.INTEGER);
-//            Integer s2 = (Integer) vt.get(2, VoltType.INTEGER);
-//            Integer s3 = (Integer) vt.get(3, VoltType.INTEGER);
-//
-//            // track that 10 dim1s are in the final group
-//            found[d1.intValue()] += 1;
-//            // sum1 is const 2. 100 dim1 instances / group
-//            assertEquals(200, s1.intValue());
-//            // sum of every 10th i * 10 in this range
-//            assertTrue(495000 <= s2.intValue() && 504000 >= s2.intValue());
-//            // sum3 alternates 0|1. There are 100 dim1 instances / group
+        String qs = "select V.V_D1_PKEY, sum(V.SUM_V1), sum(V.SUM_V2) "
+                + "from V group by V.V_D1_PKEY";
+        
+
+        vt = client.callProcedure("@AdHoc", qs).getResults()[0];
+        System.out.println("testDistributedSumAndJoin result: " + vt);
+        assert (vt.getRowCount() == 10); // 10 unique values for dim1 which is
+        // the grouping col
+
+        int found[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+        while (vt.advanceRow()) {
+            Integer d1 = (Integer) vt.get(0, VoltType.INTEGER);
+            Integer s1 = (Integer) vt.get(1, VoltType.INTEGER);
+            Integer s2 = (Integer) vt.get(2, VoltType.INTEGER);
+            // FIXME Integer s3 = (Integer) vt.get(3, VoltType.INTEGER);
+
+            // track that 10 dim1s are in the final group
+            found[d1.intValue()] += 1;
+            // sum1 is const 2. 100 dim1 instances / group
+            assertEquals(200, s1.intValue());
+            // sum of every 10th i * 10 in this range
+            assertTrue(495000 <= s2.intValue() && 504000 >= s2.intValue());
+            
+            // FIXME
+            // sum3 alternates 0|1. There are 100 dim1 instances / group
+
 //            if ((d1.intValue() % 2) == 0)
 //                assertEquals(s3.intValue(), 0);
 //            else
 //                assertEquals(s3.intValue(), 100);
-//
-//        }
-//        for (int i = 0; i < 10; i++)
-//            assertEquals(1, found[i]);
-//
-//    }
+
+        }
+        for (int i = 0; i < 10; i++)
+            assertEquals(1, found[i]);
+
+    }
 //
 //    /**
 //     * distributed sum of a view with a group by and join on a replicated table.
@@ -624,75 +671,44 @@ public class TestPlansGroupBySuite extends RegressionSuite {
         project.addTablePartitionInfo("F", "F_PKEY");
         project.addProcedures(PROCEDURES);
         project.addStmtProcedure("T1Insert", "INSERT INTO T1 VALUES (?, ?);");
-
-        // config = new LocalSingleProcessServer("plansgroupby-ipc.jar", 1, BackendTarget.NATIVE_EE_IPC);
-        // config.compile(project);
-        // builder.addServerConfig(config);
-
-        config = new LocalSingleProcessServer("plansgroupby-onesite.jar",1,
-                BackendTarget.NATIVE_EE_JNI);
-        config.setConfParameter("site.exec_adhoc_sql", true);
-        config.compile(project);
+        
+        boolean success;
+        
+        /////////////////////////////////////////////////////////////
+        // CONFIG #1: 1 Local Site/Partition
+        /////////////////////////////////////////////////////////////
+        config = new LocalSingleProcessServer(PREFIX + "-1part.jar", 1, BackendTarget.NATIVE_EE_JNI);
+        success = config.compile(project);
+        assert(success);
+        builder.addServerConfig(config);
+        
+        /////////////////////////////////////////////////////////////
+        // CONFIG #2: 1 Local Site with 2 Partitions running on JNI backend
+        /////////////////////////////////////////////////////////////
+        config = new LocalSingleProcessServer(PREFIX + "-2part.jar", 2, BackendTarget.NATIVE_EE_JNI);
+        success = config.compile(project);
+        assert(success);
+        builder.addServerConfig(config);
+        
+        /////////////////////////////////////////////////////////////
+        // CONFIG #3: 1 Local Site with 3 Partitions running on JNI backend
+        /////////////////////////////////////////////////////////////
+        config = new LocalSingleProcessServer(PREFIX + "-3part.jar", 2, BackendTarget.NATIVE_EE_JNI);
+        success = config.compile(project);
+        assert(success);
         builder.addServerConfig(config);
 
-        config = new LocalSingleProcessServer("plansgroupby-threesites.jar",3,
-                BackendTarget.NATIVE_EE_JNI);
-        config.setConfParameter("site.exec_adhoc_sql", true);
-        config.compile(project);
+        ////////////////////////////////////////////////////////////
+        // CONFIG #4: cluster of 2 nodes running 2 site each, one replica
+        ////////////////////////////////////////////////////////////
+        config = new LocalCluster(PREFIX + "-cluster.jar", 2, 2, 1, BackendTarget.NATIVE_EE_JNI);
+        success = config.compile(project);
+        assert(success);
+
         builder.addServerConfig(config);
 
-//        config = new LocalSingleProcessServer("plansgroupby-hsql.jar", 1,
-//                BackendTarget.HSQLDB_BACKEND);
-//        config.compile(project);
-//        builder.addServerConfig(config);
-
-
-        // Cluster
-        config = new LocalCluster("plansgroupby-cluster.jar", 2, 2,
-                                  1, BackendTarget.NATIVE_EE_JNI);
-        config.setConfParameter("site.exec_adhoc_sql", true);
-        config.compile(project);
-        builder.addServerConfig(config);
 
         return builder;
     }
 
-    @SuppressWarnings("unchecked")
-    public class VRowComparator<T> implements Comparator {
-
-        @Override
-        public int compare(Object arg0, Object arg1) {
-            VoltTableRow r1 = (VoltTableRow)arg0;
-            VoltTableRow r2 = (VoltTableRow)arg1;
-
-            String r1d1 = (String) r1.get(0, VoltType.STRING);
-            String r1d2 = (String) r1.get(1, VoltType.STRING);
-            String r2d1 = (String) r2.get(0, VoltType.STRING);
-            String r2d2 = (String) r2.get(1, VoltType.STRING);
-
-            int r1d1_pos = Integer.valueOf(r1d1.substring(3));
-            int r1d2_pos = Integer.valueOf(r1d2.substring(3));
-            int r2d1_pos = Integer.valueOf(r2d1.substring(3));
-            int r2d2_pos = Integer.valueOf(r2d2.substring(3));
-
-            System.out.printf("comparing (%s, %s) to (%s, %s)\n",
-                    r1d1, r1d2, r2d1, r2d2);
-
-            if (r1d1_pos != r2d1_pos)
-                return r1d1_pos - r2d1_pos;
-
-            if (r1d2_pos != r2d2_pos)
-                return r1d2_pos - r2d2_pos;
-
-            return 0;
-        }
-    }
-
-    private void debug(ArrayList<VoltTableRow> sorted) {
-        for (VoltTableRow row : sorted) {
-            String d1 = (String) row.get(0, VoltType.STRING);
-            String d2 = (String) row.get(1, VoltType.STRING);
-            System.out.println("Row: " + d1 + ", " + d2);
-        }
-    }
 }

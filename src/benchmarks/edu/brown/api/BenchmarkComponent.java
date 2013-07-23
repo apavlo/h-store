@@ -113,8 +113,8 @@ import edu.brown.utils.StringUtil;
  */
 public abstract class BenchmarkComponent {
     private static final Logger LOG = Logger.getLogger(BenchmarkComponent.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
+    private static final LoggerBoolean trace = new LoggerBoolean();
     static {
         LoggerUtil.setupLogging();
         LoggerUtil.attachObserver(LOG, debug, trace);
@@ -416,16 +416,18 @@ public abstract class BenchmarkComponent {
                 break;
             }
         } // FOR
-            
-        if (HStoreConf.isInitialized() == false) {
-            assert(hstore_conf_path != null) : "Missing HStoreConf file";
-            File f = new File(hstore_conf_path);
-            if (debug.val) LOG.debug("Initializing HStoreConf from '" + f.getName() + "' along with input parameters");
-            HStoreConf.init(f, args);
-        } else {
-            if (debug.val) LOG.debug("Initializing HStoreConf only with input parameters");
-            HStoreConf.singleton().loadFromArgs(args);
-        }
+
+        synchronized (BenchmarkComponent.class) {
+            if (HStoreConf.isInitialized() == false) {
+                assert(hstore_conf_path != null) : "Missing HStoreConf file";
+                File f = new File(hstore_conf_path);
+                if (debug.val) LOG.debug("Initializing HStoreConf from '" + f.getName() + "' along with input parameters");
+                HStoreConf.init(f, args);
+            } else {
+                if (debug.val) LOG.debug("Initializing HStoreConf only with input parameters");
+                HStoreConf.singleton().loadFromArgs(args); // XXX Why do we need to do this??
+            }
+        } // SYNCH
         m_hstoreConf = HStoreConf.singleton();
         if (trace.val) LOG.trace("HStore Conf\n" + m_hstoreConf.toString(true));
         
@@ -671,10 +673,10 @@ public abstract class BenchmarkComponent {
             for (int i = 0; i < m_countDisplayNames.length; i++) {
                 m_txnStats.transactions.put(i, 0);
                 m_txnStats.dtxns.put(i, 0);
+                m_txnStats.specexecs.put(i, 0);
                 debugLabels.put(i, m_countDisplayNames[i]);
             } // FOR
             m_txnStats.transactions.setDebugLabels(debugLabels);
-            m_txnStats.dtxns.setDebugLabels(debugLabels);
             m_txnStats.setEnableBasePartitions(m_hstoreConf.client.output_basepartitions);
             m_txnStats.setEnableResponsesStatuses(m_hstoreConf.client.output_status);
             
@@ -736,12 +738,17 @@ public abstract class BenchmarkComponent {
                 clientClass.getConstructor(new Class<?>[] { new String[0].getClass() });
             clientMain = constructor.newInstance(new Object[] { args });
             if (uploader != null) clientMain.uploader = uploader;
+            
+            clientMain.invokeInitCallback();
+            
             if (startImmediately) {
                 final ControlWorker worker = new ControlWorker(clientMain);
                 worker.start();
                 
                 // Wait for the worker to finish
-                if (debug.val) LOG.debug(String.format("Started ControlWorker for client #%02d. Waiting until finished...", clientMain.getClientId()));
+                if (debug.val)
+                    LOG.debug(String.format("Started ControlWorker for client #%02d. Waiting until finished...",
+                              clientMain.getClientId()));
                 worker.join();
                 clientMain.invokeStopCallback();
             }
@@ -789,17 +796,21 @@ public abstract class BenchmarkComponent {
                 m_hstoreConf.client.shared_connection
         );
         if (m_blocking) { //  && isLoader == false) {
+            int concurrent = m_hstoreConf.client.blocking_concurrent;
             if (debug.val) 
                 LOG.debug(String.format("Using BlockingClient [concurrent=%d]",
-                                        m_hstoreConf.client.blocking_concurrent));
-            m_voltClient = new BlockingClient(new_client, m_hstoreConf.client.blocking_concurrent);
+                          m_hstoreConf.client.blocking_concurrent));
+            if (this.isSinglePartitionOnly()) {
+                concurrent *= 4; // HACK
+            }
+            m_voltClient = new BlockingClient(new_client, concurrent);
         } else {
             m_voltClient = new_client;
         }
         
         // scan the inputs again looking for host connections
         if (m_noConnections == false) {
-            synchronized (BenchmarkComponent.class) {
+            synchronized (globalHasConnections) {
                 if (globalHasConnections.contains(new_client) == false) {
                     this.setupConnections();
                     globalHasConnections.add(new_client);
@@ -916,10 +927,10 @@ public abstract class BenchmarkComponent {
             
             // TRANSACTION COUNTERS
             boolean is_specexec = cresponse.isSpeculative();
-            boolean is_dtxn = cresponse.isSinglePartition(); 
+            boolean is_dtxn = (cresponse.isSinglePartition() == false); 
             synchronized (m_txnStats.transactions) {
                 m_txnStats.transactions.put(txn_idx);
-                if (is_dtxn == false) m_txnStats.dtxns.put(txn_idx);
+                if (is_dtxn) m_txnStats.dtxns.put(txn_idx);
                 if (is_specexec) m_txnStats.specexecs.put(txn_idx);
             } // SYNCH
 
@@ -927,13 +938,15 @@ public abstract class BenchmarkComponent {
             // Ignore zero latencies... Not sure why this happens...
             int latency = cresponse.getClusterRoundtrip();
             if (latency > 0) {
-                Histogram<Integer> latencies = m_txnStats.latencies.get(txn_idx);
+                Map<Integer, ObjectHistogram<Integer>> latenciesMap = (is_dtxn ? m_txnStats.dtxnLatencies :
+                                                                                 m_txnStats.spLatencies); 
+                Histogram<Integer> latencies = latenciesMap.get(txn_idx);
                 if (latencies == null) {
-                    synchronized (m_txnStats.latencies) {
-                        latencies = m_txnStats.latencies.get(txn_idx);
+                    synchronized (latenciesMap) {
+                        latencies = latenciesMap.get(txn_idx);
                         if (latencies == null) {
                             latencies = new ObjectHistogram<Integer>();
-                            m_txnStats.latencies.put(txn_idx, (ObjectHistogram<Integer>)latencies);
+                            latenciesMap.put(txn_idx, (ObjectHistogram<Integer>)latencies);
                         }
                     } // SYNCH
                 }
@@ -955,7 +968,7 @@ public abstract class BenchmarkComponent {
                 } // SYNCH
             }
         }
-//        else {
+//        else if (status == Status.ABORT_UNEXPECTED) {
 //            LOG.warn("Invalid " + m_countDisplayNames[txn_idx] + " response!\n" + cresponse);
 //            if (cresponse.getException() != null) {
 //                cresponse.getException().printStackTrace();
@@ -963,8 +976,6 @@ public abstract class BenchmarkComponent {
 //            if (cresponse.getStatusString() != null) {
 //                LOG.warn(cresponse.getStatusString());
 //            }
-//
-//            System.exit(-1);   
 //        }
         
         if (m_txnStats.isResponsesStatusesEnabled()) {
@@ -1212,7 +1223,7 @@ public abstract class BenchmarkComponent {
     // ----------------------------------------------------------------------------
     
     protected final void invokeInitCallback() {
-        
+        this.initCallback();
     }
     
     protected final void invokeStartCallback() {
@@ -1267,6 +1278,13 @@ public abstract class BenchmarkComponent {
             LOG.debug("Client Queue Time: " + this.m_voltClient.getQueueTime().debug());
             this.m_voltClient.getQueueTime().reset();
         }
+    }
+    
+    /**
+     * Optional callback for when this BenchmarkComponent has been initialized
+     */
+    public void initCallback() {
+        // Default is to do nothing
     }
     
     /**
@@ -1395,6 +1413,17 @@ public abstract class BenchmarkComponent {
      */
     public final int getClientId() {
         return (m_id);
+    }
+    /**
+     * Returns true if this client thread should submit only single-partition txns.
+     * Support for this option must be implemented in the benchmark.
+     * @return
+     */
+    public final boolean isSinglePartitionOnly() {
+        boolean ret = (m_id < m_hstoreConf.client.singlepartition_threads);
+        if (debug.val && ret)
+            LOG.debug(String.format("Client #%03d is marked as single-partiiton only", m_id));
+        return (ret);
     }
     /**
      * Return the total number of clients for this benchmark invocation

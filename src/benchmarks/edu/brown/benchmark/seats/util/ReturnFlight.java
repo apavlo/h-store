@@ -35,11 +35,11 @@ import edu.brown.benchmark.seats.SEATSConstants;
 
 public class ReturnFlight implements Comparable<ReturnFlight> {
     
-    private final CustomerId customer_id;
+    private final long customer_id;
     private final long return_airport_id;
     private final TimestampType return_date;
     
-    public ReturnFlight(CustomerId customer_id, long return_airport_id, TimestampType flight_date, int return_days) {
+    public ReturnFlight(long customer_id, long return_airport_id, TimestampType flight_date, int return_days) {
         this.customer_id = customer_id;
         this.return_airport_id = return_airport_id;
         this.return_date = ReturnFlight.calculateReturnDate(flight_date, return_days);
@@ -69,7 +69,7 @@ public class ReturnFlight implements Comparable<ReturnFlight> {
     /**
      * @return the customer_id
      */
-    public CustomerId getCustomerId() {
+    public long getCustomerId() {
         return customer_id;
     }
 
@@ -91,7 +91,7 @@ public class ReturnFlight implements Comparable<ReturnFlight> {
     public boolean equals(Object obj) {
         if (obj instanceof ReturnFlight) {
             ReturnFlight o = (ReturnFlight)obj;
-            return (this.customer_id.equals(o.customer_id) &&
+            return (this.customer_id == o.customer_id &&
                     this.return_airport_id == o.return_airport_id &&
                     this.return_date.equals(o.return_date));
         }
@@ -100,7 +100,7 @@ public class ReturnFlight implements Comparable<ReturnFlight> {
 
     @Override
     public int compareTo(ReturnFlight o) {
-        if (this.customer_id.equals(o.customer_id) &&
+        if (this.customer_id == o.customer_id &&
             this.return_airport_id == o.return_airport_id &&
             this.return_date.equals(o.return_date)) {
             return (0);

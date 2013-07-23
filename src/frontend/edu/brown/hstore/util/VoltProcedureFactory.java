@@ -15,8 +15,8 @@ import edu.brown.pools.TypedPoolableObjectFactory;
  */
 public class VoltProcedureFactory extends TypedPoolableObjectFactory<VoltProcedure> {
     private static final Logger LOG = Logger.getLogger(VoltProcedureFactory.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
+    private static final LoggerBoolean trace = new LoggerBoolean();
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
@@ -56,11 +56,9 @@ public class VoltProcedureFactory extends TypedPoolableObjectFactory<VoltProcedu
             } else {
                 volt_proc = new VoltProcedure.StmtProcedure();
             }
-            volt_proc.globalInit(this.executor,
-                                 this.catalog_proc,
-                                 this.executor.getBackendTarget(),
-                                 this.executor.getHsqlBackend(),
-                                 this.executor.getPartitionEstimator());
+            volt_proc.init(this.executor,
+                           this.catalog_proc,
+                           this.executor.getBackendTarget());
         } catch (Exception e) {
             LOG.error("Failed to created VoltProcedure instance for " + catalog_proc.getName() , e);
             throw e;

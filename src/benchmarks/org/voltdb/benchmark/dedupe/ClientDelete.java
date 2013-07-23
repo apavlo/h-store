@@ -33,9 +33,31 @@ import org.voltdb.client.NoConnectionsException;
 import org.voltdb.client.ProcCallException;
 import org.voltdb.utils.Pair;
 
-import edu.brown.utils.StringUtil;
+import edu.brown.hstore.HStoreConstants;
 
 public class ClientDelete {
+    
+    
+    /**
+     * Return the HOST+PORT pair extracted from a string with
+     * "<hostname>:<portnum>"
+     * 
+     * @param hostnport
+     * @return
+     */
+    public static Pair<String, Integer> getHostPort(String hostnport, int port) {
+        String host = hostnport;
+        if (host.contains(":")) {
+            String split[] = hostnport.split("\\:", 2);
+            host = split[0];
+            port = Integer.valueOf(split[1]);
+        }
+        return (Pair.of(host, port));
+    }
+    public static Pair<String, Integer> getHostPort(String hostnport) {
+        return (getHostPort(hostnport, HStoreConstants.DEFAULT_PORT));
+    }
+    
     public static void main(String args[]) {
         long numDeletes = Long.valueOf(args[0]);
         String serverList = args[1];
@@ -62,7 +84,7 @@ public class ClientDelete {
         for (String thisServer : voltServers) {
             try {
                 System.out.printf("Connecting to server: %s\n",thisServer);
-                Pair<String, Integer> p = StringUtil.getHostPort(thisServer);
+                Pair<String, Integer> p = getHostPort(thisServer);
                 voltclient.createConnection(null, p.getFirst(), p.getSecond(), "program", "none");
             } catch (IOException e) {
                 e.printStackTrace();

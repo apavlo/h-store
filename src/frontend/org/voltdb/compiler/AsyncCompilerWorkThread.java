@@ -27,7 +27,6 @@ import org.voltdb.CatalogContext;
 import org.voltdb.VoltDB;
 import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.CatalogDiffEngine;
-import org.voltdb.debugstate.PlannerThreadContext;
 import org.voltdb.utils.CatalogUtil;
 import org.voltdb.utils.DumpManager;
 import org.voltdb.utils.Encoder;
@@ -40,8 +39,8 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
 
 public class AsyncCompilerWorkThread extends Thread implements DumpManager.Dumpable, Shutdownable {
     private static final Logger LOG = Logger.getLogger(AsyncCompilerWorkThread.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
+    private static final LoggerBoolean trace = new LoggerBoolean();
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
@@ -196,7 +195,7 @@ public class AsyncCompilerWorkThread extends Thread implements DumpManager.Dumpa
         while (work.shouldShutdown == false) {
             // handle a dump if needed
             if (work.shouldDump == true) {
-                DumpManager.putDump(m_dumpId, m_currentDumpTimestamp, true, getDumpContents());
+                // DumpManager.putDump(m_dumpId, m_currentDumpTimestamp, true, getDumpContents());
             }
             else {
                 // deal with reloading the global catalog
@@ -244,38 +243,38 @@ public class AsyncCompilerWorkThread extends Thread implements DumpManager.Dumpa
         work.shouldDump = true;
         m_work.add(work);
 
-        DumpManager.putDump(m_dumpId, timestamp, false, getDumpContents());
+        // DumpManager.putDump(m_dumpId, timestamp, false, getDumpContents());
     }
 
-    /**
-     * Get the actual file contents for a dump of state reachable by
-     * this thread. Can be called unsafely or safely.
-     */
-    public PlannerThreadContext getDumpContents() {
-        PlannerThreadContext context = new PlannerThreadContext();
-        context.siteId = m_siteId;
-
-        // doing this with arraylists before arrays seems more stable
-        // if the contents change while iterating
-
-        ArrayList<AsyncCompilerWork> toplan = new ArrayList<AsyncCompilerWork>();
-        ArrayList<AsyncCompilerResult> planned = new ArrayList<AsyncCompilerResult>();
-
-        for (AsyncCompilerWork work : m_work)
-            toplan.add(work);
-        for (AsyncCompilerResult stmt : m_finished)
-            planned.add(stmt);
-
-        context.compilerWork = new AsyncCompilerWork[toplan.size()];
-        for (int i = 0; i < toplan.size(); i++)
-            context.compilerWork[i] = toplan.get(i);
-
-        context.compilerResults = new AsyncCompilerResult[planned.size()];
-        for (int i = 0; i < planned.size(); i++)
-            context.compilerResults[i] = planned.get(i);
-
-        return context;
-    }
+//    /**
+//     * Get the actual file contents for a dump of state reachable by
+//     * this thread. Can be called unsafely or safely.
+//     */
+//    public PlannerThreadContext getDumpContents() {
+//        PlannerThreadContext context = new PlannerThreadContext();
+//        context.siteId = m_siteId;
+//
+//        // doing this with arraylists before arrays seems more stable
+//        // if the contents change while iterating
+//
+//        ArrayList<AsyncCompilerWork> toplan = new ArrayList<AsyncCompilerWork>();
+//        ArrayList<AsyncCompilerResult> planned = new ArrayList<AsyncCompilerResult>();
+//
+//        for (AsyncCompilerWork work : m_work)
+//            toplan.add(work);
+//        for (AsyncCompilerResult stmt : m_finished)
+//            planned.add(stmt);
+//
+//        context.compilerWork = new AsyncCompilerWork[toplan.size()];
+//        for (int i = 0; i < toplan.size(); i++)
+//            context.compilerWork[i] = toplan.get(i);
+//
+//        context.compilerResults = new AsyncCompilerResult[planned.size()];
+//        for (int i = 0; i < planned.size(); i++)
+//            context.compilerResults[i] = planned.get(i);
+//
+//        return context;
+//    }
 
     private AsyncCompilerResult compileAdHocPlan(AdHocPlannerWork work) {
         AdHocPlannedStmt plannedStmt = new AdHocPlannedStmt(work.ts);

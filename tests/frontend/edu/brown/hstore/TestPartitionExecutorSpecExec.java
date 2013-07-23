@@ -33,14 +33,17 @@ import edu.brown.benchmark.tm1.procedures.GetSubscriberData;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.conf.HStoreConf;
-import edu.brown.hstore.specexec.AbstractConflictChecker;
+import edu.brown.hstore.specexec.checkers.AbstractConflictChecker;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.hstore.util.TransactionCounter;
 import edu.brown.utils.CollectionUtil;
-import edu.brown.utils.StringUtil;
 import edu.brown.utils.ThreadUtil;
 
+/**
+ * PartitionExecutor Tests for Speculative Execution
+ * @author pavlo
+ */
 public class TestPartitionExecutorSpecExec extends BaseTestCase {
     private static final Logger LOG = Logger.getLogger(TestPartitionExecutorSpecExec.class);
     
@@ -79,12 +82,16 @@ public class TestPartitionExecutorSpecExec extends BaseTestCase {
      */
     private final AbstractConflictChecker checker = new AbstractConflictChecker(null) {
         @Override
-        public boolean shouldIgnoreProcedure(Procedure proc) {
+        public boolean shouldIgnoreTransaction(AbstractTransaction ts) {
             return (false);
         }
         @Override
-        public boolean canExecute(AbstractTransaction dtxn, LocalTransaction ts, int partitionId) {
-            return (true);
+        public boolean hasConflictBefore(AbstractTransaction dtxn, LocalTransaction candidate, int partitionId) {
+            return (false);
+        }
+        @Override
+        public boolean hasConflictAfter(AbstractTransaction ts0, LocalTransaction ts1, int partitionId) {
+            return (false);
         }
     };
     
@@ -143,7 +150,7 @@ public class TestPartitionExecutorSpecExec extends BaseTestCase {
         // Make sure that we replace the conflict checker on the remote partition
         // so that it can schedule our speculative txns
         PartitionExecutor.Debug remoteDebug = this.remoteExecutor.getDebugContext();
-        remoteDebug.getSpecExecScheduler().setConflictChecker(this.checker);
+        remoteDebug.getSpecExecScheduler().getDebugContext().setConflictChecker(this.checker);
         
         // Make sure that we always set to false to ensure that the dtxn won't abort
         // unless the test case really wants it to
@@ -204,17 +211,6 @@ public class TestPartitionExecutorSpecExec extends BaseTestCase {
             }
         } // FOR
         assertNotNull(dtxn);
-    }
-    
-    private void checkBlockedSpeculativeTxns(PartitionExecutor executor, int expected) {
-        // Wait until they have all been executed but make sure that nobody actually returned yet
-        int tries = 3;
-        while (tries-- > 0) {
-            int blocked = executor.getDebugContext().getBlockedSpecExecCount();
-            if (blocked == expected) break;
-            ThreadUtil.sleep(NOTIFY_TIMEOUT);    
-        } // WHILE
-        assertEquals(expected, executor.getDebugContext().getBlockedSpecExecCount());
     }
     
     private void checkClientResponses(Collection<ClientResponse> responses, Status status, boolean speculative, Integer restarts) {
@@ -293,8 +289,6 @@ public class TestPartitionExecutorSpecExec extends BaseTestCase {
         assertTrue("SINGLE-P0 LATCH"+spCallback0.latch, result);
         assertEquals(1, spCallback0.responses.size());
         this.checkClientResponses(spCallback0.responses, Status.OK, false, 0);
-        
-        HStoreSiteTestUtil.checkObjectPools(hstore_site);
     }
     
     /**
@@ -327,7 +321,7 @@ public class TestPartitionExecutorSpecExec extends BaseTestCase {
             this.client.callProcedure(spCallback, this.spProc.getName(), params);
         } // FOR
         ThreadUtil.sleep(NOTIFY_TIMEOUT);
-        this.checkBlockedSpeculativeTxns(this.remoteExecutor, NUM_SPECEXEC_TXNS);
+        HStoreSiteTestUtil.checkBlockedSpeculativeTxns(this.remoteExecutor, NUM_SPECEXEC_TXNS);
         
         // Now release the locks and then wait until the dtxn returns and all 
         // of the single-partition txns return
@@ -344,8 +338,6 @@ public class TestPartitionExecutorSpecExec extends BaseTestCase {
         // And that all of our single-partition txns succeeded and were speculatively executed
         this.checkClientResponses(spCallback.responses, Status.OK, true, null);
         assertEquals(NUM_SPECEXEC_TXNS, spCallback.responses.size());
-        
-        HStoreSiteTestUtil.checkObjectPools(hstore_site);
     }
     
     /**
@@ -416,8 +408,6 @@ public class TestPartitionExecutorSpecExec extends BaseTestCase {
         // The second batch should all have been aborted
         this.checkClientResponses(spCallback1.responses, Status.ABORT_USER, true, 0);
         assertEquals(NUM_SPECEXEC_TXNS, spCallback1.responses.size());
-        
-        HStoreSiteTestUtil.checkObjectPools(hstore_site);
     }
     
     /**
@@ -454,7 +444,7 @@ public class TestPartitionExecutorSpecExec extends BaseTestCase {
         for (int i = 0; i < NUM_SPECEXEC_TXNS; i++) {
             this.client.callProcedure(spCallback1, spProc1.getName(), params);
         } // FOR
-        this.checkBlockedSpeculativeTxns(this.remoteExecutor, NUM_SPECEXEC_TXNS);
+        HStoreSiteTestUtil.checkBlockedSpeculativeTxns(this.remoteExecutor, NUM_SPECEXEC_TXNS);
         
         // Release all of the dtxn's locks
         this.lockAfter.release();
@@ -476,8 +466,6 @@ public class TestPartitionExecutorSpecExec extends BaseTestCase {
         // with no restarts
         this.checkClientResponses(spCallback1.responses, Status.OK, true, 0);
         assertEquals(NUM_SPECEXEC_TXNS, spCallback1.responses.size());
-        
-        HStoreSiteTestUtil.checkObjectPools(hstore_site);
     }
     
 //    /**
@@ -552,7 +540,5 @@ public class TestPartitionExecutorSpecExec extends BaseTestCase {
 //        assertEquals(1+(NUM_SPECEXEC_TXNS*2), TransactionCounter.COMPLETED.get());
 //        assertEquals(NUM_SPECEXEC_TXNS, TransactionCounter.SPECULATIVE.get());
 //        assertEquals(NUM_SPECEXEC_TXNS, TransactionCounter.ABORT_SPECULATIVE.get());
-//        
-//        HStoreSiteTestUtil.checkObjectPools(hstore_site);
 //    }
 }

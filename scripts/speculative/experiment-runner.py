@@ -82,14 +82,13 @@ LOG.setLevel(logging.INFO)
 ## ==============================================
 
 OPT_BASE_BLOCKING_CONCURRENT = 1
-OPT_BASE_TXNRATE_PER_PARTITION = 1000
-OPT_BASE_TXNRATE = 1000
+OPT_BASE_TXNRATE = 100000
 OPT_BASE_CLIENT_COUNT = 1
-OPT_BASE_CLIENT_THREADS_PER_HOST = 200
+OPT_BASE_CLIENT_THREADS_PER_HOST = 100
 OPT_BASE_SCALE_FACTOR = float(1.0)
 OPT_BASE_PARTITIONS_PER_SITE = 8
 OPT_PARTITION_PLAN_DIR = "files/designplans"
-OPT_MARKOV_DIR = "files/markovs/vldb-august2012"
+OPT_MARKOV_DIR = "files/markovs"
 OPT_GIT_BRANCH = subprocess.check_output("git rev-parse --abbrev-ref HEAD", shell=True).strip()
 
 DEFAULT_OPTIONS = {
@@ -102,14 +101,25 @@ DEBUG_OPTIONS = {
     #"site.txn_profiling":             True,    
 }
 DEBUG_SITE_LOGGING = [
-    "edu.brown.hstore.HStoreSite",
-    "edu.brown.hstore.PartitionExecutor",
-    "edu.brown.hstore.TransactionQueueManager",
+    #"edu.brown.hstore.HStoreSite",
+    #"edu.brown.hstore.PartitionExecutor",
+    #"edu.brown.hstore.TransactionInitializer",
+    #"edu.brown.hstore.specexec.PrefetchQueryPlanner",
+    #"edu.brown.hstore.specexec.PrefetchQueryUtil",
+    #"edu.brown.hstore.SpecExecScheduler",
+    #"edu.brown.hstore.specexec.checkers.MarkovConflictChecker",
+    #"edu.brown.hstore.estimators.markov.MarkovEstimator",
+    #"edu.brown.hstore.txns.DependencyTracker",
+    
+    ## CALLBACKS
     #"edu.brown.hstore.callbacks.TransactionPrepareCallback",
     #"edu.brown.hstore.callbacks.TransactionPrepareWrapperCallback",
     #"edu.brown.hstore.callbacks.TransactionInitCallback",
     #"edu.brown.hstore.callbacks.TransactionInitQueueCallback",
     #"edu.brown.hstore.callbacks.BlockingRpcCallback",
+]
+TRACE_SITE_LOGGING = [
+    #"edu.brown.hstore.estimators.markov.MarkovPathEstimator",
 ]
 DEBUG_CLIENT_LOGGING = [
     #"edu.brown.api.BenchmarkComponent",
@@ -132,15 +142,13 @@ BASE_SETTINGS = {
     "client.blocking_concurrent":       OPT_BASE_BLOCKING_CONCURRENT,
     "client.txnrate":                   OPT_BASE_TXNRATE,
     "client.count":                     OPT_BASE_CLIENT_COUNT,
-    "client.threads_per_host":          OPT_BASE_CLIENT_THREADS_PER_HOST,
+    #"client.threads_per_host":          OPT_BASE_CLIENT_THREADS_PER_HOST,
     "client.interval":                  10000,
     "client.skewfactor":                -1,
     "client.duration":                  300000,
     "client.warmup":                    60000,
-    "client.scalefactor":               OPT_BASE_SCALE_FACTOR,
     "client.txn_hints":                 True,
     "client.memory":                    6000,
-    "client.output_basepartitions":     False,
     
     "site.jvm_asserts":                         False,
     "site.log_backup":                          False,
@@ -152,6 +160,7 @@ BASE_SETTINGS = {
     "site.exec_force_singlepartitioned":        True,
     "site.memory":                              6144,
     "site.exec_db2_redirects":                  False,
+    "site.exec_readwrite_tracking":             False,
     "site.cpu_affinity":                        True,
     "site.cpu_affinity_one_partition_per_core": True,
 }
@@ -166,20 +175,61 @@ EXPERIMENT_SETTINGS = [
     # Performance Experiments
     "performance-nospec",
     "performance-spec-txn",
-    "performance-spec-queries",
+    "performance-spec-query",
     "performance-spec-all",
+    
+    # Conflict Experiments
+    "conflicts-table",
+    "conflicts-row",
+    "conflictsperf-table",
+    "conflictsperf-row",
+    
+    # Hotpsot Experiments
+    "hotspots-00-spec",
+    "hotspots-00-occ",
+    "hotspots-25-spec",
+    "hotspots-25-occ",
+    "hotspots-50-spec",
+    "hotspots-50-occ",
+    "hotspots-75-spec",
+    "hotspots-75-occ",
+    "hotspots-100-spec",
+    "hotspots-100-occ",
+    
+    # Abort Experiments
+    "aborts-00-spec",
+    "aborts-20-spec",
+    "aborts-40-spec",
+    "aborts-60-spec",
+    "aborts-80-spec",
+    "aborts-100-spec",
+    "aborts-00-occ",
+    "aborts-20-occ",
+    "aborts-40-occ",
+    "aborts-60-occ",
+    "aborts-80-occ",
+    "aborts-100-occ",
 ]
 
 ## ==============================================
 ## updateExperimentEnv
 ## ==============================================
 def updateExperimentEnv(fabric, args, benchmark, partitions):
-    global OPT_BASE_TXNRATE_PER_PARTITION
+    targetType = args['exp_type']
   
+    ## ----------------------------------------------
+    ## CONFLICTS + HOTSPOTS + ABORTS
+    ## ----------------------------------------------
+    for prefix in ("conflicts", "hotspots", "aborts"):
+        if targetType.startswith(prefix):
+            targetType = "performance-spec-txn"
+            break
+    ## FOR
+        
     ## ----------------------------------------------
     ## MOTIVATION
     ## ----------------------------------------------
-    if args['exp_type'].startswith("motivation"):
+    if targetType.startswith("motivation"):
         fabric.env["site.specexec_enable"] = False
         fabric.env["site.specexec_nonblocking"] = False
         fabric.env["site.markov_enable"] = True
@@ -195,7 +245,7 @@ def updateExperimentEnv(fabric, args, benchmark, partitions):
         fabric.env["client.output_txn_counters"] = "txncounters.csv"
         
         ## IF
-        if args['exp_type'] in ('motivation-oneclient', 'motivation-remotequery'):
+        if targetType in ('motivation-oneclient', 'motivation-remotequery'):
             fabric.env["client.threads_per_host"] = 1
         else:
             fabric.env["client.threads_per_host"] = partitions * 2  # max(1, int(partitions/2))
@@ -204,7 +254,7 @@ def updateExperimentEnv(fabric, args, benchmark, partitions):
             fabric.env["client.weights"] = "neworder:50,paymentByCustomerId:50,*:0"
             fabric.env["benchmark.payment_only"] = False
             fabric.env["benchmark.neworder_only"] = False
-            fabric.env["benchmark.neworder_abort"] = False
+            fabric.env["benchmark.neworder_abort"] = 0
             fabric.env["benchmark.loadthread_per_warehouse"] = False
             fabric.env["benchmark.loadthreads"] = max(16, partitions)
         elif benchmark == "seats":
@@ -216,7 +266,7 @@ def updateExperimentEnv(fabric, args, benchmark, partitions):
         ## ----------------------------------------------
         ## MOTIVATION-SINGLEPARTITION
         ## ----------------------------------------------
-        if args['exp_type'] == "motivation-singlepartition":
+        if targetType == "motivation-singlepartition":
             fabric.env["client.weights"] = ""
             
             if benchmark == "tpcc":
@@ -237,7 +287,7 @@ def updateExperimentEnv(fabric, args, benchmark, partitions):
         ## ----------------------------------------------
         ## MOTIVATION-DTXN-SINGLENODE
         ## ----------------------------------------------
-        elif args['exp_type'] == "motivation-dtxn-singlenode":
+        elif targetType == "motivation-dtxn-singlenode":
             if benchmark == "tpcc":
                 fabric.env["benchmark.neworder_multip"] = True
                 fabric.env["benchmark.neworder_multip_remote"] = False
@@ -255,8 +305,8 @@ def updateExperimentEnv(fabric, args, benchmark, partitions):
         ## ----------------------------------------------
         ## MOTIVATION-DTXN-MULITNODE
         ## ----------------------------------------------
-        elif args['exp_type'] in ("motivation-dtxn-multinode", "motivation-remotequery"):
-            if args['exp_type'] == "motivation-remotequery":
+        elif targetType in ("motivation-dtxn-multinode", "motivation-remotequery"):
+            if targetType == "motivation-remotequery":
                 fabric.env["site.specexec_enable"] = False
                 fabric.env["site.specexec_nonblocking"] = True
             
@@ -278,25 +328,26 @@ def updateExperimentEnv(fabric, args, benchmark, partitions):
     ## ----------------------------------------------
     ## PERFORMANCE EXPERIMENTS
     ## ----------------------------------------------
-    elif args['exp_type'].startswith("performance"):
+    elif targetType.startswith("performance"):
         fabric.env["site.markov_enable"] = True
-        fabric.env["site.markov_singlep_updates"] = False
-        fabric.env["site.markov_dtxn_updates"] = False
-        fabric.env["site.markov_path_caching"] = True
-        fabric.env["site.markov_endpoint_caching"] = False
-        fabric.env["site.markov_fixed"] = False
         fabric.env["site.exec_prefetch_queries"] = False
         fabric.env["site.specexec_enable"] = False
         fabric.env["site.specexec_nonblocking"] = False
         fabric.env["site.specexec_ignore_all_local"] = True
-        fabric.env["site.specexec_markov"] = True
+        fabric.env["site.network_incoming_limit_txns"] = 500
+        fabric.env["site.txn_profiling_sample"] = 0.01
         
         fabric.env["client.txn_hints"] = True
         fabric.env["client.count"] = 1
         fabric.env["client.txnrate"] = 100000
         fabric.env["client.blocking"] = True
-        fabric.env["client.threads_per_host"] = OPT_BASE_CLIENT_THREADS_PER_HOST * int(partitions/8)
+        fabric.env["client.blocking_concurrent"] = 4 * int(partitions/8)
+        #if partitions > 16: fabric.env["client.blocking_concurrent"] *= int(partitions/8)
+        fabric.env["client.threads_per_host"] = OPT_BASE_CLIENT_THREADS_PER_HOST
         fabric.env["client.scalefactor"] = OPT_BASE_SCALE_FACTOR * int(partitions/8)
+        fabric.env["client.output_txn_counters"] = "txncounters.csv"
+        fabric.env["client.output_txn_profiling"] = "txnprofile.csv"
+        fabric.env["client.output_clients"] = False
         
         if benchmark == "tpcc":
             fabric.env["client.scalefactor"] = OPT_BASE_SCALE_FACTOR
@@ -309,38 +360,201 @@ def updateExperimentEnv(fabric, args, benchmark, partitions):
         elif benchmark == "seats":
             fabric.env["benchmark.force_all_distributed"] = False
             fabric.env["benchmark.force_all_singlepartition"] = False
+            fabric.env["benchmark.prob_multiaccount_dtxn"] = 50
+            fabric.env["client.threads_per_host"] = int(OPT_BASE_CLIENT_THREADS_PER_HOST * 0.5)
+            fabric.env["client.scalefactor"] = 1.0
+            fabric.env["client.weights"] =  "DeleteReservation:1," + \
+                                            "FindOpenSeats:65," + \
+                                            "NewReservation:30," + \
+                                            "UpdateCustomer:2," + \
+                                            "UpdateReservation:2," + \
+                                            "*:0"
+                                        
         elif benchmark == "smallbank":
             fabric.env["client.weights"] = "SendPayment:25,*:15"
+            fabric.env["client.scalefactor"] = OPT_BASE_SCALE_FACTOR * int(partitions/4)
             fabric.env["benchmark.force_multisite_dtxns"] = False
             fabric.env["benchmark.force_singlesite_dtxns"] = False
+            fabric.env["benchmark.prob_account_hotspot"] = 0
         
         ## ----------------------------------------------
         ## NO SPECULATION
         ## ----------------------------------------------
-        if args['exp_type'] == "performance-nospec":
-            # Nothing else is needed
-            pass
+        if targetType == "performance-nospec":
+            #fabric.env["site.markov_enable"] = False
+            if partitions>16: fabric.env["client.blocking_concurrent"] = 8 # HACK
+            if benchmark == "seats":
+                fabric.env["client.blocking_concurrent"] = int(partitions/8)
+            
         ## ----------------------------------------------
         ## SPECULATIVE TXNS
         ## ----------------------------------------------
-        if args['exp_type'] in ("performance-spec-txn", "performance-spec-all"):
+        if targetType in ("performance-spec-txn", "performance-spec-all"):
             fabric.env["site.specexec_enable"] = True
-            fabric.env["site.markov_enable"] = True
-            fabric.env["site.specexec_markov"] = True
+            fabric.env["site.specexec_ignore_stallpoints"] = ""
+            fabric.env["site.specexec_scheduler_checker"] = "MARKOV"
+
+            spFactor = 0.65 if targetType == "performance-spec-all" else 0.5
+            spThreads = int(fabric.env["client.threads_per_host"] * spFactor)
+            fabric.env["client.singlepartition_threads"] = spThreads
+            
         ## ----------------------------------------------
         ## SPECULATIVE QUERIES
         ## ----------------------------------------------
-        if args['exp_type'] in ("performance-queries", "performance-spec-all"):
+        if targetType in ("performance-spec-query", "performance-spec-all"):
             fabric.env["site.exec_prefetch_queries"] = True
-            fabric.env["site.specexec_markov"] = True
+            if targetType == "performance-spec-query" and benchmark == "seats":
+                fabric.env["client.blocking_concurrent"] = int(partitions/8)
             
+    ## ----------------------------------------------
+    ## CONFLICTS
+    ## ----------------------------------------------
+    if args['exp_type'].startswith("conflicts"):
+        conflictType = args['exp_type'].split("-")[-1]
+        
+        fabric.env["client.output_specexec_profiling"] = "specexec.csv"
+        fabric.env["site.markov_learning_enable"] = False
+        
+        # TESTING
+        #fabric.env["site.specexec_disable_partitions"] = "1-15"
+        #fabric.env["client.scalefactor"] = 0.1
+        #fabric.env["client.threads_per_host"] = 80
+        #fabric.env["client.blocking_concurrent"] = 2
+        #fabric.env["hstore.exec_prefix"] += " -Dmarkov.recompute_end=true"
+
+        ## ----------------------------------------------
+        ## PERFORMANCE
+        ## ----------------------------------------------
+        if args['exp_type'].startswith("conflictsperf"):
+            fabric.env["site.specexec_scheduler_policy"] = "FIRST"
+            fabric.env["site.specexec_scheduler_window"] = 1
+            fabric.env["client.singlepartition_threads"] = 0
+        
+        ## ----------------------------------------------
+        ## ANALYSIS
+        ## ----------------------------------------------
+        else:
+            fabric.env["site.specexec_profiling_sample"] = 1
+            fabric.env["site.specexec_ignore_stallpoints"] = "IDLE,SP2_REMOTE_BEFORE,SP3_LOCAL,SP3_REMOTE"
+            fabric.env["site.specexec_scheduler_policy"] = "LAST"
+            fabric.env["site.specexec_scheduler_window"] = 999999
+            fabric.env["site.specexec_ignore_interruptions"] = True
+        
+        ## ----------------------------------------------
+        ## ROW-LEVEL DETECTION
+        ## ----------------------------------------------
+        if conflictType == "row":
+            fabric.env["site.specexec_scheduler_checker"] = "MARKOV"
+        ## ----------------------------------------------
+        ## TABLE-LEVEL DETECTION
+        ## ----------------------------------------------
+        elif conflictType == "table":
+            fabric.env["site.specexec_scheduler_checker"] = "TABLE"
+    ## IF
+    
+    ## ----------------------------------------------
+    ## HOTSPOTS
+    ## ----------------------------------------------
+    if args['exp_type'].startswith("hotspots"):
+        hotspotPcnt = int(args['exp_type'].split("-")[1])
+        schedulerType = args['exp_type'].split("-")[2]
+
+        fabric.env["site.specexec_scheduler_policy"] = "FIRST"
+        fabric.env["site.specexec_scheduler_window"] = 1
+        fabric.env["site.exec_early_prepare"] = True
+        fabric.env["client.scalefactor"] = 1
+        
+        #if partitions == 16:
+            #fabric.env["client.blocking_concurrent"] = 8 * int(partitions/8)
+
+        # SMALLBANK
+        if benchmark == "smallbank":
+            fabric.env["benchmark.hotspot_use_fixed_size"] = False
+            fabric.env["benchmark.hotspot_percentage"] = 0.25
+            fabric.env["benchmark.hotspot_use_fixed_size"] = False
+            fabric.env["benchmark.prob_account_hotspot"] = hotspotPcnt
+            fabric.env["benchmark.prob_multiaccount_dtxn"] = 100
+            fabric.env["benchmark.force_multisite_dtxns"] = True
+        # TPC-C
+        elif benchmark == "tpcc":
+            fabric.env["benchmark.neworder_multip_remote"] = True
+            fabric.env["benchmark.payment_multip_remote"] = True
+            fabric.env["benchmark.temporal_skew_mix"] = hotspotPcnt
+            fabric.env["benchmark.neworder_skew_warehouse"] = True
+        
+        ## ----------------------------------------------
+        ## HERMES!
+        ## ----------------------------------------------
+        if schedulerType == "spec":
+            fabric.env["site.markov_enable"] = True
+            fabric.env["site.specexec_scheduler_checker"] = "MARKOV"
+            fabric.env["site.exec_readwrite_tracking"] = False
+            fabric.env["site.exec_prefetch_queries"] = False
+            #fabric.env["client.singlepartition_threads"] = int(fabric.env["client.threads_per_host"] * 0.75)
+            #fabric.env["client.blocking_concurrent"] = 6 * int(partitions/8)
+        ## ----------------------------------------------
+        ## OCC
+        ## ----------------------------------------------
+        elif schedulerType == "occ":
+            #fabric.env["site.markov_enable"] = False
+            fabric.env["site.specexec_scheduler_checker"] = "OPTIMISTIC"
+            fabric.env["site.exec_readwrite_tracking"] = True
+    ## IF
+    
+    ## ----------------------------------------------
+    ## ABORTS
+    ## ----------------------------------------------
+    if args['exp_type'].startswith("aborts"):
+        abortPercentage = int(args['exp_type'].split("-")[1])
+        schedulerType = args['exp_type'].split("-")[2]
+        
+        fabric.env["site.specexec_scheduler_checker"] = "MARKOV"
+        fabric.env["benchmark.neworder_abort"] = abortPercentage
+        fabric.env["benchmark.neworder_abort_no_multip"] = True
+        fabric.env["benchmark.neworder_abort_no_singlep"] = True
+        
+        ## ----------------------------------------------
+        ## HERMES!
+        ## ----------------------------------------------
+        if schedulerType == "spec":
+            fabric.env["site.specexec_scheduler_checker"] = "MARKOV"
+        ## ----------------------------------------------
+        ## OCC
+        ## ----------------------------------------------
+        elif schedulerType == "occ":
+            fabric.env["site.specexec_scheduler_checker"] = "OPTIMISTIC"
+            fabric.env["site.exec_readwrite_tracking"] = True
+    ## IF
+
+    ## ----------------------------------------------
+    ## MARKOV MODELS!
+    ## ----------------------------------------------
+    
+    # Make sure we remove the old markov model arg
+    newExecPrefix = ""
+    for key in map(string.strip, fabric.env["hstore.exec_prefix"].split(" ")):
+        if not key.startswith("-Dmarkov"): newExecPrefix += " " + key
+    fabric.env["hstore.exec_prefix"] = newExecPrefix
+    
     if fabric.env.get('site.markov_enable', False):
-        markov = "%s-%dp.markov.gz" % (benchmark, partitions)
-        #else:
-            #markov = "%s.markov.gz" % (benchmark)
-        fabric.env["hstore.exec_prefix"] += " -Dmarkov=%s" % os.path.join(OPT_MARKOV_DIR, markov)
+        markov = os.path.join(OPT_MARKOV_DIR, "%s-%dp.markov.gz" % (benchmark, partitions))
+        fabric.env["hstore.exec_prefix"] += " -Dmarkov=%s" % markov
+        #fabric.env["hstore.exec_prefix"] += " -Dmarkov.recompute_end=true"
+        
+        fabric.env["site.markov_singlep_updates"] = False
+        fabric.env["site.markov_dtxn_updates"] = False
+        fabric.env["site.markov_path_caching"] = True
+        fabric.env["site.markov_endpoint_caching"] = False
+        fabric.env["site.markov_fixed"] = False
+        fabric.env["site.markov_force_traversal"] = True
+        fabric.env["site.network_startup_wait"] = 15000 * 2
     else:
-        fabric.env['site.markov_fixed'] = True
+        fabric.env['site.markov_fixed'] = False
+        
+    for key in ('client.txnrate', 'client.threads_per_host', 'client.scalefactor'):
+        if key in args and args[key] and args[key] != fabric.env[key]: 
+            LOG.debug("OVERRIDE %s -> %s [orig=%s]", key, args[key], fabric.env[key])
+            fabric.env[key] = args[key]
 ## DEF
 
 ## ==============================================
@@ -450,23 +664,33 @@ def processResults(inst, fabric, args, partitions, output, workloads):
 ## ==============================================
 ## writeResultsCSV
 ## ==============================================
-def writeResultsCSV(args, benchmark, finalResults):
-    for partitions in sorted(finalResults.keys()):
-        baseName = "%s-%02dp-results.csv" % (benchmark, partitions)
-        output = os.path.join(args['results_dir'], args['exp_type'], baseName)
-        with open(output, "w") as fd:
-            writer = csv.writer(fd)
-            header = None
-            for data in finalResults[partitions]:
-                if header is None:
-                    header = sorted(data.keys())
-                    header.remove("TXNRESULTS")
-                    writer.writerow(header)
-                writer.writerow([ data[key] for key in header ])
-            ## FOR
-        ## WITH
-        LOG.info("Wrote %s results to '%s'", benchmark, output)
-    ## FOR
+def writeResultsCSV(args, benchmark, finalResults, partitions):
+    if not partitions in finalResults or not finalResults[partitions]:
+        LOG.warn("No results for %s - %s - %d Partitions" % (args['exp_type'].upper(), benchmark.upper(), partitions))
+        return
+    
+    output = getResultsFilename(args, benchmark, partitions)
+    with open(output, "w") as fd:
+        writer = csv.writer(fd)
+        header = None
+        for data in finalResults[partitions]:
+            if header is None:
+                header = data.keys()
+                header.remove("TXNRESULTS")
+                writer.writerow(header)
+            writer.writerow([ data[key] for key in header ])
+        ## FOR
+    ## WITH
+    LOG.info("Wrote %s results to '%s'", benchmark, output)
+## DEF
+
+## ==============================================
+## getResultsFilename
+## ==============================================
+def getResultsFilename(args, benchmark, partitions):
+    baseName = "%s-%02dp-results.csv" % (benchmark, partitions)
+    output = os.path.join(args['results_dir'], args['exp_type'], baseName)
+    return output
 ## DEF
 
 ## ==============================================
@@ -524,6 +748,7 @@ if __name__ == '__main__':
     agroup.add_argument("--clear-logs", action='store_true')
     agroup.add_argument("--workload-trace", action='store_true')
     agroup.add_argument("--results-dir", type=str, default='results', metavar='D', help='Directory where CSV results are stored')
+    agroup.add_argument("--overwrite", action='store_true', help='Overwrite existing results')
     
     ## Codespeed Parameters
     agroup = aparser.add_argument_group('Codespeed Parameters')
@@ -669,16 +894,28 @@ if __name__ == '__main__':
     needSync = (args['no_sync'] == False)
     needCompile = (args['no_compile'] == False)
     needClearLogs = (args['clear_logs'] == True)
-    origScaleFactor = BASE_SETTINGS['client.scalefactor']
     
     for benchmark in args['benchmark']:
         finalResults = { }
         totalAttempts = args['exp_trials'] * args['exp_attempts']
         stop = False
         
-        try:
-            for partitions in map(int, args["partitions"]):
-                LOG.info("%s - %s - %d Partitions" % (args['exp_type'].upper(), benchmark.upper(), partitions))
+        for partitions in map(int, args["partitions"]):
+            LOG.info("*"*100)
+            LOG.info("*"*100)
+            LOG.info("** %s - %s - %d Partitions", args['exp_type'].upper(), benchmark.upper(), partitions)
+            LOG.info("*"*100)
+            LOG.info("*"*100)
+            
+            resultsOutput = getResultsFilename(args, benchmark, partitions)
+            if os.path.exists(resultsOutput):
+                if not args['overwrite']:
+                    LOG.warn("Results file '%s' already exists. Skipping!\n", resultsOutput)
+                    continue
+                else:
+                    LOG.warn("Results file '%s' already exists. It will be overwritten!", resultsOutput)
+            
+            try:
                 fabric.env["hstore.partitions"] = partitions
                 all_results = [ ]
                 updateExperimentEnv(fabric, args, benchmark, partitions)
@@ -700,8 +937,8 @@ if __name__ == '__main__':
                             fabric.env[k] = False if isinstance(v, bool) else ""
                     ## FOR
                 
-                client_inst = fabric.getRunningClientInstances()[0]
-                LOG.info("Client Instance: " + client_inst.public_dns_name)
+                client_inst = fabric.getRunningInstances()[-1]
+                LOG.debug("Client Instance: " + client_inst.public_dns_name)
                 
                 ## Synchronize Instance Times
                 if needSync: fabric.sync_time()
@@ -713,14 +950,17 @@ if __name__ == '__main__':
                 
                 ## Update Log4j
                 if needUpdateLog4j:
-                    LOG.info("Updating log4j.properties")
-                    enableDebug = [ ]
+                    log4jDebug = [ ]
+                    log4jTrace = [ ]
                     if args['debug_log4j_site']:
-                        enableDebug += DEBUG_SITE_LOGGING
+                        log4jDebug += DEBUG_SITE_LOGGING
+                        log4jTrace += TRACE_SITE_LOGGING
                     if args['debug_log4j_client']:
-                        enableDebug += DEBUG_CLIENT_LOGGING
-                    fabric.enable_debugging(debug=enableDebug)
+                        log4jDebug += DEBUG_CLIENT_LOGGING
+                    LOG.debug("Updating log4j.properties:\n  %s", "\n  ".join(log4jDebug))
+                    fabric.updateLog4j(reset=True, debug=log4jDebug, trace=log4jTrace)
                     needUpdateLog4j = False
+                    needResetLog4j = False
                     
                 updateJar = (args['no_jar'] == False)
                 LOG.debug("Parameters:\n%s" % pformat(env))
@@ -784,11 +1024,11 @@ if __name__ == '__main__':
                         updateConf = False
                     ## TRY
                 ## FOR (TRIALS)
-                if stop: break
-            ## FOR (PARTITIONS)
-        finally:
-            if not args['no_json']:
-                writeResultsCSV(args, benchmark, finalResults)
+            finally:
+                if not args['no_json']:
+                    writeResultsCSV(args, benchmark, finalResults, partitions)
+            if stop: break
+        ## FOR (PARTITIONS)
         if stop: break
     ## FOR (BENCHMARKS)
     

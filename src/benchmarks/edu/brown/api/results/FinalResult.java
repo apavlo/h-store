@@ -13,11 +13,11 @@ import org.json.JSONObject;
 import org.json.JSONStringer;
 import org.voltdb.catalog.Database;
 
+import edu.brown.api.BenchmarkControllerUtil;
 import edu.brown.api.results.BenchmarkResults.Result;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.statistics.Histogram;
-import edu.brown.statistics.HistogramUtil;
 import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.JSONSerializable;
 import edu.brown.utils.JSONUtil;
@@ -25,8 +25,8 @@ import edu.brown.utils.MathUtil;
 
 public class FinalResult implements JSONSerializable {
     private static final Logger LOG = Logger.getLogger(FinalResult.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
+    private static final LoggerBoolean trace = new LoggerBoolean();
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
@@ -43,9 +43,19 @@ public class FinalResult implements JSONSerializable {
     public double stddevTxnPerSecond;
 
     public double totalAvgLatency;
-    public double totalStdDevLatency;
+    public double totalStdevLatency;
     public double totalMinLatency;
     public double totalMaxLatency;
+    
+    public double spAvgLatency;
+    public double spStdevLatency;
+    public double spMinLatency;
+    public double spMaxLatency;
+    
+    public double dtxnAvgLatency;
+    public double dtxnStdevLatency;
+    public double dtxnMinLatency;
+    public double dtxnMaxLatency;
     
     /** TransactionName -> Results */
     public final Map<String, EntityResult> txnResults = new HashMap<String, EntityResult>();
@@ -119,28 +129,54 @@ public class FinalResult implements JSONSerializable {
         this.txnMaxPerSecond = this.txnMaxCount / interval;
         
         // TRANSACTION RESULTS
-        Histogram<Integer> latencies = new ObjectHistogram<Integer>();
+        Histogram<Integer> totalLatencies = new ObjectHistogram<Integer>();
+        Histogram<Integer> spLatencies = new ObjectHistogram<Integer>();
+        Histogram<Integer> dtxnLatencies = new ObjectHistogram<Integer>();
         for (String txnName : txnCounts.values()) {
-            Histogram<Integer> txnLatencies = results.getLatenciesForTransaction(txnName);
+            Histogram<Integer> allTxnLatencies = results.getTransactionTotalLatencies(txnName);
+            Histogram<Integer> spTxnLatencies = results.getTransactionSinglePartitionLatencies(txnName);
+            Histogram<Integer> dtxnTxnLatencies = results.getTransactionDistributedLatencies(txnName);
             EntityResult er = new EntityResult(this.txnTotalCount, this.duration,
                                                txnCounts.get(txnName), dtxnCounts.get(txnName),
-                                               txnLatencies);
+                                               allTxnLatencies, spTxnLatencies, dtxnTxnLatencies);
             this.txnResults.put(txnName, er);
-            latencies.put(txnLatencies);
+            totalLatencies.put(allTxnLatencies);
+            spLatencies.put(spTxnLatencies);
+            dtxnLatencies.put(dtxnTxnLatencies);
         } // FOR
-        if (latencies.isEmpty() == false) {
-            this.totalMinLatency = latencies.getMinValue().doubleValue();
-            this.totalMaxLatency = latencies.getMaxValue().doubleValue();
-            this.totalAvgLatency = HistogramUtil.sum(latencies) / (double)latencies.getSampleCount();
-            this.totalStdDevLatency = HistogramUtil.stdev(latencies);
+        if (totalLatencies.isEmpty() == false) {
+            double x[] = BenchmarkControllerUtil.computeLatencies(totalLatencies);
+            int i = 0;
+            this.totalMinLatency = x[i++];
+            this.totalMaxLatency = x[i++];
+            this.totalAvgLatency = x[i++];
+            this.totalStdevLatency = x[i++];
+        }
+        if (spLatencies.isEmpty() == false) {
+            double x[] = BenchmarkControllerUtil.computeLatencies(spLatencies);
+            int i = 0;
+            this.spMinLatency = x[i++];
+            this.spMaxLatency = x[i++];
+            this.spAvgLatency = x[i++];
+            this.spStdevLatency = x[i++];
+        }
+        if (dtxnLatencies.isEmpty() == false) {
+            double x[] = BenchmarkControllerUtil.computeLatencies(dtxnLatencies);
+            int i = 0;
+            this.dtxnMinLatency = x[i++];
+            this.dtxnMaxLatency = x[i++];
+            this.dtxnAvgLatency = x[i++];
+            this.dtxnStdevLatency = x[i++];
         }
         
         // CLIENTS RESULTS
         for (String clientName : results.getClientNames()) {
-            Histogram<Integer> clientLatencies = results.getLatenciesForClient(clientName);
+            totalLatencies = results.getClientTotalLatencies(clientName);
+            spLatencies = results.getClientSinglePartitionLatencies(clientName);
+            dtxnLatencies = results.getClientDistributedLatencies(clientName);
             EntityResult er = new EntityResult(this.txnTotalCount, this.duration,
                                                clientTxnCounts.get(clientName), clientDtxnCounts.get(clientName),
-                                               clientLatencies);
+                                               totalLatencies, spLatencies, dtxnLatencies);
             this.clientResults.put(clientName.replace("client-", ""), er);
         } // FOR
     }
@@ -183,7 +219,7 @@ public class FinalResult implements JSONSerializable {
         return this.totalAvgLatency;
     }
     public double getTotalStdDevLatency() {
-        return this.totalStdDevLatency;
+        return this.totalStdevLatency;
     }
     public double getTotalMinLatency() {
         return this.totalMinLatency;

@@ -19,7 +19,6 @@ import org.voltdb.catalog.CatalogType;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.designer.AccessGraph;
-import edu.brown.designer.ColumnSet;
 import edu.brown.designer.DesignerEdge;
 import edu.brown.designer.DesignerVertex;
 import edu.brown.graphs.IGraph;
@@ -27,6 +26,7 @@ import edu.brown.gui.AbstractInfoPanel;
 import edu.brown.gui.AbstractViewer;
 import edu.brown.gui.DesignerVisualization;
 import edu.brown.gui.common.GraphVisualizationPanel;
+import edu.brown.utils.PredicatePairs;
 import edu.brown.utils.StringUtil;
 import edu.uci.ics.jung.graph.util.EdgeType;
 
@@ -156,7 +156,7 @@ public class EdgeInfoPanel extends AbstractInfoPanel<DesignerEdge> {
         //
         JPanel columnSetPanel = new JPanel(new BorderLayout());
         if (edge.hasAttribute(AccessGraph.EdgeAttributes.COLUMNSET.name())) {
-            ColumnSet cset = (ColumnSet)edge.getAttribute(AccessGraph.EdgeAttributes.COLUMNSET.name());
+            PredicatePairs cset = (PredicatePairs)edge.getAttribute(AccessGraph.EdgeAttributes.COLUMNSET.name());
             
             this.columnSetTable = new JTable(new ColumnSetTableModel(cset));
             this.columnSetTable.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS);
@@ -199,9 +199,9 @@ public class EdgeInfoPanel extends AbstractInfoPanel<DesignerEdge> {
     protected class ColumnSetTableModel extends AbstractTableModel {
         private static final long serialVersionUID = 6296162033763655458L;
         protected String columns[] = { "From", "To" };
-        protected ColumnSet cset = null;
+        protected PredicatePairs cset = null;
         
-        public ColumnSetTableModel(ColumnSet cset) {
+        public ColumnSetTableModel(PredicatePairs cset) {
             this.cset = cset;
         }
         

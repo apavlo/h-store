@@ -85,7 +85,7 @@ public:
 
 protected:
     bool p_init(AbstractPlanNode*, const catalog::Database* catalog_db, int* tempTableMemoryInBytes);
-    bool p_execute(const NValueArray &params);
+    bool p_execute(const NValueArray &params, ReadWriteTracker *tracker);
 
     // Data in this class is arranged roughly in the order it is read for
     // p_execute(). Please don't reshuffle it only in the name of beauty.

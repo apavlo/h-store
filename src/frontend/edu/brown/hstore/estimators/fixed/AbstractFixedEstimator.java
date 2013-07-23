@@ -170,10 +170,10 @@ public abstract class AbstractFixedEstimator extends TransactionEstimator {
         // SINGLE-PARTITION PROBABILITY
         // ----------------------------------------------------------------------------
         
-        @Override
-        public boolean isSinglePartitionProbabilitySet() {
-            return (this.isValid());
-        }
+//        @Override
+//        public boolean isSinglePartitionProbabilitySet() {
+//            return (this.isValid());
+//        }
 
         @Override
         public boolean isSinglePartitioned(EstimationThresholds t) {
@@ -183,10 +183,10 @@ public abstract class AbstractFixedEstimator extends TransactionEstimator {
         // ----------------------------------------------------------------------------
         // READ-ONLY
         // ----------------------------------------------------------------------------
-        @Override
-        public boolean isReadOnlyProbabilitySet(int partition) {
-            return (this.isValid());
-        }
+//        @Override
+//        public boolean isReadOnlyProbabilitySet(int partition) {
+//            return (this.isValid());
+//        }
         @Override
         public boolean isReadOnlyAllPartitions(EstimationThresholds t) {
             return (this.partitions.size() == this.readonly.size());
@@ -195,10 +195,10 @@ public abstract class AbstractFixedEstimator extends TransactionEstimator {
         public boolean isReadOnlyPartition(EstimationThresholds t, int partition) {
             return (this.readonly.contains(Integer.valueOf(partition)));
         }
-        @Override
-        public PartitionSet getReadOnlyPartitions(EstimationThresholds t) {
-            return (this.readonly);
-        }
+//        @Override
+//        public PartitionSet getReadOnlyPartitions(EstimationThresholds t) {
+//            return (this.readonly);
+//        }
 
         // ----------------------------------------------------------------------------
         // WRITE
@@ -220,15 +220,15 @@ public abstract class AbstractFixedEstimator extends TransactionEstimator {
         // FINISH
         // ----------------------------------------------------------------------------
         @Override
-        public boolean isFinishProbabilitySet(int partition) {
+        public boolean isDoneProbabilitySet(int partition) {
             return (this.isValid());
         }
         @Override
-        public PartitionSet getFinishPartitions(EstimationThresholds t) {
+        public PartitionSet getDonePartitions(EstimationThresholds t) {
             return (this.finished);
         }
         @Override
-        public boolean isFinishPartition(EstimationThresholds t, int partition) {
+        public boolean isDonePartition(EstimationThresholds t, int partition) {
             return (this.finished.contains(Integer.valueOf(partition)));
         }
         

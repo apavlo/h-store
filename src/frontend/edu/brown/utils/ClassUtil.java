@@ -56,8 +56,8 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
  */
 public abstract class ClassUtil {
     private static final Logger LOG = Logger.getLogger(ClassUtil.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
+    private static final LoggerBoolean trace = new LoggerBoolean();
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
@@ -107,6 +107,24 @@ public abstract class ClassUtil {
         StackTraceElement stack[] = Thread.currentThread().getStackTrace();
         assert(stack[2] != null);
         return String.format("%s.%s", stack[2].getClassName(), stack[2].getMethodName());
+    }
+    
+    /**
+     * Return the stack trace for the location that calls this method.
+     * @return
+     */
+    public static String[] getStackTrace() {
+        String ret[] = null;
+        try {
+            throw new Exception();
+        } catch (Exception ex) {
+            StackTraceElement stack[] = ex.getStackTrace();
+            ret = new String[stack.length-1];
+            for (int i = 1; i < stack.length; i++) {
+                ret[i-1] = stack[i].toString();
+            } // FOR
+        }
+        return (ret);
     }
     
     /**

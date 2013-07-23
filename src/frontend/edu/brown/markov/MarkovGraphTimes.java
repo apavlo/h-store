@@ -18,8 +18,8 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
  */
 public class MarkovGraphTimes {
     private static final Logger LOG = Logger.getLogger(MarkovGraphTimes.class);
-    private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private final static LoggerBoolean debug = new LoggerBoolean();
+    private final static LoggerBoolean trace = new LoggerBoolean();
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }

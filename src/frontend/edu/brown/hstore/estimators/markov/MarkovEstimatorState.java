@@ -29,8 +29,8 @@ import edu.brown.utils.StringUtil;
  */
 public final class MarkovEstimatorState extends EstimatorState {
     private static final Logger LOG = Logger.getLogger(MarkovEstimatorState.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
+    private static final LoggerBoolean trace = new LoggerBoolean();
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
@@ -113,6 +113,11 @@ public final class MarkovEstimatorState extends EstimatorState {
     @Override
     protected Estimate addEstimate(Estimate est) {
         return super.addEstimate(est);
+    }
+    
+    @Override
+    protected void shouldAllowUpdates(boolean enable) {
+        super.shouldAllowUpdates(enable);
     }
     
     // ----------------------------------------------------------------------------

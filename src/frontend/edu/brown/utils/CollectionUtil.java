@@ -38,6 +38,7 @@ import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 import java.util.SortedMap;
+import java.util.SortedSet;
 import java.util.TreeMap;
 
 import org.apache.commons.collections15.set.ListOrderedSet;
@@ -51,6 +52,12 @@ public abstract class CollectionUtil {
     private static final Random RANDOM = new Random();
 
     public static <T extends Comparable<T>> List<T> sort(List<T> list) {
+        Collections.sort(list);
+        return (list);
+    }
+    
+    public static <T extends Comparable<T>> Collection<T> sort(Collection<T> items) {
+        List<T> list = new ArrayList<T>(items);
         Collections.sort(list);
         return (list);
     }
@@ -272,6 +279,7 @@ public abstract class CollectionUtil {
         return (CollectionUtil.random(list, rand));
     }
 
+    @SuppressWarnings("unchecked")
     public static <E extends Enum<?>> Set<E> getAllExcluding(E elements[], E... excluding) {
         Set<E> exclude_set = new HashSet<E>();
         for (E e : excluding)
@@ -296,6 +304,7 @@ public abstract class CollectionUtil {
      * @param data
      * @param items
      */
+    @SuppressWarnings("unchecked")
     public static <T> Collection<T> addAll(Collection<T> data, T... items) {
         for (T i : (T[]) items) {
             data.add(i);
@@ -412,6 +421,10 @@ public abstract class CollectionUtil {
         else if (items instanceof ListOrderedSet<?>) {
             return ((ListOrderedSet<T>) items).get(idx);
         }
+        else if (items instanceof SortedSet<?> && idx == 0) {
+            SortedSet<T> set = (SortedSet<T>)items;
+            return (set.isEmpty() ? null : set.first());
+        }
         int ctr = 0;
         for (T t : items) {
             if (ctr++ == idx) return (t);
@@ -431,7 +444,12 @@ public abstract class CollectionUtil {
         if (items instanceof List<?>) {
             List<T> list = (List<T>) items;
             last = (list.isEmpty() ? null : list.get(list.size() - 1));
-        } else {
+        }
+        else if (items instanceof SortedSet<?>) {
+            SortedSet<T> set = (SortedSet<T>)items;
+            last = (set.isEmpty() ? null : set.last());
+        }
+        else {
             for (T t : items) {
                 last = t;
             }
@@ -446,6 +464,7 @@ public abstract class CollectionUtil {
      * @param items
      * @return
      */
+    @SuppressWarnings("unchecked")
     public static <T> T last(T... items) {
         if (items != null && items.length > 0) {
             return (items[items.length - 1]);

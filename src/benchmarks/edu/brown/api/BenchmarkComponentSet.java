@@ -8,6 +8,7 @@ import java.io.PipedOutputStream;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -22,11 +23,12 @@ import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObservableExceptionHandler;
 import edu.brown.utils.EventObserver;
+import edu.brown.utils.ThreadUtil;
 
 public class BenchmarkComponentSet implements Runnable {
     private static final Logger LOG = Logger.getLogger(BenchmarkComponentSet.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
+    private static final LoggerBoolean trace = new LoggerBoolean();
     static {
         LoggerUtil.setupLogging();
         LoggerUtil.attachObserver(LOG, debug, trace);
@@ -56,30 +58,43 @@ public class BenchmarkComponentSet implements Runnable {
      * @param args
      * @throws Exception
      */
-    public BenchmarkComponentSet(Class<? extends BenchmarkComponent> componentClass, int clientIds[], String args[]) throws Exception {
+    public BenchmarkComponentSet(final Class<? extends BenchmarkComponent> componentClass, final int clientIds[], final String args[]) throws Exception {
         Thread.setDefaultUncaughtExceptionHandler(this.exceptionHandler);
         Thread.currentThread().setUncaughtExceptionHandler(this.exceptionHandler);
         this.exceptionHandler.addObserver(this.exceptionObserver);
-        
         this.clientIds = clientIds;
-        List<String> clientArgs = (List<String>)CollectionUtil.addAll(new ArrayList<String>(), args);
+        
+        final List<Runnable> runnables = new ArrayList<Runnable>();
         for (int i = 0; i < this.clientIds.length; i++) {
-            clientArgs.add("ID=" + this.clientIds[i]);
-            BenchmarkComponent comp = BenchmarkComponent.main(componentClass,
-                                                              clientArgs.toArray(new String[0]),
-                                                              false);
-            PipedInputStream in = new PipedInputStream();
-            PipedOutputStream out = new PipedOutputStream(in);
-            this.components.put(comp, new PrintWriter(out));
-
-            if (debug.val) LOG.debug("Starting Client thread " + this.clientIds[i]);
-            Thread t = new Thread(comp.createControlPipe(in));
-            t.setDaemon(true);
-            t.start();
-            this.threads.put(comp, t);
+            final int clientId = this.clientIds[i];
+            final PipedInputStream in = new PipedInputStream();
+            final PipedOutputStream out = new PipedOutputStream(in);
+            final PrintWriter writer = new PrintWriter(out);
             
-            clientArgs.remove(clientArgs.size()-1);
+            runnables.add(new Runnable() {
+                public void run() {
+                    Collection<String> clientArgs = CollectionUtil.addAll(new ArrayList<String>(), args);
+                    clientArgs.add("ID=" + clientId);
+                    BenchmarkComponent comp = BenchmarkComponent.main(componentClass,
+                                                                      clientArgs.toArray(new String[0]),
+                                                                      false);
+                    synchronized (BenchmarkComponentSet.this.components) {
+                        BenchmarkComponentSet.this.components.put(comp, writer);
+                    } // SYNCH
+
+                    if (debug.val) LOG.debug("Starting Client thread " + clientId);
+                    Thread t = new Thread(comp.createControlPipe(in));
+                    t.setDaemon(true);
+                    t.start();
+                    synchronized (BenchmarkComponentSet.this.threads) {
+                        BenchmarkComponentSet.this.threads.put(comp, t);
+                    } // SYNCH
+                }
+            });
         } // FOR
+        ThreadUtil.runGlobalPool(runnables);
+        assert(runnables.size() == this.threads.size());
+        assert(runnables.size() == this.components.size());
     }
     
     @Override
@@ -132,8 +147,9 @@ public class BenchmarkComponentSet implements Runnable {
             }
         } // FOR
         
-        if (debug.val) LOG.info(String.format("Starting %d BenchmarkComponent threads: %s",
-                                                clientIds.length, Arrays.toString(clientIds)));
+        if (debug.val)
+            LOG.info(String.format("Starting %d BenchmarkComponent threads: %s",
+                     clientIds.length, Arrays.toString(clientIds)));
         BenchmarkComponentSet bcs = new BenchmarkComponentSet(componentClass, clientIds, componentArgs);
         bcs.run(); // BLOCK!
     }

@@ -56,15 +56,15 @@ import org.voltdb.types.TimestampType;
 import org.voltdb.utils.Pair;
 
 import edu.brown.api.Loader;
-import edu.brown.benchmark.seats.util.CustomerId;
-import edu.brown.benchmark.seats.util.CustomerIdIterable;
 import edu.brown.benchmark.seats.util.DistanceUtil;
-import edu.brown.benchmark.seats.util.FlightId;
+import edu.brown.benchmark.seats.util.Reservation;
 import edu.brown.benchmark.seats.util.ReturnFlight;
 import edu.brown.benchmark.seats.util.SEATSHistogramUtil;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.rand.AbstractRandomGenerator;
+import edu.brown.rand.DefaultRandomGenerator;
 import edu.brown.rand.RandomDistribution;
 import edu.brown.rand.RandomDistribution.Flat;
 import edu.brown.rand.RandomDistribution.FlatHistogram;
@@ -78,8 +78,8 @@ import edu.brown.utils.TableDataIterable;
 
 public class SEATSLoader extends Loader {
     private static final Logger LOG = Logger.getLogger(SEATSLoader.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
+    private static final LoggerBoolean trace = new LoggerBoolean();
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
@@ -105,12 +105,6 @@ public class SEATSLoader extends Loader {
     private final Map<String, Map<String, Short>> airport_distances = new HashMap<String, Map<String, Short>>();
 
     /**
-     * Store a list of FlightIds and the number of seats
-     * remaining for a particular flight.
-     */
-    private final ListOrderedMap<FlightId, Short> seats_remaining = new ListOrderedMap<FlightId, Short>();
-
-    /**
      * Counter for the number of tables that we have finished loading
      */
     private final AtomicInteger finished = new AtomicInteger(0);
@@ -119,10 +113,35 @@ public class SEATSLoader extends Loader {
     /**
      * A histogram of the number of flights in the database per airline code
      */
-    private final ObjectHistogram<String> flights_per_airline = new ObjectHistogram<String>(true);
+    private final Histogram<String> flights_per_airline = new ObjectHistogram<String>(true);
     
+    private final AbstractRandomGenerator rng;
     
-    private final RandomGenerator rng; // FIXME
+    /**
+     * 
+     */
+    private final Map<Long, FlightInfo> flight_infos = new HashMap<Long, FlightInfo>();
+    
+    private static class FlightInfo {
+        // NOTE: These need to be strings.
+        //       We will automagically convert them to their proper 
+        //       ids in loadTable()
+        private String depart_airport;
+        private String arrive_airport;
+        private String airline_code;
+        private TimestampType depart_time;
+        private TimestampType arrive_time;
+        private int seats_remaining = SEATSConstants.FLIGHTS_NUM_SEATS;
+        
+        /**
+         * Decrement the number of available seats for a flight and return
+         * the total amount remaining
+         */
+        public int decrementFlightSeat() {
+            assert(this.seats_remaining > 0) : "Invalid seat count";
+            return (--this.seats_remaining);
+        }
+    }
     
     // -----------------------------------------------------------------
     // INITIALIZATION
@@ -164,7 +183,7 @@ public class SEATSLoader extends Loader {
             throw new RuntimeException(msg);
         }
         
-        this.rng = new RandomGenerator(0); // FIXME
+        this.rng = new DefaultRandomGenerator();
         this.profile = new SEATSProfile(this.getCatalogContext(), this.rng);
         this.profile.scale_factor = this.getScaleFactor();
         
@@ -302,7 +321,9 @@ public class SEATSLoader extends Loader {
                 Iterable<Object[]> iterable = this.getScalingIterable(catalog_tbl); 
                 this.loadTable(catalog_tbl, iterable, 5000);
             } catch (Throwable ex) {
-                throw new RuntimeException("Failed to load data files for scaling-sized table '" + table_name + "'", ex);
+                ex.printStackTrace();
+                String msg = "Failed to load data files for scaling-sized table '" + table_name + "'";
+                throw new RuntimeException(msg, ex);
             }
         } // FOR
     }
@@ -331,12 +352,16 @@ public class SEATSLoader extends Loader {
      * @param catalog_tbl
      */
     public void loadTable(Table catalog_tbl, Iterable<Object[]> iterable, int batch_size) {
-        // Special Case: Airport Locations
-        final boolean is_airport = catalog_tbl.getName().equals(SEATSConstants.TABLENAME_AIRPORT);
-        final boolean is_flight = catalog_tbl.getName().equals(SEATSConstants.TABLENAME_FLIGHT);
+        final String tableName = catalog_tbl.getName();
+        final boolean is_airport = tableName.equals(SEATSConstants.TABLENAME_AIRPORT);
+        final boolean is_flight = tableName.equals(SEATSConstants.TABLENAME_FLIGHT);
+        final boolean is_customer = tableName.equals(SEATSConstants.TABLENAME_CUSTOMER);
+        final boolean is_reservation = tableName.equals(SEATSConstants.TABLENAME_RESERVATION);
         final CatalogContext catalogContext = this.getCatalogContext(); 
         
-        if (debug.val) LOG.debug(String.format("Generating new records for table %s [batchSize=%d]", catalog_tbl.getName(), batch_size));
+        if (debug.val)
+            LOG.debug(String.format("Generating new records for table %s [batchSize=%d]",
+                      tableName, batch_size));
         final VoltTable vt = CatalogUtil.getVoltTable(catalog_tbl);
         final CatalogMap<Column> columns = catalog_tbl.getColumns();
         
@@ -366,7 +391,7 @@ public class SEATSLoader extends Loader {
             String col_id_name = this.profile.code_columns.get(col_name); 
             if (col_id_name != null) {
                 Column catalog_id_col = columns.get(col_id_name);
-                assert(catalog_id_col != null) : "The id column " + catalog_tbl.getName() + "." + col_id_name + " is missing"; 
+                assert(catalog_id_col != null) : "The id column " + tableName + "." + col_id_name + " is missing"; 
                 int col_id_idx = catalog_id_col.getIndex();
                 code_2_id.put(col_code_idx, col_id_idx);
             }
@@ -384,7 +409,7 @@ public class SEATSLoader extends Loader {
         int row_idx = 0;
         try {
             for (Object tuple[] : iterable) {
-                assert(tuple[0] != null) : "The primary key for " + catalog_tbl.getName() + " is null";
+                assert(tuple[0] != null) : "The primary key for " + tableName + " is null";
                 if (trace.val) LOG.trace(this.dumpTuple(catalog_tbl, tuple, row_idx));
                 
                 // AIRPORT 
@@ -392,7 +417,7 @@ public class SEATSLoader extends Loader {
                     // Skip any airport that does not have flights
                     int col_code_idx = catalog_tbl.getColumns().get("AP_CODE").getIndex();
                     if (profile.hasFlights((String)tuple[col_code_idx]) == false) {
-                        if (LOG.isTraceEnabled())
+                        if (trace.val)
                             LOG.trace(String.format("Skipping AIRPORT '%s' because it does not have any flights", tuple[col_code_idx]));
                         continue;
                     }
@@ -413,7 +438,7 @@ public class SEATSLoader extends Loader {
                     assert(coords.getSecond() != null) :
                         String.format("Unexpected null longitude for airport '%s' [%d]", tuple[col_code_idx], col_lon_idx);
                     this.airport_locations.put(tuple[col_code_idx].toString(), coords);
-                    if (LOG.isTraceEnabled())
+                    if (trace.val)
                         LOG.trace(String.format("Storing location for '%s': %s", tuple[col_code_idx], coords));
                 }
                 
@@ -421,13 +446,13 @@ public class SEATSLoader extends Loader {
                 for (int col_code_idx : code_2_id.keySet()) {
                     assert(tuple[col_code_idx] != null) : 
                         String.format("The value of the code column at '%d' is null for %s\n%s",
-                                      col_code_idx, catalog_tbl.getName(), Arrays.toString(tuple));
+                                      col_code_idx, tableName, Arrays.toString(tuple));
                     String code = tuple[col_code_idx].toString().trim();
                     if (code.length() > 0) {
                         Column from_column = columns.get(col_code_idx);
                         assert(from_column != null);
                         Column to_column = columns.get(code_2_id.get(col_code_idx)); 
-                        assert(to_column != null) : String.format("Invalid column %s.%s", catalog_tbl.getName(), code_2_id.get(col_code_idx));  
+                        assert(to_column != null) : String.format("Invalid column %s.%s", tableName, code_2_id.get(col_code_idx));  
                         long id = (Long)tuple[code_2_id.get(col_code_idx)];
                         if (trace.val) LOG.trace(String.format("Mapping %s '%s' -> %s '%d'", from_column.fullName(), code, to_column.fullName(), id));
                         this.profile.code_id_xref.get(to_column.getName()).put(code, id);
@@ -439,32 +464,37 @@ public class SEATSLoader extends Loader {
                     Column catalog_col = columns.get(col_code_idx);
                     assert(tuple[col_code_idx] != null || catalog_col.getNullable()) :
                         String.format("The code %s column at '%d' is null for %s id=%s\n%s",
-                        catalog_col.fullName(), col_code_idx, catalog_tbl.getName(), tuple[0], Arrays.toString(tuple));
+                        catalog_col.fullName(), col_code_idx, tableName, tuple[0], Arrays.toString(tuple));
                     if (tuple[col_code_idx] != null) {
                         String code = tuple[col_code_idx].toString();
                         tuple[col_code_idx] = mapping_columns.get(col_code_idx).get(code);
                         if (trace.val) {
                             Column catalog_fkey_col = CatalogUtil.getForeignKeyParent(catalog_col);
-                            LOG.trace(String.format("Mapped %s '%s' -> %s '%s'", catalog_col.fullName(), code, catalog_fkey_col.fullName(), tuple[col_code_idx]));
+                            LOG.trace(String.format("Mapped %s '%s' -> %s '%s'",
+                                      catalog_col.fullName(), code, catalog_fkey_col.fullName(), tuple[col_code_idx]));
                         }
                     }
                 } // FOR
                 
                 vt.addRow(tuple);
                 if (is_flight) {
-                	if (debug.val) LOG.debug(String.format("#1#FlightInfo is adding row...\nVT: %s\nVTFlightINFO:%s", tuple.toString(), vt.toString(), vtFilghtInfo.toString()));
+                	if (debug.val)
+                	    LOG.debug(String.format("#1#FlightInfo is adding row...\nVT: %s\nVTFlightINFO:%s",
+                	              tuple.toString(), vt.toString(), vtFilghtInfo.toString()));
                 	Object[] partTuple = new Object[vtFilghtInfo.getColumnCount()];
                 	for (int i = 0 ;i < partTuple.length; i++)
                 		partTuple[i] = tuple[flightInfoOffsets[i]];
                 	vtFilghtInfo.addRow(partTuple);
                 }
                 if (row_idx > 0 && (row_idx+1) % batch_size == 0) {
-                    // if (trace.val) LOG.trace("Storing batch of " + batch_size + " tuples for " + catalog_tbl.getName() + " [total=" + row_idx + "]");
+                    // if (trace.val) LOG.trace("Storing batch of " + batch_size + " tuples for " + tableName + " [total=" + row_idx + "]");
                     // if (debug) System.out.println(vt.toString());
-                    this.loadVoltTable(catalog_tbl.getName(), vt);
+                    this.loadVoltTable(tableName, vt);
                     vt.clearRowData();
                     if (is_flight) {
-                    	if (debug.val) LOG.debug(String.format("#1#FlightInfo is adding row...\nVT: %s\nVTFlightINFO:%s", tuple.toString(), vt.toString(), vtFilghtInfo.toString()));
+                    	if (debug.val)
+                    	    LOG.debug(String.format("#1#FlightInfo is adding row...\nVT: %s\nVTFlightINFO:%s",
+                    	              tuple.toString(), vt.toString(), vtFilghtInfo.toString()));
                     	this.loadVoltTable(SEATSConstants.TABLENAME_FLIGHT_INFO, vtFilghtInfo);
                     	vtFilghtInfo.clearRowData();
                     }
@@ -472,30 +502,35 @@ public class SEATSLoader extends Loader {
                 row_idx++;
             } // FOR
         } catch (Exception ex) {
-            throw new RuntimeException("Failed to load table " + catalog_tbl.getName(), ex);
+            throw new RuntimeException("Failed to load table " + tableName, ex);
         }
         if (vt.getRowCount() > 0) {
-            this.loadVoltTable(catalog_tbl.getName(), vt);
+            this.loadVoltTable(tableName, vt);
             if (is_flight) 
             	this.loadVoltTable(SEATSConstants.TABLENAME_FLIGHT_INFO, vtFilghtInfo);
         }
         if (is_airport) assert(profile.getAirportCount() == row_idx) :
             String.format("%d != %d", profile.getAirportCount(), row_idx);
         
-        // Record the number of tuples that we loaded for this table in the profile
-        if (catalog_tbl.getName().equals(SEATSConstants.TABLENAME_RESERVATION)) {
-            this.profile.num_reservations = row_idx + 1;
+        // Record the number of tuples that we loaded for various tables in the profile
+        if (is_flight) {
+            this.profile.num_flights = row_idx;
+        }
+        else if (is_reservation) {
+            this.profile.num_reservations = row_idx;
+        }
+        else if (is_customer) {
+            this.profile.num_customers = row_idx;
         }
         
         LOG.info(String.format("Finished loading all %d tuples for %s [%d / %d]",
-                               row_idx, catalog_tbl.getName(),
-                               this.finished.incrementAndGet(), this.num_data_tables));
+                 row_idx, tableName,
+                 this.finished.incrementAndGet(), this.num_data_tables));
         if (is_flight) {
             LOG.info(String.format("Finished loading all %d tuples for %s [%d / %d]",
                     row_idx, SEATSConstants.TABLENAME_FLIGHT_INFO,
                     this.finished.incrementAndGet(), this.num_data_tables));
         }
-        
         
         return;
     }
@@ -623,6 +658,9 @@ public class SEATSLoader extends Loader {
         private final boolean special[];
         private final Object[] data;
         private final VoltType types[];
+        /**
+         * The total number of rows that this iterable will create
+         */
         protected long total;
         private long last_id = 0;
         
@@ -738,10 +776,12 @@ public class SEATSLoader extends Loader {
     // CUSTOMERS
     // ----------------------------------------------------------------
     protected class CustomerIterable extends ScalingDataIterable {
+        private long NEXT_ID = 0;
+        
         private final FlatHistogram<String> rand;
         private final RandomDistribution.Flat randBalance;
         private String airport_code = null;
-        private CustomerId last_id = null;
+        private Long last_id = null;
         
         public CustomerIterable(Table catalog_tbl, long total) {
             super(catalog_tbl, total, new int[]{ 0, 1, 2, 3 });
@@ -767,17 +807,17 @@ public class SEATSLoader extends Loader {
                         this.airport_code = this.rand.nextValue();
                         airport_id = profile.getAirportId(this.airport_code);
                     } // WHILE
-                    int next_customer_id = profile.incrementAirportCustomerCount(airport_id);
-                    this.last_id = new CustomerId(next_customer_id, airport_id);
-                    if (trace.val) LOG.trace("NEW CUSTOMER: " + this.last_id.encode() + " / " + this.last_id);
-                    value = this.last_id.encode();
-                    if (LOG.isTraceEnabled()) LOG.trace(value + " => " + this.airport_code + " [" + profile.getCustomerIdCount(airport_id) + "]");
+                    profile.incrementAirportCustomerCount(airport_id);
+                    value = this.last_id = NEXT_ID++;
+                    if (trace.val)
+                        LOG.trace(String.format("%s => %s [%d]",
+                                  value, this.airport_code, profile.getCustomerIdCount(airport_id)));
                     break;
                 }
                 // CUSTOMER ID STR
                 case (1): {
                     assert(this.last_id != null);
-                    value = Long.toString(this.last_id.encode());
+                    value = String.format(SEATSConstants.CUSTOMER_ID_STR, this.last_id);
                     this.last_id = null;
                     break;
                 }
@@ -813,20 +853,15 @@ public class SEATSLoader extends Loader {
     // FREQUENT_FLYER
     // ----------------------------------------------------------------
     protected class FrequentFlyerIterable extends ScalingDataIterable {
-        private final Iterator<CustomerId> customer_id_iterator;
         private final short ff_per_customer[];
         private final FlatHistogram<String> airline_rand;
         
-        private int customer_idx = 0;
-        private CustomerId last_customer_id = null;
+        private int last_customer_id = 0;
         private Collection<String> customer_airlines = new HashSet<String>();
         
         public FrequentFlyerIterable(Table catalog_tbl, long num_customers) {
             super(catalog_tbl, num_customers, new int[]{ 0, 1, 2 });
             
-            this.customer_id_iterator = new CustomerIdIterable(profile.airport_max_customer_id).iterator();
-            this.last_customer_id = this.customer_id_iterator.next();
-
             // A customer is more likely to have a FREQUENTY_FLYER account with
             // an airline that has more flights.
             // IMPORTANT: Add one to all of the airlines so that we don't get trapped
@@ -834,7 +869,7 @@ public class SEATSLoader extends Loader {
             assert(flights_per_airline.isEmpty() == false);
             flights_per_airline.putAll();
             this.airline_rand = new FlatHistogram<String>(rng, flights_per_airline);
-            if (LOG.isTraceEnabled()) this.airline_rand.enableHistory();
+            if (trace.val) this.airline_rand.enableHistory();
             if (debug.val) LOG.debug("Flights Per Airline:\n" + flights_per_airline);
             
             // Loop through for the total customers and figure out how many entries we 
@@ -845,10 +880,9 @@ public class SEATSLoader extends Loader {
                                          max_per_customer,
                                          SEATSConstants.CUSTOMER_NUM_FREQUENTFLYERS_SIGMA);
             long new_total = 0; 
-            long total = profile.getCustomerIdCount();
-            if (debug.val) LOG.debug("Num of Customers: " + total);
-            this.ff_per_customer = new short[(int)total];
-            for (int i = 0; i < total; i++) {
+            if (debug.val) LOG.debug("Num of Customers: " + num_customers);
+            this.ff_per_customer = new short[(int)num_customers];
+            for (int i = 0; i < num_customers; i++) {
                 this.ff_per_customer[i] = (short)ff_zipf.nextInt();
                 if (this.ff_per_customer[i] > max_per_customer)
                     this.ff_per_customer[i] = (short)max_per_customer;
@@ -864,16 +898,16 @@ public class SEATSLoader extends Loader {
             switch (columnIdx) {
                 // CUSTOMER ID
                 case (0): {
-                    while (this.customer_idx < this.ff_per_customer.length && this.ff_per_customer[this.customer_idx] <= 0) {
-                        this.customer_idx++;
+                    while (this.last_customer_id < this.ff_per_customer.length && 
+                           this.ff_per_customer[this.last_customer_id] <= 0) {
+                        this.last_customer_id++;
                         this.customer_airlines.clear();
-                        if (LOG.isTraceEnabled())
-                            LOG.trace(String.format("CUSTOMER IDX: %d / %d", this.customer_idx, profile.getCustomerIdCount()));
-                        assert(this.customer_id_iterator.hasNext());
-                        this.last_customer_id = this.customer_id_iterator.next();
+                        if (trace.val)
+                            LOG.trace(String.format("NEXT CUSTOMER: %d / %d",
+                                      this.last_customer_id, profile.getCustomerIdCount()));
                     } // WHILE
-                    this.ff_per_customer[this.customer_idx]--;
-                    value = this.last_customer_id.encode();
+                    this.ff_per_customer[this.last_customer_id]--;
+                    value = this.last_customer_id;
                     break;
                 }
                 // AIRLINE ID
@@ -888,7 +922,7 @@ public class SEATSLoader extends Loader {
                 }
                 // CUSTOMER_ID_STR
                 case (2): {
-                    value = Long.toString(this.last_customer_id.encode());
+                    value = String.format(SEATSConstants.CUSTOMER_ID_STR, this.last_customer_id);
                     break;
                 }
                 // BAD MOJO!
@@ -1003,26 +1037,25 @@ public class SEATSLoader extends Loader {
     // FLIGHTS
     // ----------------------------------------------------------------
     protected class FlightIterable extends ScalingDataIterable {
+        private long NEXT_FLIGHT_ID = 0;
+        
         private final FlatHistogram<String> airlines;
         private final FlatHistogram<String> airports;
         private final Map<String, FlatHistogram<String>> flights_per_airport = new HashMap<String, FlatHistogram<String>>();
         private final FlatHistogram<String> flight_times;
         private final Flat prices;
         
-        private final Set<FlightId> todays_flights = new HashSet<FlightId>();
+        // private final Set<FlightId> todays_flights = new HashSet<FlightId>();
+        private final Set<Long> todays_flights = new HashSet<Long>();
         private final ListOrderedMap<TimestampType, Integer> flights_per_day = new ListOrderedMap<TimestampType, Integer>();
         
         private int day_idx = 0;
         private TimestampType today;
         private TimestampType start_date;
         
-        private FlightId flight_id;
-        private String depart_airport;
-        private String arrive_airport;
-        private String airline_code;
-        private Long airline_id;
-        private TimestampType depart_time;
-        private TimestampType arrive_time;
+        // private FlightId flight_id;
+        private long flight_id;
+        private FlightInfo flightInfo;
         
         public FlightIterable(Table catalog_tbl, int days_past, int days_future) {
             super(catalog_tbl, Long.MAX_VALUE, new int[]{ 0, 1, 2, 3, 4, 5, 6, 7, 8 });
@@ -1058,9 +1091,10 @@ public class SEATSLoader extends Loader {
             // Figure out how many flights that we want for each day
             this.today = new TimestampType();
             
-            // Sometimes there are more flights per day, and sometimes there are fewer 
-            Gaussian gaussian = new Gaussian(rng, SEATSConstants.FLIGHTS_PER_DAY_MIN,
-                                                  SEATSConstants.FLIGHTS_PER_DAY_MAX);
+            // Sometimes there are more flights per day, and sometimes there are fewer
+            int flightsPerDayMin = (int)Math.round(SEATSConstants.FLIGHTS_PER_DAY_MIN * getScaleFactor());
+            int flightsPerDayMax = (int)Math.round(SEATSConstants.FLIGHTS_PER_DAY_MAX * getScaleFactor());
+            Gaussian gaussian = new Gaussian(rng, flightsPerDayMin, flightsPerDayMax);
             
             this.total = 0;
             boolean first = true;
@@ -1128,21 +1162,31 @@ public class SEATSLoader extends Loader {
          * Select all the data elements for the current tuple
          * @param date
          */
-        private void populate(TimestampType date) {
+        private FlightInfo populate(long flight_id, TimestampType date) {
+            FlightInfo flightInfo = new FlightInfo();
+            
             // Depart/Arrive Airports
-            this.depart_airport = this.airports.nextValue();
-            this.arrive_airport = this.flights_per_airport.get(this.depart_airport).nextValue();
+            String airport_code = this.airports.nextValue();
+            flightInfo.depart_airport = airport_code;
+            flightInfo.arrive_airport = this.flights_per_airport.get(airport_code).nextValue();
+            if (trace.val)
+                LOG.trace(String.format("DEPART:%d / ARRIVE:%d",
+                          flightInfo.depart_airport, flightInfo.arrive_airport));
 
             // Depart/Arrive Times
-            this.depart_time = this.convertTimeString(date, this.flight_times.nextValue());
-            this.arrive_time = SEATSLoader.this.calculateArrivalTime(this.depart_airport, this.arrive_airport, this.depart_time);
+            flightInfo.depart_time = this.convertTimeString(date, this.flight_times.nextValue());
+            flightInfo.arrive_time = SEATSLoader.this.calculateArrivalTime(flightInfo.depart_airport,
+                                                                           flightInfo.arrive_airport,
+                                                                           flightInfo.depart_time);
 
             // Airline
-            this.airline_code = this.airlines.nextValue();
-            this.airline_id = profile.getAirlineId(this.airline_code);
+            flightInfo.airline_code = this.airlines.nextValue();
+            // flightInfo.airline_id = profile.getAirlineId(flightInfo.airline_code);
             
             this.flights_per_day.put(date, this.flights_per_day.get(date) - 1);
-            return;
+            SEATSLoader.this.flight_infos.put(flight_id, flightInfo);
+            
+            return (flightInfo);
         }
         
         /** 
@@ -1173,50 +1217,39 @@ public class SEATSLoader extends Loader {
                     } while (remaining <= 0 && this.day_idx + 1 < this.flights_per_day.size());
                     assert(date != null);
                     
-                    // Keep looping until we get a FlightId that we haven't seen yet for this date
-                    while (true) {
-                        this.populate(date);
-                        
-                        // Generate a composite FlightId
-                        this.flight_id = new FlightId(this.airline_id,
-                                                      profile.getAirportId(this.depart_airport),
-                                                      profile.getAirportId(this.arrive_airport),
-                                                      this.start_date, this.depart_time);
-                        if (this.todays_flights.contains(this.flight_id) == false) break;
-                    } // WHILE
-                    if (LOG.isTraceEnabled())
-                        LOG.trace(String.format("%s [remaining=%d, dayIdx=%d]", this.flight_id, remaining, day_idx)); 
-                    assert(todays_flights.contains(this.flight_id) == false) : this.flight_id;
-                    
+                    value = this.flight_id = NEXT_FLIGHT_ID++;
+                    this.flightInfo = this.populate(this.flight_id, date);
                     this.todays_flights.add(this.flight_id);
-                    SEATSLoader.this.addFlightId(this.flight_id);
-                    value = this.flight_id.encode();
                     break;
                 }
                 // AIRLINE ID
                 case (1): {
-                    value = this.airline_code;
-                    flights_per_airline.put(this.airline_code);
+                    value = this.flightInfo.airline_code;
+                    flights_per_airline.put(this.flightInfo.airline_code);
                     break;
                 }
                 // DEPART AIRPORT
                 case (2): {
-                    value = this.depart_airport;
+                    value = this.flightInfo.depart_airport;
+                    if (trace.val)
+                        LOG.trace("Flight=" + this.flight_id + " / DEPART:" + this.flightInfo.depart_airport);
                     break;
                 }
                 // DEPART TIME
                 case (3): {
-                    value = this.depart_time;
+                    value = this.flightInfo.depart_time;
                     break;
                 }
                 // ARRIVE AIRPORT
                 case (4): {
-                    value = this.arrive_airport;
+                    value = this.flightInfo.arrive_airport;
+                    if (trace.val)
+                        LOG.trace("Flight=" + this.flight_id + " / ARRIVE:" + this.flightInfo.arrive_airport);
                     break;
                 }
                 // ARRIVE TIME
                 case (5): {
-                    value = this.arrive_time;
+                    value = this.flightInfo.arrive_time;
                     break;
                 }
                 // BASE PRICE
@@ -1234,10 +1267,10 @@ public class SEATSLoader extends Loader {
                     // We have to figure this out ahead of time since we need to populate the tuple now
                     for (int seatnum = 0; seatnum < SEATSConstants.FLIGHTS_NUM_SEATS; seatnum++) {
                         if (!this.seatIsOccupied()) continue;
-                        SEATSLoader.this.decrementFlightSeat(this.flight_id);
+                        this.flightInfo.decrementFlightSeat();
                     } // FOR
-                    value = new Long(SEATSLoader.this.getFlightRemainingSeats(this.flight_id));
-                    if (LOG.isTraceEnabled()) LOG.trace(this.flight_id + " SEATS REMAINING: " + value);
+                    value = this.flightInfo.seats_remaining;
+                    if (trace.val) LOG.trace(this.flight_id + " SEATS REMAINING: " + value);
                     break;
                 }
                 // BAD MOJO!
@@ -1273,8 +1306,8 @@ public class SEATSLoader extends Loader {
         private final Gaussian rand_returns = new Gaussian(rng, SEATSConstants.CUSTOMER_RETURN_FLIGHT_DAYS_MIN,
                                                                 SEATSConstants.CUSTOMER_RETURN_FLIGHT_DAYS_MAX);
         
-        private final LinkedBlockingDeque<Object[]> queue = new LinkedBlockingDeque<Object[]>(100);
-        private Object current[] = null;
+        private final LinkedBlockingDeque<Reservation> queue = new LinkedBlockingDeque<Reservation>(100);
+        private Reservation current = null;
         private Throwable error = null;
         
         /**
@@ -1315,37 +1348,36 @@ public class SEATSLoader extends Loader {
         private void generateData() throws Exception {
             if (debug.val) LOG.debug("Reservation data generation thread started");
             
-            Collection<CustomerId> flight_customer_ids = new HashSet<CustomerId>();
+            Collection<Long> flight_customer_ids = new HashSet<Long>();
             Collection<ReturnFlight> returning_customers = new ListOrderedSet<ReturnFlight>();
             
             // Loop through the flights and generate reservations
-            for (FlightId flight_id : SEATSLoader.this.getFlightIds()) {
-                long depart_airport_id = flight_id.getDepartAirportId();
-                String depart_airport_code = profile.getAirportCode(depart_airport_id);
-                long arrive_airport_id = flight_id.getArriveAirportId();
-                String arrive_airport_code = profile.getAirportCode(arrive_airport_id);
-                TimestampType depart_time = flight_id.getDepartDate(profile.getFlightStartDate());
-                TimestampType arrive_time = SEATSLoader.this.calculateArrivalTime(depart_airport_code, arrive_airport_code, depart_time);
+            for (long flight_id = 0, cnt = profile.num_flights; flight_id < cnt; flight_id++) {
+                FlightInfo flightInfo = SEATSLoader.this.flight_infos.remove(flight_id);
+                String depart_airport = flightInfo.depart_airport;
+                String arrive_airport = flightInfo.arrive_airport;
+                TimestampType depart_time = flightInfo.depart_time;
+                TimestampType arrive_time = flightInfo.arrive_time;
                 flight_customer_ids.clear();
                 
                 // For each flight figure out which customers are returning
-                this.getReturningCustomers(returning_customers, flight_id);
+                this.getReturningCustomers(returning_customers, flightInfo);
                 int booked_seats = SEATSConstants.FLIGHTS_NUM_SEATS - Math.max(SEATSConstants.FLIGHTS_RESERVED_SEATS,
-                                                                               SEATSLoader.this.getFlightRemainingSeats(flight_id));
+                                                                               flightInfo.seats_remaining);
 
                 if (trace.val) {
                     Map<String, Object> m = new ListOrderedMap<String, Object>();
-                    m.put("Flight Id", flight_id + " / " + flight_id.encode());
-                    m.put("Departure", String.format("%s / %s", profile.getAirportCode(depart_airport_id), depart_time));
-                    m.put("Arrival", String.format("%s / %s", profile.getAirportCode(arrive_airport_id), arrive_time));
+                    m.put("Flight Id", flight_id);
+                    m.put("Departure", String.format("%s / %s", depart_airport, depart_time));
+                    m.put("Arrival", String.format("%s / %s", arrive_airport, arrive_time));
                     m.put("Booked Seats", booked_seats);
                     m.put(String.format("Returning Customers[%d]", returning_customers.size()), StringUtil.join("\n", returning_customers));
                     LOG.trace("Flight Information\n" + StringUtil.formatMaps(m));
                 }
                 
                 for (int seatnum = SEATSConstants.FLIGHTS_RESERVED_SEATS; seatnum < booked_seats; seatnum++) {
-                    CustomerId customer_id = null;
-                    Long airport_customer_cnt = profile.getCustomerIdCount(depart_airport_id);
+                    Long customer_id = null;
+                    Long airport_customer_cnt = profile.getCustomerIdCount(profile.getAirportId(depart_airport));
                     boolean local_customer = airport_customer_cnt != null && (flight_customer_ids.size() < airport_customer_cnt.intValue());
                     int tries = 2000;
                     ReturnFlight return_flight = null;
@@ -1360,7 +1392,7 @@ public class SEATSLoader extends Loader {
                         // New Outbound Reservation
                         // Prefer to use a customer based out of the local airport
                         else if (local_customer) {
-                            customer_id = profile.getRandomCustomerId(depart_airport_id);
+                            customer_id = profile.getRandomCustomerId(); // depart_airport_id
                         }
                         // New Outbound Reservation
                         // We'll take anybody!
@@ -1385,17 +1417,21 @@ public class SEATSLoader extends Loader {
                         // back to their original depart airport
                         } else {
                             int return_days = rand_returns.nextInt();
-                            return_flight = new ReturnFlight(customer_id, depart_airport_id, depart_time, return_days);
-                            this.airport_returns.get(arrive_airport_id).add(return_flight);
+                            return_flight = new ReturnFlight(customer_id, profile.getAirportId(depart_airport), depart_time, return_days);
+                            this.airport_returns.get(arrive_airport).add(return_flight);
                         }
                     }
                     assert(customer_id != null) : "Null customer id on " + flight_id;
                     assert(flight_customer_ids.contains(customer_id) == false) : flight_id + " already contains " + customer_id; 
                     flight_customer_ids.add(customer_id);
                     
-                    if (trace.val) LOG.trace(String.format("New reservation ready. Adding to queue! [queueSize=%d]", this.queue.size()));
-                    this.queue.put(new Object[]{ customer_id, flight_id, seatnum });
+                    if (trace.val)
+                        LOG.trace(String.format("New reservation ready. Adding to queue! [queueSize=%d]",
+                                  this.queue.size()));
+                    Reservation r = new Reservation(1001, flight_id, customer_id, seatnum); // id doesn't matter
+                    this.queue.put(r);
                 } // FOR (seats)
+                
             } // FOR (flights)
             if (debug.val) LOG.debug("Reservation data generation thread is finished");
         }
@@ -1406,14 +1442,14 @@ public class SEATSLoader extends Loader {
          * @param flight_id
          * @return
          */
-        private void getReturningCustomers(Collection<ReturnFlight> returning_customers, FlightId flight_id) {
-            TimestampType flight_date = flight_id.getDepartDate(profile.getFlightStartDate());
+        private void getReturningCustomers(Collection<ReturnFlight> returning_customers, FlightInfo flightInfo) {
+            TimestampType flight_date = flightInfo.depart_time;
             returning_customers.clear();
-            Set<ReturnFlight> returns = this.airport_returns.get(flight_id.getDepartAirportId());
+            Set<ReturnFlight> returns = this.airport_returns.get(flightInfo.depart_airport);
             if (!returns.isEmpty()) {
                 for (ReturnFlight return_flight : returns) {
                     if (return_flight.getReturnDate().compareTo(flight_date) > 0) break;
-                    if (return_flight.getReturnAirportId() == flight_id.getArriveAirportId()) {
+                    if (return_flight.getReturnAirportId() == profile.getAirportId(flightInfo.arrive_airport)) {
                         returning_customers.add(return_flight);
                     }
                 } // FOR
@@ -1447,22 +1483,21 @@ public class SEATSLoader extends Loader {
             switch (columnIdx) {
                 // CUSTOMER ID
                 case (1): {
-                    value = ((CustomerId)this.current[0]).encode();
+                    value = this.current.customer_id;
                     break;
                 }
                 // FLIGHT ID
                 case (2): {
-                    FlightId flight_id = (FlightId)this.current[1];
-                    value = flight_id.encode();
-                    if (profile.getReservationUpcomingOffset() == null &&
-                        flight_id.isUpcoming(profile.getFlightStartDate(), profile.getFlightPastDays())) {
-                        profile.setReservationUpcomingOffset(id);
-                    }
+                    value = this.current.flight_id;
+//                    if (profile.getReservationUpcomingOffset() == null &&
+//                        flight_id.isUpcoming(profile.getFlightStartDate(), profile.getFlightPastDays())) {
+//                        profile.setReservationUpcomingOffset(id);
+//                    }
                     break;
                 }
                 // SEAT
                 case (3): {
-                    value = this.current[2];
+                    value = this.current.seatnum;
                     break;
                 }
                 // PRICE
@@ -1483,97 +1518,31 @@ public class SEATSLoader extends Loader {
     // FLIGHT IDS
     // -----------------------------------------------------------------
     
-    public Iterable<FlightId> getFlightIds() {
-        return (new Iterable<FlightId>() {
-            @Override
-            public Iterator<FlightId> iterator() {
-                return (new Iterator<FlightId>() {
-                    private int idx = 0;
-                    private final int cnt = seats_remaining.size();
-                    
-                    @Override
-                    public boolean hasNext() {
-                        return (idx < this.cnt);
-                    }
-                    @Override
-                    public FlightId next() {
-                        return (seats_remaining.get(this.idx++));
-                    }
-                    @Override
-                    public void remove() {
-                        // Not implemented
-                    }
-                });
-            }
-        });
-    }
+//    public Iterable<FlightId> getFlightIds() {
+//        return (new Iterable<FlightId>() {
+//            @Override
+//            public Iterator<FlightId> iterator() {
+//                return (new Iterator<FlightId>() {
+//                    private int idx = 0;
+//                    private final int cnt = seats_remaining.size();
+//                    
+//                    @Override
+//                    public boolean hasNext() {
+//                        return (idx < this.cnt);
+//                    }
+//                    @Override
+//                    public FlightId next() {
+//                        return (seats_remaining.get(this.idx++));
+//                    }
+//                    @Override
+//                    public void remove() {
+//                        // Not implemented
+//                    }
+//                });
+//            }
+//        });
+//    }
 
-    /**
-     * 
-     * @param flight_id
-     */
-    public boolean addFlightId(FlightId flight_id) {
-        assert(flight_id != null);
-        assert(this.profile.flight_start_date != null);
-        assert(this.profile.flight_upcoming_date != null);
-        this.profile.addFlightId(flight_id);
-        this.seats_remaining.put(flight_id, (short)SEATSConstants.FLIGHTS_NUM_SEATS);
-        
-        // XXX
-        if (this.profile.flight_upcoming_offset == null &&
-            this.profile.flight_upcoming_date.compareTo(flight_id.getDepartDate(this.profile.flight_start_date)) < 0) {
-            this.profile.flight_upcoming_offset = (long)(this.seats_remaining.size() - 1);
-        }
-        return (true);
-    }
-    
-    /**
-     * Return the number of unique flight ids
-     * @return
-     */
-    public long getFlightIdCount() {
-        return (this.seats_remaining.size());
-    }
-    
-    /**
-     * Return the index offset of when future flights 
-     * @return
-     */
-    public long getFlightIdStartingOffset() {
-        return (this.profile.flight_upcoming_offset);
-    }
-    
-    /**
-     * Return flight 
-     * @param index
-     * @return
-     */
-    public FlightId getFlightId(int index) {
-        assert(index >= 0);
-        assert(index <= this.getFlightIdCount());
-        return (this.seats_remaining.get(index));
-    }
-
-    /**
-     * Return the number of seats remaining for a flight
-     * @param flight_id
-     * @return
-     */
-    public int getFlightRemainingSeats(FlightId flight_id) {
-        return ((int)this.seats_remaining.get(flight_id));
-    }
-    
-    /**
-     * Decrement the number of available seats for a flight and return
-     * the total amount remaining
-     */
-    public int decrementFlightSeat(FlightId flight_id) {
-        Short seats = this.seats_remaining.get(flight_id);
-        assert(seats != null) : "Missing seat count for " + flight_id;
-        assert(seats >= 0) : "Invalid seat count for " + flight_id;
-        return ((int)this.seats_remaining.put(flight_id, (short)(seats - 1)));
-    }
-    
     // ----------------------------------------------------------------
     // DISTANCE METHODS
     // ----------------------------------------------------------------
@@ -1605,7 +1574,9 @@ public class SEATSLoader extends Loader {
      */
     public TimestampType calculateArrivalTime(String depart_airport, String arrive_airport, TimestampType depart_time) {
         Integer distance = this.getDistance(depart_airport, arrive_airport);
-        assert(distance != null) : String.format("The calculated distance between '%s' and '%s' is null", depart_airport, arrive_airport);
+        assert(distance != null) :
+            String.format("The calculated distance between '%s' and '%s' is null",
+                          depart_airport, arrive_airport);
         long flight_time = Math.round(distance / SEATSConstants.FLIGHT_TRAVEL_RATE) * 3600000000l; // 60 sec * 60 min * 1,000,000
         return (new TimestampType(depart_time.getTime() + flight_time));
     }

@@ -16,7 +16,7 @@ import edu.brown.utils.ThreadUtil;
  */
 class ControlWorker extends Thread {
     private static final Logger LOG = Logger.getLogger(ControlWorker.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
     static {
         LoggerUtil.setupLogging();
         LoggerUtil.attachObserver(LOG, debug);

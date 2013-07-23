@@ -51,7 +51,7 @@ public class TestAntiCacheSuite extends RegressionSuite {
     // --------------------------------------------------------------------------------------------
     
     private void initializeDatabase(Client client) throws Exception {
-        System.err.println("Loading data...");
+//        System.err.println("Initializing ...");
         Object params[] = {
             VoterConstants.NUM_CONTESTANTS,
             VoterConstants.CONTESTANT_NAMES_CSV
@@ -60,9 +60,13 @@ public class TestAntiCacheSuite extends RegressionSuite {
         ClientResponse cresponse = client.callProcedure(Initialize.class.getSimpleName(), params);
         assertNotNull(cresponse);
         assertEquals(Status.OK, cresponse.getStatus());
+//        System.err.println("done.");
     }
     
     private void loadVotes(Client client, int num_txns) throws Exception {
+        
+//        System.err.println("Loading data...");
+        
         LatchableProcedureCallback callback = new LatchableProcedureCallback(num_txns);
         for (int i = 0; i < num_txns; i++) {
             Object params[] = { new Long(i),
@@ -87,6 +91,7 @@ public class TestAntiCacheSuite extends RegressionSuite {
         VoltTable results[] = cresponse.getResults();
         assertEquals(1, results.length);
         assertEquals(num_txns, results[0].asScalarLong());
+//        System.err.println("Finished Loading Data.");
     }
     
     private Map<Integer, VoltTable> evictData(Client client) throws Exception {
@@ -179,35 +184,35 @@ public class TestAntiCacheSuite extends RegressionSuite {
         } // WHILE
     }
 
-//    /**
-//     * testEvictHistory
-//     */
-//    public void testEvictHistory() throws Exception {
-//        CatalogContext catalogContext = this.getCatalogContext();
-//        Client client = this.getClient();
-//        this.initializeDatabase(client);
-//        this.loadVotes(client, 100);
-//        int num_evicts = 5;
-//        for (int i = 0; i < num_evicts; i++) {
-//            this.evictData(client);
-//        } // FOR
-//        
-//        // Our stats should now come back with one eviction executed
-//        String procName = VoltSystemProcedure.procCallName(EvictHistory.class);
-//        ClientResponse cresponse = client.callProcedure(procName);
-//        assertEquals(cresponse.toString(), Status.OK, cresponse.getStatus());
-//        assertEquals(cresponse.toString(), 1, cresponse.getResults().length);
-//        VoltTable result = cresponse.getResults()[0];
-//        assertEquals(num_evicts * catalogContext.numberOfPartitions, result.getRowCount());
-//        System.err.println(VoltTableUtil.format(result));
-//        
-//        while (result.advanceRow()) {
-//            long start = result.getLong("START");
-//            long stop = result.getLong("STOP");
-//            assert(start <= stop) : start + " <= " + stop;
-//        } // WHILE
-//    }
-//    
+    /**
+     * testEvictHistory
+     */
+    public void testEvictHistory() throws Exception {
+        CatalogContext catalogContext = this.getCatalogContext();
+        Client client = this.getClient();
+        this.initializeDatabase(client);
+        this.loadVotes(client, 100);
+        int num_evicts = 5;
+        for (int i = 0; i < num_evicts; i++) {
+            this.evictData(client);
+        } // FOR
+        
+        // Our stats should now come back with one eviction executed
+        String procName = VoltSystemProcedure.procCallName(EvictHistory.class);
+        ClientResponse cresponse = client.callProcedure(procName);
+        assertEquals(cresponse.toString(), Status.OK, cresponse.getStatus());
+        assertEquals(cresponse.toString(), 1, cresponse.getResults().length);
+        VoltTable result = cresponse.getResults()[0];
+        assertEquals(num_evicts * catalogContext.numberOfPartitions, result.getRowCount());
+        System.err.println(VoltTableUtil.format(result));
+        
+        while (result.advanceRow()) {
+            long start = result.getLong("START");
+            long stop = result.getLong("STOP");
+            assert(start <= stop) : start + " <= " + stop;
+        } // WHILE
+    }
+    
 //    /**
 //     * testEvictedAccessHistory
 //     */

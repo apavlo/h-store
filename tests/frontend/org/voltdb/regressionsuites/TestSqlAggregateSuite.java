@@ -25,6 +25,9 @@ package org.voltdb.regressionsuites;
 
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
 
 import org.voltdb.BackendTarget;
 import org.voltdb.VoltProcedure;
@@ -36,11 +39,15 @@ import org.voltdb.client.ProcCallException;
 import org.voltdb.compiler.VoltProjectBuilder;
 import org.voltdb.regressionsuites.aggregates.*;
 
+import edu.brown.utils.MathUtil;
+
 /**
  * System tests for basic aggregate and DISTINCT functionality
  */
 
 public class TestSqlAggregateSuite extends RegressionSuite {
+    
+    private static final String PREFIX = "sqlaggregate";
 
     /** Procedures used by this suite */
     @SuppressWarnings("unchecked")
@@ -50,8 +57,7 @@ public class TestSqlAggregateSuite extends RegressionSuite {
 
     static final int ROWS = 10;
 
-    public void testDistinct() throws IOException, ProcCallException
-    {
+    public void testDistinct() throws IOException, ProcCallException {
         String[] tables = {"P1", "R1"};
         for (String table : tables)
         {
@@ -68,9 +74,83 @@ public class TestSqlAggregateSuite extends RegressionSuite {
             assertEquals(5, results[0].getRowCount());
         }
     }
+    
+    public void testMultipleAverages() throws IOException, ProcCallException {
+        String[] tables = {"P1", "R1"};
+        
+        Random rand = this.getRandom();
+        for (String table : tables) {
+            Client client = getClient();
+            List<Long> val_nums = new ArrayList<Long>();
+            List<Double> val_ratios = new ArrayList<Double>();
+            
+            for (int i = 0; i < ROWS; ++i) {
+                BigDecimal cash = new BigDecimal(10.0);
+                long num = i / 2;
+                double ratio = rand.nextDouble();
+                client.callProcedure("Insert", table, i, "desc", cash, num, ratio);
+                val_nums.add(num);
+                val_ratios.add(ratio);
+            } // FOR
+            
+            double expected_results[] = {
+                MathUtil.arithmeticMean(val_nums),
+                MathUtil.arithmeticMean(val_ratios),
+            };
+            String query = String.format("SELECT AVG(NUM), AVG(RATIO) FROM %s", table);
+            VoltTable[] results = client.callProcedure("@AdHoc", query).getResults();
+            assertEquals(1, results.length);
+            assertEquals(1, results[0].getRowCount());
+            assertTrue(results[0].advanceRow());
+            for (int i = 0; i < expected_results.length; ++i) {
+                double val = ((Number)results[0].get(i, results[0].getColumnType(i))).doubleValue();
+                assertEquals(table+"."+i, expected_results[i], val, 0.00001);
+            } // FOR
+        } // FOR
+    }
+    
+    public void testMixedAggregates() throws IOException, ProcCallException {
+        String[] aggs = {"count", "sum", "min", "max", "avg"};
+        Object[] expected_results = {ROWS,
+                                     (0 + 1 + 2 + 3 + 4) * 2,
+                                     0,
+                                     4,
+                                     2.0};
+        String[] tables = {"P1", "R1"};
+        
+        for (String table : tables) {
+            Client client = getClient();
+            for (int i = 0; i < ROWS; ++i) {
+                client.callProcedure("Insert", table, i, "desc",
+                                     new BigDecimal(10.0), i / 2, 14.5);
+            } // FOR
+        
+            String query = "SELECT ";
+            for (int i = 0; i < aggs.length; ++i) {
+                if (i > 0) query += ", ";
+                query += String.format("%s(%s.NUM)", aggs[i], table);
+            } // FOR
+            query += "FROM " + table;
+            
+            VoltTable[] results = client.callProcedure("@AdHoc", query).getResults();
+            assertEquals(1, results.length);
+            assertEquals(1, results[0].getRowCount());
+            assertTrue(results[0].advanceRow());
+            for (int i = 0; i < aggs.length; ++i) {
+                // Do avg separately since the column is a float
+                if (aggs[i] == "avg") {
+                    double val = ((Number)results[0].get(i, results[0].getColumnType(i))).doubleValue();
+                    assertEquals(table+"."+aggs[i], expected_results[i], val);
+                } else {
+                    int val = (int)results[0].getLong(i);
+                    int expected = (int)expected_results[i];
+                    assertEquals(table+"."+aggs[i], expected, val);
+                }
+            } // FOR
+        } // FOR
+    }
 
-    public void testAggregates() throws IOException, ProcCallException
-    {
+    public void testAggregates() throws IOException, ProcCallException {
         String[] aggs = {"count", "sum", "min", "max"};
         long[] expected_results = {10,
                                    (0 + 1 + 2 + 3 + 4) * 2,
@@ -103,8 +183,7 @@ public class TestSqlAggregateSuite extends RegressionSuite {
         }
     }
 
-    public void testAggregatesOnEmptyTable() throws IOException, ProcCallException
-    {
+    public void testAggregatesOnEmptyTable() throws IOException, ProcCallException {
         String[] aggs = {"count", "sum", "min", "max"};
         String[] tables = {"P1", "R1"};
         for (String table : tables)
@@ -359,26 +438,31 @@ public class TestSqlAggregateSuite extends RegressionSuite {
         project.addSchema(Insert.class.getResource("aggregate-sql-ddl.sql"));
         project.addTablePartitionInfo("P1", "ID");
         project.addProcedures(PROCEDURES);
-
-        config = new LocalSingleProcessServer("sqlaggregate-onesite.jar", 1, BackendTarget.NATIVE_EE_JNI);
-        config.setConfParameter("site.exec_adhoc_sql", true);
-        config.compile(project);
+        
+        boolean success;
+        
+        /////////////////////////////////////////////////////////////
+        // CONFIG #1: 1 Local Site/Partition
+        /////////////////////////////////////////////////////////////
+        config = new LocalSingleProcessServer(PREFIX + "-1part.jar", 1, BackendTarget.NATIVE_EE_JNI);
+        success = config.compile(project);
+        assert(success);
+        builder.addServerConfig(config);
+        
+        /////////////////////////////////////////////////////////////
+        // CONFIG #2: 1 Local Site with 2 Partitions running on JNI backend
+        /////////////////////////////////////////////////////////////
+        config = new LocalSingleProcessServer(PREFIX + "-2part.jar", 2, BackendTarget.NATIVE_EE_JNI);
+        success = config.compile(project);
+        assert(success);
         builder.addServerConfig(config);
 
-        //ADHOC sql still returns double the number of modified rows
-        //config = new LocalSingleProcessServer("sqlaggregate-twosites.jar", 2, BackendTarget.NATIVE_EE_JNI);
-        //config.compile(project);
-        //builder.addServerConfig(config);
-
-        //config = new LocalSingleProcessServer("sqlaggregate-hsql.jar", 1, BackendTarget.HSQLDB_BACKEND);
-        //config.compile(project);
-        //builder.addServerConfig(config);
-
-        // Cluster
-        config = new LocalCluster("sqlaggregate-cluster.jar", 2, 2,
-                                  1, BackendTarget.NATIVE_EE_JNI);
-        config.setConfParameter("site.exec_adhoc_sql", true);
-        config.compile(project);
+        ////////////////////////////////////////////////////////////
+        // CONFIG #3: cluster of 2 nodes running 2 site each, one replica
+        ////////////////////////////////////////////////////////////
+        config = new LocalCluster(PREFIX + "-cluster.jar", 2, 2, 1, BackendTarget.NATIVE_EE_JNI);
+        success = config.compile(project);
+        assert(success);
         builder.addServerConfig(config);
 
         return builder;

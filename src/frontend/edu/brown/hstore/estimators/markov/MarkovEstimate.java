@@ -16,14 +16,15 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.EstimationThresholds;
 import edu.brown.markov.MarkovVertex;
 import edu.brown.pools.Poolable;
+import edu.brown.statistics.FastIntHistogram;
 import edu.brown.utils.PartitionSet;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.TableUtil;
 
 public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
     private static final Logger LOG = Logger.getLogger(MarkovEstimate.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
+    private static final LoggerBoolean trace = new LoggerBoolean();
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
@@ -35,7 +36,7 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
     // ----------------------------------------------------------------------------
     
     protected float confidence = EstimatorUtil.NULL_MARKER;
-    protected float singlepartition;
+//    protected float singlepartition;
     protected float abort;
     protected float greatest_abort = EstimatorUtil.NULL_MARKER;
 
@@ -58,11 +59,11 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
     /**
      * The number of Statements executed at each partition
      */
-    private final int touched[];
+    private final FastIntHistogram touched;
     
     // Probabilities
-    private final float finished[];
-    private final float read[];
+    private final float done[];
+//    private final float read[];
     private final float write[];
     
     // ----------------------------------------------------------------------------
@@ -70,11 +71,11 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
     // ----------------------------------------------------------------------------
     
     // Cached
-    protected PartitionSet finished_partitionset;
-    protected PartitionSet touched_partitionset;
-    protected PartitionSet most_touched_partitionset;
-    protected PartitionSet read_partitionset;
-    protected PartitionSet write_partitionset;
+    private transient PartitionSet done_partitionset;
+    private transient PartitionSet touched_partitionset;
+    private transient PartitionSet most_touched_partitionset;
+    private transient PartitionSet read_partitionset;
+    private transient PartitionSet write_partitionset;
     
     private List<CountedStatement> query_estimate[];
     
@@ -86,9 +87,9 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
     public MarkovEstimate(CatalogContext catalogContext) {
         this.catalogContext = catalogContext;
         
-        this.touched = new int[this.catalogContext.numberOfPartitions];
-        this.finished = new float[this.catalogContext.numberOfPartitions];
-        this.read = new float[this.catalogContext.numberOfPartitions];
+        this.touched = new FastIntHistogram(true, this.catalogContext.numberOfPartitions); 
+        this.done = new float[this.catalogContext.numberOfPartitions];
+//        this.read = new float[this.catalogContext.numberOfPartitions];
         this.write = new float[this.catalogContext.numberOfPartitions];
         this.query_estimate = (List<CountedStatement>[])new List<?>[this.catalogContext.numberOfPartitions];
         
@@ -99,8 +100,8 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
     /**
      * Given an empty estimate object and the current Vertex, we fill in the
      * relevant information for the transaction coordinator to use.
-     * @param estimate the Estimate object which will be filled in
      * @param v the Vertex we are currently at in the MarkovGraph
+     * @param batch the current batch id
      */
     public MarkovEstimate init(MarkovVertex v, int batch) {
         assert(v != null);
@@ -126,24 +127,24 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
             if (debug.val) LOG.debug(String.format("Cleaning up MarkovEstimate [hashCode=%d]", this.hashCode()));
             this.vertex = null;
         }
-        for (int i = 0; i < this.touched.length; i++) {
-            this.touched[i] = 0;
-            this.finished[i] = EstimatorUtil.NULL_MARKER;
-            this.read[i] = EstimatorUtil.NULL_MARKER;
+        for (int i = 0; i < this.done.length; i++) {
+            this.done[i] = EstimatorUtil.NULL_MARKER;
+//            this.read[i] = EstimatorUtil.NULL_MARKER;
             this.write[i] = EstimatorUtil.NULL_MARKER;
             if (this.query_estimate[i] != null) this.query_estimate[i].clear();
         } // FOR
         this.confidence = EstimatorUtil.NULL_MARKER;
-        this.singlepartition = EstimatorUtil.NULL_MARKER;
+//        this.singlepartition = EstimatorUtil.NULL_MARKER;
         this.abort = EstimatorUtil.NULL_MARKER;
         this.greatest_abort = EstimatorUtil.NULL_MARKER;
         this.path.clear();
         
+        this.touched.clearValues();
         this.touched_partitions.clear();
         this.read_partitions.clear();
         this.write_partitions.clear();
         
-        if (this.finished_partitionset != null) this.finished_partitionset.clear();
+        if (this.done_partitionset != null) this.done_partitionset.clear();
         if (this.touched_partitionset != null) this.touched_partitionset.clear();
         if (this.most_touched_partitionset != null) this.most_touched_partitionset.clear();
         if (this.read_partitionset != null) this.read_partitionset.clear();
@@ -207,10 +208,10 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
     }
     
     public boolean isTargetPartition(EstimationThresholds t, int partition) {
-        return ((1 - this.finished[partition]) >= t.getFinishedThreshold());
+        return ((1 - this.done[partition]) >= t.getDoneThreshold());
     }
     public int getTouchedCounter(int partition) {
-        return (this.touched[partition]);
+        return ((int)this.touched.get(partition, 0));
     }
     
     // ----------------------------------------------------------------------------
@@ -219,10 +220,13 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
     
     @Override
     public PartitionSet getTouchedPartitions(EstimationThresholds t) {
-        assert(t != null);
-        if (this.touched_partitionset == null) this.touched_partitionset = new PartitionSet();
-        this.getPartitions(this.touched_partitionset, this.finished, t.getFinishedThreshold(), true);
-        return (this.touched_partitionset);
+        return (this.touched_partitions);
+//        assert(t != null);
+//        if (this.touched_partitionset == null) {
+//            this.touched_partitionset = new PartitionSet();
+//        }
+//        this.getPartitions(this.touched_partitionset, this.finished, t.getFinishedThreshold(), true);
+//        return (this.touched_partitionset);
     }
     
     /**
@@ -231,12 +235,12 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
      * @param partition
      */
     protected void incrementTouchedCounter(int partition) {
-        this.touched[partition]++;
+        this.touched.put(partition);
     }
     
     protected void incrementTouchedCounter(PartitionSet partitions) {
-        for (int p = 0; p < this.touched.length; p++) {
-            if (partitions.contains(p)) this.touched[p]++;
+        for (int partition : partitions) {
+            this.touched.put(partition);
         } // FOR
     }
     
@@ -259,54 +263,53 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
     // SINGLE-PARTITIONED PROBABILITY
     // ----------------------------------------------------------------------------
     
-    @Override
-    public void addSinglePartitionProbability(float probability) {
-        this.singlepartition = probability + (this.singlepartition == EstimatorUtil.NULL_MARKER ? 0 : this.singlepartition);
-        this.valid = this.valid && (probability != EstimatorUtil.NULL_MARKER);
-        if (trace.val) LOG.trace(String.format("SET Global - SINGLE-P %.02f", this.singlepartition));
-    }
-    @Override
-    public void setSinglePartitionProbability(float probability) {
-        this.singlepartition = probability;
-        this.valid = this.valid && (probability != EstimatorUtil.NULL_MARKER);
-        if (trace.val) LOG.trace(String.format("SET Global - SINGLE-P %.02f", this.singlepartition));
-    }
-    @Override
-    public float getSinglePartitionProbability() {
-        return (this.singlepartition);
-    }
-    @Override
-    public boolean isSinglePartitionProbabilitySet() {
-        return (this.singlepartition != EstimatorUtil.NULL_MARKER);
-    }
-
+//    @Override
+//    public void addSinglePartitionProbability(float probability) {
+//        this.singlepartition = probability + (this.singlepartition == EstimatorUtil.NULL_MARKER ? 0 : this.singlepartition);
+//        this.valid = this.valid && (probability != EstimatorUtil.NULL_MARKER);
+//        if (trace.val) LOG.trace(String.format("SET Global - SINGLE-P %.02f", this.singlepartition));
+//    }
+//    @Override
+//    public void setSinglePartitionProbability(float probability) {
+//        this.singlepartition = probability;
+//        this.valid = this.valid && (probability != EstimatorUtil.NULL_MARKER);
+//        if (trace.val) LOG.trace(String.format("SET Global - SINGLE-P %.02f", this.singlepartition));
+//    }
+//    @Override
+//    public float getSinglePartitionProbability() {
+//        return (this.singlepartition);
+//    }
+//    @Override
+//    public boolean isSinglePartitionProbabilitySet() {
+//        return (this.singlepartition != EstimatorUtil.NULL_MARKER);
+//    }
     
     // ----------------------------------------------------------------------------
     // READ-ONLY PROBABILITY
     // ----------------------------------------------------------------------------
     
-    @Override
-    public void addReadOnlyProbability(int partition, float probability) {
-        this.read[partition] = probability + (this.read[partition] == EstimatorUtil.NULL_MARKER ? 0 : this.read[partition]); 
-        this.valid = this.valid && (probability != EstimatorUtil.NULL_MARKER);
-        if (trace.val) LOG.trace(String.format("SET Partition %02d - READONLY %.02f", partition, this.read[partition]));
-    }
-    @Override
-    public void setReadOnlyProbability(int partition, float probability) {
-        assert(partition >= 0) : "Invalid Partition: " + partition;
-        assert(partition < this.read.length) : "Invalid Partition: " + partition;
-        this.read[partition] = probability;
-        this.valid = this.valid && (probability != EstimatorUtil.NULL_MARKER);
-        if (trace.val) LOG.trace(String.format("SET Partition %02d - READONLY %.02f", partition, this.read[partition]));
-    }
-    @Override
-    public float getReadOnlyProbability(int partition) {
-        return (this.read[partition]);
-    }
-    @Override
-    public boolean isReadOnlyProbabilitySet(int partition) {
-        return (this.read[partition] != EstimatorUtil.NULL_MARKER);
-    }
+//    @Override
+//    public void addReadOnlyProbability(int partition, float probability) {
+//        this.read[partition] = probability + (this.read[partition] == EstimatorUtil.NULL_MARKER ? 0 : this.read[partition]); 
+//        this.valid = this.valid && (probability != EstimatorUtil.NULL_MARKER);
+//        if (trace.val) LOG.trace(String.format("SET Partition %02d - READONLY %.02f", partition, this.read[partition]));
+//    }
+//    @Override
+//    public void setReadOnlyProbability(int partition, float probability) {
+//        assert(partition >= 0) : "Invalid Partition: " + partition;
+//        assert(partition < this.read.length) : "Invalid Partition: " + partition;
+//        this.read[partition] = probability;
+//        this.valid = this.valid && (probability != EstimatorUtil.NULL_MARKER);
+//        if (trace.val) LOG.trace(String.format("SET Partition %02d - READONLY %.02f", partition, this.read[partition]));
+//    }
+//    @Override
+//    public float getReadOnlyProbability(int partition) {
+//        return (this.read[partition]);
+//    }
+//    @Override
+//    public boolean isReadOnlyProbabilitySet(int partition) {
+//        return (this.read[partition] != EstimatorUtil.NULL_MARKER);
+//    }
     
     // ----------------------------------------------------------------------------
     // WRITE PROBABILITY
@@ -316,7 +319,9 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
     public void addWriteProbability(int partition, float probability) {
         this.write[partition] = probability + (this.write[partition] == EstimatorUtil.NULL_MARKER ? 0 : this.write[partition]);
         this.valid = this.valid && (probability != EstimatorUtil.NULL_MARKER);
-        if (trace.val) LOG.trace(String.format("SET Partition %02d - WRITE %.02f", partition, this.write[partition]));
+        if (trace.val)
+            LOG.trace(String.format("SET Partition %02d - WRITE %.02f / hash=%d",
+                      partition, this.write[partition], this.hashCode()));
     }
     @Override
     public void setWriteProbability(int partition, float probability) {
@@ -324,7 +329,9 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
         assert(partition < this.write.length) : "Invalid Partition: " + partition;
         this.write[partition] = probability;
         this.valid = this.valid && (probability != EstimatorUtil.NULL_MARKER);
-        if (trace.val) LOG.trace(String.format("SET Partition %02d - WRITE %.02f", partition, this.write[partition]));
+        if (trace.val)
+            LOG.trace(String.format("SET Partition %02d - WRITE %.02f / hash=%d",
+                      partition, this.write[partition], this.hashCode()));
     }
     @Override
     public float getWriteProbability(int partition) {
@@ -340,26 +347,30 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
     // ----------------------------------------------------------------------------
 
     @Override
-    public void addFinishProbability(int partition, float probability) {
-        this.finished[partition] = probability + (this.finished[partition] == EstimatorUtil.NULL_MARKER ? 0 : this.finished[partition]);
+    public void addDoneProbability(int partition, float probability) {
+        this.done[partition] = probability + (this.done[partition] == EstimatorUtil.NULL_MARKER ? 0 : this.done[partition]);
         this.valid = this.valid && (probability != EstimatorUtil.NULL_MARKER);
-        if (trace.val) LOG.trace(String.format("SET Partition %02d - FINISH %.02f", partition, this.finished[partition]));
+        if (trace.val)
+            LOG.trace(String.format("SET Partition %02d - FINISH %.02f / hash=%d",
+                      partition, this.done[partition], this.hashCode()));
     }
     @Override
-    public void setFinishProbability(int partition, float probability) {
+    public void setDoneProbability(int partition, float probability) {
         assert(partition >= 0) : "Invalid Partition: " + partition;
-        assert(partition < this.finished.length) : "Invalid Partition: " + partition;
-        this.finished[partition] = probability;
+        assert(partition < this.done.length) : "Invalid Partition: " + partition;
+        this.done[partition] = probability;
         this.valid = this.valid && (probability != EstimatorUtil.NULL_MARKER);
-        if (trace.val) LOG.trace(String.format("SET Partition %02d - FINISH %.02f", partition, this.finished[partition]));
+        if (trace.val)
+            LOG.trace(String.format("SET Partition %02d - FINISH %.02f / hash=%d",
+                      partition, this.done[partition], this.hashCode()));
     }
     @Override
-    public float getFinishProbability(int partition) {
-        return (this.finished[partition]);
+    public float getDoneProbability(int partition) {
+        return (this.done[partition]);
     }
     @Override
-    public boolean isFinishProbabilitySet(int partition) {
-        return (this.finished[partition] != EstimatorUtil.NULL_MARKER);
+    public boolean isDoneProbabilitySet(int partition) {
+        return (this.done[partition] != EstimatorUtil.NULL_MARKER);
     }
     
     // ----------------------------------------------------------------------------
@@ -370,13 +381,17 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
     public void addAbortProbability(float probability) {
         this.abort = probability + (this.abort == EstimatorUtil.NULL_MARKER ? 0 : this.abort); 
         this.valid = this.valid && (probability != EstimatorUtil.NULL_MARKER);
-        if (trace.val) LOG.trace(String.format("SET Global - ABORT %.02f", this.abort));
+        if (trace.val)
+            LOG.trace(String.format("SET Global - ABORT %.02f / hash=%d",
+                      this.abort, this.hashCode()));
     }
     @Override
     public void setAbortProbability(float probability) {
         this.abort = probability;
         this.valid = this.valid && (probability != EstimatorUtil.NULL_MARKER);
-        if (trace.val) LOG.trace(String.format("SET Global - ABORT %.02f", this.abort));
+        if (trace.val)
+            LOG.trace(String.format("SET Global - ABORT %.02f",
+                      this.abort, this.hashCode()));
     }
     @Override
     public float getAbortProbability() {
@@ -386,33 +401,44 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
     public boolean isAbortProbabilitySet() {
         return (this.abort != EstimatorUtil.NULL_MARKER);
     }
-    
-    // ----------------------------------------------------------------------------
-    // Convenience methods using EstimationThresholds object
-    // ----------------------------------------------------------------------------
-    
-    private boolean checkProbabilityAllPartitions(float probs[], float threshold) {
-        for (int partition = 0; partition < probs.length; partition++) {
-            if (probs[partition] < threshold) return (false);
-        } // FOR
-        return (true);
+    @Override
+    public boolean isAbortable(EstimationThresholds t) {
+        return (this.abort >= t.getAbortThreshold());
     }
+    
+    // ----------------------------------------------------------------------------
+    // SINGLE-PARTITION
+    // ----------------------------------------------------------------------------
     
     @Override
     public boolean isSinglePartitioned(EstimationThresholds t) {
         return (this.getTouchedPartitions(t).size() <= 1);
     }
-    @Override
-    public boolean isAbortable(EstimationThresholds t) {
-        return (this.abort >= t.getAbortThreshold());
-    }
+    
+    // ----------------------------------------------------------------------------
+    // READ-ONLY PROBABILITY
+    // ----------------------------------------------------------------------------
+
     @Override
     public boolean isReadOnlyPartition(EstimationThresholds t, int partition) {
-        return (this.read[partition] >= t.getReadThreshold());
+        if (this.write[partition] != EstimatorUtil.NULL_MARKER) {
+            float readOnly = 1.0f - this.write[partition];
+            boolean ret = (readOnly >= t.getReadThreshold());
+            if (trace.val)
+                LOG.trace(String.format("Partition %d: (1.0 - WRITE[%.03f]) = READ_ONLY[%.03f] >= %.03f ==> %s",
+                          partition, this.write[partition], readOnly, t.getReadThreshold(), ret));
+            return (ret);
+        }
+        return (true);
     }
     @Override
     public boolean isReadOnlyAllPartitions(EstimationThresholds t) {
-        return (this.checkProbabilityAllPartitions(this.read, t.getReadThreshold()));
+        for (int partition = 0; partition < this.write.length; partition++) {
+            if (this.isReadOnlyPartition(t, partition) == false) {
+                return (false);
+            }
+        } // FOR
+        return (true);
     }
     
     // ----------------------------------------------------------------------------
@@ -425,12 +451,12 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
     }
     
     // ----------------------------------------------------------------------------
-    // FINISHED PROBABILITY
+    // DONE PROBABILITY
     // ----------------------------------------------------------------------------
     
     @Override
-    public boolean isFinishPartition(EstimationThresholds t, int partition) {
-        return (this.finished[partition] >= t.getFinishedThreshold());
+    public boolean isDonePartition(EstimationThresholds t, int partition) {
+        return (this.done[partition] >= t.getDoneThreshold());
     }
     
     // ----------------------------------------------------------------------------
@@ -439,60 +465,67 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
     
     @Override
     public long getRemainingExecutionTime() {
-        return time;
+        return (this.time);
     }
     
     private void getPartitions(PartitionSet partitions, float values[], float limit, boolean inverse) {
         partitions.clear();
-        if (inverse) {
-            for (int i = 0; i < values.length; i++) {
-                if ((1 - values[i]) >= limit)
-                    partitions.add(this.catalogContext.getAllPartitionIdArray()[i]);
-            } // FOR
-        } else {
-            for (int i = 0; i < values.length; i++) {
-                if (values[i] >= limit)
-                    partitions.add(this.catalogContext.getAllPartitionIdArray()[i]);
-            } // FOR
-        }
+        for (int partition = 0; partition < values.length; partition++) {
+            if ( (inverse == true && ((1 - values[partition]) >= limit)) ||
+                 (inverse == false && (values[partition] >= limit))) {
+                partitions.add(partition);
+            }
+        } // FOR
     }
 
-    @Override
-    public PartitionSet getReadOnlyPartitions(EstimationThresholds t) {
-        assert(t != null);
-        if (this.read_partitionset == null) this.read_partitionset = new PartitionSet();
-        this.getPartitions(this.read_partitionset, this.read, (float)t.getReadThreshold(), false);
-        return (this.read_partitionset);
-    }
+//    @Override
+//    public PartitionSet getReadOnlyPartitions(EstimationThresholds t) {
+//        assert(t != null);
+//        if (this.read_partitionset == null) {
+//            this.read_partitionset = new PartitionSet();
+//        }
+//        PartitionSet doneP = this.getDonePartitions(t);
+//        PartitionSet writeP = this.getWritePartitions(t);
+//        
+//        this.getPartitions(this.read_partitionset, this.read, (float)t.getReadThreshold(), false);
+//        return (this.read_partitionset);
+//    }
     @Override
     public PartitionSet getWritePartitions(EstimationThresholds t) {
         assert(t != null);
-        if (this.write_partitionset == null) this.write_partitionset = new PartitionSet();
+        if (this.write_partitionset == null) {
+            this.write_partitionset = new PartitionSet();
+        }
         this.getPartitions(this.write_partitionset, this.write, (float)t.getWriteThreshold(), false);
         return (this.write_partitionset);
     }
     @Override
-    public PartitionSet getFinishPartitions(EstimationThresholds t) {
+    public PartitionSet getDonePartitions(EstimationThresholds t) {
         assert(t != null);
-        if (this.finished_partitionset == null) this.finished_partitionset = new PartitionSet();
-        this.getPartitions(this.finished_partitionset, this.finished, (float)t.getFinishedThreshold(), false);
-        return (this.finished_partitionset);
+        if (this.done_partitionset == null) {
+            this.done_partitionset = new PartitionSet();
+        }
+        this.getPartitions(this.done_partitionset, this.done, (float)t.getDoneThreshold(), false);
+        return (this.done_partitionset);
     }
     
     public PartitionSet getMostTouchedPartitions(EstimationThresholds t) {
         assert(t != null);
         if (this.touched_partitionset == null) this.touched_partitionset = new PartitionSet();
-        this.getPartitions(this.touched_partitionset, this.finished, t.getFinishedThreshold(), true);
+        this.getPartitions(this.touched_partitionset, this.done, t.getDoneThreshold(), true);
         
-        if (this.most_touched_partitionset == null) this.most_touched_partitionset = new PartitionSet();
+        if (this.most_touched_partitionset == null) {
+            this.most_touched_partitionset = new PartitionSet();
+        }
         int max_ctr = 0;
-        for (Integer p : this.touched_partitionset) {
-            if (this.touched[p.intValue()] > 0 && max_ctr <= this.touched[p.intValue()]) {
-                if (max_ctr == this.touched[p.intValue()]) this.most_touched_partitionset.add(p);
+        for (int p : this.touched_partitionset.values()) {
+            int numTouched = (int)this.touched.get(p, 0); 
+            if (numTouched > 0 && max_ctr <= numTouched) {
+                if (max_ctr == numTouched) this.most_touched_partitionset.add(p);
                 else {
                     this.most_touched_partitionset.clear();
                     this.most_touched_partitionset.add(p);
-                    max_ctr = this.touched[p.intValue()];
+                    max_ctr = numTouched;
                 }
             }
         } // FOR
@@ -501,32 +534,34 @@ public class MarkovEstimate implements Poolable, DynamicTransactionEstimate {
     
     @Override
     public String toString() {
-        final String f = "%-6.02f"; 
+        final String fmt = "%-6.02f"; 
         
         Map<String, Object> m0 = new LinkedHashMap<String, Object>();
-        m0.put("BatchEstimate", (this.batch == EstimatorUtil.INITIAL_ESTIMATE_BATCH ? "<INITIAL>" : "#" + this.batch));
+        m0.put("BatchEstimate", (this.batch == EstimatorUtil.INITIAL_ESTIMATE_BATCH ?
+                                 "<INITIAL>" : "#" + this.batch));
         m0.put("HashCode", this.hashCode());
         m0.put("Valid", this.valid);
         m0.put("Vertex", this.vertex);
-        m0.put("Confidence", this.confidence);
-        m0.put("Single-P", (this.singlepartition != EstimatorUtil.NULL_MARKER ? String.format(f, this.singlepartition) : "-"));
-        m0.put("User Abort", (this.abort != EstimatorUtil.NULL_MARKER ? String.format(f, this.abort) : "-"));
+        m0.put("Confidence", String.format(fmt, this.confidence));
+//        m0.put("Single-Partition", (this.singlepartition != EstimatorUtil.NULL_MARKER ?
+//                                    String.format(f, this.singlepartition) : "-"));
+        m0.put("User Abort", (this.abort != EstimatorUtil.NULL_MARKER ? String.format(fmt, this.abort) : "-"));
         
         String header[] = {
             "",
-            "ReadO",
-            "Write",
-            "Finished",
-            "TouchCtr",
+//            "READ_ONLY",
+            "WRITE",
+            "DONE",
+            "TOUCH_CTR",
         };
-        Object rows[][] = new Object[this.touched.length][];
+        Object rows[][] = new Object[this.done.length][];
         for (int i = 0; i < rows.length; i++) {
             rows[i] = new String[] {
                 String.format("Partition #%02d", i),
-                (this.read[i] != EstimatorUtil.NULL_MARKER ? String.format(f, this.read[i]) : "-"),
-                (this.write[i] != EstimatorUtil.NULL_MARKER ? String.format(f, this.write[i]) : "-"),
-                (this.finished[i] != EstimatorUtil.NULL_MARKER ? String.format(f, this.finished[i]) : "-"),
-                Integer.toString(this.touched[i]),
+//                (this.read[i] != EstimatorUtil.NULL_MARKER ? String.format(fmt, this.read[i]) : "-"),
+                (this.write[i] != EstimatorUtil.NULL_MARKER ? String.format(fmt, this.write[i]) : "-"),
+                (this.done[i] != EstimatorUtil.NULL_MARKER ? String.format(fmt, this.done[i]) : "-"),
+                Integer.toString((int)this.touched.get(i, 0)),
             };
         } // FOR
         Map<String, String> m1 = TableUtil.tableMap(header, rows);

@@ -170,6 +170,8 @@ public class ArgumentsParser {
     
     private static final String PARAM_TERMINAL = "terminal";
     public static final String PARAM_TERMINAL_CSV = PARAM_TERMINAL + ".csv";
+    public static final String PARAM_TERMINAL_HOST = PARAM_TERMINAL + ".host";
+    public static final String PARAM_TERMINAL_PORT = PARAM_TERMINAL + ".port";
 
     private static final String PARAM_SITE = "site";
     public static final String PARAM_SITE_HOST = PARAM_SITE + ".host";

@@ -1,10 +1,8 @@
 package edu.brown.markov;
 
 import java.io.File;
-import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.ConcurrentModificationException;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -20,7 +18,6 @@ import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
 
-import edu.brown.catalog.CatalogUtil;
 import edu.brown.graphs.AbstractDirectedGraph;
 import edu.brown.graphs.AbstractGraphElement;
 import edu.brown.graphs.GraphUtil;
@@ -30,7 +27,7 @@ import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.containers.AuctionMarkMarkovGraphsContainer;
 import edu.brown.markov.containers.GlobalMarkovGraphsContainer;
-import edu.brown.markov.containers.MarkovGraphContainersUtil;
+import edu.brown.markov.containers.MarkovGraphsContainerUtil;
 import edu.brown.markov.containers.MarkovGraphsContainer;
 import edu.brown.markov.containers.SEATSMarkovGraphsContainer;
 import edu.brown.markov.containers.TPCCMarkovGraphsContainer;
@@ -50,8 +47,8 @@ import edu.brown.workload.TransactionTrace;
 public class MarkovGraph extends AbstractDirectedGraph<MarkovVertex, MarkovEdge> implements Comparable<MarkovGraph> {
     private static final long serialVersionUID = 3548405718926801012L;
     private static final Logger LOG = Logger.getLogger(MarkovGraph.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean();
+    private static final LoggerBoolean trace = new LoggerBoolean();
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
@@ -95,13 +92,7 @@ public class MarkovGraph extends AbstractDirectedGraph<MarkovVertex, MarkovEdge>
     /**
      * Constructor
      * @param catalog_proc
-     * @param basePartition
      */
-//    public MarkovGraph(Procedure catalog_proc, int xact_count) {
-//        super((Database) catalog_proc.getParent());
-//        this.catalog_proc = catalog_proc;
-//        this.xact_count = xact_count;
-//    }
     public MarkovGraph(Procedure catalog_proc){
         super((Database) catalog_proc.getParent());
         this.catalog_proc = catalog_proc;
@@ -345,14 +336,6 @@ public class MarkovGraph extends AbstractDirectedGraph<MarkovVertex, MarkovEdge>
         return (successors);
     }
     
-    /**
-     * Return an immutable list of all the partition ids in our catalog
-     * @return
-     */
-    protected PartitionSet getAllPartitions() {
-        return (CatalogUtil.getAllPartitionIds(this.getDatabase()));
-    }
-    
     // ----------------------------------------------------------------------------
     // STATISTICAL MODEL METHODS
     // ----------------------------------------------------------------------------
@@ -362,7 +345,7 @@ public class MarkovGraph extends AbstractDirectedGraph<MarkovVertex, MarkovEdge>
      * First we will reset all of the existing probabilities and then apply the instancehits to 
      * the totalhits for each graph element
      */
-    public void calculateProbabilities() {
+    public void calculateProbabilities(PartitionSet partitions) {
         // Reset all probabilities
         for (MarkovVertex v : this.getVertices()) {
             v.resetAllProbabilities();
@@ -380,7 +363,7 @@ public class MarkovGraph extends AbstractDirectedGraph<MarkovVertex, MarkovEdge>
         this.calculateEdgeProbabilities();
         
         // Then traverse the graph and calculate the vertex probability tables
-        this.calculateVertexProbabilities();
+        this.calculateVertexProbabilities(partitions);
         
         this.recompute_count++;
     }
@@ -388,9 +371,9 @@ public class MarkovGraph extends AbstractDirectedGraph<MarkovVertex, MarkovEdge>
     /**
      * Calculate vertex probabilities
      */
-    private void calculateVertexProbabilities() {
+    private void calculateVertexProbabilities(PartitionSet partitions) {
         if (trace.val) LOG.trace("Calculating Vertex probabilities for " + this);
-        new MarkovProbabilityCalculator(this).calculate();
+        new MarkovProbabilityCalculator(this, partitions).calculate();
     }
 
     /**
@@ -438,8 +421,10 @@ public class MarkovGraph extends AbstractDirectedGraph<MarkovVertex, MarkovEdge>
             
             // Make sure that nobody else has the same element id
             if (seen_ids.containsKey(e.getElementId())) {
-                throw new InvalidGraphElementException(this, e, String.format("Duplicate element id #%d: Edge[%s] <-> %s",
-                                                                               e.getElementId(), e.toString(true), seen_ids.get(e.getElementId())));
+                String msg = String.format("Duplicate element id #%d: Edge[%s] <-> %s",
+                                           e.getElementId(), e.toString(true),
+                                           seen_ids.get(e.getElementId()));
+                throw new InvalidGraphElementException(this, e, msg);
             }
             seen_ids.put(e.getElementId(), e);
         } // FOR
@@ -681,14 +666,6 @@ public class MarkovGraph extends AbstractDirectedGraph<MarkovVertex, MarkovEdge>
     // YE OLDE MAIN METHOD
     // ----------------------------------------------------------------------------
 
-    /**
-     * To load in the workloads and see their properties, we use this method.
-     * There are still many workloads that have problems running.
-     * 
-     * @param args
-     * @throws InterruptedException
-     * @throws InvocationTargetException
-     */
     public static void main(String vargs[]) throws Exception {
         ArgumentsParser args = ArgumentsParser.load(vargs);
         args.require(
@@ -721,19 +698,27 @@ public class MarkovGraph extends AbstractDirectedGraph<MarkovVertex, MarkovEdge>
         // Check whether we want to update an existing collection of MarkovGraphsContainers
         if (args.hasParam(ArgumentsParser.PARAM_MARKOV)) {
             File path = args.getFileParam(ArgumentsParser.PARAM_MARKOV);
-            markovs_map = MarkovGraphContainersUtil.load(args.catalog_db, path);
+            markovs_map = MarkovGraphsContainerUtil.load(args.catalogContext, path);
+            MarkovGraphsContainerUtil.setHasher(markovs_map, p_estimator.getHasher());
         }
         
         if (markovs_map == null) {
-            markovs_map = MarkovGraphContainersUtil.createMarkovGraphsContainers(args.catalog_db, args.workload, p_estimator, containerClass);
+            markovs_map = MarkovGraphsContainerUtil.createMarkovGraphsContainers(args.catalogContext,
+                                                                                 args.workload,
+                                                                                 p_estimator,
+                                                                                 containerClass);
         } else {
-            markovs_map = MarkovGraphContainersUtil.createMarkovGraphsContainers(args.catalog_db, args.workload, p_estimator, containerClass, markovs_map);
+            markovs_map = MarkovGraphsContainerUtil.createMarkovGraphsContainers(args.catalogContext,
+                                                                                 args.workload,
+                                                                                 p_estimator,
+                                                                                 containerClass,
+                                                                                 markovs_map);
         }
         
         // Save the graphs
         assert(markovs_map != null);
         File output = args.getFileParam(ArgumentsParser.PARAM_MARKOV_OUTPUT);
         LOG.info("Writing graphs out to " + output);
-        MarkovGraphContainersUtil.save(markovs_map, output.getAbsolutePath());
+        MarkovGraphsContainerUtil.save(markovs_map, output);
     }
 }

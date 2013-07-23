@@ -29,7 +29,8 @@ public abstract class EstimatorState implements Poolable {
     
     private Estimate initialEstimate;
     private final List<Estimate> estimates = new ArrayList<Estimate>();
-    private boolean disableUpdates = false;
+    private boolean shouldAllowUpdates = false;
+    private boolean allowUpdates = true;
     
     /**
      * Constructor
@@ -54,7 +55,8 @@ public abstract class EstimatorState implements Poolable {
     @Override
     public void finish() {
         this.initialEstimate = null;
-        this.disableUpdates = false;
+        this.shouldAllowUpdates = false;
+        this.allowUpdates = true;
         for (Estimate estimate : this.estimates) {
             if (estimate != null) estimate.finish();
         } // FOR
@@ -86,12 +88,28 @@ public abstract class EstimatorState implements Poolable {
     // TRANSACTION ESTIMATES
     // ----------------------------------------------------------------------------
     
-    public final void disableUpdates() {
-        this.disableUpdates = true;
+    /**
+     * Returns true if the TransactionEstimator thinks that the PartitionExecutor
+     * should provide it with updates about txns.
+     * @return
+     */
+    public final boolean shouldAllowUpdates() {
+        return (this.shouldAllowUpdates);
+    }
+    protected void shouldAllowUpdates(boolean enable) {
+        this.shouldAllowUpdates = enable;
     }
     
-    public final boolean updatesEnabled() {
-        return (this.disableUpdates == false);
+    public final void disableUpdates() {
+        this.allowUpdates = false;
+    }
+    
+    public final void enableUpdates() {
+        this.allowUpdates = true;
+    }
+    
+    public final boolean isUpdatesEnabled() {
+        return (this.allowUpdates);
     }
     
     protected void addInitialEstimate(Estimate estimate) {
