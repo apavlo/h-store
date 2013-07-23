@@ -11,14 +11,14 @@ function onexit() {
 
 # ---------------------------------------------------------------------
 
-ENABLE_ANTICACHE=true
+ENABLE_ANTICACHE=false
 
-SITE_HOST="modis"
+SITE_HOST="istc12"
 
 CLIENT_HOSTS=( \
-        "modis2" \
-        "modis2" \
-        "modis" \
+        "istc12" \
+        "istc13" \
+        "istc13" \
 )
 
 BASE_CLIENT_THREADS=2
@@ -28,14 +28,17 @@ BASE_PROJECT="ycsb"
 BASE_DIR=`pwd`
 OUTPUT_DIR="~/data/ycsb/read-heavy/2/80-20"
 
-ANTICACHE_BLOCK_SIZE=524288
-#ANTICACHE_EVICT_SIZE=268400000
+#ANTICACHE_BLOCK_SIZE=524288
+ANTICACHE_BLOCK_SIZE=1048576
+#ANTICACHE_BLOCK_SIZE=2097152
+#ANTICACHE_BLOCK_SIZE=4194304
+#ANTICACHE_BLOCK_SIZE=131072
 ANTICACHE_THRESHOLD=.5
 
 BASE_ARGS=( \
     # SITE DEBUG
      "-Dsite.status_enable=false" \
-     "-Dsite.status_interval=20000" \
+     "-Dsite.status_interval=10000" \
 #    "-Dsite.status_exec_info=true" \
 #    "-Dsite.status_check_for_zombies=true" \
 #    "-Dsite.exec_profiling=true" \
@@ -56,7 +59,8 @@ BASE_ARGS=( \
     "-Dsite.commandlog_enable=true" \
     "-Dsite.txn_incoming_delay=5" \
     "-Dsite.exec_postprocessing_threads=true" \
-    "-Dsite.anticache_profiling=true" \
+    "-Dsite.anticache_profiling=${ENABLE_ANTICACHE}" \
+    "-Dsite.anticache_eviction_distribution=even" \
     
 #    "-Dsite.queue_allow_decrease=true" \
 #    "-Dsite.queue_allow_increase=true" \
@@ -65,26 +69,31 @@ BASE_ARGS=( \
     # Client Params
     "-Dclient.scalefactor=1" \
     "-Dclient.memory=2048" \
-    "-Dclient.txnrate=1000" \
+    "-Dclient.txnrate=2000" \
     "-Dclient.warmup=120000" \
     "-Dclient.duration=120000" \
-    "-Dclient.interval=20000" \
+    "-Dclient.interval=5000" \
     "-Dclient.shared_connection=false" \
     "-Dclient.blocking=false" \
     "-Dclient.blocking_concurrent=100" \
     "-Dclient.throttle_backoff=100" \
     "-Dclient.output_interval=5000" \
-    "-Dclient.output_anticache_evictions=evictions.csv" \
-    
+#    "-Dclient.output_anticache_evictions=evictions.csv" \
+#    "-Dclient.output_memory=memory.csv" \
+
     # Anti-Caching Experiments
     "-Dsite.anticache_enable=${ENABLE_ANTICACHE}" \
+#    "-Dsite.anticache_profiling=true" \
+    "-Dsite.anticache_reset=false" \
     "-Dsite.anticache_block_size=${ANTICACHE_BLOCK_SIZE}" \
     "-Dsite.anticache_check_interval=10000" \
+    "-Dsite.anticache_threshold_mb=200" \
+    "-Dsite.anticache_blocks_per_eviction=200" \
+    "-Dsite.anticache_max_evicted_blocks=325" \
 #    "-Dsite.anticache_evict_size=${ANTICACHE_EVICT_SIZE}" \
     "-Dsite.anticache_threshold=${ANTICACHE_THRESHOLD}" \
-#    "-Dclient.interval=500" \
     "-Dclient.anticache_enable=false" \
-    "-Dclient.anticache_evict_interval=2000" \
+    "-Dclient.anticache_evict_interval=10000" \
     "-Dclient.anticache_evict_size=102400" \
     "-Dclient.output_csv=results.csv" \
 
@@ -99,7 +108,7 @@ BASE_ARGS=( \
 )
 
 EVICTABLE_TABLES=( \
-    "usertable" \
+    "USERTABLE" \
 )
 EVICTABLES=""
 if [ "$ENABLE_ANTICACHE" = "true" ]; then
@@ -128,7 +137,7 @@ done
 wait
 
 ant compile
-for i in 6; do
+for i in 8; do
 
     HSTORE_HOSTS="${SITE_HOST}:0:0-"`expr $i - 1`
     NUM_CLIENTS=`expr $i \* $BASE_CLIENT_THREADS`

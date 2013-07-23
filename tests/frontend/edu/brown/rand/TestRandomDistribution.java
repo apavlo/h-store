@@ -30,6 +30,7 @@ import java.util.Random;
 import edu.brown.statistics.Histogram;
 import edu.brown.statistics.ObjectHistogram;
 import edu.brown.utils.CollectionUtil;
+import edu.brown.benchmark.ycsb.distributions.ZipfianGenerator;
 
 import junit.framework.TestCase;
 
@@ -128,13 +129,14 @@ public class TestRandomDistribution extends TestCase {
      * testZipfian
      */
     public void testZipfian() throws Exception {
-        double sigma = 1.0000001d;
+        double sigma = 0.51d;
         
         int round = num_rounds;
         while (round-- > 0) {
-            RandomDistribution.Zipf zipf = new RandomDistribution.Zipf(this.rand, min, max, sigma);
+//            RandomDistribution.Zipf zipf = new RandomDistribution.Zipf(this.rand, min, max, sigma);
+            ZipfianGenerator zipf = new ZipfianGenerator(20, sigma);
             Histogram<Integer> hist = new ObjectHistogram<Integer>();
-            // System.out.println("Round #" + Math.abs(num_rounds - 10) + " [sigma=" + sigma + "]");
+            System.out.println("Round #" + round + " [sigma=" + sigma + "]");
             for (int i = 0; i < num_records; i++) {
                 int value = zipf.nextInt();
                 hist.put(value);
@@ -147,9 +149,9 @@ public class TestRandomDistribution extends TestCase {
                 }
                 last = current;
             }
-//            System.out.println(hist);
-//            System.out.println("----------------------------------------------");
-            sigma += 0.5d;
+            System.out.println(hist);
+            System.out.println("----------------------------------------------");
+            sigma += 0.25d;
         } // FOR
     }
     

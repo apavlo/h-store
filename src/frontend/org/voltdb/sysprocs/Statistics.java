@@ -67,6 +67,7 @@ public class Statistics extends VoltSystemProcedure {
 
     static final int DEP_procedureData = (int)
         SysProcFragmentId.PF_procedureData | HStoreConstants.MULTIPARTITION_DEPENDENCY;
+
     static final int DEP_procedureAggregator = (int)
         SysProcFragmentId.PF_procedureAggregator;
 

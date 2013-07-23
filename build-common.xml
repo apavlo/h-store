@@ -81,6 +81,7 @@
 <arg value="client.output_planner_profiling_combine=${client.output_planner_profiling_combine}" />
 <arg value="client.output_markov_profiling=${client.output_markov_profiling}" />
 <arg value="client.output_table_stats=${client.output_table_stats}" />
+<arg value="client.output_table_stats_periodically=${client.output_table_stats_periodically}" />
 <arg value="client.output_txn_counters=${client.output_txn_counters}" />
 <arg value="client.output_txn_counters_combine=${client.output_txn_counters_combine}" />
 <arg value="client.profiling=${client.profiling}" />
@@ -146,7 +147,11 @@
 <arg value="site.anticache_block_size=${site.anticache_block_size}" />
 <arg value="site.anticache_reset=${site.anticache_reset}" />
 <arg value="site.anticache_check_interval=${site.anticache_check_interval}" />
-<arg value="site.anticache_threshold=${site.anticache_threshold}" />
+<arg value="site.anticache_threshold_mb=${site.anticache_threshold_mb}" />
+<arg value="site.anticache_threshold_ratio=${site.anticache_threshold_ratio}" />
+<arg value="site.anticache_max_evicted_blocks=${site.anticache_max_evicted_blocks}" />
+<arg value="site.anticache_blocks_per_eviction=${site.anticache_blocks_per_eviction}" />
+<arg value="site.anticache_eviction_distribution=${site.anticache_eviction_distribution}" />
 <arg value="site.mr_map_blocking=${site.mr_map_blocking}" />
 <arg value="site.mr_reduce_blocking=${site.mr_reduce_blocking}" />
 <arg value="site.network_heartbeats_interval=${site.network_heartbeats_interval}" />

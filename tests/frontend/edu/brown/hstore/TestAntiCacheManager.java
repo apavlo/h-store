@@ -38,7 +38,7 @@ import edu.brown.utils.ThreadUtil;
 public class TestAntiCacheManager extends BaseTestCase {
     
     private static final int NUM_PARTITIONS = 1;
-    private static final int NUM_TUPLES = 1000;
+    private static final int NUM_TUPLES = 100000;
     private static final String TARGET_TABLE = YCSBConstants.TABLE_NAME;
     
     private static final String statsFields[] = {

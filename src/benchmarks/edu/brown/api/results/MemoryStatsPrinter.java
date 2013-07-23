@@ -85,7 +85,6 @@ public class MemoryStatsPrinter implements BenchmarkInterest {
     @Override
     public void benchmarkHasUpdated(final BenchmarkResults br) {
         if (this.stop) return;
-        
         final int interval = this.intervalCounter++;
         
         // HACK: Skip every other interval
@@ -103,7 +102,6 @@ public class MemoryStatsPrinter implements BenchmarkInterest {
                 
                 // TOTAL STATS FROM ALL SITES 
                 VoltTable vt = clientResponse.getResults()[0];
-                
                 long totals[] = new long[vt.getColumnCount()];
                 Arrays.fill(totals, 0);
                 int colOffsets[] = null;

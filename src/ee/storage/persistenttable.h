@@ -115,7 +115,8 @@ class PersistentTable : public Table {
     friend class PersistentTableStats;
     
 #ifdef ANTICACHE
-    friend class AntiCacheEvictionManager; 
+    friend class AntiCacheEvictionManager;
+    friend class IndexScanExecutor;
 #endif
 
   private:
@@ -269,10 +270,12 @@ class PersistentTable : public Table {
     void setNewestTupleID(uint32_t id); 
     void setOldestTupleID(uint32_t id); 
     uint32_t getNewestTupleID(); 
-    uint32_t getOldestTupleID(); 
+    uint32_t getOldestTupleID();
     void setNumTuplesInEvictionChain(int num_tuples);
     int getNumTuplesInEvictionChain(); 
     #endif
+    
+    void setEntryToNewAddressForAllIndexes(const TableTuple *tuple, const void* address);
 
 protected:
     
@@ -286,7 +289,6 @@ protected:
     void insertIntoAllIndexes(TableTuple *tuple);
     void deleteFromAllIndexes(TableTuple *tuple);
     void updateFromAllIndexes(TableTuple &targetTuple, const TableTuple &sourceTuple);
-    void setEntryToNewAddressForAllIndexes(const TableTuple *tuple, const void* address); 
 
     bool tryInsertOnAllIndexes(TableTuple *tuple);
     bool tryUpdateOnAllIndexes(TableTuple &targetTuple, const TableTuple &sourceTuple);
