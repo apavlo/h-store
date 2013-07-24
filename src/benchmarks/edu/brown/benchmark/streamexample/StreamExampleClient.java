@@ -47,7 +47,7 @@ public class StreamExampleClient extends BenchmarkComponent {
         if(!hasRun)
         {
         	Client client = this.getClientHandle();
-        	boolean response = client.callProcedure(callback, "InsertIntoSelect");
+        	boolean response = client.callProcedure(callback, "GetAllData");
         	hasRun = true;
         	return response;
         }
