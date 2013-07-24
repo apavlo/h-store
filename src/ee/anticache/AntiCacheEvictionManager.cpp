@@ -137,7 +137,7 @@ bool AntiCacheEvictionManager::updateUnevictedTuple(PersistentTable* table, Tabl
     // update "next" pointer
     tuple->setNextTupleInChain(table->getOldestTupleID()); 
     
-#ifdef DOUBLE_LINKED_LIST
+#ifdef ANTICACHE_REVERSIBLE_LRU
     // update "previous" pointer
     TableTuple oldest_tuple(table->dataPtrForTuple(table->getOldestTupleID()), table->m_schema);
     oldest_tuple.setPreviousTupleInChain(current_tuple_id);
@@ -171,7 +171,7 @@ bool AntiCacheEvictionManager::updateTuple(PersistentTable* table, TableTuple* t
              return true;
         
         assert(table->getNumTuplesInEvictionChain() > 0);
-#ifdef DOUBLE_LINKED_LIST
+#ifdef ANTICACHE_REVERSIBLE_LRU
         removeTupleDoubleLinkedList(table, update_tuple_id);
 #else
         removeTupleSingleLinkedList(table, update_tuple_id); 
@@ -197,7 +197,7 @@ bool AntiCacheEvictionManager::updateTuple(PersistentTable* table, TableTuple* t
         // update "next" pointer
         newest_tuple.setNextTupleInChain(update_tuple_id);
         
-#ifdef DOUBLE_LINKED_LIST
+#ifdef ANTICACHE_REVERSIBLE_LRU
         // update "previous" pointer
         update_tuple.setPreviousTupleInChain(newest_tuple_id);
 #endif
@@ -214,7 +214,7 @@ bool AntiCacheEvictionManager::updateTuple(PersistentTable* table, TableTuple* t
     // update "next" pointer
     newest_tuple.setNextTupleInChain(update_tuple_id);
 
-#ifdef DOUBLE_LINKED_LIST
+#ifdef ANTICACHE_REVERSIBLE_LRU
     // update "previous" pointer
     update_tuple.setPreviousTupleInChain(newest_tuple_id);
 #endif
@@ -235,7 +235,7 @@ bool AntiCacheEvictionManager::removeTuple(PersistentTable* table, TableTuple* t
     int current_tuple_id = table->getTupleID(tuple->address());
     
     // the removeTuple() method called is dependent on whether it is a single or double linked list
-#ifdef DOUBLE_LINKED_LIST
+#ifdef ANTICACHE_REVERSIBLE_LRU
     return removeTupleDoubleLinkedList(table, current_tuple_id);
 #else
     return removeTupleSingleLinkedList(table, current_tuple_id);

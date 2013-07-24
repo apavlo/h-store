@@ -447,7 +447,11 @@ public final class HStoreConf {
         public int exec_periodic_interval;
         
         @ConfigProperty(
-            description="Enables tracking of what tuples each txn reads and writes down in the EE.",
+            description="Enables H-Store's ExecutionEngine to track of what tuples a transaction " +
+            		    "reads and writes at each partition. " +
+                        "This is currently only used for the OPTIMISTIC speculative execution" +
+                        "conflict checker. " +
+                        "See ${site.specexec_scheduler_checker}.",
             defaultBoolean=false,
             experimental=true
         )
