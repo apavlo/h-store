@@ -120,6 +120,7 @@ begin Table                   "A table (relation) in the database"
     Column* columns             "The set of columns in the table"
     Index* indexes              "The set of indexes on the columns in the table"
     Constraint* constraints     "The set of constraints on the table"
+    Trigger* triggers			"The set of triggers for this table"
     bool isreplicated           "Is the table replicated?"
     Column? partitioncolumn     "On which column is the table horizontally partitioned"
     int estimatedtuplecount     "A rough estimate of the number of tuples in the table; used for planning"
@@ -136,6 +137,7 @@ end
 begin Stream                   "A stream (relation) in the database"
     Column* columns             "The set of columns in the stream"
     Index* indexes              "The set of indexes on the columns in the stream"
+    Trigger* triggers			"The set of triggers for this stream"
     Column? partitioncolumn     "On which column is the stream horizontally partitioned"
 end
 begin StreamRef
@@ -260,4 +262,12 @@ begin ConflictSet               "A set of conflicts with another procedures"
     Procedure? procedure        "The other procedure that this conflict set is for"
     ConflictPair* readWriteConflicts  "ConflictPairs that the parent Procedure has a read-write conflict with the target procedure"
     ConflictPair* writeWriteConflicts "ConflictPairs that the parent Procedure has a write-write conflict with the target procedure"
+end
+
+begin Trigger					"Trigger objects on a stream, with a statement attached"
+	int id                      "Unique identifier for this Trigger. Allows for faster look-ups"
+	Stream? sourceStream		"Stream on which the trigger is placed."
+	int triggerType				"Insert / Update / Delete"
+	bool forEach				"Is this for each tuple, or each statement"
+	Statement? stmt				"What to execute when this trigger is activated"			
 end

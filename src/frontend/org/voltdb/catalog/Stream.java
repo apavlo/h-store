@@ -28,6 +28,7 @@ public class Stream extends CatalogType {
 
     CatalogMap<Column> m_columns;
     CatalogMap<Index> m_indexes;
+    CatalogMap<Trigger> m_triggers;
 
     void setBaseValues(Catalog catalog, CatalogType parent, String path, String name) {
         super.setBaseValues(catalog, parent, path, name);
@@ -35,6 +36,8 @@ public class Stream extends CatalogType {
         m_childCollections.put("columns", m_columns);
         m_indexes = new CatalogMap<Index>(catalog, this, path + "/" + "indexes", Index.class);
         m_childCollections.put("indexes", m_indexes);
+        m_triggers = new CatalogMap<Trigger>(catalog, this, path + "/" + "triggers", Trigger.class);
+        m_childCollections.put("triggers", m_triggers);
         m_fields.put("partitioncolumn", null);
     }
 
@@ -49,6 +52,11 @@ public class Stream extends CatalogType {
     /** GETTER: The set of indexes on the columns in the stream */
     public CatalogMap<Index> getIndexes() {
         return m_indexes;
+    }
+
+    /** GETTER: The set of triggers for this stream */
+    public CatalogMap<Trigger> getTriggers() {
+        return m_triggers;
     }
 
     /** GETTER: On which column is the stream horizontally partitioned */

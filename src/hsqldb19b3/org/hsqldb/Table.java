@@ -2621,11 +2621,8 @@ public class Table extends TableBase implements SchemaObject {
         StringBuilder sb = new StringBuilder();
 
         //check to see if the table is a stream
-        if(isStream)
-        	sb.append(indent).append("<stream");
         // append open table tag
-        else
-        	sb.append(indent).append("<table");
+        sb.append(indent).append("<table");
         // add table metadata
         sb.append(" name='").append(getName().name).append("'");
         sb.append(">\n");
@@ -2655,11 +2652,8 @@ public class Table extends TableBase implements SchemaObject {
         }
         sb.append(indent + "  ").append("</constraints>\n");
 
-        if(isStream)
-        	sb.append(indent).append("</stream>\n");
         // close table tag
-        else
-        	sb.append(indent).append("</table>\n");
+        sb.append(indent).append("</table>\n");
 
         return sb.toString();
     }
