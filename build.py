@@ -366,10 +366,10 @@ CTX.TESTS['storage'] = """
 # ANTI-CACHING
 ###############################################################################
 ENABLE_ANTICACHE = True
-DOUBLE_LINKED_LIST = True
+ANTICACHE_REVERSIBLE_LRU = True
 
-if DOUBLE_LINKED_LIST:
-    CTX.CPPFLAGS += " -DDOUBLE_LINKED_LIST"
+if ANTICACHE_REVERSIBLE_LRU:
+    CTX.CPPFLAGS += " -DANTICACHE_REVERSIBLE_LRU"
 
 if ENABLE_ANTICACHE:
     CTX.CPPFLAGS += " -DANTICACHE"

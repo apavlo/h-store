@@ -83,7 +83,7 @@ namespace voltdb {
  */
 
 #ifdef ANTICACHE
-    #ifdef DOUBLE_LINKED_LIST
+    #ifdef ANTICACHE_REVERSIBLE_LRU
         #define TUPLE_HEADER_SIZE 9
     #else
         #define TUPLE_HEADER_SIZE 5

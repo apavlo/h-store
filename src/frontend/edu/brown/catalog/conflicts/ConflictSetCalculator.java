@@ -306,7 +306,12 @@ public class ConflictSetCalculator {
                 // If both queries are INSERTs, then this is always a conflict since
                 // there might be a global constraint... 
                 if (type0 == QueryType.INSERT && type1 == QueryType.INSERT) {
-                    assert(intersectTables.size() == 1);
+                    // 2013-07-24
+                    // This fails for John's INSERT INTO...SELECT queries.
+                    // We need to decide whether we should have a new query type or not...
+//                    assert(intersectTables.size() == 1) :
+//                        String.format("There are %d intersection tables when we expected only 1: %s <-> %s",
+//                                      intersectTables.size(), stmt0.fullName(), stmt1.fullName());
                     alwaysConflicting1 = true;
                 }
                     
