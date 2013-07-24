@@ -23,9 +23,10 @@
 #include "table.h"
 #include "catalog.h"
 #include "index.h"
+#include "trigger.h"
 #include "column.h"
-#include "constraint.h"
 #include "materializedviewinfo.h"
+#include "constraint.h"
 #include "table.h"
 
 using namespace catalog;
@@ -33,12 +34,13 @@ using namespace std;
 
 Table::Table(Catalog *catalog, CatalogType *parent, const string &path, const string &name)
 : CatalogType(catalog, parent, path, name),
-  m_columns(catalog, this, path + "/" + "columns"), m_indexes(catalog, this, path + "/" + "indexes"), m_constraints(catalog, this, path + "/" + "constraints"), m_views(catalog, this, path + "/" + "views")
+  m_columns(catalog, this, path + "/" + "columns"), m_indexes(catalog, this, path + "/" + "indexes"), m_constraints(catalog, this, path + "/" + "constraints"), m_triggers(catalog, this, path + "/" + "triggers"), m_views(catalog, this, path + "/" + "views")
 {
     CatalogValue value;
     m_childCollections["columns"] = &m_columns;
     m_childCollections["indexes"] = &m_indexes;
     m_childCollections["constraints"] = &m_constraints;
+    m_childCollections["triggers"] = &m_triggers;
     m_fields["isreplicated"] = value;
     m_fields["partitioncolumn"] = value;
     m_fields["estimatedtuplecount"] = value;
@@ -70,6 +72,13 @@ Table::~Table() {
         constraint_iter++;
     }
     m_constraints.clear();
+
+    std::map<std::string, Trigger*>::const_iterator trigger_iter = m_triggers.begin();
+    while (trigger_iter != m_triggers.end()) {
+        delete trigger_iter->second;
+        trigger_iter++;
+    }
+    m_triggers.clear();
 
     std::map<std::string, MaterializedViewInfo*>::const_iterator materializedviewinfo_iter = m_views.begin();
     while (materializedviewinfo_iter != m_views.end()) {
@@ -109,6 +118,12 @@ CatalogType * Table::addChild(const std::string &collectionName, const std::stri
             return NULL;
         return m_constraints.add(childName);
     }
+    if (collectionName.compare("triggers") == 0) {
+        CatalogType *exists = m_triggers.get(childName);
+        if (exists)
+            return NULL;
+        return m_triggers.add(childName);
+    }
     if (collectionName.compare("views") == 0) {
         CatalogType *exists = m_views.get(childName);
         if (exists)
@@ -125,6 +140,8 @@ CatalogType * Table::getChild(const std::string &collectionName, const std::stri
         return m_indexes.get(childName);
     if (collectionName.compare("constraints") == 0)
         return m_constraints.get(childName);
+    if (collectionName.compare("triggers") == 0)
+        return m_triggers.get(childName);
     if (collectionName.compare("views") == 0)
         return m_views.get(childName);
     return NULL;
@@ -140,6 +157,9 @@ bool Table::removeChild(const std::string &collectionName, const std::string &ch
     }
     if (collectionName.compare("constraints") == 0) {
         return m_constraints.remove(childName);
+    }
+    if (collectionName.compare("triggers") == 0) {
+        return m_triggers.remove(childName);
     }
     if (collectionName.compare("views") == 0) {
         return m_views.remove(childName);
@@ -157,6 +177,10 @@ const CatalogMap<Index> & Table::indexes() const {
 
 const CatalogMap<Constraint> & Table::constraints() const {
     return m_constraints;
+}
+
+const CatalogMap<Trigger> & Table::triggers() const {
+    return m_triggers;
 }
 
 bool Table::isreplicated() const {

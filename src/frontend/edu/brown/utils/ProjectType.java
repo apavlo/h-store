@@ -50,6 +50,7 @@ public enum ProjectType {
     VOTER("Voter", "edu.brown.benchmark.voter"),
     SMALLBANK("SmallBank", "edu.brown.benchmark.smallbank"),
     EXAMPLE("Example", "edu.brown.benchmark.example"),
+    STREAMEXAMPLE("StreamExample", "edu.brown.benchmark.streamexample"),
     TEST("Test", null),
     ;
 

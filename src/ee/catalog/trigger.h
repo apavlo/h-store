@@ -19,8 +19,8 @@
             DO NOT MODIFY THIS SOURCE
             ALL CHANGES MUST BE MADE IN THE CATALOG GENERATOR */
 
-#ifndef CATALOG_STREAM_H_
-#define CATALOG_STREAM_H_
+#ifndef CATALOG_TRIGGER_H_
+#define CATALOG_TRIGGER_H_
 
 #include <string>
 #include "catalogtype.h"
@@ -28,22 +28,22 @@
 
 namespace catalog {
 
-class Column;
-class Index;
-class Trigger;
+class Stream;
+class Statement;
 /**
- * A stream (relation) in the database
+ * Trigger objects on a stream, with a statement attached
  */
-class Stream : public CatalogType {
+class Trigger : public CatalogType {
     friend class Catalog;
-    friend class CatalogMap<Stream>;
+    friend class CatalogMap<Trigger>;
 
 protected:
-    Stream(Catalog * catalog, CatalogType * parent, const std::string &path, const std::string &name);
-    CatalogMap<Column> m_columns;
-    CatalogMap<Index> m_indexes;
-    CatalogMap<Trigger> m_triggers;
-    CatalogType* m_partitioncolumn;
+    Trigger(Catalog * catalog, CatalogType * parent, const std::string &path, const std::string &name);
+    int32_t m_id;
+    CatalogType* m_sourceStream;
+    int32_t m_triggerType;
+    bool m_forEach;
+    CatalogType* m_stmt;
 
     virtual void update();
 
@@ -52,18 +52,20 @@ protected:
     virtual bool removeChild(const std::string &collectionName, const std::string &childName);
 
 public:
-    ~Stream();
+    ~Trigger();
 
-    /** GETTER: The set of columns in the stream */
-    const CatalogMap<Column> & columns() const;
-    /** GETTER: The set of indexes on the columns in the stream */
-    const CatalogMap<Index> & indexes() const;
-    /** GETTER: The set of triggers for this stream */
-    const CatalogMap<Trigger> & triggers() const;
-    /** GETTER: On which column is the stream horizontally partitioned */
-    const Column * partitioncolumn() const;
+    /** GETTER: Unique identifier for this Trigger. Allows for faster look-ups */
+    int32_t id() const;
+    /** GETTER: Stream on which the trigger is placed. */
+    const Stream * sourceStream() const;
+    /** GETTER: Insert / Update / Delete */
+    int32_t triggerType() const;
+    /** GETTER: Is this for each tuple, or each statement */
+    bool forEach() const;
+    /** GETTER: What to execute when this trigger is activated"			 */
+    const Statement * stmt() const;
 };
 
 } // namespace catalog
 
-#endif //  CATALOG_STREAM_H_
+#endif //  CATALOG_TRIGGER_H_

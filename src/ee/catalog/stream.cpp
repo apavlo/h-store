@@ -24,17 +24,19 @@
 #include "catalog.h"
 #include "index.h"
 #include "column.h"
+#include "trigger.h"
 
 using namespace catalog;
 using namespace std;
 
 Stream::Stream(Catalog *catalog, CatalogType *parent, const string &path, const string &name)
 : CatalogType(catalog, parent, path, name),
-  m_columns(catalog, this, path + "/" + "columns"), m_indexes(catalog, this, path + "/" + "indexes")
+  m_columns(catalog, this, path + "/" + "columns"), m_indexes(catalog, this, path + "/" + "indexes"), m_triggers(catalog, this, path + "/" + "triggers")
 {
     CatalogValue value;
     m_childCollections["columns"] = &m_columns;
     m_childCollections["indexes"] = &m_indexes;
+    m_childCollections["triggers"] = &m_triggers;
     m_fields["partitioncolumn"] = value;
 }
 
@@ -52,6 +54,13 @@ Stream::~Stream() {
         index_iter++;
     }
     m_indexes.clear();
+
+    std::map<std::string, Trigger*>::const_iterator trigger_iter = m_triggers.begin();
+    while (trigger_iter != m_triggers.end()) {
+        delete trigger_iter->second;
+        trigger_iter++;
+    }
+    m_triggers.clear();
 
 }
 
@@ -72,6 +81,12 @@ CatalogType * Stream::addChild(const std::string &collectionName, const std::str
             return NULL;
         return m_indexes.add(childName);
     }
+    if (collectionName.compare("triggers") == 0) {
+        CatalogType *exists = m_triggers.get(childName);
+        if (exists)
+            return NULL;
+        return m_triggers.add(childName);
+    }
     return NULL;
 }
 
@@ -80,6 +95,8 @@ CatalogType * Stream::getChild(const std::string &collectionName, const std::str
         return m_columns.get(childName);
     if (collectionName.compare("indexes") == 0)
         return m_indexes.get(childName);
+    if (collectionName.compare("triggers") == 0)
+        return m_triggers.get(childName);
     return NULL;
 }
 
@@ -91,6 +108,9 @@ bool Stream::removeChild(const std::string &collectionName, const std::string &c
     if (collectionName.compare("indexes") == 0) {
         return m_indexes.remove(childName);
     }
+    if (collectionName.compare("triggers") == 0) {
+        return m_triggers.remove(childName);
+    }
     return false;
 }
 
@@ -100,6 +120,10 @@ const CatalogMap<Column> & Stream::columns() const {
 
 const CatalogMap<Index> & Stream::indexes() const {
     return m_indexes;
+}
+
+const CatalogMap<Trigger> & Stream::triggers() const {
+    return m_triggers;
 }
 
 const Column * Stream::partitioncolumn() const {

@@ -45,8 +45,10 @@ import org.voltdb.catalog.ConstraintRef;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Index;
 import org.voltdb.catalog.MaterializedViewInfo;
+import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.Stream;
 import org.voltdb.catalog.Table;
+import org.voltdb.catalog.Trigger;
 import org.voltdb.compiler.VoltCompiler.VoltCompilerException;
 import org.voltdb.expressions.AbstractExpression;
 import org.voltdb.expressions.TupleValueExpression;
@@ -316,7 +318,7 @@ public class DDLCompiler {
                 }
             }
         }
-
+        
         /*
          * Validate that the total size
          */
@@ -395,18 +397,11 @@ public class DDLCompiler {
                         addIndexToCatalog(stream.getIndexes(), indexNode);
                 }
             }
-            /**
-             * FIXME: Streams should not need constraints, but if they do,
-             * this is where to add them.
-            if (subNode.getNodeName().equals("constraints")) {
-                NodeList constraintNodes = subNode.getChildNodes();
-                for (int j = 0; j < constraintNodes.getLength(); j++) {
-                    Node constraintNode = constraintNodes.item(j);
-                    if (constraintNode.getNodeName().equals("constraint"))
-                        addConstraintToCatalog(stream, constraintNode);
-                }
+          //FIXME: hardcoding table names, very bad!
+            if(name.equals("STREAM1") || name.equals("STREAM2"))
+            {
+            	addTriggerToCatalog(stream, stream.getTriggers(), name, node); //currently sends null for the trigger map
             }
-            */
         }
 
         /*
@@ -430,6 +425,42 @@ public class DDLCompiler {
             throw m_compiler.new VoltCompilerException("Table name " + name + " has a maximum row size of " + maxRowSize +
                     " but the maximum supported row size is " + MAX_ROW_SIZE);
         }
+    }
+    
+    /**
+     * Add a trigger to the catalog
+     * FIXME: this is hacked to use hard-coded stream names
+     * @param catalog
+     * @param db
+     * @param node
+     * @throws VoltCompilerException
+     */
+    void addTriggerToCatalog(Stream parent, CatalogMap<Trigger> triggers, String sourceStream, Node node) throws VoltCompilerException
+    {
+    	int type = 1; //insert
+		boolean forEach = false;
+    	//if(sourceStream.equals("STREAM1"))
+    	//{
+    		String name = "TRIGGER1";
+    		String stmt = "INSERT INTO TABLE1 SELECT * FROM STREAM1 WHERE TICKER = 'MSFT'";
+    		int id = 1;
+    	//}
+    	/**
+    	else if(sourceStream.equals("STREAM2"))
+    	{
+    		String name = "TRIGGER2";
+    		String stmt = "INSERT INTO STREAM3 SELECT * FROM STREAM1 WHERE TICKER = 'MSFT'";
+    		int id = 1;
+    	}*/
+    	Trigger trigger = triggers.add(name);
+		trigger.setId(id);
+		trigger.setForeach(forEach);
+		trigger.setSourcestream(parent);
+		Statement s = new Statement();
+		s.setId(1);
+		s.setSqltext(stmt);
+		s.setReadonly(true);
+		trigger.setStmt(s);
     }
 
     void addColumnToCatalog(CatalogType parent, CatalogMap<Column> columns, Node node, int index) throws VoltCompilerException {
@@ -645,6 +676,8 @@ public class DDLCompiler {
         }
         return;
     }
+    
+    
 
     /**
      * Add materialized view info to the catalog for the tables that are
