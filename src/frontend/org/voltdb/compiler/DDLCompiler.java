@@ -372,7 +372,7 @@ public class DDLCompiler {
     	Trigger trigger = triggers.add(name);
 		trigger.setId(id);
 		trigger.setForeach(forEach);
-		trigger.setSourcestream(parent);
+		trigger.setSourcetable(parent);
 		Statement s = new Statement();
 		s.setId(1);
 		s.setSqltext(stmt);
