@@ -28,10 +28,10 @@
 
 namespace catalog {
 
-class Stream;
+class Table;
 class Statement;
 /**
- * Trigger objects on a stream, with a statement attached
+ * Trigger objects on a table, with a statement attached
  */
 class Trigger : public CatalogType {
     friend class Catalog;
@@ -40,7 +40,7 @@ class Trigger : public CatalogType {
 protected:
     Trigger(Catalog * catalog, CatalogType * parent, const std::string &path, const std::string &name);
     int32_t m_id;
-    CatalogType* m_sourceStream;
+    CatalogType* m_sourceTable;
     int32_t m_triggerType;
     bool m_forEach;
     CatalogType* m_stmt;
@@ -56,8 +56,8 @@ public:
 
     /** GETTER: Unique identifier for this Trigger. Allows for faster look-ups */
     int32_t id() const;
-    /** GETTER: Stream on which the trigger is placed. */
-    const Stream * sourceStream() const;
+    /** GETTER: Table on which the trigger is placed. */
+    const Table * sourceTable() const;
     /** GETTER: Insert / Update / Delete */
     int32_t triggerType() const;
     /** GETTER: Is this for each tuple, or each statement */

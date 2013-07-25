@@ -31,7 +31,6 @@ public class Database extends CatalogType {
     CatalogMap<User> m_users;
     CatalogMap<Group> m_groups;
     CatalogMap<Table> m_tables;
-    CatalogMap<Stream> m_streams;
     CatalogMap<Program> m_programs;
     CatalogMap<Procedure> m_procedures;
     CatalogMap<Connector> m_connectors;
@@ -47,8 +46,6 @@ public class Database extends CatalogType {
         m_childCollections.put("groups", m_groups);
         m_tables = new CatalogMap<Table>(catalog, this, path + "/" + "tables", Table.class);
         m_childCollections.put("tables", m_tables);
-        m_streams = new CatalogMap<Stream>(catalog, this, path + "/" + "streams", Stream.class);
-        m_childCollections.put("streams", m_streams);
         m_programs = new CatalogMap<Program>(catalog, this, path + "/" + "programs", Program.class);
         m_childCollections.put("programs", m_programs);
         m_procedures = new CatalogMap<Procedure>(catalog, this, path + "/" + "procedures", Procedure.class);
@@ -87,11 +84,6 @@ public class Database extends CatalogType {
     /** GETTER: The set of Tables for the database */
     public CatalogMap<Table> getTables() {
         return m_tables;
-    }
-
-    /** GETTER: The set of Streams for the database */
-    public CatalogMap<Stream> getStreams() {
-        return m_streams;
     }
 
     /** GETTER: The set of programs allowed to access this database */

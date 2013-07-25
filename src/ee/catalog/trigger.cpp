@@ -23,7 +23,7 @@
 #include "trigger.h"
 #include "catalog.h"
 #include "statement.h"
-#include "stream.h"
+#include "table.h"
 
 using namespace catalog;
 using namespace std;
@@ -33,7 +33,7 @@ Trigger::Trigger(Catalog *catalog, CatalogType *parent, const string &path, cons
 {
     CatalogValue value;
     m_fields["id"] = value;
-    m_fields["sourceStream"] = value;
+    m_fields["sourceTable"] = value;
     m_fields["triggerType"] = value;
     m_fields["forEach"] = value;
     m_fields["stmt"] = value;
@@ -44,7 +44,7 @@ Trigger::~Trigger() {
 
 void Trigger::update() {
     m_id = m_fields["id"].intValue;
-    m_sourceStream = m_fields["sourceStream"].typeValue;
+    m_sourceTable = m_fields["sourceTable"].typeValue;
     m_triggerType = m_fields["triggerType"].intValue;
     m_forEach = m_fields["forEach"].intValue;
     m_stmt = m_fields["stmt"].typeValue;
@@ -67,8 +67,8 @@ int32_t Trigger::id() const {
     return m_id;
 }
 
-const Stream * Trigger::sourceStream() const {
-    return dynamic_cast<Stream*>(m_sourceStream);
+const Table * Trigger::sourceTable() const {
+    return dynamic_cast<Table*>(m_sourceTable);
 }
 
 int32_t Trigger::triggerType() const {

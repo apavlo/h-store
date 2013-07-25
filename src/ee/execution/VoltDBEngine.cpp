@@ -72,7 +72,6 @@
 #include "catalog/partition.h"
 #include "catalog/database.h"
 #include "catalog/table.h"
-#include "catalog/stream.h"
 #include "catalog/trigger.h"
 #include "catalog/index.h"
 #include "catalog/column.h"
@@ -835,17 +834,17 @@ bool VoltDBEngine::rebuildPlanFragmentCollections() {
         }
     }
     //MEEHAN: Addition for handling stream triggers
-	std::map<std::string, catalog::Stream*>::const_iterator stream_iterator;
+	std::map<std::string, catalog::Table*>::const_iterator table_iterator;
 	std::map<std::string, catalog::Trigger*>::const_iterator trig_iterator;
 	//loop through tables
-	for (stream_iterator = m_database->streams().begin();
-			stream_iterator != m_database->streams().end(); stream_iterator++) {
-		const catalog::Stream *catalog_stream = stream_iterator->second;
-		VOLT_TRACE("Building Trigger PlanFragment Collections for %s", stream_iterator->name().c_str());
+	for (table_iterator = m_database->tables().begin();
+			table_iterator != m_database->tables().end(); table_iterator++) {
+		const catalog::Table *catalog_table = table_iterator->second;
+		VOLT_TRACE("Building Trigger PlanFragment Collections for %s", table_iterator->name().c_str());
 
 		//loop through triggers
-		for(trig_iterator = catalog_stream->triggers().begin();
-				trig_iterator != catalog_stream->triggers().end(); trig_iterator++) {
+		for(trig_iterator = table_iterator->triggers().begin();
+				trig_iterator != table_iterator->triggers().end(); trig_iterator++) {
 
 			const catalog::Statement *catalogStmt = trig_iterator->second->stmt();
 			VOLT_DEBUG("Initialize Statement: %s : %s", catalogStmt->name().c_str(),

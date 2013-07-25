@@ -22,7 +22,7 @@
 package org.voltdb.catalog;
 
 /**
- * Trigger objects on a stream, with a statement attached
+ * Trigger objects on a table, with a statement attached
  */
 public class Trigger extends CatalogType {
 
@@ -33,7 +33,7 @@ public class Trigger extends CatalogType {
     void setBaseValues(Catalog catalog, CatalogType parent, String path, String name) {
         super.setBaseValues(catalog, parent, path, name);
         m_fields.put("id", m_id);
-        m_fields.put("sourceStream", null);
+        m_fields.put("sourceTable", null);
         m_fields.put("triggerType", m_triggerType);
         m_fields.put("forEach", m_forEach);
         m_fields.put("stmt", null);
@@ -50,17 +50,17 @@ public class Trigger extends CatalogType {
         return m_id;
     }
 
-    /** GETTER: Stream on which the trigger is placed. */
-    public Stream getSourcestream() {
-        Object o = getField("sourceStream");
+    /** GETTER: Table on which the trigger is placed. */
+    public Table getSourcetable() {
+        Object o = getField("sourceTable");
         if (o instanceof UnresolvedInfo) {
             UnresolvedInfo ui = (UnresolvedInfo) o;
-            Stream retval = (Stream) m_catalog.getItemForRef(ui.path);
+            Table retval = (Table) m_catalog.getItemForRef(ui.path);
             assert(retval != null);
-            m_fields.put("sourceStream", retval);
+            m_fields.put("sourceTable", retval);
             return retval;
         }
-        return (Stream) o;
+        return (Table) o;
     }
 
     /** GETTER: Insert / Update / Delete */
@@ -91,9 +91,9 @@ public class Trigger extends CatalogType {
         m_id = value; m_fields.put("id", value);
     }
 
-    /** SETTER: Stream on which the trigger is placed. */
-    public void setSourcestream(Stream value) {
-        m_fields.put("sourceStream", value);
+    /** SETTER: Table on which the trigger is placed. */
+    public void setSourcetable(Table value) {
+        m_fields.put("sourceTable", value);
     }
 
     /** SETTER: Insert / Update / Delete */
