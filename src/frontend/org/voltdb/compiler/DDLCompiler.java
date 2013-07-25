@@ -459,7 +459,7 @@ public class DDLCompiler {
 		Statement s = new Statement();
 		s.setId(1);
 		s.setSqltext(stmt);
-		s.setReadonly(true);
+		s.setReadonly(false);
 		trigger.setStmt(s);
     }
 

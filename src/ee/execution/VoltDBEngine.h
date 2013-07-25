@@ -181,6 +181,8 @@ class __attribute__((visibility("default"))) VoltDBEngine {
         bool updateCatalog(const std::string &catalogPayload, int catalogVersion);
         bool processCatalogAdditions(bool addAll);
         bool processCatalogDeletes();
+        bool rebuildPlanFragment(catalog::Statement const* catalogStmt);
+        bool rebuildMultipartitionPlanFragment(catalog::Statement const* catalogStmt);
         bool rebuildPlanFragmentCollections();
         bool rebuildTableCollections();
 

@@ -72,6 +72,8 @@
 #include "catalog/partition.h"
 #include "catalog/database.h"
 #include "catalog/table.h"
+#include "catalog/stream.h"
+#include "catalog/trigger.h"
 #include "catalog/index.h"
 #include "catalog/column.h"
 #include "catalog/columnref.h"
@@ -762,6 +764,40 @@ bool VoltDBEngine::rebuildTableCollections() {
     return true;
 }
 
+bool VoltDBEngine::rebuildPlanFragment(catalog::Statement const* catalogStmt) {
+	map<string, catalog::PlanFragment*>::const_iterator pf_iterator;
+	for (pf_iterator = catalogStmt->fragments().begin();
+			pf_iterator!= catalogStmt->fragments().end(); pf_iterator++) {
+		int64_t fragId = uniqueIdForFragment(pf_iterator->second);
+		string planNodeTree = pf_iterator->second->plannodetree();
+		if (!initPlanFragment(fragId, planNodeTree)) {
+			VOLT_ERROR("Failed to initialize plan fragment '%s' from"
+					   " catalogs\nFailed SQL Statement: %s",
+					   pf_iterator->second->name().c_str(),
+					   catalogStmt->sqltext().c_str());
+			return false;
+		}
+	}
+	return true;
+}
+
+bool VoltDBEngine::rebuildMultipartitionPlanFragment(catalog::Statement const* catalogStmt) {
+	map<string, catalog::PlanFragment*>::const_iterator pf_iterator;
+	for (pf_iterator = catalogStmt->ms_fragments().begin();
+			pf_iterator!= catalogStmt->ms_fragments().end(); pf_iterator++) {
+		int64_t fragId = uniqueIdForFragment(pf_iterator->second);
+		string planNodeTree = pf_iterator->second->plannodetree();
+		if (!initPlanFragment(fragId, planNodeTree)) {
+			VOLT_ERROR("Failed to initialize multi-partition plan fragment '%s' from"
+					   " catalogs\nFailed SQL Statement: %s",
+					   pf_iterator->second->name().c_str(),
+					   catalogStmt->sqltext().c_str());
+			return false;
+		}
+	}
+	return true;
+}
+
 /*
  * Delete and rebuild all plan fragments.
  */
@@ -787,39 +823,42 @@ bool VoltDBEngine::rebuildPlanFragmentCollections() {
             VOLT_DEBUG("Initialize Statement: %s : %s", catalogStmt->name().c_str(),
                        catalogStmt->sqltext().c_str());
 
-            map<string, catalog::PlanFragment*>::const_iterator pf_iterator;
-            for (pf_iterator = catalogStmt->fragments().begin();
-                 pf_iterator!= catalogStmt->fragments().end(); pf_iterator++) {
-                int64_t fragId = uniqueIdForFragment(pf_iterator->second);
-                string planNodeTree = pf_iterator->second->plannodetree();
-                if (!initPlanFragment(fragId, planNodeTree)) {
-                    VOLT_ERROR("Failed to initialize plan fragment '%s' from"
-                               " catalogs\nFailed SQL Statement: %s",
-                               pf_iterator->second->name().c_str(),
-                               catalogStmt->sqltext().c_str());
-                    return false;
-                }
+            if(!rebuildPlanFragment(catalogStmt)) {
+            	return false;
             }
-
             // PAVLO: Multi-partition Plan Fragments
-            std::map<std::string, catalog::PlanFragment*>::const_iterator pf_iterator2;
-            for (pf_iterator2 = catalogStmt->ms_fragments().begin();
-                 pf_iterator2 != catalogStmt->ms_fragments().end(); pf_iterator2++) {
-                int64_t fragId = uniqueIdForFragment(pf_iterator2->second);
-//                 fprintf(stderr, "Initializing Multi-Partition: %jd\n", (intmax_t)fragId);
-                std::string planNodeTree = pf_iterator2->second->plannodetree();
-                if (!initPlanFragment(fragId, planNodeTree)) {
-                    VOLT_ERROR("Failed to initialize multi-partition plan fragment '%s' from"
-                               " catalogs\nFailed SQL Statement: %s",
-                               pf_iterator2->second->name().c_str(),
-                               catalogStmt->sqltext().c_str());
-                    return false;
-                }
+            if(!rebuildMultipartitionPlanFragment(catalogStmt)){
+            	return false;
             }
             // PAVLO
 
         }
     }
+    //MEEHAN: Addition for handling stream triggers
+	std::map<std::string, catalog::Stream*>::const_iterator stream_iterator;
+	std::map<std::string, catalog::Trigger*>::const_iterator trig_iterator;
+	//loop through tables
+	for (stream_iterator = m_database->streams().begin();
+			stream_iterator != m_database->streams().end(); stream_iterator++) {
+		const catalog::Stream *catalog_stream = stream_iterator->second;
+		VOLT_TRACE("Building Trigger PlanFragment Collections for %s", stream_iterator->name().c_str());
+
+		//loop through triggers
+		for(trig_iterator = catalog_stream->triggers().begin();
+				trig_iterator != catalog_stream->triggers().end(); trig_iterator++) {
+
+			const catalog::Statement *catalogStmt = trig_iterator->second->stmt();
+			VOLT_DEBUG("Initialize Statement: %s : %s", catalogStmt->name().c_str(),
+			                       catalogStmt->sqltext().c_str());
+
+			if(!rebuildPlanFragment(catalogStmt)) {
+			    return false;
+			}
+			if(!rebuildMultipartitionPlanFragment(catalogStmt)){
+				return false;
+			}
+		}
+	}
 
     return true;
 }
