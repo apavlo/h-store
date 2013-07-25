@@ -40,7 +40,6 @@ import org.voltdb.catalog.ProcParameter;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Statement;
-import org.voltdb.catalog.Stream;
 import org.voltdb.catalog.StmtParameter;
 import org.voltdb.catalog.Table;
 import org.voltdb.catalog.TableRef;
@@ -1038,20 +1037,6 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
                 tables.add(catalog_tbl);
         }
         return (tables);
-    }
-    
-    /**
-     * Return all of the user-defined data streams for the database
-     */
-    public static Collection<Stream> getDataStreams(Database catalog_db) {
-        List<Stream> streams = new ArrayList<Stream>();
-        for (Stream catalog_tbl : catalog_db.getStreams()) {
-            //if (catalog_tbl.getSystable() == false &&
-            //    catalog_tbl.getMapreduce() == false &&
-            //    catalog_tbl.getMaterializer() == null)
-                streams.add(catalog_tbl);
-        }
-        return (streams);
     }
     
     /**

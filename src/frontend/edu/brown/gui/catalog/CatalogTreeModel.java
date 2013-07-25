@@ -32,7 +32,6 @@ import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.StmtParameter;
-import org.voltdb.catalog.Stream;
 import org.voltdb.catalog.Table;
 import org.voltdb.plannodes.AbstractPlanNode;
 import org.voltdb.types.ConflictType;
@@ -56,7 +55,6 @@ public class CatalogTreeModel extends DefaultTreeModel {
 
     protected DefaultMutableTreeNode procedures_node;
     protected DefaultMutableTreeNode tables_node;
-    protected DefaultMutableTreeNode streams_node;
     protected ProcedureConflictGraphNode conflictgraph_node;
     
     protected final Set<Procedure> conflictGraphExcludes = new HashSet<Procedure>(); 
@@ -117,13 +115,6 @@ public class CatalogTreeModel extends DefaultTreeModel {
      */
     public DefaultMutableTreeNode getTablesNode() {
         return tables_node;
-    }
-    
-    /**
-     * @return the streams_node
-     */
-    public DefaultMutableTreeNode getStreamsNode() {
-        return streams_node;
     }
 
     /**
@@ -267,51 +258,6 @@ public class CatalogTreeModel extends DefaultTreeModel {
                     }
                 } // FOR (tables)
                 ///////////////////////////
-                
-                //streams
-                List<Stream> streams = new ArrayList<Stream>();
-                streams.addAll(CatalogUtil.getDataStreams(database_cat));
-                
-                for (Stream catalog_str : streams) {  
-                    WrapperNode wrapper = null;
-                    wrapper = new WrapperNode(catalog_str);
-                    /**
-                    if (catalog_str.getMaterializer() != null) {
-                        wrapper = new WrapperNode(catalog_str, "VIEW:"+catalog_str.getName());
-                    } else {
-                        wrapper = new WrapperNode(catalog_str);
-                    }
-                    */
-                    DefaultMutableTreeNode stream_node = new DefaultMutableTreeNode(wrapper);
-                    streams_node.add(stream_node);
-                    buildSearchIndex(catalog_str, stream_node);
-                    
-                    // Columns
-                    DefaultMutableTreeNode columns_node = new CatalogMapTreeNode(Column.class, "Columns", catalog_str.getColumns());
-                    stream_node.add(columns_node);
-                    for (Column catalog_col : CatalogUtil.getSortedCatalogItems(catalog_str.getColumns(), "index")) {
-                        DefaultMutableTreeNode column_node = new DefaultMutableTreeNode(new WrapperNode(catalog_col) {
-                            @Override
-                            public String toString() {
-                                Column column_cat = (Column)this.getCatalogType();
-                                String type = VoltType.get((byte)column_cat.getType()).toSQLString();
-                                return (super.toString() + " (" + type + ")");
-                            }
-                        });
-                        columns_node.add(column_node);
-                        buildSearchIndex(catalog_col, column_node);
-                    } // FOR (columns)
-                    // Indexes
-                    if (!catalog_str.getIndexes().isEmpty()) {
-                        DefaultMutableTreeNode indexes_node = new CatalogMapTreeNode(Index.class, "Indexes", catalog_str.getIndexes());
-                        stream_node.add(indexes_node);
-                        for (Index catalog_idx : catalog_str.getIndexes()) {
-                            DefaultMutableTreeNode index_node = new DefaultMutableTreeNode(new WrapperNode(catalog_idx));
-                            indexes_node.add(index_node);
-                            buildSearchIndex(catalog_idx, index_node);
-                        } // FOR (indexes)
-                    }
-                } // FOR (streams)
                 
             ///////////////////////////////
                 // System Stored Procedures

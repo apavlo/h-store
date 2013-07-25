@@ -46,7 +46,6 @@ import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Index;
 import org.voltdb.catalog.MaterializedViewInfo;
 import org.voltdb.catalog.Statement;
-import org.voltdb.catalog.Stream;
 import org.voltdb.catalog.Table;
 import org.voltdb.catalog.Trigger;
 import org.voltdb.compiler.VoltCompiler.VoltCompilerException;
@@ -85,7 +84,6 @@ public class DDLCompiler {
     HashMap<String, Column> columnMap = new HashMap<String, Column>();
     HashMap<String, Index> indexMap = new HashMap<String, Index>();
     HashMap<Table, String> matViewMap = new HashMap<Table, String>();
-    HashMap<Stream, String> matStreamMap = new HashMap<Stream, String>();
 
     private class DDLStatement {
         String statement;
@@ -246,8 +244,6 @@ public class DDLCompiler {
             Node node = tableNodes.item(i);
             if (node.getNodeName().equals("table"))
                 addTableToCatalog(catalog, db, node);
-            else if (node.getNodeName().equals("stream"))
-            	addStreamToCatalog(catalog, db, node);
         }
 
         processMaterializedViews(db);
@@ -319,91 +315,12 @@ public class DDLCompiler {
             }
         }
         
-        /*
-         * Validate that the total size
-         */
-        int maxRowSize = 0;
-        for (Column c : columnMap.values()) {
-            VoltType t = VoltType.get((byte)c.getType());
-            if (t == VoltType.STRING) {
-                if (c.getSize() > 1024 * 1024) {
-                    throw m_compiler.new VoltCompilerException("Table name " + name + " column " + c.getName() +
-                            " has a maximum size of " + c.getSize() + " bytes" +
-                            " but the maximum supported size is " + VoltType.MAX_VALUE_LENGTH_STR);
-                }
-                maxRowSize += 4 + c.getSize();
-            } else {
-                maxRowSize += t.getLengthInBytesForFixedTypes();
-            }
+        //FIXME: hardcoding table names, very bad!
+        if(name.equals("STREAM1") || name.equals("STREAM2"))
+        {
+        	addTriggerToCatalog(table, table.getTriggers(), name, node); //currently sends null for the trigger map
         }
-        if (maxRowSize > MAX_ROW_SIZE) {
-            throw m_compiler.new VoltCompilerException("Table name " + name + " has a maximum row size of " + maxRowSize +
-                    " but the maximum supported row size is " + MAX_ROW_SIZE);
-        }
-    }
-    
-    void addStreamToCatalog(Catalog catalog, Database db, Node node) throws VoltCompilerException {
-        assert node.getNodeName().equals("stream");
-
-        // clear these maps, as they're table specific
-        columnMap.clear();
-        indexMap.clear();
-
-        NamedNodeMap attrs = node.getAttributes();
-        String name = attrs.getNamedItem("name").getNodeValue();
-
-        Stream stream = db.getStreams().add(name);
-        //stream.setEvictable(false);
-
-        // handle the case where this is a materialized view
-        Node queryAttr = attrs.getNamedItem("query");
-        if (queryAttr != null) {
-            String query = queryAttr.getNodeValue();
-            assert(query.length() > 0);
-            matStreamMap.put(stream, query);
-        }
-
-        // all tables start replicated
-        // if a partition is found in the project file later,
-        //  then this is reversed
-        //stream.setIsreplicated(true);
-
-        NodeList childNodes = node.getChildNodes();
-
-        for (int i = 0; i < childNodes.getLength(); i++) {
-            Node subNode = childNodes.item(i);
-
-            if (subNode.getNodeName().equals("columns")) {
-                NodeList columnNodes = subNode.getChildNodes();
-                int colIndex = 0;
-                for (int j = 0; j < columnNodes.getLength(); j++) {
-                    Node columnNode = columnNodes.item(j);
-                    if (columnNode.getNodeName().equals("column"))
-                        addColumnToCatalog(stream, stream.getColumns(), columnNode, colIndex++);
-                }
-                // limit the total number of columns in a table
-                if (colIndex > MAX_COLUMNS) {
-                    String msg = "Table " + name + " has " +
-                        colIndex + " columns (max is " + MAX_COLUMNS + ")";
-                    throw m_compiler.new VoltCompilerException(msg);
-                }
-            }
-
-            if (subNode.getNodeName().equals("indexes")) {
-                NodeList indexNodes = subNode.getChildNodes();
-                for (int j = 0; j < indexNodes.getLength(); j++) {
-                    Node indexNode = indexNodes.item(j);
-                    if (indexNode.getNodeName().equals("index"))
-                        addIndexToCatalog(stream.getIndexes(), indexNode);
-                }
-            }
-          //FIXME: hardcoding table names, very bad!
-            if(name.equals("STREAM1") || name.equals("STREAM2"))
-            {
-            	addTriggerToCatalog(stream, stream.getTriggers(), name, node); //currently sends null for the trigger map
-            }
-        }
-
+        
         /*
          * Validate that the total size
          */
@@ -435,18 +352,18 @@ public class DDLCompiler {
      * @param node
      * @throws VoltCompilerException
      */
-    void addTriggerToCatalog(Stream parent, CatalogMap<Trigger> triggers, String sourceStream, Node node) throws VoltCompilerException
+    void addTriggerToCatalog(Table parent, CatalogMap<Trigger> triggers, String sourceTable, Node node) throws VoltCompilerException
     {
     	int type = 1; //insert
 		boolean forEach = false;
-    	//if(sourceStream.equals("STREAM1"))
+    	//if(sourceTable.equals("STREAM1"))
     	//{
     		String name = "TRIGGER1";
     		String stmt = "INSERT INTO TABLE1 SELECT * FROM STREAM1 WHERE TICKER = 'MSFT'";
     		int id = 1;
     	//}
     	/**
-    	else if(sourceStream.equals("STREAM2"))
+    	else if(sourceTable.equals("STREAM2"))
     	{
     		String name = "TRIGGER2";
     		String stmt = "INSERT INTO STREAM3 SELECT * FROM STREAM1 WHERE TICKER = 'MSFT'";

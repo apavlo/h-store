@@ -170,7 +170,7 @@ public class PartitionEstimator {
             assert(param instanceof StmtParameter || param instanceof ConstantValue);
             List<Pair<ExpressionType, CatalogType>> params = this.predicates.get(key);
             if (params == null) {
-                params = new ArrayList<>();
+                params = new ArrayList<Pair<ExpressionType, CatalogType>>();
                 this.predicates.put(key, params);
             }
             params.add(Pair.of(expType, param));
