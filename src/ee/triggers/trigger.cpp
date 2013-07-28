@@ -43,14 +43,14 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <sstream>
-#include <cassert>
-#include <cstdio>
+//#include <sstream>
+//#include <cassert>
+//#include <cstdio>
 #include "trigger.h"
-#include "storage/table.h"
-#include "catalog/statement.h"
+//#include "storage/table.h"
+//#include "catalog/statement.h"
 
-using std::string;
+//using std::string;
 
 namespace voltdb {
 
@@ -62,17 +62,17 @@ Trigger::Trigger() :
 Trigger::~Trigger() {
 }
 
-Trigger::Trigger(Statement const* stmt){
+Trigger::Trigger(catalog::Statement const* stmt){
 	setStatement(stmt);
 	setType(1);
 	setForEach(false);
 }
 
-void Trigger::setStatement(Statement const* stmt){
+void Trigger::setStatement(catalog::Statement const* stmt){
 	m_statement = stmt;
 }
 
-bool Trigger::setType(int t) {
+bool Trigger::setType(unsigned char t) {
 	if(t < 1 || t > 3)
 		return false;
 	else{
@@ -89,11 +89,11 @@ void Trigger::setSourceTable(Table *t){
 	m_sourceTable = t;
 }
 
-Statement *Trigger::getStatement(){
+catalog::Statement *Trigger::getStatement(){
 	return m_statement;
 }
 
-uchar Trigger::getType(){
+unsigned char Trigger::getType(){
 	return m_type;
 }
 
@@ -104,4 +104,5 @@ bool Trigger::getForEach(){
 Table *Trigger::getSourceTable(){
 	return m_sourceTable;
 }
+
 }

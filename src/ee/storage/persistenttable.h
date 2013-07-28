@@ -60,6 +60,7 @@
 #include "storage/PersistentTableStats.h"
 #include "storage/CopyOnWriteContext.h"
 #include "storage/RecoveryContext.h"
+#include "triggers/trigger.h"
 
 
 namespace voltdb {
@@ -178,6 +179,11 @@ class PersistentTable : public Table {
     virtual TableIndex *index(std::string name);
     virtual TableIndex *primaryKeyIndex() { return m_pkeyIndex; }
     virtual const TableIndex *primaryKeyIndex() const { return m_pkeyIndex; }
+
+    // ------------------------------------------------------------------
+	// TRIGGERS
+	// ------------------------------------------------------------------
+    std::vector<voltdb::Trigger*> getTriggers();
 
     // ------------------------------------------------------------------
     // UTILITY
@@ -326,6 +332,9 @@ protected:
     TableIndex** m_indexes;
     int m_indexCount;
     TableIndex *m_pkeyIndex;
+
+    //TRIGGERS
+    std::vector<voltdb::Trigger*> m_triggers;
 
     // temporary for tuplestream stuff
     TupleStreamWrapper *m_wrapper;

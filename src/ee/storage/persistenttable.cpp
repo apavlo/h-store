@@ -1116,6 +1116,11 @@ void PersistentTable::onSetColumns() {
     }
 }
 
+//triggers
+std::vector<voltdb::Trigger*> PersistentTable::getTriggers() {
+	return m_triggers;
+}
+
 /*
  * Implemented by persistent table and called by Table::loadTuplesFrom
  * to do additional processing for views and Export

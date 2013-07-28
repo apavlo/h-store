@@ -143,15 +143,6 @@ class __attribute__((visibility("default"))) VoltDBEngine {
         inline int32_t getClusterIndex() const { return m_clusterIndex; }
         inline int32_t getSiteId() const { return m_siteId; }
 
-        /**
-        * Keep a list of executors for runtime - intentionally near the top of VoltDBEngine
-        */
-        //MEEHAN: moved to a public attribute so that public functions may use it as a parameter
-		struct ExecutorVector {
-			std::vector<AbstractExecutor*> list;
-			int tempTableMemoryInBytes;
-		};
-
         // ------------------------------------------------------------------
         // OBJECT ACCESS FUNCTIONS
         // ------------------------------------------------------------------
@@ -167,8 +158,8 @@ class __attribute__((visibility("default"))) VoltDBEngine {
         // -------------------------------------------------
         int executeQuery(int64_t planfragmentId, int32_t outputDependencyId, int32_t inputDependencyId,
                          const NValueArray &params, int64_t txnId, int64_t lastCommittedTxnId, bool first, bool last);
-        inline int executeQueryNoOutput(int64_t planfragmentId, boost::shared_ptr<ExecutorVector> execsForFrag,
-						Table *cleanUpTable, bool& send_tuple_count, const NValueArray &params, ReadWriteTracker *tracker);
+        inline int executeQueryNoOutput(int64_t planfragmentId, const NValueArray &params,
+						 int64_t txnId, bool& send_tuple_count);
         int executePlanFragment(std::string fragmentString, int32_t outputDependencyId, int32_t inputDependencyId,
                                 int64_t txnId, int64_t lastCommittedTxnId);
 
@@ -448,6 +439,14 @@ class __attribute__((visibility("default"))) VoltDBEngine {
         bool updateCatalogDatabaseReference();
 
         void printReport();
+
+        /**
+		* Keep a list of executors for runtime - intentionally near the top of VoltDBEngine
+		*/
+		struct ExecutorVector {
+			std::vector<AbstractExecutor*> list;
+			int tempTableMemoryInBytes;
+		};
 
 
         std::map<int64_t, boost::shared_ptr<ExecutorVector> > m_executorMap;

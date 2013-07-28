@@ -70,26 +70,29 @@ class Trigger {
     friend class TempTable;
 
   protected:
-    Statement *m_statement;
-    uchar m_type; //1=insert, 2=delete, 3=update
+    catalog::Statement *m_statement;
+    unsigned char m_type; //1=insert, 2=delete, 3=update
     bool m_forEach;
     Table *m_sourceTable;
 
   public:
     // no default constructor, no copy
     Trigger();
-    Trigger(Statement const*);
+    ~Trigger();
 
-    void setStatement(Statement const*);
-    bool setType(int);
+    Trigger(catalog::Statement const*);
+
+    void setStatement(catalog::Statement const*);
+    bool setType(unsigned char);
     void setForEach(bool);
     void setSourceTable(Table *);
 
-    Statement *getStatement();
-    uchar getType();
+    catalog::Statement *getStatement();
+    unsigned char getType();
     bool getForEach();
     Table *getSourceTable();
 
+
+};
 }
-
-
+#endif
