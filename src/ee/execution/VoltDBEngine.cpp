@@ -272,7 +272,6 @@ int VoltDBEngine::executeQuery(int64_t planfragmentId,
                                int64_t txnId, int64_t lastCommittedTxnId,
                                bool first, bool last)
 {
-    Table *cleanUpTable = NULL;
     m_currentOutputDepId = outputDependencyId;
     m_currentInputDepId = inputDependencyId;
 
@@ -307,9 +306,6 @@ int VoltDBEngine::executeQuery(int64_t planfragmentId,
 
    // count the number of plan fragments executed
     ++m_pfCount;
-
-    // execution lists for planfragments are cached by planfragment id
-    assert (planfragmentId >= -1);
 //     fprintf(stderr, "Looking to execute fragid %jd\n", (intmax_t)planfragmentId);
 //     
 //     std::map<int64_t, boost::shared_ptr<ExecutorVector> >::const_iterator pavlo_it;
@@ -319,18 +315,6 @@ int VoltDBEngine::executeQuery(int64_t planfragmentId,
 //         fprintf(stderr, "PlanFragment: %jd\n", (intmax_t)pavlo_it->first);
 //     } // FOR
 //     fprintf(stderr, "-----------------------------\n");
-
-    
-    std::map<int64_t, boost::shared_ptr<ExecutorVector> >::const_iterator iter = m_executorMap.find(planfragmentId);
-    assert (iter != m_executorMap.end());
-    boost::shared_ptr<ExecutorVector> execsForFrag = iter->second;
-
-    // Read/Write Set Tracking
-    ReadWriteTracker *tracker = NULL;
-    if (m_executorContext->isTrackingEnabled()) {
-        ReadWriteTrackerManager *trackerMgr = m_executorContext->getTrackerManager();
-        tracker = trackerMgr->getTracker(txnId);
-    }
     
     // PAVLO: If we see a SendPlanNode with the "fake" flag set to true,
     // then we won't really execute it and instead will send back the 
@@ -338,14 +322,11 @@ int VoltDBEngine::executeQuery(int64_t planfragmentId,
     bool send_tuple_count = false;
 
     // MEEHAN: Moved inner query plan into its own function
-    int errorcode = executeQueryNoOutput(planfragmentId, execsForFrag, cleanUpTable, send_tuple_count, params, tracker);
+    int errorcode = executeQueryNoOutput(planfragmentId, params, txnId, send_tuple_count);
     if(errorcode != ENGINE_ERRORCODE_SUCCESS)
     {
     	return errorcode;
     }
-    
-    if (cleanUpTable != NULL)
-        cleanUpTable->deleteAllTuples(false);
 
     // assume this is sendless dml
     if (send_tuple_count || m_numResultDependencies == 0) {
@@ -379,64 +360,81 @@ int VoltDBEngine::executeQuery(int64_t planfragmentId,
     return ENGINE_ERRORCODE_SUCCESS;
 }
 
-inline int VoltDBEngine::executeQueryNoOutput(int64_t planfragmentId, boost::shared_ptr<ExecutorVector> execsForFrag,
-												Table *cleanUpTable, bool& send_tuple_count,
-												const NValueArray &params, ReadWriteTracker *tracker)
+inline int VoltDBEngine::executeQueryNoOutput(int64_t planfragmentId, const NValueArray &params,
+											  int64_t txnId, bool& send_tuple_count)
 {
 	// Walk through the queue and execute each plannode.  The query
-	    // planner guarantees that for a given plannode, all of its
-	    // children are positioned before it in this list, therefore
-	    // dependency tracking is not needed here.
-	    size_t ttl = execsForFrag->list.size();
-	    for (int ctr = 0; ctr < ttl; ++ctr) {
-	        AbstractExecutor *executor = execsForFrag->list[ctr];
-	        assert (executor);
+	// planner guarantees that for a given plannode, all of its
+	// children are positioned before it in this list, therefore
+	// dependency tracking is not needed here.
+	// execution lists for planfragments are cached by planfragment id
+	assert (planfragmentId >= -1);
 
-	        if (executor->needsPostExecuteClear())
-	            cleanUpTable =
-	                dynamic_cast<Table*>(executor->getPlanNode()->getOutputTable());
+	std::map<int64_t, boost::shared_ptr<ExecutorVector> >::const_iterator iter = m_executorMap.find(planfragmentId);
+	assert (iter != m_executorMap.end());
+	boost::shared_ptr<ExecutorVector> execsForFrag = iter->second;
 
-	        // PAVLO: Check whether we don't need to execute anything and should just
-	        // send back the number of tuples modified
-	        if (executor->forceTupleCount()) {
-	            send_tuple_count = true;
-	            VOLT_DEBUG("[PlanFragment %jd] Forcing tuple count at PlanNode #%02d for txn #%jd [OutputDep=%d]",
-	                       (intmax_t)planfragmentId, executor->getPlanNode()->getPlanNodeId(),
-	                       (intmax_t)txnId, m_currentOutputDepId);
-	        } else {
-	            VOLT_DEBUG("[PlanFragment %jd] Executing PlanNode #%02d for txn #%jd [OutputDep=%d]",
-	                       (intmax_t)planfragmentId, executor->getPlanNode()->getPlanNodeId(),
-	                       (intmax_t)txnId, m_currentOutputDepId);
-	            try {
-	                // Now call the execute method to actually perform whatever action
-	                // it is that the node is supposed to do...
-	                if (!executor->execute(params, tracker)) {
-	                    VOLT_DEBUG("The Executor's execution at position '%d' failed for PlanFragment '%jd'",
-	                               ctr, (intmax_t)planfragmentId);
-	                    if (cleanUpTable != NULL)
-	                        cleanUpTable->deleteAllTuples(false);
-	                    // set these back to -1 for error handling
-	                    m_currentOutputDepId = -1;
-	                    m_currentInputDepId = -1;
-	                    return ENGINE_ERRORCODE_ERROR;
-	                }
-	            } catch (SerializableEEException &e) {
-	                VOLT_DEBUG("The Executor's execution at position '%d' failed for PlanFragment '%jd'",
-	                           ctr, (intmax_t)planfragmentId);
-	                VOLT_INFO("SerializableEEException: %s", e.message().c_str());
-	                if (cleanUpTable != NULL)
-	                    cleanUpTable->deleteAllTuples(false);
-	                resetReusedResultOutputBuffer();
-	                e.serialize(getExceptionOutputSerializer());
+	Table *cleanUpTable = NULL;
 
-	                // set these back to -1 for error handling
-	                m_currentOutputDepId = -1;
-	                m_currentInputDepId = -1;
-	                return ENGINE_ERRORCODE_ERROR;
-	            }
-	        }
-	    }
-	 return ENGINE_ERRORCODE_SUCCESS;
+	// Read/Write Set Tracking
+	ReadWriteTracker *tracker = NULL;
+	if (m_executorContext->isTrackingEnabled()) {
+		ReadWriteTrackerManager *trackerMgr = m_executorContext->getTrackerManager();
+		tracker = trackerMgr->getTracker(txnId);
+	}
+
+	size_t ttl = execsForFrag->list.size();
+	for (int ctr = 0; ctr < ttl; ++ctr) {
+		AbstractExecutor *executor = execsForFrag->list[ctr];
+		assert (executor);
+
+		if (executor->needsPostExecuteClear())
+			cleanUpTable =
+				dynamic_cast<Table*>(executor->getPlanNode()->getOutputTable());
+
+		// PAVLO: Check whether we don't need to execute anything and should just
+		// send back the number of tuples modified
+		if (executor->forceTupleCount()) {
+			send_tuple_count = true;
+			VOLT_DEBUG("[PlanFragment %jd] Forcing tuple count at PlanNode #%02d for txn #%jd [OutputDep=%d]",
+					   (intmax_t)planfragmentId, executor->getPlanNode()->getPlanNodeId(),
+					   (intmax_t)txnId, m_currentOutputDepId);
+		} else {
+			VOLT_DEBUG("[PlanFragment %jd] Executing PlanNode #%02d for txn #%jd [OutputDep=%d]",
+					   (intmax_t)planfragmentId, executor->getPlanNode()->getPlanNodeId(),
+					   (intmax_t)txnId, m_currentOutputDepId);
+			try {
+				// Now call the execute method to actually perform whatever action
+				// it is that the node is supposed to do...
+				if (!executor->execute(params, tracker)) {
+					VOLT_DEBUG("The Executor's execution at position '%d' failed for PlanFragment '%jd'",
+							   ctr, (intmax_t)planfragmentId);
+					if (cleanUpTable != NULL)
+						cleanUpTable->deleteAllTuples(false);
+					// set these back to -1 for error handling
+					m_currentOutputDepId = -1;
+					m_currentInputDepId = -1;
+					return ENGINE_ERRORCODE_ERROR;
+				}
+			} catch (SerializableEEException &e) {
+				VOLT_DEBUG("The Executor's execution at position '%d' failed for PlanFragment '%jd'",
+						   ctr, (intmax_t)planfragmentId);
+				VOLT_INFO("SerializableEEException: %s", e.message().c_str());
+				if (cleanUpTable != NULL)
+					cleanUpTable->deleteAllTuples(false);
+				resetReusedResultOutputBuffer();
+				e.serialize(getExceptionOutputSerializer());
+
+				// set these back to -1 for error handling
+				m_currentOutputDepId = -1;
+				m_currentInputDepId = -1;
+				return ENGINE_ERRORCODE_ERROR;
+			}
+		}
+	}
+ if (cleanUpTable != NULL)
+		cleanUpTable->deleteAllTuples(false);
+ return ENGINE_ERRORCODE_SUCCESS;
 }
 
 
