@@ -261,6 +261,7 @@ bool VoltDBEngine::serializeTable(int32_t tableId, SerializeOutput* out) const {
     }
 }
 
+
 // ------------------------------------------------------------------
 // EXECUTION FUNCTIONS
 // ------------------------------------------------------------------
@@ -336,59 +337,13 @@ int VoltDBEngine::executeQuery(int64_t planfragmentId,
     // number of tuples that we modified
     bool send_tuple_count = false;
 
-    // Walk through the queue and execute each plannode.  The query
-    // planner guarantees that for a given plannode, all of its
-    // children are positioned before it in this list, therefore
-    // dependency tracking is not needed here.
-    size_t ttl = execsForFrag->list.size();
-    for (int ctr = 0; ctr < ttl; ++ctr) {
-        AbstractExecutor *executor = execsForFrag->list[ctr];
-        assert (executor);
-
-        if (executor->needsPostExecuteClear())
-            cleanUpTable =
-                dynamic_cast<Table*>(executor->getPlanNode()->getOutputTable());
-
-        // PAVLO: Check whether we don't need to execute anything and should just
-        // send back the number of tuples modified
-        if (executor->forceTupleCount()) {
-            send_tuple_count = true;
-            VOLT_DEBUG("[PlanFragment %jd] Forcing tuple count at PlanNode #%02d for txn #%jd [OutputDep=%d]",
-                       (intmax_t)planfragmentId, executor->getPlanNode()->getPlanNodeId(),
-                       (intmax_t)txnId, m_currentOutputDepId);
-        } else {
-            VOLT_DEBUG("[PlanFragment %jd] Executing PlanNode #%02d for txn #%jd [OutputDep=%d]",
-                       (intmax_t)planfragmentId, executor->getPlanNode()->getPlanNodeId(),
-                       (intmax_t)txnId, m_currentOutputDepId);
-            try {
-                // Now call the execute method to actually perform whatever action
-                // it is that the node is supposed to do...
-                if (!executor->execute(params, tracker)) {
-                    VOLT_DEBUG("The Executor's execution at position '%d' failed for PlanFragment '%jd'",
-                               ctr, (intmax_t)planfragmentId);
-                    if (cleanUpTable != NULL)
-                        cleanUpTable->deleteAllTuples(false);
-                    // set these back to -1 for error handling
-                    m_currentOutputDepId = -1;
-                    m_currentInputDepId = -1;
-                    return ENGINE_ERRORCODE_ERROR;
-                }
-            } catch (SerializableEEException &e) {
-                VOLT_DEBUG("The Executor's execution at position '%d' failed for PlanFragment '%jd'",
-                           ctr, (intmax_t)planfragmentId);
-                VOLT_INFO("SerializableEEException: %s", e.message().c_str());
-                if (cleanUpTable != NULL)
-                    cleanUpTable->deleteAllTuples(false);
-                resetReusedResultOutputBuffer();
-                e.serialize(getExceptionOutputSerializer());
-    
-                // set these back to -1 for error handling
-                m_currentOutputDepId = -1;
-                m_currentInputDepId = -1;
-                return ENGINE_ERRORCODE_ERROR;
-            }
-        }
+    // MEEHAN: Moved inner query plan into its own function
+    int errorcode = executeQueryNoOutput(planfragmentId, execsForFrag, cleanUpTable, send_tuple_count, params, tracker);
+    if(errorcode != ENGINE_ERRORCODE_SUCCESS)
+    {
+    	return errorcode;
     }
+    
     if (cleanUpTable != NULL)
         cleanUpTable->deleteAllTuples(false);
 
@@ -423,6 +378,67 @@ int VoltDBEngine::executeQuery(int64_t planfragmentId,
     VOLT_DEBUG("Finished executing.");
     return ENGINE_ERRORCODE_SUCCESS;
 }
+
+inline int VoltDBEngine::executeQueryNoOutput(int64_t planfragmentId, boost::shared_ptr<ExecutorVector> execsForFrag,
+												Table *cleanUpTable, bool& send_tuple_count,
+												const NValueArray &params, ReadWriteTracker *tracker)
+{
+	// Walk through the queue and execute each plannode.  The query
+	    // planner guarantees that for a given plannode, all of its
+	    // children are positioned before it in this list, therefore
+	    // dependency tracking is not needed here.
+	    size_t ttl = execsForFrag->list.size();
+	    for (int ctr = 0; ctr < ttl; ++ctr) {
+	        AbstractExecutor *executor = execsForFrag->list[ctr];
+	        assert (executor);
+
+	        if (executor->needsPostExecuteClear())
+	            cleanUpTable =
+	                dynamic_cast<Table*>(executor->getPlanNode()->getOutputTable());
+
+	        // PAVLO: Check whether we don't need to execute anything and should just
+	        // send back the number of tuples modified
+	        if (executor->forceTupleCount()) {
+	            send_tuple_count = true;
+	            VOLT_DEBUG("[PlanFragment %jd] Forcing tuple count at PlanNode #%02d for txn #%jd [OutputDep=%d]",
+	                       (intmax_t)planfragmentId, executor->getPlanNode()->getPlanNodeId(),
+	                       (intmax_t)txnId, m_currentOutputDepId);
+	        } else {
+	            VOLT_DEBUG("[PlanFragment %jd] Executing PlanNode #%02d for txn #%jd [OutputDep=%d]",
+	                       (intmax_t)planfragmentId, executor->getPlanNode()->getPlanNodeId(),
+	                       (intmax_t)txnId, m_currentOutputDepId);
+	            try {
+	                // Now call the execute method to actually perform whatever action
+	                // it is that the node is supposed to do...
+	                if (!executor->execute(params, tracker)) {
+	                    VOLT_DEBUG("The Executor's execution at position '%d' failed for PlanFragment '%jd'",
+	                               ctr, (intmax_t)planfragmentId);
+	                    if (cleanUpTable != NULL)
+	                        cleanUpTable->deleteAllTuples(false);
+	                    // set these back to -1 for error handling
+	                    m_currentOutputDepId = -1;
+	                    m_currentInputDepId = -1;
+	                    return ENGINE_ERRORCODE_ERROR;
+	                }
+	            } catch (SerializableEEException &e) {
+	                VOLT_DEBUG("The Executor's execution at position '%d' failed for PlanFragment '%jd'",
+	                           ctr, (intmax_t)planfragmentId);
+	                VOLT_INFO("SerializableEEException: %s", e.message().c_str());
+	                if (cleanUpTable != NULL)
+	                    cleanUpTable->deleteAllTuples(false);
+	                resetReusedResultOutputBuffer();
+	                e.serialize(getExceptionOutputSerializer());
+
+	                // set these back to -1 for error handling
+	                m_currentOutputDepId = -1;
+	                m_currentInputDepId = -1;
+	                return ENGINE_ERRORCODE_ERROR;
+	            }
+	        }
+	    }
+	 return ENGINE_ERRORCODE_SUCCESS;
+}
+
 
 /*
  * Execute the supplied fragment in the context of the specified
