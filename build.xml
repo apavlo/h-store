@@ -1942,6 +1942,7 @@ UTILITIES
     <java fork="yes" classname="edu.brown.graphs.GraphvizExport">
         <jvmarg value="-Xmx512m" />
         <arg value="catalog.jar=${jar}" />
+        <arg value="catalog.labels=${labels}" />
         <arg line="${ignore}" />
         <classpath refid='project.classpath' />
         <assertions>

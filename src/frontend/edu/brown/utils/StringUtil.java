@@ -69,11 +69,10 @@ public abstract class StringUtil {
     private static final String HEADER_MARKER = "-";
     private static final int HEADER_LENGTH = 80;
     
-    /** Unicode Up Arrow Character */
+    /** Unicode Arrow Characters */
     public static final String UNICODE_UP_ARROW = "\u25B2";
-    
-    /** Unicode Down Arrow Character */
     public static final String UNICODE_DOWN_ARROW = "\u25BC";
+    public static final String UNICODE_RIGHT_ARROW = "\u2192";
     
     
     /**

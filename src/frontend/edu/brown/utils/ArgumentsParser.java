@@ -84,6 +84,7 @@ public class ArgumentsParser {
     public static final String PARAM_CATALOG_OUTPUT = PARAM_CATALOG + ".output";
     public static final String PARAM_CATALOG_TYPE = PARAM_CATALOG + ".type";
     public static final String PARAM_CATALOG_SCHEMA = PARAM_CATALOG + ".schema";
+    public static final String PARAM_CATALOG_LABELS = PARAM_CATALOG + ".labels";
     public static final String PARAM_CATALOG_HOSTS = PARAM_CATALOG + ".hosts";
     public static final String PARAM_CATALOG_NUM_HOSTS = PARAM_CATALOG + ".numhosts";
     public static final String PARAM_CATALOG_HOST_CORES = PARAM_CATALOG + ".hosts.cores";
