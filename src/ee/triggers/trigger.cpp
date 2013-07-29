@@ -68,8 +68,7 @@ Trigger::Trigger(catalog::Statement const* stmt){
 	setForEach(false);
 }
 
-Trigger::Trigger(catalog::Statement const* stmt,
-		unsigned char type, bool forEach){
+Trigger::Trigger(catalog::Statement const* stmt, unsigned char type, bool forEach){
 	m_statement = stmt;
 	m_type = type;
 	m_forEach = forEach;
