@@ -30,6 +30,7 @@
 #include "catalog/constraintref.h"
 
 #include "catalog/materializedviewinfo.h"
+#include "catalog/trigger.h"
 #include "common/CatalogUtil.h"
 #include "common/types.h"
 #include "indexes/tableindex.h"
@@ -39,6 +40,7 @@
 #include "storage/StreamBlock.h"
 #include "storage/table.h"
 #include "storage/tablefactory.h"
+#include "triggers/trigger.h"
 
 #include <vector>
 #include <map>
@@ -249,6 +251,16 @@ TableCatalogDelegate::init(ExecutorContext *executorContext,
             indexes.push_back(index_iterator->second);
         }
     }
+    //MEEHAN: adding triggers to the table
+    // Build the trigger array
+    vector<Trigger*> triggers;
+    map<string, catalog::Trigger*>::const_iterator trig_iter;
+    for(trig_iter = catalogTable.triggers().begin();
+    		trig_iter != catalogTable.triggers().end(); trig_iter++) {
+    	catalog::Trigger* curTrig = trig_iter->second;
+    	Trigger* pushTrig = new Trigger(curTrig->stmt(), (unsigned char)(curTrig->triggerType()), curTrig->forEach());
+    	triggers.push_back(pushTrig);
+    }
 
     // partition column:
     const catalog::Column* partitionColumn = catalogTable.partitioncolumn();
@@ -261,18 +273,20 @@ TableCatalogDelegate::init(ExecutorContext *executorContext,
     if (pkey_index_id.size() == 0) {
         m_table = TableFactory::getPersistentTable(databaseId, executorContext,
                                                  catalogTable.name(), schema, columnNames,
-                                                 indexes, partitionColumnIndex,
+                                                 indexes, triggers, partitionColumnIndex,
                                                  isExportEnabledForTable(catalogDatabase, table_id),
                                                  isTableExportOnly(catalogDatabase, table_id));
         
     } else {
         m_table = TableFactory::getPersistentTable(databaseId, executorContext,
                                                  catalogTable.name(), schema, columnNames,
-                                                 pkey_index, indexes, partitionColumnIndex,
+                                                 pkey_index, indexes, triggers, partitionColumnIndex,
                                                  isExportEnabledForTable(catalogDatabase, table_id),
                                                  isTableExportOnly(catalogDatabase, table_id));
     }
     
+
+
     #ifdef ANTICACHE
     // Create evicted table if anti-caching is enabled and this table is marked as evictable
     // is not generated from a materialized view

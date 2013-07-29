@@ -52,6 +52,7 @@
 #include "storage/persistenttable.h"
 #include "storage/streamedtable.h"
 #include "storage/temptable.h"
+#include "triggers/trigger.h"
 #include "indexes/tableindexfactory.h"
 #include "common/Pool.hpp"
 
@@ -72,8 +73,9 @@ Table* TableFactory::getPersistentTable(
             bool exportOnly)
 {
     std::vector<TableIndexScheme> dummy;
+    std::vector<Trigger*> dummyTrig;
     return getPersistentTable(databaseId, ctx, name,
-                              schema, columnNames, dummy, partitionColumn,
+                              schema, columnNames, dummy, dummyTrig, partitionColumn,
                               exportEnabled, exportOnly);
 }
 
@@ -89,8 +91,9 @@ Table* TableFactory::getPersistentTable(
             bool exportOnly)
 {
     std::vector<TableIndexScheme> dummy;
+    std::vector<Trigger*> dummyTrig;
     return getPersistentTable(databaseId, ctx, name, schema, columnNames,
-                              pkey_index, dummy, partitionColumn,
+                              pkey_index, dummy, dummyTrig, partitionColumn,
                               exportEnabled, exportOnly);
 }
 
@@ -101,6 +104,23 @@ Table* TableFactory::getPersistentTable(
             TupleSchema* schema,
             const std::string* columnNames,
             const std::vector<TableIndexScheme> &indexes,
+            int partitionColumn,
+            bool exportEnabled,
+            bool exportOnly)
+{
+	std::vector<Trigger*> dummyTrig;
+	return getPersistentTable(databaseId, ctx, name, schema, columnNames, indexes,
+							dummyTrig, partitionColumn, exportEnabled, exportOnly);
+}
+
+Table* TableFactory::getPersistentTable(
+            voltdb::CatalogId databaseId,
+            ExecutorContext *ctx,
+            const std::string &name,
+            TupleSchema* schema,
+            const std::string* columnNames,
+            const std::vector<TableIndexScheme> &indexes,
+            const std::vector<Trigger*> &triggers,
             int partitionColumn,
             bool exportEnabled,
             bool exportOnly)
@@ -118,6 +138,7 @@ Table* TableFactory::getPersistentTable(
         pTable->m_indexCount = (int)indexes.size();
         pTable->m_indexes = new TableIndex*[indexes.size()];
         pTable->m_partitionColumn = partitionColumn;
+        pTable->m_triggers = triggers;
 
         for (int i = 0; i < indexes.size(); ++i) {
             pTable->m_indexes[i] = TableIndexFactory::getInstance(indexes[i]);
@@ -142,6 +163,25 @@ Table* TableFactory::getPersistentTable(
             bool exportEnabled,
             bool exportOnly)
 {
+	std::vector<Trigger*> dummyTrig;
+	return getPersistentTable(databaseId, ctx, name, schema, columnNames, pkeyIndex,
+							indexes, dummyTrig, partitionColumn, exportEnabled, exportOnly);
+}
+
+
+Table* TableFactory::getPersistentTable(
+            voltdb::CatalogId databaseId,
+            ExecutorContext *ctx,
+            const std::string &name,
+            TupleSchema* schema,
+            const std::string* columnNames,
+            const TableIndexScheme &pkeyIndex,
+            const std::vector<TableIndexScheme> &indexes,
+            const std::vector<Trigger*> &triggers,
+            int partitionColumn,
+            bool exportEnabled,
+            bool exportOnly)
+{
     Table *table = NULL;
 
     if (exportOnly) {
@@ -154,6 +194,7 @@ Table* TableFactory::getPersistentTable(
         pTable->m_pkeyIndex = TableIndexFactory::getInstance(pkeyIndex);
         TableFactory::initCommon(databaseId, pTable, name, schema, columnNames, true);
         pTable->m_partitionColumn = partitionColumn;
+        pTable->m_triggers = triggers;
 
         // one for pkey + all the other indexes
         pTable->m_indexCount = 1 + (int)indexes.size();
