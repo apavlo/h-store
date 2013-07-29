@@ -184,6 +184,7 @@ class PersistentTable : public Table {
 	// TRIGGERS
 	// ------------------------------------------------------------------
     std::vector<voltdb::Trigger*> getTriggers();
+    void addAllTriggers(std::vector<voltdb::Trigger*> &);
 
     // ------------------------------------------------------------------
     // UTILITY

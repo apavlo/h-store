@@ -81,6 +81,7 @@ class Trigger {
     ~Trigger();
 
     Trigger(catalog::Statement const*);
+    Trigger(catalog::Statement const* stmt, unsigned char type, bool forEach);
 
     void setStatement(catalog::Statement const*);
     bool setType(unsigned char);

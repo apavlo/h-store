@@ -55,6 +55,7 @@
 #include "common/Pool.hpp"
 #include "indexes/tableindex.h"
 #include "indexes/tableindexfactory.h"
+#include "triggers/trigger.h"
 
 namespace voltdb {
     
@@ -98,7 +99,6 @@ namespace voltdb {
                                          bool exportEnabled,
                                          bool exportOnly);
         
-        
         /**
          * Creates an empty persistent table with given name, columns and indexes.
          */
@@ -111,8 +111,37 @@ namespace voltdb {
                                          int partitionColumn,
                                          bool exportEnabled,
                                          bool exportOnly);
+
         
+        /**
+         * Creates an empty persistent table with given name, columns and indexes.
+         */
+        static Table* getPersistentTable(voltdb::CatalogId databaseId,
+                                         ExecutorContext *ctx,
+                                         const std::string &name,
+                                         TupleSchema* schema,
+                                         const std::string* columnNames,
+                                         const std::vector<TableIndexScheme> &indexes,
+                                         const std::vector<Trigger*> &triggers,
+                                         int partitionColumn,
+                                         bool exportEnabled,
+                                         bool exportOnly);
         
+        /**
+		 * Creates an empty persistent table with given name, columns, PK index and indexes.
+		 */
+		static Table* getPersistentTable( voltdb::CatalogId databaseId,
+										 ExecutorContext *ctx,
+										 const std::string &name,
+										 TupleSchema* schema,
+										 const std::string* columnNames,
+										 const TableIndexScheme &pkeyIndex,
+										 const std::vector<TableIndexScheme> &indexes,
+										 int partitionColumn,
+										 bool exportEnabled,
+										 bool exportOnly);
+        
+
         /**
          * Creates an empty persistent table with given name, columns, PK index and indexes.
          */
@@ -123,6 +152,7 @@ namespace voltdb {
                                          const std::string* columnNames,
                                          const TableIndexScheme &pkeyIndex,
                                          const std::vector<TableIndexScheme> &indexes,
+                                         const std::vector<Trigger*> &triggers,
                                          int partitionColumn,
                                          bool exportEnabled,
                                          bool exportOnly);
