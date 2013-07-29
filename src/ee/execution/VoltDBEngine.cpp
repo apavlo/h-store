@@ -432,9 +432,9 @@ inline int VoltDBEngine::executeQueryNoOutput(int64_t planfragmentId, const NVal
 			}
 		}
 	}
- if (cleanUpTable != NULL)
+    if (cleanUpTable != NULL)
 		cleanUpTable->deleteAllTuples(false);
- return ENGINE_ERRORCODE_SUCCESS;
+    return ENGINE_ERRORCODE_SUCCESS;
 }
 
 

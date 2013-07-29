@@ -288,6 +288,10 @@ CTX.INPUT['storage'] = """
  ReadWriteTracker.cpp
 """
 
+CTX.INPUT['triggers'] = """
+ trigger.cpp
+"""
+
 CTX.INPUT['stats'] = """
  StatsAgent.cpp
  StatsSource.cpp

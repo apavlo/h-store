@@ -54,7 +54,7 @@
 namespace voltdb {
 
 class InsertPlanNode;
-class TempTable;
+class Table;
 
 /**
  *
@@ -77,7 +77,7 @@ class InsertExecutor : public OperationExecutor {
 
         InsertPlanNode* m_node;
 
-        TempTable* m_inputTable;
+        Table* m_inputTable;
         Table* m_targetTable;
 
         TableTuple m_tuple;
