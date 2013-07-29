@@ -75,7 +75,19 @@ bool InsertExecutor::p_init(AbstractPlanNode *abstract_node, const catalog::Data
             m_node->getInputTables()[0],
             tempTableMemoryInBytes));
 
-    m_inputTable = dynamic_cast<TempTable*>(m_node->getInputTables()[0]); //input table should be temptable
+    // 2013-07-29 - PAVLO
+    // Sail yo ho, kids. John Meehan and I were here, and we decided that in
+    // order to support INSERT INTO..SELECT statements, we had to let the input
+    // tables be any kind of table. This is because sometimes for certain SELECTS
+    // you will get a handle to the original PersistentTable and not a TempTable.
+    // We don't think that this should cause any problems.
+    m_inputTable = m_node->getInputTables()[0];
+    if (m_inputTable == NULL) {
+        VOLT_ERROR("Missing input table for InsertPlanNode #%d [numInputs=%ld]",
+        		   m_node->getPlanNodeId(), m_node->getInputTables().size());
+        // VOLT_ERROR("INPUT TABLE DUMP:\n%s", m_node->getInputTables()[0]->debug().c_str());
+        return false;
+    }
     assert(m_inputTable);
 
     // Target table can be StreamedTable or PersistentTable and must not be NULL
@@ -96,6 +108,8 @@ bool InsertExecutor::p_init(AbstractPlanNode *abstract_node, const catalog::Data
                 m_partitionColumnIsString = true;
             }
         }
+        // TODO: Check if PersistentTable has triggers
+        // TODO: If so, then set some flag in InsertExecutor to true
     }
     m_multiPartition = m_node->isMultiPartition();
     return true;
@@ -104,7 +118,7 @@ bool InsertExecutor::p_init(AbstractPlanNode *abstract_node, const catalog::Data
 bool InsertExecutor::p_execute(const NValueArray &params, ReadWriteTracker *tracker) {
     assert(m_node == dynamic_cast<InsertPlanNode*>(abstract_node));
     assert(m_node);
-    assert(m_inputTable == dynamic_cast<TempTable*>(m_node->getInputTables()[0]));
+    // XXX assert(m_inputTable == dynamic_cast<TempTable*>(m_node->getInputTables()[0]));
     assert(m_inputTable);
     assert(m_targetTable);
     VOLT_DEBUG("INPUT TABLE: %s\n", m_inputTable->debug().c_str());
@@ -179,6 +193,8 @@ bool InsertExecutor::p_execute(const NValueArray &params, ReadWriteTracker *trac
         // successfully inserted
         modifiedTuples++;
     }
+    // TODO: Check if hasTriggers flag is true
+    // TODO: If it is, then iterate through each one and pass in outputTable
 
     // add to the planfragments count of modified tuples
     m_engine->m_tuplesModified += modifiedTuples;

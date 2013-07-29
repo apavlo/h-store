@@ -74,11 +74,20 @@ Trigger::Trigger(catalog::Statement const* stmt, unsigned char type, bool forEac
 	m_forEach = forEach;
 }
 
+//void Trigger::fire(VoltDBEngine *engine, Table *input) {
+//	// TODO: Loop through all the single-partition plan fragment ids for
+//	// the target Statement. Then for each of them, invoke engine->executeQueryNoOutput()
+//	// Throw an exception if something bad happens...
+//	int64_t txnId = engine->getExecutorContext()->currentTxnId();
+//
+//}
+
 void Trigger::setStatement(catalog::Statement const* stmt){
 	m_statement = stmt;
 }
 
 bool Trigger::setType(unsigned char t) {
+	// TODO: Change to type. Setup in types.h
 	if(t < 1 || t > 3)
 		return false;
 	else{

@@ -744,7 +744,13 @@ public class PlanAssembler {
 
 		AbstractPlanNode inputNode = null;
 		if (m_parsedInsert.hasSelect()) {
-			inputNode = getNextSelectPlan();
+            inputNode = getNextSelectPlan();
+            // If this is a SendPlanNode, then we need to grab its
+            // child. That's the plan node that will actually do the scan
+            if (inputNode instanceof SendPlanNode) {
+                assert (inputNode.getChildPlanNodeCount() == 1);
+                inputNode = inputNode.getChild(0);
+            }
 		} else {
 
 	        // the materialize node creates a tuple to insert (which is frankly not

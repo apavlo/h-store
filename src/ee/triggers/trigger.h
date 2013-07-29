@@ -59,7 +59,6 @@
 
 namespace voltdb {
 
-
 /**
  * Represents a trigger that is attached to a table.
  */
@@ -82,6 +81,8 @@ class Trigger {
 
     Trigger(catalog::Statement const*);
     Trigger(catalog::Statement const* stmt, unsigned char type, bool forEach);
+
+//    void fire(VoltDBEngine *engine, Table *input);
 
     void setStatement(catalog::Statement const*);
     bool setType(unsigned char);
