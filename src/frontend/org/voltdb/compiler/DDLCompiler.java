@@ -316,7 +316,7 @@ public class DDLCompiler {
         }
         
         //FIXME: hardcoding table names, very bad!
-        if(name.equals("STREAM1") || name.equals("STREAM2"))
+        if(name.equals("TABLEA") || name.equals("STREAM2"))
         {
         	addTriggerToCatalog(table, table.getTriggers(), name, node); //currently sends null for the trigger map
         }
@@ -359,7 +359,7 @@ public class DDLCompiler {
     	//if(sourceTable.equals("STREAM1"))
     	//{
     		String name = "TRIGGER1";
-    		String stmt = "INSERT INTO TABLE1 SELECT * FROM STREAM1 WHERE TICKER = 'MSFT'";
+    		String stmt = "INSERT INTO TABLEC (A_ID, A_VALUE) SELECT * FROM TABLEA";
     		int id = 1;
     	//}
     	/**
