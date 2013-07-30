@@ -317,6 +317,15 @@ enum StatisticsSelectorType {
 };
 
 // ------------------------------------------------------------------
+// Trigger Types
+// ------------------------------------------------------------------
+enum TriggerTypes {
+	TRIGGER_INSERT		= 0,
+	TRIGGER_UPDATE		= 1,
+	TRIGGER_DELETE		= 2
+};
+
+// ------------------------------------------------------------------
 // Recovery protocol message types
 // ------------------------------------------------------------------
 enum RecoveryMsgType {

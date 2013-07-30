@@ -354,7 +354,7 @@ public class DDLCompiler {
      */
     void addTriggerToCatalog(Table parent, CatalogMap<Trigger> triggers, String sourceTable, Node node) throws VoltCompilerException
     {
-    	int type = 1; //insert
+    	int type = 0; //insert
 		boolean forEach = false;
     	//if(sourceTable.equals("STREAM1"))
     	//{

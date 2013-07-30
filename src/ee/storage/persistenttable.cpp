@@ -1125,6 +1125,10 @@ void PersistentTable::addAllTriggers(std::vector<voltdb::Trigger*> &trigs){
 	m_triggers = trigs;
 }
 
+bool PersistentTable::hasTriggers(){
+	return m_hasTriggers;
+}
+
 /*
  * Implemented by persistent table and called by Table::loadTuplesFrom
  * to do additional processing for views and Export

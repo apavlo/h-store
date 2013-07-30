@@ -158,7 +158,8 @@ class __attribute__((visibility("default"))) VoltDBEngine {
         // -------------------------------------------------
         int executeQuery(int64_t planfragmentId, int32_t outputDependencyId, int32_t inputDependencyId,
                          const NValueArray &params, int64_t txnId, int64_t lastCommittedTxnId, bool first, bool last);
-        inline int executeQueryNoOutput(int64_t planfragmentId, const NValueArray &params,
+        //MEEHAN: TODO this needs to be an inline function... this is kind of a mess in general
+        int executeQueryNoOutput(int64_t planfragmentId, const NValueArray &params,
 						 int64_t txnId, bool& send_tuple_count);
         int executePlanFragment(std::string fragmentString, int32_t outputDependencyId, int32_t inputDependencyId,
                                 int64_t txnId, int64_t lastCommittedTxnId);
