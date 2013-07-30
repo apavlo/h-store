@@ -57,6 +57,7 @@
 #include "storage/tableutil.h"
 #include "storage/tablefactory.h"
 #include "storage/temptable.h"
+#include "common/types.h"
 
 namespace voltdb {
 
@@ -193,8 +194,17 @@ bool InsertExecutor::p_execute(const NValueArray &params, ReadWriteTracker *trac
         // successfully inserted
         modifiedTuples++;
     }
-    // TODO: Check if hasTriggers flag is true
-    // TODO: If it is, then iterate through each one and pass in outputTable
+    // Check if the target table is persistent, and if hasTriggers flag is true
+    // If it is, then iterate through each one and pass in outputTable
+    PersistentTable* persistTarget = dynamic_cast<PersistentTable*>(m_targetTable);
+    if(persistTarget != NULL && persistTarget->hasTriggers()) {
+    	std::vector<Trigger*>::iterator trig_iter;
+    	for(trig_iter = persistTarget->getTriggers().begin();
+    			trig_iter != persistTarget->getTriggers().end(); trig_iter++) {
+    		if((*trig_iter)->getType() == TRIGGER_INSERT)
+    			(*trig_iter)->fire(m_engine, outputTable);
+    	}
+    }
 
     // add to the planfragments count of modified tuples
     m_engine->m_tuplesModified += modifiedTuples;

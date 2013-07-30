@@ -185,6 +185,7 @@ class PersistentTable : public Table {
 	// ------------------------------------------------------------------
     std::vector<voltdb::Trigger*> getTriggers();
     void addAllTriggers(std::vector<voltdb::Trigger*> &);
+    bool hasTriggers();
 
     // ------------------------------------------------------------------
     // UTILITY
@@ -336,6 +337,7 @@ protected:
 
     //TRIGGERS
     std::vector<voltdb::Trigger*> m_triggers;
+    bool m_hasTriggers;
 
     // temporary for tuplestream stuff
     TupleStreamWrapper *m_wrapper;

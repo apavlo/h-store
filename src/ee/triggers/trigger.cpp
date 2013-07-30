@@ -47,16 +47,17 @@
 //#include <cassert>
 //#include <cstdio>
 #include "trigger.h"
-//#include "storage/table.h"
-//#include "catalog/statement.h"
+#include "common/types.h"
+#include "storage/table.h"
+#include "catalog/statement.h"
 
 //using std::string;
 
 namespace voltdb {
 
 Trigger::Trigger() :
-    m_type(1);
-	m_forEach(false);
+    m_type(TRIGGER_INSERT),
+	m_forEach(false)
 {}
 
 Trigger::~Trigger() {
@@ -74,13 +75,22 @@ Trigger::Trigger(catalog::Statement const* stmt, unsigned char type, bool forEac
 	m_forEach = forEach;
 }
 
-//void Trigger::fire(VoltDBEngine *engine, Table *input) {
-//	// TODO: Loop through all the single-partition plan fragment ids for
-//	// the target Statement. Then for each of them, invoke engine->executeQueryNoOutput()
-//	// Throw an exception if something bad happens...
-//	int64_t txnId = engine->getExecutorContext()->currentTxnId();
-//
-//}
+void Trigger::fire(VoltDBEngine *engine, Table *input) {
+	// TODO: Loop through all the single-partition plan fragment ids for
+	// the target Statement. Then for each of them, invoke engine->executeQueryNoOutput()
+	// Throw an exception if something bad happens...
+	int64_t txnId = engine->getExecutorContext()->currentTxnId();
+	bool send_tuple_count = false;
+	const NValueArray params;
+	map<string, catalog::PlanFragment*>::const_iterator frag_iter;
+	for(frag_iter = m_statement->fragments().begin();
+			frag_iter != m_statement->fragments().end(); frag_iter++){
+		int64_t planfragmentId = (int64_t)(frag_iter->second->id());
+		engine->executeQueryNoOutput(planfragmentId, params, txnId, send_tuple_count);
+		send_tuple_count = false;
+	}
+
+}
 
 void Trigger::setStatement(catalog::Statement const* stmt){
 	m_statement = stmt;
@@ -88,7 +98,7 @@ void Trigger::setStatement(catalog::Statement const* stmt){
 
 bool Trigger::setType(unsigned char t) {
 	// TODO: Change to type. Setup in types.h
-	if(t < 1 || t > 3)
+	if(t != TRIGGER_INSERT && t != TRIGGER_UPDATE && t != TRIGGER_DELETE)
 		return false;
 	else{
 		m_type = t;
@@ -104,7 +114,7 @@ void Trigger::setSourceTable(Table *t){
 	m_sourceTable = t;
 }
 
-catalog::Statement *Trigger::getStatement(){
+catalog::Statement const*Trigger::getStatement(){
 	return m_statement;
 }
 

@@ -140,6 +140,11 @@ Table* TableFactory::getPersistentTable(
         pTable->m_partitionColumn = partitionColumn;
         pTable->m_triggers = triggers;
 
+        if(triggers.size() > 0)
+        	pTable->m_hasTriggers = true;
+        else
+        	pTable->m_hasTriggers = false;
+
         for (int i = 0; i < indexes.size(); ++i) {
             pTable->m_indexes[i] = TableIndexFactory::getInstance(indexes[i]);
         }
@@ -195,6 +200,11 @@ Table* TableFactory::getPersistentTable(
         TableFactory::initCommon(databaseId, pTable, name, schema, columnNames, true);
         pTable->m_partitionColumn = partitionColumn;
         pTable->m_triggers = triggers;
+
+        if(triggers.size() > 0)
+			pTable->m_hasTriggers = true;
+		else
+			pTable->m_hasTriggers = false;
 
         // one for pkey + all the other indexes
         pTable->m_indexCount = 1 + (int)indexes.size();

@@ -360,7 +360,7 @@ int VoltDBEngine::executeQuery(int64_t planfragmentId,
     return ENGINE_ERRORCODE_SUCCESS;
 }
 
-inline int VoltDBEngine::executeQueryNoOutput(int64_t planfragmentId, const NValueArray &params,
+int VoltDBEngine::executeQueryNoOutput(int64_t planfragmentId, const NValueArray &params,
 											  int64_t txnId, bool& send_tuple_count)
 {
 	// Walk through the queue and execute each plannode.  The query
