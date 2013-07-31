@@ -73,7 +73,7 @@ class Trigger {
     friend class TempTable;
 
   protected:
-    const catalog::CatalogMap<catalog::Statement> m_statements;
+    vector<const catalog::PlanFragment*> *m_frags;
     unsigned char m_type; //0=insert, 1=update, 2=delete
     bool m_forEach;
     Table *m_sourceTable;
@@ -82,7 +82,7 @@ class Trigger {
     // no default constructor, no copy
     ~Trigger();
 
-    Trigger(const catalog::CatalogMap<catalog::Statement>& stmts, unsigned char type, bool forEach);
+    Trigger(const catalog::CatalogMap<catalog::Statement> *stmts, unsigned char type, bool forEach);
 
     void fire(VoltDBEngine *engine, Table *input);
 
@@ -90,7 +90,7 @@ class Trigger {
     void setForEach(bool);
     void setSourceTable(Table *);
 
-    const catalog::CatalogMap<catalog::Statement> & getStatements();
+//    const catalog::CatalogMap<catalog::Statement> & getStatements();
     unsigned char getType();
     bool getForEach();
     Table *getSourceTable();

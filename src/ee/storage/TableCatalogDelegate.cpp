@@ -258,7 +258,7 @@ TableCatalogDelegate::init(ExecutorContext *executorContext,
     for(trig_iter = catalogTable.triggers().begin();
     		trig_iter != catalogTable.triggers().end(); trig_iter++) {
     	catalog::Trigger* curTrig = trig_iter->second;
-    	Trigger* pushTrig = new Trigger(curTrig->statements(), (unsigned char)(curTrig->triggerType()), curTrig->forEach());
+    	Trigger* pushTrig = new Trigger(&(curTrig->statements()), (unsigned char)(curTrig->triggerType()), curTrig->forEach());
     	triggers.push_back(pushTrig);
     }
 

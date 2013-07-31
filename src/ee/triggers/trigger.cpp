@@ -60,9 +60,20 @@ namespace voltdb {
 Trigger::~Trigger() {
 }
 
-Trigger::Trigger(const catalog::CatalogMap<catalog::Statement> & stmts, unsigned char type, bool forEach) :
-	m_statements(stmts), m_type(type), m_forEach(forEach)
-{}
+Trigger::Trigger(const catalog::CatalogMap<catalog::Statement> *stmts, unsigned char type, bool forEach) :
+	m_type(type), m_forEach(forEach)
+{
+	map<string, catalog::Statement *>::const_iterator stmt_iter = stmts->begin();
+	for( ; stmt_iter != stmts->end(); stmt_iter++){
+		const catalog::Statement * curstmt = stmt_iter->second;
+		map<string, catalog::PlanFragment*>::const_iterator frag_iter;
+		//fragments loop
+		for(frag_iter = curstmt->fragments()->begin();
+				frag_iter != curstmt->fragments()->end(); frag_iter++){
+			m_frags->push_back(*frag_iter);
+		}
+	}
+}
 
 void Trigger::fire(VoltDBEngine *engine, Table *input) {
 	// TODO: Loop through all the single-partition plan fragment ids for
@@ -71,21 +82,13 @@ void Trigger::fire(VoltDBEngine *engine, Table *input) {
 	int64_t txnId = engine->getExecutorContext()->currentTxnId();
 	bool send_tuple_count = false;
 	const NValueArray params;
-	map<string, catalog::Statement *>::const_iterator stmt_iter;
+	vector<catalog::PlanFragment *>::const_iterator frag_iter = m_frags.begin();
 	VOLT_DEBUG("OUTER LOOP");
-	//statement loop
-	for(stmt_iter = getStatements().begin();
-			stmt_iter != getStatements().end(); stmt_iter++){
-		const catalog::Statement * curstmt = stmt_iter->second;
-		map<string, catalog::PlanFragment*>::const_iterator frag_iter;
-		VOLT_DEBUG("INNER LOOP");
-		//fragments loop
-		for(frag_iter = curstmt->fragments().begin();
-				frag_iter != curstmt->fragments().end(); frag_iter++){
-			int64_t planfragmentId = (int64_t)(frag_iter->second->id());
-			engine->executeQueryNoOutput(planfragmentId, params, txnId, send_tuple_count);
-			send_tuple_count = false;
-		}
+
+	for( ;	frag_iter != m_frags.end(); frag_iter++){
+		int64_t planfragmentId = (int64_t)((*frag_iter)->id());
+		engine->executeQueryNoOutput(planfragmentId, params, txnId, send_tuple_count);
+		send_tuple_count = false;
 	}
 
 }
@@ -108,9 +111,9 @@ void Trigger::setSourceTable(Table *t){
 	m_sourceTable = t;
 }
 
-const catalog::CatalogMap<catalog::Statement> & Trigger::getStatements(){
-	return m_statements;
-}
+//const catalog::CatalogMap<catalog::Statement> & Trigger::getStatements(){
+//	return m_statements;
+//}
 
 unsigned char Trigger::getType(){
 	return m_type;
