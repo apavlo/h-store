@@ -56,7 +56,8 @@ public class TestPlansStream extends TestCase {
     
     public void testSelectFromStream() {
         AbstractPlanNode pn = null;
-        pn = compile("SELECT t_id from ticker", 0);
+        //pn = compile("SELECT t_id from ticker", 0);
+        pn = compile("SELECT A_ID from TABLEA", 0);
         if (pn != null)
             System.out.println(pn.toJSONString());
     }

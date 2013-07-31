@@ -318,7 +318,7 @@ public class DDLCompiler {
         //FIXME: hardcoding table names, very bad!
         if(name.equals("TABLEA") || name.equals("STREAM2"))
         {
-        	addTriggerToCatalog(table, table.getTriggers(), name, node); //currently sends null for the trigger map
+        	addTriggerToCatalog(table, table.getTriggers(), name, node, catalog, db); //currently sends null for the trigger map
         }
         
         /*
@@ -352,32 +352,25 @@ public class DDLCompiler {
      * @param node
      * @throws VoltCompilerException
      */
-    void addTriggerToCatalog(Table parent, CatalogMap<Trigger> triggers, String sourceTable, Node node) throws VoltCompilerException
+    void addTriggerToCatalog(Table parent, CatalogMap<Trigger> triggers, String sourceTable, 
+    		Node node, Catalog catalog, Database db) throws VoltCompilerException
     {
     	int type = 0; //insert
 		boolean forEach = false;
-    	//if(sourceTable.equals("STREAM1"))
-    	//{
-    		String name = "TRIGGER1";
-    		String stmt = "INSERT INTO TABLEC (A_ID, A_VALUE) SELECT * FROM TABLEA";
-    		int id = 1;
-    	//}
-    	/**
-    	else if(sourceTable.equals("STREAM2"))
-    	{
-    		String name = "TRIGGER2";
-    		String stmt = "INSERT INTO STREAM3 SELECT * FROM STREAM1 WHERE TICKER = 'MSFT'";
-    		int id = 1;
-    	}*/
+
+		String name = "TRIGGER1";
+		String stmt = "INSERT INTO TABLEC (A_ID, A_VALUE) SELECT * FROM TABLEA";
+		//String stmt = "INSERT INTO TABLEC (A_ID, A_VALUE) VALUES (4, 'XXX')";
+		//String stmt = "SELECT * FROM TABLEA";
+    	int id = 1;
+
     	Trigger trigger = triggers.add(name);
 		trigger.setId(id);
 		trigger.setForeach(forEach);
 		trigger.setSourcetable(parent);
-		Statement s = new Statement();
-		s.setId(1);
-		s.setSqltext(stmt);
-		s.setReadonly(false);
-		trigger.setStmt(s);
+		trigger.setTriggertype(type);
+		Statement s = trigger.getStatements().add("tr1stmt1");
+		StatementCompiler.compile(m_compiler, m_hsql, catalog, db, new DatabaseEstimates(), s, stmt, true);
     }
 
     void addColumnToCatalog(CatalogType parent, CatalogMap<Column> columns, Node node, int index) throws VoltCompilerException {

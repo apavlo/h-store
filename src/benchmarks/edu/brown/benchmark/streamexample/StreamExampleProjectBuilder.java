@@ -18,7 +18,7 @@ public class StreamExampleProjectBuilder extends AbstractProjectBuilder {
     public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
         GetData.class,
         Initialize.class,
-        InsertIntoSelect.class,
+        //InsertIntoSelect.class,
         GetAllData.class,
     };
     public static final String PARTITIONING[][] = new String[][] {

@@ -27,6 +27,7 @@ import org.hsqldb.HSQLInterface;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.voltdb.catalog.Catalog;
+import org.voltdb.catalog.CatalogType;
 import org.voltdb.catalog.Column;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.PlanFragment;
@@ -148,8 +149,13 @@ public abstract class StatementCompiler {
         // PAVLO: Super Hack!
         // Always compile the multi-partition and single-partition query plans!
         // We don't need the multi-partition query plans for MapReduce transactions
-        Procedure catalog_proc = catalogStmt.getParent();
-        boolean isMapReduce = catalog_proc.getMapreduce();
+        // MEEHAN: Possibly even bigger hack!
+        // Trigger statements don't have procedure parents
+        // For now, if it's not a Procedure, isMapReduce = false
+        boolean isMapReduce = false;
+        CatalogType catalog_parent = catalogStmt.getParent();
+        if(catalog_parent instanceof Procedure)
+        	isMapReduce = ((Procedure)catalog_parent).getMapreduce();
 
         CompiledPlan plan = null;
         CompiledPlan last_plan = null;

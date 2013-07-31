@@ -29,17 +29,25 @@ using namespace catalog;
 using namespace std;
 
 Trigger::Trigger(Catalog *catalog, CatalogType *parent, const string &path, const string &name)
-: CatalogType(catalog, parent, path, name)
+: CatalogType(catalog, parent, path, name),
+  m_statements(catalog, this, path + "/" + "statements")
 {
     CatalogValue value;
     m_fields["id"] = value;
     m_fields["sourceTable"] = value;
     m_fields["triggerType"] = value;
     m_fields["forEach"] = value;
-    m_fields["stmt"] = value;
+    m_childCollections["statements"] = &m_statements;
 }
 
 Trigger::~Trigger() {
+    std::map<std::string, Statement*>::const_iterator statement_iter = m_statements.begin();
+    while (statement_iter != m_statements.end()) {
+        delete statement_iter->second;
+        statement_iter++;
+    }
+    m_statements.clear();
+
 }
 
 void Trigger::update() {
@@ -47,19 +55,29 @@ void Trigger::update() {
     m_sourceTable = m_fields["sourceTable"].typeValue;
     m_triggerType = m_fields["triggerType"].intValue;
     m_forEach = m_fields["forEach"].intValue;
-    m_stmt = m_fields["stmt"].typeValue;
 }
 
 CatalogType * Trigger::addChild(const std::string &collectionName, const std::string &childName) {
+    if (collectionName.compare("statements") == 0) {
+        CatalogType *exists = m_statements.get(childName);
+        if (exists)
+            return NULL;
+        return m_statements.add(childName);
+    }
     return NULL;
 }
 
 CatalogType * Trigger::getChild(const std::string &collectionName, const std::string &childName) const {
+    if (collectionName.compare("statements") == 0)
+        return m_statements.get(childName);
     return NULL;
 }
 
 bool Trigger::removeChild(const std::string &collectionName, const std::string &childName) {
     assert (m_childCollections.find(collectionName) != m_childCollections.end());
+    if (collectionName.compare("statements") == 0) {
+        return m_statements.remove(childName);
+    }
     return false;
 }
 
@@ -79,7 +97,7 @@ bool Trigger::forEach() const {
     return m_forEach;
 }
 
-const Statement * Trigger::stmt() const {
-    return dynamic_cast<Statement*>(m_stmt);
+const CatalogMap<Statement> & Trigger::statements() const {
+    return m_statements;
 }
 

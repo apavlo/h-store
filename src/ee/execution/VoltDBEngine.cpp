@@ -543,8 +543,8 @@ bool VoltDBEngine::updateCatalogDatabaseReference() {
 }
 
 bool VoltDBEngine::loadCatalog(const string &catalogPayload) {
-    assert(m_catalog != NULL);
-    VOLT_DEBUG("Loading catalog...");
+	VOLT_DEBUG("Loading catalog...");
+	assert(m_catalog != NULL);
     m_catalog->execute(catalogPayload);
 
     if (updateCatalogDatabaseReference() == false) {
@@ -850,6 +850,7 @@ bool VoltDBEngine::rebuildPlanFragmentCollections() {
     //MEEHAN: Addition for handling stream triggers
 	std::map<std::string, catalog::Table*>::const_iterator table_iterator;
 	std::map<std::string, catalog::Trigger*>::const_iterator trig_iterator;
+	std::map<std::string, catalog::Statement*>::const_iterator stmt_iterator;
 	//loop through tables
 	for (table_iterator = m_database->tables().begin();
 			table_iterator != m_database->tables().end(); table_iterator++) {
@@ -859,16 +860,22 @@ bool VoltDBEngine::rebuildPlanFragmentCollections() {
 		//loop through triggers
 		for(trig_iterator = catalog_table->triggers().begin();
 				trig_iterator != catalog_table->triggers().end(); trig_iterator++) {
+			const catalog::Trigger *catalog_trig = trig_iterator->second;
 
-			const catalog::Statement *catalogStmt = trig_iterator->second->stmt();
-			VOLT_DEBUG("Initialize Statement: %s : %s", catalogStmt->name().c_str(),
-			                       catalogStmt->sqltext().c_str());
+			//loop through statements
+			for(stmt_iterator = catalog_trig->statements().begin();
+					stmt_iterator != catalog_trig->statements().end(); stmt_iterator++){
+				const catalog::Statement *catalogStmt = stmt_iterator->second;
+				assert(catalogStmt != NULL);
+				VOLT_DEBUG("Initialize Statement: %s : %s", catalogStmt->name().c_str(),
+									  catalogStmt->sqltext().c_str());
 
-			if(!rebuildPlanFragment(catalogStmt)) {
-			    return false;
-			}
-			if(!rebuildMultipartitionPlanFragment(catalogStmt)){
-				return false;
+				if(!rebuildPlanFragment(catalogStmt)) {
+					return false;
+				}
+				if(!rebuildMultipartitionPlanFragment(catalogStmt)){
+					return false;
+				}
 			}
 		}
 	}

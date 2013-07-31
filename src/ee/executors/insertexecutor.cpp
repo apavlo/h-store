@@ -201,7 +201,8 @@ bool InsertExecutor::p_execute(const NValueArray &params, ReadWriteTracker *trac
     	std::vector<Trigger*>::iterator trig_iter;
     	for(trig_iter = persistTarget->getTriggers().begin();
     			trig_iter != persistTarget->getTriggers().end(); trig_iter++) {
-    		if((*trig_iter)->getType() == TRIGGER_INSERT)
+    		//if statement to make sure the trigger is an insert... breaking
+    		//if((*trig_iter)->getType() == (unsigned char)TRIGGER_INSERT)
     			(*trig_iter)->fire(m_engine, outputTable);
     	}
     }

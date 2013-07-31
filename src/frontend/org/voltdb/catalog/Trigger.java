@@ -29,6 +29,7 @@ public class Trigger extends CatalogType {
     int m_id;
     int m_triggerType;
     boolean m_forEach;
+    CatalogMap<Statement> m_statements;
 
     void setBaseValues(Catalog catalog, CatalogType parent, String path, String name) {
         super.setBaseValues(catalog, parent, path, name);
@@ -36,7 +37,8 @@ public class Trigger extends CatalogType {
         m_fields.put("sourceTable", null);
         m_fields.put("triggerType", m_triggerType);
         m_fields.put("forEach", m_forEach);
-        m_fields.put("stmt", null);
+        m_statements = new CatalogMap<Statement>(catalog, this, path + "/" + "statements", Statement.class);
+        m_childCollections.put("statements", m_statements);
     }
 
     public void update() {
@@ -74,16 +76,8 @@ public class Trigger extends CatalogType {
     }
 
     /** GETTER: What to execute when this trigger is activated"			 */
-    public Statement getStmt() {
-        Object o = getField("stmt");
-        if (o instanceof UnresolvedInfo) {
-            UnresolvedInfo ui = (UnresolvedInfo) o;
-            Statement retval = (Statement) m_catalog.getItemForRef(ui.path);
-            assert(retval != null);
-            m_fields.put("stmt", retval);
-            return retval;
-        }
-        return (Statement) o;
+    public CatalogMap<Statement> getStatements() {
+        return m_statements;
     }
 
     /** SETTER: Unique identifier for this Trigger. Allows for faster look-ups */
@@ -104,11 +98,6 @@ public class Trigger extends CatalogType {
     /** SETTER: Is this for each tuple, or each statement */
     public void setForeach(boolean value) {
         m_forEach = value; m_fields.put("forEach", value);
-    }
-
-    /** SETTER: What to execute when this trigger is activated"			 */
-    public void setStmt(Statement value) {
-        m_fields.put("stmt", value);
     }
 
 }

@@ -54,6 +54,7 @@
 #include "common/ids.h"
 #include "common/types.h"
 #include "storage/table.h"
+#include "catalog/catalogmap.h"
 #include "catalog/statement.h"
 #include "catalog/planfragment.h"
 #include "execution/VoltDBEngine.h"
@@ -72,27 +73,24 @@ class Trigger {
     friend class TempTable;
 
   protected:
-    catalog::Statement const* m_statement;
-    unsigned char m_type; //1=insert, 2=delete, 3=update
+    const catalog::CatalogMap<catalog::Statement> m_statements;
+    unsigned char m_type; //0=insert, 1=update, 2=delete
     bool m_forEach;
     Table *m_sourceTable;
 
   public:
     // no default constructor, no copy
-    Trigger();
     ~Trigger();
 
-    Trigger(catalog::Statement const*);
-    Trigger(catalog::Statement const* stmt, unsigned char type, bool forEach);
+    Trigger(const catalog::CatalogMap<catalog::Statement>& stmts, unsigned char type, bool forEach);
 
     void fire(VoltDBEngine *engine, Table *input);
 
-    void setStatement(catalog::Statement const*);
     bool setType(unsigned char);
     void setForEach(bool);
     void setSourceTable(Table *);
 
-    catalog::Statement const *getStatement();
+    const catalog::CatalogMap<catalog::Statement> & getStatements();
     unsigned char getType();
     bool getForEach();
     Table *getSourceTable();

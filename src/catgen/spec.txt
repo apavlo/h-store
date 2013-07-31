@@ -258,5 +258,5 @@ begin Trigger					"Trigger objects on a table, with a statement attached"
 	Table? sourceTable			"Table on which the trigger is placed."
 	int triggerType				"Insert / Update / Delete"
 	bool forEach				"Is this for each tuple, or each statement"
-	Statement? stmt				"What to execute when this trigger is activated"			
+	Statement* statements		"What to execute when this trigger is activated"			
 end
