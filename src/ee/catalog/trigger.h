@@ -43,7 +43,7 @@ protected:
     CatalogType* m_sourceTable;
     int32_t m_triggerType;
     bool m_forEach;
-    CatalogType* m_stmt;
+    CatalogMap<Statement> m_statements;
 
     virtual void update();
 
@@ -63,7 +63,7 @@ public:
     /** GETTER: Is this for each tuple, or each statement */
     bool forEach() const;
     /** GETTER: What to execute when this trigger is activated"			 */
-    const Statement * stmt() const;
+    const CatalogMap<Statement> & statements() const;
 };
 
 } // namespace catalog
