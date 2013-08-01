@@ -45,6 +45,7 @@ public class TestDDLCompilerStream extends TestCase {
 	private PlannerTestAideDeCamp aide;
 
     public void testSimpleDDLCompiler() throws HSQLParseException {
+    	/**
         String ddl1 =
             "CREATE STREAM \"ticker\" ( " +
             "\"t_id\" integer default '0' NOT NULL, " +
@@ -52,10 +53,25 @@ public class TestDDLCompilerStream extends TestCase {
             "\"t_stamp\" int NOT NULL, " +
             "PRIMARY KEY  (\"t_stamp\") " +
             ");";
+            */
+    	
+    	String ddl1 =
+                "CREATE TABLE TABLEC (" +
+                "A_ID     BIGINT NOT NULL," +
+                "A_VALUE  VARCHAR(64)," +
+                "PRIMARY KEY (A_ID)" +
+                ");"; 
+    	String ddl2 =
+                "CREATE TABLE TABLEA (" +
+                "A_ID     BIGINT NOT NULL," +
+                "A_VALUE  VARCHAR(64)," +
+                "PRIMARY KEY (A_ID)" +
+                ");";
 
         HSQLInterface hsql = HSQLInterface.loadHsqldb();
 
         hsql.runDDLCommand(ddl1);
+        hsql.runDDLCommand(ddl2);
 
         String xml = hsql.getXMLFromCatalog();
         System.out.println(xml);

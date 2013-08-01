@@ -355,6 +355,7 @@ public class DDLCompiler {
     void addTriggerToCatalog(Table parent, CatalogMap<Trigger> triggers, String sourceTable, 
     		Node node, Catalog catalog, Database db) throws VoltCompilerException
     {
+    	LOG.info("Add Trigger to Catalog");
     	int type = 0; //insert
 		boolean forEach = false;
 
@@ -371,6 +372,7 @@ public class DDLCompiler {
 		trigger.setTriggertype(type);
 		Statement s = trigger.getStatements().add("tr1stmt1");
 		StatementCompiler.compile(m_compiler, m_hsql, catalog, db, new DatabaseEstimates(), s, stmt, true);
+		LOG.info("End add Trigger to Catalog");
     }
 
     void addColumnToCatalog(CatalogType parent, CatalogMap<Column> columns, Node node, int index) throws VoltCompilerException {
