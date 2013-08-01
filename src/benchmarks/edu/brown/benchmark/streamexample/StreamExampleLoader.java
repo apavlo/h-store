@@ -21,7 +21,6 @@ public class StreamExampleLoader extends Loader {
 
     @Override
     public void load() {
-        
         if (d) 
             LOG.debug("Starting StreamExampleLoader");
 

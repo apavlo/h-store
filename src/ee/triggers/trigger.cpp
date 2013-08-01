@@ -54,6 +54,7 @@
 
 using std::map;
 using std::string;
+using std::vector;
 
 namespace voltdb {
 
@@ -82,12 +83,20 @@ void Trigger::fire(VoltDBEngine *engine, Table *input) {
 	int64_t txnId = engine->getExecutorContext()->currentTxnId();
 	bool send_tuple_count = false;
 	const NValueArray params;
-	vector<catalog::PlanFragment *>::const_iterator frag_iter = m_frags.begin();
-	VOLT_DEBUG("OUTER LOOP");
+	VOLT_DEBUG("FIRE 1");
+	assert(m_frags != NULL);
+	//VOLT_DEBUG("m_frag size %d", (int)(m_frags->size()));
+	VOLT_DEBUG("FIRE 2");
+	VOLT_DEBUG("first m_frag: %s", (*m_frags)[0]->plannodetree().c_str());
+	VOLT_DEBUG("FIRE 3");
+	vector<const catalog::PlanFragment *>::const_iterator frag_iter = m_frags->begin();
+	VOLT_DEBUG("FIRE 4");
 
-	for( ;	frag_iter != m_frags.end(); frag_iter++){
+	for( ;	frag_iter != m_frags->end(); frag_iter++){
+		VOLT_DEBUG("FIRE 5");
 		int64_t planfragmentId = (int64_t)((*frag_iter)->id());
 		engine->executeQueryNoOutput(planfragmentId, params, txnId, send_tuple_count);
+		VOLT_DEBUG("FIRE 6");
 		send_tuple_count = false;
 	}
 

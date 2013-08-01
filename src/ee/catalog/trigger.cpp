@@ -47,7 +47,6 @@ Trigger::~Trigger() {
         statement_iter++;
     }
     m_statements.clear();
-
 }
 
 void Trigger::update() {
