@@ -74,7 +74,9 @@ Trigger::Trigger(const catalog::CatalogMap<catalog::Statement> *stmts, unsigned 
 		for(frag_iter = curstmt->ms_fragments().begin();
 				frag_iter != curstmt->ms_fragments().end(); frag_iter++){
 			VOLT_DEBUG("FRAGMENT LOOP");
-			m_frags->push_back(frag_iter->second);
+			m_frags.push_back(frag_iter->second);
+			VOLT_DEBUG("END FRAGMENT LOOP");
+			VOLT_DEBUG("m_frag size %d", int(m_frags.size()));
 		}
 	}
 	VOLT_DEBUG("END TRIGGER CONSTRUCTOR");
@@ -88,15 +90,17 @@ void Trigger::fire(VoltDBEngine *engine, Table *input) {
 	bool send_tuple_count = false;
 	const NValueArray params;
 	VOLT_DEBUG("FIRE 1");
-	assert(m_frags != NULL);
+	//assert(m_frags != NULL);
+	//assert(m_frags.size() != 0);
+	VOLT_DEBUG("m_frag size %d", int(m_frags.size()));
 	//VOLT_DEBUG("m_frag size %d", (int)(m_frags->size()));
 	VOLT_DEBUG("FIRE 2");
-	VOLT_DEBUG("first m_frag: %s", (*m_frags)[0]->plannodetree().c_str());
+	VOLT_DEBUG("first m_frag: %s", m_frags[0]->plannodetree().c_str());
 	VOLT_DEBUG("FIRE 3");
-	vector<const catalog::PlanFragment *>::const_iterator frag_iter = m_frags->begin();
+	vector<const catalog::PlanFragment *>::const_iterator frag_iter = m_frags.begin();
 	VOLT_DEBUG("FIRE 4");
 
-	for( ;	frag_iter != m_frags->end(); frag_iter++){
+	for( ;	frag_iter != m_frags.end(); frag_iter++){
 		VOLT_DEBUG("FIRE 5");
 		int64_t planfragmentId = (int64_t)((*frag_iter)->id());
 		engine->executeQueryNoOutput(planfragmentId, params, txnId, send_tuple_count);
