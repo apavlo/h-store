@@ -183,8 +183,8 @@ class PersistentTable : public Table {
     // ------------------------------------------------------------------
 	// TRIGGERS
 	// ------------------------------------------------------------------
-    std::vector<voltdb::Trigger*> getTriggers();
-    void addAllTriggers(std::vector<voltdb::Trigger*> &);
+    std::vector<voltdb::Trigger*>* getTriggers();
+    void addAllTriggers(std::vector<voltdb::Trigger*> *);
     bool hasTriggers();
 
     // ------------------------------------------------------------------
@@ -336,7 +336,7 @@ protected:
     TableIndex *m_pkeyIndex;
 
     //TRIGGERS
-    std::vector<voltdb::Trigger*> m_triggers;
+    std::vector<voltdb::Trigger*>* m_triggers;
     bool m_hasTriggers;
 
     // temporary for tuplestream stuff

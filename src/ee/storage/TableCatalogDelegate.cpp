@@ -253,13 +253,13 @@ TableCatalogDelegate::init(ExecutorContext *executorContext,
     }
     //MEEHAN: adding triggers to the table
     // Build the trigger array
-    vector<Trigger*> triggers;
+    vector<Trigger*>* triggers = new vector<Trigger*>;
     map<string, catalog::Trigger*>::const_iterator trig_iter;
     for(trig_iter = catalogTable.triggers().begin();
     		trig_iter != catalogTable.triggers().end(); trig_iter++) {
     	catalog::Trigger* curTrig = trig_iter->second;
     	Trigger* pushTrig = new Trigger(&(curTrig->statements()), (unsigned char)(curTrig->triggerType()), curTrig->forEach());
-    	triggers.push_back(pushTrig);
+    	triggers->push_back(pushTrig);
     }
 
     // partition column:

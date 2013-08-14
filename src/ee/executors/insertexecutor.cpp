@@ -199,8 +199,8 @@ bool InsertExecutor::p_execute(const NValueArray &params, ReadWriteTracker *trac
     PersistentTable* persistTarget = dynamic_cast<PersistentTable*>(m_targetTable);
     if(persistTarget != NULL && persistTarget->hasTriggers()) {
     	std::vector<Trigger*>::iterator trig_iter;
-    	for(trig_iter = persistTarget->getTriggers().begin();
-    			trig_iter != persistTarget->getTriggers().end(); trig_iter++) {
+    	for(trig_iter = persistTarget->getTriggers()->begin();
+    			trig_iter != persistTarget->getTriggers()->end(); trig_iter++) {
     		//if statement to make sure the trigger is an insert... breaking
     		//if((*trig_iter)->getType() == (unsigned char)TRIGGER_INSERT)
     			(*trig_iter)->fire(m_engine, outputTable);

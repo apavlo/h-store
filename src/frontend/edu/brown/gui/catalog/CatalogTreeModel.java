@@ -33,6 +33,7 @@ import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.StmtParameter;
 import org.voltdb.catalog.Table;
+import org.voltdb.catalog.Trigger;
 import org.voltdb.plannodes.AbstractPlanNode;
 import org.voltdb.types.ConflictType;
 
@@ -238,6 +239,21 @@ public class CatalogTreeModel extends DefaultTreeModel {
                             buildSearchIndex(catalog_cnst, constraint_node);
                         } // FOR (constraints)
                     }
+                    // Triggers
+                    if(!catalog_tbl.getTriggers().isEmpty()) {
+                    	DefaultMutableTreeNode triggers_node = new CatalogMapTreeNode(Trigger.class, "Triggers", catalog_tbl.getTriggers());
+                        table_node.add(triggers_node);
+                        for (Trigger catalog_trg : catalog_tbl.getTriggers()) {  
+                            DefaultMutableTreeNode trigger_node = new DefaultMutableTreeNode(new WrapperNode(catalog_trg));
+                            triggers_node.add(trigger_node);
+                            buildSearchIndex(catalog_trg, trigger_node);
+                            DefaultMutableTreeNode statementRootNode = new CatalogMapTreeNode(Statement.class, "Statements", catalog_trg.getStatements());
+                            trigger_node.add(statementRootNode);                  
+                            for(Statement catalog_stmt: catalog_trg.getStatements()) {
+                            	buildStatementsTree(catalog_stmt, statementRootNode);
+                            }
+                        } // FOR (triggers)
+                    }
                     // Vertical Partitions
                     final MaterializedViewInfo catalog_vp = vertical_partitions.get(catalog_tbl); 
                     if (catalog_vp != null) {
@@ -327,6 +343,76 @@ public class CatalogTreeModel extends DefaultTreeModel {
         } // FOR (clusters)
     }
     
+    private void buildStatementsTree(Statement statement_cat, DefaultMutableTreeNode statementRootNode) {            
+         DefaultMutableTreeNode statement_node = new DefaultMutableTreeNode(new WrapperNode(statement_cat));
+         statementRootNode.add(statement_node);
+         buildSearchIndex(statement_cat, statement_node);
+         
+         // Plan Trees
+         for (boolean is_singlepartition : new boolean[] { true, false }) {
+             if (is_singlepartition && !statement_cat.getHas_singlesited()) continue;
+             if (!is_singlepartition && !statement_cat.getHas_multisited()) continue;
+
+             String label = (is_singlepartition ? "Single-Partition" : "Distributed") + " Plan Fragments";
+//                         String attributes = "";
+             AbstractPlanNode node = null;
+             
+             try {
+                 node = PlanNodeUtil.getRootPlanNodeForStatement(statement_cat, is_singlepartition);
+             } catch (Exception e) {
+                 String msg = e.getMessage();
+                 if (msg == null || msg.length() == 0) {
+                     e.printStackTrace();
+                 } else {
+                     LOG.warn(msg);
+                 }
+             }
+             
+             CatalogMap<PlanFragment> fragments = (is_singlepartition ? statement_cat.getFragments() : statement_cat.getMs_fragments());
+             PlanTreeCatalogNode planTreeNode = new PlanTreeCatalogNode(label, fragments, node);
+             DefaultMutableTreeNode planNode = new DefaultMutableTreeNode(planTreeNode);
+             statement_node.add(planNode);
+             
+             // Plan Fragments
+             for (PlanFragment fragment_cat : CatalogUtil.getSortedCatalogItems(fragments, "id")) {
+                 DefaultMutableTreeNode fragment_node = new DefaultMutableTreeNode(new WrapperNode(fragment_cat));
+                 planNode.add(fragment_node);
+                 buildSearchIndex(fragment_cat, fragment_node);
+             } // FOR (fragments)
+         }
+     
+         // Statement Parameter
+         DefaultMutableTreeNode paramRootNode = new CatalogMapTreeNode(StmtParameter.class, "Parameters", statement_cat.getParameters());
+         statement_node.add(paramRootNode);
+         for (StmtParameter param_cat : CatalogUtil.getSortedCatalogItems(statement_cat.getParameters(), "index")) {
+             DefaultMutableTreeNode param_node = new DefaultMutableTreeNode(new WrapperNode(param_cat) {
+                 @Override
+                 public String toString() {
+                      StmtParameter param_cat = (StmtParameter)this.getCatalogType();
+                      VoltType type = VoltType.get((byte)param_cat.getJavatype());
+                      return (super.toString() + " :: " + type.name());
+                 }
+             });
+             paramRootNode.add(param_node);
+             buildSearchIndex(param_cat, param_node);
+         } // FOR (parameters)
+         // Output Columns
+         DefaultMutableTreeNode columnRootNode = new DefaultMutableTreeNode("Output Columns");
+         statement_node.add(columnRootNode);
+         for (Column column_cat : statement_cat.getOutput_columns()) {
+             DefaultMutableTreeNode column_node = new DefaultMutableTreeNode(new WrapperNode(column_cat) {
+                 @Override
+                 public String toString() {
+                     Column column_cat = (Column)this.getCatalogType();
+                     String type = VoltType.get((byte)column_cat.getType()).toSQLString();
+                     return (super.toString() + " (" + type + ")");
+                 }
+             });
+             columnRootNode.add(column_node);
+             buildSearchIndex(column_cat, column_node);
+         } // FOR (output columns)
+    }
+    
     private void buildProceduresTree(DefaultMutableTreeNode parentNode, Collection<Procedure> procedures) {
         for (Procedure catalog_proc : procedures) {
             DefaultMutableTreeNode procNode = new DefaultMutableTreeNode(new WrapperNode(catalog_proc));
@@ -354,73 +440,7 @@ public class CatalogTreeModel extends DefaultTreeModel {
                 DefaultMutableTreeNode statementRootNode = new CatalogMapTreeNode(Statement.class, "Statements", catalog_proc.getStatements());
                 procNode.add(statementRootNode);                  
                 for (Statement statement_cat : catalog_proc.getStatements()) {
-                    DefaultMutableTreeNode statement_node = new DefaultMutableTreeNode(new WrapperNode(statement_cat));
-                    statementRootNode.add(statement_node);
-                    buildSearchIndex(statement_cat, statement_node);
-                    
-                    // Plan Trees
-                    for (boolean is_singlepartition : new boolean[] { true, false }) {
-                        if (is_singlepartition && !statement_cat.getHas_singlesited()) continue;
-                        if (!is_singlepartition && !statement_cat.getHas_multisited()) continue;
-
-                        String label = (is_singlepartition ? "Single-Partition" : "Distributed") + " Plan Fragments";
-//                            String attributes = "";
-                        AbstractPlanNode node = null;
-                        
-                        try {
-                            node = PlanNodeUtil.getRootPlanNodeForStatement(statement_cat, is_singlepartition);
-                        } catch (Exception e) {
-                            String msg = e.getMessage();
-                            if (msg == null || msg.length() == 0) {
-                                e.printStackTrace();
-                            } else {
-                                LOG.warn(msg);
-                            }
-                        }
-                        
-                        CatalogMap<PlanFragment> fragments = (is_singlepartition ? statement_cat.getFragments() : statement_cat.getMs_fragments());
-                        PlanTreeCatalogNode planTreeNode = new PlanTreeCatalogNode(label, fragments, node);
-                        DefaultMutableTreeNode planNode = new DefaultMutableTreeNode(planTreeNode);
-                        statement_node.add(planNode);
-                        
-                        // Plan Fragments
-                        for (PlanFragment fragment_cat : CatalogUtil.getSortedCatalogItems(fragments, "id")) {
-                            DefaultMutableTreeNode fragment_node = new DefaultMutableTreeNode(new WrapperNode(fragment_cat));
-                            planNode.add(fragment_node);
-                            buildSearchIndex(fragment_cat, fragment_node);
-                        } // FOR (fragments)
-                    }
-                
-                    // Statement Parameter
-                    DefaultMutableTreeNode paramRootNode = new CatalogMapTreeNode(StmtParameter.class, "Parameters", statement_cat.getParameters());
-                    statement_node.add(paramRootNode);
-                    for (StmtParameter param_cat : CatalogUtil.getSortedCatalogItems(statement_cat.getParameters(), "index")) {
-                        DefaultMutableTreeNode param_node = new DefaultMutableTreeNode(new WrapperNode(param_cat) {
-                            @Override
-                            public String toString() {
-                                 StmtParameter param_cat = (StmtParameter)this.getCatalogType();
-                                 VoltType type = VoltType.get((byte)param_cat.getJavatype());
-                                 return (super.toString() + " :: " + type.name());
-                            }
-                        });
-                        paramRootNode.add(param_node);
-                        buildSearchIndex(param_cat, param_node);
-                    } // FOR (parameters)
-                    // Output Columns
-                    DefaultMutableTreeNode columnRootNode = new DefaultMutableTreeNode("Output Columns");
-                    statement_node.add(columnRootNode);
-                    for (Column column_cat : statement_cat.getOutput_columns()) {
-                        DefaultMutableTreeNode column_node = new DefaultMutableTreeNode(new WrapperNode(column_cat) {
-                            @Override
-                            public String toString() {
-                                Column column_cat = (Column)this.getCatalogType();
-                                String type = VoltType.get((byte)column_cat.getType()).toSQLString();
-                                return (super.toString() + " (" + type + ")");
-                            }
-                        });
-                        columnRootNode.add(column_node);
-                        buildSearchIndex(column_cat, column_node);
-                    } // FOR (output columns)
+                	buildStatementsTree(statement_cat, statementRootNode);
                 } // FOR (statements)
             
                 // Conflicts
