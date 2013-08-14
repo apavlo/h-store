@@ -73,7 +73,7 @@ Table* TableFactory::getPersistentTable(
             bool exportOnly)
 {
     std::vector<TableIndexScheme> dummy;
-    std::vector<Trigger*> dummyTrig;
+    std::vector<Trigger*>* dummyTrig = NULL;
     return getPersistentTable(databaseId, ctx, name,
                               schema, columnNames, dummy, dummyTrig, partitionColumn,
                               exportEnabled, exportOnly);
@@ -91,7 +91,7 @@ Table* TableFactory::getPersistentTable(
             bool exportOnly)
 {
     std::vector<TableIndexScheme> dummy;
-    std::vector<Trigger*> dummyTrig;
+    std::vector<Trigger*>* dummyTrig = NULL;
     return getPersistentTable(databaseId, ctx, name, schema, columnNames,
                               pkey_index, dummy, dummyTrig, partitionColumn,
                               exportEnabled, exportOnly);
@@ -108,7 +108,7 @@ Table* TableFactory::getPersistentTable(
             bool exportEnabled,
             bool exportOnly)
 {
-	std::vector<Trigger*> dummyTrig;
+	std::vector<Trigger*>* dummyTrig = NULL;
 	return getPersistentTable(databaseId, ctx, name, schema, columnNames, indexes,
 							dummyTrig, partitionColumn, exportEnabled, exportOnly);
 }
@@ -120,7 +120,7 @@ Table* TableFactory::getPersistentTable(
             TupleSchema* schema,
             const std::string* columnNames,
             const std::vector<TableIndexScheme> &indexes,
-            const std::vector<Trigger*> &triggers,
+            std::vector<Trigger*> *triggers,
             int partitionColumn,
             bool exportEnabled,
             bool exportOnly)
@@ -138,9 +138,10 @@ Table* TableFactory::getPersistentTable(
         pTable->m_indexCount = (int)indexes.size();
         pTable->m_indexes = new TableIndex*[indexes.size()];
         pTable->m_partitionColumn = partitionColumn;
-        pTable->m_triggers = triggers;
+        pTable->addAllTriggers(triggers);
 
-        if(triggers.size() > 0)
+        //if(triggers.size() > 0)
+        if(triggers != NULL)
         	pTable->m_hasTriggers = true;
         else
         	pTable->m_hasTriggers = false;
@@ -168,7 +169,7 @@ Table* TableFactory::getPersistentTable(
             bool exportEnabled,
             bool exportOnly)
 {
-	std::vector<Trigger*> dummyTrig;
+	std::vector<Trigger*>* dummyTrig = NULL;
 	return getPersistentTable(databaseId, ctx, name, schema, columnNames, pkeyIndex,
 							indexes, dummyTrig, partitionColumn, exportEnabled, exportOnly);
 }
@@ -182,7 +183,7 @@ Table* TableFactory::getPersistentTable(
             const std::string* columnNames,
             const TableIndexScheme &pkeyIndex,
             const std::vector<TableIndexScheme> &indexes,
-            const std::vector<Trigger*> &triggers,
+            std::vector<Trigger*>* triggers,
             int partitionColumn,
             bool exportEnabled,
             bool exportOnly)
@@ -199,9 +200,10 @@ Table* TableFactory::getPersistentTable(
         pTable->m_pkeyIndex = TableIndexFactory::getInstance(pkeyIndex);
         TableFactory::initCommon(databaseId, pTable, name, schema, columnNames, true);
         pTable->m_partitionColumn = partitionColumn;
-        pTable->m_triggers = triggers;
+        pTable->addAllTriggers(triggers);
 
-        if(triggers.size() > 0)
+        //if(triggers.size() > 0)
+        if(triggers != NULL)
 			pTable->m_hasTriggers = true;
 		else
 			pTable->m_hasTriggers = false;

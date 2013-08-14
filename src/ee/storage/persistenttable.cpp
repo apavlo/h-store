@@ -1117,11 +1117,11 @@ void PersistentTable::onSetColumns() {
 }
 
 //triggers
-std::vector<voltdb::Trigger*> PersistentTable::getTriggers() {
+std::vector<voltdb::Trigger*>* PersistentTable::getTriggers() {
 	return m_triggers;
 }
 
-void PersistentTable::addAllTriggers(std::vector<voltdb::Trigger*> &trigs){
+void PersistentTable::addAllTriggers(std::vector<voltdb::Trigger*> *trigs){
 	m_triggers = trigs;
 }
 

@@ -73,7 +73,7 @@ class Trigger {
     friend class TempTable;
 
   protected:
-    vector<const catalog::PlanFragment*> m_frags;
+    vector<const catalog::PlanFragment*>* m_frags;
     unsigned char m_type; //0=insert, 1=update, 2=delete
     bool m_forEach;
     Table *m_sourceTable;
