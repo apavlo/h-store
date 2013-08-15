@@ -315,6 +315,11 @@ public class DDLCompiler {
             }
         }
         
+        if(name.equals("TABLEC") || name.equals("TABLEA"))
+        {
+        	table.setIsreplicated(false);
+        }
+        
         //FIXME: hardcoding table names, very bad!
         if(name.equals("TABLEA") || name.equals("STREAM2"))
         {
