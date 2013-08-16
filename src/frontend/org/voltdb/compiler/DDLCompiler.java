@@ -365,8 +365,8 @@ public class DDLCompiler {
 		boolean forEach = false;
 
 		String name = "TRIGGER1";
-		//String stmt = "INSERT INTO TABLEC (A_ID, A_VALUE) SELECT * FROM TABLEA";
-		String stmt = "INSERT INTO TABLEC (A_ID, A_VALUE) VALUES (4, 'XXX')";
+		String stmt = "INSERT INTO TABLEC (A_ID, A_VALUE) SELECT * FROM TABLEA";
+		//String stmt = "INSERT INTO TABLEC (A_ID, A_VALUE) VALUES (4, 'XXX')";
 		//String stmt = "SELECT * FROM TABLEA";
     	int id = 1;
 
