@@ -66,23 +66,18 @@ Trigger::~Trigger() {
 Trigger::Trigger(const catalog::CatalogMap<catalog::Statement> *stmts, unsigned char type, bool forEach) :
 	m_type(type), m_forEach(forEach)
 {
-	m_frags = new vector<const catalog::PlanFragment*>;
 	VOLT_DEBUG("TRIGGER CONSTRUCTOR");
+	m_frags = new vector<const catalog::PlanFragment*>;
 	map<string, catalog::Statement *>::const_iterator stmt_iter = stmts->begin();
 	for( ; stmt_iter != stmts->end(); stmt_iter++){
-		VOLT_DEBUG("STATEMENT LOOP");
 		const catalog::Statement * curstmt = stmt_iter->second;
 		map<string, catalog::PlanFragment*>::const_iterator frag_iter;
 		//fragments loop
 		for(frag_iter = curstmt->fragments().begin();
 				frag_iter != curstmt->fragments().end(); frag_iter++){
-			VOLT_DEBUG("FRAGMENT LOOP");
 			m_frags->push_back(frag_iter->second);
-			VOLT_DEBUG("END FRAGMENT LOOP");
-			VOLT_DEBUG("m_frag size %d", int(m_frags->size()));
 		}
 	}
-	VOLT_DEBUG("END TRIGGER CONSTRUCTOR");
 }
 
 void Trigger::fire(VoltDBEngine *engine, Table *input) {

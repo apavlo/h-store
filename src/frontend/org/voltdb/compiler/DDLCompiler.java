@@ -366,6 +366,8 @@ public class DDLCompiler {
 
 		String name = "TRIGGER1";
 		String stmt = "INSERT INTO TABLEC (A_ID, A_VALUE) SELECT * FROM TABLEA";
+		//String stmt2 = "INSERT INTO TABLEC (A_ID, A_VALUE) VALUES (2, 'XXX')";
+		String stmt2 = "DELETE FROM TABLEA";
 		//String stmt = "INSERT INTO TABLEC (A_ID, A_VALUE) VALUES (4, 'XXX')";
 		//String stmt = "SELECT * FROM TABLEA";
     	int id = 1;
@@ -376,7 +378,9 @@ public class DDLCompiler {
 		trigger.setSourcetable(parent);
 		trigger.setTriggertype(type);
 		Statement s = trigger.getStatements().add("tr1stmt1");
+		Statement s2 = trigger.getStatements().add("tr1stmt2");
 		StatementCompiler.compile(m_compiler, m_hsql, catalog, db, new DatabaseEstimates(), s, stmt, true);
+		StatementCompiler.compile(m_compiler, m_hsql, catalog, db, new DatabaseEstimates(), s2, stmt2, true);
 		LOG.info("End add Trigger to Catalog");
     }
 
