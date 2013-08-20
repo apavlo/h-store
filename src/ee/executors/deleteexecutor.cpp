@@ -94,14 +94,16 @@ bool DeleteExecutor::p_execute(const NValueArray &params, ReadWriteTracker *trac
     if (m_truncate) {
         VOLT_TRACE("truncating table %s...", m_targetTable->name().c_str());
         // count the truncated tuples as deleted
-        m_engine->m_tuplesModified += m_inputTable->activeTupleCount();
+        /** JOHN: if we're truncating, then we don't have an m_inputTable
+         *  because we never created one in the init.  It doesn't make sense
+         *  to grab the rows modified in that case. */
+        //m_engine->m_tuplesModified += m_inputTable->activeTupleCount();
         //m_engine->context().incrementTuples(m_targetTable->activeTupleCount());
         // actually delete all the tuples
         m_targetTable->deleteAllTuples(true);
         return true;
     }
     assert(m_inputTable);
-
     assert(m_inputTuple.sizeInValues() == m_inputTable->columnCount());
     assert(m_targetTuple.sizeInValues() == m_targetTable->columnCount());
     TableIterator inputIterator(m_inputTable);
