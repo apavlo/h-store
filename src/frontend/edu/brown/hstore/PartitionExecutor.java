@@ -4239,7 +4239,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             if (hstore_conf.site.commandlog_enable) ts.markLogEnabled();
             
             if (hstore_conf.site.exec_profiling) this.profiler.network_time.start();
-            this.hstore_site.responseSend(ts, cresponse);
+            this.hstore_site.responseSend(ts);
             if (hstore_conf.site.exec_profiling) this.profiler.network_time.stopIfStarted();
             this.hstore_site.queueDeleteTransaction(ts.getTransactionId(), status);
         } 
@@ -4282,7 +4282,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             // that we're magically going to be able to recover this and get them a result
             // This has to come before the network messages above because this will clean-up the 
             // LocalTransaction state information
-            this.hstore_site.responseSend(ts, cresponse);
+            this.hstore_site.responseSend(ts);
             
             // Send a message all the partitions involved that the party is over
             // and that they need to abort the transaction. We don't actually care when we get the

@@ -67,7 +67,8 @@ public class TransactionReduceCallback extends AbstractTransactionCallback<MapRe
         // back to the client.
         ClientResponseImpl cresponse = new ClientResponseImpl(); 
         cresponse.init(ts, Status.OK, this.finalResults, "");
-        hstore_site.responseSend(ts, cresponse);
+        ts.setClientResponse(cresponse);
+        hstore_site.responseSend(ts);
 
         if (hstore_site.getHStoreConf().site.mr_map_blocking) {
             // STEP 2

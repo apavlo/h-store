@@ -7,6 +7,7 @@ import org.voltdb.ClientResponseImpl;
 
 import com.google.protobuf.RpcCallback;
 
+import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.hstore.util.AbstractProcessingRunnable;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
@@ -15,7 +16,7 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
  * Special thread that will process ClientResponses and send them back to clients 
  * @author pavlo
  */
-public final class TransactionPostProcessor extends AbstractProcessingRunnable<Object[]> {
+public final class TransactionPostProcessor extends AbstractProcessingRunnable<LocalTransaction> {
     private static final Logger LOG = Logger.getLogger(TransactionPostProcessor.class);
     private static final LoggerBoolean debug = new LoggerBoolean();
     static {
@@ -27,7 +28,7 @@ public final class TransactionPostProcessor extends AbstractProcessingRunnable<O
      * @param hstore_site
      */
     public TransactionPostProcessor(HStoreSite hstore_site,
-                                    BlockingQueue<Object[]> queue) {
+                                    BlockingQueue<LocalTransaction> queue) {
         super(hstore_site,
               HStoreConstants.THREAD_NAME_POSTPROCESSOR,
               queue,
@@ -35,19 +36,18 @@ public final class TransactionPostProcessor extends AbstractProcessingRunnable<O
     }
     
     @Override
-    protected void processingCallback(Object data[]) {
-        ClientResponseImpl cresponse = (ClientResponseImpl)data[0];
-        @SuppressWarnings("unchecked")
-        RpcCallback<ClientResponseImpl> clientCallback = (RpcCallback<ClientResponseImpl>)data[1];
-        long initiateTime = (Long)data[2];
-        int restartCounter = (Integer)data[3];
+    protected void processingCallback(LocalTransaction ts) {
+        ClientResponseImpl cresponse = ts.getClientResponse();
+        RpcCallback<ClientResponseImpl> clientCallback = ts.getClientCallback();
+        long initiateTime = ts.getInitiateTime();
+        int restartCounter = ts.getRestartCounter();
         
         assert(cresponse != null);
         assert(clientCallback != null);
         
         if (debug.val)
-            LOG.debug(String.format("Processing ClientResponse for txn #%d at partition %d [status=%s]",
-                      cresponse.getTransactionId(), cresponse.getBasePartition(), cresponse.getStatus()));
+            LOG.debug(String.format("Processing ClientResponse for %s at partition %d [status=%s]",
+                      ts, ts.getBasePartition(), cresponse.getStatus()));
         try {
             this.hstore_site.responseSend(cresponse, clientCallback, initiateTime, restartCounter);
         } catch (Throwable ex) {

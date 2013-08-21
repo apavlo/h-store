@@ -30,7 +30,9 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -77,92 +79,7 @@ public class CommandLogWriter extends ExceptionHandlingRunnable implements Shutd
      * The default file extension to use for the command log output
      */
     public static final String LOG_OUTPUT_EXT = ".cmdlog"; 
-    
-    /**
-     * Special LogEntry that holds additional data that we
-     * need in order to send back a ClientResponse
-     */
-    protected class WriterLogEntry extends LogEntry {
-        protected ClientResponseImpl cresponse;
-        protected RpcCallback<ClientResponseImpl> clientCallback;
-        protected long initiateTime;
-        protected int restartCounter;
         
-        public LogEntry init(LocalTransaction ts, ClientResponseImpl cresponse) {
-            this.cresponse = cresponse;
-            this.clientCallback = ts.getClientCallback();
-            this.initiateTime = ts.getInitiateTime();
-            this.restartCounter = ts.getRestartCounter();
-            return super.init(ts);
-        }
-        
-        @Override
-        public void finish() {
-            super.finish();
-            this.cresponse = null;
-            this.clientCallback = null;
-            this.initiateTime = -1;
-            this.restartCounter = -1;
-        }
-    }
-    
-    /**
-     * Circular Buffer of Log Entries
-     */
-    protected class CircularLogEntryBuffer {
-        private final WriterLogEntry buffer[];
-        private int startPos;
-        private int nextPos;
-        
-        public CircularLogEntryBuffer(int size) {
-            size += 1; //hack to make wrapping around work
-            this.buffer = new WriterLogEntry[size];
-            for (int i = 0; i < size; i++) {
-                this.buffer[i] = new WriterLogEntry();
-            } // FOR
-            this.startPos = 0;
-            this.nextPos = 0; 
-        }
-        public LogEntry next(LocalTransaction ts, ClientResponseImpl cresponse) {
-            // Check that they don't try add the same txn twice right after each other
-            if (hstore_conf.site.jvm_asserts) {
-                LogEntry prev = this.buffer[this.previous()];
-                if (prev.isInitialized()) {
-                    assert(ts.getTransactionId().equals(prev.getTransactionId()) == false) :
-                        String.format("Trying to queue %s in the %s twice\n%s",
-                                      ts, CommandLogWriter.class.getSimpleName(), prev);
-                }
-            }
-            
-            // The internal pointer to the next element does not need to be atomic because 
-            // we are going to maintain separate buffers for each partition.
-            // But we need to think about what happens if we are about to wrap around and we
-            // haven't been flushed to disk yet.
-            LogEntry ret = this.buffer[this.nextPos].init(ts, cresponse); 
-            this.nextPos = (this.nextPos + 1) % this.buffer.length;;
-            return ret;
-        }
-        public void flushCleanup() {
-            //for (int i = 0; i < this.getSize(); i++)
-            //this.buffer[(this.startPos + i) % this.buffer.length].finish();
-            this.startPos = this.nextPos;
-        }
-        public int getStart() {
-            return this.startPos;
-        }
-        public int size() {
-            return ((this.nextPos + this.buffer.length) - this.startPos) % this.buffer.length;
-        }
-        private int previous() {
-            return ((this.nextPos == 0 ? this.buffer.length : this.nextPos) - 1);
-        }
-        @Override
-        public String toString() {
-            return String.format("%s[start=%d / next=%s]@%d", this.getClass().getSimpleName(),
-                                 this.startPos, this.nextPos, this.hashCode());
-        }
-    } // CLASS
-    
     private final HStoreSite hstore_site;
     private final HStoreConf hstore_conf;
     private final CatalogContext catalogContext;
@@ -191,8 +108,8 @@ public class CommandLogWriter extends ExceptionHandlingRunnable implements Shutd
     /**
      * The log entry buffers (one per partition) 
      */
-    private CircularLogEntryBuffer entries[];
-    private CircularLogEntryBuffer entriesFlushing[];
+    private List<LocalTransaction> entries[];
+    private List<LocalTransaction> entriesFlushing[];
     
     private CommandLogWriterProfiler profiler;
     
@@ -231,11 +148,11 @@ public class CommandLogWriter extends ExceptionHandlingRunnable implements Shutd
             
             // Make one entry buffer per partition SO THAT SYNCHRONIZATION ON EACH BUFFER IS NOT REQUIRED
             this.writingEntry = new Semaphore(this.numWritingLocks, false); 
-            this.entries = new CircularLogEntryBuffer[num_partitions];
-            this.entriesFlushing = new CircularLogEntryBuffer[num_partitions];
+            this.entries = new List[num_partitions];
+            this.entriesFlushing = new List[num_partitions];
             for (int partition = 0; partition < num_partitions; partition++) {
-                this.entries[partition] = new CircularLogEntryBuffer(num_entries);
-                this.entriesFlushing[partition] = new CircularLogEntryBuffer(num_entries);
+                this.entries[partition] = new ArrayList<LocalTransaction>();
+                this.entriesFlushing[partition] = new ArrayList<LocalTransaction>();
             } // FOR
             this.singletonLogEntry = null;
         } else {
@@ -275,7 +192,7 @@ public class CommandLogWriter extends ExceptionHandlingRunnable implements Shutd
 
         this.usePostProcessor = hstore_site.hasTransactionPostProcessors();
         
-        CircularLogEntryBuffer temp[] = null;
+        List<LocalTransaction> temp[] = null;
         long next = System.currentTimeMillis() + hstore_conf.site.commandlog_timeout;
         while (this.stop == false) {
             // Sleep until our timeout period, at which point a 
@@ -364,10 +281,10 @@ public class CommandLogWriter extends ExceptionHandlingRunnable implements Shutd
      */
     public int getTotalTxnCount() {
         int total = 0;
-        for (CircularLogEntryBuffer c : this.entries) {
+        for (List<LocalTransaction> c : this.entries) {
             total += c.size();
         } // FOR
-        for (CircularLogEntryBuffer c : this.entriesFlushing) {
+        for (List<LocalTransaction> c : this.entriesFlushing) {
             total += c.size();
         } // FOR
         return (total);
@@ -433,7 +350,7 @@ public class CommandLogWriter extends ExceptionHandlingRunnable implements Shutd
      * GroupCommits the given buffer set all at once
      * @param eb
      */
-    public int groupCommit(CircularLogEntryBuffer[] eb) {
+    public int groupCommit(List<LocalTransaction>[] eb) {
         if (hstore_conf.site.commandlog_profiling) {
             if (this.profiler == null) this.profiler = new CommandLogWriterProfiler();
             this.profiler.writingTime.start();
@@ -445,20 +362,16 @@ public class CommandLogWriter extends ExceptionHandlingRunnable implements Shutd
         for (int i = 0; i < eb.length; i++) {
             try {
                 assert(this.singletonSerializer != null);
-                int size = eb[i].buffer.length;
-                int position = eb[i].startPos;
-                while (position != eb[i].nextPos) {
-                    WriterLogEntry entry = eb[i].buffer[position++];
+                for (LocalTransaction ts : eb[i]) {
                     try {
-                        this.singletonSerializer.writeObject(entry);
+                        this.singletonSerializer.writeObject(ts);
                         txnCounter++;
                     } catch (Throwable ex) {
                         LOG.warn("Failed to write log entry", ex);
                     }
                     if (debug.val)
-                        LOG.debug(String.format("Prepared txn #%d for group commit batch #%d",
-                                  entry.getTransactionId(), this.commitBatchCounter));
-                    if (position >= size) position = 0;
+                        LOG.debug(String.format("Prepared %s for group commit batch #%d",
+                                  ts, this.commitBatchCounter));
                 } // WHILE
             } catch (Exception e) {
                 String message = "Failed to serialize buffer during group commit";
@@ -495,28 +408,14 @@ public class CommandLogWriter extends ExceptionHandlingRunnable implements Shutd
         try {
             // Send responses
             for (int i = 0; i < eb.length; i++) {
-                CircularLogEntryBuffer buffer = eb[i];
-                int start = buffer.getStart();
-                for (int j = 0, size = buffer.size(); j < size; j++) {
-                    WriterLogEntry entry = buffer.buffer[(start + j) % buffer.buffer.length];
-                    if (entry.isInitialized()) {
-                        if (this.usePostProcessor) {
-                            hstore_site.responseQueue(entry.cresponse,
-                                                      entry.clientCallback,
-                                                      entry.initiateTime,
-                                                      entry.restartCounter);
-                        }
-                        else {
-                            hstore_site.responseSend(entry.cresponse,
-                                                     entry.clientCallback,
-                                                     entry.initiateTime,
-                                                     entry.restartCounter);
-                        }
-                    } else {
-                        LOG.warn("Unexpected unintialized " + entry.getClass().getSimpleName());
+                for (LocalTransaction ts : eb[i]) {
+                    if (this.usePostProcessor) {
+                        hstore_site.responseQueue(ts);
+                    }
+                    else {
+                        hstore_site.responseSend(ts);
                     }
                 } // FOR
-                buffer.flushCleanup();
             } // FOR
         } finally {
             if (hstore_conf.site.commandlog_profiling && profiler != null) profiler.networkTime.stop();
@@ -547,7 +446,7 @@ public class CommandLogWriter extends ExceptionHandlingRunnable implements Shutd
             int offset = this.hstore_site.getLocalPartitionOffset(basePartition);
 
             // get the buffer for the partition of the current transaction
-            CircularLogEntryBuffer buffer = this.entries[offset];
+            List<LocalTransaction> buffer = this.entries[offset];
             assert(buffer != null) : "Missing log entry buffer for partition " + basePartition;
             try {
                 // acquire semaphore permit to write a transaction to the log

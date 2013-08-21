@@ -67,10 +67,9 @@ public class LocalPrepareCallback extends PartitionCountingCallback<LocalTransac
         // send the 2PC COMMIT message to all of our friends.
         // We want to do this first because the transaction state could get
         // cleaned-up right away when we call HStoreCoordinator.transactionFinish()
-        ClientResponseImpl cresponse = this.ts.getClientResponse();
-        assert(cresponse.isInitialized()) :
+        assert(this.ts.getClientResponse().isInitialized()) :
             "Trying to send back ClientResponse for " + ts + " before it was set!";
-        this.hstore_site.responseSend(this.ts, cresponse);
+        this.hstore_site.responseSend(this.ts);
     }
     
     @Override
@@ -97,7 +96,7 @@ public class LocalPrepareCallback extends PartitionCountingCallback<LocalTransac
             if (debug.val)
                 LOG.debug(String.format("%s - Sending back %s %s",
                           this.ts, status, cresponse.getClass().getSimpleName()));
-            this.hstore_site.responseSend(this.ts, cresponse);
+            this.hstore_site.responseSend(this.ts);
         }
     }
     

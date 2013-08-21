@@ -309,7 +309,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * the clients without blocking
      */
     private List<TransactionPostProcessor> postProcessors = null;
-    private BlockingQueue<Object[]> postProcessorQueue = null;
+    private BlockingQueue<LocalTransaction> postProcessorQueue = null;
     
     /**
      * Transaction Handle Cleaner
@@ -772,7 +772,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 LOG.debug(String.format("Starting %d %s threads",
                           num_postProcessors, TransactionPostProcessor.class.getSimpleName()));
             this.postProcessors = new ArrayList<TransactionPostProcessor>();
-            this.postProcessorQueue = new LinkedBlockingQueue<Object[]>();
+            this.postProcessorQueue = new LinkedBlockingQueue<LocalTransaction>();
             for (int i = 0; i < num_postProcessors; i++) {
                 TransactionPostProcessor t = new TransactionPostProcessor(this, this.postProcessorQueue);
                 this.postProcessors.add(t);
@@ -2140,7 +2140,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         ts.setStatus(status);
         ClientResponseImpl cresponse = new ClientResponseImpl();
         cresponse.init(ts, status, HStoreConstants.EMPTY_RESULT, msg);
-        this.responseSend(ts, cresponse);
+        this.responseSend(ts);
 
         if (hstore_conf.site.txn_counters) {
             if (status == Status.ABORT_REJECT) {
@@ -2436,7 +2436,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     // ----------------------------------------------------------------------------
 
     /**
-     * Send back the given ClientResponse to the actual client waiting for it
+     * Send back the txn's ClientResponse to the actual client waiting for it
      * At this point the transaction should been properly committed or aborted at
      * the PartitionExecutor, including if it was mispredicted.
      * This method may not actually send the ClientResponse right away if command-logging
@@ -2447,12 +2447,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param ts
      * @param cresponse
      */
-    public void responseSend(LocalTransaction ts, ClientResponseImpl cresponse) {
-        Status status = cresponse.getStatus();
+    public void responseSend(LocalTransaction ts) {
+        ClientResponseImpl cresponse = ts.getClientResponse();
         assert(cresponse != null) :
             "Missing ClientResponse for " + ts;
         assert(cresponse.getClientHandle() != -1) :
             "The client handle for " + ts + " was not set properly";
+        Status status = cresponse.getStatus();
         assert(status != Status.ABORT_MISPREDICT && status != Status.ABORT_EVICTEDACCESS) :
             "Trying to send back a client response for " + ts + " but the status is " + status;
         
@@ -2474,7 +2475,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 if (trace.val)
                     LOG.trace(String.format("%s - Sending ClientResponse to post-processing thread [status=%s]",
                               ts, cresponse.getStatus()));
-                this.responseQueue(ts, cresponse);
+                this.responseQueue(ts);
             } else {
                 this.responseSend(cresponse,
                                   ts.getClientCallback(),
@@ -2493,37 +2494,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param ts
      * @param cresponse
      */
-    private void responseQueue(LocalTransaction ts, ClientResponseImpl cresponse) {
+    public void responseQueue(LocalTransaction ts) {
         assert(hstore_conf.site.exec_postprocessing_threads);
         if (debug.val)
             LOG.debug(String.format("Adding ClientResponse for %s from partition %d " +
                       "to processing queue [status=%s, size=%d]",
-                      ts, ts.getBasePartition(), cresponse.getStatus(), this.postProcessorQueue.size()));
-        this.postProcessorQueue.add(new Object[]{
-                                            cresponse,
-                                            ts.getClientCallback(),
-                                            ts.getInitiateTime(),
-                                            ts.getRestartCounter()
-        });
-    }
-
-    /**
-     * Use the TransactionPostProcessors to dispatch the ClientResponse back over the network
-     * @param cresponse
-     * @param clientCallback
-     * @param initiateTime
-     * @param restartCounter
-     */
-    public void responseQueue(ClientResponseImpl cresponse,
-                              RpcCallback<ClientResponseImpl> clientCallback,
-                              long initiateTime,
-                              int restartCounter) {
-        this.postProcessorQueue.add(new Object[]{
-                                            cresponse,
-                                            clientCallback,
-                                            initiateTime,
-                                            restartCounter
-        });
+                      ts, ts.getBasePartition(), ts.getStatus(), this.postProcessorQueue.size()));
+        this.postProcessorQueue.add(ts);
     }
 
     /**
@@ -2911,7 +2888,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                                                Status.ABORT_UNEXPECTED,
                                                HStoreConstants.EMPTY_RESULT,
                                                result.errorMsg);
-                this.responseSend(result.ts, errorResponse);
+                result.ts.setClientResponse(errorResponse);
+                this.responseSend(result.ts);
                 
                 // We can just delete the LocalTransaction handle directly
                 result.ts.getInitCallback().cancel();
