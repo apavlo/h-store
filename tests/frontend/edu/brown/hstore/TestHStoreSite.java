@@ -522,7 +522,8 @@ public class TestHStoreSite extends BaseTestCase {
                                                               Status.OK,
                                                               HStoreConstants.EMPTY_RESULT,
                                                               "");
-        hstore_site.responseSend(ts, cresponse);
+        ts.setClientResponse(cresponse);
+        hstore_site.responseSend(ts);
         
         // Check to make sure our callback got the ClientResponse
         // And just make sure that they're the same

@@ -359,12 +359,13 @@ public class CommandLogWriter extends ExceptionHandlingRunnable implements Shutd
         // Write all to a single FastSerializer buffer
         this.singletonSerializer.clear();
         int txnCounter = 0;
+        LogEntry logEntry = new LogEntry();
         for (int i = 0; i < eb.length; i++) {
             try {
                 assert(this.singletonSerializer != null);
                 for (LocalTransaction ts : eb[i]) {
                     try {
-                        this.singletonSerializer.writeObject(ts);
+                        this.singletonSerializer.writeObject(logEntry.init(ts));
                         txnCounter++;
                     } catch (Throwable ex) {
                         LOG.warn("Failed to write log entry", ex);
@@ -456,17 +457,11 @@ public class CommandLogWriter extends ExceptionHandlingRunnable implements Shutd
                 // create an entry for this transaction in the buffer for this partition
                 // NOTE: this is guaranteed to be thread-safe because there is
                 // only one thread per partition
-                LogEntry entry = buffer.next(ts, cresponse);
-                assert(entry != null);
-                if (trace.val)
-                    LOG.trace(String.format("New %s %s from %s for partition %d",
-                              entry.getClass().getSimpleName(),
-                              entry, buffer, basePartition));
-
-                this.writingEntry.release();
+                buffer.add(ts);
             } catch (InterruptedException e) {
                 throw new RuntimeException("Unexpected interruption while waiting for WriterThread to finish");
             } finally {
+                this.writingEntry.release();
                 if (hstore_conf.site.commandlog_profiling && profiler != null) profiler.blockedTime.stopIfStarted();
             }
 
