@@ -315,15 +315,27 @@ public class DDLCompiler {
             }
         }
         
-        if(name.equals("TABLEC") || name.equals("TABLEA"))
+        if(name.equals("TABLEC") || name.equals("TABLEA") ||
+        		name.equals("votes_checkA") || name.equals("votes_checkB") || 
+        		name.equals("votes_checkC") || name.equals("votes"))
         {
         	table.setIsreplicated(false);
         }
         
         //FIXME: hardcoding table names, very bad!
-        if(name.equals("TABLEA") || name.equals("STREAM2"))
+        if(name.equals("TABLEAb"))
         {
-        	addTriggerToCatalog(table, table.getTriggers(), name, node, catalog, db); //currently sends null for the trigger map
+        	String[] stmt = {"DELETE TOP 1 FROM TABLEA"};
+        	addTriggerToCatalog(table, table.getTriggers(), catalog, db, stmt, 1); //currently sends null for the trigger map
+        }
+        
+        if(name.equals("votes_stream"))
+        {
+        	String[] stmt = {"DELETE TOP 1 FROM votes_window ",
+        					"INSERT INTO votes (vote_id, phone_number, state, contestant_number, created) " 
+        					 + "SELECT * FROM votes_stream", 
+        					"DELETE FROM votes_checkA"};
+        	addTriggerToCatalog(table, table.getTriggers(), catalog, db, stmt, 1); //currently sends null for the trigger map
         }
         
         /*
@@ -357,31 +369,25 @@ public class DDLCompiler {
      * @param node
      * @throws VoltCompilerException
      */
-    void addTriggerToCatalog(Table parent, CatalogMap<Trigger> triggers, String sourceTable, 
-    		Node node, Catalog catalog, Database db) throws VoltCompilerException
+    void addTriggerToCatalog(Table parent, CatalogMap<Trigger> triggers,  
+    		Catalog catalog, Database db, String[] stmt, int trigId) throws VoltCompilerException
     {
     	LOG.info("Add Trigger to Catalog");
     	int type = 0; //insert
 		boolean forEach = false;
-
-		String name = "TRIGGER1";
-		String stmt = "INSERT INTO TABLEC (A_ID, A_VALUE) SELECT * FROM TABLEA";
-		//String stmt2 = "INSERT INTO TABLEC (A_ID, A_VALUE) VALUES (2, 'XXX')";
-		String stmt2 = "DELETE FROM TABLEA";
-		//String stmt = "INSERT INTO TABLEC (A_ID, A_VALUE) VALUES (4, 'XXX')";
-		//String stmt = "SELECT * FROM TABLEA";
-    	int id = 1;
-
-    	Trigger trigger = triggers.add(name);
-		trigger.setId(id);
+		
+		Trigger trigger = triggers.add("trig" + trigId);
+		trigger.setId(trigId);
 		trigger.setForeach(forEach);
 		trigger.setSourcetable(parent);
 		trigger.setTriggertype(type);
-		Statement s = trigger.getStatements().add("tr1stmt1");
-		Statement s2 = trigger.getStatements().add("tr1stmt2");
-		StatementCompiler.compile(m_compiler, m_hsql, catalog, db, new DatabaseEstimates(), s, stmt, true);
-		StatementCompiler.compile(m_compiler, m_hsql, catalog, db, new DatabaseEstimates(), s2, stmt2, true);
-		LOG.info("End add Trigger to Catalog");
+		
+		for(int i = 0; i < stmt.length; i++)
+		{
+			Statement s = trigger.getStatements().add("trig" + trigId + "stmt" + i);
+			StatementCompiler.compile(m_compiler, m_hsql, catalog, db, new DatabaseEstimates(), s, stmt[i], true);
+			LOG.info("End add Trigger to Catalog");
+		}
     }
 
     void addColumnToCatalog(CatalogType parent, CatalogMap<Column> columns, Node node, int index) throws VoltCompilerException {
