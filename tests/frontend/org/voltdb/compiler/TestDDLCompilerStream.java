@@ -58,14 +58,12 @@ public class TestDDLCompilerStream extends TestCase {
     	String ddl1 =
                 "CREATE TABLE TABLEC (" +
                 "A_ID     BIGINT NOT NULL," +
-                "A_VALUE  VARCHAR(64)," +
-                "PRIMARY KEY (A_ID)" +
+                "A_VALUE  VARCHAR(64)" +
                 ");"; 
     	String ddl2 =
                 "CREATE TABLE TABLEA (" +
                 "A_ID     BIGINT NOT NULL," +
-                "A_VALUE  VARCHAR(64)," +
-                "PRIMARY KEY (A_ID)" +
+                "A_VALUE  VARCHAR(64)" +
                 ");";
 
         HSQLInterface hsql = HSQLInterface.loadHsqldb();

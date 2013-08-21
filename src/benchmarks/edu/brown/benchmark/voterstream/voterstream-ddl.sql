@@ -37,12 +37,12 @@ CREATE TABLE votes
 -- PARTITION BY ( phone_number )
 );
 
-CREATE TABLE votes_checkA
+CREATE TABLE votes_stream
 (
   vote_id            bigint     NOT NULL,
   phone_number       bigint     NOT NULL
-, state              varchar(2) NOT NULL -- REFERENCES area_code_state (state)
-, contestant_number  integer    NOT NULL REFERENCES contestants (contestant_number)
+, state              varchar(2) NOT NULL
+, contestant_number  integer    NOT NULL
 , created            timestamp  NOT NULL
 , CONSTRAINT PK_votes PRIMARY KEY
   (
@@ -51,26 +51,12 @@ CREATE TABLE votes_checkA
 -- PARTITION BY ( phone_number )
 );
 
-CREATE TABLE votes_checkB
+CREATE TABLE votes_window
 (
   vote_id            bigint     NOT NULL,
   phone_number       bigint     NOT NULL
-, state              varchar(2) NOT NULL -- REFERENCES area_code_state (state)
-, contestant_number  integer    NOT NULL REFERENCES contestants (contestant_number)
-, created            timestamp  NOT NULL
-, CONSTRAINT PK_votes PRIMARY KEY
-  (
-    vote_id
-  )
--- PARTITION BY ( phone_number )
-);
-
-CREATE TABLE votes_checkC
-(
-  vote_id            bigint     NOT NULL,
-  phone_number       bigint     NOT NULL
-, state              varchar(2) NOT NULL -- REFERENCES area_code_state (state)
-, contestant_number  integer    NOT NULL REFERENCES contestants (contestant_number)
+, state              varchar(2) NOT NULL
+, contestant_number  integer    NOT NULL
 , created            timestamp  NOT NULL
 , CONSTRAINT PK_votes PRIMARY KEY
   (
