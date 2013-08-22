@@ -44,7 +44,7 @@ public class GetStateHeatmap extends VoltProcedure {
 												  "SELECT contestant_number, state, SUM(num_votes) AS num_votes " +
 												  "FROM v_votes_by_contestant_number_state " +
 												  "GROUP BY contestant_number, state " +
-												  "ORDER BY 2 ASC, 3 DESC, 1 ASC;");
+												  "ORDER BY 2 ASC"); // , 3 DESC, 1 ASC;");
 	
     static class Result {
         public final String state;

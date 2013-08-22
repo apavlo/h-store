@@ -35,20 +35,19 @@ import org.voltdb.VoltTable;
 @ProcInfo (
 singlePartition = false
 )
-public class Results extends VoltProcedure
-{
+public class Results extends VoltProcedure {
+    
     // Gets the results
-    public final SQLStmt resultStmt = new SQLStmt( "   SELECT a.contestant_name   AS contestant_name"
-												  + "        , a.contestant_number AS contestant_number"
-												  + "        , SUM(b.num_votes)    AS total_votes"
-												  + "     FROM v_votes_by_contestant_number_state AS b"
-												  + "        , contestants AS a"
-												  + "    WHERE a.contestant_number = b.contestant_number"
-												  + " GROUP BY a.contestant_name"
-												  + "        , a.contestant_number"
-												  + " ORDER BY total_votes DESC"
-												  + "        , contestant_number ASC"
-												  + "        , contestant_name ASC;" );
+    public final SQLStmt resultStmt = new SQLStmt(
+        "SELECT a.contestant_name AS contestant_name, " +
+        "       a.contestant_number AS contestant_number, " +
+        "       SUM(b.num_votes) AS total_votes " +
+        "  FROM v_votes_by_contestant_number_state AS b, contestants AS a " +
+        " WHERE a.contestant_number = b.contestant_number " +
+        " GROUP BY a.contestant_name, a.contestant_number " +
+        " ORDER BY contestant_number ASC" );
+//        " ORDER BY total_votes DESC, contestant_number ASC, contestant_name ASC;" );
+    
     public VoltTable[] run() {
         voltQueueSQL(resultStmt);
         return voltExecuteSQL(true);
