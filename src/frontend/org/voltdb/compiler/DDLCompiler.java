@@ -323,7 +323,7 @@ public class DDLCompiler {
         }
         
         //FIXME: hardcoding table names, very bad!
-        if(name.equals("TABLEAb"))
+        if(name.equals("TABLEA"))
         {
         	String[] stmt = {"DELETE TOP 1 FROM TABLEA"};
         	addTriggerToCatalog(table, table.getTriggers(), catalog, db, stmt, 1); //currently sends null for the trigger map
@@ -331,10 +331,9 @@ public class DDLCompiler {
         
         if(name.equals("votes_stream"))
         {
-        	String[] stmt = {"DELETE TOP 1 FROM votes_window ",
-        					"INSERT INTO votes (vote_id, phone_number, state, contestant_number, created) " 
-        					 + "SELECT * FROM votes_stream", 
-        					"DELETE FROM votes_checkA"};
+        	String[] stmt = {"INSERT INTO votes SELECT * FROM votes_stream", 
+        					 "INSERT INTO votes_IL SELECT * FROM votes_stream WHERE state = 'IL'", 
+        					"DELETE FROM votes_stream"};
         	addTriggerToCatalog(table, table.getTriggers(), catalog, db, stmt, 1); //currently sends null for the trigger map
         }
         
