@@ -126,6 +126,7 @@ public class TestCommandLogger extends BaseTestCase {
                                                                   Status.OK,
                                                                   HStoreConstants.EMPTY_RESULT,
                                                                   "");
+            ts.setClientResponse(cresponse);
             boolean ret = logger.appendToLog(ts, cresponse);
             assertFalse(ret);
         }
