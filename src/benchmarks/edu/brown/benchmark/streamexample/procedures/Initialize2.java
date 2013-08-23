@@ -4,13 +4,12 @@ import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 
-public class Initialize extends VoltProcedure {
-	public final SQLStmt InsertB = new SQLStmt("INSERT INTO TABLEB (B_ID, NUMROWS) VALUES (1, 1)");
+public class Initialize2 extends VoltProcedure {
+	
 	public final SQLStmt InsertA = new SQLStmt("INSERT INTO TABLEA (A_ID, A_VALUE) VALUES (1, 'AAA')");
 
     public VoltTable[] run() {
-    	voltQueueSQL(InsertB);
-    	voltQueueSQL(InsertA);
+        voltQueueSQL(InsertA);
         return (voltExecuteSQL());
     }
 }

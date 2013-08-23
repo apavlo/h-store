@@ -1,0 +1,16 @@
+VoterStream - 
+Basic trigger (insert into stream, insert into voter, delete from stream)
+Transactions: 21036
+Throughput: 350.60 txn/s
+Latency: 16341.02 ms
+Abort: 64.8%
+OK: 35.2%
+
+No triggers (identical to voter)
+Transactions: 25894
+Throughput: 431.57 txn/s
+Latency: 13555.42 ms
+Abort: 57.4%
+OK: 42.6%
+
+
