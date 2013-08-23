@@ -44,6 +44,8 @@ public class Initialize extends VoltProcedure
 	
     // Inserts a contestant
     public final SQLStmt insertContestantStmt = new SQLStmt("INSERT INTO contestants (contestant_name, contestant_number) VALUES (?, ?);");
+    
+    public final SQLStmt insertVoteCount = new SQLStmt("INSERT INTO total_votes (row_id, num_votes) VALUES (1, 0)"); 
 	
     // Domain data: matching lists of Area codes and States
     public static final short[] areaCodes = new short[]{
@@ -109,6 +111,9 @@ public class Initialize extends VoltProcedure
             voltQueueSQL(insertACSStmt, areaCodes[i], states[i]);
             voltExecuteSQL();
 		}
+        
+        voltQueueSQL(insertVoteCount);
+        voltExecuteSQL();
 		
         return maxContestants;
     }

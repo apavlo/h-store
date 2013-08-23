@@ -315,28 +315,43 @@ public class DDLCompiler {
             }
         }
         
-        if(name.equals("TABLEC") || name.equals("TABLEA") ||
-        		name.equals("votes_checkA") || name.equals("votes_checkB") || 
-        		name.equals("votes_checkC") || name.equals("votes"))
+        if(name.equalsIgnoreCase("TABLEC") || name.equalsIgnoreCase("TABLEA") ||
+        		name.equalsIgnoreCase("TABLEB") || 
+        		name.equalsIgnoreCase("votes_streamA") || name.equalsIgnoreCase("votes_streamB") || 
+        		name.equalsIgnoreCase("votes_streamC") || name.equalsIgnoreCase("votes") ||
+        		name.equalsIgnoreCase("total_votes"))
         {
         	table.setIsreplicated(false);
         }
         
         //FIXME: hardcoding table names, very bad!
-        if(name.equals("TABLEA"))
+        if(name.equalsIgnoreCase("TABLEA"))
         {
-        	String[] stmt = {"DELETE TOP 1 FROM TABLEA"};
+        	LOG.info("TABLEA");
+        	String[] stmt = {"INSERT INTO TABLEC (A_ID, A_VALUE) SELECT * FROM TABLEA",
+        					"UPDATE TABLEB SET NUMROWS = NUMROWS + 1 WHERE B_ID=1",
+        					"DELETE FROM TABLEA"};
         	addTriggerToCatalog(table, table.getTriggers(), catalog, db, stmt, 1); //currently sends null for the trigger map
         }
         
-        if(name.equals("votes_stream"))
+        if(name.equalsIgnoreCase("votes_streamA"))
         {
-        	String[] stmt = {"INSERT INTO votes SELECT * FROM votes_stream", 
-        					 "INSERT INTO votes_IL SELECT * FROM votes_stream WHERE state = 'IL'", 
-        					"DELETE FROM votes_stream"};
+        	String[] stmt = {"INSERT INTO votes (vote_id, phone_number, state, contestant_number, created) " 
+        					+ "SELECT * FROM votes_streamA",
+        					"UPDATE total_votes SET num_votes = num_votes + 1 WHERE row_id = 1",
+        					//"INSERT INTO votes_streamB (vote_id, phone_number, state, contestant_number, created) " 
+                			//		+ "SELECT * FROM votes_streamA", 
+        					"DELETE FROM votes_streamA"};
         	addTriggerToCatalog(table, table.getTriggers(), catalog, db, stmt, 1); //currently sends null for the trigger map
         }
-        
+        /**
+        if(name.equalsIgnoreCase("votes_streamB"))
+        {
+        	String[] stmt = {"UPDATE total_votes SET num_votes = num_votes + 1 WHERE row_id = 1", 
+        					"DELETE FROM votes_streamB"};
+        	addTriggerToCatalog(table, table.getTriggers(), catalog, db, stmt, 1); //currently sends null for the trigger map
+        }
+        */
         /*
          * Validate that the total size
          */
@@ -383,6 +398,7 @@ public class DDLCompiler {
 		
 		for(int i = 0; i < stmt.length; i++)
 		{
+			LOG.info(stmt[i]);
 			Statement s = trigger.getStatements().add("trig" + trigId + "stmt" + i);
 			StatementCompiler.compile(m_compiler, m_hsql, catalog, db, new DatabaseEstimates(), s, stmt[i], true);
 			LOG.info("End add Trigger to Catalog");

@@ -26,6 +26,7 @@ public class StreamExampleLoader extends Loader {
 
         try {
             this.getClientHandle().callProcedure("Initialize");
+            //this.getClientHandle().callProcedure("Initialize2");
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

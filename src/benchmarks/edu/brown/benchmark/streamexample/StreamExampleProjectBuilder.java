@@ -20,10 +20,11 @@ public class StreamExampleProjectBuilder extends AbstractProjectBuilder {
         Initialize.class,
         //InsertIntoSelect.class,
         GetAllData.class,
+        Initialize2.class,
     };
     public static final String PARTITIONING[][] = new String[][] {
             // { "TABLE NAME", "PARTITIONING COLUMN NAME" }
-            { "TABLEA", "A_ID" }, {"TABLEC", "A_ID"}
+            { "TABLEA", "A_ID" }, {"TABLEC", "A_ID"}, {"TABLEB", "B_ID"}
     };
 
     public StreamExampleProjectBuilder() {
