@@ -65,7 +65,7 @@ public class TestPlansStream extends TestCase {
     public void testDeleteTopFromStream() {
         AbstractPlanNode pn = null;
         //pn = compile("SELECT t_id from ticker", 0);
-        pn = compile("DELETE FROM TABLEA AS TA WHERE TA.A_ID = (SELECT MAX(A_ID) FROM TABLEA)", 0);
+        pn = compile("DELETE FROM TABLEA WHERE A_ID = (SELECT MAX(A_ID) FROM TABLEA)", 0);
         if (pn != null)
             System.out.println(pn.toJSONString());
     }

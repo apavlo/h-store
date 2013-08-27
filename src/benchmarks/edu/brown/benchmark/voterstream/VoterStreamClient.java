@@ -33,6 +33,7 @@ package edu.brown.benchmark.voterstream;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.lang.Object;
 
 import org.apache.log4j.Logger;
 import org.voltdb.VoltTable;
@@ -96,16 +97,23 @@ public class VoterStreamClient extends BenchmarkComponent {
     @Override
     protected boolean runOnce() throws IOException {
         // Get the next phone call
-        PhoneCallGenerator.PhoneCall call = switchboard.receive();
-
-        Client client = this.getClientHandle();
-        boolean response = client.callProcedure(callback,
-                                                "Vote",
-                                                call.voteId,
-                                                call.phoneNumber,
-                                                call.contestantNumber,
-                                                VoterConstants.MAX_VOTES);
-        return response;
+    	//try{
+	    	//Thread.sleep(100);
+	        PhoneCallGenerator.PhoneCall call = switchboard.receive();
+	
+	        Client client = this.getClientHandle();
+	        boolean response = client.callProcedure(callback,
+	                                                "Vote",
+	                                                call.voteId,
+	                                                call.phoneNumber,
+	                                                call.contestantNumber,
+	                                                VoterConstants.MAX_VOTES);
+	        return response;
+    	//}
+	    /**    
+	    catch(InterruptedException e){
+	    	return false;
+	    }*/
     }
 
     @Override

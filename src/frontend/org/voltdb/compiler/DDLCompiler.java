@@ -336,12 +336,14 @@ public class DDLCompiler {
         
         if(name.equalsIgnoreCase("votes_streamA"))
         {
+        	LOG.info("votes_streamA");
         	String[] stmt = {"INSERT INTO votes (vote_id, phone_number, state, contestant_number, created) " 
         					+ "SELECT * FROM votes_streamA",
         					"UPDATE total_votes SET num_votes = num_votes + 1 WHERE row_id = 1",
         					//"INSERT INTO votes_streamB (vote_id, phone_number, state, contestant_number, created) " 
                 			//		+ "SELECT * FROM votes_streamA", 
-        					"DELETE FROM votes_streamA"};
+        					"DELETE FROM votes_streamA"
+        					};
         	addTriggerToCatalog(table, table.getTriggers(), catalog, db, stmt, 1); //currently sends null for the trigger map
         }
         /**
