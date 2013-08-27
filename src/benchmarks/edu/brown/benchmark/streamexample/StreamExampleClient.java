@@ -13,7 +13,7 @@ import edu.brown.api.BenchmarkComponent;
 
 public class StreamExampleClient extends BenchmarkComponent {
 
-	final Callback callback = new Callback(2);
+	final Callback callback = new Callback(3);
 	boolean hasRun = false;
 	
     public static void main(String args[]) {
@@ -47,8 +47,8 @@ public class StreamExampleClient extends BenchmarkComponent {
         if(!hasRun)
         {
         	Client client = this.getClientHandle();
-        	boolean response = client.callProcedure(callback, "GetAllData");
-        	hasRun = true;
+        	boolean response = client.callProcedure(callback, "Initialize2");
+        	//hasRun = true;
         	return response;
         }
         else
