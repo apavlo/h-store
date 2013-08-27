@@ -329,7 +329,7 @@ public class DDLCompiler {
         {
         	LOG.info("TABLEA");
         	String[] stmt = {"INSERT INTO TABLEC (A_ID, A_VALUE) SELECT * FROM TABLEA",
-        					"UPDATE TABLEB SET NUMROWS = NUMROWS + 1 WHERE B_ID=1",
+        					"UPDATE tableb SET numrows = numrows + 1 WHERE b_id=1",
         					"DELETE FROM TABLEA"};
         	addTriggerToCatalog(table, table.getTriggers(), catalog, db, stmt, 1); //currently sends null for the trigger map
         }
