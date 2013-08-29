@@ -46,6 +46,7 @@ import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PredicatePairs;
 import edu.brown.utils.ThreadUtil;
 
+@Deprecated
 public class HeuristicPartitioner extends AbstractPartitioner {
     protected static final Logger LOG = Logger.getLogger(HeuristicPartitioner.class);
 
