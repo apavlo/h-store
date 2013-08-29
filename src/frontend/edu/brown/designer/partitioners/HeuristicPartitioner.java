@@ -253,7 +253,7 @@ public class HeuristicPartitioner extends AbstractPartitioner {
             //
             LOG.debug("Invoking replication tree generation...");
 
-            AbstractDirectedGraph<DesignerVertex, DesignerEdge> rtree = new AbstractDirectedGraph<DesignerVertex, DesignerEdge>(info.catalog_db) {
+            AbstractDirectedGraph<DesignerVertex, DesignerEdge> rtree = new AbstractDirectedGraph<DesignerVertex, DesignerEdge>(info.catalogContext.database) {
                 private static final long serialVersionUID = 1L;
             };
             rtree.setName("RepTree-Round" + round);
@@ -369,7 +369,7 @@ public class HeuristicPartitioner extends AbstractPartitioner {
             for (Set<Table> replication_set : candidate_sets) {
                 cost_model.invalidateCache(candidates);
 
-                Catalog new_catalog = CatalogCloner.cloneBaseCatalog(info.catalog_db.getCatalog());
+                Catalog new_catalog = CatalogCloner.cloneBaseCatalog(info.catalogContext.database.getCatalog());
                 for (Table catalog_tbl : proc_tables) {
                     DesignerVertex vertex = ptree.getVertex(catalog_tbl);
                     assert (vertex != null) : "PartitionTree is missing a vertex for " + catalog_tbl + " " + ptree.getVertices();
@@ -395,7 +395,7 @@ public class HeuristicPartitioner extends AbstractPartitioner {
                     }
                 } // FOR
                 Database new_catalog_db = CatalogUtil.getDatabase(new_catalog);
-                CatalogCloner.cloneConstraints(info.catalog_db, new_catalog_db);
+                CatalogCloner.cloneConstraints(info.catalogContext.database, new_catalog_db);
                 CatalogContext newCatalogContext = new CatalogContext(new_catalog);
 
                 double cost = 0d;
@@ -508,7 +508,7 @@ public class HeuristicPartitioner extends AbstractPartitioner {
                 // is a descendant of the table that the child should be forced
                 // to
                 if (force_dependency != null) {
-                    Table force_tbl = CatalogKey.getFromKey(info.catalog_db, force_dependency, Table.class);
+                    Table force_tbl = CatalogKey.getFromKey(info.catalogContext.database, force_dependency, Table.class);
                     if (parent_table.equals(force_tbl)) {
                         force = true;
                         LOG.debug("Forcing dependency: " + parent_table + "->" + vertex_tbl);
@@ -899,7 +899,7 @@ public class HeuristicPartitioner extends AbstractPartitioner {
         // This will then be used to generate the final PartitionMapping
         //
         PartitionPlan pplan = new PartitionPlan();
-        for (Table catalog_tbl : info.catalog_db.getTables()) {
+        for (Table catalog_tbl : info.catalogContext.database.getTables()) {
             //
             // For each table, look at the PartitionPlan entries that we created
             // above and see
@@ -1023,7 +1023,7 @@ public class HeuristicPartitioner extends AbstractPartitioner {
         //
         // HACK: Add in any tables we missed as replicated
         //
-        for (Table catalog_tbl : info.catalog_db.getTables()) {
+        for (Table catalog_tbl : info.catalogContext.database.getTables()) {
             if (pplan.getTableEntries().get(catalog_tbl) == null) {
                 pplan.getTableEntries().put(catalog_tbl, new TableEntry(PartitionMethodType.REPLICATION, null, null, null));
             }

@@ -103,7 +103,7 @@ public class Designer {
         //
         // Step 1: Workload Analysis
         //
-        for (Procedure catalog_proc : info.catalog_db.getProcedures()) {
+        for (Procedure catalog_proc : info.catalogContext.database.getProcedures()) {
             if (catalog_proc.getSystemproc())
                 continue;
             if ((!this.hints.proc_include.isEmpty() && !this.hints.proc_include.contains(catalog_proc.getName())) || this.hints.proc_exclude.contains(catalog_proc.getName())) {
@@ -113,7 +113,7 @@ public class Designer {
 
             // Generate a new AccessGraph for this Procedure
             LOG.debug("Generating AccessGraph for " + catalog_proc);
-            AccessGraph agraph = new AccessGraph(info.catalog_db);
+            AccessGraph agraph = new AccessGraph(info.catalogContext.database);
             new AccessGraphGenerator(info, catalog_proc).generate(agraph);
             if (agraph.getVertexCount() == 0) {
                 if (LOG.isDebugEnabled())
@@ -167,7 +167,7 @@ public class Designer {
     }
 
     public Database getDatabase() {
-        return this.info.catalog_db;
+        return this.info.catalogContext.database;
     }
 
     public Workload getWorkload() {
@@ -207,7 +207,7 @@ public class Designer {
             if (this.hints.start_random) {
                 LOG.debug("Randomizing the catalog partitioning attributes");
                 PartitionPlan random_pplan = new RandomPartitioner(this, this.info, false).generate(this.hints);
-                random_pplan.apply(this.info.catalog_db);
+                random_pplan.apply(this.info.catalogContext.database);
                 LOG.debug("Randomized Catalog:\n" + random_pplan);
             }
 
@@ -221,10 +221,10 @@ public class Designer {
         }
         LOG.info("Partition Plan:\n" + this.pplan.toString());
 
-        this.design = new PhysicalDesign(info.catalog_db);
+        this.design = new PhysicalDesign(info.catalogContext.database);
         this.design.plan = this.pplan;
 
-        this.final_graph = new PartitionTree(this.info.catalog_db);
+        this.final_graph = new PartitionTree(this.info.catalogContext.database);
         new PartitionPlanTreeGenerator(this.info, this.pplan).generate(this.final_graph);
         // System.out.println(this.plan);
         // System.exit(1);
@@ -250,7 +250,11 @@ public class Designer {
      */
     public static void main(String[] vargs) throws Exception {
         ArgumentsParser args = ArgumentsParser.load(vargs);
-        args.require(ArgumentsParser.PARAM_CATALOG, ArgumentsParser.PARAM_WORKLOAD, ArgumentsParser.PARAM_STATS, ArgumentsParser.PARAM_MAPPINGS);
+        args.require(ArgumentsParser.PARAM_CATALOG,
+                     ArgumentsParser.PARAM_WORKLOAD,
+                     ArgumentsParser.PARAM_STATS,
+                     ArgumentsParser.PARAM_MAPPINGS
+        );
         HStoreConf.initArgumentsParser(args);
         System.err.println("TEMP DIR: " + HStoreConf.singleton().global.temp_dir);
 
