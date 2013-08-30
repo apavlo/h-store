@@ -340,6 +340,7 @@ public class DDLCompiler {
         	String[] stmt = {"INSERT INTO votes (vote_id, phone_number, state, contestant_number, created) " 
         					+ "SELECT * FROM votes_streamA",
         					"UPDATE total_votes SET num_votes = num_votes + 1 WHERE row_id = 1",
+        					//"UPDATE votes_by_contestant_number_state SET num_votes = num_votes + 1 WHERE conte"
         					//"INSERT INTO votes_streamB (vote_id, phone_number, state, contestant_number, created) " 
                 			//		+ "SELECT * FROM votes_streamA", 
         					"DELETE FROM votes_streamA"

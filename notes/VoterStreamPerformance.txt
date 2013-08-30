@@ -14,9 +14,10 @@ Abort: 57.4%
 OK: 42.6%
 
 Triggers (insert into stream, insert into voter, add one to count, delete from stream)
-Transactions: 21917
-Throughput: 365.28 txn/s
-Latency: 14205.63 ms
-Abort: 64.5%
-OK: 35.5%
-NOTE: recorded on home PC, should be rerun on work PC
+Transactions: 19713
+Throughput: 328.55 txn/s
+Latency: 16800.33 ms
+Abort: 67.2%
+OK: 32.8%
+
+

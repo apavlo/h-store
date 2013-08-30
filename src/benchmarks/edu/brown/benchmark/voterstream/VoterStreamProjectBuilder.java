@@ -60,6 +60,7 @@ public class VoterStreamProjectBuilder extends AbstractProjectBuilder {
         { "votes_streamA", "phone_number"},
         { "votes_streamB", "phone_number"},
         { "total_votes", "row_id"},
+        { "votes_by_contestant_number_state", "contestant_number"}
     };
 
     public VoterStreamProjectBuilder() {

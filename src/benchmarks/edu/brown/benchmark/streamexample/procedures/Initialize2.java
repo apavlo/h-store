@@ -6,10 +6,10 @@ import org.voltdb.VoltTable;
 
 public class Initialize2 extends VoltProcedure {
 	
-	public final SQLStmt InsertA = new SQLStmt("INSERT INTO TABLEA (A_ID, A_VALUE) VALUES (1, 'AAA')");
+	public final SQLStmt JoinBandJ = new SQLStmt("SELECT B.B_ID, J.J_VALUE FROM TABLEB AS B INNER JOIN TABLEJ AS J ON B.B_ID = J.J_ID");
 
     public VoltTable[] run() {
-        voltQueueSQL(InsertA);
+        voltQueueSQL(JoinBandJ);
         return (voltExecuteSQL());
     }
 }
