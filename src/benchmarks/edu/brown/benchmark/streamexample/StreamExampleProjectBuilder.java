@@ -24,7 +24,8 @@ public class StreamExampleProjectBuilder extends AbstractProjectBuilder {
     };
     public static final String PARTITIONING[][] = new String[][] {
             // { "TABLE NAME", "PARTITIONING COLUMN NAME" }
-            { "TABLEA", "A_ID" }, {"TABLEC", "A_ID"}, {"TABLEB", "B_ID"}
+            { "TABLEA", "A_ID" }, {"TABLEC", "A_ID"}, {"TABLEB", "B_ID"},
+            { "TABLEJ", "J_ID" }
     };
 
     public StreamExampleProjectBuilder() {
