@@ -267,8 +267,7 @@ public abstract class PartitionerUtil {
         final List<Table> table_visit_order = new ArrayList<Table>();
 
         // Put small read-only tables at the top of the list so that we can try
-        // everything with
-        // replicating them first
+        // everything with replicating them first
         if (hints.force_replication_size_limit != null) {
             final Map<Table, Double> replication_weights = new HashMap<Table, Double>();
             final TreeSet<Table> temp_list = new TreeSet<Table>(new PartitionerUtil.CatalogWeightComparator<Table>(replication_weights));
@@ -346,6 +345,17 @@ public abstract class PartitionerUtil {
                 }
             }.traverse(root);
         } // FOR
+        
+        // Remove ignored tables.
+        if (hints.ignore_tables.isEmpty() == false) {
+            Set<Table> toRemove = new HashSet<Table>();
+            for (Table tbl : table_visit_order) {
+                if (hints.ignore_tables.contains(tbl.getName())) {
+                    toRemove.add(tbl);
+                }
+            } // FOR
+            table_visit_order.removeAll(toRemove);
+        }
 
         // Add in any missing tables to the end of the list
         // This can occur if there are tables that do not appear in the
