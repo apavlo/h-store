@@ -49,6 +49,8 @@ public class QueryPlanner {
     private static final LoggerBoolean debug = new LoggerBoolean();
     private static final LoggerBoolean trace = new LoggerBoolean();
     
+    private static boolean TPCE_WARNING = false;
+    
     PlanAssembler m_assembler;
     HSQLInterface m_HSQL;
     DatabaseEstimates m_estimates;
@@ -229,8 +231,13 @@ public class QueryPlanner {
 
                 // iterate through the subset of plans
                 for (CompiledPlan plan : optimizedPlans) {
+                    // HACK: There is one query in TPC-E that our planner always chokes on and gets stuck
+                    // in an infinite loop. So we'll print an error message and break out.
                     if (tpce_limit != null && tpce_limit-- <= 0) {
-                        LOG.warn("PAVLO: The TPC-E BrokerVolume BREAKOUT! The legend lives on!!!");
+                        if (TPCE_WARNING == false) {
+                            TPCE_WARNING = true;
+                            LOG.warn("PAVLO: The TPC-E BrokerVolume BREAKOUT! The legend lives on!!!");
+                        }
                         break;
                     }
 
