@@ -36,6 +36,7 @@ public class Table extends CatalogType {
     boolean m_systable;
     boolean m_mapreduce;
     boolean m_evictable;
+    boolean m_isStream; // added by hawk
 
     void setBaseValues(Catalog catalog, CatalogType parent, String path, String name) {
         super.setBaseValues(catalog, parent, path, name);
@@ -56,7 +57,8 @@ public class Table extends CatalogType {
         m_fields.put("systable", m_systable);
         m_fields.put("mapreduce", m_mapreduce);
         m_fields.put("evictable", m_evictable);
-    }
+	m_fields.put("isStream", m_isStream); // added by hawk
+        }
 
     public void update() {
         m_isreplicated = (Boolean) m_fields.get("isreplicated");
@@ -64,7 +66,8 @@ public class Table extends CatalogType {
         m_systable = (Boolean) m_fields.get("systable");
         m_mapreduce = (Boolean) m_fields.get("mapreduce");
         m_evictable = (Boolean) m_fields.get("evictable");
-    }
+	m_isStream = (Boolean)m_fields.get("isStream"); // added by hawk
+	}
 
     /** GETTER: The set of columns in the table */
     public CatalogMap<Column> getColumns() {
@@ -142,6 +145,12 @@ public class Table extends CatalogType {
         return m_evictable;
     }
 
+    /** GETTER: Is this table a stream type? added by hawk */
+    public boolean getIsStream()
+    {
+	return m_isStream;
+    }
+
     /** SETTER: Is the table replicated? */
     public void setIsreplicated(boolean value) {
         m_isreplicated = value; m_fields.put("isreplicated", value);
@@ -175,6 +184,12 @@ public class Table extends CatalogType {
     /** SETTER: Can contents of this table be evicted by the anti-cache? */
     public void setEvictable(boolean value) {
         m_evictable = value; m_fields.put("evictable", value);
+    }
+
+    /** SETTER: Is this table a stream type? added by hawk */
+    public void setIsStream(boolean value)
+    {
+	m_isStream = value; m_fields.put("isStream", value);
     }
 
 }

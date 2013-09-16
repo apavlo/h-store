@@ -47,6 +47,56 @@ public class TestHSQLDB extends TestCase {
         public int read() throws IOException { return sr.read(); }
     }
 
+     // added by hawk, to test stream related DDL and DML statements parsing
+    public void testStreamRelatedCatalogRead() throws HSQLParseException {
+
+        HSQLInterface hsql = HSQLInterface.loadHsqldb();
+        
+        String xml = null;
+
+        try {
+        	String ddl = "create table test (C_SINCE TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL, cash integer default 23);";
+            
+            hsql.runDDLCommand(ddl);
+            
+            xml = hsql.getXMLFromCatalog();
+            
+            // display the catalog information in xml foramt
+            System.out.println(xml);
+
+            ddl = "create stream streamA (C_SINCE TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL, cash integer default 23);";
+
+            hsql.runDDLCommand(ddl);
+
+            xml = hsql.getXMLFromCatalog();
+            
+            // display the catalog information in xml foramt
+            System.out.println(xml);
+            
+        } catch (HSQLInterface.HSQLParseException e1) {
+            assertFalse(true);
+        }
+
+        assertTrue(xml != null);
+
+
+        try {
+            String sql = "select * from test;";
+            xml = hsql.getXMLCompiledStatement(sql);
+            System.out.println(xml);
+            
+//            sql = "select * from streamA[rows 5];";
+//            xml = hsql.getXMLCompiledStatement(sql);
+//            System.out.println(xml);
+        
+        } catch (HSQLInterface.HSQLParseException e) {
+            e.printStackTrace();
+        }
+
+
+        assertTrue(xml != null);
+    }
+
     /*public void testCatalogRead() {
         String ddl = "create table test (cash integer default 23);";
 
