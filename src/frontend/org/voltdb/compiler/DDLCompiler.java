@@ -242,26 +242,14 @@ public class DDLCompiler {
         NodeList tableNodes = root.getChildNodes();
         for (int i = 0; i < tableNodes.getLength(); i++) {
             Node node = tableNodes.item(i);
-            
-	// modified by hawk
-        if (node.getNodeName().equals("table"))
-        {
-          	boolean beStream = false;
-            	
-                NamedNodeMap attrs = node.getAttributes();
-                String isStream = attrs.getNamedItem("isStream").getNodeValue();
-                if (isStream.equals("true"))
-                	beStream = true;
-
-                addTableToCatalog(catalog, db, node, beStream);
+            if (node.getNodeName().equals("table"))
+                addTableToCatalog(catalog, db, node);
         }
-        // ended by hawk        }
-		}
+
         processMaterializedViews(db);
     }
 
-    // modified by hawk
-    void addTableToCatalog(Catalog catalog, Database db, Node node, boolean beStream) throws VoltCompilerException {
+    void addTableToCatalog(Catalog catalog, Database db, Node node) throws VoltCompilerException {
         assert node.getNodeName().equals("table");
 
         // clear these maps, as they're table specific
@@ -274,11 +262,7 @@ public class DDLCompiler {
         Table table = db.getTables().add(name);
         table.setEvictable(false);
 
-        // added by hawk
-       	table.setIsStream(beStream);
-        // ended by hawk
-
-		// handle the case where this is a materialized view
+        // handle the case where this is a materialized view
         Node queryAttr = attrs.getNamedItem("query");
         if (queryAttr != null) {
             String query = queryAttr.getNodeValue();
