@@ -2625,6 +2625,11 @@ public class Table extends TableBase implements SchemaObject {
         sb.append(indent).append("<table");
         // add table metadata
         sb.append(" name='").append(getName().name).append("'");
+        // added by hawk
+        //check to see if the table is a stream
+        if(isStream) 
+        	sb.append("  ").append("isStream='true'"); 
+        // ended by hawk
         sb.append(">\n");
 
         // read all the columns
