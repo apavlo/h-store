@@ -53,12 +53,6 @@ public class TableUtil {
             case TableBase.TEXT_TABLE : {
                 return new TextTable(database, tableHsqlName, type);
             }
-	    // added by hawk, to make stream work
-	    case TableBase.STREAM_TABLE:
-            {
-		return new Table(database, tableHsqlName, type);
-	    }
-	    // ended by hawk
             default : {
                 return new Table(database, tableHsqlName, type);
             }
