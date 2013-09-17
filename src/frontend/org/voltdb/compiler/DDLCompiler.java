@@ -243,19 +243,22 @@ public class DDLCompiler {
         for (int i = 0; i < tableNodes.getLength(); i++) {
             Node node = tableNodes.item(i);
             
-	// modified by hawk
-        if (node.getNodeName().equals("table"))
-        {
-          	boolean beStream = false;
+            // modified by hawk
+            if (node.getNodeName().equals("table"))
+            {
+            	boolean beStream = false;
             	
                 NamedNodeMap attrs = node.getAttributes();
-                String isStream = attrs.getNamedItem("isStream").getNodeValue();
-                if (isStream.equals("true"))
-                	beStream = true;
-
+                Node isStreamAttributeNode =  attrs.getNamedItem("isStream");
+                if (isStreamAttributeNode != null)
+                {
+	                String isStream = isStreamAttributeNode.getNodeValue();
+	                if (isStream.equals("true"))
+	                	beStream = true;
+                }
                 addTableToCatalog(catalog, db, node, beStream);
-        }
-        // ended by hawk        }
+            }
+            // ended by hawk
 		}
         processMaterializedViews(db);
     }
@@ -341,6 +344,16 @@ public class DDLCompiler {
         }
         
         //FIXME: hardcoding table names, very bad!
+
+        // added by hawk for test
+        if(name.equalsIgnoreCase("SA"))
+        {
+        	LOG.info("SA");
+        	String[] stmt = {"SELECT * FROM TABLEA"};
+        	addTriggerToCatalog(table, table.getTriggers(), catalog, db, stmt, 1); 
+        }
+        // end by hawk
+
         if(name.equalsIgnoreCase("TABLEA"))
         {
         	LOG.info("TABLEA");

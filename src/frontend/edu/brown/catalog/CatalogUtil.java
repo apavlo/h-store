@@ -1032,12 +1032,28 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
         List<Table> tables = new ArrayList<Table>();
         for (Table catalog_tbl : catalog_db.getTables()) {
             if (catalog_tbl.getSystable() == false &&
+                   catalog_tbl.getIsStream() == false &&  // added by hawk
                 catalog_tbl.getMapreduce() == false &&
                 catalog_tbl.getMaterializer() == null)
                 tables.add(catalog_tbl);
         }
         return (tables);
     }
+
+
+    // added by hawk
+    /**
+     * Return all of the user-defined streams for the database
+     */
+    public static Collection<Table> getStreamTables(Database catalog_db) {
+        List<Table> tables = new ArrayList<Table>();
+        for (Table catalog_tbl : catalog_db.getTables()) {
+            if (catalog_tbl.getIsStream() == true)
+                tables.add(catalog_tbl);
+        }
+        return (tables);
+    }
+
     
     /**
      * Return all of the materialized view tables for the database

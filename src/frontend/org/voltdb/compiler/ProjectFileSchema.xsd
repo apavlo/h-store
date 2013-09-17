@@ -192,6 +192,7 @@
                   <xsd:element name="table" minOccurs="0" maxOccurs="unbounded">
                     <xsd:complexType>
                       <xsd:attribute name="name" type="xsd:string" use="required"/>
+                      <xsd:attribute name="isStream" type="xsd:string"/>
                       <xsd:attribute name="exportonly" type="xsd:boolean" default="false"/>
                     </xsd:complexType>
                   </xsd:element>

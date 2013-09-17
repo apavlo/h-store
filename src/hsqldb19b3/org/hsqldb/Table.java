@@ -153,6 +153,10 @@ public class Table extends TableBase implements SchemaObject {
         tableName     = name;
         persistenceId = database.persistentStoreCollection.getNextId();
 
+        // added by hawk
+        isStream = false;
+        // ended by hawk
+
         switch (type) {
 
             case SYSTEM_SUBQUERY :
@@ -278,6 +282,10 @@ public class Table extends TableBase implements SchemaObject {
         this.columnCount    = table.columnCount;
         this.indexList      = Index.emptyArray;
         this.constraintList = Constraint.emptyArray;
+
+        // added by hawk
+        isStream = false;
+        // ended by hawk
 
         createPrimaryKey();
     }
@@ -2627,8 +2635,10 @@ public class Table extends TableBase implements SchemaObject {
         sb.append(" name='").append(getName().name).append("'");
         // added by hawk
         //check to see if the table is a stream
-        if(isStream) 
+        if(isStream == true) 
         	sb.append("  ").append("isStream='true'"); 
+        else
+        	sb.append("  ").append("isStream='false'"); 
         // ended by hawk
         sb.append(">\n");
 
