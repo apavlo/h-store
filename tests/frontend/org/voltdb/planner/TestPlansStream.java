@@ -24,6 +24,7 @@
 package org.voltdb.planner;
 
 import junit.framework.TestCase;
+import org.junit.Ignore; // added by hawk
 
 import org.voltdb.catalog.CatalogMap;
 import org.voltdb.catalog.Cluster;
@@ -61,7 +62,8 @@ public class TestPlansStream extends TestCase {
         if (pn != null)
             System.out.println(pn.toJSONString());
     }
-    
+ 
+    @Ignore   
     public void testDeleteTopFromStream() {
         AbstractPlanNode pn = null;
         //pn = compile("SELECT t_id from ticker", 0);

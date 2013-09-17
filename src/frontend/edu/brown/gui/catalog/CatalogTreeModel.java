@@ -192,6 +192,7 @@ public class CatalogTreeModel extends DefaultTreeModel {
                 List<Table> tables = new ArrayList<Table>();
                 tables.addAll(CatalogUtil.getDataTables(database_cat));
                 tables.addAll(CatalogUtil.getViewTables(database_cat));
+                   tables.addAll(CatalogUtil.getStreamTables(database_cat)); // added by hawk
                 
                 for (Table catalog_tbl : tables) {  
                     WrapperNode wrapper = null;
