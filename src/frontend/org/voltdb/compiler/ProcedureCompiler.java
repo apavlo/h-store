@@ -19,6 +19,7 @@ package org.voltdb.compiler;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 
 import org.hsqldb.HSQLInterface;
 import org.voltdb.ProcInfo;
@@ -27,6 +28,7 @@ import org.voltdb.SQLStmt;
 import org.voltdb.VoltMapReduceProcedure;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
+import org.voltdb.VoltTrigger;
 import org.voltdb.VoltType;
 import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.CatalogMap;
@@ -39,6 +41,7 @@ import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.StmtParameter;
 import org.voltdb.catalog.Table;
+import org.voltdb.catalog.Trigger;
 import org.voltdb.catalog.User;
 import org.voltdb.catalog.UserRef;
 import org.voltdb.compiler.VoltCompiler.ProcedureDescriptor;
@@ -70,6 +73,35 @@ public abstract class ProcedureCompiler {
             compileSingleStmtProcedure(compiler, hsql, estimates, catalog, db, procedureDescriptor);
     }
 
+    static // added by hawk, 9/18/2013
+    void addTriggerToCatalog(VoltCompiler compiler, 
+    		HSQLInterface hsql,
+    		Table parent, 
+    		CatalogMap<Trigger> triggers,  
+    		Catalog catalog, 
+    		Database db, 
+    		String[] stmt, 
+    		int trigId) 
+    throws VoltCompilerException
+    {
+    	int type = 0; //insert
+		boolean forEach = false;
+		
+		Trigger trigger = triggers.add("trig" + trigId);
+		trigger.setId(trigId);
+		trigger.setForeach(forEach);
+		trigger.setSourcetable(parent);
+		trigger.setTriggertype(type);
+		
+		for(int i = 0; i < stmt.length; i++)
+		{
+			Statement s = trigger.getStatements().add("trig" + trigId + "stmt" + i);
+			StatementCompiler.compile(compiler, hsql, catalog, db, new DatabaseEstimates(), s, stmt[i], true);
+		}
+    }
+    
+    // ended by hawk
+    
     static void compileJavaProcedure(VoltCompiler compiler,
                                      HSQLInterface hsql,
                                      DatabaseEstimates estimates,
@@ -88,6 +120,54 @@ public abstract class ProcedureCompiler {
             String msg = "Cannot load class for procedure: " + className;
             throw compiler.new VoltCompilerException(msg);
         }
+        
+        // added by hawk, 9/18/2013
+        // the added code is used to deal with VoltTrigger
+        if (ClassUtil.getSuperClasses(procClass).contains(VoltTrigger.class)) {
+        	// get the VoltTrigger instance
+        	VoltTrigger triggerInstance = null;
+            try {
+            	triggerInstance = (VoltTrigger) procClass.newInstance();
+            } catch (InstantiationException e1) {
+                e1.printStackTrace();
+            } catch (IllegalAccessException e1) {
+                e1.printStackTrace();
+            }
+            // get the sql statements
+            // iterate through the fields and deal with
+            ArrayList<String> sql_list = new ArrayList<String>();
+            Field[] fields = procClass.getFields();
+            for (Field f : fields) {
+                if (f.getType() == SQLStmt.class) {
+                    // String fieldName = f.getName();
+                    SQLStmt stmt = null;
+
+                    try {
+                        stmt = (SQLStmt) f.get(triggerInstance);
+                    } catch (IllegalArgumentException e) {
+                        e.printStackTrace();
+                    } catch (IllegalAccessException e) {
+                        e.printStackTrace();
+                    }
+                    
+                    String sql = stmt.getText();
+                    sql_list.add(sql);
+
+                }
+            }
+            String[] sqlArr = new String[sql_list.size()];
+            sqlArr = sql_list.toArray(sqlArr);
+            
+        	// get the stream table
+            String streamName = triggerInstance.getStreamName();
+            Table stream = (db.getTables().getIgnoreCase(streamName));
+            
+            // add trigger to catalog 
+            addTriggerToCatalog(compiler, hsql, stream, stream.getTriggers(), catalog, db, sqlArr, stream.generateUniqueTriggerId()); //currently sends null for the trigger map
+        	
+        	return;
+        }
+        // ended by hawk
 
         // get the short name of the class (no package)
         String[] parts = className.split("\\.");

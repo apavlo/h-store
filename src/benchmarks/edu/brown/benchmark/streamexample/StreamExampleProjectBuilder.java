@@ -21,6 +21,9 @@ public class StreamExampleProjectBuilder extends AbstractProjectBuilder {
         //InsertIntoSelect.class,
         GetAllData.class,
         Initialize2.class,
+        // added by hawk, 9/18/2013
+        GetDataTrigger.class,
+        // ended by hawk
     };
     public static final String PARTITIONING[][] = new String[][] {
             // { "TABLE NAME", "PARTITIONING COLUMN NAME" }
