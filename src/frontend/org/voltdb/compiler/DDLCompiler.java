@@ -278,7 +278,7 @@ public class DDLCompiler {
         table.setEvictable(false);
 
         // added by hawk
-       	table.setIsStream(beStream);
+       	table.setIsstream(beStream);
         // ended by hawk
 
 		// handle the case where this is a materialized view
@@ -343,47 +343,6 @@ public class DDLCompiler {
         	table.setIsreplicated(false);
         }
         
-        //FIXME: hardcoding table names, very bad!
-
-        // added by hawk for test
-        if(name.equalsIgnoreCase("SA"))
-        {
-        	LOG.info("SA");
-        	String[] stmt = {"SELECT * FROM TABLEA"};
-        	addTriggerToCatalog(table, table.getTriggers(), catalog, db, stmt, table.generateUniqueTriggerId()); 
-        }
-        // end by hawk
-
-        if(name.equalsIgnoreCase("TABLEA"))
-        {
-        	LOG.info("TABLEA");
-        	String[] stmt = {"INSERT INTO TABLEC (A_ID, A_VALUE) SELECT * FROM TABLEA",
-        					"UPDATE tableb SET numrows = numrows + 1 WHERE b_id=1",
-        					"DELETE FROM TABLEA"};
-        	addTriggerToCatalog(table, table.getTriggers(), catalog, db, stmt, table.generateUniqueTriggerId()); //currently sends null for the trigger map
-        }
-        
-        if(name.equalsIgnoreCase("votes_streamA"))
-        {
-        	LOG.info("votes_streamA");
-        	String[] stmt = {"INSERT INTO votes (vote_id, phone_number, state, contestant_number, created) " 
-        					+ "SELECT * FROM votes_streamA",
-        					"UPDATE total_votes SET num_votes = num_votes + 1 WHERE row_id = 1",
-        					//"UPDATE votes_by_contestant_number_state SET num_votes = num_votes + 1 WHERE conte"
-        					//"INSERT INTO votes_streamB (vote_id, phone_number, state, contestant_number, created) " 
-                			//		+ "SELECT * FROM votes_streamA", 
-        					"DELETE FROM votes_streamA"
-        					};
-        	addTriggerToCatalog(table, table.getTriggers(), catalog, db, stmt, table.generateUniqueTriggerId()); //currently sends null for the trigger map
-        }
-        /**
-        if(name.equalsIgnoreCase("votes_streamB"))
-        {
-        	String[] stmt = {"UPDATE total_votes SET num_votes = num_votes + 1 WHERE row_id = 1", 
-        					"DELETE FROM votes_streamB"};
-        	addTriggerToCatalog(table, table.getTriggers(), catalog, db, stmt, 1); //currently sends null for the trigger map
-        }
-        */
         /*
          * Validate that the total size
          */
@@ -407,36 +366,6 @@ public class DDLCompiler {
         }
     }
     
-    /**
-     * Add a trigger to the catalog
-     * FIXME: this is hacked to use hard-coded stream names
-     * @param catalog
-     * @param db
-     * @param node
-     * @throws VoltCompilerException
-     */
-    void addTriggerToCatalog(Table parent, CatalogMap<Trigger> triggers,  
-    		Catalog catalog, Database db, String[] stmt, int trigId) throws VoltCompilerException
-    {
-    	LOG.info("Add Trigger to Catalog");
-    	int type = 0; //insert
-		boolean forEach = false;
-		
-		Trigger trigger = triggers.add("trig" + trigId);
-		trigger.setId(trigId);
-		trigger.setForeach(forEach);
-		trigger.setSourcetable(parent);
-		trigger.setTriggertype(type);
-		
-		for(int i = 0; i < stmt.length; i++)
-		{
-			LOG.info(stmt[i]);
-			Statement s = trigger.getStatements().add("trig" + trigId + "stmt" + i);
-			StatementCompiler.compile(m_compiler, m_hsql, catalog, db, new DatabaseEstimates(), s, stmt[i], true);
-			LOG.info("End add Trigger to Catalog");
-		}
-    }
-
     void addColumnToCatalog(CatalogType parent, CatalogMap<Column> columns, Node node, int index) throws VoltCompilerException {
         assert node.getNodeName().equals("column");
 

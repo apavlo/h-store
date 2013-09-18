@@ -49,6 +49,7 @@ Table::Table(Catalog *catalog, CatalogType *parent, const string &path, const st
     m_fields["systable"] = value;
     m_fields["mapreduce"] = value;
     m_fields["evictable"] = value;
+    m_fields["isStream"] = value;
 }
 
 Table::~Table() {
@@ -97,6 +98,7 @@ void Table::update() {
     m_systable = m_fields["systable"].intValue;
     m_mapreduce = m_fields["mapreduce"].intValue;
     m_evictable = m_fields["evictable"].intValue;
+    m_isStream = m_fields["isStream"].intValue;
 }
 
 CatalogType * Table::addChild(const std::string &collectionName, const std::string &childName) {
@@ -213,5 +215,9 @@ bool Table::mapreduce() const {
 
 bool Table::evictable() const {
     return m_evictable;
+}
+
+bool Table::isStream() const {
+    return m_isStream;
 }
 

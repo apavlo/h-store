@@ -452,7 +452,7 @@ public class CatalogViewer extends AbstractViewer {
                     }
                     // added by hawk
                     else if (catalog_obj instanceof Table) {
-                    	if (((Table)catalog_obj).getIsStream()==true) {
+                    	if (((Table)catalog_obj).getIsstream()==true) {
                     		this.setIcon(UIManager.getIcon("FileChooser.detailsViewIcon"));
                     	}
                     }

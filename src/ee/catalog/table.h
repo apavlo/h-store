@@ -54,6 +54,7 @@ protected:
     bool m_systable;
     bool m_mapreduce;
     bool m_evictable;
+    bool m_isStream;
 
     virtual void update();
 
@@ -88,6 +89,8 @@ public:
     bool mapreduce() const;
     /** GETTER: Can contents of this table be evicted by the anti-cache? */
     bool evictable() const;
+    /** GETTER: Is this table a Stream table? */
+    bool isStream() const;
 };
 
 } // namespace catalog
