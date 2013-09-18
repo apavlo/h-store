@@ -350,7 +350,7 @@ public class DDLCompiler {
         {
         	LOG.info("SA");
         	String[] stmt = {"SELECT * FROM TABLEA"};
-        	addTriggerToCatalog(table, table.getTriggers(), catalog, db, stmt, 1); 
+        	addTriggerToCatalog(table, table.getTriggers(), catalog, db, stmt, table.generateUniqueTriggerId()); 
         }
         // end by hawk
 
@@ -360,7 +360,7 @@ public class DDLCompiler {
         	String[] stmt = {"INSERT INTO TABLEC (A_ID, A_VALUE) SELECT * FROM TABLEA",
         					"UPDATE tableb SET numrows = numrows + 1 WHERE b_id=1",
         					"DELETE FROM TABLEA"};
-        	addTriggerToCatalog(table, table.getTriggers(), catalog, db, stmt, 1); //currently sends null for the trigger map
+        	addTriggerToCatalog(table, table.getTriggers(), catalog, db, stmt, table.generateUniqueTriggerId()); //currently sends null for the trigger map
         }
         
         if(name.equalsIgnoreCase("votes_streamA"))
@@ -374,7 +374,7 @@ public class DDLCompiler {
                 			//		+ "SELECT * FROM votes_streamA", 
         					"DELETE FROM votes_streamA"
         					};
-        	addTriggerToCatalog(table, table.getTriggers(), catalog, db, stmt, 1); //currently sends null for the trigger map
+        	addTriggerToCatalog(table, table.getTriggers(), catalog, db, stmt, table.generateUniqueTriggerId()); //currently sends null for the trigger map
         }
         /**
         if(name.equalsIgnoreCase("votes_streamB"))

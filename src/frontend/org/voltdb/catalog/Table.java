@@ -151,6 +151,12 @@ public class Table extends CatalogType {
 	return m_isStream;
     }
 
+    // added by hawk, 9/18/2013
+    public int  generateUniqueTriggerId() {
+        return m_triggers.size();
+    }
+    // ended by hawk
+
     /** SETTER: Is the table replicated? */
     public void setIsreplicated(boolean value) {
         m_isreplicated = value; m_fields.put("isreplicated", value);
