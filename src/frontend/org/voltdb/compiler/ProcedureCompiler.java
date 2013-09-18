@@ -67,14 +67,97 @@ public abstract class ProcedureCompiler {
         assert (hsql != null);
         assert (estimates != null);
 
-        if (procedureDescriptor.m_singleStmt == null)
-            compileJavaProcedure(compiler, hsql, estimates, catalog, db, procedureDescriptor);
+        // added by hawk, 9/18/2013
+        final String className = procedureDescriptor.m_className;
+
+        // Load the class given the class name
+        Class<?> procClass = null;
+        try {
+            procClass = Class.forName(className);
+        } catch (ClassNotFoundException e) {
+            String msg = "Cannot load class for procedure: " + className;
+            throw compiler.new VoltCompilerException(msg);
+        }
+        
+        // modified by hawk, the added code is used to deal with VoltTrigger
+        if (ClassUtil.getSuperClasses(procClass).contains(VoltTrigger.class))
+        {
+        	compileTriggerProcedure(procClass, compiler, hsql, estimates, catalog, db, procedureDescriptor);
+        }
         else
-            compileSingleStmtProcedure(compiler, hsql, estimates, catalog, db, procedureDescriptor);
+	        if (procedureDescriptor.m_singleStmt == null)
+	            compileJavaProcedure(compiler, hsql, estimates, catalog, db, procedureDescriptor);
+	        else
+	            compileSingleStmtProcedure(compiler, hsql, estimates, catalog, db, procedureDescriptor);
     }
 
-    static // added by hawk, 9/18/2013
-    void addTriggerToCatalog(VoltCompiler compiler, 
+    // added by hawk, 9/18/2013
+    static void compileTriggerProcedure(Class<?> procClass,
+    		VoltCompiler compiler,
+            HSQLInterface hsql,
+            DatabaseEstimates estimates,
+            Catalog catalog,
+            Database db,
+            ProcedureDescriptor procedureDescriptor)
+    	throws VoltCompiler.VoltCompilerException {
+    
+    	// get the VoltTrigger instance
+    	VoltTrigger triggerInstance = null;
+        try {
+        	triggerInstance = (VoltTrigger) procClass.newInstance();
+        } catch (InstantiationException e1) {
+            e1.printStackTrace();
+        } catch (IllegalAccessException e1) {
+            e1.printStackTrace();
+        }
+        // get the sql statements
+        // iterate through the fields and deal with
+        ArrayList<String> sql_list = new ArrayList<String>();
+        Field[] fields = procClass.getFields();
+        for (Field f : fields) {
+            if (f.getType() == SQLStmt.class) {
+                // String fieldName = f.getName();
+                SQLStmt stmt = null;
+
+                try {
+                    stmt = (SQLStmt) f.get(triggerInstance);
+                } catch (IllegalArgumentException e) {
+                    e.printStackTrace();
+                } catch (IllegalAccessException e) {
+                    e.printStackTrace();
+                }
+                
+                String sql = stmt.getText();
+                sql_list.add(sql);
+
+            }
+        }
+        String[] sqlArr = new String[sql_list.size()];
+        sqlArr = sql_list.toArray(sqlArr);
+        
+    	// get the stream table
+        String streamName = triggerInstance.getStreamName();
+        Table stream = (db.getTables().getIgnoreCase(streamName));
+        
+        // add trigger to catalog 
+        addTriggerToCatalog(compiler, hsql, stream, stream.getTriggers(), catalog, db, sqlArr, compiler.getNextTriggerId()); //currently sends null for the trigger map
+    	
+    	return;
+
+    }
+
+    /**
+     * Add a trigger to the catalog
+     * @param compiler
+     * @param hsql
+     * @param parent
+     * @param triggers
+     * @param catalog
+     * @param db
+     * @param node
+     * @throws VoltCompilerException
+     */
+    static void addTriggerToCatalog(VoltCompiler compiler, 
     		HSQLInterface hsql,
     		Table parent, 
     		CatalogMap<Trigger> triggers,  
@@ -121,54 +204,6 @@ public abstract class ProcedureCompiler {
             throw compiler.new VoltCompilerException(msg);
         }
         
-        // added by hawk, 9/18/2013
-        // the added code is used to deal with VoltTrigger
-        if (ClassUtil.getSuperClasses(procClass).contains(VoltTrigger.class)) {
-        	// get the VoltTrigger instance
-        	VoltTrigger triggerInstance = null;
-            try {
-            	triggerInstance = (VoltTrigger) procClass.newInstance();
-            } catch (InstantiationException e1) {
-                e1.printStackTrace();
-            } catch (IllegalAccessException e1) {
-                e1.printStackTrace();
-            }
-            // get the sql statements
-            // iterate through the fields and deal with
-            ArrayList<String> sql_list = new ArrayList<String>();
-            Field[] fields = procClass.getFields();
-            for (Field f : fields) {
-                if (f.getType() == SQLStmt.class) {
-                    // String fieldName = f.getName();
-                    SQLStmt stmt = null;
-
-                    try {
-                        stmt = (SQLStmt) f.get(triggerInstance);
-                    } catch (IllegalArgumentException e) {
-                        e.printStackTrace();
-                    } catch (IllegalAccessException e) {
-                        e.printStackTrace();
-                    }
-                    
-                    String sql = stmt.getText();
-                    sql_list.add(sql);
-
-                }
-            }
-            String[] sqlArr = new String[sql_list.size()];
-            sqlArr = sql_list.toArray(sqlArr);
-            
-        	// get the stream table
-            String streamName = triggerInstance.getStreamName();
-            Table stream = (db.getTables().getIgnoreCase(streamName));
-            
-            // add trigger to catalog 
-            addTriggerToCatalog(compiler, hsql, stream, stream.getTriggers(), catalog, db, sqlArr, stream.generateUniqueTriggerId()); //currently sends null for the trigger map
-        	
-        	return;
-        }
-        // ended by hawk
-
         // get the short name of the class (no package)
         String[] parts = className.split("\\.");
         String shortName = parts[parts.length - 1];

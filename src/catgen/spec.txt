@@ -128,6 +128,7 @@ begin Table                   "A table (relation) in the database"
     bool systable               "Is this table an internal system table?"
     bool mapreduce              "Is this table a MapReduce transaction table?"
     bool evictable              "Can contents of this table be evicted by the anti-cache?"
+    bool isStream               "Is this table a Stream table?"
 end
 begin TableRef
     Table? table

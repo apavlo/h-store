@@ -332,8 +332,13 @@ public class VoltCompiler {
     public int getNextStatementId() {
         return m_stmtIds.incrementAndGet();
     }
-    
 
+    // added by hawk, 9/18/2013
+    final AtomicInteger m_trigIds = new AtomicInteger(0);
+    public int getNextTriggerId() {
+        return m_trigIds.incrementAndGet();
+    }
+    
     public boolean hasErrors() {
         return m_errors.size() > 0;
     }

@@ -34,6 +34,8 @@ import org.voltdb.VoltProcedure;
 import edu.brown.benchmark.AbstractProjectBuilder;
 import edu.brown.api.BenchmarkComponent;
 
+import edu.brown.benchmark.streamexample.procedures.GetDataTrigger;
+import edu.brown.benchmark.voterstream.procedures.StatisticVotesTrigger;
 import edu.brown.benchmark.voterstream.procedures.Vote; 
 import edu.brown.benchmark.voterstream.procedures.Initialize; 
 
@@ -47,8 +49,13 @@ public class VoterStreamProjectBuilder extends AbstractProjectBuilder {
 
 	// a list of procedures implemented in this benchmark
     @SuppressWarnings("unchecked")
-    public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
-        Vote.class, Initialize.class};
+    public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[]{
+        Vote.class, 
+        Initialize.class,
+        // added by hawk, 9/18/2013
+        StatisticVotesTrigger.class,
+        // ended by hawk
+    };
 	
 	{
 		addTransactionFrequency(Vote.class, 100);
