@@ -66,29 +66,29 @@ public abstract class ProcedureCompiler {
         assert (compiler != null);
         assert (hsql != null);
         assert (estimates != null);
+  
+	// modified by hawk, the added code is used to deal with VoltTrigger
+	if (procedureDescriptor.m_singleStmt == null) {
+		final String className = procedureDescriptor.m_className;
+		Class<?> procClass = null;
+		try {
+			procClass = Class.forName(className);
+		} catch (ClassNotFoundException e) {
+			String msg = "Cannot load class for procedure: " + className;
+			throw compiler.new VoltCompilerException(msg);
+		}
 
-        // added by hawk, 9/18/2013
-        final String className = procedureDescriptor.m_className;
+		if (ClassUtil.getSuperClasses(procClass)
+				.contains(VoltTrigger.class)) {
+			compileTriggerProcedure(procClass, compiler, hsql, estimates,
+					catalog, db, procedureDescriptor);
+		} else
+			compileJavaProcedure(compiler, hsql, estimates, catalog, db,
+					procedureDescriptor);
+	} else
+		compileSingleStmtProcedure(compiler, hsql, estimates, catalog, db,
+				procedureDescriptor);
 
-        // Load the class given the class name
-        Class<?> procClass = null;
-        try {
-            procClass = Class.forName(className);
-        } catch (ClassNotFoundException e) {
-            String msg = "Cannot load class for procedure: " + className;
-            throw compiler.new VoltCompilerException(msg);
-        }
-        
-        // modified by hawk, the added code is used to deal with VoltTrigger
-        if (ClassUtil.getSuperClasses(procClass).contains(VoltTrigger.class))
-        {
-        	compileTriggerProcedure(procClass, compiler, hsql, estimates, catalog, db, procedureDescriptor);
-        }
-        else
-	        if (procedureDescriptor.m_singleStmt == null)
-	            compileJavaProcedure(compiler, hsql, estimates, catalog, db, procedureDescriptor);
-	        else
-	            compileSingleStmtProcedure(compiler, hsql, estimates, catalog, db, procedureDescriptor);
     }
 
     // added by hawk, 9/18/2013
