@@ -45,7 +45,7 @@ public class Initialize extends VoltProcedure
     // Inserts a contestant
     public final SQLStmt insertContestantStmt = new SQLStmt("INSERT INTO contestants (contestant_name, contestant_number) VALUES (?, ?);");
     
-    public final SQLStmt insertVoteCount = new SQLStmt("INSERT INTO total_votes (row_id, num_votes) VALUES (1, 0)");
+    public final SQLStmt insertVoteCount = new SQLStmt("INSERT INTO total_votes (row_id, num_votes) VALUES (?, ?)");
     
     public final SQLStmt votes_by_c_s = new SQLStmt("INSERT INTO votes_by_contestant_number_state (contestant_number, state, num_votes) VALUES (?,?,0);");
 	
@@ -136,7 +136,7 @@ public class Initialize extends VoltProcedure
         }
         
         
-        voltQueueSQL(insertVoteCount);
+        voltQueueSQL(insertVoteCount, 1, 0);
         voltExecuteSQL();
 		
         return maxContestants;
