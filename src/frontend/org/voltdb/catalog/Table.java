@@ -37,6 +37,11 @@ public class Table extends CatalogType {
     boolean m_mapreduce;
     boolean m_evictable;
     boolean m_isStream;
+    boolean m_isWindow;
+    boolean m_isRows;
+    String m_streamName = new String();
+    int m_size;
+    int m_slide;
 
     void setBaseValues(Catalog catalog, CatalogType parent, String path, String name) {
         super.setBaseValues(catalog, parent, path, name);
@@ -58,6 +63,11 @@ public class Table extends CatalogType {
         m_fields.put("mapreduce", m_mapreduce);
         m_fields.put("evictable", m_evictable);
         m_fields.put("isStream", m_isStream);
+        m_fields.put("isWindow", m_isWindow);
+        m_fields.put("isRows", m_isRows);
+        m_fields.put("streamName", m_streamName);
+        m_fields.put("size", m_size);
+        m_fields.put("slide", m_slide);
     }
 
     public void update() {
@@ -67,6 +77,11 @@ public class Table extends CatalogType {
         m_mapreduce = (Boolean) m_fields.get("mapreduce");
         m_evictable = (Boolean) m_fields.get("evictable");
         m_isStream = (Boolean) m_fields.get("isStream");
+        m_isWindow = (Boolean) m_fields.get("isWindow");
+        m_isRows = (Boolean) m_fields.get("isRows");
+        m_streamName = (String) m_fields.get("streamName");
+        m_size = (Integer) m_fields.get("size");
+        m_slide = (Integer) m_fields.get("slide");
     }
 
     /** GETTER: The set of columns in the table */
@@ -150,6 +165,31 @@ public class Table extends CatalogType {
         return m_isStream;
     }
 
+    /** GETTER: Is this table a Window for Stream? */
+    public boolean getIswindow() {
+        return m_isWindow;
+    }
+
+    /** GETTER: Is this is a row based window or time based? */
+    public boolean getIsrows() {
+        return m_isRows;
+    }
+
+    /** GETTER: The window related stream name */
+    public String getStreamname() {
+        return m_streamName;
+    }
+
+    /** GETTER: The window size */
+    public int getSize() {
+        return m_size;
+    }
+
+    /** GETTER: The window slide"  */
+    public int getSlide() {
+        return m_slide;
+    }
+
     /** SETTER: Is the table replicated? */
     public void setIsreplicated(boolean value) {
         m_isreplicated = value; m_fields.put("isreplicated", value);
@@ -188,6 +228,31 @@ public class Table extends CatalogType {
     /** SETTER: Is this table a Stream table? */
     public void setIsstream(boolean value) {
         m_isStream = value; m_fields.put("isStream", value);
+    }
+
+    /** SETTER: Is this table a Window for Stream? */
+    public void setIswindow(boolean value) {
+        m_isWindow = value; m_fields.put("isWindow", value);
+    }
+
+    /** SETTER: Is this is a row based window or time based? */
+    public void setIsrows(boolean value) {
+        m_isRows = value; m_fields.put("isRows", value);
+    }
+
+    /** SETTER: The window related stream name */
+    public void setStreamname(String value) {
+        m_streamName = value; m_fields.put("streamName", value);
+    }
+
+    /** SETTER: The window size */
+    public void setSize(int value) {
+        m_size = value; m_fields.put("size", value);
+    }
+
+    /** SETTER: The window slide"  */
+    public void setSlide(int value) {
+        m_slide = value; m_fields.put("slide", value);
     }
 
 }

@@ -73,7 +73,7 @@ public class TableBase {
     
     //stream additions
     public static final int STREAM_TABLE     = 101;
-
+     public static final int STREAM_WINDOW     = 102;
     //
     public PersistentStore store;
     public int             persistenceScope;
@@ -110,7 +110,7 @@ public class TableBase {
     private boolean   isTransactional = true;
     boolean           hasLobColumn;
     boolean			  isStream;
-
+    boolean               isWindow;
     //
     TableBase() {}
 
@@ -146,6 +146,7 @@ public class TableBase {
         copy.primaryKeyTypes  = primaryKeyTypes;
         copy.indexList        = indexList;
         copy.isStream		  = isStream;
+         copy.isWindow		  = isWindow;
 
         return copy;
     }

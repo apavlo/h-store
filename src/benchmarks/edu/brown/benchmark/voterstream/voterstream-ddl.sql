@@ -43,14 +43,13 @@ CREATE TABLE total_votes
     num_votes        int       NOT NULL
 );
 
-CREATE TABLE votes_by_contestant_number_state
+-- rollup of votes by phone number, used to reject excessive voting
+CREATE TABLE voltes_by_phone_number
 (
-  contestant_number  int        NOT NULL
-, state              varchar(2) NOT NULL
-, num_votes          int
+    phone_number     bigint    NOT NULL,
+    num_votes        int
 );
 
--- rollup of votes by phone number, used to reject excessive voting
 CREATE VIEW v_votes_by_phone_number
 (
   phone_number
@@ -63,7 +62,6 @@ AS
  GROUP BY phone_number
 ;
 
--- rollup of votes by contestant and state for the heat map and results
 CREATE VIEW v_votes_by_contestant_number_state
 (
   contestant_number
@@ -88,7 +86,8 @@ CREATE TABLE votes_streamB
 , created            timestamp  NOT NULL
 );
 
-CREATE TABLE votes_streamA
+--------------------------------------
+CREATE STREAM votes_streamA
 (
   vote_id            bigint     NOT NULL,
   phone_number       bigint     NOT NULL
@@ -96,4 +95,12 @@ CREATE TABLE votes_streamA
 , contestant_number  integer    NOT NULL
 , created            timestamp  NOT NULL
 );
+
+CREATE TABLE votes_by_contestant_number_state
+(
+  contestant_number  int        NOT NULL
+, state              varchar(2) NOT NULL
+, num_votes          int
+);
+--------------------------------------
 

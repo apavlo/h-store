@@ -13,3 +13,10 @@ CREATE TABLE TABLEA (
    A_VALUE  VARCHAR(64)
 );
 
+create stream streamA (
+   C_SINCE TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL, 
+   phone_number     bigint     NOT NULL, 
+   cash integer default 23
+);
+
+CREATE WINDOW W1 ON streamA ROWS 10 SLIDE 5;

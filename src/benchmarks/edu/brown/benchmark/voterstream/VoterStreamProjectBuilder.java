@@ -52,9 +52,7 @@ public class VoterStreamProjectBuilder extends AbstractProjectBuilder {
     public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[]{
         Vote.class, 
         Initialize.class,
-        // added by hawk, 9/18/2013
         StatisticVotesTrigger.class,
-        // ended by hawk
     };
 	
 	{
@@ -68,6 +66,8 @@ public class VoterStreamProjectBuilder extends AbstractProjectBuilder {
         { "votes_streamB", "phone_number"},
         { "total_votes", "row_id"},
         { "votes_by_contestant_number_state", "contestant_number"}
+	//,
+        //{ "votes_by_phone_number", "phone_number"}
     };
 
     public VoterStreamProjectBuilder() {

@@ -50,6 +50,11 @@ Table::Table(Catalog *catalog, CatalogType *parent, const string &path, const st
     m_fields["mapreduce"] = value;
     m_fields["evictable"] = value;
     m_fields["isStream"] = value;
+    m_fields["isWindow"] = value;
+    m_fields["isRows"] = value;
+    m_fields["streamName"] = value;
+    m_fields["size"] = value;
+    m_fields["slide"] = value;
 }
 
 Table::~Table() {
@@ -99,6 +104,11 @@ void Table::update() {
     m_mapreduce = m_fields["mapreduce"].intValue;
     m_evictable = m_fields["evictable"].intValue;
     m_isStream = m_fields["isStream"].intValue;
+    m_isWindow = m_fields["isWindow"].intValue;
+    m_isRows = m_fields["isRows"].intValue;
+    m_streamName = m_fields["streamName"].strValue.c_str();
+    m_size = m_fields["size"].intValue;
+    m_slide = m_fields["slide"].intValue;
 }
 
 CatalogType * Table::addChild(const std::string &collectionName, const std::string &childName) {
@@ -219,5 +229,25 @@ bool Table::evictable() const {
 
 bool Table::isStream() const {
     return m_isStream;
+}
+
+bool Table::isWindow() const {
+    return m_isWindow;
+}
+
+bool Table::isRows() const {
+    return m_isRows;
+}
+
+const string & Table::streamName() const {
+    return m_streamName;
+}
+
+int32_t Table::size() const {
+    return m_size;
+}
+
+int32_t Table::slide() const {
+    return m_slide;
 }
 

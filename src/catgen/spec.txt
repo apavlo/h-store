@@ -129,6 +129,11 @@ begin Table                   "A table (relation) in the database"
     bool mapreduce              "Is this table a MapReduce transaction table?"
     bool evictable              "Can contents of this table be evicted by the anti-cache?"
     bool isStream               "Is this table a Stream table?"
+    bool isWindow               "Is this table a Window for Stream?"
+    bool isRows                 "Is this is a row based window or time based?"
+    string streamName           "The window related stream name"
+    int size                    "The window size"
+    int slide                   "The window slide" 
 end
 begin TableRef
     Table? table

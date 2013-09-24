@@ -277,11 +277,38 @@ public class DDLCompiler {
         Table table = db.getTables().add(name);
         table.setEvictable(false);
 
-        // added by hawk
-       	table.setIsstream(beStream);
-        // ended by hawk
+       table.setIsstream(beStream);
 
-		// handle the case where this is a materialized view
+        Node isWindowAttributeNode =  attrs.getNamedItem("isWindow");
+
+        if (isWindowAttributeNode != null)
+        {
+            String isWindow = isWindowAttributeNode.getNodeValue();
+            if (isWindow.equals("true"))
+            {
+            	table.setIswindow(true);
+            	Node isRowsAttributeNode =  attrs.getNamedItem("isRows");
+            	String isRows = isRowsAttributeNode.getNodeValue();
+            	if(isRows.equals("true"))
+            	{
+            		table.setIsrows(true);
+            	}
+            	else
+            		table.setIsrows(false);
+
+            	Node isSizeAttributeNode =  attrs.getNamedItem("size");
+            	String strSize = isSizeAttributeNode.getNodeValue();
+            	table.setSize(Integer.parseInt(strSize));
+            	
+            	Node isSlideAttributeNode =  attrs.getNamedItem("slide");
+            	String strSlide = isSlideAttributeNode.getNodeValue();
+            	table.setSlide(Integer.parseInt(strSlide));
+            }
+              else
+                table.setIswindow(false);
+        }
+
+	// handle the case where this is a materialized view
         Node queryAttr = attrs.getNamedItem("query");
         if (queryAttr != null) {
             String query = queryAttr.getNodeValue();
@@ -334,14 +361,8 @@ public class DDLCompiler {
             }
         }
         
-        if(name.equalsIgnoreCase("TABLEC") || name.equalsIgnoreCase("TABLEA") ||
-        		name.equalsIgnoreCase("TABLEB") || 
-        		name.equalsIgnoreCase("votes_streamA") || name.equalsIgnoreCase("votes_streamB") || 
-        		name.equalsIgnoreCase("votes_streamC") || name.equalsIgnoreCase("votes") ||
-        		name.equalsIgnoreCase("total_votes"))
-        {
+        if ((table.getIswindow() == true)||(table.getIsstream()==true))
         	table.setIsreplicated(false);
-        }
         
         /*
          * Validate that the total size
