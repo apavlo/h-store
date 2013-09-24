@@ -156,6 +156,9 @@ public class ParserDDL extends ParserRoutine {
         switch (token.tokenType) {
 
             // other objects
+                            case Tokens.WINDOW :
+        		return compileCreateWindow();
+        	
             case Tokens.ALIAS :
                 return compileCreateAlias();
 
@@ -941,6 +944,83 @@ public class ParserDDL extends ParserRoutine {
         return new StatementSchema(sql, StatementTypes.DROP_CONSTRAINT, args,
                                    readName, writeName);
     }
+
+    StatementSchema compileCreateWindow() {
+		
+          int size = 1;
+	  int slides = 1;
+	  boolean isRowType = true;
+		
+	  read();
+		
+         HsqlName name = readNewSchemaObjectNameNoCheck(SchemaObject.TABLE);
+
+        name.setSchemaIfNull(session.getCurrentSchemaHsqlName());
+
+        Table table = TableUtil.newTable(database, TableBase.STREAM_WINDOW, name);
+
+        if (token.tokenType == Tokens.ON) {
+        	read();
+        	
+        	String streamName = token.tokenString;
+        	// TBD : check if this is a predefined stream
+        	Table stream = database.schemaManager.getTable(session, streamName, session.getCurrentSchemaHsqlName().name);
+        	if (stream.isStream() == false)
+        		throw unexpectedToken();
+        	
+        	// add this legal one as related stream
+        	table.setStreamName(streamName);
+
+        	read();
+        }
+
+		if(token.tokenType == Tokens.RANGE)
+			isRowType = false;
+		else 
+			if (token.tokenType == Tokens.ROWS)
+				isRowType = true;
+			else
+				throw unexpectedToken();
+				
+		read();
+		
+		if (token.tokenType == Tokens.X_VALUE)
+			size = ((Number) token.tokenValue).intValue();
+		else
+			throw unexpectedToken();
+		
+		read();
+		
+		if (token.tokenType == Tokens.SLIDE)
+		{
+			read();
+			
+			if (token.tokenType == Tokens.X_VALUE)
+				slides = ((Number) token.tokenValue).intValue();
+			else
+				throw unexpectedToken();
+			
+			read();
+		}
+
+		if (token.tokenType == Tokens.SEMICOLON)
+		{		
+		}
+		else
+			throw unexpectedToken();
+		
+		table.setIsRows(isRowType);
+		table.setSize(size);
+		table.setSlide(slides);
+		
+        Object[] args = new Object[] {
+                table, null, null
+            };
+            String   sql  = getLastPart();
+
+            return new StatementSchema(sql, StatementTypes.CREATE_TABLE, args,
+                                       null, null);
+	}
 
     StatementSchema compileCreateTable(int type) {
 

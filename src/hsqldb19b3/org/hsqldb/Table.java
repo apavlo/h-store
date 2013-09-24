@@ -146,6 +146,12 @@ public class Table extends TableBase implements SchemaObject {
     protected int[] defaultColumnMap;          // fred - holding 0,1,2,3,...
     private boolean hasDefaultValues;          //fredt - shortcut for above
 
+     // used for window 
+    String  streamName;  
+    boolean isRows;
+    int      size;
+    int      slide;
+
     //
     public Table(Database database, HsqlName name, int type) {
 
@@ -153,9 +159,12 @@ public class Table extends TableBase implements SchemaObject {
         tableName     = name;
         persistenceId = database.persistentStoreCollection.getNextId();
 
-        // added by hawk
         isStream = false;
-        // ended by hawk
+        streamName = null;
+        isWindow = false;
+        isRows = true;
+        size = 1;
+        slide = 1;
 
         switch (type) {
 
@@ -233,10 +242,18 @@ public class Table extends TableBase implements SchemaObject {
                 break;
                 
             case STREAM_TABLE :
-            	persistenceScope = SCOPE_FULL;
+            	   persistenceScope = SCOPE_FULL;
                 isSchemaBased    = true;
                 isLogged         = !database.isFilesReadOnly();
                 isStream		 = true;
+                break;
+
+            case STREAM_WINDOW :
+            	  persistenceScope = SCOPE_FULL;
+                isSchemaBased    = true;
+                isLogged         = !database.isFilesReadOnly();
+                isWindow = true;
+                isTemp = true;
                 break;
 
             default :
@@ -283,9 +300,8 @@ public class Table extends TableBase implements SchemaObject {
         this.indexList      = Index.emptyArray;
         this.constraintList = Constraint.emptyArray;
 
-        // added by hawk
         isStream = false;
-        // ended by hawk
+	 isWindow = false;
 
         createPrimaryKey();
     }
@@ -300,6 +316,54 @@ public class Table extends TableBase implements SchemaObject {
     public int getType() {
         return SchemaObject.TABLE;
     }
+
+    public final boolean isStream() {
+    	return isStream;
+    }
+    
+    public final boolean isWindow() {
+        return isWindow;
+    }
+
+    public void setIsWindow(boolean isWindow) {
+        this.isWindow = isWindow;
+    }
+
+    public final boolean isRows() {
+        return isRows;
+    }
+
+    public void setIsRows(boolean isRows) {
+        this.isRows = isRows;
+    }
+    
+    public final String getStreamName() {
+        return streamName;
+    }
+    
+    public void setStreamName(String streamName)
+    {
+    	this.streamName = streamName;
+    }
+    
+    public final int getSize() {
+        return size;
+    }
+    
+    public void setSize(int size)
+    {
+    	this.size = size;
+    }
+    
+    public final int getSlide() {
+        return slide;
+    }
+    
+    public void setSlide(int slide)
+    {
+    	this.slide = slide;
+    }
+
 
     /**
      *  Returns the HsqlName object for the table
@@ -329,6 +393,9 @@ public class Table extends TableBase implements SchemaObject {
     public OrderedHashSet getReferences() {
 
         OrderedHashSet set = new OrderedHashSet();
+
+         if(colTypes == null)
+	     return set;
 
         for (int i = 0; i < colTypes.length; i++) {
             if (colTypes[i].isDomainType() || colTypes[i].isDistinctType()) {
@@ -2633,22 +2700,30 @@ public class Table extends TableBase implements SchemaObject {
         sb.append(indent).append("<table");
         // add table metadata
         sb.append(" name='").append(getName().name).append("'");
-        // added by hawk
         //check to see if the table is a stream
         if(isStream == true) 
         	sb.append("  ").append("isStream='true'"); 
         else
         	sb.append("  ").append("isStream='false'"); 
-        // ended by hawk
+        // add window related parameters
+        if (isWindow == true)
+        {
+        	sb.append("  ").append("isWindow='true'"); 
+        	sb.append("  ").append("streamName='").append(getStreamName()).append("'"); 
+        	sb.append("  ").append("isRows='").append(isRows()).append("'"); 
+        	sb.append("  ").append("size='").append(getSize()).append("'"); 
+        	sb.append("  ").append("slide='").append(getSlide()).append("'"); 
+        }
         sb.append(">\n");
 
         // read all the columns
         sb.append(indent + "  ").append("<columns>\n");
         int[] columnIndices = getColumnMap();
-        for (int i : columnIndices) {
-            ColumnSchema column = getColumn(i);
-            sb.append(column.voltGetXML(session, indent + "    "));
-        }
+         if(columnIndices != null)
+        	for (int i : columnIndices) {
+            		ColumnSchema column = getColumn(i);
+            		sb.append(column.voltGetXML(session, indent + "    "));
+        	}
         sb.append(indent + "  ").append("</columns>\n");
 
         // read all the indexes

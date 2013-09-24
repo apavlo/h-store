@@ -92,7 +92,12 @@ public abstract class DTDSource {
         sb.append("  <!ELEMENT table (columns,indexes,constraints)>\n");
         sb.append("  <!ATTLIST table\n");
         sb.append("    name CDATA #REQUIRED\n");
-        sb.append("    isStream CDATA #IMPLIED\n"); // added by hawk
+        sb.append("    isStream CDATA #IMPLIED\n"); 
+        sb.append("    isWindow CDATA #IMPLIED\n"); 
+        sb.append("    streamName CDATA #IMPLIED\n");
+        sb.append("    isRows CDATA #IMPLIED\n"); 	
+        sb.append("    size CDATA #IMPLIED\n"); 	
+        sb.append("    slide CDATA #IMPLIED\n"); 	
         sb.append("    query CDATA #IMPLIED>\n");
 
         sb.append("  <!ELEMENT columns (column*)>\n");

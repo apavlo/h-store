@@ -55,6 +55,11 @@ protected:
     bool m_mapreduce;
     bool m_evictable;
     bool m_isStream;
+    bool m_isWindow;
+    bool m_isRows;
+    std::string m_streamName;
+    int32_t m_size;
+    int32_t m_slide;
 
     virtual void update();
 
@@ -91,6 +96,16 @@ public:
     bool evictable() const;
     /** GETTER: Is this table a Stream table? */
     bool isStream() const;
+    /** GETTER: Is this table a Window for Stream? */
+    bool isWindow() const;
+    /** GETTER: Is this is a row based window or time based? */
+    bool isRows() const;
+    /** GETTER: The window related stream name */
+    const std::string & streamName() const;
+    /** GETTER: The window size */
+    int32_t size() const;
+    /** GETTER: The window slide"  */
+    int32_t slide() const;
 };
 
 } // namespace catalog

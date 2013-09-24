@@ -572,6 +572,7 @@ public class Tokens {
     static final String        T_SETS                 = "SETS";
     static final String        T_SIMPLE               = "SIMPLE";
     static final String        T_SIZE                 = "SIZE";
+     static final String        T_SLIDE                = "SLIDE";
     static final String        T_SOURCE               = "SOURCE";
     static final String        T_SPACE                = "SPACE";
     static final String        T_SPECIFIC_NAME        = "SPECIFIC_NAME";
@@ -1540,6 +1541,7 @@ public class Tokens {
     
     //stream tokens
     public static final int STREAM		= 1001;
+     public static final int SLIDE		= 1002;
 
     //
     public static final int X_UNKNOWN_TOKEN = -1;
@@ -1804,6 +1806,7 @@ public class Tokens {
         reservedKeys.put(Tokens.T_SET, SET);
         reservedKeys.put(Tokens.T_SIGNAL, SIGNAL);
         reservedKeys.put(Tokens.T_SIMILAR, SIMILAR);
+        reservedKeys.put(Tokens.T_SLIDE, SLIDE);
         reservedKeys.put(Tokens.T_SMALLINT, SMALLINT);
         reservedKeys.put(Tokens.T_SOME, SOME);
         reservedKeys.put(Tokens.T_SPECIFIC, SPECIFIC);
