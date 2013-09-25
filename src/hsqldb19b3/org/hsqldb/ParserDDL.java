@@ -970,6 +970,8 @@ public class ParserDDL extends ParserRoutine {
         	
         	// add this legal one as related stream
         	table.setStreamName(streamName);
+		
+		table.cloneColumns(stream);
 
         	read();
         }
