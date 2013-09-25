@@ -52,6 +52,8 @@
 #include <stdexcept>
 #include <string>
 
+#define _UNUSED(x) ((void)x)
+
 using namespace std;
 using namespace voltdb;
 
@@ -172,6 +174,10 @@ OrderByPlanNode::loadFromJSONObject(json_spirit::Object& obj,
     {
         json_spirit::Object sortColumn = sortColumnsArray[ii].get_obj();
         bool hasName = false, hasDirection = false;
+
+        _UNUSED (hasName);
+        _UNUSED (hasDirection);
+
         for (int zz = 0; zz < sortColumn.size(); zz++)
         {
             if (sortColumn[zz].name_ == "COLUMN_NAME")
