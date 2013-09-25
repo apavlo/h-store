@@ -64,7 +64,7 @@ public class TestHSQLDB extends TestCase {
             // display the catalog information in xml foramt
             System.out.println(xml);
 
-            ddl = "create stream streamA (C_SINCE TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL, cash integer default 23);";
+            ddl = "create stream streamA (C_SINCE int NOT NULL, phone_number bigint NOT NULL, cash integer default 23);";
 
             hsql.runDDLCommand(ddl);
 
@@ -72,6 +72,17 @@ public class TestHSQLDB extends TestCase {
             
             // display the catalog information in xml foramt
             System.out.println(xml);
+
+            ddl = "CREATE WINDOW W_ROWS ON streamA ROWS 10 SLIDE 5;";
+            hsql.runDDLCommand(ddl);
+
+            ddl = "CREATE WINDOW W_TIME ON streamA RANGE 10 SLIDE 5;";
+            hsql.runDDLCommand(ddl);
+
+            xml = hsql.getXMLFromCatalog();
+            // display the catalog information in xml foramt
+            System.out.println(xml);
+
             
         } catch (HSQLInterface.HSQLParseException e1) {
             assertFalse(true);
@@ -85,6 +96,30 @@ public class TestHSQLDB extends TestCase {
             xml = hsql.getXMLCompiledStatement(sql);
             System.out.println(xml);
             
+            sql = "select * from streamA;";
+            xml = hsql.getXMLCompiledStatement(sql);
+            System.out.println(xml);
+
+            sql = "INSERT INTO streamA (C_SINCE, phone_number, cash) VALUES (1, 1, 1);";
+            xml = hsql.getXMLCompiledStatement(sql);
+            System.out.println(xml);
+
+        	sql = "select * from W_ROWS;";
+            xml = hsql.getXMLCompiledStatement(sql);
+            System.out.println(xml);
+
+            sql = "select * from W_ROWS where cash = 100;";
+            xml = hsql.getXMLCompiledStatement(sql);
+            System.out.println(xml);
+            
+            sql = "select W_ROWS.phone_number, W_TIME.cash from W_ROWS, W_TIME where W_ROWS.cash = W_TIME.cash;";
+            xml = hsql.getXMLCompiledStatement(sql);
+            System.out.println(xml);
+
+            sql = "INSERT INTO W_ROWS (C_SINCE, phone_number, cash) VALUES (1, 1, 1);";
+            xml = hsql.getXMLCompiledStatement(sql);
+            System.out.println(xml);
+
 //            sql = "select * from streamA[rows 5];";
 //            xml = hsql.getXMLCompiledStatement(sql);
 //            System.out.println(xml);

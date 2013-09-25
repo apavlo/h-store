@@ -364,6 +364,36 @@ public class Table extends TableBase implements SchemaObject {
     	this.slide = slide;
     }
 
+    // here in order to deal with WINDOW, which is not a real table or stream, 
+    // we need basic information to support DDL & DML statement parsing
+    // the better way is to provide deep clone of the corresponding stream
+    public void cloneColumns(Table table)
+    {
+       
+        for (int i = 0; i < table.getColumnCount(); i++) {
+            ColumnSchema orginal_col = (ColumnSchema) table.getColumn(i);
+            
+            HsqlName hsqlName =
+                database.nameManager.newColumnHsqlName(this.getName(),
+                		orginal_col.getNameString(), orginal_col.getName().isNameQuoted);
+            Expression     defaultExpr    = null;
+            ColumnSchema col = new ColumnSchema(hsqlName, orginal_col.getDataType(),
+                    true, false, defaultExpr);
+            this.addColumn(col);
+        }
+        
+        colTypes         = table.colTypes;
+        columnCount      = table.colTypes.length;
+        primaryKeyCols   = table.primaryKeyCols;
+        primaryKeyTypes  = table.primaryKeyTypes;
+        indexList        = table.indexList;
+        
+        defaultColumnMap = table.defaultColumnMap;
+        hasDefaultValues = table.hasDefaultValues;
+
+    }
+
+
 
     /**
      *  Returns the HsqlName object for the table
@@ -2704,7 +2734,7 @@ public class Table extends TableBase implements SchemaObject {
         if(isStream == true) 
         	sb.append("  ").append("isStream='true'"); 
         else
-        	sb.append("  ").append("isStream='false'"); 
+        	sb.append("  ").append("isStream='false'");
         // add window related parameters
         if (isWindow == true)
         {
@@ -2716,14 +2746,36 @@ public class Table extends TableBase implements SchemaObject {
         }
         sb.append(">\n");
 
+        String bodyXML = null;
+        
+        if(isWindow == true)
+        {
+        	Table stream = session.database.schemaManager.getTable(session, streamName, session.getCurrentSchemaHsqlName().name);
+        	bodyXML = stream.VoltGetBodyXML(session, indent);
+        }
+        else
+        	bodyXML = this.VoltGetBodyXML(session, indent);
+        
+        sb.append(bodyXML);
+
+        // close table tag
+        sb.append(indent).append("</table>\n");
+
+        return sb.toString();
+    }
+    
+    public String VoltGetBodyXML(Session session, String indent) throws HSQLParseException
+    {
+    	StringBuilder sb = new StringBuilder();
+
         // read all the columns
         sb.append(indent + "  ").append("<columns>\n");
         int[] columnIndices = getColumnMap();
-         if(columnIndices != null)
-        	for (int i : columnIndices) {
-            		ColumnSchema column = getColumn(i);
-            		sb.append(column.voltGetXML(session, indent + "    "));
-        	}
+        if(columnIndices != null)
+	        for (int i : columnIndices) {
+	            ColumnSchema column = getColumn(i);
+	            sb.append(column.voltGetXML(session, indent + "    "));
+	        }
         sb.append(indent + "  ").append("</columns>\n");
 
         // read all the indexes
@@ -2742,9 +2794,6 @@ public class Table extends TableBase implements SchemaObject {
         }
         sb.append(indent + "  ").append("</constraints>\n");
 
-        // close table tag
-        sb.append(indent).append("</table>\n");
-
-        return sb.toString();
+    	return sb.toString();
     }
 }
