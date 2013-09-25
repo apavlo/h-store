@@ -1330,7 +1330,7 @@ public final class HStoreConf {
         public String hosts;
 
         @ConfigProperty(
-            description="The number of txns that client process submits (per ms). The underlying " +
+            description="The number of txns that client process submits (per second). The underlying " +
                         "BenchmarkComponent will continue invoke the client driver's runOnce() method " +
                         "until it has submitted enough transactions to satisfy ${client.txnrate}. " +
                         "If ${client.blocking} is disabled, then the total transaction rate for a " +
