@@ -296,6 +296,10 @@ public class DDLCompiler {
             	else
             		table.setIsrows(false);
 
+            	Node streamNameAttributeNode =  attrs.getNamedItem("streamName");
+            	String streamName = streamNameAttributeNode.getNodeValue();
+            	table.setStreamname(streamName);
+
             	Node isSizeAttributeNode =  attrs.getNamedItem("size");
             	String strSize = isSizeAttributeNode.getNodeValue();
             	table.setSize(Integer.parseInt(strSize));
