@@ -590,6 +590,9 @@ public class VoltProjectBuilder {
     // -------------------------------------------------------------------
     
     public void addTablePartitionInfo(Table catalog_tbl, Column catalog_col) {
+        // added by hawk, should WINDOW need such partition information?
+	if ( catalog_tbl.getIswindow() == true )
+           return;
         assert(catalog_col != null) : "Unexpected null partition column for " + catalog_tbl;
         
         // TODO: Support special columns
