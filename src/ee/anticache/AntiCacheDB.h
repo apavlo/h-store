@@ -27,6 +27,7 @@
 #define HSTOREANTICACHE_H
 
 #include <db_cxx.h>
+#include <map>
 
 #define ANTICACHE_DB_NAME "anticache.db"
 
@@ -50,18 +51,24 @@ class AntiCacheBlock {
         inline int16_t getBlockId() const {
             return (m_blockId);
         }
-        inline int getSize() const {
-            return (m_value.get_size());
+        inline long getSize() const {
+	  //return (m_value.get_size());
+	  return m_size; 
         }
         inline char* getData() const {
-            return (static_cast<char*>(m_value.get_data()));
+	    if(m_NVMBlock != NULL)
+	       return m_NVMBlock; 
+	    else
+	       return (static_cast<char*>(m_value.get_data()));
         }
     
     private:
-        AntiCacheBlock(int16_t blockId, Dbt value);
+        AntiCacheBlock(int16_t blockId, Dbt value, char* NVMBlock, long size);
         
         int16_t m_blockId;
         Dbt m_value;
+	char* m_NVMBlock;
+	long m_size; 
 }; // CLASS
 
 /**
@@ -73,6 +80,10 @@ class AntiCacheDB {
         AntiCacheDB(ExecutorContext *ctx, std::string db_dir, long blockSize);
         ~AntiCacheDB();
 
+		void initializeNVM(); 
+		
+		void initializeBerkeleyDB(); 
+
         /**
          * Write a block of serialized tuples out to the anti-cache database
          */
@@ -81,12 +92,11 @@ class AntiCacheDB {
                         const int tupleCount,
                         const char* data,
                         const long size);
-        
         /**
          * Read a block and return its contents
          */
         AntiCacheBlock readBlock(std::string tableName, int16_t blockId);
-    
+
         /**
          * Flush the buffered blocks to disk.
          */
@@ -107,6 +117,30 @@ class AntiCacheDB {
         DbEnv* m_dbEnv;
         Db* m_db; 
         int16_t m_nextBlockId;
+
+		std::map<int16_t, pair<int, long> > m_blockMap; 
+		char** m_NVMBlocks;
+		int m_totalBlocks; 
+		
+		void shutdownNVM(); 
+		
+		void shutdownBerkeleyDB();
+		
+		void writeBlockNVM(const std::string tableName, 
+				   int16_t blockID, 
+				   const int tupleCount, 
+				   const char* data, 
+				   const long size); 
+				
+		void writeBlockBerkeleyDB(	const std::string tableName, 
+					   int16_t blockID, 
+					   const int tupleCount, 
+					   const char* data, 
+					   const long size);
+		
+		AntiCacheBlock readBlockNVM(std::string tableName, int16_t blockId); 
+
+		AntiCacheBlock readBlockBerkeleyDB(std::string tableName, int16_t blockId);
 }; // CLASS
 
 }

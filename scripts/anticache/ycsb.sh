@@ -13,12 +13,11 @@ function onexit() {
 
 ENABLE_ANTICACHE=false
 
-SITE_HOST="istc12"
+SITE_HOST="10.212.84.152"
 
 CLIENT_HOSTS=( \
-        "istc12" \
-        "istc13" \
-        "istc13" \
+        "debrabant@client1" \
+#        "localhost" \
 )
 
 BASE_CLIENT_THREADS=2
@@ -69,7 +68,7 @@ BASE_ARGS=( \
     # Client Params
     "-Dclient.scalefactor=1" \
     "-Dclient.memory=2048" \
-    "-Dclient.txnrate=2000" \
+    "-Dclient.txnrate=10000" \
     "-Dclient.warmup=120000" \
     "-Dclient.duration=120000" \
     "-Dclient.interval=5000" \
@@ -87,7 +86,7 @@ BASE_ARGS=( \
     "-Dsite.anticache_reset=false" \
     "-Dsite.anticache_block_size=${ANTICACHE_BLOCK_SIZE}" \
     "-Dsite.anticache_check_interval=10000" \
-    "-Dsite.anticache_threshold_mb=200" \
+    "-Dsite.anticache_threshold_mb=20000" \
     "-Dsite.anticache_blocks_per_eviction=200" \
     "-Dsite.anticache_max_evicted_blocks=325" \
 #    "-Dsite.anticache_evict_size=${ANTICACHE_EVICT_SIZE}" \

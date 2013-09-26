@@ -277,6 +277,7 @@ bool PersistentTable::evictBlockToDisk(const long block_size, int num_blocks) {
         VOLT_DEBUG("Finished evictable tuple iterator for %s [tuplesEvicted=%d]",
                    name().c_str(), num_tuples_evicted);
         
+		VOLT_DEBUG("Number of tuples evicted: %d", num_tuples_evicted); 
         // write out the block header (i.e. number of tuples in block)
         out.writeIntAt(0, num_tuples_evicted);
         
@@ -364,9 +365,9 @@ bool PersistentTable::readEvictedBlock(int16_t block_id, int32_t tuple_offset) {
         m_blocksRead += 1;
         m_unevictedBlockIDs.insert(std::pair<int16_t,int16_t>(block_id, 0)); 
     }
-    catch(UnknownBlockAccessException exception)
+    catch(UnknownBlockAccessException e)
     {
-        throw exception; 
+        throw e; 
         
         VOLT_INFO("UnknownBlockAccessException caught.");
         

@@ -79,7 +79,7 @@ CTX.OUTPUT_PREFIX += "/"
 # these are the base compile options that get added to every compile step
 # this does not include header/lib search paths or specific flags for
 #  specific targets
-CTX.CPPFLAGS = """-Wall -Wextra -Werror -Woverloaded-virtual -Wconversion
+CTX.CPPFLAGS = """ -Wextra -Woverloaded-virtual -Wconversion
             -Wpointer-arith -Wcast-qual -Wcast-align -Wwrite-strings
             -Winit-self -Wno-sign-compare -Wno-unused-parameter
             -pthread
@@ -367,9 +367,13 @@ CTX.TESTS['storage'] = """
 ###############################################################################
 ENABLE_ANTICACHE = True
 ANTICACHE_REVERSIBLE_LRU = True
+ANTICACHE_NVM = True
 
 if ANTICACHE_REVERSIBLE_LRU:
     CTX.CPPFLAGS += " -DANTICACHE_REVERSIBLE_LRU"
+
+if ANTICACHE_NVM: 
+    CTX.CPPFLAGS += " -DANTICACHE_NVM"
 
 if ENABLE_ANTICACHE:
     CTX.CPPFLAGS += " -DANTICACHE"
