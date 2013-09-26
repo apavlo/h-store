@@ -44,7 +44,7 @@ CREATE TABLE total_votes
 );
 
 -- rollup of votes by phone number, used to reject excessive voting
-CREATE TABLE voltes_by_phone_number
+CREATE TABLE votes_by_phone_number
 (
     phone_number     bigint    NOT NULL,
     num_votes        int
