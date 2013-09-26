@@ -220,7 +220,7 @@ bool PersistentTable::evictBlockToDisk(const long block_size, int num_blocks) {
 //        int64_t origEvictedTableSize = m_evictedTable->activeTupleCount();
         #endif
 
-        size_t current_tuple_start_position;
+        //size_t current_tuple_start_position;
             
         int32_t num_tuples_evicted = 0;
         out.writeInt(num_tuples_evicted); // reserve first 4 bytes in buffer for number of tuples in block
@@ -236,7 +236,7 @@ bool PersistentTable::evictBlockToDisk(const long block_size, int num_blocks) {
                 tuple_length = tuple.tupleLength();
             }
             
-            current_tuple_start_position = out.position();
+            //current_tuple_start_position = out.position();
             
             // remove the tuple from the eviction chain
             eviction_manager->removeTuple(this, &tuple);

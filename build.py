@@ -91,7 +91,10 @@ if gcc_major == 4 and gcc_minor >= 3:
     CTX.CPPFLAGS += " -Wno-ignored-qualifiers -fno-strict-aliasing"
 
 # linker flags
-CTX.LDFLAGS = """-g3 -rdynamic -ldl"""
+CTX.LDFLAGS = """-g3 -ldl"""
+# Done by default on Darwin -- unrecognized option for the linker on Darwin
+if CTX.PLATFORM == "Linux":
+    CTX.LDFLAGS +=" -rdynamic"
 if CTX.COVERAGE:
     CTX.LDFLAGS += " -ftest-coverage -fprofile-arcs"
 # for the google perftools profiler and the recommended stack unwinder
