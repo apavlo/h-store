@@ -31,7 +31,7 @@ package edu.brown.benchmark.ycsb;
 
 public abstract class YCSBConstants {
 
-    public static final int NUM_RECORDS = 20000000;  // Note: this should match value in YCSB.properties
+    public static final int NUM_RECORDS = 100000;  // Note: this should match value in YCSB.properties
     
     public static final double ZIPFIAN_CONSTANT = .5;
 
