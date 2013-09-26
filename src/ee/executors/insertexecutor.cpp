@@ -58,7 +58,7 @@
 #include "storage/tablefactory.h"
 #include "storage/temptable.h"
 #include "common/types.h"
-#include "storage/WindowTable.h"
+//#include "storage/WindowTable.h"
 
 namespace voltdb {
 
