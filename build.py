@@ -370,7 +370,7 @@ CTX.TESTS['storage'] = """
 ###############################################################################
 ENABLE_ANTICACHE = True
 ANTICACHE_REVERSIBLE_LRU = True
-ANTICACHE_NVM = True
+ANTICACHE_NVM = False
 
 if ANTICACHE_REVERSIBLE_LRU:
     CTX.CPPFLAGS += " -DANTICACHE_REVERSIBLE_LRU"
