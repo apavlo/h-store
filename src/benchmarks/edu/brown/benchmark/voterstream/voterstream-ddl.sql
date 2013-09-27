@@ -102,5 +102,8 @@ CREATE TABLE votes_by_contestant_number_state
 , state              varchar(2) NOT NULL
 , num_votes          int
 );
+
+CREATE WINDOW W_ROWS ON votes_streamA ROWS 10 SLIDE 5;
+
 --------------------------------------
 
