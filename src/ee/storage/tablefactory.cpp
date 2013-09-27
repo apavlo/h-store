@@ -52,6 +52,7 @@
 #include "storage/persistenttable.h"
 #include "storage/streamedtable.h"
 #include "storage/temptable.h"
+#include "storage/WindowTable.h"
 #include "triggers/trigger.h"
 #include "indexes/tableindexfactory.h"
 #include "common/Pool.hpp"
@@ -132,13 +133,21 @@ Table* TableFactory::getPersistentTable(
         TableFactory::initCommon(databaseId, table, name, schema, columnNames, true);
     }
     else {
+    	//TODO: temporarily replaced persistenttables with windowtables
         table = new PersistentTable(ctx, exportEnabled);
+        //PersistentTable *pTable = dynamic_cast<PersistentTable*>(table);
+    	VOLT_DEBUG("TABLE FACTORY");
+        //table = new WindowTable(ctx, exportEnabled);
+        WindowTable *wTable = new WindowTable(ctx, exportEnabled);
         PersistentTable *pTable = dynamic_cast<PersistentTable*>(table);
         TableFactory::initCommon(databaseId, pTable, name, schema, columnNames, true);
         pTable->m_indexCount = (int)indexes.size();
         pTable->m_indexes = new TableIndex*[indexes.size()];
         pTable->m_partitionColumn = partitionColumn;
         pTable->addAllTriggers(triggers);
+
+        if(wTable != NULL)
+                {}
 
         //if(triggers.size() > 0)
         if(triggers != NULL)
@@ -195,7 +204,12 @@ Table* TableFactory::getPersistentTable(
         TableFactory::initCommon(databaseId, table, name, schema, columnNames, true);
     }
     else {
-        table = new PersistentTable(ctx, exportEnabled);
+    	//TODO: temporarily replaced persistenttables with windowtables
+    	table = new PersistentTable(ctx, exportEnabled);
+    	//PersistentTable *pTable = dynamic_cast<PersistentTable*>(table);
+
+    	VOLT_DEBUG("TABLE FACTORY");
+        WindowTable *wTable = new WindowTable(ctx, exportEnabled);
         PersistentTable *pTable = dynamic_cast<PersistentTable*>(table);
         pTable->m_pkeyIndex = TableIndexFactory::getInstance(pkeyIndex);
         TableFactory::initCommon(databaseId, pTable, name, schema, columnNames, true);
@@ -207,6 +221,9 @@ Table* TableFactory::getPersistentTable(
 			pTable->m_hasTriggers = true;
 		else
 			pTable->m_hasTriggers = false;
+
+        if(wTable != NULL)
+        {}
 
         // one for pkey + all the other indexes
         pTable->m_indexCount = 1 + (int)indexes.size();

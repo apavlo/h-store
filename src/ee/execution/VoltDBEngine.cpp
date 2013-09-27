@@ -94,6 +94,7 @@
 #include "indexes/tableindex.h"
 #include "storage/constraintutil.h"
 #include "storage/persistenttable.h"
+#include "storage/WindowTable.h"
 #include "storage/MaterializedViewMetadata.h"
 #include "storage/StreamBlock.h"
 #include "storage/TableCatalogDelegate.hpp"
