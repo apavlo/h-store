@@ -46,9 +46,10 @@
 #include <sstream>
 #include <cassert>
 #include <cstdio>
+#include <list>
 
 #include "boost/scoped_ptr.hpp"
-#include "storage/windowtable.h"
+#include "storage/WindowTable.h"
 
 #ifdef ANTICACHE
 #include "boost/timer.hpp"
@@ -61,42 +62,99 @@
 #include <map>
 
 namespace voltdb {
-
-void* keyTupleStorage = NULL;
-TableTuple keyTuple;
-
 /**
  * This value has to match the value in CopyOnWriteContext.cpp
  */
 #define TABLE_BLOCKSIZE 2097152
 #define MAX_EVICTED_TUPLE_SIZE 2500
 
-WindowTable::WindowTable(ExecutorContext *ctx, bool exportEnabled) :
-    Table(TABLE_BLOCKSIZE), m_executorContext(ctx), m_uniqueIndexes(NULL), m_uniqueIndexCount(0), m_allowNulls(NULL),
-    m_indexes(NULL), m_indexCount(0), m_pkeyIndex(NULL), m_wrapper(NULL),
-    m_tsSeqNo(0), stats_(this), m_exportEnabled(exportEnabled),
-    m_COWContext(NULL)
+WindowTable::WindowTable(ExecutorContext *ctx, bool exportEnabled) : PersistentTable(ctx, exportEnabled)
 {
+	windowQueue = std::list<TableTuple *>();
+	windowSize = 10;
+	VOLT_DEBUG("***********WINDOW CONSTRUCTOR SUCCESSFUL**********");
+}
 
-	#ifdef ANTICACHE
-	m_evictedTable = NULL;
-	m_unevictedTuples = NULL;
-	m_numUnevictedTuples = 0;
-	m_newestTupleID = 0;
-	m_oldestTupleID = 0;
-	m_numTuplesInEvictionChain = 0;
-	m_blockMerge = true;
-	#endif
+WindowTable::~WindowTable()
+{
+	//~PersistentTable();
+}
 
-	if (exportEnabled) {
-		m_wrapper = new TupleStreamWrapper(m_executorContext->m_partitionId,
-										   m_executorContext->m_siteId,
-										   m_executorContext->m_lastTickTime);
+void WindowTable::deleteAllTuples(bool freeAllocatedStrings)
+{
+	PersistentTable::deleteAllTuples(freeAllocatedStrings);
+	windowQueue.clear();
+}
+
+bool WindowTable::insertTuple(TableTuple &source)
+{
+	while(windowQueue.size() >= windowSize)
+	{
+		windowQueue.pop_front();
 	}
+	windowQueue.push_back(&source);
+	return PersistentTable::insertTuple(source);
+}
+
+void WindowTable::insertTupleForUndo(TableTuple &source, size_t elMark)
+{
+	while(windowQueue.size() >= windowSize)
+	{
+		windowQueue.pop_front();
+	}
+	windowQueue.push_back(&source);
+	PersistentTable::insertTupleForUndo(source, elMark);
+}
+
+bool WindowTable::updateTuple(TableTuple &source, TableTuple &target, bool updatesIndexes)
+{
+	for(std::list<TableTuple *>::iterator it = windowQueue.begin(); it != windowQueue.end(); it++)
+	{
+		if(*it == &source)
+		{
+			*it = &target;
+		}
+	}
+	return PersistentTable::updateTuple(source, target, updatesIndexes);
+}
+
+void WindowTable::updateTupleForUndo(TableTuple &sourceTuple, TableTuple &targetTuple,
+							bool revertIndexes, size_t elMark)
+{
+	for(std::list<TableTuple *>::iterator it = windowQueue.begin(); it != windowQueue.end(); it++)
+	{
+		if(*it == &sourceTuple)
+		{
+			*it = &targetTuple;
+		}
+	}
+	return PersistentTable::updateTupleForUndo(sourceTuple, targetTuple, revertIndexes, elMark);
+}
+
+bool WindowTable::deleteTuple(TableTuple &tuple, bool deleteAllocatedStrings)
+{
+	for(std::list<TableTuple *>::iterator it = windowQueue.begin(); it != windowQueue.end(); it++)
+	{
+		if(*it == &tuple)
+		{
+			it = windowQueue.erase(it);
+		}
+	}
+	return PersistentTable::deleteTuple(tuple, deleteAllocatedStrings);
+}
+
+void WindowTable::deleteTupleForUndo(voltdb::TableTuple &tupleCopy, size_t elMark)
+{
+	for(std::list<TableTuple *>::iterator it = windowQueue.begin(); it != windowQueue.end(); it++)
+	{
+		if(*it == &tupleCopy)
+		{
+			it = windowQueue.erase(it);
+		}
+	}
+	return PersistentTable::deleteTupleForUndo(tupleCopy, elMark);
+}
+
 
 }
 
-WindowTable::~WindowTable() {
-}
-
-}
