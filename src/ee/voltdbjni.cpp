@@ -78,6 +78,11 @@
 #endif // __x86_64
 #endif // LINUX
 
+#ifdef MACOSX
+#include <mach/task.h>
+#include <mach/mach.h>
+#endif // MACOSX
+
 //#include <google/profiler.h>
 
 //#include <jni/jni.h>
