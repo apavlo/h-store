@@ -155,7 +155,7 @@ public final class HStoreConf {
         @ConfigProperty(
             description="Execute each HStoreSite with JVM asserts enabled. " +
                         "This should be set to false when running benchmark experiments.",
-            defaultBoolean=true,
+            defaultBoolean=false,
             experimental=false
         )
         public boolean jvm_asserts;
@@ -1278,10 +1278,10 @@ public final class HStoreConf {
         public boolean log_backup;
         
         @ConfigProperty(
-            description="Execute each HStoreSite with JVM asserts enabled. " +
+            description="Execute each client thread with JVM asserts enabled. " +
                         "The client asserts will not affect the runtime performance of the " +
                         "database cluster, but it may increase the overhead of each client thread.",
-            defaultBoolean=true,
+            defaultBoolean=false,
             experimental=false
         )
         public boolean jvm_asserts;
@@ -1424,7 +1424,7 @@ public final class HStoreConf {
             description="Whether to use the BlockingClient. When this is true, then each client process will " +
                         "submit one transaction at a time and wait until the result is returned before " +
                         "submitting the next. The clients still follow the ${client.txnrate} parameter.",
-            defaultBoolean=false,
+            defaultBoolean=true,
             experimental=false
         )
         public boolean blocking;
