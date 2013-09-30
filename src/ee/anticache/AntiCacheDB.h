@@ -118,6 +118,10 @@ class AntiCacheDB {
         Db* m_db; 
         int16_t m_nextBlockId;
 
+        FILE* nvm_file;
+        char* m_NVMBlock; 
+        int nvm_fd; 
+
 		std::map<int16_t, pair<int, long> > m_blockMap; 
 		char** m_NVMBlocks;
 		int m_totalBlocks; 
@@ -145,15 +149,3 @@ class AntiCacheDB {
 
 }
 #endif
-
-
-
-
-
-
-
-
-
-
-
-

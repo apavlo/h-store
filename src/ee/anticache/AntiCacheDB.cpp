@@ -29,6 +29,7 @@
 #include "common/FatalException.hpp"
 #include <fcntl.h>
 #include <unistd.h>
+#include <errno.h>
 #include <sys/mman.h>
 
 using namespace std;
@@ -96,20 +97,44 @@ void AntiCacheDB::initializeBerkeleyDB()
 
 void AntiCacheDB::initializeNVM()
 {
-	off_t NVM_FILE_SIZE = 1073741824; 
-	
-	int nvm_file = open(m_dbDir.c_str(), O_RDWR); 
-	
-	if(ftruncate(nvm_file, NVM_FILE_SIZE) < 0)
+        off_t NVM_FILE_SIZE = 1073741824; 
+	char  nvm_file_name[100]; 
+
+	strcpy(nvm_file_name, m_dbDir.c_str()); 
+	strcat(nvm_file_name, "/anticache.nvm");
+	nvm_file = fopen(nvm_file_name, "rw+"); 
+
+	if(nvm_file == NULL)
 	{
-		VOLT_ERROR("Anti-Cache initialization error."); 
-		VOLT_ERROR("Failed to initialize anti-cache PMFS file in directory %s.", m_dbDir.c_str());
+	        VOLT_ERROR("Anti-Cache initialization error."); 
+		VOLT_ERROR("Failed to open PMFS file %s: %s.", nvm_file_name, strerror(errno));
+		throwFatalException("Failed to initialize anti-cache PMFS file in directory %s.", m_dbDir.c_str());
+	}
+
+        nvm_fd = fileno(nvm_file); 
+	if(nvm_fd < 0)
+	{
+	        VOLT_ERROR("Anti-Cache initialization error."); 
+		VOLT_ERROR("Failed to allocate anti-cache PMFS file in directory %s.", m_dbDir.c_str());
 		throwFatalException("Failed to initialize anti-cache PMFS file in directory %s.", m_dbDir.c_str());
 	}
 	
-	char* m_NVMBlock = new char[NVM_FILE_SIZE]; 
-	mmap(NULL, NVM_FILE_SIZE, 0, 0, nvm_file, 0); 
+	if(ftruncate(nvm_fd, NVM_FILE_SIZE) < 0)
+	{
+		VOLT_ERROR("Anti-Cache initialization error."); 
+		VOLT_ERROR("Failed to ftruncate anti-cache PMFS file %s: %s", nvm_file_name, strerror(errno));
+		throwFatalException("Failed to initialize anti-cache PMFS file in directory %s.", m_dbDir.c_str());
+	}
 	
+	m_NVMBlock =  (char*)mmap(NULL, NVM_FILE_SIZE, PROT_READ | PROT_WRITE, MAP_PRIVATE, nvm_fd, 0); 
+	
+	if(m_NVMBlock == MAP_FAILED)
+	{
+	        VOLT_ERROR("Anti-Cache initialization error."); 
+		VOLT_ERROR("Failed to mmap PMFS file %s: %s", nvm_file_name, strerror(errno));
+		throwFatalException("Failed to initialize anti-cache PMFS file in directory %s.", m_dbDir.c_str());
+	}
+
 	m_NVMBlocks = new char*[5000]; 
 }
 
