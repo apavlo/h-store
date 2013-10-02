@@ -89,6 +89,10 @@ namespace voltdb {
             m_partitionId = partitionId;
         }
         
+        CatalogId getPartitionId() const {
+            return (m_partitionId);
+        }
+        
         // not always known at initial construction
         void setEpoch(int64_t epoch) {
             m_epoch = epoch;

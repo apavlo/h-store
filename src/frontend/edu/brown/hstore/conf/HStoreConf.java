@@ -621,6 +621,15 @@ public final class HStoreConf {
         public boolean anticache_enable;
         
         @ConfigProperty(
+            description="Use a doubly-linked list for the anti-cache's LRU tracker. " +
+                        "This will increase the memory overhead of the anti-cache's metatadata " +
+                        "but it will improve the performance of eviction operations.",
+            defaultBoolean=true,
+            experimental=true
+        )
+        public boolean anticache_reversible_lru;
+        
+        @ConfigProperty(
             description="Enable the anti-cache profiling.",
             defaultBoolean=false,
             experimental=true
@@ -693,6 +702,27 @@ public final class HStoreConf {
                 experimental=true
         )
         public String anticache_eviction_distribution;
+        
+        // ----------------------------------------------------------------------------
+        // Storage Options
+        // ----------------------------------------------------------------------------
+        
+        @ConfigProperty(
+            description="Use mmap to store database on local filesystem. " +
+                        "This is very experimental. Unless you are James, you probably " +
+                        "don't want to enable this feature.",
+            defaultBoolean=false,
+            experimental=true
+        )
+        public boolean storage_mmap;
+        
+        @ConfigProperty(
+            description="Location of where H-Store will store mmap files for each partition. " +
+                        "This is only used if ${site.storage_mmap} is enabled. ",
+            defaultString="${global.temp_dir}/mmap",
+            experimental=true
+        )
+        public String storage_mmap_dir;
         
         // ----------------------------------------------------------------------------
         // MapReduce Options

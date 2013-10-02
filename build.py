@@ -366,16 +366,23 @@ CTX.TESTS['storage'] = """
 # CTX.TESTS['expressions'] = """expserialize_test expression_test"""
 
 ###############################################################################
+# MMAP STORAGE
+###############################################################################
+
+if CTX.MMAP_STORAGE:
+    CTX.CPPFLAGS += " -DMMAP_STORAGE"
+
+###############################################################################
 # ANTI-CACHING
 ###############################################################################
-ENABLE_ANTICACHE = True
-ANTICACHE_REVERSIBLE_LRU = True
 
-if ANTICACHE_REVERSIBLE_LRU:
-    CTX.CPPFLAGS += " -DANTICACHE_REVERSIBLE_LRU"
-
-if ENABLE_ANTICACHE:
+if CTX.ANTICACHE_ENABLE:
     CTX.CPPFLAGS += " -DANTICACHE"
+
+    if CTX.ANTICACHE_REVERSIBLE_LRU:
+        CTX.CPPFLAGS += " -DANTICACHE_REVERSIBLE_LRU"
+
+    # Bring in berkeleydb library
     CTX.SYSTEM_DIRS.append(os.path.join(CTX.OUTPUT_PREFIX, 'berkeleydb'))
     CTX.THIRD_PARTY_STATIC_LIBS.extend([
         "berkeleydb/libdb.a",     # BerkeleyDB Base Library
