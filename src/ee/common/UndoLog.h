@@ -43,8 +43,8 @@ namespace voltdb
         void clear();
 
         inline UndoQuantum* generateUndoQuantum(int64_t nextUndoToken) {
-            VOLT_TRACE("Generating token %" PRId64 " / lastUndo:%" PRId64 " / lastRelease:%" PRId64 " / undoQuantums:% " 
-            PRId64 " ", nextUndoToken, m_lastUndoToken, m_lastReleaseToken, m_undoQuantums.size());
+            VOLT_TRACE("Generating token %" PRId64 " / lastUndo:%" PRId64 " / lastRelease:%" PRId64 " / undoQuantums:%lu ", 
+            nextUndoToken, m_lastUndoToken, m_lastReleaseToken, m_undoQuantums.size());
             
             // Since ExecutionSite is using monotonically increasing
             // token values, every new quanta we're asked to generate should be
@@ -87,7 +87,7 @@ namespace voltdb
          * until the undo quantum with the specified undo token.
          */
         inline void undo(const int64_t undoToken) {
-            VOLT_TRACE("Attempting to undo token %ld [lastUndo:%ld / lastRelease:%ld / undoQuantums:%ld]",
+            VOLT_TRACE("Attempting to undo token %" PRId64 " [lastUndo:%" PRId64 " / lastRelease:%" PRId64 " / undoQuantums:%lu ]",
                        undoToken, m_lastUndoToken, m_lastReleaseToken, m_undoQuantums.size());
             
             // This ensures that we don't attempt to undo something in
@@ -116,12 +116,12 @@ namespace voltdb
                 UndoQuantum *undoQuantum = m_undoQuantums.back();
                 const int64_t undoQuantumToken = undoQuantum->getUndoToken();
                 if (undoQuantumToken < undoToken) {
-                    VOLT_TRACE("Skipping UndoQuantum %ld because it is before token %ld",
+                    VOLT_TRACE("Skipping UndoQuantum %" PRId64 " because it is before token %" PRId64 "",
                                undoQuantumToken, undoToken);
                     return;
                 }
 
-                VOLT_TRACE("START Aborting UndoQuantum %ld", undoQuantumToken);
+                VOLT_TRACE("START Aborting UndoQuantum %" PRId64 "", undoQuantumToken);
                 m_undoQuantums.pop_back();
                 Pool *pool = undoQuantum->getDataPool();
                 undoQuantum->undo();
@@ -129,7 +129,7 @@ namespace voltdb
                 m_undoDataPools.push_back(pool);
 
                 if (undoQuantumToken == undoToken) {
-                    VOLT_TRACE("FINISH Aborting UndoQuantum %ld", undoQuantumToken);
+                    VOLT_TRACE("FINISH Aborting UndoQuantum %" PRId64 "", undoQuantumToken);
                     return;
                 }
             }
@@ -143,8 +143,8 @@ namespace voltdb
         inline void undoRange(const int64_t startToken, const int64_t stopToken) {
             assert(startToken >= stopToken);
             
-            VOLT_TRACE("Attempting to undo range %ld->%ld [lastUndo:%ld / lastRelease:%ld / undoQuantums:%ld]",
-                       startToken, stopToken,
+            VOLT_TRACE("Attempting to undo range %" PRId64 "->%" PRId64 " [lastUndo:%" PRId64 " / lastRelease:%" PRId64
+            " / undoQuantums:%lu ]", startToken, stopToken,
                        m_lastUndoToken, m_lastReleaseToken, m_undoQuantums.size());
             
             // This ensures that we don't attempt to undo something in
@@ -180,7 +180,7 @@ namespace voltdb
                 // If this token is *before* our stop token, then we know that we've
                 // successfully gone through the entire range that we were looking
                 if (undoQuantumToken < stopToken) {
-                    VOLT_TRACE("Halting search at UndoQuantum %ld because it is before stop token %ld",
+                    VOLT_TRACE("Halting search at UndoQuantum %" PRId64 " because it is before stop token %" PRId64 "",
                                undoQuantumToken, stopToken);
                     break;
                 }
@@ -191,21 +191,21 @@ namespace voltdb
                 // starting point of the range we're looking for. We'll put this token
                 // into a temporary queue so that we can add it back after remove our range
                 if (undoQuantumToken > startToken) {
-                    VOLT_TRACE("Skipping UndoQuantum %ld because it is after start token %ld",
+                    VOLT_TRACE("Skipping UndoQuantum %" PRId64 " because it is after start token %" PRId64 "",
                                undoQuantumToken, startToken);
                     m_temp.push_back(undoQuantum);
                     continue;
                 }
 
                 // Here we go! We have something in the range that we are looking for
-                VOLT_TRACE("START Aborting UndoQuantum %ld", undoQuantumToken);
+                VOLT_TRACE("START Aborting UndoQuantum %" PRId64 "", undoQuantumToken);
                 Pool *pool = undoQuantum->getDataPool();
                 undoQuantum->undo();
                 pool->purge();
                 m_undoDataPools.push_back(pool);
 
                 if (undoQuantumToken == stopToken) {
-                    VOLT_TRACE("FINISH Aborting UndoQuantum %ld", undoQuantumToken);
+                    VOLT_TRACE("FINISH Aborting UndoQuantum %" PRId64 "", undoQuantumToken);
                     break;
                 }
             } // WHILE
@@ -232,8 +232,8 @@ namespace voltdb
          * impossible to undo these actions in the future.
          */
         inline void release(const int64_t undoToken) {
-            VOLT_TRACE("Attempting to release token %ld [lastUndo:%ld / lastRelease:%ld / undoQuantums:%ld]",
-                       undoToken, m_lastUndoToken, m_lastReleaseToken, m_undoQuantums.size());
+            VOLT_TRACE("Attempting to release token %" PRId64 " [lastUndo:%" PRId64 " / lastRelease:%" PRId64 " / undoQuantums:%lu ]", 
+            undoToken, m_lastUndoToken, m_lastReleaseToken, m_undoQuantums.size());
             #ifdef VOLT_ERROR_ENABLED
             if (m_lastReleaseToken >= undoToken) {
                 VOLT_ERROR("m_lastReleaseToken[%" PRId64 "] is greater than or equal to undoToken[%" PRId64 "]",
@@ -246,19 +246,19 @@ namespace voltdb
                 UndoQuantum *undoQuantum = m_undoQuantums.front();
                 const int64_t undoQuantumToken = undoQuantum->getUndoToken();
                 if (undoQuantumToken > undoToken) {
-                    VOLT_TRACE("Skipping UndoQuantum %ld because it is after token %ld",
+                    VOLT_TRACE("Skipping UndoQuantum %" PRId64 " because it is after token %" PRId64 "",
                                undoQuantumToken, undoToken);
                     return;
                 }
 
-                VOLT_TRACE("START Releasing UndoQuantum %ld", undoQuantumToken);
+                VOLT_TRACE("START Releasing UndoQuantum %" PRId64 "", undoQuantumToken);
                 m_undoQuantums.pop_front();
                 Pool *pool = undoQuantum->getDataPool();
                 undoQuantum->release();
                 pool->purge();
                 m_undoDataPools.push_back(pool);
                 if (undoQuantumToken == undoToken) {
-                    VOLT_TRACE("FINISH Releasing UndoQuantum %ld", undoQuantumToken);
+                    VOLT_TRACE("FINISH Releasing UndoQuantum %" PRId64 "", undoQuantumToken);
                     return;
                 }
             }
