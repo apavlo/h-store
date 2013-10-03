@@ -88,8 +88,11 @@ void WindowTable::deleteAllTuples(bool freeAllocatedStrings)
 
 bool WindowTable::insertTuple(TableTuple &source)
 {
+	TableTuple* t;
 	while(windowQueue.size() >= windowSize)
 	{
+		t = windowQueue.front();
+		PersistentTable::deleteTuple(*t, true);
 		windowQueue.pop_front();
 	}
 	windowQueue.push_back(&source);
@@ -98,8 +101,11 @@ bool WindowTable::insertTuple(TableTuple &source)
 
 void WindowTable::insertTupleForUndo(TableTuple &source, size_t elMark)
 {
+	TableTuple* t;
 	while(windowQueue.size() >= windowSize)
 	{
+		t = windowQueue.front();
+		PersistentTable::deleteTuple(*t, elMark);
 		windowQueue.pop_front();
 	}
 	windowQueue.push_back(&source);
