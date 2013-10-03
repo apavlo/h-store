@@ -40,7 +40,7 @@ class BuildContext:
         self.COVERAGE = False
         self.VOLT_LOG_LEVEL = None
         self.MMAP_STORAGE = False
-        self.ANTICACHE_ENABLE = False
+        self.ANTICACHE_ENABLE = True
         self.ANTICACHE_REVERSIBLE_LRU = True
         
         for arg in [x.strip().upper() for x in args]:
