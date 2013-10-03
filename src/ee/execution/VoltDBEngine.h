@@ -331,7 +331,7 @@ class __attribute__((visibility("default"))) VoltDBEngine {
             if (m_currentUndoQuantum != NULL) {
                 #ifdef VOLT_INFO_ENABLED
                 if (nextUndoToken < m_currentUndoQuantum->getUndoToken()) {
-                    VOLT_ERROR("nextUndoToken[%ld] is greater than m_currentUndoQuantum[%ld]",
+                    VOLT_ERROR("nextUndoToken[%" PRId64 "] is greater than m_currentUndoQuantum[%" PRId64 "]",
                                nextUndoToken, m_currentUndoQuantum->getUndoToken());
                 }
                 #endif

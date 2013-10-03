@@ -20,6 +20,7 @@
 #include <vector>
 #include <deque>
 #include <stdint.h>
+#include <inttypes.h>
 #include "common/debuglog.h"
 #include "common/Pool.hpp"
 #include "common/UndoQuantum.h"
@@ -42,24 +43,24 @@ namespace voltdb
         void clear();
 
         inline UndoQuantum* generateUndoQuantum(int64_t nextUndoToken) {
-            VOLT_TRACE("Generating token %ld / lastUndo:%ld / lastRelease:%ld / undoQuantums:%ld",
-                       (long int)nextUndoToken, (long int)m_lastUndoToken, (long int)m_lastReleaseToken, (long int)m_undoQuantums.size());
+            VOLT_TRACE("Generating token %" PRId64 " / lastUndo:%" PRId64 " / lastRelease:%" PRId64 " / undoQuantums:% " 
+            PRId64 " ", nextUndoToken, m_lastUndoToken, m_lastReleaseToken, m_undoQuantums.size());
             
             // Since ExecutionSite is using monotonically increasing
             // token values, every new quanta we're asked to generate should be
             // larger than any token value we've seen before
             #ifdef VOLT_ERROR_ENABLED
             if (nextUndoToken <= m_lastUndoToken) {
-                VOLT_ERROR("nextUndoToken[%ld] is less than or equal to m_lastUndoToken[%ld]",
-                           (long int)nextUndoToken, (long int)m_lastUndoToken);
+                VOLT_ERROR("nextUndoToken[%" PRId64 "] is less than or equal to m_lastUndoToken[%" PRId64 "]",
+                           nextUndoToken, m_lastUndoToken);
             }
             #endif
             assert(nextUndoToken > m_lastUndoToken);
 
             #ifdef VOLT_ERROR_ENABLED
             if (nextUndoToken <= m_lastReleaseToken) {
-                VOLT_ERROR("nextUndoToken[%ld] is less than or equal to m_lastReleaseToken[%ld]",
-                           (long int)nextUndoToken, (long int)m_lastReleaseToken);
+                VOLT_ERROR("nextUndoToken[%" PRId64 "] is less than or equal to m_lastReleaseToken[%" PRId64 "]",
+                           nextUndoToken, m_lastReleaseToken);
             }
             #endif
             assert(nextUndoToken > m_lastReleaseToken);
@@ -77,7 +78,7 @@ namespace voltdb
                 new (pool->allocate(sizeof(UndoQuantum)))
                 UndoQuantum(nextUndoToken, pool);
             m_undoQuantums.push_back(undoQuantum);
-            VOLT_TRACE("Created new UndoQuantum %ld", (long int)nextUndoToken);
+            VOLT_TRACE("Created new UndoQuantum %" PRId64 " ", nextUndoToken);
             return undoQuantum;
         }
 
@@ -95,8 +96,8 @@ namespace voltdb
             // exist; this will just result in all undo quanta being undone.
             #ifdef VOLT_ERROR_ENABLED
             if (undoToken < m_lastReleaseToken) {
-                VOLT_ERROR("undoToken[%ld] is less than m_lastReleaseToken[%ld]",
-                           (long int)undoToken, (long int)m_lastReleaseToken);
+                VOLT_ERROR("undoToken[%" PRId64 "] is less than m_lastReleaseToken[%" PRId64 "]",
+                           undoToken, m_lastReleaseToken);
             }
             #endif
             assert(undoToken >= m_lastReleaseToken);
@@ -132,8 +133,8 @@ namespace voltdb
                     return;
                 }
             }
-            VOLT_WARN("Unable to find token %ld [lastUndo:%ld / lastRelease:%ld / undoQuantums:%ld]",
-                       undoToken, m_lastUndoToken, m_lastReleaseToken, m_undoQuantums.size());
+            VOLT_WARN("Unable to find token %" PRId64 "[lastUndo:%" PRId64 " / lastRelease:%" PRId64 " / undoQuantums:%lu ]", 
+            undoToken, m_lastUndoToken, m_lastReleaseToken, m_undoQuantums.size());
         }
         
         /*
@@ -152,12 +153,12 @@ namespace voltdb
             // exist; this will just result in all undo quanta being undone.
             #ifdef VOLT_ERROR_ENABLED
             if (startToken < m_lastReleaseToken) {
-                VOLT_ERROR("startToken[%ld] is less than m_lastReleaseToken[%ld]",
-                           (long int)startToken, (long int)m_lastReleaseToken);
+                VOLT_ERROR("startToken[%" PRId64 "] is less than m_lastReleaseToken[%" PRId64 "]",
+                           startToken, m_lastReleaseToken);
             }
             if (stopToken < m_lastReleaseToken) {
-                VOLT_ERROR("stopToken[%ld] is less than m_lastReleaseToken[%ld]",
-                           (long int)stopToken, (long int)m_lastReleaseToken);
+                VOLT_ERROR("stopToken[%" PRId64 "] is less than m_lastReleaseToken[%" PRId64 "]",
+                           stopToken, m_lastReleaseToken);
             }
             #endif
             assert(startToken >= m_lastReleaseToken);
@@ -218,10 +219,9 @@ namespace voltdb
                 } while (m_temp.size() > 0);
             }
             else {
-                VOLT_WARN("Unable to find tokens in range %ld->%ld "\
-                          "[lastUndo:%ld / lastRelease:%ld / undoQuantums:%ld]",
-                          startToken, stopToken,
-                          m_lastUndoToken, m_lastReleaseToken, m_undoQuantums.size());
+                VOLT_WARN("Unable to find tokens in range %" PRId64 "->%" PRId64 "[lastUndo:%" PRId64 " / lastRelease:%"
+                PRId64 " / undoQuantums:%lu ]", startToken, stopToken, m_lastUndoToken, m_lastReleaseToken, 
+                m_undoQuantums.size());
             }
             m_lastUndoToken = m_undoQuantums.back()->getUndoToken();
         }
@@ -236,8 +236,8 @@ namespace voltdb
                        undoToken, m_lastUndoToken, m_lastReleaseToken, m_undoQuantums.size());
             #ifdef VOLT_ERROR_ENABLED
             if (m_lastReleaseToken >= undoToken) {
-                VOLT_ERROR("m_lastReleaseToken[%ld] is greater than or equal to undoToken[%ld]",
-                           (long int)m_lastReleaseToken, (long int)undoToken);
+                VOLT_ERROR("m_lastReleaseToken[%" PRId64 "] is greater than or equal to undoToken[%" PRId64 "]",
+                            m_lastReleaseToken, undoToken);
             }
             #endif
             assert(m_lastReleaseToken < undoToken);
@@ -262,8 +262,8 @@ namespace voltdb
                     return;
                 }
             }
-            VOLT_WARN("Unable to find token %ld [lastUndo:%ld / lastRelease:%ld / undoQuantums:%ld]",
-                       undoToken, m_lastUndoToken, m_lastReleaseToken, m_undoQuantums.size());
+            VOLT_WARN("Unable to find token %" PRId64 " [lastUndo:%" PRId64 " / lastRelease:%" PRId64 " / undoQuantums:%lu ]", 
+            undoToken, m_lastUndoToken, m_lastReleaseToken, m_undoQuantums.size());
         }
 
     private:
