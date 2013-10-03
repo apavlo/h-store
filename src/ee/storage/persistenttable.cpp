@@ -113,6 +113,10 @@ PersistentTable::PersistentTable(ExecutorContext *ctx, bool exportEnabled) :
     m_blockMerge = true;
     #endif
     
+	#ifdef MMAP_STORAGE
+    MMAP_cnt = 1;
+	#endif
+
     if (exportEnabled) {
         m_wrapper = new TupleStreamWrapper(m_executorContext->m_partitionId,
                                            m_executorContext->m_siteId,

@@ -46,6 +46,14 @@
 #ifndef HSTOREPERSISTENTTABLE_H
 #define HSTOREPERSISTENTTABLE_H
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <errno.h>
 #include <string>
 #include <map>
 #include <vector>
@@ -124,6 +132,11 @@ class PersistentTable : public Table {
     PersistentTable();
     PersistentTable(PersistentTable const&);
     PersistentTable operator=(PersistentTable const&);
+
+#ifdef MMAP_STORAGE
+  protected:
+    int MMAP_cnt ;
+#endif
 
   public:
     virtual ~PersistentTable();
@@ -359,9 +372,6 @@ protected:
     
     // partition key
     int m_partitionColumn;
-    
-    // TODO: Partition id of where this table is stored in
-    int32_t m_partitionId;
 
     // list of materialized views that are sourced from this table
     std::vector<MaterializedViewMetadata *> m_views;
@@ -388,19 +398,54 @@ inline TableTuple& PersistentTable::getTempTupleInlined(TableTuple &source) {
 
 #ifdef MMAP_STORAGE
 inline void PersistentTable::allocateNextBlock() {
-    // TODO: Figure out what the size of the file should be
-    // int bytes = 99999; // FIXME
-    
-    // TODO: Allocate a new file on the NVM filesystem and mmap() it in
-    //       Create a new path in the filesystem based on tablename (this->name) and
-    //       the partitionId of where this table is stored (m_executorContext->getPartitionId)
-    // char *memory = NULL; // FIXME
 
-    // Push the new block into our list of blocks
-    // m_data.push_back(memory);
+#ifdef MEMCHECK
+    int bytes = m_schema->tupleLength() + TUPLE_HEADER_SIZE;
+#else
+    int bytes = m_tableAllocationTargetSize;
+#endif
 
-    // Update the counter of the number of tuples we've allocated
-    // m_allocatedTuples += m_tuplesPerBlock;
+
+        int mmap_fd ;
+        char* memory = NULL ;
+        string mmap_Dir = ".", mmap_file_name;
+
+        mmap_file_name = mmap_Dir + "/mmap_storage.nvm";
+
+        mmap_fd = open(mmap_file_name.c_str(), O_RDWR|O_CREAT, S_IRUSR|S_IWUSR|S_IRGRP );
+        if (mmap_fd < 0) {
+            VOLT_ERROR("MMAP : initialization error.");
+            VOLT_ERROR("Failed to open file %s : %s", mmap_file_name.c_str(), strerror(errno));
+            throwFatalException("Failed to open file in directory %s.", mmap_Dir.c_str());
+        }
+
+        if(ftruncate(mmap_fd, bytes) < 0){
+            VOLT_ERROR("MMAP : initialization error.");
+            VOLT_ERROR("Failed to truncate file %d : %s", mmap_fd, strerror(errno));
+            throwFatalException("Failed to truncate file in directory %s.", mmap_Dir.c_str());
+        }
+
+        /** Allocation **/
+        memory = (char*) mmap(0, bytes , PROT_READ | PROT_WRITE , MAP_PRIVATE, mmap_fd, 0);
+
+        if (memory == MAP_FAILED) {
+            VOLT_ERROR("MMAP : initialization error.");
+            VOLT_ERROR("Failed to map file into memory %d : %s", mmap_fd, strerror(errno));
+            throwFatalException("Failed to map file in directory %s.", mmap_Dir.c_str());
+        }
+
+        /** Push into m_data **/
+        m_data.push_back(memory);
+
+        /** Deallocation **/
+        // TODO: Where to deallocate ?
+        // munmap(addr, bytes);
+
+        VOLT_WARN("MMAP : Table: %s Host:: %d Site:: %d PId:: %d Cnt:: %d Bytes:: %d \n", this->name().c_str(),
+        m_executorContext->getHostId(), m_executorContext->getSiteId(), m_executorContext->getPartitionId(), MMAP_cnt++, bytes);
+
+        m_allocatedTuples += m_tuplesPerBlock;
+
 }
 #endif
     

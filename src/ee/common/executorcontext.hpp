@@ -93,6 +93,14 @@ namespace voltdb {
             return (m_partitionId);
         }
         
+        CatalogId getSiteId() const {
+            return (m_siteId);
+        }
+        
+        CatalogId getHostId() const {
+            return (m_hostId);
+        }
+        
         // not always known at initial construction
         void setEpoch(int64_t epoch) {
             m_epoch = epoch;
