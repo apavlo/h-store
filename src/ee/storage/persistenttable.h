@@ -83,7 +83,7 @@ class ReferenceSerializeOutput;
 class ExecutorContext;
 class MaterializedViewMetadata;
 class RecoveryProtoMsg;
-    
+
 #ifdef ANTICACHE
 class EvictedTable;
 class AntiCacheEvictionManager; 
@@ -116,340 +116,357 @@ class EvictionIterator;
  * policy because we expect reverting rarely occurs.
  */
 class PersistentTable : public Table {
-    friend class TableFactory;
-    friend class TableTuple;
-    friend class TableIndex;
-    friend class TableIterator;
-    friend class PersistentTableStats;
-    
+	friend class TableFactory;
+	friend class TableTuple;
+	friend class TableIndex;
+	friend class TableIterator;
+	friend class PersistentTableStats;
+
 #ifdef ANTICACHE
-    friend class AntiCacheEvictionManager;
-    friend class IndexScanExecutor;
+	friend class AntiCacheEvictionManager;
+	friend class IndexScanExecutor;
 #endif
 
-  private:
-    // no default ctor, no copy, no assignment
-    PersistentTable();
-    PersistentTable(PersistentTable const&);
-    PersistentTable operator=(PersistentTable const&);
+private:
+	// no default ctor, no copy, no assignment
+	PersistentTable();
+	PersistentTable(PersistentTable const&);
+	PersistentTable operator=(PersistentTable const&);
 
 #ifdef MMAP_STORAGE
-  protected:
-    int MMAP_cnt ;
+	int MMAP_index;
 #endif
 
-  public:
-    virtual ~PersistentTable();
+public:
+	virtual ~PersistentTable();
 
-    // ------------------------------------------------------------------
-    // OPERATIONS
-    // ------------------------------------------------------------------
-    void deleteAllTuples(bool freeAllocatedStrings);
-    bool insertTuple(TableTuple &source);
+	// ------------------------------------------------------------------
+	// OPERATIONS
+	// ------------------------------------------------------------------
+	void deleteAllTuples(bool freeAllocatedStrings);
+	bool insertTuple(TableTuple &source);
 
-    /*
-     * Inserts a Tuple without performing an allocation for the
-     * uninlined strings.
-     */
-    void insertTupleForUndo(TableTuple &source, size_t elMark);
+	/*
+	 * Inserts a Tuple without performing an allocation for the
+	 * uninlined strings.
+	 */
+	void insertTupleForUndo(TableTuple &source, size_t elMark);
 
-    /*
-     * Note that inside update tuple the order of sourceTuple and
-     * targetTuple is swapped when making calls on the indexes. This
-     * is just an inconsistency in the argument ordering.
-     */
-    bool updateTuple(TableTuple &sourceTuple, TableTuple &targetTuple,
-                     bool updatesIndexes);
+	/*
+	 * Note that inside update tuple the order of sourceTuple and
+	 * targetTuple is swapped when making calls on the indexes. This
+	 * is just an inconsistency in the argument ordering.
+	 */
+	bool updateTuple(TableTuple &sourceTuple, TableTuple &targetTuple,
+			bool updatesIndexes);
 
-    /*
-     * Identical to regular updateTuple except no memory management
-     * for unlined columns is performed because that will be handled
-     * by the UndoAction.
-     */
-    void updateTupleForUndo(TableTuple &sourceTuple, TableTuple &targetTuple,
-                            bool revertIndexes, size_t elMark);
+	/*
+	 * Identical to regular updateTuple except no memory management
+	 * for unlined columns is performed because that will be handled
+	 * by the UndoAction.
+	 */
+	void updateTupleForUndo(TableTuple &sourceTuple, TableTuple &targetTuple,
+			bool revertIndexes, size_t elMark);
 
-    /*
-     * Delete a tuple by looking it up via table scan or a primary key
-     * index lookup.
-     */
-    bool deleteTuple(TableTuple &tuple, bool freeAllocatedStrings);
-    void deleteTupleForUndo(voltdb::TableTuple &tupleCopy, size_t elMark);
+	/*
+	 * Delete a tuple by looking it up via table scan or a primary key
+	 * index lookup.
+	 */
+	bool deleteTuple(TableTuple &tuple, bool freeAllocatedStrings);
+	void deleteTupleForUndo(voltdb::TableTuple &tupleCopy, size_t elMark);
 
-    /*
-     * Lookup the address of the tuple that is identical to the specified tuple.
-     * Does a primary key lookup or table scan if necessary.
-     */
-    voltdb::TableTuple lookupTuple(TableTuple tuple);
+	/*
+	 * Lookup the address of the tuple that is identical to the specified tuple.
+	 * Does a primary key lookup or table scan if necessary.
+	 */
+	voltdb::TableTuple lookupTuple(TableTuple tuple);
 
-    // ------------------------------------------------------------------
-    // INDEXES
-    // ------------------------------------------------------------------
-    virtual int indexCount() const { return m_indexCount; }
-    virtual int uniqueIndexCount() const { return m_uniqueIndexCount; }
-    virtual std::vector<TableIndex*> allIndexes() const;
-    virtual TableIndex *index(std::string name);
-    virtual TableIndex *primaryKeyIndex() { return m_pkeyIndex; }
-    virtual const TableIndex *primaryKeyIndex() const { return m_pkeyIndex; }
+	// ------------------------------------------------------------------
+	// INDEXES
+	// ------------------------------------------------------------------
+	virtual int indexCount() const { return m_indexCount; }
+	virtual int uniqueIndexCount() const { return m_uniqueIndexCount; }
+	virtual std::vector<TableIndex*> allIndexes() const;
+	virtual TableIndex *index(std::string name);
+	virtual TableIndex *primaryKeyIndex() { return m_pkeyIndex; }
+	virtual const TableIndex *primaryKeyIndex() const { return m_pkeyIndex; }
 
-    // ------------------------------------------------------------------
-    // UTILITY
-    // ------------------------------------------------------------------
-    std::string tableType() const;
-    virtual std::string debug();
+	// ------------------------------------------------------------------
+	// UTILITY
+	// ------------------------------------------------------------------
+	std::string tableType() const;
+	virtual std::string debug();
 
-    int partitionColumn() { return m_partitionColumn; }
+	int partitionColumn() { return m_partitionColumn; }
 
-    /** inlined here because it can't be inlined in base Table, as it
-     *  uses Tuple.copy.
-     */
-    TableTuple& getTempTupleInlined(TableTuple &source);
+	/** inlined here because it can't be inlined in base Table, as it
+	 *  uses Tuple.copy.
+	 */
+	TableTuple& getTempTupleInlined(TableTuple &source);
 
-    // Export-related inherited methods
-    virtual void flushOldTuples(int64_t timeInMillis);
-    virtual StreamBlock* getCommittedExportBytes();
-    virtual bool releaseExportBytes(int64_t releaseOffset);
-    virtual void resetPollMarker();
+	// Export-related inherited methods
+	virtual void flushOldTuples(int64_t timeInMillis);
+	virtual StreamBlock* getCommittedExportBytes();
+	virtual bool releaseExportBytes(int64_t releaseOffset);
+	virtual void resetPollMarker();
 
-    /** Add a view to this table */
-    void addMaterializedView(MaterializedViewMetadata *view);
+	/** Add a view to this table */
+	void addMaterializedView(MaterializedViewMetadata *view);
 
-    /**
-     * Switch the table to copy on write mode. Returns true if the table was already in copy on write mode.
-     */
-    bool activateCopyOnWrite(TupleSerializer *serializer, int32_t partitionId);
+	/**
+	 * Switch the table to copy on write mode. Returns true if the table was already in copy on write mode.
+	 */
+	bool activateCopyOnWrite(TupleSerializer *serializer, int32_t partitionId);
 
-    /**
-     * Create a recovery stream for this table. Returns true if the table already has an active recovery stream
-     */
-    bool activateRecoveryStream(int32_t tableId);
+	/**
+	 * Create a recovery stream for this table. Returns true if the table already has an active recovery stream
+	 */
+	bool activateRecoveryStream(int32_t tableId);
 
-    /**
-     * Serialize the next message in the stream of recovery messages. Returns true if there are
-     * more messages and false otherwise.
-     */
-    void nextRecoveryMessage(ReferenceSerializeOutput *out);
+	/**
+	 * Serialize the next message in the stream of recovery messages. Returns true if there are
+	 * more messages and false otherwise.
+	 */
+	void nextRecoveryMessage(ReferenceSerializeOutput *out);
 
-    /**
-     * Process the updates from a recovery message
-     */
-    void processRecoveryMessage(RecoveryProtoMsg* message, Pool *pool, bool allowExport);
+	/**
+	 * Process the updates from a recovery message
+	 */
+	void processRecoveryMessage(RecoveryProtoMsg* message, Pool *pool, bool allowExport);
 
-    /**
-     * Attempt to serialize more tuples from the table to the provided
-     * output stream.  Returns true if there are more tuples and false
-     * if there are no more tuples waiting to be serialized.
-     */
-    bool serializeMore(ReferenceSerializeOutput *out);
+	/**
+	 * Attempt to serialize more tuples from the table to the provided
+	 * output stream.  Returns true if there are more tuples and false
+	 * if there are no more tuples waiting to be serialized.
+	 */
+	bool serializeMore(ReferenceSerializeOutput *out);
 
-    /**
-     * Create a tree index on the primary key and then iterate it and hash
-     * the tuple data.
-     */
-    size_t hashCode();
+	/**
+	 * Create a tree index on the primary key and then iterate it and hash
+	 * the tuple data.
+	 */
+	size_t hashCode();
 
-    /**
-     * Get the current offset in bytes of the export stream for this Table
-     * since startup.
-     */
-    void getExportStreamSequenceNo(long &seqNo, size_t &streamBytesUsed) {
-        seqNo = m_exportEnabled ? m_tsSeqNo : -1;
-        streamBytesUsed = m_wrapper ? m_wrapper->bytesUsed() : 0;
-    }
+	/**
+	 * Get the current offset in bytes of the export stream for this Table
+	 * since startup.
+	 */
+	void getExportStreamSequenceNo(long &seqNo, size_t &streamBytesUsed) {
+		seqNo = m_exportEnabled ? m_tsSeqNo : -1;
+		streamBytesUsed = m_wrapper ? m_wrapper->bytesUsed() : 0;
+	}
 
-    /**
-     * Set the current offset in bytes of the export stream for this Table
-     * since startup (used for rejoin/recovery).
-     */
-    virtual void setExportStreamPositions(int64_t seqNo, size_t streamBytesUsed) {
-        // assume this only gets called from a fresh rejoined node
-        assert(m_tsSeqNo == 0);
-        m_tsSeqNo = seqNo;
-        if (m_wrapper)
-            m_wrapper->setBytesUsed(streamBytesUsed);
-    }
-    
-    // ------------------------------------------------------------------
-    // ANTI-CACHING OPERATIONS
-    // ------------------------------------------------------------------
-    #ifdef ANTICACHE
-    void setEvictedTable(voltdb::Table *evictedTable);
-    voltdb::Table* getEvictedTable(); 
-    bool evictBlockToDisk(const long block_size, int num_blocks);
-    bool readEvictedBlock(int16_t block_id, int32_t tuple_offset);
-    bool mergeUnevictedTuples();
-    
-    // needed for LRU chain eviction
-    void setNewestTupleID(uint32_t id); 
-    void setOldestTupleID(uint32_t id); 
-    uint32_t getNewestTupleID(); 
-    uint32_t getOldestTupleID();
-    void setNumTuplesInEvictionChain(int num_tuples);
-    int getNumTuplesInEvictionChain(); 
-    #endif
-    
-    void setEntryToNewAddressForAllIndexes(const TableTuple *tuple, const void* address);
+	/**
+	 * Set the current offset in bytes of the export stream for this Table
+	 * since startup (used for rejoin/recovery).
+	 */
+	virtual void setExportStreamPositions(int64_t seqNo, size_t streamBytesUsed) {
+		// assume this only gets called from a fresh rejoined node
+		assert(m_tsSeqNo == 0);
+		m_tsSeqNo = seqNo;
+		if (m_wrapper)
+			m_wrapper->setBytesUsed(streamBytesUsed);
+	}
+
+	// ------------------------------------------------------------------
+	// ANTI-CACHING OPERATIONS
+	// ------------------------------------------------------------------
+#ifdef ANTICACHE
+	void setEvictedTable(voltdb::Table *evictedTable);
+	voltdb::Table* getEvictedTable();
+	bool evictBlockToDisk(const long block_size, int num_blocks);
+	bool readEvictedBlock(int16_t block_id, int32_t tuple_offset);
+	bool mergeUnevictedTuples();
+
+	// needed for LRU chain eviction
+	void setNewestTupleID(uint32_t id);
+	void setOldestTupleID(uint32_t id);
+	uint32_t getNewestTupleID();
+	uint32_t getOldestTupleID();
+	void setNumTuplesInEvictionChain(int num_tuples);
+	int getNumTuplesInEvictionChain();
+#endif
+
+	void setEntryToNewAddressForAllIndexes(const TableTuple *tuple, const void* address);
 
 protected:
 
-#ifdef MMAP_STORAGE    
-    void allocateNextBlock();
+#ifdef MMAP_STORAGE
+	void allocateNextBlock();
 #endif
-    
-    size_t allocatedBlockCount() const {
-        return m_data.size();
-    }
-    
-    // ------------------------------------------------------------------
-    // FROM PIMPL
-    // ------------------------------------------------------------------
-    void insertIntoAllIndexes(TableTuple *tuple);
-    void deleteFromAllIndexes(TableTuple *tuple);
-    void updateFromAllIndexes(TableTuple &targetTuple, const TableTuple &sourceTuple);
 
-    bool tryInsertOnAllIndexes(TableTuple *tuple);
-    bool tryUpdateOnAllIndexes(TableTuple &targetTuple, const TableTuple &sourceTuple);
+	size_t allocatedBlockCount() const {
+		return m_data.size();
+	}
 
-    bool checkNulls(TableTuple &tuple) const;
-    
-    size_t appendToELBuffer(TableTuple &tuple, int64_t seqNo, TupleStreamWrapper::Type type);
+	// ------------------------------------------------------------------
+	// FROM PIMPL
+	// ------------------------------------------------------------------
+	void insertIntoAllIndexes(TableTuple *tuple);
+	void deleteFromAllIndexes(TableTuple *tuple);
+	void updateFromAllIndexes(TableTuple &targetTuple, const TableTuple &sourceTuple);
 
-    PersistentTable(ExecutorContext *ctx, bool exportEnabled);
-    void onSetColumns();
+	bool tryInsertOnAllIndexes(TableTuple *tuple);
+	bool tryUpdateOnAllIndexes(TableTuple &targetTuple, const TableTuple &sourceTuple);
 
-    /*
-     * Implemented by persistent table and called by Table::loadTuplesFrom
-     * to do additional processing for views and Export
-     */
-    virtual void processLoadedTuple(bool allowExport, TableTuple &tuple);
+	bool checkNulls(TableTuple &tuple) const;
 
-    /*
-     * Implemented by persistent table and called by Table::loadTuplesFrom
-     * to do add tuples to indexes
-     */
-    virtual void populateIndexes(int tupleCount);
+	size_t appendToELBuffer(TableTuple &tuple, int64_t seqNo, TupleStreamWrapper::Type type);
 
-    // pointer to current transaction id and other "global" state.
-    // abstract this out of VoltDBEngine to avoid creating dependendencies
-    // between the engine and the storage layers - which complicate test.
-    ExecutorContext *m_executorContext;
+	PersistentTable(ExecutorContext *ctx, bool exportEnabled);
+	void onSetColumns();
 
-    // CONSTRAINTS
-    TableIndex** m_uniqueIndexes;
-    int m_uniqueIndexCount;
-    bool* m_allowNulls;
+	/*
+	 * Implemented by persistent table and called by Table::loadTuplesFrom
+	 * to do additional processing for views and Export
+	 */
+	virtual void processLoadedTuple(bool allowExport, TableTuple &tuple);
 
-    // INDEXES
-    TableIndex** m_indexes;
-    int m_indexCount;
-    TableIndex *m_pkeyIndex;
+	/*
+	 * Implemented by persistent table and called by Table::loadTuplesFrom
+	 * to do add tuples to indexes
+	 */
+	virtual void populateIndexes(int tupleCount);
 
-    // temporary for tuplestream stuff
-    TupleStreamWrapper *m_wrapper;
-    int64_t m_tsSeqNo;
-    
-    // ANTI-CACHE VARIABLES
-    #ifdef ANTICACHE
-    voltdb::Table *m_evictedTable;
-    
-    std::map<int16_t, int16_t> m_unevictedBlockIDs; 
-//    std::vector<int16_t> m_unevictedBlockIDs;
-    std::vector<char*> m_unevictedBlocks;
-    std::vector<int32_t> m_mergeTupleOffset; 
-    
-    std::map<int, int> m_unevictedTuplesPerBlocks;
-    
-    char* m_unevictedTuples; 
-    int m_numUnevictedTuples; 
-    
-    uint32_t m_oldestTupleID; 
-    uint32_t m_newestTupleID; 
-    
-    int m_numTuplesInEvictionChain;
-    bool m_blockMerge;
-    
-    #endif
-    
-    // partition key
-    int m_partitionColumn;
+	// pointer to current transaction id and other "global" state.
+	// abstract this out of VoltDBEngine to avoid creating dependendencies
+	// between the engine and the storage layers - which complicate test.
+	ExecutorContext *m_executorContext;
 
-    // list of materialized views that are sourced from this table
-    std::vector<MaterializedViewMetadata *> m_views;
+	// CONSTRAINTS
+	TableIndex** m_uniqueIndexes;
+	int m_uniqueIndexCount;
+	bool* m_allowNulls;
 
-    // STATS
-    voltdb::PersistentTableStats stats_;
-    voltdb::TableStats* getTableStats();
+	// INDEXES
+	TableIndex** m_indexes;
+	int m_indexCount;
+	TableIndex *m_pkeyIndex;
 
-    // is Export enabled
-    bool m_exportEnabled;
-    
-    // Snapshot stuff
-    boost::scoped_ptr<CopyOnWriteContext> m_COWContext;
+	// temporary for tuplestream stuff
+	TupleStreamWrapper *m_wrapper;
+	int64_t m_tsSeqNo;
 
-    //Recovery stuff
-    boost::scoped_ptr<RecoveryContext> m_recoveryContext;
+	// ANTI-CACHE VARIABLES
+#ifdef ANTICACHE
+	voltdb::Table *m_evictedTable;
+
+	std::map<int16_t, int16_t> m_unevictedBlockIDs;
+	//    std::vector<int16_t> m_unevictedBlockIDs;
+	std::vector<char*> m_unevictedBlocks;
+	std::vector<int32_t> m_mergeTupleOffset;
+
+	std::map<int, int> m_unevictedTuplesPerBlocks;
+
+	char* m_unevictedTuples;
+	int m_numUnevictedTuples;
+
+	uint32_t m_oldestTupleID;
+	uint32_t m_newestTupleID;
+
+	int m_numTuplesInEvictionChain;
+	bool m_blockMerge;
+
+#endif
+
+// partition key
+int m_partitionColumn;
+
+// list of materialized views that are sourced from this table
+std::vector<MaterializedViewMetadata *> m_views;
+
+// STATS
+voltdb::PersistentTableStats stats_;
+voltdb::TableStats* getTableStats();
+
+// is Export enabled
+bool m_exportEnabled;
+
+// Snapshot stuff
+boost::scoped_ptr<CopyOnWriteContext> m_COWContext;
+
+//Recovery stuff
+boost::scoped_ptr<RecoveryContext> m_recoveryContext;
 };
 
+
 inline TableTuple& PersistentTable::getTempTupleInlined(TableTuple &source) {
-    assert (m_tempTuple.m_data);
-    m_tempTuple.copy(source);
-    return m_tempTuple;
+	assert (m_tempTuple.m_data);
+	m_tempTuple.copy(source);
+	return m_tempTuple;
 }
 
 #ifdef MMAP_STORAGE
 inline void PersistentTable::allocateNextBlock() {
 
 #ifdef MEMCHECK
-    int bytes = m_schema->tupleLength() + TUPLE_HEADER_SIZE;
+	int bytes = m_schema->tupleLength() + TUPLE_HEADER_SIZE;
 #else
-    int bytes = m_tableAllocationTargetSize;
+	int bytes = m_tableAllocationTargetSize;
 #endif
 
 
-        int mmap_fd ;
-        char* memory = NULL ;
-        string mmap_Dir = ".", mmap_file_name;
+	int MMAP_fd ;
+	char* memory = NULL ;
+	string MMAP_Dir, MMAP_file_name;
 
-        mmap_file_name = mmap_Dir + "/mmap_storage.nvm";
+	/** Get location for mmap'ed files **/
+	// MMAP_Dir = m_executorContext->getDBDir();
+	MMAP_Dir = "." ;
 
-        mmap_fd = open(mmap_file_name.c_str(), O_RDWR|O_CREAT, S_IRUSR|S_IWUSR|S_IRGRP );
-        if (mmap_fd < 0) {
-            VOLT_ERROR("MMAP : initialization error.");
-            VOLT_ERROR("Failed to open file %s : %s", mmap_file_name.c_str(), strerror(errno));
-            throwFatalException("Failed to open file in directory %s.", mmap_Dir.c_str());
-        }
+	VOLT_WARN("MMAP : DBdir:: %s\n", MMAP_Dir.c_str());
 
-        if(ftruncate(mmap_fd, bytes) < 0){
-            VOLT_ERROR("MMAP : initialization error.");
-            VOLT_ERROR("Failed to truncate file %d : %s", mmap_fd, strerror(errno));
-            throwFatalException("Failed to truncate file in directory %s.", mmap_Dir.c_str());
-        }
+	MMAP_file_name = MMAP_Dir + "/MMAP_storage.nvm";
 
-        /** Allocation **/
-        memory = (char*) mmap(0, bytes , PROT_READ | PROT_WRITE , MAP_PRIVATE, mmap_fd, 0);
+	MMAP_fd = open(MMAP_file_name.c_str(), O_RDWR|O_CREAT, S_IRUSR|S_IWUSR|S_IRGRP );
+	if (MMAP_fd < 0) {
+		VOLT_ERROR("MMAP : initialization error.");
+		VOLT_ERROR("Failed to open file %s : %s", MMAP_file_name.c_str(), strerror(errno));
+		throwFatalException("Failed to open file in directory %s.", MMAP_Dir.c_str());
+	}
 
-        if (memory == MAP_FAILED) {
-            VOLT_ERROR("MMAP : initialization error.");
-            VOLT_ERROR("Failed to map file into memory %d : %s", mmap_fd, strerror(errno));
-            throwFatalException("Failed to map file in directory %s.", mmap_Dir.c_str());
-        }
+	if(ftruncate(MMAP_fd, bytes) < 0){
+		VOLT_ERROR("MMAP : initialization error.");
+		VOLT_ERROR("Failed to truncate file %d : %s", MMAP_fd, strerror(errno));
+		throwFatalException("Failed to truncate file in directory %s.", MMAP_Dir.c_str());
+	}
 
-        /** Push into m_data **/
-        m_data.push_back(memory);
+	/** Allocation **/
+	memory = (char*) mmap(0, bytes , PROT_READ | PROT_WRITE , MAP_PRIVATE, MMAP_fd, 0);
 
-        /** Deallocation **/
-        // TODO: Where to deallocate ?
-        // munmap(addr, bytes);
+	if (memory == MAP_FAILED) {
+		VOLT_ERROR("MMAP : initialization error.");
+		VOLT_ERROR("Failed to map file into memory %d : %s", MMAP_fd, strerror(errno));
+		throwFatalException("Failed to map file in directory %s.", MMAP_Dir.c_str());
+	}
 
-        VOLT_WARN("MMAP : Table: %s Host:: %d Site:: %d PId:: %d Cnt:: %d Bytes:: %d \n", this->name().c_str(),
-        m_executorContext->getHostId(), m_executorContext->getSiteId(), m_executorContext->getPartitionId(), MMAP_cnt++, bytes);
+	/** Push into m_data **/
+	m_data.push_back(memory);
 
-        m_allocatedTuples += m_tuplesPerBlock;
+	/** Deallocation **/
+	// TODO: Where to deallocate ?
+	// munmap(addr, bytes);
+
+	VOLT_WARN("MMAP : Host:: %d Site:: %d PId:: %d Index:: %d Table: %s  Bytes:: %d \n",
+			m_executorContext->getHostId(), m_executorContext->getSiteId(), m_executorContext->getPartitionId(),
+			MMAP_index++, this->name().c_str(), bytes);
+
+	m_allocatedTuples += m_tuplesPerBlock;
+
+	/**
+	 *
+	 *  munmap() system call deletes the mappings for the specified
+	 *  address range, and causes further references to addresses within the
+	 *  range to generate invalid memory references.  The region is also
+	 *  automatically unmapped when the process is terminated.  On the other
+	 *  hand, closing the file descriptor does not unmap the region.
+	 */
+	close(MMAP_fd);
 
 }
 #endif
-    
-    
+
+
 }
 
 #endif

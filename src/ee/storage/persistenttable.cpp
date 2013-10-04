@@ -96,6 +96,7 @@ TableTuple keyTuple;
 #define TABLE_BLOCKSIZE 2097152
 #define MAX_EVICTED_TUPLE_SIZE 2500
 
+
 PersistentTable::PersistentTable(ExecutorContext *ctx, bool exportEnabled) :
     Table(TABLE_BLOCKSIZE), m_executorContext(ctx), m_uniqueIndexes(NULL), m_uniqueIndexCount(0), m_allowNulls(NULL),
     m_indexes(NULL), m_indexCount(0), m_pkeyIndex(NULL), m_wrapper(NULL),
@@ -114,7 +115,7 @@ PersistentTable::PersistentTable(ExecutorContext *ctx, bool exportEnabled) :
     #endif
     
 	#ifdef MMAP_STORAGE
-    MMAP_cnt = 1;
+	MMAP_index = 0;
 	#endif
 
     if (exportEnabled) {
