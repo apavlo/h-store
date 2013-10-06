@@ -117,7 +117,7 @@ class AntiCacheDB {
          * NVM constants
          */
         static const off_t NVM_FILE_SIZE = 1073741824; 
-        static const int NVM_BLOCK_SIZE = 4096; 
+        static const int NVM_BLOCK_SIZE = 524288 * 2; 
         
         ExecutorContext *m_executorContext;
         string m_dbDir;

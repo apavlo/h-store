@@ -465,7 +465,7 @@ bool PersistentTable::mergeUnevictedTuples()
     
     m_unevictedBlocks.clear();
     m_mergeTupleOffset.clear(); 
-        m_unevictedBlockIDs.clear();  // if we uncomment this the benchmark won't end
+    //m_unevictedBlockIDs.clear();  // if we uncomment this the benchmark won't end
     
     #ifdef VOLT_INFO_ENABLED
     VOLT_INFO("Active Tuple Count: %d -- %d", (int)active_tuple_count, (int)activeTupleCount());
