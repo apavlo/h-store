@@ -105,5 +105,17 @@ CREATE TABLE votes_by_contestant_number_state
 
 CREATE WINDOW W_ROWS ON votes_streamA ROWS 10 SLIDE 5;
 
+CREATE TABLE T3
+(
+    phone_number     bigint    NOT NULL,
+    num_votes        int
+);
+
+
+CREATE STREAM S3
+(
+    phone_number     bigint    NOT NULL,
+    num_votes        int
+);
 --------------------------------------
 
