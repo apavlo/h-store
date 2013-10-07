@@ -52,6 +52,7 @@ public enum ProjectType {
     EXAMPLE("Example", "edu.brown.benchmark.example"),
     STREAMEXAMPLE("StreamExample", "edu.brown.benchmark.streamexample"),
     VOTERSTREAM("VoterStream", "edu.brown.benchmark.voterstream"),
+    ANOTHERSTREAM("AnotherStream","edu.brown.benchmark.anotherstream"),
     TEST("Test", null),
     ;
 
