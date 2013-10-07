@@ -154,7 +154,7 @@ bool AntiCacheEvictionManager::updateUnevictedTuple(PersistentTable* table, Tabl
 }
     
 bool AntiCacheEvictionManager::updateTuple(PersistentTable* table, TableTuple* tuple, bool is_insert) {
-    int SAMPLE_RATE = 100; // aLRU sampling rate
+    int SAMPLE_RATE = 1000; // aLRU sampling rate
     
     if(table->getEvictedTable() == NULL)  // no need to maintain chain for non-evictable tables
         return true; 

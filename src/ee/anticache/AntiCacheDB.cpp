@@ -27,10 +27,13 @@
 #include "anticache/UnknownBlockAccessException.h"
 #include "common/debuglog.h"
 #include "common/FatalException.hpp"
+#include "common/executorcontext.hpp"
 #include <fcntl.h>
 #include <unistd.h>
 #include <errno.h>
 #include <sys/mman.h>
+#include <stdlib.h>
+#include <stdio.h>
 
 using namespace std;
 
@@ -94,12 +97,18 @@ void AntiCacheDB::initializeBerkeleyDB() {
     }
 }
 
-void AntiCacheDB::initializeNVM() {
+  void AntiCacheDB::initializeNVM() {
     
-    char nvm_file_name[100]; 
+    char nvm_file_name[150];
+    char partition_str[5]; 
 
-    strcpy(nvm_file_name, m_dbDir.c_str()); 
-    strcat(nvm_file_name, "/anticache.nvm");
+    // use executor context to figure out which partition we are at
+    int partition_id = (int)m_executorContext->getPartitionId(); 
+    sprintf(partition_str, "%d", partition_id); 
+
+    // there will be one NVM anti-cache file per partition, saved in /mnt/pmfs/anticache-XX
+    strcpy(nvm_file_name, "/mnt/pmfs/anticache-");
+    strcat(nvm_file_name, partition_str); 
     nvm_file = fopen(nvm_file_name, "w"); 
     fclose(nvm_file); 
     nvm_file = fopen(nvm_file_name, "rw+"); 
@@ -127,7 +136,6 @@ void AntiCacheDB::initializeNVM() {
     }
     
     m_NVMBlocks =  (char*)mmap(NULL, NVM_FILE_SIZE, PROT_READ | PROT_WRITE, MAP_PRIVATE, nvm_fd, 0); 
-    //m_NVMBlocks = new char[NVM_FILE_SIZE]; 
 
     if(m_NVMBlocks == MAP_FAILED)
     {
@@ -290,7 +298,7 @@ AntiCacheBlock AntiCacheDB::readBlock(std::string tableName, int16_t blockId) {
 void AntiCacheDB::flushBlocks() {
     
     #ifdef ANTICACHE_NVM
-        
+        //msync(m_NVMBlocks, NVM_FILE_SIZE, MS_SYNC); 
     #else 
         m_db->sync(0);
     #endif

@@ -125,6 +125,7 @@ class AntiCacheDB {
         DbEnv* m_dbEnv;
         Db* m_db; 
         int16_t m_nextBlockId;
+	int m_partitionId; 
 
         FILE* nvm_file;
         char* m_NVMBlocks; 
