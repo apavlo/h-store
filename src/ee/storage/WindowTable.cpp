@@ -71,7 +71,7 @@ namespace voltdb {
 WindowTable::WindowTable(ExecutorContext *ctx, bool exportEnabled, int windowSize) : PersistentTable(ctx, exportEnabled)
 {
 	windowQueue = std::list<TableTuple *>();
-	this.windowSize = windowSize;
+	this->windowSize = windowSize;
 }
 
 WindowTable::~WindowTable()

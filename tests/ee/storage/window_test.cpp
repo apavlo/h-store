@@ -116,7 +116,7 @@ class WindowTest : public Test {
                 columnAllowNull.push_back(COLUMN_ALLOW_NULLS[ctr]);
             }
             voltdb::TupleSchema *schema = voltdb::TupleSchema::createTupleSchema(columnTypes, columnLengths, columnAllowNull, true);
-			window_table = voltdb::TableFactory::getWindowTable(database_id, NULL, "test_table", schema, columnNames, -1, false, false);
+			window_table = voltdb::TableFactory::getWindowTable(database_id, NULL, "test_table", schema, columnNames, -1, false, false, WINDOW_SIZE);
 			table = window_table;
 
             assert(tableutil::addRandomTuples(this->table, NUM_OF_TUPLES));
@@ -149,7 +149,7 @@ TEST_F(WindowTest, TupleInsert) {
     // All of the values have already been inserted, we just
     // need to make sure that the data makes sense
     //
-	printf("WINDOW TEST INSERT\n");
+	VOLT_INFO("WINDOW TEST INSERT\n");
     voltdb::TableIterator iterator = this->table->tableIterator();
     voltdb::TableTuple tuple(table->schema());
     int numDeleted = 0;
