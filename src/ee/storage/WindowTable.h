@@ -78,7 +78,7 @@ class WindowTable : public PersistentTable {
 
   public:
 	~WindowTable();
-	WindowTable(ExecutorContext *ctx, bool exportEnabled);
+	WindowTable(ExecutorContext *ctx, bool exportEnabled, int windowSize);
 
 	// ------------------------------------------------------------------
 	// OPERATIONS

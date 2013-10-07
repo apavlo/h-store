@@ -180,7 +180,8 @@ namespace voltdb {
 										 const std::string* columnNames,
 										 int partitionColumn,
 										 bool exportEnabled,
-										 bool exportOnly);
+										 bool exportOnly,
+										 int windowSize);
 
 		/**
 		 * Creates an empty window table with given ID, name, columns and PK index.
@@ -193,7 +194,8 @@ namespace voltdb {
 										 const TableIndexScheme &pkey_index,
 										 int partitionColumn,
 										 bool exportEnabled,
-										 bool exportOnly);
+										 bool exportOnly,
+										 int windowSize);
 
 		/**
 		 * Creates an empty window table with given name, columns and indexes.
@@ -206,7 +208,8 @@ namespace voltdb {
 										 const std::vector<TableIndexScheme> &indexes,
 										 int partitionColumn,
 										 bool exportEnabled,
-										 bool exportOnly);
+										 bool exportOnly,
+										 int windowSize);
 
 
 		/**
@@ -221,7 +224,8 @@ namespace voltdb {
 										 std::vector<Trigger*> *triggers,
 										 int partitionColumn,
 										 bool exportEnabled,
-										 bool exportOnly);
+										 bool exportOnly,
+										 int windowSize);
 
 		/**
 		 * Creates an empty window table with given name, columns, PK index and indexes.
@@ -235,7 +239,8 @@ namespace voltdb {
 										 const std::vector<TableIndexScheme> &indexes,
 										 int partitionColumn,
 										 bool exportEnabled,
-										 bool exportOnly);
+										 bool exportOnly,
+										 int windowSize);
 
 
 		/**
@@ -251,7 +256,8 @@ namespace voltdb {
 										 std::vector<Trigger*> *triggers,
 										 int partitionColumn,
 										 bool exportEnabled,
-										 bool exportOnly);
+										 bool exportOnly,
+										 int windowSize);
         
         /**
          * Creates an empty temp table with given name and columns.

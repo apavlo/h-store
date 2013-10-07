@@ -73,6 +73,7 @@ using namespace voltdb;
 
 #define NUM_OF_COLUMNS 5
 #define NUM_OF_TUPLES 10000
+#define WINDOW_SIZE 10
 
 voltdb::ValueType COLUMN_TYPES[NUM_OF_COLUMNS]  = { voltdb::VALUE_TYPE_BIGINT,
                                                     voltdb::VALUE_TYPE_TINYINT,
@@ -98,7 +99,7 @@ class WindowTest : public Test {
         }
 
     protected:
-        void init(bool xact) {
+        void init() {
             voltdb::CatalogId database_id = 1000;
             std::vector<boost::shared_ptr<const voltdb::TableColumn> > columns;
             char buffer[32];
@@ -115,13 +116,9 @@ class WindowTest : public Test {
                 columnAllowNull.push_back(COLUMN_ALLOW_NULLS[ctr]);
             }
             voltdb::TupleSchema *schema = voltdb::TupleSchema::createTupleSchema(columnTypes, columnLengths, columnAllowNull, true);
-            if (xact) {
-                persistent_table = voltdb::TableFactory::getPersistentTable(database_id, NULL, "test_table", schema, columnNames, -1, false, false);
-                table = persistent_table;
-            } else {
-                temp_table = voltdb::TableFactory::getTempTable(database_id, "test_table", schema, columnNames, NULL);
-                table = temp_table;
-            }
+			window_table = voltdb::TableFactory::getWindowTable(database_id, NULL, "test_table", schema, columnNames, -1, false, false);
+			table = window_table;
+
             assert(tableutil::addRandomTuples(this->table, NUM_OF_TUPLES));
 
             // clean up
@@ -129,8 +126,7 @@ class WindowTest : public Test {
         }
 
         voltdb::Table* table;
-        voltdb::Table* temp_table;
-        voltdb::Table* persistent_table;
+        voltdb::Table* window_table;
 };
 
 TEST_F(WindowTest, ValueTypes) {
@@ -153,25 +149,50 @@ TEST_F(WindowTest, TupleInsert) {
     // All of the values have already been inserted, we just
     // need to make sure that the data makes sense
     //
+	printf("WINDOW TEST INSERT\n");
     voltdb::TableIterator iterator = this->table->tableIterator();
     voltdb::TableTuple tuple(table->schema());
+    int numDeleted = 0;
     while (iterator.next(tuple)) {
         //printf("%s\n", tuple->debug(this->table).c_str());
         //
-        // Make sure it is not deleted
+        // Check whether the tuple has been deleted.  If so, add count it in numDeleted.
         //
-        EXPECT_EQ(true, tuple.isActive());
+    	if(!tuple.isActive())
+    		numDeleted++;
+
     }
+    EXPECT_EQ(NUM_TUPLES, numDeleted + WINDOW_SIZE);
 
     //
-    // Make sure that if we insert one tuple, we only get one tuple
+    // Make sure that if we insert one tuple, the window size remains 10
     //
     voltdb::TableTuple &temp_tuple = this->table->tempTuple();
     ASSERT_EQ(true, tableutil::setRandomTupleValues(this->table, &temp_tuple));
-    this->table->deleteAllTuples(true);
-    ASSERT_EQ(0, this->table->activeTupleCount());
+    //this->table->deleteAllTuples(true);
+    ASSERT_EQ(WINDOW_SIZE, this->table->activeTupleCount());
     ASSERT_EQ(true, this->table->insertTuple(temp_tuple));
-    ASSERT_EQ(1, this->table->activeTupleCount());
+    ASSERT_EQ(WINDOW_SIZE, this->table->activeTupleCount());
+    /**
+
+    voltdb::TableTuple &tuplesInserted[WINDOW_SIZE];
+
+    for(int i = 0; i < WINDOW_SIZE; i++)
+    {
+    	//
+		// Make sure that if we insert one tuple, the window size remains 10
+		//
+		tuplesInserted[i] = this->table->tempTuple();
+		ASSERT_EQ(true, tableutil::setRandomTupleValues(this->table, &tuplesInserted[i]));
+		ASSERT_EQ(true, this->table->insertTuple(temp_tuple));
+    }
+
+    iterator = this->table->tableIterator();
+    int i = 0;
+    while (iterator.next(tuple)) {
+    	ASSERT_EQ(&tuplesInserted[i], tuple);
+    	i++;
+    }
 
     //
     // Then check to make sure that it has the same value and type
@@ -182,8 +203,9 @@ TEST_F(WindowTest, TupleInsert) {
         EXPECT_EQ(COLUMN_TYPES[col_ctr], tuple.getType(col_ctr));
         EXPECT_TRUE(temp_tuple.getNValue(col_ctr).op_equals(tuple.getNValue(col_ctr)).isTrue());
     }
+    */
 }
-
+/**
 TEST_F(WindowTest, TupleUpdate) {
     //
     // Loop through and randomly update values
@@ -247,6 +269,7 @@ TEST_F(WindowTest, TupleUpdate) {
     }
 
 }
+*/
 /* deleteTuple in TempTable is not supported for performance reason.
 TEST_F(WindowTest, TupleDelete) {
     //
