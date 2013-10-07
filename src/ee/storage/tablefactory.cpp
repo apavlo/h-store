@@ -259,13 +259,14 @@ Table* TableFactory::getWindowTable(
             const std::string* columnNames,
             int partitionColumn,
             bool exportEnabled,
-            bool exportOnly)
+            bool exportOnly,
+            int windowSize)
 {
     std::vector<TableIndexScheme> dummy;
     std::vector<Trigger*>* dummyTrig = NULL;
     return getWindowTable(databaseId, ctx, name,
                               schema, columnNames, dummy, dummyTrig, partitionColumn,
-                              exportEnabled, exportOnly);
+                              exportEnabled, exportOnly, windowSize);
 }
 
 Table* TableFactory::getWindowTable(
@@ -277,13 +278,14 @@ Table* TableFactory::getWindowTable(
             const TableIndexScheme &pkey_index,
             int partitionColumn,
             bool exportEnabled,
-            bool exportOnly)
+            bool exportOnly,
+            int windowSize)
 {
     std::vector<TableIndexScheme> dummy;
     std::vector<Trigger*>* dummyTrig = NULL;
     return getWindowTable(databaseId, ctx, name, schema, columnNames,
                               pkey_index, dummy, dummyTrig, partitionColumn,
-                              exportEnabled, exportOnly);
+                              exportEnabled, exportOnly, windowSize);
 }
 
 Table* TableFactory::getWindowTable(
@@ -295,11 +297,12 @@ Table* TableFactory::getWindowTable(
             const std::vector<TableIndexScheme> &indexes,
             int partitionColumn,
             bool exportEnabled,
-            bool exportOnly)
+            bool exportOnly,
+            int windowSize)
 {
 	std::vector<Trigger*>* dummyTrig = NULL;
 	return getWindowTable(databaseId, ctx, name, schema, columnNames, indexes,
-							dummyTrig, partitionColumn, exportEnabled, exportOnly);
+							dummyTrig, partitionColumn, exportEnabled, exportOnly, windowSize);
 }
 
 Table* TableFactory::getWindowTable(
@@ -312,7 +315,8 @@ Table* TableFactory::getWindowTable(
             std::vector<Trigger*> *triggers,
             int partitionColumn,
             bool exportEnabled,
-            bool exportOnly)
+            bool exportOnly,
+            int windowSize)
 {
     Table *table = NULL;
 
@@ -321,7 +325,7 @@ Table* TableFactory::getWindowTable(
         TableFactory::initCommon(databaseId, table, name, schema, columnNames, true);
     }
     else {
-        table = new WindowTable(ctx, exportEnabled);
+        table = new WindowTable(ctx, exportEnabled, windowSize);
         WindowTable *pTable = dynamic_cast<WindowTable*>(table);
         TableFactory::initCommon(databaseId, pTable, name, schema, columnNames, true);
         pTable->m_indexCount = (int)indexes.size();
@@ -356,11 +360,12 @@ Table* TableFactory::getWindowTable(
             const std::vector<TableIndexScheme> &indexes,
             int partitionColumn,
             bool exportEnabled,
-            bool exportOnly)
+            bool exportOnly,
+            int windowSize)
 {
 	std::vector<Trigger*>* dummyTrig = NULL;
 	return getWindowTable(databaseId, ctx, name, schema, columnNames, pkeyIndex,
-							indexes, dummyTrig, partitionColumn, exportEnabled, exportOnly);
+							indexes, dummyTrig, partitionColumn, exportEnabled, exportOnly, windowSize);
 }
 
 
@@ -375,7 +380,8 @@ Table* TableFactory::getWindowTable(
             std::vector<Trigger*>* triggers,
             int partitionColumn,
             bool exportEnabled,
-            bool exportOnly)
+            bool exportOnly,
+            int windowSize)
 {
     Table *table = NULL;
 
@@ -384,7 +390,7 @@ Table* TableFactory::getWindowTable(
         TableFactory::initCommon(databaseId, table, name, schema, columnNames, true);
     }
     else {
-    	table = new WindowTable(ctx, exportEnabled);
+    	table = new WindowTable(ctx, exportEnabled, windowSize);
         WindowTable *pTable = dynamic_cast<WindowTable*>(table);
         pTable->m_pkeyIndex = TableIndexFactory::getInstance(pkeyIndex);
         TableFactory::initCommon(databaseId, pTable, name, schema, columnNames, true);

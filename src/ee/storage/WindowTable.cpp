@@ -68,11 +68,10 @@ namespace voltdb {
 #define TABLE_BLOCKSIZE 2097152
 #define MAX_EVICTED_TUPLE_SIZE 2500
 
-WindowTable::WindowTable(ExecutorContext *ctx, bool exportEnabled) : PersistentTable(ctx, exportEnabled)
+WindowTable::WindowTable(ExecutorContext *ctx, bool exportEnabled, int windowSize) : PersistentTable(ctx, exportEnabled)
 {
 	windowQueue = std::list<TableTuple *>();
-	windowSize = 10;
-	VOLT_DEBUG("***********WINDOW CONSTRUCTOR SUCCESSFUL**********");
+	this.windowSize = windowSize;
 }
 
 WindowTable::~WindowTable()
@@ -86,6 +85,9 @@ void WindowTable::deleteAllTuples(bool freeAllocatedStrings)
 	windowQueue.clear();
 }
 
+/**
+ *
+ */
 bool WindowTable::insertTuple(TableTuple &source)
 {
 	TableTuple* t;
