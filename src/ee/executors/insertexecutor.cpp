@@ -60,6 +60,12 @@
 #include "common/types.h"
 #include "storage/WindowTable.h"
 
+// added by hawk, 10/4/2013
+#include "catalog/catalogmap.h"
+#include "catalog/table.h"
+#include "catalog/column.h"
+// ended by hawk
+
 namespace voltdb {
 
 bool InsertExecutor::p_init(AbstractPlanNode *abstract_node, const catalog::Database* catalog_db, int* tempTableMemoryInBytes) {
@@ -99,6 +105,37 @@ bool InsertExecutor::p_init(AbstractPlanNode *abstract_node, const catalog::Data
            (m_targetTable == dynamic_cast<StreamedTable*>(m_targetTable)));
 
     m_tuple = TableTuple(m_inputTable->schema());
+
+	// added by hawk, 10/4/2013
+	std::string targetTableName = m_targetTable->name();
+    catalog::Table *targetTable = NULL;
+    catalog::CatalogMap<catalog::Table> tables = catalog_db->tables();
+    for ( catalog::CatalogMap<catalog::Table>::field_map_iter i = tables.begin(); i != tables.end(); i++) {
+        catalog::Table *table = (*i).second;
+        if (table->name().compare(targetTableName) == 0) {
+            targetTable = table;
+            break;
+        }
+    }
+    assert(targetTable != NULL);
+
+    catalog::CatalogMap<catalog::Column> columns = targetTable->columns();
+	 /*
+     * The first output column is the tuple address expression and it isn't part of our output so we skip
+     * it when generating the map from input columns to the target table columns.
+     */
+	if (m_targetTable->name()=="votes_by_phone_number")
+	{
+		for(int ii = 1; ii <= columns.size(); ii++)
+		{
+			catalog::Column *column = columns.getAtRelativeIndex(ii-1);
+			m_inputTargetMap.push_back(std::pair<int, int>( ii, column->index()));
+		}
+
+		m_inputTargetMapSize = (int)m_inputTargetMap.size();
+	}
+	m_targetTuple = TableTuple(m_targetTable->schema());
+	// ended by hawk
 
     PersistentTable *persistentTarget = dynamic_cast<PersistentTable*>(m_targetTable);
     m_partitionColumn = -1;
@@ -148,6 +185,8 @@ bool InsertExecutor::p_execute(const NValueArray &params, ReadWriteTracker *trac
     // and insert any tuple that we find into our m_targetTable. It doesn't get any easier than that!
     //
     assert (m_tuple.sizeInValues() == m_inputTable->columnCount());
+    assert(m_targetTuple.sizeInValues() == m_targetTable->columnCount()); // added by hawk, 10/4/2013
+
     TableIterator iterator(m_inputTable);
     while (iterator.next(m_tuple)) {
         VOLT_DEBUG("Inserting tuple '%s' into target table '%s'",
@@ -174,26 +213,95 @@ bool InsertExecutor::p_execute(const NValueArray &params, ReadWriteTracker *trac
             }
         }
 
-        // try to put the tuple into the target table
-        if (!m_targetTable->insertTuple(m_tuple)) {
-            VOLT_ERROR("Failed to insert tuple from input table '%s' into"
-                       " target table '%s'",
-                       m_inputTable->name().c_str(),
-                       m_targetTable->name().c_str());
-            return false;
-        }
+		// modified by hawk, 10/4/2013
+		// FIXME: such hard coded behavior should be replaced with normal way
+		if (m_targetTable->name()=="votes_by_phone_number")
+		{
+	        VOLT_DEBUG("Hawk test updating votes_by_phone_number....... ");
+	        VOLT_TRACE("Hawk test updating votes_by_phone_number....... ");
 
-        // try to put the tuple into the output table
-        if (!outputTable->insertTuple(m_tuple)) {
-            VOLT_ERROR("Failed to insert tuple from input table '%s' into"
-                       " output table '%s'",
-                       m_inputTable->name().c_str(),
-                       outputTable->name().c_str());
-            return false;
-        }
+			void *target_address = m_tuple.getNValue(0).castAsAddress();
+			m_targetTuple.move(target_address);
+        
+			// Read/Write Set Tracking
+			if (tracker != NULL) {
+				tracker->markTupleWritten(m_targetTable->name(), &m_targetTuple);
+			}
 
-        // successfully inserted
-        modifiedTuples++;
+			// Loop through INPUT_COL_IDX->TARGET_COL_IDX mapping and only update
+			// the values that we need to. The key thing to note here is that we
+			// grab a temp tuple that is a copy of the target tuple (i.e., the tuple
+			// we want to update). This insures that if the input tuple is somehow
+			// bringing garbage with it, we're only going to copy what we really
+			// need to into the target tuple.
+			//
+			TableTuple &tempTuple = (dynamic_cast<PersistentTable*>(m_targetTable))->getTempTupleInlined(m_targetTuple);
+			for (int map_ctr = 0; map_ctr < m_inputTargetMapSize; map_ctr++) {
+				tempTuple.setNValue(m_inputTargetMap[map_ctr].second,
+									m_tuple.getNValue(m_inputTargetMap[map_ctr].first));
+			}
+
+			// if there is a partition column for the target table
+			if (m_partitionColumn != -1) {
+				// check for partition problems
+				// get the value for the partition column
+				NValue value = tempTuple.getNValue(m_partitionColumn);
+				bool isLocal = m_engine->isLocalSite(value);
+
+				// if it doesn't map to this site
+				if (!isLocal) {
+					VOLT_ERROR("Hawk: mispartitioned tuple in single-partition plan for"
+							   " table '%s'", m_targetTable->name().c_str());
+					return false;
+				}
+			}
+
+			if (!m_targetTable->updateTuple(tempTuple, m_targetTuple, true)) 
+			{
+				VOLT_INFO("Hawk: Failed to update tuple from table '%s'",
+						  m_targetTable->name().c_str());
+				return false;
+			}
+
+			modifiedTuples++;
+		}
+		else  // original part of insert behavior
+		{
+			// try to put the tuple into the target table
+			if (!m_targetTable->insertTuple(m_tuple)) {
+				VOLT_ERROR("Failed to insert tuple from input table '%s' into"
+						   " target table '%s'",
+						   m_inputTable->name().c_str(),
+						   m_targetTable->name().c_str());
+				return false;
+			}
+
+			// try to put the tuple into the output table
+			if (!outputTable->insertTuple(m_tuple)) {
+				VOLT_ERROR("Failed to insert tuple from input table '%s' into"
+						   " output table '%s'",
+						   m_inputTable->name().c_str(),
+						   outputTable->name().c_str());
+				return false;
+			}
+
+			// successfully inserted
+			modifiedTuples++;
+		}
+		// ended by hawk
+
+    }
+    // Check if the target table is persistent, and if hasTriggers flag is true
+    // If it is, then iterate through each one and pass in outputTable
+    PersistentTable* persistTarget = dynamic_cast<PersistentTable*>(m_targetTable);
+    if(persistTarget != NULL && persistTarget->hasTriggers()) {
+    	std::vector<Trigger*>::iterator trig_iter;
+    	for(trig_iter = persistTarget->getTriggers()->begin();
+    			trig_iter != persistTarget->getTriggers()->end(); trig_iter++) {
+    		//if statement to make sure the trigger is an insert... breaking
+    		//if((*trig_iter)->getType() == (unsigned char)TRIGGER_INSERT)
+    			(*trig_iter)->fire(m_engine, outputTable);
+    	}
     }
     // Check if the target table is persistent, and if hasTriggers flag is true
     // If it is, then iterate through each one and pass in outputTable

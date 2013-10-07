@@ -116,7 +116,9 @@ class WindowTest : public Test {
                 columnAllowNull.push_back(COLUMN_ALLOW_NULLS[ctr]);
             }
             voltdb::TupleSchema *schema = voltdb::TupleSchema::createTupleSchema(columnTypes, columnLengths, columnAllowNull, true);
+
 			window_table = voltdb::TableFactory::getWindowTable(database_id, NULL, "test_table", schema, columnNames, -1, false, false, WINDOW_SIZE);
+
 			table = window_table;
 
             assert(tableutil::addRandomTuples(this->table, NUM_OF_TUPLES));

@@ -87,6 +87,13 @@ class InsertExecutor : public OperationExecutor {
 
         /** reference to the engine/context to store the number of modified tuples */
         VoltDBEngine* m_engine;
+		
+        // added by hawk, 10/4/2013
+        std::vector<std::pair<int, int> > m_inputTargetMap;
+        int m_inputTargetMapSize;
+
+	TableTuple m_targetTuple; 
+	// ended by hawk
 };
 
 }

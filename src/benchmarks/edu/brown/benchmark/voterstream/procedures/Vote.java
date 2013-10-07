@@ -50,7 +50,7 @@ public class Vote extends VoltProcedure {
 	
     // Checks if the voter has exceeded their allowed number of votes
     public final SQLStmt checkVoterStmt = new SQLStmt(
-		"SELECT num_votes FROM v_votes_by_phone_number WHERE phone_number = ?;"
+		"SELECT num_votes FROM votes_by_phone_number WHERE phone_number = ?;"
     );
 	
     // Checks an area code to retrieve the corresponding state
@@ -95,4 +95,6 @@ public class Vote extends VoltProcedure {
         // Set the return value to 0: successful vote
         return VoterConstants.VOTE_SUCCESSFUL;
     }
+
 }
+

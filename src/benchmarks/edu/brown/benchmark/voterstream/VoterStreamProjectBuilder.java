@@ -36,6 +36,7 @@ import edu.brown.api.BenchmarkComponent;
 
 import edu.brown.benchmark.streamexample.procedures.GetDataTrigger;
 import edu.brown.benchmark.voterstream.procedures.StatisticVotesTrigger;
+import edu.brown.benchmark.voterstream.procedures.UpdateVoterByPhoneNumberTrigger;
 import edu.brown.benchmark.voterstream.procedures.Vote; 
 import edu.brown.benchmark.voterstream.procedures.Initialize; 
 
@@ -53,6 +54,7 @@ public class VoterStreamProjectBuilder extends AbstractProjectBuilder {
         Vote.class, 
         Initialize.class,
         StatisticVotesTrigger.class,
+        UpdateVoterByPhoneNumberTrigger.class,
     };
 	
 	{
