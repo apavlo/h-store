@@ -95,4 +95,6 @@ public class Vote extends VoltProcedure {
         // Set the return value to 0: successful vote
         return VoterConstants.VOTE_SUCCESSFUL;
     }
+
 }
+

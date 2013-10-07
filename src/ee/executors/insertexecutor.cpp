@@ -59,6 +59,7 @@
 #include "storage/temptable.h"
 #include "common/types.h"
 #include "storage/WindowTable.h"
+
 // added by hawk, 10/4/2013
 #include "catalog/catalogmap.h"
 #include "catalog/table.h"
@@ -289,6 +290,18 @@ bool InsertExecutor::p_execute(const NValueArray &params, ReadWriteTracker *trac
 		}
 		// ended by hawk
 
+    }
+    // Check if the target table is persistent, and if hasTriggers flag is true
+    // If it is, then iterate through each one and pass in outputTable
+    PersistentTable* persistTarget = dynamic_cast<PersistentTable*>(m_targetTable);
+    if(persistTarget != NULL && persistTarget->hasTriggers()) {
+    	std::vector<Trigger*>::iterator trig_iter;
+    	for(trig_iter = persistTarget->getTriggers()->begin();
+    			trig_iter != persistTarget->getTriggers()->end(); trig_iter++) {
+    		//if statement to make sure the trigger is an insert... breaking
+    		//if((*trig_iter)->getType() == (unsigned char)TRIGGER_INSERT)
+    			(*trig_iter)->fire(m_engine, outputTable);
+    	}
     }
     // Check if the target table is persistent, and if hasTriggers flag is true
     // If it is, then iterate through each one and pass in outputTable
