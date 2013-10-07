@@ -362,6 +362,7 @@ CTX.TESTS['storage'] = """
  table_test
  tabletuple_export_test
  TupleStreamWrapper_test
+ window_test
 """
 
 # these are incomplete and out of date. need to be replaced
