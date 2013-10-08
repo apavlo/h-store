@@ -65,7 +65,7 @@
 #include "storage/tablefactory.h"
 #include "storage/tableiterator.h"
 #include "storage/tableutil.h"
-#include "storage/windowtable.h"
+#include "storage/WindowTable.h"
 
 using std::string;
 using std::vector;
