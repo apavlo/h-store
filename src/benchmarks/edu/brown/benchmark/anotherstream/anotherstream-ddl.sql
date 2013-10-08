@@ -17,6 +17,14 @@ CREATE STREAM votes_stream
 , contestant_number  integer    NOT NULL
 );
 
+-- rollup of votes by phone number, used to reject excessive voting
+CREATE TABLE votes_by_phone_number
+(
+    phone_number     bigint    NOT NULL,
+    num_votes        int
+);
+
+-- result from step 1: Validate contestants
 CREATE STREAM S1
 (
   vote_id            bigint     NOT NULL,
@@ -25,4 +33,19 @@ CREATE STREAM S1
 , contestant_number  integer    NOT NULL
 );
 
+-- result from step2: Validate number of votes
+CREATE STREAM S2
+(
+  vote_id            bigint     NOT NULL,
+  phone_number       bigint     NOT NULL
+, state              varchar(2) NOT NULL
+, contestant_number  integer    NOT NULL
+);
+
+
+CREATE STREAM S3
+(
+    phone_number     bigint    NOT NULL,
+    num_votes        int
+);
 
