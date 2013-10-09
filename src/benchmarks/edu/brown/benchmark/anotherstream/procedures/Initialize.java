@@ -12,9 +12,16 @@ public class Initialize extends VoltProcedure
     // Check if the database has already been initialized
     public final SQLStmt checkStmt = new SQLStmt("SELECT COUNT(*) FROM contestants;");
 	
+    // Inserts an area code/state mapping
+    public final SQLStmt insertACSStmt = new SQLStmt("INSERT INTO area_code_state VALUES (?,?);");
+
     // Inserts a contestant
     public final SQLStmt insertContestantStmt = new SQLStmt("INSERT INTO contestants (contestant_name, contestant_number) VALUES (?, ?);");
 	
+    public final SQLStmt insertVoteCount = new SQLStmt("INSERT INTO total_votes (row_id, num_votes) VALUES (?, ?)");
+    
+    public final SQLStmt votes_by_c_s = new SQLStmt("INSERT INTO votes_by_contestant_number_state (contestant_number, state, num_votes) VALUES (?,?,0);");
+
     // Domain data: matching lists of Area codes and States
     public static final short[] areaCodes = new short[]{
 	907,205,256,334,251,870,501,479,480,602,623,928,520,341,764,628,831,925,
@@ -35,6 +42,41 @@ public class Initialize extends VoltProcedure
 	972,469,214,682,832,281,830,956,432,915,435,801,385,434,804,757,703,571,
 	276,236,540,802,509,360,564,206,425,253,715,920,262,414,608,304,307};
 	
+    public static final String[] states = new String[] {
+    "AK","AL","AL","AL","AL","AR","AR","AR","AZ","AZ","AZ","AZ","AZ","CA","CA",
+    "CA","CA","CA","CA","CA","CA","CA","CA","CA","CA","CA","CA","CA","CA","CA",
+    "CA","CA","CA","CA","CA","CA","CA","CA","CA","CA","CA","CA","CA","CA","CA",
+    "CA","CA","CA","CA","CO","CO","CO","CO","CT","CT","CT","CT","DC","DE","FL",
+    "FL","FL","FL","FL","FL","FL","FL","FL","FL","FL","FL","FL","FL","FL","FL",
+    "FL","FL","FL","GA","GA","GA","GA","GA","GA","GA","GA","GA","HI","IA","IA",
+    "IA","IA","IA","ID","IL","IL","IL","IL","IL","IL","IL","IL","IL","IL","IL",
+    "IL","IL","IL","IN","IN","IN","IN","IN","IN","KS","KS","KS","KS","KY","KY",
+    "KY","KY","LA","LA","LA","LA","LA","MA","MA","MA","MA","MA","MA","MA","MA",
+    "MA","MD","MD","MD","MD","ME","MI","MI","MI","MI","MI","MI","MI","MI","MI",
+    "MI","MI","MI","MI","MI","MN","MN","MN","MN","MN","MN","MN","MO","MO","MO",
+    "MO","MO","MO","MO","MO","MS","MS","MS","MS","MT","NC","NC","NC","NC","NC",
+    "NC","NC","NC","ND","NE","NE","NH","NJ","NJ","NJ","NJ","NJ","NJ","NJ","NJ",
+    "NJ","NM","NM","NM","NV","NV","NY","NY","NY","NY","NY","NY","NY","NY","NY",
+    "NY","NY","NY","NY","NY","OH","OH","OH","OH","OH","OH","OH","OH","OH","OH",
+    "OH","OH","OK","OK","OK","OR","OR","OR","PA","PA","PA","PA","PA","PA","PA",
+    "PA","PA","PA","PA","RI","SC","SC","SC","SD","TN","TN","TN","TN","TN","TN",
+    "TX","TX","TX","TX","TX","TX","TX","TX","TX","TX","TX","TX","TX","TX","TX",
+    "TX","TX","TX","TX","TX","TX","TX","TX","TX","TX","UT","UT","UT","VA","VA",
+    "VA","VA","VA","VA","VA","VA","VT","WA","WA","WA","WA","WA","WA","WI","WI",
+    "WI","WI","WI","WV","WY"};
+    
+    public static final String[] statesList = new String[] {
+        "AK","AL","AR","AZ","CA",
+        "CO","CT","DC","DE","FL",
+        "GA","HI","IA","ID","IL",
+        "IN","KS","KY","LA","MA",
+        "MD","ME","MI","MN","MO",
+        "MS","MT","NC","ND","NE",
+        "NH","NJ","NM","NV","NY",
+        "OH","OK","OR","PA","RI",
+        "SC","SD","TN","TX","UT",
+        "VA","VT","WA","WI","WV","WY"};
+
     public long run(int maxContestants, String contestants) {
 		
         String[] contestantArray = contestants.split(",");
@@ -52,6 +94,24 @@ public class Initialize extends VoltProcedure
             voltExecuteSQL();
 		}
  	
+        for (int i=0; i < areaCodes.length; i++) {
+            voltQueueSQL(insertACSStmt, areaCodes[i], states[i]);
+            voltExecuteSQL();
+        }
+        
+        for (int i=0; i < maxContestants; i++)
+        {
+            for(int j = 0; j < statesList.length; j++)
+            {
+                voltQueueSQL(votes_by_c_s, i, statesList[j]);
+                voltExecuteSQL();
+            }
+        }
+        
+        
+        voltQueueSQL(insertVoteCount, 1, 0);
+        voltExecuteSQL();
+        
         return maxContestants;
     }
 }
