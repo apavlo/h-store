@@ -856,7 +856,7 @@ bool VoltDBEngine::rebuildPlanFragmentCollections() {
 	for (table_iterator = m_database->tables().begin();
 			table_iterator != m_database->tables().end(); table_iterator++) {
 		const catalog::Table *catalog_table = table_iterator->second;
-		VOLT_TRACE("Building Trigger PlanFragment Collections for %s", table_iterator->name().c_str());
+		VOLT_TRACE("Building Trigger PlanFragment Collections for %s", catalog_table->name().c_str());
 
 		//loop through triggers
 		for(trig_iterator = catalog_table->triggers().begin();

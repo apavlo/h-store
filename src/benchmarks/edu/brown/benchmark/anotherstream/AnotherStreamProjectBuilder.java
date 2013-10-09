@@ -6,6 +6,8 @@ import edu.brown.benchmark.AbstractProjectBuilder;
 import edu.brown.api.BenchmarkComponent;
 
 import edu.brown.benchmark.anotherstream.procedures.Initialize; 
+import edu.brown.benchmark.anotherstream.procedures.Vote; 
+
 
 // triggers
 import edu.brown.benchmark.anotherstream.procedures.ValidateContestantsTrigger; 
@@ -23,6 +25,7 @@ public class AnotherStreamProjectBuilder extends AbstractProjectBuilder {
     @SuppressWarnings("unchecked")
     public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
         Initialize.class,
+         Vote.class,
 	 ValidateContestantsTrigger.class
     };
 	
