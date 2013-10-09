@@ -325,6 +325,7 @@ Table* TableFactory::getWindowTable(
         TableFactory::initCommon(databaseId, table, name, schema, columnNames, true);
     }
     else {
+    	VOLT_DEBUG("FACTORY WINDOW TABLE");
         table = new WindowTable(ctx, exportEnabled, windowSize);
         WindowTable *pTable = dynamic_cast<WindowTable*>(table);
         TableFactory::initCommon(databaseId, pTable, name, schema, columnNames, true);
@@ -338,15 +339,19 @@ Table* TableFactory::getWindowTable(
         	pTable->m_hasTriggers = true;
         else
         	pTable->m_hasTriggers = false;
+        VOLT_DEBUG("2");
 
         for (int i = 0; i < indexes.size(); ++i) {
             pTable->m_indexes[i] = TableIndexFactory::getInstance(indexes[i]);
         }
+        VOLT_DEBUG("3");
         initConstraints(pTable);
+        VOLT_DEBUG("4");
     }
 
     // initialize stats for the table
     configureStats(databaseId, ctx, name, table);
+    VOLT_DEBUG("END FACTORY WINDOW TABLE");
     return dynamic_cast<Table*>(table);
 }
 
@@ -390,6 +395,7 @@ Table* TableFactory::getWindowTable(
         TableFactory::initCommon(databaseId, table, name, schema, columnNames, true);
     }
     else {
+    	VOLT_DEBUG("FACTORY WINDOW TABLE");
     	table = new WindowTable(ctx, exportEnabled, windowSize);
         WindowTable *pTable = dynamic_cast<WindowTable*>(table);
         pTable->m_pkeyIndex = TableIndexFactory::getInstance(pkeyIndex);
@@ -416,6 +422,7 @@ Table* TableFactory::getWindowTable(
 
     configureStats(databaseId, ctx, name, table);
 
+    VOLT_DEBUG("END FACTORY WINDOW TABLE");
     return dynamic_cast<Table*>(table);
 }
 
@@ -494,6 +501,8 @@ void TableFactory::configureStats(voltdb::CatalogId databaseId,
                                   std::string name,
                                   Table *table) {
 
+	VOLT_DEBUG("configureStats");
+
     // initialize stats for the table
     table->getTableStats()->configure(name + " stats",
                                       ctx->m_hostId,
@@ -501,6 +510,8 @@ void TableFactory::configureStats(voltdb::CatalogId databaseId,
                                       ctx->m_siteId,
                                       ctx->m_partitionId,
                                       databaseId);
+
+    VOLT_DEBUG("5");
 
     // initialize stats for all the indexes for the table
     std::vector<TableIndex*> tindexes = table->allIndexes();
@@ -513,7 +524,9 @@ void TableFactory::configureStats(voltdb::CatalogId databaseId,
                                           ctx->m_siteId,
                                           ctx->m_partitionId,
                                           databaseId);
+        VOLT_DEBUG("6");
     }
+    VOLT_DEBUG("end configureStats");
 }
 
 }
