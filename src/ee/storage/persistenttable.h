@@ -134,7 +134,7 @@ private:
 	PersistentTable operator=(PersistentTable const&);
 
 #ifdef MMAP_STORAGE
-	int MMAP_index;
+	uint32_t m_tableRequestCount;
 #endif
 
 public:
@@ -406,9 +406,10 @@ inline void PersistentTable::allocateNextBlock() {
 #endif
 
 
-	int MMAP_fd ;
+	int MMAP_fd, ret ;
 	char* memory = NULL ;
 	string MMAP_Dir, MMAP_file_name;
+	const string NVM_fileType(".nvm");
 
 	/** Get location for mmap'ed files **/
 	// MMAP_Dir = m_executorContext->getDBDir();
@@ -416,7 +417,24 @@ inline void PersistentTable::allocateNextBlock() {
 
 	VOLT_WARN("MMAP : DBdir:: %s\n", MMAP_Dir.c_str());
 
-	MMAP_file_name = MMAP_Dir + "/MMAP_storage.nvm";
+#ifdef _WIN32
+	const std::string pathSeparator("\\");
+#else
+	const std::string pathSeparator("/");
+#endif
+
+	std::stringstream m_tableRequestCountStringStream;
+	m_tableRequestCountStringStream << m_tableRequestCount;
+
+	/** Get an unique file object for each <Table,Table_Request_Index> **/
+	MMAP_file_name  = MMAP_Dir + pathSeparator ;
+	MMAP_file_name += this->name()+ m_tableRequestCountStringStream.str();
+	MMAP_file_name += NVM_fileType ;
+
+	/** Increment Table Request Count **/
+	m_tableRequestCount++;
+
+	VOLT_WARN("MMAP : MMAP_file_name :: %s\n", MMAP_file_name.c_str());
 
 	MMAP_fd = open(MMAP_file_name.c_str(), O_RDWR|O_CREAT, S_IRUSR|S_IWUSR|S_IRGRP );
 	if (MMAP_fd < 0) {
@@ -425,7 +443,8 @@ inline void PersistentTable::allocateNextBlock() {
 		throwFatalException("Failed to open file in directory %s.", MMAP_Dir.c_str());
 	}
 
-	if(ftruncate(MMAP_fd, bytes) < 0){
+	ret = ftruncate(MMAP_fd, bytes) ;
+	if(ret < 0){
 		VOLT_ERROR("MMAP : initialization error.");
 		VOLT_ERROR("Failed to truncate file %d : %s", MMAP_fd, strerror(errno));
 		throwFatalException("Failed to truncate file in directory %s.", MMAP_Dir.c_str());
@@ -449,17 +468,12 @@ inline void PersistentTable::allocateNextBlock() {
 
 	VOLT_WARN("MMAP : Host:: %d Site:: %d PId:: %d Index:: %d Table: %s  Bytes:: %d \n",
 			m_executorContext->getHostId(), m_executorContext->getSiteId(), m_executorContext->getPartitionId(),
-			MMAP_index++, this->name().c_str(), bytes);
+			m_tableRequestCount, this->name().c_str(), bytes);
 
 	m_allocatedTuples += m_tuplesPerBlock;
 
 	/**
-	 *
-	 *  munmap() system call deletes the mappings for the specified
-	 *  address range, and causes further references to addresses within the
-	 *  range to generate invalid memory references.  The region is also
-	 *  automatically unmapped when the process is terminated.  On the other
-	 *  hand, closing the file descriptor does not unmap the region.
+	 * Closing the file descriptor does not unmap the region as map() automatically adds a reference
 	 */
 	close(MMAP_fd);
 

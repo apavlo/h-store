@@ -756,6 +756,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                     long blockSize = hstore_conf.site.anticache_block_size;
                     eeTemp.antiCacheInitialize(acFile, blockSize);
                 }
+                              
                 
                 // Initialize MMAP_STORAGE
                 if (hstore_conf.site.storage_mmap) {
