@@ -366,11 +366,12 @@ CTX.TESTS['storage'] = """
 # CTX.TESTS['expressions'] = """expserialize_test expression_test"""
 
 ###############################################################################
-# MMAP STORAGE
+# STORAGE MMAP
 ###############################################################################
 
-if CTX.MMAP_STORAGE:
-    CTX.CPPFLAGS += " -DMMAP_STORAGE"
+if CTX.STORAGE_MMAP:
+    CTX.CPPFLAGS += " -DSTORAGE_MMAP"
+
 
 ###############################################################################
 # ANTI-CACHING

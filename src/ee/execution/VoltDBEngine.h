@@ -279,9 +279,9 @@ class __attribute__((visibility("default"))) VoltDBEngine {
         #endif
         
         // -------------------------------------------------
-        // MMAP_STORAGE
+        // STORAGE MMAP
         // -------------------------------------------------
-		#ifdef MMAP_STORAGE
+		#ifdef STORAGE_MMAP
         void MMAPInitialize(std::string dbDir, long mapSize) const;
 		#endif
 

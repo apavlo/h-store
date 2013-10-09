@@ -758,12 +758,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 }
                               
                 
-                // Initialize MMAP_STORAGE
+                // Initialize STORAGE_MMAP
                 if (hstore_conf.site.storage_mmap) {
                     File dbFile = getMMAPDir(this);
-                    long mapSize = 1024*10;
-                    // TODO : Make this a parameter
-                    //long mapSize = hstore_conf.site.anticache_block_size;
+                    long mapSize = hstore_conf.site.storage_mmap_file_size;
                     eeTemp.MMAPInitialize(dbFile,mapSize);
                 }
                 
@@ -1950,19 +1948,20 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         Database catalog_db = CatalogUtil.getDatabase(executor.getPartition());
 
         // First make sure that our base directory exists
-        String base_dir = FileUtil.realpath(hstore_conf.site.anticache_dir +
+        String base_dir = FileUtil.realpath(hstore_conf.site.storage_mmap_dir +
                 File.separatorChar +
                 catalog_db.getProject());
-        synchronized (AntiCacheManager.class) {
-            FileUtil.makeDirIfNotExists(base_dir);
-        } // SYNC
+
+        //synchronized (AntiCacheManager.class) {
+        FileUtil.makeDirIfNotExists(base_dir);
+        //} // SYNC
 
         // Then each partition will have a separate directory inside of the base one
         String partitionName = HStoreThreadManager.formatPartitionName(executor.getSiteId(),
                 executor.getPartitionId());
         File dbDirPath = new File(base_dir + File.separatorChar + partitionName);
-        if (hstore_conf.site.anticache_reset) {
-            LOG.warn(String.format("Deleting anti-cache directory '%s'", dbDirPath));
+        if (hstore_conf.site.storage_mmap_reset) {
+            LOG.warn(String.format("Deleting storage mmap directory '%s'", dbDirPath));
             FileUtil.deleteDirectory(dbDirPath);
         }
         FileUtil.makeDirIfNotExists(dbDirPath);

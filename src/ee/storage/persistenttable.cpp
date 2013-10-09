@@ -114,8 +114,8 @@ PersistentTable::PersistentTable(ExecutorContext *ctx, bool exportEnabled) :
     m_blockMerge = true;
     #endif
     
-	#ifdef MMAP_STORAGE
-	MMAP_index = 0;
+	#ifdef STORAGE_MMAP
+	m_tableRequestCount = 0;
 	#endif
 
     if (exportEnabled) {

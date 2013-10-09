@@ -1519,7 +1519,7 @@ SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeAntiC
 
 #endif
 
-#ifdef MMAP_STORAGE
+#ifdef STORAGE_MMAP
 /**
  * Enables the storage mmap feature in the EE.
  * This can only be called *after* the buffers have been initialized
@@ -1552,6 +1552,6 @@ SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeMMAPI
     }
     return org_voltdb_jni_ExecutionEngine_ERRORCODE_SUCCESS;
 }
-#endif // MMAP_STORAGE
+#endif // STORAGE_MMAP
 
 /** @} */ // end of JNI doxygen group

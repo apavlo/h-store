@@ -101,12 +101,12 @@ namespace voltdb {
             return (m_hostId);
         }
         
-		#ifdef MMAP_STORAGE
+		#ifdef STORAGE_MMAP
         std::string getDBDir() const {
         	return (m_MMAPDir);
         }
 
-        long getMMAPSize() const {
+        long getFileSize() const {
         	return (m_MMAPSize);
         }
 
@@ -208,9 +208,9 @@ namespace voltdb {
         #endif
         
         // ------------------------------------------------------------------
-        // MMAP STORAGE
+        // STORAGE MMAP
         // ------------------------------------------------------------------
-		#ifdef MMAP_STORAGE
+		#ifdef STORAGE_MMAP
 
         /**
          * Enable the mmap storage feature in the EE.
@@ -255,7 +255,7 @@ namespace voltdb {
         AntiCacheEvictionManager *m_antiCacheEvictionManager; 
         #endif
         
-		#ifdef MMAP_STORAGE
+		#ifdef STORAGE_MMAP
         long m_MMAPSize;
         std::string m_MMAPDir;
 		#endif
