@@ -39,11 +39,11 @@ class BuildContext:
         self.NMFLAGS = "-n"    # specialized by platform in build.py
         self.COVERAGE = False
         self.VOLT_LOG_LEVEL = None
-        self.STORAGE_MMAP = False
+        self.STORAGE_MMAP = False  # disable by default
         self.STORAGE_MMAP_FILE_SIZE = 2097152
         self.ANTICACHE_ENABLE = False
-        self.ANTICACHE_REVERSIBLE_LRU = True
-        
+        self.ANTICACHE_REVERSIBLE_LRU = False
+
         for arg in [x.strip().upper() for x in args]:
             if arg in ["DEBUG", "RELEASE", "MEMCHECK", "MEMCHECK_NOFREELIST"]:
                 self.LEVEL = arg
@@ -53,16 +53,16 @@ class BuildContext:
                 self.COVERAGE = True
             if arg.startswith("STORAGE_MMAP="):
                 parts = arg.split("=")
-                if len(parts) > 1: self.STORAGE_MMAP = bool(parts[1])
+                if len(parts) > 1 and not (parts[1].startswith("${")): self.STORAGE_MMAP = bool(parts[1])
             if arg.startswith("STORAGE_MMAP_FILE_SIZE="):
                 parts = arg.split("=")
                 if len(parts) > 1 and not (parts[1].startswith("${")): self.STORAGE_MMAP_FILE_SIZE = long(parts[1])
             if arg.startswith("ANTICACHE_ENABLE="):
                 parts = arg.split("=")
-                if len(parts) > 1: self.ANTICACHE_ENABLE = bool(parts[1])
+                if len(parts) > 1 and not (parts[1].startswith("${")): self.ANTICACHE_ENABLE = bool(parts[1])
             if arg.startswith("ANTICACHE_REVERSIBLE_LRU="):
                 parts = arg.split("=")
-                if len(parts) > 1: self.ANTICACHE_REVERSIBLE_LRU = bool(parts[1])
+                if len(parts) > 1 and not (parts[1].startswith("${")): self.ANTICACHE_REVERSIBLE_LRU = bool(parts[1])
                 
             if arg.startswith("LOG_LEVEL="):
                 parts = arg.split("=")

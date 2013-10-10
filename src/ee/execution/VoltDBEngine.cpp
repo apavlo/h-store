@@ -1583,7 +1583,8 @@ void VoltDBEngine::MMAPInitialize(std::string dbDir, long mapSize) const {
 }
 #else
 void VoltDBEngine::MMAPInitialize(std::string dbDir, long blockSize) const {
-    VOLT_ERROR("Storage MMAP feature was not enabled when compiling the EE");
+    // TODO : We don't enable this by default
+    //VOLT_ERROR("Storage MMAP feature was not enabled when compiling the EE");
 }
 #endif
     

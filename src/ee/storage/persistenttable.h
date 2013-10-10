@@ -409,15 +409,15 @@ inline void PersistentTable::allocateNextBlock() {
 	int MMAP_fd, ret ;
 	char* memory = NULL ;
 	string MMAP_Dir, MMAP_file_name; 
-    long file_size;
+    //long file_size;
 	const string NVM_fileType(".nvm");
 
 	/** Get location for mmap'ed files **/
 	MMAP_Dir = m_executorContext->getDBDir();
-    file_size = m_executorContext->getFileSize();
+    //file_size = m_executorContext->getFileSize();
 
 	VOLT_WARN("MMAP : DBdir:: %s\n", MMAP_Dir.c_str());
-	VOLT_WARN("MMAP : File Size :: %ld\n", file_size);
+	//VOLT_WARN("MMAP : File Size :: %ld\n", file_size);
 
 #ifdef _WIN32
 	const std::string pathSeparator("\\");
