@@ -425,7 +425,7 @@ public class MapReduceTransaction extends LocalTransaction {
     @Override
     public String toStringImpl() {
         return String.format("%s-%s #%d/%d", this.getProcedure().getName(),
-                                             (this.getState().toString()),
+                                             (this.getState() == null ? "null" : this.getState().toString()),
                                              this.txn_id, this.base_partition);
     }
 
@@ -461,5 +461,15 @@ public class MapReduceTransaction extends LocalTransaction {
         return this.reduceOutput[partition];
         //return this.reduceOutput[partition];
     }
+
+    /**
+     * Reset variables in sub transactions to allow for re-execution.
+     */
+	public void resetTransaction() {
+		for (LocalTransaction local_txn : this.local_txns) {
+			local_txn.resetControlCodeExecuted();
+			local_txn.resetClientResponse();
+		}
+	}
     
 }
