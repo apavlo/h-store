@@ -501,8 +501,6 @@ void TableFactory::configureStats(voltdb::CatalogId databaseId,
                                   std::string name,
                                   Table *table) {
 
-	VOLT_DEBUG("configureStats");
-
     // initialize stats for the table
     table->getTableStats()->configure(name + " stats",
                                       ctx->m_hostId,
@@ -510,8 +508,6 @@ void TableFactory::configureStats(voltdb::CatalogId databaseId,
                                       ctx->m_siteId,
                                       ctx->m_partitionId,
                                       databaseId);
-
-    VOLT_DEBUG("5");
 
     // initialize stats for all the indexes for the table
     std::vector<TableIndex*> tindexes = table->allIndexes();
@@ -524,9 +520,7 @@ void TableFactory::configureStats(voltdb::CatalogId databaseId,
                                           ctx->m_siteId,
                                           ctx->m_partitionId,
                                           databaseId);
-        VOLT_DEBUG("6");
     }
-    VOLT_DEBUG("end configureStats");
 }
 
 }
