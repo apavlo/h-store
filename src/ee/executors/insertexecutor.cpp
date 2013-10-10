@@ -194,7 +194,9 @@ namespace voltdb {
 		assert(m_targetTuple.sizeInValues() == m_targetTable->columnCount()); // added by hawk, 10/4/2013
 
 		TableIterator iterator(m_inputTable);
+                bool beProcessed = false;
 		while (iterator.next(m_tuple)) {
+                        beProcessed = true;
 			VOLT_DEBUG("Inserting tuple '%s' into target table '%s'",
 				m_tuple.debug(m_targetTable->name()).c_str(), m_targetTable->name().c_str());
 			VOLT_TRACE("Target Table %s: %s",
@@ -268,6 +270,51 @@ namespace voltdb {
 
 			}
 
+			if (m_targetTable->name()=="VOTES_BY_CONTESTANT_NUMBER_STATE") 
+			{
+				VOLT_DEBUG("Hawk test updating VOTES_BY_CONTESTANT_NUMBER_STATE....... ");
+
+				// determine if the m_tuple with the same key is aready there
+				// if exists, delete it, and then render the control to the normal insert
+				// if not, just render the control to the normal insert
+				TableTuple tuple(m_targetTable->schema());
+				TableIterator iterator(m_targetTable);
+				VOLT_DEBUG("hawk : scan target table... ");
+				while (iterator.next(tuple))
+				{
+					NValue source_value1 = m_tuple.getNValue(0);
+					NValue source_value2 = m_tuple.getNValue(1);
+					VOLT_DEBUG("source tuple '%s'",
+						m_tuple.debug(m_targetTable->name()).c_str());
+					NValue target_value1 = tuple.getNValue(0);
+					NValue target_value2 = tuple.getNValue(1);
+					VOLT_DEBUG("target tuple '%s'",
+						tuple.debug(m_targetTable->name()).c_str());
+
+					// determine if they are same
+					if((source_value1.compare(target_value1) == 0)&&(source_value2.compare(target_value2)==0))
+					{
+						// Read/Write Set Tracking
+						if (tracker != NULL) {
+							//tracker->markTupleWritten(m_targetTable->name(), &m_targetTuple);
+							tracker->markTupleWritten(m_targetTable->name(), &tuple);
+						}
+
+						VOLT_DEBUG("hawk: after markTupleWritten()....... ");
+
+						// Delete from target table
+						if (!m_targetTable->deleteTuple(tuple, true)) {
+							VOLT_ERROR("Failed to delete tuple from table '%s'",
+								m_targetTable->name().c_str());
+							return false;
+						}
+
+						break;
+					}
+				}
+
+			}
+
 			if(beNormalInsertBehavior == true)  // original part of insert behavior
 			{
 				// try to put the tuple into the target table
@@ -296,16 +343,23 @@ namespace voltdb {
 		}
 		// Check if the target table is persistent, and if hasTriggers flag is true
 		// If it is, then iterate through each one and pass in outputTable
-		PersistentTable* persistTarget = dynamic_cast<PersistentTable*>(m_targetTable);
-		if(persistTarget != NULL && persistTarget->hasTriggers()) {
+                if (beProcessed == true)
+                {
+		    PersistentTable* persistTarget = dynamic_cast<PersistentTable*>(m_targetTable);
+		    if(persistTarget != NULL && persistTarget->hasTriggers()) {
 			std::vector<Trigger*>::iterator trig_iter;
+
+                        VOLT_DEBUG( "Start firing triggers of table '%s'", persistTarget->name().c_str());
+
 			for(trig_iter = persistTarget->getTriggers()->begin();
 				trig_iter != persistTarget->getTriggers()->end(); trig_iter++) {
 					//if statement to make sure the trigger is an insert... breaking
 					//if((*trig_iter)->getType() == (unsigned char)TRIGGER_INSERT)
 					(*trig_iter)->fire(m_engine, outputTable);
 			}
-		}
+                        VOLT_DEBUG( "End firing triggers of table '%s'", persistTarget->name().c_str());
+		    }
+                }
 
 
 		// add to the planfragments count of modified tuples

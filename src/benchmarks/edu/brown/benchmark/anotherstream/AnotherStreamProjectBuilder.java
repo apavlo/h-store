@@ -11,6 +11,10 @@ import edu.brown.benchmark.anotherstream.procedures.Vote;
 
 // triggers
 import edu.brown.benchmark.anotherstream.procedures.ValidateContestantsTrigger; 
+import edu.brown.benchmark.anotherstream.procedures.ValidateVotesNumberLimitTrigger; 
+import edu.brown.benchmark.anotherstream.procedures.UpdateVotesAndTotalVotesTrigger; 
+import edu.brown.benchmark.anotherstream.procedures.UpdateVotesByPhoneNumberTrigger; 
+import edu.brown.benchmark.anotherstream.procedures.UpdateVotesByContestantNumberStateTrigger; 
 
 
 public class AnotherStreamProjectBuilder extends AbstractProjectBuilder {
@@ -24,9 +28,13 @@ public class AnotherStreamProjectBuilder extends AbstractProjectBuilder {
 	// a list of procedures implemented in this benchmark
     @SuppressWarnings("unchecked")
     public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
-        Initialize.class,
+         Initialize.class,
          Vote.class,
-	 ValidateContestantsTrigger.class
+         ValidateContestantsTrigger.class,
+         ValidateVotesNumberLimitTrigger.class,
+         UpdateVotesAndTotalVotesTrigger.class,
+         UpdateVotesByPhoneNumberTrigger.class,
+         UpdateVotesByContestantNumberStateTrigger.class
     };
 	
 	{
@@ -35,7 +43,12 @@ public class AnotherStreamProjectBuilder extends AbstractProjectBuilder {
 	
 	// a list of tables used in this benchmark with corresponding partitioning keys
     public static final String PARTITIONING[][] = new String[][] {
-        { "contestants", "contestant_number" },
+        { "votes", "phone_number" },
+        { "total_votes", "row_id"},
+        { "votes_by_phone_number", "phone_number" },
+        { "votes_by_contestant_number_state", "contestant_number"},
+        { "T3", "phone_number" },
+        { "T4", "contestant_number"}
     };
 
     public AnotherStreamProjectBuilder() {
