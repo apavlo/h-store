@@ -74,17 +74,19 @@ public class MRquery3 extends VoltMapReduceProcedure<Long> {
     public void reduce(Long key, Iterator<VoltTableRow> rows) {
         double sum_ol_amount = 0;
         
+        VoltTableRow row = null;
         for (VoltTableRow r : CollectionUtil.iterable(rows)) {
             assert(r != null);
-            sum_ol_amount += rows.next().getDouble(3);
+            row = r;
+            sum_ol_amount += row.getDouble(3);
         } // FOR
 
         Object new_row[] = {
                 key,
-                rows.next().getLong(1),
-                rows.next().getLong(2),
+                row.getLong(1),
+                row.getLong(2),
                 sum_ol_amount,
-                rows.next().getTimestampAsTimestamp(4)
+                row.getTimestampAsTimestamp(4)
         };
         this.reduceEmit(new_row);
     }
