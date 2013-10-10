@@ -1567,7 +1567,8 @@ int VoltDBEngine::antiCacheMergeBlocks(int32_t tableId) {
 
 #else
 void VoltDBEngine::antiCacheInitialize(std::string dbDir, long blockSize) const {
-    VOLT_ERROR("Anti-Cache feature was not enable when compiling the EE");
+    // FIX :: Dummy call if ANTICACHE is not defined
+    //VOLT_ERROR("Anti-Cache feature was not enable when compiling the EE");
 }
 #endif
     

@@ -39,9 +39,9 @@ class BuildContext:
         self.NMFLAGS = "-n"    # specialized by platform in build.py
         self.COVERAGE = False
         self.VOLT_LOG_LEVEL = None
-        self.MMAP_STORAGE = False
-        self.ANTICACHE_ENABLE = True
-        self.ANTICACHE_REVERSIBLE_LRU = True
+        self.MMAP_STORAGE = False     # disable by default
+        self.ANTICACHE_ENABLE = False
+        self.ANTICACHE_REVERSIBLE_LRU = False 
         
         for arg in [x.strip().upper() for x in args]:
             if arg in ["DEBUG", "RELEASE", "MEMCHECK", "MEMCHECK_NOFREELIST"]:

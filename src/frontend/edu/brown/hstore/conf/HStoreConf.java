@@ -615,7 +615,7 @@ public final class HStoreConf {
         
         @ConfigProperty(
             description="Enable the anti-cache feature.",
-            defaultBoolean=true,
+            defaultBoolean=false, // FIX : disable anti-cache by default
             experimental=true
         )
         public boolean anticache_enable;
