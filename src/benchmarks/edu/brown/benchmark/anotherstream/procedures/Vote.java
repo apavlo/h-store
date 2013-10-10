@@ -35,7 +35,7 @@ public class Vote extends VoltProcedure {
 
 
 
-    public long run(long voteId, long phoneNumber, int contestantNumber, long maxVotesPerPhoneNumber) {
+    public long run(long voteId, long phoneNumber, int contestantNumber) {
 
         // PHASE ONE : initialization
         // check if there is voter's record already

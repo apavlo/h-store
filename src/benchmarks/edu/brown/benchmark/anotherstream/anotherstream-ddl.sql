@@ -1,3 +1,14 @@
+-- configuration table holds the configuration values
+CREATE TABLE configuration
+(
+  name  varchar(20) NOT NULL
+, value integer     NOT NULL
+, CONSTRAINT PK_configuration PRIMARY KEY
+  (
+    name
+  )
+);
+
 -- contestants table holds the contestants numbers (for voting) and names
 CREATE TABLE contestants
 (
