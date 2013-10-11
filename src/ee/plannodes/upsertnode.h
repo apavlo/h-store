@@ -1,8 +1,8 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB Inc.
+ * Copyright (C) 2008-2010 VoltDB L.L.C.
  *
  * This file contains original code and/or modifications of original code.
- * Any modifications made by VoltDB Inc. are licensed under the following
+ * Any modifications made by VoltDB L.L.C. are licensed under the following
  * terms and conditions:
  *
  * VoltDB is free software: you can redistribute it and/or modify
@@ -43,28 +43,39 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef HSTOREEXECUTORS_H
-#define HSTOREEXECUTORS_H
+#ifndef HSTOREUPSERTNODE_H
+#define HSTOREUPSERTNODE_H
 
-//
-// This is just for convenience
-//
-#include "executors/aggregateexecutor.hpp"
-#include "executors/deleteexecutor.h"
-#include "executors/distinctexecutor.h"
-#include "executors/indexscanexecutor.h"
-#include "executors/insertexecutor.h"
-#include "executors/upsertexecutor.h"
-#include "executors/limitexecutor.h"
-#include "executors/materializeexecutor.h"
-#include "executors/nestloopexecutor.h"
-#include "executors/nestloopindexexecutor.h"
-#include "executors/orderbyexecutor.h"
-#include "executors/projectionexecutor.h"
-#include "executors/receiveexecutor.h"
-#include "executors/sendexecutor.h"
-#include "executors/seqscanexecutor.h"
-#include "executors/unionexecutor.h"
-#include "executors/updateexecutor.h"
+#include <sstream>
+#include "abstractoperationnode.h"
+
+namespace voltdb {
+
+/**
+ *
+ */
+class UpsertPlanNode : public AbstractOperationPlanNode {
+    public:
+        UpsertPlanNode(CatalogId id) : AbstractOperationPlanNode(id) {
+            // Do nothing
+        }
+        UpsertPlanNode() : AbstractOperationPlanNode() {
+            // Do nothing
+        }
+       ~UpsertPlanNode();
+
+        virtual PlanNodeType getPlanNodeType() const { return (PLAN_NODE_TYPE_UPSERT); }
+
+        bool isMultiPartition() { return m_multiPartition; }
+
+    protected:
+        friend AbstractPlanNode* AbstractPlanNode::fromJSONObject(json_spirit::Object &obj, const catalog::Database *catalog_db);
+        virtual void loadFromJSONObject(json_spirit::Object &obj, const catalog::Database *catalog_db);
+
+        bool m_multiPartition;
+};
+
+}
 
 #endif
+

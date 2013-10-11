@@ -26,5 +26,10 @@ public class UpsertPlanNode extends InsertPlanNode {
         super(context, id);
         
     }
+    
+    @Override
+    public PlanNodeType getPlanNodeType() {
+        return PlanNodeType.INSERT;
+    }
 
 }

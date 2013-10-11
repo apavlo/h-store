@@ -1,8 +1,8 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB Inc.
+ * Copyright (C) 2008-2010 VoltDB L.L.C.
  *
  * This file contains original code and/or modifications of original code.
- * Any modifications made by VoltDB Inc. are licensed under the following
+ * Any modifications made by VoltDB L.L.C. are licensed under the following
  * terms and conditions:
  *
  * VoltDB is free software: you can redistribute it and/or modify
@@ -43,28 +43,29 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef HSTOREEXECUTORS_H
-#define HSTOREEXECUTORS_H
+#include <sstream>
+#include "upsertnode.h"
+#include "common/common.h"
+#include "common/FatalException.hpp"
+#include "expressions/abstractexpression.h"
+#include "storage/table.h"
 
-//
-// This is just for convenience
-//
-#include "executors/aggregateexecutor.hpp"
-#include "executors/deleteexecutor.h"
-#include "executors/distinctexecutor.h"
-#include "executors/indexscanexecutor.h"
-#include "executors/insertexecutor.h"
-#include "executors/upsertexecutor.h"
-#include "executors/limitexecutor.h"
-#include "executors/materializeexecutor.h"
-#include "executors/nestloopexecutor.h"
-#include "executors/nestloopindexexecutor.h"
-#include "executors/orderbyexecutor.h"
-#include "executors/projectionexecutor.h"
-#include "executors/receiveexecutor.h"
-#include "executors/sendexecutor.h"
-#include "executors/seqscanexecutor.h"
-#include "executors/unionexecutor.h"
-#include "executors/updateexecutor.h"
+namespace voltdb {
 
-#endif
+void UpsertPlanNode::loadFromJSONObject(json_spirit::Object &obj, const catalog::Database *catalog_db) {
+    AbstractOperationPlanNode::loadFromJSONObject(obj, catalog_db);
+    json_spirit::Value multiPartitionValue = json_spirit::find_value(obj, "MULTI_PARTITION");
+    if (multiPartitionValue == json_spirit::Value::null) {
+        throw SerializableEEException(VOLT_EE_EXCEPTION_TYPE_EEEXCEPTION,
+                                      "UpsertPlanNode::loadFromJSONObject:"
+                                      " Can't find MULTI_PARTITION value");
+    }
+    m_multiPartition = multiPartitionValue.get_bool();
+}
+
+UpsertPlanNode::~UpsertPlanNode() {
+    delete getOutputTable();
+    setOutputTable(NULL);
+}
+
+}

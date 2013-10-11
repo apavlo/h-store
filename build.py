@@ -212,6 +212,7 @@ CTX.INPUT['executors'] = """
  executorutil.cpp
  indexscanexecutor.cpp
  insertexecutor.cpp
+ upsertexecutor.cpp
  limitexecutor.cpp
  materializeexecutor.cpp
  nestloopexecutor.cpp
@@ -241,6 +242,7 @@ CTX.INPUT['plannodes'] = """
  distinctnode.cpp
  indexscannode.cpp
  insertnode.cpp
+ upsertnode.cpp
  limitnode.cpp
  materializenode.cpp
  nestloopindexnode.cpp

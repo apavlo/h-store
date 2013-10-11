@@ -62,6 +62,7 @@ AbstractExecutor* getNewExecutor(VoltDBEngine *engine,
     case PLAN_NODE_TYPE_DISTINCT: return new DistinctExecutor(engine, abstract_node);
     case PLAN_NODE_TYPE_INDEXSCAN: return new IndexScanExecutor(engine, abstract_node);
     case PLAN_NODE_TYPE_INSERT: return new InsertExecutor(engine, abstract_node);
+    case PLAN_NODE_TYPE_UPSERT: return new UpsertExecutor(engine, abstract_node);
     case PLAN_NODE_TYPE_LIMIT: return new LimitExecutor(engine, abstract_node);
     case PLAN_NODE_TYPE_MATERIALIZE: return new MaterializeExecutor(engine, abstract_node);
     case PLAN_NODE_TYPE_NESTLOOP: return new NestLoopExecutor(engine, abstract_node);

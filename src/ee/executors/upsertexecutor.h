@@ -1,8 +1,8 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB Inc.
+ * Copyright (C) 2008-2010 VoltDB L.L.C.
  *
  * This file contains original code and/or modifications of original code.
- * Any modifications made by VoltDB Inc. are licensed under the following
+ * Any modifications made by VoltDB L.L.C. are licensed under the following
  * terms and conditions:
  *
  * VoltDB is free software: you can redistribute it and/or modify
@@ -43,28 +43,59 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef HSTOREEXECUTORS_H
-#define HSTOREEXECUTORS_H
+#ifndef HSTOREUPSERTEXECUTOR_H
+#define HSTOREUPSERTEXECUTOR_H
 
-//
-// This is just for convenience
-//
-#include "executors/aggregateexecutor.hpp"
-#include "executors/deleteexecutor.h"
-#include "executors/distinctexecutor.h"
-#include "executors/indexscanexecutor.h"
-#include "executors/insertexecutor.h"
-#include "executors/upsertexecutor.h"
-#include "executors/limitexecutor.h"
-#include "executors/materializeexecutor.h"
-#include "executors/nestloopexecutor.h"
-#include "executors/nestloopindexexecutor.h"
-#include "executors/orderbyexecutor.h"
-#include "executors/projectionexecutor.h"
-#include "executors/receiveexecutor.h"
-#include "executors/sendexecutor.h"
-#include "executors/seqscanexecutor.h"
-#include "executors/unionexecutor.h"
-#include "executors/updateexecutor.h"
+#include "common/common.h"
+#include "common/valuevector.h"
+#include "common/tabletuple.h"
+#include "executors/abstractexecutor.h"
+
+namespace voltdb {
+
+class UpsertPlanNode;
+class Table;
+
+/**
+ *
+ */
+class UpsertExecutor : public OperationExecutor {
+    public:
+        UpsertExecutor(VoltDBEngine *engine, AbstractPlanNode* abstract_node) : OperationExecutor(engine, abstract_node) {
+            m_inputTable = NULL;
+            m_targetTable = NULL;
+            m_node = NULL;
+            m_engine = engine;
+            m_partitionColumn = -1;
+            m_multiPartition = false;
+        }
+    protected:
+        bool p_init(AbstractPlanNode*, const catalog::Database* catalog_db, int* tempTableMemoryInBytes);
+        bool p_execute(const NValueArray &params, ReadWriteTracker *tracker);
+
+        virtual bool needsOutputTableClear() { return true; };
+
+        UpsertPlanNode* m_node;
+
+        Table* m_inputTable;
+        Table* m_targetTable;
+
+        TableTuple m_tuple;
+        int m_partitionColumn;
+        bool m_partitionColumnIsString;
+        bool m_multiPartition;
+
+        /** reference to the engine/context to store the number of modified tuples */
+        VoltDBEngine* m_engine;
+		
+        // added by hawk, 10/4/2013
+        std::vector<std::pair<int, int> > m_inputTargetMap;
+        int m_inputTargetMapSize;
+
+	TableTuple m_targetTuple; 
+	// ended by hawk
+};
+
+}
 
 #endif

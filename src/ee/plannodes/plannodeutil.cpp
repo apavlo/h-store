@@ -93,6 +93,12 @@ voltdb::AbstractPlanNode* getEmptyPlanNode(voltdb::PlanNodeType type) {
             ret = new voltdb::InsertPlanNode();
             break;
         // ------------------------------------------------------------------
+        // Upsert
+        // ------------------------------------------------------------------
+        case (voltdb::PLAN_NODE_TYPE_UPSERT):
+            ret = new voltdb::UpsertPlanNode();
+            break;
+        // ------------------------------------------------------------------
         // Delete
         // ------------------------------------------------------------------
         case (voltdb::PLAN_NODE_TYPE_DELETE):
@@ -203,6 +209,12 @@ std::string getTypeName(voltdb::PlanNodeType type) {
         // ------------------------------------------------------------------
         case (voltdb::PLAN_NODE_TYPE_INSERT):
             ret = "INSERT";
+            break;
+        // ------------------------------------------------------------------
+        // Upsert
+        // ------------------------------------------------------------------
+        case (voltdb::PLAN_NODE_TYPE_UPSERT):
+            ret = "UPSERT";
             break;
         // ------------------------------------------------------------------
         // Delete
