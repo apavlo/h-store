@@ -132,7 +132,7 @@ public class PlannerTestAideDeCamp {
 
         CompiledPlan plan = null;
         plan = planner.compilePlan(costModel, catalogStmt.getSqltext(), catalogStmt.getTypeName(),
-                                   catalogStmt.getParent().getTypeName(), catalogStmt.getSinglepartition(), null);
+                                   catalogStmt.getParent().getTypeName(), catalogStmt.getSinglepartition(), false, null);
 
         if (plan == null)
         {

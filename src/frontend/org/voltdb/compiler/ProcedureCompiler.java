@@ -113,6 +113,7 @@ public abstract class ProcedureCompiler {
         // get the sql statements
         // iterate through the fields and deal with
         ArrayList<String> sql_list = new ArrayList<String>();
+        ArrayList<SQLStmt> sqlStmt_list = new ArrayList<SQLStmt>();
         Field[] fields = procClass.getFields();
         for (Field f : fields) {
             if (f.getType() == SQLStmt.class) {
@@ -129,18 +130,22 @@ public abstract class ProcedureCompiler {
                 
                 String sql = stmt.getText();
                 sql_list.add(sql);
+                sqlStmt_list.add(stmt);
 
             }
         }
         String[] sqlArr = new String[sql_list.size()];
         sqlArr = sql_list.toArray(sqlArr);
+
+        SQLStmt[] sqlStmtArr = new SQLStmt[sqlStmt_list.size()];
+        sqlStmtArr = sqlStmt_list.toArray(sqlStmtArr);
         
     	// get the stream table
         String streamName = triggerInstance.getStreamName();
         Table stream = (db.getTables().getIgnoreCase(streamName));
         
         // add trigger to catalog 
-        addTriggerToCatalog(compiler, hsql, stream, stream.getTriggers(), catalog, db, sqlArr, compiler.getNextTriggerId()); //currently sends null for the trigger map
+        addTriggerToCatalog(compiler, hsql, stream, stream.getTriggers(), catalog, db, sqlArr, sqlStmtArr, compiler.getNextTriggerId()); //currently sends null for the trigger map
     	
     	return;
 
@@ -164,6 +169,7 @@ public abstract class ProcedureCompiler {
     		Catalog catalog, 
     		Database db, 
     		String[] stmt, 
+    		SQLStmt[] sqlStmtArr,
     		int trigId) 
     throws VoltCompilerException
     {
@@ -179,6 +185,8 @@ public abstract class ProcedureCompiler {
 		for(int i = 0; i < stmt.length; i++)
 		{
 			Statement s = trigger.getStatements().add("trig" + trigId + "stmt" + i);
+			SQLStmt sqlStmt = (SQLStmt)sqlStmtArr[i];
+			s.setUpsertable(sqlStmt.Upsertable());
 			StatementCompiler.compile(compiler, hsql, catalog, db, new DatabaseEstimates(), s, stmt[i], true);
 		}
     }

@@ -180,6 +180,7 @@ begin Statement             "A parameterized SQL statement embedded in a stored 
     string ms_exptree         "A serialized representation of the multi-sited query plan"
     string ms_fullplan        "A serialized representation of the multi-sited query plan"
     int cost                  "The cost of this plan measured in arbitrary units"
+    bool upsertable           "Indicate if the statement is upsertable or not"
 end
 
 begin StmtParameter            "A parameter for a parameterized SQL statement"

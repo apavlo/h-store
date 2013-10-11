@@ -56,6 +56,7 @@ import org.voltdb.plannodes.ReceivePlanNode;
 import org.voltdb.plannodes.SendPlanNode;
 import org.voltdb.plannodes.SeqScanPlanNode;
 import org.voltdb.plannodes.UpdatePlanNode;
+import org.voltdb.plannodes.UpsertPlanNode;
 import org.voltdb.types.ExpressionType;
 import org.voltdb.types.PlanNodeType;
 import org.voltdb.types.SortDirectionType;
@@ -328,7 +329,7 @@ public class PlanAssembler {
      * @return A not-previously returned query plan or null if no more
      *         computable plans.
      */
-    CompiledPlan getNextPlan() {
+    CompiledPlan getNextPlan(boolean Upsertable) {
         // reset the plan column guids and pool
         //PlanColumn.resetAll();
 
@@ -337,7 +338,7 @@ public class PlanAssembler {
         retval.fragments.add(fragment);
         if (m_parsedInsert != null) {
             retval.fullWhereClause = m_parsedInsert.where;
-            fragment.planGraph = getNextInsertPlan();
+            fragment.planGraph = getNextInsertPlan(Upsertable);
             retval.fullWinnerPlan = fragment.planGraph;
             addParameters(retval, m_parsedInsert);
             assert (m_parsedInsert.tableList.size() == 1);
@@ -718,7 +719,7 @@ public class PlanAssembler {
      *
      * @return The next plan for a given insert statement.
      */
-    private AbstractPlanNode getNextInsertPlan() {
+    private AbstractPlanNode getNextInsertPlan(boolean Upsertable) {
         // there's really only one way to do an insert, so just
         // do it the right way once, then return null after that
         if (plansGenerated > 0)
@@ -738,7 +739,12 @@ public class PlanAssembler {
         }
 
         // the root of the insert plan is always an InsertPlanNode
-        InsertPlanNode insertNode = new InsertPlanNode(m_context, getNextPlanNodeId());
+        InsertPlanNode insertNode;
+        if(Upsertable==true)
+            insertNode = new UpsertPlanNode(m_context, getNextPlanNodeId());
+        else
+            insertNode = new InsertPlanNode(m_context, getNextPlanNodeId());
+        
         insertNode.setTargetTableName(targetTable.getTypeName());
         insertNode.setMultiPartition(m_singlePartition == false);
 

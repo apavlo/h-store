@@ -97,7 +97,7 @@ public class QueryPlanner {
      * @param paramHints
      * @return The best plan found for the SQL statement or null if none can be found.
      */
-    public CompiledPlan compilePlan(AbstractCostModel costModel, String sql, String stmtName, String procName, boolean singlePartition, ScalarValueHints[] paramHints) {
+    public CompiledPlan compilePlan(AbstractCostModel costModel, String sql, String stmtName, String procName, boolean singlePartition, boolean Upsertable, ScalarValueHints[] paramHints) {
         assert(costModel != null);
         assert(sql != null);
         assert(stmtName != null);
@@ -211,7 +211,7 @@ public class QueryPlanner {
             while (true) {
 
                 try {
-                    rawplan = m_assembler.getNextPlan();
+                    rawplan = m_assembler.getNextPlan(Upsertable);
                 }
                 // on exception, set the error message and bail...
                 catch (Throwable e) {

@@ -179,7 +179,7 @@ public abstract class StatementCompiler {
             try {
                 plan = planner.compilePlan(costModel, catalogStmt.getSqltext(),
                         catalogStmt.getName(), catalogStmt.getParent().getName(),
-                        catalogStmt.getSinglepartition(), null);
+                        catalogStmt.getSinglepartition(), catalogStmt.getUpsertable(), null);
             } catch (Throwable e) {
                 LOG.error("Failed to plan for stmt: " + catalogStmt.fullName(), e);
                 if (first_exception == null) {

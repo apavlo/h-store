@@ -63,6 +63,7 @@ protected:
     std::string m_ms_exptree;
     std::string m_ms_fullplan;
     int32_t m_cost;
+    bool m_upsertable;
 
     virtual void update();
 
@@ -115,6 +116,8 @@ public:
     const std::string & ms_fullplan() const;
     /** GETTER: The cost of this plan measured in arbitrary units */
     int32_t cost() const;
+    /** GETTER: Indicate if the statement is upsertable or not */
+    bool upsertable() const;
 };
 
 } // namespace catalog

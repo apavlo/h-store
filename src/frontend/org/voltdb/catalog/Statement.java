@@ -49,6 +49,7 @@ public class Statement extends CatalogType {
     String m_ms_exptree = new String();
     String m_ms_fullplan = new String();
     int m_cost;
+    boolean m_upsertable;
 
     void setBaseValues(Catalog catalog, CatalogType parent, String path, String name) {
         super.setBaseValues(catalog, parent, path, name);
@@ -79,6 +80,7 @@ public class Statement extends CatalogType {
         m_fields.put("ms_exptree", m_ms_exptree);
         m_fields.put("ms_fullplan", m_ms_fullplan);
         m_fields.put("cost", m_cost);
+        m_fields.put("upsertable", m_upsertable);
     }
 
     public void update() {
@@ -101,6 +103,7 @@ public class Statement extends CatalogType {
         m_ms_exptree = (String) m_fields.get("ms_exptree");
         m_ms_fullplan = (String) m_fields.get("ms_fullplan");
         m_cost = (Integer) m_fields.get("cost");
+        m_upsertable = (Boolean) m_fields.get("upsertable");
     }
 
     /** GETTER: Unique identifier for this Procedure. Allows for faster look-ups */
@@ -214,6 +217,11 @@ public class Statement extends CatalogType {
         return m_cost;
     }
 
+    /** GETTER: Indicate if the statement is upsertable or not */
+    public boolean getUpsertable() {
+        return m_upsertable;
+    }
+
     /** SETTER: Unique identifier for this Procedure. Allows for faster look-ups */
     public void setId(int value) {
         m_id = value; m_fields.put("id", value);
@@ -303,6 +311,11 @@ public class Statement extends CatalogType {
     /** SETTER: The cost of this plan measured in arbitrary units */
     public void setCost(int value) {
         m_cost = value; m_fields.put("cost", value);
+    }
+
+    /** SETTER: Indicate if the statement is upsertable or not */
+    public void setUpsertable(boolean value) {
+        m_upsertable = value; m_fields.put("upsertable", value);
     }
 
 }

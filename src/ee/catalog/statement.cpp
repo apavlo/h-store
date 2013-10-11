@@ -57,6 +57,7 @@ Statement::Statement(Catalog *catalog, CatalogType *parent, const string &path, 
     m_fields["ms_exptree"] = value;
     m_fields["ms_fullplan"] = value;
     m_fields["cost"] = value;
+    m_fields["upsertable"] = value;
 }
 
 Statement::~Statement() {
@@ -110,6 +111,7 @@ void Statement::update() {
     m_ms_exptree = m_fields["ms_exptree"].strValue.c_str();
     m_ms_fullplan = m_fields["ms_fullplan"].strValue.c_str();
     m_cost = m_fields["cost"].intValue;
+    m_upsertable = m_fields["upsertable"].intValue;
 }
 
 CatalogType * Statement::addChild(const std::string &collectionName, const std::string &childName) {
@@ -259,5 +261,9 @@ const string & Statement::ms_fullplan() const {
 
 int32_t Statement::cost() const {
     return m_cost;
+}
+
+bool Statement::upsertable() const {
+    return m_upsertable;
 }
 
