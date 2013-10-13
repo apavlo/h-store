@@ -351,7 +351,7 @@ protected:
     void nextFreeTuple(TableTuple *tuple);
     char * dataPtrForTuple(const int index) const;
     char * dataPtrForTupleForced(const int index);
-    void allocateNextBlock();
+    virtual void allocateNextBlock();
 
     /**
      * Normally this will return the tuple storage to the free list.

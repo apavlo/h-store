@@ -42,8 +42,6 @@ public class DesignerInfo {
      * The base database catalog object that the designer is creating a physical
      * plan for
      */
-    @Deprecated
-    public final Database catalog_db;
     public final CatalogContext catalogContext;
 
     /**
@@ -114,7 +112,6 @@ public class DesignerInfo {
      */
     public DesignerInfo(DesignerInfo src) {
         this.args = src.args;
-        this.catalog_db = src.catalog_db;
         this.catalogContext = src.catalogContext;
         this.workload = src.workload;
         this.stats = src.stats;
@@ -142,7 +139,6 @@ public class DesignerInfo {
      */
     public DesignerInfo(ArgumentsParser args) {
         this.args = args;
-        this.catalog_db = args.catalog_db;
         this.catalogContext = args.catalogContext;
         this.workload = args.workload;
         this.stats = args.stats;
@@ -164,6 +160,8 @@ public class DesignerInfo {
         if (args.param_mappings != null) {
             this.mappings = args.param_mappings;
             this.correlations_file = args.getFileParam(ArgumentsParser.PARAM_MAPPINGS);
+        } else if (this.catalogContext.paramMappings != null) {
+            this.mappings = this.catalogContext.paramMappings;
         }
 
         if (!DesignerInfo.DGRAPH_CACHE.containsKey(this.catalogContext.database)) {

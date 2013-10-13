@@ -214,6 +214,11 @@ public class DesignerHints implements Cloneable, JSONSerializable {
      * A list of procedure names we should ignore when doing any calculations
      */
     public final Set<String> ignore_procedures = new HashSet<String>();
+    
+    /**
+     * A list of table names we should ignore when doing any calculations
+     */
+    public final Set<String> ignore_tables = new HashSet<String>();
 
     /**
      * Relaxation Factors
@@ -578,6 +583,24 @@ public class DesignerHints implements Cloneable, JSONSerializable {
                 if (debug.val)
                     LOG.debug("Added ignore procedures: " + to_add);
                 this.ignore_procedures.addAll(to_add);
+            }
+        }
+        // HACK: Process wildcards
+        if (this.ignore_tables.size() > 0) {
+            Set<String> to_add = new HashSet<String>();
+            for (String table_name : this.ignore_tables) {
+                if (table_name.endsWith("*")) {
+                    table_name = table_name.substring(0, table_name.length() - 1);
+                    for (Table catalog_tbl : catalog_db.getTables()) {
+                        if (catalog_tbl.getName().startsWith(table_name))
+                            to_add.add(catalog_tbl.getName());
+                    } // FOR
+                } // FOR
+            } // FOR
+            if (to_add.size() > 0) {
+                if (debug.val)
+                    LOG.debug("Added ignore tables: " + to_add);
+                this.ignore_tables.addAll(to_add);
             }
         }
 

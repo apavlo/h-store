@@ -155,7 +155,7 @@ public final class HStoreConf {
         @ConfigProperty(
             description="Execute each HStoreSite with JVM asserts enabled. " +
                         "This should be set to false when running benchmark experiments.",
-            defaultBoolean=true,
+            defaultBoolean=false,
             experimental=false
         )
         public boolean jvm_asserts;
@@ -615,10 +615,19 @@ public final class HStoreConf {
         
         @ConfigProperty(
             description="Enable the anti-cache feature.",
-            defaultBoolean=false,
+            defaultBoolean=true,
             experimental=true
         )
         public boolean anticache_enable;
+        
+        @ConfigProperty(
+            description="Use a doubly-linked list for the anti-cache's LRU tracker. " +
+                        "This will increase the memory overhead of the anti-cache's metatadata " +
+                        "but it will improve the performance of eviction operations.",
+            defaultBoolean=true,
+            experimental=true
+        )
+        public boolean anticache_reversible_lru;
         
         @ConfigProperty(
             description="Enable the anti-cache profiling.",
@@ -693,6 +702,27 @@ public final class HStoreConf {
                 experimental=true
         )
         public String anticache_eviction_distribution;
+        
+        // ----------------------------------------------------------------------------
+        // Storage Options
+        // ----------------------------------------------------------------------------
+        
+        @ConfigProperty(
+            description="Use mmap to store database on local filesystem. " +
+                        "This is very experimental. Unless you are James, you probably " +
+                        "don't want to enable this feature.",
+            defaultBoolean=false,
+            experimental=true
+        )
+        public boolean storage_mmap;
+        
+        @ConfigProperty(
+            description="Location of where H-Store will store mmap files for each partition. " +
+                        "This is only used if ${site.storage_mmap} is enabled. ",
+            defaultString="${global.temp_dir}/mmap",
+            experimental=true
+        )
+        public String storage_mmap_dir;
         
         // ----------------------------------------------------------------------------
         // MapReduce Options
@@ -1278,10 +1308,10 @@ public final class HStoreConf {
         public boolean log_backup;
         
         @ConfigProperty(
-            description="Execute each HStoreSite with JVM asserts enabled. " +
+            description="Execute each client thread with JVM asserts enabled. " +
                         "The client asserts will not affect the runtime performance of the " +
                         "database cluster, but it may increase the overhead of each client thread.",
-            defaultBoolean=true,
+            defaultBoolean=false,
             experimental=false
         )
         public boolean jvm_asserts;
@@ -1330,7 +1360,7 @@ public final class HStoreConf {
         public String hosts;
 
         @ConfigProperty(
-            description="The number of txns that client process submits (per ms). The underlying " +
+            description="The number of txns that client process submits (per second). The underlying " +
                         "BenchmarkComponent will continue invoke the client driver's runOnce() method " +
                         "until it has submitted enough transactions to satisfy ${client.txnrate}. " +
                         "If ${client.blocking} is disabled, then the total transaction rate for a " +
@@ -1424,7 +1454,7 @@ public final class HStoreConf {
             description="Whether to use the BlockingClient. When this is true, then each client process will " +
                         "submit one transaction at a time and wait until the result is returned before " +
                         "submitting the next. The clients still follow the ${client.txnrate} parameter.",
-            defaultBoolean=false,
+            defaultBoolean=true,
             experimental=false
         )
         public boolean blocking;

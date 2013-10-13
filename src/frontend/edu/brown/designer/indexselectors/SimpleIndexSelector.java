@@ -42,14 +42,14 @@ public class SimpleIndexSelector extends AbstractIndexSelector {
      */
     @Override
     public IndexPlan generate(PartitionPlan plan) throws Exception {
-        IndexPlan indexPlan = new IndexPlan(info.catalog_db);
+        IndexPlan indexPlan = new IndexPlan(info.catalogContext.database);
 
         //
         // Go through and count up all the attribute sets that aren't used for
         // partitioning
         //
         PartitionTree ptree = null; // FIXME designer.getPartitionTree();
-        for (Procedure catalog_proc : info.catalog_db.getProcedures()) {
+        for (Procedure catalog_proc : info.catalogContext.database.getProcedures()) {
             AccessGraph agraph = designer.getAccessGraph(catalog_proc);
             if (agraph == null)
                 continue;

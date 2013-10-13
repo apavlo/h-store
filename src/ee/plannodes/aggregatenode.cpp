@@ -52,6 +52,8 @@
 #include <sstream>
 #include <stdexcept>
 
+#define _UNUSED(x) ((void)x)
+
 using namespace json_spirit;
 using namespace std;
 using namespace voltdb;
@@ -319,6 +321,12 @@ AggregatePlanNode::loadFromJSONObject(Object &obj,
         bool containsName = false;
         bool containsGuid = false;
         bool containsOutputColumn = false;
+
+        _UNUSED (containsType);
+        _UNUSED (containsName);
+        _UNUSED (containsGuid);
+        _UNUSED (containsOutputColumn);
+
         for (int zz = 0; zz < aggregateColumn.size(); zz++)
         {
             if (aggregateColumn[zz].name_ == "AGGREGATE_TYPE")

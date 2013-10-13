@@ -77,7 +77,7 @@ public class RandomPartitioner extends AbstractPartitioner {
         // each table
         Map<Table, List<Column>> table_columns = new HashMap<Table, List<Column>>();
         AccessGraph agraph = (this.limit_columns ? this.generateAccessGraph() : null);
-        for (Table catalog_tbl : info.catalog_db.getTables()) {
+        for (Table catalog_tbl : info.catalogContext.database.getTables()) {
             List<Column> columns = new ArrayList<Column>();
             if (this.limit_columns) {
                 List<Column> column_keys = PartitionerUtil.generateColumnOrder(info, agraph, catalog_tbl, hints, true, false);
@@ -95,7 +95,7 @@ public class RandomPartitioner extends AbstractPartitioner {
         while (round >= (-1 * rounds)) {
             double total_memory = 0d;
 
-            for (Table catalog_tbl : info.catalog_db.getTables()) {
+            for (Table catalog_tbl : info.catalogContext.database.getTables()) {
                 TableStatistics ts = info.stats.getTableStatistics(catalog_tbl);
                 assert (ts != null);
                 List<Column> columns = table_columns.get(catalog_tbl);
@@ -136,7 +136,7 @@ public class RandomPartitioner extends AbstractPartitioner {
         } // WHILE
 
         // PROCEDURES
-        for (Procedure catalog_proc : info.catalog_db.getProcedures()) {
+        for (Procedure catalog_proc : info.catalogContext.database.getProcedures()) {
             if (catalog_proc.getSystemproc())
                 continue;
             int size = catalog_proc.getParameters().size();

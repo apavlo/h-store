@@ -441,6 +441,10 @@ public class TestCatalogUtil extends BaseTestCase {
         Table catalog_tbl = this.getTable(TPCCConstants.TABLENAME_NEW_ORDER);
         Collection<Procedure> procedures = CatalogUtil.getReferencingProcedures(catalog_tbl);
         assertNotNull(procedures);
+        
+        // HACK: Remove MR procedures
+        procedures.removeAll(catalogContext.getMapReduceProcedures());
+        
         assertEquals(procedures.toString(), expected.length, procedures.size());
         for (int i = 0; i < expected.length; i++) {
             assert (procedures.contains(expected[i])) : "Missing " + expected[i];
@@ -451,12 +455,20 @@ public class TestCatalogUtil extends BaseTestCase {
      * testGetProceduresReplicatedColumn
      */
     public void testGetProceduresReplicatedColumn() throws Exception {
-        Procedure expected[] = { this.getProcedure(delivery.class), this.getProcedure(neworder.class), this.getProcedure(ResetWarehouse.class), };
+        Procedure expected[] = {
+            this.getProcedure(delivery.class),
+            this.getProcedure(neworder.class),
+            this.getProcedure(ResetWarehouse.class),
+        };
         Table catalog_tbl = this.getTable(TPCCConstants.TABLENAME_NEW_ORDER);
         Column catalog_col = ReplicatedColumn.get(catalog_tbl);
 
         Collection<Procedure> procedures = CatalogUtil.getReferencingProcedures(catalog_col);
         assertNotNull(procedures);
+        
+        // HACK: Remove MR procedures
+        procedures.removeAll(catalogContext.getMapReduceProcedures());
+        
         assertEquals(procedures.toString(), expected.length, procedures.size());
         for (int i = 0; i < expected.length; i++) {
             assert (procedures.contains(expected[i])) : "Missing " + expected[i];

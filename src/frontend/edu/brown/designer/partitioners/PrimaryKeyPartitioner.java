@@ -42,10 +42,10 @@ public class PrimaryKeyPartitioner extends AbstractPartitioner {
         PartitionPlan pplan = new PartitionPlan();
 
         if (debug.val)
-            LOG.debug("Selecting partitioning Column for " + this.info.catalog_db.getTables().size() + " Tables");
+            LOG.debug("Selecting partitioning Column for " + this.info.catalogContext.database.getTables().size() + " Tables");
         double total_memory_used = 0.0;
         boolean calculate_memory = (hints.force_replication_size_limit != null && hints.max_memory_per_partition != 0);
-        for (Table catalog_tbl : CatalogUtil.getDataTables(info.catalog_db)) {
+        for (Table catalog_tbl : CatalogUtil.getDataTables(info.catalogContext.database)) {
             String table_key = CatalogKey.createKey(catalog_tbl);
             TableEntry pentry = null;
             Column col = null;
@@ -84,13 +84,13 @@ public class PrimaryKeyPartitioner extends AbstractPartitioner {
 
         if (hints.enable_procparameter_search) {
             if (debug.val)
-                LOG.debug("Selecting partitioning ProcParameter for " + this.info.catalog_db.getProcedures().size() + " Procedures");
-            pplan.apply(info.catalog_db);
-            for (Procedure catalog_proc : this.info.catalog_db.getProcedures()) {
+                LOG.debug("Selecting partitioning ProcParameter for " + this.info.catalogContext.database.getProcedures().size() + " Procedures");
+            pplan.apply(info.catalogContext.database);
+            for (Procedure catalog_proc : this.info.catalogContext.database.getProcedures()) {
                 if (catalog_proc.getSystemproc() || catalog_proc.getParameters().size() == 0)
                     continue;
-                Set<String> param_order = PartitionerUtil.generateProcParameterOrder(info, info.catalog_db, catalog_proc, hints);
-                ProcedureEntry pentry = new ProcedureEntry(PartitionMethodType.HASH, CatalogKey.getFromKey(info.catalog_db, CollectionUtil.first(param_order), ProcParameter.class), null);
+                Set<String> param_order = PartitionerUtil.generateProcParameterOrder(info, info.catalogContext.database, catalog_proc, hints);
+                ProcedureEntry pentry = new ProcedureEntry(PartitionMethodType.HASH, CatalogKey.getFromKey(info.catalogContext.database, CollectionUtil.first(param_order), ProcParameter.class), null);
                 pplan.getProcedureEntries().put(catalog_proc, pentry);
             } // FOR
         }

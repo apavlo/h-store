@@ -52,6 +52,7 @@ public class TransactionMapCallback extends AbstractTransactionCallback<MapReduc
         MapReduceTransaction mr_ts = (MapReduceTransaction)this.ts;
         mr_ts.setReducePhase();
         assert(mr_ts.isReducePhase());
+        mr_ts.resetTransaction();
         
         if (hstore_site.getHStoreConf().site.mr_reduce_blocking){
             if (debug.val)

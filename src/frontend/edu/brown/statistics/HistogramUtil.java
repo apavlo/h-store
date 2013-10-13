@@ -28,6 +28,10 @@ public abstract class HistogramUtil {
     public static final Integer MAX_CHARS = 80;
     public static final int MAX_VALUE_LENGTH = 20;
     
+    /**
+     * Histogram Pretty Print
+     * @return
+     */
     public static <X> String toString(Histogram<X> histogram) {
         return toString(histogram, MAX_CHARS, MAX_VALUE_LENGTH);
     }
@@ -35,7 +39,7 @@ public abstract class HistogramUtil {
     public static <X> String toString(Histogram<X> histogram, int max_chars) {
         return toString(histogram, max_chars, MAX_VALUE_LENGTH);
     }
-
+    
     /**
      * Histogram Pretty Print
      * @param max_chars

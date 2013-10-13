@@ -257,7 +257,7 @@ public class ArgumentsParser {
     public int num_intervals = 100;
     public final DesignerHints designer_hints = new DesignerHints();
     public File designer_checkpoint;
-    public Class<? extends AbstractPartitioner> partitioner_class = HeuristicPartitioner.class;
+    public Class<? extends AbstractPartitioner> partitioner_class = BranchAndBoundPartitioner.class;
     public Class<? extends AbstractMapper> mapper_class = AffinityMapper.class;
     public Class<? extends AbstractIndexSelector> indexer_class = SimpleIndexSelector.class;
     public PartitionPlan pplan;

@@ -63,8 +63,8 @@ public class MapReduceTransaction extends LocalTransaction {
     /**
      * This is for non-blocking reduce executing in MapReduceHelperThread
      */
-    public boolean basePartition_reduce_runed = false;
-    public boolean basePartition_map_runed = false;
+    public boolean basePartition_reduce_exec = false;
+    public boolean basePartition_map_exec = false;
     
     // ----------------------------------------------------------------------------
     // CALLBACKS
@@ -228,6 +228,9 @@ public class MapReduceTransaction extends LocalTransaction {
         this.reduce_callback.finish();
         this.reduceWrapper_callback.finish();
         
+        this.basePartition_map_exec = false;
+        this.basePartition_reduce_exec = false;
+        
         // TODO(xin): Only call TransactionCleanupCallback.finish() if this txn's base
         //            partition is not at this HStoreSite. 
         if (!this.hstore_site.isLocalPartition(this.base_partition)) {
@@ -293,20 +296,22 @@ public class MapReduceTransaction extends LocalTransaction {
         return (super.isDeletable());
     }
     
-    public boolean isBasePartition_map_runed() {
-        return basePartition_map_runed;
+    public boolean isBasePartitionMapExec() {
+        return this.basePartition_map_exec;
     }
 
-    public void setBasePartition_map_runed(boolean map_runed) {
-        this.basePartition_map_runed = map_runed;
+    public void markBasePartitionMapExec() {
+        assert(this.basePartition_map_exec == false);
+        this.basePartition_map_exec = true;
     }
 
-    public boolean isBasePartition_reduce_runed() {
-        return basePartition_reduce_runed;
+    public boolean isBasePartitionReduceExec() {
+        return this.basePartition_reduce_exec;
     }
 
-    public void setBasePartition_reduce_runed(boolean reduce_runed) {
-        basePartition_reduce_runed = reduce_runed;
+    public void markBasePartitionReduceExec() {
+        assert(this.basePartition_reduce_exec == false);
+        this.basePartition_reduce_exec = true;
     }
     
     /*
@@ -425,7 +430,7 @@ public class MapReduceTransaction extends LocalTransaction {
     @Override
     public String toStringImpl() {
         return String.format("%s-%s #%d/%d", this.getProcedure().getName(),
-                                             (this.getState().toString()),
+                                             (this.getState() == null ? "null" : this.getState().toString()),
                                              this.txn_id, this.base_partition);
     }
 
@@ -461,5 +466,15 @@ public class MapReduceTransaction extends LocalTransaction {
         return this.reduceOutput[partition];
         //return this.reduceOutput[partition];
     }
+
+    /**
+     * Reset variables in sub transactions to allow for re-execution.
+     */
+	public void resetTransaction() {
+		for (LocalTransaction local_txn : this.local_txns) {
+			local_txn.resetControlCodeExecuted();
+			local_txn.resetClientResponse();
+		}
+	}
     
 }

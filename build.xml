@@ -858,7 +858,12 @@ NATIVE EE STUFF
 </target>
 <target name="ee-build">
     <exec dir='.' executable='python' failonerror='true'>
-        <arg line="build.py LOG_LEVEL=${site.exec_ee_log_level} ${build}" />
+        <arg value="build.py" />
+        <arg value="LOG_LEVEL=${site.exec_ee_log_level}" />
+        <arg value="MMAP_STORAGE=${site.storage_mmap}" />
+        <arg value="ANTICACHE_ENABLE=${site.anticache_enable}" />
+        <arg value="ANTICACHE_REVERSIBLE_LRU=${site.anticache_reversible_lru}" />
+        <arg value="${build}" />
     </exec>
 </target>
 
