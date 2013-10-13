@@ -100,6 +100,9 @@ public abstract class VoltMapReduceProcedure<K> extends VoltProcedure {
         // responsible for sending out the coordination messages to the other partitions
         boolean is_local = (this.partitionId == mr_ts.getBasePartition());
 
+        // ----------------------------------------------------------------------------
+        // MAP PHASE
+        // ----------------------------------------------------------------------------
         if (this.mr_ts.isMapPhase()) {
             // If this is the base partition, then we'll send the out the MAP
             // initialization requests to all of the partitions
@@ -108,7 +111,7 @@ public abstract class VoltMapReduceProcedure<K> extends VoltProcedure {
                 // execute the MAP phase of this job
                 if (debug.val)
                     LOG.debug("<VoltMapReduceProcedure.run> is executing ..<Map>...local!!!....\n");
-                this.executor.getHStoreSite().getCoordinator().transactionMap(mr_ts, mr_ts.getTransactionMapCallback());
+                hstore_site.getCoordinator().transactionMap(mr_ts, mr_ts.getTransactionMapCallback());
             }
             
             this.map_output = this.mr_ts.getMapOutputByPartition(this.partitionId);
@@ -155,25 +158,29 @@ public abstract class VoltMapReduceProcedure<K> extends VoltProcedure {
             callback.run(this.partitionId);
         }
 
+        // ----------------------------------------------------------------------------
+        // REDUCE PHASE
+        // ----------------------------------------------------------------------------
         else if (mr_ts.isReducePhase()) {
             // If this is the local/base partition, send out the start REDUCE message 
             if (is_local) {
                 if (debug.val)
                     LOG.debug("<VoltMapReduceProcedure.run> is executing ..<Reduce>...local!!!....\n");
                 // Send out network messages to all other partitions to tell them to execute the Reduce phase of this job
-                this.executor.getHStoreSite().getCoordinator().transactionReduce(mr_ts, mr_ts.getTransactionReduceCallback());
+                hstore_site.getCoordinator().transactionReduce(mr_ts, mr_ts.getTransactionReduceCallback());
             }
             this.reduce_input = null; // 
             this.reduce_input = mr_ts.getReduceInputByPartition(this.partitionId);
             assert(this.reduce_input != null);
             if(debug.val) 
-                LOG.debug("__FILE__:__LINE__ " + String.format("TXN: %s, [Stage] \n<VoltMapReduceProcedure.run> is executing <Reduce>..",mr_ts)); 
+                LOG.debug(String.format("TXN: %s, [Stage] \n<VoltMapReduceProcedure.run> is executing <Reduce>..",mr_ts)); 
             if (debug.val)
                 LOG.debug(String.format("<ReduceInputTable> Partition:%d\n %s", this.partitionId,this.reduce_input));
             
             
             // Sort the the MAP_OUTPUT table
             // Build an "smart" iterator that loops through the MAP_OUTPUT table key-by-key
+            @SuppressWarnings("unchecked")
             VoltTable sorted = VoltTableUtil.sort(this.reduce_input, Pair.of(0, SortDirectionType.ASC));
             //VoltTable sorted = VoltTableUtil.sort(mr_ts.getReduceInputByPartition(this.partitionId), Pair.of(0, SortDirectionType.ASC));
             assert(sorted != null);
