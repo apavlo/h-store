@@ -564,6 +564,8 @@ public class BenchmarkController {
             hstore_conf.global.sshprefix.isEmpty() == false) {
             siteBaseCommand.add(hstore_conf.global.sshprefix + " && ");
         }
+        
+        // TODO: Switch to HStoreLauncher
         siteBaseCommand.add("ant hstore-site");
         siteBaseCommand.add("-Dconf=" + m_config.hstore_conf_path);
         siteBaseCommand.add("-Dproject=" + this.projectBuilder.getProjectName());
