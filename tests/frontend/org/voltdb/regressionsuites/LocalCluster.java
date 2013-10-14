@@ -43,6 +43,7 @@ import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.ClusterConfiguration;
 import edu.brown.catalog.FixCatalog;
 import edu.brown.hstore.HStoreConstants;
+import edu.brown.hstore.HStoreLauncher;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.StringUtil;
@@ -251,23 +252,11 @@ public class LocalCluster extends VoltServerConfig {
         
         // Construct the base command that we will want to use to start
         // all of the "remote" HStoreSites 
-        List<String> siteCommand = new ArrayList<String>();
-        CollectionUtil.addAll(siteCommand, 
-            "ant",
-//            "compile",
-            "hstore-site",
-            "-Djar=" + m_jarFileName
-        );
-        // Be sure to include our HStoreConf parameters
-        for (Entry<String, String> e : this.confParams.entrySet()) {
-            siteCommand.add(String.format("-D%s=%s", e.getKey(), e.getValue()));
-        }
-        // Lastly, we will include the site.id as the last parameter
-        // so that we can easily change it
-        siteCommand.add("-Dsite.id=-1");
-
-        LOG.debug("Base command to start remote sites:\n" + StringUtil.join("\n", siteCommand));
-        m_procBuilder = new ProcessBuilder(siteCommand.toArray(new String[0]));
+        String siteCommand[] = HStoreLauncher.createHStoreSiteCommand(m_jarFileName, 0, this.confParams);
+        LOG.debug("Base command to start remote sites:\n" +
+                  StringUtil.join("\n", siteCommand));
+        
+        m_procBuilder = new ProcessBuilder(siteCommand);
         m_procBuilder.redirectErrorStream(true);
         // set the working directory to obj/release/prod
         //m_procBuilder.directory(new File(m_buildDir + File.separator + "prod"));
@@ -281,13 +270,6 @@ public class LocalCluster extends VoltServerConfig {
         }
 
         // create the in-process server
-//        Configuration config = new Configuration();
-//        config.m_backend = m_target;
-//        config.m_noLoadLibVOLTDB = (m_target == BackendTarget.HSQLDB_BACKEND);
-//        config.m_pathToCatalog = m_jarFileName;
-//        config.m_profilingLevel = ProcedureProfiler.Level.DISABLED;
-//        config.m_port = HStoreConstants.DEFAULT_PORT;
-
         HStoreConf hstore_conf = HStoreConf.singleton(HStoreConf.isInitialized() == false);
         hstore_conf.loadFromArgs(this.confParams);
         
@@ -343,7 +325,7 @@ public class LocalCluster extends VoltServerConfig {
                     assert (false);
                 }
             }
-        }
+        } // FOR
 
         // spin until all the pipes see the magic "Server completed.." string.
         boolean allReady;
