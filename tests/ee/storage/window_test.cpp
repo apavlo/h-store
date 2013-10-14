@@ -122,7 +122,9 @@ class WindowTest : public Test {
 
 			table = window_table;
 
-           //assert(tableutil::addRandomTuples(this->table, NUM_OF_TUPLES));
+			VOLT_DEBUG("TEST ASSERT");
+            assert(tableutil::addRandomTuples(this->table, NUM_OF_TUPLES));
+            VOLT_DEBUG("TEST ASSERT END");
 
             // clean up
             delete[] columnNames;
@@ -138,7 +140,7 @@ TEST_F(WindowTest, ValueTypes) {
     // Make sure that our table has the right types and that when
     // we pull out values from a tuple that it has the right type too
     //
-	/**
+	VOLT_DEBUG("TEST 1");
     voltdb::TableIterator iterator = this->table->tableIterator();
     voltdb::TableTuple tuple(table->schema());
     while (iterator.next(tuple)) {
@@ -147,7 +149,6 @@ TEST_F(WindowTest, ValueTypes) {
             EXPECT_EQ(COLUMN_TYPES[ctr], tuple.getType(ctr));
         }
     }
-	*/
 }
 
 TEST_F(WindowTest, TupleInsert) {

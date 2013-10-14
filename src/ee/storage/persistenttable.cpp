@@ -531,6 +531,7 @@ void setSearchKeyFromTuple(TableTuple &source) {
  * uninlined strings and creates and registers an UndoAction.
  */
 bool PersistentTable::insertTuple(TableTuple &source) {
+	VOLT_DEBUG("ENTER PERSISTENTTABLE INSERT TUPLE");
     size_t elMark = 0;
 
     //VOLT_INFO("In insertTuple().");
@@ -612,7 +613,7 @@ bool PersistentTable::insertTuple(TableTuple &source) {
     AntiCacheEvictionManager* eviction_manager = m_executorContext->getAntiCacheEvictionManager();
     eviction_manager->updateTuple(this, &m_tmpTarget1, true); 
 #endif
-
+    VOLT_DEBUG("EXIT PERSISTENTTABLE INSERT TUPLE");
     return true;
 }
 
