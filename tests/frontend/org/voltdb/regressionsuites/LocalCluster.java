@@ -306,6 +306,10 @@ public class LocalCluster extends VoltServerConfig {
             if (site_id == 0) {
                 m_localServer = new ServerThread(this.catalogContext, hstore_conf, site_id);
                 m_localServer.start();
+                if (logtime) {
+                    System.out.println("********** Started in-process HStoreSite [siteId=" + site_id + "]");
+                    System.out.flush();
+                }
             }
             // Otherwise, fork a new JVM that will run our other HStoreSites.
             // Remember that it is one JVM per HStoreSite
@@ -337,6 +341,10 @@ public class LocalCluster extends VoltServerConfig {
                     Thread t = new Thread(ptf);
                     t.setName("ClusterPipe:" + String.valueOf(site_id));
                     t.start();
+                    if (logtime) {
+                        System.out.println("********** Started separate HStoreSite process [siteId=" + site_id + "]");
+                        System.out.flush();
+                    }
                 }
                 catch (IOException ex) {
                     LOG.fatal("Failed to start cluster process", ex);
