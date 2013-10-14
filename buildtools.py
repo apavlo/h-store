@@ -40,7 +40,7 @@ class BuildContext:
         self.COVERAGE = False
         self.VOLT_LOG_LEVEL = None
         self.MMAP_STORAGE = False
-        self.ANTICACHE_ENABLE = True
+        self.ANTICACHE_BUILD = True
         self.ANTICACHE_REVERSIBLE_LRU = True
         
         for arg in [x.strip().upper() for x in args]:
@@ -54,10 +54,10 @@ class BuildContext:
                 parts = arg.split("=")
                 if len(parts) > 1 and not parts[1].startswith("${"): 
                     self.MMAP_STORAGE = bool(parts[1])
-            if arg.startswith("ANTICACHE_ENABLE="):
+            if arg.startswith("ANTICACHE_BUILD="):
                 parts = arg.split("=")
                 if len(parts) > 1 and not parts[1].startswith("${"):
-                    self.ANTICACHE_ENABLE = bool(parts[1])
+                    self.ANTICACHE_BUILD = bool(parts[1])
             if arg.startswith("ANTICACHE_REVERSIBLE_LRU="):
                 parts = arg.split("=")
                 if len(parts) > 1 and not parts[1].startswith("${"):
