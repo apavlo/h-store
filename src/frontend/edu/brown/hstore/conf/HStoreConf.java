@@ -614,11 +614,20 @@ public final class HStoreConf {
         // ----------------------------------------------------------------------------
         
         @ConfigProperty(
-            description="Enable the anti-cache feature.",
-            defaultBoolean=true,
+            description="Enable the anti-cache feature. This requires that the system " +
+            		    "is compiled with ${site.anticache_build} set to true.",
+            defaultBoolean=false,
             experimental=true
         )
         public boolean anticache_enable;
+        
+        @ConfigProperty(
+            description="Build the anti-cache feature when compiling the H-Store source code. " +
+            		    "You probably always want to leave this flag enabled.",
+            defaultBoolean=true,
+            experimental=true
+        )
+        public boolean anticache_build;
         
         @ConfigProperty(
             description="Use a doubly-linked list for the anti-cache's LRU tracker. " +
