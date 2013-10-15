@@ -46,7 +46,6 @@
 #include <sstream>
 #include <cassert>
 #include <cstdio>
-#include <inttypes.h>
 
 #include "boost/scoped_ptr.hpp"
 #include "storage/persistenttable.h"
@@ -95,7 +94,6 @@ TableTuple keyTuple;
  */
 #define TABLE_BLOCKSIZE 2097152
 #define MAX_EVICTED_TUPLE_SIZE 2500
-
 
 PersistentTable::PersistentTable(ExecutorContext *ctx, bool exportEnabled) :
     Table(TABLE_BLOCKSIZE), m_executorContext(ctx), m_uniqueIndexes(NULL), m_uniqueIndexCount(0), m_allowNulls(NULL),

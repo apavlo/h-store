@@ -1398,20 +1398,18 @@ void VoltDBEngine::trackingEnable(int64_t txnId) {
         VOLT_INFO("Setting up Tracking Manager at Partition %d", m_partitionId);
         m_executorContext->enableTracking();
     }
-    VOLT_INFO("Creating ReadWriteTracker for txn #%ld at Partition %d", (long
-    int) txnId, m_partitionId);
+    VOLT_INFO("Creating ReadWriteTracker for txn #%ld at Partition %d", txnId, m_partitionId);
     ReadWriteTrackerManager *trackerMgr = m_executorContext->getTrackerManager();
     trackerMgr->enableTracking(txnId);
 }
 
 void VoltDBEngine::trackingFinish(int64_t txnId) {
     if (m_executorContext->isTrackingEnabled() == false) {
-        VOLT_WARN("Tracking is not enable for txn #%ld at Partition %d", (long
-        int) txnId, m_partitionId);
+        VOLT_WARN("Tracking is not enable for txn #%ld at Partition %d", txnId, m_partitionId);
         return;
     }
     ReadWriteTrackerManager *trackerMgr = m_executorContext->getTrackerManager();
-    VOLT_INFO("Deleting ReadWriteTracker for txn #%ldat Partition %d",
+    VOLT_INFO("Deleting ReadWriteTracker for txn #%ld at Partition %d",
               txnId, m_partitionId);
     trackerMgr->removeTracker(txnId);
     return;
@@ -1583,8 +1581,7 @@ void VoltDBEngine::MMAPInitialize(std::string dbDir, long mapSize) const {
 }
 #else
 void VoltDBEngine::MMAPInitialize(std::string dbDir, long blockSize) const {
-    // TODO : We don't enable this by default
-    //VOLT_ERROR("Storage MMAP feature was not enabled when compiling the EE");
+    VOLT_ERROR("Storage MMAP feature was not enabled when compiling the EE");
 }
 #endif
     

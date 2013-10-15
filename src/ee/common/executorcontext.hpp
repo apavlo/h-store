@@ -101,7 +101,7 @@ namespace voltdb {
             return (m_hostId);
         }
         
-		#ifdef STORAGE_MMAP
+        #ifdef STORAGE_MMAP
         std::string getDBDir() const {
         	return (m_MMAPDir);
         }
@@ -210,7 +210,7 @@ namespace voltdb {
         // ------------------------------------------------------------------
         // STORAGE MMAP
         // ------------------------------------------------------------------
-		#ifdef STORAGE_MMAP
+        #ifdef STORAGE_MMAP
 
         /**
          * Enable the mmap storage feature in the EE.

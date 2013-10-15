@@ -39,7 +39,7 @@ class BuildContext:
         self.NMFLAGS = "-n"    # specialized by platform in build.py
         self.COVERAGE = False
         self.VOLT_LOG_LEVEL = None
-        self.MMAP_STORAGE = False
+        self.STORAGE_MMAP = False
         self.ANTICACHE_BUILD = True
         self.ANTICACHE_REVERSIBLE_LRU = True
 
