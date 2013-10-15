@@ -29,7 +29,7 @@ public class UpsertPlanNode extends InsertPlanNode {
     
     @Override
     public PlanNodeType getPlanNodeType() {
-        return PlanNodeType.INSERT;
+        return PlanNodeType.UPSERT;
     }
 
 }

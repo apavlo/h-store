@@ -15,11 +15,6 @@ public class UpdateVotesAndTotalVotesTrigger extends VoltTrigger {
         "INSERT INTO votes (vote_id, phone_number, state, contestant_number, created) SELECT * FROM S2;"
     );
     
-    // update total number of validate votes 
-    public final SQLStmt updateTotalVotesStmt = 
-            new SQLStmt("UPDATE total_votes SET num_votes = num_votes + 1");
-   
-    
     // step 5-1: insert temp table T3
     public final SQLStmt insertT3Stmt = new SQLStmt(
             "INSERT INTO T3 (phone_number, num_votes) SELECT votes_by_phone_number.* FROM votes_by_phone_number, S2 WHERE votes_by_phone_number.phone_number=S2.phone_number;"

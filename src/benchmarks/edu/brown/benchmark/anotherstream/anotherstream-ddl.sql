@@ -1,14 +1,3 @@
--- configuration table holds the configuration values
-CREATE TABLE configuration
-(
-  name  varchar(20) NOT NULL
-, value integer     NOT NULL
-, CONSTRAINT PK_configuration PRIMARY KEY
-  (
-    name
-  )
-);
-
 -- contestants table holds the contestants numbers (for voting) and names
 CREATE TABLE contestants
 (
@@ -53,13 +42,6 @@ CREATE TABLE votes_by_contestant_number_state
 , state              varchar(2) NOT NULL
 , num_votes          int
 );
-
-CREATE TABLE total_votes
-(
-    row_id           bigint    NOT NULL,
-    num_votes        int       NOT NULL
-);
-
 
 -- rollup of votes by phone number, used to reject excessive voting
 CREATE TABLE votes_by_phone_number

@@ -9,9 +9,6 @@ singlePartition = false
 )
 public class Initialize extends VoltProcedure
 {
-    // configure teh basic varibles need by voter system
-    public final SQLStmt insertConfStmt = new SQLStmt("INSERT INTO configuration VALUES (?,?);");
-    
     // Check if the database has already been initialized
     public final SQLStmt checkStmt = new SQLStmt("SELECT COUNT(*) FROM contestants;");
 	
@@ -21,8 +18,6 @@ public class Initialize extends VoltProcedure
     // Inserts a contestant
     public final SQLStmt insertContestantStmt = new SQLStmt("INSERT INTO contestants (contestant_name, contestant_number) VALUES (?, ?);");
 	
-    public final SQLStmt insertVoteCount = new SQLStmt("INSERT INTO total_votes (row_id, num_votes) VALUES (?, ?)");
-    
     public final SQLStmt votes_by_c_s = new SQLStmt("INSERT INTO votes_by_contestant_number_state (contestant_number, state, num_votes) VALUES (?,?,0);");
 
     // Domain data: matching lists of Area codes and States
@@ -110,13 +105,6 @@ public class Initialize extends VoltProcedure
                 voltExecuteSQL();
             }
         }
-        
-        
-        voltQueueSQL(insertVoteCount, 1, 0);
-        voltExecuteSQL();
-        
-        voltQueueSQL(insertConfStmt, "threshold", 2);
-        voltExecuteSQL();
         
         return maxContestants;
     }
