@@ -160,7 +160,7 @@ namespace voltdb {
 	}
 
 	bool UpsertExecutor::p_execute(const NValueArray &params, ReadWriteTracker *tracker) {
-		assert(m_node == dynamic_cast<InsertPlanNode*>(abstract_node));
+		assert(m_node == dynamic_cast<UpsertPlanNode*>(abstract_node));
 		assert(m_node);
 		// XXX assert(m_inputTable == dynamic_cast<TempTable*>(m_node->getInputTables()[0]));
 		assert(m_inputTable);

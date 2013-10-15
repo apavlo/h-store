@@ -57,7 +57,7 @@ void UpdatePlanNode::loadFromJSONObject(json_spirit::Object &obj, const catalog:
     json_spirit::Value updatesIndexesValue = json_spirit::find_value( obj, "UPDATES_INDEXES");
     if (updatesIndexesValue == json_spirit::Value::null) {
         throw SerializableEEException(VOLT_EE_EXCEPTION_TYPE_EEEXCEPTION,
-                                      "InsertPlanNode::loadFromJSONObject:"
+                                      "UpdatePlanNode::loadFromJSONObject:"
                                       " Can't find UPDATES_INDEXES value");
     }
     m_updatesIndexes = updatesIndexesValue.get_bool();
