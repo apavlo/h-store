@@ -281,7 +281,7 @@ string planNodeToString(PlanNodeType type)
         return "INSERT";
     }
     case PLAN_NODE_TYPE_UPSERT: {
-        return "INSERT";
+        return "UPSERT";
     }
     case PLAN_NODE_TYPE_DELETE: {
         return "DELETE";
@@ -339,6 +339,8 @@ PlanNodeType stringToPlanNode(string str )
         return PLAN_NODE_TYPE_UPDATE;
     } else if (str == "INSERT") {
         return PLAN_NODE_TYPE_INSERT;
+    } else if (str == "UPSERT") {
+        return PLAN_NODE_TYPE_UPSERT;
     } else if (str == "DELETE") {
         return PLAN_NODE_TYPE_DELETE;
     } else if (str == "SEND") {
