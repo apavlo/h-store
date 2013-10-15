@@ -27,6 +27,7 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.log4j.Logger;
 import org.voltdb.BackendTarget;
 import org.voltdb.CatalogContext;
 import org.voltdb.ServerThread;
@@ -43,6 +44,7 @@ import edu.brown.hstore.conf.HStoreConf;
  *
  */
 public class LocalSingleProcessServer extends VoltServerConfig {
+    private static final Logger LOG = Logger.getLogger(LocalSingleProcessServer.class);
 
     public final File m_jarFileName;
     public final int m_partitionCount;
@@ -77,8 +79,10 @@ public class LocalSingleProcessServer extends VoltServerConfig {
 
     @Override
     public boolean compile(VoltProjectBuilder builder) {
-        if (m_compiled == true)
+        if (m_compiled == true) {
+            LOG.info("ALREADY COMPILED");
             return true;
+        }
         builder.clearPartitions();
         for (int partition = 0; partition < m_partitionCount; ++partition) {
         	builder.addPartition("localhost", 0, partition);

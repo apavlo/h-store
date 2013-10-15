@@ -143,7 +143,7 @@ public class TestSqlAggregateSuite extends RegressionSuite {
                     assertEquals(table+"."+aggs[i], expected_results[i], val);
                 } else {
                     int val = (int)results[0].getLong(i);
-                    int expected = (int)expected_results[i];
+                    int expected = (int)(Integer)expected_results[i];
                     assertEquals(table+"."+aggs[i], expected, val);
                 }
             } // FOR

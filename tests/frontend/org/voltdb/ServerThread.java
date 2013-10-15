@@ -29,6 +29,7 @@ import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.HStore;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.conf.HStoreConf;
+import edu.brown.utils.ThreadUtil;
 
 /**
  * Wraps VoltDB in a Thread
@@ -63,8 +64,15 @@ public class ServerThread extends Thread {
 
     public void waitForInitialization() {
         // Wait until the server has actually started running.
+        int counter = 100;
         while (this.hstore_site == null || this.hstore_site.isRunning() == false) {
-            Thread.yield();
+            ThreadUtil.sleep(100);
+            if (counter-- == 0) {
+                break;
+            }
+        } // WHILE
+        if (counter == 0) {
+            throw new RuntimeException("Failed to start server thread!");
         }
     }
 

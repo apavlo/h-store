@@ -863,6 +863,8 @@ NATIVE EE STUFF
         <arg value="STORAGE_MMAP=${site.storage_mmap}" />
         <arg value="STORAGE_MMAP_FILE_SIZE=${site.storage_mmap_file_size}" />
         <arg value="ANTICACHE_ENABLE=${site.anticache_enable}" />
+        <arg value="MMAP_STORAGE=${site.storage_mmap}" />
+        <arg value="ANTICACHE_BUILD=${site.anticache_build}" />
         <arg value="ANTICACHE_REVERSIBLE_LRU=${site.anticache_reversible_lru}" />
         <arg value="${build}" />
     </exec>

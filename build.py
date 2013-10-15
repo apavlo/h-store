@@ -377,7 +377,7 @@ if CTX.STORAGE_MMAP:
 # ANTI-CACHING
 ###############################################################################
 
-if CTX.ANTICACHE_ENABLE:
+if CTX.ANTICACHE_BUILD:
     CTX.CPPFLAGS += " -DANTICACHE"
 
     if CTX.ANTICACHE_REVERSIBLE_LRU:

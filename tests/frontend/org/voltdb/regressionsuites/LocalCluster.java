@@ -39,6 +39,7 @@ import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.Site;
 import org.voltdb.compiler.VoltProjectBuilder;
 
+import edu.brown.catalog.CatalogInfo;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.ClusterConfiguration;
 import edu.brown.catalog.FixCatalog;
@@ -207,10 +208,14 @@ public class LocalCluster extends VoltServerConfig {
     @Override
     public boolean compile(VoltProjectBuilder builder) {
         if (m_compiled) {
+            LOG.info("ALREADY COMPILED");
             return true;
         }
-        m_compiled = builder.compile(m_jarFileName.getAbsolutePath(), m_partitionPerSite, m_siteCount,
-                                     m_replication, "localhost");
+        m_compiled = builder.compile(m_jarFileName.getAbsolutePath(),
+                                     m_partitionPerSite,
+                                     m_siteCount,
+                                     m_replication,
+                                     "localhost");
         
         // (1) Load catalog from Jar
         Catalog tmpCatalog = CatalogUtil.loadCatalogFromJar(m_jarFileName);
@@ -237,7 +242,8 @@ public class LocalCluster extends VoltServerConfig {
         assert(this.catalogContext != null);
         
         // tmpCatalog = CatalogUtil.loadCatalogFromJar(m_jarFileName);
-        // System.err.println(CatalogInfo.getInfo(this.catalog, new File(m_jarFileName)));
+        System.err.println(CatalogInfo.getInfo(this.catalogContext));
+        System.err.flush();
         
         return m_compiled;
     }
@@ -246,6 +252,7 @@ public class LocalCluster extends VoltServerConfig {
     public void startUp() {
         assert (!m_running);
         if (m_running) {
+            LOG.info("ALREADY RUNNING");
             return;
         }
         
@@ -306,6 +313,10 @@ public class LocalCluster extends VoltServerConfig {
             if (site_id == 0) {
                 m_localServer = new ServerThread(this.catalogContext, hstore_conf, site_id);
                 m_localServer.start();
+                if (logtime) {
+                    System.out.println("********** Started in-process HStoreSite [siteId=" + site_id + "]");
+                    System.out.flush();
+                }
             }
             // Otherwise, fork a new JVM that will run our other HStoreSites.
             // Remember that it is one JVM per HStoreSite
@@ -337,6 +348,10 @@ public class LocalCluster extends VoltServerConfig {
                     Thread t = new Thread(ptf);
                     t.setName("ClusterPipe:" + String.valueOf(site_id));
                     t.start();
+                    if (logtime) {
+                        System.out.println("********** Started separate HStoreSite process [siteId=" + site_id + "]");
+                        System.out.flush();
+                    }
                 }
                 catch (IOException ex) {
                     LOG.fatal("Failed to start cluster process", ex);

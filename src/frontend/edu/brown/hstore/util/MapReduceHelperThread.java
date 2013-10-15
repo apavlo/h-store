@@ -6,9 +6,11 @@ import java.util.Map;
 import java.util.concurrent.LinkedBlockingDeque;
 
 import org.apache.log4j.Logger;
-import org.voltdb.BackendTarget;
 import org.voltdb.VoltMapReduceProcedure;
+import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
+import org.voltdb.catalog.Procedure;
+import org.voltdb.exceptions.ServerFaultException;
 
 import com.google.protobuf.RpcCallback;
 
@@ -24,6 +26,11 @@ import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.PartitionEstimator;
 
+/**
+ * Special helper thread for executing non-blocking operations in MapReduce transactions.
+ * @author pavlo
+ * @author xin
+ */
 public class MapReduceHelperThread extends AbstractProcessingRunnable<MapReduceTransaction> {
     private static final Logger LOG = Logger.getLogger(MapReduceHelperThread.class);
     private static final LoggerBoolean debug = new LoggerBoolean();
@@ -33,7 +40,6 @@ public class MapReduceHelperThread extends AbstractProcessingRunnable<MapReduceT
     }
 
     private final PartitionEstimator p_estimator;
-    private PartitionExecutor executor;
 
     public MapReduceHelperThread(HStoreSite hstore_site) {
         super(hstore_site,
@@ -43,38 +49,17 @@ public class MapReduceHelperThread extends AbstractProcessingRunnable<MapReduceT
         this.p_estimator = hstore_site.getPartitionEstimator();
     }
 
-    protected PartitionExecutor initPartitionExecutor() {
-        PartitionExecutor executor = new PartitionExecutor(
-                0,
-                this.hstore_site.getCatalogContext(),
-                BackendTarget.NATIVE_EE_JNI,
-                this.p_estimator,
-                null);
-        executor.initHStoreSite(this.hstore_site);
-        
-        return (executor);
-    }
-
     public void queue(MapReduceTransaction ts) {
         this.queue.offer(ts);
-    }
-    public PartitionExecutor getExecutor() {
-        return executor;
     }
 
     @Override
     protected void processingCallback(MapReduceTransaction ts) {
-        
-        if (hstore_conf.site.mr_reduce_blocking == false && this.executor == null) {
-            // Initialization
-            this.executor = this.initPartitionExecutor();
-        }
-
         // Take all of the Map output tables and perform the shuffle operation
         if (ts.isShufflePhase()) {
             this.shuffle(ts);
         }
-        if (ts.isReducePhase() && !hstore_conf.site.mr_reduce_blocking) {
+        if (ts.isReducePhase() && hstore_conf.site.mr_reduce_blocking == false) {
             this.reduce(ts);
         }
     }
@@ -180,37 +165,73 @@ public class MapReduceHelperThread extends AbstractProcessingRunnable<MapReduceT
         this.hstore_site.getCoordinator().sendData(ts, partitionedTables, sendData_callback);
     }
 
+    /**
+     * Non-blocking REDUCE phase execution.
+     * @param mr_ts
+     */
     public void reduce(final MapReduceTransaction mr_ts) {
         // Runtime
 
-        // FIXME: This won't work. When you call getVoltProcedure() you will
-        // get a different handle each time. So anything that we're setting below
-        // will show up where you think it will
-        VoltMapReduceProcedure<?> volt_proc = null; // (VoltMapReduceProcedure<?>)this.executor.getVoltProcedure(mr_ts.getProcedure().getName());
-        if (hstore_site.isLocalPartition(mr_ts.getBasePartition()) && !mr_ts.isBasePartition_reduce_runed()) {
-            if (debug.val)
-                LOG.debug(String.format("TXN: %s $$$1 non-blocking reduce, partition:%d", mr_ts, volt_proc.getPartitionId()));
-            volt_proc.setPartitionId(mr_ts.getBasePartition());
-            if (debug.val)
-                LOG.debug(String.format("TXN: %s $$$2 non-blocking reduce, partition:%d", mr_ts, volt_proc.getPartitionId()));
-            volt_proc.call(mr_ts, mr_ts.getProcedureParameters());
+        int basePartition = mr_ts.getBasePartition();
+        Procedure catalog_proc = mr_ts.getProcedure();
 
-        } else {
+        // XXX: Why do we need to have a distinction between the base partition and all 
+        //      of the other partitions? 
+        if (hstore_site.isLocalPartition(basePartition) && mr_ts.isBasePartitionReduceExec() == false) {
+            if (debug.val)
+                LOG.debug(String.format("TXN: %s $$$2 non-blocking reduce, partition:%d",
+                          mr_ts, basePartition));
+            
+            VoltMapReduceProcedure<?> volt_proc = this.getVoltMapReduceProcedure(catalog_proc, basePartition);
+            volt_proc.call(mr_ts, mr_ts.getProcedureParameters());
+        }
+        // Local partitions at this site that are not the base partition
+        else {
 
             for (int partition : hstore_site.getLocalPartitionIds().values()) {
                 if (debug.val)
-                    LOG.debug(String.format("TXN: %s $$$3 non-blocking reduce, partition called on:%d", mr_ts, partition));
-
-                if (partition != mr_ts.getBasePartition()) {
+                    LOG.debug(String.format("TXN: %s $$$3 non-blocking reduce, partition called on:%d",
+                              mr_ts, partition));
+                if (partition != basePartition) {
                     LocalTransaction ts = mr_ts.getLocalTransaction(partition);
                     if (debug.val)
-                        LOG.debug(String.format("TXN: %s $$$4 non-blocking reduce, partition called on:%d", mr_ts, partition));
-                    volt_proc.setPartitionId(partition);
+                        LOG.debug(String.format("TXN: %s $$$4 non-blocking reduce, partition called on:%d",
+                                  mr_ts, partition));
+                    VoltMapReduceProcedure<?> volt_proc = this.getVoltMapReduceProcedure(catalog_proc, partition);
                     volt_proc.call(ts, ts.getProcedureParameters());
                 }
-            }
-
+            } // FOR
         }
+    }
+    
+    /**
+     * Returns the VoltMapReduceProcedure handle for the given Procedure that
+     * is initialized for the specific partition.
+     * @param catalog_proc
+     * @param partition
+     * @return
+     */
+    @SuppressWarnings("unchecked")
+    protected VoltMapReduceProcedure<?> getVoltMapReduceProcedure(Procedure catalog_proc, int partition) {
+        assert(catalog_proc.getMapreduce());
+        assert(catalog_proc.getHasjava());
+        assert(hstore_site.isLocalPartition(partition));
+        
+        PartitionExecutor executor = hstore_site.getPartitionExecutor(partition);
+        VoltMapReduceProcedure<?> volt_proc = null;
 
+        // TODO: We are creating a new instance every single time per partition.
+        //       We can probably cache these...
+        // Only try to load the Java class file for the SP if it has one
+        Class<? extends VoltProcedure> p_class = null;
+        final String className = catalog_proc.getClassname();
+        try {
+            p_class = (Class<? extends VoltMapReduceProcedure<?>>)Class.forName(className);
+            volt_proc = (VoltMapReduceProcedure<?>)p_class.newInstance();
+        } catch (Exception e) {
+            throw new ServerFaultException("Failed to created VoltProcedure instance for " + catalog_proc.getName() , e);
+        }
+        volt_proc.init(executor, catalog_proc, executor.getBackendTarget());
+        return (volt_proc);
     }
 }
