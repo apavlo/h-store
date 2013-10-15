@@ -713,7 +713,7 @@ public final class HStoreConf {
         public String anticache_eviction_distribution;
         
         // ----------------------------------------------------------------------------
-        // Storage Options
+        // Storage MMAP Options
         // ----------------------------------------------------------------------------
         
         @ConfigProperty(
@@ -732,6 +732,22 @@ public final class HStoreConf {
             experimental=true
         )
         public String storage_mmap_dir;
+
+        @ConfigProperty(
+            description="The size (in bytes) for the mmap file objects on NVM device.",
+            defaultLong=2097152, // 2MB
+            experimental=true
+        )
+        public long storage_mmap_file_size;
+        
+        @ConfigProperty(
+            description="Reset the mmap directory for each partition when " +
+                        "the HStoreSite is started.",
+            defaultBoolean=true,
+            experimental=true
+        )
+        public boolean storage_mmap_reset;
+        
         
         // ----------------------------------------------------------------------------
         // MapReduce Options

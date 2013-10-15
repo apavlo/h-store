@@ -39,10 +39,10 @@ class BuildContext:
         self.NMFLAGS = "-n"    # specialized by platform in build.py
         self.COVERAGE = False
         self.VOLT_LOG_LEVEL = None
-        self.MMAP_STORAGE = False
+        self.STORAGE_MMAP = False
         self.ANTICACHE_BUILD = True
         self.ANTICACHE_REVERSIBLE_LRU = True
-        
+
         for arg in [x.strip().upper() for x in args]:
             if arg in ["DEBUG", "RELEASE", "MEMCHECK", "MEMCHECK_NOFREELIST"]:
                 self.LEVEL = arg
@@ -50,7 +50,16 @@ class BuildContext:
                 self.TARGET = arg
             if arg in ["COVERAGE"]:
                 self.COVERAGE = True
-            if arg.startswith("MMAP_STORAGE="):
+            if arg.startswith("STORAGE_MMAP="):
+                parts = arg.split("=")
+                if len(parts) > 1 and not (parts[1].startswith("${")): self.STORAGE_MMAP = bool(parts[1])
+            if arg.startswith("STORAGE_MMAP_FILE_SIZE="):
+                parts = arg.split("=")
+                if len(parts) > 1 and not (parts[1].startswith("${")): self.STORAGE_MMAP_FILE_SIZE = long(parts[1])
+            if arg.startswith("ANTICACHE_ENABLE="):
+                parts = arg.split("=")
+                if len(parts) > 1 and not (parts[1].startswith("${")): self.ANTICACHE_ENABLE = bool(parts[1])
+            if arg.startswith("ANTICACHE_REVERSIBLE_LRU="):
                 parts = arg.split("=")
                 if len(parts) > 1 and not parts[1].startswith("${"): 
                     self.MMAP_STORAGE = bool(parts[1])

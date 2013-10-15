@@ -46,6 +46,14 @@
 #ifndef HSTOREPERSISTENTTABLE_H
 #define HSTOREPERSISTENTTABLE_H
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <errno.h>
 #include <string>
 #include <map>
 #include <vector>
@@ -124,6 +132,10 @@ class PersistentTable : public Table {
     PersistentTable();
     PersistentTable(PersistentTable const&);
     PersistentTable operator=(PersistentTable const&);
+
+#ifdef STORAGE_MMAP
+    uint32_t m_tableRequestCount;
+#endif
 
   public:
     virtual ~PersistentTable();
@@ -279,7 +291,7 @@ class PersistentTable : public Table {
 
 protected:
 
-#ifdef MMAP_STORAGE    
+#ifdef STORAGE_MMAP
     void allocateNextBlock();
 #endif
     
@@ -386,25 +398,90 @@ inline TableTuple& PersistentTable::getTempTupleInlined(TableTuple &source) {
     return m_tempTuple;
 }
 
-#ifdef MMAP_STORAGE
+#ifdef STORAGE_MMAP
 inline void PersistentTable::allocateNextBlock() {
-    // TODO: Figure out what the size of the file should be
-    // int bytes = 99999; // FIXME
-    
-    // TODO: Allocate a new file on the NVM filesystem and mmap() it in
-    //       Create a new path in the filesystem based on tablename (this->name) and
-    //       the partitionId of where this table is stored (m_executorContext->getPartitionId)
-    // char *memory = NULL; // FIXME
-
-    // Push the new block into our list of blocks
-    // m_data.push_back(memory);
-
-    // Update the counter of the number of tuples we've allocated
-    // m_allocatedTuples += m_tuplesPerBlock;
-}
+#ifdef MEMCHECK
+    int bytes = m_schema->tupleLength() + TUPLE_HEADER_SIZE;
+#else
+    int bytes = m_tableAllocationTargetSize;
 #endif
+
+    int MMAP_fd, ret ;
+    char* memory = NULL ;
+    string MMAP_Dir, MMAP_file_name; 
+    //long file_size;
+    const string NVM_fileType(".nvm");
+
+    /** Get location for mmap'ed files **/
+    MMAP_Dir = m_executorContext->getDBDir();
+    //file_size = m_executorContext->getFileSize();
+
+    VOLT_WARN("MMAP : DBdir:: %s\n", MMAP_Dir.c_str());
+    //VOLT_WARN("MMAP : File Size :: %ld\n", file_size);
+
+#ifdef _WIN32
+    const std::string pathSeparator("\\");
+#else
+    const std::string pathSeparator("/");
+#endif
+
+    std::stringstream m_tableRequestCountStringStream;
+    m_tableRequestCountStringStream << m_tableRequestCount;
+
+    /** Get an unique file object for each <Table,Table_Request_Index> **/
+    MMAP_file_name  = MMAP_Dir + pathSeparator ;
+    MMAP_file_name += this->name() + "_" + m_tableRequestCountStringStream.str();
+    MMAP_file_name += NVM_fileType ;
     
+    /** Increment Table Request Count **/
+    m_tableRequestCount++;
     
+    VOLT_WARN("MMAP : MMAP_file_name :: %s\n", MMAP_file_name.c_str());
+    
+    MMAP_fd = open(MMAP_file_name.c_str(), O_RDWR|O_CREAT, S_IRUSR|S_IWUSR|S_IRGRP );
+    if (MMAP_fd < 0) {
+        VOLT_ERROR("MMAP : initialization error.");
+        VOLT_ERROR("Failed to open file %s : %s", MMAP_file_name.c_str(), strerror(errno));
+        throwFatalException("Failed to open file in directory %s.", MMAP_Dir.c_str());
+    }
+    
+    ret = ftruncate(MMAP_fd, bytes) ;
+    if(ret < 0){
+        VOLT_ERROR("MMAP : initialization error.");
+        VOLT_ERROR("Failed to truncate file %d : %s", MMAP_fd, strerror(errno));
+        throwFatalException("Failed to truncate file in directory %s.", MMAP_Dir.c_str());
+    }
+    
+    /** Allocation **/
+    memory = (char*) mmap(0, bytes , PROT_READ | PROT_WRITE , MAP_PRIVATE, MMAP_fd, 0);
+    
+    if (memory == MAP_FAILED) {
+        VOLT_ERROR("MMAP : initialization error.");
+        VOLT_ERROR("Failed to map file into memory %d : %s", MMAP_fd, strerror(errno));
+        throwFatalException("Failed to map file in directory %s.", MMAP_Dir.c_str());
+    }
+    
+    /** Push into m_data **/
+    m_data.push_back(memory);
+    
+    /** Deallocation **/
+    // TODO: Where to deallocate ?
+    // munmap(addr, bytes);
+    
+    VOLT_WARN("MMAP : Host:: %d Site:: %d PId:: %d Index:: %d Table: %s  Bytes:: %d \n",
+          m_executorContext->getHostId(), m_executorContext->getSiteId(), m_executorContext->getPartitionId(),
+          m_tableRequestCount, this->name().c_str(), bytes);
+    
+    m_allocatedTuples += m_tuplesPerBlock;
+    
+    /**
+    * Closing the file descriptor does not unmap the region as map() automatically adds a reference
+    */
+    close(MMAP_fd);
+    
+    }
+#endif // STORAGE_MMAP
+
 }
 
 #endif

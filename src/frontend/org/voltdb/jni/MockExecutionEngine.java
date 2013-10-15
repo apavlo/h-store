@@ -29,6 +29,7 @@ import org.voltdb.VoltType;
 import org.voltdb.catalog.Table;
 import org.voltdb.exceptions.EEException;
 import org.voltdb.export.ExportProtoMessage;
+import org.voltdb.utils.NotImplementedException;
 import org.voltdb.utils.DBBPool.BBContainer;
 
 public class MockExecutionEngine extends ExecutionEngine {
@@ -225,4 +226,10 @@ public class MockExecutionEngine extends ExecutionEngine {
         // TODO Auto-generated method stub
         return (null);
     }
+    
+    @Override
+    public void MMAPInitialize(File dbDir, long mapSize) throws EEException {
+     // TODO Auto-generated method stub        
+    }
+    
 }

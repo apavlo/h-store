@@ -93,6 +93,25 @@ namespace voltdb {
             return (m_partitionId);
         }
         
+        CatalogId getSiteId() const {
+            return (m_siteId);
+        }
+        
+        CatalogId getHostId() const {
+            return (m_hostId);
+        }
+        
+        #ifdef STORAGE_MMAP
+        std::string getDBDir() const {
+        	return (m_MMAPDir);
+        }
+
+        long getFileSize() const {
+        	return (m_MMAPSize);
+        }
+
+		#endif
+
         // not always known at initial construction
         void setEpoch(int64_t epoch) {
             m_epoch = epoch;
@@ -189,6 +208,23 @@ namespace voltdb {
         #endif
         
         // ------------------------------------------------------------------
+        // STORAGE MMAP
+        // ------------------------------------------------------------------
+        #ifdef STORAGE_MMAP
+
+        /**
+         * Enable the mmap storage feature in the EE.
+         * The input parameter is the directory where our disk-based storage
+         * will write out mmap'ed files for this partition
+         */
+        void enableMMAP(std::string &dbDir, long mapSize) {
+            m_MMAPDir = dbDir;
+            m_MMAPSize = mapSize;
+        }
+        #endif
+
+
+        // ------------------------------------------------------------------
         // READ-WRITE TRACKERS
         // ------------------------------------------------------------------ 
         
@@ -219,6 +255,12 @@ namespace voltdb {
         AntiCacheEvictionManager *m_antiCacheEvictionManager; 
         #endif
         
+		#ifdef STORAGE_MMAP
+        long m_MMAPSize;
+        std::string m_MMAPDir;
+		#endif
+
+
         /** ReadWrite Trackers */
         bool m_trackingEnabled;
         ReadWriteTrackerManager *m_trackingManager;

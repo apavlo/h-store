@@ -1519,4 +1519,39 @@ SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeAntiC
 
 #endif
 
+#ifdef STORAGE_MMAP
+/**
+ * Enables the storage mmap feature in the EE.
+ * This can only be called *after* the buffers have been initialized
+ * but *before* the catalog has been initialized
+ * @param pointer the VoltDBEngine pointer
+ * @param dbDir the directory where EE should store the mmap'ed files
+ * @return error code
+ */
+SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeMMAPInitialize (
+        JNIEnv *env,
+        jobject obj,
+        jlong engine_ptr,
+        jstring dbDir,
+        jlong mapSize) {
+
+    VOLT_DEBUG("nativeMMAPInitialize() start");
+    VoltDBEngine *engine = castToEngine(engine_ptr);
+    Topend *topend = static_cast<JNITopend*>(engine->getTopend())->updateJNIEnv(env);
+    if (engine == NULL) {
+        return org_voltdb_jni_ExecutionEngine_ERRORCODE_ERROR;
+    }
+    try {
+        const char *dbDirChars = env->GetStringUTFChars(dbDir, NULL);
+        std::string dbDirString(dbDirChars);
+        env->ReleaseStringUTFChars(dbDir, dbDirChars);
+
+        engine->MMAPInitialize(dbDirString, static_cast<int64_t>(mapSize));
+    } catch (FatalException e) {
+        topend->crashVoltDB(e);
+    }
+    return org_voltdb_jni_ExecutionEngine_ERRORCODE_SUCCESS;
+}
+#endif // STORAGE_MMAP
+
 /** @} */ // end of JNI doxygen group

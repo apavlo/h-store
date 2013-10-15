@@ -816,4 +816,20 @@ public class ExecutionEngineJNI extends ExecutionEngine {
         final int errorCode = nativeAntiCacheMergeBlocks(this.pointer, catalog_tbl.getRelativeIndex());
         checkErrorCode(errorCode);
     }
+    
+    /*
+     * MMAP STORAGE
+     */
+    
+    @Override
+    public void MMAPInitialize(File dbDir, long mapSize) throws EEException {
+        
+        LOG.info("Initializing storage mmap feature at partition " + this.executor.getPartitionId());
+        LOG.info(String.format("Partition #%d MMAP Directory: %s",
+                 this.executor.getPartitionId(), dbDir.getAbsolutePath()));
+        final int errorCode = nativeMMAPInitialize(this.pointer, dbDir.getAbsolutePath(), mapSize);
+        checkErrorCode(errorCode);
+        m_anticache = true;
+    }
+    
 }
