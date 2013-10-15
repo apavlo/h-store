@@ -55,6 +55,20 @@ public class TestPlansStream extends TestCase {
         aide.tearDown();
     }
     
+    public void testInsert() {
+        AbstractPlanNode pn = null;
+        pn = compile("INSERT INTO votes_by_phone_number (phone_number, num_votes) VALUES (1,2)", 0, false);
+        if (pn != null)
+            System.out.println(pn.toJSONString());
+    }
+
+    public void testUpsert() {
+        AbstractPlanNode pn = null;
+        pn = compile("INSERT INTO votes_by_phone_number (phone_number, num_votes) VALUES (1,2)", 0, true);
+        if (pn != null)
+            System.out.println(pn.toJSONString());
+    }
+    
     public void testSelectFromStream() {
         AbstractPlanNode pn = null;
         //pn = compile("SELECT t_id from ticker", 0);
@@ -73,9 +87,13 @@ public class TestPlansStream extends TestCase {
     }
     
     private AbstractPlanNode compile(String sql, int paramCount) {
+        return compile(sql, paramCount, false);
+    }
+
+    private AbstractPlanNode compile(String sql, int paramCount, boolean Upsertable) {
         AbstractPlanNode pn = null;
         try {
-            pn =  aide.compile(sql, paramCount);
+            pn =  aide.compile(sql, paramCount, Upsertable);
         }
         catch (NullPointerException ex) {
             // aide may throw NPE if no plangraph was created

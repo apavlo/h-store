@@ -41,13 +41,22 @@ CREATE TABLE votes_by_contestant_number_state
   contestant_number  int        NOT NULL
 , state              varchar(2) NOT NULL
 , num_votes          int
+, CONSTRAINT PK_votes_by_contestant_number_state PRIMARY KEY
+  (
+    contestant_number,
+    state
+  )
 );
 
 -- rollup of votes by phone number, used to reject excessive voting
 CREATE TABLE votes_by_phone_number
 (
     phone_number     bigint    NOT NULL,
-    num_votes        int
+    num_votes        int,
+    CONSTRAINT PK_votes_by_phone_number PRIMARY KEY
+    (
+      phone_number
+    )
 );
 
 -- streams for processing ---

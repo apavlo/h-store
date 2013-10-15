@@ -54,6 +54,7 @@ namespace plannodeutil {
 
 voltdb::AbstractPlanNode* getEmptyPlanNode(voltdb::PlanNodeType type) {
     VOLT_TRACE("Creating an empty PlanNode of type '%s'", plannodeutil::getTypeName(type).c_str());
+    VOLT_DEBUG("Creating an empty PlanNode of type '%s'", plannodeutil::getTypeName(type).c_str());
     voltdb::AbstractPlanNode* ret = NULL;
     switch (type) {
         // ------------------------------------------------------------------

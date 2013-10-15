@@ -242,6 +242,7 @@ AbstractPlanNode::fromJSONObject(Object &obj, const catalog::Database *catalog_d
                                       " PLAN_NODE_TYPE value is null");
     }
     string typeString = typeValue.get_str();
+    VOLT_DEBUG("hawk - PlanNode type : %s", typeString.c_str());
     AbstractPlanNode* node =
         plannodeutil::getEmptyPlanNode(stringToPlanNode(typeString));
 

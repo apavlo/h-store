@@ -16,7 +16,6 @@ import edu.brown.benchmark.anotherstream.procedures.UpdateVotesAndTotalVotesTrig
 import edu.brown.benchmark.anotherstream.procedures.UpdateVotesByPhoneNumberTrigger; 
 import edu.brown.benchmark.anotherstream.procedures.UpdateVotesByContestantNumberStateTrigger; 
 
-
 public class AnotherStreamProjectBuilder extends AbstractProjectBuilder {
 
     // REQUIRED: Retrieved via reflection by BenchmarkController

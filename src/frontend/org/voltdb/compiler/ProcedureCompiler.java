@@ -344,6 +344,7 @@ public abstract class ProcedureCompiler {
 
                 // add the statement to the catalog
                 Statement catalogStmt = procedure.getStatements().add(f.getName());
+                catalogStmt.setUpsertable(stmt.Upsertable());
                 
                 // compile the statement
                 try {
