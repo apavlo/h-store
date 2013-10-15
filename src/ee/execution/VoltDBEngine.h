@@ -336,7 +336,7 @@ class __attribute__((visibility("default"))) VoltDBEngine {
             if (m_currentUndoQuantum != NULL) {
                 #ifdef VOLT_INFO_ENABLED
                 if (nextUndoToken < m_currentUndoQuantum->getUndoToken()) {
-                    VOLT_ERROR("nextUndoToken[%" PRId64 "] is greater than m_currentUndoQuantum[%" PRId64 "]",
+                    VOLT_ERROR("nextUndoToken[%ld] is greater than m_currentUndoQuantum[%ld]",
                                nextUndoToken, m_currentUndoQuantum->getUndoToken());
                 }
                 #endif
@@ -355,14 +355,14 @@ class __attribute__((visibility("default"))) VoltDBEngine {
             if (m_currentUndoQuantum != NULL && m_currentUndoQuantum->getUndoToken() == undoToken) {
                 m_currentUndoQuantum = NULL;
             }
-            VOLT_TRACE("Committing Buffer Token %" PRId64 " at partition %d", undoToken, m_partitionId);
+            VOLT_TRACE("Committing Buffer Token %ld at partition %d", undoToken, m_partitionId);
             m_undoLog.release(undoToken);
         }
         inline void undoUndoToken(int64_t undoToken) {
             if (m_currentUndoQuantum != NULL && m_currentUndoQuantum->isDummy()) {
                 return;
             }
-            VOLT_TRACE("Undoing Buffer Token %" PRId64 " at partition %d", undoToken, m_partitionId);
+            VOLT_TRACE("Undoing Buffer Token %ld at partition %d", undoToken, m_partitionId);
             m_undoLog.undo(undoToken);
             m_currentUndoQuantum = NULL;
         }

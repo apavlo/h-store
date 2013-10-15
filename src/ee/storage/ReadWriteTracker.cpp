@@ -23,7 +23,6 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <inttypes.h>
 #include "common/debuglog.h"
 #include "common/FatalException.hpp"
 #include "common/ValueFactory.hpp"
@@ -68,7 +67,7 @@ void ReadWriteTracker::insertTuple(boost::unordered_map<std::string, RowOffsets*
     
     uint32_t tupleId = tuple->getTupleID();
     offsets->insert(tupleId);
-    VOLT_INFO("*** TXN #%" PRId64 " -> %s / %d", this->txnId, tableName.c_str(), tupleId);
+    VOLT_INFO("*** TXN #%ld -> %s / %d", this->txnId, tableName.c_str(), tupleId);
 }
 
 void ReadWriteTracker::markTupleRead(const std::string tableName, TableTuple *tuple) {

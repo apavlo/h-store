@@ -41,8 +41,8 @@ class BuildContext:
         self.VOLT_LOG_LEVEL = None
         self.STORAGE_MMAP = False  # disable by default
         self.STORAGE_MMAP_FILE_SIZE = 2097152
-        self.ANTICACHE_ENABLE = False
-        self.ANTICACHE_REVERSIBLE_LRU = False
+        self.ANTICACHE_ENABLE = True
+        self.ANTICACHE_REVERSIBLE_LRU = True
 
         for arg in [x.strip().upper() for x in args]:
             if arg in ["DEBUG", "RELEASE", "MEMCHECK", "MEMCHECK_NOFREELIST"]:
