@@ -60,12 +60,6 @@
 #include "common/types.h"
 #include "storage/WindowTable.h"
 
-// added by hawk, 10/4/2013
-#include "catalog/catalogmap.h"
-#include "catalog/table.h"
-#include "catalog/column.h"
-// ended by hawk
-
 namespace voltdb {
 
 	bool InsertExecutor::p_init(AbstractPlanNode *abstract_node, const catalog::Database* catalog_db, int* tempTableMemoryInBytes) {
@@ -106,42 +100,6 @@ namespace voltdb {
 
 		m_tuple = TableTuple(m_inputTable->schema());
 
-		// added by hawk, 10/4/2013
-		std::string targetTableName = m_targetTable->name();
-		catalog::Table *targetTable = NULL;
-		catalog::CatalogMap<catalog::Table> tables = catalog_db->tables();
-		for ( catalog::CatalogMap<catalog::Table>::field_map_iter i = tables.begin(); i != tables.end(); i++) {
-			catalog::Table *table = (*i).second;
-			if (table->name().compare(targetTableName) == 0) {
-				targetTable = table;
-				break;
-			}
-		}
-		assert(targetTable != NULL);
-
-		catalog::CatalogMap<catalog::Column> columns = targetTable->columns();
-		/*
-		* The first output column is the tuple address expression and it isn't part of our output so we skip
-		* it when generating the map from input columns to the target table columns.
-		*/
-		if (m_targetTable->name()=="VOTES_BY_PHONE_NUMBER")
-		{
-			VOLT_DEBUG("hawk: p_init - VOTES_BY_PHONE_NUMBER");
-			int size = columns.size();
-			VOLT_DEBUG("hawk: columns size - %d\n", size);
-			for(int ii = 1; ii <= size; ii++)
-			{
-				catalog::Column *column = columns.getAtRelativeIndex(ii);
-				int index = column->index();
-				VOLT_DEBUG("hawk: column index - %d\n", index);
-				m_inputTargetMap.push_back(std::pair<int, int>( ii, index ));
-			}
-
-			m_inputTargetMapSize = (int)m_inputTargetMap.size();
-		}
-		m_targetTuple = TableTuple(m_targetTable->schema());
-		// ended by hawk
-
 		PersistentTable *persistentTarget = dynamic_cast<PersistentTable*>(m_targetTable);
 		m_partitionColumn = -1;
 		m_partitionColumnIsString = false;
@@ -166,7 +124,6 @@ namespace voltdb {
 		assert(m_inputTable);
 		assert(m_targetTable);
 		VOLT_DEBUG("INPUT TABLE: %s\n", m_inputTable->debug().c_str());
-		VOLT_DEBUG("hawk: OUTPUT TABLE: %s\n", m_targetTable->debug().c_str());
 #ifdef DEBUG
 		//
 		// This should probably just be a warning in the future when we are
@@ -191,8 +148,6 @@ namespace voltdb {
 		// and insert any tuple that we find into our m_targetTable. It doesn't get any easier than that!
 		//
 		assert (m_tuple.sizeInValues() == m_inputTable->columnCount());
-		assert(m_targetTuple.sizeInValues() == m_targetTable->columnCount()); // added by hawk, 10/4/2013
-
 		TableIterator iterator(m_inputTable);
                 bool beProcessed = false;
 		while (iterator.next(m_tuple)) {
@@ -221,124 +176,27 @@ namespace voltdb {
 				}
 			}
 
-			// modified by hawk, 10/4/2013
-			// FIXME: such hard coded behavior should be replaced with normal way
-			bool beNormalInsertBehavior = true;
 
-			if (m_targetTable->name()=="VOTES_BY_PHONE_NUMBER") 
-			{
-				VOLT_DEBUG("Hawk test updating VOTES_BY_PHONE_NUMBER....... ");
-
-				// determine if the m_tuple with the same key is aready there
-				// if exists, delete it, and then render the control to the normal insert
-				// if not, just render the control to the normal insert
-				TableTuple tuple(m_targetTable->schema());
-				TableIterator iterator(m_targetTable);
-				VOLT_DEBUG("hawk : scan target table... ");
-				while (iterator.next(tuple))
-				{
-					NValue value1 = m_tuple.getNValue(0);
-					VOLT_DEBUG("source tuple '%s'",
-						m_tuple.debug(m_targetTable->name()).c_str());
-					VOLT_DEBUG("source tuple first value '%s'",value1.debug().c_str());
-					NValue value2 = tuple.getNValue(0);
-					VOLT_DEBUG("target tuple '%s'",
-						tuple.debug(m_targetTable->name()).c_str());
-					VOLT_DEBUG("target tuple first value '%s'",value2.debug().c_str());
-
-					// determine if they are same
-					if(value2.compare(value1) == 0)
-					{
-						// Read/Write Set Tracking
-						if (tracker != NULL) {
-							//tracker->markTupleWritten(m_targetTable->name(), &m_targetTuple);
-							tracker->markTupleWritten(m_targetTable->name(), &tuple);
-						}
-
-						VOLT_DEBUG("hawk: after markTupleWritten()....... ");
-
-						// Delete from target table
-						if (!m_targetTable->deleteTuple(tuple, true)) {
-							VOLT_ERROR("Failed to delete tuple from table '%s'",
-								m_targetTable->name().c_str());
-							return false;
-						}
-
-						break;
-					}
-				}
-
+			// try to put the tuple into the target table
+			if (!m_targetTable->insertTuple(m_tuple)) {
+				VOLT_ERROR("Failed to insert tuple from input table '%s' into"
+					" target table '%s'",
+					m_inputTable->name().c_str(),
+					m_targetTable->name().c_str());
+				return false;
 			}
 
-			if (m_targetTable->name()=="VOTES_BY_CONTESTANT_NUMBER_STATE") 
-			{
-				VOLT_DEBUG("Hawk test updating VOTES_BY_CONTESTANT_NUMBER_STATE....... ");
-
-				// determine if the m_tuple with the same key is aready there
-				// if exists, delete it, and then render the control to the normal insert
-				// if not, just render the control to the normal insert
-				TableTuple tuple(m_targetTable->schema());
-				TableIterator iterator(m_targetTable);
-				VOLT_DEBUG("hawk : scan target table... ");
-				while (iterator.next(tuple))
-				{
-					NValue source_value1 = m_tuple.getNValue(0);
-					NValue source_value2 = m_tuple.getNValue(1);
-					VOLT_DEBUG("source tuple '%s'",
-						m_tuple.debug(m_targetTable->name()).c_str());
-					NValue target_value1 = tuple.getNValue(0);
-					NValue target_value2 = tuple.getNValue(1);
-					VOLT_DEBUG("target tuple '%s'",
-						tuple.debug(m_targetTable->name()).c_str());
-
-					// determine if they are same
-					if((source_value1.compare(target_value1) == 0)&&(source_value2.compare(target_value2)==0))
-					{
-						// Read/Write Set Tracking
-						if (tracker != NULL) {
-							//tracker->markTupleWritten(m_targetTable->name(), &m_targetTuple);
-							tracker->markTupleWritten(m_targetTable->name(), &tuple);
-						}
-
-						VOLT_DEBUG("hawk: after markTupleWritten()....... ");
-
-						// Delete from target table
-						if (!m_targetTable->deleteTuple(tuple, true)) {
-							VOLT_ERROR("Failed to delete tuple from table '%s'",
-								m_targetTable->name().c_str());
-							return false;
-						}
-
-						break;
-					}
-				}
-
+			// try to put the tuple into the output table
+			if (!outputTable->insertTuple(m_tuple)) {
+				VOLT_ERROR("Failed to insert tuple from input table '%s' into"
+					" output table '%s'",
+					m_inputTable->name().c_str(),
+					outputTable->name().c_str());
+				return false;
 			}
 
-			if(beNormalInsertBehavior == true)  // original part of insert behavior
-			{
-				// try to put the tuple into the target table
-				if (!m_targetTable->insertTuple(m_tuple)) {
-					VOLT_ERROR("Failed to insert tuple from input table '%s' into"
-						" target table '%s'",
-						m_inputTable->name().c_str(),
-						m_targetTable->name().c_str());
-					return false;
-				}
-
-				// try to put the tuple into the output table
-				if (!outputTable->insertTuple(m_tuple)) {
-					VOLT_ERROR("Failed to insert tuple from input table '%s' into"
-						" output table '%s'",
-						m_inputTable->name().c_str(),
-						outputTable->name().c_str());
-					return false;
-				}
-
-				// successfully inserted
-				modifiedTuples++;
-			}
-			// ended by hawk
+			// successfully inserted
+			modifiedTuples++;
 
 		}
 		// Check if the target table is persistent, and if hasTriggers flag is true
