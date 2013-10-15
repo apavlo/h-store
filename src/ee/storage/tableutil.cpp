@@ -95,21 +95,15 @@ bool setRandomTupleValues(voltdb::Table* table, voltdb::TableTuple *tuple) {
 }
 
 bool addRandomTuples(voltdb::Table* table, int num_of_tuples) {
-	VOLT_DEBUG("ADD RANDOM TUPLES");
     assert(num_of_tuples >= 0);
     for (int ctr = 0; ctr < num_of_tuples; ctr++) {
-    	VOLT_DEBUG("FOR LOOP");
         voltdb::TableTuple &tuple = table->tempTuple();
-        VOLT_DEBUG("FOR LOOP2");
         if (!tableutil::setRandomTupleValues(table, &tuple)) {
-        	VOLT_DEBUG("ADD RANDOM TUPLES END FALSE");
             return (false);
         }
-        VOLT_DEBUG("FOR LOOP3");
         //std::cout << std::endl << "Creating tuple " << std::endl << tuple.debugNoHeader() << std::endl;
         //VOLT_DEBUG("Created random tuple: %s", tuple.debug().c_str());
         if (!table->insertTuple(tuple)) {
-        	VOLT_DEBUG("ADD RANDOM TUPLES END FALSE");
             return (false);
         }
 
@@ -117,12 +111,10 @@ bool addRandomTuples(voltdb::Table* table, int num_of_tuples) {
          * The insert into the table (assuming a persistent table) will make a copy of the strings so the string allocations
          * for unlined columns need to be freed here.
          */
-        VOLT_DEBUG("GETSCHEMA");
         for (int ii = 0; ii < tuple.getSchema()->getUninlinedObjectColumnCount(); ii++) {
             tuple.getNValue(tuple.getSchema()->getUninlinedObjectColumnInfoIndex(ii)).free();
         }
     }
-    VOLT_DEBUG("ADD RANDOM TUPLES END");
     return (true);
 }
 

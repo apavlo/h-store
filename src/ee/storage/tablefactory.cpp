@@ -339,19 +339,15 @@ Table* TableFactory::getWindowTable(
         	pTable->m_hasTriggers = true;
         else
         	pTable->m_hasTriggers = false;
-        VOLT_DEBUG("2");
 
         for (int i = 0; i < indexes.size(); ++i) {
             pTable->m_indexes[i] = TableIndexFactory::getInstance(indexes[i]);
         }
-        VOLT_DEBUG("3");
         initConstraints(pTable);
-        VOLT_DEBUG("4");
     }
 
     // initialize stats for the table
     configureStats(databaseId, ctx, name, table);
-    VOLT_DEBUG("END FACTORY WINDOW TABLE");
     return dynamic_cast<Table*>(table);
 }
 

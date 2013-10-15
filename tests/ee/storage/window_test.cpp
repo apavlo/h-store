@@ -91,6 +91,9 @@ bool COLUMN_ALLOW_NULLS[NUM_OF_COLUMNS]         = { true, true, true, true, true
 class WindowTest : public Test {
     public:
         WindowTest() : table(NULL), window_table(NULL) {
+        	m_engine = new voltdb::VoltDBEngine();
+        	m_engine->initialize(1,1, 0, 0, "");
+
             srand(0);
             init();
         }
@@ -118,7 +121,7 @@ class WindowTest : public Test {
             }
             voltdb::TupleSchema *schema = voltdb::TupleSchema::createTupleSchema(columnTypes, columnLengths, columnAllowNull, true);
 
-			window_table = voltdb::TableFactory::getWindowTable(database_id, NULL, "test_table", schema, columnNames, -1, false, false, WINDOW_SIZE);
+			window_table = voltdb::TableFactory::getWindowTable(database_id, m_engine->getExecutorContext(), "test_table", schema, columnNames, -1, false, false, WINDOW_SIZE);
 
 			table = window_table;
 
@@ -132,6 +135,7 @@ class WindowTest : public Test {
 
         voltdb::Table* table;
         voltdb::Table* window_table;
+        voltdb::VoltDBEngine *m_engine;
 
 };
 
@@ -156,7 +160,7 @@ TEST_F(WindowTest, TupleInsert) {
     // All of the values have already been inserted, we just
     // need to make sure that the data makes sense
     //
-	/**
+
 	VOLT_INFO("WINDOW TEST INSERT\n");
     voltdb::TableIterator iterator = this->table->tableIterator();
     voltdb::TableTuple tuple(table->schema());
@@ -170,7 +174,9 @@ TEST_F(WindowTest, TupleInsert) {
     		numDeleted++;
 
     }
-    EXPECT_EQ(NUM_OF_TUPLES, numDeleted + WINDOW_SIZE);
+    VOLT_DEBUG("TABLE SIZE: %d", int(table->activeTupleCount()));
+    VOLT_DEBUG("NUM_OF_TUPLES: %d     WINDOW_SIZE: %d     numDeleted: %d", NUM_OF_TUPLES, WINDOW_SIZE, numDeleted);
+    //EXPECT_EQ(NUM_OF_TUPLES, numDeleted + WINDOW_SIZE);
 
     //
     // Make sure that if we insert one tuple, the window size remains 10
@@ -181,28 +187,38 @@ TEST_F(WindowTest, TupleInsert) {
     ASSERT_EQ(WINDOW_SIZE, this->table->activeTupleCount());
     ASSERT_EQ(true, this->table->insertTuple(temp_tuple));
     ASSERT_EQ(WINDOW_SIZE, this->table->activeTupleCount());
-    */
-    /**
+    VOLT_DEBUG("1");
 
-    voltdb::TableTuple &tuplesInserted[WINDOW_SIZE];
+
+    std::vector<voltdb::TableTuple*> tuplesInserted;
+    voltdb::TableTuple out;
+    VOLT_DEBUG("2");
 
     for(int i = 0; i < WINDOW_SIZE; i++)
     {
+    	VOLT_DEBUG("3");
+    	//FIXME: this is segfaulting
+    	tableutil::getRandomTuple(this->table, out);
     	//
 		// Make sure that if we insert one tuple, the window size remains 10
 		//
-		tuplesInserted[i] = this->table->tempTuple();
-		ASSERT_EQ(true, tableutil::setRandomTupleValues(this->table, &tuplesInserted[i]));
-		ASSERT_EQ(true, this->table->insertTuple(temp_tuple));
+    	VOLT_DEBUG("4");
+		tuplesInserted.push_back(&out);
+		VOLT_DEBUG("5");
+
+		ASSERT_EQ(true, this->table->insertTuple(out));
+		VOLT_DEBUG("6");
+
     }
 
+    VOLT_DEBUG("Vector size: %d", int(tuplesInserted.size()));
     iterator = this->table->tableIterator();
     int i = 0;
     while (iterator.next(tuple)) {
-    	ASSERT_EQ(&tuplesInserted[i], tuple);
+    	ASSERT_EQ(tuplesInserted.at(i), &tuple);
     	i++;
     }
-
+    /**
     //
     // Then check to make sure that it has the same value and type
     //
@@ -212,7 +228,7 @@ TEST_F(WindowTest, TupleInsert) {
         EXPECT_EQ(COLUMN_TYPES[col_ctr], tuple.getType(col_ctr));
         EXPECT_TRUE(temp_tuple.getNValue(col_ctr).op_equals(tuple.getNValue(col_ctr)).isTrue());
     }
-    */
+	*/
 }
 /**
 TEST_F(WindowTest, TupleUpdate) {
