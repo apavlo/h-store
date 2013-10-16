@@ -25,6 +25,7 @@ import org.hsqldb.HSQLInterface;
 import org.voltdb.ProcInfo;
 import org.voltdb.ProcInfoData;
 import org.voltdb.SQLStmt;
+import org.voltdb.StmtInfo;
 import org.voltdb.VoltMapReduceProcedure;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
@@ -113,10 +114,15 @@ public abstract class ProcedureCompiler {
         // get the sql statements
         // iterate through the fields and deal with
         ArrayList<String> sql_list = new ArrayList<String>();
-        ArrayList<SQLStmt> sqlStmt_list = new ArrayList<SQLStmt>();
+        ArrayList<StmtInfo> upsertable_list = new ArrayList<StmtInfo>();
         Field[] fields = procClass.getFields();
         for (Field f : fields) {
             if (f.getType() == SQLStmt.class) {
+                
+                // get StmtInfo
+                StmtInfo stmtInfo = ClassUtil.getFieldAnnotation(f, StmtInfo.class);                
+                upsertable_list.add(stmtInfo);
+                
                 // String fieldName = f.getName();
                 SQLStmt stmt = null;
 
@@ -130,22 +136,31 @@ public abstract class ProcedureCompiler {
                 
                 String sql = stmt.getText();
                 sql_list.add(sql);
-                sqlStmt_list.add(stmt);
 
             }
         }
         String[] sqlArr = new String[sql_list.size()];
         sqlArr = sql_list.toArray(sqlArr);
 
-        SQLStmt[] sqlStmtArr = new SQLStmt[sqlStmt_list.size()];
-        sqlStmtArr = sqlStmt_list.toArray(sqlStmtArr);
+        StmtInfo[] stmtInfoArr = new StmtInfo[upsertable_list.size()];
+        stmtInfoArr = upsertable_list.toArray(stmtInfoArr);
         
     	// get the stream table
         String streamName = triggerInstance.getStreamName();
         Table stream = (db.getTables().getIgnoreCase(streamName));
         
         // add trigger to catalog 
-        addTriggerToCatalog(compiler, hsql, stream, stream.getTriggers(), catalog, db, sqlArr, sqlStmtArr, compiler.getNextTriggerId()); //currently sends null for the trigger map
+        addTriggerToCatalog(
+                compiler, 
+                hsql, 
+                stream, 
+                stream.getTriggers(), 
+                catalog, 
+                db, 
+                sqlArr, 
+                stmtInfoArr, 
+                compiler.getNextTriggerId()
+                ); //currently sends null for the trigger map
     	
     	return;
 
@@ -162,14 +177,15 @@ public abstract class ProcedureCompiler {
      * @param node
      * @throws VoltCompilerException
      */
-    static void addTriggerToCatalog(VoltCompiler compiler, 
+    static void addTriggerToCatalog(
+            VoltCompiler compiler, 
     		HSQLInterface hsql,
     		Table parent, 
     		CatalogMap<Trigger> triggers,  
     		Catalog catalog, 
     		Database db, 
     		String[] stmt, 
-    		SQLStmt[] sqlStmtArr,
+    		StmtInfo[] stmtInfoArr,
     		int trigId) 
     throws VoltCompilerException
     {
@@ -185,8 +201,11 @@ public abstract class ProcedureCompiler {
 		for(int i = 0; i < stmt.length; i++)
 		{
 			Statement s = trigger.getStatements().add("trig" + trigId + "stmt" + i);
-			SQLStmt sqlStmt = (SQLStmt)sqlStmtArr[i];
-			s.setUpsertable(sqlStmt.Upsertable());
+			StmtInfo stmtInfo = (StmtInfo)stmtInfoArr[i];
+			if(stmtInfo!=null)
+			    s.setUpsertable(stmtInfo.upsertable());
+			else
+			    s.setUpsertable(false);
 			StatementCompiler.compile(compiler, hsql, catalog, db, new DatabaseEstimates(), s, stmt[i], true);
 		}
     }
@@ -344,7 +363,12 @@ public abstract class ProcedureCompiler {
 
                 // add the statement to the catalog
                 Statement catalogStmt = procedure.getStatements().add(f.getName());
-                catalogStmt.setUpsertable(stmt.Upsertable());
+                
+                StmtInfo stmtInfo = ClassUtil.getFieldAnnotation(f, StmtInfo.class);
+                if(stmtInfo != null)
+                    catalogStmt.setUpsertable(stmtInfo.upsertable());
+                else
+                    catalogStmt.setUpsertable(false);
                 
                 // compile the statement
                 try {

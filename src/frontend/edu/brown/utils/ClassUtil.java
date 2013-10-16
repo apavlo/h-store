@@ -183,6 +183,18 @@ public abstract class ClassUtil {
     }
 
     /**
+     * Get the corresponding Annotation from Field handles 
+     * @param <A>
+     * @param field
+     * @param annotationClass
+     * @return
+     */
+    public static <A extends Annotation> A getFieldAnnotation(Field field, Class<A> annotationClass) {
+        A a = field.getAnnotation(annotationClass);
+        return a;
+    }
+
+    /**
      * Get the generic types for the given field
      * 
      * @param field
