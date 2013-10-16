@@ -89,18 +89,4 @@ CREATE STREAM S2
 , created            timestamp  NOT NULL
 );
 
--- used to update the table votes_by_phone_number
-CREATE STREAM S3
-(
-    phone_number     bigint    NOT NULL,
-    num_votes        int
-);
-
--- used to update the table votes_by_contestant_number_state
-CREATE STREAM S4
-(
-  contestant_number  int        NOT NULL
-, state              varchar(2) NOT NULL
-, num_votes          int
-);
 

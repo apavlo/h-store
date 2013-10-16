@@ -13,8 +13,6 @@ import edu.brown.benchmark.anotherstream.procedures.Vote;
 import edu.brown.benchmark.anotherstream.procedures.ValidateContestantsTrigger; 
 import edu.brown.benchmark.anotherstream.procedures.ValidateVotesNumberLimitTrigger; 
 import edu.brown.benchmark.anotherstream.procedures.UpdateVotesAndTotalVotesTrigger; 
-import edu.brown.benchmark.anotherstream.procedures.UpdateVotesByPhoneNumberTrigger; 
-import edu.brown.benchmark.anotherstream.procedures.UpdateVotesByContestantNumberStateTrigger; 
 
 public class AnotherStreamProjectBuilder extends AbstractProjectBuilder {
 
@@ -31,9 +29,7 @@ public class AnotherStreamProjectBuilder extends AbstractProjectBuilder {
          Vote.class,
          ValidateContestantsTrigger.class,
          ValidateVotesNumberLimitTrigger.class,
-         UpdateVotesAndTotalVotesTrigger.class,
-         UpdateVotesByPhoneNumberTrigger.class,
-         UpdateVotesByContestantNumberStateTrigger.class
+         UpdateVotesAndTotalVotesTrigger.class
     };
 	
 	{
