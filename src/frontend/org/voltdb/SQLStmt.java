@@ -39,7 +39,6 @@ public class SQLStmt {
     long fragGUIDs[];
     int numFragGUIDs;
     Statement catStmt;
-    boolean upsertable;
 
     /**
      * Construct a SQLStmt instance from a SQL statement.
@@ -48,12 +47,7 @@ public class SQLStmt {
      * place holders.
      */
     public SQLStmt(String sqlText) {
-        this(sqlText, false);
-    }
-    
-    public SQLStmt(String sqlText, boolean Upsertable) {
         this.sqlText = sqlText;
-        this.upsertable = Upsertable;
         this.computeHashCode();
     }
 
@@ -64,7 +58,6 @@ public class SQLStmt {
     public SQLStmt(Statement catalog_stmt, CatalogMap<PlanFragment> fragments) {
         this.sqlText = catalog_stmt.getSqltext();
         this.catStmt = catalog_stmt;
-        this.upsertable = catalog_stmt.getUpsertable();
 
         this.numFragGUIDs = fragments.size();
         this.fragGUIDs = new long[this.numFragGUIDs];
@@ -120,7 +113,4 @@ public class SQLStmt {
         return (catStmt != null ? catStmt.fullName() : super.toString());
     }
 
-    public boolean Upsertable() {
-        return this.upsertable;
-    }
 }
