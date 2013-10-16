@@ -79,10 +79,9 @@ import edu.brown.utils.FileUtil;
 import edu.brown.utils.StringUtil;
 
 /**
- * Alternate (programmatic) interface to VoltCompiler. Give the class all of
- * the information a user would put in a VoltDB project file and it will go
- * and build the project file and run the compiler on it.
- *
+ * Alternate (programmatic) interface to VoltCompiler. Give the class all of the
+ * information a user would put in a VoltDB project file and it will go and
+ * build the project file and run the compiler on it.
  */
 public class VoltProjectBuilder {
     private static final Logger LOG = Logger.getLogger(VoltProjectBuilder.class);
@@ -105,18 +104,18 @@ public class VoltProjectBuilder {
             this.name = cls.getSimpleName();
             this.sql = null;
             this.partitionInfo = null;
-            assert(this.name != null);
+            assert (this.name != null);
         }
 
         public ProcedureInfo(final String users[], final String groups[], final String name, final String sql, final String partitionInfo) {
-            assert(name != null);
+            assert (name != null);
             this.users = users;
             this.groups = groups;
             this.cls = null;
             this.name = name;
             this.sql = sql;
             this.partitionInfo = partitionInfo;
-            assert(this.name != null);
+            assert (this.name != null);
         }
 
         @Override
@@ -127,7 +126,7 @@ public class VoltProjectBuilder {
         @Override
         public boolean equals(final Object o) {
             if (o instanceof ProcedureInfo) {
-                final ProcedureInfo oInfo = (ProcedureInfo)o;
+                final ProcedureInfo oInfo = (ProcedureInfo) o;
                 return name.equals(oInfo.name);
             }
             return false;
@@ -141,7 +140,7 @@ public class VoltProjectBuilder {
         private final String password;
         private final String groups[];
 
-        public UserInfo (final String name, final boolean adhoc, final boolean sysproc, final String password, final String groups[]){
+        public UserInfo(final String name, final boolean adhoc, final boolean sysproc, final String password, final String groups[]) {
             this.name = name;
             this.adhoc = adhoc;
             this.sysproc = sysproc;
@@ -157,7 +156,7 @@ public class VoltProjectBuilder {
         @Override
         public boolean equals(final Object o) {
             if (o instanceof UserInfo) {
-                final UserInfo oInfo = (UserInfo)o;
+                final UserInfo oInfo = (UserInfo) o;
                 return name.equals(oInfo.name);
             }
             return false;
@@ -169,7 +168,7 @@ public class VoltProjectBuilder {
         private final boolean adhoc;
         private final boolean sysproc;
 
-        public GroupInfo(final String name, final boolean adhoc, final boolean sysproc){
+        public GroupInfo(final String name, final boolean adhoc, final boolean sysproc) {
             this.name = name;
             this.adhoc = adhoc;
             this.sysproc = sysproc;
@@ -183,7 +182,7 @@ public class VoltProjectBuilder {
         @Override
         public boolean equals(final Object o) {
             if (o instanceof GroupInfo) {
-                final GroupInfo oInfo = (GroupInfo)o;
+                final GroupInfo oInfo = (GroupInfo) o;
                 return name.equals(oInfo.name);
             }
             return false;
@@ -194,11 +193,13 @@ public class VoltProjectBuilder {
     public static final class ELTTableInfo {
         final public String m_tablename;
         final public boolean m_export_only;
+
         ELTTableInfo(String tablename, boolean append) {
             m_tablename = tablename;
             m_export_only = append;
         }
     }
+
     final ArrayList<ELTTableInfo> m_eltTables = new ArrayList<ELTTableInfo>();
 
     final LinkedHashSet<UserInfo> m_users = new LinkedHashSet<UserInfo>();
@@ -206,48 +207,48 @@ public class VoltProjectBuilder {
     final LinkedHashSet<ProcedureInfo> m_procedures = new LinkedHashSet<ProcedureInfo>();
     final LinkedHashSet<Class<?>> m_supplementals = new LinkedHashSet<Class<?>>();
     final LinkedHashMap<String, String> m_partitionInfos = new LinkedHashMap<String, String>();
-    
+
     /**
-     * Replicated SecondaryIndex Info
-     * TableName -> Pair<CreateIndex, ColumnNames>
+     * Replicated SecondaryIndex Info TableName -> Pair<CreateIndex,
+     * ColumnNames>
      */
     private final LinkedHashMap<String, Pair<Boolean, Collection<String>>> m_replicatedSecondaryIndexes = new LinkedHashMap<String, Pair<Boolean, Collection<String>>>();
     private boolean m_replicatedSecondaryIndexesEnabled = true;
-    
+
     /**
      * Evictable Tables
      */
     private final HashSet<String> m_evictableTables = new HashSet<String>();
-    
+
     /**
-     * Prefetchable Queries
-     * ProcedureName -> StatementName
+     * Prefetchable Queries ProcedureName -> StatementName
+     * 
      * @see Prefetchable
      */
     private final HashMap<String, Set<String>> m_prefetchQueries = new HashMap<String, Set<String>>();
 
     /**
-     * Deferrable Queries
-     * ProcedureName -> StatementName
+     * Deferrable Queries ProcedureName -> StatementName
+     * 
      * @see Deferrable
      */
     private final HashMap<String, Set<String>> m_deferQueries = new HashMap<String, Set<String>>();
-    
+
     /**
      * File containing ParameterMappingsSet
      */
     private File m_paramMappingsFile;
-    
+
     /**
-     * Values for a ParameterMappingsSet that we will construct
-     * after we have compile the catalog
+     * Values for a ParameterMappingsSet that we will construct after we have
+     * compile the catalog
      */
-    final LinkedHashMap<String, Map<Integer, Pair<String, Integer>>> m_paramMappings = new LinkedHashMap<String, Map<Integer,Pair<String,Integer>>>();
-    
-    String m_elloader = null;         // loader package.Classname
-    private boolean m_elenabled;      // true if enabled; false if disabled
-    List<String> m_elAuthUsers;       // authorized users
-    List<String> m_elAuthGroups;      // authorized groups
+    final LinkedHashMap<String, Map<Integer, Pair<String, Integer>>> m_paramMappings = new LinkedHashMap<String, Map<Integer, Pair<String, Integer>>>();
+
+    String m_elloader = null; // loader package.Classname
+    private boolean m_elenabled; // true if enabled; false if disabled
+    List<String> m_elAuthUsers; // authorized users
+    List<String> m_elAuthGroups; // authorized groups
 
     BackendTarget m_target = BackendTarget.NATIVE_EE_JNI;
     PrintStream m_compilerDebugPrintStream = null;
@@ -267,7 +268,7 @@ public class VoltProjectBuilder {
     public String getProjectName() {
         return project_name;
     }
-    
+
     public void addAllDefaults() {
         // does nothing in the base class
     }
@@ -276,7 +277,7 @@ public class VoltProjectBuilder {
         for (final UserInfo info : users) {
             final boolean added = m_users.add(info);
             if (!added) {
-                assert(added);
+                assert (added);
             }
         }
     }
@@ -285,35 +286,34 @@ public class VoltProjectBuilder {
         for (final GroupInfo info : groups) {
             final boolean added = m_groups.add(info);
             if (!added) {
-                assert(added);
+                assert (added);
             }
         }
     }
-    
+
     // -------------------------------------------------------------------
     // DATABASE PARTITIONS
     // -------------------------------------------------------------------
-    
+
     public void clearPartitions() {
         this.cluster_config.clear();
     }
-    
+
     public void addPartition(String hostname, int site_id, int partition_id) {
         this.cluster_config.addPartition(hostname, site_id, partition_id);
     }
-    
+
     // -------------------------------------------------------------------
     // SCHEMA
     // -------------------------------------------------------------------
 
     public void addSchema(final URL schemaURL) {
-        assert(schemaURL != null) :
-            "Invalid null schema file for " + this.project_name;
+        assert (schemaURL != null) : "Invalid null schema file for " + this.project_name;
         addSchema(schemaURL.getPath());
     }
-    
+
     public void addSchema(final File schemaFile) {
-        assert(schemaFile != null);
+        assert (schemaFile != null);
         addSchema(schemaFile.getAbsolutePath());
     }
 
@@ -324,13 +324,14 @@ public class VoltProjectBuilder {
             e.printStackTrace();
             System.exit(-1);
         }
-        assert(m_schemas.contains(schemaPath) == false);
+        assert (m_schemas.contains(schemaPath) == false);
         final File schemaFile = new File(schemaPath);
-        assert(schemaFile != null);
-        assert(schemaFile.isDirectory() == false);
-        // this check below fails in some valid cases (like when the file is in a jar)
-        //assert schemaFile.canRead()
-        //    : "can't read file: " + schemaPath;
+        assert (schemaFile != null);
+        assert (schemaFile.isDirectory() == false);
+        // this check below fails in some valid cases (like when the file is in
+        // a jar)
+        // assert schemaFile.canRead()
+        // : "can't read file: " + schemaPath;
 
         m_schemas.add(schemaPath);
     }
@@ -338,7 +339,7 @@ public class VoltProjectBuilder {
     // -------------------------------------------------------------------
     // PROCEDURES
     // -------------------------------------------------------------------
-    
+
     protected String getStmtProcedureSQL(String name) {
         for (ProcedureInfo pi : m_procedures) {
             if (pi.name.equals(name)) {
@@ -347,15 +348,16 @@ public class VoltProjectBuilder {
         }
         return (null);
     }
-    
+
     public void clearProcedures() {
         m_procedures.clear();
         m_procInfoOverrides.clear();
         m_prefetchQueries.clear();
     }
-    
+
     /**
      * Remove all of the Procedures whose name matches the given Pattern
+     * 
      * @param procNameRegex
      */
     public void removeProcedures(Pattern procNameRegex) {
@@ -369,9 +371,10 @@ public class VoltProjectBuilder {
         for (ProcedureInfo procInfo : toRemove)
             this.removeProcedure(procInfo);
     }
-    
+
     /**
      * Remove a Procedure based on its name
+     * 
      * @param procName
      */
     public void removeProcedure(String procName) {
@@ -382,9 +385,10 @@ public class VoltProjectBuilder {
             }
         } // FOR
     }
-    
+
     /**
      * Removes the given ProcedureInfo
+     * 
      * @param procInfo
      */
     protected void removeProcedure(ProcedureInfo procInfo) {
@@ -395,22 +399,22 @@ public class VoltProjectBuilder {
         if (LOG.isDebugEnabled())
             LOG.debug("Removed Procedure " + procInfo.name + " from project " + this.project_name.toUpperCase());
     }
-    
+
     /**
-     * Provide the path to the ParameterMappingsSet file to use to
-     * populate the Catalog after it has been created.
+     * Provide the path to the ParameterMappingsSet file to use to populate the
+     * Catalog after it has been created.
+     * 
      * @param mappingsFile
      */
     public void addParameterMappings(File mappingsFile) {
-        assert(mappingsFile != null) :
-            "Invalid ParameterMappingsSet file";
-        assert(mappingsFile.exists()) :
-            "The ParameterMappingsSet file '" + mappingsFile + "' does not exist";
+        assert (mappingsFile != null) : "Invalid ParameterMappingsSet file";
+        assert (mappingsFile.exists()) : "The ParameterMappingsSet file '" + mappingsFile + "' does not exist";
         m_paramMappingsFile = mappingsFile;
     }
 
     /**
      * Mark a ProcParameter to be mapped to a StmtParameter
+     * 
      * @param procedureClass
      * @param procParamIdx
      * @param statementName
@@ -419,9 +423,10 @@ public class VoltProjectBuilder {
     public void mapParameters(Class<? extends VoltProcedure> procedureClass, int procParamIdx, String statementName, int stmtParamIdx) {
         this.mapParameters(procedureClass.getSimpleName(), procParamIdx, statementName, stmtParamIdx);
     }
-    
+
     /**
      * Mark a ProcParameter to be mapped to a StmtParameter
+     * 
      * @param procedureName
      * @param procParamIdx
      * @param statementName
@@ -430,19 +435,20 @@ public class VoltProjectBuilder {
     public void mapParameters(String procedureName, int procParamIdx, String statementName, int stmtParamIdx) {
         Map<Integer, Pair<String, Integer>> m = m_paramMappings.get(procedureName);
         if (m == null) {
-            m = new LinkedHashMap<Integer, Pair<String,Integer>>();
+            m = new LinkedHashMap<Integer, Pair<String, Integer>>();
             m_paramMappings.put(procedureName, m);
         }
         Pair<String, Integer> stmtPair = Pair.of(statementName, stmtParamIdx);
         m.put(procParamIdx, stmtPair);
     }
-    
+
     // -------------------------------------------------------------------
     // PREFETCHABLE
     // -------------------------------------------------------------------
-    
+
     /**
      * Mark a Statement as prefetchable
+     * 
      * @param procedureName
      * @param statementName
      */
@@ -452,6 +458,7 @@ public class VoltProjectBuilder {
 
     /**
      * Mark a Statement as prefetchable
+     * 
      * @param procedureName
      * @param statementName
      */
@@ -463,26 +470,28 @@ public class VoltProjectBuilder {
         }
         stmtNames.add(statementName);
     }
-    
+
     // -------------------------------------------------------------------
     // EVICTABLE TABLES
     // -------------------------------------------------------------------
-    
+
     /**
-     * Mark a table as evictable. When using the anti-caching feature, this means
-     * that portions of this table can be moved out to blocks on disk 
+     * Mark a table as evictable. When using the anti-caching feature, this
+     * means that portions of this table can be moved out to blocks on disk
+     * 
      * @param tableName
      */
     public void markTableEvictable(String tableName) {
         m_evictableTables.add(tableName);
     }
-    
+
     // -------------------------------------------------------------------
     // DEFERRABLE STATEMENTS
     // -------------------------------------------------------------------
-    
+
     /**
      * Mark a Statement as deferrable
+     * 
      * @param procedureName
      * @param statementName
      */
@@ -492,6 +501,7 @@ public class VoltProjectBuilder {
 
     /**
      * Mark a Statement as deferrable
+     * 
      * @param procedureName
      * @param statementName
      */
@@ -503,15 +513,16 @@ public class VoltProjectBuilder {
         }
         stmtNames.add(statementName);
     }
-    
+
     // -------------------------------------------------------------------
     // SINGLE-STATEMENT PROCEDURES
     // -------------------------------------------------------------------
-    
+
     /**
-     * Create a single statement procedure that only has one query
-     * The input parameters to the SQL statement will be automatically passed 
-     * from the input parameters to the procedure.
+     * Create a single statement procedure that only has one query The input
+     * parameters to the SQL statement will be automatically passed from the
+     * input parameters to the procedure.
+     * 
      * @param procedureName
      * @param sql
      */
@@ -522,7 +533,7 @@ public class VoltProjectBuilder {
     public void addStmtProcedure(String name, String sql, String partitionInfo) {
         addProcedures(new ProcedureInfo(new String[0], new String[0], name, sql, partitionInfo));
     }
-    
+
     public void addProcedure(final Class<? extends VoltProcedure> procedure) {
         final ArrayList<ProcedureInfo> procArray = new ArrayList<ProcedureInfo>();
         procArray.add(new ProcedureInfo(new String[0], new String[0], procedure));
@@ -538,7 +549,7 @@ public class VoltProjectBuilder {
             addProcedures(procArray);
         }
     }
-    
+
     /*
      * List of users and groups permitted to invoke the procedure
      */
@@ -553,8 +564,8 @@ public class VoltProjectBuilder {
         // check for duplicates and existings
         final Set<ProcedureInfo> newProcs = new HashSet<ProcedureInfo>();
         for (final ProcedureInfo procInfo : procedures) {
-            assert(newProcs.contains(procInfo) == false);
-            assert(m_procedures.contains(procInfo) == false) : "Duplicate procedure " + procInfo.name;
+            assert (newProcs.contains(procInfo) == false);
+            assert (m_procedures.contains(procInfo) == false) : "Duplicate procedure " + procInfo.name;
             newProcs.add(procInfo);
         }
 
@@ -575,8 +586,8 @@ public class VoltProjectBuilder {
         // check for duplicates and existings
         final HashSet<Class<?>> newSupps = new HashSet<Class<?>>();
         for (final Class<?> supplemental : supplementals) {
-            assert(newSupps.contains(supplemental) == false);
-            assert(m_supplementals.contains(supplemental) == false);
+            assert (newSupps.contains(supplemental) == false);
+            assert (m_supplementals.contains(supplemental) == false);
             newSupps.add(supplemental);
         }
 
@@ -588,56 +599,55 @@ public class VoltProjectBuilder {
     // -------------------------------------------------------------------
     // TABLE PARTITIONS
     // -------------------------------------------------------------------
-    
+
     public void addTablePartitionInfo(Table catalog_tbl, Column catalog_col) {
-        // added by hawk, should WINDOW need such partition information?
-	if ( catalog_tbl.getIswindow() == true )
-           return;
-        assert(catalog_col != null) : "Unexpected null partition column for " + catalog_tbl;
+        // Should WINDOW need such partition information?
+        if (catalog_tbl.getIswindow() == true)
+            return;
         
+        assert (catalog_col != null) : "Unexpected null partition column for " + catalog_tbl;
+
         // TODO: Support special columns
         if (catalog_col instanceof VerticalPartitionColumn) {
-            catalog_col = ((VerticalPartitionColumn)catalog_col).getHorizontalColumn();
+            catalog_col = ((VerticalPartitionColumn) catalog_col).getHorizontalColumn();
         }
         if (catalog_col instanceof MultiColumn) {
-            catalog_col = ((MultiColumn)catalog_col).get(0);
+            catalog_col = ((MultiColumn) catalog_col).get(0);
         }
         this.addTablePartitionInfo(catalog_tbl.getName(), catalog_col.getName());
     }
-    
+
     public void addTablePartitionInfo(final String tableName, final String partitionColumnName) {
-        assert(m_partitionInfos.containsKey(tableName) == false) :
-            String.format("Already contains table partitioning info for '%s': %s",
-                          tableName, m_partitionInfos.get(tableName));
+        assert (m_partitionInfos.containsKey(tableName) == false) : String.format("Already contains table partitioning info for '%s': %s", tableName, m_partitionInfos.get(tableName));
         m_partitionInfos.put(tableName, partitionColumnName);
     }
-    
+
     // -------------------------------------------------------------------
     // REPLICATED SECONDARY INDEXES
     // -------------------------------------------------------------------
-    
+
     public void removeReplicatedSecondaryIndexes() {
         m_replicatedSecondaryIndexes.clear();
     }
-    
-    public void addReplicatedSecondaryIndex(final String tableName, final String...partitionColumnNames) {
+
+    public void addReplicatedSecondaryIndex(final String tableName, final String... partitionColumnNames) {
         this.addReplicatedSecondaryIndexInfo(tableName, true, partitionColumnNames);
     }
-    
-    public void addReplicatedSecondaryIndexInfo(final String tableName, final boolean createIndex, final String...partitionColumnNames) {
+
+    public void addReplicatedSecondaryIndexInfo(final String tableName, final boolean createIndex, final String... partitionColumnNames) {
         ArrayList<String> columns = new ArrayList<String>();
         for (String col : partitionColumnNames) {
             columns.add(col);
         }
         this.addReplicatedSecondaryIndexInfo(tableName, createIndex, columns);
     }
-    
+
     public void addReplicatedSecondaryIndexInfo(final String tableName, final boolean createIndex, final Collection<String> partitionColumnNames) {
-        assert(m_replicatedSecondaryIndexes.containsKey(tableName) == false);
+        assert (m_replicatedSecondaryIndexes.containsKey(tableName) == false);
         m_replicatedSecondaryIndexes.put(tableName, Pair.of(createIndex, partitionColumnNames));
     }
-    
-    public void enableReplicatedSecondaryIndexes(boolean val) { 
+
+    public void enableReplicatedSecondaryIndexes(boolean val) {
         m_replicatedSecondaryIndexesEnabled = val;
     }
 
@@ -645,23 +655,17 @@ public class VoltProjectBuilder {
         m_securityEnabled = enabled;
     }
 
-    public void setSnapshotSettings(
-            String frequency,
-            int retain,
-            String path,
-            String prefix) {
-        assert(frequency != null);
-        assert(path != null);
-        assert(prefix != null);
+    public void setSnapshotSettings(String frequency, int retain, String path, String prefix) {
+        assert (frequency != null);
+        assert (path != null);
+        assert (prefix != null);
         m_snapshotFrequency = frequency;
         m_snapshotRetain = retain;
         m_snapshotPath = path;
         m_snapshotPrefix = prefix;
     }
 
-
-    public void addELT(final String loader, boolean enabled,
-            List<String> users, List<String> groups) {
+    public void addELT(final String loader, boolean enabled, List<String> users, List<String> groups) {
         m_elloader = loader;
         m_elenabled = enabled;
         m_elAuthUsers = users;
@@ -680,13 +684,15 @@ public class VoltProjectBuilder {
     /**
      * Override the procedure annotation with the specified values for a
      * specified procedure.
-     *
-     * @param procName The name of the procedure to override the annotation.
-     * @param info The values to use instead of the annotation.
+     * 
+     * @param procName
+     *            The name of the procedure to override the annotation.
+     * @param info
+     *            The values to use instead of the annotation.
      */
     public void overrideProcInfoForProcedure(final String procName, final ProcInfoData info) {
-        assert(procName != null);
-        assert(info != null);
+        assert (procName != null);
+        assert (info != null);
         m_procInfoOverrides.put(procName, info);
     }
 
@@ -697,33 +703,29 @@ public class VoltProjectBuilder {
     public boolean compile(final File jarPath, final int sitesPerHost, final int replication) {
         return compile(jarPath.getAbsolutePath(), sitesPerHost, 1, replication, "localhost");
     }
-    
+
     public boolean compile(final String jarPath, final int sitesPerHost, final int replication) {
         return compile(jarPath, sitesPerHost, 1, replication, "localhost");
     }
 
-    public boolean compile(final String jarPath, final int sitesPerHost, final int hostCount,
-                           final int replication, final String leaderAddress)
-    {
+    public boolean compile(final String jarPath, final int sitesPerHost, final int hostCount, final int replication, final String leaderAddress) {
         VoltCompiler compiler = new VoltCompiler();
         if (m_replicatedSecondaryIndexesEnabled) {
             compiler.enableVerticalPartitionOptimizations();
         }
-        return compile(compiler, jarPath, sitesPerHost, hostCount, replication,
-                       leaderAddress);
+        return compile(compiler, jarPath, sitesPerHost, hostCount, replication, leaderAddress);
     }
 
-    public boolean compile(final VoltCompiler compiler, final String jarPath,
-                           final int sitesPerHost, final int hostCount,
-                           final int replication, final String leaderAddress)
-    {
-        assert(jarPath != null);
-        assert(sitesPerHost >= 1);
-        assert(hostCount >= 1);
-        assert(leaderAddress != null);
+    public boolean compile(final VoltCompiler compiler, final String jarPath, final int sitesPerHost, final int hostCount, final int replication, final String leaderAddress) {
+        assert (jarPath != null);
+        assert (sitesPerHost >= 1);
+        assert (hostCount >= 1);
+        assert (leaderAddress != null);
 
-        // this stuff could all be converted to org.voltdb.compiler.projectfile.*
-        // jaxb objects and (WE ARE!) marshaled to XML. Just needs some elbow grease.
+        // this stuff could all be converted to
+        // org.voltdb.compiler.projectfile.*
+        // jaxb objects and (WE ARE!) marshaled to XML. Just needs some elbow
+        // grease.
 
         DocumentBuilderFactory docFactory;
         DocumentBuilder docBuilder;
@@ -732,8 +734,7 @@ public class VoltProjectBuilder {
             docFactory = DocumentBuilderFactory.newInstance();
             docBuilder = docFactory.newDocumentBuilder();
             doc = docBuilder.newDocument();
-        }
-        catch (final ParserConfigurationException e) {
+        } catch (final ParserConfigurationException e) {
             e.printStackTrace();
             return false;
         }
@@ -762,51 +763,42 @@ public class VoltProjectBuilder {
             result = new StreamResult(new StringWriter());
             final DOMSource domSource = new DOMSource(doc);
             transformer.transform(domSource, result);
-        }
-        catch (final TransformerConfigurationException e) {
+        } catch (final TransformerConfigurationException e) {
             e.printStackTrace();
             return false;
-        }
-        catch (final TransformerFactoryConfigurationError e) {
+        } catch (final TransformerFactoryConfigurationError e) {
             e.printStackTrace();
             return false;
-        }
-        catch (final TransformerException e) {
+        } catch (final TransformerException e) {
             e.printStackTrace();
             return false;
         }
 
-//        String xml = result.getWriter().toString();
-//        System.out.println(xml);
+        // String xml = result.getWriter().toString();
+        // System.out.println(xml);
 
         final File projectFile = writeStringToTempFile(result.getWriter().toString());
         final String projectPath = projectFile.getPath();
         LOG.debug("PROJECT XML: " + projectPath);
-        
-        ClusterConfig cc = (this.cluster_config.isEmpty() ? 
-                                new ClusterConfig(hostCount, sitesPerHost, replication, leaderAddress) :
-                                this.cluster_config);
-        final boolean success = compiler.compile(projectPath,
-                                           cc,
-                                           jarPath,
-                                           m_compilerDebugPrintStream,
-                                           m_procInfoOverrides);
-        
+
+        ClusterConfig cc = (this.cluster_config.isEmpty() ? new ClusterConfig(hostCount, sitesPerHost, replication, leaderAddress) : this.cluster_config);
+        final boolean success = compiler.compile(projectPath, cc, jarPath, m_compilerDebugPrintStream, m_procInfoOverrides);
+
         // HACK: If we have a ParameterMappingsSet that we need to apply
-        // either from a file or a fixed mappings, then we have 
+        // either from a file or a fixed mappings, then we have
         // to load the catalog into this JVM, apply the mappings, and then
         // update the jar file with the new catalog
         if (m_paramMappingsFile != null || m_paramMappings.isEmpty() == false) {
             File jarFile = new File(jarPath);
             Catalog catalog = CatalogUtil.loadCatalogFromJar(jarFile);
-            assert(catalog != null);
+            assert (catalog != null);
             Database catalog_db = CatalogUtil.getDatabase(catalog);
-            
+
             this.applyParameterMappings(catalog_db);
-            
+
             // Construct a List of prefetchable Statements
             this.applyPrefetchableFlags(catalog_db);
-            
+
             // Write it out!
             try {
                 CatalogUtil.updateCatalogInJar(jarFile, catalog, m_paramMappingsFile);
@@ -815,13 +807,13 @@ public class VoltProjectBuilder {
                 throw new RuntimeException(msg, ex);
             }
         }
-        
+
         return success;
     }
-    
+
     private void applyParameterMappings(Database catalog_db) {
-        ParameterMappingsSet mappings = new ParameterMappingsSet();        
-        
+        ParameterMappingsSet mappings = new ParameterMappingsSet();
+
         // Load ParameterMappingSet from file
         if (m_paramMappingsFile != null) {
             try {
@@ -835,37 +827,28 @@ public class VoltProjectBuilder {
         else {
             for (String procName : m_paramMappings.keySet()) {
                 Procedure catalog_proc = catalog_db.getProcedures().getIgnoreCase(procName);
-                assert(catalog_proc != null) :
-                    "Invalid Procedure name for ParameterMappings '" + procName + "'";
+                assert (catalog_proc != null) : "Invalid Procedure name for ParameterMappings '" + procName + "'";
                 for (Integer procParamIdx : m_paramMappings.get(procName).keySet()) {
                     ProcParameter catalog_procParam = catalog_proc.getParameters().get(procParamIdx.intValue());
-                    assert(catalog_procParam != null) :
-                        "Invalid ProcParameter for '" + procName + "' at offset " + procParamIdx;
+                    assert (catalog_procParam != null) : "Invalid ProcParameter for '" + procName + "' at offset " + procParamIdx;
                     Pair<String, Integer> stmtPair = m_paramMappings.get(procName).get(procParamIdx);
-                    assert(stmtPair != null);
-                    
+                    assert (stmtPair != null);
+
                     Statement catalog_stmt = catalog_proc.getStatements().getIgnoreCase(stmtPair.getFirst());
-                    assert(catalog_stmt != null) :
-                        "Invalid Statement name '" + stmtPair.getFirst() + "' for ParameterMappings " +
-                		"for Procedure '" + procName + "'";
+                    assert (catalog_stmt != null) : "Invalid Statement name '" + stmtPair.getFirst() + "' for ParameterMappings " + "for Procedure '" + procName + "'";
                     StmtParameter catalog_stmtParam = catalog_stmt.getParameters().get(stmtPair.getSecond().intValue());
-                    assert(catalog_stmtParam != null) :
-                        "Invalid StmtParameter for '" + catalog_stmt.fullName() + "' at offset " + stmtPair.getSecond();
-                    
+                    assert (catalog_stmtParam != null) : "Invalid StmtParameter for '" + catalog_stmt.fullName() + "' at offset " + stmtPair.getSecond();
+
                     // HACK: This assumes that the ProcParameter is not an array
-                    // and that we want to map the first invocation of the Statement
+                    // and that we want to map the first invocation of the
+                    // Statement
                     // directly to the ProcParameter.
-                    ParameterMapping pm = new ParameterMapping(catalog_stmt,
-                                                               0,
-                                                               catalog_stmtParam,
-                                                               catalog_procParam,
-                                                               0,
-                                                               1.0);
+                    ParameterMapping pm = new ParameterMapping(catalog_stmt, 0, catalog_stmtParam, catalog_procParam, 0, 1.0);
                     mappings.add(pm);
                 } // FOR (ProcParameter)
             } // FOR (Procedure)
         }
-        
+
         // Apply it!
         ParametersUtil.applyParameterMappings(catalog_db, mappings);
     }
@@ -891,7 +874,7 @@ public class VoltProjectBuilder {
             }
         } // FOR (Procedure)
     }
-    
+
     private void buildDatabaseElement(Document doc, final Element database) {
 
         // /project/database/users
@@ -907,8 +890,7 @@ public class VoltProjectBuilder {
             user.setAttribute("sysproc", "true");
             user.setAttribute("adhoc", "true");
             users.appendChild(user);
-        }
-        else {
+        } else {
             for (final UserInfo info : m_users) {
                 final Element user = doc.createElement("user");
                 user.setAttribute("name", info.name);
@@ -940,8 +922,7 @@ public class VoltProjectBuilder {
             group.setAttribute("sysproc", "true");
             group.setAttribute("adhoc", "true");
             groups.appendChild(group);
-        }
-        else {
+        } else {
             for (final GroupInfo info : m_groups) {
                 final Element group = doc.createElement("group");
                 group.setAttribute("name", info.name);
@@ -970,7 +951,7 @@ public class VoltProjectBuilder {
         for (final ProcedureInfo procedure : m_procedures) {
             if (procedure.cls == null)
                 continue;
-            assert(procedure.sql == null);
+            assert (procedure.sql == null);
 
             final Element proc = doc.createElement("procedure");
             proc.setAttribute("class", procedure.cls.getName());
@@ -994,7 +975,7 @@ public class VoltProjectBuilder {
                 }
                 proc.setAttribute("groups", groupattr.toString());
             }
-            
+
             // HACK: Prefetchable Statements
             if (m_prefetchQueries.containsKey(procedure.cls.getSimpleName())) {
                 Collection<String> stmtNames = m_prefetchQueries.get(procedure.cls.getSimpleName());
@@ -1005,7 +986,7 @@ public class VoltProjectBuilder {
                 Collection<String> stmtNames = m_deferQueries.get(procedure.cls.getSimpleName());
                 proc.setAttribute("deferrable", StringUtil.join(",", stmtNames));
             }
-            
+
             procedures.appendChild(proc);
         }
 
@@ -1013,12 +994,13 @@ public class VoltProjectBuilder {
         for (final ProcedureInfo procedure : m_procedures) {
             if (procedure.sql == null)
                 continue;
-            assert(procedure.cls == null);
+            assert (procedure.cls == null);
 
             final Element proc = doc.createElement("procedure");
             proc.setAttribute("class", procedure.name);
-            if (procedure.partitionInfo != null);
-                proc.setAttribute("partitioninfo", procedure.partitionInfo);
+            if (procedure.partitionInfo != null)
+                ;
+            proc.setAttribute("partitioninfo", procedure.partitionInfo);
             // build up @users. This attribute should be redesigned
             if (procedure.users.length > 0) {
                 final StringBuilder userattr = new StringBuilder();
@@ -1067,7 +1049,7 @@ public class VoltProjectBuilder {
         if (m_evictableTables.isEmpty() == false) {
             final Element evictables = doc.createElement("evictables");
             database.appendChild(evictables);
-            
+
             // Table entries
             for (String tableName : m_evictableTables) {
                 final Element table = doc.createElement("evictable");
@@ -1075,7 +1057,7 @@ public class VoltProjectBuilder {
                 evictables.appendChild(table);
             }
         }
-        
+
         // Vertical Partitions
         if (m_replicatedSecondaryIndexes.size() > 0) {
             // /project/database/partitions
@@ -1086,8 +1068,8 @@ public class VoltProjectBuilder {
             for (String tableName : m_replicatedSecondaryIndexes.keySet()) {
                 Pair<Boolean, Collection<String>> p = m_replicatedSecondaryIndexes.get(tableName);
                 Boolean createIndex = p.getFirst();
-                Collection<String> columnNames = p.getSecond(); 
-                
+                Collection<String> columnNames = p.getSecond();
+
                 final Element vp = doc.createElement("verticalpartition");
                 vp.setAttribute("table", tableName);
                 vp.setAttribute("indexed", createIndex.toString());
@@ -1106,7 +1088,7 @@ public class VoltProjectBuilder {
 
         // classdependency
         for (final Class<?> supplemental : m_supplementals) {
-            final Element supp= doc.createElement("classdependency");
+            final Element supp = doc.createElement("classdependency");
             supp.setAttribute("class", supplemental.getName());
             classdeps.appendChild(supp);
         }
@@ -1126,8 +1108,7 @@ public class VoltProjectBuilder {
                 for (String s : m_elAuthUsers) {
                     if (usersattr.isEmpty()) {
                         usersattr += s;
-                    }
-                    else {
+                    } else {
                         usersattr += "," + s;
                     }
                 }
@@ -1140,8 +1121,7 @@ public class VoltProjectBuilder {
                 for (String s : m_elAuthGroups) {
                     if (groupsattr.isEmpty()) {
                         groupsattr += s;
-                    }
-                    else {
+                    } else {
                         groupsattr += "," + s;
                     }
                 }
@@ -1175,10 +1155,11 @@ public class VoltProjectBuilder {
 
     /**
      * Utility method to take a string and put it in a file. This is used by
-     * this class to write the project file to a temp file, but it also used
-     * by some other tests.
-     *
-     * @param content The content of the file to create.
+     * this class to write the project file to a temp file, but it also used by
+     * some other tests.
+     * 
+     * @param content
+     *            The content of the file to create.
      * @return A reference to the file created or null on failure.
      */
     public static File writeStringToTempFile(final String content) {

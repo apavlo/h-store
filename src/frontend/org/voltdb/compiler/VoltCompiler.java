@@ -333,7 +333,6 @@ public class VoltCompiler {
         return m_stmtIds.incrementAndGet();
     }
 
-    // added by hawk, 9/18/2013
     final AtomicInteger m_trigIds = new AtomicInteger(0);
     public int getNextTriggerId() {
         return m_trigIds.incrementAndGet();

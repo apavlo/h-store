@@ -30,8 +30,7 @@ import org.voltdb.catalog.Cluster;
 import org.voltdb.catalog.Table;
 import org.voltdb.plannodes.AbstractPlanNode;
 
-// Added by hawk, 9/26/2013
-// to test window behavior
+// test window behavior
 public class TestPlansWindow extends TestCase {
 
     private PlannerTestAideDeCamp aide;

@@ -47,7 +47,7 @@ public class TestHSQLDB extends TestCase {
         public int read() throws IOException { return sr.read(); }
     }
 
-     // added by hawk, to test stream related DDL and DML statements parsing
+     // test stream related DDL and DML statements parsing
     public void testStreamRelatedCatalogRead() throws HSQLParseException {
 
         HSQLInterface hsql = HSQLInterface.loadHsqldb();

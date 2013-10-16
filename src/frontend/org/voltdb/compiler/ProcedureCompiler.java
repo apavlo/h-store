@@ -67,45 +67,33 @@ public abstract class ProcedureCompiler {
         assert (compiler != null);
         assert (hsql != null);
         assert (estimates != null);
-  
-	// modified by hawk, the added code is used to deal with VoltTrigger
-	if (procedureDescriptor.m_singleStmt == null) {
-		final String className = procedureDescriptor.m_className;
-		Class<?> procClass = null;
-		try {
-			procClass = Class.forName(className);
-		} catch (ClassNotFoundException e) {
-			String msg = "Cannot load class for procedure: " + className;
-			throw compiler.new VoltCompilerException(msg);
-		}
 
-		if (ClassUtil.getSuperClasses(procClass)
-				.contains(VoltTrigger.class)) {
-			compileTriggerProcedure(procClass, compiler, hsql, estimates,
-					catalog, db, procedureDescriptor);
-		} else
-			compileJavaProcedure(compiler, hsql, estimates, catalog, db,
-					procedureDescriptor);
-	} else
-		compileSingleStmtProcedure(compiler, hsql, estimates, catalog, db,
-				procedureDescriptor);
+        if (procedureDescriptor.m_singleStmt == null) {
+            final String className = procedureDescriptor.m_className;
+            Class<?> procClass = null;
+            try {
+                procClass = Class.forName(className);
+            } catch (ClassNotFoundException e) {
+                String msg = "Cannot load class for procedure: " + className;
+                throw compiler.new VoltCompilerException(msg);
+            }
+
+            if (ClassUtil.getSuperClasses(procClass).contains(VoltTrigger.class)) {
+                compileTriggerProcedure(procClass, compiler, hsql, estimates, catalog, db, procedureDescriptor);
+            } else
+                compileJavaProcedure(compiler, hsql, estimates, catalog, db, procedureDescriptor);
+        } else
+            compileSingleStmtProcedure(compiler, hsql, estimates, catalog, db, procedureDescriptor);
 
     }
 
-    // added by hawk, 9/18/2013
-    static void compileTriggerProcedure(Class<?> procClass,
-    		VoltCompiler compiler,
-            HSQLInterface hsql,
-            DatabaseEstimates estimates,
-            Catalog catalog,
-            Database db,
-            ProcedureDescriptor procedureDescriptor)
-    	throws VoltCompiler.VoltCompilerException {
-    
-    	// get the VoltTrigger instance
-    	VoltTrigger triggerInstance = null;
+    static void compileTriggerProcedure(Class<?> procClass, VoltCompiler compiler, HSQLInterface hsql, DatabaseEstimates estimates, Catalog catalog, Database db,
+            ProcedureDescriptor procedureDescriptor) throws VoltCompiler.VoltCompilerException {
+
+        // get the VoltTrigger instance
+        VoltTrigger triggerInstance = null;
         try {
-        	triggerInstance = (VoltTrigger) procClass.newInstance();
+            triggerInstance = (VoltTrigger) procClass.newInstance();
         } catch (InstantiationException e1) {
             e1.printStackTrace();
         } catch (IllegalAccessException e1) {
@@ -118,11 +106,11 @@ public abstract class ProcedureCompiler {
         Field[] fields = procClass.getFields();
         for (Field f : fields) {
             if (f.getType() == SQLStmt.class) {
-                
+
                 // get StmtInfo
-                StmtInfo stmtInfo = ClassUtil.getFieldAnnotation(f, StmtInfo.class);                
+                StmtInfo stmtInfo = ClassUtil.getFieldAnnotation(f, StmtInfo.class);
                 upsertable_list.add(stmtInfo);
-                
+
                 // String fieldName = f.getName();
                 SQLStmt stmt = null;
 
@@ -133,7 +121,7 @@ public abstract class ProcedureCompiler {
                 } catch (IllegalAccessException e) {
                     e.printStackTrace();
                 }
-                
+
                 String sql = stmt.getText();
                 sql_list.add(sql);
 
@@ -144,30 +132,27 @@ public abstract class ProcedureCompiler {
 
         StmtInfo[] stmtInfoArr = new StmtInfo[upsertable_list.size()];
         stmtInfoArr = upsertable_list.toArray(stmtInfoArr);
-        
-    	// get the stream table
+
+        // get the stream table
         String streamName = triggerInstance.getStreamName();
         Table stream = (db.getTables().getIgnoreCase(streamName));
-        
-        // add trigger to catalog 
-        addTriggerToCatalog(
-                compiler, 
-                hsql, 
-                stream, 
-                stream.getTriggers(), 
-                catalog, 
-                db, 
-                sqlArr, 
-                stmtInfoArr, 
-                compiler.getNextTriggerId()
-                ); //currently sends null for the trigger map
-    	
-    	return;
+
+        // add trigger to catalog
+        addTriggerToCatalog(compiler, hsql, stream, stream.getTriggers(), catalog, db, sqlArr, stmtInfoArr, compiler.getNextTriggerId()); // currently
+                                                                                                                                          // sends
+                                                                                                                                          // null
+                                                                                                                                          // for
+                                                                                                                                          // the
+                                                                                                                                          // trigger
+                                                                                                                                          // map
+
+        return;
 
     }
 
     /**
      * Add a trigger to the catalog
+     * 
      * @param compiler
      * @param hsql
      * @param parent
@@ -177,47 +162,29 @@ public abstract class ProcedureCompiler {
      * @param node
      * @throws VoltCompilerException
      */
-    static void addTriggerToCatalog(
-            VoltCompiler compiler, 
-    		HSQLInterface hsql,
-    		Table parent, 
-    		CatalogMap<Trigger> triggers,  
-    		Catalog catalog, 
-    		Database db, 
-    		String[] stmt, 
-    		StmtInfo[] stmtInfoArr,
-    		int trigId) 
-    throws VoltCompilerException
-    {
-    	int type = 0; //insert
-		boolean forEach = false;
-		
-		Trigger trigger = triggers.add("trig" + trigId);
-		trigger.setId(trigId);
-		trigger.setForeach(forEach);
-		trigger.setSourcetable(parent);
-		trigger.setTriggertype(type);
-		
-		for(int i = 0; i < stmt.length; i++)
-		{
-			Statement s = trigger.getStatements().add("trig" + trigId + "stmt" + i);
-			StmtInfo stmtInfo = (StmtInfo)stmtInfoArr[i];
-			if(stmtInfo!=null)
-			    s.setUpsertable(stmtInfo.upsertable());
-			else
-			    s.setUpsertable(false);
-			StatementCompiler.compile(compiler, hsql, catalog, db, new DatabaseEstimates(), s, stmt[i], true);
-		}
+    static void addTriggerToCatalog(VoltCompiler compiler, HSQLInterface hsql, Table parent, CatalogMap<Trigger> triggers, Catalog catalog, Database db, String[] stmt, StmtInfo[] stmtInfoArr,
+            int trigId) throws VoltCompilerException {
+        int type = 0; // insert
+        boolean forEach = false;
+
+        Trigger trigger = triggers.add("trig" + trigId);
+        trigger.setId(trigId);
+        trigger.setForeach(forEach);
+        trigger.setSourcetable(parent);
+        trigger.setTriggertype(type);
+
+        for (int i = 0; i < stmt.length; i++) {
+            Statement s = trigger.getStatements().add("trig" + trigId + "stmt" + i);
+            StmtInfo stmtInfo = (StmtInfo) stmtInfoArr[i];
+            if (stmtInfo != null)
+                s.setUpsertable(stmtInfo.upsertable());
+            else
+                s.setUpsertable(false);
+            StatementCompiler.compile(compiler, hsql, catalog, db, new DatabaseEstimates(), s, stmt[i], true);
+        }
     }
-    
-    // ended by hawk
-    
-    static void compileJavaProcedure(VoltCompiler compiler,
-                                     HSQLInterface hsql,
-                                     DatabaseEstimates estimates,
-                                     Catalog catalog,
-                                     Database db,
-                                     ProcedureDescriptor procedureDescriptor)
+
+    static void compileJavaProcedure(VoltCompiler compiler, HSQLInterface hsql, DatabaseEstimates estimates, Catalog catalog, Database db, ProcedureDescriptor procedureDescriptor)
             throws VoltCompiler.VoltCompilerException {
 
         final String className = procedureDescriptor.m_className;
@@ -230,7 +197,7 @@ public abstract class ProcedureCompiler {
             String msg = "Cannot load class for procedure: " + className;
             throw compiler.new VoltCompilerException(msg);
         }
-        
+
         // get the short name of the class (no package)
         String[] parts = className.split("\\.");
         String shortName = parts[parts.length - 1];
@@ -363,13 +330,13 @@ public abstract class ProcedureCompiler {
 
                 // add the statement to the catalog
                 Statement catalogStmt = procedure.getStatements().add(f.getName());
-                
+
                 StmtInfo stmtInfo = ClassUtil.getFieldAnnotation(f, StmtInfo.class);
-                if(stmtInfo != null)
+                if (stmtInfo != null)
                     catalogStmt.setUpsertable(stmtInfo.upsertable());
                 else
                     catalogStmt.setUpsertable(false);
-                
+
                 // compile the statement
                 try {
                     StatementCompiler.compile(compiler, hsql, catalog, db, estimates, catalogStmt, stmt.getText(), info.singlePartition);
@@ -379,17 +346,22 @@ public abstract class ProcedureCompiler {
                     throw compiler.new VoltCompilerException(msg);
                 }
 
-                // If this Field has a Prefetchable annotation or the Statement was 
-                // identified as prefetchable in the project XML, then we will want to
-                // set the "prefetchable" flag in the catalog for the Statement + Procedure
-                if (f.getAnnotation(Prefetchable.class) != null ||
-                    procedureDescriptor.m_prefetchable.contains(catalogStmt.getName())) {
+                // If this Field has a Prefetchable annotation or the Statement
+                // was
+                // identified as prefetchable in the project XML, then we will
+                // want to
+                // set the "prefetchable" flag in the catalog for the Statement
+                // + Procedure
+                if (f.getAnnotation(Prefetchable.class) != null || procedureDescriptor.m_prefetchable.contains(catalogStmt.getName())) {
                     catalogStmt.setPrefetchable(true);
                     procedure.setPrefetchable(true);
                 }
-                // If this Field has a Deferrable annotation or the Statement was 
-                // identified as deferrable in the project XML, then we will want to
-                // set the "deferrable" flag in the catalog for the Statement + Procedure
+                // If this Field has a Deferrable annotation or the Statement
+                // was
+                // identified as deferrable in the project XML, then we will
+                // want to
+                // set the "deferrable" flag in the catalog for the Statement +
+                // Procedure
                 if (f.getAnnotation(Deferrable.class) != null) {
                     catalogStmt.setDeferrable(true);
                     procedure.setDeferrable(true);
@@ -432,7 +404,7 @@ public abstract class ProcedureCompiler {
         } else {
             procedure.setPartitionparameter(NullProcParameter.PARAM_IDX);
         }
-        
+
         // ProcInfo.partitionParam overrides everything else
         if (info.partitionParam != -1) {
             if (info.partitionParam >= paramTypes.length || info.partitionParam < 0) {

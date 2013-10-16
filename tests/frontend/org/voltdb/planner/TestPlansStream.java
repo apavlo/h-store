@@ -24,7 +24,7 @@
 package org.voltdb.planner;
 
 import junit.framework.TestCase;
-import org.junit.Ignore; // added by hawk
+import org.junit.Ignore;
 
 import org.voltdb.catalog.CatalogMap;
 import org.voltdb.catalog.Cluster;

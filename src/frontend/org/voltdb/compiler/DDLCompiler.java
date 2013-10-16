@@ -243,7 +243,6 @@ public class DDLCompiler {
         for (int i = 0; i < tableNodes.getLength(); i++) {
             Node node = tableNodes.item(i);
             
-            // modified by hawk
             if (node.getNodeName().equals("table"))
             {
             	boolean beStream = false;
@@ -258,12 +257,10 @@ public class DDLCompiler {
                 }
                 addTableToCatalog(catalog, db, node, beStream);
             }
-            // ended by hawk
 		}
         processMaterializedViews(db);
     }
 
-    // modified by hawk
     void addTableToCatalog(Catalog catalog, Database db, Node node, boolean beStream) throws VoltCompilerException {
         assert node.getNodeName().equals("table");
 

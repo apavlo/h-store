@@ -15,7 +15,6 @@
  * along with VoltDB.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-// added by hawk, 9/18/2013
 package org.voltdb;
 
 /**
