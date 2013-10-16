@@ -55,6 +55,13 @@ public class TestPlansStream extends TestCase {
         aide.tearDown();
     }
     
+    public void testInsertSelect() {
+        AbstractPlanNode pn = null;
+        pn = compile("INSERT INTO votes_by_phone_number (phone_number, num_votes) SELECT B_ID, NUMROWS + 1 FROM TABLEB ", 0);
+        if (pn != null)
+            System.out.println(pn.toJSONString());
+    }
+
     public void testInsert() {
         AbstractPlanNode pn = null;
         pn = compile("INSERT INTO votes_by_phone_number (phone_number, num_votes) VALUES (1,2)", 0, false);
@@ -81,7 +88,8 @@ public class TestPlansStream extends TestCase {
     public void testDeleteTopFromStream() {
         AbstractPlanNode pn = null;
         //pn = compile("SELECT t_id from ticker", 0);
-        pn = compile("DELETE FROM TABLEA WHERE A_ID = (SELECT MAX(A_ID) FROM TABLEA)", 0);
+        //pn = compile("DELETE FROM TABLEA WHERE A_ID = (SELECT MAX(A_ID) FROM TABLEA)", 0);
+        pn = compile("DELETE FROM TABLEA", 0);
         if (pn != null)
             System.out.println(pn.toJSONString());
     }

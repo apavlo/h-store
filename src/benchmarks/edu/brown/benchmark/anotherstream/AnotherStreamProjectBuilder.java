@@ -44,9 +44,7 @@ public class AnotherStreamProjectBuilder extends AbstractProjectBuilder {
     public static final String PARTITIONING[][] = new String[][] {
         { "votes", "phone_number" },
         { "votes_by_phone_number", "phone_number" },
-        { "votes_by_contestant_number_state", "contestant_number"},
-        { "T3", "phone_number" },
-        { "T4", "contestant_number"}
+        { "votes_by_contestant_number_state", "contestant_number"}
     };
 
     public AnotherStreamProjectBuilder() {

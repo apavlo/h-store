@@ -90,12 +90,6 @@ CREATE STREAM S2
 );
 
 -- used to update the table votes_by_phone_number
-CREATE TABLE T3
-(
-    phone_number     bigint    NOT NULL,
-    num_votes        int
-);
-
 CREATE STREAM S3
 (
     phone_number     bigint    NOT NULL,
@@ -103,13 +97,6 @@ CREATE STREAM S3
 );
 
 -- used to update the table votes_by_contestant_number_state
-CREATE TABLE T4
-(
-  contestant_number  int        NOT NULL
-, state              varchar(2) NOT NULL
-, num_votes          int
-);
-
 CREATE STREAM S4
 (
   contestant_number  int        NOT NULL
