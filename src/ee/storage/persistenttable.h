@@ -399,6 +399,9 @@ inline TableTuple& PersistentTable::getTempTupleInlined(TableTuple &source) {
 }
 
 #ifdef STORAGE_MMAP
+
+#define PATH_LENGTH 1024
+
 inline void PersistentTable::allocateNextBlock() {
 #ifdef MEMCHECK
     int bytes = m_schema->tupleLength() + TUPLE_HEADER_SIZE;
@@ -406,7 +409,7 @@ inline void PersistentTable::allocateNextBlock() {
     int bytes = m_tableAllocationTargetSize;
 #endif
 
-    int MMAP_fd, ret ;
+    int MMAP_fd, iret ;
     char* memory = NULL ;
     string MMAP_Dir, MMAP_file_name; 
     //long file_size;
@@ -416,7 +419,7 @@ inline void PersistentTable::allocateNextBlock() {
     MMAP_Dir = m_executorContext->getDBDir();
     //file_size = m_executorContext->getFileSize();
 
-    VOLT_WARN("MMAP : DBdir:: %s\n", MMAP_Dir.c_str());
+    VOLT_WARN("MMAP : DBdir:: --%s--\n", MMAP_Dir.c_str());
     //VOLT_WARN("MMAP : File Size :: %ld\n", file_size);
 
 #ifdef _WIN32
@@ -427,6 +430,10 @@ inline void PersistentTable::allocateNextBlock() {
 
     std::stringstream m_tableRequestCountStringStream;
     m_tableRequestCountStringStream << m_tableRequestCount;
+
+    // Initialize MMAP_Dir to local dir if it is not initialized
+    if(MMAP_Dir.empty())
+        MMAP_Dir = ".";
 
     /** Get an unique file object for each <Table,Table_Request_Index> **/
     MMAP_file_name  = MMAP_Dir + pathSeparator ;
@@ -445,8 +452,8 @@ inline void PersistentTable::allocateNextBlock() {
         throwFatalException("Failed to open file in directory %s.", MMAP_Dir.c_str());
     }
     
-    ret = ftruncate(MMAP_fd, bytes) ;
-    if(ret < 0){
+    iret = ftruncate(MMAP_fd, bytes) ;
+    if(iret < 0){
         VOLT_ERROR("MMAP : initialization error.");
         VOLT_ERROR("Failed to truncate file %d : %s", MMAP_fd, strerror(errno));
         throwFatalException("Failed to truncate file in directory %s.", MMAP_Dir.c_str());

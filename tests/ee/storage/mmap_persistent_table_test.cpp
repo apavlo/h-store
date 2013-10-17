@@ -33,128 +33,172 @@
 #include "indexes/tableindex.h"
 #include <vector>
 #include <string>
+#include <time.h>
 #include <stdint.h>
 
 using namespace voltdb;
 
+string genRandomString(const int len);
+
 class MmapPersistentTableTest : public Test {
-    public:
-        MmapPersistentTableTest() {
-            m_engine = new voltdb::VoltDBEngine();
-            m_engine->initialize(1,1, 0, 0, "");
+public:
+    MmapPersistentTableTest() {
+        m_engine = new voltdb::VoltDBEngine();
+        m_engine->initialize(1,1, 0, 0, "");
 
-            m_columnNames.push_back("1");
-            m_columnNames.push_back("2");
-            m_columnNames.push_back("3");
-            m_columnNames.push_back("4");
-            m_columnNames.push_back("5");
-            m_columnNames.push_back("6");
-            m_columnNames.push_back("7");
-            m_columnNames.push_back("8");
-            m_columnNames.push_back("9");
-            m_columnNames.push_back("10");
+        m_columnNames.push_back("1");
+        m_columnNames.push_back("2");
+        m_columnNames.push_back("3");
+        m_columnNames.push_back("4");
+        m_columnNames.push_back("5");
+        m_columnNames.push_back("6");
+        m_columnNames.push_back("7");
+        m_columnNames.push_back("8");
+        m_columnNames.push_back("9");
+        m_columnNames.push_back("10");
 
-            m_tableSchemaTypes.push_back(voltdb::VALUE_TYPE_BIGINT);
-            m_primaryKeyIndexSchemaTypes.push_back(voltdb::VALUE_TYPE_BIGINT);
-            m_tableSchemaTypes.push_back(voltdb::VALUE_TYPE_TINYINT);
-            m_primaryKeyIndexSchemaTypes.push_back(voltdb::VALUE_TYPE_TINYINT);
-            m_tableSchemaTypes.push_back(voltdb::VALUE_TYPE_INTEGER);
-            m_tableSchemaTypes.push_back(voltdb::VALUE_TYPE_BIGINT);
-            m_tableSchemaTypes.push_back(voltdb::VALUE_TYPE_SMALLINT);
-            m_tableSchemaTypes.push_back(voltdb::VALUE_TYPE_DOUBLE);
-            m_tableSchemaTypes.push_back(voltdb::VALUE_TYPE_VARCHAR);
-            m_primaryKeyIndexSchemaTypes.push_back(voltdb::VALUE_TYPE_VARCHAR);
-            m_tableSchemaTypes.push_back(voltdb::VALUE_TYPE_VARCHAR);
-            m_primaryKeyIndexSchemaTypes.push_back(voltdb::VALUE_TYPE_VARCHAR);
-            m_tableSchemaTypes.push_back(voltdb::VALUE_TYPE_VARCHAR);
-            m_tableSchemaTypes.push_back(voltdb::VALUE_TYPE_VARCHAR);
+        m_tableSchemaTypes.push_back(voltdb::VALUE_TYPE_BIGINT);
+        m_primaryKeyIndexSchemaTypes.push_back(voltdb::VALUE_TYPE_BIGINT);
+        m_tableSchemaTypes.push_back(voltdb::VALUE_TYPE_TINYINT);
+        m_primaryKeyIndexSchemaTypes.push_back(voltdb::VALUE_TYPE_TINYINT);
+        m_tableSchemaTypes.push_back(voltdb::VALUE_TYPE_INTEGER);
+        m_tableSchemaTypes.push_back(voltdb::VALUE_TYPE_BIGINT);
+        m_tableSchemaTypes.push_back(voltdb::VALUE_TYPE_SMALLINT);
+        m_tableSchemaTypes.push_back(voltdb::VALUE_TYPE_DOUBLE);
+        m_tableSchemaTypes.push_back(voltdb::VALUE_TYPE_VARCHAR);
+        m_primaryKeyIndexSchemaTypes.push_back(voltdb::VALUE_TYPE_VARCHAR);
+        m_tableSchemaTypes.push_back(voltdb::VALUE_TYPE_VARCHAR);
+        m_primaryKeyIndexSchemaTypes.push_back(voltdb::VALUE_TYPE_VARCHAR);
+        m_tableSchemaTypes.push_back(voltdb::VALUE_TYPE_VARCHAR);
+        m_tableSchemaTypes.push_back(voltdb::VALUE_TYPE_VARCHAR);
 
-            m_tableSchemaColumnSizes.push_back(NValue::getTupleStorageSize(voltdb::VALUE_TYPE_BIGINT));
-            m_primaryKeyIndexSchemaColumnSizes.push_back(voltdb::VALUE_TYPE_BIGINT);
-            m_tableSchemaColumnSizes.push_back(NValue::getTupleStorageSize(voltdb::VALUE_TYPE_TINYINT));
-            m_primaryKeyIndexSchemaColumnSizes.push_back(voltdb::VALUE_TYPE_TINYINT);
-            m_tableSchemaColumnSizes.push_back(NValue::getTupleStorageSize(voltdb::VALUE_TYPE_INTEGER));
-            m_tableSchemaColumnSizes.push_back(NValue::getTupleStorageSize(voltdb::VALUE_TYPE_BIGINT));
-            m_tableSchemaColumnSizes.push_back(NValue::getTupleStorageSize(voltdb::VALUE_TYPE_SMALLINT));
-            m_tableSchemaColumnSizes.push_back(NValue::getTupleStorageSize(voltdb::VALUE_TYPE_DOUBLE));
-            m_tableSchemaColumnSizes.push_back(300);
-            m_primaryKeyIndexSchemaColumnSizes.push_back(300);
-            m_tableSchemaColumnSizes.push_back(16);
-            m_primaryKeyIndexSchemaColumnSizes.push_back(16);
-            m_tableSchemaColumnSizes.push_back(500);
-            m_tableSchemaColumnSizes.push_back(32);
+        m_tableSchemaColumnSizes.push_back(NValue::getTupleStorageSize(voltdb::VALUE_TYPE_BIGINT));
+        m_primaryKeyIndexSchemaColumnSizes.push_back(voltdb::VALUE_TYPE_BIGINT);
+        m_tableSchemaColumnSizes.push_back(NValue::getTupleStorageSize(voltdb::VALUE_TYPE_TINYINT));
+        m_primaryKeyIndexSchemaColumnSizes.push_back(voltdb::VALUE_TYPE_TINYINT);
+        m_tableSchemaColumnSizes.push_back(NValue::getTupleStorageSize(voltdb::VALUE_TYPE_INTEGER));
+        m_tableSchemaColumnSizes.push_back(NValue::getTupleStorageSize(voltdb::VALUE_TYPE_BIGINT));
+        m_tableSchemaColumnSizes.push_back(NValue::getTupleStorageSize(voltdb::VALUE_TYPE_SMALLINT));
+        m_tableSchemaColumnSizes.push_back(NValue::getTupleStorageSize(voltdb::VALUE_TYPE_DOUBLE));
+        m_tableSchemaColumnSizes.push_back(300);
+        m_primaryKeyIndexSchemaColumnSizes.push_back(300);
+        m_tableSchemaColumnSizes.push_back(16);
+        m_primaryKeyIndexSchemaColumnSizes.push_back(16);
+        m_tableSchemaColumnSizes.push_back(500);
+        m_tableSchemaColumnSizes.push_back(32);
 
-            m_tableSchemaAllowNull.push_back(false);
-            m_primaryKeyIndexSchemaAllowNull.push_back(false);
-            m_tableSchemaAllowNull.push_back(false);
-            m_primaryKeyIndexSchemaAllowNull.push_back(false);
-            m_tableSchemaAllowNull.push_back(true);
-            m_tableSchemaAllowNull.push_back(true);
-            m_tableSchemaAllowNull.push_back(true);
-            m_tableSchemaAllowNull.push_back(true);
-            m_tableSchemaAllowNull.push_back(false);
-            m_primaryKeyIndexSchemaAllowNull.push_back(false);
-            m_tableSchemaAllowNull.push_back(false);
-            m_primaryKeyIndexSchemaAllowNull.push_back(false);
-            m_tableSchemaAllowNull.push_back(true);
-            m_tableSchemaAllowNull.push_back(true);
+        m_tableSchemaAllowNull.push_back(false);
+        m_primaryKeyIndexSchemaAllowNull.push_back(false);
+        m_tableSchemaAllowNull.push_back(false);
+        m_primaryKeyIndexSchemaAllowNull.push_back(false);
+        m_tableSchemaAllowNull.push_back(true);
+        m_tableSchemaAllowNull.push_back(true);
+        m_tableSchemaAllowNull.push_back(true);
+        m_tableSchemaAllowNull.push_back(true);
+        m_tableSchemaAllowNull.push_back(false);
+        m_primaryKeyIndexSchemaAllowNull.push_back(false);
+        m_tableSchemaAllowNull.push_back(false);
+        m_primaryKeyIndexSchemaAllowNull.push_back(false);
+        m_tableSchemaAllowNull.push_back(true);
+        m_tableSchemaAllowNull.push_back(true);
 
-            m_primaryKeyIndexColumns.push_back(0);
-            m_primaryKeyIndexColumns.push_back(1);
-            m_primaryKeyIndexColumns.push_back(6);
-            m_primaryKeyIndexColumns.push_back(7);
+        m_primaryKeyIndexColumns.push_back(0);
+        m_primaryKeyIndexColumns.push_back(1);
+        m_primaryKeyIndexColumns.push_back(6);
+        m_primaryKeyIndexColumns.push_back(7);
 
-            m_engine->setUndoToken(INT64_MIN + 1);
-        }
+        m_engine->setUndoToken(INT64_MIN + 1);
+    }
 
-        ~MmapPersistentTableTest() {
-            delete m_engine;
-            delete m_table;
-            voltdb::TupleSchema::freeTupleSchema(m_primaryKeyIndexSchema);
-        }
+    ~MmapPersistentTableTest() {
+        delete m_engine;
+        // Freed automatically by munmap
+        //delete m_table;
+        voltdb::TupleSchema::freeTupleSchema(m_primaryKeyIndexSchema);
+    }
 
-        void initTable(bool allowInlineStrings) {
-            m_tableSchema = voltdb::TupleSchema::createTupleSchema(m_tableSchemaTypes,
-                    m_tableSchemaColumnSizes,
-                    m_tableSchemaAllowNull,
-                    allowInlineStrings);
+    void initTable(bool allowInlineStrings) {
+        struct timeval start, end;
+        long  seconds, useconds;
+        double mtime; 
 
-            m_primaryKeyIndexSchema = voltdb::TupleSchema::createTupleSchema(m_primaryKeyIndexSchemaTypes,
-                    m_primaryKeyIndexSchemaColumnSizes,
-                    m_primaryKeyIndexSchemaAllowNull,
-                    allowInlineStrings);
+        // Randomize seed for rand
+        srand(static_cast<unsigned int>(time(NULL)));
+        
+        m_tableSchema = voltdb::TupleSchema::createTupleSchema(m_tableSchemaTypes,
+                m_tableSchemaColumnSizes,
+                m_tableSchemaAllowNull,
+                allowInlineStrings);
 
-            voltdb::TableIndexScheme indexScheme = voltdb::TableIndexScheme("primaryKeyIndex",
-                    voltdb::BALANCED_TREE_INDEX,
-                    m_primaryKeyIndexColumns,
-                    m_primaryKeyIndexSchemaTypes,
-                    true, false, m_tableSchema);
-            indexScheme.keySchema = m_primaryKeyIndexSchema;
+        m_primaryKeyIndexSchema = voltdb::TupleSchema::createTupleSchema(m_primaryKeyIndexSchemaTypes,
+                m_primaryKeyIndexSchemaColumnSizes,
+                m_primaryKeyIndexSchemaAllowNull,
+                allowInlineStrings);
 
-            std::vector<voltdb::TableIndexScheme> indexes;
+        voltdb::TableIndexScheme indexScheme = voltdb::TableIndexScheme("primaryKeyIndex",
+                voltdb::BALANCED_TREE_INDEX,
+                m_primaryKeyIndexColumns,
+                m_primaryKeyIndexSchemaTypes,
+                true, false, m_tableSchema);
+        indexScheme.keySchema = m_primaryKeyIndexSchema;
 
+        std::vector<voltdb::TableIndexScheme> indexes;
+
+        long ctr,totalIterations = 100;
+        string tableName;
+
+        gettimeofday(&start, NULL);
+
+        for(ctr=0 ; ctr<totalIterations ; ctr++){
+            tableName = genRandomString(32);
+            
+            // MEASURE TIME TAKEN FOR CREATION
             m_table = dynamic_cast<voltdb::PersistentTable*>(voltdb::TableFactory::getPersistentTable
-                    (0, m_engine->getExecutorContext(), "Foo",
+                    (0, m_engine->getExecutorContext(), tableName,
                      m_tableSchema, &m_columnNames[0], indexScheme, indexes, 0,
                      false, false));
+            
+            VOLT_INFO("created table : %s pointer : %p", tableName.c_str(), (const void*)m_table);
         }
 
+        gettimeofday(&end, NULL);
 
+        seconds  = end.tv_sec  - start.tv_sec;
+        useconds = end.tv_usec - start.tv_usec;
+        mtime = (double)((seconds) * 1000 + useconds/1000);
 
-        voltdb::VoltDBEngine *m_engine;
-        voltdb::TupleSchema *m_tableSchema;
-        voltdb::TupleSchema *m_primaryKeyIndexSchema;
-        voltdb::PersistentTable *m_table;
-        std::vector<std::string> m_columnNames;
-        std::vector<voltdb::ValueType> m_tableSchemaTypes;
-        std::vector<int32_t> m_tableSchemaColumnSizes;
-        std::vector<bool> m_tableSchemaAllowNull;
-        std::vector<voltdb::ValueType> m_primaryKeyIndexSchemaTypes;
-        std::vector<int32_t> m_primaryKeyIndexSchemaColumnSizes;
-        std::vector<bool> m_primaryKeyIndexSchemaAllowNull;
-        std::vector<int> m_primaryKeyIndexColumns;
+        VOLT_INFO("total time for %ld table allocations :: %f milliseconds", totalIterations, mtime);
+
+    }
+
+    voltdb::VoltDBEngine *m_engine;
+    voltdb::TupleSchema *m_tableSchema;
+    voltdb::TupleSchema *m_primaryKeyIndexSchema;
+    voltdb::PersistentTable *m_table;
+    std::vector<std::string> m_columnNames;
+    std::vector<voltdb::ValueType> m_tableSchemaTypes;
+    std::vector<int32_t> m_tableSchemaColumnSizes;
+    std::vector<bool> m_tableSchemaAllowNull;
+    std::vector<voltdb::ValueType> m_primaryKeyIndexSchemaTypes;
+    std::vector<int32_t> m_primaryKeyIndexSchemaColumnSizes;
+    std::vector<bool> m_primaryKeyIndexSchemaAllowNull;
+    std::vector<int> m_primaryKeyIndexColumns;
 };
 
+// Generates alphanumeric strings
+string genRandomString(const int len) {
+    static const char alphanum[] =
+        "0123456789"
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+        "abcdefghijklmnopqrstuvwxyz";
+    string randStr;
+
+    for (int i = 0; i < len; ++i) {
+        randStr += alphanum[rand() % (sizeof(alphanum) - 1)];
+    }
+
+    return randStr;
+}
 
 TEST_F(MmapPersistentTableTest, TableAllocationTest) {
     initTable(true);

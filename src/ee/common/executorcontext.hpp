@@ -103,6 +103,10 @@ namespace voltdb {
         
         #ifdef STORAGE_MMAP
         std::string getDBDir() const {
+            // FIX : Use /tmp for testing
+            if(m_MMAPDir.empty())
+                return "/home/jarulraj/git/h-store/tmp";
+
         	return (m_MMAPDir);
         }
 

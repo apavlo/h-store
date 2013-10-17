@@ -353,6 +353,7 @@ CTX.TESTS['storage'] = """
  CopyOnWriteTest
  constraint_test
  filter_test
+ mmap_persistent_table_test
  persistent_table_log_test
  serialize_test
  StreamedTable_test
