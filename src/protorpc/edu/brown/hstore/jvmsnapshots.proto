@@ -1,0 +1,12 @@
+package edu.brown.hstore;
+
+message TransactionRequest {
+    required bytes request = 1;
+}
+message TransactionResponse {
+    required bytes output = 1;
+}
+
+service HStoreJVMSnapshots {
+    rpc ExecTransactionRequest(TransactionRequest) returns (TransactionResponse);
+}

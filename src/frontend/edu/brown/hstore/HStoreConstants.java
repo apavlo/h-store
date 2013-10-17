@@ -36,6 +36,8 @@ public abstract class HStoreConstants {
     
     public static final int MESSENGER_PORT_OFFSET = 10000;
     
+    public static final int JVMSNAPSHOT_PORT_OFFSET = 20000;
+    
     // ----------------------------------------------------------------------------
     // THREAD NAMES
     // ----------------------------------------------------------------------------
