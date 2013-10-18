@@ -164,19 +164,9 @@ TEST_F(WindowTest, TupleInsert) {
 	VOLT_INFO("WINDOW TEST INSERT\n");
     voltdb::TableIterator iterator = this->table->tableIterator();
     voltdb::TableTuple tuple(table->schema());
-    int numDeleted = 0;
-    while (iterator.next(tuple)) {
-        //printf("%s\n", tuple->debug(this->table).c_str());
-        //
-        // Check whether the tuple has been deleted.  If so, add count it in numDeleted.
-        //
-    	if(!tuple.isActive())
-    		numDeleted++;
 
-    }
     VOLT_DEBUG("TABLE SIZE: %d", int(table->activeTupleCount()));
-    VOLT_DEBUG("NUM_OF_TUPLES: %d     WINDOW_SIZE: %d     numDeleted: %d", NUM_OF_TUPLES, WINDOW_SIZE, numDeleted);
-    //EXPECT_EQ(NUM_OF_TUPLES, numDeleted + WINDOW_SIZE);
+
 
     //
     // Make sure that if we insert one tuple, the window size remains 10
@@ -198,7 +188,7 @@ TEST_F(WindowTest, TupleInsert) {
     {
     	VOLT_DEBUG("3");
     	//FIXME: this is segfaulting
-    	tableutil::getRandomTuple(this->table, out);
+    	ASSERT_EQ(true, tableutil::setRandomTupleValues(this->table, &temp_tuple));
     	//
 		// Make sure that if we insert one tuple, the window size remains 10
 		//
