@@ -56,6 +56,7 @@ namespace tableutil {
 bool getRandomTuple(const voltdb::Table* table, voltdb::TableTuple &out);
 bool setRandomTupleValues(voltdb::Table* table, voltdb::TableTuple *tuple);
 bool addRandomTuples(voltdb::Table* table, int num_of_tuples);
+bool addRandomTuplesNotTemp(voltdb::Table* table, int num_of_tuples);
 
 bool copy(const voltdb::Table* from_table, voltdb::Table* to_table);
 bool equals(const voltdb::Table* table, voltdb::TableTuple *tuple0, voltdb::TableTuple *tuple1);

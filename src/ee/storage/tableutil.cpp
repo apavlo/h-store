@@ -118,6 +118,31 @@ bool addRandomTuples(voltdb::Table* table, int num_of_tuples) {
     return (true);
 }
 
+bool addRandomTuplesNotTemp(voltdb::Table* table, int num_of_tuples) {
+    assert(num_of_tuples >= 0);
+    for (int ctr = 0; ctr < num_of_tuples; ctr++) {
+        voltdb::TableTuple tuple(table->schema());
+        tuple = table->tempTuple();
+        if (!tableutil::setRandomTupleValues(table, &tuple)) {
+            return (false);
+        }
+        //std::cout << std::endl << "Creating tuple " << std::endl << tuple.debugNoHeader() << std::endl;
+        //VOLT_DEBUG("Created random tuple: %s", tuple.debug().c_str());
+        if (!table->insertTuple(tuple)) {
+            return (false);
+        }
+
+        /*
+         * The insert into the table (assuming a persistent table) will make a copy of the strings so the string allocations
+         * for unlined columns need to be freed here.
+         */
+        for (int ii = 0; ii < tuple.getSchema()->getUninlinedObjectColumnCount(); ii++) {
+            tuple.getNValue(tuple.getSchema()->getUninlinedObjectColumnInfoIndex(ii)).free();
+        }
+    }
+    return (true);
+}
+
 bool equals(const voltdb::Table* table, voltdb::TableTuple *tuple0, voltdb::TableTuple *tuple1) {
     assert(table);
     assert(tuple0);

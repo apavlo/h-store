@@ -837,8 +837,7 @@ bool PersistentTable::deleteTuple(TableTuple &target, bool deleteAllocatedString
     assert(target.isActive());
 
     // The tempTuple is forever!
-    //FIXME: JOHN commented this out while testing the windowTable.  Fix it if you see this message.
-    //assert(&target != &m_tempTuple);
+    assert(&target != &m_tempTuple);
     
 #ifdef ANTICACHE
     AntiCacheEvictionManager* eviction_manager = m_executorContext->getAntiCacheEvictionManager();

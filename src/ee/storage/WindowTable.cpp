@@ -91,6 +91,7 @@ void WindowTable::deleteAllTuples(bool freeAllocatedStrings)
 bool WindowTable::insertTuple(TableTuple &source)
 {
 	TableTuple* t;
+	VOLT_DEBUG("insertTuple");
 	while(windowQueue.size() >= windowSize)
 	{
 		t = windowQueue.front();
@@ -104,6 +105,7 @@ bool WindowTable::insertTuple(TableTuple &source)
 void WindowTable::insertTupleForUndo(TableTuple &source, size_t elMark)
 {
 	TableTuple* t;
+	VOLT_DEBUG("insertTupleUndo");
 	while(windowQueue.size() >= windowSize)
 	{
 		t = windowQueue.front();
