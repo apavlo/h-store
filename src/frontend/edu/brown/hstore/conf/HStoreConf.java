@@ -1285,6 +1285,17 @@ public final class HStoreConf {
         )
         public int pool_pathestimators_idle;
         
+        // ----------------------------------------------------------------------------
+        // JVM SNAPSHOT
+        // ----------------------------------------------------------------------------
+        
+        @ConfigProperty(
+        	description="If enabled, H-Store will execute @AdHoc in a forked JVM snapshot",
+        	defaultBoolean=false,
+        	experimental=true
+        )
+        public boolean jvmsnapshot_enable;
+        
     }
     
     // ============================================================================

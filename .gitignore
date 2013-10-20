@@ -38,6 +38,7 @@ SourceJars
 src/ee/org_voltdb_jni_ExecutionEngine.h
 src/ee/org_voltdb_utils_DBBPool.h
 src/ee/org_voltdb_utils_ThreadUtils.h
+src/ee/org_voltdb_utils_ProcessUtils.h
 
 ## -------------------------------
 ## Catalog Compiler Artifacts

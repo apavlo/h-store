@@ -54,6 +54,7 @@ import org.voltdb.StatsSource;
 import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.SysProcSelector;
 import org.voltdb.TransactionIdManager;
+import org.voltdb.benchmark.tpcc.procedures.neworder;
 import org.voltdb.catalog.Host;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
@@ -86,6 +87,7 @@ import edu.brown.hstore.Hstoreservice.QueryEstimate;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.callbacks.ClientResponseCallback;
+import edu.brown.hstore.callbacks.JVMSnapshotTransactionCallback;
 import edu.brown.hstore.callbacks.LocalFinishCallback;
 import edu.brown.hstore.callbacks.LocalInitQueueCallback;
 import edu.brown.hstore.callbacks.PartitionCountingCallback;
@@ -296,6 +298,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * testing code as needed.
      */
     private HStoreCoordinator hstore_coordinator;
+    
+    private HStoreJVMSnapshotManager jvmSnapshotManager;
 
     /**
      * TransactionPreProcessor Threads
@@ -605,6 +609,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         this.status_monitor = new HStoreSiteStatus(this, hstore_conf);
         
+        this.jvmSnapshotManager = new HStoreJVMSnapshotManager(this);
         LoggerUtil.refreshLogging(hstore_conf.global.log_refresh);
     }
     
@@ -1505,6 +1510,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             this.clientInterface.shutdown();
         }
         
+        if (this.jvmSnapshotManager != null) {
+        	this.jvmSnapshotManager.stopSnapshot();
+        }
+        
         LOG.info(String.format("Completed shutdown process at %s [instanceId=%d]",
                                this.getSiteName(), this.instanceId));
     }
@@ -1791,6 +1800,14 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                                    clientCallback,
                                    EstTime.currentTimeMillis());
                 return (true);
+            }
+            
+            if (hstore_conf.site.jvmsnapshot_enable == true) {
+            	LOG.info("send to jvm snapshot");
+            	String sql = (String)params.toArray()[0];
+            	JVMSnapshotTransactionCallback callback = new JVMSnapshotTransactionCallback(client_handle, clientCallback);
+            	this.jvmSnapshotManager.execTransactionRequest(sql.getBytes(), callback);
+            	return (true);
             }
             
             // Check if we need to start our threads now

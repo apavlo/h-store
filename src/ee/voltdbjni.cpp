@@ -94,6 +94,7 @@
 #include "org_voltdb_jni_ExecutionEngine.h" // the header file output by javah
 #include "org_voltdb_utils_DBBPool.h" //Utility method for DBBContainer
 #include "org_voltdb_utils_ThreadUtils.h" // the header file output by javah
+#include "org_voltdb_utils_ProcessUtils.h" // the header file output by javah
 
 #include "boost/shared_ptr.hpp"
 #include "boost/scoped_array.hpp"
@@ -1271,6 +1272,16 @@ SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_utils_ThreadUtils_getNumCores
   (JNIEnv *env, jclass clazz) {
     long int NUM_PROCS = sysconf(_SC_NPROCESSORS_CONF);
     return static_cast<jint>(NUM_PROCS);
+}
+
+/*
+ * Class:     org_voltdb_utils_ProcessUtils
+ * Method:    fork
+ * Signature: ()I
+ */
+SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_utils_ProcessUtils_fork
+  (JNIEnv *env, jclass clazz) {
+    return (fork());
 }
 
 // ----------------------------------------------------------------------------

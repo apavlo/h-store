@@ -7,6 +7,6 @@ message TransactionResponse {
     required bytes output = 1;
 }
 
-service HStoreJVMSnapshots {
+service HStoreJVMSnapshotService {
     rpc ExecTransactionRequest(TransactionRequest) returns (TransactionResponse);
 }
