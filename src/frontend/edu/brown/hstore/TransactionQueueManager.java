@@ -313,6 +313,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
         // RESTART QUEUE
         Pair<LocalTransaction, Status> pair = null;
         while ((pair = this.restartQueue.poll()) != null) {
+            System.out.println("hawk - 317 ...");
             hstore_site.transactionReject(pair.getFirst(), Status.ABORT_REJECT);
         } // WHILE
     }
@@ -387,6 +388,8 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
     protected Status lockQueueInsert(AbstractTransaction ts,
                                      int partition,
                                      PartitionCountingCallback<? extends AbstractTransaction> callback) {
+        System.out.println("hawk - entering lockQueueInsert()...");
+        
         if (hstore_conf.site.queue_profiling) profilers[partition].init_time.start();
         assert(ts.isInitialized()) :
             String.format("Unexpected uninitialized transaction %s [partition=%d]", ts, partition);
@@ -449,6 +452,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
                     LOG.debug(String.format("The initQueue for partition #%d is overloaded. " +
                               "Throttling %s until id is greater than %s [queueSize=%d]",
                               partition, ts, next_safe_id, this.lockQueues[partition].size()));
+                System.out.println("hawk - 453 ...");
                 status = Status.ABORT_REJECT;
             }
         }
@@ -468,6 +472,9 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
                       ts, partition, this.lockQueues[partition].size()));
         }
         if (hstore_conf.site.queue_profiling) profilers[partition].init_time.stopIfStarted();
+        
+        System.out.println("hawk - status : " + status);
+        
         return (status);
     }
     
@@ -722,7 +729,8 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
         
         if (this.restartQueue.offer(Pair.of(ts, status)) == false) {
             if (debug.val)
-                LOG.debug(String.format("%s - Unable to add txn to restart queue. Rejecting...", ts));
+                LOG.debug(String.format("%s - Unable to add txn to restart queue. Rejecting...", ts));            
+            System.out.println("hawk - 729 ...");
             this.hstore_site.transactionReject(ts, Status.ABORT_REJECT);
             ts.unmarkNeedsRestart();
             this.hstore_site.queueDeleteTransaction(ts.getTransactionId(), Status.ABORT_REJECT);

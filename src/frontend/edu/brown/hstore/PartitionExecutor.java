@@ -1652,6 +1652,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             // -------------------------------
             if (msg instanceof StartTxnMessage) {
                 StartTxnMessage startMsg = (StartTxnMessage)msg;
+                System.out.println("hawk - 1655 ...");
                 hstore_site.transactionReject((LocalTransaction)startMsg.getTransaction(), Status.ABORT_REJECT);
             }
             // -------------------------------
