@@ -15,4 +15,9 @@ public class SimpleTrigger extends VoltTrigger {
         "INSERT INTO S2 (value) SELECT * FROM S1;"
     );
     
+//    public final SQLStmt deleteS1 = new SQLStmt(
+//            "DELETE FROM S1;"
+//        );
+   
+    
 }

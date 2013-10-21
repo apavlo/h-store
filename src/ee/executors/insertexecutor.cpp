@@ -216,13 +216,12 @@ namespace voltdb {
 						(*trig_iter)->fire(m_engine, outputTable);
 				}
 				VOLT_DEBUG( "End firing triggers of table '%s'", persistTarget->name().c_str());
+
+		                persistTarget->deleteAllTuples(true);
 			}
 
 			// if this is a stream, we should delete the content after firing trigger
-			if(persistTarget->isStream() == true)
-			{
-				persistTarget->deleteAllTuples(true);
-			}
+			//if(persistTarget->isStream() == true)
 		}
 
 
