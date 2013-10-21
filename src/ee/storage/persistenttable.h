@@ -264,16 +264,6 @@ namespace voltdb {
 				m_wrapper->setBytesUsed(streamBytesUsed);
 		}
 
-		bool isStream()
-		{
-			return m_isStream;
-		}
-
-		void setIsStream(bool isStream)
-		{
-			m_isStream = isStream;
-		}
-
 		// ------------------------------------------------------------------
 		// ANTI-CACHING OPERATIONS
 		// ------------------------------------------------------------------
@@ -394,8 +384,6 @@ namespace voltdb {
 		//Recovery stuff
 		boost::scoped_ptr<RecoveryContext> m_recoveryContext;
 
-		//
-		bool m_isStream;
 	};
 
 	inline TableTuple& PersistentTable::getTempTupleInlined(TableTuple &source) {

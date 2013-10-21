@@ -327,6 +327,16 @@ public:
     virtual void flushOldTuples(int64_t timeInMillis) {
     }
 
+	bool isStream()
+	{
+		return m_isStream;
+	}
+
+	void setIsStream(bool isStream)
+	{
+		m_isStream = isStream;
+	}
+
 protected:
     /*
      * Implemented by persistent table and called by Table::loadTuplesFrom
@@ -381,6 +391,10 @@ protected:
 
     char *m_columnHeaderData;
     int32_t m_columnHeaderSize;
+
+    //
+	bool m_isStream;
+
 
 #if ANTICACHE
     // ACTIVE

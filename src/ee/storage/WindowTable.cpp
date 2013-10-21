@@ -92,13 +92,19 @@ bool WindowTable::insertTuple(TableTuple &source)
 {
 	TableTuple* t;
 	VOLT_DEBUG("insertTuple");
+	VOLT_DEBUG("going to insert %s", source.debug("Window").c_str());
 	while(windowQueue.size() >= windowSize)
 	{
 		t = windowQueue.front();
+		VOLT_DEBUG("insertTuple 2");
+		VOLT_DEBUG("going to delete %s", (*t).debug("Window").c_str());
+		VOLT_DEBUG("insertTuple 2b");
 		PersistentTable::deleteTuple(*t, true);
+		VOLT_DEBUG("insertTuple 3");
 		windowQueue.pop_front();
 	}
 	windowQueue.push_back(&source);
+	VOLT_DEBUG("insertTuple 4");
 	return PersistentTable::insertTuple(source);
 }
 
