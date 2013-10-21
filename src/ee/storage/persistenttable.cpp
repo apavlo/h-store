@@ -1127,7 +1127,14 @@ void PersistentTable::addAllTriggers(std::vector<voltdb::Trigger*> *trigs){
 }
 
 bool PersistentTable::hasTriggers(){
-	return m_hasTriggers;
+	if(!m_triggers)
+		return false;
+
+	if(m_triggers->size()==0)
+		return false;
+	
+	return true;
+	//return m_hasTriggers;
 }
 
 /*

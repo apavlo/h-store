@@ -149,9 +149,9 @@ namespace voltdb {
 		//
 		assert (m_tuple.sizeInValues() == m_inputTable->columnCount());
 		TableIterator iterator(m_inputTable);
-                bool beProcessed = false;
+		bool beProcessed = false;
 		while (iterator.next(m_tuple)) {
-                        beProcessed = true;
+			beProcessed = true;
 			VOLT_DEBUG("Inserting tuple '%s' into target table '%s'",
 				m_tuple.debug(m_targetTable->name()).c_str(), m_targetTable->name().c_str());
 			VOLT_TRACE("Target Table %s: %s",
@@ -201,23 +201,29 @@ namespace voltdb {
 		}
 		// Check if the target table is persistent, and if hasTriggers flag is true
 		// If it is, then iterate through each one and pass in outputTable
-                if (beProcessed == true)
-                {
-		    PersistentTable* persistTarget = dynamic_cast<PersistentTable*>(m_targetTable);
-		    if(persistTarget != NULL && persistTarget->hasTriggers()) {
-			std::vector<Trigger*>::iterator trig_iter;
+		if (beProcessed == true)
+		{
+			PersistentTable* persistTarget = dynamic_cast<PersistentTable*>(m_targetTable);
+			if(persistTarget != NULL && persistTarget->hasTriggers()) {
+				std::vector<Trigger*>::iterator trig_iter;
 
-                        VOLT_DEBUG( "Start firing triggers of table '%s'", persistTarget->name().c_str());
+				VOLT_DEBUG( "Start firing triggers of table '%s'", persistTarget->name().c_str());
 
-			for(trig_iter = persistTarget->getTriggers()->begin();
-				trig_iter != persistTarget->getTriggers()->end(); trig_iter++) {
-					//if statement to make sure the trigger is an insert... breaking
-					//if((*trig_iter)->getType() == (unsigned char)TRIGGER_INSERT)
-					(*trig_iter)->fire(m_engine, outputTable);
+				for(trig_iter = persistTarget->getTriggers()->begin();
+					trig_iter != persistTarget->getTriggers()->end(); trig_iter++) {
+						//if statement to make sure the trigger is an insert... breaking
+						//if((*trig_iter)->getType() == (unsigned char)TRIGGER_INSERT)
+						(*trig_iter)->fire(m_engine, outputTable);
+				}
+				VOLT_DEBUG( "End firing triggers of table '%s'", persistTarget->name().c_str());
 			}
-                        VOLT_DEBUG( "End firing triggers of table '%s'", persistTarget->name().c_str());
-		    }
-                }
+
+			// if this is a stream, we should delete the content after firing trigger
+			if(persistTarget->isStream() == true)
+			{
+				persistTarget->deleteAllTuples(true);
+			}
+		}
 
 
 		// add to the planfragments count of modified tuples
