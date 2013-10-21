@@ -313,7 +313,6 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
         // RESTART QUEUE
         Pair<LocalTransaction, Status> pair = null;
         while ((pair = this.restartQueue.poll()) != null) {
-            System.out.println("hawk - 317 ...");
             hstore_site.transactionReject(pair.getFirst(), Status.ABORT_REJECT);
         } // WHILE
     }
@@ -730,7 +729,6 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
         if (this.restartQueue.offer(Pair.of(ts, status)) == false) {
             if (debug.val)
                 LOG.debug(String.format("%s - Unable to add txn to restart queue. Rejecting...", ts));            
-            System.out.println("hawk - 729 ...");
             this.hstore_site.transactionReject(ts, Status.ABORT_REJECT);
             ts.unmarkNeedsRestart();
             this.hstore_site.queueDeleteTransaction(ts.getTransactionId(), Status.ABORT_REJECT);

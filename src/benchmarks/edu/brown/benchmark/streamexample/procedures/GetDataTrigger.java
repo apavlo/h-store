@@ -1,4 +1,3 @@
-// added by hawk, 9/18/2013
 
 package edu.brown.benchmark.streamexample.procedures;
 

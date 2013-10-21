@@ -1899,7 +1899,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             // before sending another txn request, where as an ABORT_REJECT means
             // that it will just try immediately
             Status status = Status.ABORT_REJECT;
-            System.out.println("hawk - 1903 ...");
 
             if (debug.val)
                 LOG.debug(String.format("%s - Hit with a %s response from partition %d " +
@@ -2190,7 +2189,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 throw new RuntimeException(msg);
             } else {
                 this.transactionReject(orig_ts, Status.ABORT_REJECT);
-                System.out.println("hawk - 2191 ...");
                 return (Status.ABORT_REJECT);
             }
         }
