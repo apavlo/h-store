@@ -287,7 +287,7 @@ TableCatalogDelegate::init(ExecutorContext *executorContext,
     
 
 	// get the stream flag
-	bool isStream = catalogDatabase.isStream();
+	bool isStream = catalogTable.isStream();
     m_table->setIsStream(isStream);
 
 
