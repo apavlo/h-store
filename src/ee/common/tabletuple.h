@@ -52,6 +52,7 @@
 #include "common/ValuePeeker.hpp"
 #include "common/FatalException.hpp"
 #include "common/ExportSerializeIo.h"
+#include "common/types.h"
 #include <ostream>
 
 #include <iostream>
@@ -371,6 +372,7 @@ public:
     void freeObjectColumns();
     size_t hashCode(size_t seed) const;
     size_t hashCode() const;
+
 protected:
     inline void setDeletedTrue() {
         // treat the first "value" as a boolean flag
