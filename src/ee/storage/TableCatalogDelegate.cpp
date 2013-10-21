@@ -74,7 +74,7 @@ TableCatalogDelegate::init(ExecutorContext *executorContext,
     
     // Create a persistent table for this table in our catalog
     int32_t table_id = catalogTable.relativeIndex();
-    
+
     // Columns:
     // Column is stored as map<String, Column*> in Catalog. We have to
     // sort it by Column index to preserve column order.
@@ -285,6 +285,10 @@ TableCatalogDelegate::init(ExecutorContext *executorContext,
                                                  isTableExportOnly(catalogDatabase, table_id));
     }
     
+
+	// get the stream flag
+	bool isStream = catalogDatabase.isStream();
+    m_table->setIsStream(isStream);
 
 
     #ifdef ANTICACHE
