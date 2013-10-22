@@ -31,14 +31,12 @@ public class JVMSnapshotTransactionCallback implements RpcCallback<TransactionRe
 	@Override
 	public void run(TransactionResponse parameter) {
 		// TODO Auto-generated method stub
-		LOG.info("Received callback from the snapshot");
+		if (debug.val) LOG.debug("Received callback from the snapshot");
 		String msg = parameter.getOutput().toString();
-		LOG.info("Msg: "+msg);
+		if (debug.val) LOG.debug("Msg: "+msg);
 		ClientResponseImpl response = new ClientResponseImpl(
-												client_handle,
-												-1,
-												-1,
-												Status.OK,
+												(long)-1,
+												client_handle, -1, Status.OK,
 												HStoreConstants.EMPTY_RESULT,
 												"JVM succeed!");
 		clientCallback.run(response);

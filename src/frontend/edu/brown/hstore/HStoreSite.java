@@ -715,6 +715,38 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         return (this);
     }
     
+    /**
+     * Reinitializes all the pieces that we need to start the HStore snapshot up
+     */
+    protected HStoreSite snapshot_init() {
+
+        ThreadGroup auxGroup = this.threadManager.getThreadGroup(ThreadGroupType.AUXILIARY);
+        
+        // Start TransactionQueueManager
+        Thread t = new Thread(auxGroup, this.txnQueueManager);
+        t.setDaemon(true);
+        t.setUncaughtExceptionHandler(this.exceptionHandler);
+        t.start();
+        
+        // Then we need to start all of the PartitionExecutor in threads
+        if (debug.val)
+            LOG.debug(String.format("Starting PartitionExecutor threads for %s partitions on %s snapshot",
+                      this.local_partitions.size(), this.getSiteName()));
+        for (int partition : this.local_partitions.values()) {
+            PartitionExecutor executor = this.getPartitionExecutor(partition);
+            // executor.initHStoreSite(this);
+            
+            t = new Thread(this.threadManager.getThreadGroup(ThreadGroupType.EXECUTION), executor);
+            t.setDaemon(true);
+            t.setPriority(Thread.MAX_PRIORITY); // Probably does nothing...
+            t.setUncaughtExceptionHandler(this.exceptionHandler);
+            this.executor_threads[partition] = t;
+            t.start();
+        } // FOR
+        
+        return (this);
+    }
+    
     private void initTxnProcessors() {
         if (hstore_conf.site.exec_preprocessing_threads == false &&
             hstore_conf.site.exec_postprocessing_threads == false) {
