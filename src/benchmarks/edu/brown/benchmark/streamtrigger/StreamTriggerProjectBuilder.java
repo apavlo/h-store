@@ -9,13 +9,13 @@ import edu.brown.benchmark.streamtrigger.procedures.SimpleCall;
 import edu.brown.benchmark.streamtrigger.procedures.SimpleTrigger; 
 import edu.brown.benchmark.streamtrigger.procedures.SimpleTriggerTwo; 
 import edu.brown.benchmark.streamtrigger.procedures.SimpleTriggerThree; 
-//import edu.brown.benchmark.streamtrigger.procedures.SimpleTriggerFour; 
-//import edu.brown.benchmark.streamtrigger.procedures.SimpleTriggerFive; 
-//import edu.brown.benchmark.streamtrigger.procedures.SimpleTriggerSix; 
-//import edu.brown.benchmark.streamtrigger.procedures.SimpleTriggerSeven; 
-//import edu.brown.benchmark.streamtrigger.procedures.SimpleTriggerEight; 
-//import edu.brown.benchmark.streamtrigger.procedures.SimpleTriggerNine; 
-//import edu.brown.benchmark.streamtrigger.procedures.SimpleTriggerTen; 
+import edu.brown.benchmark.streamtrigger.procedures.SimpleTriggerFour; 
+import edu.brown.benchmark.streamtrigger.procedures.SimpleTriggerFive; 
+import edu.brown.benchmark.streamtrigger.procedures.SimpleTriggerSix; 
+import edu.brown.benchmark.streamtrigger.procedures.SimpleTriggerSeven; 
+import edu.brown.benchmark.streamtrigger.procedures.SimpleTriggerEight; 
+import edu.brown.benchmark.streamtrigger.procedures.SimpleTriggerNine; 
+import edu.brown.benchmark.streamtrigger.procedures.SimpleTriggerTen; 
 
 public class StreamTriggerProjectBuilder extends AbstractProjectBuilder {
 
@@ -28,13 +28,13 @@ public class StreamTriggerProjectBuilder extends AbstractProjectBuilder {
 	// a list of procedures implemented in this benchmark
     @SuppressWarnings("unchecked")
     public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
-//        SimpleTriggerTen.class,
-//        SimpleTriggerNine.class,
-//        SimpleTriggerEight.class,
-//        SimpleTriggerSeven.class,
-//        SimpleTriggerSix.class,
-//        SimpleTriggerFive.class,
-//        SimpleTriggerFour.class,
+        SimpleTriggerTen.class,
+        SimpleTriggerNine.class,
+        SimpleTriggerEight.class,
+        SimpleTriggerSeven.class,
+        SimpleTriggerSix.class,
+        SimpleTriggerFive.class,
+        SimpleTriggerFour.class,
         SimpleTriggerThree.class,
         SimpleTriggerTwo.class,
         SimpleTrigger.class,
