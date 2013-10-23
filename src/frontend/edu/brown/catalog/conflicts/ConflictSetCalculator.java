@@ -374,12 +374,7 @@ public class ConflictSetCalculator {
             // Any UPDATE or DELETE statement that does not use a primary key in its WHERE 
             // clause should be marked as always conflicting.
             Collection<Column> pkeys = this.pkeysCache.get(CollectionUtil.first(tables));
-            // added by hawk, 2013-10-22
-            if(pkeys==null){
-                return true;
-            }
-            // ended by hawk
-            if (cols.containsAll(pkeys) == false) {
+            if (pkeys == null || cols.containsAll(pkeys) == false) {
                 return (true);
             }
             // Or any UPDATE or DELETE with a range predicate in its WHERE clause always conflicts
