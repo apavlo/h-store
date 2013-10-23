@@ -1,5 +1,6 @@
 package edu.brown.hstore;
 
+import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 
@@ -7,6 +8,8 @@ import org.apache.log4j.Logger;
 import org.voltdb.CatalogContext;
 import org.voltdb.benchmark.tpcc.procedures.neworder;
 import org.voltdb.catalog.Site;
+import org.voltdb.messaging.FastDeserializer;
+import org.voltdb.messaging.FastSerializer;
 import org.voltdb.utils.ProcessUtils;
 
 import com.google.protobuf.ByteString;
@@ -21,6 +24,7 @@ import edu.brown.hstore.Jvmsnapshot.TransactionRequest;
 import edu.brown.hstore.Jvmsnapshot.TransactionResponse;
 import edu.brown.hstore.callbacks.JVMSnapshotTransactionCallback;
 import edu.brown.hstore.conf.HStoreConf;
+import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.protorpc.NIOEventLoop;
@@ -225,6 +229,8 @@ public class HStoreJVMSnapshotManager {
         	// child process
         	this.isParent = false;
         	if (debug.val) LOG.debug("Child process start");
+        	
+        	
         	// Initialize listener
         	this.eventLoop = new NIOEventLoop();
             this.listener = new ProtoServer(this.eventLoop);
@@ -252,19 +258,27 @@ public class HStoreJVMSnapshotManager {
     // HSTORE RPC SERVICE METHODS
     // ----------------------------------------------------------------------------
     
-    public void execTransactionRequest(byte[] serializedRequest, RpcCallback<TransactionResponse> callback) {
+    public void execTransactionRequest(LocalTransaction ts) {
         if (debug.val)
             LOG.debug("Send execTransactionRequest to the snapshot;");
     	if (!isParent) return;
     	if (snapshot_pid == 0) {
     		forkNewSnapShot();
     	}
-        ByteString bs = ByteString.copyFrom(serializedRequest);
+    	
+        ByteString bs = ByteString.EMPTY;
+		try {
+			bs = ByteString.copyFrom(FastSerializer.serialize(ts));
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
         TransactionRequest tr = TransactionRequest.newBuilder()
                 .setRequest(bs)
                 .build();
         if (debug.val)
             LOG.debug("Send execTransactionRequest to the snapshot;");
+        JVMSnapshotTransactionCallback callback = new JVMSnapshotTransactionCallback(ts.getClientHandle(), ts.getClientCallback());
         rpc = new ProtoRpcController();
     	channel.execTransactionRequest(rpc, tr, callback);
     	
@@ -284,12 +298,21 @@ public class HStoreJVMSnapshotManager {
 		public void execTransactionRequest(RpcController controller,
 				TransactionRequest request,
 				RpcCallback<TransactionResponse> done) {
-			if (debug.val) LOG.debug("Site #" + getLocalSiteId() + " receives a execTransactionRequest from the parent!");
+			if (debug.val) LOG.debug("Snapshot receives a execTransactionRequest from the parent!");
 			if (request.getRequest().isEmpty()) {
 				// shut down
-				if (debug.val) LOG.debug("Site #" + getLocalSiteId() + " receives a shutdown from the parent!");
+				if (debug.val) LOG.debug("Snapshot receives a shutdown from the parent!");
 				System.exit(0);
 			}
+			FastDeserializer in = new FastDeserializer(request.getRequest().toByteArray());
+			LocalTransaction ts = new LocalTransaction(hstore_site);
+			try {
+				ts.readExternal(in);
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			if (debug.val) LOG.debug("Snapshot receive a LocalTransaction Object: "+ts.toStringImpl());
 			ByteString bs = ByteString.copyFrom("Received".getBytes());
 			TransactionResponse reponse = TransactionResponse.newBuilder().setOutput(bs).build();
 			if (debug.val) LOG.debug("Snapshot send back response to the parent!");

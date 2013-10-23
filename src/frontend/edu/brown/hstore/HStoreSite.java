@@ -1834,14 +1834,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 return (true);
             }
             
-            if (hstore_conf.site.jvmsnapshot_enable == true) {
-            	LOG.info("send to jvm snapshot");
-            	String sql = (String)params.toArray()[0];
-            	JVMSnapshotTransactionCallback callback = new JVMSnapshotTransactionCallback(client_handle, clientCallback);
-            	this.jvmSnapshotManager.execTransactionRequest(sql.getBytes(), callback);
-            	return (true);
-            }
-            
             // Check if we need to start our threads now
             if (this.adhoc_helper_started == false) {
                 this.startAdHocHelper();
@@ -2996,6 +2988,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 int base_partition = result.ts.getBasePartition();
                 Long txn_id = this.txnInitializer.registerTransaction(result.ts, base_partition);
                 result.ts.setTransactionId(txn_id);
+                
+                if (hstore_conf.site.jvmsnapshot_enable == true) {
+                	if (debug.val) LOG.debug("Send to JVM Snapshot: " + result.ts);
+                	this.jvmSnapshotManager.execTransactionRequest(result.ts);
+                	return;
+                }
                 
                 if (debug.val) LOG.debug("Queuing AdHoc transaction: " + result.ts);
                 this.transactionQueue(result.ts);
