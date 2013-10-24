@@ -456,7 +456,7 @@ inline TableTuple& TableTuple::operator=(const TableTuple &rhs) {
 /** Copy scalars by value and non-scalars (non-inlined strings, decimals) by
     reference from a slim value in to this tuple. */
 inline void TableTuple::setNValue(const int idx, voltdb::NValue value) {
-    assert(m_schema);
+	assert(m_schema);
     assert(m_data);
     const ValueType type = m_schema->columnType(idx);
     value = value.castAs(type);

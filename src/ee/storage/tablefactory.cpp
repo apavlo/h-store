@@ -325,7 +325,6 @@ Table* TableFactory::getWindowTable(
         TableFactory::initCommon(databaseId, table, name, schema, columnNames, true);
     }
     else {
-    	VOLT_DEBUG("FACTORY WINDOW TABLE");
         table = new WindowTable(ctx, exportEnabled, windowSize);
         WindowTable *pTable = dynamic_cast<WindowTable*>(table);
         TableFactory::initCommon(databaseId, pTable, name, schema, columnNames, true);
@@ -391,7 +390,6 @@ Table* TableFactory::getWindowTable(
         TableFactory::initCommon(databaseId, table, name, schema, columnNames, true);
     }
     else {
-    	VOLT_DEBUG("FACTORY WINDOW TABLE");
     	table = new WindowTable(ctx, exportEnabled, windowSize);
         WindowTable *pTable = dynamic_cast<WindowTable*>(table);
         pTable->m_pkeyIndex = TableIndexFactory::getInstance(pkeyIndex);
@@ -418,7 +416,6 @@ Table* TableFactory::getWindowTable(
 
     configureStats(databaseId, ctx, name, table);
 
-    VOLT_DEBUG("END FACTORY WINDOW TABLE");
     return dynamic_cast<Table*>(table);
 }
 

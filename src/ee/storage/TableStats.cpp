@@ -185,13 +185,9 @@ void TableStats::configure(
         CatalogId siteId,
         CatalogId partitionId,
         CatalogId databaseId) {
-	VOLT_DEBUG("6");
     StatsSource::configure(name, hostId, hostname, siteId, partitionId, databaseId);
-    VOLT_DEBUG("7");
     m_tableName = ValueFactory::getStringValue(m_table->name());
-    VOLT_DEBUG("8");
     m_tableType = ValueFactory::getStringValue(m_table->tableType());
-    VOLT_DEBUG("9");
 }
 
 /**

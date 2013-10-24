@@ -112,8 +112,6 @@ namespace voltdb {
 		m_blockMerge = true;
 #endif
 
-		VOLT_DEBUG("PersistentTable Constructor");
-
 		if (exportEnabled) {
 			m_wrapper = new TupleStreamWrapper(m_executorContext->m_partitionId,
 				m_executorContext->m_siteId,

@@ -72,7 +72,7 @@ using std::vector;
 using namespace voltdb;
 
 #define NUM_OF_COLUMNS 5
-#define NUM_OF_TUPLES 100
+#define NUM_OF_TUPLES 20
 #define WINDOW_SIZE 10
 
 voltdb::ValueType COLUMN_TYPES[NUM_OF_COLUMNS]  = { voltdb::VALUE_TYPE_BIGINT,
@@ -126,7 +126,7 @@ class WindowTest : public Test {
 			table = window_table;
 
 			VOLT_DEBUG("TEST ASSERT");
-            assert(tableutil::addRandomTuplesNotTemp(this->table, NUM_OF_TUPLES));
+            assert(tableutil::addRandomTuples(this->table, NUM_OF_TUPLES));
 			VOLT_DEBUG("TABLE SIZE: %d", int(table->activeTupleCount()));
             VOLT_DEBUG("TEST ASSERT END");
 

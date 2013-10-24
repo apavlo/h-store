@@ -112,7 +112,7 @@ class WindowTable : public PersistentTable {
 	bool deleteTuple(TableTuple &tuple, bool deleteAllocatedStrings);
 	void deleteTupleForUndo(voltdb::TableTuple &tupleCopy, size_t elMark);
 
-
+	//void debug(const std::string& tableName) const;
 
 
   protected:
