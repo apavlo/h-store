@@ -11,7 +11,6 @@ import org.voltdb.client.ClientResponse;
 import org.voltdb.client.ProcedureCallback;
 
 import weka.classifiers.meta.Vote;
-
 import edu.brown.api.BenchmarkComponent;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
@@ -69,11 +68,20 @@ public class AnotherStreamClient extends BenchmarkComponent {
         PhoneCallGenerator.PhoneCall call = switchboard.receive();
 
         Client client = this.getClientHandle();
+        long startTime=System.currentTimeMillis();
+//        long startTime=System.nanoTime();
+        // ended by hawk
         boolean response = client.callProcedure(callback,
                                                 "Vote",
                                                 call.voteId,
                                                 call.phoneNumber,
                                                 call.contestantNumber);
+        // added by hawk to test procedure execution performance
+        long endTime=System.currentTimeMillis();
+//        long endTime=System.nanoTime();
+        System.out.println("Execution time： " + (endTime-startTime) + "ms");   
+        // ended by hawk
+
         return response;
     }
 

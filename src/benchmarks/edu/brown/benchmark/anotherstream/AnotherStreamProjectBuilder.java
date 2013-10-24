@@ -33,14 +33,14 @@ public class AnotherStreamProjectBuilder extends AbstractProjectBuilder {
     };
 	
 	{
-		addTransactionFrequency(Initialize.class, 100);
+		//addTransactionFrequency(Vote.class, 100);
 	}
 	
 	// a list of tables used in this benchmark with corresponding partitioning keys
     public static final String PARTITIONING[][] = new String[][] {
-        { "votes", "phone_number" },
-        { "votes_by_phone_number", "phone_number" },
-        { "votes_by_contestant_number_state", "contestant_number"}
+        { "votes", "phone_number" }//,
+//        { "votes_by_phone_number", "phone_number" },
+//        { "votes_by_contestant_number_state", "contestant_number"}
     };
 
     public AnotherStreamProjectBuilder() {

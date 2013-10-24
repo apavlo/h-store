@@ -364,7 +364,16 @@ public class HStoreTerminal implements Runnable {
             LOG.info(String.format("Executing transaction " + setBoldText + "%s(%s)" + setPlainText, 
                      catalog_proc.getName(), StringUtil.toString(params, false, false)));
         }
+        // added by hawk to test procedure execution performance
+        //long startTime=System.currentTimeMillis();
+        long startTime=System.nanoTime();
+        // ended by hawk
         ClientResponse cresponse = client.callProcedure(catalog_proc.getName(), params);
+        // added by hawk to test procedure execution performance
+        //long endTime=System.currentTimeMillis();
+        long endTime=System.nanoTime();
+        System.out.println("Execution time： " + (endTime-startTime) + "ns");   
+        // ended by hawk
         return (cresponse);
     }
     

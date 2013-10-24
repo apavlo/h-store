@@ -51,7 +51,7 @@ public class VoterProjectBuilder extends AbstractProjectBuilder {
         Vote.class, Initialize.class};
 	
 	{
-		addTransactionFrequency(Vote.class, 100);
+		//addTransactionFrequency(Vote.class, 100);
 	}
 	
 	// a list of tables used in this benchmark with corresponding partitioning keys
