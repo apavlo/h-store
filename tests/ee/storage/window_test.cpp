@@ -167,7 +167,7 @@ TEST_F(WindowTest, TupleInsert) {
     //voltdb::TableTuple tuple(table->schema());
 
     VOLT_DEBUG("TABLE SIZE: %d", int(table->activeTupleCount()));
-
+    VOLT_DEBUG("Current Window Queue: %s", table->debug().c_str());
 
     //
     // Make sure that if we insert one tuple, the window size remains 10
@@ -179,7 +179,7 @@ TEST_F(WindowTest, TupleInsert) {
     VOLT_DEBUG("To Insert: \n %s", tuple.debug("New Tuple").c_str());
     ASSERT_EQ(true, this->table->insertTuple(tuple));
     ASSERT_EQ(WINDOW_SIZE, this->table->activeTupleCount());
-    VOLT_DEBUG("1");
+    VOLT_DEBUG("Current Window Queue: %s", table->debug().c_str());
 
     /**
     std::vector<voltdb::TableTuple*> tuplesInserted;

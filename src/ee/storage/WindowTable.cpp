@@ -167,16 +167,18 @@ void WindowTable::deleteTupleForUndo(voltdb::TableTuple &tupleCopy, size_t elMar
 	}
 	return PersistentTable::deleteTupleForUndo(tupleCopy, elMark);
 }
-/**
-void WindowTable::debug(const std::string& tableName) const
+
+std::string WindowTable::debug()
 {
 	VOLT_DEBUG("LIST:");
 	int i = 0;
 	for(std::list<TableTuple *>::const_iterator it = windowQueue.begin(); it != windowQueue.end(); it++)
 	{
-		VOLT_DEBUG("%d: %s", i, (*it)->debug(tableName).c_str());
+		VOLT_DEBUG("%d: %s", i, (*it)->debug("test").c_str());
 		i++;
 	}
+	return "test";
+	/**
 	i = 0;
 	TableIterator ti  = this->TableIterator();
 	while(ti.hasNext())
@@ -186,7 +188,8 @@ void WindowTable::debug(const std::string& tableName) const
 		VOLT_DEBUG("%d: %s", i, t.debug(tableName).c_str());
 		i++;
 	}
+	*/
 }
-*/
+
 }
 
