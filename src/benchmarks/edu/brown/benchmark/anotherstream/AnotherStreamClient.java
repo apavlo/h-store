@@ -68,20 +68,11 @@ public class AnotherStreamClient extends BenchmarkComponent {
         PhoneCallGenerator.PhoneCall call = switchboard.receive();
 
         Client client = this.getClientHandle();
-        long startTime=System.currentTimeMillis();
-//        long startTime=System.nanoTime();
-        // ended by hawk
         boolean response = client.callProcedure(callback,
                                                 "Vote",
                                                 call.voteId,
                                                 call.phoneNumber,
                                                 call.contestantNumber);
-        // added by hawk to test procedure execution performance
-        long endTime=System.currentTimeMillis();
-//        long endTime=System.nanoTime();
-        System.out.println("Execution time： " + (endTime-startTime) + "ms");   
-        // ended by hawk
-
         return response;
     }
 
