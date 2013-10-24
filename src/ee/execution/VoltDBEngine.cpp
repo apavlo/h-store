@@ -544,7 +544,7 @@ bool VoltDBEngine::updateCatalogDatabaseReference() {
 }
 
 bool VoltDBEngine::loadCatalog(const string &catalogPayload) {
-	VOLT_DEBUG("Loading catalog...");
+	VOLT_DEBUG("Loading catalog : %s ...", catalogPayload.c_str());
 	assert(m_catalog != NULL);
     m_catalog->execute(catalogPayload);
 
