@@ -68,8 +68,12 @@
 
 namespace voltdb {
 
+	UpsertExecutor::~UpsertExecutor() {
+		delete [] m_searchKeyBackingStore;
+	}
+
 	bool UpsertExecutor::p_init(AbstractPlanNode *abstract_node, const catalog::Database* catalog_db, int* tempTableMemoryInBytes) {
-		VOLT_TRACE("init Upsert Executor");
+		VOLT_DEBUG("init Upsert Executor");
 
 		m_node = dynamic_cast<UpsertPlanNode*>(abstract_node);
 		assert(m_node);
@@ -107,39 +111,41 @@ namespace voltdb {
 		m_tuple = TableTuple(m_inputTable->schema());
 
 		// added by hawk, 10/4/2013
-		std::string targetTableName = m_targetTable->name();
-		catalog::Table *targetTable = NULL;
-		catalog::CatalogMap<catalog::Table> tables = catalog_db->tables();
-		for ( catalog::CatalogMap<catalog::Table>::field_map_iter i = tables.begin(); i != tables.end(); i++) {
-			catalog::Table *table = (*i).second;
-			if (table->name().compare(targetTableName) == 0) {
-				targetTable = table;
-				break;
-			}
-		}
-		assert(targetTable != NULL);
-
-		catalog::CatalogMap<catalog::Column> columns = targetTable->columns();
-		/*
-		* The first output column is the tuple address expression and it isn't part of our output so we skip
-		* it when generating the map from input columns to the target table columns.
-		*/
-		if (m_targetTable->name()=="VOTES_BY_PHONE_NUMBER")
-		{
-			VOLT_DEBUG("hawk: p_init - VOTES_BY_PHONE_NUMBER");
-			int size = columns.size();
-			VOLT_DEBUG("hawk: columns size - %d\n", size);
-			for(int ii = 1; ii <= size; ii++)
-			{
-				catalog::Column *column = columns.getAtRelativeIndex(ii);
-				int index = column->index();
-				VOLT_DEBUG("hawk: column index - %d\n", index);
-				m_inputTargetMap.push_back(std::pair<int, int>( ii, index ));
-			}
-
-			m_inputTargetMapSize = (int)m_inputTargetMap.size();
-		}
 		m_targetTuple = TableTuple(m_targetTable->schema());
+		// ended by hawk
+
+		// added by hawk, 2013/10/24
+		// get the primary key
+		m_primarykey_index = m_targetTable->primaryKeyIndex();
+		if (m_primarykey_index == NULL)
+		{
+			VOLT_ERROR("Failed to retreive primarykey index from table '%s'...",
+				m_targetTable->name().c_str());
+			delete [] m_searchKeyBackingStore;
+			return false;
+		}
+		// get corresponding position of each collumn of primary keys 
+		const std::vector<int> columindices = m_primarykey_index->getColumnIndices();
+		m_primarykey_size = 0;
+		m_primarykey_size = m_primarykey_index->getColumnCount();
+		//int m_primarykeys[m_primarykey_size];
+
+		m_primarykeysArrayPtr =
+			boost::shared_array<int>(new int[m_primarykey_size]);
+		m_primarykeysArray = m_primarykeysArrayPtr.get();
+
+		int iii = 0;
+		for(std::vector<int>::const_iterator it = columindices.begin(); it != columindices.end(); ++it){
+			m_primarykeysArrayPtr[iii++] = *it;
+		}
+
+		// initialize m_searchKey
+		m_searchKey = TableTuple(m_primarykey_index->getKeySchema());
+		m_searchKeyBackingStore = new char[m_primarykey_index->getKeySchema()->tupleLength()];
+		m_searchKey.moveNoHeader(m_searchKeyBackingStore);
+
+		VOLT_DEBUG("Upsert Executor: finishing initializing search section...");
+
 		// ended by hawk
 
 		PersistentTable *persistentTarget = dynamic_cast<PersistentTable*>(m_targetTable);
@@ -156,10 +162,13 @@ namespace voltdb {
 			// TODO: If so, then set some flag in InsertExecutor to true
 		}
 		m_multiPartition = m_node->isMultiPartition();
+		VOLT_DEBUG("finishing Upsert Executor initialization...");
 		return true;
 	}
 
 	bool UpsertExecutor::p_execute(const NValueArray &params, ReadWriteTracker *tracker) {
+		VOLT_DEBUG("execute Upsert Executor");
+
 		assert(m_node == dynamic_cast<UpsertPlanNode*>(abstract_node));
 		assert(m_node);
 		// XXX assert(m_inputTable == dynamic_cast<TempTable*>(m_node->getInputTables()[0]));
@@ -194,9 +203,9 @@ namespace voltdb {
 		assert(m_targetTuple.sizeInValues() == m_targetTable->columnCount()); // added by hawk, 10/4/2013
 
 		TableIterator iterator(m_inputTable);
-                bool beProcessed = false;
+		bool beProcessed = false;
 		while (iterator.next(m_tuple)) {
-                        beProcessed = true;
+			beProcessed = true;
 			VOLT_DEBUG("Inserting tuple '%s' into target table '%s'",
 				m_tuple.debug(m_targetTable->name()).c_str(), m_targetTable->name().c_str());
 			VOLT_TRACE("Target Table %s: %s",
@@ -222,66 +231,116 @@ namespace voltdb {
 			}
 
 			{
-				// determine if the m_tuple with the same primary key is aready there
-				// if exists, delete it, and then render the control to the normal insert
-				// if not, just render the control to the normal insert
-                                TableIndex *primarykey_index = m_targetTable->primaryKeyIndex();
-                                const std::vector<int> columindices = primarykey_index->getColumnIndices();
-                                int primarykey_size = 0;
-                                int sizeCols = primarykey_index->getColumnCount();
-                                int primarykeys[sizeCols];
-                                for(std::vector<int>::const_iterator it = columindices.begin(); it != columindices.end(); ++it){
-                                    primarykeys[primarykey_size++] = *it;
-                                }
-                                assert(!(primarykey_size-sizeCols));
-				
-                                TableTuple tuple(m_targetTable->schema());
-				TableIterator iterator(m_targetTable);
-				VOLT_DEBUG("hawk : scan target table... ");
-				while (iterator.next(tuple))
+			        VOLT_DEBUG("hawk : the primary key index '%s'", m_primarykey_index->debug().c_str());
+				// set new values from the m_tuple
+				m_searchKey.setAllNulls();
+			        VOLT_DEBUG("hawk : m_primarykey_size : '%d'", m_primarykey_size);
+				for (int ctr = 0; ctr < m_primarykey_size; ctr++)
 				{
-                                        bool beDelete = true;
-                                        // iterate the primary key related columns
-                                        for(int ii=0;ii<sizeCols;ii++)
-                                        {
-					    NValue value_source = m_tuple.getNValue(ii);
-					    VOLT_DEBUG("source tuple '%s'",
-						m_tuple.debug(m_targetTable->name()).c_str());
-					    NValue value_target = tuple.getNValue(ii);
-					    VOLT_DEBUG("target tuple '%s'",
-						tuple.debug(m_targetTable->name()).c_str());
+                                        int ipos = m_primarykeysArray[ctr];
+			                NValue key_value = m_tuple.getNValue(ipos);
+			                VOLT_DEBUG("hawk : ipos - value : '%d' - %s", ipos, key_value.debug().c_str());
+					m_searchKey.setNValue( ctr, key_value);
+				}
+			        VOLT_DEBUG("hawk : the search key is '%s'", m_searchKey.debugNoHeader().c_str());
 
-					    // determine if they are same
-					    if(value_source.compare(value_target) != 0)
-					    {
-                                                beDelete = false;
-                                                break;
-                                            }
-                                        }
+				// using primary key index to scan the indicate searchkey
+				TableTuple tuple(m_targetTable->schema());
+				m_primarykey_index->moveToKey(&m_searchKey);
+				bool beDelete = false;
+				while (	!(tuple = m_primarykey_index->nextValueAtKey()).isNullTuple())
+				{
+			                VOLT_DEBUG("hawk : found item");
 
-					if(beDelete == true)
-					{
-						// Read/Write Set Tracking
-						if (tracker != NULL) {
-							//tracker->markTupleWritten(m_targetTable->name(), &m_targetTuple);
-							tracker->markTupleWritten(m_targetTable->name(), &tuple);
-						}
-
-						VOLT_DEBUG("hawk: after markTupleWritten()....... ");
-
-						// Delete from target table
-						if (!m_targetTable->deleteTuple(tuple, true)) {
-							VOLT_ERROR("Failed to delete tuple from table '%s'",
-								m_targetTable->name().c_str());
-							return false;
-						}
-
-						break;
-					}
+					beDelete = true;
+					break;
 				}
 
+			        VOLT_DEBUG("hawk : after seaching...");
+				// if found the tuple, delete it
+				if(beDelete==true)
+				{
+					// Read/Write Set Tracking
+					if (tracker != NULL) {
+						//tracker->markTupleWritten(m_targetTable->name(), &m_targetTuple);
+						tracker->markTupleWritten(m_targetTable->name(), &tuple);
+					}
+
+					VOLT_DEBUG("hawk: begin to delete tuple: %s",
+				            tuple.debug(m_targetTable->name()).c_str());
+
+					// Delete from target table
+					if (!m_targetTable->deleteTuple(tuple, true)) {
+						VOLT_DEBUG("hawk: Failed to delete tuple from table '%s'",
+							m_targetTable->name().c_str());
+						return false;
+					}
+					VOLT_DEBUG("hawk: after deleteTuple....... ");
+				}
 			}
 
+			/*
+			{
+			// determine if the m_tuple with the same primary key is aready there
+			// if exists, delete it, and then render the control to the normal insert
+			// if not, just render the control to the normal insert
+			TableIndex *m_primarykey_index = m_targetTable->primaryKeyIndex();
+			const std::vector<int> m_columindices = m_primarykey_index->getColumnIndices();
+			int m_primarykey_size = 0;
+			int sizeCols = m_primarykey_index->getColumnCount();
+			int primarykeys[sizeCols];
+			for(std::vector<int>::const_iterator it = m_columindices.begin(); it != m_columindices.end(); ++it){
+			primarykeys[m_primarykey_size++] = *it;
+			}
+			assert(!(m_primarykey_size-sizeCols));
+
+			TableTuple tuple(m_targetTable->schema());
+			TableIterator iterator(m_targetTable);
+			VOLT_DEBUG("hawk : scan target table... ");
+			while (iterator.next(tuple))
+			{
+			bool beDelete = true;
+			// iterate the primary key related columns
+			for(int ii=0;ii<sizeCols;ii++)
+			{
+			NValue value_source = m_tuple.getNValue(ii);
+			VOLT_DEBUG("source tuple '%s'",
+			m_tuple.debug(m_targetTable->name()).c_str());
+			NValue value_target = tuple.getNValue(ii);
+			VOLT_DEBUG("target tuple '%s'",
+			tuple.debug(m_targetTable->name()).c_str());
+
+			// determine if they are same
+			if(value_source.compare(value_target) != 0)
+			{
+			beDelete = false;
+			break;
+			}
+			}
+
+			if(beDelete == true)
+			{
+			// Read/Write Set Tracking
+			if (tracker != NULL) {
+			//tracker->markTupleWritten(m_targetTable->name(), &m_targetTuple);
+			tracker->markTupleWritten(m_targetTable->name(), &tuple);
+			}
+
+			VOLT_DEBUG("hawk: after markTupleWritten()....... ");
+
+			// Delete from target table
+			if (!m_targetTable->deleteTuple(tuple, true)) {
+			VOLT_ERROR("Failed to delete tuple from table '%s'",
+			m_targetTable->name().c_str());
+			return false;
+			}
+
+			break;
+			}
+			}
+
+			}
+			*/
 			{
 				// try to put the tuple into the target table
 				if (!m_targetTable->insertTuple(m_tuple)) {
@@ -309,23 +368,23 @@ namespace voltdb {
 		}
 		// Check if the target table is persistent, and if hasTriggers flag is true
 		// If it is, then iterate through each one and pass in outputTable
-                if (beProcessed == true)
-                {
-		    PersistentTable* persistTarget = dynamic_cast<PersistentTable*>(m_targetTable);
-		    if(persistTarget != NULL && persistTarget->hasTriggers()) {
-			std::vector<Trigger*>::iterator trig_iter;
+		if (beProcessed == true)
+		{
+			PersistentTable* persistTarget = dynamic_cast<PersistentTable*>(m_targetTable);
+			if(persistTarget != NULL && persistTarget->hasTriggers()) {
+				std::vector<Trigger*>::iterator trig_iter;
 
-                        VOLT_DEBUG( "Start firing triggers of table '%s'", persistTarget->name().c_str());
+				VOLT_DEBUG( "Start firing triggers of table '%s'", persistTarget->name().c_str());
 
-			for(trig_iter = persistTarget->getTriggers()->begin();
-				trig_iter != persistTarget->getTriggers()->end(); trig_iter++) {
-					//if statement to make sure the trigger is an insert... breaking
-					//if((*trig_iter)->getType() == (unsigned char)TRIGGER_INSERT)
-					(*trig_iter)->fire(m_engine, outputTable);
+				for(trig_iter = persistTarget->getTriggers()->begin();
+					trig_iter != persistTarget->getTriggers()->end(); trig_iter++) {
+						//if statement to make sure the trigger is an insert... breaking
+						//if((*trig_iter)->getType() == (unsigned char)TRIGGER_INSERT)
+						(*trig_iter)->fire(m_engine, outputTable);
+				}
+				VOLT_DEBUG( "End firing triggers of table '%s'", persistTarget->name().c_str());
 			}
-                        VOLT_DEBUG( "End firing triggers of table '%s'", persistTarget->name().c_str());
-		    }
-                }
+		}
 
 
 		// add to the planfragments count of modified tuples
