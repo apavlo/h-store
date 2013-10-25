@@ -70,7 +70,7 @@ namespace voltdb {
 
 WindowTable::WindowTable(ExecutorContext *ctx, bool exportEnabled, int windowSize) : PersistentTable(ctx, exportEnabled)
 {
-	windowQueue = std::list<TableTuple *>();
+	windowQueue = std::list<TableTuple>();
 	this->windowSize = windowSize;
 }
 
@@ -90,42 +90,42 @@ void WindowTable::deleteAllTuples(bool freeAllocatedStrings)
  */
 bool WindowTable::insertTuple(TableTuple &source)
 {
-	TableTuple* t;
+	TableTuple t;
 	VOLT_DEBUG("going to insert %s", source.debug("Window").c_str());
 	while(windowQueue.size() >= windowSize)
 	{
 		t = windowQueue.front();
-		VOLT_DEBUG("going to delete %s", t->debug("Window").c_str());
-		PersistentTable::deleteTuple(*t, true);
+		VOLT_DEBUG("going to delete %s", t.debug("Window").c_str());
+		PersistentTable::deleteTuple(t, true);
 		windowQueue.pop_front();
 	}
 	bool success = PersistentTable::insertTuple(source);
 	VOLT_DEBUG("inserted %s", m_tmpTarget1.debug("Window").c_str());
-	windowQueue.push_back(&m_tmpTarget1);
+	windowQueue.push_back(m_tmpTarget1);
 	return success;
 }
 
 void WindowTable::insertTupleForUndo(TableTuple &source, size_t elMark)
 {
-	TableTuple* t;
+	TableTuple t;
 	VOLT_DEBUG("insertTupleUndo");
 	while(windowQueue.size() >= windowSize)
 	{
 		t = windowQueue.front();
-		PersistentTable::deleteTuple(*t, elMark);
+		PersistentTable::deleteTuple(t, elMark);
 		windowQueue.pop_front();
 	}
 	PersistentTable::insertTupleForUndo(source, elMark);
-	windowQueue.push_back(&m_tmpTarget1);
+	windowQueue.push_back(m_tmpTarget1);
 }
-
+/**
 bool WindowTable::updateTuple(TableTuple &source, TableTuple &target, bool updatesIndexes)
 {
-	for(std::list<TableTuple *>::iterator it = windowQueue.begin(); it != windowQueue.end(); it++)
+	for(std::list<TableTuple>::iterator it = windowQueue.begin(); it != windowQueue.end(); it++)
 	{
-		if(*it == &source)
+		if(*it == source)
 		{
-			*it = &target;
+			*it = target;
 		}
 	}
 	return PersistentTable::updateTuple(source, target, updatesIndexes);
@@ -134,11 +134,11 @@ bool WindowTable::updateTuple(TableTuple &source, TableTuple &target, bool updat
 void WindowTable::updateTupleForUndo(TableTuple &sourceTuple, TableTuple &targetTuple,
 							bool revertIndexes, size_t elMark)
 {
-	for(std::list<TableTuple *>::iterator it = windowQueue.begin(); it != windowQueue.end(); it++)
+	for(std::list<TableTuple>::iterator it = windowQueue.begin(); it != windowQueue.end(); it++)
 	{
-		if(*it == &sourceTuple)
+		if(*it == sourceTuple)
 		{
-			*it = &targetTuple;
+			*it = targetTuple;
 		}
 	}
 	return PersistentTable::updateTupleForUndo(sourceTuple, targetTuple, revertIndexes, elMark);
@@ -146,9 +146,9 @@ void WindowTable::updateTupleForUndo(TableTuple &sourceTuple, TableTuple &target
 
 bool WindowTable::deleteTuple(TableTuple &tuple, bool deleteAllocatedStrings)
 {
-	for(std::list<TableTuple *>::iterator it = windowQueue.begin(); it != windowQueue.end(); it++)
+	for(std::list<TableTuple>::iterator it = windowQueue.begin(); it != windowQueue.end(); it++)
 	{
-		if(*it == &tuple)
+		if(*it == tuple)
 		{
 			it = windowQueue.erase(it);
 		}
@@ -158,37 +158,41 @@ bool WindowTable::deleteTuple(TableTuple &tuple, bool deleteAllocatedStrings)
 
 void WindowTable::deleteTupleForUndo(voltdb::TableTuple &tupleCopy, size_t elMark)
 {
-	for(std::list<TableTuple *>::iterator it = windowQueue.begin(); it != windowQueue.end(); it++)
+	for(std::list<TableTuple>::iterator it = windowQueue.begin(); it != windowQueue.end(); it++)
 	{
-		if(*it == &tupleCopy)
+		if(*it == tupleCopy)
 		{
 			it = windowQueue.erase(it);
 		}
 	}
 	return PersistentTable::deleteTupleForUndo(tupleCopy, elMark);
 }
-
+*/
 std::string WindowTable::debug()
 {
+	VOLT_DEBUG("DEBUG TABLE SIZE: %d", int(m_tupleCount));
 	VOLT_DEBUG("LIST:");
 	int i = 0;
-	for(std::list<TableTuple *>::const_iterator it = windowQueue.begin(); it != windowQueue.end(); it++)
+	for(std::list<TableTuple>::const_iterator it = windowQueue.begin(); it != windowQueue.end(); it++)
 	{
-		VOLT_DEBUG("%d: %s", i, (*it)->debug("test").c_str());
+		VOLT_DEBUG("%d: %s", i, it->debug("list").c_str());
 		i++;
 	}
-	return "test";
-	/**
+
+
 	i = 0;
-	TableIterator ti  = this->TableIterator();
+	TableIterator ti  = TableIterator(this,false);
 	while(ti.hasNext())
 	{
+		VOLT_DEBUG("ENTER LOOP");
 		TableTuple t;
 		ti.next(t);
-		VOLT_DEBUG("%d: %s", i, t.debug(tableName).c_str());
+		VOLT_DEBUG("TI.NEXT");
+		VOLT_DEBUG("%d: %s", i, t.debug("table").c_str());
 		i++;
 	}
-	*/
+	VOLT_DEBUG("END DEBUG");
+	return "test";
 }
 
 }

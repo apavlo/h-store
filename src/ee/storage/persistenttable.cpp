@@ -546,6 +546,7 @@ namespace voltdb {
 		//
 		nextFreeTuple(&m_tmpTarget1);
 		m_tupleCount++;
+		VOLT_DEBUG("m_tmpTarget1: %s", m_tmpTarget1.debug("m_tmpTarget1").c_str());
 
 		//
 		// Then copy the source into the target

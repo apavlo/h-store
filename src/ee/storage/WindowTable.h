@@ -96,27 +96,27 @@ class WindowTable : public PersistentTable {
 	 * targetTuple is swapped when making calls on the indexes. This
 	 * is just an inconsistency in the argument ordering.
 	 */
-	bool updateTuple(TableTuple &source, TableTuple &target, bool updatesIndexes);
+	//bool updateTuple(TableTuple &source, TableTuple &target, bool updatesIndexes);
 	/*
 	 * Identical to regular updateTuple except no memory management
 	 * for unlined columns is performed because that will be handled
 	 * by the UndoAction.
 	 */
-	void updateTupleForUndo(TableTuple &sourceTuple, TableTuple &targetTuple,
-							bool revertIndexes, size_t elMark);
+	//void updateTupleForUndo(TableTuple &sourceTuple, TableTuple &targetTuple,
+	//						bool revertIndexes, size_t elMark);
 
 	/*
 	 * Delete a tuple by looking it up via table scan or a primary key
 	 * index lookup.
 	 */
-	bool deleteTuple(TableTuple &tuple, bool deleteAllocatedStrings);
-	void deleteTupleForUndo(voltdb::TableTuple &tupleCopy, size_t elMark);
+	//bool deleteTuple(TableTuple &tuple, bool deleteAllocatedStrings);
+	//void deleteTupleForUndo(voltdb::TableTuple &tupleCopy, size_t elMark);
 
 	std::string debug();
 
 
   protected:
-	std::list<TableTuple *> windowQueue;
+	std::list<TableTuple> windowQueue;
 	int windowSize;
 
 
