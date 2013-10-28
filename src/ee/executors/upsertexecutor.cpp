@@ -64,6 +64,7 @@
 #include "catalog/catalogmap.h"
 #include "catalog/table.h"
 #include "catalog/column.h"
+#include <algorithm>
 // ended by hawk
 
 namespace voltdb {
@@ -143,6 +144,31 @@ namespace voltdb {
 		m_searchKey = TableTuple(m_primarykey_index->getKeySchema());
 		m_searchKeyBackingStore = new char[m_primarykey_index->getKeySchema()->tupleLength()];
 		m_searchKey.moveNoHeader(m_searchKeyBackingStore);
+
+                // initilize the m_inputTargetMap
+                std::string targetTableName = m_node->getTargetTableName();
+                catalog::Table *targetTable = NULL;
+                catalog::CatalogMap<catalog::Table> tables = catalog_db->tables();
+                for ( catalog::CatalogMap<catalog::Table>::field_map_iter i = tables.begin(); i != tables.end(); i++) {
+                    catalog::Table *table = (*i).second;
+                    if (table->name().compare(targetTableName) == 0) {
+                       targetTable = table;
+                       break;
+                    }
+                }
+                assert(targetTable != NULL);
+
+                catalog::CatalogMap<catalog::Column> columns = targetTable->columns();
+                // filtering the primary key index item
+                for (int ii = 0; ii < columns.size(); ii++) {
+                      if(std::find(columindices.begin(), columindices.end(), ii) != columindices.end())
+                      {
+                          VOLT_DEBUG("Upsert Executor: skip primary key index item - %d", ii);
+                          continue;
+                      }
+                      m_inputTargetMap.push_back(std::pair<int, int>( ii, ii));
+                }
+                m_inputTargetMapSize = (int)m_inputTargetMap.size();
 
 		VOLT_DEBUG("Upsert Executor: finishing initializing search section...");
 
@@ -230,6 +256,9 @@ namespace voltdb {
 				}
 			}
 
+                        bool beUpdate = false;
+                        // searching the item using primary dey index.
+                        // if found it, update it; if not, just insert such item
 			{
 			        VOLT_DEBUG("hawk : the primary key index '%s'", m_primarykey_index->debug().c_str());
 				// set new values from the m_tuple
@@ -247,100 +276,34 @@ namespace voltdb {
 				// using primary key index to scan the indicate searchkey
 				TableTuple tuple(m_targetTable->schema());
 				m_primarykey_index->moveToKey(&m_searchKey);
-				bool beDelete = false;
-				while (	!(tuple = m_primarykey_index->nextValueAtKey()).isNullTuple())
+				if ( !(tuple = m_primarykey_index->nextValueAtKey()).isNullTuple())
 				{
 			                VOLT_DEBUG("hawk : found item");
 
-					beDelete = true;
-					break;
-				}
+					beUpdate = true;
 
-			        VOLT_DEBUG("hawk : after seaching...");
-				// if found the tuple, delete it
-				if(beDelete==true)
-				{
 					// Read/Write Set Tracking
 					if (tracker != NULL) {
 						//tracker->markTupleWritten(m_targetTable->name(), &m_targetTuple);
 						tracker->markTupleWritten(m_targetTable->name(), &tuple);
 					}
+                                        
+                                        TableTuple &tempTuple = ((PersistentTable*)m_targetTable)->getTempTupleInlined(tuple);
+                                        for (int map_ctr = 0; map_ctr < m_inputTargetMapSize; map_ctr++) {
+                                            tempTuple.setNValue(m_inputTargetMap[map_ctr].second,
+                                            m_tuple.getNValue(m_inputTargetMap[map_ctr].first));
+                                        }
 
-					VOLT_DEBUG("hawk: begin to delete tuple: %s",
-				            tuple.debug(m_targetTable->name()).c_str());
-
-					// Delete from target table
-					if (!m_targetTable->deleteTuple(tuple, true)) {
-						VOLT_DEBUG("hawk: Failed to delete tuple from table '%s'",
-							m_targetTable->name().c_str());
-						return false;
-					}
-					VOLT_DEBUG("hawk: after deleteTuple....... ");
-				}
+                                        if (!m_targetTable->updateTuple(tempTuple, tuple,
+                                            false)) {
+                                            VOLT_INFO("Failed to update tuple from table '%s'",
+                                                      m_targetTable->name().c_str());
+                                            return false;
+                                        }
+                                 }
 			}
 
-			/*
-			{
-			// determine if the m_tuple with the same primary key is aready there
-			// if exists, delete it, and then render the control to the normal insert
-			// if not, just render the control to the normal insert
-			TableIndex *m_primarykey_index = m_targetTable->primaryKeyIndex();
-			const std::vector<int> m_columindices = m_primarykey_index->getColumnIndices();
-			int m_primarykey_size = 0;
-			int sizeCols = m_primarykey_index->getColumnCount();
-			int primarykeys[sizeCols];
-			for(std::vector<int>::const_iterator it = m_columindices.begin(); it != m_columindices.end(); ++it){
-			primarykeys[m_primarykey_size++] = *it;
-			}
-			assert(!(m_primarykey_size-sizeCols));
-
-			TableTuple tuple(m_targetTable->schema());
-			TableIterator iterator(m_targetTable);
-			VOLT_DEBUG("hawk : scan target table... ");
-			while (iterator.next(tuple))
-			{
-			bool beDelete = true;
-			// iterate the primary key related columns
-			for(int ii=0;ii<sizeCols;ii++)
-			{
-			NValue value_source = m_tuple.getNValue(ii);
-			VOLT_DEBUG("source tuple '%s'",
-			m_tuple.debug(m_targetTable->name()).c_str());
-			NValue value_target = tuple.getNValue(ii);
-			VOLT_DEBUG("target tuple '%s'",
-			tuple.debug(m_targetTable->name()).c_str());
-
-			// determine if they are same
-			if(value_source.compare(value_target) != 0)
-			{
-			beDelete = false;
-			break;
-			}
-			}
-
-			if(beDelete == true)
-			{
-			// Read/Write Set Tracking
-			if (tracker != NULL) {
-			//tracker->markTupleWritten(m_targetTable->name(), &m_targetTuple);
-			tracker->markTupleWritten(m_targetTable->name(), &tuple);
-			}
-
-			VOLT_DEBUG("hawk: after markTupleWritten()....... ");
-
-			// Delete from target table
-			if (!m_targetTable->deleteTuple(tuple, true)) {
-			VOLT_ERROR("Failed to delete tuple from table '%s'",
-			m_targetTable->name().c_str());
-			return false;
-			}
-
-			break;
-			}
-			}
-
-			}
-			*/
+                        if (beUpdate == false)
 			{
 				// try to put the tuple into the target table
 				if (!m_targetTable->insertTuple(m_tuple)) {

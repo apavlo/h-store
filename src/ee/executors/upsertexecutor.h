@@ -69,6 +69,7 @@ namespace voltdb {
 			m_engine = engine;
 			m_partitionColumn = -1;
 			m_multiPartition = false;
+                        m_inputTargetMapSize = -1;
 		}
 
 		~UpsertExecutor();
