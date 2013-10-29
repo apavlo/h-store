@@ -34,7 +34,7 @@ public class UpdateVotesAndTotalVotesTrigger extends VoltTrigger {
 
     
     // FIXME, after using the tuple in stream, we should delete it. 
-    public final SQLStmt deleteStreamStmt = 
-        new SQLStmt("DELETE FROM S2");
+//    public final SQLStmt deleteStreamStmt = 
+//        new SQLStmt("DELETE FROM S2");
 
 }

@@ -1,4 +1,3 @@
-
 -- contestants table holds the contestants numbers (for voting) and names
 CREATE TABLE contestants
 (
@@ -60,17 +59,35 @@ CREATE TABLE votes_by_phone_number
     )
 );
 
-CREATE TABLE CurrentVoteTable
+-- streams for processing ---
+CREATE TABLE votes_stream
 (
   vote_id            bigint     NOT NULL,
   phone_number       bigint     NOT NULL
 , state              varchar(2) NOT NULL
 , contestant_number  integer    NOT NULL
 , created            timestamp  NOT NULL
-, CONSTRAINT PK_CurrentVoteTable PRIMARY KEY
-  (
-    vote_id
-  )
--- PARTITION BY ( phone_number )
 );
+
+-- result from step 1: Validate contestants
+CREATE TABLE S1
+(
+  vote_id            bigint     NOT NULL,
+  phone_number       bigint     NOT NULL
+, state              varchar(2) NOT NULL
+, contestant_number  integer    NOT NULL
+, created            timestamp  NOT NULL
+);
+
+-- result from step2: Validate number of votes
+CREATE TABLE S2
+(
+  vote_id            bigint     NOT NULL,
+  phone_number       bigint     NOT NULL
+, state              varchar(2) NOT NULL
+, contestant_number  integer    NOT NULL
+, created            timestamp  NOT NULL
+);
+
+
 

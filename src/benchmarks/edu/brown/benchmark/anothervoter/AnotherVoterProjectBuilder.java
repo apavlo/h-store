@@ -57,7 +57,9 @@ public class AnotherVoterProjectBuilder extends AbstractProjectBuilder {
 	// a list of tables used in this benchmark with corresponding partitioning keys
     public static final String PARTITIONING[][] = new String[][] {
         { "votes", "phone_number" },
-        { "CurrentVoteTable", "phone_number" },
+        { "votes_stream", "phone_number" },
+        { "S1", "phone_number" },
+        { "S2", "phone_number" },
         { "votes_by_phone_number", "phone_number" },
         { "votes_by_contestant_number_state", "contestant_number"}
     };
