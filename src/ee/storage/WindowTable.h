@@ -91,12 +91,14 @@ class WindowTable : public PersistentTable {
 	 */
 	void insertTupleForUndo(TableTuple &source, size_t elMark);
 
+	TableTuple getOldestTuple();
+
 	/*
 	 * Note that inside update tuple the order of sourceTuple and
 	 * targetTuple is swapped when making calls on the indexes. This
 	 * is just an inconsistency in the argument ordering.
 	 */
-	//bool updateTuple(TableTuple &source, TableTuple &target, bool updatesIndexes);
+	bool updateTuple(TableTuple &source, TableTuple &target, bool updatesIndexes);
 	/*
 	 * Identical to regular updateTuple except no memory management
 	 * for unlined columns is performed because that will be handled

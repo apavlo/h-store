@@ -145,7 +145,6 @@ TEST_F(WindowTest, ValueTypes) {
     // Make sure that our table has the right types and that when
     // we pull out values from a tuple that it has the right type too
     //
-	VOLT_DEBUG("TEST 1");
     voltdb::TableIterator iterator = this->table->tableIterator();
     voltdb::TableTuple tuple(table->schema());
     while (iterator.next(tuple)) {
@@ -174,7 +173,6 @@ TEST_F(WindowTest, TupleInsert) {
     //
     voltdb::TableTuple tuple = this->table->tempTuple();
     ASSERT_EQ(true, tableutil::setRandomTupleValues(this->table, &tuple));
-    //this->table->deleteAllTuples(true);
     ASSERT_EQ(WINDOW_SIZE, this->table->activeTupleCount());
     VOLT_DEBUG("To Insert: \n %s", tuple.debug("New Tuple").c_str());
     ASSERT_EQ(true, this->table->insertTuple(tuple));
@@ -182,18 +180,14 @@ TEST_F(WindowTest, TupleInsert) {
     VOLT_DEBUG("Current Window Queue: %s", table->debug().c_str());
 
     /**
-    std::vector<voltdb::TableTuple> tuplesInserted;
-    voltdb::TableTuple out;
-    VOLT_DEBUG("2");
-
-
+    std::vector<voltdb::TableTuple> tuplesInserted = std::vector<voltdb::TableTuple>();
 
     for(int i = 0; i < WINDOW_SIZE; i++)
     {
     	temp_tuple = this->table->tempTuple();
     	ASSERT_EQ(true, tableutil::setRandomTupleValues(this->table, &temp_tuple));
-    	VOLT_DEBUG("3");
     	ASSERT_EQ(true, this->table->insertTuple(temp_tuple));
+    	tuplesInserted.push_back(temp_tuple);
     }
 
 
@@ -202,13 +196,13 @@ TEST_F(WindowTest, TupleInsert) {
     iterator = this->table->tableIterator();
     int i = 0;
     while (iterator.next(tuple)) {
-    	VOLT_DEBUG("tuplesInserted.at(%d): %d", i, int(tuplesInserted.at(i)));
-    	VOLT_DEBUG("&tuple: %d", int(&tuple));
-    	ASSERT_EQ(tuplesInserted.at(i), &tuple);
+    	VOLT_DEBUG("tuplesInserted.at(%d): %s", i, tuplesInserted.at(i).debug().c_str());
+    	VOLT_DEBUG("tuple: %s", tuple.debug().c_str());
+    	ASSERT_EQ(tuplesInserted.at(i), tuple);
     	i++;
     }
     */
-    /**
+    voltdb::TableTuple &temp_tuple = this->table->tempTuple();
     //
     // Then check to make sure that it has the same value and type
     //
@@ -218,9 +212,9 @@ TEST_F(WindowTest, TupleInsert) {
         EXPECT_EQ(COLUMN_TYPES[col_ctr], tuple.getType(col_ctr));
         EXPECT_TRUE(temp_tuple.getNValue(col_ctr).op_equals(tuple.getNValue(col_ctr)).isTrue());
     }
-	*/
+
 }
-/**
+
 TEST_F(WindowTest, TupleUpdate) {
     //
     // Loop through and randomly update values
@@ -230,7 +224,6 @@ TEST_F(WindowTest, TupleUpdate) {
     //      (1) Updating a tuple sets the values correctly
     //      (2) Updating a tuple without changing the values doesn't do anything
     //
-
     std::vector<int64_t> totals;
     std::vector<int64_t> totalsNotSlim;
     totals.reserve(NUM_OF_COLUMNS);
@@ -264,7 +257,6 @@ TEST_F(WindowTest, TupleUpdate) {
                 }
             }
         }
-        if (update) EXPECT_EQ(true, temp_table->updateTuple(temp_tuple, tuple, true));
     }
 
     //
@@ -284,7 +276,7 @@ TEST_F(WindowTest, TupleUpdate) {
     }
 
 }
-*/
+
 /* deleteTuple in TempTable is not supported for performance reason.
 TEST_F(WindowTest, TupleDelete) {
     //
