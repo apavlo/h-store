@@ -44,8 +44,8 @@ public class UpsertClient extends BenchmarkComponent {
     protected boolean runOnce() throws IOException {
         Client client = this.getClientHandle();
         boolean response = client.callProcedure(callback,
-                                                //"Upsert",
-                                                "Update",
+                                                "Upsert",
+                                                //"Update",
                                                 100000);
         return response;
     }
@@ -61,8 +61,8 @@ public class UpsertClient extends BenchmarkComponent {
     @Override
     public String[] getTransactionDisplayNames() {
         String procNames[] = new String[]{
-                //Upsert.class.getSimpleName()
-                Update.class.getSimpleName()
+                Upsert.class.getSimpleName()
+                //Update.class.getSimpleName()
            };
            return (procNames);
     }

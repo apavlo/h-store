@@ -101,44 +101,64 @@ public class SimpleCall extends VoltProcedure {
         voltExecuteSQL();
 
         voltQueueSQL(insertS2);
-        voltQueueSQL(deleteS1);
         voltExecuteSQL();
 
         voltQueueSQL(insertS3);
-        voltQueueSQL(deleteS2);
         voltExecuteSQL();
 
         voltQueueSQL(insertS4);
-        voltQueueSQL(deleteS3);
         voltExecuteSQL();
 
         voltQueueSQL(insertS5);
-        voltQueueSQL(deleteS4);
         voltExecuteSQL();
 
         voltQueueSQL(insertS6);
-        voltQueueSQL(deleteS5);
         voltExecuteSQL();
 
         voltQueueSQL(insertS7);
-        voltQueueSQL(deleteS6);
         voltExecuteSQL();
 
         voltQueueSQL(insertS8);
-        voltQueueSQL(deleteS7);
         voltExecuteSQL();
 
         voltQueueSQL(insertS9);
-        voltQueueSQL(deleteS8);
         voltExecuteSQL();
 
         voltQueueSQL(insertS10);
-        voltQueueSQL(deleteS9);
         voltExecuteSQL();
 
         voltQueueSQL(insertS11);
+        voltExecuteSQL();
+
         voltQueueSQL(deleteS10);
-        voltExecuteSQL(true);
+        voltExecuteSQL();
+
+        voltQueueSQL(deleteS9);
+        voltExecuteSQL();
+
+        voltQueueSQL(deleteS8);
+        voltExecuteSQL();
+
+        voltQueueSQL(deleteS7);
+        voltExecuteSQL();
+
+        voltQueueSQL(deleteS6);
+        voltExecuteSQL();
+
+        voltQueueSQL(deleteS5);
+        voltExecuteSQL();
+
+        voltQueueSQL(deleteS4);
+        voltExecuteSQL();
+
+        voltQueueSQL(deleteS3);
+        voltExecuteSQL();
+
+        voltQueueSQL(deleteS2);
+        voltExecuteSQL();
+
+        voltQueueSQL(deleteS1);
+        voltExecuteSQL();
 
         return 0;
     }
