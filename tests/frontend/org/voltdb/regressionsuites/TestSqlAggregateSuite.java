@@ -144,6 +144,7 @@ public class TestSqlAggregateSuite extends RegressionSuite {
                 } else {
                     int val = (int)results[0].getLong(i);
                     int expected = (Integer)expected_results[i];
+
                     assertEquals(table+"."+aggs[i], expected, val);
                 }
             } // FOR

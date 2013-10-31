@@ -69,8 +69,8 @@ public class AccessGraphGenerator extends AbstractGenerator<AccessGraph> {
         super(info);
         this.catalog_proc = catalog_proc;
 
-        debug_tables.add(this.info.catalog_db.getTables().get("CUSTOMER"));
-        debug_tables.add(this.info.catalog_db.getTables().get("DISTRICT"));
+        debug_tables.add(this.info.catalogContext.database.getTables().get("CUSTOMER"));
+        debug_tables.add(this.info.catalogContext.database.getTables().get("DISTRICT"));
     }
 
     /**
@@ -83,8 +83,8 @@ public class AccessGraphGenerator extends AbstractGenerator<AccessGraph> {
         if (d)
             LOG.debug("Generating AccessGraph for entire catalog");
 
-        AccessGraph agraph = new AccessGraph(info.catalog_db);
-        for (Procedure catalog_proc : info.catalog_db.getProcedures()) {
+        AccessGraph agraph = new AccessGraph(info.catalogContext.database);
+        for (Procedure catalog_proc : info.catalogContext.database.getProcedures()) {
             // Skip if there are no transactions in the workload for this
             // procedure
             assert (info.workload != null);
@@ -664,7 +664,7 @@ public class AccessGraphGenerator extends AbstractGenerator<AccessGraph> {
 
         // Update the weights for the direct query-to-edge mappings
         for (QueryTrace query : xact.getQueries()) {
-            Statement catalog_stmt = query.getCatalogItem(this.info.catalog_db);
+            Statement catalog_stmt = query.getCatalogItem(this.info.catalogContext.database);
             if (!this.stmt_edge_xref.containsKey(catalog_stmt)) {
                 if (d)
                     LOG.warn("Missing query '" + catalog_stmt.fullName() + "' in Statement-Edge Xref mapping");
@@ -678,7 +678,7 @@ public class AccessGraphGenerator extends AbstractGenerator<AccessGraph> {
         // Update the weights for any edges that required multiple statements to
         // be
         // executed in order the edges to be updated
-        Map<Statement, Integer> catalog_stmt_counts = xact.getStatementCounts(info.catalog_db);
+        Map<Statement, Integer> catalog_stmt_counts = xact.getStatementCounts(info.catalogContext.database);
         for (DesignerEdge edge : this.multi_stmt_edge_xref.keySet()) {
             // For each edge in our list, there is a list of Statements that
             // need to be executed

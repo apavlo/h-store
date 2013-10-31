@@ -91,7 +91,10 @@ if gcc_major == 4 and gcc_minor >= 3:
     CTX.CPPFLAGS += " -Wno-ignored-qualifiers -fno-strict-aliasing"
 
 # linker flags
-CTX.LDFLAGS = """-g3 -rdynamic -ldl"""
+CTX.LDFLAGS = """-g3 -ldl"""
+# Done by default on Darwin -- unrecognized option for the linker on Darwin
+if CTX.PLATFORM == "Linux":
+    CTX.LDFLAGS +=" -rdynamic"
 if CTX.COVERAGE:
     CTX.LDFLAGS += " -ftest-coverage -fprofile-arcs"
 # for the google perftools profiler and the recommended stack unwinder
@@ -371,16 +374,23 @@ CTX.TESTS['storage'] = """
 # CTX.TESTS['expressions'] = """expserialize_test expression_test"""
 
 ###############################################################################
+# MMAP STORAGE
+###############################################################################
+
+if CTX.MMAP_STORAGE:
+    CTX.CPPFLAGS += " -DMMAP_STORAGE"
+
+###############################################################################
 # ANTI-CACHING
 ###############################################################################
-ENABLE_ANTICACHE = True
-ANTICACHE_REVERSIBLE_LRU = True
 
-if ANTICACHE_REVERSIBLE_LRU:
-    CTX.CPPFLAGS += " -DANTICACHE_REVERSIBLE_LRU"
-
-if ENABLE_ANTICACHE:
+if CTX.ANTICACHE_BUILD:
     CTX.CPPFLAGS += " -DANTICACHE"
+
+    if CTX.ANTICACHE_REVERSIBLE_LRU:
+        CTX.CPPFLAGS += " -DANTICACHE_REVERSIBLE_LRU"
+
+    # Bring in berkeleydb library
     CTX.SYSTEM_DIRS.append(os.path.join(CTX.OUTPUT_PREFIX, 'berkeleydb'))
     CTX.THIRD_PARTY_STATIC_LIBS.extend([
         "berkeleydb/libdb.a",     # BerkeleyDB Base Library

@@ -17,6 +17,8 @@
 
 #include "PlanColumn.h"
 
+#define _UNUSED(x) ((void)x)
+
 using namespace json_spirit;
 using namespace std;
 using namespace voltdb;
@@ -28,6 +30,12 @@ PlanColumn::PlanColumn(Object& colObject) : m_colObject(colObject)
     bool contains_type = false;
     bool contains_size = false;
     bool contains_input_column_name = false;
+
+    _UNUSED (contains_guid);
+    _UNUSED (contains_name);
+    _UNUSED (contains_type);
+    _UNUSED (contains_size);
+
     for (int attr = 0; attr < m_colObject.size(); attr++)
     {
         if (m_colObject[attr].name_ == "GUID")

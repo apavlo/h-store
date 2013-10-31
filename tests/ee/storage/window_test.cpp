@@ -232,7 +232,6 @@ TEST_F(WindowTest, TupleUpdate) {
         totals[col_ctr] = 0;
         totalsNotSlim[col_ctr] = 0;
     }
-
     voltdb::TableIterator iterator = this->table->tableIterator();
     voltdb::TableTuple tuple(table->schema());
     while (iterator.next(tuple)) {
@@ -269,7 +268,7 @@ TEST_F(WindowTest, TupleUpdate) {
             while (iterator.next(tuple)) {
                 new_total += ValuePeeker::peekAsBigInt(tuple.getNValue(col_ctr));
             }
-            //printf("\nCOLUMN: %s\n\tEXPECTED: %d\n\tRETURNED: %d\n", this->table->getColumn(col_ctr)->getName().c_str(), totals[col_ctr], new_total);
+            printf("\nCOLUMN: %s\n\tEXPECTED: %d\n\tRETURNED: %d\n", this->table->getColumn(col_ctr)->getName().c_str(), totals[col_ctr], new_total);
             EXPECT_EQ(totals[col_ctr], new_total);
             EXPECT_EQ(totalsNotSlim[col_ctr], new_total);
         }

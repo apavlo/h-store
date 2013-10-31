@@ -34,7 +34,7 @@ public class SimpleMapper extends AbstractMapper {
         //
         // Sites
         //
-        Cluster catalog_cluster = (Cluster) info.catalog_db.getParent();
+        Cluster catalog_cluster = (Cluster) info.catalogContext.database.getParent();
         int site_id = 0;
         for (Host catalog_host : catalog_cluster.getHosts()) {
             int num_sites = catalog_host.getCorespercpu() * catalog_host.getThreadspercore();

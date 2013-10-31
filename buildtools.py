@@ -39,6 +39,10 @@ class BuildContext:
         self.NMFLAGS = "-n"    # specialized by platform in build.py
         self.COVERAGE = False
         self.VOLT_LOG_LEVEL = None
+        self.MMAP_STORAGE = False
+        self.ANTICACHE_BUILD = True
+        self.ANTICACHE_REVERSIBLE_LRU = True
+        
         for arg in [x.strip().upper() for x in args]:
             if arg in ["DEBUG", "RELEASE", "MEMCHECK", "MEMCHECK_NOFREELIST"]:
                 self.LEVEL = arg
@@ -46,6 +50,19 @@ class BuildContext:
                 self.TARGET = arg
             if arg in ["COVERAGE"]:
                 self.COVERAGE = True
+            if arg.startswith("MMAP_STORAGE="):
+                parts = arg.split("=")
+                if len(parts) > 1 and not parts[1].startswith("${"): 
+                    self.MMAP_STORAGE = bool(parts[1])
+            if arg.startswith("ANTICACHE_BUILD="):
+                parts = arg.split("=")
+                if len(parts) > 1 and not parts[1].startswith("${"):
+                    self.ANTICACHE_BUILD = bool(parts[1])
+            if arg.startswith("ANTICACHE_REVERSIBLE_LRU="):
+                parts = arg.split("=")
+                if len(parts) > 1 and not parts[1].startswith("${"):
+                    self.ANTICACHE_REVERSIBLE_LRU = bool(parts[1])
+                
             if arg.startswith("LOG_LEVEL="):
                 parts = arg.split("=")
                 if len(parts) > 1:
@@ -53,7 +70,8 @@ class BuildContext:
                         self.VOLT_LOG_LEVEL = int(parts[1])
                     elif parts[1].upper() in LOG_LEVEL_NAMES:
                         self.VOLT_LOG_LEVEL = LOG_LEVEL_NAMES[parts[1].upper()]
-                ## IF
+            ## IF
+        ## FOR
                 
 
 def readFile(filename):

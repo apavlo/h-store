@@ -1259,7 +1259,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @param catalog_tbl
      * @return
      */
-    public static Set<Column> getForeignKeyDependents(Table catalog_tbl) {
+    public static Collection<Column> getForeignKeyDependents(Table catalog_tbl) {
         Set<Column> found = new ListOrderedSet<Column>();
         for (Column catalog_col : catalog_tbl.getColumns()) {
             assert (catalog_col != null);

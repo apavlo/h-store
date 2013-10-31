@@ -173,7 +173,7 @@ public class AffinityMapper extends AbstractMapper {
                 // For each table, get the values used for the partition keys
                 //
                 for (String table_key : query_cost.getTableKeys()) {
-                    Table catalog_tbl = CatalogKey.getFromKey(info.catalog_db, table_key, Table.class);
+                    Table catalog_tbl = CatalogKey.getFromKey(info.catalogContext.database, table_key, Table.class);
                     assert (catalog_tbl != null);
                     Table root = pplan.getRoot(catalog_tbl);
                     assert (root != null);
@@ -233,7 +233,7 @@ public class AffinityMapper extends AbstractMapper {
         // Initial Solution
         // ----------------------------------------------------------
         PartitionMapping pmap = new SimpleMapper(this.designer, this.info).generate(hints, pplan);
-        pmap.apply(info.catalog_db, info.stats, hasher);
+        pmap.apply(info.catalogContext.database, info.stats, hasher);
         System.out.println(pmap);
 
         return null;

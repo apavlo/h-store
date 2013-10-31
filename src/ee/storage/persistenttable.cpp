@@ -140,9 +140,11 @@ namespace voltdb {
 		if (m_allowNulls) delete[] m_allowNulls;
 		if (m_indexes) delete[] m_indexes;
 
-#ifdef ANTICACHE
-		if (m_evictedTable) delete m_evictedTable;
-#endif
+
+		#ifdef ANTICACHE
+				if (m_evictedTable) delete m_evictedTable;
+		#endif
+
 
 		// note this class has ownership of the views, even if they
 		// were allocated by VoltDBEngine

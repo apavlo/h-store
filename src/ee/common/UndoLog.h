@@ -43,7 +43,7 @@ namespace voltdb
 
         inline UndoQuantum* generateUndoQuantum(int64_t nextUndoToken) {
             VOLT_TRACE("Generating token %ld / lastUndo:%ld / lastRelease:%ld / undoQuantums:%ld",
-                       nextUndoToken, m_lastUndoToken, m_lastReleaseToken, m_undoQuantums.size());
+                       (long int)nextUndoToken, (long int)m_lastUndoToken, (long int)m_lastReleaseToken, (long int)m_undoQuantums.size());
             
             // Since ExecutionSite is using monotonically increasing
             // token values, every new quanta we're asked to generate should be
@@ -51,15 +51,15 @@ namespace voltdb
             #ifdef VOLT_ERROR_ENABLED
             if (nextUndoToken <= m_lastUndoToken) {
                 VOLT_ERROR("nextUndoToken[%ld] is less than or equal to m_lastUndoToken[%ld]",
-                           nextUndoToken, m_lastUndoToken);
+                           (long int)nextUndoToken, (long int)m_lastUndoToken);
             }
             #endif
             assert(nextUndoToken > m_lastUndoToken);
-            
+
             #ifdef VOLT_ERROR_ENABLED
             if (nextUndoToken <= m_lastReleaseToken) {
                 VOLT_ERROR("nextUndoToken[%ld] is less than or equal to m_lastReleaseToken[%ld]",
-                           nextUndoToken, m_lastReleaseToken);
+                           (long int)nextUndoToken, (long int)m_lastReleaseToken);
             }
             #endif
             assert(nextUndoToken > m_lastReleaseToken);
@@ -77,7 +77,7 @@ namespace voltdb
                 new (pool->allocate(sizeof(UndoQuantum)))
                 UndoQuantum(nextUndoToken, pool);
             m_undoQuantums.push_back(undoQuantum);
-            VOLT_TRACE("Created new UndoQuantum %ld", nextUndoToken);
+            VOLT_TRACE("Created new UndoQuantum %ld", (long int)nextUndoToken);
             return undoQuantum;
         }
 
@@ -96,7 +96,7 @@ namespace voltdb
             #ifdef VOLT_ERROR_ENABLED
             if (undoToken < m_lastReleaseToken) {
                 VOLT_ERROR("undoToken[%ld] is less than m_lastReleaseToken[%ld]",
-                           undoToken, m_lastReleaseToken);
+                           (long int)undoToken, (long int)m_lastReleaseToken);
             }
             #endif
             assert(undoToken >= m_lastReleaseToken);
@@ -153,11 +153,11 @@ namespace voltdb
             #ifdef VOLT_ERROR_ENABLED
             if (startToken < m_lastReleaseToken) {
                 VOLT_ERROR("startToken[%ld] is less than m_lastReleaseToken[%ld]",
-                           startToken, m_lastReleaseToken);
+                           (long int)startToken, (long int)m_lastReleaseToken);
             }
             if (stopToken < m_lastReleaseToken) {
                 VOLT_ERROR("stopToken[%ld] is less than m_lastReleaseToken[%ld]",
-                           stopToken, m_lastReleaseToken);
+                           (long int)stopToken, (long int)m_lastReleaseToken);
             }
             #endif
             assert(startToken >= m_lastReleaseToken);
@@ -237,7 +237,7 @@ namespace voltdb
             #ifdef VOLT_ERROR_ENABLED
             if (m_lastReleaseToken >= undoToken) {
                 VOLT_ERROR("m_lastReleaseToken[%ld] is greater than or equal to undoToken[%ld]",
-                           m_lastReleaseToken, undoToken);
+                           (long int)m_lastReleaseToken, (long int)undoToken);
             }
             #endif
             assert(m_lastReleaseToken < undoToken);

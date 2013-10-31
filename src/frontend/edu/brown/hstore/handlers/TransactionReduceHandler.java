@@ -89,7 +89,7 @@ public class TransactionReduceHandler extends AbstractTransactionHandler<Transac
             } // FOR
         } else {
             // non-blocking way of execution for Reduce
-            mr_ts.setBasePartition_reduce_runed(true);
+            mr_ts.markBasePartitionReduceExec();
             hstore_site.getMapReduceHelper().queue(mr_ts);
         }
         

@@ -756,6 +756,13 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                     eeTemp.antiCacheInitialize(acFile, blockSize);
                 }
                 
+                // Initialize MMap Storage
+                if (hstore_conf.site.storage_mmap) {
+                    // TODO: Call the initialization method on eeTemp
+                }
+                
+                // Important: This has to be called *after* we initialize the anti-cache
+                //            and the storage information!
                 eeTemp.loadCatalog(catalogContext.catalog.serialize());
                 this.lastTickTime = System.currentTimeMillis();
                 eeTemp.tick(this.lastTickTime, 0);

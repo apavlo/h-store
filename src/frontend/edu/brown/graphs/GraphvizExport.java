@@ -2,6 +2,7 @@ package edu.brown.graphs;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -11,8 +12,11 @@ import java.util.Set;
 
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.CatalogType;
+import org.voltdb.catalog.Column;
 import org.voltdb.catalog.Table;
 
+import edu.brown.catalog.CatalogUtil;
+import edu.brown.catalog.DependencyUtil;
 import edu.brown.designer.DependencyGraph;
 import edu.brown.designer.DesignerEdge;
 import edu.brown.designer.DesignerVertex;
@@ -438,7 +442,7 @@ public class GraphvizExport<V extends AbstractVertex, E extends AbstractEdge> {
         DependencyGraph dgraph = DependencyGraphGenerator.generate(args.catalogContext);
         GraphUtil.removeDuplicateEdges(dgraph);
         
-        // Any optional parameters are tables we should igore
+        // Any optional parameters are tables we should ignore
         // To do that we need to just remove them from the DependencyGraph
         for (String opt : args.getOptParams()) {
             for (String tableName : opt.split(",")) {
@@ -454,7 +458,32 @@ public class GraphvizExport<V extends AbstractVertex, E extends AbstractEdge> {
         } // FOR
         
         GraphvizExport<DesignerVertex, DesignerEdge> gvx = new GraphvizExport<DesignerVertex, DesignerEdge>(dgraph);
-        gvx.setEdgeLabels(false);
+        
+        // Enable full edge labels
+        if (args.getBooleanParam(ArgumentsParser.PARAM_CATALOG_LABELS, false)) {
+            gvx.setEdgeLabels(true);
+            DependencyUtil dependUtil = DependencyUtil.singleton(args.catalog_db);
+            for (DesignerEdge e : dgraph.getEdges()) {
+                Table tbl0 = dgraph.getSource(e).getCatalogItem();
+                Table tbl1 = dgraph.getDest(e).getCatalogItem();
+                String label = "";
+                for (Column col0 : CatalogUtil.getSortedCatalogItems(tbl0.getColumns(), "index")) {
+                    for (Column col1 : dependUtil.getDescendants(col0)) {
+                        if (col1.getParent().equals(tbl1) == false) continue;
+                        if (label.isEmpty() == false) label += "\n";
+                        label += col0.getName() +
+                                 StringUtil.UNICODE_RIGHT_ARROW +
+                                 col1.getName();
+                    } // FOR
+                } // FOR
+                
+                AttributeValues attrs = gvx.getAttributes(e);
+                attrs.put(Attribute.LABEL, label);
+            } // FOR
+        } else {
+            gvx.setEdgeLabels(false);
+        }
+        
         String graphviz = gvx.export(args.catalog_type.name());
         if (!graphviz.isEmpty()) {
             File path = new File(args.catalog_type.name().toLowerCase() + ".dot");

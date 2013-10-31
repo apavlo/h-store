@@ -384,6 +384,9 @@ public class LocalTransaction extends AbstractTransaction {
     public final ClientResponseImpl getClientResponse() {
         return (this.cresponse);
     }
+    public final void resetClientResponse() {
+        this.cresponse = null;
+    }
     
     
     /**
@@ -602,6 +605,13 @@ public class LocalTransaction extends AbstractTransaction {
      */
     public final boolean isMarkedControlCodeExecuted() {
         return (this.exec_controlCode);
+    }
+    
+    /**
+     * Reset this txn's control code as not executed.
+     */  
+    public final void resetControlCodeExecuted() {
+        this.exec_controlCode = false;
     }
     
     /**

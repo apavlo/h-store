@@ -127,7 +127,7 @@ public class ConstraintPropagator {
      * @param agraph
      */
     public ConstraintPropagator(DesignerInfo info, DesignerHints hints, AccessGraph agraph) {
-        this.catalog_db = info.catalog_db;
+        this.catalog_db = info.catalogContext.database;
         this.info = info;
         this.hints = hints;
         this.agraph = agraph;
@@ -142,7 +142,7 @@ public class ConstraintPropagator {
         Random rng = new Random();
 
         // PROCEDURES
-        for (Procedure catalog_proc : info.catalog_db.getProcedures()) {
+        for (Procedure catalog_proc : info.catalogContext.database.getProcedures()) {
             if (PartitionerUtil.shouldIgnoreProcedure(hints, catalog_proc))
                 continue;
 

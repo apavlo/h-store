@@ -221,7 +221,7 @@ public class MostPopularPartitioner extends AbstractPartitioner {
                     StringUtil.formatSize(hints.max_memory_per_partition));
         } // FOR
 
-        for (Table catalog_tbl : info.catalog_db.getTables()) {
+        for (Table catalog_tbl : info.catalogContext.database.getTables()) {
             if (pplan.getTableEntry(catalog_tbl) == null) {
                 Column catalog_col = CollectionUtil.random(catalog_tbl.getColumns());
                 assert (catalog_col != null) : "Failed to randomly pick column for " + catalog_tbl;
@@ -233,20 +233,20 @@ public class MostPopularPartitioner extends AbstractPartitioner {
 
         if (hints.enable_procparameter_search) {
             if (debug.val)
-                LOG.debug("Selecting partitioning ProcParameter for " + this.info.catalog_db.getProcedures().size() + " Procedures");
-            pplan.apply(info.catalog_db);
+                LOG.debug("Selecting partitioning ProcParameter for " + this.info.catalogContext.database.getProcedures().size() + " Procedures");
+            pplan.apply(info.catalogContext.database);
 
             // Temporarily disable multi-attribute parameters
             boolean multiproc_orig = hints.enable_multi_partitioning;
             hints.enable_multi_partitioning = false;
 
-            for (Procedure catalog_proc : this.info.catalog_db.getProcedures()) {
+            for (Procedure catalog_proc : this.info.catalogContext.database.getProcedures()) {
                 if (PartitionerUtil.shouldIgnoreProcedure(hints, catalog_proc))
                     continue;
 
-                Set<String> param_order = PartitionerUtil.generateProcParameterOrder(info, info.catalog_db, catalog_proc, hints);
+                Set<String> param_order = PartitionerUtil.generateProcParameterOrder(info, info.catalogContext.database, catalog_proc, hints);
                 if (param_order.isEmpty() == false) {
-                    ProcParameter catalog_proc_param = CatalogKey.getFromKey(info.catalog_db, CollectionUtil.first(param_order), ProcParameter.class);
+                    ProcParameter catalog_proc_param = CatalogKey.getFromKey(info.catalogContext.database, CollectionUtil.first(param_order), ProcParameter.class);
                     if (debug.val)
                         LOG.debug(String.format("PARTITION %-25s%s", catalog_proc.getName(), CatalogUtil.getDisplayName(catalog_proc_param)));
 
