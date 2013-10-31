@@ -30,6 +30,7 @@ public class Table extends CatalogType {
     CatalogMap<Index> m_indexes;
     CatalogMap<Constraint> m_constraints;
     CatalogMap<Trigger> m_triggers;
+    CatalogMap<ProcedureRef> m_triggerProcedures;
     boolean m_isreplicated;
     int m_estimatedtuplecount;
     CatalogMap<MaterializedViewInfo> m_views;
@@ -53,6 +54,8 @@ public class Table extends CatalogType {
         m_childCollections.put("constraints", m_constraints);
         m_triggers = new CatalogMap<Trigger>(catalog, this, path + "/" + "triggers", Trigger.class);
         m_childCollections.put("triggers", m_triggers);
+        m_triggerProcedures = new CatalogMap<ProcedureRef>(catalog, this, path + "/" + "triggerProcedures", ProcedureRef.class);
+        m_childCollections.put("triggerProcedures", m_triggerProcedures);
         m_fields.put("isreplicated", m_isreplicated);
         m_fields.put("partitioncolumn", null);
         m_fields.put("estimatedtuplecount", m_estimatedtuplecount);
@@ -102,6 +105,11 @@ public class Table extends CatalogType {
     /** GETTER: The set of triggers for this table */
     public CatalogMap<Trigger> getTriggers() {
         return m_triggers;
+    }
+
+    /** GETTER: The set of frontend trigger procedures for this table"  */
+    public CatalogMap<ProcedureRef> getTriggerprocedures() {
+        return m_triggerProcedures;
     }
 
     /** GETTER: Is the table replicated? */

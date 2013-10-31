@@ -39,6 +39,7 @@ import org.voltdb.catalog.Group;
 import org.voltdb.catalog.GroupRef;
 import org.voltdb.catalog.ProcParameter;
 import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.ProcedureRef;
 import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.StmtParameter;
 import org.voltdb.catalog.Table;
@@ -413,6 +414,18 @@ public abstract class ProcedureCompiler {
             }
             procedure.setPartitionparameter(info.partitionParam);
         }
+        
+        // added by hawk, 2013/10/31
+        // let people can access frontend trigger name list from the related table
+        ArrayList<String> triggerTables = procInstance.getTriggerTables();
+        for (String tableName : triggerTables) {
+            // get the stream table
+            Table trigerTable = (db.getTables().getIgnoreCase(tableName));
+
+            final ProcedureRef procedureRef = trigerTable.getTriggerprocedures().add(shortName);
+            procedureRef.setProcedure(procedure);
+        }
+        // ended by hawk
 
         // put the compiled code for this procedure into the jarfile
         // VoltCompiler.addClassToJar(procClass, compiler);

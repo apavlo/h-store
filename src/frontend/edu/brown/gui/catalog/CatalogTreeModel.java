@@ -29,6 +29,7 @@ import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.PlanFragment;
 import org.voltdb.catalog.ProcParameter;
 import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.ProcedureRef;
 import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.StmtParameter;
@@ -239,6 +240,15 @@ public class CatalogTreeModel extends DefaultTreeModel {
                             constraints_node.add(constraint_node);
                             buildSearchIndex(catalog_cnst, constraint_node);
                         } // FOR (constraints)
+                    }
+                    // FrontEnd Triggers
+                    if(!catalog_tbl.getTriggerprocedures().isEmpty()) {
+                        DefaultMutableTreeNode triggers_node = new CatalogMapTreeNode(Trigger.class, "FrontEnd Triggers", catalog_tbl.getTriggerprocedures());
+                        table_node.add(triggers_node);
+                        for (ProcedureRef catalog_trg : catalog_tbl.getTriggerprocedures()) {  
+                            DefaultMutableTreeNode trigger_node = new DefaultMutableTreeNode(new WrapperNode(catalog_trg.getProcedure()));
+                            triggers_node.add(trigger_node);
+                        } // FOR
                     }
                     // Triggers
                     if(!catalog_tbl.getTriggers().isEmpty()) {

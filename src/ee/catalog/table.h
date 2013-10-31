@@ -32,6 +32,7 @@ class Column;
 class Index;
 class Constraint;
 class Trigger;
+class ProcedureRef;
 class MaterializedViewInfo;
 /**
  * A table (relation) in the database
@@ -46,6 +47,7 @@ protected:
     CatalogMap<Index> m_indexes;
     CatalogMap<Constraint> m_constraints;
     CatalogMap<Trigger> m_triggers;
+    CatalogMap<ProcedureRef> m_triggerProcedures;
     bool m_isreplicated;
     CatalogType* m_partitioncolumn;
     int32_t m_estimatedtuplecount;
@@ -78,6 +80,8 @@ public:
     const CatalogMap<Constraint> & constraints() const;
     /** GETTER: The set of triggers for this table */
     const CatalogMap<Trigger> & triggers() const;
+    /** GETTER: The set of frontend trigger procedures for this table"  */
+    const CatalogMap<ProcedureRef> & triggerProcedures() const;
     /** GETTER: Is the table replicated? */
     bool isreplicated() const;
     /** GETTER: On which column is the table horizontally partitioned */

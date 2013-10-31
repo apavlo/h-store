@@ -57,6 +57,7 @@ public enum ProjectType {
     ANOTHERVOTER("AnotherVoter","edu.brown.benchmark.anothervoter"),
     STREAMTRIGGER("StreamTrigger","edu.brown.benchmark.streamtrigger"),
     NOSTREAMTRIGGER("NoStreamTrigger","edu.brown.benchmark.nostreamtrigger"),
+    FRONTENDTRIGGER("FrontEndTrigger","edu.brown.benchmark.frontendtrigger"),
     ANOTHERVOTERSTREAM("AnotherVoterStream","edu.brown.benchmark.anothervoterstream"),
     TEST("Test", null),
     ;

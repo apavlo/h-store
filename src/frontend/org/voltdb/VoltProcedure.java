@@ -139,6 +139,10 @@ public abstract class VoltProcedure implements Poolable {
 
     // data from hsql wrapper
     private final ArrayList<VoltTable> queryResults = new ArrayList<VoltTable>();
+    
+    // for frontend trigger procedure, the related table names are stored here. added by hawk
+    private ArrayList<String> relatedTables = new ArrayList<String>();
+    // ended by hawk
 
     // cached txnid-seeded RNG so all calls to getSeededRandomNumberGenerator() for
     // a given call don't re-seed and generate the same number over and over
@@ -192,7 +196,50 @@ public abstract class VoltProcedure implements Poolable {
      * {@link VoltProcedure init} method.
      */
     public VoltProcedure() {
+        setTriggerTableName(); // added by hawk, 2013/10/31
     }
+    
+    // added by hawk, 2013/10/31
+    public void setTriggerTableName() {
+        toSetTriggerTableName();
+    }
+    
+    // default trigger table is empty
+    protected void toSetTriggerTableName()
+    {        
+    }
+    
+    public boolean isTriggerProcedure()
+    {
+        if(relatedTables.size() == 0)
+            return false;
+        else
+            return true;
+    }
+    
+    protected void addTriggerTable(String tablename)
+    {
+        relatedTables.add(tablename);
+    }
+    
+    public ArrayList<String> getTriggerTables()
+    {
+        return relatedTables;
+    }
+    
+    public int getSizeOfTriggerTables()
+    {
+        return relatedTables.size();
+    }
+    
+    public String getTableAtIndex(int index)
+    {
+        if(index >= getSizeOfTriggerTables())
+            return null;
+        
+        return relatedTables.get(index);
+    }
+    // ended by hawk
 
     /**
      * Allow VoltProcedures access to their transaction id.
