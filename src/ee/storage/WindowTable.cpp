@@ -133,25 +133,27 @@ bool WindowTable::updateTuple(TableTuple &source, TableTuple &target, bool updat
 	}
 	return success;
 }
-/**
+
+
 void WindowTable::updateTupleForUndo(TableTuple &sourceTuple, TableTuple &targetTuple,
 							bool revertIndexes, size_t elMark)
 {
+	PersistentTable::updateTupleForUndo(sourceTuple, targetTuple, revertIndexes, elMark);
 	for(std::list<TableTuple>::iterator it = windowQueue.begin(); it != windowQueue.end(); it++)
 	{
-		if(*it == sourceTuple)
+		if(it->equals(sourceTuple))
 		{
 			*it = targetTuple;
 		}
 	}
-	return PersistentTable::updateTupleForUndo(sourceTuple, targetTuple, revertIndexes, elMark);
 }
+
 
 bool WindowTable::deleteTuple(TableTuple &tuple, bool deleteAllocatedStrings)
 {
 	for(std::list<TableTuple>::iterator it = windowQueue.begin(); it != windowQueue.end(); it++)
 	{
-		if(*it == tuple)
+		if(it->equals(tuple))
 		{
 			it = windowQueue.erase(it);
 		}
@@ -163,26 +165,23 @@ void WindowTable::deleteTupleForUndo(voltdb::TableTuple &tupleCopy, size_t elMar
 {
 	for(std::list<TableTuple>::iterator it = windowQueue.begin(); it != windowQueue.end(); it++)
 	{
-		if(*it == tupleCopy)
+		if(it->equals(tupleCopy))
 		{
 			it = windowQueue.erase(it);
 		}
 	}
 	return PersistentTable::deleteTupleForUndo(tupleCopy, elMark);
 }
-*/
+
 std::string WindowTable::debug()
 {
 	std::ostringstream output;
 	output << "DEBUG TABLE SIZE: " << int(m_tupleCount) << "\n";
 	output << "LIST:\n";
-	//VOLT_DEBUG("DEBUG TABLE SIZE: %d", int(m_tupleCount));
-	//VOLT_DEBUG("LIST:");
 	int i = 0;
 	for(std::list<TableTuple>::const_iterator it = windowQueue.begin(); it != windowQueue.end(); it++)
 	{
 		output << i << ": " << it->debug("list").c_str() << "\n";
-		//VOLT_DEBUG("%d: %s", i, it->debug("list").c_str());
 		i++;
 	}
 
@@ -193,11 +192,8 @@ std::string WindowTable::debug()
 	output << "TABLE:\n";
 	while(ti.hasNext())
 	{
-		//VOLT_DEBUG("ENTER LOOP");
 		ti.next(t);
-		//VOLT_DEBUG("TI.NEXT");
 		output << i << ": " << t.debug("table").c_str() << "\n";
-		//VOLT_DEBUG("%d: %s", i, t.debug("table").c_str());
 		i++;
 	}
 	return output.str();

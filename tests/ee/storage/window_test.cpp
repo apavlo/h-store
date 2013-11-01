@@ -125,10 +125,10 @@ class WindowTest : public Test {
 
 			table = window_table;
 
-			VOLT_DEBUG("TEST ASSERT");
+			//VOLT_DEBUG("TEST ASSERT");
             assert(tableutil::addRandomTuples(this->table, NUM_OF_TUPLES));
-			VOLT_DEBUG("TABLE SIZE: %d", int(table->activeTupleCount()));
-            VOLT_DEBUG("TEST ASSERT END");
+			//VOLT_DEBUG("TABLE SIZE: %d", int(table->activeTupleCount()));
+            //VOLT_DEBUG("TEST ASSERT END");
 
             // clean up
             delete[] columnNames;
@@ -161,12 +161,11 @@ TEST_F(WindowTest, TupleInsert) {
     // need to make sure that the data makes sense
     //
 
-	VOLT_INFO("WINDOW TEST INSERT\n");
     voltdb::TableIterator iterator = this->table->tableIterator();
     //voltdb::TableTuple tuple(table->schema());
 
-    VOLT_DEBUG("TABLE SIZE: %d", int(table->activeTupleCount()));
-    VOLT_DEBUG("Current Window Queue: %s", table->debug().c_str());
+    //VOLT_DEBUG("TABLE SIZE: %d", int(table->activeTupleCount()));
+    //VOLT_DEBUG("Current Window Queue: %s", table->debug().c_str());
 
     //
     // Make sure that if we insert one tuple, the window size remains 10
@@ -174,10 +173,10 @@ TEST_F(WindowTest, TupleInsert) {
     voltdb::TableTuple tuple = this->table->tempTuple();
     ASSERT_EQ(true, tableutil::setRandomTupleValues(this->table, &tuple));
     ASSERT_EQ(WINDOW_SIZE, this->table->activeTupleCount());
-    VOLT_DEBUG("To Insert: \n %s", tuple.debug("New Tuple").c_str());
+    //VOLT_DEBUG("To Insert: \n %s", tuple.debug("New Tuple").c_str());
     ASSERT_EQ(true, this->table->insertTuple(tuple));
     ASSERT_EQ(WINDOW_SIZE, this->table->activeTupleCount());
-    VOLT_DEBUG("Current Window Queue: %s", table->debug().c_str());
+    //VOLT_DEBUG("Current Window Queue: %s", table->debug().c_str());
 
     /**
     std::vector<voltdb::TableTuple> tuplesInserted = std::vector<voltdb::TableTuple>();
@@ -234,6 +233,7 @@ TEST_F(WindowTest, TupleUpdate) {
     }
     voltdb::TableIterator iterator = this->table->tableIterator();
     voltdb::TableTuple tuple(table->schema());
+    VOLT_DEBUG("WINDOW BEFORE UPDATE: %s", table->debug().c_str());
     while (iterator.next(tuple)) {
         bool update = (rand() % 2 == 0);
         voltdb::TableTuple &temp_tuple = table->tempTuple();
@@ -256,6 +256,7 @@ TEST_F(WindowTest, TupleUpdate) {
                 }
             }
         }
+        if (update) EXPECT_EQ(true, table->updateTuple(temp_tuple, tuple, true));
     }
 
     //
@@ -268,34 +269,38 @@ TEST_F(WindowTest, TupleUpdate) {
             while (iterator.next(tuple)) {
                 new_total += ValuePeeker::peekAsBigInt(tuple.getNValue(col_ctr));
             }
-            printf("\nCOLUMN: %s\n\tEXPECTED: %d\n\tRETURNED: %d\n", this->table->getColumn(col_ctr)->getName().c_str(), totals[col_ctr], new_total);
+            //printf("\nCOLUMN: %s\n\tEXPECTED: %d\n\tRETURNED: %d\n", this->table->getColumn(col_ctr)->getName().c_str(), totals[col_ctr], new_total);
             EXPECT_EQ(totals[col_ctr], new_total);
             EXPECT_EQ(totalsNotSlim[col_ctr], new_total);
         }
     }
+    VOLT_DEBUG("WINDOW AFTER UPDATE: %s", table->debug().c_str());
 
 }
 
-/* deleteTuple in TempTable is not supported for performance reason.
+
 TEST_F(WindowTest, TupleDelete) {
     //
     // We are just going to delete all of the odd tuples, then make
     // sure they don't exist anymore
     //
+	VOLT_DEBUG("WINDOW BEFORE DELETE: %s", table->debug().c_str());
     voltdb::TableIterator iterator = this->table->tableIterator();
-    voltdb::TableTuple tuple(table.get());
+    voltdb::TableTuple tuple(table->schema());
     while (iterator.next(tuple)) {
-        if (tuple.get(1).getBigInt() != 0) {
-            EXPECT_EQ(true, temp_table->deleteTuple(tuple));
+        if (ValuePeeker::peekAsBigInt(tuple.getNValue(1)) != 0) {
+            EXPECT_EQ(true, table->deleteTuple(tuple, true));
         }
     }
 
     iterator = this->table->tableIterator();
     while (iterator.next(tuple)) {
-        EXPECT_EQ(false, tuple.get(1).getBigInt() != 0);
+        EXPECT_EQ(false, ValuePeeker::peekAsBigInt(tuple.getNValue(1)) != 0);
     }
+
+    VOLT_DEBUG("WINDOW AFTER DELETE: %s", table->debug().c_str());
 }
-*/
+
 /*TEST_F(WindowTest, TupleInsertXact) {
     this->init(true);
     //
