@@ -56,6 +56,7 @@
 #include "indexes/tableindex.h"
 #include "indexes/tableindexfactory.h"
 
+
 namespace voltdb {
     
     class Table;
@@ -156,7 +157,7 @@ namespace voltdb {
                                              const std::string &name,
                                              const Table* templateTablezz,
                                              int* tempTableMemoryInBytes);
-        
+       
     private:
         static void initConstraints(PersistentTable* table);
         static void initCommon(
@@ -171,9 +172,10 @@ namespace voltdb {
                                ExecutorContext *ctx,
                                std::string name,
                                Table *table);
+
     };
         
-    
+
 }
 
 #endif

@@ -83,6 +83,8 @@ class ReferenceSerializeOutput;
 class ExecutorContext;
 class MaterializedViewMetadata;
 class RecoveryProtoMsg;
+
+class PersistentTable ;
     
 #ifdef ANTICACHE
 class EvictedTable;
@@ -117,6 +119,7 @@ class EvictionIterator;
  */
 class MMAP_PersistentTable : public PersistentTable {
     friend class TableFactory;
+    friend class ExecutorContext;
 
     private:
     // no default ctor, no copy, no assignment
@@ -124,7 +127,7 @@ class MMAP_PersistentTable : public PersistentTable {
     MMAP_PersistentTable(MMAP_PersistentTable const&);
     MMAP_PersistentTable operator=(MMAP_PersistentTable const&);
 
-    uint32_t m_tableRequestCount;
+    int m_tableRequestCount ;
 
     protected:
     MMAP_PersistentTable(ExecutorContext *ctx, bool exportEnabled);
@@ -133,8 +136,6 @@ class MMAP_PersistentTable : public PersistentTable {
 
 };
 
-#define PATH_LENGTH 1024
-
 inline void MMAP_PersistentTable::allocateNextBlock() {
 #ifdef MEMCHECK
     int bytes = m_schema->tupleLength() + TUPLE_HEADER_SIZE;
@@ -142,83 +143,33 @@ inline void MMAP_PersistentTable::allocateNextBlock() {
     int bytes = m_tableAllocationTargetSize;
 #endif
 
-    int MMAP_fd, iret ;
+    long m_index;
     char* memory = NULL ;
-    string MMAP_Dir, MMAP_file_name; 
-    //long file_size;
-    const string NVM_fileType(".nvm");
+   
+    /** Thread safe **/
+    m_index = m_executorContext->getBlockCount();  
+    VOLT_WARN("MMAP : PId:: %d Index:: %ld Table: %s  Bytes:: %d \n",
+            m_executorContext->getPartitionId(), m_index, this->name().c_str(), bytes);
 
-    /** Get location for mmap'ed files **/
-    MMAP_Dir = m_executorContext->getDBDir();
-    //file_size = m_executorContext->getFileSize();
+    /** 
+     * Allocation at different offsets
+     * We assume that the index never overflows in a single execution !
+     * No munmap done - this will happen when process exits
+     */
+    memory = ((char*)m_executorContext->getStoragePointer() + m_index*bytes);
 
-    VOLT_WARN("MMAP : DBdir:: --%s--\n", MMAP_Dir.c_str());
-    //VOLT_WARN("MMAP : File Size :: %ld\n", file_size);
-
-#ifdef _WIN32
-    const std::string pathSeparator("\\");
-#else
-    const std::string pathSeparator("/");
-#endif
-
-    std::stringstream m_tableRequestCountStringStream;
-    m_tableRequestCountStringStream << m_tableRequestCount;
-
-    // Initialize MMAP_Dir to local dir if it is not initialized
-    if(MMAP_Dir.empty())
-        MMAP_Dir = ".";
-
-    /** Get an unique file object for each <Table,Table_Request_Index> **/
-    MMAP_file_name  = MMAP_Dir + pathSeparator ;
-    MMAP_file_name += this->name() + "_" + m_tableRequestCountStringStream.str();
-    MMAP_file_name += NVM_fileType ;
-
-    /** Increment Table Request Count **/
-    m_tableRequestCount++;
-
-    VOLT_WARN("MMAP : MMAP_file_name :: %s\n", MMAP_file_name.c_str());
-
-    MMAP_fd = open(MMAP_file_name.c_str(), O_RDWR|O_CREAT, S_IRUSR|S_IWUSR|S_IRGRP );
-    if (MMAP_fd < 0) {
+    VOLT_WARN("MMAP : Index:: %ld Table: %s :: Memory Pointer : %p \n",
+             m_index, this->name().c_str(), memory);
+    
+    if (memory == NULL) {
         VOLT_ERROR("MMAP : initialization error.");
-        VOLT_ERROR("Failed to open file %s : %s", MMAP_file_name.c_str(), strerror(errno));
-        throwFatalException("Failed to open file in directory %s.", MMAP_Dir.c_str());
-    }
-
-    iret = ftruncate(MMAP_fd, bytes) ;
-    if(iret < 0){
-        VOLT_ERROR("MMAP : initialization error.");
-        VOLT_ERROR("Failed to truncate file %d : %s", MMAP_fd, strerror(errno));
-        throwFatalException("Failed to truncate file in directory %s.", MMAP_Dir.c_str());
-    }
-
-    /** Allocation **/
-    memory = (char*) mmap(0, bytes , PROT_READ | PROT_WRITE , MAP_PRIVATE, MMAP_fd, 0);
-
-    if (memory == MAP_FAILED) {
-        VOLT_ERROR("MMAP : initialization error.");
-        VOLT_ERROR("Failed to map file into memory %d : %s", MMAP_fd, strerror(errno));
-        throwFatalException("Failed to map file in directory %s.", MMAP_Dir.c_str());
+        throwFatalException("Failed to map file.");
     }
 
     /** Push into m_data **/
     m_data.push_back(memory);
 
-    /** Deallocation **/
-    // TODO: Where to deallocate ?
-    // munmap(addr, bytes);
-
-    VOLT_WARN("MMAP : Host:: %d Site:: %d PId:: %d Index:: %d Table: %s  Bytes:: %d \n",
-            m_executorContext->getHostId(), m_executorContext->getSiteId(), m_executorContext->getPartitionId(),
-            m_tableRequestCount, this->name().c_str(), bytes);
-
     m_allocatedTuples += m_tuplesPerBlock;
-
-    /**
-     * Closing the file descriptor does not unmap the region as map() automatically adds a reference
-     */
-    close(MMAP_fd);
-
 }
 
 }

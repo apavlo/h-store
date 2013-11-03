@@ -22,6 +22,17 @@
 #include "common/UndoQuantum.h"
 #include "storage/ReadWriteTracker.h"
 
+#include "pthread.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <errno.h>
+
+
 #ifdef ANTICACHE
 #include "anticache/AntiCacheDB.h"
 #include "anticache/AntiCacheEvictionManager.h"
@@ -102,6 +113,10 @@ namespace voltdb {
             return (m_hostId);
         }
         
+        // ------------------------------------------------------------------
+        // STORAGE MMAP MANAGEMENT
+        // ------------------------------------------------------------------ 
+        
         std::string getDBDir() const {
             if(m_MMAPDir.empty())
                 return "/tmp";          // Default : "/tmp"
@@ -115,6 +130,15 @@ namespace voltdb {
         bool isMMAPEnabled() const {
         	return (m_MMAPEnabled);
         }
+
+        void setStoragePointer(void* ptr){
+            m_storagePointer = ptr;
+        }
+
+        void* getStoragePointer(){
+            return (m_storagePointer);
+        }
+
  
         // not always known at initial construction
         void setEpoch(int64_t epoch) {
@@ -212,9 +236,9 @@ namespace voltdb {
         #endif
         
         // ------------------------------------------------------------------
-        // STORAGE MMAP
-        // ------------------------------------------------------------------
-
+        // STORAGE MMAP MANAGEMENT
+        // ------------------------------------------------------------------ 
+        
         /**
          * Enable the mmap storage feature in the EE.
          * The input parameter is the directory where our disk-based storage
@@ -224,10 +248,96 @@ namespace voltdb {
             assert(m_MMAPEnabled == false);
             m_MMAPDir = dbDir;
             m_MMAPSize = mapSize;
+
+            // Initialize MMAP Storage File
+            initStorage();
+
             m_MMAPEnabled = true;
+            m_tbCount = 0 ;
         }
+         
+        /*
+         * Invoked only once by ExecutorContext to set up MMAP Storage
+         */
+        void initStorage(){
 
+            int MMAP_fd, ret;
+            std::string MMAP_Dir, MMAP_file_name; 
+            //long file_size;
+            char* memory;
 
+            const std::string NVM_fileName("storage");
+            const std::string NVM_fileType(".nvm");
+            const std::string pathSeparator("/");
+
+            off_t file_size = 128 * 1024 * 1024 ; // 128 MB
+    
+            /** Get location for mmap'ed files **/
+            MMAP_Dir = getDBDir();
+            //file_size = m_executorContext->getFileSize();
+
+            VOLT_WARN("MMAP : DBdir:: --%s--\n", MMAP_Dir.c_str());
+            //VOLT_WARN("MMAP : File Size :: %ld\n", file_size);
+ 
+            if(MMAP_Dir.empty()){
+                VOLT_ERROR("MMAP : initialization error.");
+                VOLT_ERROR("MMAP_Dir is empty \n");
+                throwFatalException("Failed to get DB Dir.");
+            }
+
+            /** Get an unique file object for all requests **/
+            MMAP_file_name  = MMAP_Dir + pathSeparator ;
+            //MMAP_file_name += this->name() + "_" + m_tableRequestCountStringStream.str();
+            MMAP_file_name += NVM_fileName;
+            MMAP_file_name += NVM_fileType ;
+
+            VOLT_WARN("MMAP : MMAP_file_name :: %s\n", MMAP_file_name.c_str());
+
+            MMAP_fd = open(MMAP_file_name.c_str(), O_RDWR|O_CREAT, S_IRUSR|S_IWUSR|S_IRGRP );
+            if (MMAP_fd < 0) {
+                VOLT_ERROR("MMAP : initialization error.");
+                VOLT_ERROR("Failed to open file %s : %s", MMAP_file_name.c_str(), strerror(errno));
+                throwFatalException("Failed to open file in directory %s.", MMAP_Dir.c_str());
+            }
+        
+            VOLT_WARN("MMAP : Set fd :: %d\n", MMAP_fd);
+            
+            ret = ftruncate(MMAP_fd, file_size) ;
+            if(ret < 0){
+                VOLT_ERROR("MMAP : initialization error.");
+                VOLT_ERROR("Failed to truncate file %d : %s", MMAP_fd, strerror(errno));
+                throwFatalException("Failed to truncate file in directory %s.", MMAP_Dir.c_str());
+            }
+         
+                                              
+            /*
+             * Create a single large mapping and chunk it later during block allocation
+             */
+            memory = (char*) mmap(0, file_size , PROT_READ | PROT_WRITE , MAP_PRIVATE, MMAP_fd, 0);
+
+            if (memory == MAP_FAILED) {
+                VOLT_ERROR("MMAP : initialization error.");
+                VOLT_ERROR("Failed to map file into memory.");
+                throwFatalException("Failed to map file.");
+            }
+     
+
+            // Setting mmap pointer in executor context 
+            setStoragePointer(memory);
+            
+            /**
+             * Closing the file descriptor does not unmap the region as mmap() automatically adds a reference
+             * but can't use this fd to communicate with MMAP_PersistentTable
+             */
+            //close(MMAP_fd);
+
+        }
+             
+        
+        long getBlockCount(){
+            return (m_tbCount++) ;
+        }
+ 
         // ------------------------------------------------------------------
         // READ-WRITE TRACKERS
         // ------------------------------------------------------------------ 
@@ -265,7 +375,10 @@ namespace voltdb {
         long m_MMAPSize;
         std::string m_MMAPDir;
         bool m_MMAPEnabled;
+        void* m_storagePointer;
 
+        long m_tbCount; 
+        pthread_mutex_t m_tbLock;
 
         /** ReadWrite Trackers */
         bool m_trackingEnabled;
