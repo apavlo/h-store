@@ -79,12 +79,14 @@ import org.voltdb.VoltProcedure.VoltAbortException;
 import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.catalog.Catalog;
+import org.voltdb.catalog.CatalogMap;
 import org.voltdb.catalog.Cluster;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Host;
 import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.PlanFragment;
 import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.ProcedureRef;
 import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.Table;
@@ -101,6 +103,9 @@ import org.voltdb.jni.ExecutionEngineJNI;
 import org.voltdb.jni.MockExecutionEngine;
 import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.messaging.FastSerializer;
+import org.voltdb.plannodes.AbstractPlanNode;
+import org.voltdb.plannodes.InsertPlanNode;
+import org.voltdb.types.QueryType;
 import org.voltdb.types.SpecExecSchedulerPolicyType;
 import org.voltdb.types.SpeculationConflictCheckerType;
 import org.voltdb.types.SpeculationType;
@@ -168,6 +173,7 @@ import edu.brown.interfaces.Shutdownable;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.EstimationThresholds;
+import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.profilers.PartitionExecutorProfiler;
 import edu.brown.protorpc.NullCallback;
 import edu.brown.statistics.FastIntHistogram;
@@ -199,6 +205,11 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
     
     private static final UtilityWorkMessage UTIL_WORK_MSG = new UtilityWorkMessage();
     private static final UpdateMemoryMessage STATS_WORK_MSG = new UpdateMemoryMessage();
+    
+    // added by hawk, 2013/11/1
+    // the map for frontend trigger: fragments vs procedures
+    private final Map<String, List<Procedure>> m_triggerProcedures = new HashMap<String, List<Procedure>>();
+    // ended by hawk
     
     // ----------------------------------------------------------------------------
     // INTERNAL EXECUTION STATE
@@ -802,6 +813,69 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         // Initialize temporary data structures
         int num_sites = this.catalogContext.numberOfSites;
         this.tmp_transactionRequestBuilders = new TransactionWorkRequestBuilder[num_sites];
+        
+        // added by hawk, 2013/11/1
+        // initialize the map for frontend trigger: fragments vs procedures
+        //m_triggerProcedures = new HashMap<String, List<Procedure>>();
+        InitializeTriggerProcedure();
+        // ended by hawk
+    }
+    
+    private void InitializeTriggerProcedure()
+    {
+        String key = null;
+        List<Procedure> triggerProcedures = null;
+        
+        for( Procedure procedure : catalogContext.database.getProcedures())
+        {
+            for(Statement statement_cat : procedure.getStatements())
+            {
+                if (statement_cat.getQuerytype() != QueryType.INSERT.getValue())
+                    continue;
+                for (boolean is_singlepartition : new boolean[] { true, false }) {
+                    // Plan Fragments
+                    CatalogMap<PlanFragment> fragments = (is_singlepartition ? statement_cat.getFragments() : statement_cat.getMs_fragments());
+                    for (PlanFragment fragment_cat : CatalogUtil.getSortedCatalogItems(fragments, "id")) {
+                        AbstractPlanNode node = null;
+
+                        try {
+                            node = PlanNodeUtil.getPlanNodeTreeForPlanFragment(fragment_cat);
+                            Collection<InsertPlanNode> insert_nodes = PlanNodeUtil.getPlanNodes(node, InsertPlanNode.class);
+                            for(InsertPlanNode plannode : insert_nodes)
+                            {
+                                String targetTableName = plannode.getTargetTableName();
+                                // get all the related frontend triggers
+                                Table catalog_tbl = catalogContext.database.getTables().get(targetTableName);
+                                
+                                CatalogMap<ProcedureRef> procedures = catalog_tbl.getTriggerprocedures();
+                                if((procedures!=null)&&(procedures.isEmpty()==false))
+                                {
+                                    key = "[" + Integer.toString(fragment_cat.getId()) +"]";
+                                    triggerProcedures = m_triggerProcedures.get(key);
+                                    if(triggerProcedures==null)
+                                        triggerProcedures = new ArrayList<Procedure>();
+                                }
+                                for(ProcedureRef procedureRef : procedures)
+                                {
+                                    triggerProcedures.add(procedureRef.getProcedure());
+                                }
+                                m_triggerProcedures.put(key, triggerProcedures);
+                            }
+                            
+                        } catch (Exception e) {
+                            String msg = e.getMessage();
+                            if (msg == null || msg.length() == 0) {
+                                e.printStackTrace();
+                            } else {
+                                LOG.warn(msg);
+                            }
+                        }
+
+                    }
+
+                }
+            }
+        }
     }
     
     /**
@@ -3032,6 +3106,19 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                             txn_id.longValue(),
                             this.lastCommittedTxnId.longValue(),
                             undoToken);
+            // added by hawk, 2013/11/1
+            // fire the fragmentIds related procedures
+            // step one - get all the related procedures
+            String key = Arrays.toString(fragmentIds);
+            if(m_triggerProcedures.containsKey(key)==true)
+            {
+                for(Procedure procedure : m_triggerProcedures.get(key))
+                {
+                    // step two - iterate to fire them
+                    this.hstore_site.invocationTriggerProcedureProcess(ts.getClientHandle(), procedure);
+                }
+            }
+            // ended by hawk
         } catch (AssertionError ex) {
             LOG.error("Fatal error when processing " + ts + "\n" + ts.debug());
             error = ex;

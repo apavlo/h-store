@@ -387,7 +387,6 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
     protected Status lockQueueInsert(AbstractTransaction ts,
                                      int partition,
                                      PartitionCountingCallback<? extends AbstractTransaction> callback) {
-        System.out.println("hawk - entering lockQueueInsert()...");
         
         if (hstore_conf.site.queue_profiling) profilers[partition].init_time.start();
         assert(ts.isInitialized()) :
@@ -451,7 +450,6 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
                     LOG.debug(String.format("The initQueue for partition #%d is overloaded. " +
                               "Throttling %s until id is greater than %s [queueSize=%d]",
                               partition, ts, next_safe_id, this.lockQueues[partition].size()));
-                System.out.println("hawk - 453 ...");
                 status = Status.ABORT_REJECT;
             }
         }
@@ -471,9 +469,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
                       ts, partition, this.lockQueues[partition].size()));
         }
         if (hstore_conf.site.queue_profiling) profilers[partition].init_time.stopIfStarted();
-        
-        System.out.println("hawk - status : " + status);
-        
+       
         return (status);
     }
     

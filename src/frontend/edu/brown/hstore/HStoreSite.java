@@ -132,6 +132,7 @@ import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.PartitionSet;
 import edu.brown.utils.StringUtil;
 import edu.brown.workload.Workload;
+import edu.brown.hstore.callbacks.TriggerResponseCallback;
 
 /**
  * THE ALL POWERFUL H-STORE SITE!
@@ -1703,6 +1704,73 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
 //        }
     }
     
+    // added by hawk, 2013/11/1
+    public void invocationTriggerProcedureProcess(long clientHandle, Procedure procedure) {
+      
+      long timestamp = -1;
+      if (hstore_conf.global.nanosecond_latencies) {
+          timestamp = System.nanoTime();
+      } else {
+          timestamp = System.currentTimeMillis();
+          EstTimeUpdater.update(timestamp);
+      }
+
+      final long client_handle = clientHandle;
+      
+
+      TriggerResponseCallback clientCallback = new TriggerResponseCallback(); 
+      
+      int base_partition = HStoreConstants.NULL_PARTITION_ID;
+      
+      ParameterSet procParams = new ParameterSet();
+      
+      // -------------------------------
+      // BASE PARTITION
+      // -------------------------------
+
+      // The base partition is where this txn's Java stored procedure will run on
+      if (base_partition == HStoreConstants.NULL_PARTITION_ID) {
+          base_partition = this.txnInitializer.calculateBasePartition(client_handle,
+                                                                      procedure,
+                                                                      procParams,
+                                                                      base_partition);
+      }
+      
+      // Profiling Updates
+      if (hstore_conf.site.txn_counters) TransactionCounter.RECEIVED.inc(procedure);
+      if (hstore_conf.site.profiling && base_partition != HStoreConstants.NULL_PARTITION_ID) {
+          synchronized (profiler.network_incoming_partitions) {
+              profiler.network_incoming_partitions.put(base_partition);
+          } // SYNCH
+      }
+      
+      // -------------------------------
+      // REDIRECT TXN TO PROPER BASE PARTITION
+      // -------------------------------
+      if (this.isLocalPartition(base_partition) == false) {
+          // If the base_partition isn't local, then we need to ship it off to
+          // the right HStoreSite
+          this.transactionRedirect(procedure, null, base_partition, clientCallback);
+          return;
+      }
+      
+      // 2012-12-24 - We always want the network threads to do the initialization
+      if (trace.val)
+          LOG.trace("Initializing transaction request using network processing thread");
+      LocalTransaction ts = this.txnInitializer.createLocalTransaction(
+                                      null,
+                                      timestamp,
+                                      client_handle,
+                                      base_partition,
+                                      procedure,
+                                      procParams,
+                                      clientCallback);
+      this.transactionQueue(ts);
+      if (trace.val)
+          LOG.trace(String.format("Finished initial processing of new txn."));
+  }
+
+    // ended by hawk
     
     /**
      * Special handling for certain incoming sysproc requests. These are just for
