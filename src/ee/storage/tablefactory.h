@@ -60,6 +60,7 @@ namespace voltdb {
     
     class Table;
     class PersistentTable;
+    class MMAP_PersistentTable;
     class SerializeInput;
     class TempTable;
     class TableColumn;

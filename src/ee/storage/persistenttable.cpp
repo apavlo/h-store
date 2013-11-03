@@ -111,10 +111,6 @@ PersistentTable::PersistentTable(ExecutorContext *ctx, bool exportEnabled) :
     m_numTuplesInEvictionChain = 0;
     m_blockMerge = true;
     #endif
-    
-	#ifdef STORAGE_MMAP
-	m_tableRequestCount = 0;
-	#endif
 
     if (exportEnabled) {
         m_wrapper = new TupleStreamWrapper(m_executorContext->m_partitionId,

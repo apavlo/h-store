@@ -273,6 +273,7 @@ CTX.INPUT['storage'] = """
  CopyOnWriteIterator.cpp
  ConstraintFailureException.cpp
  MaterializedViewMetadata.cpp
+ mmap_persistenttable.cpp
  persistenttable.cpp
  PersistentTableStats.cpp
  PersistentTableUndoDeleteAction.cpp

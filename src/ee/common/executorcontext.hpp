@@ -82,6 +82,7 @@ namespace voltdb {
             m_lastTickTime = 0;
             m_antiCacheEnabled = false;
             m_trackingEnabled = false;
+            m_MMAPEnabled = false;
         }
         
         // not always known at initial construction
@@ -101,21 +102,20 @@ namespace voltdb {
             return (m_hostId);
         }
         
-        #ifdef STORAGE_MMAP
         std::string getDBDir() const {
-            // FIX : Use /tmp for testing
             if(m_MMAPDir.empty())
-                return "/home/jarulraj/git/h-store/tmp";
-
+                return "/tmp";          // Default : "/tmp"
         	return (m_MMAPDir);
         }
 
         long getFileSize() const {
         	return (m_MMAPSize);
         }
-
-		#endif
-
+ 
+        bool isMMAPEnabled() const {
+        	return (m_MMAPEnabled);
+        }
+ 
         // not always known at initial construction
         void setEpoch(int64_t epoch) {
             m_epoch = epoch;
@@ -214,18 +214,18 @@ namespace voltdb {
         // ------------------------------------------------------------------
         // STORAGE MMAP
         // ------------------------------------------------------------------
-        #ifdef STORAGE_MMAP
 
         /**
          * Enable the mmap storage feature in the EE.
          * The input parameter is the directory where our disk-based storage
          * will write out mmap'ed files for this partition
-         */
+         */                               
         void enableMMAP(std::string &dbDir, long mapSize) {
+            assert(m_MMAPEnabled == false);
             m_MMAPDir = dbDir;
             m_MMAPSize = mapSize;
+            m_MMAPEnabled = true;
         }
-        #endif
 
 
         // ------------------------------------------------------------------
@@ -259,10 +259,12 @@ namespace voltdb {
         AntiCacheEvictionManager *m_antiCacheEvictionManager; 
         #endif
         
-		#ifdef STORAGE_MMAP
+        // ------------------------------------------------------------------
+        // STORAGE MMAP MANAGEMENT
+        // ------------------------------------------------------------------ 
         long m_MMAPSize;
         std::string m_MMAPDir;
-		#endif
+        bool m_MMAPEnabled;
 
 
         /** ReadWrite Trackers */

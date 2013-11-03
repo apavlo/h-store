@@ -116,15 +116,21 @@ class EvictionIterator;
  * policy because we expect reverting rarely occurs.
  */
 class MMAP_PersistentTable : public PersistentTable {
-  private:
+    friend class TableFactory;
+
+    private:
     // no default ctor, no copy, no assignment
-    MMAP_PersistentTable(ExecutorContext *ctx, bool exportEnabled);
+    MMAP_PersistentTable();
+    MMAP_PersistentTable(MMAP_PersistentTable const&);
+    MMAP_PersistentTable operator=(MMAP_PersistentTable const&);
 
     uint32_t m_tableRequestCount;
 
-  protected:
+    protected:
+    MMAP_PersistentTable(ExecutorContext *ctx, bool exportEnabled);
+
     void allocateNextBlock();
-    
+
 };
 
 #define PATH_LENGTH 1024
@@ -166,54 +172,54 @@ inline void MMAP_PersistentTable::allocateNextBlock() {
     MMAP_file_name  = MMAP_Dir + pathSeparator ;
     MMAP_file_name += this->name() + "_" + m_tableRequestCountStringStream.str();
     MMAP_file_name += NVM_fileType ;
-    
+
     /** Increment Table Request Count **/
     m_tableRequestCount++;
-    
+
     VOLT_WARN("MMAP : MMAP_file_name :: %s\n", MMAP_file_name.c_str());
-    
+
     MMAP_fd = open(MMAP_file_name.c_str(), O_RDWR|O_CREAT, S_IRUSR|S_IWUSR|S_IRGRP );
     if (MMAP_fd < 0) {
         VOLT_ERROR("MMAP : initialization error.");
         VOLT_ERROR("Failed to open file %s : %s", MMAP_file_name.c_str(), strerror(errno));
         throwFatalException("Failed to open file in directory %s.", MMAP_Dir.c_str());
     }
-    
+
     iret = ftruncate(MMAP_fd, bytes) ;
     if(iret < 0){
         VOLT_ERROR("MMAP : initialization error.");
         VOLT_ERROR("Failed to truncate file %d : %s", MMAP_fd, strerror(errno));
         throwFatalException("Failed to truncate file in directory %s.", MMAP_Dir.c_str());
     }
-    
+
     /** Allocation **/
     memory = (char*) mmap(0, bytes , PROT_READ | PROT_WRITE , MAP_PRIVATE, MMAP_fd, 0);
-    
+
     if (memory == MAP_FAILED) {
         VOLT_ERROR("MMAP : initialization error.");
         VOLT_ERROR("Failed to map file into memory %d : %s", MMAP_fd, strerror(errno));
         throwFatalException("Failed to map file in directory %s.", MMAP_Dir.c_str());
     }
-    
+
     /** Push into m_data **/
     m_data.push_back(memory);
-    
+
     /** Deallocation **/
     // TODO: Where to deallocate ?
     // munmap(addr, bytes);
-    
+
     VOLT_WARN("MMAP : Host:: %d Site:: %d PId:: %d Index:: %d Table: %s  Bytes:: %d \n",
-          m_executorContext->getHostId(), m_executorContext->getSiteId(), m_executorContext->getPartitionId(),
-          m_tableRequestCount, this->name().c_str(), bytes);
-    
+            m_executorContext->getHostId(), m_executorContext->getSiteId(), m_executorContext->getPartitionId(),
+            m_tableRequestCount, this->name().c_str(), bytes);
+
     m_allocatedTuples += m_tuplesPerBlock;
-    
+
     /**
-    * Closing the file descriptor does not unmap the region as map() automatically adds a reference
-    */
+     * Closing the file descriptor does not unmap the region as map() automatically adds a reference
+     */
     close(MMAP_fd);
-    
-    }
+
+}
 
 }
 
