@@ -312,12 +312,15 @@ public class PlannerTool {
         HSQLInterface hsql = HSQLInterface.loadHsqldb();
         String hexDDL = db.getSchema();
         String ddl = Encoder.hexDecodeToString(hexDDL);
+        log("the ddl is : " + ddl);
         String[] commands = ddl.split(";");
         for (String command : commands) {
             command = command.trim();
             if (command.length() == 0)
                 continue;
             try {
+                command += ";";
+                log("the command is : " + command);
                 hsql.runDDLCommand(command);
             } catch (HSQLParseException e) {
                 // need a good error message here

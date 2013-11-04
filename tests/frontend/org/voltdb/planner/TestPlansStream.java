@@ -45,6 +45,7 @@ public class TestPlansStream extends TestCase {
         Cluster cluster = aide.getCatalog().getClusters().get("cluster");
         CatalogMap<Table> tmap = cluster.getDatabases().get("database").getTables();
         for (Table t : tmap) {
+            System.out.println("Dealing with table : " + t.getName());
             t.setIsreplicated(false);
         }
     }
@@ -55,9 +56,23 @@ public class TestPlansStream extends TestCase {
         aide.tearDown();
     }
     
+    public void testSelectFromStream() {
+        AbstractPlanNode pn = null;
+        pn = compile("SELECT phone_number FROM streamA", 0);
+        if (pn != null)
+            System.out.println(pn.toJSONString());
+    }
+
+    public void testSelectFromWindow() {
+        AbstractPlanNode pn = null;
+        pn = compile("SELECT phone_number FROM W1", 0);
+        if (pn != null)
+            System.out.println(pn.toJSONString());
+    }
+
     public void testInsertSelect() {
         AbstractPlanNode pn = null;
-        pn = compile("INSERT INTO votes_by_phone_number (phone_number, num_votes) SELECT B_ID, NUMROWS + 1 FROM TABLEB ", 0);
+        pn = compile("INSERT INTO votes_by_phone_number (phone_number, num_votes) SELECT B_ID, NUMROWS FROM TABLEB ", 0);
         if (pn != null)
             System.out.println(pn.toJSONString());
     }
@@ -76,14 +91,6 @@ public class TestPlansStream extends TestCase {
             System.out.println(pn.toJSONString());
     }
     
-    public void testSelectFromStream() {
-        AbstractPlanNode pn = null;
-        //pn = compile("SELECT t_id from ticker", 0);
-        pn = compile("SELECT TOP 1 * FROM TABLEA", 0);
-        if (pn != null)
-            System.out.println(pn.toJSONString());
-    }
- 
     @Ignore   
     public void testDeleteTopFromStream() {
         AbstractPlanNode pn = null;

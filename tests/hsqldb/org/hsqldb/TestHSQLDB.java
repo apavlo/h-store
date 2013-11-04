@@ -85,6 +85,7 @@ public class TestHSQLDB extends TestCase {
 
             
         } catch (HSQLInterface.HSQLParseException e1) {
+            System.out.println(e1.getMessage());
             assertFalse(true);
         }
 

@@ -19,8 +19,8 @@ public class SimpleWindowProjectBuilder extends AbstractProjectBuilder {
 	// a list of procedures implemented in this benchmark
     @SuppressWarnings("unchecked")
     public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
-        SimpleCall.class,
-		WindowTrigger.class
+		WindowTrigger.class,
+        SimpleCall.class
     };
 	
 	{

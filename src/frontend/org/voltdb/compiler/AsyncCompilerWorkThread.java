@@ -102,6 +102,7 @@ public class AsyncCompilerWorkThread extends Thread implements DumpManager.Dumpa
     public void verifyEverthingIsKosher() {
         if (m_ptool != null) {
             // check if the planner process has been blocked for 2 seconds
+            //if (m_ptool.perhapsIsHung(5000)) {
             if (m_ptool.perhapsIsHung(5000)) {
                 LOG.error("Was forced to kill the planner process due to a timeout. It will be restarted if needed.");
                 m_ptool.kill();
