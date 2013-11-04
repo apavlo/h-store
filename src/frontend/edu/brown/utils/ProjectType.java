@@ -49,6 +49,7 @@ public enum ProjectType {
     YCSB("YCSB", "edu.brown.benchmark.ycsb"), 
     VOTER("Voter", "edu.brown.benchmark.voter"),
     SMALLBANK("SmallBank", "edu.brown.benchmark.smallbank"),
+    SIMPLEWINDOW("SimpleWindow", "edu.brown.benchmark.simplewindow"),
     EXAMPLE("Example", "edu.brown.benchmark.example"),
     UPSERT("Upsert", "edu.brown.benchmark.upsert"),
     STREAMEXAMPLE("StreamExample", "edu.brown.benchmark.streamexample"),
