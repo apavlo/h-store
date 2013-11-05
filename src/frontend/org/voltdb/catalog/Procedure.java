@@ -42,6 +42,7 @@ public class Procedure extends CatalogType {
     String m_reduceInputQuery = new String();
     String m_reduceEmitTable = new String();
     boolean m_hasjava;
+    boolean m_beDefault;
     int m_partitionparameter;
     CatalogMap<AuthProgram> m_authPrograms;
     CatalogMap<Statement> m_statements;
@@ -68,6 +69,7 @@ public class Procedure extends CatalogType {
         m_fields.put("reduceInputQuery", m_reduceInputQuery);
         m_fields.put("reduceEmitTable", m_reduceEmitTable);
         m_fields.put("hasjava", m_hasjava);
+        m_fields.put("beDefault", m_beDefault);
         m_fields.put("partitiontable", null);
         m_fields.put("partitioncolumn", null);
         m_fields.put("partitionparameter", m_partitionparameter);
@@ -96,6 +98,7 @@ public class Procedure extends CatalogType {
         m_reduceInputQuery = (String) m_fields.get("reduceInputQuery");
         m_reduceEmitTable = (String) m_fields.get("reduceEmitTable");
         m_hasjava = (Boolean) m_fields.get("hasjava");
+        m_beDefault = (Boolean) m_fields.get("beDefault");
         m_partitionparameter = (Integer) m_fields.get("partitionparameter");
     }
 
@@ -177,6 +180,11 @@ public class Procedure extends CatalogType {
     /** GETTER: Is this a full java stored procedure or is it just a single stmt? */
     public boolean getHasjava() {
         return m_hasjava;
+    }
+
+    /** GETTER: Is this stored procedure run by HStoreSite or called directly by client? */
+    public boolean getBedefault() {
+        return m_beDefault;
     }
 
     /** GETTER: Which table contains the partition column for this procedure? */
@@ -298,6 +306,11 @@ public class Procedure extends CatalogType {
     /** SETTER: Is this a full java stored procedure or is it just a single stmt? */
     public void setHasjava(boolean value) {
         m_hasjava = value; m_fields.put("hasjava", value);
+    }
+
+    /** SETTER: Is this stored procedure run by HStoreSite or called directly by client? */
+    public void setBedefault(boolean value) {
+        m_beDefault = value; m_fields.put("beDefault", value);
     }
 
     /** SETTER: Which table contains the partition column for this procedure? */

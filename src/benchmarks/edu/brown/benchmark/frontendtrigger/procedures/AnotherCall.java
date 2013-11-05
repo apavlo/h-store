@@ -12,7 +12,15 @@ import org.voltdb.types.TimestampType;
 public class AnotherCall extends VoltProcedure {
     
     protected void toSetTriggerTableName()
-    {        
+    {   
+        // S-Store support two ways to fire frontend trigger procedures
+        // first way - direct execute such procedure in HStoreSite (Server side)
+        // second way - send it back to client to run it (Client side)
+        // it means this procedure will be back to client 
+        // and let client to explictly call it
+        //setBeDefault(false); 
+        
+        // set which stream will be used to trigger this frontend procedure
 		addTriggerTable("S1");
     }
 

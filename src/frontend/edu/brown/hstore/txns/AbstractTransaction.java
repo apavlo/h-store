@@ -235,6 +235,27 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
      */
     protected final boolean writeTables[][];
     
+    
+    // added by hawk, 2013/11/5
+    protected List<String> followingProcedures = new ArrayList<String>();
+    
+    public void addFollowingProcedure(Procedure procedure)
+    {
+        followingProcedures.add(procedure.getName());
+    }
+    
+    public void addFollowingProcedures(List<Procedure> procedures)
+    {
+        for(Procedure proc_catalog : procedures)
+            followingProcedures.add(proc_catalog.getName());
+    }
+    
+    public List<String> getFollowingProcedures()
+    {
+        return followingProcedures;
+    }
+    // ended by hawk
+    
     // ----------------------------------------------------------------------------
     // INITIALIZATION
     // ----------------------------------------------------------------------------

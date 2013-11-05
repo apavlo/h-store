@@ -17,6 +17,8 @@
 
 package org.voltdb.client;
 
+import java.util.List;
+
 import org.voltdb.ClientResponseDebug;
 import org.voltdb.VoltTable;
 
@@ -134,4 +136,8 @@ public interface ClientResponse extends Poolable {
      */
     public boolean hasDebug();
     public ClientResponseDebug getDebug();
+    
+    // added by hawk, 2013/11/5
+    public List<String> getFollowingProcedures();
+    // ended by hawk
 }

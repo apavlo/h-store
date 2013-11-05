@@ -52,6 +52,7 @@ package org.voltdb.client;
 
 import java.io.IOException;
 import java.net.UnknownHostException;
+import java.util.List;
 
 import org.voltdb.ClientResponseDebug;
 import org.voltdb.StoredProcedureInvocationHints;
@@ -185,6 +186,11 @@ public class MockVoltClient implements Client {
 
             public ClientResponseDebug getDebug() {
                 // TODO Auto-generated method stub
+                return null;
+            }
+
+            @Override
+            public List<String> getFollowingProcedures() {
                 return null;
             }
         };

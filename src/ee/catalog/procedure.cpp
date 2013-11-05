@@ -55,6 +55,7 @@ Procedure::Procedure(Catalog *catalog, CatalogType *parent, const string &path, 
     m_fields["reduceInputQuery"] = value;
     m_fields["reduceEmitTable"] = value;
     m_fields["hasjava"] = value;
+    m_fields["beDefault"] = value;
     m_fields["partitiontable"] = value;
     m_fields["partitioncolumn"] = value;
     m_fields["partitionparameter"] = value;
@@ -124,6 +125,7 @@ void Procedure::update() {
     m_reduceInputQuery = m_fields["reduceInputQuery"].strValue.c_str();
     m_reduceEmitTable = m_fields["reduceEmitTable"].strValue.c_str();
     m_hasjava = m_fields["hasjava"].intValue;
+    m_beDefault = m_fields["beDefault"].intValue;
     m_partitiontable = m_fields["partitiontable"].typeValue;
     m_partitioncolumn = m_fields["partitioncolumn"].typeValue;
     m_partitionparameter = m_fields["partitionparameter"].intValue;
@@ -270,6 +272,10 @@ const string & Procedure::reduceEmitTable() const {
 
 bool Procedure::hasjava() const {
     return m_hasjava;
+}
+
+bool Procedure::beDefault() const {
+    return m_beDefault;
 }
 
 const Table * Procedure::partitiontable() const {

@@ -418,6 +418,10 @@ public abstract class ProcedureCompiler {
         // added by hawk, 2013/10/31
         // let people can access frontend trigger name list from the related table
         ArrayList<String> triggerTables = procInstance.getTriggerTables();
+        // let the procedure in catalog know if it is a frontend trigger procedure, 
+        // the behavior is default (HStoreSite will run it implicitly) or not (client will call it explicitly)
+        procedure.setBedefault(procInstance.getBeDefault());
+        
         for (String tableName : triggerTables) {
             // get the stream table
             Table trigerTable = (db.getTables().getIgnoreCase(tableName));

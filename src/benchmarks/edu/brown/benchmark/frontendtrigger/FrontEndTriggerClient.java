@@ -8,19 +8,20 @@ import org.apache.log4j.Logger;
 import org.voltdb.VoltTable;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
+import org.voltdb.client.NoConnectionsException;
+import org.voltdb.client.ProcCallException;
 import org.voltdb.client.ProcedureCallback;
 
 import edu.brown.api.BenchmarkComponent;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
-
 import edu.brown.benchmark.frontendtrigger.procedures.SimpleCall;
 
 public class FrontEndTriggerClient extends BenchmarkComponent {
     private static final Logger LOG = Logger.getLogger(FrontEndTriggerClient.class);
     private static final LoggerBoolean debug = new LoggerBoolean();
 
-    final Callback callback = new Callback();
+    private Client client = null;
 
     public static void main(String args[]) {
         BenchmarkComponent.main(FrontEndTriggerClient.class, args, false);
@@ -32,6 +33,7 @@ public class FrontEndTriggerClient extends BenchmarkComponent {
 
     @Override
     public void runLoop() {
+        
         try {
             while (true) {
                 try {
@@ -49,10 +51,41 @@ public class FrontEndTriggerClient extends BenchmarkComponent {
 
     @Override
     protected boolean runOnce() throws IOException {
-        Client client = this.getClientHandle();
-        boolean response = client.callProcedure(callback,
-                                                "SimpleCall");
-        return response;
+        
+        client = this.getClientHandle();
+        assert(client != null) : "client is null, this is bad";
+        
+        try {
+            ClientResponse clientResponse = client.callProcedure("SimpleCall");
+            incrementTransactionCounter(clientResponse, 0);
+            
+            // call following procedures
+            callFollowingProcedures(client, clientResponse);
+
+        } catch (ProcCallException e) {
+            e.printStackTrace();
+        }
+
+        return true;
+    }
+    
+    private void callFollowingProcedures(Client client, ClientResponse clientResponse) 
+    {
+        for(String procedure : clientResponse.getFollowingProcedures())
+        {
+                System.out.println("client running frontend trigger procedure : " + procedure);
+                assert(client != null);
+                try {
+                    clientResponse = client.callProcedure(procedure);
+                    incrementTransactionCounter(clientResponse, 0);
+                    callFollowingProcedures(client, clientResponse);
+                }
+                catch (Exception e)
+                {
+                    e.printStackTrace();
+                }
+                incrementTransactionCounter(clientResponse, 0);
+        }
     }
 
     @Override
@@ -64,14 +97,5 @@ public class FrontEndTriggerClient extends BenchmarkComponent {
         return (procNames);
     }
 
-    private class Callback implements ProcedureCallback {
-
-        @Override
-        public void clientCallback(ClientResponse clientResponse) {
-            // Increment the BenchmarkComponent's internal counter on the
-            // number of transactions that have been completed
-            incrementTransactionCounter(clientResponse, 0);
-        }
-    } // END CLASS
 }
 

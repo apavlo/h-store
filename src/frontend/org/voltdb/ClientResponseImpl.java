@@ -18,7 +18,9 @@
 package org.voltdb;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.voltdb.client.ClientResponse;
@@ -315,6 +317,12 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
             this.debug = new ClientResponseDebug();
             this.debug.readExternal(in);
         }
+        
+        // added by hawk, 2013/11/5
+        String[] proArr = (String[]) in.readArray(String.class);
+        for(int i=0;i<proArr.length;i++)
+            followingProcedures.add(proArr[i]);
+        // ended by hawk
     }
 
     @Override
@@ -361,6 +369,12 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         if (this.debug != null) {
             this.debug.writeExternal(out);
         }
+
+        // added by hawk, 2013/11/5
+        String[] procArr = new String[followingProcedures.size()];
+        procArr = followingProcedures.toArray(procArr);
+        out.writeArray(procArr);
+        // ended by hawk
     }
     
     @Override
@@ -388,6 +402,16 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
             inner.put(String.format("[%d]", i), results[i].toString());
         }
         m.put("Results", inner);
+        
+        // added by hawk, 2013/11/5
+        Map<String, String> procedures = new LinkedHashMap<String, String>();
+        int i = 0;
+        for (String procedure : followingProcedures) {
+            procedures.put(String.format("[%d]", i), procedure);
+            i++;
+        }
+        m.put("Following Procedures", procedures);        
+        // ended by hawk
         
         return String.format("ClientResponse[#%d]\n%s", this.txn_id, StringUtil.formatMaps(m));
     }
@@ -431,6 +455,20 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
     public static void setStatus(ByteBuffer b, Status status) {
         b.put(24, (byte)status.ordinal()); // 1 + 1 + 8 + 8 + 1 + 1 + 4 = 24
     }
+
+    // added by hawk, 2013/11/5
+    private List<String> followingProcedures =  new ArrayList<String>();
     
+    public void addFollowingProcedures(List<String> procedures)
+    {
+        for(String procedure : procedures)
+            followingProcedures.add(procedure);
+    }
+    
+    @Override
+    public List<String> getFollowingProcedures() {
+        return followingProcedures;
+    }
+    // ended by hawk
     // ----------------------------------------------------------------------------
 }

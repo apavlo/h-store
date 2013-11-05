@@ -61,6 +61,7 @@ protected:
     std::string m_reduceInputQuery;
     std::string m_reduceEmitTable;
     bool m_hasjava;
+    bool m_beDefault;
     CatalogType* m_partitiontable;
     CatalogType* m_partitioncolumn;
     int32_t m_partitionparameter;
@@ -110,6 +111,8 @@ public:
     const std::string & reduceEmitTable() const;
     /** GETTER: Is this a full java stored procedure or is it just a single stmt? */
     bool hasjava() const;
+    /** GETTER: Is this stored procedure run by HStoreSite or called directly by client? */
+    bool beDefault() const;
     /** GETTER: Which table contains the partition column for this procedure? */
     const Table * partitiontable() const;
     /** GETTER: Which column in the partitioned table is this procedure mapped on? */

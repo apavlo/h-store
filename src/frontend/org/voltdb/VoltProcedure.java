@@ -142,6 +142,7 @@ public abstract class VoltProcedure implements Poolable {
     
     // for frontend trigger procedure, the related table names are stored here. added by hawk
     private ArrayList<String> relatedTables = new ArrayList<String>();
+    private boolean beDefault = true;
     // ended by hawk
 
     // cached txnid-seeded RNG so all calls to getSeededRandomNumberGenerator() for
@@ -200,6 +201,16 @@ public abstract class VoltProcedure implements Poolable {
     }
     
     // added by hawk, 2013/10/31
+    public void setBeDefault(boolean beDefault)
+    {
+        this.beDefault = beDefault;
+    }
+    
+    public boolean getBeDefault()
+    {
+        return this.beDefault;
+    }
+    
     public void setTriggerTableName() {
         toSetTriggerTableName();
     }
@@ -776,6 +787,11 @@ public abstract class VoltProcedure implements Poolable {
 
         if (this.observable != null) this.observable.notifyObservers(response);
         if (trace.val) LOG.trace(response);
+        
+        // added by hawk, 2013/11/5
+        response.addFollowingProcedures(this.localTxnState.getFollowingProcedures());
+        // ended by hawk
+        
         return (response);
     }
 
