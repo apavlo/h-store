@@ -269,6 +269,34 @@ TableCatalogDelegate::init(ExecutorContext *executorContext,
         partitionColumnIndex = partitionColumn->index();
     }
 
+    // modified by hawk, 2013/11/5
+    // determine if this is a window table
+    if (catalogTable.isWindow())
+    {
+        VOLT_DEBUG("Creating WindowTable : '%s'",
+                   catalogTable.name().c_str());
+        if (pkey_index_id.size() == 0) 
+        {
+            // FIXME: we need to extend with window type and slide
+            m_table = TableFactory::getWindowTable(databaseId, executorContext,
+                                                 catalogTable.name(), schema, columnNames,
+                                                 indexes, triggers, partitionColumnIndex,
+                                                 isExportEnabledForTable(catalogDatabase, table_id),
+                                                 isTableExportOnly(catalogDatabase, table_id),
+						 catalogTable.size());
+        }
+        else
+        {
+            m_table = TableFactory::getWindowTable(databaseId, executorContext,
+                                                 catalogTable.name(), schema, columnNames,
+                                                 pkey_index, indexes, triggers, partitionColumnIndex,
+                                                 isExportEnabledForTable(catalogDatabase, table_id),
+                                                 isTableExportOnly(catalogDatabase, table_id),
+						 catalogTable.size());
+        }
+    }
+    else
+    // ended by hawk
     // no primary key
     if (pkey_index_id.size() == 0) {
         m_table = TableFactory::getPersistentTable(databaseId, executorContext,
@@ -286,8 +314,8 @@ TableCatalogDelegate::init(ExecutorContext *executorContext,
     }
     
 
-	// get the stream flag
-	bool isStream = catalogTable.isStream();
+    // get the stream flag
+    bool isStream = catalogTable.isStream();
     m_table->setIsStream(isStream);
 
 
