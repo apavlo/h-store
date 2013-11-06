@@ -1248,7 +1248,7 @@ SHAREDLIB_JNIEXPORT jboolean JNICALL Java_org_voltdb_utils_ThreadUtils_setThread
         }
     }
       
-    int errno = 0; 
+    int errno ; 
     int result = sched_setaffinity(0, sizeof(mask), &mask);
     if (result == -1) {
         char buff[256];
