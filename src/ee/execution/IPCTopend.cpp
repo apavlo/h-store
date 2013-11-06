@@ -26,7 +26,7 @@ namespace voltdb {
 
 IPCTopend::IPCTopend(VoltDBIPC *vdbipc) : m_vdbipc(vdbipc) {}
 
-int IPCTopend::loadNextDependency(int32_t dependencyId, voltdb::Pool *stringPool, Table* destination) {
+int IPCTopend::loadNextDependency(int32_t dependencyId, voltdb::MMAP_Pool *stringPool, Table* destination) {
     VOLT_DEBUG("iterating java dependency for id %d\n", dependencyId);
     size_t dependencySz;
     char* buf = m_vdbipc->retrieveDependency(dependencyId, &dependencySz);

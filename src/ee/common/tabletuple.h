@@ -48,7 +48,7 @@
 
 #include "common/common.h"
 #include "common/TupleSchema.h"
-#include "common/Pool.hpp"
+#include "common/MMAP_Pool.hpp"
 #include "common/ValuePeeker.hpp"
 #include "common/FatalException.hpp"
 #include "common/ExportSerializeIo.h"
@@ -245,7 +245,7 @@ public:
      * be allocated on the heap.
      */
     void setNValueAllocateForObjectCopies(const int idx, voltdb::NValue value,
-                                             Pool *dataPool);
+                                             MMAP_Pool *dataPool);
 
     /** How long is a tuple? */
     inline int tupleLength() const {
@@ -348,7 +348,7 @@ public:
     /** Copy values from one tuple into another (uses memcpy) */
     // verify assumptions for copy. do not use at runtime (expensive)
     bool compatibleForCopy(const TableTuple &source);
-    void copyForPersistentInsert(const TableTuple &source, Pool *pool = NULL);
+    void copyForPersistentInsert(const TableTuple &source, MMAP_Pool *pool = NULL);
     void copyForPersistentUpdate(const TableTuple &source);
     void copy(const TableTuple &source);
 
@@ -360,7 +360,7 @@ public:
 
     int compare(const TableTuple &other) const;
 
-    void deserializeFrom(voltdb::SerializeInput &tupleIn, Pool *stringPool);
+    void deserializeFrom(voltdb::SerializeInput &tupleIn, MMAP_Pool *stringPool);
     void serializeTo(voltdb::SerializeOutput &output);
     void serializeToExport(voltdb::ExportSerializeOutput &io,
                           int colOffset, uint8_t *nullArray);
@@ -467,7 +467,7 @@ inline void TableTuple::setNValue(const int idx, voltdb::NValue value) {
 /* Copy strictly by value from slimvalue into this tuple */
 inline void TableTuple::setNValueAllocateForObjectCopies(const int idx,
                                                             voltdb::NValue value,
-                                                            Pool *dataPool)
+                                                            MMAP_Pool *dataPool)
 {
     assert(m_schema);
     assert(m_data);
@@ -484,7 +484,7 @@ inline void TableTuple::setNValueAllocateForObjectCopies(const int idx,
 /*
  * With a persistent insert the copy should do an allocation for all uninlinable strings
  */
-inline void TableTuple::copyForPersistentInsert(const voltdb::TableTuple &source, Pool *pool) {
+inline void TableTuple::copyForPersistentInsert(const voltdb::TableTuple &source, MMAP_Pool *pool) {
     assert(m_schema);
     assert(source.m_schema);
     assert(source.m_data);
@@ -628,7 +628,7 @@ inline void TableTuple::copy(const TableTuple &source) {
     }
 }
 
-inline void TableTuple::deserializeFrom(voltdb::SerializeInput &tupleIn, Pool *dataPool) {
+inline void TableTuple::deserializeFrom(voltdb::SerializeInput &tupleIn, MMAP_Pool *dataPool) {
     assert(m_schema);
     assert(m_data);
 

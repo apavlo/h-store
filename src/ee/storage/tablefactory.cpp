@@ -54,7 +54,7 @@
 #include "storage/streamedtable.h"
 #include "storage/temptable.h"
 #include "indexes/tableindexfactory.h"
-#include "common/Pool.hpp"
+#include "common/MMAP_Pool.hpp"
 
 #ifdef ANTICACHE
 #include "anticache/EvictedTable.h"

@@ -22,7 +22,7 @@
 #include "common/FatalException.hpp"
 namespace voltdb {
 class Table;
-class Pool;
+class MMAP_Pool;
 
 /*
  * Topend abstracts the EE's calling interface to Java to
@@ -32,7 +32,7 @@ class Pool;
 class Topend {
   public:
     virtual int loadNextDependency(
-        int32_t dependencyId, voltdb::Pool *pool, Table* destination) = 0;
+        int32_t dependencyId, voltdb::MMAP_Pool *pool, Table* destination) = 0;
 
     virtual void crashVoltDB(voltdb::FatalException e) = 0;
 

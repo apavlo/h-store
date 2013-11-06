@@ -57,7 +57,7 @@
 #include "common/serializeio.h"
 #include "common/types.h"
 #include "common/valuevector.h"
-#include "common/Pool.hpp"
+#include "common/MMAP_Pool.hpp"
 #include "common/UndoLog.h"
 #include "common/DummyUndoQuantum.hpp"
 #include "common/SerializableEEException.h"
@@ -320,7 +320,7 @@ class __attribute__((visibility("default"))) VoltDBEngine {
                 bool interval,
                 int64_t now);
 
-        inline Pool* getStringPool() { return &m_stringPool; }
+        inline MMAP_Pool* getStringPool() { return &m_stringPool; }
 
         inline LogManager* getLogManager() {
             return &m_logManager;
@@ -545,7 +545,7 @@ class __attribute__((visibility("default"))) VoltDBEngine {
         /*
          * Pool for short lived strings that will not live past the return back to Java.
          */
-        Pool m_stringPool;
+        MMAP_Pool m_stringPool;
 
         /*
          * When executing a plan fragment this is set to the number of result dependencies

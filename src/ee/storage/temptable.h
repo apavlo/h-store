@@ -89,7 +89,7 @@ class TempTable : public Table {
          * for all uninlined columns. Used by CopyOnWriteContext to back up tuples
          * before they are dirtied
          */
-        void insertTupleNonVirtualWithDeepCopy(TableTuple &source, Pool *pool);
+        void insertTupleNonVirtualWithDeepCopy(TableTuple &source, MMAP_Pool *pool);
 
         /**
          * Does a shallow copy that copies the pointer to uninlined columns.
@@ -119,7 +119,7 @@ class TempTable : public Table {
         }
 };
 
-inline void TempTable::insertTupleNonVirtualWithDeepCopy(TableTuple &source, Pool *pool) {
+inline void TempTable::insertTupleNonVirtualWithDeepCopy(TableTuple &source, MMAP_Pool *pool) {
     //
     // First get the next free tuple
     // This will either give us one from the free slot list, or

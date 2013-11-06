@@ -21,7 +21,7 @@
 #include <utility>
 #include "common/TupleSerializer.h"
 #include "storage/table.h"
-#include "common/Pool.hpp"
+#include "common/MMAP_Pool.hpp"
 #include "common/tabletuple.h"
 #include "boost/scoped_ptr.hpp"
 
@@ -86,7 +86,7 @@ private:
     /**
      * Memory pool for string allocations
      */
-    Pool m_pool;
+    MMAP_Pool m_pool;
 
     /**
      * Copied and sorted tuple blocks that can be binary searched in order to find out. The pair

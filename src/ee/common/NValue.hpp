@@ -18,7 +18,7 @@
 #ifndef NVALUE_HPP_
 #define NVALUE_HPP_
 
-#include "common/Pool.hpp"
+#include "common/MMAP_Pool.hpp"
 #include "common/SQLException.h"
 #include "common/debuglog.h"
 #include "common/serializeio.h"
@@ -144,7 +144,7 @@ class NValue {
        allocated storage for a copy of the object. */
     void serializeToTupleStorageAllocateForObjects(
         void *storage, const bool isInlined, const int32_t maxLength,
-        Pool *dataPool) const;
+        MMAP_Pool *dataPool) const;
 
     /* Serialize the scalar this NValue represents to the storage area
        provided. If the scalar is an Object type then the object will
@@ -161,7 +161,7 @@ class NValue {
        heap. This is used to deserialize tables. */
     static void deserializeFrom(
         SerializeInput &input, const ValueType type, char *storage,
-        bool isInlined, const int32_t maxLength, Pool *dataPool);
+        bool isInlined, const int32_t maxLength, MMAP_Pool *dataPool);
 
         // TODO: no callers use the first form; Should combine these
         // eliminate the potential NValue copy.
@@ -170,7 +170,7 @@ class NValue {
        a scalar value of the specified type from the provided
        SerializeInput and perform allocations as necessary. */
     static const NValue deserializeFromAllocateForStorage(
-        SerializeInput &input, Pool *dataPool);
+        SerializeInput &input, MMAP_Pool *dataPool);
 
     /* Serialize this NValue to a SerializeOutput */
     void serializeTo(SerializeOutput &output) const;
@@ -1742,7 +1742,7 @@ inline const NValue NValue::deserializeFromTupleStorage(const void *storage,
  * allocated storage for a copy of the object.
  */
 inline void NValue::serializeToTupleStorageAllocateForObjects(void *storage, const bool isInlined,
-                                                       const int32_t maxLength, Pool *dataPool) const
+                                                       const int32_t maxLength, MMAP_Pool *dataPool) const
 {
     const ValueType type = getValueType();
     int32_t length = 0;
@@ -1880,7 +1880,7 @@ inline void NValue::serializeToTupleStorage(void *storage, const bool isInlined,
  * heap. This is used to deserialize tables.
  */
 inline void NValue::deserializeFrom(SerializeInput &input, const ValueType type,
-                             char *storage, bool isInlined, const int32_t maxLength, Pool *dataPool) {
+                             char *storage, bool isInlined, const int32_t maxLength, MMAP_Pool *dataPool) {
     switch (type) {
       case VALUE_TYPE_BIGINT:
       case VALUE_TYPE_TIMESTAMP:
@@ -1959,7 +1959,7 @@ inline void NValue::deserializeFrom(SerializeInput &input, const ValueType type,
  * provided SerializeInput and perform allocations as necessary.
  * This is used to deserialize parameter sets.
  */
-inline const NValue NValue::deserializeFromAllocateForStorage(SerializeInput &input, Pool *dataPool) {
+inline const NValue NValue::deserializeFromAllocateForStorage(SerializeInput &input, MMAP_Pool *dataPool) {
     const ValueType type = static_cast<ValueType>(input.readByte());
     NValue retval(type);
     switch (type) {

@@ -51,7 +51,7 @@
 #ifndef HSTOREAGGREGATEEXECUTOR_H
 #define HSTOREAGGREGATEEXECUTOR_H
 
-#include "common/Pool.hpp"
+#include "common/MMAP_Pool.hpp"
 #include "common/ValueFactory.hpp"
 #include "common/common.h"
 #include "common/common.h"
@@ -318,7 +318,7 @@ private:
  * type, column type, and result type. The object is constructed in
  * memory from the provided memrory pool.
  */
-inline Agg* getAggInstance(Pool* memoryPool, ExpressionType agg_type)
+inline Agg* getAggInstance(MMAP_Pool* memoryPool, ExpressionType agg_type)
 {
     Agg* agg;
     switch (agg_type) {
@@ -382,7 +382,7 @@ protected:
      * not doing any aggregation.
      */
     PassThroughColType m_passThroughColumns;
-    Pool m_memoryPool;
+    MMAP_Pool m_memoryPool;
     TupleSchema* m_groupByKeySchema;
 };
 
@@ -394,7 +394,7 @@ protected:
 template<PlanNodeType aggregateType>
 class Aggregator {
 public:
-    Aggregator(Pool* memoryPool,
+    Aggregator(MMAP_Pool* memoryPool,
                TupleSchema* groupByKeySchema,
                AggregatePlanNode* node,
                PassThroughColType* passThroughColumns,
@@ -505,7 +505,7 @@ template<>
 class Aggregator<PLAN_NODE_TYPE_HASHAGGREGATE>
 {
 public:
-    inline Aggregator(Pool *memoryPool,
+    inline Aggregator(MMAP_Pool *memoryPool,
                       TupleSchema *groupByKeySchema,
                       AggregatePlanNode* node,
                       PassThroughColType* passThroughColumns,
@@ -638,7 +638,7 @@ public:
     }
 
 private:
-    Pool* m_memoryPool;
+    MMAP_Pool* m_memoryPool;
     TupleSchema *m_groupByKeySchema;
     AggregatePlanNode* m_node;
     PassThroughColType* m_passThroughColumns;
@@ -661,7 +661,7 @@ template<>
 class Aggregator<PLAN_NODE_TYPE_AGGREGATE>
 {
 public:
-    inline Aggregator(Pool* memoryPool,
+    inline Aggregator(MMAP_Pool* memoryPool,
                       TupleSchema* groupByKeySchema,
                       AggregatePlanNode* node,
                       PassThroughColType *passThroughColumns,
@@ -777,7 +777,7 @@ public:
     }
 
 private:
-    Pool* m_memoryPool;
+    MMAP_Pool* m_memoryPool;
     TupleSchema* m_groupByKeySchema;
     AggregatePlanNode* m_node;
     PassThroughColType* m_passThroughColumns;

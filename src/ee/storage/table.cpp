@@ -52,6 +52,7 @@
 #include "common/TupleSchema.h"
 #include "common/tabletuple.h"
 #include "common/Pool.hpp"
+#include "common/MMAP_Pool.hpp"
 #include "common/FatalException.hpp"
 #include "indexes/tableindex.h"
 #include "storage/tableiterator.h"
@@ -493,7 +494,7 @@ void Table::loadTuplesFromNoHeader(bool allowExport,
         m_tmpTarget1.setDeletedFalse();
         m_tmpTarget1.setDirtyFalse();
         m_tmpTarget1.setEvictedFalse();
-        m_tmpTarget1.deserializeFrom(serialize_io, stringPool);
+        m_tmpTarget1.deserializeFrom(serialize_io, static_cast<MMAP_Pool*>(stringPool));
 
         processLoadedTuple( allowExport, m_tmpTarget1);
         VOLT_TRACE("Loaded new tuple #%02d\n%s", i, m_tmpTarget1.debug(name()).c_str());

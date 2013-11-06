@@ -100,7 +100,7 @@
 #include "common/debuglog.h"
 #include "common/serializeio.h"
 #include "common/TheHashinator.h"
-#include "common/Pool.hpp"
+#include "common/MMAP_Pool.hpp"
 #include "common/FatalException.hpp"
 #include "common/SegvException.hpp"
 #include "common/RecoveryProtoMessage.h"
@@ -467,7 +467,7 @@ Java_org_voltdb_jni_ExecutionEngine_nativeLoadTable (
  * Utility used for deserializing ParameterSet passed from Java.
  */
 void deserializeParameterSetCommon(int cnt, ReferenceSerializeInput &serialize_in,
-                                   NValueArray &params, Pool *stringPool)
+                                   NValueArray &params, MMAP_Pool *stringPool)
 {
     for (int i = 0; i < cnt; ++i) {
         params[i] = NValue::deserializeFromAllocateForStorage(serialize_in, stringPool);
@@ -478,7 +478,7 @@ void deserializeParameterSetCommon(int cnt, ReferenceSerializeInput &serialize_i
  * Utility used for deserializing ParameterSet passed from Java.
  */
 int deserializeParameterSet(const char* serialized_parameterset, jint serialized_length,
-    NValueArray &params, Pool *stringPool) {
+    NValueArray &params, MMAP_Pool *stringPool) {
     // deserialize parameters as ValueArray.
     // We don't use SerializeIO here because it makes a copy.
     ReferenceSerializeInput serialize_in(serialized_parameterset, serialized_length);
@@ -567,7 +567,7 @@ SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeExecu
         engine->setUndoToken(undoToken);
         engine->resetReusedResultOutputBuffer();
         NValueArray &params = engine->getParameterContainer();
-        Pool *stringPool = engine->getStringPool();
+        MMAP_Pool *stringPool = engine->getStringPool();
         const int paramcnt = deserializeParameterSet(engine->getParameterBuffer(), engine->getParameterBufferCapacity(), params, engine->getStringPool());
         engine->setUsedParamcnt(paramcnt);
         const int retval = engine->executeQuery(plan_fragment_id, outputDependencyId, inputDependencyId, params, txnId, lastCommittedTxnId, true, true);
@@ -610,7 +610,7 @@ Java_org_voltdb_jni_ExecutionEngine_nativeExecuteCustomPlanFragment (
     engine->resetReusedResultOutputBuffer();
     engine->setUndoToken(undoToken);
     static_cast<JNITopend*>(engine->getTopend())->updateJNIEnv(env);
-    Pool *stringPool = engine->getStringPool();
+    MMAP_Pool *stringPool = engine->getStringPool();
 
     // convert java plan string to stdc++ string plan
     const char *str = static_cast<const char*>(env->GetStringUTFChars(plan,
@@ -661,7 +661,7 @@ SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeExecu
         engine->resetReusedResultOutputBuffer();
         engine->setUndoToken(undoToken);
         static_cast<JNITopend*>(engine->getTopend())->updateJNIEnv(env);
-        Pool *stringPool = engine->getStringPool();
+        MMAP_Pool *stringPool = engine->getStringPool();
 
         // fragment info
         int batch_size = num_fragments;
@@ -1155,7 +1155,7 @@ SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeHashi
     try {
         updateJNILogProxy(engine); //JNIEnv pointer can change between calls, must be updated
         NValueArray& params = engine->getParameterContainer();
-        Pool *stringPool = engine->getStringPool();
+        MMAP_Pool *stringPool = engine->getStringPool();
         deserializeParameterSet(engine->getParameterBuffer(), engine->getParameterBufferCapacity(), params, engine->getStringPool());
         int retval =
             voltdb::TheHashinator::hashinate(params[0], partitionCount);

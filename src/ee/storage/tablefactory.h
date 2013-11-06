@@ -52,7 +52,7 @@
 #include "common/ids.h"
 #include "common/types.h"
 #include "common/TupleSchema.h"
-#include "common/Pool.hpp"
+#include "common/MMAP_Pool.hpp"
 #include "indexes/tableindex.h"
 #include "indexes/tableindexfactory.h"
 
