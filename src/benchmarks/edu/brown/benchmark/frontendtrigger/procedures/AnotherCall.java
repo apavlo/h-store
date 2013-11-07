@@ -18,7 +18,7 @@ public class AnotherCall extends VoltProcedure {
         // second way - send it back to client to run it (Client side)
         // it means this procedure will be back to client 
         // and let client to explictly call it
-        //setBeDefault(false); 
+        setBeDefault(false); 
         
         // set which stream will be used to trigger this frontend procedure
 		addTriggerTable("S1");
