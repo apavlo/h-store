@@ -99,6 +99,8 @@ class WindowTest : public Test {
         }
         ~WindowTest() {
             delete table;
+            delete window_table;
+            delete m_engine;
         }
 
     protected:

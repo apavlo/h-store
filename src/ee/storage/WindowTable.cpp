@@ -76,7 +76,7 @@ WindowTable::WindowTable(ExecutorContext *ctx, bool exportEnabled, int windowSiz
 
 WindowTable::~WindowTable()
 {
-	//~PersistentTable();
+	windowQueue.clear();
 }
 
 void WindowTable::deleteAllTuples(bool freeAllocatedStrings)
