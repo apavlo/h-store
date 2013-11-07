@@ -73,8 +73,8 @@ public class FrontEndTriggerClient extends BenchmarkComponent {
     {
         for(String procedure : clientResponse.getFollowingProcedures())
         {
-                System.out.println("client running frontend trigger procedure : " + procedure);
-                assert(client != null);
+                //System.out.println("client running frontend trigger procedure : " + procedure);
+                //assert(client != null);
                 try {
                     clientResponse = client.callProcedure(procedure);
                     incrementTransactionCounter(clientResponse, 0);
@@ -84,7 +84,6 @@ public class FrontEndTriggerClient extends BenchmarkComponent {
                 {
                     e.printStackTrace();
                 }
-                incrementTransactionCounter(clientResponse, 0);
         }
     }
 
