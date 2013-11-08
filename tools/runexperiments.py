@@ -210,6 +210,7 @@ while client_threads_per_host <= tmax:
 					break
 				##endif
 			##endif
+			client_txnrate += rstep
 			continue
 		##endif	
 		print "we will deal with logging timeout situation"
@@ -221,11 +222,11 @@ while client_threads_per_host <= tmax:
 			str_client_threads_per_host 	= " -Dclient.threads_per_host=" + "{0:d}".format(client_threads_per_host)
 			str_client_txnrate		= " -Dclient.txnrate=" + "{0:d}".format(client_txnrate)
 			str_site_commandlog_timeout = " -Dsite.commandlog_timeout=" + "{0:d}".format(site_commandlog_timeout)
-			str_site_commandlog_enable = " -Dsite.commandlog_enable=true"
+			str_site_commandlog_enable = " -Dsite.commandlog_enable=false"
 		
 			basic = "{0:d}".format(client_threads_per_host) + " " + "{0:d}".format(client_txnrate) + " " +  "{0:d}".format(site_commandlog_timeout)
 		
-			runcmd = str_antcmd + str_project + str_client_blocking + str_client_output_results_json + str_client_threads_per_host + str_client_txnrate + str_site_commandlog_enable + str_site_commandlog_timeout
+			runcmd = str_antcmd + str_project + str_client_blocking + str_client_output_results_json + str_client_threads_per_host + str_client_txnrate + str_site_commandlog_enable
 		
 			print "running benchmark with following configuration:"
 			print runcmd
