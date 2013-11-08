@@ -131,8 +131,6 @@ class __attribute__((visibility("default"))) VoltDBEngine {
         }
 
         VoltDBEngine(Topend *topend, LogProxy *logProxy);
-
-	VoltDBEngine(Topend *topend, LogProxy *logProxy, bool enableMMAP);
 	
         bool initialize(
                 int32_t clusterIndex,
