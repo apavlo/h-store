@@ -133,10 +133,6 @@ class PersistentTable : public Table {
     PersistentTable(PersistentTable const&);
     PersistentTable operator=(PersistentTable const&);
 
-#ifdef STORAGE_MMAP
-    uint32_t m_tableRequestCount;
-#endif
-
   public:
     virtual ~PersistentTable();
 

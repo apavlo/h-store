@@ -27,7 +27,6 @@
 
 #include "common/debuglog.h"
 #include "common/serializeio.h"
-#include "common/MMAP_Pool.hpp"
 #include "common/FatalException.hpp"
 #include "common/SegvException.hpp"
 #include "common/RecoveryProtoMessage.h"
@@ -231,7 +230,7 @@ static void writeOrDie(int fd, unsigned char *data, ssize_t sz) {
 static VoltDBIPC *currentVolt = NULL;
 
 // defined in voltdbjni.cpp
-extern void deserializeParameterSetCommon(int, voltdb::ReferenceSerializeInput&, voltdb::GenericValueArray<voltdb::NValue>&, MMAP_Pool *stringPool);
+extern void deserializeParameterSetCommon(int, voltdb::ReferenceSerializeInput&, voltdb::GenericValueArray<voltdb::NValue>&, Pool *stringPool);
 
 VoltDBIPC::VoltDBIPC(int fd) : m_fd(fd) {
     currentVolt = this;
@@ -557,7 +556,7 @@ void VoltDBIPC::executeQueryPlanFragmentsAndGetResults(struct ipc_command *cmd) 
         for (int i = 0; i < numFrags; ++i) {
             int cnt = serialize_in.readShort();
             assert(cnt> -1);
-            MMAP_Pool *pool = m_engine->getStringPool();
+            Pool *pool = m_engine->getStringPool();
             deserializeParameterSetCommon(cnt, serialize_in, params, pool);
             m_engine->setUsedParamcnt(cnt);
             if (m_engine->executeQuery(ntohll(fragmentId[i]), 1, -1,
@@ -612,7 +611,7 @@ void VoltDBIPC::executePlanFragmentAndGetResults(struct ipc_command *cmd) {
 
         int cnt = serialize_in.readShort();
         assert(cnt> -1);
-        MMAP_Pool *pool = m_engine->getStringPool();
+        Pool *pool = m_engine->getStringPool();
         deserializeParameterSetCommon(cnt, serialize_in, params, pool);
         m_engine->setUsedParamcnt(cnt);
         m_engine->setUndoToken(ntohll(planfragCommand->undoToken));
@@ -1026,7 +1025,7 @@ void VoltDBIPC::hashinate(struct ipc_command* cmd)
     try {
         int cnt = serialize_in.readShort();
         assert(cnt> -1);
-        MMAP_Pool *pool = m_engine->getStringPool();
+        Pool *pool = m_engine->getStringPool();
         deserializeParameterSetCommon(cnt, serialize_in, params, pool);
         retval =
             voltdb::TheHashinator::hashinate(params[0], partCount);

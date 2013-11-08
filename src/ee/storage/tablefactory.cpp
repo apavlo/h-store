@@ -42,7 +42,7 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-
+  
 #include <sstream>
 #include "tablefactory.h"
 #include "common/executorcontext.hpp"
@@ -54,7 +54,6 @@
 #include "storage/streamedtable.h"
 #include "storage/temptable.h"
 #include "indexes/tableindexfactory.h"
-#include "common/MMAP_Pool.hpp"
 
 #ifdef ANTICACHE
 #include "anticache/EvictedTable.h"
@@ -120,7 +119,7 @@ Table* TableFactory::getPersistentTable(
         if(!ctx->isMMAPEnabled())
             table = new PersistentTable(ctx, exportEnabled);
         else
-            table = new MMAP_PersistentTable(ctx, exportEnabled);
+            table = new MMAP_PersistentTable(ctx, name, exportEnabled);
 
         VOLT_DEBUG("MMAP Enabled : %d \n", (int)ctx->isMMAPEnabled());
         
@@ -167,7 +166,7 @@ Table* TableFactory::getPersistentTable(
         if(!ctx->isMMAPEnabled())
             table = new PersistentTable(ctx, exportEnabled);
         else
-            table = new MMAP_PersistentTable(ctx, exportEnabled);
+            table = new MMAP_PersistentTable(ctx, name, exportEnabled);
 
         VOLT_DEBUG("MMAP Enabled : %d \n", (int)ctx->isMMAPEnabled());
 
@@ -314,3 +313,4 @@ void TableFactory::configureStats(voltdb::CatalogId databaseId,
 }
 
 }
+

@@ -57,6 +57,7 @@
 #include <string>
 #include <map>
 #include <vector>
+#include <utility>
 #include "boost/shared_ptr.hpp"
 #include "boost/scoped_ptr.hpp"
 #include "common/ids.h"
@@ -72,106 +73,114 @@
 
 namespace voltdb {
 
-class TableColumn;
-class TableIndex;
-class TableIterator;
-class TableFactory;
-class TupleSerializer;
-class SerializeInput;
-class Topend;
-class ReferenceSerializeOutput;
-class ExecutorContext;
-class MaterializedViewMetadata;
-class RecoveryProtoMsg;
+  class TableColumn;
+  class TableIndex;
+  class TableIterator;
+  class TableFactory;
+  class TupleSerializer;
+  class SerializeInput;
+  class Topend;
+  class ReferenceSerializeOutput;
+  class ExecutorContext;
+  class MaterializedViewMetadata;
+  class RecoveryProtoMsg;
 
-class PersistentTable ;
-    
-#ifdef ANTICACHE
-class EvictedTable;
-class AntiCacheEvictionManager; 
-class EvictionIterator;
-#endif
+  class PersistentTable ;
 
-/**
- * Represents a non-temporary table which permanently resides in
- * storage and also registered to Catalog (see other documents for
- * details of Catalog). PersistentTable has several additional
- * features to Table.  It has indexes, constraints to check NULL and
- * uniqueness as well as undo logs to revert changes.
- *
- * PersistentTable can have one or more Indexes, one of which must be
- * Primary Key Index. Primary Key Index is same as other Indexes except
- * that it's used for deletion and updates. Our Execution Engine collects
- * Primary Key values of deleted/updated tuples and uses it for specifying
- * tuples, assuming every PersistentTable has a Primary Key index.
- *
- * Currently, constraints are not-null constraint and unique
- * constraint.  Not-null constraint is just a flag of TableColumn and
- * checked against insertion and update. Unique constraint is also
- * just a flag of TableIndex and checked against insertion and
- * update. There's no rule constraint or foreign key constraint so far
- * because our focus is performance and simplicity.
- *
- * To revert changes after execution, PersistentTable holds UndoLog.
- * PersistentTable does eager update which immediately changes the
- * value in data and adds an entry to UndoLog. We chose eager update
- * policy because we expect reverting rarely occurs.
- */
-class MMAP_PersistentTable : public PersistentTable {
+  #ifdef ANTICACHE
+  class EvictedTable;
+  class AntiCacheEvictionManager;
+  class EvictionIterator;
+  #endif
+
+  /**
+   * Represents a non-temporary table which permanently resides in
+   * storage and also registered to Catalog (see other documents for
+   * details of Catalog). PersistentTable has several additional
+   * features to Table.  It has indexes, constraints to check NULL and
+   * uniqueness as well as undo logs to revert changes.
+   *
+   * PersistentTable can have one or more Indexes, one of which must be
+   * Primary Key Index. Primary Key Index is same as other Indexes except
+   * that it's used for deletion and updates. Our Execution Engine collects
+   * Primary Key values of deleted/updated tuples and uses it for specifying
+   * tuples, assuming every PersistentTable has a Primary Key index.
+   *
+   * Currently, constraints are not-null constraint and unique
+   * constraint.  Not-null constraint is just a flag of TableColumn and
+   * checked against insertion and update. Unique constraint is also
+   * just a flag of TableIndex and checked against insertion and
+   * update. There's no rule constraint or foreign key constraint so far
+   * because our focus is performance and simplicity.
+   *
+   * To revert changes after execution, PersistentTable holds UndoLog.
+   * PersistentTable does eager update which immediately changes the
+   * value in data and adds an entry to UndoLog. We chose eager update
+   * policy because we expect reverting rarely occurs.
+   */
+  class MMAP_PersistentTable : public PersistentTable {
     friend class TableFactory;
     friend class ExecutorContext;
 
-    private:
+  private:
     // no default ctor, no copy, no assignment
     MMAP_PersistentTable();
     MMAP_PersistentTable(MMAP_PersistentTable const&);
     MMAP_PersistentTable operator=(MMAP_PersistentTable const&);
 
-    int m_tableRequestCount ;
+    int m_dataBlockCount ; // for allocateNextBlock
+    int m_poolBlockCount ; // for pool
 
-    protected:
-    MMAP_PersistentTable(ExecutorContext *ctx, bool exportEnabled);
+    void* m_dataStoragePointer;
+    void* m_poolStoragePointer;
+
+    const std::string m_name;
+    
+    /** METADATA **/
+    /*
+     * Index -> (Offset, Size)
+     */
+    map<int, pair<int,int> > m_dataStorageMap;
+
+
+  protected:
+    MMAP_PersistentTable(ExecutorContext *ctx, const std::string &name, bool exportEnabled);
 
     void allocateNextBlock();
 
-};
+    /** Storage Utility Functions **/
+    void initDataStorage();
+    void initPoolStorage();
 
-inline void MMAP_PersistentTable::allocateNextBlock() {
-#ifdef MEMCHECK
-    int bytes = m_schema->tupleLength() + TUPLE_HEADER_SIZE;
-#else
-    int bytes = m_tableAllocationTargetSize;
-#endif
-
-    long m_index;
-    char* memory = NULL ;
-   
-    /** Thread safe **/
-    m_index = m_executorContext->getBlockCount();  
-    VOLT_WARN("MMAP : PId:: %d Index:: %ld Table: %s  Bytes:: %d \n",
-            m_executorContext->getPartitionId(), m_index, this->name().c_str(), bytes);
-
-    /** 
-     * Allocation at different offsets
-     * We assume that the index never overflows in a single execution !
-     * No munmap done - this will happen when process exits
-     */
-    memory = ((char*)m_executorContext->getStoragePointer() + m_index*bytes);
-
-    VOLT_WARN("MMAP : Index:: %ld Table: %s :: Memory Pointer : %p \n",
-             m_index, this->name().c_str(), memory);
-    
-    if (memory == NULL) {
-        VOLT_ERROR("MMAP : initialization error.");
-        throwFatalException("Failed to map file.");
+    void setDataStoragePointer(void* ptr){
+      m_dataStoragePointer = ptr;
     }
 
-    /** Push into m_data **/
-    m_data.push_back(memory);
+    void* getDataStoragePointer(){
+      return (m_dataStoragePointer);
+    }
 
-    m_allocatedTuples += m_tuplesPerBlock;
+    void setPoolStoragePointer(void* ptr){
+      m_poolStoragePointer = ptr;
+    }
+
+    void* getPoolStoragePointer(){
+      return (m_poolStoragePointer);
+    }
+
+    int getDataBlockCount(){
+      return (m_dataBlockCount++) ;
+    }
+
+    void displayDataStorageMap(){
+      std::cout<<"Data Storage Map :: "<<this->name()<<endl;
+      for(map<int, pair<int,int> >::const_iterator itr = m_dataStorageMap.begin(); itr != m_dataStorageMap.end(); ++itr){
+	std::cout << itr->first << " : " << itr->second.first << " " << itr->second.second << "\n";
+      }
+    }
+
+  };
+
 }
 
-}
-
-#endif
+#endif /* HSTOREMMAPPERSISTENTTABLE_H */

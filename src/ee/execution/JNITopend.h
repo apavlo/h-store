@@ -19,7 +19,6 @@
 #define JNITOPEND_H_
 #include "common/Topend.h"
 #include "common/FatalException.hpp"
-#include "common/MMAP_Pool.hpp"
 #include <jni.h>
 
 namespace voltdb {
@@ -30,7 +29,7 @@ public:
     ~JNITopend();
 
     inline JNITopend* updateJNIEnv(JNIEnv *env) { m_jniEnv = env; return this; }
-    int loadNextDependency(int32_t dependencyId, MMAP_Pool *stringPool, Table* destination);
+    int loadNextDependency(int32_t dependencyId, Pool *stringPool, Table* destination);
     void crashVoltDB(FatalException e);
 
 private:

@@ -28,6 +28,7 @@
 #include "common/ValueFactory.hpp"
 #include "execution/VoltDBEngine.h"
 #include "storage/persistenttable.h"
+#include "storage/mmap_persistenttable.h"
 #include "storage/tablefactory.h"
 #include "storage/tableutil.h"
 #include "indexes/tableindex.h"
@@ -40,9 +41,9 @@ using namespace voltdb;
 
 string genRandomString(const int len);
 
-class MmapPersistentTableTest : public Test {
+class MMAP_PersistentTableTest : public Test {
 public:
-    MmapPersistentTableTest() {
+    MMAP_PersistentTableTest() {
         m_engine = new voltdb::VoltDBEngine();
         m_engine->initialize(1,1, 0, 0, "");
 
@@ -110,10 +111,9 @@ public:
         m_engine->setUndoToken(INT64_MIN + 1);
     }
 
-    ~MmapPersistentTableTest() {
+    ~MMAP_PersistentTableTest() {
         delete m_engine;
-        // Freed automatically by munmap
-        //delete m_table;
+        delete m_table;
         voltdb::TupleSchema::freeTupleSchema(m_primaryKeyIndexSchema);
     }
 
@@ -200,7 +200,7 @@ string genRandomString(const int len) {
     return randStr;
 }
 
-TEST_F(MmapPersistentTableTest, TableAllocationTest) {
+TEST_F(MMAP_PersistentTableTest, TableAllocationTest) {
     initTable(true);
     tableutil::addRandomTuples(m_table, 10);
     ASSERT_EQ( m_table->activeTupleCount(), 10);

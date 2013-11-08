@@ -18,7 +18,6 @@
 #ifndef IPCTOPEND_H_
 #define IPCTOPEND_H_
 #include "common/Topend.h"
-#include "common/MMAP_Pool.hpp"
 #include "common/FatalException.hpp"
 
 class VoltDBIPC;
@@ -28,7 +27,7 @@ namespace voltdb {
 class IPCTopend : public Topend {
 public:
     IPCTopend( VoltDBIPC *vdbipc);
-    int loadNextDependency(int32_t dependencyId, MMAP_Pool *stringPool, Table* destination);
+    int loadNextDependency(int32_t dependencyId, Pool *stringPool, Table* destination);
     void crashVoltDB(FatalException e);
 
 private:

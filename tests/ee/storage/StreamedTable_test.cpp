@@ -26,7 +26,6 @@
 #include "harness.h"
 
 #include "common/executorcontext.hpp"
-#include "common/MMAP_Pool.hpp"
 #include "common/UndoQuantum.h"
 #include "common/Topend.h"
 #include "common/FatalException.hpp"
@@ -72,7 +71,7 @@ class MockTopend : public Topend {
     }
 
     virtual int loadNextDependency(
-        int32_t dependencyId, MMAP_Pool *pool, Table* destination)
+        int32_t dependencyId, Pool *pool, Table* destination)
     {
         return 0;
     }
@@ -90,7 +89,7 @@ public:
     StreamedTableTest() {
         srand(0);
         m_topend = new MockTopend();
-        m_pool = new MMAP_Pool();
+        m_pool = new Pool();
         m_quantum =
           new (m_pool->allocate(sizeof(UndoQuantum)))
           UndoQuantum(0, m_pool);
@@ -141,7 +140,7 @@ public:
 
 protected:
     MockTopend *m_topend;
-    MMAP_Pool *m_pool;
+    Pool *m_pool;
     UndoQuantum *m_quantum;
     ExecutorContext *m_context;
 
