@@ -4,15 +4,15 @@ import org.voltdb.SQLStmt;
 import org.voltdb.StmtInfo;
 import org.voltdb.VoltTrigger;
 
-public class SimpleTriggerEight extends VoltTrigger {
+public class SimpleTrigger27 extends VoltTrigger {
 
     @Override
     protected String toSetStreamName() {
-        return "S8";
+        return "S27";
     }
 
     public final SQLStmt insertS2 = new SQLStmt(
-        "INSERT INTO S9 (value) SELECT * FROM S8;"
+        "INSERT INTO S28 (value) SELECT * FROM S27;"
     );
     
 }
