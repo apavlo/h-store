@@ -219,6 +219,49 @@ SHAREDLIB_JNIEXPORT jlong JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeCrea
     return reinterpret_cast<jlong>(engine);
 }
 /**
+ * WARNING: Adding MMAP support to VoltDBEngine
+ * Just creates a new VoltDBEngine object and retunrs it to Java.
+ * Never fail to destroy() for the VoltDBEngine* once you call this method
+ * NOTE: Call initialize() separately for initialization.
+ * This does strictly nothing so that this method never throws an exception.
+ * @return the created VoltDBEngine pointer casted to jlong.
+*/
+SHAREDLIB_JNIEXPORT jlong JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeCreateWithMMAP(JNIEnv *env, jobject obj, jboolean isSunJVM) {
+    // obj is the instance pointer of the ExecutionEngineJNI instance
+    // that is creating this native EE. Turn this into a global reference
+    // and only use that global reference for calling back to Java.
+    // The jobject parameter here (and in all the other native interfaces)
+    // is a local reference and only valid until the return of the
+    // native invocation. Since calling patterns like java->ee->java->ee-
+    // exist, the local jobject pointers are basically uncacheable. The
+    // second java->ee call may generate a new local reference that would
+    // be invalid in the previous stack frames (after the return of the
+    // last ee native call.)
+
+    jobject java_ee = env->NewGlobalRef(obj);
+    if (java_ee == NULL) {
+        assert(!"Failed to allocate global reference to java EE.");
+        throw std::exception();
+        return 0;
+    }
+    JavaVM *vm;
+    env->GetJavaVM(&vm);
+    currentVM = vm;
+    if (isSunJVM == JNI_TRUE)
+        setupSigHandler();
+    JNITopend *topend = NULL;
+    VoltDBEngine *engine = NULL;
+    try {
+        topend = new JNITopend(env, java_ee);
+        engine = new VoltDBEngine( topend, JNILogProxy::getJNILogProxy(env, vm), true);
+    } catch (FatalException e) {
+        if (topend != NULL) {
+            topend->crashVoltDB(e);
+        }
+    }
+    return reinterpret_cast<jlong>(engine);
+}
+/**
  * Releases all resources held in the execution engine.
  * @param engine_ptr the VoltDBEngine pointer to be destroyed
  * @return error code
@@ -1248,7 +1291,7 @@ SHAREDLIB_JNIEXPORT jboolean JNICALL Java_org_voltdb_utils_ThreadUtils_setThread
         }
     }
       
-    int errno = 0 ; 
+    int errno ; 
     int result = sched_setaffinity(0, sizeof(mask), &mask);
     if (result == -1) {
         char buff[256];

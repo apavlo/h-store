@@ -43,6 +43,7 @@ import org.voltdb.utils.DBBPool.BBContainer;
 
 import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.PartitionExecutor;
+import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 
@@ -113,7 +114,14 @@ public class ExecutionEngineJNI extends ExecutionEngine {
          * EE needs this info in order to decide whether it's safe to install
          * the signal handler or not.
          */
-        pointer = nativeCreate(System.getProperty("java.vm.vendor", "xyz").toLowerCase().contains("sun microsystems"));
+	HStoreConf hstore_conf = executor.getHStoreConf();
+	boolean enableMMAP = hstore_conf.site.storage_mmap ;
+
+        if(enableMMAP == false)
+	  pointer = nativeCreate(System.getProperty("java.vm.vendor", "xyz").toLowerCase().contains("sun microsystems"));
+	else
+	  pointer = nativeCreateWithMMAP(System.getProperty("java.vm.vendor", "xyz").toLowerCase().contains("sun microsystems"));
+	
         nativeSetLogLevels(this.pointer, EELoggers.getLogLevels());
         int errorCode =
             nativeInitialize(

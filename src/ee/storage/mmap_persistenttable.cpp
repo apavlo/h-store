@@ -143,8 +143,9 @@ namespace voltdb {
       throwFatalException("Failed to open file in directory %s.", MMAP_Dir.c_str());
     }
 
+    /*
     struct stat m_info;
-
+    
     if (fstat(MMAP_fd, &m_info) != 0){
       VOLT_ERROR("fstat() error");
     }
@@ -152,6 +153,7 @@ namespace voltdb {
       VOLT_WARN("FD: %d Inode:  %d Dev : %d Links : %d ",
 		MMAP_fd, (int) m_info.st_ino, (int) m_info.st_dev, (int)m_info.st_nlink);
     }
+    */
     
     ret = ftruncate(MMAP_fd, file_size) ;
     if(ret < 0){

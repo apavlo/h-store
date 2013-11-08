@@ -365,7 +365,7 @@ protected:
     // partition key
     int m_partitionColumn;
     
-    // TODO: Partition id of where this table is stored in
+    // Partition id of where this table is stored in
     int32_t m_partitionId;
 
     // list of materialized views that are sourced from this table

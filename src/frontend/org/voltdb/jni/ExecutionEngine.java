@@ -465,6 +465,15 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
     */
     protected native long nativeCreate(boolean isSunJVM);
     /**
+     * WARNING : Adding MMAP Support to VoltDBEngine
+     * Just creates a new VoltDBEngine object and returns it to Java.
+     * Never fail to destroy() for the VoltDBEngine* once you call this method
+     * NOTE: Call initialize() separately for initialization.
+     * This does strictly nothing so that this method never throws an exception.
+     * @return the created VoltDBEngine pointer casted to jlong.
+    */
+    protected native long nativeCreateWithMMAP(boolean isSunJVM);
+    /**
      * Releases all resources held in the execution engine.
      * @param pointer the VoltDBEngine pointer to be destroyed
      * @return error code

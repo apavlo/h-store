@@ -129,6 +129,28 @@ VoltDBEngine::VoltDBEngine(Topend *topend, LogProxy *logProxy)
     m_executorContext = NULL;
 }
 
+VoltDBEngine::VoltDBEngine(Topend *topend, LogProxy *logProxy, bool enableMMAP)
+    : m_currentUndoQuantum(NULL),
+      m_catalogVersion(0),
+      m_staticParams(MAX_PARAM_COUNT),
+      m_currentOutputDepId(-1),
+      m_currentInputDepId(-1),
+      m_isELEnabled(false),
+      m_stringPool(16777216, 2, enableMMAP), /** Enable MMAP Pool **/
+      m_numResultDependencies(0),
+      m_logManager(logProxy),
+      m_templateSingleLongTable(NULL),
+      m_topend(topend)
+{
+    m_currentUndoQuantum = new DummyUndoQuantum();
+
+    // init the number of planfragments executed
+    m_pfCount = 0;
+
+    // require a site id, at least, to inititalize.
+    m_executorContext = NULL;
+}
+
 bool VoltDBEngine::initialize(
         int32_t clusterIndex,
         int32_t siteId,

@@ -54,6 +54,7 @@
 #include "json_spirit/json_spirit.h"
 #include "catalog/database.h"
 #include "common/ids.h"
+#include "common/Pool.hpp"
 #include "common/serializeio.h"
 #include "common/types.h"
 #include "common/valuevector.h"
@@ -130,6 +131,9 @@ class __attribute__((visibility("default"))) VoltDBEngine {
         }
 
         VoltDBEngine(Topend *topend, LogProxy *logProxy);
+
+	VoltDBEngine(Topend *topend, LogProxy *logProxy, bool enableMMAP);
+	
         bool initialize(
                 int32_t clusterIndex,
                 int32_t siteId,
