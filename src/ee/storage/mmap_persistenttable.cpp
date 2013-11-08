@@ -51,6 +51,8 @@
 #include "boost/scoped_ptr.hpp"
 #include "storage/persistenttable.h"
 #include "storage/mmap_persistenttable.h"
+#include <sys/stat.h>
+#include <unistd.h>
 
 #include "common/debuglog.h"
 #include "common/serializeio.h"
@@ -112,7 +114,7 @@ namespace voltdb {
     const std::string NVM_fileType(".nvm");
     const std::string pathSeparator("/");
 
-    off_t file_size = 128 * 1024 * 1024 ; // 128 MB
+    off_t file_size = 16 * 1024 * 1024 ; // 16 MB
 
     /** Get location for mmap'ed files **/
     MMAP_Dir = m_executorContext->getDBDir();
@@ -132,7 +134,7 @@ namespace voltdb {
     MMAP_file_name += m_name ;
     MMAP_file_name += NVM_fileType ;
 
-    VOLT_WARN("MMAP : MMAP_file_name :: %s\n", MMAP_file_name.c_str());
+    VOLT_WARN("MMAP : MMAP_file_name :: %s ", MMAP_file_name.c_str());
 
     MMAP_fd = open(MMAP_file_name.c_str(), O_RDWR|O_CREAT, S_IRUSR|S_IWUSR|S_IRGRP );
     if (MMAP_fd < 0) {
@@ -141,8 +143,16 @@ namespace voltdb {
       throwFatalException("Failed to open file in directory %s.", MMAP_Dir.c_str());
     }
 
-    VOLT_WARN("MMAP : Set fd :: %d\n", MMAP_fd);
+    struct stat m_info;
 
+    if (fstat(MMAP_fd, &m_info) != 0){
+      VOLT_ERROR("fstat() error");
+    }
+    else {
+      VOLT_WARN("FD: %d Inode:  %d Dev : %d Links : %d ",
+		MMAP_fd, (int) m_info.st_ino, (int) m_info.st_dev, (int)m_info.st_nlink);
+    }
+    
     ret = ftruncate(MMAP_fd, file_size) ;
     if(ret < 0){
       VOLT_ERROR("MMAP : initialization error.");
@@ -182,7 +192,7 @@ namespace voltdb {
     char* memory = NULL ;
 
     m_index = getDataBlockCount();
-    VOLT_WARN("MMAP : PId:: %d Index:: %d Table: %s  Bytes:: %d \n",
+    VOLT_TRACE("MMAP : PId:: %d Index:: %d Table: %s  Bytes:: %d ",
     m_executorContext->getPartitionId(), m_index, this->name().c_str(), bytes);
 
     /**
@@ -202,7 +212,10 @@ namespace voltdb {
 
     memory = ((char*)getDataStoragePointer()) + fileOffset;
 
-    VOLT_WARN("MMAP : Index:: %d Table: %s :: Memory Pointer : %p \n",
+    // DEBUG
+    printMetadata();
+    
+    VOLT_TRACE("MMAP : Index:: %d Table: %s :: Memory Pointer : %p ",
     m_index, this->name().c_str(), memory);
 
     if (memory == NULL) {
@@ -215,5 +228,6 @@ namespace voltdb {
 
     m_allocatedTuples += m_tuplesPerBlock;
   }
+
 
 }

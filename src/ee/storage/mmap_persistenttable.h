@@ -172,12 +172,14 @@ namespace voltdb {
       return (m_dataBlockCount++) ;
     }
 
-    void displayDataStorageMap(){
-      std::cout<<"Data Storage Map :: "<<this->name()<<endl;
+    void printMetadata(){
+      VOLT_DEBUG("Data Storage Map :: %s ",this->name().c_str());
+      VOLT_DEBUG("Index :: Offset  Size  ");
       for(map<int, pair<int,int> >::const_iterator itr = m_dataStorageMap.begin(); itr != m_dataStorageMap.end(); ++itr){
-	std::cout << itr->first << " : " << itr->second.first << " " << itr->second.second << "\n";
+	 VOLT_DEBUG("%d :: %d %d ",itr->first, itr->second.first,  itr->second.second);
       }
     }
+
 
   };
 
