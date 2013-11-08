@@ -107,6 +107,7 @@ parser = argparse.ArgumentParser(description='This is a benchmark auto-run scrip
 parser.add_argument('-p','--project', help='Benchmark name', default='tpcc')
 parser.add_argument('-o','--output', help='output file', default=defaultoutput)
 parser.add_argument('--stop', help='indicate if the threshold will be used to stop expeiments', action='store_true')
+parser.add_argument('--log', help='indicate if system will run log', action='store_true')
 parser.add_argument('--tmin', help='min - thread per host', type=int, default=1)
 parser.add_argument('--tmax', help='max - thread per host', type=int, default=1)
 parser.add_argument('--tstep', help='step - thread per host', type=int, default=5)
@@ -132,6 +133,7 @@ rstep       = args.rstep
 lmin	    = args.lmin
 lmax	    = args.lmax
 lstep       = args.lstep
+llog        = args.log
 
 print projectname, resultfile, stopflag, tmin, tmax, tstep, rmin, rmax, rstep, lmin, lmax, lstep
 
@@ -156,7 +158,8 @@ while client_threads_per_host <= tmax:
 	client_txnrate = rmin
 	while client_txnrate <= rmax:
 		site_commandlog_timeout	= lmin
-		while site_commandlog_timeout <= lmax:
+		if llog==False:
+			print "no logging mechanism executed in system..."
 			str_antcmd 			= "ant hstore-benchmark"
 			str_project 			= " -Dproject=" + projectname
 			str_client_blocking 		= " -Dclient.output_results_json=" + "true"
@@ -164,10 +167,11 @@ while client_threads_per_host <= tmax:
 			str_client_threads_per_host 	= " -Dclient.threads_per_host=" + "{0:d}".format(client_threads_per_host)
 			str_client_txnrate		= " -Dclient.txnrate=" + "{0:d}".format(client_txnrate)
 			str_site_commandlog_timeout = " -Dsite.commandlog_timeout=" + "{0:d}".format(site_commandlog_timeout)
+			str_site_commandlog_enable = " -Dsite.commandlog_enable=true"
 		
 			basic = "{0:d}".format(client_threads_per_host) + " " + "{0:d}".format(client_txnrate) + " " +  "{0:d}".format(site_commandlog_timeout)
 		
-			runcmd = str_antcmd + str_project + str_client_blocking + str_client_output_results_json + str_client_threads_per_host + str_client_txnrate + str_site_commandlog_timeout
+			runcmd = str_antcmd + str_project + str_client_blocking + str_client_output_results_json + str_client_threads_per_host + str_client_txnrate + str_site_commandlog_enable + str_site_commandlog_timeout
 		
 			print "running benchmark with following configuration:"
 			print runcmd
@@ -203,7 +207,61 @@ while client_threads_per_host <= tmax:
 				thmeanvalue, thstdvalue = getMeanAndStd(throughputarray)
 				lameanvalue, lastdvalue = getMeanAndStd(latencyarray)
 				if (thstdvalue/thmeanvalue) < stdev_threshold and (lastdvalue/lameanvalue) < stdev_threshold :
-					break;
+					break
+				##endif
+			##endif
+			continue
+		##endif	
+		print "we will deal with logging timeout situation"
+		while site_commandlog_timeout <= lmax:
+			str_antcmd 			= "ant hstore-benchmark"
+			str_project 			= " -Dproject=" + projectname
+			str_client_blocking 		= " -Dclient.output_results_json=" + "true"
+			str_client_output_results_json 	= " -Dclient.bloking=" + "true"
+			str_client_threads_per_host 	= " -Dclient.threads_per_host=" + "{0:d}".format(client_threads_per_host)
+			str_client_txnrate		= " -Dclient.txnrate=" + "{0:d}".format(client_txnrate)
+			str_site_commandlog_timeout = " -Dsite.commandlog_timeout=" + "{0:d}".format(site_commandlog_timeout)
+			str_site_commandlog_enable = " -Dsite.commandlog_enable=true"
+		
+			basic = "{0:d}".format(client_threads_per_host) + " " + "{0:d}".format(client_txnrate) + " " +  "{0:d}".format(site_commandlog_timeout)
+		
+			runcmd = str_antcmd + str_project + str_client_blocking + str_client_output_results_json + str_client_threads_per_host + str_client_txnrate + str_site_commandlog_enable + str_site_commandlog_timeout
+		
+			print "running benchmark with following configuration:"
+			print runcmd
+	
+			# run the benchmark by calling the runcmd with os
+			f = os.popen( runcmd )
+		
+			# get the benchmark running result, and print it on screen
+			result = f.read()
+			#print "This benchmark result is :", result
+		        singlereport = generateReport(result)
+			basic += getReportFromList(singlereport)
+			file.write(basic+"\n")
+	
+			resultlist.append(singlereport)
+		
+			site_commandlog_timeout += lstep
+	
+			if stopflag == False:
+				continue
+			##endif
+			
+			#determien if we should stop experiment, because the stdev/average is so little
+			if len(resultlist) >= number_need_to_determine:
+				latestresult = resultlist[len(resultlist)-number_need_to_determine::1]
+	        	        throughputarray = array('f')
+				latencyarray = array('f')	
+				for item in latestresult:
+					#print item
+					throughputarray.append(float(item[0]))
+					latencyarray.append(float(item[1]))
+				##endfor
+				thmeanvalue, thstdvalue = getMeanAndStd(throughputarray)
+				lameanvalue, lastdvalue = getMeanAndStd(latencyarray)
+				if (thstdvalue/thmeanvalue) < stdev_threshold and (lastdvalue/lameanvalue) < stdev_threshold :
+					break
 				##endif
 			##endif
 		##endwhile
