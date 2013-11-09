@@ -79,12 +79,14 @@ def generateReport(benchmark_result):
 	#analyze the content
 	#print "This benchmark result is :", jsonsnippet
 	return anlyze_result
+##enddef
 
 def getReportFromList(list):
 	report = ""
 	for item in list:
 		report += " " + item
 	return report
+##enddef
 
 # get mean, std for array
 def getMeanAndStd(a):
@@ -92,6 +94,7 @@ def getMeanAndStd(a):
 	mean = sum(a) / n
 	std = math.sqrt(sum((x-mean)**2 for x in a) / n) 
 	return mean, std
+##enddef
 
 # get the args from command line
 # set default values for parameters needed by script
@@ -104,12 +107,16 @@ parser = argparse.ArgumentParser(description='This is a benchmark auto-run scrip
 parser.add_argument('-p','--project', help='Benchmark name', default='tpcc')
 parser.add_argument('-o','--output', help='output file', default=defaultoutput)
 parser.add_argument('--stop', help='indicate if the threshold will be used to stop expeiments', action='store_true')
-parser.add_argument('--tmin', help='min - thread per host', type=int, default=10)
-parser.add_argument('--tmax', help='max - thread per host', type=int, default=10)
+parser.add_argument('--log', help='indicate if system will run log', action='store_true')
+parser.add_argument('--tmin', help='min - thread per host', type=int, default=1)
+parser.add_argument('--tmax', help='max - thread per host', type=int, default=1)
+parser.add_argument('--tstep', help='step - thread per host', type=int, default=5)
 parser.add_argument('--rmin', help='min - txnrate', type=int, default=1000)
 parser.add_argument('--rmax', help='max - txnrate', type=int, default=1000)
+parser.add_argument('--rstep', help='step - txnrate', type=int, default=100)
 parser.add_argument('--lmin', help='min - log timeout', type=int, default=10)
 parser.add_argument('--lmax', help='max - log timeout', type=int, default=10)
+parser.add_argument('--lstep', help='step - log timeout', type=int, default=10)
 
 
 args = parser.parse_args()
@@ -119,12 +126,16 @@ resultfile  = args.output
 stopflag    = args.stop
 tmin	    = args.tmin
 tmax	    = args.tmax
+tstep       = args.tstep
 rmin	    = args.rmin
 rmax	    = args.rmax
+rstep       = args.rstep
 lmin	    = args.lmin
 lmax	    = args.lmax
+lstep       = args.lstep
+llog        = args.log
 
-print projectname, resultfile, stopflag, tmin, tmax, rmin, rmax, lmin, lmax
+print projectname, resultfile, stopflag, tmin, tmax, tstep, rmin, rmax, rstep, lmin, lmax, lstep
 
 #exit(0)
 
@@ -136,18 +147,19 @@ fields += "Distributed " + "SpecExec " + "THMIN " + "THMAX " + "THSTDDEV " + "LA
 file.write(fields + "\n")
 
 #  make command line to execute benchmark with the indicated configuration
-client_threads_per_host 	= tmin;
-client_txnrate			= rmin
-site_commandlog_timeout		= lmin
 
 number_need_to_determine = 5
 stdev_threshold = 0.03
 
 resultlist =  list()
 
+client_threads_per_host = tmin;
 while client_threads_per_host <= tmax:
+	client_txnrate = rmin
 	while client_txnrate <= rmax:
-		while site_commandlog_timeout <= lmax:
+		site_commandlog_timeout	= lmin
+		if llog==False:
+			print "no logging mechanism executed in system..."
 			str_antcmd 			= "ant hstore-benchmark"
 			str_project 			= " -Dproject=" + projectname
 			str_client_blocking 		= " -Dclient.output_results_json=" + "true"
@@ -155,10 +167,11 @@ while client_threads_per_host <= tmax:
 			str_client_threads_per_host 	= " -Dclient.threads_per_host=" + "{0:d}".format(client_threads_per_host)
 			str_client_txnrate		= " -Dclient.txnrate=" + "{0:d}".format(client_txnrate)
 			str_site_commandlog_timeout = " -Dsite.commandlog_timeout=" + "{0:d}".format(site_commandlog_timeout)
+			str_site_commandlog_enable = " -Dsite.commandlog_enable=false"
 		
 			basic = "{0:d}".format(client_threads_per_host) + " " + "{0:d}".format(client_txnrate) + " " +  "{0:d}".format(site_commandlog_timeout)
 		
-			runcmd = str_antcmd + str_project + str_client_blocking + str_client_output_results_json + str_client_threads_per_host + str_client_txnrate + str_site_commandlog_timeout
+			runcmd = str_antcmd + str_project + str_client_blocking + str_client_output_results_json + str_client_threads_per_host + str_client_txnrate + str_site_commandlog_enable
 		
 			print "running benchmark with following configuration:"
 			print runcmd
@@ -175,10 +188,11 @@ while client_threads_per_host <= tmax:
 	
 			resultlist.append(singlereport)
 		
-			site_commandlog_timeout += 10
+			site_commandlog_timeout += lstep
 	
 			if stopflag == False:
 				continue
+			##endif
 			
 			#determien if we should stop experiment, because the stdev/average is so little
 			if len(resultlist) >= number_need_to_determine:
@@ -186,15 +200,78 @@ while client_threads_per_host <= tmax:
 	        	        throughputarray = array('f')
 				latencyarray = array('f')	
 				for item in latestresult:
-					print item
+					#print item
 					throughputarray.append(float(item[0]))
 					latencyarray.append(float(item[1]))
-				#if ((scipy.std(throughputarray)/scipy.mean(throughputarray)) < stdev_threshold) and ((scipy.std(latencyarray)/scipy.mean(latencyarray)) < stdev_threshold) :i
+				##endfor
 				thmeanvalue, thstdvalue = getMeanAndStd(throughputarray)
 				lameanvalue, lastdvalue = getMeanAndStd(latencyarray)
 				if (thstdvalue/thmeanvalue) < stdev_threshold and (lastdvalue/lameanvalue) < stdev_threshold :
-					break;
-		client_txnrate += 100
-	client_threads_per_host += 5;	
+					break
+				##endif
+			##endif
+			client_txnrate += rstep
+			continue
+		##endif	
+		print "we will deal with logging timeout situation"
+		while site_commandlog_timeout <= lmax:
+			str_antcmd 			= "ant hstore-benchmark"
+			str_project 			= " -Dproject=" + projectname
+			str_client_blocking 		= " -Dclient.output_results_json=" + "true"
+			str_client_output_results_json 	= " -Dclient.bloking=" + "true"
+			str_client_threads_per_host 	= " -Dclient.threads_per_host=" + "{0:d}".format(client_threads_per_host)
+			str_client_txnrate		= " -Dclient.txnrate=" + "{0:d}".format(client_txnrate)
+			str_site_commandlog_timeout = " -Dsite.commandlog_timeout=" + "{0:d}".format(site_commandlog_timeout)
+			str_site_commandlog_enable = " -Dsite.commandlog_enable=true"
+		
+			basic = "{0:d}".format(client_threads_per_host) + " " + "{0:d}".format(client_txnrate) + " " +  "{0:d}".format(site_commandlog_timeout)
+		
+			runcmd = str_antcmd + str_project + str_client_blocking + str_client_output_results_json + str_client_threads_per_host + str_client_txnrate + str_site_commandlog_enable + str_site_commandlog_timeout
+		
+			print "running benchmark with following configuration:"
+			print runcmd
+	
+			# run the benchmark by calling the runcmd with os
+			f = os.popen( runcmd )
+		
+			# get the benchmark running result, and print it on screen
+			result = f.read()
+			#print "This benchmark result is :", result
+		        singlereport = generateReport(result)
+			basic += getReportFromList(singlereport)
+			file.write(basic+"\n")
+	
+			resultlist.append(singlereport)
+		
+			site_commandlog_timeout += lstep
+	
+			if stopflag == False:
+				continue
+			##endif
+			
+			#determien if we should stop experiment, because the stdev/average is so little
+			if len(resultlist) >= number_need_to_determine:
+				latestresult = resultlist[len(resultlist)-number_need_to_determine::1]
+	        	        throughputarray = array('f')
+				latencyarray = array('f')	
+				for item in latestresult:
+					#print item
+					throughputarray.append(float(item[0]))
+					latencyarray.append(float(item[1]))
+				##endfor
+				thmeanvalue, thstdvalue = getMeanAndStd(throughputarray)
+				lameanvalue, lastdvalue = getMeanAndStd(latencyarray)
+				if (thstdvalue/thmeanvalue) < stdev_threshold and (lastdvalue/lameanvalue) < stdev_threshold :
+					break
+				##endif
+			##endif
+		##endwhile
+
+		client_txnrate += rstep
+	##endwhile
+
+	client_threads_per_host += tstep;	
+##endwhile
 
 file.close()
+##end script
