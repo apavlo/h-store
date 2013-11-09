@@ -74,6 +74,7 @@ using namespace voltdb;
 #define NUM_OF_COLUMNS 5
 #define NUM_OF_TUPLES 20
 #define WINDOW_SIZE 10
+#define SLIDE_SIZE 1
 
 voltdb::ValueType COLUMN_TYPES[NUM_OF_COLUMNS]  = { voltdb::VALUE_TYPE_BIGINT,
                                                     voltdb::VALUE_TYPE_TINYINT,
@@ -105,7 +106,7 @@ class WindowTest : public Test {
 
     protected:
         void init() {
-
+        	VOLT_DEBUG("INIT");
             voltdb::CatalogId database_id = 1000;
             std::vector<boost::shared_ptr<const voltdb::TableColumn> > columns;
             char buffer[32];
@@ -123,7 +124,8 @@ class WindowTest : public Test {
             }
             voltdb::TupleSchema *schema = voltdb::TupleSchema::createTupleSchema(columnTypes, columnLengths, columnAllowNull, true);
 
-			window_table = voltdb::TableFactory::getWindowTable(database_id, m_engine->getExecutorContext(), "test_table", schema, columnNames, -1, false, false, WINDOW_SIZE);
+			window_table = voltdb::TableFactory::getWindowTable(database_id, m_engine->getExecutorContext(),
+							"test_table", schema, columnNames, -1, false, false, WINDOW_SIZE, SLIDE_SIZE);
 
 			table = window_table;
 
@@ -147,6 +149,7 @@ TEST_F(WindowTest, ValueTypes) {
     // Make sure that our table has the right types and that when
     // we pull out values from a tuple that it has the right type too
     //
+	VOLT_DEBUG("VALUE TYPES");
     voltdb::TableIterator iterator = this->table->tableIterator();
     voltdb::TableTuple tuple(table->schema());
     while (iterator.next(tuple)) {
@@ -163,11 +166,12 @@ TEST_F(WindowTest, TupleInsert) {
     // need to make sure that the data makes sense
     //
 
+	VOLT_DEBUG("TUPLE INSERT");
     voltdb::TableIterator iterator = this->table->tableIterator();
     //voltdb::TableTuple tuple(table->schema());
 
-    //VOLT_DEBUG("TABLE SIZE: %d", int(table->activeTupleCount()));
-    //VOLT_DEBUG("Current Window Queue: %s", table->debug().c_str());
+    VOLT_DEBUG("TABLE SIZE: %d", int(table->activeTupleCount()));
+    VOLT_DEBUG("Current Window Queue: %s", table->debug().c_str());
 
     //
     // Make sure that if we insert one tuple, the window size remains 10
@@ -225,6 +229,7 @@ TEST_F(WindowTest, TupleUpdate) {
     //      (1) Updating a tuple sets the values correctly
     //      (2) Updating a tuple without changing the values doesn't do anything
     //
+	VOLT_DEBUG("TUPLE UPDATE");
     std::vector<int64_t> totals;
     std::vector<int64_t> totalsNotSlim;
     totals.reserve(NUM_OF_COLUMNS);
@@ -286,6 +291,7 @@ TEST_F(WindowTest, TupleDelete) {
     // We are just going to delete all of the odd tuples, then make
     // sure they don't exist anymore
     //
+	VOLT_DEBUG("TUPLE DELETE");
 	VOLT_DEBUG("WINDOW BEFORE DELETE: %s", table->debug().c_str());
     voltdb::TableIterator iterator = this->table->tableIterator();
     voltdb::TableTuple tuple(table->schema());

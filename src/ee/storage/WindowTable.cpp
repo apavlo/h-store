@@ -68,10 +68,12 @@ namespace voltdb {
 #define TABLE_BLOCKSIZE 2097152
 #define MAX_EVICTED_TUPLE_SIZE 2500
 
-WindowTable::WindowTable(ExecutorContext *ctx, bool exportEnabled, int windowSize) : PersistentTable(ctx, exportEnabled)
+WindowTable::WindowTable(ExecutorContext *ctx, bool exportEnabled, int windowSize, int slideSize) : PersistentTable(ctx, exportEnabled)
 {
 	windowQueue = std::list<TableTuple>();
+	stagingQueue = std::list<TableTuple>();
 	this->windowSize = windowSize;
+	this->slideSize = slideSize;
 }
 
 WindowTable::~WindowTable()
