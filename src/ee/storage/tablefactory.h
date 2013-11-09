@@ -181,7 +181,8 @@ namespace voltdb {
 										 int partitionColumn,
 										 bool exportEnabled,
 										 bool exportOnly,
-										 int windowSize);
+										 int windowSize,
+										 int slideSize=1);
 
 		/**
 		 * Creates an empty window table with given ID, name, columns and PK index.
@@ -195,7 +196,8 @@ namespace voltdb {
 										 int partitionColumn,
 										 bool exportEnabled,
 										 bool exportOnly,
-										 int windowSize);
+										 int windowSize,
+										 int slideSize=1);
 
 		/**
 		 * Creates an empty window table with given name, columns and indexes.
@@ -209,7 +211,8 @@ namespace voltdb {
 										 int partitionColumn,
 										 bool exportEnabled,
 										 bool exportOnly,
-										 int windowSize);
+										 int windowSize,
+										 int slideSize=1);
 
 
 		/**
@@ -225,7 +228,8 @@ namespace voltdb {
 										 int partitionColumn,
 										 bool exportEnabled,
 										 bool exportOnly,
-										 int windowSize);
+										 int windowSize,
+										 int slideSize=1);
 
 		/**
 		 * Creates an empty window table with given name, columns, PK index and indexes.
@@ -240,7 +244,8 @@ namespace voltdb {
 										 int partitionColumn,
 										 bool exportEnabled,
 										 bool exportOnly,
-										 int windowSize);
+										 int windowSize,
+										 int slideSize=1);
 
 
 		/**
@@ -257,7 +262,8 @@ namespace voltdb {
 										 int partitionColumn,
 										 bool exportEnabled,
 										 bool exportOnly,
-										 int windowSize);
+										 int windowSize,
+										 int slideSize=1);
         
         /**
          * Creates an empty temp table with given name and columns.

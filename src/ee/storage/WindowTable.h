@@ -78,7 +78,7 @@ class WindowTable : public PersistentTable {
 
   public:
 	~WindowTable();
-	WindowTable(ExecutorContext *ctx, bool exportEnabled, int windowSize);
+	WindowTable(ExecutorContext *ctx, bool exportEnabled, int windowSize, int slideSize = 1);
 
 	// ------------------------------------------------------------------
 	// OPERATIONS
@@ -119,8 +119,9 @@ class WindowTable : public PersistentTable {
 
   protected:
 	std::list<TableTuple> windowQueue;
+	std::list<TableTuple> stagingQueue;
 	int windowSize;
-
+	int slideSize;
 
 };
 }
