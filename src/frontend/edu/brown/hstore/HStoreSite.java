@@ -1707,6 +1707,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     // added by hawk, 2013/11/1
     public void invocationTriggerProcedureProcess(long clientHandle, Procedure procedure) {
       
+      //System.out.println("hawk - firing frontend trigger 1:" + procedure.getName());
+
       long timestamp = -1;
       if (hstore_conf.global.nanosecond_latencies) {
           timestamp = System.nanoTime();
@@ -1757,6 +1759,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
       // 2012-12-24 - We always want the network threads to do the initialization
       if (trace.val)
           LOG.trace("Initializing transaction request using network processing thread");
+      //System.out.println("hawk - firing frontend trigger 2:" + procedure.getName());
       LocalTransaction ts = this.txnInitializer.createLocalTransaction(
                                       null,
                                       timestamp,

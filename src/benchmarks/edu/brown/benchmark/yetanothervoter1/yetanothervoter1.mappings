@@ -1,0 +1,11 @@
+{"MAPPINGS": [
+ {
+  "STATEMENT": "{'Initialize':'insertContestantStmt'}",
+  "STATEMENT_INDEX": 5,
+  "STATEMENT_PARAMETER": "{'Initialize.insertContestantStmt':'1'}",
+  "STATEMENT_COLUMN": "{'CONTESTANTS':'CONTESTANT_NUMBER'}",
+  "PROCEDURE_PARAMETER": "{'Initialize':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ }
+]}

@@ -857,6 +857,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                                 }
                                 for(ProcedureRef procedureRef : procedures)
                                 {
+                                    //System.out.println("hawk - preparing frontend triggers: " + key +" - " + procedureRef.getProcedure().getName());
                                     triggerProcedures.add(procedureRef.getProcedure());
                                 }
                                 m_triggerProcedures.put(key, triggerProcedures);
@@ -3110,16 +3111,29 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             // fire the fragmentIds related procedures
             // step one - get all the related procedures
             String key = Arrays.toString(fragmentIds);
-            if(m_triggerProcedures.containsKey(key)==true)
+            //System.out.println("hawk - checking frontend trigger with fragments 0:" + key);
+            key = key.replace("[", "");
+            key = key.replace("]", "");
+            key = key.replace(", ", "-");
+            String delimiter = "-";
+            String[] keys = key.split(delimiter);
+            for(int ik=0; ik< keys.length; ik++)
             {
-                for(Procedure procedure : m_triggerProcedures.get(key))
+                key = "[" + keys[ik] +"]";
+                //System.out.println("hawk - checking frontend trigger with fragments 1:" + key);
+                if(m_triggerProcedures.containsKey(key)==true)
                 {
-                    // step two - iterate to fire them
-                    // first way - direct execute such procedure in HStoreSite (Server side)
-                    if(procedure.getBedefault() == true)
-                        this.hstore_site.invocationTriggerProcedureProcess(ts.getClientHandle(), procedure);
-                    else // second way - send it back to client to run it (Client side)
-                        ts.addFollowingProcedure(procedure);
+                    for(Procedure procedure : m_triggerProcedures.get(key))
+                    {
+                        // step two - iterate to fire them
+                        // first way - direct execute such procedure in HStoreSite (Server side)
+                        //System.out.println("hawk - firing frontend trigger 0:" + procedure.getName());
+    
+                        if(procedure.getBedefault() == true)
+                            this.hstore_site.invocationTriggerProcedureProcess(ts.getClientHandle(), procedure);
+                        else // second way - send it back to client to run it (Client side)
+                            ts.addFollowingProcedure(procedure);
+                    }
                 }
             }
             // ended by hawk
