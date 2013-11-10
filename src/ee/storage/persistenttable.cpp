@@ -58,6 +58,7 @@
 #include "common/executorcontext.hpp"
 #include "common/FatalException.hpp"
 #include "common/types.h"
+#include "common/Pool.hpp"
 #include "common/RecoveryProtoMessage.h"
 #include "common/ValueFactory.hpp"
 #include "indexes/tableindex.h"
@@ -117,6 +118,18 @@ PersistentTable::PersistentTable(ExecutorContext *ctx, bool exportEnabled) :
                                            m_executorContext->m_siteId,
                                            m_executorContext->m_lastTickTime);
     }
+
+     /**
+      *  Choosing whether to use malloc Pool or MMAP Pool
+      */
+
+    if(ctx->isMMAPEnabled() == false)
+      m_pool = new Pool();
+    else
+      m_pool = new Pool();
+
+    //m_pool = new Pool(16*1024*1024, 1024, this->name, true);
+
 }
 
 PersistentTable::~PersistentTable() {
@@ -550,7 +563,7 @@ bool PersistentTable::insertTuple(TableTuple &source) {
     //
     // Then copy the source into the target
     //
-    m_tmpTarget1.copyForPersistentInsert(source); // tuple in freelist must be already cleared
+    m_tmpTarget1.copyForPersistentInsert(source, m_pool); // tuple in freelist must be already cleared
     m_tmpTarget1.setDeletedFalse();
 
     /**

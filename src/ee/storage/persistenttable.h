@@ -62,6 +62,7 @@
 #include "common/ids.h"
 #include "common/valuevector.h"
 #include "common/tabletuple.h"
+#include "common/Pool.hpp"
 #include "storage/table.h"
 #include "storage/TupleStreamWrapper.h"
 #include "storage/TableStats.h"
@@ -132,6 +133,9 @@ class PersistentTable : public Table {
     PersistentTable();
     PersistentTable(PersistentTable const&);
     PersistentTable operator=(PersistentTable const&);
+
+    /** MMAP Pool **/
+    Pool* m_pool;
 
   public:
     virtual ~PersistentTable();

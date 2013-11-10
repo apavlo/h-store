@@ -89,98 +89,12 @@
 #include <map>
 
 namespace voltdb {
-
+  
   MMAP_PersistentTable::MMAP_PersistentTable(ExecutorContext *ctx, const std::string &name, bool exportEnabled) :
   PersistentTable(ctx,exportEnabled),
-  m_dataBlockCount(0), m_poolBlockCount(0),
-  m_dataStoragePointer(NULL), m_poolStoragePointer(NULL),
-  m_name(name)
+  m_name(name),
+  m_data_manager(16*1024*1024, m_executorContext->getDBDir()+"/"+name+"_Data", true) // 16 MB - backed by a file
   {
-
-    initDataStorage();
-
-  }
-
-  /*
-   * Invoked only once to set up MMAP Data Storage
-   */
-  void MMAP_PersistentTable::initDataStorage(){
-
-    int MMAP_fd, ret;
-    std::string MMAP_Dir, MMAP_file_name;
-    //long file_size;
-    char* memory;
-
-    const std::string NVM_fileType(".nvm");
-    const std::string pathSeparator("/");
-
-    off_t file_size = 16 * 1024 * 1024 ; // 16 MB
-
-    /** Get location for mmap'ed files **/
-    MMAP_Dir = m_executorContext->getDBDir();
-    //file_size = m_executorContext->getFileSize();
-
-    VOLT_WARN("MMAP : DBdir:: --%s--\n", MMAP_Dir.c_str());
-    //VOLT_WARN("MMAP : File Size :: %ld\n", file_size);
-
-    if(MMAP_Dir.empty()){
-      VOLT_ERROR("MMAP : initialization error.");
-      VOLT_ERROR("MMAP_Dir is empty \n");
-      throwFatalException("Failed to get DB Dir.");
-    }
-
-    /** Get an unique file object for the table **/
-    MMAP_file_name  = MMAP_Dir + pathSeparator ;
-    MMAP_file_name += m_name ;
-    MMAP_file_name += NVM_fileType ;
-
-    VOLT_WARN("MMAP : MMAP_file_name :: %s ", MMAP_file_name.c_str());
-
-    MMAP_fd = open(MMAP_file_name.c_str(), O_RDWR|O_CREAT, S_IRUSR|S_IWUSR|S_IRGRP );
-    if (MMAP_fd < 0) {
-      VOLT_ERROR("MMAP : initialization error.");
-      VOLT_ERROR("Failed to open file %s : %s", MMAP_file_name.c_str(), strerror(errno));
-      throwFatalException("Failed to open file in directory %s.", MMAP_Dir.c_str());
-    }
-
-    /*
-    struct stat m_info;
-    
-    if (fstat(MMAP_fd, &m_info) != 0){
-      VOLT_ERROR("fstat() error");
-    }
-    else {
-      VOLT_WARN("FD: %d Inode:  %d Dev : %d Links : %d ",
-		MMAP_fd, (int) m_info.st_ino, (int) m_info.st_dev, (int)m_info.st_nlink);
-    }
-    */
-    
-    ret = ftruncate(MMAP_fd, file_size) ;
-    if(ret < 0){
-      VOLT_ERROR("MMAP : initialization error.");
-      VOLT_ERROR("Failed to truncate file %d : %s", MMAP_fd, strerror(errno));
-      throwFatalException("Failed to truncate file in directory %s.", MMAP_Dir.c_str());
-    }
-
-    /*
-     * Create a single large mapping and chunk it later during block allocation
-     */
-    memory = (char*) mmap(0, file_size , PROT_READ | PROT_WRITE , MAP_PRIVATE, MMAP_fd, 0);
-
-    if (memory == MAP_FAILED) {
-      VOLT_ERROR("MMAP : initialization error.");
-      VOLT_ERROR("Failed to map file into memory.");
-      throwFatalException("Failed to map file.");
-    }
-
-    // Setting mmap pointer in table
-    setDataStoragePointer(memory);
-
-    /**
-     * Closing the file descriptor does not unmap the region as mmap() automatically adds a reference
-     */
-    close(MMAP_fd);
-
   }
 
   inline void MMAP_PersistentTable::allocateNextBlock() {
@@ -190,35 +104,15 @@ namespace voltdb {
     int bytes = m_tableAllocationTargetSize;
     #endif
 
-    int m_index, fileOffset;
     char* memory = NULL ;
 
-    m_index = getDataBlockCount();
-    VOLT_TRACE("MMAP : PId:: %d Index:: %d Table: %s  Bytes:: %d ",
-    m_executorContext->getPartitionId(), m_index, this->name().c_str(), bytes);
+    VOLT_WARN("MMAP : PId:: %d Table: %s  Bytes:: %d ",
+	       m_executorContext->getPartitionId(), this->name().c_str(), bytes);
 
-    /**
-     * Allocation at different offsets
-     * We assume that the index never overflows in a single execution !
-     * No munmap done - this will happen when process exits
-     */
-    if(m_dataStorageMap.size() == 0)
-      fileOffset = 0;
-    else{
-      // current file offset = past file offset + past allocation size
-      fileOffset = m_dataStorageMap[m_index-1].first + m_dataStorageMap[m_index-1].second ;
-    }
-
-    /** Update METADATA map and do the allocation **/
-    m_dataStorageMap[m_index] = std::make_pair(fileOffset, bytes);
-
-    memory = ((char*)getDataStoragePointer()) + fileOffset;
-
-    // DEBUG
-    printMetadata();
+    memory = (char*)m_data_manager.alloc(bytes);
     
-    VOLT_TRACE("MMAP : Index:: %d Table: %s :: Memory Pointer : %p ",
-    m_index, this->name().c_str(), memory);
+    VOLT_WARN("MMAP : Table: %s :: Memory Pointer : %p ",
+	       this->name().c_str(), memory);
 
     if (memory == NULL) {
       VOLT_ERROR("MMAP : initialization error.");

@@ -17,9 +17,6 @@
 
 #ifndef POOL_HPP_
 #define POOL_HPP_
-#include <vector>
-#include <iostream>
-#include <stdint.h>
 
 #include <vector>
 #include <iostream>
@@ -31,6 +28,8 @@
 
 #include "common/debuglog.h"
 #include "common/FatalException.hpp"
+
+//#include "common/MMAPMemoryManager.hpp"
 
 namespace voltdb {
 #ifndef MEMCHECK
@@ -293,6 +292,10 @@ private:
 
     /* To support STORAGE MMAP */
     bool m_enableMMAP;
+
+    /** MMAP Pool Storage **/
+    std::string m_name ;
+    //MMAPMemoryManager m_pool_manager;
     
     // No implicit copies
     Pool(const Pool&);

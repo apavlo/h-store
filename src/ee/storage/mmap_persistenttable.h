@@ -71,6 +71,8 @@
 #include "storage/RecoveryContext.h"
 
 
+#include "common/MMAPMemoryManager.hpp"
+
 namespace voltdb {
 
   class TableColumn;
@@ -94,6 +96,7 @@ namespace voltdb {
   #endif
 
   /**
+   * PersistentTable Doc ::
    * Represents a non-temporary table which permanently resides in
    * storage and also registered to Catalog (see other documents for
    * details of Catalog). PersistentTable has several additional
@@ -128,57 +131,15 @@ namespace voltdb {
     MMAP_PersistentTable(MMAP_PersistentTable const&);
     MMAP_PersistentTable operator=(MMAP_PersistentTable const&);
 
-    int m_dataBlockCount ; // for allocateNextBlock
-    int m_poolBlockCount ; // for pool
-
-    void* m_dataStoragePointer;
-    void* m_poolStoragePointer;
-
     const std::string m_name;
+
+    // MMAPMemoryManager handles all data requests from table
+    MMAPMemoryManager m_data_manager;
     
-    /** METADATA **/
-    /*
-     * Index -> (Offset, Size)
-     */
-    map<int, pair<int,int> > m_dataStorageMap;
-
-
   protected:
     MMAP_PersistentTable(ExecutorContext *ctx, const std::string &name, bool exportEnabled);
 
     void allocateNextBlock();
-
-    /** Storage Utility Functions **/
-    void initDataStorage();
-    void initPoolStorage();
-
-    void setDataStoragePointer(void* ptr){
-      m_dataStoragePointer = ptr;
-    }
-
-    void* getDataStoragePointer(){
-      return (m_dataStoragePointer);
-    }
-
-    void setPoolStoragePointer(void* ptr){
-      m_poolStoragePointer = ptr;
-    }
-
-    void* getPoolStoragePointer(){
-      return (m_poolStoragePointer);
-    }
-
-    int getDataBlockCount(){
-      return (m_dataBlockCount++) ;
-    }
-
-    void printMetadata(){
-      VOLT_DEBUG("Data Storage Map :: %s ",this->name().c_str());
-      VOLT_DEBUG("Index :: Offset  Size  ");
-      for(map<int, pair<int,int> >::const_iterator itr = m_dataStorageMap.begin(); itr != m_dataStorageMap.end(); ++itr){
-	 VOLT_DEBUG("%d :: %d %d ",itr->first, itr->second.first,  itr->second.second);
-      }
-    }
 
 
   };

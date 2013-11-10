@@ -198,6 +198,7 @@ CTX.INPUT['common'] = """
  types.cpp
  UndoLog.cpp
  NValue.cpp
+ MMAPMemoryManager.cpp
  RecoveryProtoMessage.cpp
  RecoveryProtoMessageBuilder.cpp
  DefaultTupleSerializer.cpp
