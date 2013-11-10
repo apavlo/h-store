@@ -117,7 +117,7 @@ Table* TableFactory::getPersistentTable(
          */
 
         if(!ctx->isMMAPEnabled())
-            table = new PersistentTable(ctx, exportEnabled);
+            table = new PersistentTable(ctx, name, exportEnabled);
         else
             table = new MMAP_PersistentTable(ctx, name, exportEnabled);
 
@@ -164,7 +164,7 @@ Table* TableFactory::getPersistentTable(
          */
 
         if(!ctx->isMMAPEnabled())
-            table = new PersistentTable(ctx, exportEnabled);
+            table = new PersistentTable(ctx, name, exportEnabled);
         else
             table = new MMAP_PersistentTable(ctx, name, exportEnabled);
 

@@ -311,6 +311,7 @@ protected:
     size_t appendToELBuffer(TableTuple &tuple, int64_t seqNo, TupleStreamWrapper::Type type);
 
     PersistentTable(ExecutorContext *ctx, bool exportEnabled);
+    PersistentTable(ExecutorContext *ctx, const std::string name, bool exportEnabled);
     void onSetColumns();
 
     /*

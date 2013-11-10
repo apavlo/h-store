@@ -30,183 +30,191 @@
 #include <errno.h>
 #include <sys/time.h>
 
-#include "MMAPMemoryManager.hpp"
+#include "common/MMAPMemoryManager.hpp"
 
-using namespace voltdb;
+namespace voltdb {
 
-pthread_mutex_t MMAPMemoryManager::m_mutex = PTHREAD_MUTEX_INITIALIZER;
+  pthread_mutex_t MMAPMemoryManager::m_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-const size_t DEFAULT_SIZE = (size_t)16 * (size_t)1024 * (size_t)1024;
-const std::string fileType = ".nvm";
-const std::string pathSeparator = "/";
+  const size_t DEFAULT_SIZE = (size_t)16 * (size_t)1024 * (size_t)1024;
 
-
-MMAPMemoryManager::MMAPMemoryManager(size_t size, const std::string fileName, bool persistent)
-    : m_size(size), m_allocated(0),
-    m_fileName(fileName), m_persistent(persistent), m_index(0)
-{
+  MMAPMemoryManager::MMAPMemoryManager()
+  : m_size(DEFAULT_SIZE), m_allocated(0),
+  m_persistent(false), m_index(0)
+  {
     init();
-}
- 
-void MMAPMemoryManager::init() {
+  }
+
+  
+  MMAPMemoryManager::MMAPMemoryManager(size_t size, const std::string fileName, bool persistent)
+  : m_size(size), m_allocated(0),
+  m_fileName(fileName), m_persistent(persistent), m_index(0)
+  {
+    init();
+  }
+
+  void MMAPMemoryManager::init() {
 
     // Allocate a big chunk which will be split into smaller chunks later
     if(m_persistent == false){
-        // Not backed by a file
-        m_base = mmap(NULL, m_size, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+      // Not backed by a file
+      m_base = mmap(NULL, m_size, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
 
-        if (m_base == MAP_FAILED) {
-            VOLT_ERROR("MMAP : initialization error : mmap failed");
-            throwFatalException("MMAP : initialization error : mmap failed");	  
-	}
+      if (m_base == MAP_FAILED) {
+	VOLT_ERROR("MMAP : initialization error : mmap failed");
+	throwFatalException("MMAP : initialization error : mmap failed");
+      }
     }
     else{
-        // Backed by a file
+      // Backed by a file
 
-        int MMAP_fd, ret;
-        std::string MMAP_Dir, MMAP_file_name;
+      int MMAP_fd, ret;
+      std::string MMAP_Dir, MMAP_file_name;
 
-        if(m_fileName.empty()){
-            VOLT_ERROR("MMAP : initialization error : empty fileName.");
-            throwFatalException("MMAP : initialization error : empty fileName");
-        }
+      if(m_fileName.empty()){
+	VOLT_ERROR("MMAP : initialization error : empty fileName.");
+	throwFatalException("MMAP : initialization error : empty fileName");
+      }
 
-        /** Get an unique file object for the table **/
-        MMAP_file_name  = m_fileName ;
-	MMAP_file_name += fileType ;
+      /** Get an unique file object for the table **/
+      MMAP_file_name  = m_fileName ;
+      MMAP_file_name += ".nvm" ;
 
-        VOLT_WARN("MMAP : MMAP_file_name :: %s ", MMAP_file_name.c_str());
+      VOLT_WARN("MMAP : MMAP_file_name :: %s ", MMAP_file_name.c_str());
 
-        MMAP_fd = open(MMAP_file_name.c_str(), O_RDWR|O_CREAT, S_IRUSR|S_IWUSR|S_IRGRP );
-        if (MMAP_fd < 0) {
-            VOLT_ERROR("MMAP : initialization error : open failed.");
-            throwFatalException("MMAP : initialization error : open failed");
-        }
+      MMAP_fd = open(MMAP_file_name.c_str(), O_RDWR|O_CREAT, S_IRUSR|S_IWUSR|S_IRGRP );
+      if (MMAP_fd < 0) {
+	VOLT_ERROR("MMAP : initialization error : open failed.");
+	throwFatalException("MMAP : initialization error : open failed");
+      }
 
-        ret = ftruncate(MMAP_fd, m_size) ;
-        if(ret < 0){
-            VOLT_ERROR("MMAP : initialization error : ftruncate failed");
-            throwFatalException("MMAP : initialization error : ftruncate failed");
-        }
+      ret = ftruncate(MMAP_fd, m_size) ;
+      if(ret < 0){
+	VOLT_ERROR("MMAP : initialization error : ftruncate failed");
+	throwFatalException("MMAP : initialization error : ftruncate failed");
+      }
 
-        m_base = mmap(NULL, m_size, PROT_READ | PROT_WRITE, MAP_SHARED , MMAP_fd, 0);
+      m_base = mmap(NULL, m_size, PROT_READ | PROT_WRITE, MAP_SHARED , MMAP_fd, 0);
 
-        if (m_base == MAP_FAILED) {
-            VOLT_ERROR("MMAP : initialization error : mmap failed");
-            throwFatalException("MMAP : initialization error : mmap failed");
-        }
+      if (m_base == MAP_FAILED) {
+	VOLT_ERROR("MMAP : initialization error : mmap failed");
+	throwFatalException("MMAP : initialization error : mmap failed");
+      }
 
-        // Can close file since mmap adds a reference to file implicitly
-        close(MMAP_fd);
+      // Can close file since mmap adds a reference to file implicitly
+      close(MMAP_fd);
     }
 
     assert(m_base != NULL);
     assert(m_allocated == 0);
-}
+  }
 
-MMAPMemoryManager::~MMAPMemoryManager() {
+  MMAPMemoryManager::~MMAPMemoryManager() {
 
     if (pthread_mutex_lock(&m_mutex)) {
-        VOLT_ERROR("Failed to lock mutex in MMAPMemoryManager::~MemoryManager()\n");
-        throwFatalException("Failed to lock mutex.");
+      VOLT_ERROR("Failed to lock mutex in MMAPMemoryManager::~MemoryManager()\n");
+      throwFatalException("Failed to lock mutex.");
     }
 
     int ret;
 
     if (m_base != NULL) {
-        ret = munmap(m_base, m_size);
+      ret = munmap(m_base, m_size);
 
-        if(ret != 0){
-            VOLT_ERROR("MUNMAP : initialization error.");
-            throwFatalException("MUNMAP : initialization error.");
-        }
+      if(ret != 0){
+	VOLT_ERROR("MUNMAP : initialization error.");
+	throwFatalException("MUNMAP : initialization error.");
+      }
     }
 
     m_base = NULL;
     m_allocated = 0;
 
     if (pthread_mutex_unlock(&m_mutex)) {
-        VOLT_ERROR("Failed to unlock mutex in MMAPMemoryManager::~MemoryManager()\n");
-        throwFatalException("Failed to unlock mutex.");      
+      VOLT_ERROR("Failed to unlock mutex in MMAPMemoryManager::~MemoryManager()\n");
+      throwFatalException("Failed to unlock mutex.");
     }
-}
+  }
 
 
-void* MMAPMemoryManager::alloc(size_t chunkSize) {
+  void* MMAPMemoryManager::alloc(size_t chunkSize) {
     if (pthread_mutex_lock(&m_mutex)) {
-        VOLT_ERROR("Failed to lock mutex in MMAPMemoryManager::alloc()\n");
-        throwFatalException("Failed to lock mutex.");
+      VOLT_ERROR("Failed to lock mutex in MMAPMemoryManager::alloc()\n");
+      throwFatalException("Failed to lock mutex.");
     }
 
     void *memory = NULL;
-    
+
     if (m_base == NULL) {
-        init();
+      init();
     }
- 
+
     /** Update METADATA map and do the allocation **/
     m_metadata[m_index] = std::make_pair(m_allocated, chunkSize);
     m_index += 1;
 
     /** Not an issue since we are mmap'ing **/
     if(m_allocated + chunkSize > m_size){
-        VOLT_ERROR("No more memory available in MMAP'ed file");
-        throwFatalException("No more memory available in MMAP'ed file.");
+      VOLT_ERROR("No more memory available in MMAP'ed file");
+      throwFatalException("No more memory available in MMAP'ed file.");
     }
 
     memory = reinterpret_cast<char*> ((char*) m_base + m_allocated);
 
     VOLT_WARN("Allocated chunk at : %p ",memory);
-    
+
     m_allocated += chunkSize;
 
     if (pthread_mutex_unlock(&m_mutex)) {
-        VOLT_ERROR("Failed to unlock mutex in MMAPMemoryManager::alloc()");
-        throwFatalException("Failed to unlock mutex.");
+      VOLT_ERROR("Failed to unlock mutex in MMAPMemoryManager::alloc()");
+      throwFatalException("Failed to unlock mutex.");
     }
 
     assert(memory != NULL);
     return memory;
-}
+  }
 
 
-void MMAPMemoryManager::showMetadata(){
+  void MMAPMemoryManager::showMetadata(){
     if(m_persistent){
-        VOLT_WARN("Data Storage Map :: %s ",this->m_fileName.c_str());
-        VOLT_WARN("Index :: Offset  Size  ");
-        for(map<int, pair<int,int> >::const_iterator itr = m_metadata.begin(); itr != m_metadata.end(); ++itr){
-            VOLT_WARN("%d :: %d %d \n",itr->first, itr->second.first,  itr->second.second);
-        }
+      VOLT_WARN("Data Storage Map :: %s ",this->m_fileName.c_str());
+      VOLT_WARN("Index :: Offset  Size  ");
+      for(map<int, pair<int,int> >::const_iterator itr = m_metadata.begin(); itr != m_metadata.end(); ++itr){
+	VOLT_WARN("%d :: %d %d \n",itr->first, itr->second.first,  itr->second.second);
+      }
     }
-}
+  }
 
 
-/** ASYNC m_sync **/
-bool MMAPMemoryManager::async(){
+  /** ASYNC m_sync **/
+  bool MMAPMemoryManager::async(){
     if(m_persistent){
-        int ret;
+      int ret;
 
-        /** Only sync till m_allocated **/
-        ret = msync(m_base, m_allocated, MS_ASYNC);
-        if(ret<0){
-            VOLT_ERROR("msync failed with error.");
-            return false;
-        }
-    }
-    return true;
-}
-
-/** SYNC m_sync **/
-bool MMAPMemoryManager::sync(){
-    if(m_persistent){
-        int ret;
-
-        /** Only sync till m_allocated **/
-        ret = msync(m_base, m_allocated, MS_SYNC);
-        if(ret<0){
-            VOLT_ERROR("msync failed with error.");
-            return false;
-        }
+      /** Only sync till m_allocated **/
+      ret = msync(m_base, m_allocated, MS_ASYNC);
+      if(ret<0){
+	VOLT_ERROR("msync failed with error.");
+	return false;
+      }
     }
     return true;
+  }
+
+  /** SYNC m_sync **/
+  bool MMAPMemoryManager::sync(){
+    if(m_persistent){
+      int ret;
+
+      /** Only sync till m_allocated **/
+      ret = msync(m_base, m_allocated, MS_SYNC);
+      if(ret<0){
+	VOLT_ERROR("msync failed with error.");
+	return false;
+      }
+    }
+    return true;
+  }
+
+
 }
