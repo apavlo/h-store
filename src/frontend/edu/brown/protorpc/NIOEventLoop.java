@@ -23,7 +23,7 @@ public class NIOEventLoop implements EventLoop {
     public NIOEventLoop() {
         try {
             selector = Selector.open();
-        } catch (IOException e) { throw new RuntimeException(e); }
+        } catch (IOException e) { e.printStackTrace(); throw new RuntimeException(e); }
     }
 
     public void setExitOnSigInt(boolean exitOnSigInt) {

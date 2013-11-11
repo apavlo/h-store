@@ -105,11 +105,13 @@ public class PartitionLockQueue extends ThrottlingQueue<AbstractTransaction> {
         this.partitionId = partitionId;
         this.maxWaitTime = maxWaitTime;
         
+        LOG.info("Get profile");
         if (HStoreConf.singleton().site.queue_profiling) {
             this.profiler = new PartitionLockQueueProfiler();
         } else {
             this.profiler = null;
         }
+        LOG.info("End profile");
     }
     
     // ----------------------------------------------------------------------------
@@ -151,7 +153,8 @@ public class PartitionLockQueue extends ThrottlingQueue<AbstractTransaction> {
         this.lock.lock();
         try {
             if (this.state == QueueState.BLOCKED_SAFETY || this.state == QueueState.BLOCKED_ORDERING) {
-                this.checkQueueState(false);
+                LOG.info("poll checkQueueState");
+            	this.checkQueueState(false);
             }
             if (this.state == QueueState.UNBLOCKED) {
 
@@ -330,6 +333,7 @@ public class PartitionLockQueue extends ThrottlingQueue<AbstractTransaction> {
             String.format("Unexpected uninitialized transaction %s [partition=%d]", ts, this.partitionId);
         
         boolean retval = super.offer(ts, force);
+        LOG.info("size:"+this.size()+" retval:"+retval);
         if (debug.val)
             LOG.debug(String.format("Partition %d :: offer(%s) -> %s", this.partitionId, ts, retval));
 
@@ -365,7 +369,10 @@ public class PartitionLockQueue extends ThrottlingQueue<AbstractTransaction> {
         
         if (trace.val)
             LOG.trace(String.format("Partition %d :: Attempting to acquire lock", this.partitionId));
+        LOG.info(String.format("Partition %d :: Attempting to acquire lock", this.partitionId));
         this.lock.lock();
+        LOG.info(String.format("Partition %d :: Get lock", this.partitionId));
+        
         try {
             // We have to check whether we are the first txn in the queue,
             // because we will need to reset the blockTimestamp after 
@@ -397,6 +404,9 @@ public class PartitionLockQueue extends ThrottlingQueue<AbstractTransaction> {
         if (debug.val)
             LOG.debug(String.format("Partition %d :: noteTransactionRecievedAndReturnLastSeen(%d)",
                       this.partitionId, txnId));
+        
+        if (debug.val)
+            LOG.debug("txnId: "+txnId + " lastTxnPopped:" + lastTxnPopped + " lastSafeTxnId:"+lastSafeTxnId);
 
         this.lastSeenTxnId = txnId;
         if (trace.val) {
@@ -406,7 +416,9 @@ public class PartitionLockQueue extends ThrottlingQueue<AbstractTransaction> {
         }
         this.lock.lock();
         try {
+        	LOG.info("11");
             if (this.lastTxnPopped.compareTo(txnId) > 0) {
+            	LOG.info("22");
                 if (debug.val)
                     LOG.warn(String.format("Partition %d :: Txn ordering deadlock --> LastTxn:%d / NewTxn:%d",
                              this.partitionId, this.lastTxnPopped, txnId));
@@ -416,6 +428,7 @@ public class PartitionLockQueue extends ThrottlingQueue<AbstractTransaction> {
             // We always need to check whether this new txnId is less than our next safe txnID
             // If it is, then we know that we need to replace it.
             if (txnId.compareTo(this.lastSafeTxnId) < 0) {
+            	LOG.info("33");
                 // 2013-01-15
                 // Instead of calling checkQueueState() here, we'll 
                 // just change the state real quickly. This should be ok because
@@ -455,23 +468,29 @@ public class PartitionLockQueue extends ThrottlingQueue<AbstractTransaction> {
      * @return
      */
     private QueueState checkQueueState(boolean afterRemoval) {
+    	LOG.info("run checkQueueState "+afterRemoval);
         if (trace.val && super.isEmpty() == false)
             LOG.trace(String.format("Partition %d :: checkQueueState(afterPoll=%s) [current=%s]",
                       this.partitionId, afterRemoval, this.state));
         QueueState newState = (afterRemoval ? QueueState.BLOCKED_SAFETY : QueueState.UNBLOCKED);
         long currentTimestamp = -1l;
+        LOG.info("size:"+this.size());
         AbstractTransaction ts = super.peek(); // BLOCKING
         Long txnId = null;
+        LOG.info("11");
         if (ts == null) {
+        	LOG.info("null");
 //            if (trace.val)
 //                LOG.trace(String.format("Partition %d :: Queue is empty.", this.partitionId));
             newState = QueueState.BLOCKED_EMPTY;
         }
         // Check whether can unblock now
         else {
+        	LOG.info("22");
             assert(ts.isInitialized()) :
                 String.format("Unexpected uninitialized transaction %s [partition=%d]", ts, this.partitionId);
             txnId = ts.getTransactionId();
+            LOG.info("txnId: "+txnId+ " lastSafeTxnId:"+lastSafeTxnId);
             // HACK: Ignore null txnIds
             if (txnId == null) {
                 LOG.warn(String.format("Partition %d :: Uninitialized transaction handle %s", this.partitionId, ts));
@@ -482,8 +501,10 @@ public class PartitionLockQueue extends ThrottlingQueue<AbstractTransaction> {
             // If this txnId is greater than the last safe one that we've seen, then we know
             // that the lastSafeTxnId has been polled. That means that we need to 
             // wait for an appropriate amount of time before we're allow to be executed.
-            if (txnId.compareTo(this.lastSafeTxnId) > 0 && afterRemoval == false) {
-                newState = QueueState.BLOCKED_ORDERING;
+            if (this.lastSafeTxnId != -1 && txnId.compareTo(this.lastSafeTxnId) > 0 && afterRemoval == false) {
+                LOG.debug(String.format("Partition %d :: txnId[%d] ==> %s (blockTime=%d)",
+                        this.partitionId, txnId, newState, this.blockTimestamp));
+            	newState = QueueState.BLOCKED_ORDERING;
                 if (debug.val)
                     LOG.debug(String.format("Partition %d :: txnId[%d] > lastSafeTxnId[%d]",
                               this.partitionId, txnId, this.lastSafeTxnId));
@@ -570,6 +591,7 @@ public class PartitionLockQueue extends ThrottlingQueue<AbstractTransaction> {
             }
         } // IF
 
+        LOG.info("update");
         // This txn should always becomes our next safeTxnId.
         // This is essentially the next txn
         // that should be executed, but somebody *could* come along and add in 
@@ -580,6 +602,8 @@ public class PartitionLockQueue extends ThrottlingQueue<AbstractTransaction> {
         
         // Set the new state
         if (newState != this.state) {
+            LOG.info(String.format("Partition %d :: ORIG[%s]->NEW[%s] / LastSafeTxn:%d",
+                    this.partitionId, this.state, newState, this.lastSafeTxnId));
             if (trace.val)
                 LOG.trace(String.format("Partition %d :: ORIG[%s]->NEW[%s] / LastSafeTxn:%d",
                           this.partitionId, this.state, newState, this.lastSafeTxnId));
@@ -592,7 +616,9 @@ public class PartitionLockQueue extends ThrottlingQueue<AbstractTransaction> {
             // Always poke anybody that is blocking on this queue.
             // The txn may not be ready to run just yet, but at least they'll be
             // able to recompute a new sleep time.
-            this.isReady.signal();
+            LOG.info("signal");
+            //this.isReady.signal();
+            LOG.info("update end");
         }
         else if (this.profiler != null) {
             this.profiler.queueStates.get(this.state).restart();
@@ -610,6 +636,8 @@ public class PartitionLockQueue extends ThrottlingQueue<AbstractTransaction> {
         assert(this.state != QueueState.BLOCKED_ORDERING ||
               (this.state == QueueState.BLOCKED_ORDERING && this.blockTimestamp != NULL_BLOCK_TIMESTAMP)) :
               String.format("Invalid state %s with NULL blocked timestamp", this.state);
+
+        LOG.info("return state");
         return this.state;
     }
     

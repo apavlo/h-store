@@ -289,7 +289,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * is allowed to acquire the locks for each partition. It can also requeue
      * restart transactions. 
      */
-    private final TransactionQueueManager txnQueueManager;
+    private TransactionQueueManager txnQueueManager;
     
     /**
      * The HStoreCoordinator is responsible for communicating with other HStoreSites
@@ -720,12 +720,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      */
     protected HStoreSite snapshot_init() {
 
-        ThreadGroup auxGroup = this.threadManager.getThreadGroup(ThreadGroupType.AUXILIARY);
-        
         // Start TransactionQueueManager
-        Thread t = new Thread(auxGroup, this.txnQueueManager);
+        this.txnQueueManager = new TransactionQueueManager(this);
+        Thread t = new Thread(this.txnQueueManager);
         t.setDaemon(true);
         t.setUncaughtExceptionHandler(this.exceptionHandler);
+        LOG.info("before start");
         t.start();
         
         // Then we need to start all of the PartitionExecutor in threads
@@ -734,15 +734,18 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                       this.local_partitions.size(), this.getSiteName()));
         for (int partition : this.local_partitions.values()) {
             PartitionExecutor executor = this.getPartitionExecutor(partition);
-            // executor.initHStoreSite(this);
+           // executor.initHStoreSite(this);
+            executor.reset(this);
             
-            t = new Thread(this.threadManager.getThreadGroup(ThreadGroupType.EXECUTION), executor);
+            t = new Thread(executor);
             t.setDaemon(true);
-            t.setPriority(Thread.MAX_PRIORITY); // Probably does nothing...
             t.setUncaughtExceptionHandler(this.exceptionHandler);
             this.executor_threads[partition] = t;
             t.start();
         } // FOR
+        
+        if (debug.val)
+            LOG.debug("SnapInit() finishes.");
         
         return (this);
     }
@@ -1164,6 +1167,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     }
     public CommandLogWriter getCommandLogWriter() {
         return (this.commandLogger);
+    }
+    public HStoreJVMSnapshotManager getJvmSnapshotManager() {
+        return (this.jvmSnapshotManager);
     }
     protected final Map<Long, AbstractTransaction> getInflightTxns() {
         return (this.inflight_txns);

@@ -1216,6 +1216,7 @@ public class DependencyTracker {
         public Map<String, Object> debugMap(LocalTransaction ts) {
             try {
                 TransactionState state = getState(ts);
+                if (state == null) return (null);
                 return state.debugMap();
             } catch (AssertionError ex) {
                 // IGNORE

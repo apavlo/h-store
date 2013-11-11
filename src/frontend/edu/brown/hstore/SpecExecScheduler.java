@@ -42,7 +42,7 @@ public class SpecExecScheduler implements Configurable {
     // ----------------------------------------------------------------------------
 
     private final int partitionId;
-    private final PartitionLockQueue queue;
+    private PartitionLockQueue queue;
     private boolean disabled = false;
     private AbstractConflictChecker checker;
     private AbstractTransaction lastDtxn;
@@ -201,6 +201,10 @@ public class SpecExecScheduler implements Configurable {
         this.lastIterator = null;
     }
     
+    public void setQueue(PartitionLockQueue queue) {
+    	this.queue = queue;
+    	this.lastIterator = null;
+    }
     public void setDisabled(boolean disabled) {
         this.disabled = disabled;
         if (debug.val && this.disabled == true)
@@ -414,6 +418,7 @@ public class SpecExecScheduler implements Configurable {
                 // that this txn is safe to execute now.
                 matched_ctr++;
                 
+                LOG.info("matched_ctr++");
                 // Scheduling Policy: FIRST MATCH
                 if (this.policyType == SpecExecSchedulerPolicyType.FIRST) {
                     next = localTxn;
@@ -459,16 +464,22 @@ public class SpecExecScheduler implements Configurable {
         // We found somebody to execute right now!
         // Make sure that we set the speculative flag to true!
         if (next != null) {
+        	LOG.info("find some one");
             next.markReleased(this.partitionId);
+            LOG.info("after mark");
             if (profiler != null) {
                 this.profilerExecuteCounter.put(specType.ordinal());
                 profiler.success++;
             }
+            LOG.info("before remove");
             if (this.policyType == SpecExecSchedulerPolicyType.FIRST) {
+            	LOG.info("one");
                 this.lastIterator.remove();
             } else {
+            	LOG.info("two");
                 this.queue.remove(next);
             }
+            LOG.info("three");
             if (debug.val)
                 LOG.debug(dtxn + " - Found next non-conflicting speculative txn " + next);
         }

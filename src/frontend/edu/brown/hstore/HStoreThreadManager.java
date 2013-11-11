@@ -316,7 +316,7 @@ public class HStoreThreadManager {
      * @param partition
      */
     public synchronized boolean registerEEThread(Partition partition) {
-        if (this.disable) return (false);
+        if (this.disable || !this.hstore_site.getJvmSnapshotManager().isParent()) return (false);
         
         Thread t = Thread.currentThread();
         boolean affinity[] = null;
@@ -371,7 +371,7 @@ public class HStoreThreadManager {
      * This thread cannot run on the EE's cores
      */
     public synchronized boolean registerProcessingThread() {
-        if (this.disable) return (false);
+        if (this.disable || !this.hstore_site.getJvmSnapshotManager().isParent()) return (false);
         
         boolean affinity[] = this.defaultAffinity;
         Thread t = Thread.currentThread();
