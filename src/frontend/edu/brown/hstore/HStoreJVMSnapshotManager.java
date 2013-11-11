@@ -273,7 +273,7 @@ public class HStoreJVMSnapshotManager {
 			this.hstore_site.snapshot_init();
 			
 			try {
-				Thread.sleep(2000);
+				Thread.sleep(500);
 			} catch (InterruptedException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
