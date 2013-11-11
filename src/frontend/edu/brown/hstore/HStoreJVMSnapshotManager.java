@@ -7,7 +7,6 @@ import java.nio.ByteBuffer;
 import org.apache.log4j.Logger;
 import org.voltdb.CatalogContext;
 import org.voltdb.ClientResponseImpl;
-import org.voltdb.benchmark.tpcc.procedures.neworder;
 import org.voltdb.catalog.Site;
 import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.messaging.FastSerializer;

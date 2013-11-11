@@ -54,7 +54,6 @@ import org.voltdb.StatsSource;
 import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.SysProcSelector;
 import org.voltdb.TransactionIdManager;
-import org.voltdb.benchmark.tpcc.procedures.neworder;
 import org.voltdb.catalog.Host;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
