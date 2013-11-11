@@ -381,20 +381,16 @@ public class HStoreJVMSnapshotManager {
 						+ ts.toStringImpl());
 			hstore_site.transactionQueue(ts);
 
-			synchronized (HStoreJVMSnapshotManager.this) {
-				while (response == null) {
-					try {
-						HStoreJVMSnapshotManager.this.wait();
-					} catch (InterruptedException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					}
-				}
-				LOG.info("send back");
-				done.run(response);
-				LOG.info("Done");
-				response = null;
+			int aa = 0;
+			while (response == null) {
+				aa++;
+				if (aa % 400 == 0)
+					LOG.info("sleep" + aa);
 			}
+			LOG.info("send back");
+			done.run(response);
+			LOG.info("Done");
+			response = null;
 			/*
 			 * ByteString bs = ByteString.copyFrom("Received".getBytes());
 			 * TransactionResponse reponse =
@@ -421,10 +417,7 @@ public class HStoreJVMSnapshotManager {
 		this.response = TransactionResponse.newBuilder().setOutput(bs).build();
 		if (debug.val)
 			LOG.debug("Snapshot send back response to the parent! "
-					+ response.toString());
-		synchronized (this) {
-			this.notify();
-		}
+					+ this.response.toString());
 		if (debug.val)
 			LOG.debug("Done!");
 
