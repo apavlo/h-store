@@ -30,6 +30,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Calendar;
 import java.util.Collection;
 import java.util.ConcurrentModificationException;
 import java.util.HashMap;
@@ -41,6 +42,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.text.*;
+import java.util.Date;
 
 import org.apache.commons.collections15.buffer.CircularFifoBuffer;
 import org.apache.log4j.Logger;
@@ -2666,6 +2669,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         cresponse.setClusterRoundtrip((int)(now - initiateTime));
         cresponse.setRestartCounter(restartCounter);
         try {
+//            System.out.println("hawk - response with txn: " + String.format("%d...",cresponse.getTransactionId()));
+//            DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss.SSS");
+//            Calendar cal = Calendar.getInstance();
+//            System.out.println("hawk: " + dateFormat.format(cal.getTime()));
             clientCallback.run(cresponse);
         } catch (ClientConnectionLostException ex) {
             // There is nothing else we can really do here. We'll clean up

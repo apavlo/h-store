@@ -1,7 +1,10 @@
 package edu.brown.terminal;
 
 import java.io.StringWriter;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -367,10 +370,16 @@ public class HStoreTerminal implements Runnable {
         // added by hawk to test procedure execution performance
         //long startTime=System.currentTimeMillis();
         long startTime=System.nanoTime();
+//        DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss.SSS");
+//        Calendar cal = Calendar.getInstance();
+//        System.out.println("hawk - begin call procedure: " + dateFormat.format(cal.getTime()));
         // ended by hawk
         ClientResponse cresponse = client.callProcedure(catalog_proc.getName(), params);
         // added by hawk to test procedure execution performance
         //long endTime=System.currentTimeMillis();
+//        dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss.SSS");
+//        cal = Calendar.getInstance();
+//        System.out.println("hawk - after call procedure: " + dateFormat.format(cal.getTime()));
         long endTime=System.nanoTime();
         System.out.println("Execution time： " + (endTime-startTime) + "ns");   
         // ended by hawk
