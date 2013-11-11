@@ -1027,9 +1027,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                     
                     if (hstore_conf.site.exec_profiling) profiler.poll_time.start();
                     try {
-                    	//LOG.info("CheckLockQueue");
                         nextTxn = this.queueManager.checkLockQueue(this.partitionId); // NON-BLOCKING
-                        //LOG.info("After CheckLockQueue");
                     } finally {
                         if (hstore_conf.site.exec_profiling) profiler.poll_time.stopIfStarted();
                     }
@@ -1114,7 +1112,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
 //                        LOG.trace(String.format("The %s for partition %s empty. Checking for utility work...",
 //                                  this.work_queue.getClass().getSimpleName(), this.partitionId));
                 	if (this.utilityWork()) {
-                    	LOG.info("specexec_enable");
                         nextWork = UTIL_WORK_MSG;
                     }
                 }
@@ -1176,7 +1173,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         	assert(hstore_conf.site.specexec_enable) :
                 "Trying to schedule speculative txn even though it is disabled";
             SpeculationType specType = this.calculateSpeculationType();
-            LOG.info("spec");
             if (hstore_conf.site.exec_profiling) this.profiler.conflicts_time.start();
             try {
                 specTxn = this.specExecScheduler.next(this.currentDtxn, specType);
@@ -1222,9 +1218,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 specTxn.getInitCallback().cancel();
                 
                 // Ok now that that's out of the way, let's run this baby...
-                LOG.info("run transaction");
                 specTxn.setSpeculative(specType);
-                LOG.info("set speculative");
                 if (hstore_conf.site.exec_profiling) profiler.specexec_time.start();
                 try {
                     this.executeTransaction(specTxn);
@@ -1496,7 +1490,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
     
     protected void initializeVoltProcedures() {
         // load up all the stored procedures
-    	LOG.info("size: "+catalogContext.procedures.size());
         for (final Procedure catalog_proc : catalogContext.procedures) {
             VoltProcedure volt_proc = this.initializeVoltProcedure(catalog_proc);
             Queue<VoltProcedure> queue = new LinkedList<VoltProcedure>();
@@ -3827,7 +3820,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         // In the first part, we wait until all of our blocked WorkFragments become unblocked
         final BlockingDeque<Collection<WorkFragment.Builder>> queue = this.depTracker.getUnblockedWorkFragmentsQueue(ts);
 
-        LOG.info("222");
         // Run through this loop if:
         //  (1) We have no pending errors
         //  (2) This is our first time in the loop (first == true)
@@ -3873,7 +3865,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                         // If there is more work that we could do, then we'll just poll the queue
                         // without waiting so that we can go back and execute it again if we have
                         // more time.
-                    	LOG.info("333");
                         if (this.utilityWork()) {
                             fragmentBuilders = queue.poll();
                         }
@@ -3893,7 +3884,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 }
             }
             assert(fragmentBuilders != null);
-            LOG.info("1111");
             
             // If the list to fragments unblock is empty, then we 
             // know that we have dispatched all of the WorkFragments for the
@@ -3909,18 +3899,15 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                         ts, this.partitionId));
                 break;
             }
-            LOG.info("2222");
             this.tmp_localWorkFragmentBuilders.clear();
             if (predict_singlePartition == false) {
                 this.tmp_remoteFragmentBuilders.clear();
                 this.tmp_localSiteFragmentBuilders.clear();
             }
-            LOG.info("3333");
             // -------------------------------
             // FAST PATH: Assume everything is local
             // -------------------------------
             if (predict_singlePartition) {
-            	LOG.info("5555");
                 for (WorkFragment.Builder fragmentBuilder : fragmentBuilders) {
                     if (first == false || this.depTracker.addWorkFragment(ts, fragmentBuilder, batchParams)) {
                         this.tmp_localWorkFragmentBuilders.add(fragmentBuilder);
@@ -3929,16 +3916,12 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                     }
                 } // FOR
 
-            	LOG.info("6666");
                 // We have to tell the transaction handle to start the round before we send off the
                 // WorkFragments for execution, since they might start executing locally!
                 if (first) {
-                	LOG.info("11111");
                     ts.startRound(this.partitionId);
-                    LOG.info("22222");
                     latch = this.depTracker.getDependencyLatch(ts);
                 }
-                LOG.info("7777");
                 
                 // Execute all of our WorkFragments quickly at our local ExecutionEngine
                 for (WorkFragment.Builder fragmentBuilder : this.tmp_localWorkFragmentBuilders) {

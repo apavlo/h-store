@@ -516,7 +516,6 @@ public abstract class VoltProcedure implements Poolable {
             return (response); 
         }
 
-        LOG.info("11111");
         for (int i = 0; i < this.paramTypesLength; i++) {
             try {
                 this.procParams[i] = this.tryToMakeCompatible(i, this.procParams[i]);
@@ -560,7 +559,6 @@ public abstract class VoltProcedure implements Poolable {
                           this.procMethod,
                           this.procParams + Arrays.toString(this.procParams),
                           this.partitionId));
-            LOG.info("22222");
             try {
                 // ANTI-CACHE TABLE MERGE
                 if (hstore_conf.site.anticache_enable && txnState.hasAntiCacheMergeTable()) {
@@ -711,7 +709,6 @@ public abstract class VoltProcedure implements Poolable {
         if (this.results == null) {
             throw new RuntimeException("We got back a null result from " + this.localTxnState);
         }
-        LOG.info("33333");
         response = new ClientResponseImpl();
         response.init(this.localTxnState,
                       this.status,
