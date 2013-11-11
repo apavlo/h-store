@@ -321,9 +321,9 @@ public class HStoreJVMSnapshotManager {
 			forkNewSnapShot();
 		} else {
 			// Currently create a new snapshot for each query.
-			stopSnapshot();
-			snapshot_pid = 0;
-			forkNewSnapShot();
+	//		stopSnapshot();
+	//		snapshot_pid = 0;
+	//		forkNewSnapShot();
 		}
 
 		ByteString bs = ByteString.EMPTY;
