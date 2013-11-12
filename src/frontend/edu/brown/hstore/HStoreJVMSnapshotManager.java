@@ -248,8 +248,14 @@ public class HStoreJVMSnapshotManager {
 						+ destinationAddress.getHostString() + " "
 						+ destinationAddress.getPort());
 
-			ProtoRpcChannel[] channels = ProtoRpcChannel.connectParallel(
+			ProtoRpcChannel[] channels = null;
+			try {
+				channels = ProtoRpcChannel.connectParallel(
 					eventLoop, new InetSocketAddress[] { destinationAddress });
+			} catch (Exception e) {
+				LOG.info("Connection fail", e);
+				return;
+			}
 
 			this.channel = HStoreJVMSnapshotService.newStub(channels[0]);
 			Thread listener_thread = new Thread(new ListenerThread());
@@ -265,10 +271,7 @@ public class HStoreJVMSnapshotManager {
 					.getThreadName(hstore_site, "child"));
 			this.isParent = false;
 			if (debug.val)
-				LOG.debug("Child process starto");
-			
-			if (debug.val)
-				LOG.debug("start snapshot init");
+				LOG.debug("Child process start");
 
 			this.hstore_site.snapshot_init();
 			
