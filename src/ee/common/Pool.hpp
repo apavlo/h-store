@@ -77,7 +77,8 @@ class Pool {
 public:
     Pool() :
         m_allocationSize(65536), m_maxChunkCount(1), m_currentChunkIndex(0),
-        m_enableMMAP(false)
+        m_enableMMAP(false),
+        m_pool_manager(NULL)
     {
 	VOLT_WARN("MALLOC Pool Storage Request :: %d %d ",static_cast<int>(m_allocationSize), static_cast<int>(m_maxChunkCount));
 
@@ -89,7 +90,8 @@ public:
         m_allocationSize(allocationSize),
         m_maxChunkCount(static_cast<std::size_t>(maxChunkCount)),
         m_currentChunkIndex(0),
-        m_enableMMAP(false)
+        m_enableMMAP(false),
+        m_pool_manager(NULL)
     {    
         char *storage = new char[allocationSize];
         m_chunks.push_back(Chunk(allocationSize, storage)); 
@@ -101,8 +103,11 @@ public:
         m_currentChunkIndex(0),
         m_enableMMAP(enableMMAP),
         m_name(fileName),
-        m_pool_manager(m_allocationSize, m_name+"_Pool", true) // backed by a file
+        m_pool_manager(NULL)
     {
+
+      m_pool_manager = new MMAPMemoryManager(m_allocationSize, m_name+"_Pool", true); // backed by a file
+
       if(m_enableMMAP == false){
 	VOLT_WARN("MALLOC Pool Storage Request :: %d %d ",static_cast<int>(m_allocationSize), static_cast<int>(m_maxChunkCount));
 	
@@ -113,7 +118,7 @@ public:
 	/** MMAP Pool Allocation **/
 	VOLT_WARN("MMAP Pool Storage Request :: %d %d ",static_cast<int>(m_allocationSize), static_cast<int>(m_maxChunkCount));
 
-	char *memory = static_cast<char*>(m_pool_manager.alloc(m_allocationSize));
+	char *memory = static_cast<char*>(m_pool_manager->alloc(m_allocationSize));
         if (memory == MAP_FAILED) {
             std::cout << strerror( errno ) << std::endl;
             throwFatalException("Failed mmap");
@@ -125,16 +130,17 @@ public:
     
     ~Pool() {
       if(m_enableMMAP == false){
-        for (std::size_t ii = 0; ii < m_chunks.size(); ii++) {
-            delete [] m_chunks[ii].m_chunkData;
-        }
-        for (std::size_t ii = 0; ii < m_oversizeChunks.size(); ii++) {
-            delete [] m_oversizeChunks[ii].m_chunkData;
-        }
+	for (std::size_t ii = 0; ii < m_chunks.size(); ii++) {
+	  delete [] m_chunks[ii].m_chunkData;
+	}
+	for (std::size_t ii = 0; ii < m_oversizeChunks.size(); ii++) {
+	  delete [] m_oversizeChunks[ii].m_chunkData;
+	}
       }
-	/**
-	 * MMAP'ed pool will be cleaned up by its own destructor
-	 **/      
+      /**
+       * MMAP'ed pool cleaned by destructor
+       **/
+      delete m_pool_manager ;
     }
 
     /*
@@ -158,7 +164,7 @@ public:
                   m_oversizeChunks.push_back(Chunk(size, storage));
 		}
 		else{
-		  char *memory = static_cast<char*>(m_pool_manager.alloc(size));
+		  char *memory = static_cast<char*>(m_pool_manager->alloc(size));
 		  if (memory == MAP_FAILED) {
                     std::cout << strerror( errno ) << std::endl;
                     throwFatalException("Failed mmap");
@@ -192,7 +198,7 @@ public:
 		  m_chunks.push_back(Chunk(m_allocationSize, storage));
 		}
 		else{
-		  char *memory = static_cast<char*>(m_pool_manager.alloc(m_allocationSize));
+		  char *memory = static_cast<char*>(m_pool_manager->alloc(m_allocationSize));
 		  if (memory == MAP_FAILED) {
                     std::cout << strerror( errno ) << std::endl;
                     throwFatalException("Failed mmap");
@@ -264,6 +270,10 @@ public:
         }
     }
 
+  MMAPMemoryManager* getPoolManager(){
+    return (m_pool_manager);
+  }
+    
 private:
     const uint64_t m_allocationSize;
     std::size_t m_maxChunkCount;
@@ -279,7 +289,7 @@ private:
 
     /** MMAP Pool Storage **/
     std::string m_name ;
-    MMAPMemoryManager m_pool_manager;
+    MMAPMemoryManager* m_pool_manager;
     
     // No implicit copies
     Pool(const Pool&);

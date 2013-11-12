@@ -35,6 +35,7 @@
 #include <sys/time.h>
 
 #include "common/MMAPMemoryManager.hpp"
+#include "common/FatalException.hpp"
 
 namespace voltdb {
 
@@ -191,33 +192,23 @@ namespace voltdb {
 
 
   /** ASYNC m_sync **/
-  bool MMAPMemoryManager::async(){
-    if(m_persistent){
-      int ret;
-
+  void MMAPMemoryManager::async(){
       /** Only sync till m_allocated **/
-      ret = msync(m_base, m_allocated, MS_ASYNC);
+      int ret = msync(m_base, m_allocated, MS_ASYNC);
       if(ret<0){
 	VOLT_ERROR("msync failed with error.");
-	return false;
-      }
-    }
-    return true;
+	throwFatalException("Failed to msync.");
+      }    
   }
 
   /** SYNC m_sync **/
-  bool MMAPMemoryManager::sync(){
-    if(m_persistent){
-      int ret;
-
+  void MMAPMemoryManager::sync(){
       /** Only sync till m_allocated **/
-      ret = msync(m_base, m_allocated, MS_SYNC);
+      int ret = msync(m_base, m_allocated, MS_SYNC);
       if(ret<0){
 	VOLT_ERROR("msync failed with error.");
-	return false;
+	throwFatalException("Failed to msync.");
       }
-    }
-    return true;
   }
 
 

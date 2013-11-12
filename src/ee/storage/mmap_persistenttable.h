@@ -125,22 +125,19 @@ namespace voltdb {
     friend class TableFactory;
     friend class ExecutorContext;
 
-  private:
+  public:
     // no default ctor, no copy, no assignment
     MMAP_PersistentTable();
     MMAP_PersistentTable(MMAP_PersistentTable const&);
     MMAP_PersistentTable operator=(MMAP_PersistentTable const&);
-
-    const std::string m_name;
-
-    // MMAPMemoryManager handles all data requests from table
-    MMAPMemoryManager m_data_manager;
     
   protected:
     MMAP_PersistentTable(ExecutorContext *ctx, const std::string &name, bool exportEnabled);
 
     void allocateNextBlock();
 
+  private:  
+    const std::string m_name;    
 
   };
 

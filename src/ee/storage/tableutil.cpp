@@ -102,7 +102,7 @@ bool addRandomTuples(voltdb::Table* table, int num_of_tuples) {
             return (false);
         }
         //std::cout << std::endl << "Creating tuple " << std::endl << tuple.debugNoHeader() << std::endl;
-        //VOLT_DEBUG("Created random tuple: %s", tuple.debug().c_str());
+        //VOLT_DEBUG("Created random tuple: %s", tuple.debug(table->name()).c_str());
         if (!table->insertTuple(tuple)) {
             return (false);
         }

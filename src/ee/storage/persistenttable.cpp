@@ -190,9 +190,6 @@ PersistentTable::~PersistentTable() {
     }
 
     delete m_wrapper;
-
-    /** Clean MMAP pool pointer **/
-    delete m_pool;
 }
     
 // ------------------------------------------------------------------

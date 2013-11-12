@@ -134,9 +134,6 @@ class PersistentTable : public Table {
     PersistentTable(PersistentTable const&);
     PersistentTable operator=(PersistentTable const&);
 
-    /** MMAP Pool **/
-    Pool* m_pool;
-
   public:
     virtual ~PersistentTable();
 

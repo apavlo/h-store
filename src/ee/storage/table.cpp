@@ -80,6 +80,8 @@ Table::Table(int tableAllocationTargetSize) :
     m_ownsTupleSchema(true),
     m_tableAllocationTargetSize(tableAllocationTargetSize),
     m_tempTableMemoryInBytes(NULL),
+    m_pool(NULL),
+    m_data_manager(NULL),
     m_refcount(0),
     m_enableMMAP(false)
 {
@@ -117,6 +119,8 @@ Table::Table(int tableAllocationTargetSize, bool enableMMAP) :
     m_ownsTupleSchema(true),
     m_tableAllocationTargetSize(tableAllocationTargetSize),
     m_tempTableMemoryInBytes(NULL),
+    m_pool(NULL),
+    m_data_manager(NULL),
     m_refcount(0),
     m_enableMMAP(enableMMAP)
 {
@@ -183,6 +187,12 @@ Table::~Table() {
     if (m_columnHeaderData)
         delete[] m_columnHeaderData;
     m_columnHeaderData = NULL;
+
+    /** Clean MMAP pool pointer **/
+    delete m_pool;
+
+     /** Clean MMAP storage pointer **/
+    delete m_data_manager;
 }
 
 void Table::initializeWithColumns(TupleSchema *schema, const std::string* columnNames, bool ownsTupleSchema) {

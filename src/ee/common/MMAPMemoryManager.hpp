@@ -55,10 +55,9 @@ namespace voltdb {
         void showMetadata();
 
         // Sync in-memory changes with file synchronously
-        bool sync();
-        
+        void sync();        
         // Sync in-memory changes with file asynchronously
-        bool async();
+        void async();
 
     private:
         void init();

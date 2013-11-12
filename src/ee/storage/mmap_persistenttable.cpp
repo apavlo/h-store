@@ -92,9 +92,9 @@ namespace voltdb {
   
   MMAP_PersistentTable::MMAP_PersistentTable(ExecutorContext *ctx, const std::string &name, bool exportEnabled) :
   PersistentTable(ctx,name,exportEnabled), // enable MMAP'ed pool
-  m_name(name),
-  m_data_manager(16*1024*1024, m_executorContext->getDBDir()+"/"+name+"_Data", true) // 16 MB - backed by a file
+  m_name(name)
   {
+    m_data_manager = new MMAPMemoryManager(16*1024*1024, m_executorContext->getDBDir()+"/"+name+"_Data", true); // 16 MB - backed by a file
   }
 
   inline void MMAP_PersistentTable::allocateNextBlock() {
@@ -109,7 +109,7 @@ namespace voltdb {
     VOLT_WARN("MMAP : PId:: %d Table: %s  Bytes:: %d ",
 	       m_executorContext->getPartitionId(), this->name().c_str(), bytes);
 
-    memory = (char*)m_data_manager.alloc(bytes);
+    memory = (char*)m_data_manager->alloc(bytes);
     
     VOLT_WARN("MMAP : Table: %s :: Memory Pointer : %p ",
 	       this->name().c_str(), memory);
