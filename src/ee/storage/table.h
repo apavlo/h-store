@@ -346,6 +346,7 @@ public:
 
 protected:
     Table(int tableAllocationTargetSize);
+    Table(int tableAllocationTargetSize, bool enableMMAP);
     void resetTable();
 
     void nextFreeTuple(TableTuple *tuple);
@@ -434,6 +435,8 @@ protected:
 
   private:
     int32_t m_refcount;
+
+    bool m_enableMMAP;
 };
 
 /**

@@ -97,7 +97,7 @@ TableTuple keyTuple;
 #define MAX_EVICTED_TUPLE_SIZE 2500
 
 PersistentTable::PersistentTable(ExecutorContext *ctx, bool exportEnabled) :
-    Table(TABLE_BLOCKSIZE), m_executorContext(ctx), m_uniqueIndexes(NULL), m_uniqueIndexCount(0), m_allowNulls(NULL),
+    Table(TABLE_BLOCKSIZE,ctx->isMMAPEnabled()), m_executorContext(ctx), m_uniqueIndexes(NULL), m_uniqueIndexCount(0), m_allowNulls(NULL),
     m_indexes(NULL), m_indexCount(0), m_pkeyIndex(NULL), m_wrapper(NULL),
     m_tsSeqNo(0), stats_(this), m_exportEnabled(exportEnabled),
     m_COWContext(NULL)
@@ -123,7 +123,7 @@ PersistentTable::PersistentTable(ExecutorContext *ctx, bool exportEnabled) :
 }
 
 PersistentTable::PersistentTable(ExecutorContext *ctx, const std::string name, bool exportEnabled) :
-    Table(TABLE_BLOCKSIZE), m_executorContext(ctx), m_uniqueIndexes(NULL), m_uniqueIndexCount(0), m_allowNulls(NULL),
+    Table(TABLE_BLOCKSIZE,ctx->isMMAPEnabled()), m_executorContext(ctx), m_uniqueIndexes(NULL), m_uniqueIndexCount(0), m_allowNulls(NULL),
     m_indexes(NULL), m_indexCount(0), m_pkeyIndex(NULL), m_wrapper(NULL),
     m_tsSeqNo(0), stats_(this), m_exportEnabled(exportEnabled),
     m_COWContext(NULL)
@@ -160,11 +160,14 @@ PersistentTable::~PersistentTable() {
     voltdb::TableIterator ti(this);
     voltdb::TableTuple tuple(m_schema);
 
-    while (ti.next(tuple)) {
-        // indexes aren't released as they don't have ownership of strings
-        tuple.freeObjectColumns();
-        tuple.setDeletedTrue();
+    if(m_executorContext->isMMAPEnabled() == false){
+      while (ti.next(tuple)) {
+	  // indexes aren't released as they don't have ownership of strings
+	  tuple.freeObjectColumns();
+	  tuple.setDeletedTrue();
+      }
     }
+    
     for (int i = 0; i < m_indexCount; ++i) {
         TableIndex *index = m_indexes[i];
         if (index != m_pkeyIndex) {
@@ -187,6 +190,9 @@ PersistentTable::~PersistentTable() {
     }
 
     delete m_wrapper;
+
+    /** Clean MMAP pool pointer **/
+    delete m_pool;
 }
     
 // ------------------------------------------------------------------
