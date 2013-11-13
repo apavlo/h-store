@@ -93,15 +93,25 @@ void WindowTable::deleteAllTuples(bool freeAllocatedStrings)
 bool WindowTable::insertTuple(TableTuple &source)
 {
 	TableTuple t;
-	while(windowQueue.size() >= windowSize)
+	stagingQueue.push_back(source);
+	if(stagingQueue.size() >= slideSize)
 	{
-		t = windowQueue.front();
-		PersistentTable::deleteTuple(t, true);
-		windowQueue.pop_front();
+		for(std::list<TableTuple>::iterator it = stagingQueue.begin(); it != stagingQueue.end(); it++)
+		{
+			while(windowQueue.size() >= windowSize)
+			{
+				t = windowQueue.front();
+				PersistentTable::deleteTuple(t, true);
+				windowQueue.pop_front();
+			}
+
+			if(!(PersistentTable::insertTuple(*it)))
+				return false;
+			it = stagingQueue.erase(it);
+			windowQueue.push_back(m_tmpTarget1);
+		}
 	}
-	bool success = PersistentTable::insertTuple(source);
-	windowQueue.push_back(m_tmpTarget1);
-	return success;
+	return true;
 }
 
 void WindowTable::insertTupleForUndo(TableTuple &source, size_t elMark)

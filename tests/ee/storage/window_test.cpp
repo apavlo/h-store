@@ -74,7 +74,7 @@ using namespace voltdb;
 #define NUM_OF_COLUMNS 5
 #define NUM_OF_TUPLES 20
 #define WINDOW_SIZE 10
-#define SLIDE_SIZE 1
+#define SLIDE_SIZE 3
 
 voltdb::ValueType COLUMN_TYPES[NUM_OF_COLUMNS]  = { voltdb::VALUE_TYPE_BIGINT,
                                                     voltdb::VALUE_TYPE_TINYINT,
@@ -100,7 +100,7 @@ class WindowTest : public Test {
         }
         ~WindowTest() {
             delete table;
-            delete window_table;
+            //delete window_table;
             delete m_engine;
         }
 
@@ -158,6 +158,7 @@ TEST_F(WindowTest, ValueTypes) {
             EXPECT_EQ(COLUMN_TYPES[ctr], tuple.getType(ctr));
         }
     }
+    VOLT_DEBUG("END VALUE TYPES");
 }
 
 TEST_F(WindowTest, TupleInsert) {
