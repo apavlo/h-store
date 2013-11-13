@@ -621,6 +621,7 @@ public class DependencyTracker {
         int output_dep_id, input_dep_id;
         int ignore_ctr = 0;
         for (int i = 0; i < num_fragments; i++) {
+        	LOG.info("Fragment "+i);
             int partitionId = fragment.getPartitionId();
             int fragmentId = fragment.getFragmentId(i);
             int stmtCounter = fragment.getStmtCounter(i);
@@ -663,9 +664,20 @@ public class DependencyTracker {
                               state.dependency_ctr, prefetch,
                               dinfo.debug()));
                 
+                if (debug.val)
+                    LOG.debug(String.format("%s - Added new %s %s for PlanFragment %d at partition %d " +
+                              "[depCtr=%d, prefetch=%s]\n%s",
+                              ts, dinfo.getClass().getSimpleName(),
+                              TransactionUtil.debugStmtDep(stmtCounter, output_dep_id),
+                              fragment.getFragmentId(i),
+                              partition,
+                              state.dependency_ctr, prefetch,
+                              dinfo.debug()));
+                
                 // If this query was prefetched, we need to push its results through the 
                 // the tracker so that it can update counters
                 if (prefetch) {
+                	LOG.info("need prefetch");
                     // We also need a way to mark this entry in the WorkFragment as 
                     // unnecessary and make sure that we don't actually send it out
                     // if there is no new work to be done.
@@ -677,7 +689,8 @@ public class DependencyTracker {
                         // Switch the DependencyInfo out of prefetch mode
                         // This means that all incoming results (if any) will be 
                         // added to TransactionState just like any other regular query.
-                        dinfo.resetPrefetch();
+                    	LOG.info("reset prefetch");
+                    	dinfo.resetPrefetch();
                         
                         // Now update the internal state just as if these new results 
                         // arrived for this query.
@@ -690,9 +703,11 @@ public class DependencyTracker {
 
             } // IF
             
+            LOG.info("finish out dependency");
             // If this WorkFragment needs an input dependency, then we need to make sure it arrives at
             // the executor before it is allowed to start executing
             if (fragment.getNeedsInput()) {
+            	LOG.info("need input dependency");
                 input_dep_id = fragment.getInputDepId(i);
                 if (input_dep_id != HStoreConstants.NULL_DEPENDENCY_ID) {
                     DependencyInfo dinfo = null;
@@ -736,9 +751,25 @@ public class DependencyTracker {
                           "%d out of %d\n%s", 
                           ts, stmtCounter, output_ctr, dep_ctr, StringUtil.formatMaps(m)));
             }
+            if (debug.val) {
+                int output_ctr = 0;
+                int dep_ctr = 0;
+                Map<String, Object> m = new LinkedHashMap<String, Object>();
+                for (DependencyInfo dinfo : state.dependencies.values()) {
+                    if (dinfo.getStatementCounter() == stmtCounter) dep_ctr++;
+                    if (dinfo.isInternal() == false) {
+                        m.put(String.format("Output[%02d]", output_ctr++), dinfo.debug());
+                    }
+                } // FOR
+                LOG.debug(String.format("%s - Number of Output Dependencies for StmtCounter #%d: " +
+                          "%d out of %d\n%s", 
+                          ts, stmtCounter, output_ctr, dep_ctr, StringUtil.formatMaps(m)));
+            }
             // *********************************** DEBUG ***********************************
             
         } // FOR
+        
+        LOG.info("finish for");
 
         // *********************************** DEBUG ***********************************
         if (debug.val) {
