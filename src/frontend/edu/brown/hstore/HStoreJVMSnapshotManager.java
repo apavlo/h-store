@@ -272,6 +272,7 @@ public class HStoreJVMSnapshotManager {
 			this.isParent = false;
 			if (debug.val)
 				LOG.debug("Child process start");
+			hstore_site.getHStoreConf().site.txn_counters = false;
 
 			this.hstore_site.snapshot_init();
 			
