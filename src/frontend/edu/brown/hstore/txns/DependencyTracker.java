@@ -413,7 +413,8 @@ public class DependencyTracker {
                           stmtIndex, fragmentId, paramsHash));
             dinfo.init(state.txn_id, currentRound, stmtCounter, stmtIndex, paramsHash, dep_id.intValue());
         }
-        
+        if (debug.val)
+            LOG.debug(String.format("%s - After Initializing DependencyInfo", ts));
         return (dinfo);
     }
 
