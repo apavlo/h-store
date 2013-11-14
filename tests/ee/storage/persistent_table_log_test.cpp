@@ -33,6 +33,7 @@
 #include "indexes/tableindex.h"
 #include <vector>
 #include <string>
+#include <set>
 #include <stdint.h>
 
 using namespace voltdb;
@@ -182,6 +183,39 @@ TEST_F(PersistentTableLogTest, InsertDeleteThenUndoOneTest) {
     }
     delete [] tupleBackup.address();
 }*/
+
+TEST_F(PersistentTableLogTest, TupleId) {
+    initTable(true);
+    voltdb::TableTuple tuple(m_tableSchema);
+
+    // Insert a bunch of tuples and make sure that they all have valid tuple ids
+    voltdb::TableIterator iterator = m_table->tableIterator();
+    while (iterator.next(tuple)) {
+        //printf("%s\n", tuple->debug(this->table).c_str());
+        // Make sure it is not deleted
+        EXPECT_EQ(true, tuple.isActive());
+    }
+
+    // Make sure that if we insert one tuple, we only get one tuple
+    voltdb::TableTuple &temp_tuple = m_table->tempTuple();
+    int num_tuples = 10;
+    for (int i = 0; i < num_tuples; i++) {
+        ASSERT_EQ(true, tableutil::setRandomTupleValues(m_table, &temp_tuple));
+        ASSERT_EQ(true, m_table->insertTuple(temp_tuple));
+    }
+    printf("# of Tuples -> %ld\n", m_table->usedTupleCount());
+    ASSERT_EQ(num_tuples, m_table->usedTupleCount());
+
+    // Then check to make sure that it has the same value and type
+    iterator = m_table->tableIterator();
+    std::set<uint32_t> tupleIds;
+    while (iterator.next(tuple)) {
+        uint32_t id = tuple.getTupleID();
+//         printf("[%d] -- %s\n", id, tuple.debug(m_table->name()).c_str());
+//         ASSERT_EQ(0, tupleIds.count(id));
+        tupleIds.insert(id);
+    } // WHILE
+}
 
 TEST_F(PersistentTableLogTest, InsertUpdateThenUndoOneTest) {
     initTable(true);
