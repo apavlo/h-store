@@ -151,6 +151,8 @@ public class NIOEventLoop implements EventLoop {
     public void run() {
         if (LOG.isDebugEnabled()) LOG.debug("Starting run() loop");
         while (!exitLoop) {
+            if (Thread.currentThread().getName().equals("H00-child"))
+                LOG.info("runOnce");
             runOnce();
         }
         exitLoop = false;
@@ -163,13 +165,21 @@ public class NIOEventLoop implements EventLoop {
             long now = System.currentTimeMillis();
             timeoutMs = triggerExpiredTimers(now);
         }
+        if (Thread.currentThread().getName().equals("H00-child"))
+            LOG.info("11111");
 
         try {
             int readyCount = selector.select(timeoutMs);
+            if (Thread.currentThread().getName().equals("H00-child"))
+                LOG.info("22222");
             handleSelectedKeys();
+            if (Thread.currentThread().getName().equals("H00-child"))
+                LOG.info("33333");
             if (readyCount == 0) {
                 // TODO: Avoid checking this at both the top and the bottom of the loop.
                 triggerExpiredTimers(System.currentTimeMillis());
+                if (Thread.currentThread().getName().equals("H00-child"))
+                    LOG.info("44444");
             }
         } catch (IOException e) {
             throw new RuntimeException(e);
