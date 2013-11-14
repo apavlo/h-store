@@ -30,11 +30,13 @@ public class JSONResultsPrinter implements BenchmarkInterest {
         try {
             json = new JSONObject(fr.toJSONString());
             if (hstore_conf.client.output_clients == false) {
-                for (String key : CollectionUtil.iterable(json.keys())) {
-                    if (key.toLowerCase().startsWith("client")) {
-                        json.remove(key);        
-                    }
-                } // FOR
+                json.remove("CLIENTRESULTS");
+                json.remove("WKFRESULTS");
+//                for (String key : CollectionUtil.iterable(json.keys())) {
+//                    if (key.toLowerCase().startsWith("client")) {
+//                        json.remove(key);        
+//                    }
+//                } // FOR
             }
         } catch (JSONException ex) {
             throw new RuntimeException(ex);
