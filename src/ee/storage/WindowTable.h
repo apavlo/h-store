@@ -62,6 +62,7 @@ class ReferenceSerializeOutput;
 class ExecutorContext;
 class MaterializedViewMetadata;
 class RecoveryProtoMsg;
+class TableTuple;
 
 class WindowTable : public PersistentTable {
 	friend class TableFactory;
@@ -92,6 +93,8 @@ class WindowTable : public PersistentTable {
 	void insertTupleForUndo(TableTuple &source, size_t elMark);
 
 	TableTuple getOldestTuple();
+	bool tuplesInStaging();
+	void markTupleForStaging(TableTuple &source);
 
 	/*
 	 * Note that inside update tuple the order of sourceTuple and

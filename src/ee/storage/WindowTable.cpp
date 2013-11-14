@@ -85,6 +85,7 @@ void WindowTable::deleteAllTuples(bool freeAllocatedStrings)
 {
 	PersistentTable::deleteAllTuples(freeAllocatedStrings);
 	windowQueue.clear();
+	stagingQueue.clear();
 }
 
 /**
@@ -92,34 +93,78 @@ void WindowTable::deleteAllTuples(bool freeAllocatedStrings)
  */
 bool WindowTable::insertTuple(TableTuple &source)
 {
+	if(!(PersistentTable::insertTuple(source)))
+		return false;
+	markTupleForStaging(m_tmpTarget1);
+
 	TableTuple t;
-	while(windowQueue.size() >= windowSize)
+	if(stagingQueue.size() >= slideSize)
 	{
-		t = windowQueue.front();
-		PersistentTable::deleteTuple(t, true);
-		windowQueue.pop_front();
+		for(std::list<TableTuple>::iterator it = stagingQueue.begin(); it != stagingQueue.end(); it++)
+		{
+			while(windowQueue.size() >= windowSize)
+			{
+				t = windowQueue.front();
+				PersistentTable::deleteTuple(t, true);
+				windowQueue.pop_front();
+			}
+
+			//if(!(PersistentTable::insertTuple(*it)))
+			//	return false;
+			it->setDeletedFalse();
+			m_tupleCount++;
+			windowQueue.push_back(*it);
+			it = stagingQueue.erase(it);
+		}
 	}
-	bool success = PersistentTable::insertTuple(source);
-	windowQueue.push_back(m_tmpTarget1);
-	return success;
+	return true;
 }
 
 void WindowTable::insertTupleForUndo(TableTuple &source, size_t elMark)
 {
-	TableTuple t;
-	while(windowQueue.size() >= windowSize)
-	{
-		t = windowQueue.front();
-		PersistentTable::deleteTuple(t, elMark);
-		windowQueue.pop_front();
-	}
 	PersistentTable::insertTupleForUndo(source, elMark);
-	windowQueue.push_back(m_tmpTarget1);
+	markTupleForStaging(m_tmpTarget1);
+
+	TableTuple t;
+	if(stagingQueue.size() >= slideSize)
+	{
+		for(std::list<TableTuple>::iterator it = stagingQueue.begin(); it != stagingQueue.end(); it++)
+		{
+			while(windowQueue.size() >= windowSize)
+			{
+				t = windowQueue.front();
+				PersistentTable::deleteTuple(t, true);
+				windowQueue.pop_front();
+			}
+
+			//if(!(PersistentTable::insertTuple(*it)))
+			//	return false;
+			it->setDeletedFalse();
+			m_tupleCount++;
+			windowQueue.push_back(*it);
+			it = stagingQueue.erase(it);
+		}
+	}
 }
 
 TableTuple WindowTable::getOldestTuple()
 {
 	return windowQueue.front();
+}
+
+bool WindowTable::tuplesInStaging()
+{
+	if(stagingQueue.size() == 0)
+		return false;
+	return true;
+}
+
+void WindowTable::markTupleForStaging(TableTuple &source)
+{
+	//setting deleted = true, but not actually freeing the memory
+	source.setDeletedTrue();
+	m_tupleCount--;
+	stagingQueue.push_back(source);
 }
 
 
@@ -184,6 +229,14 @@ std::string WindowTable::debug()
 	for(std::list<TableTuple>::const_iterator it = windowQueue.begin(); it != windowQueue.end(); it++)
 	{
 		output << i << ": " << it->debug("list").c_str() << "\n";
+		i++;
+	}
+
+	output << "STAGING:\n";
+	i = 0;
+	for(std::list<TableTuple>::const_iterator it = stagingQueue.begin(); it != stagingQueue.end(); it++)
+	{
+		output << i << ": " << it->debug("staging").c_str() << "\n";
 		i++;
 	}
 

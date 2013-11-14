@@ -104,6 +104,7 @@ class TableTuple {
     friend class Table;
     friend class TempTable;
     friend class EvictedTable;
+    friend class WindowTable;
     friend class PersistentTable;
     friend class PersistentTableUndoDeleteAction;
     friend class PersistentTableUndoUpdateAction;

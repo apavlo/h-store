@@ -74,7 +74,7 @@ using namespace voltdb;
 #define NUM_OF_COLUMNS 5
 #define NUM_OF_TUPLES 20
 #define WINDOW_SIZE 10
-#define SLIDE_SIZE 1
+#define SLIDE_SIZE 3
 
 voltdb::ValueType COLUMN_TYPES[NUM_OF_COLUMNS]  = { voltdb::VALUE_TYPE_BIGINT,
                                                     voltdb::VALUE_TYPE_TINYINT,
@@ -100,7 +100,7 @@ class WindowTest : public Test {
         }
         ~WindowTest() {
             delete table;
-            delete window_table;
+            //delete window_table;
             delete m_engine;
         }
 
@@ -158,6 +158,7 @@ TEST_F(WindowTest, ValueTypes) {
             EXPECT_EQ(COLUMN_TYPES[ctr], tuple.getType(ctr));
         }
     }
+    VOLT_DEBUG("END VALUE TYPES");
 }
 
 TEST_F(WindowTest, TupleInsert) {
@@ -185,6 +186,27 @@ TEST_F(WindowTest, TupleInsert) {
     //VOLT_DEBUG("Current Window Queue: %s", table->debug().c_str());
 
     /**
+    while(window_table->tuplesInStaging()){
+    	ASSERT_EQ(true, tableutil::setRandomTupleValues(this->table, &tuple));
+    	ASSERT_EQ(true, this->table->insertTuple(tuple));
+    }*/
+    //insert one tuple, check window
+    ASSERT_EQ(true, tableutil::setRandomTupleValues(this->table, &tuple));
+    VOLT_DEBUG("Inserting tuple: %s", tuple.debug("currentTempTuple").c_str());
+    ASSERT_EQ(true, this->table->insertTuple(tuple));
+    VOLT_DEBUG("Checking Staging, insert next tuple: %s", table->debug().c_str());
+    ASSERT_EQ(true, tableutil::setRandomTupleValues(this->table, &tuple));
+    VOLT_DEBUG("Inserting tuple: %s", tuple.debug("currentTempTuple").c_str());
+    ASSERT_EQ(true, this->table->insertTuple(tuple));
+    VOLT_DEBUG("Checking Staging After Insert, insert next tuple: %s", table->debug().c_str());
+    for(int i = 0; i < SLIDE_SIZE - 1; i++)
+    {
+    	ASSERT_EQ(true, tableutil::setRandomTupleValues(this->table, &tuple));
+    	ASSERT_EQ(true, this->table->insertTuple(tuple));
+    }
+    VOLT_DEBUG("Staging full, insert tuples: %s", table->debug().c_str());
+
+    /**
     std::vector<voltdb::TableTuple> tuplesInserted = std::vector<voltdb::TableTuple>();
 
     for(int i = 0; i < WINDOW_SIZE; i++)
@@ -207,17 +229,19 @@ TEST_F(WindowTest, TupleInsert) {
     	i++;
     }
     */
+    /**
     voltdb::TableTuple &temp_tuple = this->table->tempTuple();
     //
     // Then check to make sure that it has the same value and type
     //
     iterator = this->table->tableIterator();
     ASSERT_EQ(true, iterator.next(tuple));
+    ASSERT_EQ(true, temp_tuple.isActive());
     for (int col_ctr = 0, col_cnt = NUM_OF_COLUMNS; col_ctr < col_cnt; col_ctr++) {
         EXPECT_EQ(COLUMN_TYPES[col_ctr], tuple.getType(col_ctr));
         EXPECT_TRUE(temp_tuple.getNValue(col_ctr).op_equals(tuple.getNValue(col_ctr)).isTrue());
     }
-
+	*/
 }
 
 TEST_F(WindowTest, TupleUpdate) {
