@@ -159,13 +159,25 @@ public class HStoreJVMSnapshotManager {
 						+ destinationAddress.getPort());
 
 			ProtoRpcChannel[] channels = null;
-			try {
-				channels = ProtoRpcChannel.connectParallel(
-					eventLoop, new InetSocketAddress[] { destinationAddress });
-			} catch (Exception e) {
-				LOG.info("Connection fail", e);
-				return false;
-			}
+			int tries = hstore_site.getHStoreConf().site.network_startup_retries;
+            boolean success = false;
+            while (tries-- > 0 && success == false) {
+                try {
+                    channels = ProtoRpcChannel.connectParallel(eventLoop,
+                                                               new InetSocketAddress[] { destinationAddress },
+                                                               hstore_site.getHStoreConf().site.network_startup_wait);
+                    success = true;
+                } catch (Throwable ex) {
+                    if (tries > 0) {
+                        LOG.warn("Failed to connect to snapshot. Going to try again...");
+                        continue;
+                    }
+                }
+            } // WHILE
+            if (success == false) {
+                LOG.info("Site #" + this.getLocalSiteId() + " failed to connect to snapshot");
+                return false;
+            }
 
 			this.channel = HStoreJVMSnapshotService.newStub(channels[0]);
 			listener_thread = new Thread(new ListenerThread());
