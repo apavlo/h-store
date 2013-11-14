@@ -158,8 +158,14 @@ public class HStoreJVMSnapshotManager {
 						+ destinationAddress.getHostString() + " "
 						+ destinationAddress.getPort());
 
+			try {
+				Thread.sleep(500);
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 			ProtoRpcChannel[] channels = null;
-			int tries = hstore_site.getHStoreConf().site.network_startup_retries;
+			int tries = 3;
             boolean success = false;
             while (tries-- > 0 && success == false) {
                 try {
@@ -360,12 +366,6 @@ public class HStoreJVMSnapshotManager {
 		ProcessUtils.kill(this.snapshot_pid);
 		if (listener_thread != null && listener_thread.isAlive()) {
 			eventLoop.exitLoop();		
-		}
-		try {
-			Thread.sleep(500);
-		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
 		}
 
 		this.snapshot_pid = 0;
