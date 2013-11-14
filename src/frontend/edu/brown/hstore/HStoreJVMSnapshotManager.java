@@ -363,7 +363,13 @@ public class HStoreJVMSnapshotManager {
 			LOG.debug("HStoreJVMSnapshot shutdown!");
 		if (!isParent || snapshot_pid == 0)
 			return;
-		ProcessUtils.kill(this.snapshot_pid);
+		try {
+			Runtime.getRuntime().exec("kill -9 "+this.snapshot_pid);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		//ProcessUtils.kill(this.snapshot_pid);
 		if (listener_thread != null && listener_thread.isAlive()) {
 			eventLoop.exitLoop();		
 		}
