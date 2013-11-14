@@ -184,7 +184,7 @@ TEST_F(PersistentTableLogTest, InsertDeleteThenUndoOneTest) {
     delete [] tupleBackup.address();
 }*/
 
-TEST_F(PersistentTableLogTest, TupleId) {
+TEST_F(PersistentTableLogTest, TupleIds) {
     initTable(true);
     voltdb::TableTuple tuple(m_tableSchema);
 
@@ -197,12 +197,8 @@ TEST_F(PersistentTableLogTest, TupleId) {
     }
 
     // Make sure that if we insert one tuple, we only get one tuple
-    voltdb::TableTuple &temp_tuple = m_table->tempTuple();
     int num_tuples = 10;
-    for (int i = 0; i < num_tuples; i++) {
-        ASSERT_EQ(true, tableutil::setRandomTupleValues(m_table, &temp_tuple));
-        ASSERT_EQ(true, m_table->insertTuple(temp_tuple));
-    }
+    tableutil::addRandomTuples(m_table, num_tuples);
 //     printf("# of Tuples -> %ld\n", m_table->usedTupleCount());
     ASSERT_EQ(num_tuples, m_table->usedTupleCount());
 
