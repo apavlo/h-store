@@ -622,7 +622,8 @@ public class DependencyTracker {
         int output_dep_id, input_dep_id;
         int ignore_ctr = 0;
         for (int i = 0; i < num_fragments; i++) {
-        	LOG.info("Fragment "+i);
+        	if (debug.val)
+        		LOG.debug("Fragment "+i);
             int partitionId = fragment.getPartitionId();
             int fragmentId = fragment.getFragmentId(i);
             int stmtCounter = fragment.getStmtCounter(i);
@@ -678,7 +679,6 @@ public class DependencyTracker {
                 // If this query was prefetched, we need to push its results through the 
                 // the tracker so that it can update counters
                 if (prefetch) {
-                	LOG.info("need prefetch");
                     // We also need a way to mark this entry in the WorkFragment as 
                     // unnecessary and make sure that we don't actually send it out
                     // if there is no new work to be done.
@@ -690,7 +690,6 @@ public class DependencyTracker {
                         // Switch the DependencyInfo out of prefetch mode
                         // This means that all incoming results (if any) will be 
                         // added to TransactionState just like any other regular query.
-                    	LOG.info("reset prefetch");
                     	dinfo.resetPrefetch();
                         
                         // Now update the internal state just as if these new results 
@@ -704,11 +703,9 @@ public class DependencyTracker {
 
             } // IF
             
-            LOG.info("finish out dependency");
             // If this WorkFragment needs an input dependency, then we need to make sure it arrives at
             // the executor before it is allowed to start executing
             if (fragment.getNeedsInput()) {
-            	LOG.info("need input dependency");
                 input_dep_id = fragment.getInputDepId(i);
                 if (input_dep_id != HStoreConstants.NULL_DEPENDENCY_ID) {
                     DependencyInfo dinfo = null;
@@ -769,8 +766,6 @@ public class DependencyTracker {
             // *********************************** DEBUG ***********************************
             
         } // FOR
-        
-        LOG.info("finish for");
 
         // *********************************** DEBUG ***********************************
         if (debug.val) {

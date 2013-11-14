@@ -2,10 +2,8 @@ package edu.brown.hstore;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.nio.ByteBuffer;
 
 import org.apache.log4j.Logger;
-import org.voltdb.CatalogContext;
 import org.voltdb.ClientResponseImpl;
 import org.voltdb.catalog.Site;
 import org.voltdb.messaging.FastDeserializer;
@@ -15,15 +13,12 @@ import org.voltdb.utils.ProcessUtils;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.RpcCallback;
 import com.google.protobuf.RpcController;
-import com.sun.mail.iap.Response;
 
-import edu.brown.hstore.Hstoreservice.TransactionRedirectRequest;
-import edu.brown.hstore.Hstoreservice.TransactionRedirectResponse;
+import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Jvmsnapshot.HStoreJVMSnapshotService;
 import edu.brown.hstore.Jvmsnapshot.TransactionRequest;
 import edu.brown.hstore.Jvmsnapshot.TransactionResponse;
 import edu.brown.hstore.callbacks.JVMSnapshotTransactionCallback;
-import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
@@ -55,7 +50,7 @@ public class HStoreJVMSnapshotManager {
 
 	// for parent
 	private HStoreJVMSnapshotService channel;
-	private ProtoRpcController rpc;
+	private Thread listener_thread;
 
 	// for child snapshots
 	private ProtoServer listener;
@@ -65,18 +60,6 @@ public class HStoreJVMSnapshotManager {
 	private boolean isParent;
 
 	private TransactionResponse response;
-
-	// ----------------------------------------------------------------------------
-	// REFRESHER THREAD
-	// ----------------------------------------------------------------------------
-
-	private class refresher implements Runnable {
-		@Override
-		public void run() {
-			// TODO
-
-		}
-	}
 
 	// ----------------------------------------------------------------------------
 	// INITIALIZATION
@@ -124,45 +107,7 @@ public class HStoreJVMSnapshotManager {
 	}
 
 	// ----------------------------------------------------------------------------
-	// SNAPSHOT THREAD
-	// ----------------------------------------------------------------------------
-
-	private class SnapshotThread implements Runnable {
-		@Override
-		public void run() {
-
-			// Initialize listener
-			NIOEventLoop eventLoop = new NIOEventLoop();
-			HStoreJVMSnapshotManager.this.listener = new ProtoServer(eventLoop);
-			HStoreJVMSnapshotManager.this.snapshotHandler = new SnapshotHandler();
-			Integer local_port = HStoreJVMSnapshotManager.this.catalog_site
-					.getJVMSnapshot_port();
-			assert (local_port != null);
-			if (debug.val)
-				LOG.debug("Binding listener to port " + local_port
-						+ " for Site #"
-						+ HStoreJVMSnapshotManager.this.catalog_site.getId());
-			HStoreJVMSnapshotManager.this.listener
-					.register(HStoreJVMSnapshotManager.this.snapshotHandler);
-			HStoreJVMSnapshotManager.this.listener.bind(local_port);
-
-			eventLoop.setExitOnSigInt(true);
-			if (debug.val)
-				LOG.debug("New Snapshot start to listen on port");
-			try {
-				eventLoop.run();
-			} catch (Throwable ex) {
-				if (debug.val)
-					LOG.debug("SnapshotsListener error", ex);
-			}
-			if (debug.val)
-				LOG.debug("Never reach here");
-
-		}
-	}
-
-	// ----------------------------------------------------------------------------
-	// SNAPSHOT THREAD
+	// LISTENER THREAD
 	// ----------------------------------------------------------------------------
 
 	private class ListenerThread implements Runnable {
@@ -183,46 +128,11 @@ public class HStoreJVMSnapshotManager {
 	}
 
 	/**
-	 * TEST ONLY Fork a new snapshot. This is a blocking call that will
-	 * initialize the snapshot and set up the connection!
-	 * 
-	 */
-	private void forkNewSnapShotThread() {
-
-		if (debug.val)
-			LOG.debug("Fork new JVM snapshot thread for Site #"
-					+ this.catalog_site.getId());
-
-		Thread snapshot_thread = new Thread(new SnapshotThread());
-		snapshot_thread.start();
-		snapshot_pid = 20;
-		// Connect to the child snapshot.
-		InetSocketAddress destinationAddress = new InetSocketAddress(
-				this.catalog_site.getHost().getIpaddr(),
-				this.catalog_site.getJVMSnapshot_port());
-		if (debug.val)
-			LOG.debug("Connecting to child thread "
-					+ destinationAddress.getHostString() + " "
-					+ destinationAddress.getPort());
-		ProtoRpcChannel[] channels = ProtoRpcChannel.connectParallel(eventLoop,
-				new InetSocketAddress[] { destinationAddress });
-
-		this.channel = HStoreJVMSnapshotService.newStub(channels[0]);
-		Thread listener_thread = new Thread(new ListenerThread());
-		listener_thread.start();
-
-		if (debug.val)
-			LOG.debug("Site #" + this.getLocalSiteId()
-					+ " is connected to the new JVM snapshot");
-
-	}
-
-	/**
 	 * Fork a new snapshot. This is a blocking call that will initialize the
 	 * snapshot and set up the connection!
 	 * 
 	 */
-	private void forkNewSnapShot() {
+	private boolean forkNewSnapShot() {
 
 		if (debug.val)
 			LOG.debug("Fork new JVM snapshot for Site #"
@@ -232,7 +142,7 @@ public class HStoreJVMSnapshotManager {
 		if (pid == -1) {
 			if (debug.val)
 				LOG.debug("Fork new JVM snapshot fails.");
-			return;
+			return false;
 		}
 		if (pid != 0) {
 			// parent process
@@ -254,16 +164,17 @@ public class HStoreJVMSnapshotManager {
 					eventLoop, new InetSocketAddress[] { destinationAddress });
 			} catch (Exception e) {
 				LOG.info("Connection fail", e);
-				return;
+				return false;
 			}
 
 			this.channel = HStoreJVMSnapshotService.newStub(channels[0]);
-			Thread listener_thread = new Thread(new ListenerThread());
+			listener_thread = new Thread(new ListenerThread());
 			listener_thread.start();
 
 			if (debug.val)
 				LOG.debug("Site #" + this.getLocalSiteId()
 						+ " is connected to the new JVM snapshot");
+			return true;
 		} else {
 			// child process
 			Thread self = Thread.currentThread();
@@ -308,6 +219,8 @@ public class HStoreJVMSnapshotManager {
 			}
 			if (debug.val)
 				LOG.debug("Never reach here");
+			System.exit(-1);
+			return false;
 		}
 
 	}
@@ -321,13 +234,18 @@ public class HStoreJVMSnapshotManager {
 			LOG.debug("Send execTransactionRequest to the snapshot;");
 		if (!isParent)
 			return;
-		if (snapshot_pid == 0) {
-			forkNewSnapShot();
-		} else {
-			// Currently create a new snapshot for each query.
-	//		stopSnapshot();
-	//		snapshot_pid = 0;
-	//		forkNewSnapShot();
+		if (snapshot_pid == 0 || refresh == true) {
+			stopSnapshot();
+			if (!forkNewSnapShot()) {
+				stopSnapshot();
+				hstore_site.responseError(
+						ts.getClientHandle(), 
+						Status.ABORT_CONNECTION_LOST, 
+						"Forking Snapshot fails",
+						ts.getClientCallback(),
+						ts.getInitiateTime());
+			};
+			refresh = false;
 		}
 
 		ByteString bs = ByteString.EMPTY;
@@ -377,7 +295,6 @@ public class HStoreJVMSnapshotManager {
 			try {
 				ts.readExternal(in);
 			} catch (IOException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 			if (debug.val)
@@ -388,21 +305,14 @@ public class HStoreJVMSnapshotManager {
 			int aa = 0;
 			while (response == null) {
 				aa++;
-				if (aa % 400 == 0)
-					LOG.info("sleep" + aa);
+				if (aa % 400 == 0 && debug.val)
+					LOG.debug("sleep" + aa);
 			}
-			LOG.info("send back");
+			if (debug.val) {
+				LOG.debug("Snapshot send back response to the parent!");
+			}
 			done.run(response);
-			LOG.info("Done");
 			response = null;
-			/*
-			 * ByteString bs = ByteString.copyFrom("Received".getBytes());
-			 * TransactionResponse reponse =
-			 * TransactionResponse.newBuilder().setOutput(bs).build(); if
-			 * (debug.val)
-			 * LOG.debug("Snapshot send back response to the parent!");
-			 * done.run(reponse);
-			 */
 		}
 	}
 
@@ -420,30 +330,31 @@ public class HStoreJVMSnapshotManager {
 		}
 		this.response = TransactionResponse.newBuilder().setOutput(bs).build();
 		if (debug.val)
-			LOG.debug("Snapshot send back response to the parent! "
+			LOG.debug("Generate response "
 					+ this.response.toString());
-		if (debug.val)
-			LOG.debug("Done!");
 
 	}
 
 	// ----------------------------------------------------------------------------
-	// SHUTDOWN
+	// SHUTDOWN (Called By Parent)
 	// ----------------------------------------------------------------------------
 
 	public void stopSnapshot() {
 		if (debug.val)
 			LOG.debug("HStoreJVMSnapshot shutdown!");
-
-		TransactionRequest request = TransactionRequest.newBuilder()
-				.setRequest(ByteString.EMPTY).build();
 		if (!isParent || snapshot_pid == 0)
 			return;
-		JVMSnapshotTransactionCallback callback = new JVMSnapshotTransactionCallback(
-				-1, null);
+		ProcessUtils.kill(this.snapshot_pid);
+		if (listener_thread != null && listener_thread.isAlive()) {
+			eventLoop.exitLoop();		
+		}
 
-		channel.execTransactionRequest(new ProtoRpcController(), request,
-				callback);
+		this.snapshot_pid = 0;
+	}
+
+	public void refresh() {
+		this.refresh = true;
+		
 	}
 
 }

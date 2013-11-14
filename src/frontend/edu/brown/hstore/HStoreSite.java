@@ -724,7 +724,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         Thread t = new Thread(this.txnQueueManager);
         t.setDaemon(true);
         t.setUncaughtExceptionHandler(this.exceptionHandler);
-        LOG.info("before start");
+        if (debug.val)
+        	LOG.debug("Start txn queue manager");
         t.start();
         
         // Then we need to start all of the PartitionExecutor in threads
@@ -948,6 +949,16 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 SystemStatsCollector.asyncSampleSystemNow(true, true);
             }
         }, 0, 6, TimeUnit.MINUTES);
+        
+        // refresh JVM snapshot
+        this.threadManager.schedulePeriodicWork(new ExceptionHandlingRunnable() {
+            @Override
+            public void runImpl() {
+                if (jvmSnapshotManager != null) {
+                	jvmSnapshotManager.refresh();
+                }
+            }
+        }, 0, 30, TimeUnit.SECONDS);
     }
     
     // ----------------------------------------------------------------------------

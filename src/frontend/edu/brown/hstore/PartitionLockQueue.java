@@ -365,7 +365,6 @@ public class PartitionLockQueue extends ThrottlingQueue<AbstractTransaction> {
         
         if (trace.val)
             LOG.trace(String.format("Partition %d :: Attempting to acquire lock", this.partitionId));
-        LOG.info(String.format("Partition %d :: Attempting to acquire lock", this.partitionId));
         this.lock.lock();
         
         try {
@@ -587,8 +586,8 @@ public class PartitionLockQueue extends ThrottlingQueue<AbstractTransaction> {
         
         // Set the new state
         if (newState != this.state) {
-            LOG.info(String.format("Partition %d :: ORIG[%s]->NEW[%s] / LastSafeTxn:%d",
-                    this.partitionId, this.state, newState, this.lastSafeTxnId));
+//            LOG.info(String.format("Partition %d :: ORIG[%s]->NEW[%s] / LastSafeTxn:%d",
+//                    this.partitionId, this.state, newState, this.lastSafeTxnId));
             if (trace.val)
                 LOG.trace(String.format("Partition %d :: ORIG[%s]->NEW[%s] / LastSafeTxn:%d",
                           this.partitionId, this.state, newState, this.lastSafeTxnId));

@@ -1005,14 +1005,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         if (debug.val)
             LOG.debug("Starting PartitionExecutor run loop...");
         try {
-        	//int a = 0;
             while (this.shutdown_state == ShutdownState.STARTED) {
-            	/*if (this.hstore_site.getJvmSnapshotManager().isParent() == false) {
-            		a++;
-            		if (a % 1000 == 0) {
-            			LOG.info("alive");
-            		}
-            	}*/
                 this.currentTxnId = null;
                 nextTxn = null;
                 nextWork = null;
@@ -1034,7 +1027,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                     
                     // If we get something back here, then it should become our current transaction.
                     if (nextTxn != null) {
-                    	LOG.info("find nextTxn: "+ nextTxn.toString());
                         // If it's a single-partition txn, then we can return the StartTxnMessage 
                         // so that we can fire it off right away.
                         if (nextTxn.isPredictSinglePartition()) {
@@ -1078,7 +1070,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 // Process Work
                 // -------------------------------
                 if (nextWork != null) {
-                	LOG.info("Next Work: " + nextWork);
                     if (trace.val) LOG.trace("Next Work: " + nextWork);
                     if (hstore_conf.site.exec_profiling) {
                         profiler.numMessages.put(nextWork.getClass().getSimpleName());
@@ -2200,11 +2191,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             String.format("Transaction %s was not marked released at partition %d before being executed",
                           ts, this.partitionId);
         
-        if (trace.val)
+        if (debug.val)
             LOG.debug(String.format("%s - Attempting to start transaction on partition %d",
                       ts, this.partitionId));
-        LOG.info(String.format("%s - Attempting to start transaction on partition %d",
-        		ts, this.partitionId));
         // If this is a MapReduceTransaction handle, we actually want to get the 
         // inner LocalTransaction handle for this partition. The MapReduceTransaction
         // is just a placeholder
@@ -3833,10 +3822,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                           ts, ClassUtil.getCurrentMethodName(),
                           first, this.depTracker.stillHasWorkFragments(ts), queue.size(), latch));
             
-            LOG.info(String.format("%s - %s loop [first=%s, stillHasWorkFragments=%s, latch=%s]",
-                    ts, ClassUtil.getCurrentMethodName(),
-                    first, this.depTracker.stillHasWorkFragments(ts), queue.size(), latch));
-     
             // If this is the not first time through the loop, then poll the queue
             // to get our list of fragments
             if (first == false) {
@@ -3852,8 +3837,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 if (trace.val)
                     LOG.trace(String.format("%s - Waiting for unblocked tasks on partition %d",
                               ts, this.partitionId));
-                LOG.info(String.format("%s - Waiting for unblocked tasks on partition %d",
-                        ts, this.partitionId));
                 fragmentBuilders = queue.poll(); // NON-BLOCKING
                 
                 // If we didn't get back a list of fragments here, then we will spin through
@@ -3894,9 +3877,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                     LOG.trace(String.format("%s - Got an empty list of WorkFragments at partition %d. " +
                               "Blocking until dependencies arrive",
                               ts, this.partitionId));
-                LOG.info(String.format("%s - Got an empty list of WorkFragments at partition %d. " +
-                        "Blocking until dependencies arrive",
-                        ts, this.partitionId));
                 break;
             }
             this.tmp_localWorkFragmentBuilders.clear();
@@ -4088,8 +4068,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         } // WHILE
         if (hstore_site.getJvmSnapshotManager().isParent())
         	this.fs.getBBContainer().discard();
-        LOG.info(String.format("%s - BREAK OUT [first=%s, stillHasWorkFragments=%s, latch=%s]",
-                ts, first, this.depTracker.stillHasWorkFragments(ts), latch));
+//        LOG.info(String.format("%s - BREAK OUT [first=%s, stillHasWorkFragments=%s, latch=%s]",
+//                ts, first, this.depTracker.stillHasWorkFragments(ts), latch));
 //
         if (trace.val)
             LOG.trace(String.format("%s - BREAK OUT [first=%s, stillHasWorkFragments=%s, latch=%s]",

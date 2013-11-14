@@ -1284,6 +1284,16 @@ SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_utils_ProcessUtils_fork
     return (fork());
 }
 
+/*
+ * Class:     org_voltdb_utils_ProcessUtils
+ * Method:    kill
+ * Signature: ()I
+ */
+SHAREDLIB_JNIEXPORT void JNICALL Java_org_voltdb_utils_ProcessUtils_kill
+  (JNIEnv *env, jclass clazz, jint pid) {
+    kill(static_cast<int>(pid), SIGKILL);
+}
+
 // ----------------------------------------------------------------------------
 // READ/WRITE TRACKING
 // ----------------------------------------------------------------------------

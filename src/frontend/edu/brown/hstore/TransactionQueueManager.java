@@ -235,9 +235,6 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable
 	private class Restarter extends ExceptionHandlingRunnable {
 		@Override
 		public void runImpl() {
-			if (debug.val)
-				LOG.debug("start Restarter");
-			System.out.flush();
 			Thread self = Thread.currentThread();
 			self.setName(HStoreThreadManager.getThreadName(hstore_site,
 					HStoreConstants.THREAD_NAME_QUEUE_RESTART));
@@ -288,21 +285,19 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable
 		int numInitialzers = 1;
 		int numRestarters = 1;
 
-		LOG.info("run Transaction Queue Manager");
-
 		List<Thread> threads = new ArrayList<Thread>();
 		for (int i = 0; i < numInitialzers; i++) {
 			Thread t = new Thread(new Initializer());
 			t.setDaemon(true);
-			LOG.info("one initializer");
 			t.setUncaughtExceptionHandler(hstore_site.getExceptionHandler());
-			LOG.info("before start");
-			System.out.flush();
 			t.start();
 			threads.add(t);
 		} // FOR
-		LOG.info("After initializer");
-		System.out.flush();
+		
+		if (debug.val) {
+			LOG.debug("Transaction Queue Manager initializers start.");
+		}
+		
 		if (this.hstore_site.getJvmSnapshotManager().isParent() == true) {
 			for (int i = 0; i < numRestarters; i++) {
 				Thread t = new Thread(new Restarter());
@@ -311,10 +306,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable
 				t.start();
 				threads.add(t);
 			} // FOR
-
-			LOG.info("After restarter");
 		}
-		System.out.flush();
 
 		for (Thread t : threads) {
 			try {
@@ -324,8 +316,6 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable
 				break;
 			}
 		} // FOR
-
-		LOG.info("Not reach here");
 	}
 
 	/**
@@ -405,7 +395,6 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable
 					"Finished processing lock queues for %s [result=%s]",
 					nextTxn, ret));
 		}
-		LOG.info("after init transaction");
 		return (ret);
 	}
 
@@ -482,17 +471,15 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable
 		Long next_safe_id = null;
 		Status status = Status.OK;
 
-		LOG.info("before lock");
 		this.lockQueueBarriers[partition].lock();
 		try {
-			LOG.info("try put");
 			next_safe_id = this.lockQueues[partition]
 					.noteTransactionRecievedAndReturnLastSafeTxnId(txn_id);
-			LOG.info("txn_id: " + txn_id + " next_safe_id:" + next_safe_id
-					+ " size:" + this.lockQueues[partition].size()
-					+ " partition:" + partition);
+			if (debug.val) 
+				LOG.debug("txn_id: " + txn_id + " next_safe_id:" + next_safe_id
+						+ " size:" + this.lockQueues[partition].size()
+						+ " partition:" + partition);
 		} finally {
-			LOG.info("before unlock");
 			this.lockQueueBarriers[partition].unlock();
 		} // SYNCH
 
@@ -530,7 +517,6 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable
 
 		// Reject the txn
 		if (status != Status.OK) {
-			LOG.info("reject");
 			if (hstore_conf.site.queue_profiling)
 				profilers[partition].rejection_time.start();
 			this.rejectTransaction(ts, status, partition, next_safe_id);
@@ -545,7 +531,6 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable
 		}
 		if (hstore_conf.site.queue_profiling)
 			profilers[partition].init_time.stopIfStarted();
-		LOG.info("init end");
 		return (status);
 	}
 
@@ -577,7 +562,6 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable
 				profilers[partition].lock_time.stopIfStarted();
 			return (nextTxn);
 		}
-		LOG.info("find next Txn");
 
 		PartitionCountingCallback<AbstractTransaction> callback = nextTxn
 				.getInitCallback();
