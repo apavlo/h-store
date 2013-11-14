@@ -169,7 +169,7 @@ public class HStoreJVMSnapshotManager {
             boolean success = false;
             while (tries-- > 0 && success == false) {
                 try {
-                    channels = ProtoRpcChannel.connectParallel(eventLoop,
+                    channels = ProtoRpcChannel.connectParallel(new NIOEventLoop(),
                                                                new InetSocketAddress[] { destinationAddress },
                                                                hstore_site.getHStoreConf().site.network_startup_wait);
                     success = true;
@@ -186,6 +186,7 @@ public class HStoreJVMSnapshotManager {
             }
 
 			this.channel = HStoreJVMSnapshotService.newStub(channels[0]);
+			this.eventLoop = new NIOEventLoop();
 			listener_thread = new Thread(new ListenerThread());
 			listener_thread.start();
 
