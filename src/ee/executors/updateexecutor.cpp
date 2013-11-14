@@ -167,7 +167,7 @@ bool UpdateExecutor::p_execute(const NValueArray &params, ReadWriteTracker *trac
         
         // Read/Write Set Tracking
         if (tracker != NULL) {
-            tracker->markTupleWritten(m_targetTable->name(), &m_targetTuple);
+            tracker->markTupleWritten(m_targetTable, &m_targetTuple);
         }
 
         // Loop through INPUT_COL_IDX->TARGET_COL_IDX mapping and only update

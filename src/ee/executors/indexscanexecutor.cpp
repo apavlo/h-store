@@ -539,7 +539,7 @@ bool IndexScanExecutor::p_execute(const NValueArray &params, ReadWriteTracker *t
         
         // Read/Write Set Tracking
         if (tracker != NULL) {
-            tracker->markTupleRead(m_targetTable->name(), &m_tuple);
+            tracker->markTupleRead(m_targetTable, &m_tuple);
         }
         
         #ifdef ANTICACHE

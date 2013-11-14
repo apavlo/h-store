@@ -203,18 +203,19 @@ TEST_F(PersistentTableLogTest, TupleId) {
         ASSERT_EQ(true, tableutil::setRandomTupleValues(m_table, &temp_tuple));
         ASSERT_EQ(true, m_table->insertTuple(temp_tuple));
     }
-    printf("# of Tuples -> %ld\n", m_table->usedTupleCount());
+//     printf("# of Tuples -> %ld\n", m_table->usedTupleCount());
     ASSERT_EQ(num_tuples, m_table->usedTupleCount());
 
     // Then check to make sure that it has the same value and type
     iterator = m_table->tableIterator();
     std::set<uint32_t> tupleIds;
     while (iterator.next(tuple)) {
-        uint32_t id = tuple.getTupleID();
-//         printf("[%d] -- %s\n", id, tuple.debug(m_table->name()).c_str());
-//         ASSERT_EQ(0, tupleIds.count(id));
+        uint32_t id = m_table->getTupleID(tuple.address());
+//         printf("[%d] -- %s\n\n", id, tuple.debug(m_table->name()).c_str());
+        ASSERT_EQ(0, tupleIds.count(id));
         tupleIds.insert(id);
     } // WHILE
+    ASSERT_EQ(num_tuples, tupleIds.size());
 }
 
 TEST_F(PersistentTableLogTest, InsertUpdateThenUndoOneTest) {

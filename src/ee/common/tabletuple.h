@@ -309,18 +309,18 @@ public:
         
     }
 
-    inline uint32_t getTupleID()
-    {
-        uint32_t tuple_id; 
-        memcpy(&tuple_id, m_data+TUPLE_HEADER_SIZE-4, 4);  
-        
-        return tuple_id; 
-    }
-    
-    inline void setTupleID(uint32_t tuple_id)
-    {
-        memcpy(m_data+TUPLE_HEADER_SIZE-4, &tuple_id, 4); 
-    }
+//     inline uint32_t getTupleID()
+//     {
+//         uint32_t tuple_id; 
+//         memcpy(&tuple_id, m_data+TUPLE_HEADER_SIZE-4, 4);  
+//         
+//         return tuple_id; 
+//     }
+//     
+//     inline void setTupleID(uint32_t tuple_id)
+//     {
+//         memcpy(m_data+TUPLE_HEADER_SIZE-4, &tuple_id, 4); 
+//     }
 
     /** Get the value of a specified column (const) */
     //not performant because it has to check the schema to see how to

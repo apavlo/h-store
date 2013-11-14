@@ -118,7 +118,7 @@ bool DeleteExecutor::p_execute(const NValueArray &params, ReadWriteTracker *trac
         
         // Read/Write Set Tracking
         if (tracker != NULL) {
-            tracker->markTupleWritten(m_targetTable->name(), &m_targetTuple);
+            tracker->markTupleWritten(m_targetTable, &m_targetTuple);
         }
 
         // Delete from target table
