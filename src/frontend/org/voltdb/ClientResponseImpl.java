@@ -322,6 +322,12 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         String[] proArr = (String[]) in.readArray(String.class);
         for(int i=0;i<proArr.length;i++)
             followingProcedures.add(proArr[i]);
+        initiateTime = in.readLong();
+        if ((presentFields & (1 << 4)) != 0) {
+            m_exception = SerializableException.deserializeFromBuffer(in.buffer());
+        } else {
+            m_exception = null;
+        }
         // ended by hawk
     }
 
@@ -343,6 +349,7 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         }
         if (m_exception != null) {
             presentFields |= 1 << 6;
+            presentFields |= 1 << 4; // added by hawk
         }
         if (statusString != null) {
             presentFields |= 1 << 5;
@@ -370,10 +377,11 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
             this.debug.writeExternal(out);
         }
 
-        // added by hawk, 2013/11/5
+        // added by hawk
         String[] procArr = new String[followingProcedures.size()];
         procArr = followingProcedures.toArray(procArr);
         out.writeArray(procArr);
+        out.writeLong(initiateTime);
         // ended by hawk
     }
     
@@ -410,7 +418,10 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
             procedures.put(String.format("[%d]", i), procedure);
             i++;
         }
-        m.put("Following Procedures", procedures);        
+        m.put("Following Procedures", procedures);  
+        if (this.clusterRoundTripTime > 0) {
+            m.put("Initiate Time in cluster", this.initiateTime + " ms");
+        }
         // ended by hawk
         
         return String.format("ClientResponse[#%d]\n%s", this.txn_id, StringUtil.formatMaps(m));
@@ -456,8 +467,9 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         b.put(24, (byte)status.ordinal()); // 1 + 1 + 8 + 8 + 1 + 1 + 4 = 24
     }
 
-    // added by hawk, 2013/11/5
+    // added by hawk
     private List<String> followingProcedures =  new ArrayList<String>();
+    private long initiateTime = 0;
     
     public void addFollowingProcedures(List<String> procedures)
     {
@@ -469,6 +481,15 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
     public List<String> getFollowingProcedures() {
         return followingProcedures;
     }
+
+    public void setInitiateTime(long initiateTime) {
+        this.initiateTime = initiateTime;
+    }
+
+    @Override
+    public long getInitiateTime() {
+        return initiateTime;
+    }
     // ended by hawk
-    // ----------------------------------------------------------------------------
+
 }

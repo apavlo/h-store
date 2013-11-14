@@ -103,6 +103,7 @@ import edu.brown.statistics.Histogram;
 import edu.brown.statistics.ObjectHistogram;
 import edu.brown.statistics.TableStatistics;
 import edu.brown.statistics.WorkloadStatistics;
+import edu.brown.stream.WorkflowResponse;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.StringUtil;
@@ -684,6 +685,14 @@ public abstract class BenchmarkComponent {
             m_responseEntries = null;
         }
         
+        // added by hawk, for stream workflow
+        // FIXME, current we only test one workflow - "0"
+        m_txnStats.workflows.put(0, 0);
+        Map<Integer, String> workflowDebugLabels = new TreeMap<Integer, String>();
+        workflowDebugLabels.put(0, "0");
+        m_txnStats.workflows.setDebugLabels(workflowDebugLabels);
+        // ended by hawk
+        
         // If we need to call tick more frequently than when POLL is called,
         // then we'll want to use a separate thread
         if (m_tickInterval > 0 && isLoader == false) {
@@ -981,6 +990,37 @@ public abstract class BenchmarkComponent {
         if (m_txnStats.isResponsesStatusesEnabled()) {
             synchronized (m_txnStats.responseStatuses) {
                 m_txnStats.responseStatuses.put(status.ordinal());    
+            } // SYNCH
+        }
+    }
+    
+    protected final void incrementWorkflowCounter(final WorkflowResponse workflowResponse, final int wkf_idx) {
+        Status status = workflowResponse.getStatus();
+        // FIXME: should consider different situation
+        if (status != Status.OK)
+            return;
+
+        synchronized (m_txnStats.workflows) {
+            m_txnStats.workflows.put(wkf_idx);
+        } // SYNCH
+
+        // LATENCIES COUNTERS
+        int latency = workflowResponse.getClusterRoundtrip();
+        
+        if (latency > 0) {
+            Map<Integer, ObjectHistogram<Integer>> latenciesMap = m_txnStats.workflowLatencies ; 
+            Histogram<Integer> latencies = latenciesMap.get(wkf_idx);
+            if (latencies == null) {
+                synchronized (latenciesMap) {
+                    latencies = latenciesMap.get(wkf_idx);
+                    if (latencies == null) {
+                        latencies = new ObjectHistogram<Integer>();
+                        latenciesMap.put(wkf_idx, (ObjectHistogram<Integer>)latencies);
+                    }
+                } // SYNCH
+            }
+            synchronized (latencies) {
+                latencies.put(latency);
             } // SYNCH
         }
     }

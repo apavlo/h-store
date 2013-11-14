@@ -139,5 +139,6 @@ public interface ClientResponse extends Poolable {
     
     // added by hawk, 2013/11/5
     public List<String> getFollowingProcedures();
+    public long getInitiateTime();
     // ended by hawk
 }

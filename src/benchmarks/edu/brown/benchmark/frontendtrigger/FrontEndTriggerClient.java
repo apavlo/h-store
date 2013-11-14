@@ -15,6 +15,7 @@ import org.voltdb.client.ProcedureCallback;
 import edu.brown.api.BenchmarkComponent;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.stream.*;
 import edu.brown.benchmark.frontendtrigger.procedures.SimpleCall;
 
 public class FrontEndTriggerClient extends BenchmarkComponent {
@@ -54,13 +55,18 @@ public class FrontEndTriggerClient extends BenchmarkComponent {
         
         client = this.getClientHandle();
         assert(client != null) : "client is null, this is bad";
+        WorkflowResponse workflowResponse = new WorkflowResponseImpl();
         
         try {
             ClientResponse clientResponse = client.callProcedure("SimpleCall");
             incrementTransactionCounter(clientResponse, 0);
-            
+            // when we get any response from transaction, we just add it to workflow response
+            workflowResponse.addClientResponse(clientResponse);
             // call following procedures
-            callFollowingProcedures(client, clientResponse);
+            callFollowingProcedures(client, clientResponse, workflowResponse);
+            
+            //
+            incrementWorkflowCounter(workflowResponse, 0);
 
         } catch (ProcCallException e) {
             e.printStackTrace();
@@ -69,7 +75,7 @@ public class FrontEndTriggerClient extends BenchmarkComponent {
         return true;
     }
     
-    private void callFollowingProcedures(Client client, ClientResponse clientResponse) 
+    private void callFollowingProcedures(Client client, ClientResponse clientResponse, WorkflowResponse workflowResponse) 
     {
         for(String procedure : clientResponse.getFollowingProcedures())
         {
@@ -78,7 +84,8 @@ public class FrontEndTriggerClient extends BenchmarkComponent {
                 try {
                     clientResponse = client.callProcedure(procedure);
                     incrementTransactionCounter(clientResponse, 0);
-                    callFollowingProcedures(client, clientResponse);
+                    workflowResponse.addClientResponse(clientResponse);
+                    callFollowingProcedures(client, clientResponse, workflowResponse);
                 }
                 catch (Exception e)
                 {

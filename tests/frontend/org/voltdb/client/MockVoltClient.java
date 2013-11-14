@@ -193,6 +193,12 @@ public class MockVoltClient implements Client {
             public List<String> getFollowingProcedures() {
                 return null;
             }
+
+            @Override
+            public long getInitiateTime() {
+                // TODO Auto-generated method stub
+                return 0;
+            }
         };
     }
 
