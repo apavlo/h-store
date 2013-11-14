@@ -244,6 +244,7 @@ public class HStoreJVMSnapshotManager {
 						"Forking Snapshot fails",
 						ts.getClientCallback(),
 						ts.getInitiateTime());
+				return;
 			};
 			refresh = false;
 		}
@@ -347,6 +348,12 @@ public class HStoreJVMSnapshotManager {
 		ProcessUtils.kill(this.snapshot_pid);
 		if (listener_thread != null && listener_thread.isAlive()) {
 			eventLoop.exitLoop();		
+		}
+		try {
+			Thread.sleep(500);
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		}
 
 		this.snapshot_pid = 0;
