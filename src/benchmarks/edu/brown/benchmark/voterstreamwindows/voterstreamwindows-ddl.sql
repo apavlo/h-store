@@ -59,6 +59,12 @@ CREATE TABLE votes_by_phone_number
     )
 );
 
+CREATE TABLE current_leader
+(
+  contestant_number  integer    NOT NULL
+, created            timestamp  NOT NULL
+, numVotes	     integer    NOT NULL
+);
 
 -- streams for processing ---
 CREATE STREAM votes_stream
@@ -103,5 +109,22 @@ CREATE STREAM S4
   contestant_number  int        NOT NULL
 , state              varchar(2) NOT NULL
 , num_votes          int
+);
+
+-- result from step2: Send votes to the window
+CREATE STREAM S5
+(
+  vote_id            bigint     NOT NULL
+, contestant_number  integer    NOT NULL
+, created            timestamp  NOT NULL
+);
+
+CREATE WINDOW W_ROWS ON S5 ROWS 10 SLIDE 5;
+
+CREATE STREAM S6
+(
+  contestant_number  integer    NOT NULL
+, created            timestamp  NOT NULL
+, numVotes	     integer    NOT NULL
 );
 

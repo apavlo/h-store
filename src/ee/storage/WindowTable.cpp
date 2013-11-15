@@ -114,8 +114,9 @@ bool WindowTable::insertTuple(TableTuple &source)
 			it->setDeletedFalse();
 			m_tupleCount++;
 			windowQueue.push_back(*it);
-			it = stagingQueue.erase(it);
+			//it = stagingQueue.erase(it);
 		}
+		stagingQueue.clear();
 	}
 	return true;
 }

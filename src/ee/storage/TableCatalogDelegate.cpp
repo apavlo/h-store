@@ -283,7 +283,7 @@ TableCatalogDelegate::init(ExecutorContext *executorContext,
                                                  indexes, triggers, partitionColumnIndex,
                                                  isExportEnabledForTable(catalogDatabase, table_id),
                                                  isTableExportOnly(catalogDatabase, table_id),
-						 catalogTable.size());
+						 catalogTable.size(), catalogTable.slide());
         }
         else
         {
@@ -292,7 +292,7 @@ TableCatalogDelegate::init(ExecutorContext *executorContext,
                                                  pkey_index, indexes, triggers, partitionColumnIndex,
                                                  isExportEnabledForTable(catalogDatabase, table_id),
                                                  isTableExportOnly(catalogDatabase, table_id),
-						 catalogTable.size());
+						 catalogTable.size(), catalogTable.slide());
         }
     }
     else

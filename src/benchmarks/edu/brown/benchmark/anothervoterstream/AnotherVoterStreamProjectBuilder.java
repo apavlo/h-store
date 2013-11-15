@@ -14,7 +14,9 @@ import edu.brown.benchmark.anothervoterstream.procedures.ValidateContestantsTrig
 import edu.brown.benchmark.anothervoterstream.procedures.ValidateVotesNumberLimitTrigger; 
 import edu.brown.benchmark.anothervoterstream.procedures.UpdateVotesAndTotalVotesTrigger; 
 import edu.brown.benchmark.anothervoterstream.procedures.UpdateVotesByPhoneNumberTrigger; 
-import edu.brown.benchmark.anothervoterstream.procedures.UpdateVotesByContestantNumberStateTrigger; 
+import edu.brown.benchmark.anothervoterstream.procedures.UpdateVotesByContestantNumberStateTrigger;
+
+
 
 public class AnotherVoterStreamProjectBuilder extends AbstractProjectBuilder {
 

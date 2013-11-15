@@ -73,8 +73,8 @@ using namespace voltdb;
 
 #define NUM_OF_COLUMNS 5
 #define NUM_OF_TUPLES 20
-#define WINDOW_SIZE 10
-#define SLIDE_SIZE 3
+#define WINDOW_SIZE 4
+#define SLIDE_SIZE 2
 
 voltdb::ValueType COLUMN_TYPES[NUM_OF_COLUMNS]  = { voltdb::VALUE_TYPE_BIGINT,
                                                     voltdb::VALUE_TYPE_TINYINT,
@@ -192,20 +192,31 @@ TEST_F(WindowTest, TupleInsert) {
     }*/
     //insert one tuple, check window
     ASSERT_EQ(true, tableutil::setRandomTupleValues(this->table, &tuple));
-    VOLT_DEBUG("Inserting tuple: %s", tuple.debug("currentTempTuple").c_str());
+    VOLT_DEBUG("Inserting tuple: %s", tuple.debug("currentTempTuple 1").c_str());
     ASSERT_EQ(true, this->table->insertTuple(tuple));
     VOLT_DEBUG("Checking Staging, insert next tuple: %s", table->debug().c_str());
     ASSERT_EQ(true, tableutil::setRandomTupleValues(this->table, &tuple));
-    VOLT_DEBUG("Inserting tuple: %s", tuple.debug("currentTempTuple").c_str());
+    VOLT_DEBUG("Inserting tuple: %s", tuple.debug("currentTempTuple 2").c_str());
     ASSERT_EQ(true, this->table->insertTuple(tuple));
     VOLT_DEBUG("Checking Staging After Insert, insert next tuple: %s", table->debug().c_str());
+
+    ASSERT_EQ(true, tableutil::setRandomTupleValues(this->table, &tuple));
+    VOLT_DEBUG("Inserting tuple: %s", tuple.debug("currentTempTuple 3").c_str());
+    ASSERT_EQ(true, this->table->insertTuple(tuple));
+    VOLT_DEBUG("Checking Staging After Insert, insert next tuple: %s", table->debug().c_str());
+
+    ASSERT_EQ(true, tableutil::setRandomTupleValues(this->table, &tuple));
+    VOLT_DEBUG("Inserting tuple: %s", tuple.debug("currentTempTuple 4").c_str());
+    ASSERT_EQ(true, this->table->insertTuple(tuple));
+    VOLT_DEBUG("Checking Staging After Insert, insert next tuple: %s", table->debug().c_str());
+    /**
     for(int i = 0; i < SLIDE_SIZE - 1; i++)
     {
     	ASSERT_EQ(true, tableutil::setRandomTupleValues(this->table, &tuple));
     	ASSERT_EQ(true, this->table->insertTuple(tuple));
     }
     VOLT_DEBUG("Staging full, insert tuples: %s", table->debug().c_str());
-
+	*/
     /**
     std::vector<voltdb::TableTuple> tuplesInserted = std::vector<voltdb::TableTuple>();
 
