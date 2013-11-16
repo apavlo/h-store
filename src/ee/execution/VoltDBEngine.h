@@ -55,7 +55,7 @@
 #include "catalog/database.h"
 #include "common/ids.h"
 #include "common/Pool.hpp"
-#include "common/MMAPMemoryManager.hpp"
+#include "common/MMAPMemoryManager.h"
 #include "common/serializeio.h"
 #include "common/types.h"
 #include "common/valuevector.h"

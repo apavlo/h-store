@@ -63,6 +63,7 @@
 #include "common/ids.h"
 #include "common/valuevector.h"
 #include "common/tabletuple.h"
+#include "common/MMAPMemoryManager.h"
 #include "storage/table.h"
 #include "storage/TupleStreamWrapper.h"
 #include "storage/TableStats.h"
@@ -70,8 +71,6 @@
 #include "storage/CopyOnWriteContext.h"
 #include "storage/RecoveryContext.h"
 
-
-#include "common/MMAPMemoryManager.hpp"
 
 namespace voltdb {
 

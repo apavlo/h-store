@@ -109,7 +109,7 @@ namespace voltdb {
     VOLT_WARN("MMAP : PId:: %d Table: %s  Bytes:: %d ",
 	       m_executorContext->getPartitionId(), this->name().c_str(), bytes);
 
-    memory = (char*)m_data_manager->alloc(bytes);
+    memory = (char*)m_data_manager->allocate(bytes);
     
     VOLT_WARN("MMAP : Table: %s :: Memory Pointer : %p ",
 	       this->name().c_str(), memory);

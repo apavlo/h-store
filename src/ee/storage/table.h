@@ -56,7 +56,7 @@
 #include "common/TupleSchema.h"
 #include "common/Pool.hpp"
 #include "common/tabletuple.h"
-#include "common/MMAPMemoryManager.hpp"
+#include "common/MMAPMemoryManager.h"
 
 namespace voltdb {
 

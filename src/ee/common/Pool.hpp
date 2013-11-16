@@ -29,7 +29,7 @@
 #include "common/debuglog.h"
 #include "common/FatalException.hpp"
 
-#include "common/MMAPMemoryManager.hpp"
+#include "common/MMAPMemoryManager.h"
 
 namespace voltdb {
 #ifndef MEMCHECK
@@ -118,7 +118,7 @@ public:
 	/** MMAP Pool Allocation **/
 	VOLT_WARN("MMAP Pool Storage Request :: %d %d ",static_cast<int>(m_allocationSize), static_cast<int>(m_maxChunkCount));
 
-	char *memory = static_cast<char*>(m_pool_manager->alloc(m_allocationSize));
+	char *memory = static_cast<char*>(m_pool_manager->allocate(m_allocationSize));
         if (memory == MAP_FAILED) {
             std::cout << strerror( errno ) << std::endl;
             throwFatalException("Failed mmap");
@@ -164,7 +164,7 @@ public:
                   m_oversizeChunks.push_back(Chunk(size, storage));
 		}
 		else{
-		  char *memory = static_cast<char*>(m_pool_manager->alloc(size));
+		  char *memory = static_cast<char*>(m_pool_manager->allocate(size));
 		  if (memory == MAP_FAILED) {
                     std::cout << strerror( errno ) << std::endl;
                     throwFatalException("Failed mmap");
@@ -198,7 +198,7 @@ public:
 		  m_chunks.push_back(Chunk(m_allocationSize, storage));
 		}
 		else{
-		  char *memory = static_cast<char*>(m_pool_manager->alloc(m_allocationSize));
+		  char *memory = static_cast<char*>(m_pool_manager->allocate(m_allocationSize));
 		  if (memory == MAP_FAILED) {
                     std::cout << strerror( errno ) << std::endl;
                     throwFatalException("Failed mmap");

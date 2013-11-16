@@ -22,8 +22,8 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef _MMAPMEMORYMANAGER_HPP_
-#define _MMAPMEMORYMANAGER_HPP_
+#ifndef _MMAPMEMORYMANAGER_H_
+#define _MMAPMEMORYMANAGER_H_
 
 #include "common/debuglog.h"
 #include "common/FatalException.hpp"
@@ -48,15 +48,23 @@ namespace voltdb {
         ~MMAPMemoryManager();
 
         // no copy, no assignment
-	MMAPMemoryManager(MMAPMemoryManager const&);
-	MMAPMemoryManager operator=(MMAPMemoryManager const&);
+	MMAPMemoryManager(MMAPMemoryManager const&){
+	  throwFatalException("No copy constructor.");	  
+	}
+	
+	MMAPMemoryManager operator=(MMAPMemoryManager const&){
+	  throwFatalException("No assignment operator.");
+	  
+	}
 
-        void* alloc(size_t chunkSize) ;
+        void* allocate(size_t chunkSize) ;
+
+        void deallocate(void* offset, size_t chunkSize) ;
+	
         void showMetadata();
 
-        // Sync in-memory changes with file synchronously
-        void sync();        
-        // Sync in-memory changes with file asynchronously
+        // Sync in-memory changes with file synchronously or asynchronously
+        void sync();
         void async();
 
     private:
@@ -73,9 +81,9 @@ namespace voltdb {
         std::string m_fileName;
         bool m_persistent;
         
-        // METADATA :: Index -> (Offset, Size)
-        map<int, pair<int,int> > m_metadata;
-        int m_index;
+        // METADATA :: (Offset, Size)
+        vector<pair<size_t,size_t> > m_metadata;
+        size_t m_index;
 
         static pthread_mutex_t m_mutex;
 
@@ -83,4 +91,4 @@ namespace voltdb {
 
 }
 
-#endif /* _MMAPMEMORYMANAGER_HPP_) */
+#endif /* _MMAPMEMORYMANAGER_H_ */
