@@ -294,7 +294,9 @@ public class HStoreJVMSnapshotManager implements Runnable {
 			LOG.debug("Send execTransactionRequest to the snapshot;");
 		JVMSnapshotTransactionCallback callback = new JVMSnapshotTransactionCallback(
 				hstore_site, ts);
-		channel.execTransactionRequest(new ProtoRpcController(), tr, callback);
+		ProtoRpcController rpc = new ProtoRpcController();
+		channel.execTransactionRequest(rpc, tr, callback);
+		rpc.block();
 		if (debug.val)
 			LOG.debug("Send finish;");
 
@@ -424,6 +426,7 @@ public class HStoreJVMSnapshotManager implements Runnable {
 				continue;
 			}
 			this.execTransactionRequest(ts);
+			/*
 			synchronized (this) {
 				try {
 					this.wait();
@@ -431,6 +434,7 @@ public class HStoreJVMSnapshotManager implements Runnable {
 					e.printStackTrace();
 				}
 			}
+			*/
 			
 		}
 		
