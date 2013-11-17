@@ -174,9 +174,10 @@ public class HStoreJVMSnapshotManager implements Runnable {
 			ProtoRpcChannel[] channels = null;
 			int tries = 3;
             boolean success = false;
+			this.eventLoop = new NIOEventLoop();
             while (tries-- > 0 && success == false) {
                 try {
-                    channels = ProtoRpcChannel.connectParallel(new NIOEventLoop(),
+                    channels = ProtoRpcChannel.connectParallel(eventLoop,
                                                                new InetSocketAddress[] { destinationAddress },
                                                                hstore_site.getHStoreConf().site.network_startup_wait);
                     success = true;
@@ -193,7 +194,6 @@ public class HStoreJVMSnapshotManager implements Runnable {
             }
 
 			this.channel = HStoreJVMSnapshotService.newStub(channels[0]);
-			this.eventLoop = new NIOEventLoop();
 			listener_thread = new Thread(new ListenerThread());
 			listener_thread.start();
 
