@@ -706,6 +706,15 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             i += 1;
         } // FOR
         
+        // Start HStore JVM Snapshot Manager
+        if (hstore_conf.site.jvmsnapshot_enable == true) {
+	        t = new Thread(this.jvmSnapshotManager);
+	        t.setName(HStoreThreadManager.getThreadName(this, "jvmsnapshotmanager"));
+	        t.setDaemon(true);
+	        t.setUncaughtExceptionHandler(this.exceptionHandler);
+	        t.start();
+        }
+        
         this.initPeriodicWorks();
         
         // Add in our shutdown hook
@@ -951,14 +960,17 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }, 0, 6, TimeUnit.MINUTES);
         
         // refresh JVM snapshot
-        this.threadManager.schedulePeriodicWork(new ExceptionHandlingRunnable() {
-            @Override
-            public void runImpl() {
-                if (jvmSnapshotManager != null) {
-                	jvmSnapshotManager.refresh();
-                }
-            }
-        }, 0, 30, TimeUnit.SECONDS);
+        if (this.hstore_conf.site.jvmsnapshot_enable == true && 
+        	this.hstore_conf.site.jvmsnapshot_interval > 0) {
+	        this.threadManager.schedulePeriodicWork(new ExceptionHandlingRunnable() {
+	            @Override
+	            public void runImpl() {
+	                if (jvmSnapshotManager != null) {
+	                	jvmSnapshotManager.refresh();
+	                }
+	            }
+	        }, 0, this.hstore_conf.site.jvmsnapshot_interval, TimeUnit.SECONDS);
+        }
     }
     
     // ----------------------------------------------------------------------------
@@ -3007,7 +3019,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 
                 if (hstore_conf.site.jvmsnapshot_enable == true) {
                 	if (debug.val) LOG.debug("Send to JVM Snapshot: " + result.ts);
-                	this.jvmSnapshotManager.execTransactionRequest(result.ts);
+                	this.jvmSnapshotManager.addTransactionRequest(result.ts);
                 	return;
                 }
                 

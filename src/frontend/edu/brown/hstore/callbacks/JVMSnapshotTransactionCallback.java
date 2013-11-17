@@ -9,6 +9,7 @@ import org.voltdb.messaging.FastDeserializer;
 import com.google.protobuf.RpcCallback;
 
 import edu.brown.hstore.HStoreConstants;
+import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Jvmsnapshot.TransactionResponse;
 import edu.brown.hstore.txns.LocalTransaction;
@@ -23,15 +24,12 @@ public class JVMSnapshotTransactionCallback implements RpcCallback<TransactionRe
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
+    private HStoreSite hstore_site;
+    private LocalTransaction ts;
     
-    private RpcCallback<ClientResponseImpl> clientCallback;
-    private long client_handle;
-    
-	public JVMSnapshotTransactionCallback(
-			long client_handle, RpcCallback<ClientResponseImpl> clientCallback) {
-		// TODO Auto-generated constructor stub
-		this.clientCallback = clientCallback;
-		this.client_handle = client_handle;
+	public JVMSnapshotTransactionCallback(HStoreSite hstore_site, LocalTransaction ts) {
+		this.hstore_site = hstore_site;
+		this.ts = ts;
 	}
 
 	@Override
@@ -48,7 +46,10 @@ public class JVMSnapshotTransactionCallback implements RpcCallback<TransactionRe
 		}
 		if (debug.val) LOG.debug("Msg: "+response.toString());
 		
-		clientCallback.run(response);
+		this.hstore_site.responseSend(ts, response);
+		
+		this.hstore_site.getJvmSnapshotManager().notify();
+		
 	}
 
 }

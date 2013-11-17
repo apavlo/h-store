@@ -2,6 +2,8 @@ package edu.brown.hstore;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingDeque;
 
 import org.apache.log4j.Logger;
 import org.voltdb.ClientResponseImpl;
@@ -27,7 +29,7 @@ import edu.brown.protorpc.ProtoRpcChannel;
 import edu.brown.protorpc.ProtoRpcController;
 import edu.brown.protorpc.ProtoServer;
 
-public class HStoreJVMSnapshotManager {
+public class HStoreJVMSnapshotManager implements Runnable {
 	private static final Logger LOG = Logger
 			.getLogger(HStoreJVMSnapshotManager.class);
 	private static final LoggerBoolean debug = new LoggerBoolean();
@@ -60,6 +62,8 @@ public class HStoreJVMSnapshotManager {
 	private boolean isParent;
 
 	private TransactionResponse response;
+	
+	private BlockingQueue<LocalTransaction> queue;
 
 	// ----------------------------------------------------------------------------
 	// INITIALIZATION
@@ -78,6 +82,8 @@ public class HStoreJVMSnapshotManager {
 		this.snapshot_pid = 0;
 		this.isParent = true;
 		this.response = null;
+		
+		queue = new LinkedBlockingDeque<LocalTransaction>();
 
 		if (debug.val)
 			LOG.debug(String.format("Local Partitions for Site #%d: %s",
@@ -85,6 +91,8 @@ public class HStoreJVMSnapshotManager {
 
 		// Incoming RPC Handler
 	}
+	
+	
 
 	protected int getLocalSiteId() {
 		return (this.local_site_id);
@@ -161,7 +169,6 @@ public class HStoreJVMSnapshotManager {
 			try {
 				Thread.sleep(500);
 			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 			ProtoRpcChannel[] channels = null;
@@ -209,7 +216,6 @@ public class HStoreJVMSnapshotManager {
 			try {
 				Thread.sleep(500);
 			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 
@@ -229,7 +235,6 @@ public class HStoreJVMSnapshotManager {
 
 			if (debug.val)
 				LOG.debug("New Snapshot start to listen on port");
-			System.out.flush();
 			try {
 				eventLoop.run();
 			} catch (Throwable ex) {
@@ -242,6 +247,15 @@ public class HStoreJVMSnapshotManager {
 			return false;
 		}
 
+	}
+	
+	public void addTransactionRequest(LocalTransaction ts) {
+		try {
+			this.queue.put(ts);
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 	}
 
 	// ----------------------------------------------------------------------------
@@ -272,7 +286,6 @@ public class HStoreJVMSnapshotManager {
 		try {
 			bs = ByteString.copyFrom(FastSerializer.serialize(ts));
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 		TransactionRequest tr = TransactionRequest.newBuilder().setRequest(bs)
@@ -280,7 +293,7 @@ public class HStoreJVMSnapshotManager {
 		if (debug.val)
 			LOG.debug("Send execTransactionRequest to the snapshot;");
 		JVMSnapshotTransactionCallback callback = new JVMSnapshotTransactionCallback(
-				ts.getClientHandle(), ts.getClientCallback());
+				hstore_site, ts);
 		channel.execTransactionRequest(new ProtoRpcController(), tr, callback);
 		if (debug.val)
 			LOG.debug("Send finish;");
@@ -317,6 +330,7 @@ public class HStoreJVMSnapshotManager {
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
+			hstore_site.getTransactionInitializer().registerOldTransaction(ts);
 			if (debug.val)
 				LOG.debug("Snapshot receive a LocalTransaction Object: "
 						+ ts.toStringImpl());
@@ -325,8 +339,8 @@ public class HStoreJVMSnapshotManager {
 			int aa = 0;
 			while (response == null) {
 				aa++;
-				if (aa % 400 == 0 && debug.val)
-					LOG.debug("sleep" + aa);
+				if (aa % 1000 == 0 && debug.val)
+					LOG.debug("sleep" + (aa/1000));
 			}
 			if (debug.val) {
 				LOG.debug("Snapshot send back response to the parent!");
@@ -345,7 +359,6 @@ public class HStoreJVMSnapshotManager {
 		try {
 			bs = ByteString.copyFrom(FastSerializer.serialize(response));
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 		this.response = TransactionResponse.newBuilder().setOutput(bs).build();
@@ -367,7 +380,6 @@ public class HStoreJVMSnapshotManager {
 		try {
 			Runtime.getRuntime().exec("kill -9 "+this.snapshot_pid);
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 		//ProcessUtils.kill(this.snapshot_pid);
@@ -380,6 +392,34 @@ public class HStoreJVMSnapshotManager {
 
 	public void refresh() {
 		this.refresh = true;
+		
+	}
+
+
+
+	@Override
+	public void run() {
+		hstore_site.getThreadManager().registerProcessingThread();
+		if (hstore_site.getHStoreConf().site.jvmsnapshot_start == true) {
+			this.forkNewSnapShot();
+			this.refresh = false;
+		}
+		while (true) {
+			LocalTransaction ts = null;
+			try {
+				ts = this.queue.take();
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+				continue;
+			}
+			this.execTransactionRequest(ts);
+			try {
+				this.wait();
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+			
+		}
 		
 	}
 
