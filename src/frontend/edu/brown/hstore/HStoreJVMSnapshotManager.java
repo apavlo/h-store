@@ -377,15 +377,26 @@ public class HStoreJVMSnapshotManager implements Runnable {
 			LOG.debug("HStoreJVMSnapshot shutdown!");
 		if (!isParent || snapshot_pid == 0)
 			return;
+		ByteString bs = ByteString.EMPTY;
+		TransactionRequest tr = TransactionRequest.newBuilder().setRequest(bs)
+				.build();
+		JVMSnapshotTransactionCallback callback = new JVMSnapshotTransactionCallback(
+				hstore_site, null);
+		channel.execTransactionRequest(new ProtoRpcController(), tr, callback);
+		if (debug.val)
+			LOG.debug("Send finish;");
+        /*
 		try {
 			Runtime.getRuntime().exec("kill -9 "+this.snapshot_pid);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
+        */
 		//ProcessUtils.kill(this.snapshot_pid);
 		if (listener_thread != null && listener_thread.isAlive()) {
 			eventLoop.exitLoop();		
 		}
+        
 
 		this.snapshot_pid = 0;
 	}
