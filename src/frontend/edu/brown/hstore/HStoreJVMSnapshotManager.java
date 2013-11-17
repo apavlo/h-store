@@ -413,14 +413,22 @@ public class HStoreJVMSnapshotManager implements Runnable {
 				continue;
 			}
 			this.execTransactionRequest(ts);
-			try {
-				this.wait();
-			} catch (InterruptedException e) {
-				e.printStackTrace();
+			synchronized (this) {
+				try {
+					this.wait();
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
 			}
 			
 		}
 		
+	}
+	
+	public void notifyFinish() {
+		synchronized (this) {
+			this.notify();
+		}
 	}
 
 }

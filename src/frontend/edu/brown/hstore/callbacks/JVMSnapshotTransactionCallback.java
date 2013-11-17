@@ -48,7 +48,7 @@ public class JVMSnapshotTransactionCallback implements RpcCallback<TransactionRe
 		
 		this.hstore_site.responseSend(ts, response);
 		
-		this.hstore_site.getJvmSnapshotManager().notify();
+		this.hstore_site.getJvmSnapshotManager().notifyFinish();
 		
 	}
 
