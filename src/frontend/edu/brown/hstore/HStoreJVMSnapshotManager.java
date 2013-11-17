@@ -194,8 +194,8 @@ public class HStoreJVMSnapshotManager implements Runnable {
             }
 
 			this.channel = HStoreJVMSnapshotService.newStub(channels[0]);
-			listener_thread = new Thread(new ListenerThread());
-			listener_thread.start();
+			//listener_thread = new Thread(new ListenerThread());
+			//listener_thread.start();
 
 			if (debug.val)
 				LOG.debug("Site #" + this.getLocalSiteId()
