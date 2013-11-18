@@ -45,6 +45,7 @@
 
 #include <iostream>
 #include <stdio.h>
+#include <inttypes.h>
 #include <fstream>
 #include <errno.h>
 #include <sstream>
@@ -127,6 +128,7 @@ VoltDBEngine::VoltDBEngine(Topend *topend, LogProxy *logProxy)
     // require a site id, at least, to inititalize.
     m_executorContext = NULL;
 }
+
 
 bool VoltDBEngine::initialize(
         int32_t clusterIndex,
@@ -1565,6 +1567,22 @@ int VoltDBEngine::antiCacheMergeBlocks(int32_t tableId) {
 #else
 void VoltDBEngine::antiCacheInitialize(std::string dbDir, long blockSize) const {
     VOLT_ERROR("Anti-Cache feature was not enable when compiling the EE");
+}
+#endif
+
+// -------------------------------------------------
+// STORAGE MMAP FUNCTIONS
+// -------------------------------------------------
+
+#ifdef STORAGE_MMAP
+void VoltDBEngine::MMAPInitialize(std::string dbDir, long mapSize) const {
+    VOLT_INFO("Enabling Storage MMAP Feature at Partition %d: dir=%s / blockSize=%ld",
+              m_partitionId, dbDir.c_str(), mapSize);
+    m_executorContext->enableMMAP(dbDir, mapSize);
+}
+#else
+void VoltDBEngine::MMAPInitialize(std::string dbDir, long blockSize) const {
+    VOLT_ERROR("Storage MMAP feature was not enabled when compiling the EE");
 }
 #endif
     

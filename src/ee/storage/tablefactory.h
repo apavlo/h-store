@@ -52,14 +52,15 @@
 #include "common/ids.h"
 #include "common/types.h"
 #include "common/TupleSchema.h"
-#include "common/Pool.hpp"
 #include "indexes/tableindex.h"
 #include "indexes/tableindexfactory.h"
+
 
 namespace voltdb {
     
     class Table;
     class PersistentTable;
+    class MMAP_PersistentTable;
     class SerializeInput;
     class TempTable;
     class TableColumn;
@@ -155,7 +156,7 @@ namespace voltdb {
                                              const std::string &name,
                                              const Table* templateTablezz,
                                              int* tempTableMemoryInBytes);
-        
+       
     private:
         static void initConstraints(PersistentTable* table);
         static void initCommon(
@@ -170,9 +171,10 @@ namespace voltdb {
                                ExecutorContext *ctx,
                                std::string name,
                                Table *table);
+
     };
         
-    
+
 }
 
 #endif

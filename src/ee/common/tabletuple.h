@@ -48,7 +48,6 @@
 
 #include "common/common.h"
 #include "common/TupleSchema.h"
-#include "common/Pool.hpp"
 #include "common/ValuePeeker.hpp"
 #include "common/FatalException.hpp"
 #include "common/ExportSerializeIo.h"
@@ -349,7 +348,7 @@ public:
     // verify assumptions for copy. do not use at runtime (expensive)
     bool compatibleForCopy(const TableTuple &source);
     void copyForPersistentInsert(const TableTuple &source, Pool *pool = NULL);
-    void copyForPersistentUpdate(const TableTuple &source);
+    void copyForPersistentUpdate(const TableTuple &source, Pool *pool = NULL);
     void copy(const TableTuple &source);
 
     /** this does set NULL in addition to clear string count.*/
@@ -546,7 +545,7 @@ inline void TableTuple::copyForPersistentInsert(const voltdb::TableTuple &source
  * With a persistent update the copy should only do an allocation for
  * a string if the source and destination pointers are different.
  */
-inline void TableTuple::copyForPersistentUpdate(const TableTuple &source) {
+inline void TableTuple::copyForPersistentUpdate(const TableTuple &source, Pool *pool) {
     assert(m_schema);
     assert(m_schema == source.m_schema);
     const int columnCount = m_schema->columnCount();
@@ -573,7 +572,7 @@ inline void TableTuple::copyForPersistentUpdate(const TableTuple &source) {
                     // Make a copy of the input string. Don't need to
                     // delete the old string because that will be done
                     // by the UndoAction for the update.
-                    setNValueAllocateForObjectCopies(ii, source.getNValue(ii), NULL);
+                    setNValueAllocateForObjectCopies(ii, source.getNValue(ii), pool);
                 }
                 uninlineableObjectColumnIndex++;
                 if (uninlineableObjectColumnIndex < uninlineableObjectColumnCount) {
@@ -583,7 +582,7 @@ inline void TableTuple::copyForPersistentUpdate(const TableTuple &source) {
                     nextUninlineableObjectColumnInfoIndex = 0;
                 }
             } else {
-                setNValueAllocateForObjectCopies(ii, source.getNValue(ii), NULL);
+                setNValueAllocateForObjectCopies(ii, source.getNValue(ii), pool);
             }
         }
         m_data[0] = source.m_data[0];

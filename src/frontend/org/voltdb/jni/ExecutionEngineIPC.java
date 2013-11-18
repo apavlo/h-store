@@ -1496,4 +1496,11 @@ public class ExecutionEngineIPC extends ExecutionEngine {
     public VoltTable antiCacheEvictBlock(Table catalog_tbl, long block_size, int num_blocks) {
         throw new NotImplementedException("Anti-Caching is disabled for IPC ExecutionEngine");
     }
+    
+    @Override
+    public void MMAPInitialize(File dbDir, long mapSize) throws EEException {
+        throw new NotImplementedException("Storage MMAP is disabled for IPC ExecutionEngine");
+    }
+    
+    
 }

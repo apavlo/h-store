@@ -175,6 +175,7 @@ import edu.brown.utils.ClassUtil;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
+import edu.brown.utils.FileUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.PartitionSet;
 import edu.brown.utils.StringBoxUtil;
@@ -755,10 +756,13 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                     long blockSize = hstore_conf.site.anticache_block_size;
                     eeTemp.antiCacheInitialize(acFile, blockSize);
                 }
+                              
                 
-                // Initialize MMap Storage
+                // Initialize STORAGE_MMAP
                 if (hstore_conf.site.storage_mmap) {
-                    // TODO: Call the initialization method on eeTemp
+                    File dbFile = getMMAPDir(this);
+                    long mapSize = hstore_conf.site.storage_mmap_file_size;
+                    eeTemp.MMAPInitialize(dbFile, mapSize);
                 }
                 
                 // Important: This has to be called *after* we initialize the anti-cache
@@ -1932,6 +1936,37 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                       ts, CatalogUtil.getPlanFragment(catalogContext.catalog, fragmentId).fullName(),
                       result.getRowCount(), partitionId, stmtCounter, paramsHash));
         this.depTracker.addPrefetchResult(ts, stmtCounter, fragmentId, partitionId, paramsHash, result);
+    }
+    
+    /**
+     * Returns the directory where the EE should store the mmap'ed files
+     * for this PartitionExecutor
+     * @return
+     */
+    public static File getMMAPDir(PartitionExecutor executor) {
+        HStoreConf hstore_conf = executor.getHStoreConf();
+        Database catalog_db = CatalogUtil.getDatabase(executor.getPartition());
+
+        // First make sure that our base directory exists
+        String base_dir = FileUtil.realpath(hstore_conf.site.storage_mmap_dir +
+                File.separatorChar +
+                catalog_db.getProject());
+
+        //synchronized (AntiCacheManager.class) {
+        FileUtil.makeDirIfNotExists(base_dir);
+        //} // SYNC
+
+        // Then each partition will have a separate directory inside of the base one
+        String partitionName = HStoreThreadManager.formatPartitionName(executor.getSiteId(),
+                executor.getPartitionId());
+        File dbDirPath = new File(base_dir + File.separatorChar + partitionName);
+        if (hstore_conf.site.storage_mmap_reset) {
+            LOG.warn(String.format("Deleting storage mmap directory '%s'", dbDirPath));
+            FileUtil.deleteDirectory(dbDirPath);
+        }
+        FileUtil.makeDirIfNotExists(dbDirPath);
+
+        return (dbDirPath);
     }
     
     // ---------------------------------------------------------------

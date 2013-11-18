@@ -18,12 +18,12 @@
 #ifndef NVALUE_HPP_
 #define NVALUE_HPP_
 
-#include "common/Pool.hpp"
 #include "common/SQLException.h"
 #include "common/debuglog.h"
 #include "common/serializeio.h"
 #include "common/ExportSerializeIo.h"
 #include "common/types.h"
+#include "common/Pool.hpp"
 #include "common/value_defs.h"
 #include "common/FatalException.hpp"
 

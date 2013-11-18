@@ -58,6 +58,7 @@
 #include "common/executorcontext.hpp"
 #include "common/FatalException.hpp"
 #include "common/types.h"
+#include "common/Pool.hpp"
 #include "common/RecoveryProtoMessage.h"
 #include "common/ValueFactory.hpp"
 #include "indexes/tableindex.h"
@@ -96,7 +97,7 @@ TableTuple keyTuple;
 #define MAX_EVICTED_TUPLE_SIZE 2500
 
 PersistentTable::PersistentTable(ExecutorContext *ctx, bool exportEnabled) :
-    Table(TABLE_BLOCKSIZE), m_executorContext(ctx), m_uniqueIndexes(NULL), m_uniqueIndexCount(0), m_allowNulls(NULL),
+    Table(TABLE_BLOCKSIZE,ctx->isMMAPEnabled()), m_executorContext(ctx), m_uniqueIndexes(NULL), m_uniqueIndexCount(0), m_allowNulls(NULL),
     m_indexes(NULL), m_indexCount(0), m_pkeyIndex(NULL), m_wrapper(NULL),
     m_tsSeqNo(0), stats_(this), m_exportEnabled(exportEnabled),
     m_COWContext(NULL)
@@ -111,12 +112,47 @@ PersistentTable::PersistentTable(ExecutorContext *ctx, bool exportEnabled) :
     m_numTuplesInEvictionChain = 0;
     m_blockMerge = true;
     #endif
-    
+
     if (exportEnabled) {
         m_wrapper = new TupleStreamWrapper(m_executorContext->m_partitionId,
                                            m_executorContext->m_siteId,
                                            m_executorContext->m_lastTickTime);
     }
+
+    m_pool = new Pool();
+}
+
+PersistentTable::PersistentTable(ExecutorContext *ctx, const std::string name, bool exportEnabled) :
+    Table(TABLE_BLOCKSIZE,ctx->isMMAPEnabled()), m_executorContext(ctx), m_uniqueIndexes(NULL), m_uniqueIndexCount(0), m_allowNulls(NULL),
+    m_indexes(NULL), m_indexCount(0), m_pkeyIndex(NULL), m_wrapper(NULL),
+    m_tsSeqNo(0), stats_(this), m_exportEnabled(exportEnabled),
+    m_COWContext(NULL)
+{
+
+    #ifdef ANTICACHE
+    m_evictedTable = NULL;
+    m_unevictedTuples = NULL;
+    m_numUnevictedTuples = 0;
+    m_newestTupleID = 0;
+    m_oldestTupleID = 0;
+    m_numTuplesInEvictionChain = 0;
+    m_blockMerge = true;
+    #endif
+
+    if (exportEnabled) {
+        m_wrapper = new TupleStreamWrapper(m_executorContext->m_partitionId,
+                                           m_executorContext->m_siteId,
+                                           m_executorContext->m_lastTickTime);
+    }
+
+     /**
+      *  Choosing whether to use malloc Pool or MMAP Pool
+      */
+
+    if(m_executorContext->isMMAPEnabled() == false)
+      m_pool = new Pool();
+    else
+      m_pool = new Pool(16*1024*1024, 1024, m_executorContext->getDBDir()+"/"+name, true); // Need a name - backed by a file
 }
 
 PersistentTable::~PersistentTable() {
@@ -124,11 +160,14 @@ PersistentTable::~PersistentTable() {
     voltdb::TableIterator ti(this);
     voltdb::TableTuple tuple(m_schema);
 
-    while (ti.next(tuple)) {
-        // indexes aren't released as they don't have ownership of strings
-        tuple.freeObjectColumns();
-        tuple.setDeletedTrue();
+    if(m_executorContext->isMMAPEnabled() == false){
+      while (ti.next(tuple)) {
+	  // indexes aren't released as they don't have ownership of strings
+	  tuple.freeObjectColumns();
+	  tuple.setDeletedTrue();
+      }
     }
+    
     for (int i = 0; i < m_indexCount; ++i) {
         TableIndex *index = m_indexes[i];
         if (index != m_pkeyIndex) {
@@ -550,7 +589,8 @@ bool PersistentTable::insertTuple(TableTuple &source) {
     //
     // Then copy the source into the target
     //
-    m_tmpTarget1.copyForPersistentInsert(source); // tuple in freelist must be already cleared
+    /** Using MMAP pool **/
+    m_tmpTarget1.copyForPersistentInsert(source, m_pool); // tuple in freelist must be already cleared
     m_tmpTarget1.setDeletedFalse();
 
     /**
@@ -712,7 +752,9 @@ bool PersistentTable::updateTuple(TableTuple &source, TableTuple &target, bool u
      } else {
          source.setDirtyFalse();
      }
-     target.copyForPersistentUpdate(source);
+
+     /** Using MMAP pool **/
+     target.copyForPersistentUpdate(source, m_pool);
 
      ptuua->setNewTuple(target, pool);
 

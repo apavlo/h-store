@@ -803,7 +803,7 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
      * @param catalog_tbl
      */
     public abstract void antiCacheMergeBlocks(Table catalog_tbl);
-    
+        
     /**
      * Enables the anti-cache feature in the EE. The given database directory path
      * must be a unique location for this partition where the EE can store 
@@ -816,7 +816,7 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
      */
     protected native int nativeAntiCacheInitialize(long pointer, String dbDir, long blockSize);
     
-    /**
+     /**
      * 
      * @param pointer
      * @param tableId
@@ -848,4 +848,32 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
      * @return Returns the RSS size in bytes or -1 on error (or wrong platform).
      */
     public native static long nativeGetRSS();
+    
+    // ----------------------------------------------------------------------------
+    // STORAGE MMAP
+    // ----------------------------------------------------------------------------
+    
+    /**
+     * Initialize mmap storage feature at this partition's EE.  
+     * <B>NOTE:</B> This must be invoked before loadCatalog is invoked
+     * @param dbDir
+     * @param mapSize TODO
+     * @throws EEException
+     * @return
+     */
+    public abstract void MMAPInitialize(File dbDir, long mapSize) throws EEException;
+    
+    /**
+     * Enables the mmap storage feature in the EE. The given database directory path
+     * must be a unique location for this partition where the EE can store 
+     * evicted blocks of tuples. The EE assumes that the parent directories 
+     * for dbDir exist and are writable.  
+     * @param pointer
+     * @param dbDir
+     * @param mapSize TODO
+     * @return
+     */
+    protected native int nativeMMAPInitialize(long pointer, String dbDir, long mapSize);
+ 
+    
 }

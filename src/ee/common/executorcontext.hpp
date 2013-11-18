@@ -22,6 +22,17 @@
 #include "common/UndoQuantum.h"
 #include "storage/ReadWriteTracker.h"
 
+#include "pthread.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <errno.h>
+
+
 #ifdef ANTICACHE
 #include "anticache/AntiCacheDB.h"
 #include "anticache/AntiCacheEvictionManager.h"
@@ -82,6 +93,7 @@ namespace voltdb {
             m_lastTickTime = 0;
             m_antiCacheEnabled = false;
             m_trackingEnabled = false;
+            m_MMAPEnabled = false;
         }
         
         // not always known at initial construction
@@ -93,6 +105,35 @@ namespace voltdb {
             return (m_partitionId);
         }
         
+        CatalogId getSiteId() const {
+            return (m_siteId);
+        }
+        
+        CatalogId getHostId() const {
+            return (m_hostId);
+        }
+        
+        // ------------------------------------------------------------------
+        // STORAGE MMAP MANAGEMENT
+        // ------------------------------------------------------------------ 
+        
+        std::string getDBDir() const {
+            if(m_MMAPDir.empty())
+                return "/tmp";          // Default : "/tmp"
+        	return (m_MMAPDir);
+        }
+
+        long getFileSize() const {
+        	return (m_MMAPSize);
+        }
+ 
+        bool isMMAPEnabled() const {
+        	return (m_MMAPEnabled);
+        }
+
+        //----------------------------------------------------------------------
+
+ 
         // not always known at initial construction
         void setEpoch(int64_t epoch) {
             m_epoch = epoch;
@@ -189,6 +230,23 @@ namespace voltdb {
         #endif
         
         // ------------------------------------------------------------------
+        // STORAGE MMAP MANAGEMENT
+        // ------------------------------------------------------------------ 
+        
+        /**
+         * Enable the mmap storage feature in the EE.
+         * The input parameter is the directory where our disk-based storage
+         * will write out mmap'ed files for this partition
+         */                               
+        void enableMMAP(std::string &dbDir, long mapSize) {
+            assert(m_MMAPEnabled == false);
+            m_MMAPDir = dbDir;
+            m_MMAPSize = mapSize;
+
+            m_MMAPEnabled = true;
+        }                              
+ 
+        // ------------------------------------------------------------------
         // READ-WRITE TRACKERS
         // ------------------------------------------------------------------ 
         
@@ -219,6 +277,13 @@ namespace voltdb {
         AntiCacheEvictionManager *m_antiCacheEvictionManager; 
         #endif
         
+        // ------------------------------------------------------------------
+        // STORAGE MMAP MANAGEMENT
+        // ------------------------------------------------------------------ 
+        long m_MMAPSize;
+        std::string m_MMAPDir;
+        bool m_MMAPEnabled;
+
         /** ReadWrite Trackers */
         bool m_trackingEnabled;
         ReadWriteTrackerManager *m_trackingManager;

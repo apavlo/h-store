@@ -54,10 +54,11 @@
 #include "json_spirit/json_spirit.h"
 #include "catalog/database.h"
 #include "common/ids.h"
+#include "common/Pool.hpp"
+#include "common/MMAPMemoryManager.h"
 #include "common/serializeio.h"
 #include "common/types.h"
 #include "common/valuevector.h"
-#include "common/Pool.hpp"
 #include "common/UndoLog.h"
 #include "common/DummyUndoQuantum.hpp"
 #include "common/SerializableEEException.h"
@@ -67,6 +68,8 @@
 #include "logging/LogProxy.h"
 #include "logging/StdoutLogProxy.h"
 #include "stats/StatsAgent.h"
+#include "storage/persistenttable.h"
+#include "storage/mmap_persistenttable.h"
 
 #ifdef ANTICACHE
 #include "anticache/EvictedTupleAccessException.h"
@@ -131,6 +134,7 @@ class __attribute__((visibility("default"))) VoltDBEngine {
         }
 
         VoltDBEngine(Topend *topend, LogProxy *logProxy);
+	
         bool initialize(
                 int32_t clusterIndex,
                 int32_t siteId,
@@ -279,6 +283,11 @@ class __attribute__((visibility("default"))) VoltDBEngine {
         #endif
         
         // -------------------------------------------------
+        // STORAGE MMAP
+        // -------------------------------------------------
+        void MMAPInitialize(std::string dbDir, long mapSize) const;
+
+        // -------------------------------------------------
         // Debug functions
         // -------------------------------------------------
         std::string debug(void) const;
@@ -343,17 +352,9 @@ class __attribute__((visibility("default"))) VoltDBEngine {
             m_currentUndoQuantum = m_undoLog.generateUndoQuantum(nextUndoToken);
         }
 
-        inline void releaseUndoToken(int64_t undoToken) {
-            if (m_currentUndoQuantum != NULL && m_currentUndoQuantum->isDummy()) {
-                return;
-            }
-            if (m_currentUndoQuantum != NULL && m_currentUndoQuantum->getUndoToken() == undoToken) {
-                m_currentUndoQuantum = NULL;
-            }
-            VOLT_TRACE("Committing Buffer Token %ld at partition %d", undoToken, m_partitionId);
-            m_undoLog.release(undoToken);
-        }
-        inline void undoUndoToken(int64_t undoToken) {
+        inline void releaseUndoToken(int64_t undoToken);
+
+	inline void undoUndoToken(int64_t undoToken) {
             if (m_currentUndoQuantum != NULL && m_currentUndoQuantum->isDummy()) {
                 return;
             }
@@ -575,6 +576,43 @@ inline void VoltDBEngine::resetReusedResultOutputBuffer(const size_t headerSize)
     m_exceptionOutput.initializeWithPosition(m_exceptionBuffer, m_exceptionBufferCapacity, headerSize);
     *reinterpret_cast<int32_t*>(m_exceptionBuffer) = voltdb::VOLT_EE_EXCEPTION_TYPE_NONE;
 }
+
+void VoltDBEngine::releaseUndoToken(int64_t undoToken){
+  if (m_currentUndoQuantum != NULL && m_currentUndoQuantum->isDummy()) {
+    return;
+  }
+  if (m_currentUndoQuantum != NULL && m_currentUndoQuantum->getUndoToken() == undoToken) {
+    m_currentUndoQuantum = NULL;
+  }
+
+  /** MMAP SYNC ALL CHANGES AT END OF TXN **/
+  if(m_executorContext->isMMAPEnabled()){
+    for (std::map<int32_t, Table*>::iterator m_tables_itr = m_tables.begin() ; m_tables_itr != m_tables.end() ; ++m_tables_itr){
+      Table* table = m_tables_itr->second;
+
+      if(table != NULL){
+	//VOLT_WARN("Syncing Table %s \n",table->name().c_str());
+
+	Pool* pool = table->getPool();
+	if(pool != NULL){
+	  MMAPMemoryManager* m_pool_manager = pool->getPoolManager();
+
+	  if(m_pool_manager != NULL)
+	    m_pool_manager->async();
+	}
+
+	MMAPMemoryManager* m_data_manager = table->getDataManager();
+	if(m_data_manager != NULL)
+	  m_data_manager->async();
+
+      }
+    }
+  }
+
+  VOLT_TRACE("Committing Buffer Token %ld at partition %d", undoToken, m_partitionId);
+  m_undoLog.release(undoToken);
+}
+
 
 } // namespace voltdb
 
