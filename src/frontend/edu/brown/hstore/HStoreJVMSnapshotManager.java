@@ -147,13 +147,19 @@ public class HStoreJVMSnapshotManager implements Runnable {
             in = new DataInputStream(kkSocket.getInputStream());
             while (true) {
                 int len = in.readInt();
-                if (len == 0) // Shutdown request
+                if (len == 0) { // Shutdown request
+                    if (debug.val)
+                        LOG.debug("Get shutdown message from parent");
                     break;
+                }
                 byte[] barr = new byte[len];
                 in.readFully(barr);
                 FastDeserializer des = new FastDeserializer(barr);
                 LocalTransaction ts = new LocalTransaction(hstore_site);
                 ts.readExternal(des);
+                if (debug.val)
+                    LOG.debug("Get a new transaction from parent");
+                hstore_site.getTransactionInitializer().registerOldTransaction(ts);
                 hstore_site.transactionQueue(ts);
             }
         } catch (Exception e) {
@@ -195,6 +201,8 @@ public class HStoreJVMSnapshotManager implements Runnable {
             out.writeInt(bs.size());
             out.write(bs.toByteArray());
             out.flush();
+            if (debug.val)
+                LOG.debug("Send back response");
         } catch (IOException e) {
             System.exit(1);
         }
@@ -206,15 +214,19 @@ public class HStoreJVMSnapshotManager implements Runnable {
     // ----------------------------------------------------------------------------
 
     public void stopSnapshot() {
-        if (debug.val)
-            LOG.debug("HStoreJVMSnapshot shutdown!");
+
         if (!isParent || snapshot_pid == 0 || out == null)
             return;
+        if (debug.val)
+            LOG.debug("HStoreJVMSnapshot shutdown!");
         try {
             out.writeInt(0);
+            out.flush();
             in.readInt();
         } catch (IOException e) {
         }
+        if (debug.val)
+            LOG.debug("Shut down successfully");
         this.snapshot_pid = 0;
         this.out = null;
         this.in = null;
@@ -261,6 +273,8 @@ public class HStoreJVMSnapshotManager implements Runnable {
                 out.writeInt(bs.size());
                 out.write(bs.toByteArray());
                 out.flush();
+                if (debug.val)
+                    LOG.debug("Send out request to the snapshot");
                 // read response
                 int len = in.readInt();
                 byte[] barr = new byte[len];
