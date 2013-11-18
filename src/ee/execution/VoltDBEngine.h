@@ -585,7 +585,7 @@ void VoltDBEngine::releaseUndoToken(int64_t undoToken){
     m_currentUndoQuantum = NULL;
   }
 
-  /** MMAP SYNC ALL CHANGES AT END OF TXN **/
+  /*
   if(m_executorContext->isMMAPEnabled()){
     for (std::map<int32_t, Table*>::iterator m_tables_itr = m_tables.begin() ; m_tables_itr != m_tables.end() ; ++m_tables_itr){
       Table* table = m_tables_itr->second;
@@ -608,6 +608,7 @@ void VoltDBEngine::releaseUndoToken(int64_t undoToken){
       }
     }
   }
+  */
 
   VOLT_TRACE("Committing Buffer Token %ld at partition %d", undoToken, m_partitionId);
   m_undoLog.release(undoToken);
