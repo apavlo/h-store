@@ -45,10 +45,6 @@ public class Initialize extends VoltProcedure
     // Inserts a contestant
     public final SQLStmt insertContestantStmt = new SQLStmt("INSERT INTO contestants (contestant_name, contestant_number) VALUES (?, ?);");
     
-    public final SQLStmt insertVoteCount = new SQLStmt("INSERT INTO total_votes (row_id, num_votes) VALUES (?, ?)");
-    
-    public final SQLStmt votes_by_c_s = new SQLStmt("INSERT INTO votes_by_contestant_number_state (contestant_number, state, num_votes) VALUES (?,?,0);");
-	
     // Domain data: matching lists of Area codes and States
     public static final short[] areaCodes = new short[]{
 	907,205,256,334,251,870,501,479,480,602,623,928,520,341,764,628,831,925,
@@ -92,53 +88,29 @@ public class Initialize extends VoltProcedure
 	"VA","VA","VA","VA","VA","VA","VT","WA","WA","WA","WA","WA","WA","WI","WI",
 	"WI","WI","WI","WV","WY"};
     
-    public static final String[] statesList = new String[] {
-    	"AK","AL","AR","AZ","CA",
-    	"CO","CT","DC","DE","FL",
-    	"GA","HI","IA","ID","IL",
-    	"IN","KS","KY","LA","MA",
-    	"MD","ME","MI","MN","MO",
-    	"MS","MT","NC","ND","NE",
-    	"NH","NJ","NM","NV","NY",
-    	"OH","OK","OR","PA","RI",
-    	"SC","SD","TN","TX","UT",
-    	"VA","VT","WA","WI","WV","WY"};
-	
     public long run(int maxContestants, String contestants) {
-		
-        String[] contestantArray = contestants.split(",");		
+        
+        String[] contestantArray = contestants.split(",");
         
         voltQueueSQL(checkStmt);
         long existingContestantCount = voltExecuteSQL()[0].asScalarLong();
-		
+        
         // if the data is initialized, return the contestant count
         if (existingContestantCount != 0)
             return existingContestantCount;
-		
+        
         // initialize the data
         for (int i=0; i < maxContestants; i++) {
             voltQueueSQL(insertContestantStmt, contestantArray[i], i+1);
             voltExecuteSQL();
-		}
+        }
         
         for (int i=0; i < areaCodes.length; i++) {
             voltQueueSQL(insertACSStmt, areaCodes[i], states[i]);
             voltExecuteSQL();
-		}
-        
-        for (int i=0; i < maxContestants; i++)
-        {
-        	for(int j = 0; j < statesList.length; j++)
-        	{
-        		voltQueueSQL(votes_by_c_s, i, statesList[j]);
-        		voltExecuteSQL();
-        	}
         }
         
-        
-        voltQueueSQL(insertVoteCount, 1, 0);
-        voltExecuteSQL();
-		
         return maxContestants;
     }
+	
 }

@@ -43,14 +43,9 @@ import edu.brown.benchmark.voterstream.VoterConstants;
 )
 public class Vote extends VoltProcedure {
 	
-    // Checks if the vote is for a valid contestant
-    public final SQLStmt checkContestantStmt = new SQLStmt(
-	   "SELECT contestant_number FROM contestants WHERE contestant_number = ?;"
-    );
-	
     // Checks if the voter has exceeded their allowed number of votes
     public final SQLStmt checkVoterStmt = new SQLStmt(
-		"SELECT num_votes FROM votes_by_phone_number WHERE phone_number = ?;"
+		"SELECT num_votes FROM v_votes_by_phone_number WHERE phone_number = ?;"
     );
 	
     // Checks an area code to retrieve the corresponding state
@@ -60,23 +55,19 @@ public class Vote extends VoltProcedure {
 	
     // Records a vote
     public final SQLStmt insertVoteStmt = new SQLStmt(
-		"INSERT INTO votes_streamA (vote_id, phone_number, state, contestant_number, created) VALUES (?, ?, ?, ?, ?);"
+		"INSERT INTO votes_stream (vote_id, phone_number, state, contestant_number, created) VALUES (?, ?, ?, ?, ?);"
     );
 	
     public long run(long voteId, long phoneNumber, int contestantNumber, long maxVotesPerPhoneNumber) {
 		
         // Queue up validation statements
-        voltQueueSQL(checkContestantStmt, contestantNumber);
         voltQueueSQL(checkVoterStmt, phoneNumber);
         voltQueueSQL(checkStateStmt, (short)(phoneNumber / 10000000l));
         VoltTable validation[] = voltExecuteSQL();
 		
-        if (validation[0].getRowCount() == 0) {
-            return VoterConstants.ERR_INVALID_CONTESTANT;
-        }
-		
-        if ((validation[1].getRowCount() == 1) &&
-			(validation[1].asScalarLong() >= maxVotesPerPhoneNumber)) {
+        // validate the maximum limit for votes number
+        if ((validation[0].getRowCount() == 1) &&
+			(validation[0].asScalarLong() >= maxVotesPerPhoneNumber)) {
             return VoterConstants.ERR_VOTER_OVER_VOTE_LIMIT;
         }
 		
@@ -85,7 +76,7 @@ public class Vote extends VoltProcedure {
         // the "XX" fake state (those votes will not appear on the Live Statistics dashboard,
         // but are tracked as legitimate instead of invalid, as old clients would mostly get
         // it wrong and see all their transactions rejected).
-        final String state = (validation[2].getRowCount() > 0) ? validation[2].fetchRow(0).getString(0) : "XX";
+        final String state = (validation[1].getRowCount() > 0) ? validation[1].fetchRow(0).getString(0) : "XX";
 		 		
         // Post the vote
         TimestampType timestamp = new TimestampType();

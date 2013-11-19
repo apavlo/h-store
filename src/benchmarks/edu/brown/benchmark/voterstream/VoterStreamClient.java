@@ -97,8 +97,6 @@ public class VoterStreamClient extends BenchmarkComponent {
     @Override
     protected boolean runOnce() throws IOException {
         // Get the next phone call
-    	//try{
-	    	//Thread.sleep(100);
 	        PhoneCallGenerator.PhoneCall call = switchboard.receive();
 	
 	        Client client = this.getClientHandle();
@@ -109,11 +107,6 @@ public class VoterStreamClient extends BenchmarkComponent {
 	                                                call.contestantNumber,
 	                                                VoterConstants.MAX_VOTES);
 	        return response;
-    	//}
-	    /**    
-	    catch(InterruptedException e){
-	    	return false;
-	    }*/
     }
 
     @Override

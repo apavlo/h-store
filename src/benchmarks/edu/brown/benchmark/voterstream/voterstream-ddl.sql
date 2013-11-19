@@ -37,19 +37,6 @@ CREATE TABLE votes
 -- PARTITION BY ( phone_number )
 );
 
-CREATE TABLE total_votes
-(
-    row_id           bigint    NOT NULL,
-    num_votes        int       NOT NULL
-);
-
--- rollup of votes by phone number, used to reject excessive voting
-CREATE TABLE votes_by_phone_number
-(
-    phone_number     bigint    NOT NULL,
-    num_votes        int
-);
-
 CREATE VIEW v_votes_by_phone_number
 (
   phone_number
@@ -77,7 +64,8 @@ AS
         , state
 ;
 
-CREATE TABLE votes_streamB
+-- streams for processing ---
+CREATE STREAM votes_stream
 (
   vote_id            bigint     NOT NULL,
   phone_number       bigint     NOT NULL
@@ -86,8 +74,8 @@ CREATE TABLE votes_streamB
 , created            timestamp  NOT NULL
 );
 
---------------------------------------
-CREATE STREAM votes_streamA
+-- result from step 1: Validate contestants
+CREATE STREAM S1
 (
   vote_id            bigint     NOT NULL,
   phone_number       bigint     NOT NULL
@@ -96,26 +84,4 @@ CREATE STREAM votes_streamA
 , created            timestamp  NOT NULL
 );
 
-CREATE TABLE votes_by_contestant_number_state
-(
-  contestant_number  int        NOT NULL
-, state              varchar(2) NOT NULL
-, num_votes          int
-);
-
-CREATE WINDOW W_ROWS ON votes_streamA ROWS 10 SLIDE 5;
-
-CREATE TABLE T3
-(
-    phone_number     bigint    NOT NULL,
-    num_votes        int
-);
-
-
-CREATE STREAM S3
-(
-    phone_number     bigint    NOT NULL,
-    num_votes        int
-);
---------------------------------------
 
