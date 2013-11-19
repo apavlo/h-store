@@ -27,6 +27,8 @@ package edu.brown.hstore;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -501,8 +503,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 Throwable error = arg.getSecond();
                 String threadName = "<unknown>";
                 if (thread != null) threadName = thread.getName(); 
+                StringWriter errors = new StringWriter();
+                error.printStackTrace(new PrintWriter(errors));
                 LOG.fatal(String.format("Thread %s had a fatal error: %s",
                           threadName, (error != null ? error.getMessage() : null)));
+                LOG.info(errors.toString());
                 error.printStackTrace();
                 hstore_coordinator.shutdownClusterBlocking(error);
             }
