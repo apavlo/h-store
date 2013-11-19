@@ -2534,6 +2534,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             "The client handle for " + ts + " was not set properly";
         assert(status != Status.ABORT_MISPREDICT && status != Status.ABORT_EVICTEDACCESS) :
             "Trying to send back a client response for " + ts + " but the status is " + status;
+       
+        if (hstore_conf.site.jvmsnapshot_enable && !jvmSnapshotManager.isParent()) {
+            jvmSnapshotManager.sendResponseToParent(cresponse);
+            return;
+        }
         
         if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.startPostClient();
         boolean sendResponse = true;
