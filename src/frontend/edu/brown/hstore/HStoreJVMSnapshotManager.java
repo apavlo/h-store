@@ -6,6 +6,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingDeque;
 
 import org.apache.log4j.Logger;
+import org.jfree.util.Log;
 import org.voltdb.ClientResponseImpl;
 import org.voltdb.catalog.Site;
 import org.voltdb.messaging.FastDeserializer;
@@ -13,6 +14,7 @@ import org.voltdb.messaging.FastSerializer;
 import org.voltdb.utils.ProcessUtils;
 
 import com.google.protobuf.ByteString;
+
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.logging.LoggerUtil;
@@ -189,6 +191,9 @@ public class HStoreJVMSnapshotManager implements Runnable {
     // ----------------------------------------------------------------------------
 
     public void sendResponseToParent(ClientResponseImpl response) {
+        if (debug.val) {
+            Log.debug("Send back client response to parent");
+        }
         ByteString bs = ByteString.EMPTY;
         try {
             bs = ByteString.copyFrom(FastSerializer.serialize(response));
