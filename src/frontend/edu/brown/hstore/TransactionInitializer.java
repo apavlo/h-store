@@ -387,6 +387,7 @@ public class TransactionInitializer {
      * @return
      */
     public RemoteTransaction createRemoteTransaction(Long txn_id,
+                                                     long initiateTime, // added by hawk, 2013/11/20
                                                      PartitionSet partitions,
                                                      ParameterSet procParams,
                                                      int base_partition,
@@ -396,7 +397,7 @@ public class TransactionInitializer {
         try {
             ts = new RemoteTransaction(this.hstore_site);
             assert(ts.isInitialized() == false);
-            ts.init(txn_id, base_partition, procParams, catalog_proc, partitions, true);
+            ts.init(txn_id, initiateTime, base_partition, procParams, catalog_proc, partitions, true);
             if (debug.val)
                 LOG.debug(String.format("Creating new RemoteTransactionState %s from " +
                 		  "remote partition %d [partitions=%s, hashCode=%d]",

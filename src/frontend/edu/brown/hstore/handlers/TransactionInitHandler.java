@@ -106,6 +106,7 @@ public class TransactionInitHandler extends AbstractTransactionHandler<Transacti
             // a remote site from the txn's base partition
             ts = this.hstore_site.getTransactionInitializer()
                                  .createRemoteTransaction(txn_id,
+                                                          request.getInitiateTime(), // added by hawk, 2013/11/20
                                                           partitions,
                                                           procParams,
                                                           request.getBasePartition(),

@@ -135,11 +135,6 @@ public class LocalTransaction extends AbstractTransaction {
      */
     private boolean log_enabled = false;
     
-    /**
-     * The timestamp (from EstTime) that our transaction showed up
-     * at this HStoreSite
-     */
-    private long initiateTime;
     
     /**
      * This is where we will store all of the special state information for distributed txns
@@ -240,7 +235,10 @@ public class LocalTransaction extends AbstractTransaction {
                                  Procedure catalog_proc,
                                  ParameterSet params,
                                  RpcCallback<ClientResponseImpl> client_callback) {
+        long localInitiateTime = EstTime.currentTimeMillis();
         super.init(txn_id,
+                   initiateTime,
+                   localInitiateTime,
                    clientHandle,
                    base_partition,
                    params,
@@ -250,7 +248,6 @@ public class LocalTransaction extends AbstractTransaction {
                    predict_abortable,
                    true);
         
-        this.initiateTime = initiateTime;
         this.client_callback = client_callback;
         this.init_callback.init(this, this.predict_touchedPartitions);
         this.mapreduce = catalog_proc.getMapreduce();
@@ -293,9 +290,12 @@ public class LocalTransaction extends AbstractTransaction {
                                      ParameterSet params,
                                      PartitionSet predict_touchedPartitions,
                                      Procedure catalog_proc) {
-        this.initiateTime = EstTime.currentTimeMillis();
+        
+        long localInitiateTime = EstTime.currentTimeMillis();
         
         super.init(txn_id,                       // TxnId
+                   EstTime.currentTimeMillis(),  // initializeTime
+                   localInitiateTime,
                    Integer.MAX_VALUE,            // ClientHandle
                    base_partition,               // BasePartition
                    params,                       // Procedure Parameters
@@ -356,7 +356,6 @@ public class LocalTransaction extends AbstractTransaction {
         
         this.client_callback = null;
         this.init_callback.finish();
-        this.initiateTime = 0;
         this.cresponse = null;
         
         this.exec_controlCode = false;
@@ -662,13 +661,6 @@ public class LocalTransaction extends AbstractTransaction {
         return (super.isDeletable());
     }
 
-
-    /**
-     * Get the timestamp that this LocalTransaction handle was initiated
-     */
-    public long getInitiateTime() {
-        return (this.initiateTime);
-    }
     
     public final int getCurrentBatchSize() {
         return (this.batch_size);

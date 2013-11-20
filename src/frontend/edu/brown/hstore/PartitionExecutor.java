@@ -3130,7 +3130,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                         //System.out.println("hawk - txn:" + String.format("%d...",ts.getTransactionId()) + "firing frontend trigger 0:" + procedure.getName());
     
                         if(procedure.getBedefault() == true)
-                            this.hstore_site.invocationTriggerProcedureProcess(ts.getClientHandle(), procedure);
+                            this.hstore_site.invocationTriggerProcedureProcess(ts.getClientHandle(), ts.getInitiateTime(), procedure);
                         else // second way - send it back to client to run it (Client side)
                             ts.addFollowingProcedure(procedure);
                     }

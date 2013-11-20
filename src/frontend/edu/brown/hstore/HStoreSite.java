@@ -1708,7 +1708,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     }
     
     // added by hawk, 2013/11/1
-    public void invocationTriggerProcedureProcess(long clientHandle, Procedure procedure) {
+    public void invocationTriggerProcedureProcess(long clientHandle, long initiateTime, Procedure procedure) {
       
       //System.out.println("hawk - firing frontend trigger 1:" + procedure.getName());
 
@@ -1765,7 +1765,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
       //System.out.println("hawk - firing frontend trigger 2:" + procedure.getName());
       LocalTransaction ts = this.txnInitializer.createLocalTransaction(
                                       null,
-                                      timestamp,
+                                      initiateTime,
                                       client_handle,
                                       base_partition,
                                       procedure,

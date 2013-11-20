@@ -41,6 +41,7 @@ public abstract class TransactionUtil {
      */
     public static TransactionInitRequest.Builder createTransactionInitBuilder(LocalTransaction ts, FastSerializer paramsSerializer) {
         TransactionInitRequest.Builder builder = TransactionInitRequest.newBuilder()
+                                                        .setInitiateTime(ts.getInitiateTime()) //added by hawk, 2013/11/20
                                                         .setTransactionId(ts.getTransactionId().longValue())
                                                         .setProcedureId(ts.getProcedure().getId())
                                                         .setBasePartition(ts.getBasePartition())
