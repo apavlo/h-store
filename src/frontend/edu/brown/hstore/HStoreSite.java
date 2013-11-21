@@ -1749,13 +1749,26 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
           } // SYNCH
       }
       
+      // make buffer to follow same way as above method
+      final StoredProcedureInvocation invocation =
+              new StoredProcedureInvocation(client_handle, procedure.getName());
+      invocation.setBasePartition(base_partition);
+
+      ByteBuffer buffer = null;
+      try {
+        byte[] invocationbytes = FastSerializer.serialize(invocation);
+        buffer = ByteBuffer.wrap(invocationbytes);
+      } catch (IOException e) {
+        e.printStackTrace();
+      }
+      
       // -------------------------------
       // REDIRECT TXN TO PROPER BASE PARTITION
       // -------------------------------
       if (this.isLocalPartition(base_partition) == false) {
           // If the base_partition isn't local, then we need to ship it off to
           // the right HStoreSite
-          this.transactionRedirect(procedure, null, base_partition, clientCallback);
+          this.transactionRedirect(procedure, buffer, base_partition, clientCallback);
           return;
       }
       
