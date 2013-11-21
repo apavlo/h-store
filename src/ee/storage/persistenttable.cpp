@@ -1138,6 +1138,11 @@ namespace voltdb {
 		//return m_hasTriggers;
 	}
 
+	bool PersistentTable::fireTriggers()
+	{
+		return m_fireTriggers;
+	}
+
 	/*
 	* Implemented by persistent table and called by Table::loadTuplesFrom
 	* to do additional processing for views and Export

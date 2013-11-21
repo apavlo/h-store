@@ -204,7 +204,7 @@ namespace voltdb {
 		if (beProcessed == true)
 		{
 			PersistentTable* persistTarget = dynamic_cast<PersistentTable*>(m_targetTable);
-			if(persistTarget != NULL && persistTarget->hasTriggers()) {
+			if(persistTarget != NULL && persistTarget->hasTriggers() && persistTarget->fireTriggers()) {
 				std::vector<Trigger*>::iterator trig_iter;
 
 				VOLT_DEBUG( "Start firing triggers of table '%s'", persistTarget->name().c_str());
@@ -217,7 +217,13 @@ namespace voltdb {
 				}
 				VOLT_DEBUG( "End firing triggers of table '%s'", persistTarget->name().c_str());
 
+				//TODO: I think this should not be happening for non-streams
 				persistTarget->deleteAllTuples(true);
+				WindowTable* windowTarget = dynamic_cast<WindowTable*>(persistTarget);
+				if(windowTarget != NULL)
+				{
+					windowTarget->setFireTriggers(false);
+				}
 			}
 
 			// if this is a stream, we should delete the content after firing trigger
