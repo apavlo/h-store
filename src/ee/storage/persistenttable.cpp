@@ -753,8 +753,8 @@ bool PersistentTable::updateTuple(TableTuple &source, TableTuple &target, bool u
          source.setDirtyFalse();
      }
 
-     /** Using MMAP pool **/
-     target.copyForPersistentUpdate(source, m_pool);
+     /** TODO : Not Using MMAP pool **/
+     target.copyForPersistentUpdate(source, NULL);
 
      ptuua->setNewTuple(target, pool);
 
