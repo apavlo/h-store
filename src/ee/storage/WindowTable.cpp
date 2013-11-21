@@ -117,6 +117,8 @@ bool WindowTable::insertTuple(TableTuple &source)
 			//it = stagingQueue.erase(it);
 		}
 		stagingQueue.clear();
+		if(hasTriggers())
+			setFireTriggers(true);
 	}
 	return true;
 }
@@ -145,6 +147,8 @@ void WindowTable::insertTupleForUndo(TableTuple &source, size_t elMark)
 			windowQueue.push_back(*it);
 			it = stagingQueue.erase(it);
 		}
+		if(hasTriggers())
+			setFireTriggers(true);
 	}
 }
 
@@ -219,6 +223,11 @@ void WindowTable::deleteTupleForUndo(voltdb::TableTuple &tupleCopy, size_t elMar
 		}
 	}
 	return PersistentTable::deleteTupleForUndo(tupleCopy, elMark);
+}
+
+void WindowTable::setFireTriggers(bool fire)
+{
+	m_fireTriggers = fire;
 }
 
 std::string WindowTable::debug()

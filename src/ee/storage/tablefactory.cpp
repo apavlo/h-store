@@ -146,6 +146,7 @@ Table* TableFactory::getPersistentTable(
         	pTable->m_hasTriggers = true;
         else
         	pTable->m_hasTriggers = false;
+        pTable->m_fireTriggers = pTable->m_hasTriggers;
 
         for (int i = 0; i < indexes.size(); ++i) {
             pTable->m_indexes[i] = TableIndexFactory::getInstance(indexes[i]);
@@ -208,6 +209,7 @@ Table* TableFactory::getPersistentTable(
 			pTable->m_hasTriggers = true;
 		else
 			pTable->m_hasTriggers = false;
+        pTable->m_fireTriggers = pTable->m_hasTriggers;
 
         // one for pkey + all the other indexes
         pTable->m_indexCount = 1 + (int)indexes.size();
@@ -342,6 +344,7 @@ Table* TableFactory::getWindowTable(
         	pTable->m_hasTriggers = true;
         else
         	pTable->m_hasTriggers = false;
+        pTable->m_fireTriggers = false;
 
         for (int i = 0; i < indexes.size(); ++i) {
             pTable->m_indexes[i] = TableIndexFactory::getInstance(indexes[i]);
@@ -408,6 +411,7 @@ Table* TableFactory::getWindowTable(
 			pTable->m_hasTriggers = true;
 		else
 			pTable->m_hasTriggers = false;
+        pTable->m_fireTriggers = false;
 
         // one for pkey + all the other indexes
         pTable->m_indexCount = 1 + (int)indexes.size();

@@ -186,6 +186,7 @@ namespace voltdb {
 		std::vector<voltdb::Trigger*>* getTriggers();
 		void addAllTriggers(std::vector<voltdb::Trigger*> *);
 		bool hasTriggers();
+		bool fireTriggers();
 
 		// ------------------------------------------------------------------
 		// UTILITY
@@ -338,6 +339,7 @@ namespace voltdb {
 		//TRIGGERS
 		std::vector<voltdb::Trigger*>* m_triggers;
 		bool m_hasTriggers;
+		bool m_fireTriggers;
 
 		// temporary for tuplestream stuff
 		TupleStreamWrapper *m_wrapper;
