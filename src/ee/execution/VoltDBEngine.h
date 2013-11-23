@@ -585,30 +585,28 @@ void VoltDBEngine::releaseUndoToken(int64_t undoToken){
     m_currentUndoQuantum = NULL;
   }
 
-  /*
   if(m_executorContext->isMMAPEnabled()){
     for (std::map<int32_t, Table*>::iterator m_tables_itr = m_tables.begin() ; m_tables_itr != m_tables.end() ; ++m_tables_itr){
       Table* table = m_tables_itr->second;
 
       if(table != NULL){
-	//VOLT_WARN("Syncing Table %s \n",table->name().c_str());
+    	//VOLT_WARN("Syncing Table %s \n",table->name().c_str());
 
-	Pool* pool = table->getPool();
-	if(pool != NULL){
-	  MMAPMemoryManager* m_pool_manager = pool->getPoolManager();
+	    Pool* pool = table->getPool();
+    	if(pool != NULL){
+	      MMAPMemoryManager* m_pool_manager = pool->getPoolManager();
 
-	  if(m_pool_manager != NULL)
-	    m_pool_manager->async();
-	}
+    	  if(m_pool_manager != NULL)
+	        m_pool_manager->sync();
+    	}
 
-	MMAPMemoryManager* m_data_manager = table->getDataManager();
-	if(m_data_manager != NULL)
-	  m_data_manager->async();
+	    MMAPMemoryManager* m_data_manager = table->getDataManager();
+    	if(m_data_manager != NULL)
+	      m_data_manager->sync();
 
       }
     }
   }
-  */
 
   VOLT_TRACE("Committing Buffer Token %ld at partition %d", undoToken, m_partitionId);
   m_undoLog.release(undoToken);
