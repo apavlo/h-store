@@ -41,10 +41,10 @@
 
    pthread_mutex_t MMAPMemoryManager::m_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-   const size_t DEFAULT_SIZE = (size_t)16 *(size_t)(1024*1024);
+   const unsigned int DEFAULT_MMAP_SIZE = 256 * 1024 * 1024;
 
    MMAPMemoryManager::MMAPMemoryManager()
-   : m_size(DEFAULT_SIZE), m_allocated(0),
+   : m_size(DEFAULT_MMAP_SIZE), m_allocated(0),
    m_persistent(false), m_index(0)
    {
      init();

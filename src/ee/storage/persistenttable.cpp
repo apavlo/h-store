@@ -148,11 +148,12 @@ PersistentTable::PersistentTable(ExecutorContext *ctx, const std::string name, b
      /**
       *  Choosing whether to use malloc Pool or MMAP Pool
       */
+    const size_t DEFAULT_MMAP_SIZE = 256 * 1024 * 1024;
 
     if(m_executorContext->isMMAPEnabled() == false)
       m_pool = new Pool();
     else
-      m_pool = new Pool(16*1024*1024, 1024, m_executorContext->getDBDir()+"/"+name, true); // Need a name - backed by a file
+      m_pool = new Pool(DEFAULT_MMAP_SIZE, 1024, m_executorContext->getDBDir()+"/"+name, true); // Need a name - backed by a file
 }
 
 PersistentTable::~PersistentTable() {

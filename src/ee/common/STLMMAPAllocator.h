@@ -33,6 +33,7 @@
 
 #include "common/debuglog.h"
 #include "common/FatalException.hpp"
+#include "common/executorcontext.hpp"
 
 #include "MMAPMemoryManager.h"
 
@@ -43,6 +44,8 @@ namespace voltdb{
     template <class T> 
         class STL_MMAP_Allocator
         {
+            friend class ExecutorContext;
+
             public:
                 typedef T          value_type;
                 typedef size_t     size_type;
@@ -53,7 +56,6 @@ namespace voltdb{
 
                 typedef T&         reference;
                 typedef const T&   const_reference;
-
 
                 STL_MMAP_Allocator() :
                     m_fileName(""), m_persistent(true), m_manager(NULL){
@@ -84,11 +86,13 @@ namespace voltdb{
 
                     VOLT_WARN("Persistent : %d", (int)m_persistent);
 
+                    const unsigned int DEFAULT_MMAP_SIZE = 256 * 1024 * 1024;
+
                     if(!m_manager){
                         if(m_persistent)
-                            m_manager = new MMAPMemoryManager((size_t)(16*1024*1024), m_fileName, true);
+                            m_manager = new MMAPMemoryManager(DEFAULT_MMAP_SIZE, m_fileName, true);
                         else
-                            m_manager = new MMAPMemoryManager((size_t)(16*1024*1024), m_fileName, false);
+                            m_manager = new MMAPMemoryManager(DEFAULT_MMAP_SIZE, m_fileName, false);
                     }
 
                     VOLT_WARN("Init m_manager : %p", m_manager);
