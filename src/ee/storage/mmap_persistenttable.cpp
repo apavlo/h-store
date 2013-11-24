@@ -94,7 +94,9 @@ namespace voltdb {
   PersistentTable(ctx,name,exportEnabled), // enable MMAP'ed pool
   m_name(name)
   {
-    m_data_manager = new MMAPMemoryManager(16*1024*1024, m_executorContext->getDBDir()+"/"+name+"_Data", true); // 16 MB - backed by a file
+    const unsigned int DEFAULT_MMAP_SIZE = 16*1024*1024;
+
+    m_data_manager = new MMAPMemoryManager(DEFAULT_MMAP_SIZE, m_executorContext->getDBDir()+"/"+name+"_Data", true); // 16 MB - backed by a file
   }
 
   inline void MMAP_PersistentTable::allocateNextBlock() {

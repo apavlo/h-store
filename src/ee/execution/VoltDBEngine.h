@@ -590,15 +590,16 @@ void VoltDBEngine::releaseUndoToken(int64_t undoToken){
       Table* table = m_tables_itr->second;
 
       if(table != NULL){
-    	//VOLT_WARN("Syncing Table %s \n",table->name().c_str());
+    	VOLT_WARN("Syncing Table %s \n",table->name().c_str());
 
+        /*
 	    Pool* pool = table->getPool();
     	if(pool != NULL){
 	      MMAPMemoryManager* m_pool_manager = pool->getPoolManager();
 
     	  if(m_pool_manager != NULL)
 	        m_pool_manager->sync();
-    	}
+    	}*/
 
 	    MMAPMemoryManager* m_data_manager = table->getDataManager();
     	if(m_data_manager != NULL)
