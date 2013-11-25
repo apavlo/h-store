@@ -1864,6 +1864,17 @@ public final class HStoreConf {
         )
         public String output_markov_profiling;
         
+        //added by hawk, 2013/11/25
+        @ConfigProperty(
+                description="Defines the path where the BenchmarkController will dump a CSV containing " +
+                            "the procedure stats information about the cluster. This will periodically invoke " +
+                            "the @Statistics system stored procedure to collect SysProcSelector.PROCEDURE data.",
+                defaultNull=true,
+                experimental=false
+            )
+        public String output_procedure_stats;
+        //ended by hawk
+
         @ConfigProperty(
             description="Defines the path where the BenchmarkController will dump a CSV containing " +
                         "the memory stats information about the cluster. This will periodically invoke " +

@@ -190,6 +190,11 @@ public abstract class VoltProcedure implements Poolable {
      */
     private byte m_statusCode = Byte.MIN_VALUE;
     private String m_statusString = null;
+
+    // added by hawk, 2013/11/25
+    //For runtime statistics collection
+    private ProcedureStatsCollector m_statsCollector;
+    // ended by hawk
     
     /**
      * End users should not instantiate VoltProcedure instances.
@@ -298,7 +303,7 @@ public abstract class VoltProcedure implements Poolable {
         this.isNative = (eeType != BackendTarget.HSQLDB_BACKEND);
         this.partitionId = this.executor.getPartitionId();
         assert(this.partitionId != HStoreConstants.NULL_PARTITION_ID);
-        
+       
         this.batchQueryArgs = new Object[hstore_conf.site.planner_max_batch_size][];
         this.batchQueryStmts = new SQLStmt[hstore_conf.site.planner_max_batch_size];
         
@@ -558,6 +563,18 @@ public abstract class VoltProcedure implements Poolable {
         this.batchId = 0;
         this.batchQueryStmtIndex = 0;
         this.last_batchQueryStmtIndex = -1;
+        
+        // added by hawk,2013/11/25
+        // why here not init(), because we need txn id as key in order to get the collector back later on.
+        m_statsCollector = new ProcedureStatsCollector();
+        this.hstore_site.getStatsAgent().registerStatsSource(
+                SysProcSelector.PROCEDURE,
+                (int)(long)(this.getTransactionId()), // FIXME, type problem, ugly solution temporarily  
+                m_statsCollector
+                );
+        
+        m_statsCollector.beginProcedure(txnState.getInitiateTime());
+        // ended by hawk
         
         if (debug.val) LOG.debug("Starting execution of " + this.localTxnState);
         if (this.procParams.length != this.paramTypesLength) {
@@ -1264,8 +1281,8 @@ public abstract class VoltProcedure implements Poolable {
      * Derivation of StatsSource to expose timing information of procedure invocations.
      *
      */
-    @SuppressWarnings("unused")
-    private final class ProcedureStatsCollector extends SiteStatsSource {
+    //@SuppressWarnings("unused")
+    public final class ProcedureStatsCollector extends SiteStatsSource { // "change from private to public" by hawk, 2013/11/25
 
         /**
          * Record procedure execution time ever N invocations
@@ -1318,7 +1335,7 @@ public abstract class VoltProcedure implements Poolable {
          */
         private long m_failureCount = 0;
         private long m_lastFailureCount = 0;
-
+        
         /**
          * Whether to return results in intervals since polling or since the beginning
          */
@@ -1331,13 +1348,16 @@ public abstract class VoltProcedure implements Poolable {
 //            super(m_site.getCorrespondingSiteId() + " " + catProc.getClassname(),
 //                  m_site.getCorrespondingSiteId());
         }
-
+        
         /**
          * Called when a procedure begins executing. Caches the time the procedure starts.
          */
-        public final void beginProcedure() {
+        public final void beginProcedure(long initiateTime) {
             if (m_invocations % timeCollectionInterval == 0) {
-                m_currentStartTime = System.nanoTime();
+                // modified by hawk, 2013/11/25
+                //m_currentStartTime = System.nanoTime();
+                m_currentStartTime = initiateTime;
+                // ended by hawk
             }
         }
 
@@ -1345,9 +1365,9 @@ public abstract class VoltProcedure implements Poolable {
          * Called after a procedure is finished executing. Compares the start and end time and calculates
          * the statistics.
          */
-        public final void endProcedure(boolean aborted, boolean failed) {
+        public final void endProcedure(boolean aborted, boolean failed, long endTime) {
             if (m_currentStartTime > 0) {
-                final long endTime = System.nanoTime();
+                //final long endTime = System.nanoTime();
                 final int delta = (int)(endTime - m_currentStartTime);
                 m_totalTimedExecutionTime += delta;
                 m_timedInvocations++;

@@ -57,6 +57,7 @@ import org.voltdb.StatsSource;
 import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.SysProcSelector;
 import org.voltdb.TransactionIdManager;
+import org.voltdb.VoltProcedure.ProcedureStatsCollector;
 import org.voltdb.catalog.Host;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
@@ -1176,7 +1177,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     public MemoryStats getMemoryStatsSource() {
         return (this.memoryStats);
     }
-    
+
     public Collection<TransactionPreProcessor> getTransactionPreProcessors() {
         return (this.preProcessors);
     }
@@ -1699,6 +1700,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                                         catalog_proc,
                                         procParams,
                                         clientCallback);
+//        // added by hawk, 2013/11/25
+//        int txnId = (int)(long)ts.getTransactionId();
+//        ProcedureStatsCollector collector = (ProcedureStatsCollector) this.getStatsAgent().getTransactionStatsSources(txnId);
+//        if(collector != null)
+//            collector.beginProcedure(timestamp);
+//        // ended by hawk
+        
         this.transactionQueue(ts);
         if (trace.val)
             LOG.trace(String.format("Finished initial processing of new txn."));
@@ -1777,13 +1785,20 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
           LOG.trace("Initializing transaction request using network processing thread");
       //System.out.println("hawk - firing frontend trigger 2:" + procedure.getName());
       LocalTransaction ts = this.txnInitializer.createLocalTransaction(
-                                      null,
+                                      buffer,//null,
                                       initiateTime,
                                       client_handle,
                                       base_partition,
                                       procedure,
                                       procParams,
                                       clientCallback);
+//      // added by hawk, 2013/11/25
+//      int txnId = (int)(long)ts.getTransactionId();
+//      ProcedureStatsCollector collector = (ProcedureStatsCollector) this.getStatsAgent().getTransactionStatsSources(txnId);
+//      if(collector != null)
+//          collector.beginProcedure(timestamp);
+//      // ended by hawk
+
       this.transactionQueue(ts);
       if (trace.val)
           LOG.trace(String.format("Finished initial processing of new txn."));
@@ -2681,6 +2696,24 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }
         cresponse.setClusterRoundtrip((int)(now - initiateTime));
         cresponse.setRestartCounter(restartCounter);
+        
+        // added by hawk, 2013/11/25
+        int txnId = (int)(long)cresponse.getTransactionId();
+        ProcedureStatsCollector collector = (ProcedureStatsCollector) this.getStatsAgent().getTransactionStatsSources(txnId);
+        if(collector != null)
+        {
+            boolean aborted = false;
+            boolean failed = false;
+            if(status != Status.OK)
+            {
+                aborted = true;
+                failed = false;
+            }
+            // FIXME, when we will have the condition of failed ???
+            collector.endProcedure(aborted, failed, now);
+        }
+        // ended by hawk
+        
         try {
 //            System.out.println("hawk - response with txn: " + String.format("%d...",cresponse.getTransactionId()));
 //            DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss.SSS");
