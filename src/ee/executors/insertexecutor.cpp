@@ -218,7 +218,7 @@ namespace voltdb {
 				VOLT_DEBUG( "End firing triggers of table '%s'", persistTarget->name().c_str());
 
 				//TODO: I think this should not be happening for non-streams
-				persistTarget->deleteAllTuples(true);
+				//persistTarget->deleteAllTuples(true);
 				WindowTable* windowTarget = dynamic_cast<WindowTable*>(persistTarget);
 				if(windowTarget != NULL)
 				{

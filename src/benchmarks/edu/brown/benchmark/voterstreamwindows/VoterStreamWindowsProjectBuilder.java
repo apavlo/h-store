@@ -17,6 +17,7 @@ import edu.brown.benchmark.voterstreamwindows.procedures.UpdateVotesAndTotalVote
 import edu.brown.benchmark.voterstreamwindows.procedures.UpdateVotesByPhoneNumberTrigger; 
 import edu.brown.benchmark.voterstreamwindows.procedures.UpdateVotesByContestantNumberStateTrigger;
 import edu.brown.benchmark.voterstreamwindows.procedures.UpdateLeaderBoard;
+import edu.brown.benchmark.voterstreamwindows.procedures.GetCountsFromWindow;
 
 
 public class VoterStreamWindowsProjectBuilder extends AbstractProjectBuilder {
@@ -38,7 +39,8 @@ public class VoterStreamWindowsProjectBuilder extends AbstractProjectBuilder {
          UpdateVotesByPhoneNumberTrigger.class,
          UpdateVotesByContestantNumberStateTrigger.class,
          UpdateContestantWindow.class,
-         UpdateLeaderBoard.class
+         UpdateLeaderBoard.class,
+         GetCountsFromWindow.class
     };
 	
 	{
