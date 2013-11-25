@@ -152,6 +152,7 @@ public class HStoreJVMSnapshotManager implements Runnable {
                 if (len == 0) { // Shutdown request
                     if (debug.val)
                         LOG.debug("Get shutdown message from parent");
+                    System.exit(0);
                     break;
                 }
                 byte[] barr = new byte[len];
@@ -166,16 +167,8 @@ public class HStoreJVMSnapshotManager implements Runnable {
             }
         } catch (Exception e) {
             LOG.error("Snapshot error", e);
-        } finally {
-            try {
-                kkSocket.close();
-            } catch (IOException e) {
-                // TODO Auto-generated catch block
-                e.printStackTrace();
-            }
-            System.exit(0);
         }
-        
+        System.exit(0);   
     }
 
     public void addTransactionRequest(LocalTransaction ts) {
