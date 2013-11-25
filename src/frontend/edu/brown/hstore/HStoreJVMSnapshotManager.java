@@ -134,11 +134,11 @@ public class HStoreJVMSnapshotManager implements Runnable {
 
         this.hstore_site.snapshot_init();
 
-        /*try {
+        try {
             Thread.sleep(500);
         } catch (InterruptedException e) {
             e.printStackTrace();
-        }*/
+        }
 
         Socket kkSocket = null;
 
@@ -232,6 +232,11 @@ public class HStoreJVMSnapshotManager implements Runnable {
         }
         if (debug.val)
             LOG.debug("Shut down successfully");
+        try {
+            Thread.sleep(500);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
         this.snapshot_pid = 0;
         this.out = null;
         this.in = null;
