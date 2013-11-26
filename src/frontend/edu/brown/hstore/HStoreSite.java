@@ -57,7 +57,7 @@ import org.voltdb.StatsSource;
 import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.SysProcSelector;
 import org.voltdb.TransactionIdManager;
-import org.voltdb.VoltProcedure.ProcedureStatsCollector;
+import org.voltdb.ProcedureStatsCollector;
 import org.voltdb.catalog.Host;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
@@ -248,6 +248,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     private final StatsAgent statsAgent = new StatsAgent();
     private TransactionProfilerStats txnProfilerStats;
     private MemoryStats memoryStats;
+    // added by hawk, 2013/11/25
+    //For runtime statistics collection
+    private ProcedureStatsCollector m_statsCollector;
+    // ended by hawk
+
     
     // ----------------------------------------------------------------------------
     // NETWORKING STUFF
@@ -798,6 +803,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // MEMORY
         this.memoryStats = new MemoryStats();
         this.statsAgent.registerStatsSource(SysProcSelector.MEMORY, 0, this.memoryStats);
+
+        // PROCEDURES
+        this.m_statsCollector = new ProcedureStatsCollector();
+        this.statsAgent.registerStatsSource(SysProcSelector.PROCEDURE, this.site_id, this.m_statsCollector);
         
         // TXN COUNTERS
         statsSource = new TransactionCounterStats(this.catalogContext);
@@ -1176,6 +1185,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     
     public MemoryStats getMemoryStatsSource() {
         return (this.memoryStats);
+    }
+
+    // added by hawk, 2013/11/25
+    public ProcedureStatsCollector getProcedureStatsSource() {
+        return (this.m_statsCollector);
     }
 
     public Collection<TransactionPreProcessor> getTransactionPreProcessors() {
@@ -2698,8 +2712,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         cresponse.setRestartCounter(restartCounter);
         
         // added by hawk, 2013/11/25
-        int txnId = (int)(long)cresponse.getTransactionId();
-        ProcedureStatsCollector collector = (ProcedureStatsCollector) this.getStatsAgent().getTransactionStatsSources(txnId);
+        //int txnId = (int)(long)cresponse.getTransactionId();
+        //ProcedureStatsCollector collector = (ProcedureStatsCollector) this.getStatsAgent().getTransactionStatsSources(txnId);
+        ProcedureStatsCollector collector = this.getProcedureStatsSource();
         if(collector != null)
         {
             boolean aborted = false;
@@ -2710,7 +2725,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 failed = false;
             }
             // FIXME, when we will have the condition of failed ???
-            collector.endProcedure(aborted, failed, now);
+            collector.addTransactionInfo(aborted, failed, initiateTime, now);
+            //collector.endProcedure(aborted, failed, now);
         }
         // ended by hawk
         
