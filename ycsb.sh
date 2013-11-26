@@ -61,7 +61,7 @@ while getopts hvarmgs: OPT; do
             
             cd `readlink -f /home/user/joy/h-store`
         
-            #exit 0
+            exit 0
             ;;                             
 
         \?)
@@ -101,10 +101,7 @@ function onexit() {
 SITE_HOST="10.212.84.152"
 
 CLIENT_HOSTS=( \
-        "client1" \
-        "client2" \
-        "10.212.84.152" \
-        "10.212.84.152" \
+        "10.212.84.152" 
 )
 
 BASE_CLIENT_THREADS=1
@@ -169,6 +166,7 @@ BASE_ARGS=( \
     "-Dclient.output_interval=10000" \
 #    "-Dclient.output_anticache_evictions=evictions.csv" \
 #    "-Dclient.output_memory=memory.csv" \
+    "-Dclient.threads_per_host=4" \
 
     # Anti-Caching Experiments
     "-Dsite.anticache_enable=${ENABLE_ANTICACHE}" \
@@ -188,7 +186,7 @@ BASE_ARGS=( \
 
     # MMAP Experiments
     "-Dsite.storage_mmap=${ENABLE_MMAP}" \
-    "-Dsite.storage_mmap_dir=\"/mnt/pmfs/mmap/\""
+    "-Dsite.storage_mmap_dir=\"./obj/mmap/\""
 
     # CLIENT DEBUG
 #    "-Dclient.output_txn_counters=txncounters.csv" \
@@ -231,7 +229,7 @@ for HOST in ${HOSTS_TO_UPDATE[@]}; do
         ssh $HOST "cd $BASE_DIR && ant compile" 
     else
         echo "CLEANING AND REBUILDING BINARIES"
-        ssh $HOST "cd $BASE_DIR && git pull && ant clean-all && ant build -Dsite.storagemmap=true" 
+        ssh $HOST "cd $BASE_DIR && git pull && ant compile && ant clean-all && ant build -Dsite.storage_mmap=True" 
     fi
 done
 wait
@@ -282,7 +280,6 @@ for i in 8; do
     ant hstore-benchmark ${BASE_ARGS[@]} \
         -Dproject=${BASE_PROJECT} \
         -Dkillonzero=false \
-	-Dclient.threads_per_host=4 \
         -Dsite.memory=${SITE_MEMORY} \
         -Dclient.hosts=${CLIENT_HOSTS_STR} \
         -Dclient.count=${CLIENT_COUNT} 
