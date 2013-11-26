@@ -861,7 +861,7 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
      * @throws EEException
      * @return
      */
-    public abstract void MMAPInitialize(File dbDir, long mapSize) throws EEException;
+    public abstract void MMAPInitialize(File dbDir, long mapSize, long syncFrequency) throws EEException;
     
     /**
      * Enables the mmap storage feature in the EE. The given database directory path
@@ -873,7 +873,7 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
      * @param mapSize TODO
      * @return
      */
-    protected native int nativeMMAPInitialize(long pointer, String dbDir, long mapSize);
+    protected native int nativeMMAPInitialize(long pointer, String dbDir, long mapSize, long syncFrequency);
  
     
 }

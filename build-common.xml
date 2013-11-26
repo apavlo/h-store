@@ -158,6 +158,7 @@
 <arg value="site.storage_mmap_dir=${site.storage_mmap_dir}" />
 <arg value="site.storage_mmap_file_size=${site.storage_mmap_file_size}" />
 <arg value="site.storage_mmap_reset=${site.storage_mmap_reset}" />
+<arg value="site.storage_mmap_sync_frequency=${site.storage_mmap_sync_frequency}" />
 <arg value="site.mr_map_blocking=${site.mr_map_blocking}" />
 <arg value="site.mr_reduce_blocking=${site.mr_reduce_blocking}" />
 <arg value="site.network_heartbeats_interval=${site.network_heartbeats_interval}" />

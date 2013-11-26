@@ -1576,13 +1576,13 @@ void VoltDBEngine::antiCacheInitialize(std::string dbDir, long blockSize) const 
 // -------------------------------------------------
 
 #ifdef STORAGE_MMAP
-void VoltDBEngine::MMAPInitialize(std::string dbDir, long mapSize) const {
-    VOLT_INFO("Enabling Storage MMAP Feature at Partition %d: dir=%s / blockSize=%ld",
-              m_partitionId, dbDir.c_str(), mapSize);
-    m_executorContext->enableMMAP(dbDir, mapSize);
+void VoltDBEngine::MMAPInitialize(std::string dbDir, long mapSize, long syncFrequency) const {
+    VOLT_INFO("Enabling Storage MMAP Feature at Partition %d: dir=%s / blockSize=%ld / syncFrequency=%ld ",
+              m_partitionId, dbDir.c_str(), mapSize, syncFrequency);
+    m_executorContext->enableMMAP(dbDir, mapSize, syncFrequency);
 }
 #else
-void VoltDBEngine::MMAPInitialize(std::string dbDir, long blockSize) const {
+void VoltDBEngine::MMAPInitialize(std::string dbDir, long blockSize, long syncFrequency) const {
     VOLT_ERROR("Storage MMAP feature was not enabled when compiling the EE");
 }
 #endif

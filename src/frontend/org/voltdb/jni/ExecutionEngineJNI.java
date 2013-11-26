@@ -822,12 +822,12 @@ public class ExecutionEngineJNI extends ExecutionEngine {
      */
     
     @Override
-    public void MMAPInitialize(File dbDir, long mapSize) throws EEException {
+    public void MMAPInitialize(File dbDir, long mapSize, long syncFrequency) throws EEException {
         
         LOG.info("Initializing storage mmap feature at partition " + this.executor.getPartitionId());
         LOG.info(String.format("Partition #%d MMAP Directory: %s",
                  this.executor.getPartitionId(), dbDir.getAbsolutePath()));
-        final int errorCode = nativeMMAPInitialize(this.pointer, dbDir.getAbsolutePath(), mapSize);
+        final int errorCode = nativeMMAPInitialize(this.pointer, dbDir.getAbsolutePath(), mapSize, syncFrequency);
         checkErrorCode(errorCode);
         m_anticache = true;
     }

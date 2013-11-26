@@ -762,7 +762,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 if (hstore_conf.site.storage_mmap) {
                     File dbFile = getMMAPDir(this);
                     long mapSize = hstore_conf.site.storage_mmap_file_size;
-                    eeTemp.MMAPInitialize(dbFile, mapSize);
+                    long syncFrequency = hstore_conf.site.storage_mmap_sync_frequency;
+                    eeTemp.MMAPInitialize(dbFile, mapSize, syncFrequency);
                 }
                 
                 // Important: This has to be called *after* we initialize the anti-cache

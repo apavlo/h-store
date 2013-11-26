@@ -56,6 +56,9 @@ class BuildContext:
             if arg.startswith("STORAGE_MMAP_FILE_SIZE="):
                 parts = arg.split("=")
                 if len(parts) > 1 and not (parts[1].startswith("${")): self.STORAGE_MMAP_FILE_SIZE = long(parts[1])
+            if arg.startswith("STORAGE_MMAP_SYNC_FREQUENCY="):
+                parts = arg.split("=")
+                if len(parts) > 1 and not (parts[1].startswith("${")): self.STORAGE_MMAP_SYNC_FREQUENCY = long(parts[1])
             if arg.startswith("ANTICACHE_ENABLE="):
                 parts = arg.split("=")
                 if len(parts) > 1 and not (parts[1].startswith("${")): self.ANTICACHE_ENABLE = bool(parts[1])

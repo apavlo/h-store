@@ -1498,7 +1498,7 @@ public class ExecutionEngineIPC extends ExecutionEngine {
     }
     
     @Override
-    public void MMAPInitialize(File dbDir, long mapSize) throws EEException {
+    public void MMAPInitialize(File dbDir, long mapSize, long syncFrequency) throws EEException {
         throw new NotImplementedException("Storage MMAP is disabled for IPC ExecutionEngine");
     }
     

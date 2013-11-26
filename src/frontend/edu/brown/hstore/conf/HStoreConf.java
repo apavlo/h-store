@@ -748,6 +748,13 @@ public final class HStoreConf {
         )
         public boolean storage_mmap_reset;
         
+        @ConfigProperty(
+            description="Frequency with which changes are synced via msync with memory",
+            defaultLong=100000,
+            experimental=true
+        )
+        public long storage_mmap_sync_frequency; 
+
         
         // ----------------------------------------------------------------------------
         // MapReduce Options

@@ -285,7 +285,7 @@ class __attribute__((visibility("default"))) VoltDBEngine {
         // -------------------------------------------------
         // STORAGE MMAP
         // -------------------------------------------------
-        void MMAPInitialize(std::string dbDir, long mapSize) const;
+        void MMAPInitialize(std::string dbDir, long mapSize, long syncFrequency ) const;
 
         // -------------------------------------------------
         // Debug functions
@@ -587,8 +587,9 @@ void VoltDBEngine::releaseUndoToken(int64_t undoToken){
       Table* table = m_tables_itr->second;
 
       // Fix Group Commit Interval       
-      int64_t m_groupCommitInterval = 100000 ;
-      
+      int64_t m_groupCommitInterval = m_executorContext->getMMAPSyncFrequency() ;
+      VOLT_WARN("Sync Frequency: %ld", m_groupCommitInterval);
+
       if(m_currentUndoQuantum != NULL && m_currentUndoQuantum->getUndoToken() % m_groupCommitInterval == 0){
 	VOLT_WARN("Undo Token: %ld", m_currentUndoQuantum->getUndoToken());
 

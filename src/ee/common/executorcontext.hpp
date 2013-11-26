@@ -131,6 +131,10 @@ namespace voltdb {
         	return (m_MMAPEnabled);
         }
 
+        int64_t getMMAPSyncFrequency() const {
+		return (m_MMAPSyncFrequency);
+	}
+
         //----------------------------------------------------------------------
 
  
@@ -238,10 +242,11 @@ namespace voltdb {
          * The input parameter is the directory where our disk-based storage
          * will write out mmap'ed files for this partition
          */                               
-        void enableMMAP(std::string &dbDir, long mapSize) {
+        void enableMMAP(std::string &dbDir, long mapSize, uint64_t syncFrequency) {
             assert(m_MMAPEnabled == false);
             m_MMAPDir = dbDir;
             m_MMAPSize = mapSize;
+	    m_MMAPSyncFrequency = syncFrequency;
 
             m_MMAPEnabled = true;
         }                              
@@ -283,6 +288,7 @@ namespace voltdb {
         long m_MMAPSize;
         std::string m_MMAPDir;
         bool m_MMAPEnabled;
+	int64_t m_MMAPSyncFrequency;
 
         /** ReadWrite Trackers */
         bool m_trackingEnabled;
