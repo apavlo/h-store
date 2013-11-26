@@ -101,7 +101,10 @@ function onexit() {
 SITE_HOST="10.212.84.152"
 
 CLIENT_HOSTS=( \
-        "10.212.84.152" 
+    "client1" \
+    "client2" \
+    "10.212.84.152" \     
+    "10.212.84.152" \
 )
 
 BASE_CLIENT_THREADS=1
@@ -166,7 +169,7 @@ BASE_ARGS=( \
     "-Dclient.output_interval=10000" \
 #    "-Dclient.output_anticache_evictions=evictions.csv" \
 #    "-Dclient.output_memory=memory.csv" \
-    "-Dclient.threads_per_host=16" \
+    "-Dclient.threads_per_host=4" \
 
     # Anti-Caching Experiments
     "-Dsite.anticache_enable=${ENABLE_ANTICACHE}" \
@@ -186,7 +189,7 @@ BASE_ARGS=( \
 
     # MMAP Experiments
     "-Dsite.storage_mmap=${ENABLE_MMAP}" \
-    "-Dsite.storage_mmap_dir=\"\/mnt\/pmfs\/mmap\/\"" \
+    "-Dsite.storage_mmap_dir=\"/mnt/pmfs/mmap/\"" \
     "-Dsite.storage_mmap_sync_frequency=100000" \
 
     # CLIENT DEBUG

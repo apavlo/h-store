@@ -583,36 +583,34 @@ void VoltDBEngine::releaseUndoToken(int64_t undoToken){
   }
 
   if(m_executorContext->isMMAPEnabled()){    
-      /*
       for (std::map<int32_t, Table*>::iterator m_tables_itr = m_tables.begin() ; m_tables_itr != m_tables.end() ; ++m_tables_itr){
-      Table* table = m_tables_itr->second;
+          Table* table = m_tables_itr->second;
 
-      // Fix Group Commit Interval       
-      int64_t m_groupCommitInterval = m_executorContext->getMMAPSyncFrequency() ;
-      VOLT_WARN("Sync Frequency: %ld", m_groupCommitInterval);
+          // Fix Group Commit Interval       
+          int64_t m_groupCommitInterval = m_executorContext->getMMAPSyncFrequency() ;
+          VOLT_WARN("Sync Frequency: %ld", m_groupCommitInterval);
 
-      if(m_currentUndoQuantum != NULL && m_currentUndoQuantum->getUndoToken() % m_groupCommitInterval == 0){
-	VOLT_WARN("Undo Token: %ld", m_currentUndoQuantum->getUndoToken());
+          if(m_currentUndoQuantum != NULL && m_currentUndoQuantum->getUndoToken() % m_groupCommitInterval == 0){
+              VOLT_WARN("Undo Token: %ld", m_currentUndoQuantum->getUndoToken());
 
-	if(table != NULL){
-	  //VOLT_WARN("Syncing Table %s",table->name().c_str());	  
-	    Pool* pool = table->getPool();
-	      if(pool != NULL)
-		MMAPMemoryManager* m_pool_manager = pool->getPoolManager();
-	      if(m_pool_manager != NULL)
-	        m_pool_manager->sync();
-	  }
-	  
-	  MMAPMemoryManager* m_data_manager = table->getDataManager();
-	  if(m_data_manager != NULL)
-	    m_data_manager->sync();
-	}	
-      }      
-    }*/
+              if(table != NULL){
+                  //VOLT_WARN("Syncing Table %s",table->name().c_str());	  
+                  /*Pool* pool = table->getPool();
+                  if(pool != NULL)
+                      MMAPMemoryManager* m_pool_manager = pool->getPoolManager();
+                  if(m_pool_manager != NULL)
+                      m_pool_manager->sync();*/
+
+                  MMAPMemoryManager* m_data_manager = table->getDataManager();
+                  if(m_data_manager != NULL)
+                      m_data_manager->sync();
+              }
+          }
+      }
   }
-  
+
   if (m_currentUndoQuantum != NULL && m_currentUndoQuantum->getUndoToken() == undoToken) {
-	m_currentUndoQuantum = NULL;    
+      m_currentUndoQuantum = NULL;    
   }
 
   VOLT_TRACE("Committing Buffer Token %ld at partition %d", undoToken, m_partitionId);
