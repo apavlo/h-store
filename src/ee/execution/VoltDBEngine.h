@@ -587,7 +587,7 @@ void VoltDBEngine::releaseUndoToken(int64_t undoToken){
       Table* table = m_tables_itr->second;
 
       // Fix Group Commit Interval       
-      int64_t m_groupCommitInterval = 2000 ;
+      int64_t m_groupCommitInterval = 10000 ;
       
       if(m_currentUndoQuantum != NULL && m_currentUndoQuantum->getUndoToken() % m_groupCommitInterval == 0){
 	VOLT_WARN("Undo Token: %ld", m_currentUndoQuantum->getUndoToken());
