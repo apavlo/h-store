@@ -155,7 +155,7 @@ BASE_ARGS=( \
     # Client Params
     "-Dclient.scalefactor=1" \
     "-Dclient.memory=2048" \
-    "-Dclient.txnrate=20000" \
+    "-Dclient.txnrate=50000" \
     "-Dclient.warmup=120000" \
     "-Dclient.duration=120000" \
     "-Dclient.interval=20000" \
@@ -166,7 +166,7 @@ BASE_ARGS=( \
     "-Dclient.output_interval=10000" \
 #    "-Dclient.output_anticache_evictions=evictions.csv" \
 #    "-Dclient.output_memory=memory.csv" \
-    "-Dclient.threads_per_host=4" \
+    "-Dclient.threads_per_host=16" \
 
     # Anti-Caching Experiments
     "-Dsite.anticache_enable=${ENABLE_ANTICACHE}" \
@@ -186,7 +186,8 @@ BASE_ARGS=( \
 
     # MMAP Experiments
     "-Dsite.storage_mmap=${ENABLE_MMAP}" \
-    "-Dsite.storage_mmap_dir=\"./obj/mmap/\""
+    "-Dsite.storage_mmap_dir=\"\/mnt\/pmfs\/mmap\/\"" \
+    "-Dsite.storage_mmap_sync_frequency=100000" \
 
     # CLIENT DEBUG
 #    "-Dclient.output_txn_counters=txncounters.csv" \
