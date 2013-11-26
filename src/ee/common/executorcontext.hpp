@@ -117,21 +117,21 @@ namespace voltdb {
         // STORAGE MMAP MANAGEMENT
         // ------------------------------------------------------------------ 
         
-        std::string getDBDir() const {
+        inline std::string getDBDir() const {
             if(m_MMAPDir.empty())
                 return "/tmp";          // Default : "/tmp"
         	return (m_MMAPDir);
         }
 
-        long getFileSize() const {
+        inline long getFileSize() const {
         	return (m_MMAPSize);
         }
  
-        bool isMMAPEnabled() const {
+        inline bool isMMAPEnabled() const {
         	return (m_MMAPEnabled);
         }
 
-        int64_t getMMAPSyncFrequency() const {
+        inline int64_t getMMAPSyncFrequency() const {
 		return (m_MMAPSyncFrequency);
 	}
 
