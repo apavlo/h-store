@@ -1800,7 +1800,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
       //System.out.println("hawk - firing frontend trigger 2:" + procedure.getName());
       LocalTransaction ts = this.txnInitializer.createLocalTransaction(
                                       buffer,//null,
-                                      initiateTime,
+                                      timestamp,//initiateTime,
                                       client_handle,
                                       base_partition,
                                       procedure,

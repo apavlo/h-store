@@ -198,6 +198,7 @@ while client_threads_per_host <= tmax:
 			site_commandlog_timeout += lstep
 	
 			if stopflag == False:
+                                client_txnrate += rstep
 				continue
 			##endif
 			

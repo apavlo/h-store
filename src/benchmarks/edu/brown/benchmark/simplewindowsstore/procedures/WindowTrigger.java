@@ -14,7 +14,7 @@ public class WindowTrigger extends VoltTrigger {
         "INSERT INTO W_ROWS (myvalue, time) SELECT * FROM S1;"
     );
     
-    public final SQLStmt deleteStmt = new SQLStmt(
-            "DELETE FROM S1;"
-    );
+    //public final SQLStmt deleteStmt = new SQLStmt(
+    //        "DELETE FROM S1;"
+    //);
 }

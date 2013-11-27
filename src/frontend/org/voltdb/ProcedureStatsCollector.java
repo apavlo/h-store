@@ -49,6 +49,9 @@ public final class ProcedureStatsCollector extends SiteStatsSource { // "change 
      * Time the procedure was last started
      */
     private long m_currentStartTime = -1;
+    
+    private long m_startTime = Long.MAX_VALUE;
+    private long m_endTime = Long.MIN_VALUE;
 
     /**
      * Count of the number of aborts (user initiated or DB initiated)
@@ -136,6 +139,9 @@ public final class ProcedureStatsCollector extends SiteStatsSource { // "change 
             }
         }
         
+        m_startTime = Math.min( initiateTime, m_startTime);
+        m_endTime = Math.max( endTime, m_endTime);
+        
         if (aborted) {
             m_abortCount++;
         }
@@ -163,6 +169,8 @@ public final class ProcedureStatsCollector extends SiteStatsSource { // "change 
         long maxExecutionTime = m_maxExecutionTime;
         long abortCount = m_abortCount;
         long failureCount = m_failureCount;
+        long duration = this.m_endTime - this.m_startTime;
+        float averageThroughput = ((float)(this.m_invocations*1000000))/((float)duration);// #NUM/ms
 
         if (m_interval) {
             invocations = m_invocations - m_lastInvocations;
@@ -198,6 +206,11 @@ public final class ProcedureStatsCollector extends SiteStatsSource { // "change 
         }
         rowValues[columnNameToIndex.get("ABORTS")] = abortCount;
         rowValues[columnNameToIndex.get("FAILURES")] = failureCount;
+        rowValues[columnNameToIndex.get("STARTTIME")] = m_startTime;
+        rowValues[columnNameToIndex.get("ENDTIME")] = m_endTime;
+        rowValues[columnNameToIndex.get("DURATION")] = duration;
+        rowValues[columnNameToIndex.get("AVG_THROUGHPUT")] = averageThroughput;
+        
     }
 
     /**
@@ -216,6 +229,10 @@ public final class ProcedureStatsCollector extends SiteStatsSource { // "change 
         columns.add(new VoltTable.ColumnInfo("AVG_EXECUTION_TIME", VoltType.BIGINT));
         columns.add(new VoltTable.ColumnInfo("ABORTS", VoltType.BIGINT));
         columns.add(new VoltTable.ColumnInfo("FAILURES", VoltType.BIGINT));
+        columns.add(new VoltTable.ColumnInfo("STARTTIME", VoltType.BIGINT));
+        columns.add(new VoltTable.ColumnInfo("ENDTIME", VoltType.BIGINT));
+        columns.add(new VoltTable.ColumnInfo("DURATION", VoltType.BIGINT));
+        columns.add(new VoltTable.ColumnInfo("AVG_THROUGHPUT", VoltType.FLOAT));
     }
 
     @Override
