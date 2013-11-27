@@ -77,6 +77,9 @@ public enum ProjectType {
     FRONTENDTRIGGER("FrontEndTrigger","edu.brown.benchmark.frontendtrigger"),
     ANOTHERVOTERSTREAM("AnotherVoterStream","edu.brown.benchmark.anothervoterstream"),
     VOTERSTREAMWINDOWS("VoterStreamWindows","edu.brown.benchmark.voterstreamwindows"),
+    ANOTHERVOTERWINDOWS("AnotherVoterWindows","edu.brown.benchmark.anothervoterwindows"),
+    SIMPLEWINDOWHSTORE("SimpleWindowHStore", "edu.brown.benchmark.simplewindowhstore"),
+    SIMPLEWINDOWSSTORE("SimpleWindowSStore", "edu.brown.benchmark.simplewindowsstore"),
     TEST("Test", null),
     ;
 
