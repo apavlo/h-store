@@ -9,8 +9,9 @@ do
     l=$(($i*$DEFAULT_LATENCY))
     echo "LATENCY" $l
 
-    #./ycsb.sh -s $l -m 
-    ./ycsb.sh -s $l -m &> $LOG_DIR/$i.log
+    ./ycsb.sh -s $l &> $LOG_DIR/$i.log
+
+    ./ycsb.sh -m &>> $LOG_DIR/$i.log
 
     cp results.csv $LOG_DIR/$i.csv
 done

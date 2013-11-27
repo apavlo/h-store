@@ -190,7 +190,7 @@ BASE_ARGS=( \
     # MMAP Experiments
     "-Dsite.storage_mmap=${ENABLE_MMAP}" \
     "-Dsite.storage_mmap_dir=\"/mnt/pmfs/mmap/\"" \
-    "-Dsite.storage_mmap_sync_frequency=100000" \
+    "-Dsite.storage_mmap_sync_frequency=1024" \
 
     # CLIENT DEBUG
 #    "-Dclient.output_txn_counters=txncounters.csv" \
