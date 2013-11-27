@@ -349,6 +349,7 @@ namespace voltdb {
 				WindowTable* windowTarget = dynamic_cast<WindowTable*>(persistTarget);
 				if(windowTarget != NULL)
 				{
+					VOLT_DEBUG( "Set Fire Triggers for window '%s' to false.", persistTarget->name().c_str());
 					windowTarget->setFireTriggers(false);
 				}
 			}

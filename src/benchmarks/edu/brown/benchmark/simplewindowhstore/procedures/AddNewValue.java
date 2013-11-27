@@ -14,6 +14,7 @@ import java.util.Random;
 public class AddNewValue extends VoltProcedure{
 	Random r = new Random();
 	int currentTimestamp = 0;
+	int curTime = 0;
 	//int nextVal = -5;
 	final int slideSize = 10;
 	final int windowSize = 100;
@@ -23,7 +24,7 @@ public class AddNewValue extends VoltProcedure{
     );
 	
 	public final SQLStmt stagingCount = new SQLStmt(
-	   "SELECT COUNT(*) AS CNT FROM W_STAGING;"
+	   "SELECT COUNT(*), MAX(time) FROM W_STAGING;"
 	);
 	
 	public final SQLStmt insertWindow = new SQLStmt(
@@ -50,10 +51,10 @@ public class AddNewValue extends VoltProcedure{
         //nextVal = (int)(validation[1].fetchRow(0).getLong(0));
 		
         if ((int)(validation[1].fetchRow(0).getLong(0)) == slideSize) {
-        	
+        	curTime = (int)(validation[1].fetchRow(0).getLong(1));
             voltQueueSQL(insertWindow);
             voltQueueSQL(clearStaging);
-            voltQueueSQL(slideWindow, currentTimestamp - windowSize);
+            voltQueueSQL(slideWindow, curTime - windowSize);
             voltQueueSQL(insertResults);
             voltExecuteSQL(true);
         }
