@@ -15,7 +15,7 @@ public class UpdateLeaderBoard extends VoltTrigger {
         );
     
     // FIXME, after using the tuple in stream, we should delete it. 
-    public final SQLStmt deleteStreamStmt = 
-        new SQLStmt("DELETE FROM S6");
+    //public final SQLStmt deleteStreamStmt = 
+    //    new SQLStmt("DELETE FROM S6");
 
 }

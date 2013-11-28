@@ -80,6 +80,8 @@ public enum ProjectType {
     ANOTHERVOTERWINDOWS("AnotherVoterWindows","edu.brown.benchmark.anothervoterwindows"),
     SIMPLEWINDOWHSTORE("SimpleWindowHStore", "edu.brown.benchmark.simplewindowhstore"),
     SIMPLEWINDOWSSTORE("SimpleWindowSStore", "edu.brown.benchmark.simplewindowsstore"),
+    VOTERWINHSTORE("VoterWinHStore", "edu.brown.benchmark.voterwinhstore"),
+    VOTERWINSSTORE("VoterWinSStore", "edu.brown.benchmark.voterwinsstore"),
     TEST("Test", null),
     ;
 
