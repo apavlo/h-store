@@ -42,8 +42,8 @@ import edu.brown.benchmark.voterwinhstore.VoterWinHStoreConstants;
     singlePartition = true
 )
 public class Vote extends VoltProcedure {
-	public final int windowSize = 1000;
-	public final int slideSize = 2;
+	public final int windowSize = 100;
+	public final int slideSize = 1;
 	
     // Checks if the vote is for a valid contestant
     public final SQLStmt checkContestantStmt = new SQLStmt(
@@ -149,6 +149,8 @@ public class Vote extends VoltProcedure {
         voltQueueSQL(insertVoteStmt, voteId, phoneNumber, state, contestantNumber, timestamp);
         voltQueueSQL(insertVoteStagingStmt, voteId, phoneNumber, state, contestantNumber, timestamp);
         voltQueueSQL(checkStagingCount);
+        voltQueueSQL(selectWindowCountStmt);
+        voltQueueSQL(selectCutoffVoteStmt, slideSize);
         validation = voltExecuteSQL();
         
         if((int)(validation[2].fetchRow(0).getLong(0)) == slideSize)
@@ -157,11 +159,12 @@ public class Vote extends VoltProcedure {
         	//1) Two statements: one gets window size, one gets all rows to be deleted
         	//2) Return full window to Java, and let it sort it out.  Better for large slides.
         	//Likewise, either of these methods can be called in the earlier batch if that's better.
-        	voltQueueSQL(selectFullWindowStmt);
-        	validation = voltExecuteSQL();
-        	if((int)(validation[0].getRowCount()) >= windowSize)
+        	//voltQueueSQL(selectFullWindowStmt);
+        	
+        	//validation = voltExecuteSQL();
+        	if((int)(validation[3].fetchRow(0).getLong(0)) >= windowSize)
         	{
-        		long cutoffId = validation[0].fetchRow(slideSize-1).getLong(0);
+        		long cutoffId = validation[4].fetchRow(slideSize-1).getLong(0);
         		voltQueueSQL(deleteCutoffVoteStmt, cutoffId);
         	}
         	voltQueueSQL(insertVoteWindowStmt);
