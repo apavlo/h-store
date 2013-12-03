@@ -600,9 +600,7 @@ public class PartitionLockQueue extends ThrottlingQueue<AbstractTransaction> {
             // Always poke anybody that is blocking on this queue.
             // The txn may not be ready to run just yet, but at least they'll be
             // able to recompute a new sleep time.
-            
-            // tmp disable
-            //this.isReady.signal();
+            this.isReady.signal();
         }
         else if (this.profiler != null) {
             this.profiler.queueStates.get(this.state).restart();
