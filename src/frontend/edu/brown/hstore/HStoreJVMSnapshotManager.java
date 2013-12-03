@@ -152,6 +152,11 @@ public class HStoreJVMSnapshotManager implements Runnable {
                 if (len == 0) { // Shutdown request
                     if (debug.val)
                         LOG.debug("Get shutdown message from parent");
+                    try {
+                        kkSocket.close();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
                     System.exit(0);
                     break;
                 }
@@ -223,13 +228,14 @@ public class HStoreJVMSnapshotManager implements Runnable {
             in.readInt();
         } catch (IOException e) {
         }
+        ProcessUtils.kill(snapshot_pid);
         if (debug.val)
             LOG.debug("Shut down successfully");
-        try {
+        /*try {
             Thread.sleep(500);
         } catch (InterruptedException e) {
             e.printStackTrace();
-        }
+        }*/
         this.snapshot_pid = 0;
         this.out = null;
         this.in = null;
@@ -264,12 +270,26 @@ public class HStoreJVMSnapshotManager implements Runnable {
                     hstore_site.responseError(ts.getClientHandle(), Status.ABORT_CONNECTION_LOST, "Forking Snapshot fails", ts.getClientCallback(), ts.getInitiateTime());
                     return;
                 }
-                refresh = false;
+                try {
+                    refresh = false;
+                    clientSocket = serverSocket.accept();
+                    out = new DataOutputStream(clientSocket.getOutputStream());
+                    in = new DataInputStream(clientSocket.getInputStream());
+                } catch (IOException e) {
+                    LOG.error("", e);
+                    this.hstore_site.responseError(
+                            ts.getClientHandle(), 
+                            Status.ABORT_CONNECTION_LOST,
+                            "Fail to execute on snapshot",
+                            ts.getClientCallback(), 
+                            ts.getInitiateTime());
+                    if (snapshot_pid != 0) {
+                        ProcessUtils.kill(snapshot_pid);
+                        snapshot_pid = 0;
+                    }
+                }
             }
             try {
-                clientSocket = serverSocket.accept();
-                out = new DataOutputStream(clientSocket.getOutputStream());
-                in = new DataInputStream(clientSocket.getInputStream());
                 // write request
                 ByteString bs = ByteString.EMPTY;
                 bs = ByteString.copyFrom(FastSerializer.serialize(ts));
