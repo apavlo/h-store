@@ -17,7 +17,7 @@ public class AddNewValue extends VoltProcedure{
 	int curTime = 0;
 	//int nextVal = -5;
 	final int slideSize = 1;
-	final int windowSize = 1000;
+	final int windowSize = 100;
 	
 	public final SQLStmt insertStagingValue = new SQLStmt(
 	   "INSERT INTO W_STAGING (myvalue, time) VALUES (?,?);"
