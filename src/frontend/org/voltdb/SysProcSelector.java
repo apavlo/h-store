@@ -37,4 +37,5 @@ public enum SysProcSelector {
     ANTICACHE,      // anti-cache manager information
     ANTICACHEEVICTIONS, // anti-cache eviction history
     ANTICACHEACCESS, // anti-cache evicted access history
+    TRIGGER, // invoked as @stat table
 }

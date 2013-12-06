@@ -771,6 +771,19 @@ bool VoltDBEngine::rebuildTableCollections() {
                                                       catTable->relativeIndex(),
                                                       index->getIndexStats());
             }
+
+		// add all of the triggers to the stats source
+		PersistentTable *persistTarget = dynamic_cast<PersistentTable*>(tcd->getTable());
+		if(persistTarget != NULL && persistTarget->hasTriggers()) 
+		{
+			std::vector<Trigger*>::iterator trig_iter;
+			for(trig_iter = persistTarget->getTriggers()->begin(); trig_iter != persistTarget->getTriggers()->end(); trig_iter++) 
+			{
+				getStatsManager().registerStatsSource(STATISTICS_SELECTOR_TYPE_TRIGGER,
+							catTable->relativeIndex(),
+							 (*trig_iter)->getTriggerStats());
+			}
+		}
         }
         cdIt++;
     }
@@ -1161,6 +1174,23 @@ int VoltDBEngine::getStats(int selector, int locators[], int numLocators,
     try {
         switch (selector) {
         case STATISTICS_SELECTOR_TYPE_TABLE:
+            for (int ii = 0; ii < numLocators; ii++) {
+                CatalogId locator = static_cast<CatalogId>(locators[ii]);
+                if (m_tables.find(locator) == m_tables.end()) {
+                    char message[256];
+                    snprintf(message, 256,  "getStats() called with selector %d, and"
+                            " an invalid locator %d that does not correspond to"
+                            " a table", selector, locator);
+                    throw SerializableEEException(VOLT_EE_EXCEPTION_TYPE_EEEXCEPTION,
+                                                  message);
+                }
+            }
+
+            resultTable = m_statsManager.getStats(
+                (StatisticsSelectorType) selector,
+                locatorIds, interval, now);
+            break;
+        case STATISTICS_SELECTOR_TYPE_TRIGGER:
             for (int ii = 0; ii < numLocators; ii++) {
                 CatalogId locator = static_cast<CatalogId>(locators[ii]);
                 if (m_tables.find(locator) == m_tables.end()) {

@@ -526,6 +526,23 @@ void TableFactory::configureStats(voltdb::CatalogId databaseId,
 										  databaseId);
 	}
 
+	// initialize stats for all the trigger for the table
+	PersistentTable *persistTarget = dynamic_cast<PersistentTable*>(table);
+	if(persistTarget != NULL && persistTarget->hasTriggers()) {
+		std::vector<Trigger*>::iterator trig_iter;
+		for(trig_iter = persistTarget->getTriggers()->begin(); trig_iter != persistTarget->getTriggers()->end(); trig_iter++) 
+		{
+			(*trig_iter)->getTriggerStats()->configure((*trig_iter)->name() + " stats",
+					  ctx->m_hostId,
+					  ctx->m_hostname,
+					  ctx->m_siteId,
+					  ctx->m_partitionId,
+					  databaseId);
+		}
+	}
+
+
+
 }
 
 }

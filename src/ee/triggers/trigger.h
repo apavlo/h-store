@@ -59,6 +59,7 @@
 #include "catalog/planfragment.h"
 #include "execution/VoltDBEngine.h"
 #include "common/executorcontext.hpp"
+#include "TriggerStats.h"
 
 namespace voltdb {
 
@@ -71,18 +72,21 @@ class Trigger {
     friend class Table;
     friend class PersistantTable;
     friend class TempTable;
+	friend class TriggerStats;
 
   protected:
+    std::string m_name;
     vector<const catalog::PlanFragment*>* m_frags;
     unsigned char m_type; //0=insert, 1=update, 2=delete
     bool m_forEach;
     Table *m_sourceTable;
+	int64_t m_latency;
 
   public:
     // no default constructor, no copy
     ~Trigger();
 
-    Trigger(const catalog::CatalogMap<catalog::Statement> *stmts, unsigned char type, bool forEach);
+    Trigger(const string &name, const catalog::CatalogMap<catalog::Statement> *stmts, unsigned char type, bool forEach);
 
     void fire(VoltDBEngine *engine, Table *input);
 
@@ -95,6 +99,12 @@ class Trigger {
     bool getForEach();
     Table *getSourceTable();
 
+	std::string name() const;
+	int64_t latency() const;
+
+	// STATS
+	voltdb::TriggerStats stats_;
+	voltdb::TriggerStats* getTriggerStats();
 
 };
 }
