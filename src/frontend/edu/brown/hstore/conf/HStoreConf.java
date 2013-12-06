@@ -1873,6 +1873,16 @@ public final class HStoreConf {
                 experimental=false
             )
         public String output_procedure_stats;
+
+        //added by hawk, 2013/12/6
+        @ConfigProperty(
+                description="Defines the path where the BenchmarkController will dump a CSV containing " +
+                            "the trigger stats information about the cluster. This will periodically invoke " +
+                            "the @Statistics system stored procedure to collect SysProcSelector.TRIGGER data.",
+                defaultNull=true,
+                experimental=false
+            )
+        public String output_trigger_stats;
         //ended by hawk
 
         @ConfigProperty(

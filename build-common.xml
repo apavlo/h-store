@@ -81,6 +81,7 @@
 <arg value="client.output_planner_profiling_combine=${client.output_planner_profiling_combine}" />
 <arg value="client.output_markov_profiling=${client.output_markov_profiling}" />
 <arg value="client.output_procedure_stats=${client.output_procedure_stats}" />
+<arg value="client.output_trigger_stats=${client.output_trigger_stats}" />
 <arg value="client.output_table_stats=${client.output_table_stats}" />
 <arg value="client.output_table_stats_periodically=${client.output_table_stats_periodically}" />
 <arg value="client.output_txn_counters=${client.output_txn_counters}" />
