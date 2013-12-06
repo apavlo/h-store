@@ -58,6 +58,8 @@ import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.SysProcSelector;
 import org.voltdb.TransactionIdManager;
 import org.voltdb.ProcedureStatsCollector;
+import org.voltdb.TriggerStatsCollector;
+import org.voltdb.VoltTable;
 import org.voltdb.catalog.Host;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
@@ -251,6 +253,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     // added by hawk, 2013/11/25
     //For runtime statistics collection
     private ProcedureStatsCollector m_statsCollector;
+    // added by hawk, 2013/11/6
+    private TriggerStatsCollector m_triggerStatsCollector;
     // ended by hawk
 
     
@@ -807,7 +811,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // PROCEDURES
         this.m_statsCollector = new ProcedureStatsCollector();
         this.statsAgent.registerStatsSource(SysProcSelector.PROCEDURE, this.site_id, this.m_statsCollector);
-        
+
+        // TRIGGERS
+        this.m_triggerStatsCollector = new TriggerStatsCollector();
+        this.statsAgent.registerStatsSource(SysProcSelector.TRIGGER, this.site_id, this.m_triggerStatsCollector);
+
         // TXN COUNTERS
         statsSource = new TransactionCounterStats(this.catalogContext);
         this.statsAgent.registerStatsSource(SysProcSelector.TXNCOUNTER, 0, statsSource);
@@ -1190,6 +1198,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     // added by hawk, 2013/11/25
     public ProcedureStatsCollector getProcedureStatsSource() {
         return (this.m_statsCollector);
+    }
+
+    public TriggerStatsCollector getTriggerStatsSource() {
+        return (this.m_triggerStatsCollector);
     }
 
     public Collection<TransactionPreProcessor> getTransactionPreProcessors() {
@@ -2728,7 +2740,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             collector.addTransactionInfo(aborted, failed, initiateTime, now);
             //collector.endProcedure(aborted, failed, now);
         }
-        // ended by hawk
+        
         
         try {
 //            System.out.println("hawk - response with txn: " + String.format("%d...",cresponse.getTransactionId()));
@@ -2744,6 +2756,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 LOG.warn("Failed to send back ClientResponse for txn #" + cresponse.getTransactionId(), ex);
         }
     }
+    
     
     // ----------------------------------------------------------------------------
     // DELETE TRANSACTION METHODS

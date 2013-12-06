@@ -191,11 +191,6 @@ public abstract class VoltProcedure implements Poolable {
     private byte m_statusCode = Byte.MIN_VALUE;
     private String m_statusString = null;
 
-    // added by hawk, 2013/11/25
-    //For runtime statistics collection
-    //private ProcedureStatsCollector m_statsCollector;
-    // ended by hawk
-    
     /**
      * End users should not instantiate VoltProcedure instances.
      * Constructor does nothing. All actual initialization is done in the
@@ -564,18 +559,7 @@ public abstract class VoltProcedure implements Poolable {
         this.batchQueryStmtIndex = 0;
         this.last_batchQueryStmtIndex = -1;
         
-        // added by hawk,2013/11/25
-        // why here not init(), because we need txn id as key in order to get the collector back later on.
-//        m_statsCollector = new ProcedureStatsCollector();
-//        this.hstore_site.getStatsAgent().registerStatsSource(
-//                SysProcSelector.PROCEDURE,
-//                (int)(long)(this.getTransactionId()), // FIXME, type problem, ugly solution temporarily  
-//                m_statsCollector
-//                );
-//        
-//        m_statsCollector.beginProcedure(txnState.getInitiateTime());
-        // ended by hawk
-        
+       
         if (debug.val) LOG.debug("Starting execution of " + this.localTxnState);
         if (this.procParams.length != this.paramTypesLength) {
             String msg = "PROCEDURE " + procedure_name + " EXPECTS " + String.valueOf(paramTypesLength) +

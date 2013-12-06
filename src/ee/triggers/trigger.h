@@ -75,6 +75,7 @@ class Trigger {
 	friend class TriggerStats;
 
   protected:
+     int32_t m_id;
     std::string m_name;
     vector<const catalog::PlanFragment*>* m_frags;
     unsigned char m_type; //0=insert, 1=update, 2=delete
@@ -86,7 +87,7 @@ class Trigger {
     // no default constructor, no copy
     ~Trigger();
 
-    Trigger(const string &name, const catalog::CatalogMap<catalog::Statement> *stmts, unsigned char type, bool forEach);
+    Trigger(const int32_t id, const string &name, const catalog::CatalogMap<catalog::Statement> *stmts, unsigned char type, bool forEach);
 
     void fire(VoltDBEngine *engine, Table *input);
 
@@ -99,6 +100,7 @@ class Trigger {
     bool getForEach();
     Table *getSourceTable();
 
+	int32_t id() const;
 	std::string name() const;
 	int64_t latency() const;
 

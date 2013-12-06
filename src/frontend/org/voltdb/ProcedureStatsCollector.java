@@ -80,45 +80,6 @@ public final class ProcedureStatsCollector extends SiteStatsSource { // "change 
 //              m_site.getCorrespondingSiteId());
     }
     
-    
-    
-    /**
-     * Called when a procedure begins executing. Caches the time the procedure starts.
-     */
-    public final void beginProcedure(long initiateTime) {
-        if (m_invocations % timeCollectionInterval == 0) {
-            // modified by hawk, 2013/11/25
-            //m_currentStartTime = System.nanoTime();
-            m_currentStartTime = initiateTime;
-            // ended by hawk
-        }
-    }
-
-    /**
-     * Called after a procedure is finished executing. Compares the start and end time and calculates
-     * the statistics.
-     */
-    public final void endProcedure(boolean aborted, boolean failed, long endTime) {
-        if (m_currentStartTime > 0) {
-            //final long endTime = System.nanoTime();
-            final int delta = (int)(endTime - m_currentStartTime);
-            m_totalTimedExecutionTime += delta;
-            m_timedInvocations++;
-            m_minExecutionTime = Math.min( delta, m_minExecutionTime);
-            m_maxExecutionTime = Math.max( delta, m_maxExecutionTime);
-            m_lastMinExecutionTime = Math.min( delta, m_lastMinExecutionTime);
-            m_lastMaxExecutionTime = Math.max( delta, m_lastMaxExecutionTime);
-            m_currentStartTime = -1;
-        }
-        if (aborted) {
-            m_abortCount++;
-        }
-        if (failed) {
-            m_failureCount++;
-        }
-        m_invocations++;
-    }
-    
     public final void addTransactionInfo(boolean aborted, boolean failed, long initiateTime, long endTime) {
 
         if (m_invocations % timeCollectionInterval == 0) {

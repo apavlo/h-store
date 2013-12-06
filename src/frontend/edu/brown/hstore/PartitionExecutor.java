@@ -72,6 +72,7 @@ import org.voltdb.MemoryStats;
 import org.voltdb.ParameterSet;
 import org.voltdb.SQLStmt;
 import org.voltdb.SnapshotSiteProcessor;
+import org.voltdb.TriggerStatsCollector;
 import org.voltdb.SnapshotSiteProcessor.SnapshotTableTask;
 import org.voltdb.SysProcSelector;
 import org.voltdb.VoltProcedure;
@@ -90,6 +91,7 @@ import org.voltdb.catalog.ProcedureRef;
 import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.Table;
+import org.voltdb.catalog.Trigger;
 import org.voltdb.exceptions.ConstraintFailureException;
 import org.voltdb.exceptions.EEException;
 import org.voltdb.exceptions.EvictedTupleAccessException;
@@ -3137,6 +3139,12 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 }
             }
             // ended by hawk
+            
+            // added by hawk, 2013/12/6
+            // get the trigger stats information here
+            updateTriggerStats(EstTime.currentTimeMillis());
+            // ended by hawk
+            
         } catch (AssertionError ex) {
             LOG.error("Fatal error when processing " + ts + "\n" + ts.debug());
             error = ex;
@@ -3175,6 +3183,57 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         // *********************************** DEBUG ***********************************
         return (result);
     }
+    
+    // added by hawk, 2013/12/6
+    // to update trigger stats information
+    private void updateTriggerStats(long time) {
+        
+        Collection<Table> tables = this.catalogContext.database.getTables();
+        int[] tableIds = new int[tables.size()];
+        
+        ArrayList<Integer> trigger_id_list = new ArrayList<Integer>();
+
+        
+        int i = 0;
+        for (Table table : tables) {
+            tableIds[i++] = table.getRelativeIndex();
+            
+            Collection<Trigger> triggers = table.getTriggers();
+            for(Trigger trigger : triggers)
+            {
+                trigger_id_list.add(trigger.getId());
+            }
+            
+        }
+        
+        int[] triggerIds = new int[trigger_id_list.size()];
+        for(int ii=0; ii<trigger_id_list.size();ii++)
+            triggerIds[ii] = trigger_id_list.get(ii);
+
+        TriggerStatsCollector triggerStatsCollector = this.hstore_site.getTriggerStatsSource();
+
+        // update trigger stats
+        VoltTable[] s1 = null;
+        try {
+            s1 = this.ee.getStats(SysProcSelector.TRIGGER, triggerIds, false, time);
+        } catch (RuntimeException ex) {
+            LOG.warn("Unexpected error when trying to retrieve EE trigger stats for partition " + this.partitionId, ex);
+        }
+        if (s1 != null) {
+            VoltTable stats = s1[0];
+            assert(stats != null);
+
+            // rollup the table memory stats for this site
+            while (stats.advanceRow()) {
+                int idx = 5;
+                String triggerName = stats.getString(idx++);
+                long executionTime = stats.getLong(idx++);
+                triggerStatsCollector.addTriggerInfo(triggerName, executionTime);
+            }
+            stats.resetRowPosition();
+        }
+    }
+    
     
     /**
      * Load a VoltTable directly into the EE at this partition.

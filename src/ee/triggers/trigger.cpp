@@ -66,8 +66,8 @@ Trigger::~Trigger() {
 	delete m_frags;
 }
 
-Trigger::Trigger(const string &name, const catalog::CatalogMap<catalog::Statement> *stmts, unsigned char type, bool forEach) :
-	m_name(name), m_type(type), m_forEach(forEach), stats_(this)
+Trigger::Trigger(const int32_t id, const string &name, const catalog::CatalogMap<catalog::Statement> *stmts, unsigned char type, bool forEach) :
+	m_id(id), m_name(name), m_type(type), m_forEach(forEach), stats_(this)
 {
 	VOLT_DEBUG("TRIGGER CONSTRUCTOR");
 	m_latency = 0;
@@ -83,6 +83,10 @@ Trigger::Trigger(const string &name, const catalog::CatalogMap<catalog::Statemen
 			m_frags->push_back(frag_iter->second);
 		}
 	}
+}
+
+int32_t Trigger::id() const {
+	return m_id;
 }
 
 string Trigger::name() const {

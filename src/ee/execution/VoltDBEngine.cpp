@@ -780,7 +780,7 @@ bool VoltDBEngine::rebuildTableCollections() {
 			for(trig_iter = persistTarget->getTriggers()->begin(); trig_iter != persistTarget->getTriggers()->end(); trig_iter++) 
 			{
 				getStatsManager().registerStatsSource(STATISTICS_SELECTOR_TYPE_TRIGGER,
-							catTable->relativeIndex(),
+							 (*trig_iter)->id(), //catTable->relativeIndex(),
 							 (*trig_iter)->getTriggerStats());
 			}
 		}
@@ -1190,7 +1190,8 @@ int VoltDBEngine::getStats(int selector, int locators[], int numLocators,
                 (StatisticsSelectorType) selector,
                 locatorIds, interval, now);
             break;
-        case STATISTICS_SELECTOR_TYPE_TRIGGER:
+        case STATISTICS_SELECTOR_TYPE_TRIGGER: // added by hawk, 2013/12/6 to make micro-benchmark for trigger
+	      /*
             for (int ii = 0; ii < numLocators; ii++) {
                 CatalogId locator = static_cast<CatalogId>(locators[ii]);
                 if (m_tables.find(locator) == m_tables.end()) {
@@ -1202,7 +1203,7 @@ int VoltDBEngine::getStats(int selector, int locators[], int numLocators,
                                                   message);
                 }
             }
-
+	      */
             resultTable = m_statsManager.getStats(
                 (StatisticsSelectorType) selector,
                 locatorIds, interval, now);
