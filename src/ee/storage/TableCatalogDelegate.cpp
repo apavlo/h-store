@@ -69,7 +69,7 @@ TableCatalogDelegate::init(ExecutorContext *executorContext,
                            catalog::Database &catalogDatabase,
                            catalog::Table &catalogTable)
 {
-    VOLT_INFO("Initializing table '%s'", catalogTable.name().c_str());
+    VOLT_DEBUG("Initializing table '%s'", catalogTable.name().c_str());
     int32_t databaseId = catalogDatabase.relativeIndex();
     
     // Create a persistent table for this table in our catalog
@@ -258,7 +258,9 @@ TableCatalogDelegate::init(ExecutorContext *executorContext,
     for(trig_iter = catalogTable.triggers().begin();
     		trig_iter != catalogTable.triggers().end(); trig_iter++) {
     	catalog::Trigger* curTrig = trig_iter->second;
+        VOLT_DEBUG("Initializing table '%s' - begin creating trigger '%s' with no %d", catalogTable.name().c_str(), curTrig->name().c_str(), curTrig->name().id());
     	Trigger* pushTrig = new Trigger(curTrig->id(), curTrig->name(), &(curTrig->statements()), (unsigned char)(curTrig->triggerType()), curTrig->forEach());
+        VOLT_DEBUG("Initializing table '%s' - end creating trigger '%s'", catalogTable.name().c_str(), curTrig->name().c_str());
     	triggers->push_back(pushTrig);
     }
 
@@ -366,6 +368,7 @@ TableCatalogDelegate::init(ExecutorContext *executorContext,
 
     m_exportEnabled = isExportEnabledForTable(catalogDatabase, table_id);
     m_table->incrementRefcount();
+    VOLT_DEBUG("Finish initializing table '%s'", catalogTable.name().c_str());
     return 0;
 }
 
