@@ -14,7 +14,8 @@
  * You should have received a copy of the GNU General Public License
  * along with VoltDB.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "TriggerStats.h"
+#include "triggers/TriggerStats.h"
+#include "triggers/trigger.h"
 #include "stats/StatsSource.h"
 #include "common/TupleSchema.h"
 #include "common/ids.h"
@@ -27,6 +28,8 @@
 
 using namespace voltdb;
 using namespace std;
+
+namespace voltdb {
 
 vector<string> TriggerStats::generateTriggerStatsColumnNames() {
     vector<string> columnNames = StatsSource::generateBaseStatsColumnNames();
@@ -75,7 +78,7 @@ TriggerStats::generateEmptyTriggerStatsTable()
  * Constructor caches reference to the table that will be generating the statistics
  */
 TriggerStats::TriggerStats(Trigger* trigger)
-    : StatsSource(), m_trigger(trigger), m_latency(0)
+    : StatsSource(), m_trigger(trigger)
 {
 }
 
@@ -118,7 +121,7 @@ void TriggerStats::updateStatsTuple(TableTuple *tuple) {
 	int64_t latency = m_trigger->latency();
 	tuple->setNValue( StatsSource::m_columnName2Index["EXECUTION_LATENCY"],
                       ValueFactory::
-                      getBigIntValue(static_cast<int64_t>(bytesEvicted)));
+                      getBigIntValue(latency));
 }
 
 /**
@@ -134,4 +137,6 @@ void TriggerStats::populateSchema(
 
 TriggerStats::~TriggerStats() {
     m_triggerName.free();
+}
+
 }

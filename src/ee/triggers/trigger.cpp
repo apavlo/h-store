@@ -46,7 +46,7 @@
 //#include <sstream>
 //#include <cassert>
 //#include <cstdio>
-#include "trigger.h"
+#include "triggers/trigger.h"
 #include "common/types.h"
 #include "storage/table.h"
 #include "catalog/statement.h"
@@ -54,6 +54,7 @@
 #include <sys/time.h>
 #include <time.h>
 #include <cassert>
+#include "triggers/TriggerStats.h"
 
 using std::map;
 using std::string;
@@ -97,7 +98,7 @@ int64_t Trigger::latency() const {
 	return m_latency;
 }
 
-TriggerStats* Trigger::getTriggerStats() {
+voltdb::TriggerStats* Trigger::getTriggerStats() {
 	return &stats_;
 }
 

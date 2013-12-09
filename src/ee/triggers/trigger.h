@@ -59,7 +59,7 @@
 #include "catalog/planfragment.h"
 #include "execution/VoltDBEngine.h"
 #include "common/executorcontext.hpp"
-#include "TriggerStats.h"
+#include "triggers/TriggerStats.h"
 
 namespace voltdb {
 
@@ -72,16 +72,16 @@ class Trigger {
     friend class Table;
     friend class PersistantTable;
     friend class TempTable;
-	friend class TriggerStats;
+    friend class TriggerStats;
 
   protected:
-     int32_t m_id;
+    int32_t m_id;
     std::string m_name;
     vector<const catalog::PlanFragment*>* m_frags;
     unsigned char m_type; //0=insert, 1=update, 2=delete
     bool m_forEach;
     Table *m_sourceTable;
-	int64_t m_latency;
+    int64_t m_latency;
 
   public:
     // no default constructor, no copy

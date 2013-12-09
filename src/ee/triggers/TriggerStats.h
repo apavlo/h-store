@@ -20,7 +20,6 @@
 
 #include "stats/StatsSource.h"
 #include "common/ids.h"
-#include "trigger.h"
 #include <vector>
 #include <string>
 
@@ -31,6 +30,7 @@ class Trigger;
  * StatsSource extension for trigger.
  */
 class TriggerStats : public voltdb::StatsSource {
+
 public:
     /**
      * Static method to generate the column names for the tables which

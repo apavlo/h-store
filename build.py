@@ -296,6 +296,7 @@ CTX.INPUT['storage'] = """
 
 CTX.INPUT['triggers'] = """
  trigger.cpp
+ TriggerStats.cpp
 """
 
 CTX.INPUT['stats'] = """

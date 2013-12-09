@@ -258,7 +258,7 @@ TableCatalogDelegate::init(ExecutorContext *executorContext,
     for(trig_iter = catalogTable.triggers().begin();
     		trig_iter != catalogTable.triggers().end(); trig_iter++) {
     	catalog::Trigger* curTrig = trig_iter->second;
-        VOLT_DEBUG("Initializing table '%s' - begin creating trigger '%s' with no %d", catalogTable.name().c_str(), curTrig->name().c_str(), curTrig->name().id());
+        VOLT_DEBUG("Initializing table '%s' - begin creating trigger '%s' with no %d", catalogTable.name().c_str(), curTrig->name().c_str(), curTrig->id());
     	Trigger* pushTrig = new Trigger(curTrig->id(), curTrig->name(), &(curTrig->statements()), (unsigned char)(curTrig->triggerType()), curTrig->forEach());
         VOLT_DEBUG("Initializing table '%s' - end creating trigger '%s'", catalogTable.name().c_str(), curTrig->name().c_str());
     	triggers->push_back(pushTrig);
