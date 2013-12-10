@@ -1726,12 +1726,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                                         catalog_proc,
                                         procParams,
                                         clientCallback);
-//        // added by hawk, 2013/11/25
-//        int txnId = (int)(long)ts.getTransactionId();
-//        ProcedureStatsCollector collector = (ProcedureStatsCollector) this.getStatsAgent().getTransactionStatsSources(txnId);
-//        if(collector != null)
-//            collector.beginProcedure(timestamp);
-//        // ended by hawk
         
         this.transactionQueue(ts);
         if (trace.val)
@@ -1743,7 +1737,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     
     // added by hawk, 2013/11/1
     public void invocationTriggerProcedureProcess(long clientHandle, long initiateTime, Procedure procedure) {
-      
+        
+      // hawk: for micro-benchmark 2, start point
+      long startNanoTime = System.nanoTime();
+      // end
+        
       //System.out.println("hawk - firing frontend trigger 1:" + procedure.getName());
 
       long timestamp = -1;
@@ -1818,16 +1816,23 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                                       procedure,
                                       procParams,
                                       clientCallback);
-//      // added by hawk, 2013/11/25
-//      int txnId = (int)(long)ts.getTransactionId();
-//      ProcedureStatsCollector collector = (ProcedureStatsCollector) this.getStatsAgent().getTransactionStatsSources(txnId);
-//      if(collector != null)
-//          collector.beginProcedure(timestamp);
-//      // ended by hawk
 
       this.transactionQueue(ts);
       if (trace.val)
           LOG.trace(String.format("Finished initial processing of new txn."));
+      
+      // hawk: for micro-benchmark 2, end point
+      
+      ProcedureStatsCollector collector = this.getProcedureStatsSource();
+      if(collector != null)
+      {
+          boolean aborted = false;
+          boolean failed = false;
+          // reuse ProcedureStatsCollector to do micro-benchmark 2 
+          collector.addTransactionInfo(aborted, failed, startNanoTime, System.nanoTime());
+      }
+      // end
+
   }
 
     // ended by hawk
@@ -2724,22 +2729,20 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         cresponse.setRestartCounter(restartCounter);
         
         // added by hawk, 2013/11/25
-        //int txnId = (int)(long)cresponse.getTransactionId();
-        //ProcedureStatsCollector collector = (ProcedureStatsCollector) this.getStatsAgent().getTransactionStatsSources(txnId);
-        ProcedureStatsCollector collector = this.getProcedureStatsSource();
-        if(collector != null)
-        {
-            boolean aborted = false;
-            boolean failed = false;
-            if(status != Status.OK)
-            {
-                aborted = true;
-                failed = false;
-            }
-            // FIXME, when we will have the condition of failed ???
-            collector.addTransactionInfo(aborted, failed, initiateTime, now);
-            //collector.endProcedure(aborted, failed, now);
-        }
+//        ProcedureStatsCollector collector = this.getProcedureStatsSource();
+//        if(collector != null)
+//        {
+//            boolean aborted = false;
+//            boolean failed = false;
+//            if(status != Status.OK)
+//            {
+//                aborted = true;
+//                failed = false;
+//            }
+//            // FIXME, when we will have the condition of failed ???
+//            collector.addTransactionInfo(aborted, failed, initiateTime, now);
+//        }
+        // ended by hawk
         
         
         try {

@@ -3208,6 +3208,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             
         }
         
+        if(trigger_id_list.size()==0)
+            return;
+        
         int[] triggerIds = new int[trigger_id_list.size()];
         for(int ii=0; ii<trigger_id_list.size();ii++)
             triggerIds[ii] = trigger_id_list.get(ii);

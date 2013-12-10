@@ -1209,7 +1209,7 @@ int VoltDBEngine::getStats(int selector, int locators[], int numLocators,
             }
 	      */
 		
-              VOLT_DEBUG("m_statsManager.getStats for trigger id: %d", locatorIds[0]);
+              //VOLT_DEBUG("m_statsManager.getStats for trigger id: %d", locatorIds[0]);
 
             resultTable = m_statsManager.getStats(
                 (StatisticsSelectorType) selector,
