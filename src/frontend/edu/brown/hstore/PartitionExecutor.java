@@ -3188,6 +3188,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
     // to update trigger stats information
     private void updateTriggerStats(long time) {
         
+        System.out.println("hawk: entering updateTriggerStats...");
+        
         Collection<Table> tables = this.catalogContext.database.getTables();
         int[] tableIds = new int[tables.size()];
         

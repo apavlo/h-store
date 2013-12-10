@@ -145,6 +145,8 @@ void Trigger::fire(VoltDBEngine *engine, Table *input) {
 	TIMEVAL_TO_TIMESPEC(&start_, &start);
 	TIMEVAL_TO_TIMESPEC(&end_, &end);
 	m_latency = timespecDiffNanoseconds(end, start);
+
+	VOLT_DEBUG("m_latency: %ld", m_latency);
 }
 
 bool Trigger::setType(unsigned char t) {

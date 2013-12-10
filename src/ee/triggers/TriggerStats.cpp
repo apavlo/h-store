@@ -116,12 +116,15 @@ vector<string> TriggerStats::generateStatsColumnNames() {
  * Update the stats tuple with the latest statistics available to this StatsSource.
  */
 void TriggerStats::updateStatsTuple(TableTuple *tuple) {
+     
     tuple->setNValue( StatsSource::m_columnName2Index["TRIGGER_NAME"], m_triggerName);
 
-	int64_t latency = m_trigger->latency();
-	tuple->setNValue( StatsSource::m_columnName2Index["EXECUTION_LATENCY"],
+    int64_t latency = m_trigger->latency();
+    tuple->setNValue( StatsSource::m_columnName2Index["EXECUTION_LATENCY"],
                       ValueFactory::
                       getBigIntValue(latency));
+    
+    VOLT_DEBUG("updateStatsTuple - latency - %ld", latency);
 }
 
 /**

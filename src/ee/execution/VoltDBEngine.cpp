@@ -779,6 +779,8 @@ bool VoltDBEngine::rebuildTableCollections() {
 			std::vector<Trigger*>::iterator trig_iter;
 			for(trig_iter = persistTarget->getTriggers()->begin(); trig_iter != persistTarget->getTriggers()->end(); trig_iter++) 
 			{
+				VOLT_DEBUG("getStatsManager().registerStatsSource for trigger id: %d", (*trig_iter)->id());
+
 				getStatsManager().registerStatsSource(STATISTICS_SELECTOR_TYPE_TRIGGER,
 							 (*trig_iter)->id(), //catTable->relativeIndex(),
 							 (*trig_iter)->getTriggerStats());
@@ -1162,6 +1164,8 @@ StatsAgent& VoltDBEngine::getStatsManager() {
 int VoltDBEngine::getStats(int selector, int locators[], int numLocators,
                            bool interval, int64_t now)
 {
+     VOLT_DEBUG( "entering VoltDBEngine::getStats..." );
+
     Table *resultTable = NULL;
     vector<CatalogId> locatorIds;
 
@@ -1204,6 +1208,9 @@ int VoltDBEngine::getStats(int selector, int locators[], int numLocators,
                 }
             }
 	      */
+		
+              VOLT_DEBUG("m_statsManager.getStats for trigger id: %d", locatorIds[0]);
+
             resultTable = m_statsManager.getStats(
                 (StatisticsSelectorType) selector,
                 locatorIds, interval, now);

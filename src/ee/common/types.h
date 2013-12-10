@@ -315,7 +315,7 @@ enum TableStreamType {
 enum StatisticsSelectorType {
     STATISTICS_SELECTOR_TYPE_TABLE,
     STATISTICS_SELECTOR_TYPE_INDEX,
-    STATISTICS_SELECTOR_TYPE_TRIGGER = 21
+    STATISTICS_SELECTOR_TYPE_TRIGGER = 20
 };
 
 // ------------------------------------------------------------------
