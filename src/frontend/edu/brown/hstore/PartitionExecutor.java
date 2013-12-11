@@ -70,6 +70,7 @@ import org.voltdb.DependencySet;
 import org.voltdb.HsqlBackend;
 import org.voltdb.MemoryStats;
 import org.voltdb.ParameterSet;
+import org.voltdb.ProcedureStatsCollector;
 import org.voltdb.SQLStmt;
 import org.voltdb.SnapshotSiteProcessor;
 import org.voltdb.TriggerStatsCollector;
@@ -5280,4 +5281,12 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         }
         return this.cachedDebugContext;
     }
+    
+    //added by hawk, 2013/12/11, for micro-benchmark 3
+    public ProcedureStatsCollector getProcedureStatsSource()
+    {
+        ProcedureStatsCollector collector = this.hstore_site.getProcedureStatsSource();
+        return collector;
+    }
+    //ended by hawk
 }

@@ -18,6 +18,7 @@ public class SimpleCall extends VoltProcedure {
     public long run() {
 
         voltQueueSQL(insertS1);
+        
         voltExecuteSQL();
 
 		return 0;
