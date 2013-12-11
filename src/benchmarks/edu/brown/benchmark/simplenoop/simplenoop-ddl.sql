@@ -1,0 +1,3 @@
+CREATE TABLE A (
+	key BIGINT NOT NULL
+);

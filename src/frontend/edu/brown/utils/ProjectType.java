@@ -84,6 +84,7 @@ public enum ProjectType {
     VOTERWINHSTORE("VoterWinHStore", "edu.brown.benchmark.voterwinhstore"),
     VOTERWINSSTORE("VoterWinSStore", "edu.brown.benchmark.voterwinsstore"),
     SIMPLESTREAMTRIGGER("SimpleStreamTrigger", "edu.brown.benchmark.simplestreamtrigger"),
+    SIMPLENOOP("SimpleNoOp", "edu.brown.benchmark.simplenoop"),
     TEST("Test", null),
     ;
 
