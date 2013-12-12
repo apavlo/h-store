@@ -3221,6 +3221,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         // update trigger stats
         VoltTable[] s1 = null;
         try {
+            LOG.debug("hawk : this.ee.getStats(trigger)...");
             s1 = this.ee.getStats(SysProcSelector.TRIGGER, triggerIds, false, time);
         } catch (RuntimeException ex) {
             LOG.warn("Unexpected error when trying to retrieve EE trigger stats for partition " + this.partitionId, ex);
@@ -3234,11 +3235,16 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 int idx = 5;
                 String triggerName = stats.getString(idx++);
                 long executionTime = stats.getLong(idx++);
-                triggerStatsCollector.addTriggerInfo(triggerName, executionTime);
+                if( executionTime >= 0 )
+                    triggerStatsCollector.addTriggerInfo(triggerName, executionTime);
+                else
+                    LOG.warn("Trigger has illegal latency value! ");
+                    
             }
             stats.resetRowPosition();
         }
     }
+
     
     
     /**

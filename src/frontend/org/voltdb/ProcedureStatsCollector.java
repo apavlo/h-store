@@ -13,7 +13,7 @@ public final class ProcedureStatsCollector extends SiteStatsSource { // "change 
     /**
      * Record procedure execution time ever N invocations
      */
-    final int timeCollectionInterval = 20;
+    //final int timeCollectionInterval = 20;
 
     /**
      * Number of times this procedure has been invoked.
@@ -82,7 +82,8 @@ public final class ProcedureStatsCollector extends SiteStatsSource { // "change 
     
     public final void addTransactionInfo(boolean aborted, boolean failed, long initiateTime, long endTime) {
 
-        if (m_invocations % timeCollectionInterval == 0) {
+        //if (m_invocations % timeCollectionInterval == 0) 
+        {
             // modified by hawk, 2013/11/25
             //m_currentStartTime = System.nanoTime();
             m_currentStartTime = initiateTime;

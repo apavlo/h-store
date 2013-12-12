@@ -1208,12 +1208,13 @@ int VoltDBEngine::getStats(int selector, int locators[], int numLocators,
                 }
             }
 	      */
-		
+		VOLT_DEBUG( "begin VoltDBEngine::getStats - STATISTICS_SELECTOR_TYPE_TRIGGER ..." );
               //VOLT_DEBUG("m_statsManager.getStats for trigger id: %d", locatorIds[0]);
 
             resultTable = m_statsManager.getStats(
                 (StatisticsSelectorType) selector,
                 locatorIds, interval, now);
+		VOLT_DEBUG( "end VoltDBEngine::getStats - STATISTICS_SELECTOR_TYPE_TRIGGER ..." );
             break;
         case STATISTICS_SELECTOR_TYPE_INDEX:
             for (int ii = 0; ii < numLocators; ii++) {

@@ -64,6 +64,7 @@ import org.voltdb.catalog.Host;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Table;
+import org.voltdb.catalog.Trigger;
 import org.voltdb.compiler.AdHocPlannedStmt;
 import org.voltdb.compiler.AsyncCompilerResult;
 import org.voltdb.compiler.AsyncCompilerWorkThread;
@@ -2747,7 +2748,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
 //        }
         // ended by hawk
         
-        
         try {
 //            System.out.println("hawk - response with txn: " + String.format("%d...",cresponse.getTransactionId()));
 //            DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss.SSS");
@@ -2762,6 +2762,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 LOG.warn("Failed to send back ClientResponse for txn #" + cresponse.getTransactionId(), ex);
         }
     }
+    
     
     
     // ----------------------------------------------------------------------------
