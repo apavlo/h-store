@@ -19,36 +19,26 @@ public final class TriggerStatsCollector extends SiteStatsSource {
      * Number of times this procedure has been invoked.
      */
     private long m_invocations = 0;
-    private long m_lastInvocations = 0;
 
     /**
      * Number of timed invocations
      */
     private long m_timedInvocations = 0;
-    private long m_lastTimedInvocations = 0;
 
     /**
      * Total amount of timed execution time
      */
     private long m_totalTimedExecutionTime = 0;
-    private long m_lastTotalTimedExecutionTime = 0;
 
     /**
      * Shortest amount of time this procedure has executed in
      */
     private long m_minExecutionTime = Long.MAX_VALUE;
-    private long m_lastMinExecutionTime = Long.MAX_VALUE;
 
     /**
      * Longest amount of time this procedure has executed in
      */
     private long m_maxExecutionTime = Long.MIN_VALUE;
-    private long m_lastMaxExecutionTime = Long.MIN_VALUE;
-
-    /**
-     * Whether to return results in intervals since polling or since the beginning
-     */
-    private boolean m_interval = false;
 
     /**
      * Record trigger name
@@ -69,6 +59,7 @@ public final class TriggerStatsCollector extends SiteStatsSource {
     
     public final void addTriggerInfo(String name, long executionTime) {
         
+        System.out.println("hawk: entering addTriggerInfo...");
         m_triggerName = name;
         
         //if (m_invocations % timeCollectionInterval == 0) 
@@ -79,13 +70,20 @@ public final class TriggerStatsCollector extends SiteStatsSource {
                 m_timedInvocations++;
                 m_minExecutionTime = Math.min( delta, m_minExecutionTime);
                 m_maxExecutionTime = Math.max( delta, m_maxExecutionTime);
-                m_lastMinExecutionTime = Math.min( delta, m_lastMinExecutionTime);
-                m_lastMaxExecutionTime = Math.max( delta, m_lastMaxExecutionTime);
                 
             }
         }
         
         m_invocations++;
+
+        System.out.println("hawk: ending addTriggerInfo with" +  
+                Long.toString(executionTime) + " " +  
+                Long.toString(m_totalTimedExecutionTime) + " " +  
+                Long.toString(m_timedInvocations) + " " +  
+                Long.toString(m_minExecutionTime) + " " +  
+                Long.toString(m_maxExecutionTime) + " " +  
+                Long.toString(m_invocations));
+        
     }
 
     /**
@@ -103,22 +101,6 @@ public final class TriggerStatsCollector extends SiteStatsSource {
         long timedInvocations = m_timedInvocations;
         long minExecutionTime = m_minExecutionTime;
         long maxExecutionTime = m_maxExecutionTime;
-        
-        if (m_interval) {
-            invocations = m_invocations - m_lastInvocations;
-            m_lastInvocations = m_invocations;
-
-            totalTimedExecutionTime = m_totalTimedExecutionTime - m_lastTotalTimedExecutionTime;
-            m_lastTotalTimedExecutionTime = m_totalTimedExecutionTime;
-
-            timedInvocations = m_timedInvocations - m_lastTimedInvocations;
-            m_lastTimedInvocations = m_timedInvocations;
-
-            minExecutionTime = m_lastMinExecutionTime;
-            maxExecutionTime = m_lastMaxExecutionTime;
-            m_lastMinExecutionTime = Long.MAX_VALUE;
-            m_lastMaxExecutionTime = Long.MIN_VALUE;
-        }
         
         rowValues[columnNameToIndex.get("TRIGGER")] = m_triggerName;
         rowValues[columnNameToIndex.get("INVOCATIONS")] = invocations;
@@ -150,33 +132,28 @@ public final class TriggerStatsCollector extends SiteStatsSource {
 
     @Override
     protected Iterator<Object> getStatsRowKeyIterator(boolean interval) {
-        m_interval = interval;
         return new Iterator<Object>() {
-            boolean givenNext = false;
+            boolean returnRow = true;
+
             @Override
             public boolean hasNext() {
-                if (!m_interval) {
-                    if (m_invocations == 0) {
-                        return false;
-                    }
-                } else if (m_invocations - m_lastInvocations == 0){
-                    return false;
-                }
-                return !givenNext;
+                return returnRow;
             }
 
             @Override
             public Object next() {
-                if (!givenNext) {
-                    givenNext = true;
+                if (returnRow) {
+                    returnRow = false;
                     return new Object();
+                } else {
+                    return null;
                 }
-                return null;
             }
 
             @Override
-            public void remove() {}
-
+            public void remove() {
+                throw new UnsupportedOperationException();
+            }
         };
     }
 

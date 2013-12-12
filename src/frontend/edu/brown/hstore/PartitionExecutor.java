@@ -3235,14 +3235,15 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 int idx = 5;
                 String triggerName = stats.getString(idx++);
                 long executionTime = stats.getLong(idx++);
-                if( executionTime >= 0 )
+                if( executionTime > 0 )
                     triggerStatsCollector.addTriggerInfo(triggerName, executionTime);
                 else
-                    LOG.warn("Trigger has illegal latency value! ");
+                    System.out.println("Trigger has illegal latency value! ");
                     
             }
             stats.resetRowPosition();
         }
+        System.out.println("hawk: ending updateTriggerStats...");
     }
 
     
