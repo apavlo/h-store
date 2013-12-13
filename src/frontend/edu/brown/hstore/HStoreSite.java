@@ -1823,7 +1823,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
           LOG.trace(String.format("Finished initial processing of new txn."));
       
       // hawk: for micro-benchmark 2, end point
-      /* Begin : HStoreSite.java micro-benchmark 2
+      /* Begin : HStoreSite.java micro-benchmark 2 */
       long endNanoTime = System.nanoTime();
       
       ProcedureStatsCollector collector = this.getProcedureStatsSource();
@@ -1834,7 +1834,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
           // reuse ProcedureStatsCollector to do micro-benchmark 2 
           collector.addTransactionInfo(aborted, failed, startNanoTime, endNanoTime);
       }
-         End : HStoreSite.java micro-benchmark 2 */
+      /* End : HStoreSite.java micro-benchmark 2 */
 
   }
 

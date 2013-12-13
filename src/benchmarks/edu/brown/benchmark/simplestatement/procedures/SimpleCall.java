@@ -22,7 +22,7 @@ public class SimpleCall extends VoltProcedure {
         
         voltExecuteSQL(true);
         
-        // Begin : HStoreSite.java micro-benchmark 2
+        /* Begin : HStoreSite.java micro-benchmark 2
         long endNanoTime = System.nanoTime();
         ProcedureStatsCollector collector = this.executor.getProcedureStatsSource();
         if(collector != null)
@@ -32,7 +32,7 @@ public class SimpleCall extends VoltProcedure {
             // reuse ProcedureStatsCollector to do micro-benchmark 3 
             collector.addTransactionInfo(aborted, failed, startNanoTime, endNanoTime);
         }
-        // End : HStoreSite.java micro-benchmark 2
+         End : HStoreSite.java micro-benchmark 2*/
         
         return 0;
     }
