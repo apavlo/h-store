@@ -59,6 +59,7 @@ import org.voltdb.SysProcSelector;
 import org.voltdb.TransactionIdManager;
 import org.voltdb.ProcedureStatsCollector;
 import org.voltdb.TriggerStatsCollector;
+import org.voltdb.StreamStatsCollector;
 import org.voltdb.VoltTable;
 import org.voltdb.catalog.Host;
 import org.voltdb.catalog.Procedure;
@@ -256,6 +257,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     private ProcedureStatsCollector m_statsCollector;
     // added by hawk, 2013/11/6
     private TriggerStatsCollector m_triggerStatsCollector;
+    private StreamStatsCollector m_streamStatsCollector;
     // ended by hawk
 
     
@@ -817,6 +819,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         this.m_triggerStatsCollector = new TriggerStatsCollector();
         this.statsAgent.registerStatsSource(SysProcSelector.TRIGGER, this.site_id, this.m_triggerStatsCollector);
 
+        // STREAM
+        this.m_streamStatsCollector = new StreamStatsCollector();
+        this.statsAgent.registerStatsSource(SysProcSelector.STREAM, this.site_id, this.m_streamStatsCollector);
+
         // TXN COUNTERS
         statsSource = new TransactionCounterStats(this.catalogContext);
         this.statsAgent.registerStatsSource(SysProcSelector.TXNCOUNTER, 0, statsSource);
@@ -1203,6 +1209,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
 
     public TriggerStatsCollector getTriggerStatsSource() {
         return (this.m_triggerStatsCollector);
+    }
+
+    public StreamStatsCollector getStreamStatsSource() {
+        return (this.m_streamStatsCollector);
     }
 
     public Collection<TransactionPreProcessor> getTransactionPreProcessors() {

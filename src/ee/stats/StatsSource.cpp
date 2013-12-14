@@ -29,6 +29,7 @@ using namespace voltdb;
 using namespace std;
 
 vector<string> StatsSource::generateBaseStatsColumnNames() {
+    VOLT_DEBUG("StatsSource::generateBaseStatsColumnNames...");
     vector<string> columnNames;
     columnNames.push_back("TIMESTAMP");
     columnNames.push_back("HOST_ID");
@@ -39,6 +40,8 @@ vector<string> StatsSource::generateBaseStatsColumnNames() {
 }
 
 void StatsSource::populateBaseSchema(vector<ValueType> &types, vector<int32_t> &columnLengths, vector<bool> &allowNull) {
+    VOLT_DEBUG("StatsSource::populateBaseSchema...");
+
     types.push_back(VALUE_TYPE_BIGINT); columnLengths.push_back(NValue::getTupleStorageSize(VALUE_TYPE_BIGINT)); allowNull.push_back(false);
     types.push_back(VALUE_TYPE_BIGINT); columnLengths.push_back(NValue::getTupleStorageSize(VALUE_TYPE_BIGINT)); allowNull.push_back(false);
     types.push_back(VALUE_TYPE_VARCHAR); columnLengths.push_back(4096); allowNull.push_back(false);
@@ -66,6 +69,7 @@ void StatsSource::configure(
         CatalogId siteId,
         CatalogId partitionId,
         CatalogId databaseId) {
+    VOLT_DEBUG("StatsSource::configure...");
     m_siteId = siteId;
     m_partitionId = partitionId;
     m_hostId = hostId;
@@ -87,6 +91,8 @@ void StatsSource::configure(
 }
 
 StatsSource::~StatsSource() {
+    VOLT_DEBUG("StatsSource::StatsSource...");
+
     m_hostname.free();
 }
 
@@ -106,6 +112,7 @@ std::string StatsSource::getName() {
  * @return Pointer to a table containing the statistics.
  */
 Table* StatsSource::getStatsTable(bool interval, int64_t now) {
+    VOLT_DEBUG("StatsSource::getStatsTable...");
     getStatsTuple(interval, now);
     return m_statsTable.get();
 }
@@ -118,18 +125,24 @@ Table* StatsSource::getStatsTable(bool interval, int64_t now) {
  * @return Pointer to a table tuple containing the latest version of the statistics.
  */
 TableTuple* StatsSource::getStatsTuple(bool interval, int64_t now) {
+    VOLT_DEBUG("StatsSource::getStatsTuple 1");
     m_interval = interval;
     assert (m_statsTable != NULL);
+    VOLT_DEBUG("StatsSource::getStatsTuple 2");
     if (m_statsTable == NULL) {
         return NULL;
     }
+    VOLT_DEBUG("StatsSource::getStatsTuple 3");
     m_statsTuple.setNValue(0, ValueFactory::getBigIntValue(now));
     m_statsTuple.setNValue(1, ValueFactory::getBigIntValue(m_hostId));
     m_statsTuple.setNValue(2, m_hostname);
     m_statsTuple.setNValue(3, ValueFactory::getBigIntValue(m_siteId));
     m_statsTuple.setNValue(4, ValueFactory::getBigIntValue(m_partitionId));
+    VOLT_DEBUG("StatsSource::getStatsTuple 4");
     updateStatsTuple(&m_statsTuple);
+    VOLT_DEBUG("StatsSource::getStatsTuple 5");
     m_statsTable->insertTuple(m_statsTuple);
+    VOLT_DEBUG("StatsSource::getStatsTuple 6");
     //assert (success);
     return &m_statsTuple;
 }
@@ -166,5 +179,6 @@ std::string StatsSource::toString() {
  */
 void
 StatsSource::populateSchema(vector<ValueType> &types, vector<int32_t> &columnLengths, vector<bool> &allowNull) {
+    VOLT_DEBUG("StatsSource::populateSchema...");
     StatsSource::populateBaseSchema(types, columnLengths, allowNull);
 }

@@ -73,6 +73,7 @@ import org.voltdb.ParameterSet;
 import org.voltdb.ProcedureStatsCollector;
 import org.voltdb.SQLStmt;
 import org.voltdb.SnapshotSiteProcessor;
+import org.voltdb.StreamStatsCollector;
 import org.voltdb.TriggerStatsCollector;
 import org.voltdb.SnapshotSiteProcessor.SnapshotTableTask;
 import org.voltdb.SysProcSelector;
@@ -3144,6 +3145,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             // added by hawk, 2013/12/6
             // get the trigger stats information here
             updateTriggerStats(EstTime.currentTimeMillis());
+            updateStreamStats(EstTime.currentTimeMillis());
             // ended by hawk
             
         } catch (AssertionError ex) {
@@ -3246,6 +3248,59 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         System.out.println("hawk: ending updateTriggerStats...");
     }
 
+    private void updateStreamStats(long time) {
+        
+        System.out.println("hawk: entering updateStreamStats...");
+        
+        Collection<Table> tables = this.catalogContext.database.getTables();
+        int[] tableIds = new int[tables.size()];
+        
+        ArrayList<Integer> stream_id_list = new ArrayList<Integer>();
+
+        
+        int i = 0;
+        for (Table table : tables) {
+            if(table.getIsstream())
+                stream_id_list.add(table.getRelativeIndex());
+        }
+        
+        if(stream_id_list.size()==0)
+            return;
+        
+        int[] streamIds = new int[stream_id_list.size()];
+        for(int ii=0; ii<stream_id_list.size();ii++)
+            streamIds[ii] = stream_id_list.get(ii);
+
+        StreamStatsCollector streamStatsCollector = this.hstore_site.getStreamStatsSource();
+
+        // update stream stats
+        VoltTable[] s1 = null;
+        try {
+            LOG.debug("hawk : this.ee.getStats(stream)...");
+            s1 = this.ee.getStats(SysProcSelector.STREAM, streamIds, false, time);
+        } catch (RuntimeException ex) {
+            LOG.warn("Unexpected error when trying to retrieve EE trigger stats for partition " + this.partitionId, ex);
+        }
+        if (s1 != null) {
+            VoltTable stats = s1[0];
+            assert(stats != null);
+
+            // rollup the table memory stats for this site
+            while (stats.advanceRow()) {
+                int idx = 5;
+                String streamName = stats.getString(idx++);
+                long executionTime = stats.getLong(idx++);
+                long deleteExecutionTime = stats.getLong(idx++);
+                if( executionTime > 0 )
+                    streamStatsCollector.addStreamInfo(streamName, executionTime, deleteExecutionTime);
+                else
+                    System.out.println("Stream has illegal latency value! ");
+                    
+            }
+            stats.resetRowPosition();
+        }
+        System.out.println("hawk: ending updateStreamStats...");
+    }
     
     
     /**

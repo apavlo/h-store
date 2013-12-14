@@ -103,8 +103,8 @@ voltdb::TriggerStats* Trigger::getTriggerStats() {
 }
 
 int64_t timespecDiffNanoseconds(const timespec& end, const timespec& start) {
-    assert(timespecValid(end));
-    assert(timespecValid(start));
+    //assert(timespecValid(end));
+    //assert(timespecValid(start));
     return (end.tv_nsec - start.tv_nsec) + (end.tv_sec - start.tv_sec) * (int64_t) 1000000000;
 }
 

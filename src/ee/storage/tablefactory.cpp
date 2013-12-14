@@ -539,6 +539,15 @@ void TableFactory::configureStats(voltdb::CatalogId databaseId,
 					  ctx->m_partitionId,
 					  databaseId);
 		}
+
+		// FIXME: we need isStream() for Table, not use hasTriggers() to determine if it is a stream
+		// by hawk, initialize stats for all the stream
+		persistTarget->getStreamStats()->configure(name + "stream stats",
+										  ctx->m_hostId,
+										  ctx->m_hostname,
+										  ctx->m_siteId,
+										  ctx->m_partitionId,
+										  databaseId);
 	}
 
 

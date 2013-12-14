@@ -14,8 +14,8 @@
  * You should have received a copy of the GNU General Public License
  * along with VoltDB.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "triggers/TriggerStats.h"
-#include "triggers/trigger.h"
+#include "triggers/StreamStats.h"
+#include "storage/persistenttable.h"
 #include "stats/StatsSource.h"
 #include "common/TupleSchema.h"
 #include "common/ids.h"
@@ -31,39 +31,41 @@ using namespace std;
 
 namespace voltdb {
 
-vector<string> TriggerStats::generateTriggerStatsColumnNames() {
-	VOLT_DEBUG("TriggerStats::generateTriggerStatsColumnNames...");
+vector<string> StreamStats::generateStreamStatsColumnNames() {
+    VOLT_DEBUG("hawk : StreamStats::generateStreamStatsColumnNames ... ");
     vector<string> columnNames = StatsSource::generateBaseStatsColumnNames();
-    columnNames.push_back("TRIGGER_NAME");
+    columnNames.push_back("STREAM_NAME");
     columnNames.push_back("EXECUTION_LATENCY");
+    columnNames.push_back("DELETE_LATENCY");
     
     return columnNames;
 }
 
-void TriggerStats::populateTriggerStatsSchema(
+void StreamStats::populateStreamStatsSchema(
         vector<ValueType> &types,
         vector<int32_t> &columnLengths,
         vector<bool> &allowNull) {
-	VOLT_DEBUG("TriggerStats::populateTriggerStatsSchema...");
+    VOLT_DEBUG("hawk : StreamStats::populateStreamStatsSchema ... ");
     StatsSource::populateBaseSchema(types, columnLengths, allowNull);
     types.push_back(VALUE_TYPE_VARCHAR); columnLengths.push_back(4096); allowNull.push_back(false);
+    types.push_back(VALUE_TYPE_BIGINT); columnLengths.push_back(NValue::getTupleStorageSize(VALUE_TYPE_BIGINT)); allowNull.push_back(false);
     types.push_back(VALUE_TYPE_BIGINT); columnLengths.push_back(NValue::getTupleStorageSize(VALUE_TYPE_BIGINT)); allowNull.push_back(false);
 }
 
 Table*
-TriggerStats::generateEmptyTriggerStatsTable()
+StreamStats::generateEmptyStreamStatsTable()
 {
-	VOLT_DEBUG("TriggerStats::generateEmptyTriggerStatsTable...");
+    VOLT_DEBUG("hawk : StreamStats::generateEmptyStreamStatsTable ... ");
     string name = "Persistent Table aggregated table stats temp table";
     // An empty stats table isn't clearly associated with any specific
     // database ID.  Just pick something that works for now (Yes,
     // abstractplannode::databaseId(), I'm looking in your direction)
     CatalogId databaseId = 1;
-    vector<string> columnNames = TriggerStats::generateTriggerStatsColumnNames();
+    vector<string> columnNames = StreamStats::generateStreamStatsColumnNames();
     vector<ValueType> columnTypes;
     vector<int32_t> columnLengths;
     vector<bool> columnAllowNull;
-    TriggerStats::populateTriggerStatsSchema(columnTypes, columnLengths,
+    StreamStats::populateStreamStatsSchema(columnTypes, columnLengths,
                                          columnAllowNull);
     TupleSchema *schema =
         TupleSchema::createTupleSchema(columnTypes, columnLengths,
@@ -80,9 +82,10 @@ TriggerStats::generateEmptyTriggerStatsTable()
 /*
  * Constructor caches reference to the table that will be generating the statistics
  */
-TriggerStats::TriggerStats(Trigger* trigger)
-    : StatsSource(), m_trigger(trigger)
+StreamStats::StreamStats(voltdb::PersistentTable* table)
+    : StatsSource(), m_stream(table)
 {
+    VOLT_DEBUG("hawk : StreamStats::StreamStats ... ");
 }
 
 /**
@@ -95,16 +98,16 @@ TriggerStats::TriggerStats(Trigger* trigger)
  * @parameter partitionId this stat source is associated with
  * @parameter databaseId Database this source is associated with
  */
-void TriggerStats::configure(
+void StreamStats::configure(
         string name,
         CatalogId hostId,
         std::string hostname,
         CatalogId siteId,
         CatalogId partitionId,
         CatalogId databaseId) {
-	VOLT_DEBUG("TriggerStats::configure...");
+    VOLT_DEBUG("hawk : StreamStats::configure ... ");
     StatsSource::configure(name, hostId, hostname, siteId, partitionId, databaseId);
-    m_triggerName = ValueFactory::getStringValue(m_trigger->name());
+    m_streamName = ValueFactory::getStringValue(m_stream->name());
 }
 
 /**
@@ -112,41 +115,48 @@ void TriggerStats::configure(
  * the parent class's version to obtain the list of columns contributed by ancestors and then append the columns they will be
  * contributing to the end of the list.
  */
-vector<string> TriggerStats::generateStatsColumnNames() {
-	VOLT_DEBUG("TriggerStats::generateStatsColumnNames...");
-    return TriggerStats::generateTriggerStatsColumnNames();
+vector<string> StreamStats::generateStatsColumnNames() {
+    VOLT_DEBUG("hawk : StreamStats::generateStatsColumnNames ... ");
+    return StreamStats::generateStreamStatsColumnNames();
 }
 
 /**
  * Update the stats tuple with the latest statistics available to this StatsSource.
  */
-void TriggerStats::updateStatsTuple(TableTuple *tuple) {
-	VOLT_DEBUG("TriggerStats::updateStatsTuple...");
+void StreamStats::updateStatsTuple(TableTuple *tuple) {
      
-    tuple->setNValue( StatsSource::m_columnName2Index["TRIGGER_NAME"], m_triggerName);
+    VOLT_DEBUG("hawk : Stream - starting updateStatsTuple ");
+    tuple->setNValue( StatsSource::m_columnName2Index["STREAM_NAME"], m_streamName);
 
-    int64_t latency = m_trigger->latency();
+    int64_t latency = m_stream->latency();
+    VOLT_DEBUG("hawk : 1 - latency : %ld ... ", latency);
     tuple->setNValue( StatsSource::m_columnName2Index["EXECUTION_LATENCY"],
                       ValueFactory::
                       getBigIntValue(latency));
     
-    VOLT_DEBUG("updateStatsTuple - latency - %ld", latency);
+    int64_t delete_latency = m_stream->delete_latency();
+    VOLT_DEBUG("hawk : 2 delete_latency : %ld... ", delete_latency);
+    tuple->setNValue( StatsSource::m_columnName2Index["DELETE_LATENCY"],
+                      ValueFactory::
+                      getBigIntValue(delete_latency));
+
+    VOLT_DEBUG("hawk : Stream - updateStatsTuple - latency - %ld, delete latency - %ld", latency, delete_latency);
 }
 
 /**
  * Same pattern as generateStatsColumnNames except the return value is used as an offset into the tuple schema instead of appending to
  * end of a list.
  */
-void TriggerStats::populateSchema(
+void StreamStats::populateSchema(
         vector<ValueType> &types,
         vector<int32_t> &columnLengths,
         vector<bool> &allowNull) {
-	VOLT_DEBUG("TriggerStats::populateSchema...");
-    TriggerStats::populateTriggerStatsSchema(types, columnLengths, allowNull);
+    VOLT_DEBUG("hawk : StreamStats::populateSchema ... ");
+    StreamStats::populateStreamStatsSchema(types, columnLengths, allowNull);
 }
 
-TriggerStats::~TriggerStats() {
-    m_triggerName.free();
+StreamStats::~StreamStats() {
+    m_streamName.free();
 }
 
 }

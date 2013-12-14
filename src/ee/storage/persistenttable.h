@@ -58,6 +58,7 @@
 #include "storage/TupleStreamWrapper.h"
 #include "storage/TableStats.h"
 #include "storage/PersistentTableStats.h"
+#include "triggers/StreamStats.h"
 #include "storage/CopyOnWriteContext.h"
 #include "storage/RecoveryContext.h"
 #include "triggers/trigger.h"
@@ -114,6 +115,7 @@ namespace voltdb {
 		friend class TableIndex;
 		friend class TableIterator;
 		friend class PersistentTableStats;
+		friend class StreamStats;
 
 #ifdef ANTICACHE
 		friend class AntiCacheEvictionManager;
@@ -286,6 +288,15 @@ namespace voltdb {
 
 		void setEntryToNewAddressForAllIndexes(const TableTuple *tuple, const void* address);
 
+		// ------------------------------------------------------------------
+		// StreamStats OPERATIONS
+		// ------------------------------------------------------------------
+		int64_t latency();
+		int64_t delete_latency();
+		void add_latency_data(int64_t latency, int64_t delete_latency);
+		
+		voltdb::StreamStats* getStreamStats();
+
 	protected:
 
 		size_t allocatedBlockCount() const {
@@ -377,7 +388,9 @@ namespace voltdb {
 		voltdb::PersistentTableStats stats_;
 		voltdb::TableStats* getTableStats();
 
-		// is Export enabled
+		voltdb::StreamStats stream_stats_;
+		
+                // is Export enabled
 		bool m_exportEnabled;
 
 		// Snapshot stuff
@@ -386,6 +399,10 @@ namespace voltdb {
 		//Recovery stuff
 		boost::scoped_ptr<RecoveryContext> m_recoveryContext;
 
+		//hawk: used for StreamStats
+		int64_t m_latency;
+		int64_t m_delete_latency;
+
 	};
 
 	inline TableTuple& PersistentTable::getTempTupleInlined(TableTuple &source) {
@@ -393,6 +410,24 @@ namespace voltdb {
 		m_tempTuple.copy(source);
 		return m_tempTuple;
 	}
+
+	inline int64_t PersistentTable::latency()
+	{
+		return m_latency;
+	}
+
+	inline int64_t PersistentTable::delete_latency()
+	{
+		return m_delete_latency;
+	}
+
+
+	inline void PersistentTable::add_latency_data(int64_t latency, int64_t delete_latency)
+	{
+		m_latency = latency;
+		m_delete_latency = delete_latency;
+	}
+
 }
 
 #endif

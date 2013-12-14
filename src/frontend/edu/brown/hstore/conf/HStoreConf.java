@@ -1884,6 +1884,16 @@ public final class HStoreConf {
             )
         public String output_trigger_stats;
         //ended by hawk
+        //added by hawk, 2013/12/13
+        @ConfigProperty(
+                description="Defines the path where the BenchmarkController will dump a CSV containing " +
+                            "the stream stats information about the cluster. This will periodically invoke " +
+                            "the @Statistics system stored procedure to collect SysProcSelector.STREAM data.",
+                defaultNull=true,
+                experimental=false
+            )
+        public String output_stream_stats;
+        //ended by hawk
 
         @ConfigProperty(
             description="Defines the path where the BenchmarkController will dump a CSV containing " +

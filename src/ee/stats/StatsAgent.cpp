@@ -38,7 +38,9 @@ StatsAgent::StatsAgent() {}
  */
 void StatsAgent::registerStatsSource(voltdb::StatisticsSelectorType sst, voltdb::CatalogId catalogId, voltdb::StatsSource* statsSource)
 {
+    VOLT_DEBUG("hawk : StatsAgent::regiserStatsSource - 1 ... ");
     m_statsCategoryByStatsSelector[sst][catalogId] = statsSource;
+    VOLT_DEBUG("hawk : StatsAgent::regiserStatsSource - 2 ... ");
 }
 
 void StatsAgent::unregisterStatsSource(voltdb::StatisticsSelectorType sst)
@@ -69,14 +71,18 @@ Table* StatsAgent::getStats(voltdb::StatisticsSelectorType sst,
     if (catalogIds.size() < 1) {
         return NULL;
     }
+    VOLT_DEBUG("hawk : StatsAgent::getStats - 1 ... ");
     std::map<voltdb::CatalogId, voltdb::StatsSource*> *statsSources = &m_statsCategoryByStatsSelector[sst];
     Table *statsTable = m_statsTablesByStatsSelector[sst];
     if (statsTable == NULL) {
+    	VOLT_DEBUG("hawk : StatsAgent::getStats - 2 ... ");
         /*
          * Initialize the output table the first time.
          */
         voltdb::StatsSource *ss = (*statsSources)[catalogIds[0]];
+    	VOLT_DEBUG("hawk : StatsAgent::getStats - 2-1 ... ");
         voltdb::Table *table = ss->getStatsTable(interval, now);
+    	VOLT_DEBUG("hawk : StatsAgent::getStats - 2-2 ... ");
         statsTable = reinterpret_cast<Table*>(
             voltdb::TableFactory::getTempTable(
                 table->databaseId(),
@@ -84,18 +90,23 @@ Table* StatsAgent::getStats(voltdb::StatisticsSelectorType sst,
                 TupleSchema::createTupleSchema(table->schema()),
                 table->columnNames(),
                 NULL));
+    	VOLT_DEBUG("hawk : StatsAgent::getStats - 2-3 ... ");
         m_statsTablesByStatsSelector[sst] = statsTable;
     }
+    VOLT_DEBUG("hawk : StatsAgent::getStats - 3 ... ");
 
     statsTable->deleteAllTuples(false);
 
+    VOLT_DEBUG("hawk : StatsAgent::getStats - 4 ... ");
     for (int ii = 0; ii < catalogIds.size(); ii++) {
+    	VOLT_DEBUG("hawk : StatsAgent::getStats - 5 with id- %d ... ", catalogIds[ii]);
         voltdb::StatsSource *ss = (*statsSources)[catalogIds[ii]];
         assert (ss != NULL);
         if (ss == NULL) {
             continue;
         }
 
+        VOLT_DEBUG("hawk : StatsAgent::getStats - 6 ... ");
         voltdb::TableTuple *statsTuple = ss->getStatsTuple(interval, now);
         statsTable->insertTuple(*statsTuple);
     }

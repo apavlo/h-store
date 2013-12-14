@@ -61,6 +61,8 @@ public class SysProcFragmentId {
     public static final int PF_anticacheProfilerAggregator = 39;
     public static final int PF_triggerData = 40;
     public static final int PF_triggerAggregator = 41;
+    public static final int PF_streamData = 42;
+    public static final int PF_streamAggregator = 43;
     
 
     // @Shutdown

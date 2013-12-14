@@ -67,6 +67,7 @@
 #include "storage/TupleStreamWrapper.h"
 #include "storage/TableStats.h"
 #include "storage/PersistentTableStats.h"
+#include "triggers/StreamStats.h"
 #include "storage/PersistentTableUndoInsertAction.h"
 #include "storage/PersistentTableUndoDeleteAction.h"
 #include "storage/PersistentTableUndoUpdateAction.h"
@@ -98,7 +99,7 @@ namespace voltdb {
 	PersistentTable::PersistentTable(ExecutorContext *ctx, bool exportEnabled) :
 	Table(TABLE_BLOCKSIZE), m_executorContext(ctx), m_uniqueIndexes(NULL), m_uniqueIndexCount(0), m_allowNulls(NULL),
 		m_indexes(NULL), m_indexCount(0), m_pkeyIndex(NULL), m_wrapper(NULL),
-		m_tsSeqNo(0), stats_(this), m_exportEnabled(exportEnabled),
+		m_tsSeqNo(0), stats_(this), stream_stats_(this), m_exportEnabled(exportEnabled),
 		m_COWContext(NULL)
 	{
 
@@ -117,6 +118,10 @@ namespace voltdb {
 				m_executorContext->m_siteId,
 				m_executorContext->m_lastTickTime);
 		}
+
+		//hawk: for StreamStats
+		m_latency = 0;
+		m_delete_latency = 0;
 	}
 
 	PersistentTable::~PersistentTable() {
@@ -1245,6 +1250,10 @@ namespace voltdb {
 
 	voltdb::TableStats* PersistentTable::getTableStats() {
 		return &stats_;
+	}
+
+	voltdb::StreamStats* PersistentTable::getStreamStats() {
+		return &stream_stats_;
 	}
 
 	/**
