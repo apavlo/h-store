@@ -36,6 +36,7 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.lang.reflect.InvocationTargetException;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -307,15 +308,8 @@ public class VoltProjectBuilder {
     // -------------------------------------------------------------------
 
     public void addSchema(final URL schemaURL) {
-        try {       
-	  assert(schemaURL != null) :
-	    "Invalid null schema file for " + this.project_name;
-            addSchema(schemaURL.getPath());
-	}
-	catch (final Exception e) {
-            e.printStackTrace();
-            System.exit(-1);
-        }
+	assert(schemaURL != null);
+        addSchema(schemaURL.getPath());
     }
     
     public void addSchema(final File schemaFile) {
@@ -331,6 +325,7 @@ public class VoltProjectBuilder {
             e.printStackTrace();
             System.exit(-1);
         }
+
         assert(m_schemas.contains(schemaPath) == false);
         final File schemaFile = new File(schemaPath);
         assert(schemaFile != null);
@@ -338,7 +333,6 @@ public class VoltProjectBuilder {
         // this check below fails in some valid cases (like when the file is in a jar)
         //assert schemaFile.canRead()
         //    : "can't read file: " + schemaPath;
-
         m_schemas.add(schemaPath);
     }
 

@@ -131,7 +131,9 @@ public class SnapshotSaveAPI
             long startTime, SystemProcedureExecutionContext context,
             String hostname, final VoltTable result) {
         {
-            final int numLocalSites = VoltDB.instance().getLocalSites().values().size();
+            // CHANGE
+            final int numLocalSites = CatalogUtil.getNumberOfSites(context.getHost());
+            System.out.println("Local Sites :"+numLocalSites);
 
             /*
              * Used to close targets on failure
@@ -254,7 +256,7 @@ public class SnapshotSaveAPI
                 synchronized (SnapshotSiteProcessor.m_taskListsForSites) {
                     if (!partitionedSnapshotTasks.isEmpty() || !replicatedSnapshotTasks.isEmpty()) {
                         SnapshotSiteProcessor.ExecutionSitesCurrentlySnapshotting.set(
-                                VoltDB.instance().getLocalSites().values().size());
+                        CatalogUtil.getNumberOfSites(context.getHost()));
                         for (int ii = 0; ii < numLocalSites; ii++) {
                             SnapshotSiteProcessor.m_taskListsForSites.add(new ArrayDeque<SnapshotTableTask>());
                         }
@@ -292,13 +294,13 @@ public class SnapshotSaveAPI
                 ex.printStackTrace(pw);
                 pw.flush();
                 result.addRow(
-                        Integer.parseInt(context.getSite().getHost().getTypeName()),
+                        context.getSite().getHost().getId(),
                         hostname,
                         "",
                         "FAILURE",
                         "SNAPSHOT INITIATION OF " + file_path + file_nonce +
                         "RESULTED IN Exception: \n" + sw.toString());
-                LOG.error(ex);
+                LOG.error(result);
             } finally {
                 SnapshotSiteProcessor.m_snapshotPermits.release(numLocalSites);
             }

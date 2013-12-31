@@ -234,6 +234,7 @@ public class SnapshotSave extends VoltSystemProcedure
                                   err_msg);
                 }
             }
+            LOG.trace("Host ID " + context.getSite().getHost().getTypeName() + "\n" + new DependencySet(DEP_saveTest, result));
             return new DependencySet(DEP_saveTest, result);
         }
     }
@@ -292,7 +293,8 @@ public class SnapshotSave extends VoltSystemProcedure
         // See if we think the save will succeed
         VoltTable[] results;
         results = performSaveFeasibilityWork(path, nonce);
-        LOG.info("performSaveFeasibilityWork Results:\n" + results);
+        if(results.length >= 1)
+	  LOG.info("performSaveFeasibilityWork Results: " + results[0]);
 
         // Test feasibility results for fail
         while (results[0].advanceRow())
@@ -301,6 +303,7 @@ public class SnapshotSave extends VoltSystemProcedure
             {
                 // Something lost, bomb out and just return the whole
                 // table of results to the client for analysis
+                LOG.info("Row : " + results[0].getString("RESULT"));
                 return results;
             }
         }
@@ -328,6 +331,7 @@ public class SnapshotSave extends VoltSystemProcedure
         ParameterSet params = new ParameterSet();
         params.setParameters(filePath, fileNonce);
         pfs[0].parameters = params;
+        
 
         // This fragment aggregates the save-to-disk sanity check results
         pfs[1] = new SynthesizedPlanFragment();
@@ -349,6 +353,8 @@ public class SnapshotSave extends VoltSystemProcedure
     {
         SynthesizedPlanFragment[] pfs = new SynthesizedPlanFragment[2];
 
+        LOG.trace("performSnapshotCreationWork starting");
+        
         // This fragment causes each execution site to confirm the likely
         // success of writing tables to disk
         pfs[0] = new SynthesizedPlanFragment();

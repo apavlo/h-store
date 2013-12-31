@@ -47,8 +47,7 @@ public class SaveRestoreTestProjectBuilder extends VoltProjectBuilder
                         {"CHANGE_COLUMNS", "ID"},
                         {"JUMBO_ROW", "PKEY"}};
 
-    public static final URL ddlURL =
-        SaveRestoreTestProjectBuilder.class.getResource("saverestore-ddl.sql");
+    public static final File ddlFile = new File("/home/parallels/git/h-store/src/frontend/org/voltdb/sysprocs/saverestore/saverestore-ddl.sql");
     public static final String jarFilename = "saverestore.jar";
 
     public void addDefaultProcedures()
@@ -66,7 +65,14 @@ public class SaveRestoreTestProjectBuilder extends VoltProjectBuilder
 
     public void addDefaultSchema()
     {
-        addSchema(ddlURL);
+      try{
+	System.out.println("URL: "+ddlFile);
+	addSchema(ddlFile);
+      }
+      catch(Exception e){
+	e.printStackTrace();
+	System.exit(-1);
+      }
     }
 
     @Override

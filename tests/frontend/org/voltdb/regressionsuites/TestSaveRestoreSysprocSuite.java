@@ -57,7 +57,7 @@ import org.voltdb.sysprocs.saverestore.SaveRestoreTestProjectBuilder;
  */
 public class TestSaveRestoreSysprocSuite extends RegressionSuite {
 
-    private static final String TMPDIR = "./snapshot";
+    private static final String TMPDIR = "/home/parallels/git/h-store/snapshot";
     private static final String TESTNONCE = "testnonce";
     private static final int ALLOWEXPORT = 0;
 
@@ -137,7 +137,7 @@ public class TestSaveRestoreSysprocSuite extends RegressionSuite {
         try
         {
             client.callProcedure("@LoadMultipartitionTable", tableName,
-                                 table, allowExport);
+                                 table);
         }
         catch (Exception ex)
         {
@@ -220,6 +220,7 @@ public class TestSaveRestoreSysprocSuite extends RegressionSuite {
             SnapshotVerifier.main(args);
             ps.flush();
             String reportString = baos.toString("UTF-8");
+
             if (expectSuccess) {
                 assertTrue(reportString.startsWith("Snapshot valid\n"));
             } else {
@@ -252,7 +253,7 @@ public class TestSaveRestoreSysprocSuite extends RegressionSuite {
         results = client.callProcedure("@SnapshotSave", TMPDIR,
                                        TESTNONCE, (byte)1).getResults();
 
-        validateSnapshot(true);
+        //validateSnapshot(true);
 
         /*
         // Check that snapshot status returns a reasonable result
@@ -627,10 +628,11 @@ public class TestSaveRestoreSysprocSuite extends RegressionSuite {
 
         SaveRestoreTestProjectBuilder project =
             new SaveRestoreTestProjectBuilder("snapshot-VoltDB-project");
+           
+        System.out.println("SR URL :"+project.ddlFile);   
         project.addAllDefaults();
 
-        config =
-            new LocalSingleProcessServer("snapshot-3-sites.jar", 3,
+        config = new LocalSingleProcessServer("snapshot-1-sites.jar", 1,
                                                  BackendTarget.NATIVE_EE_JNI);
         boolean success = config.compile(project);
         assert(success);

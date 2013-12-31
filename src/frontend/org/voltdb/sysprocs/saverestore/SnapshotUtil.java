@@ -268,7 +268,11 @@ public class SnapshotUtil {
             return;
         }
 
+        System.out.println("Processing Dir :"+directory);
+        //sleep(1);
         for (File f : directory.listFiles(filter)) {
+	    System.out.println("Processing File :"+f);
+	    
             if (f.isDirectory()) {
                 if (!f.canRead() || !f.canExecute()) {
                     System.err.println("Warning: Skipping directory " + f.getPath()
@@ -348,6 +352,7 @@ public class SnapshotUtil {
                     }
                 }
             } catch (IOException e) {
+		e.printStackTrace();
                 System.err.println(e.getMessage());
                 System.err.println("Error: Unable to process " + f.getPath());
             } finally {
