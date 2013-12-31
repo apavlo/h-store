@@ -9,21 +9,26 @@ import java.util.concurrent.TimeUnit;
 
 import org.junit.Test;
 import org.voltdb.StoredProcedureInvocationHints;
+import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Table;
 import org.voltdb.client.Client;
+import org.voltdb.client.ClientResponse;
 import org.voltdb.jni.ExecutionEngine;
 import org.voltdb.regressionsuites.TestSmallBankSuite;
 import org.voltdb.regressionsuites.specexecprocs.BlockingSendPayment;
+import org.voltdb.sysprocs.AdHoc;
 import org.voltdb.utils.VoltTableUtil;
 
 import edu.brown.BaseTestCase;
 import edu.brown.HStoreSiteTestUtil;
 import edu.brown.HStoreSiteTestUtil.LatchableProcedureCallback;
+import edu.brown.benchmark.smallbank.SmallBankConstants;
 import edu.brown.benchmark.smallbank.SmallBankProjectBuilder;
+import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.utils.CollectionUtil;
@@ -158,6 +163,24 @@ public class TestReadWriteTracking extends BaseTestCase {
         } finally {
             this.finishTxn(voltProc);
         }
+    }
+    
+    /**
+     * testReadSetsAdHoc
+     */
+    @Test
+    public void testReadSetsAdHoc() throws Exception {
+        TestSmallBankSuite.initializeSmallBankDatabase(catalogContext, this.client);
+        
+        String sql = String.format("SELECT * FROM %s WHERE custid = 1",
+                                   SmallBankConstants.TABLENAME_ACCOUNTS);
+        
+        String procName = VoltSystemProcedure.procCallName(AdHoc.class);
+        ClientResponse cresponse = client.callProcedure(procName, sql);
+        assert(cresponse.getStatus() == Status.OK) : cresponse.toString();
+
+        // XXX: We currently have no way of checking the read/write set
+        //      for adhoc queries, so I just have this for checking manually.
     }
     
     

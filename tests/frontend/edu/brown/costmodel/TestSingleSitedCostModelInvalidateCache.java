@@ -19,7 +19,7 @@ import edu.brown.workload.filters.ProcedureLimitFilter;
 
 public class TestSingleSitedCostModelInvalidateCache extends BaseTestCase {
 
-    private static final int WORKLOAD_LIMIT = 500;
+    private static final int WORKLOAD_LIMIT = 250;
     private static final int NUM_PARTITIONS = 32;
     
     // Reading the workload takes a long time, so we only want to do it once
@@ -31,14 +31,13 @@ public class TestSingleSitedCostModelInvalidateCache extends BaseTestCase {
         super.setUp(ProjectType.TPCC);
         this.addPartitions(NUM_PARTITIONS);
         
-        // Super hack! Walk back the directories and find out workload directory
         if (workload == null) {
             File workload_file = this.getWorkloadFile(ProjectType.TPCC); 
-            workload = new Workload(catalog);
+            workload = new Workload(catalogContext.catalog);
             
             workload.load(workload_file, catalogContext.database, new ProcedureLimitFilter(WORKLOAD_LIMIT));
             assertEquals(WORKLOAD_LIMIT, workload.getTransactionCount());
-            System.err.println(workload.getProcedureHistogram());
+//            System.err.println(workload.getProcedureHistogram());
         }
     }
  
@@ -53,10 +52,7 @@ public class TestSingleSitedCostModelInvalidateCache extends BaseTestCase {
         
         // We now want to do the reverse
         // We'll invalidate the cache for every element *but* one
-        List<CatalogType> single = new ArrayList<CatalogType>(1);
         for (CatalogType catalog_item : items) {
-            single.clear();
-            single.add(catalog_item);
             for (CatalogType catalog_item2 : items) {
                 if (catalog_item.equals(catalog_item2)) continue;
                 cost_model.invalidateCache(catalog_item2);

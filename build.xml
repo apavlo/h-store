@@ -879,7 +879,7 @@ NATIVE EE STUFF
         <arg value="build.py" />
         <arg value="LOG_LEVEL=${site.exec_ee_log_level}" />
         <arg value="MMAP_STORAGE=${site.storage_mmap}" />
-        <arg value="ANTICACHE_ENABLE=${site.anticache_enable}" />
+        <arg value="ANTICACHE_BUILD=${site.anticache_build}" />
         <arg value="ANTICACHE_REVERSIBLE_LRU=${site.anticache_reversible_lru}" />
         <arg value="${build}" />
     </exec>
