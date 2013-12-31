@@ -413,8 +413,7 @@ public class DependencyTracker {
                           stmtIndex, fragmentId, paramsHash));
             dinfo.init(state.txn_id, currentRound, stmtCounter, stmtIndex, paramsHash, dep_id.intValue());
         }
-        if (debug.val)
-            LOG.debug(String.format("%s - After Initializing DependencyInfo", ts));
+
         return (dinfo);
     }
 
@@ -622,8 +621,6 @@ public class DependencyTracker {
         int output_dep_id, input_dep_id;
         int ignore_ctr = 0;
         for (int i = 0; i < num_fragments; i++) {
-        	if (debug.val)
-        		LOG.debug("Fragment "+i);
             int partitionId = fragment.getPartitionId();
             int fragmentId = fragment.getFragmentId(i);
             int stmtCounter = fragment.getStmtCounter(i);
@@ -666,16 +663,6 @@ public class DependencyTracker {
                               state.dependency_ctr, prefetch,
                               dinfo.debug()));
                 
-                if (debug.val)
-                    LOG.debug(String.format("%s - Added new %s %s for PlanFragment %d at partition %d " +
-                              "[depCtr=%d, prefetch=%s]\n%s",
-                              ts, dinfo.getClass().getSimpleName(),
-                              TransactionUtil.debugStmtDep(stmtCounter, output_dep_id),
-                              fragment.getFragmentId(i),
-                              partition,
-                              state.dependency_ctr, prefetch,
-                              dinfo.debug()));
-                
                 // If this query was prefetched, we need to push its results through the 
                 // the tracker so that it can update counters
                 if (prefetch) {
@@ -690,7 +677,7 @@ public class DependencyTracker {
                         // Switch the DependencyInfo out of prefetch mode
                         // This means that all incoming results (if any) will be 
                         // added to TransactionState just like any other regular query.
-                    	dinfo.resetPrefetch();
+                        dinfo.resetPrefetch();
                         
                         // Now update the internal state just as if these new results 
                         // arrived for this query.
@@ -746,20 +733,6 @@ public class DependencyTracker {
                     }
                 } // FOR
                 LOG.trace(String.format("%s - Number of Output Dependencies for StmtCounter #%d: " +
-                          "%d out of %d\n%s", 
-                          ts, stmtCounter, output_ctr, dep_ctr, StringUtil.formatMaps(m)));
-            }
-            if (debug.val) {
-                int output_ctr = 0;
-                int dep_ctr = 0;
-                Map<String, Object> m = new LinkedHashMap<String, Object>();
-                for (DependencyInfo dinfo : state.dependencies.values()) {
-                    if (dinfo.getStatementCounter() == stmtCounter) dep_ctr++;
-                    if (dinfo.isInternal() == false) {
-                        m.put(String.format("Output[%02d]", output_ctr++), dinfo.debug());
-                    }
-                } // FOR
-                LOG.debug(String.format("%s - Number of Output Dependencies for StmtCounter #%d: " +
                           "%d out of %d\n%s", 
                           ts, stmtCounter, output_ctr, dep_ctr, StringUtil.formatMaps(m)));
             }

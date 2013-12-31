@@ -151,7 +151,7 @@ public class PartitionLockQueue extends ThrottlingQueue<AbstractTransaction> {
         this.lock.lock();
         try {
             if (this.state == QueueState.BLOCKED_SAFETY || this.state == QueueState.BLOCKED_ORDERING) {
-            	this.checkQueueState(false);
+                this.checkQueueState(false);
             }
             if (this.state == QueueState.UNBLOCKED) {
 
@@ -366,7 +366,6 @@ public class PartitionLockQueue extends ThrottlingQueue<AbstractTransaction> {
         if (trace.val)
             LOG.trace(String.format("Partition %d :: Attempting to acquire lock", this.partitionId));
         this.lock.lock();
-        
         try {
             // We have to check whether we are the first txn in the queue,
             // because we will need to reset the blockTimestamp after 
@@ -398,9 +397,6 @@ public class PartitionLockQueue extends ThrottlingQueue<AbstractTransaction> {
         if (debug.val)
             LOG.debug(String.format("Partition %d :: noteTransactionRecievedAndReturnLastSeen(%d)",
                       this.partitionId, txnId));
-        
-        if (debug.val)
-            LOG.debug("txnId: "+txnId + " lastTxnPopped:" + lastTxnPopped + " lastSafeTxnId:"+lastSafeTxnId);
 
         this.lastSeenTxnId = txnId;
         if (trace.val) {
@@ -487,9 +483,7 @@ public class PartitionLockQueue extends ThrottlingQueue<AbstractTransaction> {
             // that the lastSafeTxnId has been polled. That means that we need to 
             // wait for an appropriate amount of time before we're allow to be executed.
             if (this.lastSafeTxnId != -1 && txnId.compareTo(this.lastSafeTxnId) > 0 && afterRemoval == false) {
-                LOG.debug(String.format("Partition %d :: txnId[%d] ==> %s (blockTime=%d)",
-                        this.partitionId, txnId, newState, this.blockTimestamp));
-            	newState = QueueState.BLOCKED_ORDERING;
+                newState = QueueState.BLOCKED_ORDERING;
                 if (debug.val)
                     LOG.debug(String.format("Partition %d :: txnId[%d] > lastSafeTxnId[%d]",
                               this.partitionId, txnId, this.lastSafeTxnId));
@@ -586,8 +580,6 @@ public class PartitionLockQueue extends ThrottlingQueue<AbstractTransaction> {
         
         // Set the new state
         if (newState != this.state) {
-//            LOG.info(String.format("Partition %d :: ORIG[%s]->NEW[%s] / LastSafeTxn:%d",
-//                    this.partitionId, this.state, newState, this.lastSafeTxnId));
             if (trace.val)
                 LOG.trace(String.format("Partition %d :: ORIG[%s]->NEW[%s] / LastSafeTxn:%d",
                           this.partitionId, this.state, newState, this.lastSafeTxnId));
@@ -618,7 +610,6 @@ public class PartitionLockQueue extends ThrottlingQueue<AbstractTransaction> {
         assert(this.state != QueueState.BLOCKED_ORDERING ||
               (this.state == QueueState.BLOCKED_ORDERING && this.blockTimestamp != NULL_BLOCK_TIMESTAMP)) :
               String.format("Invalid state %s with NULL blocked timestamp", this.state);
-
         return this.state;
     }
     

@@ -88,7 +88,6 @@ import edu.brown.hstore.Hstoreservice.QueryEstimate;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.callbacks.ClientResponseCallback;
-import edu.brown.hstore.callbacks.JVMSnapshotTransactionCallback;
 import edu.brown.hstore.callbacks.LocalFinishCallback;
 import edu.brown.hstore.callbacks.LocalInitQueueCallback;
 import edu.brown.hstore.callbacks.PartitionCountingCallback;
@@ -503,11 +502,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 Throwable error = arg.getSecond();
                 String threadName = "<unknown>";
                 if (thread != null) threadName = thread.getName(); 
-                StringWriter errors = new StringWriter();
-                error.printStackTrace(new PrintWriter(errors));
                 LOG.fatal(String.format("Thread %s had a fatal error: %s",
                           threadName, (error != null ? error.getMessage() : null)));
-                LOG.info(errors.toString());
                 error.printStackTrace();
                 hstore_coordinator.shutdownClusterBlocking(error);
             }

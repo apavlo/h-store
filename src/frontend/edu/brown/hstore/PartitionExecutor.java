@@ -1102,7 +1102,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
 //                    if (trace.val)
 //                        LOG.trace(String.format("The %s for partition %s empty. Checking for utility work...",
 //                                  this.work_queue.getClass().getSimpleName(), this.partitionId));
-                	if (this.utilityWork()) {
+                    if (this.utilityWork()) {
                         nextWork = UTIL_WORK_MSG;
                     }
                 }
@@ -1141,7 +1141,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
      * @return true if there is more utility work that can be done
      */
     private boolean utilityWork() {
-         if (hstore_conf.site.exec_profiling) this.profiler.util_time.start();
+        if (hstore_conf.site.exec_profiling) this.profiler.util_time.start();
         // -------------------------------
         // Poll Lock Queue
         // -------------------------------
@@ -1156,12 +1156,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
 //                          this.specExecScheduler.getClass().getSimpleName(),
 //                          this.partitionId,
 //                          (this.currentDtxn != null ? "blocked on " + this.currentDtxn : "idle")));
-        	 LOG.trace(String.format("Checking %s for something to do at partition %d while %s",
-                  this.specExecScheduler.getClass().getSimpleName(),
-                  this.partitionId,
-                 (this.currentDtxn != null ? "blocked on " + this.currentDtxn : "idle")));
-    
-        	assert(hstore_conf.site.specexec_enable) :
+            assert(hstore_conf.site.specexec_enable) :
                 "Trying to schedule speculative txn even though it is disabled";
             SpeculationType specType = this.calculateSpeculationType();
             if (hstore_conf.site.exec_profiling) this.profiler.conflicts_time.start();
@@ -3800,7 +3795,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             if (notify != null && notify.hasSitesToNotify())
                 this.notifyDonePartitions(ts, notify);
         }
-
+        
         // Attach the ParameterSets to our transaction handle so that anybody on this HStoreSite
         // can access them directly without needing to deserialize them from the WorkFragments
         ts.attachParameterSets(batchParams);
@@ -3879,11 +3874,13 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                               ts, this.partitionId));
                 break;
             }
+
             this.tmp_localWorkFragmentBuilders.clear();
             if (predict_singlePartition == false) {
                 this.tmp_remoteFragmentBuilders.clear();
                 this.tmp_localSiteFragmentBuilders.clear();
             }
+
             // -------------------------------
             // FAST PATH: Assume everything is local
             // -------------------------------
@@ -4067,10 +4064,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             first = false;
         } // WHILE
         if (hstore_site.getJvmSnapshotManager().isParent())
-        	this.fs.getBBContainer().discard();
-//        LOG.info(String.format("%s - BREAK OUT [first=%s, stillHasWorkFragments=%s, latch=%s]",
-//                ts, first, this.depTracker.stillHasWorkFragments(ts), latch));
-//
+            this.fs.getBBContainer().discard();
         if (trace.val)
             LOG.trace(String.format("%s - BREAK OUT [first=%s, stillHasWorkFragments=%s, latch=%s]",
                       ts, first, this.depTracker.stillHasWorkFragments(ts), latch));

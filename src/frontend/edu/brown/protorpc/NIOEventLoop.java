@@ -23,7 +23,7 @@ public class NIOEventLoop implements EventLoop {
     public NIOEventLoop() {
         try {
             selector = Selector.open();
-        } catch (IOException e) { e.printStackTrace(); throw new RuntimeException(e); }
+        } catch (IOException e) { throw new RuntimeException(e); }
     }
 
     public void setExitOnSigInt(boolean exitOnSigInt) {
@@ -151,8 +151,6 @@ public class NIOEventLoop implements EventLoop {
     public void run() {
         if (LOG.isDebugEnabled()) LOG.debug("Starting run() loop");
         while (!exitLoop) {
-            if (Thread.currentThread().getName().equals("H00-child") && LOG.isDebugEnabled())
-                LOG.debug("runOnce");
             runOnce();
         }
         exitLoop = false;

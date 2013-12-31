@@ -27,7 +27,6 @@
  ***************************************************************************/
 package edu.brown.utils;
 
-import org.jfree.util.Log;
 import org.voltdb.utils.Pair;
 
 public class EventObservableExceptionHandler extends EventObservable<Pair<Thread, Throwable>> implements Thread.UncaughtExceptionHandler {
@@ -38,8 +37,6 @@ public class EventObservableExceptionHandler extends EventObservable<Pair<Thread
     public void uncaughtException(Thread t, Throwable e) {
         if (this.error == null)
             this.error = e;
-        Log.info("error");
-        e.printStackTrace();
         this.notifyObservers(Pair.of(t, e));
     }
 

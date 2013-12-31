@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.log4j.Logger;
-import org.jfree.util.Log;
 import org.voltdb.ClientResponseImpl;
 
 import com.google.protobuf.RpcCallback;
@@ -69,9 +68,6 @@ public class LocalPrepareCallback extends PartitionCountingCallback<LocalTransac
         // We want to do this first because the transaction state could get
         // cleaned-up right away when we call HStoreCoordinator.transactionFinish()
         ClientResponseImpl cresponse = this.ts.getClientResponse();
-        if (debug.val) {
-            Log.debug("Send back client response");
-        }
         assert(cresponse.isInitialized()) :
             "Trying to send back ClientResponse for " + ts + " before it was set!";
         this.hstore_site.responseSend(this.ts, cresponse);
