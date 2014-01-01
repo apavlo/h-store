@@ -24,6 +24,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.log4j.Logger;
 import org.voltdb.SnapshotSiteProcessor.SnapshotTableTask;
 import org.voltdb.catalog.Host;
+import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Table;
 import org.voltdb.sysprocs.SnapshotRegistry;
 import org.voltdb.sysprocs.SnapshotSave;
@@ -31,6 +32,7 @@ import org.voltdb.sysprocs.saverestore.SnapshotUtil;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.PartitionExecutor.SystemProcedureExecutionContext;
+import edu.brown.utils.CollectionUtil;
 
 /**
  * SnapshotSaveAPI extracts reusuable snapshot production code
@@ -271,9 +273,16 @@ public class SnapshotSaveAPI
                         SnapshotSiteProcessor.m_taskListsForSites.get(ii).addAll(partitionedSnapshotTasks);
                     }
 
-                    int siteIndex = 0;
+                    
+                    // CHANGE : Assign replicated table work to single partition with lowest id
+                    Host catalog_host = context.getHost();
+                    Site catalog_site = CollectionUtil.first(CatalogUtil.getSitesForHost(catalog_host));
+                    Integer lowest_site_id = catalog_site.getId();
+                   
+                    //int siteIndex = 0;
                     for (SnapshotTableTask t : replicatedSnapshotTasks) {
-                        SnapshotSiteProcessor.m_taskListsForSites.get(siteIndex++ % numLocalSites).offer(t);
+                        //SnapshotSiteProcessor.m_taskListsForSites.get(siteIndex++ % numLocalSites).offer(t);
+                        SnapshotSiteProcessor.m_taskListsForSites.get(lowest_site_id).offer(t);
                     }
                 }
             } catch (Exception ex) {

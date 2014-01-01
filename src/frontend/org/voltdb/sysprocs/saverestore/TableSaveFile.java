@@ -208,6 +208,7 @@ public class TableSaveFile
             FastDeserializer fd = new FastDeserializer(saveRestoreHeader);
             byte completedByte = fd.readByte();
             m_completed = failedCRCDueToNotCompleted ? false : (completedByte == 1 ? true : false);
+                        
             for (int ii = 0; ii < 4; ii++) {
                 m_versionNum[ii] = fd.readInt();
             }

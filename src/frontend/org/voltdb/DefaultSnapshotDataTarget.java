@@ -254,6 +254,8 @@ public class DefaultSnapshotDataTarget implements SnapshotDataTarget {
         m_channel.write(completed);
         m_channel.force(false);
         m_channel.close();
+        LOG.trace("Closing file " + m_file);
+
         if (m_onCloseHandler != null) {
             m_onCloseHandler.run();
         }
@@ -296,6 +298,9 @@ public class DefaultSnapshotDataTarget implements SnapshotDataTarget {
                     }
                     m_bytesWritten += totalWritten;
                     m_bytesWrittenSinceLastSync.addAndGet(totalWritten);
+                    
+                    LOG.trace("Attempting to write snapshot data to file " + m_file);
+
                 } catch (IOException e) {
                     m_writeException = e;
                     LOG.error("Error while attempting to write snapshot data to file " + m_file, e);

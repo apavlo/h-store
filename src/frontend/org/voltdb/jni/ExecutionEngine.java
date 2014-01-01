@@ -88,6 +88,10 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
     public boolean getDirtyStatus() {
         return m_dirty;
     }
+    
+    public PartitionExecutor getPartitionExecutor(){
+	return executor;
+    }
 
     /** Utility method to verify return code and throw as required */
     final protected void checkErrorCode(final int errorCode) {

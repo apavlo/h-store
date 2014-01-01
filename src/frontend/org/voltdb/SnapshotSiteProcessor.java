@@ -185,6 +185,8 @@ public class SnapshotSiteProcessor {
 
     public Future<?> doSnapshotWork(ExecutionEngine ee) {
         Future<?> retval = null;
+        
+        LOG.trace("doSnapshotWork at partition :"+ee.getPartitionExecutor().getPartitionId());
 
         /*
          * This thread will null out the reference to m_snapshotTableTasks when
@@ -200,9 +202,11 @@ public class SnapshotSiteProcessor {
          * here. If there isn't something is wrong because when the last task
          * is polled cleanup and nulling should occur.
          */
-        while (!m_snapshotTableTasks.isEmpty()) {
-            final SnapshotTableTask currentTask = m_snapshotTableTasks.peek();
+        while (!m_snapshotTableTasks.isEmpty()) {        
+            final SnapshotTableTask currentTask = m_snapshotTableTasks.peek();            
             assert(currentTask != null);
+            LOG.trace("currentTask : "+currentTask);
+
             final int headerSize = currentTask.m_target.getHeaderSize();
             final BBContainer snapshotBuffer = m_availableSnapshotBuffers.poll();
             assert(snapshotBuffer != null);
@@ -272,13 +276,16 @@ public class SnapshotSiteProcessor {
             m_snapshotTargets = null;
             m_snapshotTableTasks = null;
             final int result = ExecutionSitesCurrentlySnapshotting.decrementAndGet();
+                        
+            System.out.println("Snapshot terminator : Engine # :: "+result);
 
             /**
              * If this is the last one then this EE must close all the SnapshotDataTargets.
              * Done in a separate thread so the EE can go and do other work. It will
              * sync every file descriptor and that may block for a while.
              */
-            if (result == 0) {
+            // CHANGE : Doing it at the site with lowest id at a host 
+            //if (result == 1) {
 
                 final Thread terminatorThread =
                     new Thread("Snapshot terminator") {
@@ -310,7 +317,7 @@ public class SnapshotSiteProcessor {
                 }
 
                 terminatorThread.start();
-            }
+            //}
         }
         return retval;
     }
@@ -345,6 +352,8 @@ public class SnapshotSiteProcessor {
             t.join();
         }
         m_snapshotTargetTerminators = null;
+
+        LOG.trace("completeSnapshotWork at partition :"+ee.getPartitionExecutor().getPartitionId());
 
         return retval;
     }

@@ -268,10 +268,10 @@ public class SnapshotUtil {
             return;
         }
 
-        System.out.println("Processing Dir :"+directory);
+        //System.out.println("Processing Dir :"+directory);
         //sleep(1);
         for (File f : directory.listFiles(filter)) {
-	    System.out.println("Processing File :"+f);
+	    //System.out.println("Processing File :"+f);
 	    
             if (f.isDirectory()) {
                 if (!f.canRead() || !f.canExecute()) {

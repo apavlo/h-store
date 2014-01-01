@@ -127,6 +127,8 @@ public class SnapshotSave extends VoltSystemProcedure
             byte block = (Byte)params.toArray()[3];
             SnapshotSaveAPI saveAPI = new SnapshotSaveAPI();
             VoltTable result = saveAPI.startSnapshotting(file_path, file_nonce, block, startTime, context, hostname);
+            
+            LOG.trace("createSnapshotTargets : "+hostname+"\n"+result);
             return new DependencySet(SnapshotSave.DEP_createSnapshotTargets, result);
         }
         else if (fragmentId == SysProcFragmentId.PF_createSnapshotTargetsResults)
@@ -165,6 +167,8 @@ public class SnapshotSave extends VoltSystemProcedure
                     result.add(table);
                 }
             }
+            
+            LOG.trace("createSnapshotTargetsResults : "+"\n"+result);
             return new
                 DependencySet( DEP_createSnapshotTargetsResults, result);
         }
@@ -179,6 +183,9 @@ public class SnapshotSave extends VoltSystemProcedure
             Host catalog_host = context.getHost();
             Site catalog_site = CollectionUtil.first(CatalogUtil.getSitesForHost(catalog_host));
             Integer lowest_site_id = catalog_site.getId();
+            
+            LOG.trace("Site id :"+context.getPartitionExecutor().getSiteId());
+            
             if (context.getPartitionExecutor().getSiteId() == lowest_site_id)
             {
                 LOG.trace("Checking feasibility of save with path and nonce: "
