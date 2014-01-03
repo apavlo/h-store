@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.Collection;
 
 import org.apache.log4j.Logger;
 import org.voltdb.ParameterSet;
@@ -35,7 +36,13 @@ import org.voltdb.VoltTableRow;
 import org.voltdb.catalog.Table;
 import org.voltdb.sysprocs.SysProcFragmentId;
 import org.voltdb.utils.Pair;
+import org.voltdb.catalog.Host;
+import org.voltdb.catalog.Site;
+import org.voltdb.catalog.Table;
 
+import edu.brown.hstore.PartitionExecutor.SystemProcedureExecutionContext;
+import edu.brown.catalog.CatalogUtil;
+import edu.brown.utils.CollectionUtil;
 
 public class PartitionedTableSaveFileState extends TableSaveFileState
 {
@@ -159,10 +166,17 @@ public class PartitionedTableSaveFileState extends TableSaveFileState
                     originalHosts.add(p.getSecond());
                 }
             }
-
-            List<Integer> sitesAtHost = null; // FIXME
-//                VoltDB.instance().getCatalogContext().siteTracker.
-//                getLiveExecutionSitesForHost(nextHost);
+            
+            // CHANGE :: Get Site ids for Host
+            SystemProcedureExecutionContext context = this.getSystemProcedureExecutionContext();
+            assert(context!=null);
+	    Host catalog_host = context.getHost();
+	    Collection<Site> catalog_sites = CatalogUtil.getSitesForHost(catalog_host);          
+        
+	    List<Integer> sitesAtHost = new ArrayList<Integer>();	
+	    for (Site catalog_site : catalog_sites){
+	      sitesAtHost.add(catalog_site.getId());
+	    }     
 
             int originalHostsArray[] = new int[originalHosts.size()];
             int qq = 0;

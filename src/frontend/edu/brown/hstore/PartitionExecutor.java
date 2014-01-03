@@ -652,6 +652,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
 
     private final SystemProcedureContext m_systemProcedureContext = new SystemProcedureContext();
 
+    public SystemProcedureExecutionContext getSystemProcedureExecutionContext(){
+	return m_systemProcedureContext;
+    }	
+    
     // ----------------------------------------------------------------------------
     // INITIALIZATION
     // ----------------------------------------------------------------------------
@@ -1524,16 +1528,19 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         if (elapsed >= 1000) {
             if ((this.lastTickTime != 0) && (this.ee != null)) {
                 this.ee.tick(time, this.lastCommittedTxnId);
-                
-                // do other periodic work
-                if (m_snapshotter != null) m_snapshotter.doSnapshotWork(this.ee);
-                
+                                
                 if ((time - this.lastStatsTime) >= 20000) {
                     this.updateMemoryStats(time);
                 }
             }
             this.lastTickTime = time;
         }
+        
+        // CHANGE : TICK
+        // do other periodic work
+        if (m_snapshotter != null) 
+	  m_snapshotter.doSnapshotWork(this.ee);
+
     }
     
     private void updateMemoryStats(long time) {
@@ -4967,7 +4974,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
 
     public Collection<Exception> completeSnapshotWork() throws InterruptedException {
         return m_snapshotter.completeSnapshotWork(ee);
-    }
+    }    
+    
     
     // ---------------------------------------------------------------
     // SHUTDOWN METHODS

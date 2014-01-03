@@ -19,7 +19,9 @@ package org.voltdb.sysprocs.saverestore;
 
 import java.io.IOException;
 import java.util.HashSet;
+import java.util.TreeSet;
 import java.util.Set;
+import java.util.Collection;
 
 import org.voltdb.ParameterSet;
 import org.voltdb.VoltDB;
@@ -27,6 +29,13 @@ import org.voltdb.VoltTableRow;
 import org.voltdb.VoltSystemProcedure.SynthesizedPlanFragment;
 import org.voltdb.catalog.Table;
 import org.voltdb.sysprocs.SysProcFragmentId;
+import org.voltdb.catalog.Host;
+import org.voltdb.catalog.Site;
+import org.voltdb.catalog.Table;
+
+import edu.brown.hstore.PartitionExecutor.SystemProcedureExecutionContext;
+import edu.brown.catalog.CatalogUtil;
+import edu.brown.utils.CollectionUtil;
 
 public class ReplicatedTableSaveFileState extends TableSaveFileState
 {
@@ -61,10 +70,20 @@ public class ReplicatedTableSaveFileState extends TableSaveFileState
     public SynthesizedPlanFragment[]
     generateRestorePlan(Table catalogTable)
     {
-//        for (int hostId : m_hostsWithThisTable) {
-//            m_sitesWithThisTable.addAll(VoltDB.instance().getCatalogContext().
-//                                        siteTracker.getLiveExecutionSitesForHost(hostId));
-//        }
+	// CHANGE :: sites with replicated table
+	SystemProcedureExecutionContext context = this.getSystemProcedureExecutionContext();
+        assert(context != null);
+        Host catalog_host = context.getHost();
+        Collection<Site> catalog_sites = CatalogUtil.getSitesForHost(catalog_host);          
+        
+        Set<Integer> execution_site_ids = new TreeSet<Integer>();	
+        for (Site catalog_site : catalog_sites){
+            execution_site_ids.add(catalog_site.getId());
+	}        
+
+	for (int hostId : m_hostsWithThisTable) {
+	  m_sitesWithThisTable.addAll(execution_site_ids);
+        }
 
         SynthesizedPlanFragment[] restore_plan = null;
         if (catalogTable.getIsreplicated())
@@ -93,7 +112,18 @@ public class ReplicatedTableSaveFileState extends TableSaveFileState
     generateReplicatedToReplicatedPlan()
     {
         SynthesizedPlanFragment[] restore_plan = null;
-        Set<Integer> execution_site_ids = null; // FIXME
+        
+        // CHANGE :: Get Site ids for Host
+        SystemProcedureExecutionContext context = this.getSystemProcedureExecutionContext();
+        assert(context != null);
+        Host catalog_host = context.getHost();
+        Collection<Site> catalog_sites = CatalogUtil.getSitesForHost(catalog_host);          
+        
+        Set<Integer> execution_site_ids = new TreeSet<Integer>();	
+        for (Site catalog_site : catalog_sites){
+            execution_site_ids.add(catalog_site.getId());
+	}        
+        
         Set<Integer> sites_missing_table =
             getSitesMissingTable(execution_site_ids);
         // not sure we want to deal with handling expected load failures,
@@ -102,6 +132,12 @@ public class ReplicatedTableSaveFileState extends TableSaveFileState
         restore_plan =
             new SynthesizedPlanFragment[execution_site_ids.size() + 1];
         int restore_plan_index = 0;
+        
+        //System.out.println("getSitesMissingTable :");
+        //for(Integer ii : sites_missing_table )
+	//    System.out.print(" "+ii);
+	//System.out.println("");  
+        
         for (Integer site_id : m_sitesWithThisTable)
         {
             restore_plan[restore_plan_index] =
@@ -134,6 +170,7 @@ public class ReplicatedTableSaveFileState extends TableSaveFileState
                 sites_missing_table.add(site_id);
             }
         }
+        
         return sites_missing_table;
     }
 

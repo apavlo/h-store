@@ -161,6 +161,8 @@ public class SnapshotSave extends VoltSystemProcedure
                         result = constructNodeResultsTable();
                 }
 
+                LOG.trace("result : "+result);
+                
                 while (table.advanceRow())
                 {
                     // this will add the active row of table
@@ -191,6 +193,10 @@ public class SnapshotSave extends VoltSystemProcedure
                 LOG.trace("Checking feasibility of save with path and nonce: "
                                 + file_path + ", " + file_nonce);
 
+                LOG.trace("ExecutionSitesCurrentlySnapshotting : "+
+		      SnapshotSiteProcessor.ExecutionSitesCurrentlySnapshotting.get());                
+                   
+                // CHANGE : Only 1 Site doing this   
                 if (SnapshotSiteProcessor.ExecutionSitesCurrentlySnapshotting.get() != -1) {
                     result.addRow(
                                   Integer.parseInt(context.getSite().getHost().getTypeName()),

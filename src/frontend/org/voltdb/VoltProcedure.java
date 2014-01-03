@@ -55,6 +55,7 @@ import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.PartitionExecutor;
+import edu.brown.hstore.PartitionExecutor.SystemProcedureExecutionContext;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.hstore.util.ParameterSetArrayCache;
@@ -130,6 +131,7 @@ public abstract class VoltProcedure implements Poolable {
     protected PartitionEstimator p_estimator;
     protected HStoreSite hstore_site;
     protected HStoreConf hstore_conf;
+    protected SystemProcedureExecutionContext execution_context;
     
     /** The local partition id where this VoltProcedure is running */
     protected int partitionId = -1;
@@ -231,6 +233,7 @@ public abstract class VoltProcedure implements Poolable {
         assert(executor != null);
         
         this.executor = executor;
+        this.execution_context = executor.getSystemProcedureExecutionContext();
         this.p_estimator = executor.getPartitionEstimator();
         this.hstore_site = executor.getHStoreSite();
         this.hstore_conf = HStoreConf.singleton();

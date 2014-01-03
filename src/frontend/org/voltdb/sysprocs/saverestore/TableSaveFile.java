@@ -35,6 +35,11 @@ import org.voltdb.utils.DBBPool;
 import org.voltdb.utils.DBBPool.BBContainer;
 import org.voltdb.EELibraryLoader;
 
+import edu.brown.hstore.HStoreConstants;
+import edu.brown.hstore.PartitionExecutor.SystemProcedureExecutionContext;
+import edu.brown.catalog.CatalogUtil;
+import edu.brown.utils.CollectionUtil;
+
 /**
  * An abstraction around a table's save file for restore.  Deserializes the
  * meta-data that was stored when the table was saved and makes it available
@@ -104,6 +109,7 @@ public class TableSaveFile
             m_saveFile = dataIn;
             m_continueOnCorruptedChunk = continueOnCorruptedChunk;
 
+            
             final CRC32 crc = new CRC32();
             /*
              * If the CRC check fails because the file wasn't completed
@@ -234,6 +240,13 @@ public class TableSaveFile
                     m_corruptedPartitions.add(0);
                 }
             }
+            
+            // CHANGE :: Reset Channel position ?
+            //m_saveFile.position(0);
+            
+            //System.err.println("TableSaveFile size :"+m_saveFile.size());  
+            //System.err.println("TableSaveFile position :"+m_saveFile.position());  
+            
             /*
              * Several runtime exceptions can be thrown in valid failure cases where
              * a corrupt save file is being detected.
@@ -326,16 +339,20 @@ public class TableSaveFile
     // Will get the next chunk of the table that is just over the chunk size
     public synchronized BBContainer getNextChunk() throws IOException
     {
+        if (m_chunkReaderException != null) {
+            throw m_chunkReaderException;
+        }
+
         if (!m_hasMoreChunks) {
             return m_availableChunks.poll();
         }
-
+        
         if (m_chunkReader == null) {
             m_chunkReader = new ChunkReader();
             m_chunkReaderThread = new Thread(m_chunkReader, "ChunkReader");
             m_chunkReaderThread.start();
         }
-
+        
         Container c = null;
         while (c == null && (m_hasMoreChunks || !m_availableChunks.isEmpty())) {
             c = m_availableChunks.poll();
@@ -343,21 +360,24 @@ public class TableSaveFile
                 try {
                     wait();
                 } catch (InterruptedException e) {
+		    e.printStackTrace();
                     throw new IOException(e);
                 }
             }
         }
+
         if (c != null) {
             m_chunkReads.release();
-        }
-        if (m_chunkReaderException != null) {
-            throw m_chunkReaderException;
         }
         return c;
     }
 
-    public synchronized boolean hasMoreChunks()
+    public synchronized boolean hasMoreChunks() throws IOException
     {
+        if (m_chunkReaderException != null) {
+            throw m_chunkReaderException;
+        }
+        
         return m_hasMoreChunks || !m_availableChunks.isEmpty();
     }
 //
@@ -438,7 +458,7 @@ public class TableSaveFile
     private class ChunkReader implements Runnable {
 
         private void readChunks() {
-            int chunksRead = 0;
+            int chunksRead = 0;            
             while (m_hasMoreChunks) {
                 /*
                  * Limit the number of chunk reads at any one time.
@@ -448,6 +468,7 @@ public class TableSaveFile
                 } catch (InterruptedException e) {
                     return;
                 }
+                boolean expectedAnotherChunk = false;
                 try {
 
                     /*
@@ -456,13 +477,14 @@ public class TableSaveFile
                     ByteBuffer chunkLengthB = ByteBuffer.allocate(16);
                     while (chunkLengthB.hasRemaining()) {
                         final int read = m_saveFile.read(chunkLengthB);
-                        if (read == -1) {
+                        if (read == -1) {			    
                             throw new EOFException();
                         }
                     }
                     chunkLengthB.flip();
                     final int nextChunkLength = chunkLengthB.getInt();
-
+		    expectedAnotherChunk = true;	
+                    
                     /*
                      * Get the partition id and its CRC and validate it. Validating the
                      * partition ID for the chunk separately makes it possible to
@@ -478,6 +500,10 @@ public class TableSaveFile
                     chunkLengthB.get(partitionIdBytes);
                     partitionIdCRC.update(partitionIdBytes);
                     int generatedValue = (int)partitionIdCRC.getValue();
+                    
+                    System.err.println("generatedValue :"+generatedValue);
+                    System.err.println("nextChunkPartitionIdCRC :"+nextChunkPartitionIdCRC);
+                    
                     if (generatedValue != nextChunkPartitionIdCRC) {
                         chunkLengthB.position(0);
                         for (int partitionId : m_partitionIds) {
@@ -519,6 +545,7 @@ public class TableSaveFile
                         final long pointer = org.voltdb.utils.DBBPool.getBufferAddress(b);
                         c = new Container(b, pointer, originContainer);
                     }
+		    System.err.println("chunksRead c");
 
                     /*
                      * If the length value is wrong or not all data made it to disk this read will
@@ -621,6 +648,10 @@ public class TableSaveFile
                 } catch (EOFException eof) {
                     synchronized (TableSaveFile.this) {
                         m_hasMoreChunks = false;
+                        if (expectedAnotherChunk) {
+                            m_chunkReaderException = new IOException(
+                                    "Expected to find another chunk but reached end of file instead");
+                        }
                         TableSaveFile.this.notifyAll();
                     }
                 } catch (IOException e) {
