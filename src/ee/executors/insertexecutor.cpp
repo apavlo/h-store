@@ -59,6 +59,9 @@
 #include "storage/temptable.h"
 #include "common/types.h"
 #include "storage/WindowTable.h"
+#include <sys/time.h>
+#include <time.h>
+#include <cassert>
 
 namespace voltdb {
 
@@ -116,6 +119,13 @@ namespace voltdb {
 		m_multiPartition = m_node->isMultiPartition();
 		return true;
 	}
+
+
+int64_t another_timespecDiffNanoseconds(const timespec& end, const timespec& start) {
+//	assert(timespecValid(end));
+//	assert(timespecValid(start));
+	return (end.tv_nsec - start.tv_nsec) + (end.tv_sec - start.tv_sec) * (int64_t) 1000000000;
+}
 
 	bool InsertExecutor::p_execute(const NValueArray &params, ReadWriteTracker *tracker) {
 		assert(m_node == dynamic_cast<InsertPlanNode*>(abstract_node));
@@ -204,7 +214,19 @@ namespace voltdb {
 		if (beProcessed == true)
 		{
 			PersistentTable* persistTarget = dynamic_cast<PersistentTable*>(m_targetTable);
-			if(persistTarget != NULL && persistTarget->hasTriggers()) {
+			if(persistTarget != NULL && persistTarget->hasTriggers() && persistTarget->fireTriggers()) {
+                              
+                                // added by hawk, 2013/12/13, for collect data
+                                struct timeval start_;
+                                struct timeval delete_start_;
+                                struct timeval end_;
+                                struct timespec start;
+                                struct timespec delete_start;
+                                struct timespec end;
+                        
+                                int error = gettimeofday(&start_, NULL);
+                                assert(error == 0);
+                                // ended by hawk
 				std::vector<Trigger*>::iterator trig_iter;
 
 				VOLT_DEBUG( "Start firing triggers of table '%s'", persistTarget->name().c_str());
@@ -217,11 +239,35 @@ namespace voltdb {
 				}
 				VOLT_DEBUG( "End firing triggers of table '%s'", persistTarget->name().c_str());
 
-				persistTarget->deleteAllTuples(true);
+                                // to ensure this is a stream, by hawk, 2013.11.25
+                                //added by hawk, 2013/12/13, to collect data
+                                error = gettimeofday(&delete_start_, NULL);
+                                assert(error == 0);
+                                //ended by hawk
+                                if (persistTarget->isStream() == true)
+				    persistTarget->deleteAllTuples(true);
+
+                                //added by hawk, 2013/12/13, to collect data
+                                error = gettimeofday(&end_, NULL);
+                                assert(error == 0);
+
+                                TIMEVAL_TO_TIMESPEC(&start_, &start);
+                                TIMEVAL_TO_TIMESPEC(&delete_start_, &delete_start);
+                                TIMEVAL_TO_TIMESPEC(&end_, &end);
+                                
+                                int64_t latency = another_timespecDiffNanoseconds(end, start);
+                                int64_t delete_latency = another_timespecDiffNanoseconds(end, delete_start);
+                                persistTarget->add_latency_data(latency, delete_latency);
+
+                                 VOLT_DEBUG("hawk: latency: %ld with delete latency: %ld ...", latency, delete_latency);
+                                //ended by hawk
+				WindowTable* windowTarget = dynamic_cast<WindowTable*>(persistTarget);
+				if(windowTarget != NULL)
+				{
+					windowTarget->setFireTriggers(false);
+				}
 			}
 
-			// if this is a stream, we should delete the content after firing trigger
-			//if(persistTarget->isStream() == true)
 		}
 
 

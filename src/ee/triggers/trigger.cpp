@@ -46,11 +46,15 @@
 //#include <sstream>
 //#include <cassert>
 //#include <cstdio>
-#include "trigger.h"
+#include "triggers/trigger.h"
 #include "common/types.h"
 #include "storage/table.h"
 #include "catalog/statement.h"
 #include "catalog/catalogmap.h"
+#include <sys/time.h>
+#include <time.h>
+#include <cassert>
+#include "triggers/TriggerStats.h"
 
 using std::map;
 using std::string;
@@ -63,10 +67,12 @@ Trigger::~Trigger() {
 	delete m_frags;
 }
 
-Trigger::Trigger(const catalog::CatalogMap<catalog::Statement> *stmts, unsigned char type, bool forEach) :
-	m_type(type), m_forEach(forEach)
+Trigger::Trigger(const int32_t id, const string &name, const catalog::CatalogMap<catalog::Statement> *stmts, unsigned char type, bool forEach) :
+	m_id(id), m_name(name), m_type(type), m_forEach(forEach), stats_(this)
 {
 	VOLT_DEBUG("TRIGGER CONSTRUCTOR");
+	m_latency = 0;
+
 	m_frags = new vector<const catalog::PlanFragment*>;
 	map<string, catalog::Statement *>::const_iterator stmt_iter = stmts->begin();
 	for( ; stmt_iter != stmts->end(); stmt_iter++){
@@ -80,7 +86,37 @@ Trigger::Trigger(const catalog::CatalogMap<catalog::Statement> *stmts, unsigned 
 	}
 }
 
+int32_t Trigger::id() const {
+	return m_id;
+}
+
+string Trigger::name() const {
+    return m_name;
+}
+
+int64_t Trigger::latency() const {
+	return m_latency;
+}
+
+voltdb::TriggerStats* Trigger::getTriggerStats() {
+	return &stats_;
+}
+
+int64_t timespecDiffNanoseconds(const timespec& end, const timespec& start) {
+    //assert(timespecValid(end));
+    //assert(timespecValid(start));
+    return (end.tv_nsec - start.tv_nsec) + (end.tv_sec - start.tv_sec) * (int64_t) 1000000000;
+}
+
 void Trigger::fire(VoltDBEngine *engine, Table *input) {
+	struct timeval start_;
+	struct timeval end_;
+	struct timespec start;
+	struct timespec end;
+
+
+	int error = gettimeofday(&start_, NULL);
+        assert(error == 0);
 	// TODO: Loop through all the single-partition plan fragment ids for
 	// the target Statement. Then for each of them, invoke engine->executeQueryNoOutput()
 	// Throw an exception if something bad happens...
@@ -103,6 +139,14 @@ void Trigger::fire(VoltDBEngine *engine, Table *input) {
 		send_tuple_count = false;
 	}
 
+	error = gettimeofday(&end_, NULL);
+       assert(error == 0);
+
+	TIMEVAL_TO_TIMESPEC(&start_, &start);
+	TIMEVAL_TO_TIMESPEC(&end_, &end);
+	m_latency = timespecDiffNanoseconds(end, start);
+
+	VOLT_DEBUG("m_latency: %ld", m_latency);
 }
 
 bool Trigger::setType(unsigned char t) {

@@ -107,6 +107,7 @@ parser = argparse.ArgumentParser(description='This is a benchmark auto-run scrip
 parser.add_argument('-p','--project', help='Benchmark name', default='tpcc')
 parser.add_argument('-o','--output', help='output file', default=defaultoutput)
 parser.add_argument('--stop', help='indicate if the threshold will be used to stop expeiments', action='store_true')
+parser.add_argument('--blocking', help='indicate if system will blocking', action='store_true')
 parser.add_argument('--log', help='indicate if system will run log', action='store_true')
 parser.add_argument('--tmin', help='min - thread per host', type=int, default=1)
 parser.add_argument('--tmax', help='max - thread per host', type=int, default=1)
@@ -124,6 +125,7 @@ args = parser.parse_args()
 projectname = args.project
 resultfile  = args.output
 stopflag    = args.stop
+blockingflag= args.blocking
 tmin	    = args.tmin
 tmax	    = args.tmax
 tstep       = args.tstep
@@ -134,8 +136,13 @@ lmin	    = args.lmin
 lmax	    = args.lmax
 lstep       = args.lstep
 llog        = args.log
+if blockingflag==True:
+    strblocking = "true"
+else:
+    strblocking = "false"
+#end if
 
-print projectname, resultfile, stopflag, tmin, tmax, tstep, rmin, rmax, rstep, lmin, lmax, lstep
+print projectname, resultfile, stopflag, blockingflag, llog, tmin, tmax, tstep, rmin, rmax, rstep, lmin, lmax, lstep
 
 #exit(0)
 
@@ -162,8 +169,8 @@ while client_threads_per_host <= tmax:
 			print "no logging mechanism executed in system..."
 			str_antcmd 			= "ant hstore-benchmark"
 			str_project 			= " -Dproject=" + projectname
-			str_client_blocking 		= " -Dclient.output_results_json=" + "true"
-			str_client_output_results_json 	= " -Dclient.bloking=" + "true"
+			str_client_output_results_json  = " -Dclient.output_results_json=" + "true"
+			str_client_blocking    	        = " -Dclient.blocking=" + strblocking
 			str_client_threads_per_host 	= " -Dclient.threads_per_host=" + "{0:d}".format(client_threads_per_host)
 			str_client_txnrate		= " -Dclient.txnrate=" + "{0:d}".format(client_txnrate)
 			str_site_commandlog_timeout = " -Dsite.commandlog_timeout=" + "{0:d}".format(site_commandlog_timeout)
@@ -191,6 +198,7 @@ while client_threads_per_host <= tmax:
 			site_commandlog_timeout += lstep
 	
 			if stopflag == False:
+                                client_txnrate += rstep
 				continue
 			##endif
 			
@@ -217,8 +225,8 @@ while client_threads_per_host <= tmax:
 		while site_commandlog_timeout <= lmax:
 			str_antcmd 			= "ant hstore-benchmark"
 			str_project 			= " -Dproject=" + projectname
-			str_client_blocking 		= " -Dclient.output_results_json=" + "true"
-			str_client_output_results_json 	= " -Dclient.bloking=" + "true"
+			str_client_output_results_json  = " -Dclient.output_results_json=" + "true"
+			str_client_blocking    	        = " -Dclient.blocking=" + strblocking
 			str_client_threads_per_host 	= " -Dclient.threads_per_host=" + "{0:d}".format(client_threads_per_host)
 			str_client_txnrate		= " -Dclient.txnrate=" + "{0:d}".format(client_txnrate)
 			str_site_commandlog_timeout = " -Dsite.commandlog_timeout=" + "{0:d}".format(site_commandlog_timeout)

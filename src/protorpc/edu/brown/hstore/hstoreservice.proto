@@ -155,6 +155,10 @@ message TransactionInitRequest {
     // Serialized ParameterSets (one per Statment).
     // The order of these elements must match WorkFragment.paramIndex
     repeated bytes prefetch_params = 8;
+
+   // initiateTime, added by hawk, 2013/11/20
+   required int64 initiateTime = 9;
+
 }
 
 message TransactionInitResponse {

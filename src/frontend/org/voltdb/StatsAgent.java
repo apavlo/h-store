@@ -51,6 +51,28 @@ public class StatsAgent {
         }
         statsSources.add(source);
     }
+    
+    
+    // added by hawk, 2013/11/25
+    public synchronized StatsSource getTransactionStatsSources(int txnId)
+    {
+        final HashMap<Integer, ArrayList<StatsSource>> catalogIdToStatsSources = registeredStatsSources.get(SysProcSelector.PROCEDURE);
+        if (catalogIdToStatsSources==null)
+            return null;
+        
+        assert catalogIdToStatsSources != null;
+        if(catalogIdToStatsSources.get(txnId)==null)
+            return null;
+        
+        assert(catalogIdToStatsSources.get(txnId) != null) :
+            "Invalid stats source type '" + SysProcSelector.PROCEDURE + "'";
+        ArrayList<StatsSource> statsSources = catalogIdToStatsSources.get(txnId);
+        StatsSource source = statsSources.get(0);
+        assert(source != null) :
+            "Invalid stats source '" + SysProcSelector.PROCEDURE + "' with id - " + Integer.toString(txnId);
+        return source;
+    }
+    // ended by hawk
 
     public synchronized VoltTable getStats(
             final SysProcSelector selector,

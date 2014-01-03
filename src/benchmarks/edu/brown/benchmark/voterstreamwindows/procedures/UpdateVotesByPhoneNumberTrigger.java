@@ -22,7 +22,7 @@ public class UpdateVotesByPhoneNumberTrigger extends VoltTrigger {
         new SQLStmt("INSERT INTO votes_by_phone_number ( phone_number, num_votes ) SELECT phone_number, num_votes + 1 FROM S3;");
     
     // FIXME, after using the tuple in stream, we should delete it. 
-    public final SQLStmt deleteStreamStmt = new SQLStmt("DELETE FROM S3");
+    //public final SQLStmt deleteStreamStmt = new SQLStmt("DELETE FROM S3");
 
 
 }

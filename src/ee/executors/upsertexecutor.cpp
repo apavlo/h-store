@@ -334,7 +334,7 @@ namespace voltdb {
 		if (beProcessed == true)
 		{
 			PersistentTable* persistTarget = dynamic_cast<PersistentTable*>(m_targetTable);
-			if(persistTarget != NULL && persistTarget->hasTriggers()) {
+			if(persistTarget != NULL && persistTarget->hasTriggers() && persistTarget->fireTriggers()) {
 				std::vector<Trigger*>::iterator trig_iter;
 
 				VOLT_DEBUG( "Start firing triggers of table '%s'", persistTarget->name().c_str());
@@ -346,6 +346,12 @@ namespace voltdb {
 						(*trig_iter)->fire(m_engine, outputTable);
 				}
 				VOLT_DEBUG( "End firing triggers of table '%s'", persistTarget->name().c_str());
+				WindowTable* windowTarget = dynamic_cast<WindowTable*>(persistTarget);
+				if(windowTarget != NULL)
+				{
+					VOLT_DEBUG( "Set Fire Triggers for window '%s' to false.", persistTarget->name().c_str());
+					windowTarget->setFireTriggers(false);
+				}
 			}
 		}
 

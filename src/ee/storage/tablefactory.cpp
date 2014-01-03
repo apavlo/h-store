@@ -146,6 +146,7 @@ Table* TableFactory::getPersistentTable(
         	pTable->m_hasTriggers = true;
         else
         	pTable->m_hasTriggers = false;
+        pTable->m_fireTriggers = pTable->m_hasTriggers;
 
         for (int i = 0; i < indexes.size(); ++i) {
             pTable->m_indexes[i] = TableIndexFactory::getInstance(indexes[i]);
@@ -208,6 +209,7 @@ Table* TableFactory::getPersistentTable(
 			pTable->m_hasTriggers = true;
 		else
 			pTable->m_hasTriggers = false;
+        pTable->m_fireTriggers = pTable->m_hasTriggers;
 
         // one for pkey + all the other indexes
         pTable->m_indexCount = 1 + (int)indexes.size();
@@ -342,6 +344,7 @@ Table* TableFactory::getWindowTable(
         	pTable->m_hasTriggers = true;
         else
         	pTable->m_hasTriggers = false;
+        pTable->m_fireTriggers = false;
 
         for (int i = 0; i < indexes.size(); ++i) {
             pTable->m_indexes[i] = TableIndexFactory::getInstance(indexes[i]);
@@ -408,6 +411,7 @@ Table* TableFactory::getWindowTable(
 			pTable->m_hasTriggers = true;
 		else
 			pTable->m_hasTriggers = false;
+        pTable->m_fireTriggers = false;
 
         // one for pkey + all the other indexes
         pTable->m_indexCount = 1 + (int)indexes.size();
@@ -521,6 +525,32 @@ void TableFactory::configureStats(voltdb::CatalogId databaseId,
 										  ctx->m_partitionId,
 										  databaseId);
 	}
+
+	// initialize stats for all the trigger for the table
+	PersistentTable *persistTarget = dynamic_cast<PersistentTable*>(table);
+	if(persistTarget != NULL && persistTarget->hasTriggers()) {
+		std::vector<Trigger*>::iterator trig_iter;
+		for(trig_iter = persistTarget->getTriggers()->begin(); trig_iter != persistTarget->getTriggers()->end(); trig_iter++) 
+		{
+			(*trig_iter)->getTriggerStats()->configure((*trig_iter)->name() + " stats",
+					  ctx->m_hostId,
+					  ctx->m_hostname,
+					  ctx->m_siteId,
+					  ctx->m_partitionId,
+					  databaseId);
+		}
+
+		// FIXME: we need isStream() for Table, not use hasTriggers() to determine if it is a stream
+		// by hawk, initialize stats for all the stream
+		persistTarget->getStreamStats()->configure(name + "stream stats",
+										  ctx->m_hostId,
+										  ctx->m_hostname,
+										  ctx->m_siteId,
+										  ctx->m_partitionId,
+										  databaseId);
+	}
+
+
 
 }
 

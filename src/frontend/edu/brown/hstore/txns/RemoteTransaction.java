@@ -34,6 +34,7 @@ import org.apache.log4j.Logger;
 import org.voltdb.CatalogContext;
 import org.voltdb.ParameterSet;
 import org.voltdb.catalog.Procedure;
+import org.voltdb.utils.EstTime;
 
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.callbacks.RemoteInitQueueCallback;
@@ -105,12 +106,17 @@ public class RemoteTransaction extends AbstractTransaction {
      * @return
      */
     public RemoteTransaction init(long txnId,
+                                  long initiateTime, // added by hawk, 2013/11/20
                                   int base_partition,
                                   ParameterSet parameters,
                                   Procedure catalog_proc,
                                   PartitionSet partitions,
                                   boolean predict_abortable) {
+        
+        long localInitiateTime = EstTime.currentTimeMillis(); // added by hawk, 2013/11/20
         super.init(txnId,              // TxnId
+                   initiateTime,
+                   localInitiateTime,
                    -1,                 // ClientHandle
                    base_partition,     // BasePartition
                    parameters,         // Procedure Parameters

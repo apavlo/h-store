@@ -57,10 +57,15 @@ import org.voltdb.StatsSource;
 import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.SysProcSelector;
 import org.voltdb.TransactionIdManager;
+import org.voltdb.ProcedureStatsCollector;
+import org.voltdb.TriggerStatsCollector;
+import org.voltdb.StreamStatsCollector;
+import org.voltdb.VoltTable;
 import org.voltdb.catalog.Host;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Table;
+import org.voltdb.catalog.Trigger;
 import org.voltdb.compiler.AdHocPlannedStmt;
 import org.voltdb.compiler.AsyncCompilerResult;
 import org.voltdb.compiler.AsyncCompilerWorkThread;
@@ -247,6 +252,14 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     private final StatsAgent statsAgent = new StatsAgent();
     private TransactionProfilerStats txnProfilerStats;
     private MemoryStats memoryStats;
+    // added by hawk, 2013/11/25
+    //For runtime statistics collection
+    private ProcedureStatsCollector m_statsCollector;
+    // added by hawk, 2013/11/6
+    private TriggerStatsCollector m_triggerStatsCollector;
+    private StreamStatsCollector m_streamStatsCollector;
+    // ended by hawk
+
     
     // ----------------------------------------------------------------------------
     // NETWORKING STUFF
@@ -797,7 +810,19 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // MEMORY
         this.memoryStats = new MemoryStats();
         this.statsAgent.registerStatsSource(SysProcSelector.MEMORY, 0, this.memoryStats);
-        
+
+        // PROCEDURES
+        this.m_statsCollector = new ProcedureStatsCollector();
+        this.statsAgent.registerStatsSource(SysProcSelector.PROCEDURE, this.site_id, this.m_statsCollector);
+
+        // TRIGGERS
+        this.m_triggerStatsCollector = new TriggerStatsCollector();
+        this.statsAgent.registerStatsSource(SysProcSelector.TRIGGER, this.site_id, this.m_triggerStatsCollector);
+
+        // STREAM
+        this.m_streamStatsCollector = new StreamStatsCollector();
+        this.statsAgent.registerStatsSource(SysProcSelector.STREAM, this.site_id, this.m_streamStatsCollector);
+
         // TXN COUNTERS
         statsSource = new TransactionCounterStats(this.catalogContext);
         this.statsAgent.registerStatsSource(SysProcSelector.TXNCOUNTER, 0, statsSource);
@@ -1176,7 +1201,20 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     public MemoryStats getMemoryStatsSource() {
         return (this.memoryStats);
     }
-    
+
+    // added by hawk, 2013/11/25
+    public ProcedureStatsCollector getProcedureStatsSource() {
+        return (this.m_statsCollector);
+    }
+
+    public TriggerStatsCollector getTriggerStatsSource() {
+        return (this.m_triggerStatsCollector);
+    }
+
+    public StreamStatsCollector getStreamStatsSource() {
+        return (this.m_streamStatsCollector);
+    }
+
     public Collection<TransactionPreProcessor> getTransactionPreProcessors() {
         return (this.preProcessors);
     }
@@ -1699,6 +1737,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                                         catalog_proc,
                                         procParams,
                                         clientCallback);
+        
         this.transactionQueue(ts);
         if (trace.val)
             LOG.trace(String.format("Finished initial processing of new txn."));
@@ -1708,8 +1747,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     }
     
     // added by hawk, 2013/11/1
-    public void invocationTriggerProcedureProcess(long clientHandle, Procedure procedure) {
-      
+    public void invocationTriggerProcedureProcess(long clientHandle, long initiateTime, Procedure procedure) {
+        
+      // hawk: for micro-benchmark 2, start point
+      long startNanoTime = System.nanoTime();
+      // end
+        
       //System.out.println("hawk - firing frontend trigger 1:" + procedure.getName());
 
       long timestamp = -1;
@@ -1749,13 +1792,26 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
           } // SYNCH
       }
       
+      // make buffer to follow same way as above method
+      final StoredProcedureInvocation invocation =
+              new StoredProcedureInvocation(client_handle, procedure.getName());
+      invocation.setBasePartition(base_partition);
+
+      ByteBuffer buffer = null;
+      try {
+        byte[] invocationbytes = FastSerializer.serialize(invocation);
+        buffer = ByteBuffer.wrap(invocationbytes);
+      } catch (IOException e) {
+        e.printStackTrace();
+      }
+      
       // -------------------------------
       // REDIRECT TXN TO PROPER BASE PARTITION
       // -------------------------------
       if (this.isLocalPartition(base_partition) == false) {
           // If the base_partition isn't local, then we need to ship it off to
           // the right HStoreSite
-          this.transactionRedirect(procedure, null, base_partition, clientCallback);
+          this.transactionRedirect(procedure, buffer, base_partition, clientCallback);
           return;
       }
       
@@ -1764,16 +1820,32 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
           LOG.trace("Initializing transaction request using network processing thread");
       //System.out.println("hawk - firing frontend trigger 2:" + procedure.getName());
       LocalTransaction ts = this.txnInitializer.createLocalTransaction(
-                                      null,
-                                      timestamp,
+                                      buffer,//null,
+                                      timestamp,//initiateTime,
                                       client_handle,
                                       base_partition,
                                       procedure,
                                       procParams,
                                       clientCallback);
+
       this.transactionQueue(ts);
       if (trace.val)
           LOG.trace(String.format("Finished initial processing of new txn."));
+      
+      // hawk: for micro-benchmark 2, end point
+      /* Begin : HStoreSite.java micro-benchmark 2 */
+      long endNanoTime = System.nanoTime();
+      
+      ProcedureStatsCollector collector = this.getProcedureStatsSource();
+      if(collector != null)
+      {
+          boolean aborted = false;
+          boolean failed = false;
+          // reuse ProcedureStatsCollector to do micro-benchmark 2 
+          collector.addTransactionInfo(aborted, failed, startNanoTime, endNanoTime);
+      }
+      /* End : HStoreSite.java micro-benchmark 2 */
+
   }
 
     // ended by hawk
@@ -2668,6 +2740,24 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }
         cresponse.setClusterRoundtrip((int)(now - initiateTime));
         cresponse.setRestartCounter(restartCounter);
+        
+        // added by hawk, 2013/11/25, this code snippet is used for transaction statistic, 
+        // can be resued for micro-benchmark 2 & 3
+//        ProcedureStatsCollector collector = this.getProcedureStatsSource();
+//        if(collector != null)
+//        {
+//            boolean aborted = false;
+//            boolean failed = false;
+//            if(status != Status.OK)
+//            {
+//                aborted = true;
+//                failed = false;
+//            }
+//            // FIXME, when we will have the condition of failed ???
+//            collector.addTransactionInfo(aborted, failed, initiateTime, now);
+//        }
+        // ended by hawk
+        
         try {
 //            System.out.println("hawk - response with txn: " + String.format("%d...",cresponse.getTransactionId()));
 //            DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss.SSS");
@@ -2682,6 +2772,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 LOG.warn("Failed to send back ClientResponse for txn #" + cresponse.getTransactionId(), ex);
         }
     }
+    
+    
     
     // ----------------------------------------------------------------------------
     // DELETE TRANSACTION METHODS

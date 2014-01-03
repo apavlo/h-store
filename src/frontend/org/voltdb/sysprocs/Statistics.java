@@ -19,6 +19,7 @@ package org.voltdb.sysprocs;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -35,6 +36,7 @@ import org.voltdb.VoltTable.ColumnInfo;
 import org.voltdb.VoltType;
 import org.voltdb.catalog.CatalogMap;
 import org.voltdb.catalog.Table;
+import org.voltdb.catalog.Trigger;
 import org.voltdb.exceptions.ServerFaultException;
 import org.voltdb.utils.Pair;
 import org.voltdb.utils.VoltTableUtil;
@@ -64,6 +66,14 @@ public class Statistics extends VoltSystemProcedure {
     static final int DEP_tableData = (int)
         SysProcFragmentId.PF_tableData | HStoreConstants.MULTIPARTITION_DEPENDENCY;
     static final int DEP_tableAggregator = (int) SysProcFragmentId.PF_tableAggregator;
+
+    static final int DEP_triggerData = (int)
+            SysProcFragmentId.PF_triggerData | HStoreConstants.MULTIPARTITION_DEPENDENCY;
+    static final int DEP_triggerAggregator = (int) SysProcFragmentId.PF_triggerAggregator;
+
+    static final int DEP_streamData = (int)
+            SysProcFragmentId.PF_streamData | HStoreConstants.MULTIPARTITION_DEPENDENCY;
+    static final int DEP_streamAggregator = (int) SysProcFragmentId.PF_streamAggregator;
 
     static final int DEP_procedureData = (int)
         SysProcFragmentId.PF_procedureData | HStoreConstants.MULTIPARTITION_DEPENDENCY;
@@ -109,6 +119,10 @@ public class Statistics extends VoltSystemProcedure {
     public void initImpl() {
         registerPlanFragment(SysProcFragmentId.PF_tableData);
         registerPlanFragment(SysProcFragmentId.PF_tableAggregator);
+        registerPlanFragment(SysProcFragmentId.PF_triggerData);
+        registerPlanFragment(SysProcFragmentId.PF_triggerAggregator);
+        registerPlanFragment(SysProcFragmentId.PF_streamData);
+        registerPlanFragment(SysProcFragmentId.PF_streamAggregator);
         registerPlanFragment(SysProcFragmentId.PF_procedureData);
         registerPlanFragment(SysProcFragmentId.PF_procedureAggregator);
         registerPlanFragment(SysProcFragmentId.PF_initiatorData);
@@ -232,7 +246,52 @@ public class Statistics extends VoltSystemProcedure {
                 VoltTable result = VoltTableUtil.union(dependencies.get(DEP_tableData));
                 return new DependencySet(DEP_tableAggregator, result);
             }
-    
+
+            // ----------------------------------------------------------------------------
+            //  TRIGGER statistics
+            // ----------------------------------------------------------------------------
+            case SysProcFragmentId.PF_triggerData: {
+                assert(params.toArray().length == 2);
+                final boolean interval =
+                    ((Byte)params.toArray()[0]).byteValue() == 0 ? false : true;
+                final Long now = (Long)params.toArray()[1];
+                ArrayList<Integer> catalogIds = new ArrayList<Integer>();
+                catalogIds.add(context.getSite().getId());
+                VoltTable result = executor.getHStoreSite().getStatsAgent().getStats(
+                                SysProcSelector.TRIGGER,
+                                catalogIds,
+                                interval,
+                                now);
+                return new DependencySet(DEP_triggerData, result);
+            }
+            case SysProcFragmentId.PF_triggerAggregator: {
+                VoltTable result = VoltTableUtil.union(dependencies.get(DEP_triggerData));
+                return new DependencySet(DEP_triggerAggregator, result);
+            }
+
+            // ----------------------------------------------------------------------------
+            //  STREAM statistics
+            // ----------------------------------------------------------------------------
+            case SysProcFragmentId.PF_streamData: {
+                assert(params.toArray().length == 2);
+                final boolean interval =
+                    ((Byte)params.toArray()[0]).byteValue() == 0 ? false : true;
+                final Long now = (Long)params.toArray()[1];
+                ArrayList<Integer> catalogIds = new ArrayList<Integer>();
+                catalogIds.add(context.getSite().getId());
+                VoltTable result = executor.getHStoreSite().getStatsAgent().getStats(
+                                SysProcSelector.STREAM,
+                                catalogIds,
+                                interval,
+                                now);
+                return new DependencySet(DEP_streamData, result);
+            }
+            case SysProcFragmentId.PF_streamAggregator: {
+                VoltTable result = VoltTableUtil.union(dependencies.get(DEP_streamData));
+                return new DependencySet(DEP_streamAggregator, result);
+            }
+            
+
             // ----------------------------------------------------------------------------
             //  PROCEDURE statistics
             // ----------------------------------------------------------------------------
@@ -359,6 +418,12 @@ public class Statistics extends VoltSystemProcedure {
         }
         else if (selector.toUpperCase().startsWith(SysProcSelector.TABLE.name())) {
             results = getTableData(interval, now);
+        }
+        else if (selector.toUpperCase().startsWith(SysProcSelector.TRIGGER.name())) {
+            results = getTriggerData(interval, now);
+        }
+        else if (selector.toUpperCase().startsWith(SysProcSelector.STREAM.name())) {
+            results = getStreamData(interval, now);
         }
         else if (selector.toUpperCase().startsWith(SysProcSelector.PROCEDURE.name())) {
             results = getProcedureData(interval, now);
@@ -541,4 +606,59 @@ public class Statistics extends VoltSystemProcedure {
         results = executeSysProcPlanFragments(pfs, DEP_tableAggregator);
         return results;
     }
+    
+    private VoltTable[] getTriggerData(long interval, final long now) {
+        VoltTable[] results;
+        SynthesizedPlanFragment pfs[] = new SynthesizedPlanFragment[2];
+        // create a work fragment to gather table data from each of the sites.
+        pfs[1] = new SynthesizedPlanFragment();
+        pfs[1].fragmentId = SysProcFragmentId.PF_triggerData;
+        pfs[1].outputDependencyIds = new int[]{ DEP_triggerData };
+        pfs[1].inputDependencyIds = new int[]{};
+        pfs[1].multipartition = true;
+        pfs[1].parameters = new ParameterSet();
+        pfs[1].parameters.setParameters((byte)interval, now);
+
+        // create a work fragment to aggregate the results.
+        // Set the MULTIPARTITION_DEPENDENCY bit to require a dependency from every site.
+        pfs[0] = new SynthesizedPlanFragment();
+        pfs[0].fragmentId = SysProcFragmentId.PF_triggerAggregator;
+        pfs[0].outputDependencyIds = new int[]{ DEP_triggerAggregator };
+        pfs[0].inputDependencyIds = new int[]{DEP_triggerData};
+        pfs[0].multipartition = false;
+        pfs[0].parameters = new ParameterSet();
+
+        // distribute and execute these fragments providing pfs and id of the
+        // aggregator's output dependency table.
+        results = executeSysProcPlanFragments(pfs, DEP_triggerAggregator);
+        return results;
+    }
+
+    private VoltTable[] getStreamData(long interval, final long now) {
+        VoltTable[] results;
+        SynthesizedPlanFragment pfs[] = new SynthesizedPlanFragment[2];
+        // create a work fragment to gather table data from each of the sites.
+        pfs[1] = new SynthesizedPlanFragment();
+        pfs[1].fragmentId = SysProcFragmentId.PF_streamData;
+        pfs[1].outputDependencyIds = new int[]{ DEP_streamData };
+        pfs[1].inputDependencyIds = new int[]{};
+        pfs[1].multipartition = true;
+        pfs[1].parameters = new ParameterSet();
+        pfs[1].parameters.setParameters((byte)interval, now);
+
+        // create a work fragment to aggregate the results.
+        // Set the MULTIPARTITION_DEPENDENCY bit to require a dependency from every site.
+        pfs[0] = new SynthesizedPlanFragment();
+        pfs[0].fragmentId = SysProcFragmentId.PF_streamAggregator;
+        pfs[0].outputDependencyIds = new int[]{ DEP_streamAggregator };
+        pfs[0].inputDependencyIds = new int[]{DEP_streamData};
+        pfs[0].multipartition = false;
+        pfs[0].parameters = new ParameterSet();
+
+        // distribute and execute these fragments providing pfs and id of the
+        // aggregator's output dependency table.
+        results = executeSysProcPlanFragments(pfs, DEP_streamAggregator);
+        return results;
+    }
+
 }

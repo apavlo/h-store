@@ -76,8 +76,17 @@ public enum ProjectType {
     NOSTREAMTRIGGER4("NoStreamTrigger4","edu.brown.benchmark.nostreamtrigger4"),
     NOSTREAMTRIGGER5("NoStreamTrigger5","edu.brown.benchmark.nostreamtrigger5"),
     FRONTENDTRIGGER("FrontEndTrigger","edu.brown.benchmark.frontendtrigger"),
+    SIMPLEFRONTENDTRIGGER("SimpleFrontEndTrigger","edu.brown.benchmark.simplefrontendtrigger"),
     ANOTHERVOTERSTREAM("AnotherVoterStream","edu.brown.benchmark.anothervoterstream"),
     VOTERSTREAMWINDOWS("VoterStreamWindows","edu.brown.benchmark.voterstreamwindows"),
+    ANOTHERVOTERWINDOWS("AnotherVoterWindows","edu.brown.benchmark.anothervoterwindows"),
+    SIMPLEWINDOWHSTORE("SimpleWindowHStore", "edu.brown.benchmark.simplewindowhstore"),
+    SIMPLEWINDOWSSTORE("SimpleWindowSStore", "edu.brown.benchmark.simplewindowsstore"),
+    VOTERWINHSTORE("VoterWinHStore", "edu.brown.benchmark.voterwinhstore"),
+    VOTERWINSSTORE("VoterWinSStore", "edu.brown.benchmark.voterwinsstore"),
+    SIMPLESTREAMTRIGGER("SimpleStreamTrigger", "edu.brown.benchmark.simplestreamtrigger"),
+    SIMPLENOOP("SimpleNoOp", "edu.brown.benchmark.simplenoop"),
+    SIMPLESTATEMENT("SimpleStatement", "edu.brown.benchmark.simplestatement"),
     TEST("Test", null),
     ;
 
