@@ -1,0 +1,102 @@
+AA	Apparel/Accessories	CC
+AC	Air Courier	TR
+AD	Aerospace & Defense	CG
+AE	Advertising	SV
+AM	Auto & Truck Manufacturers	CC
+AP	Auto & Truck Parts	CC
+AR	Airline	TR
+AT	Appliance & Tool	CC
+AV	Audio & Video Equipment	CC
+BA	Beverages (Alcoholic)	CN
+BC	Broadcasting & Cable TV	SV
+BD	Biotechnology & Drugs	HC
+BN	Beverages (Non-Alcoholic)	CN
+BS	Business Services	SV
+CA	Constr. & Agric. Machinery	CG
+CC	Chemicals - Plastics & Rubber	BM
+CD	Computer Storage Devices	TC
+CE	Communications Equipment	TC
+CF	Consumer Financial Services	FN
+CG	Casinos & Gaming	SV
+CH	Computer Hardware	TC
+CK	Containers & Packaging	BM
+CL	Coal	EN
+CM	Chemical Manufacturing	BM
+CN	Computer Networks	TC
+CO	Conglomerates	CO
+CP	Computer Peripherals	TC
+CR	Crops	CN
+CS	Computer Services	TC
+CT	Retail (Catalog & Mail Order)	SV
+CU	Communications Services	SV
+CV	Construction Services	CG
+CX	Constr. - Supplies & Fixtures	CG
+DD	Retail (Department & Discount)	SV
+DR	Retail (Drugs)	SV
+EI	Electronic Instruments & Controls	TC
+EU	Electric Utilities	UT
+FF	Furniture & Fixtures	CC
+FL	Fish/Livestock	CN
+FO	Footwear	CC
+FP	Food Processing	CN
+FR	Fabricated Plastic & Rubber	BM
+FW	Forestry & Wood Products	BM
+GR	Retail (Grocery)	SV
+GS	Gold & Silver	BM
+HF	Healthcare Facilities	HC
+HI	Retail (Home Improvement)	SV
+HM	Hotels & Motels	SV
+IA	Insurance ( Accident & Health)	FN
+IL	Insurance (Life)	FN
+IM	Insurance (Miscellaneous)	FN
+IP	Insurance (Prop & Casualty)	FN
+IS	Iron & Steel	BM
+IV	Investment Services	FN
+JS	Jewelry & Silverware	CC
+MC	Money Center Banks	FN
+MD	Major Drugs	HC
+ME	Medical Equipment & Supplies	HC
+MF	Misc. Fabricated Products	BM
+MG	Misc. Capital Goods	CG
+MH	Mobile Homes & RVs	CG
+MM	Metal Mining	BM
+MP	Motion Pictures	SV
+MS	Misc. Financial Services	FN
+MT	Misc. Transportation	TR
+NG	Natural Gas Utilities	UT
+NM	Non-Metallic Mining	BM
+OE	Office Equipment	TC
+OI	Oil & Gas - Integrated	EN
+OO	Oil & Gas Operations	EN
+OS	Office Supplies	CN
+OW	Oil Well Services & Equipment	EN
+PA	Paper & Paper Products	BM
+PG	Photography	CC
+PH	Personal & Household Products	CN
+PP	Printing & Publishing	SV
+PR	Printing Services	SV
+PS	Personal Services	SV
+RA	Recreational Activities	SV
+RB	Regional Banks	FN
+RE	Real Estate Operations	SV
+RL	Retail (Speciality)	SV
+RM	Construction - Raw Materials	CG
+RN	Rental & Leasing	SV
+RP	Recreational Products	CC
+RR	Railroads	TR
+RS	Restaurants	SV
+RT	Retail (Apparel)	SV
+SB	S&Ls/Savings Banks	FN
+SC	Schools	SV
+SM	Semiconductors	TC
+SP	Software & Programming	TC
+SS	Security Systems & Services	SV
+ST	Scientific & Technical Instr.	TC
+TH	Retail (Technology)	SV
+TI	Tires	CC
+TN	Textiles - Non Apparel	CC
+TO	Tobacco	CN
+TR	Trucking	TR
+WM	Waste Management Services	SV
+WT	Water Transportation	TR
+WU	Water Utilities	UT

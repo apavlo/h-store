@@ -1,0 +1,4 @@
+NYSE	New York Stock Exchange	0930	1600	Simulates the New York Stock Exchange	1
+NASDAQ	NASDAQ (National Association of Security Dealers and Quotations)	0930	1600	Simulates the NASDAQ	2
+AMEX	American Stock Exchange	0930	1600	Simulates the American Stock Exchange	3
+PCX	Pacific Exchange	0930	1600	Simulates the Pacific Exchange	4

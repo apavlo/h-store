@@ -932,8 +932,9 @@ public abstract class BenchmarkComponent {
         // Only include it if it wasn't rejected
         // This is actually handled in the Distributer, but it doesn't hurt to have this here
         Status status = cresponse.getStatus();
+        
         if (status == Status.OK || status == Status.ABORT_USER) {
-            
+           
             // TRANSACTION COUNTERS
             boolean is_specexec = cresponse.isSpeculative();
             boolean is_dtxn = (cresponse.isSinglePartition() == false); 
@@ -1008,6 +1009,7 @@ public abstract class BenchmarkComponent {
         int latency = workflowResponse.getClusterRoundtrip();
         
         if (latency > 0) {
+            System.out.println("latency was greater than 0");
             Map<Integer, ObjectHistogram<Integer>> latenciesMap = m_txnStats.workflowLatencies ; 
             Histogram<Integer> latencies = latenciesMap.get(wkf_idx);
             if (latencies == null) {

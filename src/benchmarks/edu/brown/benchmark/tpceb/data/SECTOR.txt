@@ -1,0 +1,12 @@
+BM	Basic Materials
+CG	Capital Goods
+CO	Conglomerates
+CC	Consumer Cyclical
+CN	Consumer Non-Cyclical
+EN	Energy
+FN	Financial
+HC	Healthcare
+SV	Services
+TC	Technology
+TR	Transportation
+UT	Utilities
