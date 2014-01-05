@@ -244,9 +244,17 @@ public class TableSaveFile
             // CHANGE :: Reset Channel position ?
             //m_saveFile.position(0);
             
-            //System.err.println("TableSaveFile size :"+m_saveFile.size());  
-            //System.err.println("TableSaveFile position :"+m_saveFile.position());  
-            
+            System.err.println("TableSaveFile Info :");  
+            System.err.println("CRC Check :"+ !failedCRCDueToNotCompleted);  
+            System.err.println("Completed :"+m_completed);  
+            System.err.println("Tablename :"+m_tableName);  
+            System.err.println("Replicated :"+m_isReplicated);  
+            System.err.println("# Partitions :"+m_totalPartitions);                          
+            System.err.println("Original CRC :"+ originalCRC);  
+            System.err.println("Actual CRC :"+ actualCRC);     
+            System.err.println("File Channel Size :"+m_saveFile.size());  
+            System.err.println("File Channel Position :"+m_saveFile.position());
+            System.err.println("-----");
             /*
              * Several runtime exceptions can be thrown in valid failure cases where
              * a corrupt save file is being detected.
@@ -310,6 +318,18 @@ public class TableSaveFile
     public long getCreateTime() {
         return m_createTime;
     }
+    
+    public FileChannel getFileChannel(){
+	return m_saveFile;
+    }
+    
+    public void setFilePath(String path){
+	m_filePath = path;
+    }
+    
+    public String getFilePath(){
+	return m_filePath;
+    }    
 
     public void close() throws IOException {
         if (m_chunkReaderThread != null) {
@@ -358,6 +378,7 @@ public class TableSaveFile
             c = m_availableChunks.poll();
             if (c == null) {
                 try {
+		    System.err.println("getNextChunk null");
                     wait();
                 } catch (InterruptedException e) {
 		    e.printStackTrace();
@@ -431,6 +452,7 @@ public class TableSaveFile
     private static ConcurrentLinkedQueue<Container> m_buffers = new ConcurrentLinkedQueue<Container>();
     private final ArrayDeque<Container> m_availableChunks = new ArrayDeque<Container>();
     private final HashSet<Integer> m_relevantPartitionIds;
+    private String m_filePath;
 
     /**
      * Maintain a list of corrupted partitions. It is possible for uncorrupted partitions
@@ -470,7 +492,8 @@ public class TableSaveFile
                 }
                 boolean expectedAnotherChunk = false;
                 try {
-
+		    System.err.println("ChunkReader starts");
+                
                     /*
                      * Get the length of the next chunk, partition id, crc for partition id,
                      */
@@ -485,6 +508,8 @@ public class TableSaveFile
                     final int nextChunkLength = chunkLengthB.getInt();
 		    expectedAnotherChunk = true;	
                     
+                    System.err.println("nextChunkLength :"+ nextChunkLength);		  
+                                       
                     /*
                      * Get the partition id and its CRC and validate it. Validating the
                      * partition ID for the chunk separately makes it possible to
@@ -500,9 +525,10 @@ public class TableSaveFile
                     chunkLengthB.get(partitionIdBytes);
                     partitionIdCRC.update(partitionIdBytes);
                     int generatedValue = (int)partitionIdCRC.getValue();
+                                              
+		    System.err.println("nextChunkPartitionIdCRC :"+ nextChunkPartitionIdCRC);
+		    System.err.println("partitionIdCRC :"+ generatedValue);
                     
-                    System.err.println("generatedValue :"+generatedValue);
-                    System.err.println("nextChunkPartitionIdCRC :"+nextChunkPartitionIdCRC);
                     
                     if (generatedValue != nextChunkPartitionIdCRC) {
                         chunkLengthB.position(0);
@@ -512,6 +538,7 @@ public class TableSaveFile
                         throw new IOException("Chunk partition ID CRC check failed. " +
                                 "This corrupts all partitions in this file");
                     }
+                    
 
                     /*
                      * CRC for the data portion of the chunk
