@@ -231,10 +231,10 @@ public class TestSaveRestoreSysprocSuite extends RegressionSuite {
                                  table);
                                  
             // CHANGE :: Sanity check
-            results = client.callProcedure("@Statistics", "table", 0).getResults();
+            //results = client.callProcedure("@Statistics", "table", 0).getResults();
 
-	    System.out.println("@Statistics after loadTable :"+tableName);
-	    System.out.println(results[0]);                                 
+	    //System.out.println("@Statistics after loadTable :"+tableName);
+	    //System.out.println(results[0]);                                 
         }
         catch (Exception ex)
         {
@@ -483,6 +483,11 @@ public class TestSaveRestoreSysprocSuite extends RegressionSuite {
         results = saveTables(client);
 
         validateSnapshot(true);
+
+        VoltTable[] results_tmp = null;
+        results_tmp = client.callProcedure("@Statistics", "table", 0).getResults();
+        System.out.println("@Statistics after saveTables :");
+        System.out.println(results_tmp[0]);                             
         
         // Kill and restart all the execution sites.
         m_config.shutDown();

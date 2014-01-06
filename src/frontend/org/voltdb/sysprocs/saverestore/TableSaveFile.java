@@ -132,6 +132,9 @@ public class TableSaveFile
             crc.update(lengthBuffer.array(), 4, 4);
             secondCRC.update(lengthBuffer.array(), 4, 4);
 
+	    System.err.println("TableSaveFile Info :");  
+	    System.err.println("Header length :"+length);  
+   
             if (length < 0) {
                 throw new IOException("Corrupted save file has negative header length");
             }
@@ -176,7 +179,7 @@ public class TableSaveFile
             secondCRC.update(lengthBuffer.array(), 0, 4);
             lengthBuffer.flip();
             length = lengthBuffer.getInt();
-
+   
             if (length < 4) {
                 throw new IOException("Corrupted save file has negative length or too small length for VoltTable header");
             }
@@ -244,7 +247,6 @@ public class TableSaveFile
             // CHANGE :: Reset Channel position ?
             //m_saveFile.position(0);
             
-            System.err.println("TableSaveFile Info :");  
             System.err.println("CRC Check :"+ !failedCRCDueToNotCompleted);  
             System.err.println("Completed :"+m_completed);  
             System.err.println("Tablename :"+m_tableName);  
@@ -493,6 +495,8 @@ public class TableSaveFile
                 boolean expectedAnotherChunk = false;
                 try {
 		    System.err.println("ChunkReader starts");
+		    System.err.println("File Channel Size :"+m_saveFile.size());  
+		    System.err.println("File Channel Position :"+m_saveFile.position());
                 
                     /*
                      * Get the length of the next chunk, partition id, crc for partition id,
