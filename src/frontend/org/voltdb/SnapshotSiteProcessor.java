@@ -174,19 +174,19 @@ public class SnapshotSiteProcessor {
                 m_snapshotTargets.add(task.m_target);
             }
             // FIXME meng
-//            if (!ee.activateTableStream(task.m_tableId, TableStreamType.SNAPSHOT )) {
-//                LOG.error("Attempted to activate copy on write mode for table "
-//                        + task.m_name + " and failed");
-//                LOG.error(task);
-//                VoltDB.crashVoltDB();
-//            }
+           if (!ee.activateTableStream(task.m_tableId, TableStreamType.SNAPSHOT )) {
+               LOG.error("Attempted to activate copy on write mode for table "
+                       + task.m_name + " and failed");
+               LOG.error(task);
+               HStore.crashDB();
+           }
         }
     }
 
     public Future<?> doSnapshotWork(ExecutionEngine ee) {
         Future<?> retval = null;
         
-        LOG.trace("doSnapshotWork at partition :"+ee.getPartitionExecutor().getPartitionId());
+        //LOG.trace("doSnapshotWork at partition :"+ee.getPartitionExecutor().getPartitionId());
 
         /*
          * This thread will null out the reference to m_snapshotTableTasks when
@@ -212,11 +212,12 @@ public class SnapshotSiteProcessor {
             assert(snapshotBuffer != null);
             snapshotBuffer.b.clear();
             snapshotBuffer.b.position(headerSize);
-            final int serialized = 0; // FIXME (meng)
-//                ee.tableStreamSerializeMore(
-//                    snapshotBuffer,
-//                    currentTask.m_tableId,
-//                    TableStreamType.SNAPSHOT);
+            //final int serialized = 0; 
+            //FIXME (meng)
+            final int serialized = ee.tableStreamSerializeMore(
+                   snapshotBuffer,
+                   currentTask.m_tableId,
+                   TableStreamType.SNAPSHOT);
 
             if (serialized < 0) {
                 LOG.error("Failure while serialize data from a table for COW snapshot");
@@ -277,7 +278,7 @@ public class SnapshotSiteProcessor {
             m_snapshotTableTasks = null;
             final int result = ExecutionSitesCurrentlySnapshotting.decrementAndGet();
                         
-            System.out.println("Snapshot terminator : Engine # :: "+result);
+            LOG.trace("Snapshot terminator : Engine # :: "+result);
 
             /**
              * If this is the last one then this EE must close all the SnapshotDataTargets.

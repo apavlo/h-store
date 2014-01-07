@@ -1199,6 +1199,8 @@ bool VoltDBEngine::activateTableStream(const CatalogId tableId, TableStreamType 
 
     switch (streamType) {
     case TABLE_STREAM_SNAPSHOT:
+        VOLT_WARN("TableStreamType : TABLE_STREAM_SNAPSHOT for table %s ",table->name().c_str());
+       
         if (table->activateCopyOnWrite(&m_tupleSerializer, m_partitionId)) {
             return false;
         }
@@ -1222,6 +1224,7 @@ bool VoltDBEngine::activateTableStream(const CatalogId tableId, TableStreamType 
     default:
         return false;
     }
+    
     return true;
 }
 

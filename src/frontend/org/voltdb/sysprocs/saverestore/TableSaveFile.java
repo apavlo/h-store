@@ -132,8 +132,8 @@ public class TableSaveFile
             crc.update(lengthBuffer.array(), 4, 4);
             secondCRC.update(lengthBuffer.array(), 4, 4);
 
-	    System.err.println("TableSaveFile Info :");  
-	    System.err.println("Header length :"+length);  
+	    //System.err.println("TableSaveFile Info :");  
+	    //System.err.println("Header length :"+length);  
    
             if (length < 0) {
                 throw new IOException("Corrupted save file has negative header length");
@@ -244,19 +244,13 @@ public class TableSaveFile
                 }
             }
             
-            // CHANGE :: Reset Channel position ?
-            //m_saveFile.position(0);
-            
-            System.err.println("CRC Check :"+ !failedCRCDueToNotCompleted);  
-            System.err.println("Completed :"+m_completed);  
-            System.err.println("Tablename :"+m_tableName);  
-            System.err.println("Replicated :"+m_isReplicated);  
-            System.err.println("# Partitions :"+m_totalPartitions);                          
-            System.err.println("Original CRC :"+ originalCRC);  
-            System.err.println("Actual CRC :"+ actualCRC);     
-            System.err.println("File Channel Size :"+m_saveFile.size());  
-            System.err.println("File Channel Position :"+m_saveFile.position());
-            System.err.println("-----");
+            //System.err.println("Tablename :"+m_tableName);  
+            //System.err.println("Replicated :"+m_isReplicated);  
+            //System.err.println("# Partitions :"+m_totalPartitions);                            
+            //System.err.println("Completed :"+m_completed);  
+            //System.err.println("File Channel Size :"+m_saveFile.size());  
+            //System.err.println("File Channel Position :"+m_saveFile.position());
+            //System.err.println("-----");
             /*
              * Several runtime exceptions can be thrown in valid failure cases where
              * a corrupt save file is being detected.
@@ -380,7 +374,6 @@ public class TableSaveFile
             c = m_availableChunks.poll();
             if (c == null) {
                 try {
-		    System.err.println("getNextChunk null");
                     wait();
                 } catch (InterruptedException e) {
 		    e.printStackTrace();
@@ -493,11 +486,7 @@ public class TableSaveFile
                     return;
                 }
                 boolean expectedAnotherChunk = false;
-                try {
-		    System.err.println("ChunkReader starts");
-		    System.err.println("File Channel Size :"+m_saveFile.size());  
-		    System.err.println("File Channel Position :"+m_saveFile.position());
-                
+                try {                
                     /*
                      * Get the length of the next chunk, partition id, crc for partition id,
                      */
@@ -511,9 +500,7 @@ public class TableSaveFile
                     chunkLengthB.flip();
                     final int nextChunkLength = chunkLengthB.getInt();
 		    expectedAnotherChunk = true;	
-                    
-                    System.err.println("nextChunkLength :"+ nextChunkLength);		  
-                                       
+                                                           
                     /*
                      * Get the partition id and its CRC and validate it. Validating the
                      * partition ID for the chunk separately makes it possible to
@@ -529,10 +516,7 @@ public class TableSaveFile
                     chunkLengthB.get(partitionIdBytes);
                     partitionIdCRC.update(partitionIdBytes);
                     int generatedValue = (int)partitionIdCRC.getValue();
-                                              
-		    System.err.println("nextChunkPartitionIdCRC :"+ nextChunkPartitionIdCRC);
-		    System.err.println("partitionIdCRC :"+ generatedValue);
-                    
+                                        
                     
                     if (generatedValue != nextChunkPartitionIdCRC) {
                         chunkLengthB.position(0);
@@ -576,7 +560,6 @@ public class TableSaveFile
                         final long pointer = org.voltdb.utils.DBBPool.getBufferAddress(b);
                         c = new Container(b, pointer, originContainer);
                     }
-		    System.err.println("chunksRead c");
 
                     /*
                      * If the length value is wrong or not all data made it to disk this read will

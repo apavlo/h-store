@@ -81,7 +81,6 @@ public class TestSaveRestoreSysprocSuite extends RegressionSuite {
     public void tearDown() 
     {	
 	try{
-	  // CHANGE :: NO CLEANUP
 	  deleteTestFiles();
 	  super.tearDown();
 	}
@@ -228,13 +227,7 @@ public class TestSaveRestoreSysprocSuite extends RegressionSuite {
         try
         {
             client.callProcedure("@LoadMultipartitionTable", tableName,
-                                 table);
-                                 
-            // CHANGE :: Sanity check
-            //results = client.callProcedure("@Statistics", "table", 0).getResults();
-
-	    //System.out.println("@Statistics after loadTable :"+tableName);
-	    //System.out.println(results[0]);                                 
+                                 table);                                
         }
         catch (Exception ex)
         {
@@ -338,7 +331,7 @@ public class TestSaveRestoreSysprocSuite extends RegressionSuite {
             ps.flush();
             String reportString = baos.toString("UTF-8");
           
-            System.err.println("Validate Snapshot :"+reportString);
+            //System.err.println("Validate Snapshot :"+reportString);
           
             if (expectSuccess) {		  
                 assertTrue(reportString.startsWith("Snapshot valid\n"));
@@ -357,18 +350,24 @@ public class TestSaveRestoreSysprocSuite extends RegressionSuite {
      * Also does some basic smoke tests
      * of @SnapshotStatus, @SnapshotScan and @SnapshotDelete
      */
-    /*public void testSnapshotSave() throws Exception
+    /* 
+    public void testSnapshotSave() throws Exception
     {
         System.out.println("Starting testSnapshotSave");
         Client client = getClient();
 
+	int num_replicated_items_per_chunk = 100;
+        int num_replicated_chunks = 10;
         int num_partitioned_items_per_chunk = 120;
         int num_partitioned_chunks = 10;
 
+        loadLargeReplicatedTable(client, "REPLICATED_TESTER",
+                                 num_replicated_items_per_chunk,
+                                 num_replicated_chunks);
         loadLargePartitionedTable(client, "PARTITION_TESTER",
                                   num_partitioned_items_per_chunk,
                                   num_partitioned_chunks);
-
+                                  
         VoltTable[] results = null;
 
         results = client.callProcedure("@SnapshotSave", TMPDIR,
@@ -464,13 +463,13 @@ public class TestSaveRestoreSysprocSuite extends RegressionSuite {
 
         validateSnapshot(false);      
         
-    }*/
+    }
     
     public void testSaveAndRestoreReplicatedTable()
     throws IOException, InterruptedException, ProcCallException
     {
         System.out.println("Starting testSaveAndRestoreReplicatedTable");
-        int num_replicated_items_per_chunk = 100;
+        int num_replicated_items_per_chunk = 120;
         int num_replicated_chunks = 10;
 
         Client client = getClient();
@@ -527,8 +526,8 @@ public class TestSaveRestoreSysprocSuite extends RegressionSuite {
             if (results[0].getString("TABLE_NAME").equals("REPLICATED_TESTER"))
             {
                 ++foundItem;
-                //assertEquals((num_replicated_chunks * num_replicated_items_per_chunk),
-                //        results[0].getLong("TABLE_ACTIVE_TUPLE_COUNT"));
+                assertEquals((num_replicated_chunks * num_replicated_items_per_chunk),
+                        results[0].getLong("TUPLE_COUNT"));
             }
         }
         // make sure all sites were loaded
@@ -536,8 +535,9 @@ public class TestSaveRestoreSysprocSuite extends RegressionSuite {
 
         validateSnapshot(true);
     }
+    */
     
-    /*
+    
     public void testSaveAndRestorePartitionedTable()
     throws IOException, InterruptedException, ProcCallException
     {
@@ -675,7 +675,7 @@ public class TestSaveRestoreSysprocSuite extends RegressionSuite {
         System.out.println("testSaveAndRestorePartitionedTable : Stage 4 passed");
 
     }
-    */
+    
     
     /**
      * Build a list of the tests to be run. Use the regression suite

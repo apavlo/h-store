@@ -40,15 +40,14 @@ public class SaveRestoreTestProjectBuilder extends VoltProjectBuilder
     }
     
     public static Class<?> PROCEDURES[] =
-          new Class<?>[] { SaveRestoreSelect.class};
-    //    new Class<?>[] { MatView.class, SaveRestoreSelect.class};
+	new Class<?>[] { MatView.class, SaveRestoreSelect.class};
 
     public static String partitioning[][] =
         new String[][] {{"PARTITION_TESTER", "PT_ID"},
                         {"CHANGE_COLUMNS", "ID"},
                         {"JUMBO_ROW", "PKEY"}};
 
-    public static final File ddlFile = new File("./src/frontend/org/voltdb/sysprocs/saverestore/saverestore-ddl-simple.sql");
+    public static final File ddlFile = new File("./src/frontend/org/voltdb/sysprocs/saverestore/saverestore-ddl.sql");
     public static final String jarFilename = "saverestore.jar";
 
     public void addDefaultProcedures()
@@ -56,7 +55,7 @@ public class SaveRestoreTestProjectBuilder extends VoltProjectBuilder
         addProcedures(PROCEDURES);
     }
 
-    /*
+    
     public void addDefaultPartitioning()
     {
         for (String pair[] : partitioning)
@@ -64,7 +63,7 @@ public class SaveRestoreTestProjectBuilder extends VoltProjectBuilder
             addPartitionInfo(pair[0], pair[1]);
         }
     }
-    */
+    
 
     public void addDefaultSchema()
     {
@@ -82,11 +81,11 @@ public class SaveRestoreTestProjectBuilder extends VoltProjectBuilder
     public void addAllDefaults()
     {
         addDefaultProcedures();
-        //addDefaultPartitioning();
+        addDefaultPartitioning();
         addDefaultSchema();
-        //addStmtProcedure("JumboInsert", "INSERT INTO JUMBO_ROW VALUES ( ?, ?, ?)", "JUMBO_ROW.PKEY: 0");
-        //addStmtProcedure("JumboSelect", "SELECT * FROM JUMBO_ROW WHERE PKEY = ?", "JUMBO_ROW.PKEY: 0");
-        //addStmtProcedure("JumboCount", "SELECT COUNT(*) FROM JUMBO_ROW");
+        addStmtProcedure("JumboInsert", "INSERT INTO JUMBO_ROW VALUES ( ?, ?, ?)", "JUMBO_ROW.PKEY: 0");
+        addStmtProcedure("JumboSelect", "SELECT * FROM JUMBO_ROW WHERE PKEY = ?", "JUMBO_ROW.PKEY: 0");
+        addStmtProcedure("JumboCount", "SELECT COUNT(*) FROM JUMBO_ROW");
     }
 
     /*
@@ -109,12 +108,12 @@ public class SaveRestoreTestProjectBuilder extends VoltProjectBuilder
         String catalogJar = testDir + File.separator + "saverestore-jni.jar";
 
         addDefaultSchema();
-        //addDefaultPartitioning();
+        addDefaultPartitioning();
         addDefaultProcedures();
 
-        //addStmtProcedure("JumboInsert", "INSERT INTO JUMBO_ROW VALUES ( ?, ?, ?)", "JUMBO_ROW.PKEY: 0");
-        //addStmtProcedure("JumboSelect", "SELECT * FROM JUMBO_ROW WHERE PKEY = ?", "JUMBO_ROW.PKEY: 0");
-        //addStmtProcedure("JumboCount", "SELECT COUNT(*) FROM JUMBO_ROW");
+        addStmtProcedure("JumboInsert", "INSERT INTO JUMBO_ROW VALUES ( ?, ?, ?)", "JUMBO_ROW.PKEY: 0");
+        addStmtProcedure("JumboSelect", "SELECT * FROM JUMBO_ROW WHERE PKEY = ?", "JUMBO_ROW.PKEY: 0");
+        addStmtProcedure("JumboCount", "SELECT COUNT(*) FROM JUMBO_ROW");
 
         boolean status = compile(catalogJar);
         assert(status);

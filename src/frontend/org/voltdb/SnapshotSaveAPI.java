@@ -137,7 +137,7 @@ public class SnapshotSaveAPI
         {
             // CHANGE
             final int numLocalSites = CatalogUtil.getNumberOfSites(context.getHost());
-            System.out.println("Local Sites :"+numLocalSites);
+            LOG.info("Local Sites :"+numLocalSites);
 
             /*
              * Used to close targets on failure
@@ -158,6 +158,9 @@ public class SnapshotSaveAPI
                         file_nonce,
                         tables);
                 final AtomicInteger numTables = new AtomicInteger(tables.size());
+                
+                LOG.info("NumTables Initial : "+numTables);
+                
                 final SnapshotRegistry.Snapshot snapshotRecord =
                     SnapshotRegistry.startSnapshot(
                             startTime,

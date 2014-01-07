@@ -255,7 +255,6 @@ public class DefaultSnapshotDataTarget implements SnapshotDataTarget {
         m_channel.force(false);
 
         LOG.trace("Closing file " + m_file);
-        LOG.trace("File Channel Size : "+m_channel.size());
 
         m_channel.close();
 

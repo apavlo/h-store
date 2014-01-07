@@ -34,6 +34,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.Collection;
+import java.nio.BufferOverflowException;
+import java.io.ByteArrayOutputStream;
 
 import org.apache.log4j.Logger;
 import org.voltdb.DependencySet;
@@ -57,7 +59,9 @@ import org.voltdb.sysprocs.saverestore.SnapshotUtil;
 import org.voltdb.sysprocs.saverestore.TableSaveFile;
 import org.voltdb.sysprocs.saverestore.TableSaveFileState;
 import org.voltdb.utils.DBBPool.BBContainer;
+import org.voltdb.utils.DBBPool;
 
+import edu.brown.hstore.HStore;
 import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.PartitionExecutor.SystemProcedureExecutionContext;
 import edu.brown.hstore.txns.AbstractTransaction;
@@ -121,7 +125,6 @@ public class SnapshotRestore extends VoltSystemProcedure
 	    hasMoreChunks = f.hasMoreChunks();
 	    if (!hasMoreChunks) {
 		try {
-                    LOG.trace("No more chunks");
 		    f.close();
 		} catch (IOException e) {
 		}
@@ -135,9 +138,11 @@ public class SnapshotRestore extends VoltSystemProcedure
 	BBContainer c = null;
 	while (c == null && m_saveFiles.peek() != null) {
 	    TableSaveFile f = m_saveFiles.peek();
+	    LOG.trace("File Channel Size :"+f.getFileChannel().size());  
+	    LOG.trace("File Channel Position :"+f.getFileChannel().position());
 	    c = f.getNextChunk();
 	    if (c == null) {
-		LOG.trace("getNextChunk null");
+                LOG.trace("getNextChunk null");
 		f.close();
 		m_saveFiles.poll();
 	    }
@@ -328,8 +333,6 @@ public class SnapshotRestore extends VoltSystemProcedure
 	    
 	    while (savefile.hasMoreChunks())
 	    {      
-		LOG.trace("Savefile has more chunks");
-
 		VoltTable table = null;
 		    final org.voltdb.utils.DBBPool.BBContainer c = savefile.getNextChunk();
 		    if (c == null) {
@@ -875,6 +878,8 @@ public class SnapshotRestore extends VoltSystemProcedure
 	    return result;
 	}
 
+	LOG.trace("Starting performDistributeReplicatedTable"+tableName);
+	
 	VoltTable[] results = null;
 	results[0].addRow(m_hostId, hostname, m_siteId, tableName, -1,
 		"SUCCESS", "NO DATA TO DISTRIBUTE");
@@ -973,13 +978,14 @@ public class SnapshotRestore extends VoltSystemProcedure
 	// CHANGE : Up Sites    
 	Host catalog_host = context.getHost();
 	Collection<Site> catalog_sites = CatalogUtil.getSitesForHost(catalog_host);
+	//Collection<Site> catalog_sites = CatalogUtil.getAllSites(HStore.instance().getCatalog());
 
 	LOG.trace("Table :"+tableName);
 	
 	for (Site site : catalog_sites)
 	{
 	    for (Partition partition : site.getPartitions()) {
-		sites_to_partitions.put(Integer.parseInt(site.getTypeName()),
+		sites_to_partitions.put(site.getId(),
 					partition.getId());
 	    }
 	}
@@ -1004,40 +1010,47 @@ public class SnapshotRestore extends VoltSystemProcedure
 	    return result;
 	}
 
-	LOG.trace("Starting performDistributePartitionedTable");
+	LOG.trace("Starting performDistributePartitionedTable "+tableName);
 
 	VoltTable[] results = new VoltTable[] { constructResultsTable() };
 	results[0].addRow(m_hostId, hostname, m_siteId, tableName, 0,
 		"NO DATA TO DISTRIBUTE", "");
 	final Table new_catalog_table = getCatalogTable(tableName);
 	Boolean needsConversion = null;
-	org.voltdb.utils.DBBPool.BBContainer c = null;
-      
-	try{
+	BBContainer c = null;
 	
-	  while (hasMoreChunks())
-	  {        
+	int c_size = 1024*1024;
+	ByteBuffer c_aggregate = ByteBuffer.allocateDirect(c_size);
+	
+	try{	
 	      VoltTable table = null;
-	  
 	      c = null;
-	      c = getNextChunk();
-	      if (c == null) {
-		  continue;//Should be equivalent to break
-	      }
 
+	      while (hasMoreChunks())
+	      {        	      
+		  c = getNextChunk();
+		  if (c == null) {
+		      continue;//Should be equivalent to break
+		  }
+		  		      
+		  c_aggregate.put(c.b);
+	      }
+	      	      
+	      LOG.trace("c_aggregate position :"+c_aggregate.position());
+	      LOG.trace("c_aggregate capacity :"+c_aggregate.capacity());
+	      
 	      if (needsConversion == null) {
-		  VoltTable old_table = PrivateVoltTableFactory.createVoltTableFromBuffer(c.b.duplicate(), true);
+		  VoltTable old_table = PrivateVoltTableFactory.createVoltTableFromBuffer(c_aggregate.duplicate(), true); 
 		  needsConversion = SavedTableConverter.needsConversion(old_table, new_catalog_table);
 	      }
 
-	      final VoltTable old_table = PrivateVoltTableFactory.createVoltTableFromBuffer(c.b, true);
-	      if (needsConversion) {
+	      final VoltTable old_table = PrivateVoltTableFactory.createVoltTableFromBuffer(c_aggregate, true); 
+ 	      if (needsConversion) {
 		  table = SavedTableConverter.convertTable(old_table,
 							    new_catalog_table);
 	      } else {
 		  table = old_table;
-	      }
-	      
+	      }	      
 	      
 	      LOG.trace("createPartitionedTables :"+tableName);
 
@@ -1045,15 +1058,18 @@ public class SnapshotRestore extends VoltSystemProcedure
 		  createPartitionedTables(tableName, table);
 	      if (c != null) {
 		  c.discard();
-	      }
-	      
+	      }	   
+	    
 	      int[] dependencyIds = new int[sites_to_partitions.size()];
+	      	      
 	      SynthesizedPlanFragment[] pfs =
 		  new SynthesizedPlanFragment[sites_to_partitions.size() + 1];
 	      int pfs_index = 0;
 	      for (int site_id : sites_to_partitions.keySet())
 	      {
-		  int partition_id = sites_to_partitions.get(site_id);
+		  int partition_id = sites_to_partitions.get(site_id);		  
+		  LOG.trace("Partition id :"+partition_id);
+
 		  dependencyIds[pfs_index] =
 		      TableSaveFileState.getNextDependencyId();
 		  pfs[pfs_index] = new SynthesizedPlanFragment();
@@ -1085,8 +1101,7 @@ public class SnapshotRestore extends VoltSystemProcedure
 	      pfs[sites_to_partitions.size()].parameters = params;
 	      results =
 		  executeSysProcPlanFragments(pfs, result_dependency_id);
-	  }
-
+	  
 	} catch (IOException e)
 	    {
 		VoltTable result = PrivateVoltTableFactory.createUninitializedVoltTable();
@@ -1095,6 +1110,16 @@ public class SnapshotRestore extends VoltSystemProcedure
 			      "FAILURE", "Unable to load table: " + tableName +
 			      " error: " + e.getMessage());
 		return result;
+	    }
+	    catch (BufferOverflowException e)
+	    {
+              LOG.trace("BufferOverflowException "+e.getMessage());
+	      VoltTable result = PrivateVoltTableFactory.createUninitializedVoltTable();
+	      result = constructResultsTable();
+	      result.addRow(m_hostId, hostname, m_siteId, tableName, relevantPartitionIds[0],
+		"FAILURE", "Unable to load table: " + tableName +
+		" error: " + e.getMessage());
+	      return result;
 	    }
 	    catch (VoltTypeException e)
 	    {
