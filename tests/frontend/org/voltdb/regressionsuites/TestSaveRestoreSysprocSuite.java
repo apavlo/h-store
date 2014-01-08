@@ -305,6 +305,8 @@ public class TestSaveRestoreSysprocSuite extends RegressionSuite {
         final int rowCount = result.getRowCount();
         assertEquals(expectedRows, rowCount);
 
+        //System.out.println("Check table :: \n"+result);
+        
         int i = 0;
         while (result.advanceRow())
         {
@@ -464,7 +466,9 @@ public class TestSaveRestoreSysprocSuite extends RegressionSuite {
         validateSnapshot(false);      
         
     }
+    */
     
+    /*
     public void testSaveAndRestoreReplicatedTable()
     throws IOException, InterruptedException, ProcCallException
     {
@@ -473,11 +477,11 @@ public class TestSaveRestoreSysprocSuite extends RegressionSuite {
         int num_replicated_chunks = 10;
 
         Client client = getClient();
-
+                                          
         loadLargeReplicatedTable(client, "REPLICATED_TESTER",
                                  num_replicated_items_per_chunk,
                                  num_replicated_chunks);
-
+                                 
         VoltTable[] results = null;
         results = saveTables(client);
 
@@ -563,6 +567,9 @@ public class TestSaveRestoreSysprocSuite extends RegressionSuite {
             assertTrue(results[0].getString("RESULT").equals("SUCCESS"));
         }
 
+        results = client.callProcedure("@Statistics", "table", 0).getResults();
+	
+	System.out.println(results[0]);                                               
         
         // Kill and restart all the execution sites.
         m_config.shutDown();
@@ -589,6 +596,11 @@ public class TestSaveRestoreSysprocSuite extends RegressionSuite {
             fail("SnapshotRestore exception: " + ex.getMessage());
         }
 
+        results = client.callProcedure("@Statistics", "table", 0).getResults();
+	
+	System.out.println(results[0]);                                       
+        
+        
         checkTable(client, "PARTITION_TESTER", "PT_ID",
                    num_partitioned_items_per_chunk * num_partitioned_chunks);
 
@@ -707,8 +719,8 @@ public class TestSaveRestoreSysprocSuite extends RegressionSuite {
            
         project.addAllDefaults();
 
-        //config = new LocalCluster("snapshot-3-sites-1-partition.jar", 3, 1, 1, BackendTarget.NATIVE_EE_JNI);
-        m_config = new LocalSingleProcessServer("snapshot-1-site-1-partition.jar", 1, BackendTarget.NATIVE_EE_JNI);
+        m_config = new LocalCluster("snapshot-2-sites-2-partitions.jar", 2, 1, 1, BackendTarget.NATIVE_EE_JNI);
+        //m_config = new LocalSingleProcessServer("snapshot-1-site-1-partition.jar", 1, BackendTarget.NATIVE_EE_JNI);
 
         boolean success = m_config.compile(project);
         assert(success);

@@ -277,9 +277,8 @@ public class SnapshotSaveAPI
                     for (int ii = 0; ii < numLocalSites && !partitionedSnapshotTasks.isEmpty(); ii++) {
                         SnapshotSiteProcessor.m_taskListsForSites.get(ii).addAll(partitionedSnapshotTasks);
                     }
-
                     
-                    // CHANGE : Assign replicated table work to single partition with lowest id
+                    // CHANGE :: Assign replicated table work to single partition with lowest id
                     Host catalog_host = context.getHost();
                     Site catalog_lowest_site = CollectionUtil.first(CatalogUtil.getSitesForHost(catalog_host));
                     Integer lowest_site_id = catalog_lowest_site.getId();

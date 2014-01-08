@@ -43,10 +43,17 @@ import org.voltdb.catalog.Table;
 import edu.brown.hstore.PartitionExecutor.SystemProcedureExecutionContext;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.utils.CollectionUtil;
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 
 public class PartitionedTableSaveFileState extends TableSaveFileState
 {
     private static final Logger LOG = Logger.getLogger(PartitionedTableSaveFileState.class);
+    private static final LoggerBoolean debug = new LoggerBoolean();
+    private static final LoggerBoolean trace = new LoggerBoolean();
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
 
     public PartitionedTableSaveFileState(String tableName, int allowExport)
     {
@@ -99,7 +106,7 @@ public class PartitionedTableSaveFileState extends TableSaveFileState
     generateRestorePlan(Table catalogTable)
     {
         SynthesizedPlanFragment[] restore_plan = null;
-        LOG.info("Total partitions for Table: " + getTableName() + ": " +
+        LOG.info("Partitioned :: Total partitions for Table: " + getTableName() + ": " +
                  getTotalPartitions());
         if (!catalogTable.getIsreplicated())
         {
@@ -209,12 +216,16 @@ public class PartitionedTableSaveFileState extends TableSaveFileState
             int uncoveredPartitionsAtHost[],
             int originalHostsArray[])
     {
+	LOG.info("constructDistributePartitionedTableFragment : source -"+distributorSiteId);
+    
         int result_dependency_id = getNextDependencyId();
         SynthesizedPlanFragment plan_fragment = new SynthesizedPlanFragment();
         plan_fragment.fragmentId =
             SysProcFragmentId.PF_restoreDistributePartitionedTable;
         plan_fragment.multipartition = false;
+        // CHANGE ::
         // plan_fragment.siteId = distributorSiteId;
+        plan_fragment.destPartitionId = distributorSiteId;
         plan_fragment.outputDependencyIds = new int[]{ result_dependency_id };
         plan_fragment.inputDependencyIds = new int[] {};
         addPlanDependencyId(result_dependency_id);
@@ -231,12 +242,18 @@ public class PartitionedTableSaveFileState extends TableSaveFileState
     private SynthesizedPlanFragment
     constructDistributePartitionedTableAggregatorFragment()
     {
+	SystemProcedureExecutionContext context = this.getSystemProcedureExecutionContext();
+        assert(context != null);
+        int partition_id = context.getPartitionExecutor().getPartitionId();
+	LOG.trace("constructDistributePartitionedTableAggregatorFragment - partition : "+partition_id);
+
         int result_dependency_id = getNextDependencyId();
+        
         SynthesizedPlanFragment plan_fragment = new SynthesizedPlanFragment();
         plan_fragment.fragmentId =
             SysProcFragmentId.PF_restoreDistributePartitionedTableResults;
         plan_fragment.multipartition = false;
-        plan_fragment.outputDependencyIds = new int[]{ result_dependency_id };
+        plan_fragment.outputDependencyIds = new int[] { result_dependency_id };
         plan_fragment.inputDependencyIds = getPlanDependencyIds();
         setRootDependencyId(result_dependency_id);
         ParameterSet params = new ParameterSet();

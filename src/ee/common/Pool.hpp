@@ -80,7 +80,7 @@ namespace voltdb {
                 m_enableMMAP(false),
                 m_pool_manager(NULL)
         {
-            VOLT_WARN("MALLOC Pool Storage Request :: %d %d ",static_cast<int>(m_allocationSize), static_cast<int>(m_maxChunkCount));
+            VOLT_TRACE("MALLOC Pool Storage Request :: %d %d ",static_cast<int>(m_allocationSize), static_cast<int>(m_maxChunkCount));
 
             char *storage = new char[m_allocationSize];
             m_chunks.push_back(Chunk(m_allocationSize, storage));
@@ -108,7 +108,7 @@ namespace voltdb {
 
 
             if(m_enableMMAP == false){
-                VOLT_WARN("MALLOC Pool Storage Request :: %d %d ",static_cast<int>(m_allocationSize), static_cast<int>(m_maxChunkCount));
+                VOLT_TRACE("MALLOC Pool Storage Request :: %d %d ",static_cast<int>(m_allocationSize), static_cast<int>(m_maxChunkCount));
 
                 char *storage = new char[allocationSize];
                 m_chunks.push_back(Chunk(allocationSize, storage));

@@ -36,9 +36,9 @@ public class Host extends CatalogType {
     void setBaseValues(Catalog catalog, CatalogType parent, String path, String name) {
         super.setBaseValues(catalog, parent, path, name);
 	
-	System.out.println("Host original name :"+m_typename);
+	//System.out.println("Host original name :"+m_typename);
 	m_typename = m_typename.replaceAll("[\\D]", ""); // remove chars - for snapshot utils  
-	System.out.println("Host altered name :"+m_typename);
+    //System.out.println("Host altered name :"+m_typename);
         
         m_fields.put("id", m_id);
         m_fields.put("ipaddr", m_ipaddr);
