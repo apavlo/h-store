@@ -3604,9 +3604,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         // Otherwise, we'll rely on the transaction's current estimate to figure it out.
         else {
             if (estimate == null || estimate.isValid() == false) {
-                if (debug.val)
+                if (debug.val && estimate != null)
                     LOG.debug(String.format("%s - Unable to compute new done partitions because there " +
-                    		  "is no valid estimate for the txn",
+                   		  "is no valid estimate for the txn",
                               ts, estimate.getClass().getSimpleName()));
                 return (null);
             }

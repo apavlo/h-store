@@ -88,7 +88,8 @@ public class SnapshotSaveAPI
                     assert(SnapshotSiteProcessor.m_snapshotCreateSetupPermit.availablePermits() == 1);
                     assert(SnapshotSiteProcessor.m_snapshotPermits.availablePermits() == 0);
                 }
-                assert(SnapshotSiteProcessor.ExecutionSitesCurrentlySnapshotting.get() > 0);
+                // CHANGE :: Don't use ExecutionSitesCurrentlySnapshotting
+                //assert(SnapshotSiteProcessor.ExecutionSitesCurrentlySnapshotting.get() > 0);
                 context.getPartitionExecutor().initiateSnapshots(m_taskList);
             }
         }

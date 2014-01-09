@@ -197,6 +197,7 @@ public class SnapshotSave extends VoltSystemProcedure
 		      SnapshotSiteProcessor.ExecutionSitesCurrentlySnapshotting.get());                
                    
                 // CHANGE : Only 1 Site doing this   
+                /*
                 if (SnapshotSiteProcessor.ExecutionSitesCurrentlySnapshotting.get() != -1) {
                     result.addRow(
                                   Integer.parseInt(context.getSite().getHost().getTypeName()),
@@ -206,6 +207,7 @@ public class SnapshotSave extends VoltSystemProcedure
                     "SNAPSHOT IN PROGRESS");
                     return new DependencySet( DEP_saveTest, result);
                 }
+                */
 
                 for (Table table : SnapshotUtil.getTablesToSave(context.getDatabase()))
                 {

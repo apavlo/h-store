@@ -216,6 +216,7 @@ public class TestSaveRestoreSysprocSuite extends RegressionSuite {
                                          new Double(i)};
             partition_table.addRow(row);
         }
+        
         return partition_table;
     }
 
@@ -598,13 +599,10 @@ public class TestSaveRestoreSysprocSuite extends RegressionSuite {
 
         results = client.callProcedure("@Statistics", "table", 0).getResults();
 	
-	System.out.println(results[0]);                                       
-        
+	System.out.println(results[0]);                                               
         
         checkTable(client, "PARTITION_TESTER", "PT_ID",
                    num_partitioned_items_per_chunk * num_partitioned_chunks);
-
-        results = client.callProcedure("@Statistics", "table", 0).getResults();
 
         int foundItem = 0;
         while (results[0].advanceRow())
@@ -612,12 +610,12 @@ public class TestSaveRestoreSysprocSuite extends RegressionSuite {
             if (results[0].getString("TABLE_NAME").equals("PARTITION_TESTER"))
             {
                 ++foundItem;
-                assertEquals((num_partitioned_items_per_chunk * num_partitioned_chunks) / 3,
-                        results[0].getLong("TABLE_ACTIVE_TUPLE_COUNT"));
+                assertEquals((num_partitioned_items_per_chunk * num_partitioned_chunks) / 2,
+                        results[0].getLong("TUPLE_COUNT"));
             }
         }
         // make sure all sites were loaded
-        assertEquals(3, foundItem);
+        assertEquals(2, foundItem);
 
         System.out.println("testSaveAndRestorePartitionedTable : Stage 1 passed");
         
@@ -626,7 +624,7 @@ public class TestSaveRestoreSysprocSuite extends RegressionSuite {
         m_config.startUp();
         deleteTestFiles();
 
-        DefaultSnapshotDataTarget.m_simulateFullDiskWritingChunk = true;
+        DefaultSnapshotDataTarget.m_simulateFullDiskWritingChunk = false;
 
         org.voltdb.sysprocs.SnapshotRegistry.clear();
         client = getClient();
@@ -641,14 +639,6 @@ public class TestSaveRestoreSysprocSuite extends RegressionSuite {
 
         System.out.println("testSaveAndRestorePartitionedTable : Stage 2 passed");
         
-        DefaultSnapshotDataTarget.m_simulateFullDiskWritingChunk = false;
-        deleteTestFiles();
-        results = saveTables(client);
-
-        validateSnapshot(true);
-       
-        System.out.println("testSaveAndRestorePartitionedTable : Stage 3 passed");
-
         // Kill and restart all the execution sites.
         m_config.shutDown();
         m_config.startUp();
@@ -677,14 +667,14 @@ public class TestSaveRestoreSysprocSuite extends RegressionSuite {
             if (results[0].getString("TABLE_NAME").equals("PARTITION_TESTER"))
             {
                 ++foundItem;
-                assertEquals((num_partitioned_items_per_chunk * num_partitioned_chunks) / 3,
-                        results[0].getLong("TABLE_ACTIVE_TUPLE_COUNT"));
+                assertEquals((num_partitioned_items_per_chunk * num_partitioned_chunks) / 2,
+                        results[0].getLong("TUPLE_COUNT"));
             }
         }
         // make sure all sites were loaded
-        assertEquals(3, foundItem);
+        assertEquals(2, foundItem);
         
-        System.out.println("testSaveAndRestorePartitionedTable : Stage 4 passed");
+        System.out.println("testSaveAndRestorePartitionedTable : Stage 3 passed");
 
     }
     

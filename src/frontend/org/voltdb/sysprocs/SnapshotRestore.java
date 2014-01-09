@@ -51,7 +51,6 @@ import org.voltdb.VoltTypeException;
 import org.voltdb.catalog.Host;
 import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Table;
-import org.voltdb.client.Client;
 import org.voltdb.catalog.Partition;
 import org.voltdb.client.ConnectionUtil;
 import org.voltdb.sysprocs.saverestore.ClusterSaveFileState;
@@ -61,6 +60,10 @@ import org.voltdb.sysprocs.saverestore.TableSaveFile;
 import org.voltdb.sysprocs.saverestore.TableSaveFileState;
 import org.voltdb.utils.DBBPool.BBContainer;
 import org.voltdb.utils.DBBPool;
+import org.voltdb.client.Client;
+import org.voltdb.client.ClientFactory;
+import org.voltdb.client.ClientResponse;
+
 
 import edu.brown.hstore.HStore;
 import edu.brown.hstore.HStoreConstants;
@@ -1033,7 +1036,8 @@ import edu.brown.utils.CollectionUtil;
             return result;
         }
 
-        LOG.trace("Starting performLoadPartitionedTable "+tableName);
+        int partition_id = context.getPartitionExecutor().getPartitionId();
+        LOG.trace("Starting performLoadPartitionedTable "+tableName+ " at partition - "+ partition_id);
 
         String result_str = "SUCCESS";
 	String error_msg = "";
@@ -1062,13 +1066,17 @@ import edu.brown.utils.CollectionUtil;
 	    /*
 	    VoltTable table = null;
 	    LOG.trace("LoadTable "+tableName);
-	    
-	    final String m_rs = "rs";
-	    RegressionSuite rs = RegressionSuite(m_rs);
-	    Client client = rs.getClient();
-	    
+
+	    Client client = ClientFactory.createClient();
+	    Host host = context.getHost();
+	    client.createConnection(host.getName(), HStoreConstants.DEFAULT_PORT);
+	    VoltTable tableContents = new VoltTable(new ColumnInfo("PT_ID", VoltType.INTEGER),
+					     new ColumnInfo("PT_NAME", VoltType.STRING),
+					     new ColumnInfo("PT_INTVAL", VoltType.INTEGER),
+					     new ColumnInfo("PT_FLOATVAL", VoltType.FLOAT));	    
+	
 	    client.callProcedure("@LoadMultipartitionTable", tableName, table);       
-            */  
+            */            
 	    
             while (savefile.hasMoreChunks())
             {      
@@ -1097,8 +1105,7 @@ import edu.brown.utils.CollectionUtil;
                     error_msg = e.getMessage();
                     break;
                 }
-            }
-            
+            }            
 
         } catch (Exception e)
         {
