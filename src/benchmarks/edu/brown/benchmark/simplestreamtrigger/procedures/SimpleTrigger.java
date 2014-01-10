@@ -11,8 +11,8 @@ public class SimpleTrigger extends VoltTrigger {
         return "S1";
     }
 
-//    public final SQLStmt simpleSelect = new SQLStmt(
-//        "SELECT * from S1;"
-//    );
+    public final SQLStmt simpleSelect = new SQLStmt(
+            "INSERT INTO T1 (value) SELECT * FROM S1;"
+    );
     
 }

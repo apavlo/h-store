@@ -124,7 +124,7 @@ public class StreamTriggerProjectBuilder extends AbstractProjectBuilder {
     };
 	
 	{
-		addTransactionFrequency(SimpleCall.class, 100);
+		//addTransactionFrequency(SimpleCall.class, 100);
 	}
 	
 	// a list of tables used in this benchmark with corresponding partitioning keys

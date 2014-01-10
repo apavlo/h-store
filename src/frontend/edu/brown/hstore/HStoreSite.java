@@ -1834,16 +1834,17 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
       
       // hawk: for micro-benchmark 2, end point
       /* Begin : HStoreSite.java micro-benchmark 2 */
-      long endNanoTime = System.nanoTime();
-      
-      ProcedureStatsCollector collector = this.getProcedureStatsSource();
-      if(collector != null)
-      {
-          boolean aborted = false;
-          boolean failed = false;
-          // reuse ProcedureStatsCollector to do micro-benchmark 2 
-          collector.addTransactionInfo(aborted, failed, startNanoTime, endNanoTime);
-      }
+      // if we want to do benchmark 2, we shoul uncomment following statements before End
+//      long endNanoTime = System.nanoTime();
+//      
+//      ProcedureStatsCollector collector = this.getProcedureStatsSource();
+//      if(collector != null)
+//      {
+//          boolean aborted = false;
+//          boolean failed = false;
+//          // reuse ProcedureStatsCollector to do micro-benchmark 2 
+//          collector.addTransactionInfo(aborted, failed, startNanoTime, endNanoTime);
+//      }
       /* End : HStoreSite.java micro-benchmark 2 */
 
   }
@@ -2743,19 +2744,19 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         // added by hawk, 2013/11/25, this code snippet is used for transaction statistic, 
         // can be resued for micro-benchmark 2 & 3
-//        ProcedureStatsCollector collector = this.getProcedureStatsSource();
-//        if(collector != null)
-//        {
-//            boolean aborted = false;
-//            boolean failed = false;
-//            if(status != Status.OK)
-//            {
-//                aborted = true;
-//                failed = false;
-//            }
-//            // FIXME, when we will have the condition of failed ???
-//            collector.addTransactionInfo(aborted, failed, initiateTime, now);
-//        }
+        ProcedureStatsCollector collector = this.getProcedureStatsSource();
+        if(collector != null)
+        {
+            boolean aborted = false;
+            boolean failed = false;
+            if(status != Status.OK)
+            {
+                aborted = true;
+                failed = false;
+            }
+            // FIXME, when we will have the condition of failed ???
+            collector.addTransactionInfo(aborted, failed, initiateTime, now);
+        }
         // ended by hawk
         
         try {

@@ -258,4 +258,9 @@ public class BlockingClient extends Semaphore implements Client {
     public ProfileMeasurement getQueueTime() {
         return this.inner.getQueueTime();
     }
+
+    @Override
+    public boolean asynCallProcedure(ProcedureCallback callback, String procName, StoredProcedureInvocationHints hints, Object... parameters) throws IOException, NoConnectionsException {
+        return callProcedure(callback, procName, hints, parameters);
+    }
 }

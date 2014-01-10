@@ -1,0 +1,47 @@
+This readme file is used to explain how to use runexperiments.py,
+which is a script to run benchmark with different parameters.
+
+---------------------------------------------------------------------------
+usage example:
+python ./tools/runexperiments.py --tmin 10 --tmax 100 --tstep 10 --rmin 100 --rmax 10000 --rstep 100 --log --lmin 10 --lmax 5000 --lstep 10 --blocking --stop -p simplewindowhstore -o simplewindowhstore-nolog-11-27.txt
+
+---------------------------------------------------------------------------
+explaination:
+1) this is a python file, and normally we will run it in the H-Store base folder, so we should use "python ./tools/runexperiments.py args" to run it
+
+2) the args can be grouped into following groups:
+   2.1) thread-per-host group (determine the threads used by experiment)
+        see client.threads_per_host
+   --tmin  : the minimun thread will be used for this experiment
+   --tmax  : the maximum thread will be used for this experiment
+   --tstep : the change steps for thread will be used for this experiment
+  
+   2.2) transaction rate group (determine the txnrate used by experiment)
+        see client.txnrate
+   --rmin  : the minimun txnrate will be used for this experiment
+   --rmax  : the maximum txnrate will be used for this experiment
+   --rstep : the change steps for txnrate will be used for this experiment
+
+   2.3) logging group (determine the logging parameters used by experiment)
+   --log   : this flag is used to indicate if we need to use logging 
+             mechanism in this experiment. If you do not need logging, 
+             delete it from your args, and you can also ignore other 
+             parameters in this group.
+             see site.commandlog_enable.
+   --lmin  : the minimun timeout will be used for this experiment, 
+             see site.commanlog_timeout
+   --lmax  : the maximum timeout will be used for this experiment
+   --lstep : the change steps for timeout will be used for this experiment
+
+   2.4) misc group
+   --stop  : this flag indicates if you want to automatically stop 
+             experiment by using predefined criteria. If you want to 
+             run all the benchmarks as you indicated,forget it.
+   --blocking : indicate if the benchmark will be executed in blocking way.
+             see client.blocking
+   -p     : must indicate which benchmark we want to used in this 
+             experiment
+   -o     : must indicate the output file, which contains the benchmark 
+            results for further analysis. It is in CSV format.
+
+---------------------------------------------------------------------------

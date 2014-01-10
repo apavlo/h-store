@@ -25,6 +25,8 @@
 <arg value="client.host=${client.host}" />
 <arg value="client.hosts=${client.hosts}" />
 <arg value="client.txnrate=${client.txnrate}" />
+<arg value="client.fixed_txns=${client.fixed_txns}" />
+<arg value="client.fixed_txns_count=${client.fixed_txns_count}" />
 <arg value="client.weights=${client.weights}" />
 <arg value="client.processesperclient=${client.processesperclient}" />
 <arg value="client.threads_per_host=${client.threads_per_host}" />
