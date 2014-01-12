@@ -35,7 +35,6 @@ import org.voltdb.utils.CatalogUtil;
 
 public class SaveRestoreTestProjectBuilder extends VoltProjectBuilder
 {
-    /*
     public SaveRestoreTestProjectBuilder(String project_name) {
       super(project_name);
     }
@@ -44,9 +43,7 @@ public class SaveRestoreTestProjectBuilder extends VoltProjectBuilder
 	new Class<?>[] { SaveRestoreSelect.class};
 
     public static String partitioning[][] =
-        new String[][] {{"PARTITION_TESTER", "PT_ID"},
-                        {"CHANGE_COLUMNS", "ID"},
-                        {"JUMBO_ROW", "PKEY"}};
+        new String[][] {{"PARTITION_TESTER", "PT_ID"}};
 
     public static final File ddlFile = new File("./src/frontend/org/voltdb/sysprocs/saverestore/saverestore-ddl-simple.sql");
     public static final String jarFilename = "saverestore.jar";
@@ -81,11 +78,8 @@ public class SaveRestoreTestProjectBuilder extends VoltProjectBuilder
     public void addAllDefaults()
     {
         addDefaultProcedures();
-        //addDefaultPartitioning();
+        addDefaultPartitioning();
         addDefaultSchema();
-        //addStmtProcedure("JumboInsert", "INSERT INTO JUMBO_ROW VALUES ( ?, ?, ?)", "JUMBO_ROW.PKEY: 0");
-        //addStmtProcedure("JumboSelect", "SELECT * FROM JUMBO_ROW WHERE PKEY = ?", "JUMBO_ROW.PKEY: 0");
-        //addStmtProcedure("JumboCount", "SELECT COUNT(*) FROM JUMBO_ROW");
     }
 
     
@@ -108,12 +102,8 @@ public class SaveRestoreTestProjectBuilder extends VoltProjectBuilder
         String catalogJar = testDir + File.separator + "saverestore-jni.jar";
 
         addDefaultSchema();
-        //addDefaultPartitioning();
+        addDefaultPartitioning();
         addDefaultProcedures();
-
-        //addStmtProcedure("JumboInsert", "INSERT INTO JUMBO_ROW VALUES ( ?, ?, ?)", "JUMBO_ROW.PKEY: 0");
-        //addStmtProcedure("JumboSelect", "SELECT * FROM JUMBO_ROW WHERE PKEY = ?", "JUMBO_ROW.PKEY: 0");
-        //addStmtProcedure("JumboCount", "SELECT COUNT(*) FROM JUMBO_ROW");
 
         boolean status = compile(catalogJar);
         assert(status);
@@ -128,9 +118,9 @@ public class SaveRestoreTestProjectBuilder extends VoltProjectBuilder
 
         return catalog;
     }
-    */
     
     
+    /*
     public SaveRestoreTestProjectBuilder(String project_name) {
       super(project_name);
     }
@@ -224,6 +214,6 @@ public class SaveRestoreTestProjectBuilder extends VoltProjectBuilder
 
         return catalog;
     }
-    
+    */
     
 }

@@ -187,6 +187,7 @@ public abstract class VoltProcedure implements Poolable {
      */
     private byte m_statusCode = Byte.MIN_VALUE;
     private String m_statusString = null;
+    private BackendTarget m_backendTarget;
     
     /**
      * End users should not instantiate VoltProcedure instances.
@@ -241,6 +242,7 @@ public abstract class VoltProcedure implements Poolable {
         this.procedure_id = this.catalog_proc.getId();
         this.procedure_name = this.catalog_proc.getName();
         this.isNative = (eeType != BackendTarget.HSQLDB_BACKEND);
+        this.m_backendTarget = eeType;
         this.partitionId = this.executor.getPartitionId();
         assert(this.partitionId != HStoreConstants.NULL_PARTITION_ID);
         
@@ -738,6 +740,10 @@ public abstract class VoltProcedure implements Poolable {
     
     protected final Procedure getProcedure() {
         return (this.catalog_proc);
+    }
+    
+    protected final BackendTarget getBackendTarget(){
+        return (this.m_backendTarget);
     }
     
     protected final VoltTable executeNoJavaProcedure(Object...params) {

@@ -186,8 +186,6 @@ public class SnapshotSiteProcessor {
     public Future<?> doSnapshotWork(ExecutionEngine ee) {
         Future<?> retval = null;
         
-        //LOG.trace("doSnapshotWork at partition :"+ee.getPartitionExecutor().getPartitionId());
-
         /*
          * This thread will null out the reference to m_snapshotTableTasks when
          * a snapshot is finished. If the snapshot buffer is loaned out that means
@@ -205,7 +203,7 @@ public class SnapshotSiteProcessor {
         while (!m_snapshotTableTasks.isEmpty()) {        
             final SnapshotTableTask currentTask = m_snapshotTableTasks.peek();            
             assert(currentTask != null);
-            LOG.trace("currentTask : "+currentTask);
+            LOG.trace("currentTask : "+currentTask+ " on partition :"+ee.getPartitionExecutor().getPartitionId());
 
             final int headerSize = currentTask.m_target.getHeaderSize();
             final BBContainer snapshotBuffer = m_availableSnapshotBuffers.poll();
@@ -213,6 +211,8 @@ public class SnapshotSiteProcessor {
             snapshotBuffer.b.clear();
             snapshotBuffer.b.position(headerSize);
             //final int serialized = 0; 
+            
+            
             //FIXME (meng)
             final int serialized = ee.tableStreamSerializeMore(
                    snapshotBuffer,
@@ -277,16 +277,15 @@ public class SnapshotSiteProcessor {
             m_snapshotTargets = null;
             m_snapshotTableTasks = null;
             final int result = ExecutionSitesCurrentlySnapshotting.decrementAndGet();
-                        
-            LOG.trace("Snapshot terminator : Engine # :: "+result);
-
+            LOG.trace("ExecutionSitesCurrentlySnapshotting dec and get :"+SnapshotSiteProcessor.ExecutionSitesCurrentlySnapshotting.get());                
+            
             /**
              * If this is the last one then this EE must close all the SnapshotDataTargets.
              * Done in a separate thread so the EE can go and do other work. It will
              * sync every file descriptor and that may block for a while.
              */
             // CHANGE : Doing it at the site with lowest id at a host 
-            //if (result == 1) {
+            if (result == 1) {
 
                 final Thread terminatorThread =
                     new Thread("Snapshot terminator") {
@@ -309,6 +308,7 @@ public class SnapshotSiteProcessor {
                              * that snapshot initiation doesn't wait on the file system
                              */
                             ExecutionSitesCurrentlySnapshotting.decrementAndGet();
+                            LOG.trace("ExecutionSitesCurrentlySnapshotting dec and get :"+SnapshotSiteProcessor.ExecutionSitesCurrentlySnapshotting.get());                                            
                         }
                     }
                 };
@@ -318,7 +318,7 @@ public class SnapshotSiteProcessor {
                 }
 
                 terminatorThread.start();
-            //}
+            }
         }
         return retval;
     }
@@ -353,6 +353,9 @@ public class SnapshotSiteProcessor {
             t.join();
         }
         m_snapshotTargetTerminators = null;
+        
+        // Block till it gets set to 0
+        //while(SnapshotSiteProcessor.ExecutionSitesCurrentlySnapshotting.get() != 0);
 
         LOG.trace("completeSnapshotWork at partition :"+ee.getPartitionExecutor().getPartitionId());
 

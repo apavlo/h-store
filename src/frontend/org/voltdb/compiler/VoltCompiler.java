@@ -101,6 +101,7 @@ import org.voltdb.sysprocs.Shutdown;
 import org.voltdb.sysprocs.Sleep;
 import org.voltdb.sysprocs.SnapshotDelete;
 import org.voltdb.sysprocs.SnapshotRestore;
+import org.voltdb.sysprocs.SnapshotRestoreLocal;
 import org.voltdb.sysprocs.SnapshotSave;
 import org.voltdb.sysprocs.SnapshotScan;
 import org.voltdb.sysprocs.SnapshotStatus;
@@ -1262,6 +1263,7 @@ public class VoltCompiler {
         // Table of sysproc metadata.
         final Object[][] procedures = {
             // SysProcedure Class                   readonly    everysite
+            {SnapshotRestoreLocal.class,            false,      true},
             {LoadMultipartitionTable.class,         false,      true},
             {DatabaseDump.class,                    true,       true},
             {MarkovUpdate.class,                    true,       true},
@@ -1276,7 +1278,7 @@ public class VoltCompiler {
             {ExecutorStatus.class,                  true,       false},
             {GetCatalog.class,                      true,       false},
             {SnapshotSave.class,                    false,      true},
-            {SnapshotRestore.class,                 false,      true},
+            //{SnapshotRestore.class,                 false,      true},
             {SnapshotStatus.class,                  false,      true},
             {SnapshotScan.class,                    false,      true},
             {SnapshotDelete.class,                  false,      true},

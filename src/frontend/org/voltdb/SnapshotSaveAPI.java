@@ -88,8 +88,8 @@ public class SnapshotSaveAPI
                     assert(SnapshotSiteProcessor.m_snapshotCreateSetupPermit.availablePermits() == 1);
                     assert(SnapshotSiteProcessor.m_snapshotPermits.availablePermits() == 0);
                 }
-                // CHANGE :: Don't use ExecutionSitesCurrentlySnapshotting
-                //assert(SnapshotSiteProcessor.ExecutionSitesCurrentlySnapshotting.get() > 0);
+                // CHANGE :: Don't use
+                assert(SnapshotSiteProcessor.ExecutionSitesCurrentlySnapshotting.get() > 0);
                 context.getPartitionExecutor().initiateSnapshots(m_taskList);
             }
         }
@@ -149,6 +149,8 @@ public class SnapshotSaveAPI
                     new ArrayDeque<SnapshotTableTask>();
                 final ArrayList<SnapshotTableTask> replicatedSnapshotTasks =
                     new ArrayList<SnapshotTableTask>();
+                
+                LOG.trace("ExecutionSitesCurrentlySnapshotting check : " + SnapshotSiteProcessor.ExecutionSitesCurrentlySnapshotting.get());
                 assert(SnapshotSiteProcessor.ExecutionSitesCurrentlySnapshotting.get() == -1);
 
                 final List<Table> tables = SnapshotUtil.getTablesToSave(context.getDatabase());
@@ -265,6 +267,7 @@ public class SnapshotSaveAPI
                     if (!partitionedSnapshotTasks.isEmpty() || !replicatedSnapshotTasks.isEmpty()) {
                         SnapshotSiteProcessor.ExecutionSitesCurrentlySnapshotting.set(
                         CatalogUtil.getNumberOfSites(context.getHost()));
+                        LOG.trace("ExecutionSitesCurrentlySnapshotting set :"+SnapshotSiteProcessor.ExecutionSitesCurrentlySnapshotting.get());
                         for (int ii = 0; ii < numLocalSites; ii++) {
                             SnapshotSiteProcessor.m_taskListsForSites.add(new ArrayDeque<SnapshotTableTask>());
                         }
@@ -275,15 +278,20 @@ public class SnapshotSaveAPI
                     /**
                      * Distribute the writing of replicated tables to exactly one partition.
                      */
-                    for (int ii = 0; ii < numLocalSites && !partitionedSnapshotTasks.isEmpty(); ii++) {
-                        SnapshotSiteProcessor.m_taskListsForSites.get(ii).addAll(partitionedSnapshotTasks);
-                    }
-                    
+
                     // CHANGE :: Assign replicated table work to single partition with lowest id
                     Host catalog_host = context.getHost();
                     Site catalog_lowest_site = CollectionUtil.first(CatalogUtil.getSitesForHost(catalog_host));
                     Integer lowest_site_id = catalog_lowest_site.getId();
-                                      
+
+                    for (SnapshotTableTask t : partitionedSnapshotTasks) {
+                        SnapshotSiteProcessor.m_taskListsForSites.get(lowest_site_id).offer(t);
+                    }               
+
+                    //for (int ii = 0; ii < numLocalSites && !partitionedSnapshotTasks.isEmpty(); ii++) {
+                    //    SnapshotSiteProcessor.m_taskListsForSites.get(ii).addAll(partitionedSnapshotTasks);
+                    //}
+                                                          
                     //int siteIndex = 0;
                     for (SnapshotTableTask t : replicatedSnapshotTasks) {
                         //SnapshotSiteProcessor.m_taskListsForSites.get(siteIndex++ % numLocalSites).offer(t);

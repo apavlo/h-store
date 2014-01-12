@@ -29,24 +29,24 @@ import org.voltdb.*;
     singlePartition = false
 )
 public class SaveRestoreSelect extends VoltProcedure {
-    /*
-    public final SQLStmt selectAllReplicated =
-        new SQLStmt("SELECT * FROM REPLICATED_TESTER ORDER BY RT_ID ASC;");
-
+    
+    public final SQLStmt selectAllPartitioned =
+            new SQLStmt("SELECT * FROM PARTITION_TESTER ORDER BY PT_ID ASC;");
+      
         
     public VoltTable[] run(String tableName) {       
-        if (tableName.equals("REPLICATED_TESTER"))
+        if (tableName.equals("PARTITION_TESTER"))
         {
-            voltQueueSQL(selectAllReplicated);
-        }
+            voltQueueSQL(selectAllPartitioned);
+        }        
         
         VoltTable[] results = voltExecuteSQL();
 
         return results;
     }
-    */
     
     
+    /*
     public final SQLStmt selectAllReplicated =
         new SQLStmt("SELECT * FROM REPLICATED_TESTER ORDER BY RT_ID ASC;");
 
@@ -89,5 +89,5 @@ public class SaveRestoreSelect extends VoltProcedure {
 
         return results;
     }
-    
+    */
 }

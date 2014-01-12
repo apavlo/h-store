@@ -1260,6 +1260,7 @@ int VoltDBEngine::tableStreamSerializeMore(
             m_snapshottingTables.erase(tableId);
             table->decrementRefcount();
         }
+
         break;
     }
 

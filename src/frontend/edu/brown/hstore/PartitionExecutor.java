@@ -2184,6 +2184,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 FastDeserializer fd = new FastDeserializer(bs.asReadOnlyByteBuffer());
                 try {
                     vt = fd.readObject(VoltTable.class);
+                    if (trace.val)
+                        LOG.trace(String.format("Displaying results from partition %d for %s :: \n %s",
+                                  result.getPartitionId(), ts, vt.toString()));                    
                 } catch (Exception ex) {
                     throw new ServerFaultException("Failed to deserialize VoltTable from partition " + result.getPartitionId() + " for " + ts, ex);
                 }
@@ -4047,10 +4050,11 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                         } // FOR
                         if (needs_profiling) ts.profiler.stopSerialization();
                     }
-                    if (trace.val)
-                        LOG.trace(String.format("%s - Requesting %d %s to be executed on remote partitions " +
-                                  "[doneNotifications=%s]",
-                                  ts, WorkFragment.class.getSimpleName(), num_remote, notify!=null));
+                    
+                    //if (trace.val)
+                    //    LOG.trace(String.format("%s - Requesting %d %s to be executed on remote partitions " +
+                    //              "[doneNotifications=%s]",
+                    //              ts, WorkFragment.class.getSimpleName(), num_remote, notify!=null));
                     this.requestWork(ts, tmp_remoteFragmentBuilders, tmp_serializedParams, notify);
                     if (needs_profiling) ts.profiler.markRemoteQuery();
                 }

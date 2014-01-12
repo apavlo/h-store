@@ -21,6 +21,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.channels.ClosedChannelException;
 import java.nio.channels.FileChannel;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
@@ -241,7 +242,8 @@ public class DefaultSnapshotDataTarget implements SnapshotDataTarget {
             }
             m_syncTask.cancel(false);
             m_channel.force(false);
-        } finally {
+        } 
+        finally {
             m_bytesAllowedBeforeSync.release(m_bytesWrittenSinceLastSync.getAndSet(0));
         }
         m_channel.position(8);
@@ -273,7 +275,7 @@ public class DefaultSnapshotDataTarget implements SnapshotDataTarget {
             tupleData.discard();
             return null;
         }
-
+        
         if (prependLength) {
             tupleData.b.putInt(tupleData.b.remaining() - 4);
             tupleData.b.position(0);
