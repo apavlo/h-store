@@ -32,85 +32,63 @@ import org.voltdb.compiler.VoltProjectBuilder;
 import org.voltdb.utils.BuildDirectoryUtils;
 import org.voltdb.utils.CatalogUtil;
 
-
-public class SaveRestoreTestProjectBuilder extends VoltProjectBuilder
-{
+public class SaveRestoreTestProjectBuilder extends VoltProjectBuilder {
+    // REPLICATED
     public SaveRestoreTestProjectBuilder(String project_name) {
-      super(project_name);
+        super(project_name);
     }
-    
-    public static Class<?> PROCEDURES[] =
-	new Class<?>[] { SaveRestoreSelect.class};
 
-    public static String partitioning[][] =
-        new String[][] {{"PARTITION_TESTER", "PT_ID"}};
+    public static Class<?> PROCEDURES[] = new Class<?>[] { SaveRestoreSelect.class };
 
-    public static final File ddlFile = new File("./src/frontend/org/voltdb/sysprocs/saverestore/saverestore-ddl-simple.sql");
+    public static final File ddlFile = new File("./src/frontend/org/voltdb/sysprocs/saverestore/saverestore-ddl-replicated.sql");
     public static final String jarFilename = "saverestore.jar";
 
-    public void addDefaultProcedures()
-    {
+    public void addDefaultProcedures() {
         addProcedures(PROCEDURES);
     }
 
-    
-    public void addDefaultPartitioning()
-    {
-        for (String pair[] : partitioning)
-        {
-            addPartitionInfo(pair[0], pair[1]);
+    public void addDefaultSchema() {
+        try {
+            System.out.println("URL: " + ddlFile);
+            addSchema(ddlFile);
+        } catch (Exception e) {
+            e.printStackTrace();
+            System.exit(-1);
         }
-    }  
-
-    public void addDefaultSchema()
-    {
-      try{
-	System.out.println("URL: "+ddlFile);
-	addSchema(ddlFile);
-      }
-      catch(Exception e){
-	e.printStackTrace();
-	System.exit(-1);
-      }
     }
 
     @Override
-    public void addAllDefaults()
-    {
+    public void addAllDefaults() {
         addDefaultProcedures();
-        addDefaultPartitioning();
         addDefaultSchema();
     }
 
-    
-    // Different default set for the test of ENG-696 TestReplicatedSaveRestoreSysprocSuite
+    // Different default set for the test of ENG-696
+    // TestReplicatedSaveRestoreSysprocSuite
     // Has no partitioned tables.
-    
+
     public void addAllDefaultsNoPartitioning() {
         addDefaultProcedures();
         addDefaultSchema();
     }
 
-    public String getJARFilename()
-    {
+    public String getJARFilename() {
         return jarFilename;
     }
 
-    public Catalog createSaveRestoreSchemaCatalog() throws IOException
-    {
+    public Catalog createSaveRestoreSchemaCatalog() throws IOException {
         String testDir = BuildDirectoryUtils.getBuildDirectoryPath();
         String catalogJar = testDir + File.separator + "saverestore-jni.jar";
 
         addDefaultSchema();
-        addDefaultPartitioning();
         addDefaultProcedures();
 
         boolean status = compile(catalogJar);
-        assert(status);
+        assert (status);
 
         // read in the catalog
         String serializedCatalog = CatalogUtil.loadCatalogFromJar(catalogJar, null);
-        assert(serializedCatalog != null);
+        assert (serializedCatalog != null);
 
         // create the catalog (that will be passed to the ClientInterface
         Catalog catalog = new Catalog();
@@ -118,78 +96,61 @@ public class SaveRestoreTestProjectBuilder extends VoltProjectBuilder
 
         return catalog;
     }
-    
-    
+
+    // PARTITIONED
     /*
     public SaveRestoreTestProjectBuilder(String project_name) {
-      super(project_name);
+        super(project_name);
     }
-    
-    public static Class<?> PROCEDURES[] =
-	new Class<?>[] { MatView.class, SaveRestoreSelect.class};
 
-    public static String partitioning[][] =
-        new String[][] {{"PARTITION_TESTER", "PT_ID"},
-                        {"CHANGE_COLUMNS", "ID"},
-                        {"JUMBO_ROW", "PKEY"}};
+    public static Class<?> PROCEDURES[] = new Class<?>[] { SaveRestoreSelect.class };
 
-    public static final File ddlFile = new File("./src/frontend/org/voltdb/sysprocs/saverestore/saverestore-ddl.sql");
+    public static String partitioning[][] = new String[][] { { "PARTITION_TESTER", "PT_ID" } };
+
+    public static final File ddlFile = new File("./src/frontend/org/voltdb/sysprocs/saverestore/saverestore-ddl-simple-partitioned.sql");
     public static final String jarFilename = "saverestore.jar";
 
-    public void addDefaultProcedures()
-    {
+    public void addDefaultProcedures() {
         addProcedures(PROCEDURES);
     }
 
-    
-    public void addDefaultPartitioning()
-    {
-        for (String pair[] : partitioning)
-        {
+    public void addDefaultPartitioning() {
+        for (String pair[] : partitioning) {
             addPartitionInfo(pair[0], pair[1]);
         }
     }
-    
 
-    public void addDefaultSchema()
-    {
-      try{
-	System.out.println("URL: "+ddlFile);
-	addSchema(ddlFile);
-      }
-      catch(Exception e){
-	e.printStackTrace();
-	System.exit(-1);
-      }
+    public void addDefaultSchema() {
+        try {
+            System.out.println("URL: " + ddlFile);
+            addSchema(ddlFile);
+        } catch (Exception e) {
+            e.printStackTrace();
+            System.exit(-1);
+        }
     }
 
     @Override
-    public void addAllDefaults()
-    {
+    public void addAllDefaults() {
         addDefaultProcedures();
         addDefaultPartitioning();
         addDefaultSchema();
-        addStmtProcedure("JumboInsert", "INSERT INTO JUMBO_ROW VALUES ( ?, ?, ?)", "JUMBO_ROW.PKEY: 0");
-        addStmtProcedure("JumboSelect", "SELECT * FROM JUMBO_ROW WHERE PKEY = ?", "JUMBO_ROW.PKEY: 0");
-        addStmtProcedure("JumboCount", "SELECT COUNT(*) FROM JUMBO_ROW");
     }
 
-    
-    // Different default set for the test of ENG-696 TestReplicatedSaveRestoreSysprocSuite
+    // Different default set for the test of ENG-696
+    // TestReplicatedSaveRestoreSysprocSuite
     // Has no partitioned tables.
-    
+
     public void addAllDefaultsNoPartitioning() {
         addDefaultProcedures();
         addDefaultSchema();
     }
 
-    public String getJARFilename()
-    {
+    public String getJARFilename() {
         return jarFilename;
     }
 
-    public Catalog createSaveRestoreSchemaCatalog() throws IOException
-    {
+    public Catalog createSaveRestoreSchemaCatalog() throws IOException {
         String testDir = BuildDirectoryUtils.getBuildDirectoryPath();
         String catalogJar = testDir + File.separator + "saverestore-jni.jar";
 
@@ -197,16 +158,12 @@ public class SaveRestoreTestProjectBuilder extends VoltProjectBuilder
         addDefaultPartitioning();
         addDefaultProcedures();
 
-        addStmtProcedure("JumboInsert", "INSERT INTO JUMBO_ROW VALUES ( ?, ?, ?)", "JUMBO_ROW.PKEY: 0");
-        addStmtProcedure("JumboSelect", "SELECT * FROM JUMBO_ROW WHERE PKEY = ?", "JUMBO_ROW.PKEY: 0");
-        addStmtProcedure("JumboCount", "SELECT COUNT(*) FROM JUMBO_ROW");
-
         boolean status = compile(catalogJar);
-        assert(status);
+        assert (status);
 
         // read in the catalog
         String serializedCatalog = CatalogUtil.loadCatalogFromJar(catalogJar, null);
-        assert(serializedCatalog != null);
+        assert (serializedCatalog != null);
 
         // create the catalog (that will be passed to the ClientInterface
         Catalog catalog = new Catalog();
@@ -216,4 +173,85 @@ public class SaveRestoreTestProjectBuilder extends VoltProjectBuilder
     }
     */
     
+    /*
+    public SaveRestoreTestProjectBuilder(String project_name) {
+        super(project_name);
+    }
+
+    public static Class<?> PROCEDURES[] = new Class<?>[] { MatView.class, SaveRestoreSelect.class };
+
+    public static String partitioning[][] = new String[][] { { "PARTITION_TESTER", "PT_ID" }, { "CHANGE_COLUMNS", "ID" }, { "JUMBO_ROW", "PKEY" } };
+
+    public static final File ddlFile = new File("./src/frontend/org/voltdb/sysprocs/saverestore/saverestore-ddl.sql");
+    public static final String jarFilename = "saverestore.jar";
+
+    public void addDefaultProcedures() {
+        addProcedures(PROCEDURES);
+    }
+
+    public void addDefaultPartitioning() {
+        for (String pair[] : partitioning) {
+            addPartitionInfo(pair[0], pair[1]);
+        }
+    }
+
+    public void addDefaultSchema() {
+        try {
+            System.out.println("URL: " + ddlFile);
+            addSchema(ddlFile);
+        } catch (Exception e) {
+            e.printStackTrace();
+            System.exit(-1);
+        }
+    }
+
+    @Override
+    public void addAllDefaults() {
+        addDefaultProcedures();
+        addDefaultPartitioning();
+        addDefaultSchema();
+        addStmtProcedure("JumboInsert", "INSERT INTO JUMBO_ROW VALUES ( ?, ?, ?)", "JUMBO_ROW.PKEY: 0");
+        addStmtProcedure("JumboSelect", "SELECT * FROM JUMBO_ROW WHERE PKEY = ?", "JUMBO_ROW.PKEY: 0");
+        addStmtProcedure("JumboCount", "SELECT COUNT(*) FROM JUMBO_ROW");
+    }
+
+    // Different default set for the test of ENG-696
+    // TestReplicatedSaveRestoreSysprocSuite
+    // Has no partitioned tables.
+
+    public void addAllDefaultsNoPartitioning() {
+        addDefaultProcedures();
+        addDefaultSchema();
+    }
+
+    public String getJARFilename() {
+        return jarFilename;
+    }
+
+    public Catalog createSaveRestoreSchemaCatalog() throws IOException {
+        String testDir = BuildDirectoryUtils.getBuildDirectoryPath();
+        String catalogJar = testDir + File.separator + "saverestore-jni.jar";
+
+        addDefaultSchema();
+        addDefaultPartitioning();
+        addDefaultProcedures();
+
+        addStmtProcedure("JumboInsert", "INSERT INTO JUMBO_ROW VALUES ( ?, ?, ?)", "JUMBO_ROW.PKEY: 0");
+        addStmtProcedure("JumboSelect", "SELECT * FROM JUMBO_ROW WHERE PKEY = ?", "JUMBO_ROW.PKEY: 0");
+        addStmtProcedure("JumboCount", "SELECT COUNT(*) FROM JUMBO_ROW");
+
+        boolean status = compile(catalogJar);
+        assert (status);
+
+        // read in the catalog
+        String serializedCatalog = CatalogUtil.loadCatalogFromJar(catalogJar, null);
+        assert (serializedCatalog != null);
+
+        // create the catalog (that will be passed to the ClientInterface
+        Catalog catalog = new Catalog();
+        catalog.execute(serializedCatalog);
+
+        return catalog;
+    }
+    */
 }

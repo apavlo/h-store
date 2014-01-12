@@ -33,6 +33,7 @@ import java.io.UnsupportedEncodingException;
 import junit.framework.Test;
 
 import org.voltdb.BackendTarget;
+import org.voltdb.CatalogContext;
 import org.voltdb.DefaultSnapshotDataTarget;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltTable.ColumnInfo;
@@ -43,11 +44,19 @@ import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Table;
 import org.voltdb.client.Client;
+import org.voltdb.client.ClientResponse;
 import org.voltdb.client.ProcCallException;
 import org.voltdb.sysprocs.saverestore.SaveRestoreTestProjectBuilder;
 import org.voltdb.utils.SnapshotVerifier;
 
+import com.sun.net.httpserver.Authenticator.Success;
+
+import edu.brown.benchmark.ycsb.YCSBConstants;
+import edu.brown.benchmark.ycsb.YCSBLoader;
+import edu.brown.benchmark.ycsb.YCSBProjectBuilder;
+import edu.brown.benchmark.ycsb.procedures.ReadRecord;
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.hstore.Hstoreservice.Status;
 
 /**
  * Test the SnapshotSave and SnapshotRestoreLocal system procedures
@@ -461,6 +470,8 @@ public class TestSaveRestoreSysprocSuite extends RegressionSuite {
     }
     */
     
+    
+    /*
     public void testSaveAndRestorePartitionedTable() throws IOException, InterruptedException, ProcCallException {
         System.out.println("Starting testSaveAndRestorePartitionedTable");
         int num_partitioned_items_per_chunk = 3; 
@@ -488,7 +499,7 @@ public class TestSaveRestoreSysprocSuite extends RegressionSuite {
         System.out.println("@Statistics after saveTables :");
         System.out.println(results_tmp[0]);
 
-        /*
+        
         // Kill and restart all the execution sites.
         m_config.shutDown();
         m_config.startUp();
@@ -527,10 +538,160 @@ public class TestSaveRestoreSysprocSuite extends RegressionSuite {
         // make sure all sites were loaded
         //assertEquals(2, foundItem);
         validateSnapshot(true);
-        */
+        
+    }
+    */
+    
+    private static final String PREFIX = "ycsb";
+    private static final int NUM_TUPLES = 4;
+    
+    private void initializeDatabase(final Client client, final int num_tuples) throws Exception {
+        String args[] = {
+            "NOCONNECTIONS=true",
+            "BENCHMARK.FIXED_SIZE=true",
+            "BENCHMARK.NUM_RECORDS="+num_tuples,
+            "BENCHMARK.LOADTHREADS=1",
+        };
+        final CatalogContext catalogContext = this.getCatalogContext();
+        YCSBLoader loader = new YCSBLoader(args) {
+            {
+                this.setCatalogContext(catalogContext);
+                this.setClientHandle(client);
+            }
+            @Override
+            public CatalogContext getCatalogContext() {
+                return (catalogContext);
+            }
+        };
+        loader.load();
+    }    
+    
+    
+    public void testSaveAndRestoreYCSB() throws IOException, InterruptedException, ProcCallException {
+        
+        System.out.println("Starting testSaveAndRestoreYCSB");
+        
+        deleteTestFiles();
+        setUpSnapshotDir();
+    
+        VoltTable results[] = null;
+        ClientResponse cresponse = null;
+        Client client = this.getClient();
+        
+        try{
+            this.initializeDatabase(client, NUM_TUPLES);
+        }
+        catch(Exception e){
+            e.printStackTrace();
+        }
+        
+        // Select 
+        String query = "SELECT COUNT(*) FROM " + YCSBConstants.TABLE_NAME;
+        
+        cresponse = client.callProcedure("@AdHoc", query);
+        assertEquals(Status.OK, cresponse.getStatus());
+        results = cresponse.getResults();
+
+        assertEquals(1, results.length);
+        assertEquals(NUM_TUPLES, results[0].asScalarLong());
+        System.err.println(results[0]);
+        
+        // Read Record
+        
+        long key = NUM_TUPLES / 2;
+        String procName = ReadRecord.class.getSimpleName();
+        Object params[] = { key };
+        
+        cresponse = client.callProcedure(procName, params);
+        assertNotNull(cresponse);
+        assertEquals(Status.OK, cresponse.getStatus());
+        assertEquals(1, cresponse.getResults().length);
+        
+        VoltTable vt = cresponse.getResults()[0];
+        boolean adv = vt.advanceRow();
+        assert(adv);
+        assertEquals(key, vt.getLong(0));
+        
+        System.out.println("Read Record Test Passed");
+        
+        // Snapshot
+        results = null;
+        results = saveTables(client);
+
+        validateSnapshot(true);
+
+        VoltTable[] results_tmp = null;
+        results_tmp = client.callProcedure("@Statistics", "table", 0).getResults();
+
+        System.out.println("@Statistics after saveTables :");
+        System.out.println(results_tmp[0]);
+
+        // Kill and restart all the execution sites.
+        m_config.shutDown();
+        m_config.startUp();
+        client = getClient();
+
+        try {
+            results = client.callProcedure("@SnapshotRestoreLocal", TMPDIR, TESTNONCE, ALLOWEXPORT).getResults();
+
+            System.out.println(results[0]);
+            
+            while (results[0].advanceRow()) {
+                if (results[0].getString("RESULT").equals("FAILURE")) {
+                    fail(results[0].getString("ERR_MSG"));
+                }
+            }
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            fail("SnapshotRestoreLocal exception: " + ex.getMessage());
+        }
+
+        System.out.println("@Statistics after restore:");
+        results = client.callProcedure("@Statistics", "table", 0).getResults();
+        System.out.println(results[0]);
+               
+        validateSnapshot(true);
+
+        checkYCSBTable(client, NUM_TUPLES);        
+        
+        System.out.println("checkYCSBTable Passed");
     }
     
     
+    private void checkYCSBTable(Client client, int numTuples) {
+        long key_itr, key;
+        String procName;
+        ClientResponse cresponse = null;
+        VoltTable vt = null;
+        boolean adv = true;
+        
+        for(key_itr = 0 ; key_itr < numTuples ; key_itr++){
+            procName = ReadRecord.class.getSimpleName();
+            Object params[] = { key_itr };
+            
+            try{
+                cresponse = client.callProcedure(procName, params);
+            }
+            catch(Exception e){
+                e.printStackTrace();
+            }
+                
+            assertNotNull(cresponse);
+            assertEquals(Status.OK, cresponse.getStatus());
+            assertEquals(1, cresponse.getResults().length);
+            
+            vt = cresponse.getResults()[0];
+            adv = vt.advanceRow();
+            if(adv == false)
+                System.err.println("key :"+key_itr+" no result");
+            else
+                System.err.println("key :"+key_itr+" result:"+vt.getLong(0));
+
+            assert(adv);
+            assertEquals(key_itr, vt.getLong(0));            
+        }                               
+    }
+
     /**
      * Build a list of the tests to be run. Use the regression suite helpers to
      * allow multiple back ends. JUnit magic that uses the regression suite
@@ -543,12 +704,13 @@ public class TestSaveRestoreSysprocSuite extends RegressionSuite {
 
         MultiConfigSuiteBuilder builder = new MultiConfigSuiteBuilder(TestSaveRestoreSysprocSuite.class);
 
-        SaveRestoreTestProjectBuilder project = new SaveRestoreTestProjectBuilder("snapshot-VoltDB-project");
+        //SaveRestoreTestProjectBuilder project = new SaveRestoreTestProjectBuilder("snapshot-VoltDB-project");
+        YCSBProjectBuilder project = new YCSBProjectBuilder();
 
         project.addAllDefaults();
 
         m_config = new LocalCluster("snapshot-2-sites-2-partitions.jar", 2, 1, 1, BackendTarget.NATIVE_EE_JNI);
-        //m_config = new LocalSingleProcessServer("snapshot-1-site-1-partition.jar", 1, BackendTarget.NATIVE_EE_JNI);
+        //m_config = new LocalSingleProcessServer("snapshot-1-site-2-partition.jar", 1, BackendTarget.NATIVE_EE_JNI);
 
         boolean success = m_config.compile(project);
         assert (success);
