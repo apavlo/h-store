@@ -208,7 +208,7 @@ public class CommandLogWriter extends ExceptionHandlingRunnable implements Shutd
         this.outputFile = outputFile;
         this.singletonSerializer = new FastSerializer(true, true);
         //this.group_commit_size = Math.max(1, hstore_conf.site.exec_command_logging_group_commit); //Group commit threshold, or 1 if group commit is turned off
-        
+                
         // Number of local partitions
         int num_partitions = hstore_site.getLocalPartitionIds().size();
         this.numWritingLocks = num_partitions;
@@ -287,8 +287,8 @@ public class CommandLogWriter extends ExceptionHandlingRunnable implements Shutd
                 if (this.stop) break;
             } finally {
                 next = System.currentTimeMillis() + hstore_conf.site.commandlog_timeout;
-                if (debug.val)
-                    LOG.debug("Group commit timeout occurred, writing buffer to disk.");
+                //if (debug.val)
+                //    LOG.debug("Group commit timeout occurred, writing buffer to disk.");
             }
             
             // Take all of the writing permits. This will stop any other
@@ -321,11 +321,11 @@ public class CommandLogWriter extends ExceptionHandlingRunnable implements Shutd
             
             // Release our entry permits so that other threads can 
             // start filling up their Entry buffers
-            if (trace.val) LOG.trace("Releasing writingEntry permits");
+            //if (trace.val) LOG.trace("Releasing writingEntry permits");
             this.writingEntry.release(this.group_commit_size);
 
             // Write the entries out to disk
-            if (debug.val) LOG.debug("Executing group commit");
+            //if (debug.val) LOG.debug("Executing group commit");
             this.flushInProgress.set(true);
             if (this.groupCommit(this.entriesFlushing) == 0) {
                 next = System.currentTimeMillis() + hstore_conf.site.commandlog_timeout;
@@ -385,10 +385,11 @@ public class CommandLogWriter extends ExceptionHandlingRunnable implements Shutd
                 Map<String, Object> m = new LinkedHashMap<String, Object>();
                 m.put("Current Buffer", StringUtil.join("\n", this.entries));
                 m.put("Flushing Buffer", StringUtil.join("\n", this.entriesFlushing));
-                LOG.debug("Closing WAL file\n" + StringUtil.formatMaps(m).trim());
+                LOG.debug("Closing WAL file\n" + StringUtil.formatMaps(m).trim()+ " File :"+this.outputFile.getAbsolutePath());
             }
         }
         try {
+            LOG.trace("Closing stream  :: size :"+this.fstream.size());
             this.fstream.close();
         } catch (IOException ex) {
             String message = "Failed to close WAL file";
@@ -406,7 +407,6 @@ public class CommandLogWriter extends ExceptionHandlingRunnable implements Shutd
     }
     
     public boolean writeHeader() {
-        if (debug.val) LOG.debug("Writing out WAL header");
         assert(this.singletonSerializer != null);
         try {
             this.singletonSerializer.clear();
@@ -466,8 +466,8 @@ public class CommandLogWriter extends ExceptionHandlingRunnable implements Shutd
             }
         } // FOR
         if (txnCounter == 0) {
-            if (debug.val)
-                LOG.debug("No transactions are in the current buffers. Not writing anything to disk");  
+            //if (debug.val)
+            //    LOG.debug("No transactions are in the current buffers. Not writing anything to disk");  
             return (txnCounter);
         }
         

@@ -2468,6 +2468,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         //  (1) We have a CommandLogWriter
         //  (2) The txn completed successfully
         //  (3) It is not a sysproc
+        LOG.trace("Command logger :"+this.commandLogger);
+        LOG.trace("Status :"+status);
+        LOG.trace("Is SysProc :"+ts.isSysProc());
+        
         if (this.commandLogger != null && status == Status.OK && ts.isSysProc() == false) {
             sendResponse = this.commandLogger.appendToLog(ts, cresponse);
         }

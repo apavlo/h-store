@@ -29,6 +29,7 @@ import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.io.UnsupportedEncodingException;
+import java.util.Iterator;
 
 import junit.framework.Test;
 
@@ -57,6 +58,9 @@ import edu.brown.benchmark.ycsb.YCSBProjectBuilder;
 import edu.brown.benchmark.ycsb.procedures.ReadRecord;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.Hstoreservice.Status;
+import edu.brown.hstore.cmdlog.CommandLogReader;
+import edu.brown.hstore.cmdlog.CommandLogWriter;
+import edu.brown.hstore.cmdlog.LogEntry;
 
 /**
  * Test the SnapshotSave and SnapshotRestoreLocal system procedures
@@ -289,7 +293,7 @@ public class TestSaveRestoreSysprocSuite extends RegressionSuite {
             ps.flush();
             String reportString = baos.toString("UTF-8");
 
-            // System.err.println("Validate Snapshot :"+reportString);
+            System.err.println("Validate Snapshot :"+reportString);
 
             if (expectSuccess) {
                 assertTrue(reportString.startsWith("Snapshot valid\n"));
@@ -525,7 +529,7 @@ public class TestSaveRestoreSysprocSuite extends RegressionSuite {
         results = client.callProcedure("@Statistics", "table", 0).getResults();
         System.out.println(results[0]);
 
-        checkTable(client, "PARTITION_TESTER", "PT_ID", num_partitioned_items_per_chunk * num_partitioned_chunks);
+        //checkTable(client, "PARTITION_TESTER", "PT_ID", num_partitioned_items_per_chunk * num_partitioned_chunks);
 
         int foundItem = 0;
         while (results[0].advanceRow()) {
@@ -541,6 +545,9 @@ public class TestSaveRestoreSysprocSuite extends RegressionSuite {
         
     }
     */
+    
+    
+    // YCSB
     
     private static final String PREFIX = "ycsb";
     private static final int NUM_TUPLES = 4;
@@ -583,18 +590,20 @@ public class TestSaveRestoreSysprocSuite extends RegressionSuite {
         }
         catch(Exception e){
             e.printStackTrace();
-        }
+        }        
         
-        // Select 
-        String query = "SELECT COUNT(*) FROM " + YCSBConstants.TABLE_NAME;
-        
-        cresponse = client.callProcedure("@AdHoc", query);
-        assertEquals(Status.OK, cresponse.getStatus());
-        results = cresponse.getResults();
+        // Stream of Adhoc Select Queries
+        for (int q_itr = 0; q_itr < 10; q_itr++) {
+            String query = "SELECT COUNT(*) FROM " + YCSBConstants.TABLE_NAME;
 
-        assertEquals(1, results.length);
-        assertEquals(NUM_TUPLES, results[0].asScalarLong());
-        System.err.println(results[0]);
+            cresponse = client.callProcedure("@AdHoc", query);
+            assertEquals(Status.OK, cresponse.getStatus());
+            results = cresponse.getResults();
+
+            assertEquals(1, results.length);
+            assertEquals(NUM_TUPLES, results[0].asScalarLong());
+            System.err.println(results[0]);
+        }
         
         // Read Record
         
@@ -626,6 +635,7 @@ public class TestSaveRestoreSysprocSuite extends RegressionSuite {
         System.out.println("@Statistics after saveTables :");
         System.out.println(results_tmp[0]);
 
+        /*
         // Kill and restart all the execution sites.
         m_config.shutDown();
         m_config.startUp();
@@ -651,10 +661,52 @@ public class TestSaveRestoreSysprocSuite extends RegressionSuite {
         System.out.println(results[0]);
                
         validateSnapshot(true);
-
-        checkYCSBTable(client, NUM_TUPLES);        
+        */
         
-        System.out.println("checkYCSBTable Passed");
+        //checkYCSBTable(client, NUM_TUPLES);              
+        
+        parseCommandLog();
+    }
+    
+    void parseCommandLog(){
+        File outputFile = new File("./obj"+File.separator+
+                "cmdlog" +
+                File.separator +
+                "h00" +
+                CommandLogWriter.LOG_OUTPUT_EXT);
+        
+        System.err.println("parseCommandLog :"+outputFile);        
+        
+        // Now read in the file back in and check to see that we have two
+        // entries that have our expected information
+        CommandLogReader reader = null;
+
+        try{
+            reader = new CommandLogReader(outputFile.getAbsolutePath());
+        }
+        catch(Exception e){
+            e.printStackTrace();
+        }
+        
+        int ctr = 0;
+        Iterator<LogEntry> log_itr = reader.iterator();
+        
+        while(log_itr.hasNext()) {
+            LogEntry entry = log_itr.next();
+
+            assertNotNull(entry);
+            System.err.println("TXN ID :"+entry.getTransactionId().longValue());
+            System.err.println("PROC ID :"+entry.getProcedureId());
+                        
+            Object[] entryParams = entry.getProcedureParams().toArray();            
+            for(Object obj : entryParams){
+                System.err.println(obj);
+            }
+            
+            ctr++;
+        }
+        
+        System.err.println("WAL LOG entries :"+ctr);                        
     }
     
     
@@ -690,7 +742,10 @@ public class TestSaveRestoreSysprocSuite extends RegressionSuite {
             assert(adv);
             assertEquals(key_itr, vt.getLong(0));            
         }                               
+        
+        System.out.println("checkYCSBTable Passed");
     }
+    
 
     /**
      * Build a list of the tests to be run. Use the regression suite helpers to
@@ -698,16 +753,20 @@ public class TestSaveRestoreSysprocSuite extends RegressionSuite {
      * helper classes.
      */
     static public Test suite() {
-        VoltServerConfig m_config = null;
-        
-        setUpSnapshotDir();
-
         MultiConfigSuiteBuilder builder = new MultiConfigSuiteBuilder(TestSaveRestoreSysprocSuite.class);
-
+        builder.setGlobalConfParameter("site.commandlog_enable", true);
+        builder.setGlobalConfParameter("site.commandlog_timeout", 10);
+        builder.setGlobalConfParameter("site.status_enable", true);
+        builder.setGlobalConfParameter("site.status_exec_info", true);
+        
+        
         //SaveRestoreTestProjectBuilder project = new SaveRestoreTestProjectBuilder("snapshot-VoltDB-project");
         YCSBProjectBuilder project = new YCSBProjectBuilder();
 
         project.addAllDefaults();
+
+        VoltServerConfig m_config = null;        
+        setUpSnapshotDir();
 
         m_config = new LocalCluster("snapshot-2-sites-2-partitions.jar", 2, 1, 1, BackendTarget.NATIVE_EE_JNI);
         //m_config = new LocalSingleProcessServer("snapshot-1-site-2-partition.jar", 1, BackendTarget.NATIVE_EE_JNI);

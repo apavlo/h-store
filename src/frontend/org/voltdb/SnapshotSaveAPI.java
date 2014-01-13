@@ -283,14 +283,14 @@ public class SnapshotSaveAPI
                     Host catalog_host = context.getHost();
                     Site catalog_lowest_site = CollectionUtil.first(CatalogUtil.getSitesForHost(catalog_host));
                     Integer lowest_site_id = catalog_lowest_site.getId();
+                    
+                    //for (SnapshotTableTask t : partitionedSnapshotTasks) {
+                    //    SnapshotSiteProcessor.m_taskListsForSites.get(lowest_site_id).offer(t);
+                    //}               
 
-                    for (SnapshotTableTask t : partitionedSnapshotTasks) {
-                        SnapshotSiteProcessor.m_taskListsForSites.get(lowest_site_id).offer(t);
-                    }               
-
-                    //for (int ii = 0; ii < numLocalSites && !partitionedSnapshotTasks.isEmpty(); ii++) {
-                    //    SnapshotSiteProcessor.m_taskListsForSites.get(ii).addAll(partitionedSnapshotTasks);
-                    //}
+                    for (int ii = 0; ii < numLocalSites && !partitionedSnapshotTasks.isEmpty(); ii++) {
+                        SnapshotSiteProcessor.m_taskListsForSites.get(ii).addAll(partitionedSnapshotTasks);
+                    }
                                                           
                     //int siteIndex = 0;
                     for (SnapshotTableTask t : replicatedSnapshotTasks) {

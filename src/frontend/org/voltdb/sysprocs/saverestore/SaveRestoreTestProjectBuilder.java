@@ -34,6 +34,7 @@ import org.voltdb.utils.CatalogUtil;
 
 public class SaveRestoreTestProjectBuilder extends VoltProjectBuilder {
     // REPLICATED
+    /*
     public SaveRestoreTestProjectBuilder(String project_name) {
         super(project_name);
     }
@@ -96,9 +97,10 @@ public class SaveRestoreTestProjectBuilder extends VoltProjectBuilder {
 
         return catalog;
     }
-
+    */
+    
     // PARTITIONED
-    /*
+    
     public SaveRestoreTestProjectBuilder(String project_name) {
         super(project_name);
     }
@@ -107,7 +109,7 @@ public class SaveRestoreTestProjectBuilder extends VoltProjectBuilder {
 
     public static String partitioning[][] = new String[][] { { "PARTITION_TESTER", "PT_ID" } };
 
-    public static final File ddlFile = new File("./src/frontend/org/voltdb/sysprocs/saverestore/saverestore-ddl-simple-partitioned.sql");
+    public static final File ddlFile = new File("./src/frontend/org/voltdb/sysprocs/saverestore/saverestore-ddl-partitioned.sql");
     public static final String jarFilename = "saverestore.jar";
 
     public void addDefaultProcedures() {
@@ -171,7 +173,7 @@ public class SaveRestoreTestProjectBuilder extends VoltProjectBuilder {
 
         return catalog;
     }
-    */
+    
     
     /*
     public SaveRestoreTestProjectBuilder(String project_name) {
