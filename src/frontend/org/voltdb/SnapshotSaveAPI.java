@@ -23,6 +23,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.log4j.Logger;
 import org.voltdb.SnapshotSiteProcessor.SnapshotTableTask;
+import org.voltdb.catalog.CatalogMap;
 import org.voltdb.catalog.Cluster;
 import org.voltdb.catalog.Host;
 import org.voltdb.catalog.Site;
@@ -154,6 +155,20 @@ public class SnapshotSaveAPI
         {
             // CHANGE
             final int numLocalSites = CatalogUtil.getNumberOfSites(context.getHost());
+            Host catalog_host = context.getHost();
+            Site catalog_site = CollectionUtil.first(CatalogUtil.getSitesForHost(catalog_host));
+            Integer lowest_site_id = catalog_site.getId();
+
+            CatalogMap<Partition> partition_map = catalog_site.getPartitions();
+            Integer lowest_partition_id = Integer.MAX_VALUE, p_id;
+            
+            for(Partition pt : partition_map){
+                p_id = pt.getId();
+                lowest_partition_id = Math.min(p_id, lowest_partition_id);
+            }
+            
+            assert(lowest_partition_id != Integer.MAX_VALUE);
+            
             LOG.info("Local Sites :"+numLocalSites);
 
             /*
@@ -171,19 +186,24 @@ public class SnapshotSaveAPI
 
                 final List<Table> tables = SnapshotUtil.getTablesToSave(context.getDatabase());
 
-                SnapshotUtil.recordSnapshotTableList(
-                        startTime,
-                        file_path,
-                        file_nonce,
-                        tables);
-                final AtomicInteger numTables = new AtomicInteger(tables.size());
-                
+                // CHANGE :: Do it only at partition with lowest id on site with lowest id
+                if (context.getPartitionExecutor().getSiteId() == lowest_site_id && context.getPartitionExecutor().getPartitionId() == lowest_partition_id) {
+                    SnapshotUtil.recordSnapshotTableList(
+                            startTime,
+                            file_path,
+                            file_nonce,
+                            tables);
+                }
+
+                final AtomicInteger numTables = new AtomicInteger(tables.size());                
                 LOG.info("NumTables Initial : "+numTables);
                 
                 final SnapshotRegistry.Snapshot snapshotRecord =
                     SnapshotRegistry.startSnapshot(
                             startTime,
                             context.getHStoreSite().getHostId(),
+                            context.getHStoreSite().getSiteId(), 
+                            context.getPartitionExecutor().getPartitionId(),                           
                             file_path,
                             file_nonce,
                             tables.toArray(new Table[0]));
@@ -193,7 +213,10 @@ public class SnapshotSaveAPI
                     String err_msg = "";
                     final File saveFilePath =
                         SnapshotUtil.constructFileForTable(table, file_path, file_nonce,
-                                              context.getSite().getHost().getTypeName());
+                                              String.valueOf(context.getHost().getId()),                                 
+                                              String.valueOf(context.getHStoreSite().getSiteId()), 
+                                              String.valueOf(context.getPartitionExecutor().getPartitionId())
+                                              );
                     SnapshotDataTarget sdt = null;
                     try {
                         sdt =
@@ -283,8 +306,9 @@ public class SnapshotSaveAPI
 
                 synchronized (SnapshotSiteProcessor.m_taskListsForSites) {
                     if (!partitionedSnapshotTasks.isEmpty() || !replicatedSnapshotTasks.isEmpty()) {
-                        SnapshotSiteProcessor.ExecutionSitesCurrentlySnapshotting.set(
-                        CatalogUtil.getNumberOfSites(context.getHost()));
+                        SnapshotSiteProcessor.ExecutionSitesCurrentlySnapshotting.set(2);
+                        // Each site runs on a separate JVM - so can't synchronize using this
+                        //CatalogUtil.getNumberOfSites(context.getHost()));
                         LOG.trace("ExecutionSitesCurrentlySnapshotting set :"+SnapshotSiteProcessor.ExecutionSitesCurrentlySnapshotting.get());
                         for (int ii = 0; ii < numLocalSites; ii++) {
                             SnapshotSiteProcessor.m_taskListsForSites.add(new ArrayDeque<SnapshotTableTask>());
@@ -297,11 +321,7 @@ public class SnapshotSaveAPI
                      * Distribute the writing of replicated tables to exactly one partition.
                      */
 
-                    // CHANGE :: Assign replicated table work to single partition with lowest id
-                    Host catalog_host = context.getHost();
-                    Site catalog_lowest_site = CollectionUtil.first(CatalogUtil.getSitesForHost(catalog_host));
-                    Integer lowest_site_id = catalog_lowest_site.getId();
-                    
+                    // CHANGE :: Assign replicated table work to single partition with lowest id                    
                     for (SnapshotTableTask t : partitionedSnapshotTasks) {
                         SnapshotSiteProcessor.m_taskListsForSites.get(lowest_site_id).offer(t);
                     }               

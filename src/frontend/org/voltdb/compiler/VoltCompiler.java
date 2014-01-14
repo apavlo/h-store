@@ -1263,7 +1263,7 @@ public class VoltCompiler {
         // Table of sysproc metadata.
         final Object[][] procedures = {
             // SysProcedure Class                   readonly    everysite
-            {SnapshotRestoreLocal.class,            false,      true},
+            //{SnapshotRestoreLocal.class,            false,      true},
             {LoadMultipartitionTable.class,         false,      true},
             {DatabaseDump.class,                    true,       true},
             {MarkovUpdate.class,                    true,       true},
@@ -1278,7 +1278,7 @@ public class VoltCompiler {
             {ExecutorStatus.class,                  true,       false},
             {GetCatalog.class,                      true,       false},
             {SnapshotSave.class,                    false,      true},
-            //{SnapshotRestore.class,                 false,      true},
+            {SnapshotRestore.class,                 false,      true},
             {SnapshotStatus.class,                  false,      true},
             {SnapshotScan.class,                    false,      true},
             {SnapshotDelete.class,                  false,      true},

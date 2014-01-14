@@ -189,7 +189,11 @@ public class SnapshotSave extends VoltSystemProcedure {
                 }
 
                 for (Table table : SnapshotUtil.getTablesToSave(context.getDatabase())) {
-                    File saveFilePath = SnapshotUtil.constructFileForTable(table, file_path, file_nonce, context.getSite().getHost().getTypeName());
+                    File saveFilePath = SnapshotUtil.constructFileForTable(table, file_path, file_nonce, 
+                            String.valueOf(context.getHost().getId()),                                 
+                            String.valueOf(context.getHStoreSite().getSiteId()), 
+                            String.valueOf(context.getPartitionExecutor().getPartitionId())
+                            );
                     LOG.trace("Host ID " + context.getSite().getHost().getTypeName() + " table: " + table.getTypeName() + " to path: " + saveFilePath);
                     String file_valid = "SUCCESS";
                     String err_msg = "";

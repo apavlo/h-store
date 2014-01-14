@@ -63,13 +63,15 @@ import edu.brown.hstore.cmdlog.CommandLogWriter;
 import edu.brown.hstore.cmdlog.LogEntry;
 
 /**
- * Test the SnapshotSave and SnapshotRestoreLocal system procedures
+ * Test the SnapshotSave and SnapshotRestore system procedures
  */
 public class TestSaveRestoreSysprocSuite extends RegressionSuite {
 
     private static final String TMPDIR = "./snapshot";
     private static final String TESTNONCE = "testnonce";
     private static final int ALLOWEXPORT = 0;
+    
+    private static int NUM_SITES = -1;    
 
     public TestSaveRestoreSysprocSuite(String name) {
         super(name);
@@ -440,7 +442,7 @@ public class TestSaveRestoreSysprocSuite extends RegressionSuite {
         client = getClient();
 
         try {
-            results = client.callProcedure("@SnapshotRestoreLocal", TMPDIR, TESTNONCE, ALLOWEXPORT).getResults();
+            results = client.callProcedure("@SnapshotRestore", TMPDIR, TESTNONCE, ALLOWEXPORT).getResults();
 
             System.out.println(results[0]);
             
@@ -451,7 +453,7 @@ public class TestSaveRestoreSysprocSuite extends RegressionSuite {
             }
         } catch (Exception ex) {
             ex.printStackTrace();
-            fail("SnapshotRestoreLocal exception: " + ex.getMessage());
+            fail("SnapshotRestore exception: " + ex.getMessage());
         }
 
         System.out.println("@Statistics after restore:");
@@ -472,13 +474,16 @@ public class TestSaveRestoreSysprocSuite extends RegressionSuite {
         //assertEquals(3, foundItem);
         validateSnapshot(true);
     }
-    */
+    */       
     
-    
-    
+    /*
     public void testSaveAndRestorePartitionedTable() throws IOException, InterruptedException, ProcCallException {
         System.out.println("Starting testSaveAndRestorePartitionedTable");
-        int num_partitioned_items_per_chunk = 3; 
+       
+        deleteTestFiles();
+        setUpSnapshotDir();     
+        
+        int num_partitioned_items_per_chunk = 6; 
         int num_partitioned_chunks = 2;
         Client client = getClient();
 
@@ -503,7 +508,7 @@ public class TestSaveRestoreSysprocSuite extends RegressionSuite {
         System.out.println("@Statistics after saveTables :");
         System.out.println(results_tmp[0]);
 
-        /*
+        
         // Kill and restart all the execution sites.
         m_config.shutDown();
         m_config.startUp();
@@ -511,7 +516,7 @@ public class TestSaveRestoreSysprocSuite extends RegressionSuite {
         client = getClient();
 
         try {
-            results = client.callProcedure("@SnapshotRestoreLocal", TMPDIR, TESTNONCE, ALLOWEXPORT).getResults();
+            results = client.callProcedure("@SnapshotRestore", TMPDIR, TESTNONCE, ALLOWEXPORT).getResults();
 
             System.out.println(results[0]);
 
@@ -522,7 +527,7 @@ public class TestSaveRestoreSysprocSuite extends RegressionSuite {
             }
         } catch (Exception ex) {
             ex.printStackTrace();
-            fail("SnapshotRestoreLocal exception: " + ex.getMessage());
+            fail("SnapshotRestore exception: " + ex.getMessage());
         }
 
         System.out.println("@Statistics after restore:");
@@ -535,21 +540,21 @@ public class TestSaveRestoreSysprocSuite extends RegressionSuite {
         while (results[0].advanceRow()) {
             if (results[0].getString("TABLE_NAME").equals("PARTITION_TESTER")) {
                 ++foundItem;
-                assertEquals((num_partitioned_items_per_chunk * num_partitioned_chunks) / 2, results[0].getLong("TUPLE_COUNT"));
+                assertEquals((num_partitioned_items_per_chunk * num_partitioned_chunks)/NUM_SITES, results[0].getLong("TUPLE_COUNT"));
             }
         }
 
         // make sure all sites were loaded
         //assertEquals(2, foundItem);
         validateSnapshot(true);
-        */
+        
         
     }
-    
+    */
     
     
     // YCSB
-    /*
+    
     private static final String PREFIX = "ycsb";
     private static final int NUM_TUPLES = 4;
     
@@ -573,6 +578,7 @@ public class TestSaveRestoreSysprocSuite extends RegressionSuite {
         };
         loader.load();
     }    
+    
     
     
     public void testSaveAndRestoreYCSB() throws IOException, InterruptedException, ProcCallException {
@@ -643,7 +649,7 @@ public class TestSaveRestoreSysprocSuite extends RegressionSuite {
         client = getClient();
 
         try {
-            results = client.callProcedure("@SnapshotRestoreLocal", TMPDIR, TESTNONCE, ALLOWEXPORT).getResults();
+            results = client.callProcedure("@SnapshotRestore", TMPDIR, TESTNONCE, ALLOWEXPORT).getResults();
 
             System.out.println(results[0]);
             
@@ -654,7 +660,7 @@ public class TestSaveRestoreSysprocSuite extends RegressionSuite {
             }
         } catch (Exception ex) {
             ex.printStackTrace();
-            fail("SnapshotRestoreLocal exception: " + ex.getMessage());
+            fail("SnapshotRestore exception: " + ex.getMessage());
         }
 
         System.out.println("@Statistics after restore:");
@@ -664,7 +670,7 @@ public class TestSaveRestoreSysprocSuite extends RegressionSuite {
         validateSnapshot(true);
         
         
-        //checkYCSBTable(client, NUM_TUPLES);              
+        checkYCSBTable(client, NUM_TUPLES);              
         
         parseCommandLog();
     }
@@ -746,7 +752,7 @@ public class TestSaveRestoreSysprocSuite extends RegressionSuite {
         
         System.out.println("checkYCSBTable Passed");
     }
-    */
+    
     
 
     /**
@@ -764,15 +770,16 @@ public class TestSaveRestoreSysprocSuite extends RegressionSuite {
         */
         
         
-        SaveRestoreTestProjectBuilder project = new SaveRestoreTestProjectBuilder("snapshot-VoltDB-project");
-        //YCSBProjectBuilder project = new YCSBProjectBuilder();
+        //SaveRestoreTestProjectBuilder project = new SaveRestoreTestProjectBuilder("snapshot-VoltDB-project");
+        YCSBProjectBuilder project = new YCSBProjectBuilder();
 
         project.addAllDefaults();
 
         VoltServerConfig m_config = null;        
         setUpSnapshotDir();
 
-        m_config = new LocalCluster("snapshot-2-sites-2-partitions.jar", 2, 1, 1, BackendTarget.NATIVE_EE_JNI);
+        NUM_SITES = 3;
+        m_config = new LocalCluster("snapshot-3-sites-3-partitions.jar", NUM_SITES, 1, 1, BackendTarget.NATIVE_EE_JNI);
         //m_config = new LocalSingleProcessServer("snapshot-1-site-2-partition.jar", 2, BackendTarget.NATIVE_EE_JNI);
 
         boolean success = m_config.compile(project);

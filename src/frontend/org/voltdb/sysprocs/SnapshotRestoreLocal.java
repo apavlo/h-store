@@ -429,6 +429,8 @@ public class SnapshotRestoreLocal extends VoltSystemProcedure {
                 assert params.toArray()[1] != null;
             
             Host catalog_host = context.getHost();
+            Site catalog_site = context.getSite();
+            Partition catalog_partition = context.getPartitionExecutor().getPartition();            
             Collection<Partition> pset = CatalogUtil.getAllPartitions(catalog_host);
             
             int p_itr = 0;
@@ -452,7 +454,11 @@ public class SnapshotRestoreLocal extends VoltSystemProcedure {
 
                 try {
 
-                    TableSaveFile savefile = getTableSaveFile(getSaveFileForPartitionedTable(m_filePath, m_fileNonce, table_name, catalog_host.getId()), 3, relevantPartitionIds);
+                    TableSaveFile savefile = getTableSaveFile(getSaveFileForPartitionedTable(m_filePath, m_fileNonce, table_name, 
+                            catalog_host.getId(), 
+                            catalog_site.getId(), 
+                            catalog_partition.getId()),                             
+                            3, relevantPartitionIds);
 
                     assert (savefile.getCompleted());                    
 
@@ -621,15 +627,19 @@ public class SnapshotRestoreLocal extends VoltSystemProcedure {
         return new File(m_filePath, new String(filename_builder));
     }
 
-    private static File getSaveFileForPartitionedTable(String filePath, String fileNonce, String tableName, int originalHostId) {
+    private static File getSaveFileForPartitionedTable(String filePath, String fileNonce, String tableName, int originalHostId, int siteId, int partitionId) {
         StringBuilder filename_builder = new StringBuilder(fileNonce);
         filename_builder.append("-");
         filename_builder.append(tableName);
+        
         filename_builder.append("-host_");
-        // CHANGE :: Fix to match host name host_00 instead of host_0
-        filename_builder.append("0");
-
         filename_builder.append(originalHostId);
+        filename_builder.append("-site_");
+        filename_builder.append(siteId);
+        filename_builder.append("-partition_");
+        filename_builder.append(partitionId);
+
+        
         filename_builder.append(".vpt");
         return new File(filePath, new String(filename_builder));
     }
@@ -694,6 +704,8 @@ public class SnapshotRestoreLocal extends VoltSystemProcedure {
         assert (context != null);
 
         Host catalog_host = context.getHost();
+        Site catalog_site = context.getSite();
+        Partition catalog_partition = context.getPartitionExecutor().getPartition();            
         Collection<Partition> catalog_partitions = CatalogUtil.getPartitionsForHost(catalog_host);
 
         int[] relevantPartitionIds = new int[catalog_partitions.size()];
@@ -727,7 +739,11 @@ public class SnapshotRestoreLocal extends VoltSystemProcedure {
                 if (t.getIsreplicated()) {
                     savefile = getTableSaveFile(getSaveFileForReplicatedTable(tableName), 3, null);
                 } else {
-                    savefile = getTableSaveFile(getSaveFileForPartitionedTable(m_filePath, m_fileNonce, tableName, catalog_host.getId()), 3, relevantPartitionIds);
+                    savefile = getTableSaveFile(getSaveFileForPartitionedTable(m_filePath, m_fileNonce, tableName, 
+                            catalog_host.getId(),
+                            catalog_site.getId(), 
+                            catalog_partition.getId()),                             
+                            3, relevantPartitionIds);
                 }
 
                 assert (savefile.getCompleted());
