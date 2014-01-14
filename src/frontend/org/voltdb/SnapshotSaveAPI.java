@@ -73,27 +73,38 @@ public class SnapshotSaveAPI
             createSetup(file_path, file_nonce, startTime, context, hostname, result);
         }
 
+        LOG.trace("Stage 0 : at partition : "+context.getPartitionExecutor().getPartitionId());
+        
         // All sites wait for a permit to start their individual snapshot tasks
         VoltTable error = acquireSnapshotPermit(context, hostname, result);
         if (error != null) {
+            LOG.trace("Stage 0->1 : at partition :"+context.getPartitionExecutor().getPartitionId()+ " error :"+error);
             return error;
         }
+
+        LOG.trace("Stage 1 : at partition : "+context.getPartitionExecutor().getPartitionId());
 
         synchronized (SnapshotSiteProcessor.m_taskListsForSites) {
             final Deque<SnapshotTableTask> m_taskList = SnapshotSiteProcessor.m_taskListsForSites.poll();
             if (m_taskList == null) {
+                LOG.trace("tasklist null");
                 return result;
             } else {
                 if (SnapshotSiteProcessor.m_taskListsForSites.isEmpty()) {
                     assert(SnapshotSiteProcessor.m_snapshotCreateSetupPermit.availablePermits() == 1);
                     assert(SnapshotSiteProcessor.m_snapshotPermits.availablePermits() == 0);
                 }
+                LOG.trace("m_taskListsforSites not empty ");
+                LOG.trace("ExecutionSitesCurrentlySnapshotting :"+SnapshotSiteProcessor.ExecutionSitesCurrentlySnapshotting.get());
+
                 // CHANGE :: Don't use
                 assert(SnapshotSiteProcessor.ExecutionSitesCurrentlySnapshotting.get() > 0);
                 context.getPartitionExecutor().initiateSnapshots(m_taskList);
             }
         }
 
+        LOG.trace("Stage 2 : at partition : "+context.getPartitionExecutor().getPartitionId());
+        
         if (block != 0) {
             Collection<Exception> failures = null;
             String status = "SUCCESS";
@@ -103,14 +114,16 @@ public class SnapshotSaveAPI
             } catch (InterruptedException e) {
                 status = "FAILURE";
                 err = e.toString();
-            }
+            }            
             final VoltTable blockingResult = SnapshotSave.constructPartitionResultsTable();
 
             if (failures.isEmpty()) {
                 blockingResult.addRow(
                         Integer.parseInt(context.getSite().getHost().getTypeName()),
                         hostname,
-                        Integer.parseInt(context.getSite().getTypeName()),
+                        context.getHStoreSite().getSiteId(), 
+                        context.getPartitionExecutor().getPartitionId(),                     
+                        "",
                         status,
                         err);
             } else {
@@ -121,12 +134,15 @@ public class SnapshotSaveAPI
                 blockingResult.addRow(
                         Integer.parseInt(context.getSite().getHost().getTypeName()),
                         hostname,
-                        Integer.parseInt(context.getSite().getTypeName()),
+                        context.getHStoreSite().getSiteId(), 
+                        context.getPartitionExecutor().getPartitionId(),                     
+                        "",
                         status,
                         err);
             }
             return blockingResult;
         }
+
 
         return result;
     }
@@ -258,6 +274,8 @@ public class SnapshotSaveAPI
 
                     result.addRow(Integer.parseInt(context.getSite().getHost().getTypeName()),
                             hostname,
+                            context.getHStoreSite().getSiteId(), 
+                            context.getPartitionExecutor().getPartitionId(),                         
                             table.getTypeName(),
                             canSnapshot,
                             err_msg);
@@ -284,13 +302,13 @@ public class SnapshotSaveAPI
                     Site catalog_lowest_site = CollectionUtil.first(CatalogUtil.getSitesForHost(catalog_host));
                     Integer lowest_site_id = catalog_lowest_site.getId();
                     
-                    //for (SnapshotTableTask t : partitionedSnapshotTasks) {
-                    //    SnapshotSiteProcessor.m_taskListsForSites.get(lowest_site_id).offer(t);
-                    //}               
+                    for (SnapshotTableTask t : partitionedSnapshotTasks) {
+                        SnapshotSiteProcessor.m_taskListsForSites.get(lowest_site_id).offer(t);
+                    }               
 
-                    for (int ii = 0; ii < numLocalSites && !partitionedSnapshotTasks.isEmpty(); ii++) {
-                        SnapshotSiteProcessor.m_taskListsForSites.get(ii).addAll(partitionedSnapshotTasks);
-                    }
+                    //for (int ii = 0; ii < numLocalSites && !partitionedSnapshotTasks.isEmpty(); ii++) {
+                    //    SnapshotSiteProcessor.m_taskListsForSites.get(ii).addAll(partitionedSnapshotTasks);
+                    //}
                                                           
                     //int siteIndex = 0;
                     for (SnapshotTableTask t : replicatedSnapshotTasks) {
@@ -319,6 +337,8 @@ public class SnapshotSaveAPI
                 result.addRow(
                         context.getSite().getHost().getId(),
                         hostname,
+                        context.getHStoreSite().getSiteId(), 
+                        context.getPartitionExecutor().getPartitionId(), 
                         "",
                         "FAILURE",
                         "SNAPSHOT INITIATION OF " + file_path + file_nonce +
@@ -337,6 +357,8 @@ public class SnapshotSaveAPI
         } catch (Exception e) {
             result.addRow(Integer.parseInt(context.getSite().getHost().getTypeName()),
                     hostname,
+                    context.getHStoreSite().getSiteId(), 
+                    context.getPartitionExecutor().getPartitionId(),                 
                     "",
                     "FAILURE",
                     e.toString());

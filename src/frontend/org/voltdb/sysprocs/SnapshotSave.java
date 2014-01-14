@@ -32,7 +32,9 @@ import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltTable.ColumnInfo;
 import org.voltdb.VoltType;
+import org.voltdb.catalog.CatalogMap;
 import org.voltdb.catalog.Host;
+import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Table;
 import org.voltdb.client.ConnectionUtil;
@@ -52,11 +54,23 @@ public class SnapshotSave extends VoltSystemProcedure {
     private static final int DEP_createSnapshotTargets = (int) SysProcFragmentId.PF_createSnapshotTargets | HStoreConstants.MULTIPARTITION_DEPENDENCY;
     private static final int DEP_createSnapshotTargetsResults = (int) SysProcFragmentId.PF_createSnapshotTargetsResults;
 
-    public static final ColumnInfo nodeResultsColumns[] = new ColumnInfo[] { new ColumnInfo(CNAME_HOST_ID, CTYPE_ID), new ColumnInfo("HOSTNAME", VoltType.STRING),
-            new ColumnInfo("TABLE", VoltType.STRING), new ColumnInfo("RESULT", VoltType.STRING), new ColumnInfo("ERR_MSG", VoltType.STRING) };
+    public static final ColumnInfo nodeResultsColumns[] = new ColumnInfo[] { 
+            new ColumnInfo(CNAME_HOST_ID, CTYPE_ID), 
+            new ColumnInfo("HOSTNAME", VoltType.STRING),
+            new ColumnInfo(CNAME_SITE_ID, CTYPE_ID), 
+            new ColumnInfo(CNAME_PARTITION_ID, CTYPE_ID), 
+            new ColumnInfo("TABLE", VoltType.STRING), 
+            new ColumnInfo("RESULT", VoltType.STRING), 
+            new ColumnInfo("ERR_MSG", VoltType.STRING) };
 
-    public static final ColumnInfo partitionResultsColumns[] = new ColumnInfo[] { new ColumnInfo(CNAME_HOST_ID, CTYPE_ID), new ColumnInfo("HOSTNAME", VoltType.STRING),
-            new ColumnInfo(CNAME_SITE_ID, CTYPE_ID), new ColumnInfo("RESULT", VoltType.STRING), new ColumnInfo("ERR_MSG", VoltType.STRING) };
+    public static final ColumnInfo partitionResultsColumns[] = new ColumnInfo[] { 
+            new ColumnInfo(CNAME_HOST_ID, CTYPE_ID), 
+            new ColumnInfo("HOSTNAME", VoltType.STRING),
+            new ColumnInfo(CNAME_SITE_ID, CTYPE_ID), 
+            new ColumnInfo(CNAME_PARTITION_ID, CTYPE_ID), 
+            new ColumnInfo("TABLE", VoltType.STRING),             
+            new ColumnInfo("RESULT", VoltType.STRING), 
+            new ColumnInfo("ERR_MSG", VoltType.STRING) };
 
     public static final VoltTable constructNodeResultsTable() {
         return new VoltTable(nodeResultsColumns);
@@ -86,6 +100,8 @@ public class SnapshotSave extends VoltSystemProcedure {
         } else if (fragmentId == SysProcFragmentId.PF_saveTestResults) {
             return saveTestResults(dependencies);
         } else if (fragmentId == SysProcFragmentId.PF_createSnapshotTargets) {
+            LOG.trace("createSnapshotTargets :: Starts at partition : " + context.getPartitionExecutor().getPartitionId());
+
             assert (params.toArray()[0] != null);
             assert (params.toArray()[1] != null);
             assert (params.toArray()[2] != null);
@@ -97,7 +113,7 @@ public class SnapshotSave extends VoltSystemProcedure {
             SnapshotSaveAPI saveAPI = new SnapshotSaveAPI();
             VoltTable result = saveAPI.startSnapshotting(file_path, file_nonce, block, startTime, context, hostname);
 
-            LOG.trace("createSnapshotTargets at partition : " + context.getPartitionExecutor().getPartitionId() + "\n" + result);
+            LOG.trace("createSnapshotTargets :: Ends at partition : " + context.getPartitionExecutor().getPartitionId() + "\n" + result);
             return new DependencySet(SnapshotSave.DEP_createSnapshotTargets, result);
         } else if (fragmentId == SysProcFragmentId.PF_createSnapshotTargetsResults) {
             return createSnapshotTargetsResults(dependencies);
@@ -146,11 +162,25 @@ public class SnapshotSave extends VoltSystemProcedure {
             Site catalog_site = CollectionUtil.first(CatalogUtil.getSitesForHost(catalog_host));
             Integer lowest_site_id = catalog_site.getId();
 
+            CatalogMap<Partition> partition_map = catalog_site.getPartitions();
+            Integer lowest_partition_id = Integer.MAX_VALUE, p_id;
+            
+            for(Partition pt : partition_map){
+                p_id = pt.getId();
+                lowest_partition_id = Math.min(p_id, lowest_partition_id);
+            }
+            
+            assert(lowest_partition_id != Integer.MAX_VALUE);
+            
             LOG.trace("Partition id :" + context.getPartitionExecutor().getPartitionId());
+            LOG.trace("Lowest Partition id :" + lowest_partition_id);
 
-            if (context.getPartitionExecutor().getSiteId() == lowest_site_id) {
-                LOG.trace("Checking feasibility of save with path and nonce: " + file_path + ", " + file_nonce);
-                LOG.trace("ExecutionSitesCurrentlySnapshotting check : " + SnapshotSiteProcessor.ExecutionSitesCurrentlySnapshotting.get());
+            // Do it at partition with lowest partition id on site with lowest site id 
+            // as we can have multiple partitions per site in HStore
+            if (context.getPartitionExecutor().getSiteId() == lowest_site_id && context.getPartitionExecutor().getPartitionId() == lowest_partition_id) {
+
+               LOG.trace("Checking feasibility of save with path and nonce: " + file_path + ", " + file_nonce);
+               LOG.trace("ExecutionSitesCurrentlySnapshotting check : " + SnapshotSiteProcessor.ExecutionSitesCurrentlySnapshotting.get());
 
                 // CHANGE : Only 1 Site doing this
                 if (SnapshotSiteProcessor.ExecutionSitesCurrentlySnapshotting.get() != -1) {
@@ -177,7 +207,7 @@ public class SnapshotSave extends VoltSystemProcedure {
                             err_msg = "FILE CREATION OF " + saveFilePath + "RESULTED IN IOException: " + ex.getMessage();
                         }
                     }
-                    result.addRow(catalog_host.getId(), hostname, table.getTypeName(), file_valid, err_msg);
+                    result.addRow(catalog_host.getId(), hostname, context.getHStoreSite().getSiteId(), context.getPartitionExecutor().getPartitionId(),  table.getTypeName(), file_valid, err_msg);
                 }
             }
             LOG.trace("Host ID " + context.getSite().getHost().getTypeName() + "\n" + new DependencySet(DEP_saveTest, result));

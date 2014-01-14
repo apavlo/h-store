@@ -475,7 +475,7 @@ public class TestSaveRestoreSysprocSuite extends RegressionSuite {
     */
     
     
-    /*
+    
     public void testSaveAndRestorePartitionedTable() throws IOException, InterruptedException, ProcCallException {
         System.out.println("Starting testSaveAndRestorePartitionedTable");
         int num_partitioned_items_per_chunk = 3; 
@@ -503,7 +503,7 @@ public class TestSaveRestoreSysprocSuite extends RegressionSuite {
         System.out.println("@Statistics after saveTables :");
         System.out.println(results_tmp[0]);
 
-        
+        /*
         // Kill and restart all the execution sites.
         m_config.shutDown();
         m_config.startUp();
@@ -529,7 +529,7 @@ public class TestSaveRestoreSysprocSuite extends RegressionSuite {
         results = client.callProcedure("@Statistics", "table", 0).getResults();
         System.out.println(results[0]);
 
-        //checkTable(client, "PARTITION_TESTER", "PT_ID", num_partitioned_items_per_chunk * num_partitioned_chunks);
+        checkTable(client, "PARTITION_TESTER", "PT_ID", num_partitioned_items_per_chunk * num_partitioned_chunks);
 
         int foundItem = 0;
         while (results[0].advanceRow()) {
@@ -542,13 +542,14 @@ public class TestSaveRestoreSysprocSuite extends RegressionSuite {
         // make sure all sites were loaded
         //assertEquals(2, foundItem);
         validateSnapshot(true);
+        */
         
     }
-    */
+    
     
     
     // YCSB
-    
+    /*
     private static final String PREFIX = "ycsb";
     private static final int NUM_TUPLES = 4;
     
@@ -635,7 +636,7 @@ public class TestSaveRestoreSysprocSuite extends RegressionSuite {
         System.out.println("@Statistics after saveTables :");
         System.out.println(results_tmp[0]);
 
-        /*
+        
         // Kill and restart all the execution sites.
         m_config.shutDown();
         m_config.startUp();
@@ -661,7 +662,7 @@ public class TestSaveRestoreSysprocSuite extends RegressionSuite {
         System.out.println(results[0]);
                
         validateSnapshot(true);
-        */
+        
         
         //checkYCSBTable(client, NUM_TUPLES);              
         
@@ -745,6 +746,7 @@ public class TestSaveRestoreSysprocSuite extends RegressionSuite {
         
         System.out.println("checkYCSBTable Passed");
     }
+    */
     
 
     /**
@@ -754,14 +756,16 @@ public class TestSaveRestoreSysprocSuite extends RegressionSuite {
      */
     static public Test suite() {
         MultiConfigSuiteBuilder builder = new MultiConfigSuiteBuilder(TestSaveRestoreSysprocSuite.class);
+        /*
         builder.setGlobalConfParameter("site.commandlog_enable", true);
         builder.setGlobalConfParameter("site.commandlog_timeout", 10);
         builder.setGlobalConfParameter("site.status_enable", true);
         builder.setGlobalConfParameter("site.status_exec_info", true);
+        */
         
         
-        //SaveRestoreTestProjectBuilder project = new SaveRestoreTestProjectBuilder("snapshot-VoltDB-project");
-        YCSBProjectBuilder project = new YCSBProjectBuilder();
+        SaveRestoreTestProjectBuilder project = new SaveRestoreTestProjectBuilder("snapshot-VoltDB-project");
+        //YCSBProjectBuilder project = new YCSBProjectBuilder();
 
         project.addAllDefaults();
 
@@ -769,7 +773,7 @@ public class TestSaveRestoreSysprocSuite extends RegressionSuite {
         setUpSnapshotDir();
 
         m_config = new LocalCluster("snapshot-2-sites-2-partitions.jar", 2, 1, 1, BackendTarget.NATIVE_EE_JNI);
-        //m_config = new LocalSingleProcessServer("snapshot-1-site-2-partition.jar", 1, BackendTarget.NATIVE_EE_JNI);
+        //m_config = new LocalSingleProcessServer("snapshot-1-site-2-partition.jar", 2, BackendTarget.NATIVE_EE_JNI);
 
         boolean success = m_config.compile(project);
         assert (success);

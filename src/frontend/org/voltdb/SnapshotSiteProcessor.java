@@ -355,7 +355,7 @@ public class SnapshotSiteProcessor {
         m_snapshotTargetTerminators = null;
         
         // Block till it gets set to 0
-        //while(SnapshotSiteProcessor.ExecutionSitesCurrentlySnapshotting.get() != 0);
+        while(SnapshotSiteProcessor.ExecutionSitesCurrentlySnapshotting.get() != 0);
 
         LOG.trace("completeSnapshotWork at partition :"+ee.getPartitionExecutor().getPartitionId());
 
