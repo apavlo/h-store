@@ -12,12 +12,12 @@ import org.voltdb.types.TimestampType;
 public class SimpleCall extends VoltProcedure {
     
     public final SQLStmt insertS1 = new SQLStmt(
-            "INSERT INTO S1 (value) VALUES (0);"
+            "INSERT INTO S1 (value) VALUES (?);"
         );
     
-    public long run() {
+    public long run(long value) {
 
-        voltQueueSQL(insertS1);
+        voltQueueSQL(insertS1, value);
         voltExecuteSQL(true);
 
         return 0;

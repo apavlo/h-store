@@ -88,6 +88,10 @@ public class ClientStatusThread extends Thread {
                 System.out.println(StringUtil.prefix(line.value, prefix));
                 continue;
             }
+
+            //added by hawk for debugging, 2014/1/2
+            //System.out.println("hawkwang: " + line.value);
+            //ended by hawk
             
             // BenchmarkController Coordination Message
             // split the string on commas and strip whitespace

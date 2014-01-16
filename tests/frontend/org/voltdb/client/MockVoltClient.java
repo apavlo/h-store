@@ -341,4 +341,9 @@ public class MockVoltClient implements Client {
         // TODO Auto-generated method stub
         return false;
     }
+
+    @Override
+    public boolean asynCallProcedure(ProcedureCallback callback, String procName, StoredProcedureInvocationHints hints, Object... parameters) throws IOException, NoConnectionsException {
+        return callProcedure(callback, procName, hints, parameters);
+    }
 }

@@ -80,6 +80,13 @@ class ControlWorker extends Thread {
         
         boolean hadErrors = false;
         boolean bp = false;
+        
+        //added by hawk, 2014/1/2, to make the number of fixed txns used by benchmark running
+        boolean fixed_txns = cmp.m_fixed_txns;
+        long fixed_txns_count = cmp.m_fixed_txns_count;
+        boolean hasFinished = false;
+        //ended by hawk
+        
         while (true) {
             // If there is back pressure don't send any requests. Update the
             // last request time so that a large number of requests won't
@@ -121,6 +128,17 @@ class ControlWorker extends Thread {
                 try {
                     for (int ii = 0; ii < transactionsToCreate; ii++) {
                         bp = !cmp.runOnce();
+                        //added by hawk, 2014/1/2
+//                        System.out.println("hawkwang - worker cmp.runOnce()...");
+//                        if (fixed_txns == true) {
+//                            fixed_txns_count--;
+//                            if(fixed_txns_count==0)
+//                            {
+//                                hasFinished = true;
+//                                break;
+//                            }
+//                        }
+                        //ended by hawk
                         if (bp || cmp.m_controlState != ControlState.RUNNING) {
                             break;
                         }
@@ -142,6 +160,13 @@ class ControlWorker extends Thread {
             }
 
             m_lastRequestTime = now;
+            
+            //added by hawk, 2014/1/2
+            if ( hasFinished==true ) {
+                //cmp.m_controlState = ControlState.PAUSED;
+                //break;
+            }
+            //ended by hawk
         } // WHILE
     }
  

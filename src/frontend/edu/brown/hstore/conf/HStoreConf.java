@@ -1379,7 +1379,24 @@ public final class HStoreConf {
             experimental=false
         )
         public int txnrate;
+
+        //added by hawk, 2014/1/2, to benchmark running with fixed number of txns
+        @ConfigProperty(
+                description="Indicate if the fixed number mode is used for benchmark running.",
+                defaultBoolean=false,
+                experimental=false
+            )
+        public boolean fixed_txns;
         
+        @ConfigProperty(
+                description="The fixed number of txns.",
+                defaultLong=100000, // 256kb
+                experimental=false
+            )
+        public long fixed_txns_count;
+        //ended by hawk
+
+
         @ConfigProperty(
             description="", // TODO
             defaultNull=true,

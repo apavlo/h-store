@@ -381,7 +381,7 @@ public class HStoreTerminal implements Runnable {
 //        cal = Calendar.getInstance();
 //        System.out.println("hawk - after call procedure: " + dateFormat.format(cal.getTime()));
         long endTime=System.nanoTime();
-        System.out.println("Execution time： " + (endTime-startTime) + "ns");   
+        System.out.println("Execution time: " + (endTime-startTime) + "ns");   
         // ended by hawk
         return (cresponse);
     }

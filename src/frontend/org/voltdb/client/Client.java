@@ -146,6 +146,8 @@ public interface Client {
     public boolean callProcedure(ProcedureCallback callback, String procName, StoredProcedureInvocationHints hints, Object... parameters)
     throws IOException, NoConnectionsException;
 
+    public boolean asynCallProcedure(ProcedureCallback callback, String procName, StoredProcedureInvocationHints hints, Object... parameters)
+    throws IOException, NoConnectionsException;
     /**
      * Asynchronously invoke a procedure. Does not guarantee that the invocation is actually queued. If there
      * is backpressure on all connections to the cluster then the invocation will not be queued. Check the return value

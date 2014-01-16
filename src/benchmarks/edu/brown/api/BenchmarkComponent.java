@@ -258,6 +258,14 @@ public abstract class BenchmarkComponent {
     final double m_txnsPerMillisecond;
 
     /**
+     * Number of fixed transactions used in benchmark running
+     */
+    //added by hawk, 2014/1/2
+    final boolean m_fixed_txns;
+    final long m_fixed_txns_count;
+    //ended by hawk
+
+    /**
      * Additional parameters (benchmark specific)
      */
     protected final Map<String, String> m_extraParams = new HashMap<String, String>();
@@ -394,6 +402,11 @@ public abstract class BenchmarkComponent {
         m_statsDatabaseJDBC = null;
         m_statsPollerInterval = -1;
         
+        //added by hawk, 2014/1/2
+        m_fixed_txns = false;
+        m_fixed_txns_count = 0;
+        //ended by hawk
+        
         // FIXME
         m_hstoreConf = null;
     }
@@ -437,6 +450,12 @@ public abstract class BenchmarkComponent {
         boolean tableStats = m_hstoreConf.client.tablestats;
         String tableStatsDir = m_hstoreConf.client.tablestats_dir;
         int tickInterval = m_hstoreConf.client.tick_interval;
+        
+        //added by hawk, 2014/1/2
+        boolean fixed_txns = m_hstoreConf.client.fixed_txns;
+        long fixed_txns_count = m_hstoreConf.client.fixed_txns_count;
+        //ended by hawk
+
         
         // default values
         String username = "user";
@@ -595,6 +614,12 @@ public abstract class BenchmarkComponent {
         m_statsDatabasePass = statsDatabasePass;
         m_statsDatabaseJDBC = statsDatabaseJDBC;
         m_statsPollerInterval = statsPollInterval;
+        
+        //added by hawk, 2014/1/2
+        m_fixed_txns = fixed_txns;
+        m_fixed_txns_count = fixed_txns_count;
+        //ended by hawk
+
         
         // If we were told to sleep, do that here before we try to load in the catalog
         // This is an attempt to keep us from overloading a single node all at once
@@ -891,6 +916,7 @@ public abstract class BenchmarkComponent {
     protected void answerPoll() {
         BenchmarkComponentResults copy = this.m_txnStats.copy();
         this.m_txnStats.clear(false);
+        //System.out.println("Hawkwang - answerPoll() - " + copy.toJSONString());
         this.printControlMessage(m_controlState, copy.toJSONString());
     }
     

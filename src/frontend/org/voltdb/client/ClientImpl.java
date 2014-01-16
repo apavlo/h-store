@@ -273,6 +273,14 @@ final class ClientImpl implements Client {
         }
         return callProcedure(callback, m_expectedOutgoingMessageSize, procName, hints, parameters);
     }
+    
+    public final boolean asynCallProcedure(ProcedureCallback callback, String procName, StoredProcedureInvocationHints hints, Object... parameters)
+    throws IOException, NoConnectionsException {
+        if (m_isShutdown) {
+            return false;
+        }
+        return callProcedure(callback, m_expectedOutgoingMessageSize, procName, hints, parameters);
+    }
 
     @Override
     public int calculateInvocationSerializedSize(String procName,

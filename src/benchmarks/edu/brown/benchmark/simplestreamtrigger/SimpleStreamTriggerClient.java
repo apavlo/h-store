@@ -51,7 +51,7 @@ public class SimpleStreamTriggerClient extends BenchmarkComponent {
     protected boolean runOnce() throws IOException {
         Client client = this.getClientHandle();
         boolean response = client.callProcedure(callback,
-                                                "SimpleCall");
+                                                "SimpleCall",0);
         return response;
     }
 
