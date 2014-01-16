@@ -44,8 +44,13 @@ public abstract class BaseLogger {
     public boolean sendToLogger(DriverCEPartitionSettings parms){
         return sendToLogger(logFormatter.getLogOutput(parms ));
     }
-
-    public boolean sendToLogger(TradeOrderSettings parms){
+    public boolean sendToLogger(DriverMEESettings parms){
+        return sendToLogger(logFormatter.getLogOutput(parms ));
+    }
+   public boolean sendToLogger(TradeOrderSettings parms){
+        return sendToLogger(logFormatter.getLogOutput(parms ));
+    }
+    public boolean sendToLogger(MarketWatchSettings parms){
         return sendToLogger(logFormatter.getLogOutput(parms ));
     }
 
@@ -55,6 +60,7 @@ public abstract class BaseLogger {
     public boolean sendToLogger(TDriverCETxnSettings parms){
         boolean result = false;
         result |= sendToLogger(logFormatter.getLogOutput(parms.TO_settings ));
+        result |= sendToLogger(logFormatter.getLogOutput(parms.MW_settings ));
         result |= sendToLogger(logFormatter.getLogOutput(parms.TxnMixGenerator_settings ));
         return result;
     }

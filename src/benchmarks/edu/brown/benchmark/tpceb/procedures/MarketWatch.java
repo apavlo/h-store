@@ -56,8 +56,8 @@ import org.voltdb.VoltType;
  */
 public class MarketWatch extends VoltProcedure {
 
-    public final SQLStmt getStockListCustomer = new SQLStmt("select WI_S_SYMB from WATCH_ITEM, WATCH_LIST " +
-            "where WL_C_ID = ? and WI_WL_ID = WL_ID");
+   /* public final SQLStmt getStockListCustomer = new SQLStmt("select WI_S_SYMB from WATCH_ITEM, WATCH_LIST " +
+            "where WL_C_ID = ? and WI_WL_ID = WL_ID");*/
 
     public final SQLStmt getStockListIndustry = new SQLStmt("select S_SYMB from INDUSTRY, COMPANY, SECURITY " +
             "where IN_NAME = ? and CO_IN_ID = IN_ID and S_CO_ID = CO_ID and CO_ID >= ? AND CO_ID <= ?" );
@@ -74,19 +74,27 @@ public class MarketWatch extends VoltProcedure {
         
         // first, fetch security symbols
         VoltTable stock_list = null;
-        if (cust_id != 0) {
+        /*if (cust_id != 0) {
             voltQueueSQL(getStockListCustomer, cust_id);
             stock_list = voltExecuteSQL()[0];
-        }
-        else if (!industry_name.equals("")) {
+        }*/
+       // else 
+        //acct_id = 43000000083L;
+            if (!industry_name.equals("")) {
+                System.out.println("in the one where use industry stock list");
+                
             voltQueueSQL(getStockListIndustry, industry_name, starting_co_id, ending_co_id);
+            System.out.println("this was successful as well");
             stock_list = voltExecuteSQL()[0];
         }
         else if (acct_id != 0) {
+            System.out.println("in the one where it uses customer account stock list");
             voltQueueSQL(getStockListCustomerAccount, acct_id);
+            System.out.println("this was successful");
             stock_list = voltExecuteSQL()[0];
         }
         else {
+            System.out.println("Bad data");
             throw new VoltAbortException("Bad input data (intentional) in the Market-Watch transaction");
         }
 
@@ -96,25 +104,30 @@ public class MarketWatch extends VoltProcedure {
         
         for (int i = 0; i < stock_list.getRowCount(); i++) {
             String symbol = stock_list.fetchRow(i).getString(0);
+            System.out.println("finished first line in the loop");
             
             // if we had gotten symbols through watch lists, we have to do manual 'distinct'
-            if (cust_id != 0) {
+          /*  if (cust_id != 0) {
                 if (watch_symbols.contains(symbol)) {
                     continue;
                 }
                 else {
                     watch_symbols.add(symbol);
                 }
-            }
+            }*/
             
             voltQueueSQL(getNewPrice, symbol);
             VoltTable vt = voltExecuteSQL()[0];
+            System.out.println("got price");
             
             assert vt.getRowCount() == 1; 
             double new_price = vt.fetchRow(0).getDouble("LT_PRICE");
-
+            System.out.println("got lst tradeprice");    
+            
             voltQueueSQL(getNumOut, symbol);
             vt = voltExecuteSQL()[0];
+            
+            System.out.println("got numout");
             
             assert vt.getRowCount() == 1; 
             long s_num_out = vt.fetchRow(0).getLong("S_NUM_OUT");
@@ -123,13 +136,17 @@ public class MarketWatch extends VoltProcedure {
             voltQueueSQL(getOldPrice, symbol);
             vt = voltExecuteSQL()[0];
             
+            System.out.println("gotold price");
+            
             assert vt.getRowCount() == 1; 
             double old_price = vt.fetchRow(0).getDouble("DM_CLOSE");
+            
 
             old_mkt_cap += s_num_out * old_price;
             new_mkt_cap += s_num_out * new_price;
         }
         
+        System.out.println("finished loop");
         double pct_change = 100 * (new_mkt_cap / old_mkt_cap - 1);
 
         VoltTable res = new VoltTable(new VoltTable.ColumnInfo("pct_change", VoltType.FLOAT));

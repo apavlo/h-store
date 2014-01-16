@@ -66,9 +66,7 @@ public class TradeResult extends VoltProcedure {
 
     public final SQLStmt getHoldingSummary = new SQLStmt("select HS_QTY from HOLDING_SUMMARY where HS_CA_ID = ? and HS_S_SYMB = ?");
 
-    public final SQLStmt getCustomerAccount = new SQLStmt("select CA_B_ID, CA_C_ID, CA_TAX_ST from CUSTOMER_ACCOUNT where CA_ID = ?");
-
-    public final SQLStmt getCustomerAccountBalance = new SQLStmt("select ca_bal from CUSTOMER_ACCOUNT where CA_ID = ?");
+    public final SQLStmt getCustomerAccount = new SQLStmt("select CA_B_ID, C_ID, CA_BAL, C_TIER from CUSTOMER_INFO where CA_ID = ?");
 
     public final SQLStmt insertHoldingSummary = new SQLStmt("insert into HOLDING_SUMMARY(HS_CA_ID, HS_S_SYMB, HS_QTY) values (?, ?, ?)");
 
@@ -88,16 +86,16 @@ public class TradeResult extends VoltProcedure {
 
     public final SQLStmt deleteHolding = new SQLStmt("DELETE FROM holding WHERE h_t_id = ?");
 
-    public final SQLStmt getTaxrate = new SQLStmt("select sum(TX_RATE) from TAXRATE, CUSTOMER_TAXRATE where TX_ID = CX_TX_ID and CX_TX_ID = ?");
+    //public final SQLStmt getTaxrate = new SQLStmt("select sum(TX_RATE) from TAXRATE, CUSTOMER_TAXRATE where TX_ID = CX_TX_ID and CX_TX_ID = ?");
 
-    public final SQLStmt updateTrade1 = new SQLStmt("update TRADE set T_TAX = ? where T_ID = ?");
+   // public final SQLStmt updateTrade1 = new SQLStmt("update TRADE set T_TAX = ? where T_ID = ?");
 
-    public final SQLStmt getSecurity = new SQLStmt("select S_EX_ID, S_NAME from SECURITY where S_SYMB = ?");
+   public final SQLStmt getSecurity = new SQLStmt("select S_NAME from SECURITY where S_SYMB = ?");
 
-    public final SQLStmt getCustomer = new SQLStmt("select C_TIER from CUSTOMER where C_ID = ?");
+   // public final SQLStmt getCustomer = new SQLStmt("select C_TIER from CUSTOMER where C_ID = ?");
 
-    public final SQLStmt getCommissionRate = new SQLStmt("select CR_RATE from COMMISSION_RATE where CR_C_TIER = ? and CR_TT_ID = ? and CR_EX_ID = ? and CR_FROM_QTY <= ? and "
-            + "CR_TO_QTY >= ? limit 1");
+   /* public final SQLStmt getCommissionRate = new SQLStmt("select CR_RATE from COMMISSION_RATE where CR_C_TIER = ? and CR_TT_ID = ? and CR_EX_ID = ? and CR_FROM_QTY <= ? and "
+            + "CR_TO_QTY >= ? limit 1");*/
 
     public final SQLStmt updateTrade2 = new SQLStmt("update TRADE set T_COMM = ?, T_DTS = ?, T_ST_ID = ?, T_TRADE_PRICE = ? where T_ID = ?");
 
@@ -105,14 +103,14 @@ public class TradeResult extends VoltProcedure {
 
     public final SQLStmt updateBroker = new SQLStmt("update BROKER set B_COMM_TOTAL = B_COMM_TOTAL + ?, B_NUM_TRADES = B_NUM_TRADES + 1 where B_ID = ?");
 
-    public final SQLStmt insertSettlement = new SQLStmt("insert into SETTLEMENT (SE_T_ID, SE_CASH_TYPE, SE_CASH_DUE_DATE, SE_AMT) values (?, ?, ?, ?)");
+    //public final SQLStmt insertSettlement = new SQLStmt("insert into SETTLEMENT (SE_T_ID, SE_CASH_TYPE, SE_CASH_DUE_DATE, SE_AMT) values (?, ?, ?, ?)");
 
-    public final SQLStmt updateCustomerAccount = new SQLStmt("update CUSTOMER_ACCOUNT set CA_BAL=CA_BAL + ? where CA_ID = ?");
+    public final SQLStmt updateCustomerAccount = new SQLStmt("update CUSTOMER_INFO set CA_BAL=CA_BAL + ? where CA_ID = ?");
 
     public final SQLStmt insertCashTransaction = new SQLStmt("insert into CASH_TRANSACTION (CT_DTS, CT_T_ID, CT_AMT, CT_NAME) values (?, ?, ?, ?)");
 
     public VoltTable[] run(long trade_id, float trade_price, String st_completed_id) throws VoltAbortException {
-        
+        System.out.println("In trade result");
         // frame 1: collecting info
         // info about the trade
         voltQueueSQL(getTrade, trade_id);
@@ -160,7 +158,10 @@ public class TradeResult extends VoltProcedure {
         
         long broker_id = account_row.getLong("CA_B_ID");
         long cust_id = account_row.getLong("CA_C_ID");
-        int tax_status = (int)account_row.getLong("CA_TAX_ST");
+        int c_tier = (int)account_row.getLong("C_TIER");
+        double acct_bal = account_row.getDouble("CA_BAL");
+        
+       // int tax_status = (int)account_row.getLong("CA_TAX_ST");
         
         int needed_qty = trade_qty;
         double buy_value = 0;
@@ -288,8 +289,8 @@ public class TradeResult extends VoltProcedure {
         }
         
         // frame 3: taxes
-        double tax_amount = 0;
-        if ((tax_status == 1 || tax_status == 2) && sell_value > buy_value) {
+        double tax_amount = 10;
+       /* if ((tax_status == 1 || tax_status == 2) && sell_value > buy_value) {
             voltQueueSQL(getTaxrate, cust_id);
             VoltTable tax_rate = voltExecuteSQL()[0];
             
@@ -299,11 +300,11 @@ public class TradeResult extends VoltProcedure {
             
             voltQueueSQL(updateTrade1, tax_amount, trade_id);
             voltExecuteSQL();
-        }
+        }*/
         
         // frame 4: calculate the broker's commission
         voltQueueSQL(getSecurity, symbol);
-        voltQueueSQL(getCustomer, cust_id);
+      //  voltQueueSQL(getCustomer, cust_id);
         VoltTable[] sec_cust = voltExecuteSQL();
         
         VoltTable sec = sec_cust[0];
@@ -315,16 +316,16 @@ public class TradeResult extends VoltProcedure {
         VoltTableRow sec_row = sec.fetchRow(0);
         String s_ex_id = sec_row.getString("S_EX_ID");
         String s_name = sec_row.getString("S_NAME");
-        int c_tier = (int)cust.fetchRow(0).getLong("C_TIER");
+      //  int c_tier = (int)cust.fetchRow(0).getLong("C_TIER");
         
-        voltQueueSQL(getCommissionRate, c_tier, type_id, s_ex_id, trade_qty, trade_qty); // limit to 1 row
-        VoltTable comm = voltExecuteSQL()[0];
+       // voltQueueSQL(getCommissionRate, c_tier, type_id, s_ex_id, trade_qty, trade_qty); // limit to 1 row
+       // VoltTable comm = voltExecuteSQL()[0];
         
-        assert comm.getRowCount() == 1;
-        double comm_rate = comm.fetchRow(0).getDouble("CR_RATE");
+       // assert comm.getRowCount() == 1;
+       // double comm_rate = comm.fetchRow(0).getDouble("CR_RATE");
         
         // frame 5: recording the results
-        double comm_amount = (comm_rate / 100) * (trade_qty * trade_price);
+        double comm_amount = 10;//(comm_rate / 100) * (trade_qty * trade_price);
         
         voltQueueSQL(updateTrade2, comm_amount, trade_dts, st_completed_id, trade_price, trade_id);
         voltQueueSQL(insertTradeHistory, trade_id, trade_dts, st_completed_id);
@@ -346,9 +347,9 @@ public class TradeResult extends VoltProcedure {
             se_amount = -((trade_qty * trade_price) + charge + comm_amount);
         }
         
-        if (tax_status == 1) {
+      /*  if (tax_status == 1) {
             se_amount = se_amount - tax_amount;
-        }
+        }*/
         
         String cash_type;
         if (trade_is_cash == 1) {
@@ -358,18 +359,18 @@ public class TradeResult extends VoltProcedure {
             cash_type = "Margin";
         }
         
-        voltQueueSQL(insertSettlement, trade_id, cash_type, due_date, se_amount);
+     //   voltQueueSQL(insertSettlement, trade_id, cash_type, due_date, se_amount);
         
         if (trade_is_cash == 1) {
             voltQueueSQL(updateCustomerAccount, se_amount, acct_id);
             voltQueueSQL(insertCashTransaction, trade_dts, trade_id, se_amount, type_name +  " " + trade_qty + " shares of " + s_name);
         }
         
-        voltQueueSQL(getCustomerAccountBalance, acct_id);
-        VoltTable bal = voltExecuteSQL()[0];
+       // voltQueueSQL(getCustomerAccountBalance, acct_id);
+       // VoltTable bal = voltExecuteSQL()[0];
         
-        assert bal.getRowCount() == 1;
-        double acct_bal = bal.fetchRow(0).getDouble("CA_BAL");
+       // assert bal.getRowCount() == 1;
+       // double acct_bal = bal.fetchRow(0).getDouble("CA_BAL");
         
         VoltTable ret_values = trade_result_ret_template.clone(64);
         ret_values.addRow(acct_bal);

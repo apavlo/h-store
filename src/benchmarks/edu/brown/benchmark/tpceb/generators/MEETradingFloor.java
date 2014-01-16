@@ -55,14 +55,14 @@ public class MEETradingFloor {
         }
     }
     
-     public int  submitTradeRequest( edu.brown.benchmark.tpceb.generators.TTradeRequest pTradeRequest ){
-        switch( pTradeRequest.eAction ){
+     public int  submitTradeRequest( TTradeRequest tradeReq ){
+        switch( tradeReq.eAction ){
         case eMEEProcessOrder:
             {
                 return( orderTimers.startTimer( genProcessingDelay( orderProcessingDelayMean )));
             }
         case eMEESetLimitOrderTrigger:
-            tickerTape.PostLimitOrder( pTradeRequest );
+            tickerTape.PostLimitOrder( tradeReq );
             return( orderTimers.processExpiredTimers() );
         default:
             return( orderTimers.processExpiredTimers() );

@@ -99,6 +99,7 @@ public class MarketFeed extends VoltProcedure {
 
     public VoltTable[] run(double[] price_quotes, String status_submitted, String[] symbols, long[] trade_qtys, String type_limit_buy, String type_limit_sell, String type_stop_loss)
             throws VoltAbortException {
+        System.out.println("in market feed");
         
         Date now_dts = Calendar.getInstance().getTime();
         List<TradeRequest> tradeRequestBuffer = new ArrayList<TradeRequest>();

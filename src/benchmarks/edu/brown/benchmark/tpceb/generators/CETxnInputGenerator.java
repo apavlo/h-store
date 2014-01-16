@@ -7,8 +7,10 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import org.voltdb.types.TimestampType;
 
+import edu.brown.benchmark.tpceb.generators.TMarketWatchTxnInput;
+import edu.brown.benchmark.tpceb.generators.TxnHarnessStructs;
+import edu.brown.benchmark.tpceb.util.EGenDate;
 import edu.brown.benchmark.tpceb.TPCEConstants;
-
 import edu.brown.benchmark.tpceb.util.*;
 import edu.brown.benchmark.tpceb.generators.CustomerSelection.TierId;
 import edu.brown.benchmark.tpceb.generators.TPCEGenerator.InputFile;
@@ -29,9 +31,9 @@ public class CETxnInputGenerator {
         
         holdings = new HoldingsAndTrades(inputFiles);
         brokers = (NewBrokerGenerator)inputFiles.getTableGen(TPCEConstants.TABLENAME_BROKER, null);
-        
+        companies = (CompanyGenerator)inputFiles.getTableGen(TPCEConstants.TABLENAME_COMPANY, null);
         securities = new SecurityHandler(inputFiles);
-
+        industries = inputFiles.getInputFile(InputFile.INDUSTRY);
         statusType = inputFiles.getInputFile(InputFile.STATUS);
         tradeType = inputFiles.getInputFile(InputFile.TRADETYPE);
         this.driverCETxnSettings = driverCETxnSettings;
@@ -59,9 +61,9 @@ public class CETxnInputGenerator {
        
         holdings = new HoldingsAndTrades(inputFiles); 
         brokers = (NewBrokerGenerator)inputFiles.getTableGen(TPCEConstants.TABLENAME_BROKER, null);	
-     
+       companies = (CompanyGenerator)inputFiles.getTableGen(TPCEConstants.TABLENAME_COMPANY, null);
         securities = new SecurityHandler(inputFiles);
-
+      industries = inputFiles.getInputFile(InputFile.INDUSTRY);
         statusType = inputFiles.getInputFile(InputFile.STATUS);
         tradeType = inputFiles.getInputFile(InputFile.TRADETYPE);
         this.driverCETxnSettings = driverCETxnSettings;
@@ -91,9 +93,9 @@ public class CETxnInputGenerator {
           holdings = new HoldingsAndTrades(inputFiles);
           
           brokers = (NewBrokerGenerator)inputFiles.getTableGen(TPCEConstants.TABLENAME_BROKER, null);	
-        
+        companies = (CompanyGenerator)inputFiles.getTableGen(TPCEConstants.TABLENAME_COMPANY, null);
           securities = new SecurityHandler(inputFiles);
-
+         industries = inputFiles.getInputFile(InputFile.INDUSTRY);
           statusType = inputFiles.getInputFile(InputFile.STATUS);
           tradeType = inputFiles.getInputFile(InputFile.TRADETYPE);
           this.driverCETxnSettings = driverCETxnSettings;
@@ -122,9 +124,9 @@ public class CETxnInputGenerator {
           holdings = new HoldingsAndTrades(inputFiles);
           
           brokers = (NewBrokerGenerator)inputFiles.getTableGen(TPCEConstants.TABLENAME_BROKER, null);
-         
+          industries = inputFiles.getInputFile(InputFile.INDUSTRY);
           securities = new SecurityHandler(inputFiles);
-
+          companies = (CompanyGenerator)inputFiles.getTableGen(TPCEConstants.TABLENAME_COMPANY, null);
           statusType = inputFiles.getInputFile(InputFile.STATUS);
           tradeType = inputFiles.getInputFile(InputFile.TRADETYPE);
           this.driverCETxnSettings = driverCETxnSettings;
@@ -173,7 +175,7 @@ public class CETxnInputGenerator {
    
         tradeOrderRollbackLevel = driverCETxnSettings.TO_settings.cur_rollback;
 
-
+        logger.sendToLogger(driverCETxnSettings.MW_settings);
         logger.sendToLogger(driverCETxnSettings.TO_settings);
     }
 
@@ -316,10 +318,127 @@ public class CETxnInputGenerator {
         	inputStructure.setRollItBack(1);
         }
        else inputStructure.setRollItBack(0);
+        
+        System.out.println("Input Sympbol:" +inputStructure.getSymbol());
+        System.out.println("Account:" + inputStructure.getAcctId());
     }
 
  
+    /*
+     *  Generate Market-Watch transaction input.
+     *
+     *  PARAMETERS:
+     *           OUT inputStructure                  - input parameter structure filled in for the transaction.
+     *
+     *  RETURNS:
+     *           none.
+     */
+    public void generateMarketWatchInput(TMarketWatchTxnInput inputStructure){
+        long          customerID;
+        TierId        tierID;
+        int           threshold;
+        int           week;
+        int           dailyMarketDay;
+        Object[] customer = new Object[2];
+        Date date = EGenDate.getDateFromTime(TPCEConstants.dailyMarketBaseYear, TPCEConstants.dailyMarketBaseMonth,
+                        TPCEConstants.dailyMarketBaseDay, TPCEConstants.dailyMarketBaseHour,
+                        TPCEConstants.dailyMarketBaseMinute, TPCEConstants.dailyMarketBaseSecond, TPCEConstants.dailyMarketBaseMsec);
+       System.out.println("Got the date" + date);
+        threshold = rnd.rndPercentage();
+        
+        if (threshold <= driverCETxnSettings.MW_settings.cur_by_industry){
+            
+            inputStructure.setIndustryName(industries.getTupleByIndex(rnd.intRange(0, industryCount-1))[1]);
+            inputStructure.setCId(0);
+            inputStructure.setAcctId(0);
+            System.out.println("customer and account id set to 0");
+            if( TxnHarnessStructs.iBaseCompanyCount < activeCompanyCount ){
+                inputStructure.setStartingCoId(rnd.int64Range( startFromCompany, startFromCompany + activeCompanyCount - ( TxnHarnessStructs.iBaseCompanyCount - 1 )));
+                inputStructure.setEndingCoId(inputStructure.getStartingCoId() + ( TxnHarnessStructs.iBaseCompanyCount - 1 ));
+            }
+            else{
+                inputStructure.setStartingCoId(startFromCompany);
+                inputStructure.setEndingCoId(startFromCompany + activeCompanyCount - 1);
+            }
+        }
+        else{
+            inputStructure.setStartingCoId(0);
+            inputStructure.setEndingCoId(0);
+            inputStructure.setIndustryName(new String());
+            
+            customer = customerSelection.genRandomCustomer();
+            
+          /*  if (threshold <= (driverCETxnSettings.MW_settings.cur_by_industry + driverCETxnSettings.MW_settings.cur_by_watch_list)){
+                tierID = (TierId)customer[1];
+                inputStructure.setCId(Long.parseLong(customer[0].toString()));
+                System.out.println("customer id set, acct id is 0");
+                inputStructure.setAcctId(0);
+            }
+            else{*/
+            
+            customer = customerSelection.genRandomCustomer();
 
+            customerID = Long.parseLong(customer[0].toString());
+
+            tierID = (TierId)customer[1];
+            
+            long[] randomAccSecurity = holdings.generateRandomAccSecurity(customerID, tierID);
+
+            if(randomAccSecurity.length == 0){
+                   System.out.println("was null");  
+            }
+           
+            inputStructure.setAcctId(randomAccSecurity[0]);
+              //  customerID = Long.parseLong(customer[0].toString());
+               // tierID = (TierId)customer[1];
+                System.out.println("first account id" + inputStructure.getAcctId());
+              //  inputStructure.setAcctId(account.genRandomAccId(rnd, customerID, tierID, inputStructure.getAcctId(), -1)[0]);
+                
+                System.out.println("custID:" + customerID);
+                System.out.println("TierID:" + tierID);
+                System.out.println("AccountID: " + inputStructure.getAcctId());
+                
+                inputStructure.setCId(0);
+           // }
+        }
+
+        week = (int)rnd.rndNU(0, 255, 255, 0) + 5; 
+       
+        threshold = rnd.rndPercentage();
+        if (threshold > 40){
+            System.out.println("threshold greater than 40");
+            dailyMarketDay = week * EGenDate.DaysPerWeek + 4;
+            System.out.println("DMD1:" + dailyMarketDay);
+        }
+        else{
+            if (threshold <= 20){
+                dailyMarketDay = week * EGenDate.DaysPerWeek; 
+                System.out.println("DMD2:" + dailyMarketDay);
+            }
+            else{
+                if (threshold <= 27){
+                    dailyMarketDay = week * EGenDate.DaysPerWeek + 1;
+                    System.out.println("DMD3:" + dailyMarketDay);
+                }
+                else{
+                    if (threshold <= 33){
+                        dailyMarketDay = week * EGenDate.DaysPerWeek + 2;
+                        System.out.println("DMD4:" + dailyMarketDay);
+                    }
+                    else{
+                        dailyMarketDay = week * EGenDate.DaysPerWeek + 3;
+                        System.out.println("DMD5:" + dailyMarketDay);
+                    }
+                }
+            }
+        }
+        System.out.println("Final date:" + date);
+        System.out.println("Final DMD:" + dailyMarketDay);
+        date = EGenDate.addDaysMsecs(date, dailyMarketDay, 0, false);
+        System.out.println(date);
+        
+        inputStructure.setStartDay(EGenDate.getTimeStamp(date));
+    }
    
     
     private EGenRandom                                rnd;
@@ -329,7 +448,8 @@ public class CETxnInputGenerator {
 	private CustomerCustAccCombined                 account;
 	private HoldingsAndTrades                         holdings;
 	private NewBrokerGenerator                           brokers;
-	
+	private InputFileHandler                          industries;
+	private CompanyGenerator                          companies;
 	private SecurityHandler                           securities;	
 	private InputFileHandler                          statusType;
 	private InputFileHandler                          tradeType;
@@ -346,6 +466,8 @@ public class CETxnInputGenerator {
 	private int                                       maxActivePrePopulatedTradeID;
 	static private AtomicLong						  currentTradeID;
 	private long                                      activeSecurityCount;
+	private long                                      activeCompanyCount;
+    private int                                       industryCount;
 	private long                                      startFromCompany;
 	private int                                       tradeOrderRollbackLimit;
 	private int                                       tradeOrderRollbackLevel;

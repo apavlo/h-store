@@ -110,10 +110,13 @@ public class TPCEGenerator {
         // Fixed tables
         genClasses.put(TPCEConstants.TABLENAME_STATUS_TYPE, StatusTypeGenerator.class);
         genClasses.put(TPCEConstants.TABLENAME_TRADE_TYPE, TradeTypeGenerator.class);
- 
+        genClasses.put(TPCEConstants.TABLENAME_INDUSTRY, IndustryGenerator.class);
+        
         
         // Scaling tables
         genClasses.put(TPCEConstants.TABLENAME_CUSTOMER_INFO, CustomerCustAccCombined.class);
+        genClasses.put(TPCEConstants.TABLENAME_COMPANY, CompanyGenerator.class);
+       // genClasses.put(TPCEConstants.TABLENAME_DAILY_MARKET, DailyMarketGenerator.class);
  
         genClasses.put(TPCEConstants.TABLENAME_LAST_TRADE, LastTradeGenerator.class);
         genClasses.put(TPCEConstants.TABLENAME_SECURITY, SecurityGenerator.class);
@@ -132,9 +135,12 @@ public class TPCEGenerator {
     public TPCEGenerator(File inputDir, long total_customers, int scaling_factor, int initial_days) {
         /*
          * Create input file handlers
+         * 
          */
+        
+        inputFiles.put(InputFile.COMPANY, new FlatFile(new File(inputDir + File.separator + COMPANY_FILE)));
         inputFiles.put(InputFile.INDUSTRY, new FlatFile(new File(inputDir + File.separator + INDUSTRY_FILE)));
-        inputFiles.put(InputFile.SECTOR, new FlatFile(new File(inputDir + File.separator + SECTOR_FILE)));
+        //inputFiles.put(InputFile.SECTOR, new FlatFile(new File(inputDir + File.separator + SECTOR_FILE)));
         inputFiles.put(InputFile.SECURITY, new FlatFile(new File(inputDir + File.separator + SECURITY_FILE)));
         inputFiles.put(InputFile.STATUS, new FlatFile(new File(inputDir + File.separator + STATUS_FILE)));
         inputFiles.put(InputFile.TRADETYPE, new FlatFile(new File(inputDir + File.separator + TRADETYPE_FILE)));
@@ -180,7 +186,11 @@ public class TPCEGenerator {
     public long getStartCustomer() {
         return customerStartId;
     }
-    
+   
+    // the number of companies depends on the total number of customers
+    public long getCompanyCount(long customersNum) {
+        return customersNum / TPCEConstants.DEFAULT_LOAD_UNIT * TPCEConstants.DEFAULT_COMPANIES_PER_UNIT;
+    }
     
     public void parseInputFiles() {
         for (InputFileHandler file: inputFiles.values()) {

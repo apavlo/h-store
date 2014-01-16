@@ -86,6 +86,82 @@ public class EGenClientDriver {
       
         return (this.cleanParams(obj));
     }
+    
+   /* public Object[] getMarketWatchParams() {
+        Object[] obj = driver_ptr.generateMarketWatchInput().InputParameters().toArray();
+        return (this.cleanParams(obj));
+    }*/
+    
+    public Object[] getTradeResultParams() {
+        return (this.cleanParams(driver_ptr.generateTradeResultInput().InputParameters().toArray()));
+    }
+    
+    public Object[] getMarketFeedParams() {
+        return (this.cleanParams(driver_ptr.generateMarketFeedInput().InputParameters().toArray()));
+    }
 
 
 }
+
+/* package edu.brown.benchmark.tpceb;
+
+import java.io.File;
+import java.util.Date;
+
+import org.apache.log4j.Logger;
+import org.voltdb.types.TimestampType;
+
+import edu.brown.benchmark.tpceb.generators.BaseLogger;
+
+public class EGenClientDriver {
+    private static final Logger LOG = Logger.getLogger(EGenClientDriver.class.getName());
+
+    /**
+     * Initialize the native object
+     * 
+     * @param configuredCustomerCount
+     * @param totalCustomerCount
+     * @param scaleFactor
+     * @param initialDays
+     */
+
+
+ /*   public ClientDriver driver_ptr;
+
+    /**
+     * Constructor
+     * 
+     * @param egenloader_path
+     * @param totalCustomerCount
+     * @param scaleFactor
+     * @param initialDays
+     */
+  /*  public EGenClientDriver(String egenloader_path, int totalCustomerCount, int scaleFactor, int initialDays) {
+        assert (egenloader_path != null) : "The EGENLOADER_PATH parameter is null";
+        assert (!egenloader_path.isEmpty()) : "The EGENLOADER_PATH parameter is empty";
+
+        String input_path = new File(egenloader_path + File.separator).getAbsolutePath();
+        LOG.debug("Invoking initialization method on driver using data path '" + input_path + "'");
+        driver_ptr = new ClientDriver(input_path, totalCustomerCount, totalCustomerCount, scaleFactor, initialDays);
+    }
+
+    private Object[] cleanParams(Object[] orig) {
+        // We need to switch java.util.Dates to the stupid volt TimestampType
+        for (int i = 0; i < orig.length; i++) {
+            if (orig[i] instanceof Date) {
+                orig[i] = new TimestampType(((Date) orig[i]).getTime());
+            }
+        } // FOR
+        return (orig);
+    }
+
+
+    public Object[] getTradeOrderParams() {
+        int   iTradeType = 0; 
+        Object[] obj = driver_ptr.generateTradeOrderInput(iTradeType).InputParameters().toArray();
+      
+        return (this.cleanParams(obj));
+    }
+
+
+}*/

@@ -71,7 +71,7 @@ public class TradeOrder extends VoltProcedure {
 
     public final SQLStmt getCustomerAccount = new SQLStmt("select CA_B_ID, C_ID, C_TIER, CA_BAL from CUSTOMER_INFO where CA_ID = ?");
 
-    public final SQLStmt getSecurity2 = new SQLStmt("select S_NAME, S_SYMB from SECURITY where S_SYMB = ?");
+    public final SQLStmt getSecurity2 = new SQLStmt("select S_NAME, S_SYMB, S_DIVIDEND, S_YIELD from SECURITY where S_SYMB = ?");
 
     public final SQLStmt getLastTrade = new SQLStmt("select LT_PRICE from LAST_TRADE where LT_S_SYMB = ?");
 
@@ -96,18 +96,19 @@ public class TradeOrder extends VoltProcedure {
     public VoltTable[] run(double requested_price, long acct_id, long is_lifo, long roll_it_back, long trade_qty, long type_is_margin, 
              String st_pending_id, String st_submitted_id, String symbol, String trade_type_id, long trade_id) throws VoltAbortException {
         
-        // frame 1: account info
-      
+     /*   // frame 1: account info
+      long tempAcc = 43000021007;
         voltQueueSQL(getCustomerAccount, acct_id);
         VoltTable acc_info = voltExecuteSQL()[0];
         assert acc_info.getRowCount() == 1;
         
         VoltTableRow acc_info_row = acc_info.fetchRow(0);
-        long broker_id = acc_info_row.getLong("CA_B_ID");
-        long cust_id = acc_info_row.getLong("C_ID");
+     //   long broker_id = acc_info_row.getLong("CA_B_ID");
+     //   long cust_id = acc_info_row.getLong("C_ID");
  
-        int cust_tier = (int)acc_info_row.getLong("C_TIER");
-        
+//        int cust_tier = (int)acc_info_row.getLong("C_TIER");
+        System.out.println("account id:" + acct_id);*/
+      //  System.out.println("tier" + acct_id);
         // frame 3: estimating overall financial impact
 
         String s_name;
@@ -120,7 +121,14 @@ public class TradeOrder extends VoltProcedure {
             VoltTableRow sec_row = sec.fetchRow(0);
 
             s_name = sec_row.getString("S_NAME");
-        
+          /*  long s_div = sec_row.getLong("S_DIVIDEND");
+            long s_yield = sec_row.getLong("S_YIELD");
+            System.out.println("Account ID in query" + acct_id);*/
+            System.out.println("Symbol:" + symbol);
+           // System.out.println("name" + s_name);
+           // System.out.println("Dividend: " + s_div );
+           // System.out.println("Yield: " + s_yield);
+            
         voltQueueSQL(getLastTrade, symbol);
         voltQueueSQL(getTradeType, trade_type_id);
         voltQueueSQL(getHoldingSummmary, acct_id, symbol);
@@ -164,8 +172,8 @@ public class TradeOrder extends VoltProcedure {
                 for (int i = 0; i < hold_list.getRowCount() && needed_qty != 0; i++) {
                     VoltTableRow hold = hold_list.fetchRow(i);
                     int hold_qty = (int)hold.getLong("H_QTY");
-                    double hold_price = hold.getDouble("H_PRICE");
-                    
+                    //double hold_price = hold.getDouble("H_PRICE");
+                    double hold_price =10;
                     if (hold_qty > needed_qty) {
                         buy_value += needed_qty * hold_price;
                         sell_value += needed_qty * requested_price;
@@ -193,8 +201,8 @@ public class TradeOrder extends VoltProcedure {
                 for (int i = 0; i < hold_list.getRowCount() && needed_qty != 0; i++) {
                     VoltTableRow hold = hold_list.fetchRow(i);
                     int hold_qty = (int)hold.getLong("H_QTY");
-                    double hold_price = hold.getDouble("H_PRICE");
-                    
+                  //  double hold_price = hold.getDouble("H_PRICE");
+                  double hold_price = 10;  
                     if (hold_qty + needed_qty < 0) {
                         sell_value += needed_qty * hold_price;
                         buy_value += needed_qty * requested_price;
@@ -236,7 +244,9 @@ public class TradeOrder extends VoltProcedure {
         
         // frame 5: intentional roll-back
         if (roll_it_back == 1) {
+            System.out.println("Intentional Rollback");
             throw new VoltAbortException("Intentional roll-back of a Trade-Order");
+            
         }
         
         // frame 6: commit (nothing to do) and send_to_market, which is returned with the result

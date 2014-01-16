@@ -9,12 +9,37 @@ CREATE TABLE status_type (
 -- =========================================
 -- MARKET TABLES
 -- =========================================
+-- TPC-E Clause 2.2.7.6
+CREATE TABLE industry (
+   in_id CHAR(2) NOT NULL,
+   in_name VARCHAR(50) NOT NULL,
+ --  in_sc_id CHAR(2) NOT NULL REFERENCES sector (sc_id),
+   PRIMARY KEY (in_id)
+);
+
+
+-- TPC-E Clause 2.2.7.1
+CREATE TABLE company (
+   co_id BIGINT NOT NULL,
+   co_st_id CHAR(4) NOT NULL REFERENCES status_type (st_id),
+   co_name VARCHAR(60) NOT NULL,
+   co_in_id CHAR(2) NOT NULL REFERENCES industry (in_id),
+   co_sp_rate CHAR(4) NOT NULL,
+   --co_ceo VARCHAR(100) NOT NULL,
+ --  co_ad_id BIGINT NOT NULL REFERENCES address (ad_id),
+   co_desc VARCHAR(150) NOT NULL,
+   co_open_date TIMESTAMP NOT NULL,
+   PRIMARY KEY (co_id)
+);
+CREATE INDEX i_co_name ON company (co_name);
+
 CREATE TABLE security (
    s_symb CHAR(15) NOT NULL,
    s_issue CHAR(6) NOT NULL,
    s_st_id CHAR(4) NOT NULL REFERENCES status_type (st_id),
    s_name VARCHAR(70) NOT NULL, 
    s_num_out BIGINT NOT NULL,
+   s_co_id BIGINT NOT NULL REFERENCES company (co_id),	
    s_start_date TIMESTAMP NOT NULL,
    s_exch_date TIMESTAMP NOT NULL,
    s_pe FLOAT NOT NULL,
@@ -121,8 +146,8 @@ CREATE TABLE holding_history (
 -- TPC-E Clause 2.2.6.8
 CREATE TABLE trade_request (
    tr_t_id BIGINT NOT NULL REFERENCES trade (t_id),
-    tr_tt_id CHAR(3) NOT NULL REFERENCES trade_type (tt_id), --remove reference to trade_type
-   tr_s_symb CHAR(15) NOT NULL REFERENCES security (s_symb), --remove reference to security
+   tr_tt_id CHAR(3) NOT NULL REFERENCES trade_type (tt_id), 
+   tr_s_symb CHAR(15) NOT NULL REFERENCES security (s_symb), 
    tr_qty INTEGER NOT NULL CHECK (tr_qty > 0),
    tr_bid_price FLOAT NOT NULL CHECK (tr_bid_price > 0),
    tr_ca_id BIGINT NOT NULL REFERENCES customer_info (ca_id),
@@ -159,5 +184,15 @@ CREATE TABLE holding_summary (
 );
 
 
+CREATE TABLE daily_market (
+   dm_date TIMESTAMP NOT NULL,
+   dm_s_symb CHAR(15) NOT NULL REFERENCES security (s_symb),
+   dm_close FLOAT NOT NULL,
+   dm_high FLOAT NOT NULL,
+   dm_low FLOAT NOT NULL,
+   dm_vol BIGINT NOT NULL,
+   PRIMARY KEY (dm_date, dm_s_symb)
+);
+CREATE INDEX i_dm_s_symb ON daily_market (dm_s_symb);
 
 

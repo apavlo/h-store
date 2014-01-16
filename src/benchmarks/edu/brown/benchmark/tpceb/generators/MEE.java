@@ -2,7 +2,6 @@ package edu.brown.benchmark.tpceb.generators;
 
 import java.util.Date;
 
-import edu.brown.benchmark.tpce.generators.TTradeRequest;
 import edu.brown.benchmark.tpceb.util.EGenDate;
 
 public class MEE {
@@ -51,7 +50,7 @@ public class MEE {
         tradingFloor = new MEETradingFloor( pSUT,  priceBoard,  tickerTape,  baseTime,  currentTime );
         logger.sendToLogger("MEE object constructed using c'tor 1 (valid for publication: YES).");
         AutoSetRNGSeeds( uniqueID );
-     //   this.logger.sendToLogger(driverMEESettings);
+        this.logger.sendToLogger(driverMEESettings);
     }
 
     public MEE( int tradingTimeSoFar, MEESUTInterface  pSUT, BaseLogger  logger, SecurityHandler  securityFile, long uniqueID, long tickerTapeRNGSeed, long tradingFloorRNGSeed, int configuredCustomerCount ){
@@ -62,7 +61,7 @@ public class MEE {
         tickerTape = new MEETickerTape( pSUT,  priceBoard,  baseTime,  currentTime, tickerTapeRNGSeed );
         tradingFloor = new MEETradingFloor( pSUT,  priceBoard,  tickerTape,  baseTime,  currentTime, tradingFloorRNGSeed );
         this.logger.sendToLogger("MEE object constructed using c'tor 2 (valid for publication: NO).");
-      //  this.logger.sendToLogger(driverMEESettings);
+        this.logger.sendToLogger(driverMEESettings);
     }
 
     public long getTickerTapeRNGSeed(){
@@ -96,12 +95,11 @@ public class MEE {
         return( nextTime );
     }
 
-   /* public int submitTradeRequest( TTradeRequest pTradeRequest ){
+    public int submitTradeRequest( TTradeRequest pTradeRequest ){
         int nextTime;
         currentTime = new Date();
         nextTime = tradingFloor.submitTradeRequest( pTradeRequest );
         return( nextTime );
-    }*/
-
+    }
 
 }

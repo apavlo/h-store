@@ -1,16 +1,22 @@
 package edu.brown.benchmark.tpceb.generators;
 
+import edu.brown.benchmark.tpceb.generators.MarketWatchSettings;
+import edu.brown.benchmark.tpceb.generators.CheckException;
+import edu.brown.benchmark.tpceb.generators.ParametersWithDefaults;
 import edu.brown.benchmark.tpceb.*;
 
 public class TDriverCETxnSettings {
 
     public TradeOrderSettings         TO_settings;
-
+    public MarketWatchSettings        MW_settings;
+    
     TxnMixGeneratorSettings    TxnMixGenerator_settings;
 
     public TDriverCETxnSettings(){
  
         TO_settings = new TradeOrderSettings();
+        MW_settings = new MarketWatchSettings();
+        
    
         TxnMixGenerator_settings = new TxnMixGeneratorSettings();
     }
@@ -18,6 +24,7 @@ public class TDriverCETxnSettings {
         boolean isValid = true;
   
         isValid &= TO_settings.checkValid();
+        isValid &= MW_settings.checkValid();
    
         isValid &= TxnMixGenerator_settings.checkValid();
         return isValid;
@@ -27,6 +34,7 @@ public class TDriverCETxnSettings {
     public void checkCompliant(){
    
         TO_settings.checkCompliant();
+        MW_settings.checkCompliant();
   
         TxnMixGenerator_settings.checkCompliant();
     }
@@ -170,15 +178,86 @@ class TradeOrderSettings extends ParametersWithDefaults{
     }
 }
 
+class MarketWatchSettings extends ParametersWithDefaults{
+    
+    public int   dft_by_acct_id;     
+    public int   dft_by_industry;    
+  //  public int   dft_by_watch_list;  
+    public int    cur_by_acct_id;     
+    public int    cur_by_industry;    
+   // public int    cur_by_watch_list;  
+    public boolean state_by_acct_id;
+    public boolean state_by_industry;
+  //  public boolean state_by_watch_list;
+    
+    
+    MarketWatchSettings(){
+        initialize();
+    }
+
+    public void initializeDefaults(){
+      //  dft_by_acct_id = 35;
+        dft_by_acct_id = 95;
+        dft_by_industry = 5;
+       // dft_by_watch_list = 60;
+      //  dft_by_watch_list = 0;
+    }
+
+    public void setToDefaults(){ 
+        cur_by_acct_id = dft_by_acct_id;
+        cur_by_industry = dft_by_industry;
+      //  cur_by_watch_list = dft_by_watch_list;
+        checkDefaults();
+    }
+    
+    public void checkDefaults(){
+        state_by_acct_id = (cur_by_acct_id == dft_by_acct_id);
+        state_by_industry = (cur_by_industry == dft_by_industry);
+      //  state_by_watch_list = (cur_by_watch_list == dft_by_watch_list);
+    }
+
+    public boolean checkValid(){
+        try{
+            driverParamCheckBetween( "by_acct_id",    cur_by_acct_id,    0, 100);
+            driverParamCheckBetween( "by_industry",   cur_by_industry,   0, 100);
+           // driverParamCheckBetween( "by_watch_list", cur_by_watch_list, 0, 100);
+         //   driverParamCheckEqual(   "by_* total",    cur_by_acct_id + cur_by_industry + cur_by_watch_list, 100);
+            return true;
+        }catch(CheckException e){
+            return false;
+        }
+    }
+
+    public boolean checkCompliant(){
+        checkValid();
+        try{
+            driverParamCheckDefault( dft_by_acct_id, cur_by_acct_id, "by_cust_id" );
+            driverParamCheckDefault( dft_by_industry, cur_by_industry, "by_industry");
+          //  driverParamCheckDefault( dft_by_watch_list, cur_by_watch_list, "by_watch_list" );
+            return true;
+        }catch(CheckException e){
+            return false;
+        }      
+    }
+}
 
 class TxnMixGeneratorSettings extends ParametersWithDefaults{
  
 
     public int dft_TradeOrderMixLevel;
+    public int dft_MarketFeedMixLevel;
+    public int dft_MarketWatchMixLevel;
+    public int dft_TradeResultMixLevel;
+    public int dft_TransactionMixTotal;
   
     public int cur_TradeOrderMixLevel;
+    public int cur_MarketFeedMixLevel;
+    public int cur_MarketWatchMixLevel;
+    public int cur_TradeResultMixLevel;
+    public int cur_TransactionMixTotal;
   
     public boolean    state_TradeOrderMixLevel;
+    public boolean    state_MarketWatchMixLevel;
 
     public TxnMixGeneratorSettings(){
         initialize();
@@ -187,13 +266,17 @@ class TxnMixGeneratorSettings extends ParametersWithDefaults{
     public void initializeDefaults(){
    
         dft_TradeOrderMixLevel          =  101;
+        dft_MarketWatchMixLevel         =  180;
  
     }
 
     public void setToDefaults(){ 
    
         cur_TradeOrderMixLevel = dft_TradeOrderMixLevel;
-  
+       cur_MarketFeedMixLevel = dft_MarketFeedMixLevel;
+        cur_MarketWatchMixLevel = dft_MarketWatchMixLevel;
+        cur_TradeResultMixLevel = dft_TradeResultMixLevel;
+        cur_TransactionMixTotal = dft_TransactionMixTotal;
         
         checkDefaults();
     }
@@ -201,12 +284,14 @@ class TxnMixGeneratorSettings extends ParametersWithDefaults{
     public void checkDefaults(){
   
         state_TradeOrderMixLevel       = (cur_TradeOrderMixLevel       == dft_TradeOrderMixLevel);
+        state_MarketWatchMixLevel      = (cur_MarketWatchMixLevel      == dft_MarketWatchMixLevel);
    
     }
 
     public boolean checkValid(){
         try{
             driverParamCheckGE( "TradeOrderMixLevel",       cur_TradeOrderMixLevel,       0 );
+            driverParamCheckGE( "MarketWatchMixLevel",      cur_MarketWatchMixLevel,      0 );
             return true;
         }catch(CheckException e){
             return false;
@@ -218,6 +303,7 @@ class TxnMixGeneratorSettings extends ParametersWithDefaults{
         checkValid();
         try{
              driverParamCheckDefault( dft_TradeOrderMixLevel,cur_TradeOrderMixLevel, "TradeOrderMixLevel" );
+             driverParamCheckDefault( dft_MarketWatchMixLevel, cur_MarketWatchMixLevel, "MarketWatchMixLevel" );
             return true;
         }catch(CheckException e){
             return false;

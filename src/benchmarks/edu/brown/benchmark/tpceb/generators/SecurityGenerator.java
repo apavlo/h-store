@@ -32,9 +32,9 @@ package edu.brown.benchmark.tpceb.generators;
 import org.voltdb.catalog.Table;
 import org.voltdb.types.TimestampType;
 
-import edu.brown.benchmark.tpce.TPCEConstants;
-import edu.brown.benchmark.tpce.util.EGenDate;
-import edu.brown.benchmark.tpce.util.EGenRandom;
+import edu.brown.benchmark.tpceb.TPCEConstants;
+import edu.brown.benchmark.tpceb.util.EGenDate;
+import edu.brown.benchmark.tpceb.util.EGenRandom;
 
 /**
  * @author akalinin
@@ -64,6 +64,7 @@ public class SecurityGenerator extends TableGenerator {
     private long counter;
      
     private final SecurityHandler secHandle;
+    private final CompanyGenerator compGenerator;
 
     private final int startDayMin;
     private final int startDayMax;
@@ -81,7 +82,7 @@ public class SecurityGenerator extends TableGenerator {
         numSecurity = SecurityHandler.getSecurityNum(generator.getCustomersNum());
         counter = startSecurity;
      
-        
+        compGenerator = (CompanyGenerator)generator.getTableGen(TPCEConstants.TABLENAME_COMPANY, null);
         startDayMin = EGenDate.getDayNo(1900, 0, 1); // 01/01/1900
         startDayMax = EGenDate.getDayNo(2000, 0, 2); // 01/02/2000
         currDay =  EGenDate.getDayNo(TPCEConstants.initialTradePopulationBaseYear, 
@@ -107,6 +108,14 @@ public class SecurityGenerator extends TableGenerator {
         
         return secRow[3];
     }
+    
+    /*public String createName(long index) {
+        long coId = secHandle.getCompanyId(index);
+        String[] secRow = secHandle.getSecRecord(index);
+        
+        return secRow[3] + " of " +
+                compGenerator.generateCompanyName(coId - 1 - TPCEConstants.IDENT_SHIFT); // <issue> of <company name>
+    }*/
 
     public long getNumSecurity(){
     	return numSecurity;
@@ -131,29 +140,29 @@ public class SecurityGenerator extends TableGenerator {
         tuple[3] = secName; // s_name
         
         tuple[4] = (long)rnd.doubleIncrRange(S_NUM_OUTMin, S_NUM_OUTMax, 1.0); // s_num_out
-        
+        tuple[5] = secHandle.getCompanyId(counter);
         // start date
         int startDay = rnd.intRange(startDayMin, startDayMax);
-        tuple[5] = new TimestampType(EGenDate.getDateFromDayNo(startDay)); // s_start_date
+        tuple[6] = new TimestampType(EGenDate.getDateFromDayNo(startDay)); // s_start_date
         
         // exchange date
         int exDay = rnd.intRange(startDay, startDayMax);
-        tuple[6] = new TimestampType(EGenDate.getDateFromDayNo(exDay)); // s_exch_date
+        tuple[7] = new TimestampType(EGenDate.getDateFromDayNo(exDay)); // s_exch_date
         
-        tuple[7] = rnd.doubleIncrRange(S_PEMin, S_PEMax, 0.01); // s_pe
+        tuple[8] = rnd.doubleIncrRange(S_PEMin, S_PEMax, 0.01); // s_pe
         
         // s_52wk_high
         double wkHigh = rnd.doubleIncrRange(TPCEConstants.minSecPrice + ((TPCEConstants.maxSecPrice - TPCEConstants.minSecPrice) / 2),
                 TPCEConstants.maxSecPrice, 0.01);
         int wkDay = rnd.intRange(currDay - 7 * 52, currDay); // 7 days per week, 52 weeks per year
-        tuple[8] = wkHigh; // s_52wk_high
-        tuple[9] = new TimestampType(EGenDate.getDateFromDayNo(wkDay)); // s_52wk_high_date
+        tuple[9] = wkHigh; // s_52wk_high
+        tuple[10] = new TimestampType(EGenDate.getDateFromDayNo(wkDay)); // s_52wk_high_date
         
         // s_52wk_low
         double wkLow = rnd.doubleIncrRange(TPCEConstants.minSecPrice, wkHigh, 0.01);
         wkDay = rnd.intRange(currDay - 7 * 52, currDay); // 7 days per week, 52 weeks per year
-        tuple[10] = wkLow; // s_52wk_low
-        tuple[11] = new TimestampType(EGenDate.getDateFromDayNo(wkDay)); // s_52wk_low_date
+        tuple[11] = wkLow; // s_52wk_low
+        tuple[12] = new TimestampType(EGenDate.getDateFromDayNo(wkDay)); // s_52wk_low_date
         
         double yield, dividend;
         if (rnd.rndPercent(percentCompaniesWithNonZeroDividend)) {
@@ -165,8 +174,8 @@ public class SecurityGenerator extends TableGenerator {
             yield = dividend = 0;
         }
         
-        tuple[12] = dividend; // s_dividend
-        tuple[13] = yield; // s_yield
+        tuple[13] = dividend; // s_dividend
+        tuple[14] = yield; // s_yield
         
         counter++;
         

@@ -315,7 +315,7 @@ public class TradeGenerator implements Iterator<Object[]> {
         }
         
         startFromAccount = CustomerCustAccCombined.getStartingAccId(startFromCustomer);
-        
+        //System.out.println("Start from acc in trade:" + startFromAccount);
         currentSimulatedTime = 0;
         currInitiatedTrades = 0;
         
@@ -351,6 +351,7 @@ public class TradeGenerator implements Iterator<Object[]> {
         
         long[] accIdAndSecs = holdsGenerator.generateRandomAccSecurity(newTrade.customer, newTrade.customerTier);
         newTrade.accId = accIdAndSecs[0];
+
         newTrade.secAccIndex = (int)accIdAndSecs[1];
         newTrade.secFileIndex = accIdAndSecs[2];
         
@@ -723,6 +724,7 @@ public class TradeGenerator implements Iterator<Object[]> {
         tuple[6] = newTrade.tradeQty; // t_qty
         tuple[7] = newTrade.bidPrice.getDollars(); // t_bid_price
         tuple[8] = newTrade.accId; // t_ca_id
+        //System.out.println("Account ID inserted into trade:" + tuple[8]);
         
         tuple[9] = newTrade.tradePrice.getDollars(); // t_trade_price
         tuple[10] = 10; //addTrade.charge.getDollars(); // t_chrg
@@ -817,8 +819,8 @@ public class TradeGenerator implements Iterator<Object[]> {
         Object[] tuple = new Object[getColumnNum(TPCEConstants.TABLENAME_HOLDING_SUMMARY)];
         currTable = TPCEConstants.TABLENAME_HOLDING_SUMMARY;
         
-        tuple[0] = currAccountForHoldingSummary + startFromAccount; // hs_ca_id
-        
+        tuple[0] = newTrade.accId;//currAccountForHoldingSummary + startFromAccount; // hs_ca_id
+        //System.out.println("Account for holding summary:" + tuple[0]);
         // symbol
         long secFlatFileIndex = holdsGenerator.getSecurityFlatFileIndex(currAccountForHoldingSummary + startFromAccount,
                 currSecurityForHoldingSummary + 1);

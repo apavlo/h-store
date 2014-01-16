@@ -1,5 +1,8 @@
 package edu.brown.benchmark.tpceb.generators;
 
+
+
+
 public class EGenLogFormatterTab extends BaseLogFormatter{
     /*
     ** CE Transaction Settings
@@ -25,6 +28,17 @@ public class EGenLogFormatterTab extends BaseLogFormatter{
         return bufferedOutput;
     }
     
+    public String getLogOutput(MarketWatchSettings parms ){
+        String bufferedOutput = new String( );
+         
+        bufferedOutput = bufferedOutput.concat(" \n");
+        bufferedOutput = bufferedOutput.concat("Market Watch Parameters:\n");
+        bufferedOutput = bufferedOutput.concat("Parameter Default" + "\t" + "Current" + "\t" + "Default?" + "\n");
+        bufferedOutput = bufferedOutput.concat("By Account ID: " + parms.dft_by_acct_id + "\t" + parms.cur_by_acct_id + "\t" + (parms.state_by_acct_id ? "YES" : "NO") + "\n");
+      //  bufferedOutput = bufferedOutput.concat("By Industry: " + parms.dft_by_industry + "\t" + parms.cur_by_industry + "\t" + (parms.state_by_industry ? "YES" : "NO") + "\n");
+       // bufferedOutput = bufferedOutput.concat("Get Watch List: " + parms.dft_by_watch_list + "\t" + parms.cur_by_watch_list + "\t" + (parms.state_by_watch_list ? "YES" : "NO") + "\n");
+        return bufferedOutput;
+    }
 
     
     /*
@@ -37,8 +51,8 @@ public class EGenLogFormatterTab extends BaseLogFormatter{
         bufferedOutput = bufferedOutput.concat(" \n");
         bufferedOutput = bufferedOutput.concat("Transaction Mixes:\n");
         bufferedOutput = bufferedOutput.concat("Parameter Default" + "\t" + "Current" + "\t" + "Default?" + "\n");
-        bufferedOutput = bufferedOutput.concat("Trade Order: " + parms.dft_TradeOrderMixLevel + "\t" + parms.cur_TradeOrderMixLevel + "\t" + (parms.state_TradeOrderMixLevel ? "YES" : "NO") + "\n");
-  
+       // bufferedOutput = bufferedOutput.concat("Trade Order: " + parms.dft_TradeOrderMixLevel + "\t" + parms.cur_TradeOrderMixLevel + "\t" + (parms.state_TradeOrderMixLevel ? "YES" : "NO") + "\n");
+        bufferedOutput = bufferedOutput.concat("Market Watch: " + parms.dft_MarketWatchMixLevel + "\t" + parms.cur_MarketWatchMixLevel + "\t" + (parms.state_MarketWatchMixLevel ? "YES" : "NO") + "\n");
             return bufferedOutput;
     }
     /*
@@ -89,6 +103,18 @@ public class EGenLogFormatterTab extends BaseLogFormatter{
         bufferedOutput = bufferedOutput.concat("Unique ID:" + parms.cur_UniqueId + "\n");
         bufferedOutput = bufferedOutput.concat("Txn Mix RNGSeed:" + parms.cur_TxnMixRNGSeed + "\n");
         bufferedOutput = bufferedOutput.concat("Txn Input RNGSeed:" + parms.cur_TxnInputRNGSeed + "\n");
+        return bufferedOutput;
+    }
+   
+    public String getLogOutput(DriverMEESettings parms ){
+        String bufferedOutput = new String( );
+         
+        bufferedOutput = bufferedOutput.concat(" \n");
+        bufferedOutput = bufferedOutput.concat("Driver MEE Settings:\n");
+        bufferedOutput = bufferedOutput.concat("Parameter" + "Value"  + "\n");
+        bufferedOutput = bufferedOutput.concat("Unique ID:" + parms.cur_UniqueId + "\n");
+        bufferedOutput = bufferedOutput.concat("Ticker Tape RNGSeed:" + parms.cur_TickerTapeRNGSeed + "\n");
+        bufferedOutput = bufferedOutput.concat("Trading Floor RNGSeed:" + parms.cur_TradingFloorRNGSeed + "\n");
         return bufferedOutput;
     }
     

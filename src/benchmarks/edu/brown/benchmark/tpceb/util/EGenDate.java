@@ -169,7 +169,7 @@ public class EGenDate {
         if (adjustWeekend) {
             daysAdd = ((daysAdd / TPCEConstants.daysPerWorkWeek) * 7) + (daysAdd % TPCEConstants.daysPerWorkWeek);
         }
-        
+
         cal.setTime(time);
         cal.add(Calendar.DAY_OF_MONTH, daysAdd);
         cal.add(Calendar.MILLISECOND, msecsAdd);

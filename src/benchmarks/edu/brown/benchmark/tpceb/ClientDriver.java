@@ -28,6 +28,98 @@
  ***************************************************************************/
 package edu.brown.benchmark.tpceb;
 
+import edu.brown.benchmark.tpceb.generators.MEE;
+import edu.brown.benchmark.tpceb.generators.MEESUTInterface;
+import edu.brown.benchmark.tpceb.generators.MarketExchangeCallback;
+import edu.brown.benchmark.tpceb.generators.TMarketFeedTxnInput;
+import edu.brown.benchmark.tpceb.generators.TMarketWatchTxnInput;
+import edu.brown.benchmark.tpceb.generators.TTradeResultTxnInput;
+import edu.brown.benchmark.tpceb.TPCEConstants.DriverType;
+import edu.brown.benchmark.tpceb.generators.*;
+
+import java.io.File;
+
+
+public class ClientDriver {
+    
+    public ClientDriver(String dataPath, int configuredCustomerCount, int totalCustomerCount, int scaleFactor, int initialDays){
+        
+//      String filename = new String("/tmp/EGenClientDriver.log");
+        logFormat = new EGenLogFormatterTab();
+        logger = new EGenLogger(DriverType.eDriverEGenLoader, 0, logFormat);
+  
+        tradeOrderTxnInput = new TTradeOrderTxnInput();
+
+        driverCETxnSettings = new TDriverCETxnSettings();
+        
+    //    marketWatchTxnInput = new TMarketWatchTxnInput();
+        tradeResultTxnInput = new TTradeResultTxnInput();
+        marketFeedTxnInput = new TMarketFeedTxnInput();
+        
+        File inputDir = new File(dataPath);
+        TPCEGenerator inputFiles = new TPCEGenerator(inputDir, totalCustomerCount, scaleFactor, initialDays);
+        securityHandler = new SecurityHandler(inputFiles);
+        
+        //CE input generator
+        sut = new SUT();
+        cutomerEmulator = new CE(sut, logger, inputFiles, configuredCustomerCount, totalCustomerCount, scaleFactor, initialDays, 0, driverCETxnSettings);
+        
+        marketExchangeCallback = new MarketExchangeCallback(tradeResultTxnInput, marketFeedTxnInput);
+        marketExchangeGenerator = new MEE(0, marketExchangeCallback, logger, securityHandler, 1, configuredCustomerCount);
+        marketExchangeGenerator.enableTickerTape();   
+    }
+    
+    public CE getCE(){
+        return cutomerEmulator;
+    }
+    
+    public MEE getMEE(){
+        return marketExchangeGenerator;
+    }
+
+
+   public TTradeOrderTxnInput generateTradeOrderInput(int tradeType) {
+        cutomerEmulator.getCETxnInputGenerator().generateTradeOrderInput( tradeOrderTxnInput, tradeType );
+        return (tradeOrderTxnInput);
+    }
+    
+ /*   public TMarketWatchTxnInput generateMarketWatchInput() {
+//      System.out.println("Executing generateMarketWatchInput ... \n");
+        cutomerEmulator.getCETxnInputGenerator().generateMarketWatchInput( marketWatchTxnInput );
+        return (marketWatchTxnInput);
+    }*/
+    
+   public TMarketFeedTxnInput generateMarketFeedInput() {
+//      System.out.println("Executing %s...\n" + "generateBrokerVolumeInput");
+        return (marketFeedTxnInput);
+    }
+    
+    public TTradeResultTxnInput generateTradeResultInput() {
+//      System.out.println("Executing %s...\n" + "generateTradeResultInput");
+        marketExchangeGenerator.generateTradeResult();
+        return (tradeResultTxnInput);
+    }
+
+   private TTradeOrderTxnInput         tradeOrderTxnInput;
+   private TTradeResultTxnInput        tradeResultTxnInput;
+   private TMarketWatchTxnInput        marketWatchTxnInput;
+   private TMarketFeedTxnInput         marketFeedTxnInput;
+    
+   private TDriverCETxnSettings        driverCETxnSettings;
+   private EGenLogFormatterTab         logFormat;
+   private BaseLogger                  logger;
+   private CE                          cutomerEmulator;
+   private CESUTInterface              sut;
+
+   private MEE                         marketExchangeGenerator;
+   private MEESUTInterface             marketExchangeCallback;
+    
+   private SecurityHandler             securityHandler;
+
+}
+
+/*package edu.brown.benchmark.tpceb;
+
 import edu.brown.benchmark.tpceb.TPCEConstants.DriverType;
 import edu.brown.benchmark.tpceb.generators.*;
 import java.io.File;
@@ -73,6 +165,7 @@ public class ClientDriver {
     private CE                          cutomerEmulator;
     private CESUTInterface              sut;
 
+    private MEESUTInterface             MEEsut;
     private SecurityHandler             securityHandler;
 
-}
+}*/

@@ -18,6 +18,7 @@ public class TMarketWatchTxnInput {
         para.add(ending_co_id);
         para.add(starting_co_id);
         para.add(industry_name);
+    
         return para;
     }
     
@@ -57,6 +58,7 @@ public class TMarketWatchTxnInput {
     }
     public void setIndustryName(String industry_name){
         this.industry_name = industry_name;
+        System.out.println("name:" + industry_name);
     }
     
     private long              acct_id;

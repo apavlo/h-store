@@ -1,5 +1,7 @@
 package edu.brown.benchmark.tpceb.generators;
 
+import edu.brown.benchmark.tpceb.generators.CETxnMixGenerator;
+import edu.brown.benchmark.tpceb.generators.TMarketWatchTxnInput;
 import edu.brown.benchmark.tpceb.generators.TradeGenerator.TradeType;
 import edu.brown.benchmark.tpceb.util.EGenDate;
 
@@ -157,18 +159,63 @@ public class CE {
     }
 
     public void doTxn(){
+        
+        
+        int iTxnType = txnMixGenerator.generateNextTxnType( );
+
         if (bClearBufferBeforeGeneration){
-            zeroInputBuffer(CETxnMixGenerator.TRADE_ORDER);
+            zeroInputBuffer(iTxnType);
         }
-        int   iTradeType = TradeType.eLimitBuy.ordinal();
+
+        switch( iTxnType ){
+            case CETxnMixGenerator.TRADE_ORDER:
+                /*
+                 * These two variables will be modified in the GenerateTradeOrderInput
+                 */
+                boolean    bExecutorIsAccountOwner = true;
+                int   iTradeType = TradeType.eLimitBuy.ordinal();
+                txnInputGenerator.generateTradeOrderInput( tradeOrderTxnInput, iTradeType );
+                sut.TradeOrder( tradeOrderTxnInput, iTradeType);
+                break;
+        /*    case CETxnMixGenerator.MARKET_WATCH:
+                txnInputGenerator.generateMarketWatchInput( marketWatchTxnInput );
+                sut.MarketWatch( marketWatchTxnInput );
+                break;*/
+            default:
+                System.err.println("CE: Generated illegal transaction");
+                System.exit(1);
+        }
+        /*
+         * case CETxnMixGenerator.MARKET_WATCH:
+            txnInputGenerator.generateMarketWatchInput( marketWatchTxnInput );
+            sut.MarketWatch( marketWatchTxnInput );
+          //d  break;
+            if (bClearBufferBeforeGeneration){
+                zeroInputBuffer(CETxnMixGenerator.MARKET_WATCH);
+            }*/
+       /* if (bClearBufferBeforeGeneration){
+            zeroInputBuffer(CETxnMixGenerator.TRADE_ORDER);
+        }*/
+     /*   int   iTradeType = TradeType.eLimitBuy.ordinal();
         txnInputGenerator.generateTradeOrderInput( tradeOrderTxnInput, iTradeType);
-        sut.TradeOrder( tradeOrderTxnInput, iTradeType);
+        sut.TradeOrder( tradeOrderTxnInput, iTradeType);*/
 
     }
 
     public void zeroInputBuffer(int iTxnType){
-       
-            tradeOrderTxnInput = new TTradeOrderTxnInput();
+        switch( iTxnType ){
+            case CETxnMixGenerator.TRADE_ORDER:
+                tradeOrderTxnInput = new TTradeOrderTxnInput();
+                break;
+          /*  case CETxnMixGenerator.MARKET_WATCH:
+                marketWatchTxnInput = new TMarketWatchTxnInput();
+                break;*/
+        }
+            /* case CETxnMixGenerator.MARKET_WATCH:
+            marketWatchTxnInput = new TMarketWatchTxnInput();
+            break;*/
+           // tradeOrderTxnInput = new TTradeOrderTxnInput();
+       // marketWatchTxnInput = new TMarketWatchTxnInput();
            
     }
 
@@ -193,7 +240,7 @@ public class CE {
     private  BaseLogger                  logger;
     private  CETxnMixGenerator           txnMixGenerator;
     private  CETxnInputGenerator         txnInputGenerator;
-
+    private  TMarketWatchTxnInput        marketWatchTxnInput;
     private  TTradeOrderTxnInput         tradeOrderTxnInput;
 
     private  boolean                     bClearBufferBeforeGeneration;
