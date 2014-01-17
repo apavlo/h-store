@@ -106,9 +106,7 @@ public class SnapshotSiteProcessor {
      * and does any potential snapshot work with that buffer
      */
     private final Runnable m_onPotentialSnapshotWork;
-
     
-    // CHANGE :: Stuff needed for multiple partitions on same site
     /**
      * finish only after digest written
      */

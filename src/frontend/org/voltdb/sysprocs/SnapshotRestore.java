@@ -103,11 +103,9 @@ public class SnapshotRestore extends VoltSystemProcedure {
         for (int originalHostId : originalHostIds) {
             final File f = getSaveFileForPartitionedTable(filePath, fileNonce, tableName, originalHostId, siteId, partitionId);
 
-            // CHANGE :: num local sites
             Host catalog_host = context.getHost();
             Collection<Site> catalog_sites = CatalogUtil.getSitesForHost(catalog_host);
-            System.out.println("---");
-
+            
             m_saveFiles.offer(getTableSaveFile(f, catalog_sites.size() * 4, relevantPartitionIds));
             assert (m_saveFiles.peekLast().getCompleted());
         }
@@ -408,7 +406,7 @@ public class SnapshotRestore extends VoltSystemProcedure {
             int dependency_id = (Integer) paramsA[3];
             int allowExport = (Integer) paramsA[4];
 
-            // CHANGE :: Localized Version
+            // Using Localized Version
             VoltTable result = performLoadPartitionedTable(table_name, originalHosts, relevantPartitions, context, allowExport, ts);
 
             // Distributed Version - Invokes another round of plan fragments
@@ -492,7 +490,6 @@ public class SnapshotRestore extends VoltSystemProcedure {
 
         ClusterSaveFileState savefile_state = null;
         try {
-            // CHANGE :: Need ExecutionContext
             savefile_state = new ClusterSaveFileState(savefile_data[0], execution_context, (int) allowExport);
         } catch (IOException e) {
             throw new VoltAbortException(e.getMessage());
@@ -751,7 +748,6 @@ public class SnapshotRestore extends VoltSystemProcedure {
                 int result_dependency_id = TableSaveFileState.getNextDependencyId();
                 pfs[0] = new SynthesizedPlanFragment();
                 pfs[0].fragmentId = SysProcFragmentId.PF_restoreSendReplicatedTable;
-                // CHANGE ::
                 // XXX pfs[0].siteId = siteId;
                 pfs[0].destPartitionId = siteId;
                 pfs[0].outputDependencyIds = new int[] { result_dependency_id };
@@ -974,7 +970,6 @@ public class SnapshotRestore extends VoltSystemProcedure {
                 dependencyIds[pfs_index] = TableSaveFileState.getNextDependencyId();
                 pfs[pfs_index] = new SynthesizedPlanFragment();
                 pfs[pfs_index].fragmentId = SysProcFragmentId.PF_restoreSendPartitionedTable;
-                // CHANGE ::
                 // XXX pfs[pfs_index].siteId = site_id;
                 pfs[pfs_index].destPartitionId = site_id;
                 pfs[pfs_index].multipartition = false;

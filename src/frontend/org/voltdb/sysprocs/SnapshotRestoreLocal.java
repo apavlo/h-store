@@ -216,7 +216,7 @@ public class SnapshotRestoreLocal extends VoltSystemProcedure {
             pf.fragmentId = SysProcFragmentId.PF_SRLloadDistribute;
             pf.inputDependencyIds = new int[] {};
             pf.outputDependencyIds = new int[] { (int) DEP_SRLdistribute };
-            // CHANGE :: Spread the task across all partitions
+            // Spread the task across all partitions
             pf.multipartition = true;
             pf.nonExecSites = false;
             pf.destPartitionId = partition; // partitionsToSites[i - 1];
@@ -442,7 +442,7 @@ public class SnapshotRestoreLocal extends VoltSystemProcedure {
             LOG.trace("RelevantPartitions :"+pset.size());
             LOG.trace("loadDistribute at host :" + catalog_host.getId());
 
-            // CHANGE :: Construct table again if it is not replicated
+            // Construct table again if it is not replicated
             // As by default, it gets constructed only at one partition
             if (is_replicated == false) {
                 // BBContainer is not backed by an array (uses allocateDirect),
@@ -528,7 +528,6 @@ public class SnapshotRestoreLocal extends VoltSystemProcedure {
 
         ClusterSaveFileState savefile_state = null;
         try {
-            // CHANGE :: Need ExecutionContext
             savefile_state = new ClusterSaveFileState(savefile_data[0], execution_context, (int) allowExport);
         } catch (IOException e) {
             throw new VoltAbortException(e.getMessage());

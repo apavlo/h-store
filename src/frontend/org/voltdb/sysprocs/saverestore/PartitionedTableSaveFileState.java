@@ -84,7 +84,7 @@ public class PartitionedTableSaveFileState extends TableSaveFileState {
 
     @Override
     public boolean isConsistent() {
-        // CHANGE :: Update partition count in cluster
+        // XXX Update partition count in cluster
         return true;
         //return ((m_partitionsSeen.size() == m_totalPartitions) && (m_partitionsSeen.first() == 0) && (m_partitionsSeen.last() == m_totalPartitions - 1));
     }
@@ -150,7 +150,6 @@ public class PartitionedTableSaveFileState extends TableSaveFileState {
                 }
             }
 
-            // CHANGE :: Get Site ids for Host
             SystemProcedureExecutionContext context = this.getSystemProcedureExecutionContext();
             assert (context != null);
             Host catalog_host = context.getHost();

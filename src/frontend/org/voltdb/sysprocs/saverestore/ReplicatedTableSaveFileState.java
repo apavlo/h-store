@@ -76,7 +76,6 @@ public class ReplicatedTableSaveFileState extends TableSaveFileState {
 
     @Override
     public SynthesizedPlanFragment[] generateRestorePlan(Table catalogTable) {
-        // CHANGE :: sites with replicated table
         SystemProcedureExecutionContext context = this.getSystemProcedureExecutionContext();
         assert (context != null);
         Host catalog_host = context.getHost();
@@ -112,7 +111,6 @@ public class ReplicatedTableSaveFileState extends TableSaveFileState {
     private SynthesizedPlanFragment[] generateReplicatedToReplicatedPlan() {
         SynthesizedPlanFragment[] restore_plan = null;
 
-        // CHANGE :: Get Site ids for Host
         SystemProcedureExecutionContext context = this.getSystemProcedureExecutionContext();
         assert (context != null);
         Host catalog_host = context.getHost();
@@ -141,7 +139,6 @@ public class ReplicatedTableSaveFileState extends TableSaveFileState {
         //for(Integer ii : sites_missing_table ) LOG.trace(" "+ii);
         
         for (Integer site_id : m_sitesWithThisTable) {
-            // CHANGE ::            
             for(Partition pt : CatalogUtil.getSiteFromId(context.getHost(),site_id).getPartitions()){
                 restore_plan[restore_plan_index] = constructLoadReplicatedTableFragment();
                 // XXX restore_plan[restore_plan_index].siteId = site_id;
@@ -198,7 +195,6 @@ public class ReplicatedTableSaveFileState extends TableSaveFileState {
         SynthesizedPlanFragment plan_fragment = new SynthesizedPlanFragment();
         plan_fragment.fragmentId = SysProcFragmentId.PF_restoreDistributeReplicatedTable;
         plan_fragment.multipartition = false;
-        // CHANGE ::
         // XXX plan_fragment.siteId = sourceSiteId;
         plan_fragment.destPartitionId = sourcePartitionId;
         plan_fragment.outputDependencyIds = new int[] { result_dependency_id };

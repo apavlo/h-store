@@ -91,7 +91,7 @@ public class SnapshotSaveAPI
         LOG.trace("Stage 1 : at partition : "+partition_id);        
         
         synchronized (SnapshotSiteProcessor.m_taskListsForSites) {
-            // CHANGE :: Fetch work for this partition
+            // Fetch work for this partition
             int index = partition_id - lowest_partition_id;
             final Deque<SnapshotTableTask> m_taskList = SnapshotSiteProcessor.m_taskListsForSites.get(index);
 
@@ -331,7 +331,7 @@ public class SnapshotSaveAPI
                     int partition_id = context.getPartitionExecutor().getPartitionId();                                            
                     int index = partition_id - lowest_partition_id;    
                     
-                    // CHANGE :: Each partition gets a task
+                    // Each partition gets a partitioned task
                     for (SnapshotTableTask t : partitionedSnapshotTasks) {
                         SnapshotSiteProcessor.m_taskListsForSites.get(index).offer(t);
                     }               
@@ -339,7 +339,8 @@ public class SnapshotSaveAPI
                     //for (int ii = 0; ii < numLocalSites && !partitionedSnapshotTasks.isEmpty(); ii++) {
                     //    SnapshotSiteProcessor.m_taskListsForSites.get(ii).addAll(partitionedSnapshotTasks);
                     //}
-                                                          
+
+                    // Each partition gets a replicated task
                     //int siteIndex = 0;
                     for (SnapshotTableTask t : replicatedSnapshotTasks) {
                         //SnapshotSiteProcessor.m_taskListsForSites.get(siteIndex++ % numLocalSites).offer(t);

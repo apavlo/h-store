@@ -74,6 +74,10 @@ public class TestSnapshotRecovery extends RegressionSuite {
     private static int NUM_SITES = -1;    
     private static int NUM_PARTITIONS = -1;    
 
+    // YCSB
+    private static final String PREFIX = "ycsb";
+    private static final int NUM_TUPLES = 16;
+
     public TestSnapshotRecovery(String name) {
         super(name);
     }
@@ -124,129 +128,8 @@ public class TestSnapshotRecovery extends RegressionSuite {
         } catch (Exception e) {
             e.printStackTrace();
         }
-    }
+    }    
     
-    private VoltTable createReplicatedTable(int numberOfItems, int indexBase, StringBuilder sb) {
-        return createReplicatedTable(numberOfItems, indexBase, sb, false);
-    }
-
-    private VoltTable createReplicatedTable(int numberOfItems, int indexBase, StringBuilder sb, boolean generateCSV) {
-        VoltTable repl_table = new VoltTable(new ColumnInfo("RT_ID", VoltType.INTEGER), new ColumnInfo("RT_NAME", VoltType.STRING), new ColumnInfo("RT_INTVAL", VoltType.INTEGER), new ColumnInfo(
-                "RT_FLOATVAL", VoltType.FLOAT));
-        char delimeter = generateCSV ? ',' : '\t';
-        for (int i = indexBase; i < numberOfItems + indexBase; i++) {
-            String stringVal = null;
-            String escapedVal = null;
-
-            if (sb != null) {
-                if (generateCSV) {
-                    int escapable = i % 5;
-                    switch (escapable) {
-                        case 0:
-                            stringVal = "name_" + i;
-                            escapedVal = "name_" + i;
-                            break;
-                        case 1:
-                            stringVal = "na,me_" + i;
-                            escapedVal = "\"na,me_" + i + "\"";
-                            break;
-                        case 2:
-                            stringVal = "na\"me_" + i;
-                            escapedVal = "\"na\"\"me_" + i + "\"";
-                            break;
-                        case 3:
-                            stringVal = "na\rme_" + i;
-                            escapedVal = "\"na\rme_" + i + "\"";
-                            break;
-                        case 4:
-                            stringVal = "na\nme_" + i;
-                            escapedVal = "\"na\nme_" + i + "\"";
-                            break;
-                    }
-                } else {
-                    int escapable = i % 5;
-                    switch (escapable) {
-                        case 0:
-                            stringVal = "name_" + i;
-                            escapedVal = "name_" + i;
-                            break;
-                        case 1:
-                            stringVal = "na\tme_" + i;
-                            escapedVal = "na\\tme_" + i;
-                            break;
-                        case 2:
-                            stringVal = "na\nme_" + i;
-                            escapedVal = "na\\nme_" + i;
-                            break;
-                        case 3:
-                            stringVal = "na\rme_" + i;
-                            escapedVal = "na\\rme_" + i;
-                            break;
-                        case 4:
-                            stringVal = "na\\me_" + i;
-                            escapedVal = "na\\\\me_" + i;
-                            break;
-                    }
-                }
-            } else {
-                stringVal = "name_" + i;
-            }
-
-            Object[] row = new Object[] { i, stringVal, i, new Double(i) };
-            if (sb != null) {
-                sb.append(i).append(delimeter).append(escapedVal).append(delimeter);
-                sb.append(i).append(delimeter).append(new Double(i).toString()).append('\n');
-            }
-            repl_table.addRow(row);
-        }
-        return repl_table;
-    }
-
-    private VoltTable createPartitionedTable(int numberOfItems, int indexBase) {
-        VoltTable partition_table = new VoltTable(new ColumnInfo("PT_ID", VoltType.INTEGER), new ColumnInfo("PT_NAME", VoltType.STRING), new ColumnInfo("PT_INTVAL", VoltType.INTEGER), new ColumnInfo(
-                "PT_FLOATVAL", VoltType.FLOAT));
-
-        for (int i = indexBase; i < numberOfItems + indexBase; i++) {
-            Object[] row = new Object[] { i, "name_" + i, i, new Double(i) };
-            partition_table.addRow(row);
-        }
-
-        return partition_table;
-    }
-
-    private VoltTable[] loadTable(Client client, String tableName, VoltTable table) {
-        VoltTable[] results = null;
-        int allowExport = 0;
-        try {
-            client.callProcedure("@LoadMultipartitionTable", tableName, table);
-        } catch (Exception ex) {
-            ex.printStackTrace();
-            fail("loadTable exception: " + ex.getMessage());
-        }
-        return results;
-    }
-
-    private void loadLargeReplicatedTable(Client client, String tableName, int itemsPerChunk, int numChunks) {
-        loadLargeReplicatedTable(client, tableName, itemsPerChunk, numChunks, false, null);
-    }
-
-    private void loadLargeReplicatedTable(Client client, String tableName, int itemsPerChunk, int numChunks, boolean generateCSV, StringBuilder sb) {
-        for (int i = 0; i < numChunks; i++) {
-            VoltTable repl_table = createReplicatedTable(itemsPerChunk, i * itemsPerChunk, sb, generateCSV);
-            loadTable(client, tableName, repl_table);
-        }
-        if (sb != null) {
-            sb.trimToSize();
-        }
-    }
-
-    private void loadLargePartitionedTable(Client client, String tableName, int itemsPerChunk, int numChunks) {
-        for (int i = 0; i < numChunks; i++) {
-            VoltTable part_table = createPartitionedTable(itemsPerChunk, i * itemsPerChunk);
-            loadTable(client, tableName, part_table);
-        }
-    }
-
     private VoltTable[] saveTables(Client client) {
         VoltTable[] results = null;
         try {
@@ -256,33 +139,6 @@ public class TestSnapshotRecovery extends RegressionSuite {
             fail("SnapshotSave exception: " + ex.getMessage());
         }
         return results;
-    }
-
-    private void checkTable(Client client, String tableName, String orderByCol, int expectedRows) {
-        if (expectedRows > 200000) {
-            System.out.println("Table too large to retrieve with select *");
-            System.out.println("Skipping integrity check");
-        }
-        VoltTable result = null;
-        try {
-            result = client.callProcedure("SaveRestoreSelect", tableName).getResults()[0];
-
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        final int rowCount = result.getRowCount();
-        assertEquals(expectedRows, rowCount);
-
-        // System.out.println("Check table :: \n"+result);
-
-        int i = 0;
-        while (result.advanceRow()) {
-            assertEquals(i, result.getLong(0));
-            assertEquals("name_" + i, result.getString(1));
-            assertEquals(i, result.getLong(2));
-            assertEquals(new Double(i), result.getDouble(3));
-            ++i;
-        }
     }
 
     private void validateSnapshot(boolean expectSuccess) {
@@ -310,11 +166,7 @@ public class TestSnapshotRecovery extends RegressionSuite {
             System.setOut(original);
         }
     }    
-    
-    // YCSB
-    private static final String PREFIX = "ycsb";
-    private static final int NUM_TUPLES = 16;
-    
+        
     private void initializeDatabase(final Client client, final int num_tuples) throws Exception {
         String args[] = {
             "NOCONNECTIONS=true",
@@ -500,8 +352,8 @@ public class TestSnapshotRecovery extends RegressionSuite {
             adv = vt.advanceRow();
             if(adv == false)
                 System.err.println("key :"+key_itr+" no result");
-            else
-                System.err.println("key :"+key_itr+" result:"+vt.getLong(0));
+            //else
+            //    System.err.println("key :"+key_itr+" result:"+vt.getLong(0));
 
             assert(adv);
             assertEquals(key_itr, vt.getLong(0));            
@@ -535,7 +387,7 @@ public class TestSnapshotRecovery extends RegressionSuite {
         // CONFIG #1: 2 Local Site with 4 Partitions running on JNI backend
         NUM_SITES = 2;
         NUM_PARTITIONS = 2;
-        m_config = new LocalCluster("snapshot-"+NUM_SITES+"-site-"+NUM_PARTITIONS+"-partition.jar", NUM_SITES, NUM_PARTITIONS, 1, BackendTarget.NATIVE_EE_JNI);
+        m_config = new LocalCluster("snapshot-"+PREFIX+"-"+NUM_SITES+"-site-"+NUM_PARTITIONS+"-partition.jar", NUM_SITES, NUM_PARTITIONS, 1, BackendTarget.NATIVE_EE_JNI);
         success = m_config.compile(project);
         assert (success);
         builder.addServerConfig(m_config);
@@ -543,7 +395,7 @@ public class TestSnapshotRecovery extends RegressionSuite {
         // CONFIG #2: 1 Local Site with 2 Partitions running on JNI backend
         //NUM_SITES = 1;
         //NUM_PARTITIONS = 2;        
-        //m_config = new LocalSingleProcessServer("snapshot-"+NUM_SITES+"-site-"+NUM_PARTITIONS+"-partition.jar", NUM_PARTITIONS, BackendTarget.NATIVE_EE_JNI);
+        //m_config = new LocalSingleProcessServer("snapshot-"+PREFIX+"-"+NUM_SITES+"-site-"+NUM_PARTITIONS+"-partition.jar", NUM_PARTITIONS, BackendTarget.NATIVE_EE_JNI);
         //success = m_config.compile(project);
         //assert (success);
         //builder.addServerConfig(m_config);
