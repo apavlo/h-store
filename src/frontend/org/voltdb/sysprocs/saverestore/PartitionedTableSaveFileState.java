@@ -37,6 +37,7 @@ import org.voltdb.catalog.Table;
 import org.voltdb.sysprocs.SysProcFragmentId;
 import org.voltdb.utils.Pair;
 import org.voltdb.catalog.Host;
+import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Table;
 
@@ -83,7 +84,9 @@ public class PartitionedTableSaveFileState extends TableSaveFileState {
 
     @Override
     public boolean isConsistent() {
-        return ((m_partitionsSeen.size() == m_totalPartitions) && (m_partitionsSeen.first() == 0) && (m_partitionsSeen.last() == m_totalPartitions - 1));
+        // CHANGE :: Update partition count in cluster
+        return true;
+        //return ((m_partitionsSeen.size() == m_totalPartitions) && (m_partitionsSeen.first() == 0) && (m_partitionsSeen.last() == m_totalPartitions - 1));
     }
 
     int getTotalPartitions() {
@@ -154,8 +157,13 @@ public class PartitionedTableSaveFileState extends TableSaveFileState {
             Collection<Site> catalog_sites = CatalogUtil.getSitesForHost(catalog_host);
 
             List<Integer> sitesAtHost = new ArrayList<Integer>();
+            List<Integer> partitionsAtHost = new ArrayList<Integer>();
+
             for (Site catalog_site : catalog_sites) {
                 sitesAtHost.add(catalog_site.getId());
+                for(Partition pt : catalog_site.getPartitions()){
+                    partitionsAtHost.add(pt.getId());
+                }
             }
 
             int originalHostsArray[] = new int[originalHosts.size()];
@@ -172,24 +180,22 @@ public class PartitionedTableSaveFileState extends TableSaveFileState {
              * static synchronization in the procedure will ensure the work is
              * distributed across every ES in a meaningful way.
              */
-            for (Integer site : sitesAtHost) {
-                restorePlan.add(constructDistributePartitionedTableFragment(site, uncoveredPartitionsAtHost, originalHostsArray));
+            for (Integer partition : partitionsAtHost) {
+                restorePlan.add(constructDistributePartitionedTableFragment(partition, uncoveredPartitionsAtHost, originalHostsArray));
             }
         }
         restorePlan.add(constructDistributePartitionedTableAggregatorFragment());
         return restorePlan.toArray(new SynthesizedPlanFragment[0]);
     }
 
-    private SynthesizedPlanFragment constructDistributePartitionedTableFragment(int distributorSiteId, int uncoveredPartitionsAtHost[], int originalHostsArray[]) {
-        LOG.info("constructDistributePartitionedTableFragment : source -" + distributorSiteId);
+    private SynthesizedPlanFragment constructDistributePartitionedTableFragment(int distributorPartitionId, int uncoveredPartitionsAtHost[], int originalHostsArray[]) {
+        LOG.info("constructDistributePartitionedTableFragment : to partition : " + distributorPartitionId);
 
         int result_dependency_id = getNextDependencyId();
         SynthesizedPlanFragment plan_fragment = new SynthesizedPlanFragment();
-        plan_fragment.fragmentId = SysProcFragmentId.PF_restoreDistributePartitionedTable;
+        plan_fragment.fragmentId = SysProcFragmentId.PF_restoreDistributePartitionedTable;        
         plan_fragment.multipartition = false;
-        // CHANGE ::
-        // plan_fragment.siteId = distributorSiteId;
-        plan_fragment.destPartitionId = distributorSiteId;
+        plan_fragment.destPartitionId = distributorPartitionId;
         plan_fragment.outputDependencyIds = new int[] { result_dependency_id };
         plan_fragment.inputDependencyIds = new int[] {};
         addPlanDependencyId(result_dependency_id);
@@ -206,7 +212,6 @@ public class PartitionedTableSaveFileState extends TableSaveFileState {
         LOG.trace("constructDistributePartitionedTableAggregatorFragment - partition : " + partition_id);
 
         int result_dependency_id = getNextDependencyId();
-
         SynthesizedPlanFragment plan_fragment = new SynthesizedPlanFragment();
         plan_fragment.fragmentId = SysProcFragmentId.PF_restoreDistributePartitionedTableResults;
         plan_fragment.multipartition = false;

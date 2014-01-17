@@ -32,6 +32,7 @@ import org.voltdb.VoltSystemProcedure.SynthesizedPlanFragment;
 import org.voltdb.catalog.Table;
 import org.voltdb.sysprocs.SysProcFragmentId;
 import org.voltdb.catalog.Host;
+import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Table;
 
@@ -118,39 +119,46 @@ public class ReplicatedTableSaveFileState extends TableSaveFileState {
         Collection<Site> catalog_sites = CatalogUtil.getSitesForHost(catalog_host);
 
         Set<Integer> execution_site_ids = new TreeSet<Integer>();
-        for (Site catalog_site : catalog_sites) {
+        Set<Integer> execution_partition_ids = new TreeSet<Integer>();
+        for (Site catalog_site : catalog_sites) {            
             execution_site_ids.add(catalog_site.getId());
+            for(Partition pt : catalog_site.getPartitions()){
+                execution_partition_ids.add(pt.getId());
+            }            
         }
+        
+        //LOG.trace("Sites Size ::"+execution_site_ids.size());
+        //LOG.trace("Partitions Size ::"+execution_partition_ids.size());
 
         Set<Integer> sites_missing_table = getSitesMissingTable(execution_site_ids);
         // not sure we want to deal with handling expected load failures,
         // so let's send an individual load to each site with the table
         // and then pick sites to send the table to those without it
-        restore_plan = new SynthesizedPlanFragment[execution_site_ids.size() + 1];
+        restore_plan = new SynthesizedPlanFragment[execution_partition_ids.size() + 1];
         int restore_plan_index = 0;
 
-        // System.out.println("getSitesMissingTable :");
-        // for(Integer ii : sites_missing_table )
-        // System.out.print(" "+ii);
-        // System.out.println("");
-
+        //LOG.trace("getSitesMissingTable :");
+        //for(Integer ii : sites_missing_table ) LOG.trace(" "+ii);
+        
         for (Integer site_id : m_sitesWithThisTable) {
-            // LOG.trace("m_sitesWithThisTable :: site_id :"+site_id);
-            restore_plan[restore_plan_index] = constructLoadReplicatedTableFragment();
-            // CHANGE ::
-            // XXX restore_plan[restore_plan_index].siteId = site_id;
-            restore_plan[restore_plan_index].destPartitionId = site_id;
-            ++restore_plan_index;
+            // CHANGE ::            
+            for(Partition pt : CatalogUtil.getSiteFromId(context.getHost(),site_id).getPartitions()){
+                restore_plan[restore_plan_index] = constructLoadReplicatedTableFragment();
+                // XXX restore_plan[restore_plan_index].siteId = site_id;
+                restore_plan[restore_plan_index].destPartitionId = pt.getId();
+                ++restore_plan_index;
+            }
         }
         for (Integer site_id : sites_missing_table) {
-            // LOG.trace("m_sites_missing_table :: site_id :"+site_id);
-
-            int source_site_id = m_sitesWithThisTable.iterator().next(); // XXX
-                                                                         // hacky
-            restore_plan[restore_plan_index] = constructDistributeReplicatedTableFragment(source_site_id, site_id);
-            ++restore_plan_index;
+            LOG.trace("m_sites_missing_table :: site_id :"+site_id);
+            int source_site_id = m_sitesWithThisTable.iterator().next(); // XXX  hacky                                                                         
+            for(Partition pt : CatalogUtil.getSiteFromId(context.getHost(), source_site_id).getPartitions()){                
+                restore_plan[restore_plan_index] = constructDistributeReplicatedTableFragment(source_site_id, site_id);
+                ++restore_plan_index;
+            }
         }
-        assert (restore_plan_index == execution_site_ids.size());
+        //LOG.trace("restore_plan_index :"+restore_plan_index+" execution_partition_ids :"+execution_partition_ids.size());
+        assert(restore_plan_index==execution_partition_ids.size());
 
         restore_plan[restore_plan_index] = constructLoadReplicatedTableAggregatorFragment();
         return restore_plan;
@@ -183,8 +191,8 @@ public class ReplicatedTableSaveFileState extends TableSaveFileState {
         return plan_fragment;
     }
 
-    private SynthesizedPlanFragment constructDistributeReplicatedTableFragment(int sourceSiteId, int destinationSiteId) {
-        LOG.trace("constructDistributeReplicatedTableFragment : source -" + sourceSiteId + " destination -" + destinationSiteId);
+    private SynthesizedPlanFragment constructDistributeReplicatedTableFragment(int sourcePartitionId, int destinationPartitionId) {
+        LOG.trace("constructDistributeReplicatedTableFragment : source -" + sourcePartitionId + " destination -" + destinationPartitionId);
 
         int result_dependency_id = getNextDependencyId();
         SynthesizedPlanFragment plan_fragment = new SynthesizedPlanFragment();
@@ -192,12 +200,12 @@ public class ReplicatedTableSaveFileState extends TableSaveFileState {
         plan_fragment.multipartition = false;
         // CHANGE ::
         // XXX plan_fragment.siteId = sourceSiteId;
-        plan_fragment.destPartitionId = sourceSiteId;
+        plan_fragment.destPartitionId = sourcePartitionId;
         plan_fragment.outputDependencyIds = new int[] { result_dependency_id };
         plan_fragment.inputDependencyIds = new int[] {};
         addPlanDependencyId(result_dependency_id);
         ParameterSet params = new ParameterSet();
-        params.setParameters(getTableName(), destinationSiteId, result_dependency_id, m_allowExport);
+        params.setParameters(getTableName(), destinationPartitionId, result_dependency_id, m_allowExport);
         plan_fragment.parameters = params;
         return plan_fragment;
     }

@@ -269,6 +269,10 @@ public class DefaultSnapshotDataTarget implements SnapshotDataTarget {
     public int getHeaderSize() {
         return 4;
     }
+    
+    public String  toString(){
+        return "File :"+m_file.getAbsolutePath();        
+    }
 
     private Future<?> write(final BBContainer tupleData, final boolean prependLength) {
         if (m_writeFailed) {

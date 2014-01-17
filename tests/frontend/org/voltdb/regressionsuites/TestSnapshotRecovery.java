@@ -63,17 +63,18 @@ import edu.brown.hstore.cmdlog.CommandLogWriter;
 import edu.brown.hstore.cmdlog.LogEntry;
 
 /**
- * Test the SnapshotSave and SnapshotRestore system procedures
+ * Test the SnapshotSave and SnapshotRestore system procedures for YCSB
  */
-public class TestSaveRestoreSysprocSuite extends RegressionSuite {
+public class TestSnapshotRecovery extends RegressionSuite {
 
     private static final String TMPDIR = "./snapshot";
     private static final String TESTNONCE = "testnonce";
     private static final int ALLOWEXPORT = 0;
     
     private static int NUM_SITES = -1;    
+    private static int NUM_PARTITIONS = -1;    
 
-    public TestSaveRestoreSysprocSuite(String name) {
+    public TestSnapshotRecovery(String name) {
         super(name);
     }
 
@@ -89,7 +90,7 @@ public class TestSaveRestoreSysprocSuite extends RegressionSuite {
     @Override
     public void tearDown() {
         try {
-            //deleteTestFiles();
+            deleteTestFiles();
             super.tearDown();
         } catch (final Exception e) {
             e.printStackTrace();
@@ -308,255 +309,11 @@ public class TestSaveRestoreSysprocSuite extends RegressionSuite {
         } finally {
             System.setOut(original);
         }
-    }
-
-    /*
-     * Also does some basic smoke tests of @SnapshotStatus, @SnapshotScan and
-     * @SnapshotDelete
-     */
-    /*
-    public void testSnapshotSave() throws Exception {
-        System.out.println("Starting testSnapshotSave");
-
-        Client client = getClient();
-        int num_replicated_items_per_chunk = 100;
-        int num_replicated_chunks = 10;
-        int num_partitioned_items_per_chunk = 120;
-        int num_partitioned_chunks = 10;
-
-        loadLargeReplicatedTable(client, "REPLICATED_TESTER", num_replicated_items_per_chunk, num_replicated_chunks);
-
-        loadLargePartitionedTable(client, "PARTITION_TESTER", num_partitioned_items_per_chunk, num_partitioned_chunks);
-
-        VoltTable[] results = null;
-        results = client.callProcedure("@SnapshotSave", TMPDIR, TESTNONCE, (byte) 1).getResults();
-
-        validateSnapshot(true);
-
-        // MORE SNAPSHOT SAVE TESTS
-        FilenameFilter cleaner = new FilenameFilter() {
-            public boolean accept(File dir, String file) {
-                return file.startsWith(TESTNONCE) && file.endsWith("vpt");
-            }
-        };
-
-        File tmp_dir = new File(TMPDIR);
-        File[] tmp_files = tmp_dir.listFiles(cleaner);
-        tmp_files[0].delete();
-
-        // Instead of something exhaustive, let's just make sure that we get
-        // the number of result rows corresponding to the number of
-        // ExecutionSites
-        // that did save work
-        Cluster cluster = CatalogUtil.getCluster(this.getCatalog());
-        Database database = cluster.getDatabases().get("database");
-        CatalogMap<Table> tables = database.getTables();
-
-        CatalogMap<Site> sites = cluster.getSites();
-        int num_hosts = cluster.getHosts().size();
-        int replicated = 0;
-        int total_tables = 0;
-        int expected_entries = 0;
-
-        for (Table table : tables) {
-            total_tables++;
-            if (table.getIsreplicated()) {
-                replicated++;
-            }
-        }
-
-        for (Site s : sites) {
-            // if (s.getIsexec()) {
-            expected_entries++;
-            // }
-        }
-
-        assertEquals(expected_entries, results[0].getRowCount());
-
-        // Now, try the save again and verify that we fail (since all the save
-        // files will still exist. This will return one entry per table
-        // per host
-
-        expected_entries = ((total_tables - replicated) * num_hosts) + replicated;
-
-        try {
-            results = client.callProcedure("@SnapshotSave", TMPDIR, TESTNONCE, (byte) 1).getResults();
-        } catch (Exception ex) {
-            ex.printStackTrace();
-            fail("SnapshotSave exception: " + ex.getMessage());
-        }
-
-        System.out.println(results[0]);
-        while (results[0].advanceRow()) {
-            if (!tmp_files[0].getName().contains(results[0].getString("TABLE"))) {
-                assertEquals(results[0].getString("RESULT"), "FAILURE");
-                // can also fail due to "SNAPSHOT IN PROGRESS"
-                // assertTrue(results[0].getString("ERR_MSG").contains("SAVE FILE ALREADY EXISTS"));
-            }
-        }
-
-        VoltTable deleteResults[] = client.callProcedure("@SnapshotDelete", new String[] { TMPDIR }, new String[] { TESTNONCE }).getResults();
-
-        assertNotNull(deleteResults);
-        assertEquals(1, deleteResults.length);
-        System.out.println(deleteResults[0]);
-        assertEquals(9, deleteResults[0].getColumnCount());
-        // assertEquals( 9, deleteResults[0].getRowCount());
-
-        tmp_files = tmp_dir.listFiles(cleaner);
-        assertEquals(0, tmp_files.length);
-
-        validateSnapshot(false);
-        deleteTestFiles(); 
-    }
-    */
-    
-    /*
-    public void testSaveAndRestoreReplicatedTable() throws IOException, InterruptedException, ProcCallException {
-        
-        System.out.println("Starting testSaveAndRestoreReplicatedTable");
-        
-        deleteTestFiles();
-        setUpSnapshotDir();
-        
-        int num_replicated_items_per_chunk = 3;
-        int num_replicated_chunks = 2;
-
-        Client client = getClient();
-        loadLargeReplicatedTable(client, "REPLICATED_TESTER", num_replicated_items_per_chunk, num_replicated_chunks);
-
-        VoltTable[] results = null;
-        results = saveTables(client);
-
-        validateSnapshot(true);
-
-        VoltTable[] results_tmp = null;
-        results_tmp = client.callProcedure("@Statistics", "table", 0).getResults();
-
-        System.out.println("@Statistics after saveTables :");
-        System.out.println(results_tmp[0]);
-
-        // Kill and restart all the execution sites.
-        m_config.shutDown();
-        m_config.startUp();
-        client = getClient();
-
-        try {
-            results = client.callProcedure("@SnapshotRestore", TMPDIR, TESTNONCE, ALLOWEXPORT).getResults();
-
-            System.out.println(results[0]);
-            
-            while (results[0].advanceRow()) {
-                if (results[0].getString("RESULT").equals("FAILURE")) {
-                    fail(results[0].getString("ERR_MSG"));
-                }
-            }
-        } catch (Exception ex) {
-            ex.printStackTrace();
-            fail("SnapshotRestore exception: " + ex.getMessage());
-        }
-
-        System.out.println("@Statistics after restore:");
-        results = client.callProcedure("@Statistics", "table", 0).getResults();
-        System.out.println(results[0]);
-
-        checkTable(client, "REPLICATED_TESTER", "RT_ID", num_replicated_items_per_chunk * num_replicated_chunks);
-
-        int foundItem = 0;
-        while (results[0].advanceRow()) {
-            if (results[0].getString("TABLE_NAME").equals("REPLICATED_TESTER")) {
-                ++foundItem;
-                assertEquals((num_replicated_chunks * num_replicated_items_per_chunk), results[0].getLong("TUPLE_COUNT"));
-            }
-        }
-
-        // make sure all sites were loaded 
-        //assertEquals(3, foundItem);
-        validateSnapshot(true);
-    }
-    */       
-    
-    /*
-    public void testSaveAndRestorePartitionedTable() throws IOException, InterruptedException, ProcCallException {
-        System.out.println("Starting testSaveAndRestorePartitionedTable");
-       
-        deleteTestFiles();
-        setUpSnapshotDir();     
-        
-        int num_partitioned_items_per_chunk = 6; 
-        int num_partitioned_chunks = 2;
-        Client client = getClient();
-
-        loadLargePartitionedTable(client, "PARTITION_TESTER", num_partitioned_items_per_chunk, num_partitioned_chunks);
-        VoltTable[] results = null;
-
-        DefaultSnapshotDataTarget.m_simulateFullDiskWritingHeader = false;
-        results = saveTables(client);
-
-        validateSnapshot(true);
-
-        while (results[0].advanceRow()) {
-            if (!results[0].getString("RESULT").equals("SUCCESS")) {
-                System.out.println(results[0].getString("ERR_MSG"));
-            }
-            assertTrue(results[0].getString("RESULT").equals("SUCCESS"));
-        }
-
-        VoltTable[] results_tmp = null;
-        results_tmp = client.callProcedure("@Statistics", "table", 0).getResults();
-
-        System.out.println("@Statistics after saveTables :");
-        System.out.println(results_tmp[0]);
-
-        
-        // Kill and restart all the execution sites.
-        m_config.shutDown();
-        m_config.startUp();
-
-        client = getClient();
-
-        try {
-            results = client.callProcedure("@SnapshotRestore", TMPDIR, TESTNONCE, ALLOWEXPORT).getResults();
-
-            System.out.println(results[0]);
-
-            while (results[0].advanceRow()) {
-                if (results[0].getString("RESULT").equals("FAILURE")) {
-                    fail(results[0].getString("ERR_MSG"));
-                }
-            }
-        } catch (Exception ex) {
-            ex.printStackTrace();
-            fail("SnapshotRestore exception: " + ex.getMessage());
-        }
-
-        System.out.println("@Statistics after restore:");
-        results = client.callProcedure("@Statistics", "table", 0).getResults();
-        System.out.println(results[0]);
-
-        checkTable(client, "PARTITION_TESTER", "PT_ID", num_partitioned_items_per_chunk * num_partitioned_chunks);
-
-        int foundItem = 0;
-        while (results[0].advanceRow()) {
-            if (results[0].getString("TABLE_NAME").equals("PARTITION_TESTER")) {
-                ++foundItem;
-                assertEquals((num_partitioned_items_per_chunk * num_partitioned_chunks)/NUM_SITES, results[0].getLong("TUPLE_COUNT"));
-            }
-        }
-
-        // make sure all sites were loaded
-        //assertEquals(2, foundItem);
-        validateSnapshot(true);
-        
-        
-    }
-    */
-    
+    }    
     
     // YCSB
-    
     private static final String PREFIX = "ycsb";
-    private static final int NUM_TUPLES = 4;
+    private static final int NUM_TUPLES = 16;
     
     private void initializeDatabase(final Client client, final int num_tuples) throws Exception {
         String args[] = {
@@ -751,8 +508,7 @@ public class TestSaveRestoreSysprocSuite extends RegressionSuite {
         }                               
         
         System.out.println("checkYCSBTable Passed");
-    }
-    
+    }    
     
 
     /**
@@ -761,30 +517,36 @@ public class TestSaveRestoreSysprocSuite extends RegressionSuite {
      * helper classes.
      */
     static public Test suite() {
-        MultiConfigSuiteBuilder builder = new MultiConfigSuiteBuilder(TestSaveRestoreSysprocSuite.class);
-        /*
+        MultiConfigSuiteBuilder builder = new MultiConfigSuiteBuilder(TestSnapshotRecovery.class);
         builder.setGlobalConfParameter("site.commandlog_enable", true);
         builder.setGlobalConfParameter("site.commandlog_timeout", 10);
         builder.setGlobalConfParameter("site.status_enable", true);
         builder.setGlobalConfParameter("site.status_exec_info", true);
-        */
-        
-        
-        //SaveRestoreTestProjectBuilder project = new SaveRestoreTestProjectBuilder("snapshot-VoltDB-project");
+                
         YCSBProjectBuilder project = new YCSBProjectBuilder();
 
         project.addAllDefaults();
 
         VoltServerConfig m_config = null;        
+        boolean success = false;
+
         setUpSnapshotDir();
 
-        NUM_SITES = 3;
-        m_config = new LocalCluster("snapshot-3-sites-3-partitions.jar", NUM_SITES, 1, 1, BackendTarget.NATIVE_EE_JNI);
-        //m_config = new LocalSingleProcessServer("snapshot-1-site-2-partition.jar", 2, BackendTarget.NATIVE_EE_JNI);
-
-        boolean success = m_config.compile(project);
+        // CONFIG #1: 2 Local Site with 4 Partitions running on JNI backend
+        NUM_SITES = 2;
+        NUM_PARTITIONS = 2;
+        m_config = new LocalCluster("snapshot-"+NUM_SITES+"-site-"+NUM_PARTITIONS+"-partition.jar", NUM_SITES, NUM_PARTITIONS, 1, BackendTarget.NATIVE_EE_JNI);
+        success = m_config.compile(project);
         assert (success);
         builder.addServerConfig(m_config);
+
+        // CONFIG #2: 1 Local Site with 2 Partitions running on JNI backend
+        //NUM_SITES = 1;
+        //NUM_PARTITIONS = 2;        
+        //m_config = new LocalSingleProcessServer("snapshot-"+NUM_SITES+"-site-"+NUM_PARTITIONS+"-partition.jar", NUM_PARTITIONS, BackendTarget.NATIVE_EE_JNI);
+        //success = m_config.compile(project);
+        //assert (success);
+        //builder.addServerConfig(m_config);
 
         return builder;
     }

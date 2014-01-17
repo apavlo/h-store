@@ -100,7 +100,7 @@ public class SaveRestoreTestProjectBuilder extends VoltProjectBuilder {
     */
     
     // PARTITIONED
-    
+    /*
     public SaveRestoreTestProjectBuilder(String project_name) {
         super(project_name);
     }
@@ -173,9 +173,10 @@ public class SaveRestoreTestProjectBuilder extends VoltProjectBuilder {
 
         return catalog;
     }
+    */
     
+    // FULL
     
-    /*
     public SaveRestoreTestProjectBuilder(String project_name) {
         super(project_name);
     }
@@ -255,5 +256,4 @@ public class SaveRestoreTestProjectBuilder extends VoltProjectBuilder {
 
         return catalog;
     }
-    */
 }

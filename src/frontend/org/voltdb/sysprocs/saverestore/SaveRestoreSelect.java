@@ -48,7 +48,7 @@ public class SaveRestoreSelect extends VoltProcedure {
     */
     
     // PARTITIONED
-    
+    /*
     public final SQLStmt selectAllPartitioned =
             new SQLStmt("SELECT * FROM PARTITION_TESTER ORDER BY PT_ID ASC;");
       
@@ -63,10 +63,9 @@ public class SaveRestoreSelect extends VoltProcedure {
 
         return results;
     }
-    
+    */
     
     // FULL
-    /*
     public final SQLStmt selectAllReplicated =
         new SQLStmt("SELECT * FROM REPLICATED_TESTER ORDER BY RT_ID ASC;");
 
@@ -109,5 +108,4 @@ public class SaveRestoreSelect extends VoltProcedure {
 
         return results;
     }
-    */
 }

@@ -48,6 +48,7 @@ import org.voltdb.VoltTable;
 import org.voltdb.VoltTable.ColumnInfo;
 import org.voltdb.VoltType;
 import org.voltdb.VoltTypeException;
+import org.voltdb.catalog.CatalogMap;
 import org.voltdb.catalog.Host;
 import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Table;
@@ -77,6 +78,8 @@ public class SnapshotRestore extends VoltSystemProcedure {
 
     private static final int DEP_restoreScan = (int) SysProcFragmentId.PF_restoreScan | HStoreConstants.MULTIPARTITION_DEPENDENCY;
     private static final int DEP_restoreScanResults = (int) SysProcFragmentId.PF_restoreScanResults;
+    public static final int DEP_restoreDistributePartitionedTable = (int) SysProcFragmentId.PF_restoreDistributePartitionedTable | HStoreConstants.MULTIPARTITION_DEPENDENCY;
+    public static final int DEP_restoreDistributePartitionedTableResults = (int) SysProcFragmentId.PF_restoreDistributePartitionedTable;
 
     private static HashSet<String> m_initializedTableSaveFiles = new HashSet<String>();
     private static ArrayDeque<TableSaveFile> m_saveFiles = new ArrayDeque<TableSaveFile>();
@@ -167,14 +170,25 @@ public class SnapshotRestore extends VoltSystemProcedure {
             assert (params.toArray()[0] != null);
             assert (params.toArray()[1] != null);
             VoltTable result = ClusterSaveFileState.constructEmptySaveFileStateVoltTable();
+         
             // Choose the lowest site ID on this host to do the file scan
-            // All other sites should just return empty results tables.
-            Host catalog_host = context.getHost();
+            // All other sites should just return empty results tables.            
+            Host catalog_host = context.getHost();            
             Site catalog_site = CollectionUtil.first(CatalogUtil.getSitesForHost(catalog_host));
-            Integer lowest_site_id = catalog_site.getId();
+            
+            CatalogMap<Partition> partition_map = catalog_site.getPartitions();
+            Integer lowest_partition_id = Integer.MAX_VALUE, p_id;        
+            for (Partition pt : partition_map) {
+                p_id = pt.getId();
+                lowest_partition_id = Math.min(p_id, lowest_partition_id);
+            }        
+            assert (lowest_partition_id != Integer.MAX_VALUE);
+            
+            int partition_id = context.getPartitionExecutor().getPartitionId();                                            
 
-            LOG.trace("restoreScan :: Site id :" + context.getPartitionExecutor().getSiteId());
-            if (context.getPartitionExecutor().getSiteId() == lowest_site_id) {
+            if (partition_id == lowest_partition_id) {
+                LOG.trace("restoreScan :: Partition id :" + partition_id);
+                
                 // implicitly synchronized by the way restore operates.
                 // this scan must complete on every site and return results
                 // to the coordinator for aggregation before it will send out
@@ -253,8 +267,8 @@ public class SnapshotRestore extends VoltSystemProcedure {
             String table_name = (String) params.toArray()[0];
             int dependency_id = (Integer) params.toArray()[1];
             int allowExport = (Integer) params.toArray()[2];
-            LOG.trace("restoreLoadReplicatedTable :: Site id :" + context.getPartitionExecutor().getSiteId());
-            LOG.trace("Dependency_id :" + dependency_id + " - Loading replicated table: " + table_name);
+            LOG.trace("restoreLoadReplicatedTable :: Partition id :" + context.getPartitionExecutor().getPartitionId());
+            //LOG.trace("Dependency_id :" + dependency_id + " - Loading replicated table: " + table_name);
             String result_str = "SUCCESS";
             String error_msg = "";
             TableSaveFile savefile = null;
@@ -394,12 +408,7 @@ public class SnapshotRestore extends VoltSystemProcedure {
             int dependency_id = (Integer) paramsA[3];
             int allowExport = (Integer) paramsA[4];
 
-            for (int partition_id : relevantPartitions) {
-                LOG.trace("Distributing partitioned table: " + table_name + " partition id: " + partition_id);
-            }
-
-            // CHANGE ::
-            // Localized Version
+            // CHANGE :: Localized Version
             VoltTable result = performLoadPartitionedTable(table_name, originalHosts, relevantPartitions, context, allowExport, ts);
 
             // Distributed Version - Invokes another round of plan fragments
@@ -478,6 +487,8 @@ public class SnapshotRestore extends VoltSystemProcedure {
         // Fetch all the savefile metadata from the cluster
         VoltTable[] savefile_data;
         savefile_data = performRestoreScanWork(path, nonce);
+        
+        //LOG.trace("Restore Scan Results "+savefile_data[0]);
 
         ClusterSaveFileState savefile_state = null;
         try {

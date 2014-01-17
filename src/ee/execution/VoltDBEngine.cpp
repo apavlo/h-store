@@ -1209,7 +1209,7 @@ bool VoltDBEngine::activateTableStream(const CatalogId tableId, TableStreamType 
         // can not be re-activated for cow mode.
         if (m_snapshottingTables.find(tableId) != m_snapshottingTables.end()) {
             assert(false);
-            return false;
+            return true;
         }
 
         table->incrementRefcount();

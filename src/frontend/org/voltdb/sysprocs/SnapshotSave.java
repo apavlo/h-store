@@ -159,11 +159,16 @@ public class SnapshotSave extends VoltSystemProcedure {
             // Choose the lowest site ID on this host to do the file scan
             // All other sites should just return empty results tables.
             Host catalog_host = context.getHost();
-            Site catalog_site = CollectionUtil.first(CatalogUtil.getSitesForHost(catalog_host));
-            Integer lowest_site_id = catalog_site.getId();
+            Site site = context.getSite();
 
-            CatalogMap<Partition> partition_map = catalog_site.getPartitions();
+            CatalogMap<Partition> partition_map = site.getPartitions();
             Integer lowest_partition_id = Integer.MAX_VALUE, p_id;
+            Integer lowest_site_id = Integer.MAX_VALUE, s_id;
+            
+            for(Site st : CatalogUtil.getAllSites(catalog_host)){
+                s_id = st.getId();
+                lowest_site_id = Math.min(s_id, lowest_site_id);
+            }
             
             for(Partition pt : partition_map){
                 p_id = pt.getId();
@@ -172,12 +177,12 @@ public class SnapshotSave extends VoltSystemProcedure {
             
             assert(lowest_partition_id != Integer.MAX_VALUE);
             
-            LOG.trace("Partition id :" + context.getPartitionExecutor().getPartitionId());
-            LOG.trace("Lowest Partition id :" + lowest_partition_id);
+            //LOG.trace("Partition id :" + context.getPartitionExecutor().getPartitionId());
+            //LOG.trace("Lowest Partition id :" + lowest_partition_id);
 
             // Do it at partition with lowest partition id on site with lowest site id 
             // as we can have multiple partitions per site in HStore
-            if (context.getPartitionExecutor().getSiteId() == lowest_site_id && context.getPartitionExecutor().getPartitionId() == lowest_partition_id) {
+            if (context.getSite().getId() == lowest_site_id && context.getPartitionExecutor().getPartitionId() == lowest_partition_id) {
 
                LOG.trace("Checking feasibility of save with path and nonce: " + file_path + ", " + file_nonce);
                LOG.trace("ExecutionSitesCurrentlySnapshotting check : " + SnapshotSiteProcessor.ExecutionSitesCurrentlySnapshotting.get());
@@ -214,7 +219,7 @@ public class SnapshotSave extends VoltSystemProcedure {
                     result.addRow(catalog_host.getId(), hostname, context.getHStoreSite().getSiteId(), context.getPartitionExecutor().getPartitionId(),  table.getTypeName(), file_valid, err_msg);
                 }
             }
-            LOG.trace("Host ID " + context.getSite().getHost().getTypeName() + "\n" + new DependencySet(DEP_saveTest, result));
+            //LOG.trace("Host ID " + context.getSite().getHost().getTypeName() + "\n" + new DependencySet(DEP_saveTest, result));
             return new DependencySet(DEP_saveTest, result);
         }
     }
