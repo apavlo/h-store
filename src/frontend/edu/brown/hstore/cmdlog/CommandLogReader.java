@@ -78,12 +78,8 @@ public class CommandLogReader implements Iterable<LogEntry> {
         }
         assert(readonlybuffer != null);
         this.fd = new FastDeserializer(readonlybuffer);
-        
-        LOG.trace("fd buffer size :"+fd.buffer().remaining());                    
-        
-        this.procedures = this.readHeader();
-        
-        LOG.trace("after readHeader :: fd buffer size :"+fd.buffer().remaining());                    
+                
+        this.procedures = this.readHeader();        
     }
     
     @Override
@@ -108,9 +104,7 @@ public class CommandLogReader implements Iterable<LogEntry> {
                 _next = null;
                 
                 //Fill the decompressed buffer if it is empty
-                if (groupCommit && !decompressedFd.buffer().hasRemaining()) {
-                    LOG.trace("Filling the decompressed buffer");
-                    
+                if (groupCommit && !decompressedFd.buffer().hasRemaining()) {                    
                     int sizeCompressed = 0;
                     try {
                         sizeCompressed = fd.readInt();
@@ -138,10 +132,6 @@ public class CommandLogReader implements Iterable<LogEntry> {
                     _next = null;
                 }
                 
-                if(ret!=null)
-                    LOG.trace("return "+ret.toString());
-                else
-                    LOG.trace("return null");
                 return (ret);
             }
 

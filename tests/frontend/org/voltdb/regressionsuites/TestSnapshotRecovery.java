@@ -46,6 +46,7 @@ import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Table;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
+import org.voltdb.client.NoConnectionsException;
 import org.voltdb.client.ProcCallException;
 import org.voltdb.sysprocs.saverestore.SaveRestoreTestProjectBuilder;
 import org.voltdb.utils.SnapshotVerifier;
@@ -152,7 +153,7 @@ public class TestSnapshotRecovery extends RegressionSuite {
             ps.flush();
             String reportString = baos.toString("UTF-8");
 
-            System.err.println("Validate Snapshot :"+reportString);
+            //System.err.println("Validate Snapshot :"+reportString);
 
             if (expectSuccess) {
                 assertTrue(reportString.startsWith("Snapshot valid\n"));
@@ -218,7 +219,6 @@ public class TestSnapshotRecovery extends RegressionSuite {
 
             assertEquals(1, results.length);
             assertEquals(NUM_TUPLES, results[0].asScalarLong());
-            System.err.println(results[0]);
         }
         
         // Read Record
@@ -276,15 +276,14 @@ public class TestSnapshotRecovery extends RegressionSuite {
         results = client.callProcedure("@Statistics", "table", 0).getResults();
         System.out.println(results[0]);
                
-        validateSnapshot(true);
-        
+        validateSnapshot(true);        
         
         checkYCSBTable(client, NUM_TUPLES);              
         
-        parseCommandLog();
+        parseAndApplyCommandLog();
     }
     
-    void parseCommandLog(){
+    void parseAndApplyCommandLog() throws NoConnectionsException, IOException, ProcCallException{
         File outputFile = new File("./obj"+File.separator+
                 "cmdlog" +
                 File.separator +
@@ -306,6 +305,10 @@ public class TestSnapshotRecovery extends RegressionSuite {
         
         int ctr = 0;
         Iterator<LogEntry> log_itr = reader.iterator();
+        ClientResponse cresponse = null;
+        Client client = this.getClient();
+        CatalogContext cc = this.getCatalogContext();
+        VoltTable results[] = null;
         
         while(log_itr.hasNext()) {
             LogEntry entry = log_itr.next();
@@ -316,8 +319,19 @@ public class TestSnapshotRecovery extends RegressionSuite {
                         
             Object[] entryParams = entry.getProcedureParams().toArray();            
             for(Object obj : entryParams){
-                System.err.println(obj);
+                System.err.println(obj);                        
             }
+                        
+            String procName = cc.getProcedureById(entry.getProcedureId()).fullName();
+            System.out.println("Invoking procedure ::"+ procName);
+
+            cresponse = client.callProcedure(procName, entry.getProcedureParams().toArray());
+            assertEquals(Status.OK, cresponse.getStatus());
+            results = cresponse.getResults();
+
+            assertEquals(1, results.length);
+            //assertEquals(NUM_TUPLES, results[0].asScalarLong());                       
+            System.out.println("Results for procedure ::"+ procName +" "+ results[0]);
             
             ctr++;
         }
@@ -385,20 +399,22 @@ public class TestSnapshotRecovery extends RegressionSuite {
         setUpSnapshotDir();
 
         // CONFIG #1: 2 Local Site with 4 Partitions running on JNI backend
+        /*
         NUM_SITES = 2;
         NUM_PARTITIONS = 2;
         m_config = new LocalCluster("snapshot-"+PREFIX+"-"+NUM_SITES+"-site-"+NUM_PARTITIONS+"-partition.jar", NUM_SITES, NUM_PARTITIONS, 1, BackendTarget.NATIVE_EE_JNI);
         success = m_config.compile(project);
         assert (success);
         builder.addServerConfig(m_config);
-
+        */
+        
         // CONFIG #2: 1 Local Site with 2 Partitions running on JNI backend
-        //NUM_SITES = 1;
-        //NUM_PARTITIONS = 2;        
-        //m_config = new LocalSingleProcessServer("snapshot-"+PREFIX+"-"+NUM_SITES+"-site-"+NUM_PARTITIONS+"-partition.jar", NUM_PARTITIONS, BackendTarget.NATIVE_EE_JNI);
-        //success = m_config.compile(project);
-        //assert (success);
-        //builder.addServerConfig(m_config);
+        NUM_SITES = 1;
+        NUM_PARTITIONS = 2;        
+        m_config = new LocalSingleProcessServer("snapshot-"+PREFIX+"-"+NUM_SITES+"-site-"+NUM_PARTITIONS+"-partition.jar", NUM_PARTITIONS, BackendTarget.NATIVE_EE_JNI);
+        success = m_config.compile(project);
+        assert (success);
+        builder.addServerConfig(m_config);
 
         return builder;
     }
