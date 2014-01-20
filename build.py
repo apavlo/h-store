@@ -294,6 +294,10 @@ CTX.INPUT['storage'] = """
  ReadWriteTracker.cpp
 """
 
+CTX.INPUT['streaming'] = """
+ WindowTableTemp.cpp
+"""
+
 CTX.INPUT['triggers'] = """
  trigger.cpp
  TriggerStats.cpp

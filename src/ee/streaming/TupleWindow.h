@@ -116,14 +116,24 @@ class WindowTable : public PersistentTable {
 	bool deleteTuple(TableTuple &tuple, bool deleteAllocatedStrings);
 	void deleteTupleForUndo(voltdb::TableTuple &tupleCopy, size_t elMark);
 
+	void setNewestTupleID(uint32_t id);
+	void setOldestTupleID(uint32_t id);
+	uint32_t getNewestTupleID();
+	uint32_t getOldestTupleID();
 	void setFireTriggers(bool fire);
+	void setNumStagedTuples(int numTuples);
+	int getNumStagedTuples();
 
 	std::string debug();
 
 
   protected:
-	int windowSize;
-	int slideSize;
+	int m_windowSize;
+	int m_slideSize;
+	int m_numStagedTuples;
+	uint32_t m_oldestTupleID;
+	uint32_t m_newestWindowTupleID;
+	uint32_t m_newestTupleID;
 
 
 };

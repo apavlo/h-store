@@ -49,15 +49,7 @@
 #include <list>
 
 #include "boost/scoped_ptr.hpp"
-#include "storage/TupleWindow.h"
-
-#ifdef ANTICACHE
-#include "boost/timer.hpp"
-#include "anticache/EvictedTable.h"
-#include "anticache/AntiCacheDB.h"
-#include "anticache/EvictionIterator.h"
-#include "anticache/UnknownBlockAccessException.h"
-#endif
+#include "streaming/TupleWindow.h"
 
 #include <map>
 
@@ -70,8 +62,12 @@ namespace voltdb {
 
 TupleWindow::TupleWindow(ExecutorContext *ctx, bool exportEnabled, int windowSize, int slideSize) : PersistentTable(ctx, exportEnabled)
 {
-	this->windowSize = windowSize;
-	this->slideSize = slideSize;
+	this->m_windowSize = windowSize;
+	this->m_slideSize = slideSize;
+	m_numStagedTuples = 0;
+	m_newestTupleID = 0;
+	m_newestWindowTupleID = 0;
+	m_oldestTupleID = 0;
 }
 
 TupleWindow::~TupleWindow()
@@ -89,8 +85,16 @@ bool TupleWindow::insertTuple(TableTuple &source)
 	markTupleForStaging(m_tmpTarget1);
 
 	TableTuple t;
-	if(stagingQueue.size() >= slideSize)
+	if(m_numStagedTuples >= m_slideSize)
 	{
+		for(int i = 0; i < m_slideSize; i++)
+		{
+
+		}
+
+
+
+
 		for(std::list<TableTuple>::iterator it = stagingQueue.begin(); it != stagingQueue.end(); it++)
 		{
 			while(windowQueue.size() >= windowSize)
@@ -160,7 +164,7 @@ void TupleWindow::markTupleForStaging(TableTuple &source)
 	//setting deleted = true, but not actually freeing the memory
 	source.setDeletedTrue();
 	m_tupleCount--;
-	stagingQueue.push_back(source);
+	m_numStagedTuples++;
 }
 
 
