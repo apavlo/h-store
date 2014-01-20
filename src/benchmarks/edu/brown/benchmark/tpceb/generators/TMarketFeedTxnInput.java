@@ -17,17 +17,18 @@ public class TMarketFeedTxnInput {
     /*added in order to complete*/
     public ArrayList<Object>InputParameters(){
         ArrayList<Object> para = new ArrayList<Object>();
-        para.add(price_quotes);
+       System.out.println("in here");
+        para.add(Entries);
         para.add(StatusAndTradeType.status_submitted);
-        para.add(symbols);
-        para.add(trade_qtys);
+       // para.add(symbols);
+       // para.add(trade_qtys);
         para.add(StatusAndTradeType.type_limit_buy);
         para.add(StatusAndTradeType.type_limit_sell);
         para.add(StatusAndTradeType.type_stop_loss);
     
         return para;
     }
-    
+    /*
     public double[] getPriceQuotes(){
         price_quotes = new double[Entries.length];
         for(int i =0; i < Entries.length; i++){
@@ -106,7 +107,7 @@ public class TMarketFeedTxnInput {
     
     public void setTypeStopLoss(String stopLoss){
         this.StatusAndTradeType.type_stop_loss = stopLoss;
-    }
+    }*/
     
     private double[]     price_quotes;
     private String       status_submitted;
