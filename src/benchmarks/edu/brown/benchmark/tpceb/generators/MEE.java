@@ -3,6 +3,8 @@ package edu.brown.benchmark.tpceb.generators;
 import java.util.Date;
 
 import edu.brown.benchmark.tpceb.util.EGenDate;
+import edu.brown.benchmark.tpceb.generators.TDriverCETxnSettings;
+
 
 public class MEE {
     private DriverMEESettings  driverMEESettings;

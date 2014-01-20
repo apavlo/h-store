@@ -61,6 +61,7 @@ public class TPCEClient extends BenchmarkComponent {
     private static final Logger LOG = Logger.getLogger(TPCEClient.class);
 
     public static final int STATUS_SUCCESS = 0;
+    public int countTotal =0;
 
     private static Transaction XTRANS[] = Transaction.values();
 
@@ -171,9 +172,38 @@ public class TPCEClient extends BenchmarkComponent {
     }
 
     protected Transaction selectTransaction() {
+        if(countTotal %2 == 0){
         int iTxnType = egen_clientDriver.driver_ptr.getCE().getCETxnMixGenerator().generateNextTxnType( );
         egen_clientDriver.driver_ptr.getCE().zeroInputBuffer(iTxnType);
        // egen_clientDriver.driver_ptr.getMEE();
+        //egen_clientDriver.driver_ptr.getMEE();
+        //      return Transaction.TRADE_UPDATE;
+        System.out.println(iTxnType);
+        countTotal++;
+        return XTRANS[iTxnType];
+        }
+        else{
+            if(countTotal <= 50){
+                countTotal++;
+                egen_clientDriver.driver_ptr.getMEE();
+               // return null;
+                return XTRANS[0];
+                
+            }
+            else{
+                countTotal++;
+                return XTRANS[1];
+                
+            }
+            
+        }
+      /* int iTxnType = egen_clientDriver.driver_ptr.getCE().getCETxnMixGenerator().generateNextTxnType( );
+        egen_clientDriver.driver_ptr.getCE().zeroInputBuffer(iTxnType);
+        return XTRANS[0];*/
+    }
+    
+  /*  protected Transaction selectTransactionME() {
+        int iTxnType = egen_clientDriver.driver_ptr.getMEE().generateTradeResult();
         //egen_clientDriver.driver_ptr.getMEE();
         //      return Transaction.TRADE_UPDATE;
         System.out.println(iTxnType);
@@ -181,7 +211,7 @@ public class TPCEClient extends BenchmarkComponent {
       /* int iTxnType = egen_clientDriver.driver_ptr.getCE().getCETxnMixGenerator().generateNextTxnType( );
         egen_clientDriver.driver_ptr.getCE().zeroInputBuffer(iTxnType);
         return XTRANS[0];*/
-    }
+  ///  }
 
     /**
      * Main control loop
@@ -213,11 +243,14 @@ public class TPCEClient extends BenchmarkComponent {
  //   @Override
     protected boolean runOnce() throws IOException {
         boolean ret = false;
+      //  boolean retME = false;
         try {
             final Transaction target = selectTransaction();
+           // final Transaction targetME = selectTransactionME();
 
             LOG.debug("Executing txn " + target);
             ret = this.getClientHandle().callProcedure(new TPCECallback(target), target.callName, this.generateClientArgs(target));
+           // retME = this.getClientHandle().callProcedure(new TPCECallback(target), target.callName, this.generateClientArgs(targetME));
         } catch (Exception ex) {
             ex.printStackTrace();
             System.exit(1);
