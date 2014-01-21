@@ -98,6 +98,9 @@ class WindowTableTemp : public PersistentTable {
 	// ------------------------------------------------------------------
 
 	void markTupleForStaging(TableTuple &source);
+	void markTupleForWindow(TableTuple &source);
+	bool removeOldestTuple();
+
 	void setNewestTupleID(uint32_t id);
 	void setNewestWindowTupleID(uint32_t id);
 	void setOldestTupleID(uint32_t id);
@@ -107,6 +110,7 @@ class WindowTableTemp : public PersistentTable {
 
 	void setFireTriggers(bool fire);
 
+	bool tupleStaged(TableTuple &source);
 	bool tuplesInStaging();
 	void setNumStagedTuples(int numTuples);
 	int getNumStagedTuples();

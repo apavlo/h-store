@@ -64,10 +64,10 @@ WindowTableTemp::WindowTableTemp(ExecutorContext *ctx, bool exportEnabled, int w
 {
 	this->m_windowSize = windowSize;
 	this->m_slideSize = slideSize;
-	m_numStagedTuples = 0;
-	m_newestTupleID = 0;
-	m_newestWindowTupleID = 0;
-	m_oldestTupleID = 0;
+	this->m_numStagedTuples = 0;
+	this->m_newestTupleID = 0;
+	this->m_newestWindowTupleID = 0;
+	this->m_oldestTupleID = 0;
 }
 
 WindowTableTemp::~WindowTableTemp()
@@ -78,9 +78,49 @@ void WindowTableTemp::markTupleForStaging(TableTuple &source)
 {
 	//TODO: window tuples should probably have their own stagingFlag. Using deletedFlag as a hack.
 	//setting deleted = true, but not actually freeing the memory
-	source.setDeletedTrue();
-	m_tupleCount--;
-	m_numStagedTuples++;
+	if(!(tupleStaged(source)))
+	{
+		source.setDeletedTrue();
+		m_tupleCount--;
+		m_numStagedTuples++;
+	}
+}
+
+void WindowTableTemp::markTupleForWindow(TableTuple &source)
+{
+	//TODO: window tuples should probably have their own stagingFlag. Using deletedFlag as a hack.
+	//setting deleted = true, but not actually freeing the memory
+	if(tupleStaged(source))
+	{
+		source.setDeletedFalse();
+		m_tupleCount++;
+		m_numStagedTuples--;
+	}
+}
+
+bool WindowTableTemp::removeOldestTuple()
+{
+	//if there are no tuples, then we can't remove any tuples
+	if(m_oldestTupleID == 0)
+		return false;
+
+	TableTuple tuple = this->tempTuple();
+	tuple.move(this->dataPtrForTuple(m_oldestTupleID));
+
+	if(m_oldestTupleID == m_newestTupleID)
+	{
+		m_oldestTupleID = 0;
+		m_newestTupleID = 0;
+		m_newestWindowTupleID = 0;
+	}
+	else
+		m_oldestTupleID = tuple.getNextTupleInChain();
+
+	//TODO: This is a hack due to the fact that we're using the deletedFlag.  We're setting this tuple
+	//to a non-deleted state so that the delete command will work.  This is horrible and needs to be fixed.
+	markTupleForWindow(tuple);
+
+	return PersistentTable::deleteTuple(tuple, true);
 }
 
 void WindowTableTemp::setNewestTupleID(uint32_t id)
@@ -117,6 +157,12 @@ uint32_t WindowTableTemp::getOldestTupleID()
 void WindowTableTemp::setFireTriggers(bool fire)
 {
 	m_fireTriggers = fire;
+}
+
+bool WindowTableTemp::tupleStaged(TableTuple &source)
+{
+	//TODO: this is using the deleted flag.  Should have a staging flag instead.
+	return !(source.isActive());
 }
 
 bool WindowTableTemp::tuplesInStaging()

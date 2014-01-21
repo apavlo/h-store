@@ -60,14 +60,9 @@ namespace voltdb {
 #define TABLE_BLOCKSIZE 2097152
 #define MAX_EVICTED_TUPLE_SIZE 2500
 
-TupleWindow::TupleWindow(ExecutorContext *ctx, bool exportEnabled, int windowSize, int slideSize) : PersistentTable(ctx, exportEnabled)
+TupleWindow::TupleWindow(ExecutorContext *ctx, bool exportEnabled, int windowSize, int slideSize)
+	: WindowTableTemp(ctx, exportEnabled, windowSize, slideSize)
 {
-	this->m_windowSize = windowSize;
-	this->m_slideSize = slideSize;
-	m_numStagedTuples = 0;
-	m_newestTupleID = 0;
-	m_newestWindowTupleID = 0;
-	m_oldestTupleID = 0;
 }
 
 TupleWindow::~TupleWindow()
@@ -84,140 +79,98 @@ bool TupleWindow::insertTuple(TableTuple &source)
 		return false;
 	markTupleForStaging(m_tmpTarget1);
 
-	TableTuple t;
 	if(m_numStagedTuples >= m_slideSize)
 	{
-		for(int i = 0; i < m_slideSize; i++)
+		//delete all tuples from the chain until there are exactly the window size of tuples
+		while((m_numStagedTuples + m_tupleCount) > m_windowSize)
 		{
-
+			if(!(this->removeOldestTupleID()))
+				return false;
 		}
 
-
-
-
-		for(std::list<TableTuple>::iterator it = stagingQueue.begin(); it != stagingQueue.end(); it++)
+		TableTuple tuple(m_schema);
+		WindowIterator win_itr(this);
+		while(win_itr.hasNext())
 		{
-			while(windowQueue.size() >= windowSize)
-			{
-				t = windowQueue.front();
-				PersistentTable::deleteTuple(t, true);
-				windowQueue.pop_front();
-			}
-
-			//if(!(PersistentTable::insertTuple(*it)))
-			//	return false;
-			it->setDeletedFalse();
-			m_tupleCount++;
-			windowQueue.push_back(*it);
-			//it = stagingQueue.erase(it);
+			win_itr.next(tuple);
+			markTupleForWindow(tuple);
 		}
-		stagingQueue.clear();
 		if(hasTriggers())
 			setFireTriggers(true);
 	}
 	return true;
 }
+
 
 void TupleWindow::insertTupleForUndo(TableTuple &source, size_t elMark)
 {
 	PersistentTable::insertTupleForUndo(source, elMark);
 	markTupleForStaging(m_tmpTarget1);
 
-	TableTuple t;
-	if(stagingQueue.size() >= slideSize)
+	if(m_numStagedTuples >= m_slideSize)
 	{
-		for(std::list<TableTuple>::iterator it = stagingQueue.begin(); it != stagingQueue.end(); it++)
+		//delete all tuples from the chain until there are exactly the window size of tuples
+		while((m_numStagedTuples + m_tupleCount) > m_windowSize)
 		{
-			while(windowQueue.size() >= windowSize)
-			{
-				t = windowQueue.front();
-				PersistentTable::deleteTuple(t, true);
-				windowQueue.pop_front();
-			}
+			if(!(this->removeOldestTupleID()))
+				return false;
+		}
 
-			//if(!(PersistentTable::insertTuple(*it)))
-			//	return false;
-			it->setDeletedFalse();
-			m_tupleCount++;
-			windowQueue.push_back(*it);
-			it = stagingQueue.erase(it);
+		TableTuple tuple(m_schema);
+		WindowIterator win_itr(this);
+		while(win_itr.hasNext())
+		{
+			win_itr.next(tuple);
+			markTupleForWindow(tuple);
 		}
 		if(hasTriggers())
 			setFireTriggers(true);
 	}
 }
 
-TableTuple TupleWindow::getOldestTuple()
-{
-	return windowQueue.front();
-}
-
-bool TupleWindow::tuplesInStaging()
-{
-	if(stagingQueue.size() == 0)
-		return false;
-	return true;
-}
-
-void TupleWindow::markTupleForStaging(TableTuple &source)
-{
-	//setting deleted = true, but not actually freeing the memory
-	source.setDeletedTrue();
-	m_tupleCount--;
-	m_numStagedTuples++;
-}
-
-
-bool TupleWindow::updateTuple(TableTuple &source, TableTuple &target, bool updatesIndexes)
-{
-	bool success = PersistentTable::updateTuple(source, target, updatesIndexes);
-	for(std::list<TableTuple>::iterator it = windowQueue.begin(); it != windowQueue.end(); it++)
-	{
-		if(it->equals(source))
-		{
-			*it = target;
-		}
-	}
-	return success;
-}
-
-
-void TupleWindow::updateTupleForUndo(TableTuple &sourceTuple, TableTuple &targetTuple,
-							bool revertIndexes, size_t elMark)
-{
-	PersistentTable::updateTupleForUndo(sourceTuple, targetTuple, revertIndexes, elMark);
-	for(std::list<TableTuple>::iterator it = windowQueue.begin(); it != windowQueue.end(); it++)
-	{
-		if(it->equals(sourceTuple))
-		{
-			*it = targetTuple;
-		}
-	}
-}
-
-
 bool TupleWindow::deleteTuple(TableTuple &tuple, bool deleteAllocatedStrings)
 {
-	for(std::list<TableTuple>::iterator it = windowQueue.begin(); it != windowQueue.end(); it++)
+	WindowIterator win_itr(this);
+	TableTuple curtup = this->getTempTuple();
+	uint32_t currentTupleID = tuple.getTupleID();
+	uint32_t nextTupleID = tuple.getNextTupleInChain();
+
+	if(!win_itr.hasNext())
+		return false;
+
+	win_itr.next(curtup);
+	while(win_itr.hasNext() && curtup.getNextTupleInChain() != currentTupleID)
 	{
-		if(it->equals(tuple))
-		{
-			it = windowQueue.erase(it);
-		}
+		win_itr.next(curtup);
 	}
+
+	curtup.setNextTupleInChain(nextTupleId);
+
+	markTupleForWindow(tuple);
 	return PersistentTable::deleteTuple(tuple, deleteAllocatedStrings);
 }
 
 void TupleWindow::deleteTupleForUndo(voltdb::TableTuple &tupleCopy, size_t elMark)
 {
-	for(std::list<TableTuple>::iterator it = windowQueue.begin(); it != windowQueue.end(); it++)
+	WindowIterator win_itr(this);
+	TableTuple curtup = this->getTempTuple();
+	uint32_t currentTupleID = tuple.getTupleID();
+	uint32_t nextTupleID = tuple.getNextTupleInChain();
+
+	if(!win_itr.hasNext())
+		return;
+
+	win_itr.next(curtup);
+	while(win_itr.hasNext() && curtup.getNextTupleInChain() != currentTupleID)
 	{
-		if(it->equals(tupleCopy))
-		{
-			it = windowQueue.erase(it);
-		}
+		win_itr.next(curtup);
 	}
-	return PersistentTable::deleteTupleForUndo(tupleCopy, elMark);
+
+	curtup.setNextTupleInChain(nextTupleId);
+
+	markTupleForWindow(tuple);
+
+	PersistentTable::deleteTupleForUndo(tupleCopy, elMark);
 }
 
 void TupleWindow::setFireTriggers(bool fire)
@@ -228,7 +181,10 @@ void TupleWindow::setFireTriggers(bool fire)
 std::string TupleWindow::debug()
 {
 	std::ostringstream output;
-	output << "DEBUG TABLE SIZE: " << int(m_tupleCount) << "\n";
+	WindowIterator win_itr(this);
+
+
+	output << "DEBUG TABLE SIZE: " << int(m_tupleCount) << " tuples, " << int(m_numStagedTuples) << " staged\n";
 	output << "LIST:\n";
 	int i = 0;
 	for(std::list<TableTuple>::const_iterator it = windowQueue.begin(); it != windowQueue.end(); it++)

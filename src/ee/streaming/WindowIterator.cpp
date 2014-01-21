@@ -71,10 +71,6 @@ bool WindowIterator::hasNext()
         return false;
     if(wtable->usedTupleCount() == 0)
         return false;
-    if(wtable->getNumTuplesInEvictionChain() == 0) { // there are no tuples in the chain
-        VOLT_DEBUG("There are no tuples in the eviction chain.");
-        return false;
-    }
 
     return true;
 }
@@ -93,12 +89,6 @@ bool WindowIterator::next(TableTuple &tuple)
     {
         is_first = false;
         VOLT_DEBUG("This is the first tuple in the chain.");
-
-        if(wtable->getNumTuplesInEvictionChain() == 0)  // there are no tuples in the chain
-        {
-            VOLT_DEBUG("There are no tuples in the eviction chain.");
-            return false;
-        }
 
         current_tuple_id = wtable->getOldestTupleID();
     }

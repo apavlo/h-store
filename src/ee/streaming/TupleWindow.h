@@ -64,7 +64,7 @@ class MaterializedViewMetadata;
 class RecoveryProtoMsg;
 class TableTuple;
 
-class WindowTable : public PersistentTable {
+class TupleWindow : public WindowTableTemp {
 	friend class TableFactory;
 	friend class TableTuple;
 	friend class TableIndex;
@@ -75,7 +75,6 @@ class WindowTable : public PersistentTable {
 	// no default ctor, no copy, no assignment
 	TupleWindow();
 	TupleWindow(TupleWindow const&);
-	//WindowTable operator=(WindowTable const&);
 
   public:
 	~TupleWindow();
@@ -85,55 +84,17 @@ class WindowTable : public PersistentTable {
 	// OPERATIONS
 	// ------------------------------------------------------------------
 	bool insertTuple(TableTuple &source);
-	/*
-	 * Inserts a Tuple without performing an allocation for the
-	 * uninlined strings.
-	 */
 	void insertTupleForUndo(TableTuple &source, size_t elMark);
-
-	TableTuple getOldestTuple();
-	bool tuplesInStaging();
-	void markTupleForStaging(TableTuple &source);
-
-	/*
-	 * Note that inside update tuple the order of sourceTuple and
-	 * targetTuple is swapped when making calls on the indexes. This
-	 * is just an inconsistency in the argument ordering.
-	 */
 	bool updateTuple(TableTuple &source, TableTuple &target, bool updatesIndexes);
-	/*
-	 * Identical to regular updateTuple except no memory management
-	 * for unlined columns is performed because that will be handled
-	 * by the UndoAction.
-	 */
 	void updateTupleForUndo(TableTuple &sourceTuple, TableTuple &targetTuple,
 							bool revertIndexes, size_t elMark);
-
-	/*
-	 * Delete a tuple by looking it up via table scan or a primary key
-	 * index lookup.
-	 */
 	bool deleteTuple(TableTuple &tuple, bool deleteAllocatedStrings);
 	void deleteTupleForUndo(voltdb::TableTuple &tupleCopy, size_t elMark);
-
-	void setNewestTupleID(uint32_t id);
-	void setOldestTupleID(uint32_t id);
-	uint32_t getNewestTupleID();
-	uint32_t getOldestTupleID();
-	void setFireTriggers(bool fire);
-	void setNumStagedTuples(int numTuples);
-	int getNumStagedTuples();
 
 	std::string debug();
 
 
   protected:
-	int m_windowSize;
-	int m_slideSize;
-	int m_numStagedTuples;
-	uint32_t m_oldestTupleID;
-	uint32_t m_newestWindowTupleID;
-	uint32_t m_newestTupleID;
 
 
 };
