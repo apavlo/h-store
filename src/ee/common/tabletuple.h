@@ -112,6 +112,7 @@ class TableTuple {
     friend class EvictedTable;
     friend class WindowTable;
     friend class WindowTableTemp;
+    friend class TupleWindow;
     friend class PersistentTable;
     friend class PersistentTableUndoDeleteAction;
     friend class PersistentTableUndoUpdateAction;

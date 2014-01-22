@@ -295,7 +295,9 @@ CTX.INPUT['storage'] = """
 """
 
 CTX.INPUT['streaming'] = """
+ WindowIterator.cpp
  WindowTableTemp.cpp
+ TupleWindow.cpp
 """
 
 CTX.INPUT['triggers'] = """

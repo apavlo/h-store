@@ -49,6 +49,7 @@
 #include <list>
 
 #include "streaming/TupleWindow.h"
+#include "streaming/WindowTableTemp.h"
 #include "streaming/WindowIterator.h"
 
 namespace voltdb {
@@ -58,8 +59,7 @@ namespace voltdb {
 #define TABLE_BLOCKSIZE 2097152
 #define MAX_EVICTED_TUPLE_SIZE 2500
 
-TupleWindow::TupleWindow(ExecutorContext *ctx, bool exportEnabled, int windowSize, int slideSize)
-	: WindowTableTemp(ctx, exportEnabled, windowSize, slideSize)
+TupleWindow::TupleWindow(ExecutorContext *ctx, bool exportEnabled, int windowSize, int slideSize) : WindowTableTemp(ctx, exportEnabled, windowSize, slideSize)
 {
 }
 
@@ -82,7 +82,7 @@ bool TupleWindow::insertTuple(TableTuple &source)
 		//delete all tuples from the chain until there are exactly the window size of tuples
 		while((m_numStagedTuples + m_tupleCount) > m_windowSize)
 		{
-			if(!(this->removeOldestTupleID()))
+			if(!(this->removeOldestTuple()))
 				return false;
 		}
 
@@ -110,8 +110,7 @@ void TupleWindow::insertTupleForUndo(TableTuple &source, size_t elMark)
 		//delete all tuples from the chain until there are exactly the window size of tuples
 		while((m_numStagedTuples + m_tupleCount) > m_windowSize)
 		{
-			if(!(this->removeOldestTupleID()))
-				return false;
+			this->removeOldestTuple();
 		}
 
 		TableTuple tuple(m_schema);
@@ -129,7 +128,7 @@ void TupleWindow::insertTupleForUndo(TableTuple &source, size_t elMark)
 bool TupleWindow::deleteTuple(TableTuple &tuple, bool deleteAllocatedStrings)
 {
 	WindowIterator win_itr(this);
-	TableTuple curtup = this->getTempTuple();
+	TableTuple curtup = tempTuple();
 	uint32_t currentTupleID = tuple.getTupleID();
 	uint32_t nextTupleID = tuple.getNextTupleInChain();
 
@@ -142,8 +141,9 @@ bool TupleWindow::deleteTuple(TableTuple &tuple, bool deleteAllocatedStrings)
 		win_itr.next(curtup);
 	}
 
-	curtup.setNextTupleInChain(nextTupleId);
+	curtup.setNextTupleInChain(nextTupleID);
 
+	//TODO: must mark tuple for window before it can be deleted
 	markTupleForWindow(tuple);
 	return PersistentTable::deleteTuple(tuple, deleteAllocatedStrings);
 }
@@ -151,9 +151,9 @@ bool TupleWindow::deleteTuple(TableTuple &tuple, bool deleteAllocatedStrings)
 void TupleWindow::deleteTupleForUndo(voltdb::TableTuple &tupleCopy, size_t elMark)
 {
 	WindowIterator win_itr(this);
-	TableTuple curtup = this->getTempTuple();
-	uint32_t currentTupleID = tuple.getTupleID();
-	uint32_t nextTupleID = tuple.getNextTupleInChain();
+	TableTuple curtup = tempTuple();
+	uint32_t currentTupleID = tupleCopy.getTupleID();
+	uint32_t nextTupleID = tupleCopy.getNextTupleInChain();
 
 	if(!win_itr.hasNext())
 		return;
@@ -164,16 +164,12 @@ void TupleWindow::deleteTupleForUndo(voltdb::TableTuple &tupleCopy, size_t elMar
 		win_itr.next(curtup);
 	}
 
-	curtup.setNextTupleInChain(nextTupleId);
+	curtup.setNextTupleInChain(nextTupleID);
 
-	markTupleForWindow(tuple);
+	//TODO: must mark tuple for window before it can be deleted
+	markTupleForWindow(tupleCopy);
 
 	PersistentTable::deleteTupleForUndo(tupleCopy, elMark);
-}
-
-void TupleWindow::setFireTriggers(bool fire)
-{
-	m_fireTriggers = fire;
 }
 
 std::string TupleWindow::debug()
@@ -188,7 +184,7 @@ std::string TupleWindow::debug()
 	while(win_itr.hasNext())
 	{
 		win_itr.next(tuple);
-		if(stagedTuple(tuple))
+		if(tupleStaged(tuple))
 		{
 			output << "STAGED " << stageID << ": ";
 			stageID++;

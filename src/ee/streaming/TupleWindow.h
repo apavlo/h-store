@@ -47,6 +47,7 @@
 #define HSTORETUPLEWINDOW_H
 
 #include "storage/persistenttable.h"
+#include "streaming/WindowTableTemp.h"
 #include "streaming/WindowIterator.h"
 
 namespace voltdb {
@@ -85,9 +86,9 @@ class TupleWindow : public WindowTableTemp {
 	// ------------------------------------------------------------------
 	bool insertTuple(TableTuple &source);
 	void insertTupleForUndo(TableTuple &source, size_t elMark);
-	bool updateTuple(TableTuple &source, TableTuple &target, bool updatesIndexes);
-	void updateTupleForUndo(TableTuple &sourceTuple, TableTuple &targetTuple,
-							bool revertIndexes, size_t elMark);
+	//bool updateTuple(TableTuple &source, TableTuple &target, bool updatesIndexes);
+	//void updateTupleForUndo(TableTuple &sourceTuple, TableTuple &targetTuple,
+	//						bool revertIndexes, size_t elMark);
 	bool deleteTuple(TableTuple &tuple, bool deleteAllocatedStrings);
 	void deleteTupleForUndo(voltdb::TableTuple &tupleCopy, size_t elMark);
 

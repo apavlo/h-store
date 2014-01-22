@@ -112,7 +112,7 @@ class Table {
     friend class TableStats;
     friend class StatsSource;
     friend class EvictionIterator; 
-    //friend class WindowIterator;
+    friend class WindowIterator;
 
   private:
     // no default constructor, no copy
