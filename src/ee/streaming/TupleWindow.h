@@ -47,7 +47,7 @@
 #define HSTORETUPLEWINDOW_H
 
 #include "storage/persistenttable.h"
-#include <list>
+#include "streaming/WindowIterator.h"
 
 namespace voltdb {
 

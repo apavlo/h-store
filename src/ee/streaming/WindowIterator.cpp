@@ -45,7 +45,7 @@
 
 
 #include "streaming/WindowIterator.h"
-#include "streaming/TupleWindow.h"
+#include "streaming/WindowTableTemp.h"
 
 namespace voltdb {
 
@@ -65,7 +65,7 @@ WindowIterator::~WindowIterator()
 
 bool WindowIterator::hasNext()
 {
-    PersistentTable* wtable = static_cast<PersistentTable*>(table);
+    WindowTableTemp* wtable = static_cast<WindowTableTemp*>(table);
 
     if(current_tuple_id == wtable->getNewestTupleID())
         return false;

@@ -48,10 +48,8 @@
 #include <cstdio>
 #include <list>
 
-#include "boost/scoped_ptr.hpp"
 #include "streaming/TupleWindow.h"
-
-#include <map>
+#include "streaming/WindowIterator.h"
 
 namespace voltdb {
 /**
@@ -182,35 +180,26 @@ std::string TupleWindow::debug()
 {
 	std::ostringstream output;
 	WindowIterator win_itr(this);
-
+	TableTuple tuple(m_schema);
+	int stageID = 0;
+	int winID = 0;
 
 	output << "DEBUG TABLE SIZE: " << int(m_tupleCount) << " tuples, " << int(m_numStagedTuples) << " staged\n";
-	output << "LIST:\n";
-	int i = 0;
-	for(std::list<TableTuple>::const_iterator it = windowQueue.begin(); it != windowQueue.end(); it++)
+	while(win_itr.hasNext())
 	{
-		output << i << ": " << it->debug("list").c_str() << "\n";
-		i++;
-	}
+		win_itr.next(tuple);
+		if(stagedTuple(tuple))
+		{
+			output << "STAGED " << stageID << ": ";
+			stageID++;
+		}
+		else
+		{
+			output << "WINDOW " << winID << ": ";
+			winID++;
+		}
+		output << tuple.debug("").c_str() << "\n";
 
-	output << "STAGING:\n";
-	i = 0;
-	for(std::list<TableTuple>::const_iterator it = stagingQueue.begin(); it != stagingQueue.end(); it++)
-	{
-		output << i << ": " << it->debug("staging").c_str() << "\n";
-		i++;
-	}
-
-
-	i = 0;
-	TableIterator ti  = TableIterator(this,false);
-	TableTuple t = m_tempTuple;
-	output << "TABLE:\n";
-	while(ti.hasNext())
-	{
-		ti.next(t);
-		output << i << ": " << t.debug("table").c_str() << "\n";
-		i++;
 	}
 	return output.str();
 }
