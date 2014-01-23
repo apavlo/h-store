@@ -264,6 +264,99 @@ namespace voltdb {
 										 bool exportOnly,
 										 int windowSize,
 										 int slideSize=1);
+
+		////////////////////////////////////////////////////
+		//TODO: Temporary window functions for testing
+		////////////////////////////////////////////////////
+
+		static Table* getTempWindowTable( voltdb::CatalogId databaseId,
+										 ExecutorContext *ctx,
+										 const std::string &name,
+										 TupleSchema* schema,
+										 const std::string* columnNames,
+										 int partitionColumn,
+										 bool exportEnabled,
+										 bool exportOnly,
+										 int windowSize,
+										 int slideSize=1);
+
+
+		 // Creates an empty window table with given ID, name, columns and PK index.
+		static Table* getTempWindowTable(voltdb::CatalogId databaseId,
+										 ExecutorContext *ctx,
+										 const std::string &name,
+										 TupleSchema* schema,
+										 const std::string* columnNames,
+										 const TableIndexScheme &pkey_index,
+										 int partitionColumn,
+										 bool exportEnabled,
+										 bool exportOnly,
+										 int windowSize,
+										 int slideSize=1);
+
+
+		// Creates an empty window table with given name, columns and indexes.
+		static Table* getTempWindowTable(voltdb::CatalogId databaseId,
+										 ExecutorContext *ctx,
+										 const std::string &name,
+										 TupleSchema* schema,
+										 const std::string* columnNames,
+										 const std::vector<TableIndexScheme> &indexes,
+										 int partitionColumn,
+										 bool exportEnabled,
+										 bool exportOnly,
+										 int windowSize,
+										 int slideSize=1);
+
+
+		//Creates an empty window table with given name, columns and indexes.
+		static Table* getTempWindowTable(voltdb::CatalogId databaseId,
+										 ExecutorContext *ctx,
+										 const std::string &name,
+										 TupleSchema* schema,
+										 const std::string* columnNames,
+										 const std::vector<TableIndexScheme> &indexes,
+										 std::vector<Trigger*> *triggers,
+										 int partitionColumn,
+										 bool exportEnabled,
+										 bool exportOnly,
+										 int windowSize,
+										 int slideSize=1);
+
+
+		//Creates an empty window table with given name, columns, PK index and indexes
+		static Table* getTempWindowTable( voltdb::CatalogId databaseId,
+										 ExecutorContext *ctx,
+										 const std::string &name,
+										 TupleSchema* schema,
+										 const std::string* columnNames,
+										 const TableIndexScheme &pkeyIndex,
+										 const std::vector<TableIndexScheme> &indexes,
+										 int partitionColumn,
+										 bool exportEnabled,
+										 bool exportOnly,
+										 int windowSize,
+										 int slideSize=1);
+
+
+		//Creates an empty window table with given name, columns, PK index and indexes.
+		static Table* getTempWindowTable( voltdb::CatalogId databaseId,
+										 ExecutorContext *ctx,
+										 const std::string &name,
+										 TupleSchema* schema,
+										 const std::string* columnNames,
+										 const TableIndexScheme &pkeyIndex,
+										 const std::vector<TableIndexScheme> &indexes,
+										 std::vector<Trigger*> *triggers,
+										 int partitionColumn,
+										 bool exportEnabled,
+										 bool exportOnly,
+										 int windowSize,
+										 int slideSize=1);
+
+		//////////////////////////////
+		//END
+		//////////////////////////////
         
         /**
          * Creates an empty temp table with given name and columns.
