@@ -73,8 +73,18 @@ TupleWindow::~TupleWindow()
  */
 bool TupleWindow::insertTuple(TableTuple &source)
 {
+	VOLT_DEBUG("TupleWindow: Entering insertTuple");
 	if(!(PersistentTable::insertTuple(source)))
+	{
+		VOLT_DEBUG("TupleWindow: PersistentTable insertTuple failed.");
 		return false;
+	}
+	m_tmpTarget1.setTupleID(this->getTupleID(m_tmpTarget1.address()));
+
+	if(this->m_oldestTupleID == 0)
+		this->m_oldestTupleID = m_tmpTarget1.getTupleID();
+	this->m_newestTupleID = m_tmpTarget1.getTupleID();
+
 	markTupleForStaging(m_tmpTarget1);
 
 	if(m_numStagedTuples >= m_slideSize)
@@ -83,7 +93,10 @@ bool TupleWindow::insertTuple(TableTuple &source)
 		while((m_numStagedTuples + m_tupleCount) > m_windowSize)
 		{
 			if(!(this->removeOldestTuple()))
+			{
+				VOLT_DEBUG("TupleWindow: removeOldestTuple failed.");
 				return false;
+			}
 		}
 
 		TableTuple tuple(m_schema);

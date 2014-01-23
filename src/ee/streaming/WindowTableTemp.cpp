@@ -100,9 +100,13 @@ void WindowTableTemp::markTupleForWindow(TableTuple &source)
 
 bool WindowTableTemp::removeOldestTuple()
 {
+	VOLT_DEBUG("WindowTableTemp: ENTERING REMOVEOLDESTTUPLE");
 	//if there are no tuples, then we can't remove any tuples
 	if(m_oldestTupleID == 0)
+	{
+		VOLT_DEBUG("WindowTableTemp: m_oldestTupleID = 0");
 		return false;
+	}
 
 	TableTuple tuple = this->tempTuple();
 	tuple.move(this->dataPtrForTuple(m_oldestTupleID));
@@ -120,6 +124,7 @@ bool WindowTableTemp::removeOldestTuple()
 	//to a non-deleted state so that the delete command will work.  This is horrible and needs to be fixed.
 	markTupleForWindow(tuple);
 
+	VOLT_DEBUG("WindowTableTemp: ENDING REMOVEOLDESTTUPLE");
 	return PersistentTable::deleteTuple(tuple, true);
 }
 

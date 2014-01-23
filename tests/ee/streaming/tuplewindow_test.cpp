@@ -65,7 +65,7 @@
 #include "storage/tablefactory.h"
 #include "storage/tableiterator.h"
 #include "storage/tableutil.h"
-#include "storage/TupleWindow.h"
+#include "streaming/TupleWindow.h"
 
 using std::string;
 using std::vector;

@@ -378,6 +378,10 @@ CTX.TESTS['storage'] = """
  window_test
 """
 
+CTX.TESTS['streaming'] = """
+ tuplewindow_test
+"""
+
 # these are incomplete and out of date. need to be replaced
 # CTX.TESTS['expressions'] = """expserialize_test expression_test"""
 
