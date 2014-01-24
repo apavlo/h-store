@@ -68,6 +68,7 @@ WindowTableTemp::WindowTableTemp(ExecutorContext *ctx, bool exportEnabled, int w
 	this->m_newestTupleID = 0;
 	this->m_newestWindowTupleID = 0;
 	this->m_oldestTupleID = 0;
+	this->m_firstTuple = true;
 }
 
 WindowTableTemp::~WindowTableTemp()
@@ -83,7 +84,10 @@ void WindowTableTemp::markTupleForStaging(TableTuple &source)
 		source.setDeletedTrue();
 		m_tupleCount--;
 		m_numStagedTuples++;
+		//VOLT_DEBUG("markTupleForStaging: marked (tuples: %d, staged: %d)", m_tupleCount, m_numStagedTuples);
 	}
+	//else
+		//VOLT_DEBUG("markTupleForStaging: NOT marked (tuples: %d, staged: %d)", m_tupleCount, m_numStagedTuples);
 }
 
 void WindowTableTemp::markTupleForWindow(TableTuple &source)
@@ -95,16 +99,18 @@ void WindowTableTemp::markTupleForWindow(TableTuple &source)
 		source.setDeletedFalse();
 		m_tupleCount++;
 		m_numStagedTuples--;
+		//VOLT_DEBUG("markTupleForWindow: marked (tuples: %d, staged: %d)", m_tupleCount, m_numStagedTuples);
 	}
+	//else
+		//VOLT_DEBUG("markTupleForWindow: NOT marked (tuples: %d, staged: %d)", m_tupleCount, m_numStagedTuples);
 }
 
 bool WindowTableTemp::removeOldestTuple()
 {
-	VOLT_DEBUG("WindowTableTemp: ENTERING REMOVEOLDESTTUPLE");
 	//if there are no tuples, then we can't remove any tuples
-	if(m_oldestTupleID == 0)
+	if(m_tupleCount == 0 && m_numStagedTuples == 0)
 	{
-		VOLT_DEBUG("WindowTableTemp: m_oldestTupleID = 0");
+		VOLT_DEBUG("WindowTableTemp: no tuples to delete");
 		return false;
 	}
 
@@ -116,6 +122,7 @@ bool WindowTableTemp::removeOldestTuple()
 		m_oldestTupleID = 0;
 		m_newestTupleID = 0;
 		m_newestWindowTupleID = 0;
+		m_firstTuple = true;
 	}
 	else
 		m_oldestTupleID = tuple.getNextTupleInChain();
@@ -124,7 +131,6 @@ bool WindowTableTemp::removeOldestTuple()
 	//to a non-deleted state so that the delete command will work.  This is horrible and needs to be fixed.
 	markTupleForWindow(tuple);
 
-	VOLT_DEBUG("WindowTableTemp: ENDING REMOVEOLDESTTUPLE");
 	return PersistentTable::deleteTuple(tuple, true);
 }
 

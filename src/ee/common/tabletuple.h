@@ -85,9 +85,9 @@ namespace voltdb {
 
 //TODO: Window tables likely need their own TableTuples.  Right now, all tuples will have a 5-byte header, even if
 //		they are not window tables.
-#ifdef STREAMING
+//#ifdef STREAMING
     #define TUPLE_HEADER_SIZE 5
-///** TODO:IF THIS BLOCK IS COMMENTED OUT, ANTICACHING IS REMOVED. VERY, VERY BAD, SHOULD BE FIXED.
+/** TODO:IF THIS BLOCK IS COMMENTED OUT, ANTICACHING IS REMOVED. VERY, VERY BAD, SHOULD BE FIXED.
 #else
 	#ifdef ANTICACHE
     	#ifdef ANTICACHE_REVERSIBLE_LRU

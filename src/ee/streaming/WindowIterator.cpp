@@ -81,14 +81,14 @@ bool WindowIterator::next(TableTuple &tuple)
 
     if(current_tuple_id == wtable->getNewestTupleID()) // we've already returned the last tuple in the chain
     {
-        VOLT_DEBUG("No more tuples in the chain.");
+        //VOLT_DEBUG("No more tuples in the chain.");
         return false;
     }
 
     if(is_first) // this is the first call to next
     {
         is_first = false;
-        VOLT_DEBUG("This is the first tuple in the chain.");
+        //VOLT_DEBUG("This is the first tuple in the chain.");
 
         current_tuple_id = wtable->getOldestTupleID();
     }
@@ -100,7 +100,7 @@ bool WindowIterator::next(TableTuple &tuple)
     current_tuple->move(wtable->dataPtrForTuple(current_tuple_id));
     tuple.move(current_tuple->address());
 
-    VOLT_DEBUG("current_tuple_id = %d", current_tuple_id);
+    //VOLT_DEBUG("current_tuple_id = %d", current_tuple_id);
 
     return true;
 }

@@ -76,16 +76,28 @@ bool TupleWindow::insertTuple(TableTuple &source)
 	VOLT_DEBUG("TupleWindow: Entering insertTuple");
 	if(!(PersistentTable::insertTuple(source)))
 	{
-		VOLT_DEBUG("TupleWindow: PersistentTable insertTuple failed.");
+		VOLT_DEBUG("TupleWindow: PersistentTable insertTuple failed!!!!!!!!!");
 		return false;
 	}
-	m_tmpTarget1.setTupleID(this->getTupleID(m_tmpTarget1.address()));
 
-	if(this->m_oldestTupleID == 0)
+	m_tmpTarget1.setTupleID(this->getTupleID(m_tmpTarget1.address()));
+	if(!m_firstTuple)
+	{
+		TableTuple newestTuple = this->tempTuple();
+		newestTuple.move(this->dataPtrForTuple(m_newestTupleID));
+		newestTuple.setNextTupleInChain(m_tmpTarget1.getTupleID());
+	}
+
+	VOLT_DEBUG("tupleID: %d", m_tmpTarget1.getTupleID());
+
+	if(m_firstTuple)
 		this->m_oldestTupleID = m_tmpTarget1.getTupleID();
 	this->m_newestTupleID = m_tmpTarget1.getTupleID();
 
 	markTupleForStaging(m_tmpTarget1);
+
+	if(m_firstTuple)
+		m_firstTuple = false;
 
 	if(m_numStagedTuples >= m_slideSize)
 	{
@@ -94,7 +106,7 @@ bool TupleWindow::insertTuple(TableTuple &source)
 		{
 			if(!(this->removeOldestTuple()))
 			{
-				VOLT_DEBUG("TupleWindow: removeOldestTuple failed.");
+				VOLT_DEBUG("TupleWindow: removeOldestTuple failed!!!!!!!!!!!!!!");
 				return false;
 			}
 		}
@@ -109,6 +121,7 @@ bool TupleWindow::insertTuple(TableTuple &source)
 		if(hasTriggers())
 			setFireTriggers(true);
 	}
+	VOLT_DEBUG("stagedTuples: %d, tupleCount: %d", m_numStagedTuples, m_tupleCount);
 	return true;
 }
 
@@ -138,49 +151,94 @@ void TupleWindow::insertTupleForUndo(TableTuple &source, size_t elMark)
 	}
 }
 
+//TODO: the tuple pointers aren't quite working right.  Fortunately we rarely delete from windows.
 bool TupleWindow::deleteTuple(TableTuple &tuple, bool deleteAllocatedStrings)
 {
+	VOLT_DEBUG("TUPLEWINDOW DELETETUPLE");
 	WindowIterator win_itr(this);
 	TableTuple curtup = tempTuple();
 	uint32_t currentTupleID = tuple.getTupleID();
 	uint32_t nextTupleID = tuple.getNextTupleInChain();
 
+	//if there are no tuples to delete
 	if(!win_itr.hasNext())
 		return false;
-
-	win_itr.next(curtup);
-	while(win_itr.hasNext() && curtup.getNextTupleInChain() != currentTupleID)
+	//if there's only one tuple left
+	else if(getOldestTupleID() == getNewestTupleID())
+	{
+		setOldestTupleID(0);
+		setNewestTupleID(0);
+		setNewestWindowTupleID(0);
+		m_firstTuple = true;
+	}
+	//if the tuple to delete is the first one
+	else if(currentTupleID == m_oldestTupleID)
+	{
+		setOldestTupleID(tuple.getNextTupleInChain());
+	}
+	//otherwise reorganize the chain
+	else
 	{
 		win_itr.next(curtup);
-	}
+		while(win_itr.hasNext() && curtup.getNextTupleInChain() != currentTupleID)
+		{
+			win_itr.next(curtup);
+		}
 
-	curtup.setNextTupleInChain(nextTupleID);
+		curtup.setNextTupleInChain(nextTupleID);
+	}
 
 	//TODO: must mark tuple for window before it can be deleted
 	markTupleForWindow(tuple);
-	return PersistentTable::deleteTuple(tuple, deleteAllocatedStrings);
+	bool deletedTuple = PersistentTable::deleteTuple(tuple, deleteAllocatedStrings);
+
+	//if(deletedTuple)
+	//	resetWindow();
+
+	return deletedTuple;
 }
 
 void TupleWindow::deleteTupleForUndo(voltdb::TableTuple &tupleCopy, size_t elMark)
 {
+	VOLT_DEBUG("TUPLEWINDOW DELETETUPLE");
 	WindowIterator win_itr(this);
 	TableTuple curtup = tempTuple();
 	uint32_t currentTupleID = tupleCopy.getTupleID();
 	uint32_t nextTupleID = tupleCopy.getNextTupleInChain();
 
+	//if there are no tuples to delete
 	if(!win_itr.hasNext())
 		return;
-
-	win_itr.next(curtup);
-	while(win_itr.hasNext() && curtup.getNextTupleInChain() != currentTupleID)
+	//if there's only one tuple left
+	else if(getOldestTupleID() == getNewestTupleID())
+	{
+		setOldestTupleID(0);
+		setNewestTupleID(0);
+		setNewestWindowTupleID(0);
+		m_firstTuple = true;
+	}
+	//if the tuple to delete is the first one
+	else if(currentTupleID == m_oldestTupleID)
+	{
+		setOldestTupleID(tupleCopy.getNextTupleInChain());
+	}
+	//otherwise reorganize the chain
+	else
 	{
 		win_itr.next(curtup);
-	}
+		while(win_itr.hasNext() && curtup.getNextTupleInChain() != currentTupleID)
+		{
+			win_itr.next(curtup);
+		}
 
-	curtup.setNextTupleInChain(nextTupleID);
+		curtup.setNextTupleInChain(nextTupleID);
+	}
 
 	//TODO: must mark tuple for window before it can be deleted
 	markTupleForWindow(tupleCopy);
+
+	//if(deletedTuple)
+	//	resetWindow();
 
 	PersistentTable::deleteTupleForUndo(tupleCopy, elMark);
 }

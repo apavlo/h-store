@@ -123,6 +123,7 @@ class WindowTableTemp : public PersistentTable {
 	uint32_t m_oldestTupleID;
 	uint32_t m_newestWindowTupleID;
 	uint32_t m_newestTupleID;
+	bool m_firstTuple;
 
 };
 }

@@ -129,18 +129,20 @@ class TupleWindowTest : public Test {
 
 			table = window_table;
 
-			//VOLT_DEBUG("TEST ASSERT");
+			VOLT_DEBUG("ADDING RANDOM TUPLES");
             assert(tableutil::addRandomTuples(this->table, NUM_OF_TUPLES));
 			//VOLT_DEBUG("TABLE SIZE: %d", int(table->activeTupleCount()));
             //VOLT_DEBUG("TEST ASSERT END");
 
             // clean up
             delete[] columnNames;
+            VOLT_DEBUG("END INIT");
         }
 
         voltdb::Table* table;
         voltdb::Table* window_table;
         voltdb::VoltDBEngine *m_engine;
+
 
 };
 
@@ -161,12 +163,13 @@ TEST_F(TupleWindowTest, ValueTypes) {
     VOLT_DEBUG("END VALUE TYPES");
 }
 
+
 TEST_F(TupleWindowTest, TupleInsert) {
     //
     // All of the values have already been inserted, we just
     // need to make sure that the data makes sense
     //
-
+	VOLT_DEBUG("*******************************************************");
 	VOLT_DEBUG("TUPLE INSERT");
     voltdb::TableIterator iterator = this->table->tableIterator();
     //voltdb::TableTuple tuple(table->schema());
@@ -185,11 +188,11 @@ TEST_F(TupleWindowTest, TupleInsert) {
     ASSERT_EQ(WINDOW_SIZE, this->table->activeTupleCount());
     //VOLT_DEBUG("Current Window Queue: %s", table->debug().c_str());
 
-    /**
-    while(window_table->tuplesInStaging()){
-    	ASSERT_EQ(true, tableutil::setRandomTupleValues(this->table, &tuple));
-    	ASSERT_EQ(true, this->table->insertTuple(tuple));
-    }*/
+
+    //while(window_table->tuplesInStaging()){
+    //	ASSERT_EQ(true, tableutil::setRandomTupleValues(this->table, &tuple));
+    //	ASSERT_EQ(true, this->table->insertTuple(tuple));
+    //}
     //insert one tuple, check window
     ASSERT_EQ(true, tableutil::setRandomTupleValues(this->table, &tuple));
     VOLT_DEBUG("Inserting tuple: %s", tuple.debug("currentTempTuple 1").c_str());
@@ -209,6 +212,7 @@ TEST_F(TupleWindowTest, TupleInsert) {
     VOLT_DEBUG("Inserting tuple: %s", tuple.debug("currentTempTuple 4").c_str());
     ASSERT_EQ(true, this->table->insertTuple(tuple));
     VOLT_DEBUG("Checking Staging After Insert, insert next tuple: %s", table->debug().c_str());
+
     /**
     for(int i = 0; i < SLIDE_SIZE - 1; i++)
     {
@@ -254,7 +258,7 @@ TEST_F(TupleWindowTest, TupleInsert) {
     }
 	*/
 }
-
+/**
 TEST_F(TupleWindowTest, TupleUpdate) {
     //
     // Loop through and randomly update values
@@ -319,21 +323,25 @@ TEST_F(TupleWindowTest, TupleUpdate) {
     VOLT_DEBUG("WINDOW AFTER UPDATE: %s", table->debug().c_str());
 
 }
-
+*/
 
 TEST_F(TupleWindowTest, TupleDelete) {
     //
     // We are just going to delete all of the odd tuples, then make
     // sure they don't exist anymore
     //
+	VOLT_DEBUG("***************************************************");
 	VOLT_DEBUG("TUPLE DELETE");
 	VOLT_DEBUG("WINDOW BEFORE DELETE: %s", table->debug().c_str());
     voltdb::TableIterator iterator = this->table->tableIterator();
     voltdb::TableTuple tuple(table->schema());
+    int i = 0;
     while (iterator.next(tuple)) {
         if (ValuePeeker::peekAsBigInt(tuple.getNValue(1)) != 0) {
             EXPECT_EQ(true, table->deleteTuple(tuple, true));
         }
+        VOLT_DEBUG("DELETE #%d: %s", i, table->debug().c_str());
+        i++;
     }
 
     iterator = this->table->tableIterator();
