@@ -242,7 +242,7 @@ bool PersistentTable::evictBlockToDisk(const long block_size, int num_blocks) {
             eviction_manager->removeTuple(this, &tuple);
             if (tuple.isEvicted())
             {
-                VOLT_INFO("Tuple %d is already evicted. Skipping", tuple.getTupleID()); 
+                VOLT_INFO("Tuple %d is already evicted. Skipping", this->getTupleID(tuple.address()));
                 continue;
             } 
             VOLT_DEBUG("Evicting Tuple: %s", tuple.debug(name()).c_str());
