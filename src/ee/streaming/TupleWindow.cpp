@@ -118,6 +118,7 @@ bool TupleWindow::insertTuple(TableTuple &source)
 			win_itr.next(tuple);
 			markTupleForWindow(tuple);
 		}
+		setNewestWindowTupleID(tuple.getTupleID());
 		if(hasTriggers())
 			setFireTriggers(true);
 	}
@@ -146,6 +147,7 @@ void TupleWindow::insertTupleForUndo(TableTuple &source, size_t elMark)
 			win_itr.next(tuple);
 			markTupleForWindow(tuple);
 		}
+		setNewestWindowTupleID(tuple.getTupleID());
 		if(hasTriggers())
 			setFireTriggers(true);
 	}

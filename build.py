@@ -298,6 +298,7 @@ CTX.INPUT['streaming'] = """
  WindowIterator.cpp
  WindowTableTemp.cpp
  TupleWindow.cpp
+ TimeWindow.cpp
 """
 
 CTX.INPUT['triggers'] = """

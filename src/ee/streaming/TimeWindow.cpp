@@ -48,18 +48,9 @@
 #include <cstdio>
 #include <list>
 
-#include "boost/scoped_ptr.hpp"
-#include "storage/TimeWindow.h"
-
-#ifdef ANTICACHE
-#include "boost/timer.hpp"
-#include "anticache/EvictedTable.h"
-#include "anticache/AntiCacheDB.h"
-#include "anticache/EvictionIterator.h"
-#include "anticache/UnknownBlockAccessException.h"
-#endif
-
-#include <map>
+#include "streaming/TimeWindow.h"
+#include "streaming/WindowTableTemp.h"
+#include "streaming/WindowIterator.h"
 
 namespace voltdb {
 /**
@@ -67,188 +58,236 @@ namespace voltdb {
  */
 #define TABLE_BLOCKSIZE 2097152
 #define MAX_EVICTED_TUPLE_SIZE 2500
+#define TIMESTAMP_COLUMN "TS"
 
-TimeWindow::TimeWindow(ExecutorContext *ctx, bool exportEnabled, int windowSize, int slideSize) : PersistentTable(ctx, exportEnabled)
+TimeWindow::TimeWindow(ExecutorContext *ctx, bool exportEnabled, int windowSize, int slideSize) : WindowTableTemp(ctx, exportEnabled, windowSize, slideSize)
 {
-	windowQueue = std::list<TableTuple>();
-	stagingQueue = std::list<TableTuple>();
-	this->windowSize = windowSize;
-	this->slideSize = slideSize;
-	this->currentTS = 0;
-	this->stagedTS = 0;
+	m_tsColumn = findTSColumn();
 }
 
 TimeWindow::~TimeWindow()
 {
-	windowQueue.clear();
 }
 
-void TimeWindow::deleteAllTuples(bool freeAllocatedStrings)
+int TimeWindow::findTSColumn()
 {
-	PersistentTable::deleteAllTuples(freeAllocatedStrings);
-	windowQueue.clear();
-	stagingQueue.clear();
+	std::vector<std::string> colNames = this->getColumnNames();
+	for(int i = 0; i < colNames.size(); i++)
+	{
+		if(colNames[i].compare(TIMESTAMP_COLUMN)==0)
+			return i;
+	}
+	VOLT_DEBUG("NO TIMESTAMP FOUND!!");
+	return -1;
+}
+
+int TimeWindow::getTSColumn()
+{
+	return m_tsColumn;
 }
 
 /**
- *
- */
 bool TimeWindow::insertTuple(TableTuple &source)
 {
+	VOLT_DEBUG("TimeWindow: Entering insertTuple");
 	if(!(PersistentTable::insertTuple(source)))
+	{
+		VOLT_DEBUG("TimeWindow: PersistentTable insertTuple failed!!!!!!!!!");
 		return false;
+	}
+
+	m_tmpTarget1.setTupleID(this->getTupleID(m_tmpTarget1.address()));
+	if(!m_firstTuple)
+	{
+		TableTuple newestTuple = this->tempTuple();
+		newestTuple.move(this->dataPtrForTuple(m_newestTupleID));
+		newestTuple.setNextTupleInChain(m_tmpTarget1.getTupleID());
+	}
+
+	VOLT_DEBUG("tupleID: %d", m_tmpTarget1.getTupleID());
+
+	if(m_firstTuple)
+		this->m_oldestTupleID = m_tmpTarget1.getTupleID();
+	this->m_newestTupleID = m_tmpTarget1.getTupleID();
+
 	markTupleForStaging(m_tmpTarget1);
 
+	if(m_firstTuple)
+		m_firstTuple = false;
+
+	if(m_numStagedTuples >= m_slideSize)
+	{
+		//delete all tuples from the chain until there are exactly the window size of tuples
+		while((m_numStagedTuples + m_tupleCount) > m_windowSize)
+		{
+			if(!(this->removeOldestTuple()))
+			{
+				VOLT_DEBUG("TimeWindow: removeOldestTuple failed!!!!!!!!!!!!!!");
+				return false;
+			}
+		}
+
+		TableTuple tuple(m_schema);
+		WindowIterator win_itr(this);
+		while(win_itr.hasNext())
+		{
+			win_itr.next(tuple);
+			markTupleForWindow(tuple);
+		}
+		setNewestWindowTupleID(tuple.getTupleID());
+		if(hasTriggers())
+			setFireTriggers(true);
+	}
+	VOLT_DEBUG("stagedTuples: %d, tupleCount: %d", m_numStagedTuples, m_tupleCount);
 	return true;
 }
+
 
 void TimeWindow::insertTupleForUndo(TableTuple &source, size_t elMark)
 {
 	PersistentTable::insertTupleForUndo(source, elMark);
 	markTupleForStaging(m_tmpTarget1);
-}
 
-TableTuple TimeWindow::getOldestTuple()
-{
-	return windowQueue.front();
-}
-
-bool TimeWindow::tuplesInStaging()
-{
-	if(stagingQueue.size() == 0)
-		return false;
-	return true;
-}
-
-void TimeWindow::markTupleForStaging(TableTuple &source)
-{
-	//setting deleted = true, but not actually freeing the memory
-	source.setDeletedTrue();
-	m_tupleCount--;
-	stagingQueue.push_back(source);
-}
-
-
-bool TimeWindow::updateTuple(TableTuple &source, TableTuple &target, bool updatesIndexes)
-{
-	bool success = PersistentTable::updateTuple(source, target, updatesIndexes);
-	for(std::list<TableTuple>::iterator it = windowQueue.begin(); it != windowQueue.end(); it++)
+	if(m_numStagedTuples >= m_slideSize)
 	{
-		if(it->equals(source))
+		//delete all tuples from the chain until there are exactly the window size of tuples
+		while((m_numStagedTuples + m_tupleCount) > m_windowSize)
 		{
-			*it = target;
+			this->removeOldestTuple();
 		}
-	}
-	return success;
-}
 
-
-void TimeWindow::updateTupleForUndo(TableTuple &sourceTuple, TableTuple &targetTuple,
-							bool revertIndexes, size_t elMark)
-{
-	PersistentTable::updateTupleForUndo(sourceTuple, targetTuple, revertIndexes, elMark);
-	for(std::list<TableTuple>::iterator it = windowQueue.begin(); it != windowQueue.end(); it++)
-	{
-		if(it->equals(sourceTuple))
+		TableTuple tuple(m_schema);
+		WindowIterator win_itr(this);
+		while(win_itr.hasNext())
 		{
-			*it = targetTuple;
+			win_itr.next(tuple);
+			markTupleForWindow(tuple);
 		}
+		setNewestWindowTupleID(tuple.getTupleID());
+		if(hasTriggers())
+			setFireTriggers(true);
 	}
 }
 
-
+//TODO: the tuple pointers aren't quite working right.  Fortunately we rarely delete from windows.
 bool TimeWindow::deleteTuple(TableTuple &tuple, bool deleteAllocatedStrings)
 {
-	for(std::list<TableTuple>::iterator it = windowQueue.begin(); it != windowQueue.end(); it++)
+	VOLT_DEBUG("TimeWindow DELETETUPLE");
+	WindowIterator win_itr(this);
+	TableTuple curtup = tempTuple();
+	uint32_t currentTupleID = tuple.getTupleID();
+	uint32_t nextTupleID = tuple.getNextTupleInChain();
+
+	//if there are no tuples to delete
+	if(!win_itr.hasNext())
+		return false;
+	//if there's only one tuple left
+	else if(getOldestTupleID() == getNewestTupleID())
 	{
-		if(it->equals(tuple))
-		{
-			it = windowQueue.erase(it);
-		}
+		setOldestTupleID(0);
+		setNewestTupleID(0);
+		setNewestWindowTupleID(0);
+		m_firstTuple = true;
 	}
-	return PersistentTable::deleteTuple(tuple, deleteAllocatedStrings);
+	//if the tuple to delete is the first one
+	else if(currentTupleID == m_oldestTupleID)
+	{
+		setOldestTupleID(tuple.getNextTupleInChain());
+	}
+	//otherwise reorganize the chain
+	else
+	{
+		win_itr.next(curtup);
+		while(win_itr.hasNext() && curtup.getNextTupleInChain() != currentTupleID)
+		{
+			win_itr.next(curtup);
+		}
+
+		curtup.setNextTupleInChain(nextTupleID);
+	}
+
+	//TODO: must mark tuple for window before it can be deleted
+	markTupleForWindow(tuple);
+	bool deletedTuple = PersistentTable::deleteTuple(tuple, deleteAllocatedStrings);
+
+	//if(deletedTuple)
+	//	resetWindow();
+
+	return deletedTuple;
 }
 
 void TimeWindow::deleteTupleForUndo(voltdb::TableTuple &tupleCopy, size_t elMark)
 {
-	for(std::list<TableTuple>::iterator it = windowQueue.begin(); it != windowQueue.end(); it++)
+	VOLT_DEBUG("TimeWindow DELETETUPLE");
+	WindowIterator win_itr(this);
+	TableTuple curtup = tempTuple();
+	uint32_t currentTupleID = tupleCopy.getTupleID();
+	uint32_t nextTupleID = tupleCopy.getNextTupleInChain();
+
+	//if there are no tuples to delete
+	if(!win_itr.hasNext())
+		return;
+	//if there's only one tuple left
+	else if(getOldestTupleID() == getNewestTupleID())
 	{
-		if(it->equals(tupleCopy))
-		{
-			it = windowQueue.erase(it);
-		}
+		setOldestTupleID(0);
+		setNewestTupleID(0);
+		setNewestWindowTupleID(0);
+		m_firstTuple = true;
 	}
-	return PersistentTable::deleteTupleForUndo(tupleCopy, elMark);
-}
+	//if the tuple to delete is the first one
+	else if(currentTupleID == m_oldestTupleID)
+	{
+		setOldestTupleID(tupleCopy.getNextTupleInChain());
+	}
+	//otherwise reorganize the chain
+	else
+	{
+		win_itr.next(curtup);
+		while(win_itr.hasNext() && curtup.getNextTupleInChain() != currentTupleID)
+		{
+			win_itr.next(curtup);
+		}
 
-int TimeWindow::getTS(TableTuple &t)
-{
-	return t.getNValue(tsColumn).getInteger();
-}
+		curtup.setNextTupleInChain(nextTupleID);
+	}
 
-void TimeWindow::updateCurrentTS()
-{
-	currentTS++;
-	stagedTS = (stagedTS + 1) % slideSize;
-	if(stagedTS == 0)
-		updateWindow();
-}
+	//TODO: must mark tuple for window before it can be deleted
+	markTupleForWindow(tupleCopy);
 
-void TimeWindow::setCurrentTS(int64 ts)
-{
-	currentTS = ts;
-	updateWindow();
-}
+	//if(deletedTuple)
+	//	resetWindow();
 
-int64 TimeWindow::getCurrentTS()
-{
-	return currentTS;
-}
-
-void TimeWindow::updateWindow()
-{
-	int minTS = currentTS - slideSize;
-
-}
-
-void TimeWindow::setFireTriggers(bool fire)
-{
-	m_fireTriggers = fire;
+	PersistentTable::deleteTupleForUndo(tupleCopy, elMark);
 }
 
 std::string TimeWindow::debug()
 {
 	std::ostringstream output;
-	output << "DEBUG TABLE SIZE: " << int(m_tupleCount) << "\n";
-	output << "LIST:\n";
-	int i = 0;
-	for(std::list<TableTuple>::const_iterator it = windowQueue.begin(); it != windowQueue.end(); it++)
-	{
-		output << i << ": " << it->debug("list").c_str() << "\n";
-		i++;
-	}
+	WindowIterator win_itr(this);
+	TableTuple tuple(m_schema);
+	int stageID = 0;
+	int winID = 0;
 
-	output << "STAGING:\n";
-	i = 0;
-	for(std::list<TableTuple>::const_iterator it = stagingQueue.begin(); it != stagingQueue.end(); it++)
+	output << "DEBUG TABLE SIZE: " << int(m_tupleCount) << " tuples, " << int(m_numStagedTuples) << " staged\n";
+	while(win_itr.hasNext())
 	{
-		output << i << ": " << it->debug("staging").c_str() << "\n";
-		i++;
-	}
+		win_itr.next(tuple);
+		if(tupleStaged(tuple))
+		{
+			output << "STAGED " << stageID << ": ";
+			stageID++;
+		}
+		else
+		{
+			output << "WINDOW " << winID << ": ";
+			winID++;
+		}
+		output << tuple.debug("").c_str() << "\n";
 
-
-	i = 0;
-	TableIterator ti  = TableIterator(this,false);
-	TableTuple t = m_tempTuple;
-	output << "TABLE:\n";
-	while(ti.hasNext())
-	{
-		ti.next(t);
-		output << i << ": " << t.debug("table").c_str() << "\n";
-		i++;
 	}
 	return output.str();
 }
-
+*/
 }
 

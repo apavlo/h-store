@@ -278,7 +278,8 @@ namespace voltdb {
 										 bool exportEnabled,
 										 bool exportOnly,
 										 int windowSize,
-										 int slideSize=1);
+										 int slideSize=1,
+										 int windowType = TUPLE_WINDOW);
 
 
 		 // Creates an empty window table with given ID, name, columns and PK index.
@@ -292,7 +293,8 @@ namespace voltdb {
 										 bool exportEnabled,
 										 bool exportOnly,
 										 int windowSize,
-										 int slideSize=1);
+										 int slideSize=1,
+										 int windowType = TUPLE_WINDOW);
 
 
 		// Creates an empty window table with given name, columns and indexes.
@@ -306,7 +308,8 @@ namespace voltdb {
 										 bool exportEnabled,
 										 bool exportOnly,
 										 int windowSize,
-										 int slideSize=1);
+										 int slideSize=1,
+										 int windowType = TUPLE_WINDOW);
 
 
 		//Creates an empty window table with given name, columns and indexes.
@@ -321,7 +324,8 @@ namespace voltdb {
 										 bool exportEnabled,
 										 bool exportOnly,
 										 int windowSize,
-										 int slideSize=1);
+										 int slideSize=1,
+										 int windowType = TUPLE_WINDOW);
 
 
 		//Creates an empty window table with given name, columns, PK index and indexes
@@ -336,7 +340,8 @@ namespace voltdb {
 										 bool exportEnabled,
 										 bool exportOnly,
 										 int windowSize,
-										 int slideSize=1);
+										 int slideSize=1,
+										 int windowType=TUPLE_WINDOW);
 
 
 		//Creates an empty window table with given name, columns, PK index and indexes.
@@ -352,7 +357,8 @@ namespace voltdb {
 										 bool exportEnabled,
 										 bool exportOnly,
 										 int windowSize,
-										 int slideSize=1);
+										 int slideSize=1,
+										 int windowType=TUPLE_WINDOW);
 
 		//////////////////////////////
 		//END
