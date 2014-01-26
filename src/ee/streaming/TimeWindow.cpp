@@ -71,14 +71,7 @@ TimeWindow::~TimeWindow()
 
 int TimeWindow::findTSColumn()
 {
-	std::vector<std::string> colNames = this->getColumnNames();
-	for(int i = 0; i < colNames.size(); i++)
-	{
-		if(colNames[i].compare(TIMESTAMP_COLUMN)==0)
-			return i;
-	}
-	VOLT_DEBUG("NO TIMESTAMP FOUND!!");
-	return -1;
+	return columnIndex("TS");
 }
 
 int TimeWindow::getTSColumn()

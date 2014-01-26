@@ -72,22 +72,18 @@ using std::string;
 using std::vector;
 using namespace voltdb;
 
-#define NUM_OF_COLUMNS 5
+#define NUM_OF_COLUMNS 3
 #define NUM_OF_TUPLES 20
 #define WINDOW_SIZE 4
 #define SLIDE_SIZE 2
 
 voltdb::ValueType COLUMN_TYPES[NUM_OF_COLUMNS]  = { voltdb::VALUE_TYPE_INTEGER,
-                                                    voltdb::VALUE_TYPE_TINYINT,
-                                                    voltdb::VALUE_TYPE_SMALLINT,
                                                     voltdb::VALUE_TYPE_INTEGER,
-                                                    voltdb::VALUE_TYPE_BIGINT };
+                                                    voltdb::VALUE_TYPE_SMALLINT};
 int32_t COLUMN_SIZES[NUM_OF_COLUMNS]                = {
                            NValue::getTupleStorageSize(voltdb::VALUE_TYPE_INTEGER),
-                           NValue::getTupleStorageSize(voltdb::VALUE_TYPE_TINYINT),
-                           NValue::getTupleStorageSize(voltdb::VALUE_TYPE_SMALLINT),
                            NValue::getTupleStorageSize(voltdb::VALUE_TYPE_INTEGER),
-                           NValue::getTupleStorageSize(voltdb::VALUE_TYPE_BIGINT) };
+                           NValue::getTupleStorageSize(voltdb::VALUE_TYPE_SMALLINT)};
 bool COLUMN_ALLOW_NULLS[NUM_OF_COLUMNS]         = { true, true, true, true, true };
 
 class TimeWindowTest : public Test {

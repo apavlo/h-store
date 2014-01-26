@@ -52,6 +52,8 @@
 #include "common/debuglog.h"
 #include "common/tabletuple.h"
 #include "common/FatalException.hpp"
+#include "common/types.h"
+#include "common/value_defs.h"
 #include "storage/table.h"
 #include "storage/tableiterator.h"
 
@@ -101,6 +103,32 @@ bool addRandomTuples(voltdb::Table* table, int num_of_tuples) {
         if (!tableutil::setRandomTupleValues(table, &tuple)) {
             return (false);
         }
+        //std::cout << std::endl << "Creating tuple " << std::endl << tuple.debugNoHeader() << std::endl;
+        //VOLT_DEBUG("Created random tuple: %s", tuple.debug().c_str());
+        if (!table->insertTuple(tuple)) {
+            return (false);
+        }
+
+        /*
+         * The insert into the table (assuming a persistent table) will make a copy of the strings so the string allocations
+         * for unlined columns need to be freed here.
+         */
+        for (int ii = 0; ii < tuple.getSchema()->getUninlinedObjectColumnCount(); ii++) {
+            tuple.getNValue(tuple.getSchema()->getUninlinedObjectColumnInfoIndex(ii)).free();
+        }
+    }
+    return (true);
+}
+
+bool addRandomTuplesFixedColumn(voltdb::Table* table, int num_of_tuples, int colID, voltdb::NValue colVal) {
+    assert(num_of_tuples >= 0);
+    assert(table->tempTuple().getType(0) == VALUE_TYPE_INTEGER); //first column must be an integer
+    for (int ctr = 0; ctr < num_of_tuples; ctr++) {
+        voltdb::TableTuple &tuple = table->tempTuple();
+        if (!tableutil::setRandomTupleValues(table, &tuple)) {
+            return (false);
+        }
+        tuple.setNValue(0, colVal);
         //std::cout << std::endl << "Creating tuple " << std::endl << tuple.debugNoHeader() << std::endl;
         //VOLT_DEBUG("Created random tuple: %s", tuple.debug().c_str());
         if (!table->insertTuple(tuple)) {
