@@ -83,11 +83,13 @@ class TimeWindow : public WindowTableTemp {
 
 	int findTSColumn();
 	int getTSColumn();
-	/**
+	const int32_t& getTS(TableTuple &source);
+
 	// ------------------------------------------------------------------
 	// OPERATIONS
 	// ------------------------------------------------------------------
 	bool insertTuple(TableTuple &source);
+	/**
 	void insertTupleForUndo(TableTuple &source, size_t elMark);
 	//bool updateTuple(TableTuple &source, TableTuple &target, bool updatesIndexes);
 	//void updateTupleForUndo(TableTuple &sourceTuple, TableTuple &targetTuple,
@@ -100,7 +102,7 @@ class TimeWindow : public WindowTableTemp {
 
   protected:
 	int m_tsColumn;
-
+	int32_t m_latestTS;
 };
 }
 

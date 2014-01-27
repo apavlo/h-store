@@ -73,9 +73,10 @@ using std::vector;
 using namespace voltdb;
 
 #define NUM_OF_COLUMNS 3
-#define NUM_OF_TUPLES 20
+#define NUM_OF_TUPLES 5
 #define WINDOW_SIZE 4
 #define SLIDE_SIZE 2
+#define TS_COL 0
 
 voltdb::ValueType COLUMN_TYPES[NUM_OF_COLUMNS]  = { voltdb::VALUE_TYPE_INTEGER,
                                                     voltdb::VALUE_TYPE_INTEGER,
@@ -84,7 +85,7 @@ int32_t COLUMN_SIZES[NUM_OF_COLUMNS]                = {
                            NValue::getTupleStorageSize(voltdb::VALUE_TYPE_INTEGER),
                            NValue::getTupleStorageSize(voltdb::VALUE_TYPE_INTEGER),
                            NValue::getTupleStorageSize(voltdb::VALUE_TYPE_SMALLINT)};
-bool COLUMN_ALLOW_NULLS[NUM_OF_COLUMNS]         = { true, true, true, true, true };
+bool COLUMN_ALLOW_NULLS[NUM_OF_COLUMNS]         = { true, true, true };
 
 class TimeWindowTest : public Test {
     public:
@@ -124,23 +125,32 @@ class TimeWindowTest : public Test {
             }
             voltdb::TupleSchema *schema = voltdb::TupleSchema::createTupleSchema(columnTypes, columnLengths, columnAllowNull, true);
 
-			window_table = voltdb::TableFactory::getTempWindowTable(database_id, m_engine->getExecutorContext(),
+			table = voltdb::TableFactory::getTempWindowTable(database_id, m_engine->getExecutorContext(),
 							"test_table", schema, columnNames, -1, false, false, WINDOW_SIZE, SLIDE_SIZE, TIME_WINDOW);
 
-			table = window_table;
+			window_table = dynamic_cast<TimeWindow*>(table);
 
 			VOLT_DEBUG("ADDING RANDOM TUPLES");
-            assert(tableutil::addRandomTuples(this->table, NUM_OF_TUPLES));
+			//NValue ts = ValueFactory::getIntegerValue(0);
+            assert(tableutil::addRandomTuplesFixedColumn(this->table, NUM_OF_TUPLES,
+            					TS_COL, ValueFactory::getIntegerValue(0)));
+            assert(tableutil::addRandomTuplesFixedColumn(this->table, NUM_OF_TUPLES,
+                        		TS_COL, ValueFactory::getIntegerValue(1)));
+            assert(tableutil::addRandomTuplesFixedColumn(this->table, NUM_OF_TUPLES,
+                        		TS_COL, ValueFactory::getIntegerValue(2)));
+            assert(tableutil::addRandomTuplesFixedColumn(this->table, NUM_OF_TUPLES,
+                        		TS_COL, ValueFactory::getIntegerValue(3)));
 			//VOLT_DEBUG("TABLE SIZE: %d", int(table->activeTupleCount()));
             //VOLT_DEBUG("TEST ASSERT END");
 
             // clean up
             delete[] columnNames;
+            assert(window_table->getTSColumn() == 0);
             VOLT_DEBUG("END INIT");
         }
 
         voltdb::Table* table;
-        voltdb::Table* window_table;
+        voltdb::TimeWindow* window_table;
         voltdb::VoltDBEngine *m_engine;
 
 

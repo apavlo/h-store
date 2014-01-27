@@ -63,6 +63,8 @@ namespace voltdb {
 TimeWindow::TimeWindow(ExecutorContext *ctx, bool exportEnabled, int windowSize, int slideSize) : WindowTableTemp(ctx, exportEnabled, windowSize, slideSize)
 {
 	m_tsColumn = findTSColumn();
+	assert(m_tsColumn >= 0); //time windows MUST have a time stamp column
+	m_latestTS = 0;
 }
 
 TimeWindow::~TimeWindow()
@@ -71,7 +73,7 @@ TimeWindow::~TimeWindow()
 
 int TimeWindow::findTSColumn()
 {
-	return columnIndex("TS");
+	return columnIndex(TIMESTAMP_COLUMN);
 }
 
 int TimeWindow::getTSColumn()
@@ -79,7 +81,12 @@ int TimeWindow::getTSColumn()
 	return m_tsColumn;
 }
 
-/**
+const int32_t& TimeWindow::getTS(TableTuple &source)
+{
+	return source.getNValue(m_tsColumn).getInteger();
+}
+
+
 bool TimeWindow::insertTuple(TableTuple &source)
 {
 	VOLT_DEBUG("TimeWindow: Entering insertTuple");
@@ -100,27 +107,31 @@ bool TimeWindow::insertTuple(TableTuple &source)
 	VOLT_DEBUG("tupleID: %d", m_tmpTarget1.getTupleID());
 
 	if(m_firstTuple)
+	{
 		this->m_oldestTupleID = m_tmpTarget1.getTupleID();
+		m_firstTuple = false;
+	}
 	this->m_newestTupleID = m_tmpTarget1.getTupleID();
 
 	markTupleForStaging(m_tmpTarget1);
 
-	if(m_firstTuple)
-		m_firstTuple = false;
-
-	if(m_numStagedTuples >= m_slideSize)
+	//start of TimeWindow-specific portion
+	const int32_t ts = getTS(m_tmpTarget1);
+	if(ts >= m_latestTS + m_slideSize)
 	{
+		TableTuple tuple(m_schema);
+		tuple.move(this->dataPtrForTuple(m_oldestTupleID));
 		//delete all tuples from the chain until there are exactly the window size of tuples
-		while((m_numStagedTuples + m_tupleCount) > m_windowSize)
+		while(this->getTS(tuple) < ts - m_windowSize)
 		{
 			if(!(this->removeOldestTuple()))
 			{
 				VOLT_DEBUG("TimeWindow: removeOldestTuple failed!!!!!!!!!!!!!!");
 				return false;
 			}
+			tuple.move(this->dataPtrForTuple(m_oldestTupleID));
 		}
 
-		TableTuple tuple(m_schema);
 		WindowIterator win_itr(this);
 		while(win_itr.hasNext())
 		{
@@ -128,6 +139,7 @@ bool TimeWindow::insertTuple(TableTuple &source)
 			markTupleForWindow(tuple);
 		}
 		setNewestWindowTupleID(tuple.getTupleID());
+		m_latestTS = ts;
 		if(hasTriggers())
 			setFireTriggers(true);
 	}
@@ -135,7 +147,7 @@ bool TimeWindow::insertTuple(TableTuple &source)
 	return true;
 }
 
-
+/**
 void TimeWindow::insertTupleForUndo(TableTuple &source, size_t elMark)
 {
 	PersistentTable::insertTupleForUndo(source, elMark);

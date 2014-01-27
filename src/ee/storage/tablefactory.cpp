@@ -568,7 +568,7 @@ Table* TableFactory::getTempWindowTable(
 
     // initialize stats for the table
     configureStats(databaseId, ctx, name, table);
-    return dynamic_cast<Table*>(table);
+    return table;
 }
 
 Table* TableFactory::getTempWindowTable(
@@ -673,7 +673,7 @@ Table* TableFactory::getTempWindowTable(
 
     configureStats(databaseId, ctx, name, table);
 
-    return dynamic_cast<Table*>(table);
+    return table;
 }
 
 //////////////////////////////////////////////////////////////////////////////

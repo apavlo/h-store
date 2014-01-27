@@ -122,7 +122,6 @@ bool addRandomTuples(voltdb::Table* table, int num_of_tuples) {
 
 bool addRandomTuplesFixedColumn(voltdb::Table* table, int num_of_tuples, int colID, voltdb::NValue colVal) {
     assert(num_of_tuples >= 0);
-    assert(table->tempTuple().getType(0) == VALUE_TYPE_INTEGER); //first column must be an integer
     for (int ctr = 0; ctr < num_of_tuples; ctr++) {
         voltdb::TableTuple &tuple = table->tempTuple();
         if (!tableutil::setRandomTupleValues(table, &tuple)) {

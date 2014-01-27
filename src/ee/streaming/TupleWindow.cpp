@@ -96,6 +96,7 @@ bool TupleWindow::insertTuple(TableTuple &source)
 
 	markTupleForStaging(m_tmpTarget1);
 
+
 	if(m_firstTuple)
 		m_firstTuple = false;
 
@@ -104,23 +105,29 @@ bool TupleWindow::insertTuple(TableTuple &source)
 		//delete all tuples from the chain until there are exactly the window size of tuples
 		while((m_numStagedTuples + m_tupleCount) > m_windowSize)
 		{
+			VOLT_DEBUG("1");
 			if(!(this->removeOldestTuple()))
 			{
 				VOLT_DEBUG("TupleWindow: removeOldestTuple failed!!!!!!!!!!!!!!");
 				return false;
 			}
+			VOLT_DEBUG("2");
 		}
 
 		TableTuple tuple(m_schema);
 		WindowIterator win_itr(this);
+		VOLT_DEBUG("3");
 		while(win_itr.hasNext())
 		{
 			win_itr.next(tuple);
 			markTupleForWindow(tuple);
 		}
+		VOLT_DEBUG("4");
 		setNewestWindowTupleID(tuple.getTupleID());
+		VOLT_DEBUG("5");
 		if(hasTriggers())
 			setFireTriggers(true);
+		VOLT_DEBUG("6");
 	}
 	VOLT_DEBUG("stagedTuples: %d, tupleCount: %d", m_numStagedTuples, m_tupleCount);
 	return true;
