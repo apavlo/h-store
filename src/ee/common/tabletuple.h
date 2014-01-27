@@ -85,8 +85,9 @@ namespace voltdb {
 
 //TODO: Window tables likely need their own TableTuples.  Right now, all tuples will have a 5-byte header, even if
 //		they are not window tables.
-#ifdef STREAMING
-	#define TUPLE_HEADER_SIZE 5
+//#ifdef STREAMING
+    #define TUPLE_HEADER_SIZE 5
+/** TODO:IF THIS BLOCK IS COMMENTED OUT, ANTICACHING IS REMOVED. VERY, VERY BAD, SHOULD BE FIXED.
 #else
 	#ifdef ANTICACHE
     	#ifdef ANTICACHE_REVERSIBLE_LRU
@@ -98,6 +99,7 @@ namespace voltdb {
     	#define TUPLE_HEADER_SIZE 1
 	#endif
 #endif
+//*/
     
 #define DELETED_MASK 1
 #define DIRTY_MASK 2
@@ -111,6 +113,8 @@ class TableTuple {
     friend class TempTable;
     friend class EvictedTable;
     friend class WindowTable;
+    friend class WindowTableTemp;
+    friend class TupleWindow;
     friend class PersistentTable;
     friend class PersistentTableUndoDeleteAction;
     friend class PersistentTableUndoUpdateAction;

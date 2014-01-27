@@ -43,25 +43,35 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef HSTORETABLEUTIL_H
-#define HSTORETABLEUTIL_H
 
-#include <string>
-#include "common/common.h"
-#include "common/tabletuple.h"
+#ifndef WINDOWITERATOR_H
+#define WINDOWITERATOR_H
+
+#include "storage/TupleIterator.h"
 #include "storage/table.h"
 
-namespace tableutil {
+namespace voltdb {
 
-bool getRandomTuple(const voltdb::Table* table, voltdb::TableTuple &out);
-bool setRandomTupleValues(voltdb::Table* table, voltdb::TableTuple *tuple);
-bool addRandomTuples(voltdb::Table* table, int num_of_tuples);
-bool addRandomTuplesFixedColumn(voltdb::Table* table, int num_of_tuples, int colID, voltdb::NValue colVal);
+class WindowIterator : public TupleIterator
+{
 
-bool copy(const voltdb::Table* from_table, voltdb::Table* to_table);
-bool equals(const voltdb::Table* table, voltdb::TableTuple *tuple0, voltdb::TableTuple *tuple1);
-bool getTupleAt(const voltdb::Table* table, int64_t position, voltdb::TableTuple &out);
+public:
+
+    WindowIterator(Table* t);
+    ~WindowIterator();
+
+    bool hasNext();
+    bool next(TableTuple &out);
+
+private:
+
+    Table *table;
+    uint32_t current_tuple_id;
+    TableTuple* current_tuple;
+    bool is_first;
+};
 
 }
 
 #endif
+

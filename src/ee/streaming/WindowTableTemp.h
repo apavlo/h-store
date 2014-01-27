@@ -43,11 +43,10 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef HSTORETUPLEWINDOW_H
-#define HSTORETUPLEWINDOW_H
+#ifndef HSTOREWINDOWTABLETEMP_H
+#define HSTOREWINDOWTABLETEMP_H
 
 #include "storage/persistenttable.h"
-#include <list>
 
 namespace voltdb {
 
@@ -64,7 +63,7 @@ class MaterializedViewMetadata;
 class RecoveryProtoMsg;
 class TableTuple;
 
-class WindowTable : public PersistentTable {
+class WindowTableTemp : public PersistentTable {
 	friend class TableFactory;
 	friend class TableTuple;
 	friend class TableIndex;
@@ -73,58 +72,58 @@ class WindowTable : public PersistentTable {
 
   private:
 	// no default ctor, no copy, no assignment
-	TupleWindow();
-	TupleWindow(TupleWindow const&);
-	//WindowTable operator=(WindowTable const&);
+	WindowTableTemp();
+	WindowTableTemp(WindowTableTemp const&);
 
   public:
-	~TupleWindow();
-	TupleWindow(ExecutorContext *ctx, bool exportEnabled, int windowSize, int slideSize = 1);
+	~WindowTableTemp();
+	WindowTableTemp(ExecutorContext *ctx, bool exportEnabled, int windowSize, int slideSize = 1);
 
 	// ------------------------------------------------------------------
-	// OPERATIONS
+	// OPERATIONS TO BE IMPLEMENTED BY WINDOWS
 	// ------------------------------------------------------------------
-	bool insertTuple(TableTuple &source);
-	/*
-	 * Inserts a Tuple without performing an allocation for the
-	 * uninlined strings.
-	 */
-	void insertTupleForUndo(TableTuple &source, size_t elMark);
-
-	TableTuple getOldestTuple();
-	bool tuplesInStaging();
-	void markTupleForStaging(TableTuple &source);
-
-	/*
-	 * Note that inside update tuple the order of sourceTuple and
-	 * targetTuple is swapped when making calls on the indexes. This
-	 * is just an inconsistency in the argument ordering.
-	 */
-	bool updateTuple(TableTuple &source, TableTuple &target, bool updatesIndexes);
-	/*
-	 * Identical to regular updateTuple except no memory management
-	 * for unlined columns is performed because that will be handled
-	 * by the UndoAction.
-	 */
-	void updateTupleForUndo(TableTuple &sourceTuple, TableTuple &targetTuple,
+	/**
+	virtual bool insertTuple(TableTuple &source);
+	virtual void insertTupleForUndo(TableTuple &source, size_t elMark);
+	virtual bool updateTuple(TableTuple &source, TableTuple &target, bool updatesIndexes);
+	virtual void updateTupleForUndo(TableTuple &sourceTuple, TableTuple &targetTuple,
 							bool revertIndexes, size_t elMark);
+	virtual bool deleteTuple(TableTuple &tuple, bool deleteAllocatedStrings);
+	virtual void deleteTupleForUndo(voltdb::TableTuple &tupleCopy, size_t elMark);
+	virtual std::string debug();
+	*/
 
-	/*
-	 * Delete a tuple by looking it up via table scan or a primary key
-	 * index lookup.
-	 */
-	bool deleteTuple(TableTuple &tuple, bool deleteAllocatedStrings);
-	void deleteTupleForUndo(voltdb::TableTuple &tupleCopy, size_t elMark);
+	// ------------------------------------------------------------------
+	// OPERATIONS COMMON TO ALL WINDOWS
+	// ------------------------------------------------------------------
+
+	void markTupleForStaging(TableTuple &source);
+	void markTupleForWindow(TableTuple &source);
+	bool removeOldestTuple();
+
+	void setNewestTupleID(uint32_t id);
+	void setNewestWindowTupleID(uint32_t id);
+	void setOldestTupleID(uint32_t id);
+	uint32_t getNewestTupleID();
+	uint32_t getNewestWindowTupleID();
+	uint32_t getOldestTupleID();
 
 	void setFireTriggers(bool fire);
 
-	std::string debug();
+	bool tupleStaged(TableTuple &source);
+	bool tuplesInStaging();
+	void setNumStagedTuples(int numTuples);
+	int getNumStagedTuples();
 
 
   protected:
-	int windowSize;
-	int slideSize;
-
+	int m_windowSize;
+	int m_slideSize;
+	int m_numStagedTuples;
+	uint32_t m_oldestTupleID;
+	uint32_t m_newestWindowTupleID;
+	uint32_t m_newestTupleID;
+	bool m_firstTuple;
 
 };
 }

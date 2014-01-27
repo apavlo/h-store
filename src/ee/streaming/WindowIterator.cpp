@@ -43,25 +43,66 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef HSTORETABLEUTIL_H
-#define HSTORETABLEUTIL_H
 
-#include <string>
-#include "common/common.h"
-#include "common/tabletuple.h"
-#include "storage/table.h"
+#include "streaming/WindowIterator.h"
+#include "streaming/WindowTableTemp.h"
 
-namespace tableutil {
+namespace voltdb {
 
-bool getRandomTuple(const voltdb::Table* table, voltdb::TableTuple &out);
-bool setRandomTupleValues(voltdb::Table* table, voltdb::TableTuple *tuple);
-bool addRandomTuples(voltdb::Table* table, int num_of_tuples);
-bool addRandomTuplesFixedColumn(voltdb::Table* table, int num_of_tuples, int colID, voltdb::NValue colVal);
 
-bool copy(const voltdb::Table* from_table, voltdb::Table* to_table);
-bool equals(const voltdb::Table* table, voltdb::TableTuple *tuple0, voltdb::TableTuple *tuple1);
-bool getTupleAt(const voltdb::Table* table, int64_t position, voltdb::TableTuple &out);
-
+WindowIterator::WindowIterator(Table *t)
+{
+    //wtable = static_cast<PersistentTable*>(table);
+    table = t;
+    current_tuple_id = 0;
+    current_tuple = new TableTuple(table->schema());
+    is_first = true;
 }
 
-#endif
+WindowIterator::~WindowIterator()
+{
+}
+
+bool WindowIterator::hasNext()
+{
+    WindowTableTemp* wtable = static_cast<WindowTableTemp*>(table);
+
+    if(current_tuple_id == wtable->getNewestTupleID())
+        return false;
+    if(wtable->usedTupleCount() == 0)
+        return false;
+
+    return true;
+}
+
+bool WindowIterator::next(TableTuple &tuple)
+{
+    WindowTableTemp* wtable = static_cast<WindowTableTemp*>(table);
+
+    if(current_tuple_id == wtable->getNewestTupleID()) // we've already returned the last tuple in the chain
+    {
+        //VOLT_DEBUG("No more tuples in the chain.");
+        return false;
+    }
+
+    if(is_first) // this is the first call to next
+    {
+        is_first = false;
+        //VOLT_DEBUG("This is the first tuple in the chain.");
+
+        current_tuple_id = wtable->getOldestTupleID();
+    }
+    else  // advance the iterator to the next tuple in the chain
+    {
+        current_tuple_id = current_tuple->getNextTupleInChain();
+    }
+
+    current_tuple->move(wtable->dataPtrForTuple(current_tuple_id));
+    tuple.move(current_tuple->address());
+
+    //VOLT_DEBUG("current_tuple_id = %d", current_tuple_id);
+
+    return true;
+}
+
+}

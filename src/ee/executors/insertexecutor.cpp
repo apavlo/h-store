@@ -59,6 +59,7 @@
 #include "storage/temptable.h"
 #include "common/types.h"
 #include "storage/WindowTable.h"
+#include "streaming/WindowTableTemp.h"
 #include <sys/time.h>
 #include <time.h>
 #include <cassert>
@@ -265,6 +266,13 @@ int64_t another_timespecDiffNanoseconds(const timespec& end, const timespec& sta
 				if(windowTarget != NULL)
 				{
 					windowTarget->setFireTriggers(false);
+				}
+
+				//TODO: more hacks for a new windowTable version....
+				WindowTableTemp* windowTargetTemp = dynamic_cast<WindowTableTemp*>(persistTarget);
+				if(windowTargetTemp != NULL)
+				{
+					windowTargetTemp->setFireTriggers(false);
 				}
 			}
 

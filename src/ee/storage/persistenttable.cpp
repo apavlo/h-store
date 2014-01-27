@@ -553,7 +553,7 @@ namespace voltdb {
 		//
 		nextFreeTuple(&m_tmpTarget1);
 		m_tupleCount++;
-		VOLT_DEBUG("m_tmpTarget1: %s", m_tmpTarget1.debug("m_tmpTarget1").c_str());
+		//VOLT_DEBUG("m_tmpTarget1: %s", m_tmpTarget1.debug("m_tmpTarget1").c_str());
 
 		//
 		// Then copy the source into the target
@@ -605,7 +605,7 @@ namespace voltdb {
 			new (pool->allocate(sizeof(voltdb::PersistentTableUndoInsertAction)))
 			voltdb::PersistentTableUndoInsertAction(m_tmpTarget1, this, pool, elMark);
 		undoQuantum->registerUndoAction(ptuia);
-		VOLT_DEBUG("Registered UndoAction for new tuple in table '%s'", name().c_str());
+		//VOLT_DEBUG("Registered UndoAction for new tuple in table '%s'", name().c_str());
 
 		// handle any materialized views
 		for (int i = 0; i < m_views.size(); i++) {

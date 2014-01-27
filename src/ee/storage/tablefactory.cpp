@@ -48,11 +48,14 @@
 #include "common/executorcontext.hpp"
 #include "common/debuglog.h"
 #include "common/tabletuple.h"
+#include "common/types.h"
 #include "storage/table.h"
 #include "storage/persistenttable.h"
 #include "storage/streamedtable.h"
 #include "storage/temptable.h"
 #include "storage/WindowTable.h"
+#include "streaming/TupleWindow.h"
+#include "streaming/TimeWindow.h"
 #include "triggers/trigger.h"
 #include "indexes/tableindexfactory.h"
 #include "common/Pool.hpp"
@@ -428,6 +431,254 @@ Table* TableFactory::getWindowTable(
 
     return dynamic_cast<Table*>(table);
 }
+
+////////////////////////////////////////////////////////////////////////////////////////
+//TODO: These are temporary versions of the window table producers, so as not to break any existing code.
+////////////////////////////////////////////////////////////////////////////////////////
+
+Table* TableFactory::getTempWindowTable(
+            voltdb::CatalogId databaseId,
+            ExecutorContext *ctx,
+            const std::string &name,
+            TupleSchema* schema,
+            const std::string* columnNames,
+            int partitionColumn,
+            bool exportEnabled,
+            bool exportOnly,
+            int windowSize,
+            int slideSize,
+            int windowType)
+{
+    std::vector<TableIndexScheme> dummy;
+    std::vector<Trigger*>* dummyTrig = NULL;
+    return getTempWindowTable(databaseId, ctx, name,
+                              schema, columnNames, dummy, dummyTrig, partitionColumn,
+                              exportEnabled, exportOnly, windowSize, slideSize, windowType);
+}
+
+Table* TableFactory::getTempWindowTable(
+            voltdb::CatalogId databaseId,
+            ExecutorContext *ctx,
+            const std::string &name,
+            TupleSchema* schema,
+            const std::string* columnNames,
+            const TableIndexScheme &pkey_index,
+            int partitionColumn,
+            bool exportEnabled,
+            bool exportOnly,
+            int windowSize,
+            int slideSize,
+            int windowType)
+{
+    std::vector<TableIndexScheme> dummy;
+    std::vector<Trigger*>* dummyTrig = NULL;
+    return getTempWindowTable(databaseId, ctx, name, schema, columnNames,
+                              pkey_index, dummy, dummyTrig, partitionColumn,
+                              exportEnabled, exportOnly, windowSize, slideSize, windowType);
+}
+
+Table* TableFactory::getTempWindowTable(
+            voltdb::CatalogId databaseId,
+            ExecutorContext *ctx,
+            const std::string &name,
+            TupleSchema* schema,
+            const std::string* columnNames,
+            const std::vector<TableIndexScheme> &indexes,
+            int partitionColumn,
+            bool exportEnabled,
+            bool exportOnly,
+            int windowSize,
+            int slideSize,
+            int windowType)
+{
+	std::vector<Trigger*>* dummyTrig = NULL;
+	return getTempWindowTable(databaseId, ctx, name, schema, columnNames, indexes,
+							dummyTrig, partitionColumn, exportEnabled, exportOnly, windowSize, slideSize, windowType);
+}
+
+Table* TableFactory::getTempWindowTable(
+            voltdb::CatalogId databaseId,
+            ExecutorContext *ctx,
+            const std::string &name,
+            TupleSchema* schema,
+            const std::string* columnNames,
+            const std::vector<TableIndexScheme> &indexes,
+            std::vector<Trigger*> *triggers,
+            int partitionColumn,
+            bool exportEnabled,
+            bool exportOnly,
+            int windowSize,
+            int slideSize,
+            int windowType)
+{
+    Table *table = NULL;
+
+    if (exportOnly) {
+        table = new StreamedTable(ctx, exportEnabled);
+        TableFactory::initCommon(databaseId, table, name, schema, columnNames, true);
+    }
+    else {
+    	if(windowType == TUPLE_WINDOW)
+    	{
+			table = new TupleWindow(ctx, exportEnabled, windowSize, slideSize);
+			TupleWindow *pTable = dynamic_cast<TupleWindow*>(table);
+			TableFactory::initCommon(databaseId, pTable, name, schema, columnNames, true);
+			pTable->m_indexCount = (int)indexes.size();
+			pTable->m_indexes = new TableIndex*[indexes.size()];
+			pTable->m_partitionColumn = partitionColumn;
+			pTable->addAllTriggers(triggers);
+
+			//if(triggers.size() > 0)
+			if(triggers != NULL)
+				pTable->m_hasTriggers = true;
+			else
+				pTable->m_hasTriggers = false;
+			pTable->m_fireTriggers = false;
+
+			for (int i = 0; i < indexes.size(); ++i) {
+				pTable->m_indexes[i] = TableIndexFactory::getInstance(indexes[i]);
+			}
+			initConstraints(pTable);
+    	}
+
+    	else
+		{
+    		table = new TimeWindow(ctx, exportEnabled, windowSize, slideSize);
+    		TimeWindow *pTable = dynamic_cast<TimeWindow*>(table);
+			TableFactory::initCommon(databaseId, pTable, name, schema, columnNames, true);
+			pTable->m_indexCount = (int)indexes.size();
+			pTable->m_indexes = new TableIndex*[indexes.size()];
+			pTable->m_partitionColumn = partitionColumn;
+			pTable->addAllTriggers(triggers);
+
+			//if(triggers.size() > 0)
+			if(triggers != NULL)
+				pTable->m_hasTriggers = true;
+			else
+				pTable->m_hasTriggers = false;
+			pTable->m_fireTriggers = false;
+
+			for (int i = 0; i < indexes.size(); ++i) {
+				pTable->m_indexes[i] = TableIndexFactory::getInstance(indexes[i]);
+			}
+			initConstraints(pTable);
+		}
+
+    }
+
+    // initialize stats for the table
+    configureStats(databaseId, ctx, name, table);
+    return table;
+}
+
+Table* TableFactory::getTempWindowTable(
+            voltdb::CatalogId databaseId,
+            ExecutorContext *ctx,
+            const std::string &name,
+            TupleSchema* schema,
+            const std::string* columnNames,
+            const TableIndexScheme &pkeyIndex,
+            const std::vector<TableIndexScheme> &indexes,
+            int partitionColumn,
+            bool exportEnabled,
+            bool exportOnly,
+            int windowSize,
+            int slideSize,
+            int windowType)
+{
+	std::vector<Trigger*>* dummyTrig = NULL;
+	return getTempWindowTable(databaseId, ctx, name, schema, columnNames, pkeyIndex,
+							indexes, dummyTrig, partitionColumn, exportEnabled,
+							exportOnly, windowSize, slideSize, windowType);
+}
+
+
+Table* TableFactory::getTempWindowTable(
+            voltdb::CatalogId databaseId,
+            ExecutorContext *ctx,
+            const std::string &name,
+            TupleSchema* schema,
+            const std::string* columnNames,
+            const TableIndexScheme &pkeyIndex,
+            const std::vector<TableIndexScheme> &indexes,
+            std::vector<Trigger*>* triggers,
+            int partitionColumn,
+            bool exportEnabled,
+            bool exportOnly,
+            int windowSize,
+            int slideSize,
+            int windowType)
+{
+    Table *table = NULL;
+
+    if (exportOnly) {
+        table = new StreamedTable(ctx, exportEnabled);
+        TableFactory::initCommon(databaseId, table, name, schema, columnNames, true);
+    }
+    else {
+    	if(windowType == TUPLE_WINDOW)
+    	{
+    		table = new TupleWindow(ctx, exportEnabled, windowSize, slideSize);
+    		TupleWindow *pTable = dynamic_cast<TupleWindow*>(table);
+    		pTable->m_pkeyIndex = TableIndexFactory::getInstance(pkeyIndex);
+			TableFactory::initCommon(databaseId, pTable, name, schema, columnNames, true);
+			pTable->m_partitionColumn = partitionColumn;
+			pTable->addAllTriggers(triggers);
+
+			//if(triggers.size() > 0)
+			if(triggers != NULL)
+				pTable->m_hasTriggers = true;
+			else
+				pTable->m_hasTriggers = false;
+			pTable->m_fireTriggers = false;
+
+			// one for pkey + all the other indexes
+			pTable->m_indexCount = 1 + (int)indexes.size();
+			pTable->m_indexes = new TableIndex*[1 + indexes.size()];
+			pTable->m_indexes[0] = pTable->m_pkeyIndex;
+
+			for (int i = 0; i < indexes.size(); ++i) {
+				pTable->m_indexes[i + 1] = TableIndexFactory::getInstance(indexes[i]);
+			}
+			initConstraints(pTable);
+    	}
+    	else
+    	{
+    		table = new TimeWindow(ctx, exportEnabled, windowSize, slideSize);
+    		TimeWindow *pTable = dynamic_cast<TimeWindow*>(table);
+    		pTable->m_pkeyIndex = TableIndexFactory::getInstance(pkeyIndex);
+			TableFactory::initCommon(databaseId, pTable, name, schema, columnNames, true);
+			pTable->m_partitionColumn = partitionColumn;
+			pTable->addAllTriggers(triggers);
+
+			//if(triggers.size() > 0)
+			if(triggers != NULL)
+				pTable->m_hasTriggers = true;
+			else
+				pTable->m_hasTriggers = false;
+			pTable->m_fireTriggers = false;
+
+			// one for pkey + all the other indexes
+			pTable->m_indexCount = 1 + (int)indexes.size();
+			pTable->m_indexes = new TableIndex*[1 + indexes.size()];
+			pTable->m_indexes[0] = pTable->m_pkeyIndex;
+
+			for (int i = 0; i < indexes.size(); ++i) {
+				pTable->m_indexes[i + 1] = TableIndexFactory::getInstance(indexes[i]);
+			}
+			initConstraints(pTable);
+    	}
+
+    }
+
+    configureStats(databaseId, ctx, name, table);
+
+    return table;
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//END
+//////////////////////////////////////////////////////////////////////////////
 
 
 

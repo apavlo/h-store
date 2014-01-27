@@ -43,25 +43,67 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef HSTORETABLEUTIL_H
-#define HSTORETABLEUTIL_H
+#ifndef HSTORETIMEWINDOW_H
+#define HSTORETIMEWINDOW_H
 
-#include <string>
-#include "common/common.h"
-#include "common/tabletuple.h"
-#include "storage/table.h"
+#include "storage/persistenttable.h"
+#include "streaming/WindowTableTemp.h"
+#include "streaming/WindowIterator.h"
 
-namespace tableutil {
+namespace voltdb {
 
-bool getRandomTuple(const voltdb::Table* table, voltdb::TableTuple &out);
-bool setRandomTupleValues(voltdb::Table* table, voltdb::TableTuple *tuple);
-bool addRandomTuples(voltdb::Table* table, int num_of_tuples);
-bool addRandomTuplesFixedColumn(voltdb::Table* table, int num_of_tuples, int colID, voltdb::NValue colVal);
+class TableColumn;
+class TableIndex;
+class TableIterator;
+class TableFactory;
+class TupleSerializer;
+class SerializeInput;
+class Topend;
+class ReferenceSerializeOutput;
+class ExecutorContext;
+class MaterializedViewMetadata;
+class RecoveryProtoMsg;
+class TableTuple;
 
-bool copy(const voltdb::Table* from_table, voltdb::Table* to_table);
-bool equals(const voltdb::Table* table, voltdb::TableTuple *tuple0, voltdb::TableTuple *tuple1);
-bool getTupleAt(const voltdb::Table* table, int64_t position, voltdb::TableTuple &out);
+class TimeWindow : public WindowTableTemp {
+	friend class TableFactory;
+	friend class TableTuple;
+	friend class TableIndex;
+	friend class TableIterator;
+	friend class PersistentTableStats;
 
+  private:
+	// no default ctor, no copy, no assignment
+	TimeWindow();
+	TimeWindow(TimeWindow const&);
+
+  public:
+	~TimeWindow();
+	TimeWindow(ExecutorContext *ctx, bool exportEnabled, int windowSize, int slideSize = 1);
+
+	int findTSColumn();
+	int getTSColumn();
+	const int32_t& getTS(TableTuple &source);
+
+	// ------------------------------------------------------------------
+	// OPERATIONS
+	// ------------------------------------------------------------------
+	bool insertTuple(TableTuple &source);
+	/**
+	void insertTupleForUndo(TableTuple &source, size_t elMark);
+	//bool updateTuple(TableTuple &source, TableTuple &target, bool updatesIndexes);
+	//void updateTupleForUndo(TableTuple &sourceTuple, TableTuple &targetTuple,
+	//						bool revertIndexes, size_t elMark);
+	bool deleteTuple(TableTuple &tuple, bool deleteAllocatedStrings);
+	void deleteTupleForUndo(voltdb::TableTuple &tupleCopy, size_t elMark);
+
+	std::string debug();
+	*/
+
+  protected:
+	int m_tsColumn;
+	int32_t m_latestTS;
+};
 }
 
 #endif

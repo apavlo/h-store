@@ -294,6 +294,13 @@ CTX.INPUT['storage'] = """
  ReadWriteTracker.cpp
 """
 
+CTX.INPUT['streaming'] = """
+ WindowIterator.cpp
+ WindowTableTemp.cpp
+ TupleWindow.cpp
+ TimeWindow.cpp
+"""
+
 CTX.INPUT['triggers'] = """
  trigger.cpp
  TriggerStats.cpp
@@ -370,6 +377,11 @@ CTX.TESTS['storage'] = """
  tabletuple_export_test
  TupleStreamWrapper_test
  window_test
+"""
+
+CTX.TESTS['streaming'] = """
+ tuplewindow_test
+ timewindow_test
 """
 
 # these are incomplete and out of date. need to be replaced
