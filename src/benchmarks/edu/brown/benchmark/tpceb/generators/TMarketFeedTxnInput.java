@@ -10,7 +10,20 @@ public class TMarketFeedTxnInput {
     public TMarketFeedTxnInput(){
         StatusAndTradeType = new TStatusAndTradeType();
         zz_padding = new char[4];
+        System.out.println("getting to entries");
         Entries = new TTickerEntry[TxnHarnessStructs.max_feed_len];
+        price_quotes = new double[Entries.length];
+        symbols = new String[Entries.length];
+        trade_qtys = new long[Entries.length];
+        System.out.println("Entries length" +Entries.length);
+      /*  for(int i =0; i < Entries.length; i++){
+            System.out.println(Entries.length);
+            System.out.println(Entries[i]);
+            price_quotes[i] = Entries[i].price_quote;
+            symbols[i] = Entries[i].symbol;
+            trade_qtys[i] = Entries[i].trade_qty;
+        }*/
+        
     }
     
     //double[] price_quotes, String status_submitted, String[] symbols, long[] trade_qtys, String type_limit_buy, String type_limit_sell, String type_stop_loss
@@ -18,10 +31,18 @@ public class TMarketFeedTxnInput {
     public ArrayList<Object>InputParameters(){
         ArrayList<Object> para = new ArrayList<Object>();
        System.out.println("in here");
-        para.add(Entries);
+       for(int i =0; i < Entries.length; i++){
+           System.out.println(Entries.length);
+           System.out.println(Entries[i]);
+           price_quotes[i] = Entries[i].price_quote;
+           symbols[i] = Entries[i].symbol;
+           trade_qtys[i] = Entries[i].trade_qty;
+       }
+       System.out.println("compeleted loop");
+        para.add(price_quotes);
         para.add(StatusAndTradeType.status_submitted);
-       // para.add(symbols);
-       // para.add(trade_qtys);
+        para.add(symbols);
+        para.add(trade_qtys);
         para.add(StatusAndTradeType.type_limit_buy);
         para.add(StatusAndTradeType.type_limit_sell);
         para.add(StatusAndTradeType.type_stop_loss);

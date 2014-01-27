@@ -14,12 +14,15 @@ public class MarketExchangeCallback extends MEESUTInterface{
     }
         
     public boolean MarketFeed( TMarketFeedTxnInput pTxnInput ) {
+        System.out.println("populating entries");
         for (int i = 0; i < TxnHarnessStructs.max_feed_len; i++) {
             m_MarketFeedTxnInput.Entries[i] = pTxnInput.Entries[i];
         }
         m_MarketFeedTxnInput.StatusAndTradeType = pTxnInput.StatusAndTradeType;
+        System.out.println("populating successful");
         return (true);
         }
+
     
     private TTradeResultTxnInput    m_TradeResultTxnInput;
     private TMarketFeedTxnInput     m_MarketFeedTxnInput;

@@ -249,6 +249,8 @@ public class TradeOrder extends VoltProcedure {
             
         }
         
+       
+        
         // frame 6: commit (nothing to do) and send_to_market, which is returned with the result
         int eAction = (type_is_market == 1) ? TPCEConstants.eMEEProcessOrder : TPCEConstants.eMEESetLimitOrderTrigger;
         double tax_amount = 10;

@@ -109,16 +109,22 @@ public class TradeResult extends VoltProcedure {
 
     public final SQLStmt insertCashTransaction = new SQLStmt("insert into CASH_TRANSACTION (CT_DTS, CT_T_ID, CT_AMT, CT_NAME) values (?, ?, ?, ?)");
 
-    public VoltTable[] run(long trade_id, float trade_price, String st_completed_id) throws VoltAbortException {
+    public VoltTable[] run(long trade_id, double trade_price, String st_completed_id) throws VoltAbortException {
         System.out.println("In trade result");
         // frame 1: collecting info
         // info about the trade
+        System.out.println(trade_id);
         voltQueueSQL(getTrade, trade_id);
         VoltTable trade = voltExecuteSQL()[0];
+        System.out.println("Successfully got trade row");
         
-        assert trade.getRowCount() == 1;
+      //  assert trade.getRowCount() == 1;
+        if(trade.getRowCount() == 0){
+            System.out.println("Count was 0");
+            
+        }
         VoltTableRow trade_row = trade.fetchRow(0);
-        
+        System.out.println("got first row");
         long acct_id = trade_row.getLong("T_CA_ID");
         String type_id = trade_row.getString("T_TT_ID");
         String symbol = trade_row.getString("T_S_SYMB");
@@ -126,11 +132,13 @@ public class TradeResult extends VoltProcedure {
         double charge = trade_row.getDouble("T_CHRG");
         int is_lifo = (int)(int)trade_row.getLong("T_LIFO");
         int trade_is_cash = (int)trade_row.getLong("T_IS_CASH");
+        System.out.println("Successfully got all values from trade row");
         
         // info about a  type of the trade and customer's holdings for the symbol
         voltQueueSQL(getTradeType, type_id);
         voltQueueSQL(getHoldingSummary, acct_id, symbol);
         VoltTable[] trade_type_hold = voltExecuteSQL();
+        System.out.println("Successfully got trade_type row and holding summary row");
         
         VoltTable trade_type = trade_type_hold[0];
         assert trade_type.getRowCount() == 1;
@@ -139,6 +147,7 @@ public class TradeResult extends VoltProcedure {
         String type_name = trade_type_row.getString("TT_NAME");
         int type_is_sell = (int)(int)trade_type_row.getLong("TT_IS_SELL");
         int type_is_market = (int)trade_type_row.getLong("TT_IS_MRKT");
+        System.out.println("Successfully got values from trade_type row ");
         
         VoltTable hold_sum = trade_type_hold[1];
         int hs_qty = 0;
@@ -147,11 +156,13 @@ public class TradeResult extends VoltProcedure {
             hs_qty = (int)hold_sum.fetchRow(0).getLong("HS_QTY");
         }
         
+        System.out.println("Successfully got values from holding summary row ");
         // frame 2: modifying the customer's holdings
         
         // first, some cusomer's account info
         voltQueueSQL(getCustomerAccount, acct_id);
         VoltTable account = voltExecuteSQL()[0];
+        System.out.println("Successfully got cust acc info ");
         
         assert account.getRowCount() == 1;
         VoltTableRow account_row = account.fetchRow(0);
@@ -160,6 +171,7 @@ public class TradeResult extends VoltProcedure {
         long cust_id = account_row.getLong("CA_C_ID");
         int c_tier = (int)account_row.getLong("C_TIER");
         double acct_bal = account_row.getDouble("CA_BAL");
+        System.out.println("Successfully got info from cust acc info ");
         
        // int tax_status = (int)account_row.getLong("CA_TAX_ST");
         
@@ -215,12 +227,14 @@ public class TradeResult extends VoltProcedure {
                 // execute all updates from the above loop
                 voltExecuteSQL();
             }
+           
                 
             // need to sell more? go short
             if (needed_qty > 0) {
                 voltQueueSQL(insertHoldingHistory, trade_id, trade_id, 0, -needed_qty);
                 voltQueueSQL(insertHolding, trade_id, acct_id, symbol, trade_dts, trade_price, -needed_qty);
                 voltExecuteSQL();
+                
             }
             else if (hs_qty == trade_qty) {
                 voltQueueSQL(deleteHoldingSummary, acct_id, symbol);
@@ -287,7 +301,7 @@ public class TradeResult extends VoltProcedure {
                 voltExecuteSQL();
             }
         }
-        
+        System.out.println("Successfully did insertions/deletions ");
         // frame 3: taxes
         double tax_amount = 10;
        /* if ((tax_status == 1 || tax_status == 2) && sell_value > buy_value) {
@@ -306,7 +320,7 @@ public class TradeResult extends VoltProcedure {
         voltQueueSQL(getSecurity, symbol);
       //  voltQueueSQL(getCustomer, cust_id);
         VoltTable[] sec_cust = voltExecuteSQL();
-        
+        System.out.println("Successfully got security info");
         VoltTable sec = sec_cust[0];
         VoltTable cust = sec_cust[1];
         
@@ -314,8 +328,9 @@ public class TradeResult extends VoltProcedure {
         assert cust.getRowCount() == 1;
         
         VoltTableRow sec_row = sec.fetchRow(0);
-        String s_ex_id = sec_row.getString("S_EX_ID");
+      //  String s_ex_id = sec_row.getString("S_EX_ID");
         String s_name = sec_row.getString("S_NAME");
+        System.out.println("Successfully got sec info from row");
       //  int c_tier = (int)cust.fetchRow(0).getLong("C_TIER");
         
        // voltQueueSQL(getCommissionRate, c_tier, type_id, s_ex_id, trade_qty, trade_qty); // limit to 1 row
@@ -331,7 +346,7 @@ public class TradeResult extends VoltProcedure {
         voltQueueSQL(insertTradeHistory, trade_id, trade_dts, st_completed_id);
         voltQueueSQL(updateBroker, comm_amount, broker_id);
         voltExecuteSQL();
-        
+        System.out.println("Successfully did updates/insertions/deletions ");
         // frame 6: settling the trade
         Calendar cal = Calendar.getInstance();
         cal.setTime(trade_dts);
@@ -365,7 +380,7 @@ public class TradeResult extends VoltProcedure {
             voltQueueSQL(updateCustomerAccount, se_amount, acct_id);
             voltQueueSQL(insertCashTransaction, trade_dts, trade_id, se_amount, type_name +  " " + trade_qty + " shares of " + s_name);
         }
-        
+        System.out.println("Successfully did updates/insertions/deletions 2 ");
        // voltQueueSQL(getCustomerAccountBalance, acct_id);
        // VoltTable bal = voltExecuteSQL()[0];
         
@@ -374,7 +389,7 @@ public class TradeResult extends VoltProcedure {
         
         VoltTable ret_values = trade_result_ret_template.clone(64);
         ret_values.addRow(acct_bal);
-        
+        System.out.println("Successfully did updated volt table ");
         return new VoltTable[] {ret_values};
     }
 }

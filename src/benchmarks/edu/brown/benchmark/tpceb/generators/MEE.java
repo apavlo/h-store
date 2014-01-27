@@ -5,6 +5,8 @@ import java.util.Date;
 import edu.brown.benchmark.tpceb.util.EGenDate;
 import edu.brown.benchmark.tpceb.generators.TDriverCETxnSettings;
 
+import edu.brown.benchmark.tpceb.TPCEConstants.eMEETradeRequestAction;;
+
 
 public class MEE {
     private DriverMEESettings  driverMEESettings;
@@ -15,6 +17,9 @@ public class MEE {
     private MEETradingFloor    tradingFloor;
     private Date           baseTime;
     private Date           currentTime;
+    
+    public TTradeRequest tradeReq;
+    
     public static final int  NO_OUTSTANDING_TRADES = MEETradingFloor.NO_OUTSTANDING_TRADES;
     
     private void AutoSetRNGSeeds( long uniqueID ){
@@ -33,10 +38,12 @@ public class MEE {
         Seed <<= 33;
         Seed += uniqueID;
 
+        System.out.println("setting RNGSeed for ticker tape");
         tickerTape.setRNGSeed( Seed );
         driverMEESettings.cur_TickerTapeRNGSeed = Seed;
-
+        System.out.println("set rngseed");
         Seed |= 0x0000000100000000L;
+        
         tradingFloor.setRNGSeed( Seed );
         driverMEESettings.cur_TradingFloorRNGSeed = Seed;
     }
@@ -48,8 +55,24 @@ public class MEE {
         sut = pSUT;
         this.logger = logger;
         priceBoard = new MEEPriceBoard( tradingTimeSoFar,  baseTime,  currentTime, securityFile, configuredCustomerCount);
+     
+        System.out.println("Creating new ticker tape");
         tickerTape = new MEETickerTape( pSUT,  priceBoard,  baseTime,  currentTime );
+        System.out.println("created new ticker tape");
+        
         tradingFloor = new MEETradingFloor( pSUT,  priceBoard,  tickerTape,  baseTime,  currentTime );
+        
+     // eMEETradeRequestAction val =  ;
+        tradeReq = new TTradeRequest();
+        tradeReq.eAction = eMEETradeRequestAction.eMEEProcessOrder;
+        tradeReq.price_quote = 10.0;
+        tradeReq.symbol = "AMPA";
+        tradeReq.trade_id = 2000000415;
+        tradeReq.trade_qty = 5;
+        tradeReq.trade_type_id = "eLimitBuy";
+        
+        submitTradeRequest(tradeReq);
+        
         logger.sendToLogger("MEE object constructed using c'tor 1 (valid for publication: YES).");
         AutoSetRNGSeeds( uniqueID );
         this.logger.sendToLogger(driverMEESettings);
@@ -62,8 +85,12 @@ public class MEE {
         priceBoard = new MEEPriceBoard( tradingTimeSoFar,  baseTime,  currentTime, securityFile, configuredCustomerCount);
         tickerTape = new MEETickerTape( pSUT,  priceBoard,  baseTime,  currentTime, tickerTapeRNGSeed );
         tradingFloor = new MEETradingFloor( pSUT,  priceBoard,  tickerTape,  baseTime,  currentTime, tradingFloorRNGSeed );
+        
+       
+        
         this.logger.sendToLogger("MEE object constructed using c'tor 2 (valid for publication: NO).");
         this.logger.sendToLogger(driverMEESettings);
+        
     }
 
     public long getTickerTapeRNGSeed(){
@@ -74,6 +101,11 @@ public class MEE {
         return( tradingFloor.getRNGSeed() );
     }
 
+    public TTradeRequest getTradeRequest(){
+        return tradeReq;
+    }
+    
+    
     public void setBaseTime(){
         baseTime = new Date();
     }

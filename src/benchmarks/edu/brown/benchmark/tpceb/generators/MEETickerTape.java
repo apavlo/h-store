@@ -77,6 +77,7 @@ public class MEETickerTape {
     }
 
     public void  PostLimitOrder( TTradeRequest tradeRequest ){
+        System.out.println("trying to post limit order");
         TradeType            eTradeType;
         double      CurrentPrice = -1.0;
         TTickerEntry    pNewEntry = new TTickerEntry();
@@ -117,6 +118,7 @@ public class MEETickerTape {
     }
 
     public void  AddArtificialEntries(){
+        System.out.println("trying to add artificial entries");
         long              SecurityIndex;
         TTickerEntry        TickerEntry = new TTickerEntry();
         int                 TotalEntryCount = 0;
@@ -126,6 +128,7 @@ public class MEETickerTape {
 
         while ( TotalEntryCount < PaddingLimitForTriggers && !inTheMoneyLimitOrderQ.isEmpty() )
         {
+            System.out.println("in the money limit order" + inTheMoneyLimitOrderQ.peek());
             TTickerEntry pEntry = inTheMoneyLimitOrderQ.peek();
             AddToBatch( pEntry );
             inTheMoneyLimitOrderQ.poll();
@@ -147,6 +150,7 @@ public class MEETickerTape {
 
     public void  AddToBatch( TTickerEntry tickerEntry ){
         txnInput.Entries[batchIndex++] = tickerEntry;
+        System.out.println("Ticker Entry:" + tickerEntry);
         if( TxnHarnessStructs.max_feed_len == batchIndex ){
             sut.MarketFeed( txnInput );
             batchIndex = 0;

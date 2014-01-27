@@ -187,11 +187,12 @@ public class TPCEClient extends BenchmarkComponent {
                 countTotal++;
                 egen_clientDriver.driver_ptr.getMEE();
                // return null;
-                return XTRANS[0];
+                return XTRANS[2];
                 
             }
             else{
                 countTotal++;
+                egen_clientDriver.driver_ptr.getMEE();
                 return XTRANS[1];
                 
             }
