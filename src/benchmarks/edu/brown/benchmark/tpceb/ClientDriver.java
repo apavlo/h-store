@@ -66,7 +66,9 @@ public class ClientDriver {
         
         marketExchangeCallback = new MarketExchangeCallback(tradeResultTxnInput, marketFeedTxnInput);
         marketExchangeGenerator = new MEE(0, marketExchangeCallback, logger, securityHandler, 1, configuredCustomerCount);
+        
         marketExchangeGenerator.enableTickerTape();   
+        
     }
     
     public CE getCE(){
@@ -113,6 +115,7 @@ public class ClientDriver {
 
    private MEE                         marketExchangeGenerator;
    private MEESUTInterface             marketExchangeCallback;
+   private MEETradingFloor  marketExchangeTradingFloor;
     
    private SecurityHandler             securityHandler;
 

@@ -711,6 +711,7 @@ public class TradeGenerator implements Iterator<Object[]> {
         currTable = TPCEConstants.TABLENAME_TRADE;
         
         tuple[0] = newTrade.tradeId; // t_id
+        System.out.println("inserted id: "+ newTrade.tradeId);
         tuple[1] = new TimestampType(getCurrentTradeCompletionTime()); // t_dts
         tuple[2] = statusTypeFile.getTupleByIndex(newTrade.tradeStatus.ordinal())[0]; // t_st_id
         tuple[3] = tradeTypeFile.getTupleByIndex(newTrade.tradeType.ordinal())[0]; // t_tt_id
@@ -721,6 +722,7 @@ public class TradeGenerator implements Iterator<Object[]> {
         
         tuple[4] = addTrade.isCash ? 1 : 0; // t_is_cash
         tuple[5] = secHandler.createSymbol(newTrade.secFileIndex, 15); // t_s_symb; CHAR(15)
+        System.out.println("Possible Symbol" + tuple[5]);
         tuple[6] = newTrade.tradeQty; // t_qty
         tuple[7] = newTrade.bidPrice.getDollars(); // t_bid_price
         tuple[8] = newTrade.accId; // t_ca_id
