@@ -73,7 +73,6 @@ TupleWindow::~TupleWindow()
  */
 bool TupleWindow::insertTuple(TableTuple &source)
 {
-	VOLT_DEBUG("TupleWindow: Entering insertTuple");
 	if(!(PersistentTable::insertTuple(source)))
 	{
 		VOLT_DEBUG("TupleWindow: PersistentTable insertTuple failed!!!!!!!!!");
@@ -88,47 +87,43 @@ bool TupleWindow::insertTuple(TableTuple &source)
 		newestTuple.setNextTupleInChain(m_tmpTarget1.getTupleID());
 	}
 
-	VOLT_DEBUG("tupleID: %d", m_tmpTarget1.getTupleID());
+	VOLT_DEBUG("Adding tupleID: %d", m_tmpTarget1.getTupleID());
 
 	if(m_firstTuple)
-		this->m_oldestTupleID = m_tmpTarget1.getTupleID();
-	this->m_newestTupleID = m_tmpTarget1.getTupleID();
+	{
+		setOldestTupleID(m_tmpTarget1.getTupleID());
+		m_firstTuple = false;
+	}
+	setNewestTupleID(m_tmpTarget1.getTupleID());
 
 	markTupleForStaging(m_tmpTarget1);
-
-
-	if(m_firstTuple)
-		m_firstTuple = false;
 
 	if(m_numStagedTuples >= m_slideSize)
 	{
 		//delete all tuples from the chain until there are exactly the window size of tuples
 		while((m_numStagedTuples + m_tupleCount) > m_windowSize)
 		{
-			VOLT_DEBUG("1");
 			if(!(this->removeOldestTuple()))
 			{
 				VOLT_DEBUG("TupleWindow: removeOldestTuple failed!!!!!!!!!!!!!!");
 				return false;
 			}
-			VOLT_DEBUG("2");
 		}
 
 		TableTuple tuple(m_schema);
 		WindowIterator win_itr(this);
-		VOLT_DEBUG("3");
 		while(win_itr.hasNext())
 		{
 			win_itr.next(tuple);
 			markTupleForWindow(tuple);
 		}
-		VOLT_DEBUG("4");
+		//VOLT_DEBUG("TUPLEID: %d", tuple.getTupleID());
 		setNewestWindowTupleID(tuple.getTupleID());
-		VOLT_DEBUG("5");
 		if(hasTriggers())
 			setFireTriggers(true);
-		VOLT_DEBUG("6");
 	}
+	VOLT_DEBUG("OLDEST: %d   NEWEST: %d", m_oldestTupleID, m_newestTupleID);
+	VOLT_DEBUG("CHAIN: %s", printChain().c_str());
 	VOLT_DEBUG("stagedTuples: %d, tupleCount: %d", m_numStagedTuples, m_tupleCount);
 	return true;
 }
