@@ -58,12 +58,11 @@ namespace voltdb {
  */
 #define TABLE_BLOCKSIZE 2097152
 #define MAX_EVICTED_TUPLE_SIZE 2500
-#define TIMESTAMP_COLUMN "TS"
 
-TimeWindow::TimeWindow(ExecutorContext *ctx, bool exportEnabled, int windowSize, int slideSize) : WindowTableTemp(ctx, exportEnabled, windowSize, slideSize)
+TimeWindow::TimeWindow(ExecutorContext *ctx, bool exportEnabled, int windowSize, int slideSize)
+	: WindowTableTemp(ctx, exportEnabled, windowSize, slideSize), TS_COLUMN("TS")
 {
-	m_tsColumn = findTSColumn();
-	assert(m_tsColumn >= 0); //time windows MUST have a time stamp column
+	m_tsColumn = -1;
 	m_latestTS = 0;
 }
 
@@ -71,9 +70,16 @@ TimeWindow::~TimeWindow()
 {
 }
 
-int TimeWindow::findTSColumn()
+void TimeWindow::initWin()
 {
-	return columnIndex(TIMESTAMP_COLUMN);
+	setTSColumn();
+}
+
+void TimeWindow::setTSColumn()
+{
+	m_tsColumn = columnIndex(TS_COLUMN);
+	VOLT_DEBUG("TS COLUMN %s: %d", TS_COLUMN.c_str(), m_tsColumn);
+	assert(m_tsColumn >= 0); //time windows MUST have a time stamp column
 }
 
 int TimeWindow::getTSColumn()
@@ -95,34 +101,37 @@ bool TimeWindow::insertTuple(TableTuple &source)
 		VOLT_DEBUG("TimeWindow: PersistentTable insertTuple failed!!!!!!!!!");
 		return false;
 	}
+	uint32_t curID = this->getTupleID(m_tmpTarget1.address());
 
-	m_tmpTarget1.setTupleID(this->getTupleID(m_tmpTarget1.address()));
+	m_tmpTarget1.setTupleID(curID);
 	if(!m_firstTuple)
 	{
 		TableTuple newestTuple = this->tempTuple();
 		newestTuple.move(this->dataPtrForTuple(m_newestTupleID));
-		newestTuple.setNextTupleInChain(m_tmpTarget1.getTupleID());
+		newestTuple.setNextTupleInChain(curID);
 	}
 
-	VOLT_DEBUG("tupleID: %d", m_tmpTarget1.getTupleID());
+	VOLT_DEBUG("tupleID: %d", curID);
 
 	if(m_firstTuple)
 	{
-		this->m_oldestTupleID = m_tmpTarget1.getTupleID();
+		this->m_oldestTupleID = curID;
 		m_firstTuple = false;
 	}
-	this->m_newestTupleID = m_tmpTarget1.getTupleID();
-
-	markTupleForStaging(m_tmpTarget1);
+	this->m_newestTupleID = curID;
 
 	//start of TimeWindow-specific portion
 	const int32_t ts = getTS(m_tmpTarget1);
-	if(ts >= m_latestTS + m_slideSize)
+
+	if(ts == m_latestTS)
+		markTupleForWindow(m_tmpTarget1);
+
+	else if(ts >= m_latestTS + m_slideSize)
 	{
 		TableTuple tuple(m_schema);
 		tuple.move(this->dataPtrForTuple(m_oldestTupleID));
 		//delete all tuples from the chain until there are exactly the window size of tuples
-		while(this->getTS(tuple) < ts - m_windowSize)
+		while(this->getTS(tuple) <= ts - m_windowSize)
 		{
 			if(!(this->removeOldestTuple()))
 			{
@@ -138,42 +147,84 @@ bool TimeWindow::insertTuple(TableTuple &source)
 			win_itr.next(tuple);
 			markTupleForWindow(tuple);
 		}
-		setNewestWindowTupleID(tuple.getTupleID());
+		setNewestWindowTupleID(getTupleID(tuple.address()));
 		m_latestTS = ts;
 		if(hasTriggers())
 			setFireTriggers(true);
 	}
+
+	else
+		markTupleForStaging(m_tmpTarget1);
+
 	VOLT_DEBUG("stagedTuples: %d, tupleCount: %d", m_numStagedTuples, m_tupleCount);
 	return true;
 }
 
-/**
+
 void TimeWindow::insertTupleForUndo(TableTuple &source, size_t elMark)
 {
+	VOLT_DEBUG("TimeWindow: Entering insertTuple");
 	PersistentTable::insertTupleForUndo(source, elMark);
-	markTupleForStaging(m_tmpTarget1);
 
-	if(m_numStagedTuples >= m_slideSize)
+	uint32_t curID = this->getTupleID(m_tmpTarget1.address());
+
+	m_tmpTarget1.setTupleID(curID);
+	if(!m_firstTuple)
 	{
+		TableTuple newestTuple = this->tempTuple();
+		newestTuple.move(this->dataPtrForTuple(m_newestTupleID));
+		newestTuple.setNextTupleInChain(curID);
+	}
+
+	VOLT_DEBUG("tupleID: %d", curID);
+
+	if(m_firstTuple)
+	{
+		this->m_oldestTupleID = curID;
+		m_firstTuple = false;
+	}
+	this->m_newestTupleID = curID;
+
+	//start of TimeWindow-specific portion
+	const int32_t ts = getTS(m_tmpTarget1);
+
+	if(ts == m_latestTS)
+		markTupleForWindow(m_tmpTarget1);
+
+	else if(ts >= m_latestTS + m_slideSize)
+	{
+		TableTuple tuple(m_schema);
+		tuple.move(this->dataPtrForTuple(m_oldestTupleID));
 		//delete all tuples from the chain until there are exactly the window size of tuples
-		while((m_numStagedTuples + m_tupleCount) > m_windowSize)
+		while(this->getTS(tuple) <= ts - m_windowSize)
 		{
-			this->removeOldestTuple();
+			if(!(this->removeOldestTuple()))
+			{
+				VOLT_DEBUG("TimeWindow: removeOldestTuple failed!!!!!!!!!!!!!!");
+				return;
+			}
+			tuple.move(this->dataPtrForTuple(m_oldestTupleID));
 		}
 
-		TableTuple tuple(m_schema);
 		WindowIterator win_itr(this);
 		while(win_itr.hasNext())
 		{
 			win_itr.next(tuple);
 			markTupleForWindow(tuple);
 		}
-		setNewestWindowTupleID(tuple.getTupleID());
+		setNewestWindowTupleID(getTupleID(tuple.address()));
+		m_latestTS = ts;
 		if(hasTriggers())
 			setFireTriggers(true);
 	}
+
+	else
+		markTupleForStaging(m_tmpTarget1);
+
+	VOLT_DEBUG("stagedTuples: %d, tupleCount: %d", m_numStagedTuples, m_tupleCount);
 }
 
+/**
 //TODO: the tuple pointers aren't quite working right.  Fortunately we rarely delete from windows.
 bool TimeWindow::deleteTuple(TableTuple &tuple, bool deleteAllocatedStrings)
 {

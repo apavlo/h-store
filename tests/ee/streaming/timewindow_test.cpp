@@ -73,7 +73,7 @@ using std::vector;
 using namespace voltdb;
 
 #define NUM_OF_COLUMNS 3
-#define NUM_OF_TUPLES 5
+#define NUM_OF_TUPLES 3
 #define WINDOW_SIZE 3
 #define SLIDE_SIZE 2
 #define TS_COL 0
@@ -90,6 +90,7 @@ bool COLUMN_ALLOW_NULLS[NUM_OF_COLUMNS]         = { true, true, true };
 class TimeWindowTest : public Test {
     public:
         TimeWindowTest() : table(NULL), window_table(NULL) {
+        	VOLT_DEBUG("CONSTRUCTOR");
         	m_engine = new voltdb::VoltDBEngine();
         	m_engine->initialize(1,1, 0, 0, "");
 
@@ -134,12 +135,19 @@ class TimeWindowTest : public Test {
 			//NValue ts = ValueFactory::getIntegerValue(0);
             assert(tableutil::addRandomTuplesFixedColumn(this->table, NUM_OF_TUPLES,
             					TS_COL, ValueFactory::getIntegerValue(0)));
+            VOLT_DEBUG("Initial Table (0): %s", table->debug().c_str());
             assert(tableutil::addRandomTuplesFixedColumn(this->table, NUM_OF_TUPLES,
                         		TS_COL, ValueFactory::getIntegerValue(1)));
+            VOLT_DEBUG("Initial Table (1): %s", table->debug().c_str());
             assert(tableutil::addRandomTuplesFixedColumn(this->table, NUM_OF_TUPLES,
                         		TS_COL, ValueFactory::getIntegerValue(2)));
+            VOLT_DEBUG("Initial Table (2): %s", table->debug().c_str());
             assert(tableutil::addRandomTuplesFixedColumn(this->table, NUM_OF_TUPLES,
                         		TS_COL, ValueFactory::getIntegerValue(3)));
+            VOLT_DEBUG("Initial Table (3): %s", table->debug().c_str());
+            assert(tableutil::addRandomTuplesFixedColumn(this->table, NUM_OF_TUPLES,
+                                    		TS_COL, ValueFactory::getIntegerValue(4)));
+            VOLT_DEBUG("Initial Table (4): %s", table->debug().c_str());
 			//VOLT_DEBUG("TABLE SIZE: %d", int(table->activeTupleCount()));
             //VOLT_DEBUG("TEST ASSERT END");
 
@@ -155,7 +163,7 @@ class TimeWindowTest : public Test {
 
 
 };
-/**
+
 TEST_F(TimeWindowTest, ValueTypes) {
     //
     // Make sure that our table has the right types and that when
@@ -172,7 +180,7 @@ TEST_F(TimeWindowTest, ValueTypes) {
     }
     VOLT_DEBUG("END VALUE TYPES");
 }
-*/
+
 /**
 TEST_F(TimeWindowTest, TupleInsert) {
     //

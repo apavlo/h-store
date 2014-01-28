@@ -67,6 +67,11 @@ TupleWindow::~TupleWindow()
 {
 }
 
+void TupleWindow::initWin()
+{
+	//empty
+}
+
 
 /**
  *
@@ -79,22 +84,23 @@ bool TupleWindow::insertTuple(TableTuple &source)
 		return false;
 	}
 
-	m_tmpTarget1.setTupleID(this->getTupleID(m_tmpTarget1.address()));
+	uint32_t curID = this->getTupleID(m_tmpTarget1.address());
+	m_tmpTarget1.setTupleID(curID);
 	if(!m_firstTuple)
 	{
 		TableTuple newestTuple = this->tempTuple();
 		newestTuple.move(this->dataPtrForTuple(m_newestTupleID));
-		newestTuple.setNextTupleInChain(m_tmpTarget1.getTupleID());
+		newestTuple.setNextTupleInChain(curID);
 	}
 
-	VOLT_DEBUG("Adding tupleID: %d", m_tmpTarget1.getTupleID());
+	VOLT_DEBUG("Adding tupleID: %d", curID);
 
 	if(m_firstTuple)
 	{
-		setOldestTupleID(m_tmpTarget1.getTupleID());
+		setOldestTupleID(curID);
 		m_firstTuple = false;
 	}
-	setNewestTupleID(m_tmpTarget1.getTupleID());
+	setNewestTupleID(curID);
 
 	markTupleForStaging(m_tmpTarget1);
 
@@ -117,8 +123,8 @@ bool TupleWindow::insertTuple(TableTuple &source)
 			win_itr.next(tuple);
 			markTupleForWindow(tuple);
 		}
-		//VOLT_DEBUG("TUPLEID: %d", tuple.getTupleID());
-		setNewestWindowTupleID(tuple.getTupleID());
+
+		setNewestWindowTupleID(getTupleID(tuple.address()));
 		if(hasTriggers())
 			setFireTriggers(true);
 	}
@@ -132,6 +138,25 @@ bool TupleWindow::insertTuple(TableTuple &source)
 void TupleWindow::insertTupleForUndo(TableTuple &source, size_t elMark)
 {
 	PersistentTable::insertTupleForUndo(source, elMark);
+
+	uint32_t curID = this->getTupleID(m_tmpTarget1.address());
+	m_tmpTarget1.setTupleID(curID);
+	if(!m_firstTuple)
+	{
+		TableTuple newestTuple = this->tempTuple();
+		newestTuple.move(this->dataPtrForTuple(m_newestTupleID));
+		newestTuple.setNextTupleInChain(curID);
+	}
+
+	VOLT_DEBUG("Adding tupleID: %d", curID);
+
+	if(m_firstTuple)
+	{
+		setOldestTupleID(curID);
+		m_firstTuple = false;
+	}
+	setNewestTupleID(curID);
+
 	markTupleForStaging(m_tmpTarget1);
 
 	if(m_numStagedTuples >= m_slideSize)
@@ -139,7 +164,11 @@ void TupleWindow::insertTupleForUndo(TableTuple &source, size_t elMark)
 		//delete all tuples from the chain until there are exactly the window size of tuples
 		while((m_numStagedTuples + m_tupleCount) > m_windowSize)
 		{
-			this->removeOldestTuple();
+			if(!(this->removeOldestTuple()))
+			{
+				VOLT_DEBUG("TupleWindow: removeOldestTuple failed!!!!!!!!!!!!!!");
+				return;
+			}
 		}
 
 		TableTuple tuple(m_schema);
@@ -149,10 +178,14 @@ void TupleWindow::insertTupleForUndo(TableTuple &source, size_t elMark)
 			win_itr.next(tuple);
 			markTupleForWindow(tuple);
 		}
-		setNewestWindowTupleID(tuple.getTupleID());
+
+		setNewestWindowTupleID(getTupleID(tuple.address()));
 		if(hasTriggers())
 			setFireTriggers(true);
 	}
+	VOLT_DEBUG("OLDEST: %d   NEWEST: %d", m_oldestTupleID, m_newestTupleID);
+	VOLT_DEBUG("CHAIN: %s", printChain().c_str());
+	VOLT_DEBUG("stagedTuples: %d, tupleCount: %d", m_numStagedTuples, m_tupleCount);
 }
 
 //TODO: the tuple pointers aren't quite working right.  Fortunately we rarely delete from windows.
@@ -161,7 +194,7 @@ bool TupleWindow::deleteTuple(TableTuple &tuple, bool deleteAllocatedStrings)
 	VOLT_DEBUG("TUPLEWINDOW DELETETUPLE");
 	WindowIterator win_itr(this);
 	TableTuple curtup = tempTuple();
-	uint32_t currentTupleID = tuple.getTupleID();
+	uint32_t currentTupleID = getTupleID(tuple.address());
 	uint32_t nextTupleID = tuple.getNextTupleInChain();
 
 	//if there are no tuples to delete
@@ -207,7 +240,7 @@ void TupleWindow::deleteTupleForUndo(voltdb::TableTuple &tupleCopy, size_t elMar
 	VOLT_DEBUG("TUPLEWINDOW DELETETUPLE");
 	WindowIterator win_itr(this);
 	TableTuple curtup = tempTuple();
-	uint32_t currentTupleID = tupleCopy.getTupleID();
+	uint32_t currentTupleID = getTupleID(tupleCopy.address());
 	uint32_t nextTupleID = tupleCopy.getNextTupleInChain();
 
 	//if there are no tuples to delete
@@ -245,34 +278,6 @@ void TupleWindow::deleteTupleForUndo(voltdb::TableTuple &tupleCopy, size_t elMar
 	//	resetWindow();
 
 	PersistentTable::deleteTupleForUndo(tupleCopy, elMark);
-}
-
-std::string TupleWindow::debug()
-{
-	std::ostringstream output;
-	WindowIterator win_itr(this);
-	TableTuple tuple(m_schema);
-	int stageID = 0;
-	int winID = 0;
-
-	output << "DEBUG TABLE SIZE: " << int(m_tupleCount) << " tuples, " << int(m_numStagedTuples) << " staged\n";
-	while(win_itr.hasNext())
-	{
-		win_itr.next(tuple);
-		if(tupleStaged(tuple))
-		{
-			output << "STAGED " << stageID << ": ";
-			stageID++;
-		}
-		else
-		{
-			output << "WINDOW " << winID << ": ";
-			winID++;
-		}
-		output << tuple.debug("").c_str() << "\n";
-
-	}
-	return output.str();
 }
 
 }

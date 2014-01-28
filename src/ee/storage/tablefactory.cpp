@@ -518,51 +518,35 @@ Table* TableFactory::getTempWindowTable(
         TableFactory::initCommon(databaseId, table, name, schema, columnNames, true);
     }
     else {
+    	WindowTableTemp *pTable;
     	if(windowType == TUPLE_WINDOW)
     	{
 			table = new TupleWindow(ctx, exportEnabled, windowSize, slideSize);
-			TupleWindow *pTable = dynamic_cast<TupleWindow*>(table);
-			TableFactory::initCommon(databaseId, pTable, name, schema, columnNames, true);
-			pTable->m_indexCount = (int)indexes.size();
-			pTable->m_indexes = new TableIndex*[indexes.size()];
-			pTable->m_partitionColumn = partitionColumn;
-			pTable->addAllTriggers(triggers);
-
-			//if(triggers.size() > 0)
-			if(triggers != NULL)
-				pTable->m_hasTriggers = true;
-			else
-				pTable->m_hasTriggers = false;
-			pTable->m_fireTriggers = false;
-
-			for (int i = 0; i < indexes.size(); ++i) {
-				pTable->m_indexes[i] = TableIndexFactory::getInstance(indexes[i]);
-			}
-			initConstraints(pTable);
+			pTable = dynamic_cast<TupleWindow*>(table);
     	}
-
     	else
 		{
-    		table = new TimeWindow(ctx, exportEnabled, windowSize, slideSize);
-    		TimeWindow *pTable = dynamic_cast<TimeWindow*>(table);
-			TableFactory::initCommon(databaseId, pTable, name, schema, columnNames, true);
-			pTable->m_indexCount = (int)indexes.size();
-			pTable->m_indexes = new TableIndex*[indexes.size()];
-			pTable->m_partitionColumn = partitionColumn;
-			pTable->addAllTriggers(triggers);
-
-			//if(triggers.size() > 0)
-			if(triggers != NULL)
-				pTable->m_hasTriggers = true;
-			else
-				pTable->m_hasTriggers = false;
-			pTable->m_fireTriggers = false;
-
-			for (int i = 0; i < indexes.size(); ++i) {
-				pTable->m_indexes[i] = TableIndexFactory::getInstance(indexes[i]);
-			}
-			initConstraints(pTable);
+			table = new TimeWindow(ctx, exportEnabled, windowSize, slideSize);
+			pTable = dynamic_cast<TimeWindow*>(table);
 		}
+    	TableFactory::initCommon(databaseId, pTable, name, schema, columnNames, true);
+		pTable->m_indexCount = (int)indexes.size();
+		pTable->m_indexes = new TableIndex*[indexes.size()];
+		pTable->m_partitionColumn = partitionColumn;
+		pTable->addAllTriggers(triggers);
+		pTable->initWin();
+
+		//if(triggers.size() > 0)
+		if(triggers != NULL)
+			pTable->m_hasTriggers = true;
+		else
+			pTable->m_hasTriggers = false;
+		pTable->m_fireTriggers = false;
+
+		for (int i = 0; i < indexes.size(); ++i) {
+			pTable->m_indexes[i] = TableIndexFactory::getInstance(indexes[i]);
+		}
+		initConstraints(pTable);
 
     }
 
@@ -616,58 +600,39 @@ Table* TableFactory::getTempWindowTable(
         TableFactory::initCommon(databaseId, table, name, schema, columnNames, true);
     }
     else {
+    	WindowTableTemp* pTable;
     	if(windowType == TUPLE_WINDOW)
     	{
     		table = new TupleWindow(ctx, exportEnabled, windowSize, slideSize);
-    		TupleWindow *pTable = dynamic_cast<TupleWindow*>(table);
-    		pTable->m_pkeyIndex = TableIndexFactory::getInstance(pkeyIndex);
-			TableFactory::initCommon(databaseId, pTable, name, schema, columnNames, true);
-			pTable->m_partitionColumn = partitionColumn;
-			pTable->addAllTriggers(triggers);
-
-			//if(triggers.size() > 0)
-			if(triggers != NULL)
-				pTable->m_hasTriggers = true;
-			else
-				pTable->m_hasTriggers = false;
-			pTable->m_fireTriggers = false;
-
-			// one for pkey + all the other indexes
-			pTable->m_indexCount = 1 + (int)indexes.size();
-			pTable->m_indexes = new TableIndex*[1 + indexes.size()];
-			pTable->m_indexes[0] = pTable->m_pkeyIndex;
-
-			for (int i = 0; i < indexes.size(); ++i) {
-				pTable->m_indexes[i + 1] = TableIndexFactory::getInstance(indexes[i]);
-			}
-			initConstraints(pTable);
+    		pTable = dynamic_cast<TupleWindow*>(table);
     	}
     	else
     	{
     		table = new TimeWindow(ctx, exportEnabled, windowSize, slideSize);
-    		TimeWindow *pTable = dynamic_cast<TimeWindow*>(table);
-    		pTable->m_pkeyIndex = TableIndexFactory::getInstance(pkeyIndex);
-			TableFactory::initCommon(databaseId, pTable, name, schema, columnNames, true);
-			pTable->m_partitionColumn = partitionColumn;
-			pTable->addAllTriggers(triggers);
-
-			//if(triggers.size() > 0)
-			if(triggers != NULL)
-				pTable->m_hasTriggers = true;
-			else
-				pTable->m_hasTriggers = false;
-			pTable->m_fireTriggers = false;
-
-			// one for pkey + all the other indexes
-			pTable->m_indexCount = 1 + (int)indexes.size();
-			pTable->m_indexes = new TableIndex*[1 + indexes.size()];
-			pTable->m_indexes[0] = pTable->m_pkeyIndex;
-
-			for (int i = 0; i < indexes.size(); ++i) {
-				pTable->m_indexes[i + 1] = TableIndexFactory::getInstance(indexes[i]);
-			}
-			initConstraints(pTable);
+    		pTable = dynamic_cast<TimeWindow*>(table);
     	}
+		pTable->m_pkeyIndex = TableIndexFactory::getInstance(pkeyIndex);
+		TableFactory::initCommon(databaseId, pTable, name, schema, columnNames, true);
+		pTable->m_partitionColumn = partitionColumn;
+		pTable->addAllTriggers(triggers);
+
+		//if(triggers.size() > 0)
+		if(triggers != NULL)
+			pTable->m_hasTriggers = true;
+		else
+			pTable->m_hasTriggers = false;
+		pTable->m_fireTriggers = false;
+
+		// one for pkey + all the other indexes
+		pTable->m_indexCount = 1 + (int)indexes.size();
+		pTable->m_indexes = new TableIndex*[1 + indexes.size()];
+		pTable->m_indexes[0] = pTable->m_pkeyIndex;
+		pTable->initWin();
+
+		for (int i = 0; i < indexes.size(); ++i) {
+			pTable->m_indexes[i + 1] = TableIndexFactory::getInstance(indexes[i]);
+		}
+		initConstraints(pTable);
 
     }
 
