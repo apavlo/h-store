@@ -50,6 +50,7 @@
 
 #include "boost/scoped_ptr.hpp"
 #include "streaming/WindowTableTemp.h"
+#include "streaming/WindowIterator.h"
 
 #include <map>
 
@@ -116,6 +117,7 @@ bool WindowTableTemp::removeOldestTuple()
 
 	TableTuple tuple = this->tempTuple();
 	tuple.move(this->dataPtrForTuple(m_oldestTupleID));
+	VOLT_DEBUG("DELETING OLDEST TUPLE: %d", m_oldestTupleID);
 
 	if(m_oldestTupleID == m_newestTupleID)
 	{
@@ -126,6 +128,7 @@ bool WindowTableTemp::removeOldestTuple()
 	}
 	else
 		m_oldestTupleID = tuple.getNextTupleInChain();
+	VOLT_DEBUG("OLDEST TUPLE: %d  NEWEST TUPLE: %d", m_oldestTupleID, m_newestTupleID);
 
 	//TODO: This is a hack due to the fact that we're using the deletedFlag.  We're setting this tuple
 	//to a non-deleted state so that the delete command will work.  This is horrible and needs to be fixed.
@@ -191,6 +194,23 @@ void WindowTableTemp::setNumStagedTuples(int numTuples)
 int WindowTableTemp::getNumStagedTuples()
 {
 	return m_numStagedTuples;
+}
+
+std::string WindowTableTemp::printChain()
+{
+	std::ostringstream output;
+	WindowIterator win_itr(this);
+	TableTuple tuple(m_schema);
+	while(win_itr.hasNext())
+	{
+		win_itr.next(tuple);
+		output << tuple.getTupleID();
+		if(tupleStaged(tuple))
+			output << "(S)";
+		output << ",";
+	}
+	output << "\n";
+	return output.str();
 }
 
 }

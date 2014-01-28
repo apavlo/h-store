@@ -49,6 +49,7 @@
 
 #include "storage/TupleIterator.h"
 #include "storage/table.h"
+#include "streaming/WindowTableTemp.h"
 
 namespace voltdb {
 
@@ -57,7 +58,7 @@ class WindowIterator : public TupleIterator
 
 public:
 
-    WindowIterator(Table* t);
+    WindowIterator(WindowTableTemp* t);
     ~WindowIterator();
 
     bool hasNext();
@@ -65,7 +66,7 @@ public:
 
 private:
 
-    Table *table;
+    WindowTableTemp *wtable;
     uint32_t current_tuple_id;
     TableTuple* current_tuple;
     bool is_first;

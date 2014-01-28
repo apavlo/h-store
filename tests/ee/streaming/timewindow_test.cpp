@@ -74,7 +74,7 @@ using namespace voltdb;
 
 #define NUM_OF_COLUMNS 3
 #define NUM_OF_TUPLES 5
-#define WINDOW_SIZE 4
+#define WINDOW_SIZE 3
 #define SLIDE_SIZE 2
 #define TS_COL 0
 

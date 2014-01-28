@@ -50,12 +50,11 @@
 namespace voltdb {
 
 
-WindowIterator::WindowIterator(Table *t)
+WindowIterator::WindowIterator(WindowTableTemp *t)
 {
-    //wtable = static_cast<PersistentTable*>(table);
-    table = t;
-    current_tuple_id = 0;
-    current_tuple = new TableTuple(table->schema());
+    wtable = t;
+    current_tuple_id = -1;
+    current_tuple = new TableTuple(wtable->schema());
     is_first = true;
 }
 
@@ -65,7 +64,7 @@ WindowIterator::~WindowIterator()
 
 bool WindowIterator::hasNext()
 {
-    WindowTableTemp* wtable = static_cast<WindowTableTemp*>(table);
+    //WindowTableTemp* wtable = static_cast<WindowTableTemp*>(table);
 
     if(current_tuple_id == wtable->getNewestTupleID())
         return false;
@@ -77,7 +76,7 @@ bool WindowIterator::hasNext()
 
 bool WindowIterator::next(TableTuple &tuple)
 {
-    WindowTableTemp* wtable = static_cast<WindowTableTemp*>(table);
+    //WindowTableTemp* wtable = static_cast<WindowTableTemp*>(table);
 
     if(current_tuple_id == wtable->getNewestTupleID()) // we've already returned the last tuple in the chain
     {
@@ -99,6 +98,7 @@ bool WindowIterator::next(TableTuple &tuple)
 
     current_tuple->move(wtable->dataPtrForTuple(current_tuple_id));
     tuple.move(current_tuple->address());
+    VOLT_DEBUG("CURRENT_TUPLE_ID: %d, CURRENT_TUPLE: %d, TUPLE: %d", current_tuple_id, current_tuple->getTupleID(), tuple.getTupleID());
 
     //VOLT_DEBUG("current_tuple_id = %d", current_tuple_id);
 
