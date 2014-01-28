@@ -63,7 +63,7 @@ public class MEE {
         tradingFloor = new MEETradingFloor( pSUT,  priceBoard,  tickerTape,  baseTime,  currentTime );
         
      // eMEETradeRequestAction val =  ;
-        tradeReq = new TTradeRequest();
+      /*  tradeReq = new TTradeRequest();
         tradeReq.eAction = eMEETradeRequestAction.eMEEProcessOrder;
         tradeReq.price_quote = 10.0;
         tradeReq.symbol = "AMPA";
@@ -71,7 +71,7 @@ public class MEE {
         tradeReq.trade_qty = 5;
         tradeReq.trade_type_id = "eLimitBuy";
         
-        submitTradeRequest(tradeReq);
+        submitTradeRequest(tradeReq);*/
         
         logger.sendToLogger("MEE object constructed using c'tor 1 (valid for publication: YES).");
         AutoSetRNGSeeds( uniqueID );

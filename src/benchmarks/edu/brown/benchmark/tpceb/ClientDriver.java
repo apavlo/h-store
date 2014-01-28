@@ -28,13 +28,8 @@
  ***************************************************************************/
 package edu.brown.benchmark.tpceb;
 
-import edu.brown.benchmark.tpceb.generators.MEE;
-import edu.brown.benchmark.tpceb.generators.MEESUTInterface;
-import edu.brown.benchmark.tpceb.generators.MarketExchangeCallback;
-import edu.brown.benchmark.tpceb.generators.TMarketFeedTxnInput;
-import edu.brown.benchmark.tpceb.generators.TMarketWatchTxnInput;
-import edu.brown.benchmark.tpceb.generators.TTradeResultTxnInput;
 import edu.brown.benchmark.tpceb.TPCEConstants.DriverType;
+import edu.brown.benchmark.tpceb.TPCEConstants.eMEETradeRequestAction;
 import edu.brown.benchmark.tpceb.generators.*;
 
 import java.io.File;
@@ -67,6 +62,15 @@ public class ClientDriver {
         marketExchangeCallback = new MarketExchangeCallback(tradeResultTxnInput, marketFeedTxnInput);
         marketExchangeGenerator = new MEE(0, marketExchangeCallback, logger, securityHandler, 1, configuredCustomerCount);
         
+        tradeReq = new TTradeRequest();
+        tradeReq.eAction = eMEETradeRequestAction.eMEESetLimitOrderTrigger;
+        tradeReq.price_quote = 10.0;
+        tradeReq.symbol = "HYBD";
+        tradeReq.trade_id = 2000000415;
+        tradeReq.trade_qty = 5;
+        tradeReq.trade_type_id = "TLS";
+        
+        marketExchangeGenerator.submitTradeRequest(tradeReq);
         marketExchangeGenerator.enableTickerTape();   
         
     }
@@ -102,6 +106,7 @@ public class ClientDriver {
         return (tradeResultTxnInput);
     }
 
+   public TTradeRequest tradeReq;
    private TTradeOrderTxnInput         tradeOrderTxnInput;
    private TTradeResultTxnInput        tradeResultTxnInput;
    private TMarketWatchTxnInput        marketWatchTxnInput;

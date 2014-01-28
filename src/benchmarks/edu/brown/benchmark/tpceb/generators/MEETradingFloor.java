@@ -59,6 +59,7 @@ public class MEETradingFloor {
         switch( tradeReq.eAction ){
         case eMEEProcessOrder:
             {
+                System.out.println("in eMEEProcessOrder - fails");
                 return( orderTimers.startTimer( genProcessingDelay( orderProcessingDelayMean )));
             }
         case eMEESetLimitOrderTrigger:
