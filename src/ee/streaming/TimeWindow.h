@@ -81,7 +81,8 @@ class TimeWindow : public WindowTableTemp {
 	~TimeWindow();
 	TimeWindow(ExecutorContext *ctx, bool exportEnabled, int windowSize, int slideSize = 1);
 
-	int findTSColumn();
+	void initWin();
+	void setTSColumn();
 	int getTSColumn();
 	const int32_t& getTS(TableTuple &source);
 
@@ -89,8 +90,8 @@ class TimeWindow : public WindowTableTemp {
 	// OPERATIONS
 	// ------------------------------------------------------------------
 	bool insertTuple(TableTuple &source);
-	/**
 	void insertTupleForUndo(TableTuple &source, size_t elMark);
+	/**
 	//bool updateTuple(TableTuple &source, TableTuple &target, bool updatesIndexes);
 	//void updateTupleForUndo(TableTuple &sourceTuple, TableTuple &targetTuple,
 	//						bool revertIndexes, size_t elMark);
@@ -103,6 +104,7 @@ class TimeWindow : public WindowTableTemp {
   protected:
 	int m_tsColumn;
 	int32_t m_latestTS;
+	const std::string TS_COLUMN;
 };
 }
 

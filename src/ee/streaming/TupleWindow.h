@@ -81,6 +81,7 @@ class TupleWindow : public WindowTableTemp {
 	~TupleWindow();
 	TupleWindow(ExecutorContext *ctx, bool exportEnabled, int windowSize, int slideSize = 1);
 
+	void initWin();
 	// ------------------------------------------------------------------
 	// OPERATIONS
 	// ------------------------------------------------------------------
@@ -91,8 +92,6 @@ class TupleWindow : public WindowTableTemp {
 	//						bool revertIndexes, size_t elMark);
 	bool deleteTuple(TableTuple &tuple, bool deleteAllocatedStrings);
 	void deleteTupleForUndo(voltdb::TableTuple &tupleCopy, size_t elMark);
-
-	std::string debug();
 
 
   protected:

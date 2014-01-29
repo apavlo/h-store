@@ -98,7 +98,6 @@ bool WindowIterator::next(TableTuple &tuple)
 
     current_tuple->move(wtable->dataPtrForTuple(current_tuple_id));
     tuple.move(current_tuple->address());
-    VOLT_DEBUG("CURRENT_TUPLE_ID: %d, CURRENT_TUPLE: %d, TUPLE: %d", current_tuple_id, current_tuple->getTupleID(), tuple.getTupleID());
 
     //VOLT_DEBUG("current_tuple_id = %d", current_tuple_id);
 

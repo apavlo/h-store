@@ -117,7 +117,6 @@ bool WindowTableTemp::removeOldestTuple()
 
 	TableTuple tuple = this->tempTuple();
 	tuple.move(this->dataPtrForTuple(m_oldestTupleID));
-	VOLT_DEBUG("DELETING OLDEST TUPLE: %d", m_oldestTupleID);
 
 	if(m_oldestTupleID == m_newestTupleID)
 	{
@@ -204,12 +203,40 @@ std::string WindowTableTemp::printChain()
 	while(win_itr.hasNext())
 	{
 		win_itr.next(tuple);
-		output << tuple.getTupleID();
+		output << getTupleID(tuple.address());
 		if(tupleStaged(tuple))
 			output << "(S)";
 		output << ",";
 	}
 	output << "\n";
+	return output.str();
+}
+
+std::string WindowTableTemp::debug()
+{
+	std::ostringstream output;
+	WindowIterator win_itr(this);
+	TableTuple tuple(m_schema);
+	int stageID = 0;
+	int winID = 0;
+
+	output << "DEBUG TABLE SIZE: " << int(m_tupleCount) << " tuples, " << int(m_numStagedTuples) << " staged\n";
+	while(win_itr.hasNext())
+	{
+		win_itr.next(tuple);
+		if(tupleStaged(tuple))
+		{
+			output << "STAGED " << stageID << ": ";
+			stageID++;
+		}
+		else
+		{
+			output << "WINDOW " << winID << ": ";
+			winID++;
+		}
+		output << tuple.debug("").c_str() << "\n";
+
+	}
 	return output.str();
 }
 

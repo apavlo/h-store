@@ -115,6 +115,10 @@ class WindowTableTemp : public PersistentTable {
 	void setNumStagedTuples(int numTuples);
 	int getNumStagedTuples();
 
+	std::string debug();
+
+	virtual void initWin() {}//every window type must have an initialize function
+
 
   protected:
 	int m_windowSize;
