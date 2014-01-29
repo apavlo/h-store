@@ -12,7 +12,7 @@ public class MEEPriceBoard {
         security = new MEESecurity();
         this.securityFile = securityFile;
         numberOfSecurities = 0;
-        
+        System.out.println("meepriceboard current time" + currentTime);
         numberOfSecurities = SecurityHandler.getSecurityNum(configuredCustomerCount);
         security.init( tradingTimeSoFar, baseTime, currentTime, fMeanInTheMoneySubmissionDelay );
         securityFile.loadSymbolToIdMap();

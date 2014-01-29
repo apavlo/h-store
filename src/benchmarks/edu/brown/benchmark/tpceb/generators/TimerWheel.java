@@ -40,6 +40,9 @@ public class TimerWheel {
         this.expiryData = expiryData;
         this.expiryObject = expiryObject;
         this.expiryFunction = expiryFunction;
+        System.out.println("expiry data" + expiryData);
+        System.out.println("expiry object" + expiryObject);
+        System.out.println("expiry function" + expiryFunction);
      }
      
     public boolean  empty(){

@@ -1,10 +1,10 @@
 package edu.brown.benchmark.tpceb.generators;
 
+import java.util.Calendar;
 import java.util.Date;
 
 import edu.brown.benchmark.tpceb.util.EGenDate;
 import edu.brown.benchmark.tpceb.generators.TDriverCETxnSettings;
-
 import edu.brown.benchmark.tpceb.TPCEConstants.eMEETradeRequestAction;;
 
 
@@ -54,6 +54,9 @@ public class MEE {
         driverMEESettings = new DriverMEESettings( uniqueID, 0, 0, 0 );
         sut = pSUT;
         this.logger = logger;
+        currentTime = new Date();
+        baseTime = new Date();
+        System.out.println("mee current time" + currentTime);
         priceBoard = new MEEPriceBoard( tradingTimeSoFar,  baseTime,  currentTime, securityFile, configuredCustomerCount);
      
         System.out.println("Creating new ticker tape");
@@ -82,6 +85,8 @@ public class MEE {
         driverMEESettings = new DriverMEESettings( uniqueID, 0, tickerTapeRNGSeed, tradingFloorRNGSeed );
         sut = pSUT;
         this.logger = logger;
+        currentTime = new Date();
+        baseTime = new Date();
         priceBoard = new MEEPriceBoard( tradingTimeSoFar,  baseTime,  currentTime, securityFile, configuredCustomerCount);
         tickerTape = new MEETickerTape( pSUT,  priceBoard,  baseTime,  currentTime, tickerTapeRNGSeed );
         tradingFloor = new MEETradingFloor( pSUT,  priceBoard,  tickerTape,  baseTime,  currentTime, tradingFloorRNGSeed );
@@ -107,7 +112,9 @@ public class MEE {
     
     
     public void setBaseTime(){
-        baseTime = new Date();
+       // baseTime = new Date();
+        Calendar cal = Calendar.getInstance();
+        baseTime.setTime(cal.getTimeInMillis());
     }
 
     public boolean disableTickerTape(){
@@ -124,14 +131,19 @@ public class MEE {
 
     public int generateTradeResult(){
         int   nextTime;
-        currentTime = new Date();
+      //  currentTime = new Date();
+       // currentTime = ;
+        Calendar cal = Calendar.getInstance();
+        currentTime.setTime(cal.getTimeInMillis());
         nextTime = tradingFloor.generateTradeResult( );
         return( nextTime );
     }
 
     public int submitTradeRequest( TTradeRequest pTradeRequest ){
         int nextTime;
-        currentTime = new Date();
+        Calendar cal = Calendar.getInstance();
+        currentTime.setTime(cal.getTimeInMillis()); 
+        //currentTime = new Date();
         nextTime = tradingFloor.submitTradeRequest( pTradeRequest );
         return( nextTime );
     }

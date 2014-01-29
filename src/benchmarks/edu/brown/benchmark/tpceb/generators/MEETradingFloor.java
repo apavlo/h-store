@@ -26,11 +26,14 @@ public class MEETradingFloor {
         orderProcessingDelayMean = 1.0;
         Method SendTradeResult = null;
             try{
+                System.out.println("in try");
                 SendTradeResult = MEETradingFloor.class.getMethod("sendTradeResult", TTradeRequest.class);
             }catch(Exception e){
                 e.printStackTrace();
             }
+            System.out.println("calling orderTimers");
         orderTimers = new TimerWheel(TTradeRequest.class, this, SendTradeResult, 5, 1);
+        System.out.println("done with trade orders");
      }
         
     
@@ -63,7 +66,9 @@ public class MEETradingFloor {
                 return( orderTimers.startTimer( genProcessingDelay( orderProcessingDelayMean )));
             }
         case eMEESetLimitOrderTrigger:
+            System.out.println("going into post limit order");
             tickerTape.PostLimitOrder( tradeReq );
+            System.out.println("out of post limit order");
             return( orderTimers.processExpiredTimers() );
         default:
             return( orderTimers.processExpiredTimers() );

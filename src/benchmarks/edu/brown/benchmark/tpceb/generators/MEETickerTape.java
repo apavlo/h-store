@@ -70,6 +70,7 @@ public class MEETickerTape {
     }
 
     public void  AddEntry( TTickerEntry tickerEntry ){
+        System.out.println("in add entry");
         if( enabled ){
             AddToBatch( tickerEntry);
             AddArtificialEntries( );
@@ -79,16 +80,25 @@ public class MEETickerTape {
     public void  PostLimitOrder( TTradeRequest tradeRequest ){
         System.out.println("trying to post limit order");
         TradeType            eTradeType;
+ 
         double      CurrentPrice = -1.0;
         TTickerEntry    pNewEntry = new TTickerEntry();
 
+        
         eTradeType = ConvertTradeTypeIdToEnum(tradeRequest.trade_type_id.toCharArray());
 
         pNewEntry.price_quote = tradeRequest.price_quote;
+        System.out.println("tickerentry price quote" + pNewEntry.price_quote);
+        
         pNewEntry.symbol = new String(tradeRequest.symbol);
+        System.out.println("tickerentry symbol" + pNewEntry.symbol);
+        
         pNewEntry.trade_qty = LIMIT_TRIGGER_TRADE_QTY;
+        System.out.println("tickerentry trade_qty" + pNewEntry.trade_qty);
 
         CurrentPrice = priceBoard.getCurrentPrice( tradeRequest.symbol ).getDollars();
+        
+        System.out.println("Current price" + CurrentPrice);
 
         if((( eTradeType == TradeType.eLimitBuy || eTradeType == TradeType.eStopLoss ) &&
                 CurrentPrice <= tradeRequest.price_quote )
@@ -96,11 +106,17 @@ public class MEETickerTape {
                 (( eTradeType == TradeType.eLimitSell ) &&
                 CurrentPrice >= tradeRequest.price_quote )){
             pNewEntry.price_quote = CurrentPrice;
+            
+            System.out.println("update1 price" + pNewEntry.price_quote);
+            
             limitOrderTimers.processExpiredTimers();
             inTheMoneyLimitOrderQ.add(pNewEntry);
         }
         else{
             pNewEntry.price_quote = tradeRequest.price_quote;
+            
+            System.out.println("update2 price" + pNewEntry.price_quote);
+            
             double TriggerTimeDelay;
             GregorianCalendar currGreTime = new GregorianCalendar();
             GregorianCalendar baseGreTime = new GregorianCalendar();
@@ -149,6 +165,7 @@ public class MEETickerTape {
     }
 
     public void  AddToBatch( TTickerEntry tickerEntry ){
+        System.out.println("in add to batch");
         txnInput.Entries[batchIndex++] = tickerEntry;
         System.out.println("Ticker Entry:" + tickerEntry);
         if( TxnHarnessStructs.max_feed_len == batchIndex ){

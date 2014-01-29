@@ -71,6 +71,7 @@ public class ClientDriver {
         tradeReq.trade_type_id = "TLS";
         
         marketExchangeGenerator.submitTradeRequest(tradeReq);
+        
         marketExchangeGenerator.enableTickerTape();   
         
     }
