@@ -91,6 +91,7 @@ import edu.brown.hstore.callbacks.LocalInitQueueCallback;
 import edu.brown.hstore.callbacks.PartitionCountingCallback;
 import edu.brown.hstore.callbacks.RedirectCallback;
 import edu.brown.hstore.cmdlog.CommandLogWriter;
+import edu.brown.hstore.cmdlog.LogEntry;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.estimators.EstimatorState;
 import edu.brown.hstore.estimators.TransactionEstimator;
@@ -2473,7 +2474,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         LOG.trace("Is SysProc :"+ts.isSysProc());
         
         if (this.commandLogger != null && status == Status.OK && ts.isSysProc() == false) {
-            sendResponse = this.commandLogger.appendToLog(ts, cresponse);
+            sendResponse = this.commandLogger.appendToLog(ts, cresponse, LogEntry.REDO);
         }
 
         if (sendResponse) {

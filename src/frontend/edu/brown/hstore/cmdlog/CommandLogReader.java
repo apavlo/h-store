@@ -165,7 +165,7 @@ public class CommandLogReader implements Iterable<LogEntry> {
                 Integer proc_id = fd.readInt();
                 String proc_name = fd.readString();
 
-                LOG.trace("Procedure " + proc_id + " Name : "+proc_name );
+                //LOG.trace("Procedure " + proc_id + " Name : "+proc_name );
                 procedures.put(new Integer(proc_id), proc_name);                
             }
             

@@ -42,6 +42,7 @@ import org.voltdb.VoltType;
 import org.voltdb.catalog.CatalogMap;
 import org.voltdb.catalog.Cluster;
 import org.voltdb.catalog.Database;
+import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Table;
 import org.voltdb.client.Client;
@@ -188,9 +189,7 @@ public class TestSnapshotRecovery extends RegressionSuite {
         };
         loader.load();
     }    
-    
-    
-    
+        
     public void testSaveAndRestoreYCSB() throws IOException, InterruptedException, ProcCallException {
         
         System.out.println("Starting testSaveAndRestoreYCSB");
@@ -210,7 +209,8 @@ public class TestSnapshotRecovery extends RegressionSuite {
         }        
         
         // Stream of Adhoc Select Queries
-        for (int q_itr = 0; q_itr < 10; q_itr++) {
+        /*
+        for (int q_itr = 0; q_itr < 2; q_itr++) {
             String query = "SELECT COUNT(*) FROM " + YCSBConstants.TABLE_NAME;
 
             cresponse = client.callProcedure("@AdHoc", query);
@@ -220,6 +220,7 @@ public class TestSnapshotRecovery extends RegressionSuite {
             assertEquals(1, results.length);
             assertEquals(NUM_TUPLES, results[0].asScalarLong());
         }
+        */
         
         // Read Record
         
@@ -258,6 +259,18 @@ public class TestSnapshotRecovery extends RegressionSuite {
         client = getClient();
 
         try {
+            /*
+            results = client.callProcedure("@Undo").getResults();
+
+            System.out.println(results[0]);
+            
+            while (results[0].advanceRow()) {
+                if (results[0].getString("RESULT").equals("FAILURE")) {
+                    fail(results[0].getString("ERR_MSG"));
+                }
+            }
+            */
+            
             results = client.callProcedure("@SnapshotRestore", TMPDIR, TESTNONCE, ALLOWEXPORT).getResults();
 
             System.out.println(results[0]);
@@ -278,7 +291,7 @@ public class TestSnapshotRecovery extends RegressionSuite {
                
         validateSnapshot(true);        
         
-        checkYCSBTable(client, NUM_TUPLES);              
+        checkYCSBTable(client, 2);              
         
         parseAndApplyCommandLog();
     }
@@ -313,25 +326,32 @@ public class TestSnapshotRecovery extends RegressionSuite {
         while(log_itr.hasNext()) {
             LogEntry entry = log_itr.next();
 
-            assertNotNull(entry);
-            System.err.println("TXN ID :"+entry.getTransactionId().longValue());
-            System.err.println("PROC ID :"+entry.getProcedureId());
-                        
-            Object[] entryParams = entry.getProcedureParams().toArray();            
-            for(Object obj : entryParams){
-                System.err.println(obj);                        
+            if(entry.getType() == false){            
+                assertNotNull(entry);
+                System.err.println("REDO :: TXN ID :" + entry.getTransactionId().longValue());
+                System.err.println("REDO :: PROC ID :" + entry.getProcedureId());
+
+                Object[] entryParams = entry.getProcedureParams().toArray();
+                for (Object obj : entryParams) {
+                    System.err.println(obj);
+                }
+
+                String procName = cc.getProcedureById(entry.getProcedureId()).fullName();
+                System.out.println("Invoking procedure ::" + procName);
+
+                cresponse = client.callProcedure(procName, entry.getProcedureParams().toArray());
+                assertEquals(Status.OK, cresponse.getStatus());
+                results = cresponse.getResults();
+
+                assertEquals(1, results.length);
+                // assertEquals(NUM_TUPLES, results[0].asScalarLong());
+                // System.out.println("Results for procedure ::" + procName + " " + results[0]);
             }
-                        
-            String procName = cc.getProcedureById(entry.getProcedureId()).fullName();
-            System.out.println("Invoking procedure ::"+ procName);
-
-            cresponse = client.callProcedure(procName, entry.getProcedureParams().toArray());
-            assertEquals(Status.OK, cresponse.getStatus());
-            results = cresponse.getResults();
-
-            assertEquals(1, results.length);
-            //assertEquals(NUM_TUPLES, results[0].asScalarLong());                       
-            System.out.println("Results for procedure ::"+ procName +" "+ results[0]);
+            else{
+                assertNotNull(entry);                
+                System.err.println("UNDO :: TXN ID :" + entry.getTransactionId().longValue());
+                System.err.println("UNDO :: PROC ID :" + entry.getProcedureId());                               
+            }
             
             ctr++;
         }

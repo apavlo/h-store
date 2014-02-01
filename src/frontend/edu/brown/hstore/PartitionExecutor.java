@@ -123,10 +123,13 @@ import edu.brown.hstore.Hstoreservice.TransactionWorkRequest;
 import edu.brown.hstore.Hstoreservice.TransactionWorkResponse;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.Hstoreservice.WorkResult;
+import edu.brown.hstore.callbacks.ClientResponseCallback;
 import edu.brown.hstore.callbacks.LocalFinishCallback;
 import edu.brown.hstore.callbacks.LocalPrepareCallback;
 import edu.brown.hstore.callbacks.PartitionCountingCallback;
 import edu.brown.hstore.callbacks.RemotePrepareCallback;
+import edu.brown.hstore.cmdlog.CommandLogWriter;
+import edu.brown.hstore.cmdlog.LogEntry;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.estimators.Estimate;
 import edu.brown.hstore.estimators.EstimatorState;
@@ -1302,6 +1305,12 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             return;
         }
         
+        // CHANGE :: Log it in undo log
+        CommandLogWriter cwriter = this.hstore_site.getCommandLogWriter();
+        if(cwriter != null){
+                cwriter.appendToLog((LocalTransaction) ts, null, LogEntry.UNDO);
+        }
+            
         if (debug.val)
             LOG.debug(String.format("Processing %s at partition %d", work, this.partitionId));
         
@@ -4504,6 +4513,14 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             LOG.debug(String.format("%s - Successfully %sed transaction at partition %d",
                       ts, (commit ? "committ" : "abort"), this.partitionId));
         this.markTransactionFinished(ts);
+
+        // CHANGE :: Log it in Undo log
+        CommandLogWriter cwriter = this.hstore_site.getCommandLogWriter();
+        if(cwriter != null){
+            if(ts.isInitialized())
+                cwriter.appendToLog((LocalTransaction) ts, null, LogEntry.UNDO);
+        }
+
     }
     
     /**
