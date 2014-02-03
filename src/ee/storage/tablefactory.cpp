@@ -255,7 +255,7 @@ Table* TableFactory::getEvictedTable(voltdb::CatalogId databaseId,
     return dynamic_cast<Table*>(table);
 }
 #endif
-
+/**
 Table* TableFactory::getWindowTable(
             voltdb::CatalogId databaseId,
             ExecutorContext *ctx,
@@ -360,6 +360,7 @@ Table* TableFactory::getWindowTable(
     return dynamic_cast<Table*>(table);
 }
 
+
 Table* TableFactory::getWindowTable(
             voltdb::CatalogId databaseId,
             ExecutorContext *ctx,
@@ -431,12 +432,12 @@ Table* TableFactory::getWindowTable(
 
     return dynamic_cast<Table*>(table);
 }
-
+*/
 ////////////////////////////////////////////////////////////////////////////////////////
 //TODO: These are temporary versions of the window table producers, so as not to break any existing code.
 ////////////////////////////////////////////////////////////////////////////////////////
 
-Table* TableFactory::getTempWindowTable(
+Table* TableFactory::getWindowTable(
             voltdb::CatalogId databaseId,
             ExecutorContext *ctx,
             const std::string &name,
@@ -451,12 +452,12 @@ Table* TableFactory::getTempWindowTable(
 {
     std::vector<TableIndexScheme> dummy;
     std::vector<Trigger*>* dummyTrig = NULL;
-    return getTempWindowTable(databaseId, ctx, name,
+    return getWindowTable(databaseId, ctx, name,
                               schema, columnNames, dummy, dummyTrig, partitionColumn,
                               exportEnabled, exportOnly, windowSize, slideSize, windowType);
 }
 
-Table* TableFactory::getTempWindowTable(
+Table* TableFactory::getWindowTable(
             voltdb::CatalogId databaseId,
             ExecutorContext *ctx,
             const std::string &name,
@@ -472,12 +473,12 @@ Table* TableFactory::getTempWindowTable(
 {
     std::vector<TableIndexScheme> dummy;
     std::vector<Trigger*>* dummyTrig = NULL;
-    return getTempWindowTable(databaseId, ctx, name, schema, columnNames,
+    return getWindowTable(databaseId, ctx, name, schema, columnNames,
                               pkey_index, dummy, dummyTrig, partitionColumn,
                               exportEnabled, exportOnly, windowSize, slideSize, windowType);
 }
 
-Table* TableFactory::getTempWindowTable(
+Table* TableFactory::getWindowTable(
             voltdb::CatalogId databaseId,
             ExecutorContext *ctx,
             const std::string &name,
@@ -492,11 +493,11 @@ Table* TableFactory::getTempWindowTable(
             int windowType)
 {
 	std::vector<Trigger*>* dummyTrig = NULL;
-	return getTempWindowTable(databaseId, ctx, name, schema, columnNames, indexes,
+	return getWindowTable(databaseId, ctx, name, schema, columnNames, indexes,
 							dummyTrig, partitionColumn, exportEnabled, exportOnly, windowSize, slideSize, windowType);
 }
 
-Table* TableFactory::getTempWindowTable(
+Table* TableFactory::getWindowTable(
             voltdb::CatalogId databaseId,
             ExecutorContext *ctx,
             const std::string &name,
@@ -555,7 +556,7 @@ Table* TableFactory::getTempWindowTable(
     return table;
 }
 
-Table* TableFactory::getTempWindowTable(
+Table* TableFactory::getWindowTable(
             voltdb::CatalogId databaseId,
             ExecutorContext *ctx,
             const std::string &name,
@@ -571,13 +572,13 @@ Table* TableFactory::getTempWindowTable(
             int windowType)
 {
 	std::vector<Trigger*>* dummyTrig = NULL;
-	return getTempWindowTable(databaseId, ctx, name, schema, columnNames, pkeyIndex,
+	return getWindowTable(databaseId, ctx, name, schema, columnNames, pkeyIndex,
 							indexes, dummyTrig, partitionColumn, exportEnabled,
 							exportOnly, windowSize, slideSize, windowType);
 }
 
 
-Table* TableFactory::getTempWindowTable(
+Table* TableFactory::getWindowTable(
             voltdb::CatalogId databaseId,
             ExecutorContext *ctx,
             const std::string &name,
