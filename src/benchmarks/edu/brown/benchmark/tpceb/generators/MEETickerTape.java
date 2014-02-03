@@ -110,7 +110,9 @@ public class MEETickerTape {
             System.out.println("update1 price" + pNewEntry.price_quote);
             
             limitOrderTimers.processExpiredTimers();
+            System.out.println("processed timer");
             inTheMoneyLimitOrderQ.add(pNewEntry);
+        
         }
         else{
             pNewEntry.price_quote = tradeRequest.price_quote;
@@ -130,6 +132,7 @@ public class MEETickerTape {
     }
 
     public void  AddLimitTrigger( TTickerEntry tickerEntry ){
+        System.out.println("in add limit trigger");
         inTheMoneyLimitOrderQ.add( tickerEntry );
     }
 
@@ -167,8 +170,9 @@ public class MEETickerTape {
     public void  AddToBatch( TTickerEntry tickerEntry ){
         System.out.println("in add to batch");
         txnInput.Entries[batchIndex++] = tickerEntry;
-        System.out.println("Ticker Entry:" + tickerEntry);
+        System.out.println("Ticker Entry:" + tickerEntry.price_quote + " " + tickerEntry.symbol + " " + tickerEntry.trade_qty);
         if( TxnHarnessStructs.max_feed_len == batchIndex ){
+            System.out.println("max feed len equals batch index");
             sut.MarketFeed( txnInput );
             batchIndex = 0;
         }

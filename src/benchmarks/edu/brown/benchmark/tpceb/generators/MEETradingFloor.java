@@ -32,6 +32,7 @@ public class MEETradingFloor {
                 e.printStackTrace();
             }
             System.out.println("calling orderTimers");
+            
         orderTimers = new TimerWheel(TTradeRequest.class, this, SendTradeResult, 5, 1);
         System.out.println("done with trade orders");
      }
@@ -69,6 +70,7 @@ public class MEETradingFloor {
             System.out.println("going into post limit order");
             tickerTape.PostLimitOrder( tradeReq );
             System.out.println("out of post limit order");
+            sendTradeResult(tradeReq);
             return( orderTimers.processExpiredTimers() );
         default:
             return( orderTimers.processExpiredTimers() );

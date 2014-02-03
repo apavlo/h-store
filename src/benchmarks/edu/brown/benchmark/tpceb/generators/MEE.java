@@ -57,6 +57,7 @@ public class MEE {
         currentTime = new Date();
         baseTime = new Date();
         System.out.println("mee current time" + currentTime);
+        System.out.println("trading time so far:" + tradingTimeSoFar);
         priceBoard = new MEEPriceBoard( tradingTimeSoFar,  baseTime,  currentTime, securityFile, configuredCustomerCount);
      
         System.out.println("Creating new ticker tape");

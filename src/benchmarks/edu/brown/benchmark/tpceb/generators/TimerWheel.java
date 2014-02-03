@@ -28,6 +28,7 @@ public class TimerWheel {
 
      
     public TimerWheel(Object expiryData, Object expiryObject, Method expiryFunction, int period, int resolution){
+        System.out.println("in timer wheel");
         wheelConfig = new TWheelConfig(( period * ( EGenDate.MsPerSecond / resolution )), resolution );
         this.period = period;
         this.resolution = resolution;
@@ -71,14 +72,22 @@ public class TimerWheel {
         GregorianCalendar   Now = new GregorianCalendar();
 
         currentTime.set( baseTime, Now );
-
+       // System.out.println(baseTime);// + " " + Now);
+        System.out.println("going to expiry processing");
         return( expiryProcessing() );
     }
 
     private int  expiryProcessing(){
+        System.out.println("In expiry processing");
+        System.out.println("lastTime cycles" + lastTime.getCycles() );
+        System.out.println("currentTime cycles" + currentTime.getCycles() );
+        System.out.println("lastTime index" + lastTime.getIndex() );
+        System.out.println("currentTime index" + currentTime.getIndex() );
         while( lastTime.getCycles() < currentTime.getCycles() ? ( lastTime.getIndex() < currentTime.getIndex() ) : ( lastTime.getCycles() < currentTime.getCycles() )){
             lastTime.add(1);
+            System.out.println("in loop");
             if( ! timerWheel.get( lastTime.getIndex()).isEmpty() ){
+                System.out.println("adding to timer list");
                 processTimerList( timerWheel.get( lastTime.getIndex()) );
             }
         }
@@ -91,6 +100,7 @@ public class TimerWheel {
 
         while (ExpiredTimer.hasNext()){
             try{
+                System.out.println("In loop going through expired timer to get expiry functions" + ExpiredTimer.next().getExpiryFunction() );
                 ExpiredTimer.next().getExpiryFunction().invoke(expiryObject, expiryData);
                 ExpiredTimer.remove();
                 numberOfTimers--;
@@ -104,13 +114,18 @@ public class TimerWheel {
 
      
     private int  setNextTime(){
+        System.out.println("in set next time");
         if( 0 == numberOfTimers ){
+            System.out.println("number of timers was 0");
             nextTime.set( TWheelConfig.MaxWheelCycles, ( period * ( EGenDate.MsPerSecond / resolution )) - 1 );
+            System.out.println("new next time" + nextTime.getCycles());
             return( NO_OUTSTANDING_TIMERS );
         }
         else{
+            
             nextTime = currentTime;
             while( timerWheel.get(nextTime.getIndex()).isEmpty() ){
+                System.out.println("adding one to time");
                 nextTime.add(1);
             }
             return( nextTime.offset( currentTime ));
