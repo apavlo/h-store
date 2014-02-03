@@ -182,7 +182,8 @@ namespace voltdb {
 										 bool exportEnabled,
 										 bool exportOnly,
 										 int windowSize,
-										 int slideSize=1);
+										 int slideSize=1,
+										 int windowType = TUPLE_WINDOW);
 
 		/**
 		 * Creates an empty window table with given ID, name, columns and PK index.
@@ -197,7 +198,8 @@ namespace voltdb {
 										 bool exportEnabled,
 										 bool exportOnly,
 										 int windowSize,
-										 int slideSize=1);
+										 int slideSize=1,
+										 int windowType = TUPLE_WINDOW);
 
 		/**
 		 * Creates an empty window table with given name, columns and indexes.
@@ -212,7 +214,8 @@ namespace voltdb {
 										 bool exportEnabled,
 										 bool exportOnly,
 										 int windowSize,
-										 int slideSize=1);
+										 int slideSize=1,
+										 int windowType = TUPLE_WINDOW);
 
 
 		/**
@@ -229,7 +232,8 @@ namespace voltdb {
 										 bool exportEnabled,
 										 bool exportOnly,
 										 int windowSize,
-										 int slideSize=1);
+										 int slideSize=1,
+										 int windowType = TUPLE_WINDOW);
 
 		/**
 		 * Creates an empty window table with given name, columns, PK index and indexes.
@@ -245,7 +249,8 @@ namespace voltdb {
 										 bool exportEnabled,
 										 bool exportOnly,
 										 int windowSize,
-										 int slideSize=1);
+										 int slideSize=1,
+										 int windowType = TUPLE_WINDOW);
 
 
 		/**
@@ -263,12 +268,13 @@ namespace voltdb {
 										 bool exportEnabled,
 										 bool exportOnly,
 										 int windowSize,
-										 int slideSize=1);
+										 int slideSize=1,
+										 int windowType = TUPLE_WINDOW);
 
 		////////////////////////////////////////////////////
 		//TODO: Temporary window functions for testing
 		////////////////////////////////////////////////////
-
+/**
 		static Table* getTempWindowTable( voltdb::CatalogId databaseId,
 										 ExecutorContext *ctx,
 										 const std::string &name,
@@ -363,7 +369,7 @@ namespace voltdb {
 		//////////////////////////////
 		//END
 		//////////////////////////////
-        
+  */
         /**
          * Creates an empty temp table with given name and columns.
          * Every TempTable must be instantiated via these factory methods.
