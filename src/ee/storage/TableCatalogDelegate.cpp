@@ -277,6 +277,11 @@ TableCatalogDelegate::init(ExecutorContext *executorContext,
     {
         VOLT_DEBUG("Creating WindowTable : '%s'",
                    catalogTable.name().c_str());
+
+        int windowType = TUPLE_WINDOW;
+        if(!catalogTable.isRows())
+        	windowType = TIME_WINDOW;
+
         if (pkey_index_id.size() == 0) 
         {
             // FIXME: we need to extend with window type and slide
@@ -285,7 +290,7 @@ TableCatalogDelegate::init(ExecutorContext *executorContext,
                                                  indexes, triggers, partitionColumnIndex,
                                                  isExportEnabledForTable(catalogDatabase, table_id),
                                                  isTableExportOnly(catalogDatabase, table_id),
-						 catalogTable.size(), catalogTable.slide());
+						 catalogTable.size(), catalogTable.slide(), windowType);
         }
         else
         {
@@ -294,7 +299,7 @@ TableCatalogDelegate::init(ExecutorContext *executorContext,
                                                  pkey_index, indexes, triggers, partitionColumnIndex,
                                                  isExportEnabledForTable(catalogDatabase, table_id),
                                                  isTableExportOnly(catalogDatabase, table_id),
-						 catalogTable.size(), catalogTable.slide());
+						 catalogTable.size(), catalogTable.slide(), windowType);
         }
     }
     else

@@ -14,6 +14,8 @@ import java.util.Random;
 public class AddNewValue extends VoltProcedure{
 	Random r = new Random();
 	int currentTimestamp = 0;
+	int tsCounter = 1;
+	int tuplesPerTimestamp = 3;
 	int curTime = 0;
 	//int nextVal = -5;
 	final int slideSize = 1;
@@ -59,7 +61,13 @@ public class AddNewValue extends VoltProcedure{
             voltExecuteSQL(true);
         }
         
-        currentTimestamp++;
+        if(tsCounter == tuplesPerTimestamp)
+        {
+        	currentTimestamp++;
+        	tsCounter = 1;
+        }
+        else
+        	tsCounter++;
 		
         return 0;
     }

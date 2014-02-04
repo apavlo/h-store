@@ -60,7 +60,7 @@ namespace voltdb {
 #define MAX_EVICTED_TUPLE_SIZE 2500
 
 TimeWindow::TimeWindow(ExecutorContext *ctx, bool exportEnabled, int windowSize, int slideSize)
-	: WindowTableTemp(ctx, exportEnabled, windowSize, slideSize), TS_COLUMN("TS")
+	: WindowTableTemp(ctx, exportEnabled, windowSize, slideSize), TS_COLUMN("TIME")
 {
 	m_tsColumn = -1;
 	m_latestTS = 0;
