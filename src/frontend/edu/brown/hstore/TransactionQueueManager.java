@@ -154,13 +154,15 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
         // Add a EventObservable that will tell us when the first non-sysproc
         // request arrives from a client. This will then tell the queues that its ok
         // to increase their limits if they're empty
-        hstore_site.getStartWorkloadObservable().addObserver(new EventObserver<HStoreSite>() {
-            public void update(EventObservable<HStoreSite> o, HStoreSite arg) {
-                for (PartitionLockQueue queue : lockQueues) {
-                    if (queue != null) queue.setAllowIncrease(true);
-                } // FOR
-            };
-        });
+        if (hstore_site.getJvmSnapshotManager() != null && hstore_site.getJvmSnapshotManager().isParent()) {
+            hstore_site.getStartWorkloadObservable().addObserver(new EventObserver<HStoreSite>() {
+                public void update(EventObservable<HStoreSite> o, HStoreSite arg) {
+                    for (PartitionLockQueue queue : lockQueues) {
+                        if (queue != null) queue.setAllowIncrease(true);
+                    } // FOR
+                };
+            });
+        }
         
         if (debug.val)
             LOG.debug(String.format("Created %d %s for %s",
@@ -195,8 +197,11 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
     private class Initializer extends ExceptionHandlingRunnable {
         public void runImpl() {
             Thread self = Thread.currentThread();
-            self.setName(HStoreThreadManager.getThreadName(hstore_site,
-                         HStoreConstants.THREAD_NAME_QUEUE_INIT));
+            if (hstore_site.getJvmSnapshotManager().isParent() == false) {
+                self.setName(HStoreThreadManager.getThreadName(hstore_site, HStoreConstants.THREAD_NAME_QUEUE_INIT, "child"));
+            } else {
+                self.setName(HStoreThreadManager.getThreadName(hstore_site, HStoreConstants.THREAD_NAME_QUEUE_INIT));
+            }
             hstore_site.getThreadManager().registerProcessingThread();
             
             if (debug.val)
@@ -267,13 +272,15 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
             t.start();
             threads.add(t);
         } // FOR
-        for (int i = 0; i < numRestarters; i++) {
-            Thread t = new Thread(new Restarter());
-            t.setDaemon(true);
-            t.setUncaughtExceptionHandler(hstore_site.getExceptionHandler());
-            t.start();
-            threads.add(t);
-        } // FOR
+        if (this.hstore_site.getJvmSnapshotManager().isParent() == true) {
+            for (int i = 0; i < numRestarters; i++) {
+                Thread t = new Thread(new Restarter());
+                t.setDaemon(true);
+                t.setUncaughtExceptionHandler(hstore_site.getExceptionHandler());
+                t.start();
+                threads.add(t);
+            } // FOR
+        }
         
         for (Thread t : threads) {
             try {
@@ -877,3 +884,4 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
         return cachedDebugContext;
     }
 }
+

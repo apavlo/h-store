@@ -1294,6 +1294,31 @@ public final class HStoreConf {
         )
         public int pool_pathestimators_idle;
         
+        // ----------------------------------------------------------------------------
+        // JVM SNAPSHOT
+        // ----------------------------------------------------------------------------
+        
+        @ConfigProperty(
+        	description="If enabled, H-Store will execute @AdHoc in a forked JVM snapshot",
+        	defaultBoolean=false,
+        	experimental=true
+        )
+        public boolean jvmsnapshot_enable;
+        
+        @ConfigProperty(
+        	description="The refresh interval of the JVM Snapshot",
+        	defaultInt=30,
+        	experimental=true
+        )
+        public int jvmsnapshot_interval;
+        
+        @ConfigProperty(
+        	description="If enabled, H-Store will start a snapshot once started",
+        	defaultBoolean=false,
+        	experimental=true
+        )
+        public boolean jvmsnapshot_start;
+        
     }
     
     // ============================================================================

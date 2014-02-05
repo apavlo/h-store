@@ -413,7 +413,7 @@ public class DependencyTracker {
                           stmtIndex, fragmentId, paramsHash));
             dinfo.init(state.txn_id, currentRound, stmtCounter, stmtIndex, paramsHash, dep_id.intValue());
         }
-        
+
         return (dinfo);
     }
 
@@ -1216,6 +1216,7 @@ public class DependencyTracker {
         public Map<String, Object> debugMap(LocalTransaction ts) {
             try {
                 TransactionState state = getState(ts);
+                if (state == null) return (null);
                 return state.debugMap();
             } catch (AssertionError ex) {
                 // IGNORE

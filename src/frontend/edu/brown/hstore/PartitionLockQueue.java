@@ -482,7 +482,7 @@ public class PartitionLockQueue extends ThrottlingQueue<AbstractTransaction> {
             // If this txnId is greater than the last safe one that we've seen, then we know
             // that the lastSafeTxnId has been polled. That means that we need to 
             // wait for an appropriate amount of time before we're allow to be executed.
-            if (txnId.compareTo(this.lastSafeTxnId) > 0 && afterRemoval == false) {
+            if (this.lastSafeTxnId != -1 && txnId.compareTo(this.lastSafeTxnId) > 0 && afterRemoval == false) {
                 newState = QueueState.BLOCKED_ORDERING;
                 if (debug.val)
                     LOG.debug(String.format("Partition %d :: txnId[%d] > lastSafeTxnId[%d]",

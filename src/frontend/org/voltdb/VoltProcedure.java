@@ -229,7 +229,7 @@ public abstract class VoltProcedure implements Poolable {
             m_initialized = true;
         }
         assert(executor != null);
-        
+
         this.executor = executor;
         this.p_estimator = executor.getPartitionEstimator();
         this.hstore_site = executor.getHStoreSite();
@@ -243,7 +243,7 @@ public abstract class VoltProcedure implements Poolable {
         
         this.batchQueryArgs = new Object[hstore_conf.site.planner_max_batch_size][];
         this.batchQueryStmts = new SQLStmt[hstore_conf.site.planner_max_batch_size];
-        
+
         // Enable Workload Tracing
         if (trace.val) {
             LOG.trace("Profiling Level: " + ProcedureProfiler.profilingLevel);
@@ -711,7 +711,7 @@ public abstract class VoltProcedure implements Poolable {
         if (this.results == null) {
             throw new RuntimeException("We got back a null result from " + this.localTxnState);
         }
-        
+
         response = new ClientResponseImpl();
         response.init(this.localTxnState,
                       this.status,

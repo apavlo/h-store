@@ -102,6 +102,7 @@ public abstract class FixCatalog {
 
             int proc_port = HStoreConstants.DEFAULT_PORT;
             int messenger_port = proc_port + HStoreConstants.MESSENGER_PORT_OFFSET;
+            int jvmsnapshot_port = proc_port + HStoreConstants.JVMSNAPSHOT_PORT_OFFSET;
 
             // Now create the sites for this host
             for (Integer siteid : cc.getSites(host)) {
@@ -113,6 +114,7 @@ public abstract class FixCatalog {
                 catalog_site.setHost(catalog_host);
                 catalog_site.setProc_port(proc_port++);
                 catalog_site.setMessenger_port(messenger_port++);
+                catalog_site.setJVMSnapshot_port(jvmsnapshot_port++);
 
                 // Add all the partitions
                 for (Integer partition_id : cc.getPartitionIds(host, siteid)) {

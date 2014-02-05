@@ -85,6 +85,7 @@ public class ClusterCompiler
             site.setHost(host);
             site.setProc_port(HStoreConstants.DEFAULT_PORT);
             site.setMessenger_port(HStoreConstants.DEFAULT_PORT + HStoreConstants.MESSENGER_PORT_OFFSET);
+            site.setJVMSnapshot_port(HStoreConstants.DEFAULT_PORT + HStoreConstants.JVMSNAPSHOT_PORT_OFFSET);
             site.setIsup(true);
 
             Partition part = site.getPartitions().add(String.valueOf(++partitionCounter));

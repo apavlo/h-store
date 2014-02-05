@@ -25,6 +25,7 @@
  ***************************************************************************/
 package edu.brown.hstore.txns;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -42,6 +43,9 @@ import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.Table;
 import org.voltdb.exceptions.SerializableException;
+import org.voltdb.messaging.FastDeserializer;
+import org.voltdb.messaging.FastSerializable;
+import org.voltdb.messaging.FastSerializer;
 import org.voltdb.types.SpeculationType;
 import org.voltdb.utils.EstTime;
 
@@ -68,7 +72,7 @@ import edu.brown.utils.StringUtil;
  * 
  * @author pavlo
  */
-public class LocalTransaction extends AbstractTransaction {
+public class LocalTransaction extends AbstractTransaction implements FastSerializable{
     private static final Logger LOG = Logger.getLogger(LocalTransaction.class);
     private static final LoggerBoolean debug = new LoggerBoolean();
     private static final LoggerBoolean trace = new LoggerBoolean();
@@ -1010,6 +1014,37 @@ public class LocalTransaction extends AbstractTransaction {
         }
         
         return (sb.toString());
+    }
+    
+    @Override
+    public void readExternal(FastDeserializer in) throws IOException {
+    	long txn_id = in.readLong();
+    	long initiateTime = in.readLong();
+    	long clientHandle = in.readLong();
+    	int base_partition = in.readInt();
+    	PartitionSet predict_touchedPartitions = new PartitionSet();
+    	predict_touchedPartitions.readExternal(in);
+    	boolean predict_readOnly = in.readBoolean();
+    	boolean predict_abortable = in.readBoolean();
+    	String procName = in.readString();
+    	Procedure catalog_proc = this.hstore_site.getCatalogContext().procedures.getIgnoreCase(procName);
+    	ParameterSet params = new ParameterSet();
+    	params.readExternal(in);
+    	this.init(txn_id, initiateTime, clientHandle, base_partition, predict_touchedPartitions, predict_readOnly, predict_abortable, catalog_proc, params, null);
+    }
+
+    @Override
+    public void writeExternal(FastSerializer out) throws IOException {
+    	out.writeLong(txn_id);
+    	out.writeLong(initiateTime);
+    	out.writeLong(client_handle);
+    	out.writeInt(base_partition);
+    	predict_touchedPartitions.writeExternal(out);
+    	out.writeBoolean(predict_readOnly);
+    	out.writeBoolean(predict_abortable);
+    	out.writeString(this.getProcedure().getName());
+    	parameters.writeExternal(out);
+    	
     }
     
 }

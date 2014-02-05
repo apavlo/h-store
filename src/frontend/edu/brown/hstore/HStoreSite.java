@@ -27,6 +27,8 @@ package edu.brown.hstore;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -287,7 +289,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * is allowed to acquire the locks for each partition. It can also requeue
      * restart transactions. 
      */
-    private final TransactionQueueManager txnQueueManager;
+    private TransactionQueueManager txnQueueManager;
     
     /**
      * The HStoreCoordinator is responsible for communicating with other HStoreSites
@@ -296,6 +298,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * testing code as needed.
      */
     private HStoreCoordinator hstore_coordinator;
+    
+    private HStoreJVMSnapshotManager jvmSnapshotManager;
 
     /**
      * TransactionPreProcessor Threads
@@ -605,6 +609,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         this.status_monitor = new HStoreSiteStatus(this, hstore_conf);
         
+        this.jvmSnapshotManager = new HStoreJVMSnapshotManager(this);
         LoggerUtil.refreshLogging(hstore_conf.global.log_refresh);
     }
     
@@ -702,10 +707,55 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             i += 1;
         } // FOR
         
+        // Start HStore JVM Snapshot Manager
+        if (hstore_conf.site.jvmsnapshot_enable == true) {
+	        t = new Thread(this.jvmSnapshotManager);
+	        t.setName(HStoreThreadManager.getThreadName(this, "jvmsnapshotmanager"));
+	        t.setDaemon(true);
+	        t.setUncaughtExceptionHandler(this.exceptionHandler);
+	        t.start();
+        }
+        
         this.initPeriodicWorks();
         
         // Add in our shutdown hook
         // Runtime.getRuntime().addShutdownHook(new Thread(new ShutdownHook()));
+        
+        return (this);
+    }
+    
+    /**
+     * Reinitializes all the pieces that we need to start the HStore snapshot up
+     */
+    protected HStoreSite snapshot_init() {
+
+        // Start TransactionQueueManager
+        this.txnQueueManager = new TransactionQueueManager(this);
+        Thread t = new Thread(this.txnQueueManager);
+        t.setDaemon(true);
+        t.setUncaughtExceptionHandler(this.exceptionHandler);
+        if (debug.val)
+        	LOG.debug("Start txn queue manager");
+        t.start();
+        
+        // Then we need to start all of the PartitionExecutor in threads
+        if (debug.val)
+            LOG.debug(String.format("Starting PartitionExecutor threads for %s partitions on %s snapshot",
+                      this.local_partitions.size(), this.getSiteName()));
+        for (int partition : this.local_partitions.values()) {
+            PartitionExecutor executor = this.getPartitionExecutor(partition);
+           // executor.initHStoreSite(this);
+            executor.reset(this);
+            
+            t = new Thread(executor);
+            t.setDaemon(true);
+            t.setUncaughtExceptionHandler(this.exceptionHandler);
+            this.executor_threads[partition] = t;
+            t.start();
+        } // FOR
+        
+        if (debug.val)
+            LOG.debug("SnapInit() finishes.");
         
         return (this);
     }
@@ -909,6 +959,19 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 SystemStatsCollector.asyncSampleSystemNow(true, true);
             }
         }, 0, 6, TimeUnit.MINUTES);
+        
+        // refresh JVM snapshot
+        if (this.hstore_conf.site.jvmsnapshot_enable == true && 
+        	this.hstore_conf.site.jvmsnapshot_interval > 0) {
+	        this.threadManager.schedulePeriodicWork(new ExceptionHandlingRunnable() {
+	            @Override
+	            public void runImpl() {
+	                if (jvmSnapshotManager != null) {
+	                	jvmSnapshotManager.refresh();
+	                }
+	            }
+	        }, 0, this.hstore_conf.site.jvmsnapshot_interval, TimeUnit.SECONDS);
+        }
     }
     
     // ----------------------------------------------------------------------------
@@ -1127,6 +1190,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     }
     public CommandLogWriter getCommandLogWriter() {
         return (this.commandLogger);
+    }
+    public HStoreJVMSnapshotManager getJvmSnapshotManager() {
+        return (this.jvmSnapshotManager);
     }
     protected final Map<Long, AbstractTransaction> getInflightTxns() {
         return (this.inflight_txns);
@@ -1503,6 +1569,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 throw new RuntimeException(ex);
             }
             this.clientInterface.shutdown();
+        }
+        
+        if (this.jvmSnapshotManager != null) {
+        	this.jvmSnapshotManager.stopSnapshot();
         }
         
         LOG.info(String.format("Completed shutdown process at %s [instanceId=%d]",
@@ -2460,6 +2530,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             "The client handle for " + ts + " was not set properly";
         assert(status != Status.ABORT_MISPREDICT && status != Status.ABORT_EVICTEDACCESS) :
             "Trying to send back a client response for " + ts + " but the status is " + status;
+       
+        if (hstore_conf.site.jvmsnapshot_enable && !jvmSnapshotManager.isParent()) {
+            jvmSnapshotManager.sendResponseToParent(cresponse);
+            return;
+        }
         
         if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.startPostClient();
         boolean sendResponse = true;
@@ -2947,6 +3022,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 int base_partition = result.ts.getBasePartition();
                 Long txn_id = this.txnInitializer.registerTransaction(result.ts, base_partition);
                 result.ts.setTransactionId(txn_id);
+                
+                if (hstore_conf.site.jvmsnapshot_enable == true) {
+                	if (debug.val) LOG.debug("Send to JVM Snapshot: " + result.ts);
+                	this.jvmSnapshotManager.addTransactionRequest(result.ts);
+                	return;
+                }
                 
                 if (debug.val) LOG.debug("Queuing AdHoc transaction: " + result.ts);
                 this.transactionQueue(result.ts);

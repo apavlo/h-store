@@ -42,7 +42,7 @@ public class SpecExecScheduler implements Configurable {
     // ----------------------------------------------------------------------------
 
     private final int partitionId;
-    private final PartitionLockQueue queue;
+    private PartitionLockQueue queue;
     private boolean disabled = false;
     private AbstractConflictChecker checker;
     private AbstractTransaction lastDtxn;
@@ -201,6 +201,10 @@ public class SpecExecScheduler implements Configurable {
         this.lastIterator = null;
     }
     
+    public void setQueue(PartitionLockQueue queue) {
+    	this.queue = queue;
+    	this.lastIterator = null;
+    }
     public void setDisabled(boolean disabled) {
         this.disabled = disabled;
         if (debug.val && this.disabled == true)

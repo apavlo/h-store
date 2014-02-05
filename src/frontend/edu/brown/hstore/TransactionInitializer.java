@@ -483,6 +483,22 @@ public class TransactionInitializer {
     }
     
     /**
+     * This method allows you to register an already initialized LocalTransaction handle.
+     * This is primarily needed for the HStoreJVMSnapshot stuff
+     * @param ts
+     * @param base_partition
+     * @return
+     */
+    protected void registerOldTransaction(LocalTransaction ts) {
+        Long txn_id = ts.getTransactionId();
+        assert(txn_id != null);
+        this.inflight_txns.put(txn_id, ts);
+        
+        if (debug.val)
+            LOG.debug(String.format("Register existing transaction %d: %s", txn_id, ts)); 
+    }
+    
+    /**
      * Register a new LocalTransaction handle with this HStoreSite
      * We will return a txnId that is guaranteed to be globally unique
      * @param ts
