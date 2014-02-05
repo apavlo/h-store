@@ -27,6 +27,7 @@ public class WordCountProjectBuilder extends AbstractProjectBuilder {
 	
 	// a list of tables used in this benchmark with corresponding partitioning keys
     public static final String PARTITIONING[][] = new String[][] {
+        { "counts", "word"}
     };
 
     public WordCountProjectBuilder() {

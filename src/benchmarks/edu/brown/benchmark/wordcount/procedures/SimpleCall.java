@@ -30,6 +30,7 @@ public class SimpleCall extends VoltProcedure {
         // initialize the counts table
         if (validation[0].getRowCount() == 0) {
             voltQueueSQL(insertNewWordStmt, word);
+            voltExecuteSQL();
         }
         
         voltQueueSQL(insertWords, word);
