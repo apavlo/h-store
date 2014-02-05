@@ -70,7 +70,7 @@ Trigger::~Trigger() {
 Trigger::Trigger(const int32_t id, const string &name, const catalog::CatalogMap<catalog::Statement> *stmts, unsigned char type, bool forEach) :
 	m_id(id), m_name(name), m_type(type), m_forEach(forEach), stats_(this)
 {
-	VOLT_DEBUG("TRIGGER CONSTRUCTOR");
+	VOLT_DEBUG("BEGIN TRIGGER CONSTRUCTOR");
 	m_latency = 0;
 
 	m_frags = new vector<const catalog::PlanFragment*>;
@@ -84,6 +84,8 @@ Trigger::Trigger(const int32_t id, const string &name, const catalog::CatalogMap
 			m_frags->push_back(frag_iter->second);
 		}
 	}
+	VOLT_DEBUG("m_frag size %d", int(m_frags->size()));
+	VOLT_DEBUG("END TRIGGER CONSTRUCTOR");
 }
 
 int32_t Trigger::id() const {
