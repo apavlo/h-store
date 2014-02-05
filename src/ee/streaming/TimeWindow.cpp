@@ -95,6 +95,43 @@ const int32_t& TimeWindow::getTS(TableTuple &source)
 
 bool TimeWindow::insertTuple(TableTuple &source)
 {
+	const int32_t ts = getTS(source);
+
+	if(ts < 0)
+	{
+
+
+
+		if(m_currentTS >= m_latestTS + m_slideSize)
+		{
+			TableTuple tuple(m_schema);
+			tuple.move(this->dataPtrForTuple(m_oldestTupleID));
+			//delete all tuples from the chain until there are exactly the window size of tuples
+			while(this->getTS(tuple) <= m_currentTS - m_windowSize)
+			{
+				if(!(this->removeOldestTuple()))
+				{
+					VOLT_DEBUG("TimeWindow: removeOldestTuple failed!!!!!!!!!!!!!!");
+					return false;
+				}
+				tuple.move(this->dataPtrForTuple(m_oldestTupleID));
+			}
+
+			WindowIterator win_itr(this);
+			while(win_itr.hasNext())
+			{
+				win_itr.next(tuple);
+				markTupleForWindow(tuple);
+			}
+			setNewestWindowTupleID(getTupleID(tuple.address()));
+			m_latestTS = getTS(tuple);
+			if(hasTriggers())
+				setFireTriggers(true);
+		}
+		m_currentTS++;
+		return true;//don't insert the heartbeat tuple
+	}
+
 	VOLT_DEBUG("TimeWindow: Entering insertTuple");
 	if(!(PersistentTable::insertTuple(source)))
 	{
@@ -120,39 +157,8 @@ bool TimeWindow::insertTuple(TableTuple &source)
 	}
 	this->m_newestTupleID = curID;
 
-	//start of TimeWindow-specific portion
-	const int32_t ts = getTS(m_tmpTarget1);
-
 	if(ts == m_latestTS)
 		markTupleForWindow(m_tmpTarget1);
-
-	else if(ts >= m_latestTS + m_slideSize)
-	{
-		TableTuple tuple(m_schema);
-		tuple.move(this->dataPtrForTuple(m_oldestTupleID));
-		//delete all tuples from the chain until there are exactly the window size of tuples
-		while(this->getTS(tuple) <= ts - m_windowSize)
-		{
-			if(!(this->removeOldestTuple()))
-			{
-				VOLT_DEBUG("TimeWindow: removeOldestTuple failed!!!!!!!!!!!!!!");
-				return false;
-			}
-			tuple.move(this->dataPtrForTuple(m_oldestTupleID));
-		}
-
-		WindowIterator win_itr(this);
-		while(win_itr.hasNext())
-		{
-			win_itr.next(tuple);
-			markTupleForWindow(tuple);
-		}
-		setNewestWindowTupleID(getTupleID(tuple.address()));
-		m_latestTS = ts;
-		if(hasTriggers())
-			setFireTriggers(true);
-	}
-
 	else
 		markTupleForStaging(m_tmpTarget1);
 
