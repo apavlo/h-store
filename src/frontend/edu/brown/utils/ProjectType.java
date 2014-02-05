@@ -88,6 +88,7 @@ public enum ProjectType {
     SIMPLENOOP("SimpleNoOp", "edu.brown.benchmark.simplenoop"),
     SIMPLESTATEMENT("SimpleStatement", "edu.brown.benchmark.simplestatement"),
     TEST("Test", null),
+    WORDCOUNT("WordCount", "edu.brown.benchmark.wordcount"),
     ;
 
 
