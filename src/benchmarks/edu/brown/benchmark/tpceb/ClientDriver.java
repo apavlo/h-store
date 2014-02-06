@@ -62,15 +62,209 @@ public class ClientDriver {
         marketExchangeCallback = new MarketExchangeCallback(tradeResultTxnInput, marketFeedTxnInput);
         marketExchangeGenerator = new MEE(0, marketExchangeCallback, logger, securityHandler, 1, configuredCustomerCount);
         
+        /*for debugging*/
         tradeReq = new TTradeRequest();
         tradeReq.eAction = eMEETradeRequestAction.eMEESetLimitOrderTrigger;
         tradeReq.price_quote = 10.0;
         tradeReq.symbol = "HYBD";
-        tradeReq.trade_id = 2000000415;
+        tradeReq.trade_id = 200000000173804l;
         tradeReq.trade_qty = 5;
         tradeReq.trade_type_id = "TLS";
         
         marketExchangeGenerator.submitTradeRequest(tradeReq);
+
+        tradeReq.eAction = eMEETradeRequestAction.eMEESetLimitOrderTrigger;
+        tradeReq.price_quote = 10.0;
+        tradeReq.symbol = "LARS";
+        tradeReq.trade_id = 200000000173806l;
+        tradeReq.trade_qty = 5;
+        tradeReq.trade_type_id = "TLS";
+        
+        marketExchangeGenerator.submitTradeRequest(tradeReq);
+
+        tradeReq.eAction = eMEETradeRequestAction.eMEESetLimitOrderTrigger;
+        tradeReq.price_quote = 10.0;
+        tradeReq.symbol = "BRY";
+        tradeReq.trade_id = 200000000173803l;
+        tradeReq.trade_qty = 5;
+        tradeReq.trade_type_id = "TLS";
+        
+        marketExchangeGenerator.submitTradeRequest(tradeReq);
+
+        tradeReq.eAction = eMEETradeRequestAction.eMEESetLimitOrderTrigger;
+        tradeReq.price_quote = 10.0;
+        tradeReq.symbol = "CGA";
+        tradeReq.trade_id = 200000000173809l;
+        tradeReq.trade_qty = 5;
+        tradeReq.trade_type_id = "TLS";
+        
+        marketExchangeGenerator.submitTradeRequest(tradeReq);
+
+        tradeReq.eAction = eMEETradeRequestAction.eMEESetLimitOrderTrigger;
+        tradeReq.price_quote = 10.0;
+        tradeReq.symbol = "CGA";
+        tradeReq.trade_id = 200000000173818l;
+        tradeReq.trade_qty = 5;
+        tradeReq.trade_type_id = "TLS";
+        
+        marketExchangeGenerator.submitTradeRequest(tradeReq);
+
+        tradeReq.eAction = eMEETradeRequestAction.eMEESetLimitOrderTrigger;
+        tradeReq.price_quote = 10.0;
+        tradeReq.symbol = "ORCC";
+        tradeReq.trade_id = 200000000173801l;
+        tradeReq.trade_qty = 5;
+        tradeReq.trade_type_id = "TLS";
+        
+        marketExchangeGenerator.submitTradeRequest(tradeReq);
+
+        tradeReq.eAction = eMEETradeRequestAction.eMEESetLimitOrderTrigger;
+        tradeReq.price_quote = 10.0;
+        tradeReq.symbol = "MCH";
+        tradeReq.trade_id = 200000000173802l;
+        tradeReq.trade_qty = 5;
+        tradeReq.trade_type_id = "TLS";
+        
+        marketExchangeGenerator.submitTradeRequest(tradeReq);
+
+        tradeReq.eAction = eMEETradeRequestAction.eMEESetLimitOrderTrigger;
+        tradeReq.price_quote = 10.0;
+        tradeReq.symbol = "CVAS";
+        tradeReq.trade_id = 200000000173810l;
+        tradeReq.trade_qty = 5;
+        tradeReq.trade_type_id = "TLS";
+        
+        marketExchangeGenerator.submitTradeRequest(tradeReq);
+
+        tradeReq.eAction = eMEETradeRequestAction.eMEESetLimitOrderTrigger;
+        tradeReq.price_quote = 10.0;
+        tradeReq.symbol = "BANC";
+        tradeReq.trade_id = 200000000173810l;
+        tradeReq.trade_qty = 5;
+        tradeReq.trade_type_id = "TLS";
+        
+        marketExchangeGenerator.submitTradeRequest(tradeReq);
+
+        tradeReq.eAction = eMEETradeRequestAction.eMEESetLimitOrderTrigger;
+        tradeReq.price_quote = 10.0;
+        tradeReq.symbol = "BDK";
+        tradeReq.trade_id = 200000000173811l;
+        tradeReq.trade_qty = 5;
+        tradeReq.trade_type_id = "TLS";
+        
+        marketExchangeGenerator.submitTradeRequest(tradeReq);
+        
+
+        tradeReq.eAction = eMEETradeRequestAction.eMEESetLimitOrderTrigger;
+        tradeReq.price_quote = 10.0;
+        tradeReq.symbol = "GUPB";
+        tradeReq.trade_id = 200000000173840l;
+        tradeReq.trade_qty = 5;
+        tradeReq.trade_type_id = "TLS";
+        
+        marketExchangeGenerator.submitTradeRequest(tradeReq);
+        
+
+        tradeReq.eAction = eMEETradeRequestAction.eMEESetLimitOrderTrigger;
+        tradeReq.price_quote = 10.0;
+        tradeReq.symbol = "CHTR";
+        tradeReq.trade_id = 200000000173861l;
+        tradeReq.trade_qty = 5;
+        tradeReq.trade_type_id = "TLS";
+        
+        marketExchangeGenerator.submitTradeRequest(tradeReq);
+        
+        
+
+        tradeReq.eAction = eMEETradeRequestAction.eMEESetLimitOrderTrigger;
+        tradeReq.price_quote = 10.0;
+        tradeReq.symbol = "AVZ";
+        tradeReq.trade_id = 200000000173879l;
+        tradeReq.trade_qty = 5;
+        tradeReq.trade_type_id = "TLS";
+        
+        marketExchangeGenerator.submitTradeRequest(tradeReq);
+        
+        
+
+        tradeReq.eAction = eMEETradeRequestAction.eMEESetLimitOrderTrigger;
+        tradeReq.price_quote = 10.0;
+        tradeReq.symbol = "WFC";
+        tradeReq.trade_id = 200000000173893l;
+        tradeReq.trade_qty = 5;
+        tradeReq.trade_type_id = "TLS";
+        
+        marketExchangeGenerator.submitTradeRequest(tradeReq);
+        
+        
+
+        tradeReq.eAction = eMEETradeRequestAction.eMEESetLimitOrderTrigger;
+        tradeReq.price_quote = 10.0;
+        tradeReq.symbol = "GD";
+        tradeReq.trade_id = 200000000173890l;
+        tradeReq.trade_qty = 5;
+        tradeReq.trade_type_id = "TLS";
+        
+        marketExchangeGenerator.submitTradeRequest(tradeReq);
+        
+        
+
+        tradeReq.eAction = eMEETradeRequestAction.eMEESetLimitOrderTrigger;
+        tradeReq.price_quote = 10.0;
+        tradeReq.symbol = "EXBT";
+        tradeReq.trade_id = 200000000173811l;
+        tradeReq.trade_qty = 5;
+        tradeReq.trade_type_id = "TLS";
+        
+        marketExchangeGenerator.submitTradeRequest(tradeReq);
+        
+        
+
+        tradeReq.eAction = eMEETradeRequestAction.eMEESetLimitOrderTrigger;
+        tradeReq.price_quote = 10.0;
+        tradeReq.symbol = "CFFC";
+        tradeReq.trade_id = 200000000173811l;
+        tradeReq.trade_qty = 5;
+        tradeReq.trade_type_id = "TLS";
+        
+        marketExchangeGenerator.submitTradeRequest(tradeReq);
+        
+        
+
+        tradeReq.eAction = eMEETradeRequestAction.eMEESetLimitOrderTrigger;
+        tradeReq.price_quote = 10.0;
+        tradeReq.symbol = "CATY";
+        tradeReq.trade_id = 200000000173850l;
+        tradeReq.trade_qty = 5;
+        tradeReq.trade_type_id = "TLS";
+        
+        marketExchangeGenerator.submitTradeRequest(tradeReq);
+        
+        
+
+        tradeReq.eAction = eMEETradeRequestAction.eMEESetLimitOrderTrigger;
+        tradeReq.price_quote = 10.0;
+        tradeReq.symbol = "CSPI";
+        tradeReq.trade_id = 200000000173853l;
+        tradeReq.trade_qty = 5;
+        tradeReq.trade_type_id = "TLS";
+        
+        marketExchangeGenerator.submitTradeRequest(tradeReq);
+        
+        
+
+        tradeReq.eAction = eMEETradeRequestAction.eMEESetLimitOrderTrigger;
+        tradeReq.price_quote = 10.0;
+        tradeReq.symbol = "CHFN";
+        tradeReq.trade_id = 200000000173243l;
+        tradeReq.trade_qty = 5;
+        tradeReq.trade_type_id = "TLS";
+        
+        marketExchangeGenerator.submitTradeRequest(tradeReq);
+      
+        
+        
+
         
         marketExchangeGenerator.enableTickerTape();   
         

@@ -83,9 +83,18 @@ public class TimerWheel {
         System.out.println("currentTime cycles" + currentTime.getCycles() );
         System.out.println("lastTime index" + lastTime.getIndex() );
         System.out.println("currentTime index" + currentTime.getIndex() );
-        while( lastTime.getCycles() < currentTime.getCycles() ? ( lastTime.getIndex() < currentTime.getIndex() ) : ( lastTime.getCycles() < currentTime.getCycles() )){
-            lastTime.add(1);
+        while( lastTime.getCycles() == currentTime.getCycles() ? ( lastTime.getIndex() < currentTime.getIndex() ) : ( lastTime.getCycles() < currentTime.getCycles() )){
+      // while(lastTime < currentTime){
+            System.out.println("last time index before" + lastTime.getIndex());
+        lastTime.add(1);
+        if(timerWheel == null){
+            System.out.println("null tw");
+        }
+        System.out.println(timerWheel.size());
+        System.out.println("last time index up" + lastTime.getIndex());
             System.out.println("in loop");
+           // System.out.println("timerWheel etc" + timerWheel.get(lastTime.getIndex()));
+           
             if( ! timerWheel.get( lastTime.getIndex()).isEmpty() ){
                 System.out.println("adding to timer list");
                 processTimerList( timerWheel.get( lastTime.getIndex()) );
