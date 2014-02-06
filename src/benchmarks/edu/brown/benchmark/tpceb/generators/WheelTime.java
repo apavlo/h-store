@@ -58,7 +58,7 @@ public class WheelTime {
     public void  set( GregorianCalendar base, GregorianCalendar now ){
         int       offset; 
     
-        offset = (int)(now.getTimeInMillis() - base.getTimeInMillis()) / wheelConfig.getWheelSize(); // convert based on wheel resolution
+        offset = (int)(now.getTimeInMillis() - base.getTimeInMillis()) / wheelConfig.getWheelResolution(); // convert based on wheel resolution
         cycles = offset / wheelConfig.getWheelSize();
         index = offset % wheelConfig.getWheelSize();
     }

@@ -116,7 +116,7 @@ class TimeWindowTest : public Test {
             std::vector<bool> columnAllowNull;
             for (int ctr = 0; ctr < NUM_OF_COLUMNS; ctr++) {
             	if(ctr == 0)
-            		snprintf(buffer, 32, "time");
+            		snprintf(buffer, 32, "TIME");
             	else
             		snprintf(buffer, 32, "column%02d", ctr);
                 columnNames[ctr] = buffer;
