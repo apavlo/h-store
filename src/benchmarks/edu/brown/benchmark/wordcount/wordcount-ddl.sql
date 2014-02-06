@@ -1,12 +1,12 @@
 CREATE STREAM words
 (
-  word            varchar(20)     NOT NULL
+  word  varchar(20)     NOT NULL
 );
 
 CREATE TABLE counts
 (
-  word  varchar(20) NOT NULL
-, num   integer     NOT NULL
+  word  varchar(20)  NOT NULL
+, num   int     NOT NULL
 , CONSTRAINT PK_word PRIMARY KEY
   (
     word
