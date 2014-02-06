@@ -124,7 +124,7 @@ class TupleWindowTest : public Test {
             }
             voltdb::TupleSchema *schema = voltdb::TupleSchema::createTupleSchema(columnTypes, columnLengths, columnAllowNull, true);
 
-			window_table = voltdb::TableFactory::getTempWindowTable(database_id, m_engine->getExecutorContext(),
+			window_table = voltdb::TableFactory::getWindowTable(database_id, m_engine->getExecutorContext(),
 							"test_table", schema, columnNames, -1, false, false, WINDOW_SIZE, SLIDE_SIZE);
 
 			table = window_table;

@@ -71,6 +71,7 @@ public class MEETradingFloor {
             tickerTape.PostLimitOrder( tradeReq );
             System.out.println("out of post limit order");
           //  sendTradeResult(tradeReq); //added for debugging
+
             return( orderTimers.processExpiredTimers() );
         default:
             return( orderTimers.processExpiredTimers() );

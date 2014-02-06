@@ -116,7 +116,7 @@ class TimeWindowTest : public Test {
             std::vector<bool> columnAllowNull;
             for (int ctr = 0; ctr < NUM_OF_COLUMNS; ctr++) {
             	if(ctr == 0)
-            		snprintf(buffer, 32, "TS");
+            		snprintf(buffer, 32, "TIME");
             	else
             		snprintf(buffer, 32, "column%02d", ctr);
                 columnNames[ctr] = buffer;
@@ -126,7 +126,7 @@ class TimeWindowTest : public Test {
             }
             voltdb::TupleSchema *schema = voltdb::TupleSchema::createTupleSchema(columnTypes, columnLengths, columnAllowNull, true);
 
-			table = voltdb::TableFactory::getTempWindowTable(database_id, m_engine->getExecutorContext(),
+			table = voltdb::TableFactory::getWindowTable(database_id, m_engine->getExecutorContext(),
 							"test_table", schema, columnNames, -1, false, false, WINDOW_SIZE, SLIDE_SIZE, TIME_WINDOW);
 
 			window_table = dynamic_cast<TimeWindow*>(table);

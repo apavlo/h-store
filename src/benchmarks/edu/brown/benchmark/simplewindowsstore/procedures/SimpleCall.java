@@ -13,6 +13,8 @@ import java.util.Random;
 public class SimpleCall extends VoltProcedure {
 	Random r = new Random();
 	int currentTimestamp = 0;
+	int tsCounter = 1;
+	int tuplesPerTimestamp = 3;
     
     public final SQLStmt insertS1 = new SQLStmt(
             "INSERT INTO S1 (myvalue, time) VALUES (?,?);"
@@ -22,7 +24,13 @@ public class SimpleCall extends VoltProcedure {
 
         voltQueueSQL(insertS1, r.nextInt(10), currentTimestamp);
         voltExecuteSQL();
-        currentTimestamp++;
+        if(tsCounter == tuplesPerTimestamp)
+        {
+        	currentTimestamp++;
+        	tsCounter = 1;
+        }
+        else
+        	tsCounter++;
 
 		return 0;
     }

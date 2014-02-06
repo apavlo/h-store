@@ -1,0 +1,3 @@
+The H-Store project is pleased to announce the release of the latest version of its high-performance, distributed transaction processing database management system. The major enhancements in the system are related to transaction correctness and for speculative execution. This is a belated release, as most of the new features and improvements were implemented earlier in the summer.
+
+We are also excited to announce the start of new research projects in H-Store with our new collaborators at Intel Labs as part of the ISTC for Big Data and at the Qatar Computing Research Institute. More information on these projects will be available later in the winter.
