@@ -767,6 +767,7 @@ bool VoltDBEngine::rebuildTableCollections() {
            
             // added by hawk, 2013/12/13, for StreamStats
 	    PersistentTable *persistTarget = dynamic_cast<PersistentTable*>(tcd->getTable());
+            /*
             if(catTable->isStream())
             {
 	        VOLT_DEBUG("getStatsManager().registerStatsSource for stream id: %d", catTable->relativeIndex());
@@ -774,6 +775,7 @@ bool VoltDBEngine::rebuildTableCollections() {
                                                    catTable->relativeIndex(),
                                                    persistTarget->getStreamStats());
             }
+            */
             // ended by hawk 
 
             // add all of the indexes to the stats source
@@ -1211,19 +1213,6 @@ int VoltDBEngine::getStats(int selector, int locators[], int numLocators,
             VOLT_DEBUG( "end VoltDBEngine::getStats - STATISTICS_SELECTOR_TYPE_TABLE ..." );
             break;
         case STATISTICS_SELECTOR_TYPE_TRIGGER: // added by hawk, 2013/12/6 to make micro-benchmark for trigger
-	      /*
-            for (int ii = 0; ii < numLocators; ii++) {
-                CatalogId locator = static_cast<CatalogId>(locators[ii]);
-                if (m_tables.find(locator) == m_tables.end()) {
-                    char message[256];
-                    snprintf(message, 256,  "getStats() called with selector %d, and"
-                            " an invalid locator %d that does not correspond to"
-                            " a table", selector, locator);
-                    throw SerializableEEException(VOLT_EE_EXCEPTION_TYPE_EEEXCEPTION,
-                                                  message);
-                }
-            }
-	      */
 		VOLT_DEBUG( "begin VoltDBEngine::getStats - STATISTICS_SELECTOR_TYPE_TRIGGER ..." );
               //VOLT_DEBUG("m_statsManager.getStats for trigger id: %d", locatorIds[0]);
 
@@ -1233,26 +1222,14 @@ int VoltDBEngine::getStats(int selector, int locators[], int numLocators,
 		VOLT_DEBUG( "end VoltDBEngine::getStats - STATISTICS_SELECTOR_TYPE_TRIGGER ..." );
             break;
         case STATISTICS_SELECTOR_TYPE_STREAM: // added by hawk, 2013/12/13 to make micro-benchmark for STREAM
-	      /*
-            for (int ii = 0; ii < numLocators; ii++) {
-                CatalogId locator = static_cast<CatalogId>(locators[ii]);
-                if (m_tables.find(locator) == m_tables.end()) {
-                    char message[256];
-                    snprintf(message, 256,  "getStats() called with selector %d, and"
-                            " an invalid locator %d that does not correspond to"
-                            " a table", selector, locator);
-                    throw SerializableEEException(VOLT_EE_EXCEPTION_TYPE_EEEXCEPTION,
-                                                  message);
-                }
-            }
-	      */
 		VOLT_DEBUG( "begin VoltDBEngine::getStats - STATISTICS_SELECTOR_TYPE_STREAM ..." );
               //VOLT_DEBUG("m_statsManager.getStats for trigger id: %d", locatorIds[0]);
-
+            /*
             resultTable = m_statsManager.getStats(
                 (StatisticsSelectorType) selector,
                 locatorIds, interval, now);
 		VOLT_DEBUG( "end VoltDBEngine::getStats - STATISTICS_SELECTOR_TYPE_STREAM ..." );
+            */
             break;
         case STATISTICS_SELECTOR_TYPE_INDEX:
 	    VOLT_DEBUG( "begin VoltDBEngine::getStats - STATISTICS_SELECTOR_TYPE_INDEX ..." );
