@@ -766,8 +766,8 @@ bool VoltDBEngine::rebuildTableCollections() {
                                                   tcd->getTable()->getTableStats());
            
             // added by hawk, 2013/12/13, for StreamStats
-	    PersistentTable *persistTarget = dynamic_cast<PersistentTable*>(tcd->getTable());
             /*
+	    PersistentTable *persistTarget = dynamic_cast<PersistentTable*>(tcd->getTable());
             if(catTable->isStream())
             {
 	        VOLT_DEBUG("getStatsManager().registerStatsSource for stream id: %d", catTable->relativeIndex());
@@ -788,6 +788,7 @@ bool VoltDBEngine::rebuildTableCollections() {
             }
 
 		// add all of the triggers to the stats source
+                /*
 		if(persistTarget != NULL && persistTarget->hasTriggers()) 
 		{
 			std::vector<Trigger*>::iterator trig_iter;
@@ -800,6 +801,7 @@ bool VoltDBEngine::rebuildTableCollections() {
 							 (*trig_iter)->getTriggerStats());
 			}
 		}
+                */
         }
         cdIt++;
     }
@@ -1215,11 +1217,12 @@ int VoltDBEngine::getStats(int selector, int locators[], int numLocators,
         case STATISTICS_SELECTOR_TYPE_TRIGGER: // added by hawk, 2013/12/6 to make micro-benchmark for trigger
 		VOLT_DEBUG( "begin VoltDBEngine::getStats - STATISTICS_SELECTOR_TYPE_TRIGGER ..." );
               //VOLT_DEBUG("m_statsManager.getStats for trigger id: %d", locatorIds[0]);
-
+            /*
             resultTable = m_statsManager.getStats(
                 (StatisticsSelectorType) selector,
                 locatorIds, interval, now);
 		VOLT_DEBUG( "end VoltDBEngine::getStats - STATISTICS_SELECTOR_TYPE_TRIGGER ..." );
+            */
             break;
         case STATISTICS_SELECTOR_TYPE_STREAM: // added by hawk, 2013/12/13 to make micro-benchmark for STREAM
 		VOLT_DEBUG( "begin VoltDBEngine::getStats - STATISTICS_SELECTOR_TYPE_STREAM ..." );

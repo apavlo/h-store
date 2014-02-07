@@ -3144,7 +3144,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             
             // added by hawk, 2013/12/6
             // get the trigger stats information here
-            updateTriggerStats(EstTime.currentTimeMillis());
+            //updateTriggerStats(EstTime.currentTimeMillis());
             //updateStreamStats(EstTime.currentTimeMillis());
             // ended by hawk
             
