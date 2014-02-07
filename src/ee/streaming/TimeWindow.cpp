@@ -97,12 +97,12 @@ bool TimeWindow::insertTuple(TableTuple &source)
 {
 	const int32_t ts = getTS(source);
 
-	if(ts >= m_latestTS + m_slideSize)
+	if(ts > m_latestTS + m_slideSize)
 	{
 		TableTuple tuple(m_schema);
 		tuple.move(this->dataPtrForTuple(m_oldestTupleID));
 		//delete all tuples from the chain until there are exactly the window size of tuples
-		while(this->getTS(tuple) <= ts - m_windowSize)
+		while(this->getTS(tuple) < ts - m_windowSize)
 		{
 			if(!(this->removeOldestTuple()))
 			{

@@ -43,7 +43,10 @@ import edu.brown.benchmark.voterwintimehstore.VoterWinTimeHStoreConstants;
 )
 public class Vote extends VoltProcedure {
 	public final int windowSize = 100;
-	public final int slideSize = 1;
+	public final int slideSize = 10;
+	public final int tuplesPerTimestamp = 3;
+	int currentTimestamp = 0;
+	int tsCounter = 1;
 	
     // Checks if the vote is for a valid contestant
     public final SQLStmt checkContestantStmt = new SQLStmt(
@@ -62,12 +65,12 @@ public class Vote extends VoltProcedure {
 	
     // Records a vote
     public final SQLStmt insertVoteStmt = new SQLStmt(
-		"INSERT INTO votes (vote_id, phone_number, state, contestant_number, created) VALUES (?, ?, ?, ?, ?);"
+		"INSERT INTO votes (vote_id, phone_number, state, contestant_number, time) VALUES (?, ?, ?, ?, ?);"
     );
     
     // Put the vote into the staging window
     public final SQLStmt insertVoteStagingStmt = new SQLStmt(
-		"INSERT INTO w_staging (vote_id, phone_number, state, contestant_number, created) VALUES (?, ?, ?, ?, ?);"
+		"INSERT INTO w_staging (vote_id, phone_number, state, contestant_number, time) VALUES (?, ?, ?, ?, ?);"
     );
     
  // Find the cutoff vote
@@ -97,7 +100,7 @@ public class Vote extends VoltProcedure {
     
     // Put the staging votes into the window
     public final SQLStmt insertVoteWindowStmt = new SQLStmt(
-		"INSERT INTO w_rows (vote_id, phone_number, state, contestant_number, created) SELECT * FROM w_staging;"
+		"INSERT INTO w_rows (vote_id, phone_number, state, contestant_number, time) SELECT * FROM w_staging;"
     );
     
  // Pull aggregate from window
