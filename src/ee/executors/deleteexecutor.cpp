@@ -57,6 +57,10 @@
 
 #include <cassert>
 
+#ifdef ARIES
+#include "logging/Logrecord.h"
+#endif
+
 namespace voltdb {
 
 bool DeleteExecutor::p_init(AbstractPlanNode *abstract_node, const catalog::Database* catalog_db, int* tempTableMemoryInBytes) {
@@ -95,11 +99,49 @@ bool DeleteExecutor::p_execute(const NValueArray &params, ReadWriteTracker *trac
         VOLT_TRACE("truncating table %s...", m_targetTable->name().c_str());
         // count the truncated tuples as deleted
         m_engine->m_tuplesModified += m_inputTable->activeTupleCount();
+
+#ifdef ARIES
+		// no need of persistency check, m_targetTable is
+		// always persistent for deletes
+
+		LogRecord *logrecord = new LogRecord(computeTimeStamp(),
+				LogRecord::T_TRUNCATE,// this is a truncate record
+				LogRecord::T_FORWARD,// the system is running normally
+				-1,// XXX: prevLSN must be fetched from table!
+				m_engine->getExecutorContext()->currentTxnId() ,// txn id
+				m_engine->getSiteId(),// which execution site
+				m_targetTable->name(),// the table affected
+				NULL,// primary key irrelevant
+				-1,// irrelevant numCols
+				NULL,// list of modified cols irrelevant
+				NULL,// before image irrelevant
+				NULL// after image irrelevant
+		);
+
+		size_t logrecordLength = logrecord->getEstimatedLength();
+		char *logrecordBuffer = new char[logrecordLength];
+
+		FallbackSerializeOutput output;
+		output.initializeWithPosition(logrecordBuffer, logrecordLength, 0);
+
+		logrecord->serializeTo(output);
+
+		const Logger *logger = LogManager::getThreadLogger(LOGGERID_MM_ARIES);
+		logger->log(LOGLEVEL_INFO, output.data(), output.position());
+
+		delete[] logrecordBuffer;
+		logrecordBuffer = NULL;
+
+		delete logrecord;
+		logrecord = NULL;
+#endif
+
         //m_engine->context().incrementTuples(m_targetTable->activeTupleCount());
         // actually delete all the tuples
         m_targetTable->deleteAllTuples(true);
         return true;
     }
+    // XXX : ARIES : Not sure if else is needed ?
     assert(m_inputTable);
 
     assert(m_inputTuple.sizeInValues() == m_inputTable->columnCount());
@@ -121,6 +163,73 @@ bool DeleteExecutor::p_execute(const NValueArray &params, ReadWriteTracker *trac
             tracker->markTupleWritten(m_targetTable, &m_targetTuple);
         }
 
+#ifdef ARIES
+		// no need of persistency check, m_targetTable is
+		// always persistent for deletes
+
+		// before image -- target is tuple to be deleted.
+		TableTuple *beforeImage = &m_targetTuple;
+
+		TableTuple *keyTuple = NULL;
+		char *keydata = NULL;
+
+		// See if we use an index instead
+		TableIndex *index = m_targetTable->primaryKeyIndex();
+
+		if (index != NULL) {
+			// First construct tuple for primary key
+			keydata = new char[index->getKeySchema()->tupleLength()];
+			keyTuple = new TableTuple(keydata, index->getKeySchema());
+
+			for (int i = 0; i < index->getKeySchema()->columnCount(); i++) {
+				keyTuple->setNValue(i, beforeImage->getNValue(index->getColumnIndices()[i]));
+			}
+
+			// no before image need be recorded, just the primary key
+			beforeImage = NULL;
+		}
+
+		LogRecord *logrecord = new LogRecord(computeTimeStamp(),
+				LogRecord::T_DELETE,	// this is a delete record
+				LogRecord::T_FORWARD,// the system is running normally
+				-1,// XXX: prevLSN must be fetched from table!
+				m_engine->getExecutorContext()->currentTxnId() ,// txn id
+				m_engine->getSiteId(),// which execution site
+				m_targetTable->name(),// the table affected
+				keyTuple,// primary key
+				-1,// must delete all columns
+				NULL,// no list of modified cols
+				beforeImage,
+				NULL// no after image
+		);
+
+		size_t logrecordLength = logrecord->getEstimatedLength();
+		char *logrecordBuffer = new char[logrecordLength];
+
+		FallbackSerializeOutput output;
+		output.initializeWithPosition(logrecordBuffer, logrecordLength, 0);
+
+		logrecord->serializeTo(output);
+
+		const Logger *logger = LogManager::getThreadLogger(LOGGERID_MM_ARIES);
+		logger->log(LOGLEVEL_INFO, output.data(), output.position());
+
+		delete[] logrecordBuffer;
+		logrecordBuffer = NULL;
+
+		delete logrecord;
+		logrecord = NULL;
+
+		if (keydata != NULL) {
+			delete[] keydata;
+			keydata = NULL;
+		}
+
+		if (keyTuple != NULL) {
+			delete keyTuple;
+			keyTuple = NULL;
+		}
+#endif
         // Delete from target table
         if (!m_targetTable->deleteTuple(m_targetTuple, true)) {
             VOLT_ERROR("Failed to delete tuple from table '%s'",

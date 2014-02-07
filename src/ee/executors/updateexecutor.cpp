@@ -65,6 +65,10 @@
 #include "catalog/table.h"
 #include "catalog/column.h"
 
+#ifdef ARIES
+#include "logging/Logrecord.h"
+#endif
+
 namespace voltdb {
 
 bool UpdateExecutor::p_init(AbstractPlanNode *abstract_node, const catalog::Database* catalog_db, int* tempTableMemoryInBytes) {
@@ -197,6 +201,102 @@ bool UpdateExecutor::p_execute(const NValueArray &params, ReadWriteTracker *trac
                 return false;
             }
         }
+
+#ifdef ARIES
+		// add persistency check:
+		PersistentTable* table = dynamic_cast<PersistentTable*>(m_targetTable);
+
+		// only log if we are writing to a persistent table.
+		if (table != NULL) {
+			// before image -- target is old val with no updates
+			// XXX: what about uninlined fields?
+			// should we not be doing
+			// m_targetTable->getTempTupleInlined(m_targetTuple); instead?
+			TableTuple *beforeImage = &m_targetTuple;
+
+			// after image -- temp is NEW, created using target and input
+			TableTuple *afterImage = &tempTuple;
+
+			TableTuple *keyTuple = NULL;
+			char *keydata = NULL;
+			std::vector<int32_t> modifiedCols;
+
+			int32_t numCols = -1;
+
+			// See if we can do better by using an index instead
+			TableIndex *index = table->primaryKeyIndex();
+
+			if (index != NULL) {
+				// First construct tuple for primary key
+				keydata = new char[index->getKeySchema()->tupleLength()];
+				keyTuple = new TableTuple(keydata, index->getKeySchema());
+
+				for (int i = 0; i < index->getKeySchema()->columnCount(); i++) {
+					keyTuple->setNValue(i, beforeImage->getNValue(index->getColumnIndices()[i]));
+				}
+
+				// no before image need be recorded, just the primary key
+				beforeImage = NULL;
+			}
+
+			// Set the modified column list
+			numCols = m_inputTargetMapSize;
+
+			modifiedCols.resize(m_inputTargetMapSize, -1);
+
+			for (int map_ctr = 0; map_ctr < m_inputTargetMapSize; map_ctr++) {
+				// can't use column-id directly, otherwise we would go over vector bounds
+				int pos = m_inputTargetMap[map_ctr].first - 1;
+
+				modifiedCols.at(pos)
+				= m_inputTargetMap[map_ctr].second;
+			}
+
+			// Next, let the input tuple be the diff after image
+			afterImage = &m_inputTuple;
+
+			LogRecord *logrecord = new LogRecord(computeTimeStamp(),
+					LogRecord::T_UPDATE,	// this is an update record
+					LogRecord::T_FORWARD,	// the system is running normally
+					-1,						// XXX: prevLSN must be fetched from table!
+					m_engine->getExecutorContext()->currentTxnId() ,// txn id
+					m_engine->getSiteId(),	// which execution site
+					m_targetTable->name(),	// the table affected
+					keyTuple,				// primary key
+					numCols,
+					(numCols > 0) ? &modifiedCols : NULL,
+					beforeImage,
+					afterImage
+			);
+
+			size_t logrecordLength = logrecord->getEstimatedLength();
+			char *logrecordBuffer = new char[logrecordLength];
+
+			FallbackSerializeOutput output;
+			output.initializeWithPosition(logrecordBuffer, logrecordLength, 0);
+
+			logrecord->serializeTo(output);
+
+			const Logger *logger = LogManager::getThreadLogger(LOGGERID_MM_ARIES);
+			logger->log(LOGLEVEL_INFO, output.data(), output.position());
+
+			delete[] logrecordBuffer;
+			logrecordBuffer = NULL;
+
+			delete logrecord;
+			logrecord = NULL;
+
+			if (keydata != NULL) {
+				delete[] keydata;
+				keydata = NULL;
+			}
+
+			if (keyTuple != NULL) {
+				delete keyTuple;
+				keyTuple = NULL;
+			}
+		}
+#endif
 
         if (!m_targetTable->updateTuple(tempTuple, m_targetTuple,
                                         m_updatesIndexes)) {

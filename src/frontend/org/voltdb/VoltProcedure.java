@@ -32,6 +32,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.CatalogMap;
@@ -542,6 +543,10 @@ public abstract class VoltProcedure implements Poolable {
                 return (response);
             }
         }
+        
+        // ARIES
+        int bufferLength = 0;
+        byte[] arieslogData = null;
 
         // Workload Trace
         // Create a new transaction record in the trace manager. This will give us back
@@ -594,6 +599,17 @@ public abstract class VoltProcedure implements Poolable {
                 Object rawResult = this.procMethod.invoke(this, this.procParams);
                 this.results = this.getResultsFromRawResults(rawResult);
                 if (this.results == null) results = HStoreConstants.EMPTY_RESULT;
+
+                // ARIES
+                if (!this.catalog_proc.getReadonly()) {
+                    bufferLength = (int) this.executor.getArieslogBufferLength();
+
+                    if (bufferLength > 0) {
+                        arieslogData = new byte[bufferLength];
+                        this.executor.getArieslogData(bufferLength, arieslogData);
+                    }
+                }
+                
             } catch (IllegalAccessException e) {
                 // If reflection fails, invoke the same error handling that other exceptions do
                 throw new InvocationTargetException(e);
@@ -734,6 +750,18 @@ public abstract class VoltProcedure implements Poolable {
 
         if (this.observable != null) this.observable.notifyObservers(response);
         if (trace.val) LOG.trace(response);
+        
+        // ARIES
+        /*
+         *  Since call returns a ClientResponseImpl you can add a field for the log data
+         *  that isn't serialized during messaging that is the log data for the txn
+         */
+        if (this.status == status.OK && this.error == null) {
+            if (bufferLength > 0) {
+                response.setAriesLogData(arieslogData);
+            }
+        }
+        
         return (response);
     }
 
@@ -914,6 +942,19 @@ public abstract class VoltProcedure implements Poolable {
             assert(this.localTxnState != null);
             assert(this.executor != null);
             this.executor.loadTable(this.localTxnState, clusterName, databaseName, tableName, data, allowELT);
+            
+            // ARIES
+            byte[] arieslogData = null;            
+            int bufferLength = (int) this.executor.getArieslogBufferLength();
+           
+            if (bufferLength > 0) {
+                arieslogData = new byte[bufferLength];
+                this.executor.getArieslogData(bufferLength, arieslogData);
+
+                // we don't really care much about this atomic boolean here
+                this.hstore_site.getAriesLogger().log(arieslogData, new AtomicBoolean());
+            }
+            
         } catch (EEException e) {
             throw new VoltAbortException("Failed to load table: " + tableName);
         }

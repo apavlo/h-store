@@ -41,9 +41,12 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.commons.collections15.buffer.CircularFifoBuffer;
 import org.apache.log4j.Logger;
+import org.voltdb.AriesLog;
+import org.voltdb.AriesLogNative;
 import org.voltdb.CatalogContext;
 import org.voltdb.ClientResponseImpl;
 import org.voltdb.MemoryStats;
@@ -54,7 +57,9 @@ import org.voltdb.StatsSource;
 import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.SysProcSelector;
 import org.voltdb.TransactionIdManager;
+import org.voltdb.catalog.CatalogMap;
 import org.voltdb.catalog.Host;
+import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Table;
@@ -66,6 +71,8 @@ import org.voltdb.exceptions.EvictedTupleAccessException;
 import org.voltdb.exceptions.MispredictionException;
 import org.voltdb.exceptions.SerializableException;
 import org.voltdb.exceptions.ServerFaultException;
+import org.voltdb.jni.ExecutionEngine;
+import org.voltdb.logging.VoltLogger;
 import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.messaging.FastSerializer;
 import org.voltdb.network.Connection;
@@ -413,7 +420,21 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     // CACHED STRINGS
     // ----------------------------------------------------------------------------
     
-    private final String REJECTION_MESSAGE;
+    private final String REJECTION_MESSAGE;    
+    
+    // ARIES
+    private AriesLog m_ariesLog = null;
+    
+    private boolean m_recovering = false;
+    private boolean m_haveRecoveryPermit = false;
+    private long m_recoveryStartTime = 0;
+    private static AtomicLong m_recoveryBytesTransferred = new AtomicLong();
+    
+    private VoltLogger m_recoveryLog = null;    
+
+    public AriesLog getAriesLogger() {
+        return m_ariesLog;
+    }
     
     // ----------------------------------------------------------------------------
     // CONSTRUCTOR
@@ -455,7 +476,16 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                                              new Class<?>[]{ CatalogContext.class, int.class });
         this.p_estimator = new PartitionEstimator(this.catalogContext, this.hasher);
         this.remoteTxnEstimator = new RemoteEstimator(this.p_estimator);
+        
+        // ARIES        
+        // Starts native thread
+        this.m_ariesLog = new AriesLogNative(
+                1, 
+                1,   // 1 GB
+                16); // Sync Frequency
+        this.m_recoveryLog  = new VoltLogger("RECOVERY");        
 
+        
         // **IMPORTANT**
         // Always clear out the CatalogUtil and BatchPlanner before we start our new HStoreSite
         // TODO: Move this cache information into CatalogContext
@@ -1285,6 +1315,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         this.init();
         
+        // ARIES
+        if (m_ariesLog != null) {
+            LOG.warn("Starting ARIES recovery");
+            doSiteRecovery();
+            waitForAriesLogInit();
+        }
+        
         try {
             this.clientInterface.startAcceptingConnections();
         } catch (Exception ex) {
@@ -1336,6 +1373,45 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     public boolean isRunning() {
         return (this.ready);
     }
+
+    // ARIES
+    public void doSiteRecovery() {        
+        while (!m_ariesLog.isReadyForReplay()) {
+            try {
+                // don't sleep for too long as recovery numbers might get biased
+                Thread.sleep(500);
+            } catch (InterruptedException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
+        }        
+
+        if (!m_ariesLog.isRecoveryCompleted()) {
+            int m_siteId = this.getSiteId();
+
+            for (PartitionExecutor pe : executors ) {
+                ExecutionEngine ee = pe.getExecutionEngine();
+                
+                if (!m_ariesLog.isRecoveryCompletedForSite(m_siteId)) {
+                    ee.doAriesRecoveryPhase(m_ariesLog.getPointerToReplayLog(), m_ariesLog.getReplayLogSize(), m_ariesLog.getTxnIdToBeginReplay());
+                    m_ariesLog.setRecoveryCompleted(m_siteId);                
+                }
+            }
+        }
+    }
+    
+    private void waitForAriesLogInit() {
+        // wait for the main thread to complete Aries recovery
+        // and initialize the log
+        while (!m_ariesLog.isInitialized) {
+            try {
+                Thread.sleep(100);
+            } catch (InterruptedException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
+        }
+    }        
     
     // ----------------------------------------------------------------------------
     // SHUTDOWN STUFF

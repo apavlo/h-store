@@ -61,8 +61,10 @@ import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.log4j.Logger;
+import org.voltdb.AriesLog;
 import org.voltdb.BackendTarget;
 import org.voltdb.CatalogContext;
 import org.voltdb.ClientResponseImpl;
@@ -99,6 +101,7 @@ import org.voltdb.jni.ExecutionEngine;
 import org.voltdb.jni.ExecutionEngineIPC;
 import org.voltdb.jni.ExecutionEngineJNI;
 import org.voltdb.jni.MockExecutionEngine;
+import org.voltdb.logging.VoltLogger;
 import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.messaging.FastSerializer;
 import org.voltdb.types.SpecExecSchedulerPolicyType;
@@ -389,6 +392,35 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
      */
     private long lastCommittedUndoToken = -1l;
     
+    // ARIES    
+    private boolean m_ariesRecovery;    
+     
+    public long getArieslogBufferLength() {
+        return ee.getArieslogBufferLength();
+    }
+
+    public void getArieslogData(int bufferLength, byte[] arieslogDataArray) {
+        ee.getArieslogData(bufferLength, arieslogDataArray);
+    }
+
+    public long readAriesLogForReplay(long[] size) {
+        return ee.readAriesLogForReplay(size);
+    }
+
+    public void freePointerToReplayLog(long ariesReplayPointer) {
+        ee.freePointerToReplayLog(ariesReplayPointer);
+    }
+
+    public boolean doingAriesRecovery() 
+    {
+        return m_ariesRecovery;
+    }
+    
+    public void ariesRecoveryCompleted() 
+    {
+     //m_ariesRecovery = false;
+    }
+    
     // ----------------------------------------------------------------------------
     // SPECULATIVE EXECUTION STATE
     // ----------------------------------------------------------------------------
@@ -654,6 +686,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
     }
 
     private final SystemProcedureContext m_systemProcedureContext = new SystemProcedureContext();
+    private AriesLog m_ariesLog ;
 
     public SystemProcedureExecutionContext getSystemProcedureExecutionContext(){
 	return m_systemProcedureContext;
@@ -684,6 +717,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         this.partitionId = 0;
         this.procedures = null;
         this.tmp_transactionRequestBuilders = null;
+        this.m_ariesLog = null;
     }
 
     /**
@@ -715,7 +749,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         this.p_estimator = p_estimator;
         this.localTxnEstimator = t_estimator;
         this.specExecComparator = new TransactionUndoTokenComparator(this.partitionId);
-        
+                
         // VoltProcedure Queues
         @SuppressWarnings("unchecked")
         Queue<VoltProcedure> voltProcQueues[] = new Queue[catalogContext.procedures.size()+1];
@@ -836,6 +870,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             tmp_def_txn = new LocalTransaction(hstore_site);
         }
 
+        // ARIES        
+        this.m_ariesLog = this.hstore_site.getAriesLogger();
+
         // -------------------------------
         // BENCHMARK START NOTIFICATIONS
         // -------------------------------
@@ -942,6 +979,53 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         }
     }
     
+    // ARIES
+    public void waitForAriesRecoveryCompletion() {
+        // wait for other threads to complete Aries recovery
+        // ONLY called from main site.
+        while (!m_ariesLog.isRecoveryCompleted()) {
+            try {
+                // don't sleep too long, shouldn't bias
+                // numbers
+                Thread.sleep(500);
+            } catch (InterruptedException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
+        }
+    }
+    
+    public void doPartitionRecovery(long txnIdToBeginReplay) {        
+        if (m_ariesLog  != null) {
+            long logReadStartTime = System.currentTimeMillis();
+
+            // define an array so that we can pass to native code by reference
+            long size[] = new long[1];
+            long ariesReplayPointer = readAriesLogForReplay(size);
+
+            LOG.warn("java pointer address: " + ariesReplayPointer);
+            LOG.warn("java size of array:" + size[0]);
+
+            long logReadEndTime = System.currentTimeMillis();
+
+            LOG.warn("Aries log read in " + (logReadEndTime - logReadStartTime) + " milliseconds");
+
+            long ariesStartTime = System.currentTimeMillis();
+
+            m_ariesLog.setPointerToReplayLog(ariesReplayPointer, size[0]);
+            m_ariesLog.setTxnIdToBeginReplay(txnIdToBeginReplay);
+
+            waitForAriesRecoveryCompletion();
+
+            freePointerToReplayLog(ariesReplayPointer);
+
+            long ariesEndTime = System.currentTimeMillis();
+            LOG.warn("Aries recovery finished in " + (ariesEndTime - ariesStartTime) + " milliseconds");
+
+            m_ariesLog.init();
+        }
+    }
+    
     // ----------------------------------------------------------------------------
     // MAIN EXECUTION LOOP
     // ----------------------------------------------------------------------------
@@ -981,6 +1065,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         assert(this.hstore_coordinator != null);
         assert(this.specExecScheduler != null);
         assert(this.queueManager != null);
+        
+        // ARIES
+        // Starts recovery setup on partition
+        doPartitionRecovery(Long.MIN_VALUE);
         
         // *********************************** DEBUG ***********************************
         if (hstore_conf.site.exec_validate_work) {

@@ -102,6 +102,13 @@
 #include "voltdbipc.h"
 #include "common/FailureInjection.h"
 
+// ARIES
+#include "logging/Logrecord.h"
+#include "logging/AriesLogProxy.h"
+#include <string>
+
+#define BUFFER_SIZE		 1024*1024*300	// 100 MB buffer for reading in log file
+
 using namespace std;
 namespace voltdb {
 
@@ -116,7 +123,11 @@ VoltDBEngine::VoltDBEngine(Topend *topend, LogProxy *logProxy)
       m_isELEnabled(false),
       m_stringPool(16777216, 2),
       m_numResultDependencies(0),
+#ifdef ARIES
+      m_logManager(logProxy, this),
+#else
       m_logManager(logProxy),
+#endif
       m_templateSingleLongTable(NULL),
       m_topend(topend)
 {
@@ -127,6 +138,10 @@ VoltDBEngine::VoltDBEngine(Topend *topend, LogProxy *logProxy)
 
     // require a site id, at least, to inititalize.
     m_executorContext = NULL;
+
+    m_ariesWriteOffset = 0;
+    m_isRecovering = false;
+    // m_logManager.setAriesProxyEngine(this);
 }
 
 
@@ -712,13 +727,83 @@ VoltDBEngine::loadTable(bool allowExport, int32_t tableId,
         return false;
     }
 
-    try {
-        table->loadTuplesFrom(allowExport, serializeIn);
-    } catch (SerializableEEException e) {
-        throwFatalException("%s", e.message().c_str());
-    }
-    return true;
+    return loadTable(table, serializeIn, txnId, lastCommittedTxnId, true);
 }
+
+bool VoltDBEngine::loadTable(PersistentTable *table,
+		ReferenceSerializeInput &serializeIn, int64_t txnId,
+		int64_t lastCommittedTxnId, bool isExecutionNormal) {
+	// Don't do this if we are recovering
+	if (isExecutionNormal) {
+
+		LogRecord *logrecord = new LogRecord(computeTimeStamp(),
+				LogRecord::T_BULKLOAD,	// we are bulk loading bytes directly
+				LogRecord::T_FORWARD,	// the system is running normally
+				-1,	// XXX: prevLSN
+				txnId,	// xid
+				getSiteId(),	// which execution site
+				table->name(),	// the table affected
+				NULL,	// bulk-load, no primary key
+				-1,	// inserting, all columns affected
+				NULL,	// insert, don't care about modified cols
+				NULL,	// no before image
+				NULL// no TableTuple for after image, will store bytes directly
+				);
+
+		size_t logrecordEstLength = logrecord->getEstimatedLength();
+
+		// We could also include the length of the
+		// entire buffer of raw tuples while allocating
+		// the log record buffer but that might just be too slow
+		// and the allocated array just way too big.
+		char *logrecordBuffer = new char[logrecordEstLength];
+
+		FallbackSerializeOutput output;
+		output.initializeWithPosition(logrecordBuffer, logrecordEstLength, 0);
+
+		logrecord->serializeTo(output);
+
+		const Logger *logger = LogManager::getThreadLogger(LOGGERID_MM_ARIES);
+
+		// we could ALSO directly write via writeToAriesLogBuffer(buffer, size)
+		// but not doing that for consistency while logging to Aries.
+
+		logger->log(LOGLEVEL_INFO, output.data(), output.position());
+
+		// CAREFUL -- the number of bytes might just be too many
+		// Its possible they could cause a buffer overflow
+		// in the shared Aries buffer.
+		// XXX: either increase size of buffer in ExecutionEngineJNI
+		// OR check buffer array bounds and flush periodically
+		// as the buffer fills up. The latter could be slow at runtime.
+		size_t numBytes = serializeIn.numBytesNotYetRead();
+
+		int64_t value = htonll(numBytes);
+
+		// first log the size of the bulkload array
+		logger->log(LOGLEVEL_INFO, reinterpret_cast<char*>(&value),
+				sizeof(value));
+
+		// next log the raw bytes of the bulkload array
+		logger->log(LOGLEVEL_INFO,
+				reinterpret_cast<const char *>(serializeIn.getRawPointer(0)),
+				numBytes);
+
+		delete[] logrecordBuffer;
+		logrecordBuffer = NULL;
+
+		delete logrecord;
+		logrecord = NULL;
+	}
+	try {
+		bool allowExport = false;
+		table->loadTuplesFrom(allowExport, serializeIn);
+	} catch (SerializableEEException e) {
+		throwFatalException("%s", e.message().c_str());
+	}
+	return true;
+}
+
 
 /*
  * Delete and rebuild id based table collections. Does not affect
@@ -1003,6 +1088,23 @@ void VoltDBEngine::setBuffers(char *parameterBuffer, int parameterBuffercapacity
 
     m_exceptionBuffer = exceptionBuffer;
     m_exceptionBufferCapacity = exceptionBufferCapacity;
+}
+
+void VoltDBEngine::setBuffers(char *parameterBuffer, int parameterBuffercapacity,
+        char *resultBuffer, int resultBufferCapacity,
+        char *exceptionBuffer, int exceptionBufferCapacity,
+        char *arieslogBuffer, int arieslogBufferCapacity) {
+    m_parameterBuffer = parameterBuffer;
+    m_parameterBufferCapacity = parameterBuffercapacity;
+
+    m_reusedResultBuffer = resultBuffer;
+    m_reusedResultCapacity = resultBufferCapacity;
+
+    m_exceptionBuffer = exceptionBuffer;
+    m_exceptionBufferCapacity = exceptionBufferCapacity;
+
+    m_arieslogBuffer = arieslogBuffer;
+    m_arieslogBufferCapacity = arieslogBufferCapacity;
 }
 
 // -------------------------------------------------
@@ -1298,6 +1400,279 @@ void VoltDBEngine::processRecoveryMessage(RecoveryProtoMsg *message) {
     PersistentTable *table = dynamic_cast<PersistentTable*>(pos->second);
     table->processRecoveryMessage( message, NULL, false);
 }
+
+//#ifdef ARIES
+
+char* VoltDBEngine::readAriesLogForReplay(int64_t* sizes) {
+	ifstream logfilestream;
+
+	// read custom file names later
+	logfilestream.open(AriesLogProxy::defaultLogfileName.c_str(), ios::binary | ios::in);
+
+	if (!logfilestream.is_open()) {
+		sizes[0] = 0;
+		return NULL;	// log file does not exist
+	}
+
+	logfilestream.seekg(0, ios::end);
+	size_t length = logfilestream.tellg();
+
+	sizes[0] = length;
+
+	logfilestream.seekg(0, ios::beg);
+
+	if (length == 0) {
+		logfilestream.close();
+		return NULL; //log is empty
+	}
+
+	// XXX: change the code NOT to read all of the file at once
+	char *logData = new char[length];
+	logfilestream.read(logData, length);
+
+	logfilestream.close();
+	/*
+	 while (!noMoreLogRecords) {
+	 // read small chunks of the file at a time
+	 char *logData = new char[BUFFER_SIZE];
+	 logfilestream.read(logData, BUFFER_SIZE);
+
+	 int64_t actualBufLen = static_cast<int64_t> (logfilestream.gcount());
+
+	 if(logfilestream.eof()) {
+	 noMoreLogRecords = true;
+	 }
+	 */
+	return logData;
+}
+
+void VoltDBEngine::freePointerToReplayLog(char *logData) {
+	if (logData != NULL) {
+		delete[] logData;
+		logData = NULL;
+	}
+}
+/*
+ * Do Aries recovery
+ */
+void VoltDBEngine::doAriesRecovery(char *logData, size_t length, int64_t replay_txnid) {
+	// every thread sets its own copy of m_isRecovering
+	// XXX: could make this static but not sure if that's a good idea
+	if (logData == NULL || length == 0) {
+		return;
+	}
+
+	m_isRecovering = true;
+
+	bool noMoreLogRecords = false;
+
+	const Logger *logger = LogManager::getThreadLogger(LOGGERID_MM_ARIES);
+	logger->log(LOGLEVEL_INFO, "Running ARIES recovery, repeating history ...");
+
+	int64_t actualBufLen = length;
+	ReferenceSerializeInput input(logData, actualBufLen);
+
+	char *endOfBuffer = logData + actualBufLen;
+
+	int32_t counter = 0;
+
+	while (input.getRawPointer(0) < endOfBuffer) {
+		const char* logInitPosition = reinterpret_cast<const char*>(input.getRawPointer(0));
+
+		int32_t recordSize = 0;
+
+		// log header is 4 bytes
+		int64_t breathingSpace = endOfBuffer - (logInitPosition + sizeof(int32_t));
+
+		if (breathingSpace < 0) {
+			// read the full header along with the next chunk
+			// seek in reverse direction
+			break;//XXX:hack when we have a single buffer for the entire file
+			// logfilestream.seekg((logInitPosition - endOfBuffer), ios::cur);
+		} else {
+			// read log record header to determine its size.
+			memcpy(&recordSize, logInitPosition, sizeof(recordSize));
+			recordSize = ntohl(recordSize);
+
+			if (recordSize <= 0) {
+				// hit junk, no more log records.
+				noMoreLogRecords = true;
+				break;
+			} else {
+				/* if (logInitPosition + sizeof(int32_t) + recordSize > endOfBuffer) {
+				 //part of this log record is in the
+				 // next buffer chunk
+				 // rewind back to beginning of log record's header
+				 logfilestream.seekg((logInitPosition - endOfBuffer), ios::cur);
+				 break;
+				 }
+				 // else entire log record is in this chunk
+				 */
+			}
+		}
+
+		bool skipLogRecord = false;
+
+		// find the transaction type, need to know if its a bulk load
+		int8_t txnType;
+		memcpy(&txnType, logInitPosition + sizeof(int32_t) + OFFSET_TO_TXNTYPE, sizeof(txnType));
+
+		int64_t numBulkLoadBytes = 0;
+
+		if (txnType == static_cast<int8_t>(LogRecord::T_BULKLOAD)) {
+			memcpy(&numBulkLoadBytes, logInitPosition + sizeof(int32_t) + recordSize, sizeof(numBulkLoadBytes));
+			numBulkLoadBytes = ntohll(numBulkLoadBytes);
+		}
+
+		// Run only if txnId is greater than the id to replay from
+		int64_t txnId;
+		memcpy(&txnId, logInitPosition + sizeof(int32_t) + OFFSET_TO_TXNID, sizeof(txnId));
+		txnId = ntohll(txnId);
+
+		// Check the site-id, re-run only if original site-id matches
+		// Correctness follows because all updates from a site are to
+		// a particular partition only.
+		// (much like the page wise recovery in the original Aries recovery)
+		int32_t origSiteId;
+		memcpy(&origSiteId, logInitPosition + sizeof(int32_t) + OFFSET_TO_SITEID, sizeof(origSiteId));
+		origSiteId = ntohl(origSiteId);
+
+		if ((txnId < replay_txnid) || (origSiteId != m_siteId)) {
+			// don't forget to advance the pointer, o/w there's an infinite loop
+			input.readInt();
+			input.getRawPointer(recordSize);
+
+			if (txnType == static_cast<int8_t>(LogRecord::T_BULKLOAD)) {
+				// skip over the load bytes as well
+				input.getRawPointer(sizeof(numBulkLoadBytes) + numBulkLoadBytes);
+			}
+
+			skipLogRecord = true;
+			continue;
+		}
+
+		LogRecord logrecord(input);
+
+		PersistentTable* table = dynamic_cast<PersistentTable*>(getTable(logrecord.getTableName()));
+
+		if (table == NULL) {
+			// Invalid log record hit
+			// This does not take into account log corruption,
+			// for otherwise log replay semantics are ill-defined.
+			break;
+		}
+
+		logrecord.populateFields(table->schema(), table->primaryKeyIndex());
+
+		if (!logrecord.isValidRecord()) {
+			// XXX: can actually NEVER happen because
+			// this call always returns true.
+			break;
+		}
+
+		counter++;
+
+		TableTuple *beforeImage = NULL;
+		TableTuple *afterImage = NULL;
+
+		if (logrecord.getType() == LogRecord::T_INSERT) {
+			// at this point, don't worry about
+			// logging during recovery
+			// XXX: note that duplicate inserts won't happen silently:
+			// constraint failure exceptions will get thrown
+			afterImage = logrecord.getTupleAfterImage();
+
+			if (afterImage != NULL) {
+				table->insertTuple(*afterImage);
+
+				// Job is done, delete the tuple now
+				logrecord.dellocateAfterImageData();
+
+				//afterImage->freeObjectColumns();
+				delete afterImage;
+				afterImage = NULL;
+			}
+
+		} else if (logrecord.getType() == LogRecord::T_UPDATE) {
+			beforeImage = logrecord.getTupleBeforeImage();
+			afterImage = logrecord.getTupleAfterImage();
+
+			// XXX: setting updateIndexes to true
+			// for simplicity, originally it comes from the plan
+			// node during forward execution.
+			// Might need to change this if problems arise.
+			// XXX: should I modify the log record to track this
+			// attribute too? That doesn't seem too hard.
+			table->updateTuple(*beforeImage, *afterImage, true);
+
+			logrecord.dellocateBeforeImageData();
+			//beforeImage->freeObjectColumns();
+			delete beforeImage;
+			beforeImage = NULL;
+
+			logrecord.dellocateAfterImageData();
+			//afterImage->freeObjectColumns();
+			delete afterImage;
+			afterImage = NULL;
+		} else if (logrecord.getType() == LogRecord::T_BULKLOAD) {
+			numBulkLoadBytes = input.readLong();
+
+			// make sure we create a separate input reader
+			// for the load, otherwise we'll get the number of
+			// bytes wrong in there.
+			ReferenceSerializeInput bulkIn(input.getRawPointer(0), numBulkLoadBytes);
+
+			// figure if the last committed txnId,
+			// should be the replay_txnId?
+			// The thing to note here is that if we have a
+			// a non-trivial value for the replay_txnId,
+			// NO bulk loads will be needed --
+			// the snapshot reload itself will take care of the database
+			// bulk reload and the reload record will be SKIPPED.
+
+			// make a call to load table, effectively mimicking
+			// the table load the client makes on an actual load.
+			// let the txnId be set to 1 + last committed txnId for now
+			loadTable(table, bulkIn, replay_txnid + 1, replay_txnid, false);
+
+			// advance read position to the correct place.
+			input.getRawPointer(numBulkLoadBytes);
+		} else if (logrecord.getType() == LogRecord::T_DELETE) {
+			beforeImage = logrecord.getTupleBeforeImage();
+			table->deleteTuple(*beforeImage, true);
+
+			logrecord.dellocateBeforeImageData();
+			//beforeImage->freeObjectColumns();
+			delete beforeImage;
+			beforeImage = NULL;
+		} else if (logrecord.getType() == LogRecord::T_TRUNCATE) {
+			table->deleteAllTuples(true);
+		} else {
+			// do nothing for invalid records
+		}
+	}
+
+
+	std::ostringstream sstm;
+	sstm << counter;
+
+	std::string outputString = "ARIES recovery completed, " + sstm.str() + " log records found, all replayed.";
+	logger->log(LOGLEVEL_INFO, &outputString);
+}
+
+void VoltDBEngine::writeToAriesLogBuffer(const char *data, size_t size) {
+	memcpy(m_arieslogBuffer + m_ariesWriteOffset, data, size);
+	m_ariesWriteOffset += size;
+}
+
+size_t VoltDBEngine::getArieslogBufferLength() {
+	return m_ariesWriteOffset;
+}
+
+void VoltDBEngine::rewindArieslogBuffer() {
+	m_ariesWriteOffset = 0;
+}
+//#endif
 
 long
 VoltDBEngine::exportAction(bool ackAction, bool pollAction, bool resetAction,

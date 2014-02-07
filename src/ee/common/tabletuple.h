@@ -190,6 +190,7 @@ public:
                 break;
 
               case VALUE_TYPE_VARCHAR:
+              case VALUE_TYPE_VARBINARY:
                   // 32 bit length preceding value and
                   // actual character data without null string terminator.
                   if (!getNValue(i).isNull())
@@ -368,6 +369,11 @@ public:
     void deserializeWithHeaderFrom(voltdb::SerializeInput &tupleIn);
 
     void freeObjectColumns();
+
+#ifdef ARIES
+    void freeObjectColumnsOfLogTuple();
+#endif
+
     size_t hashCode(size_t seed) const;
     size_t hashCode() const;
 protected:
@@ -881,6 +887,18 @@ inline void TableTuple::freeObjectColumns() {
         getNValue(m_schema->getUninlinedObjectColumnInfoIndex(ii)).free();
     }
 }
+
+#ifdef ARIES
+
+inline void TableTuple::freeObjectColumnsOfLogTuple() {
+    const uint16_t unlinlinedColumnCount = m_schema->getUninlinedObjectColumnCount();
+
+    for (int ii = 0; ii < unlinlinedColumnCount; ii++) {
+        getNValue(m_schema->getUninlinedObjectColumnInfoIndex(ii)).freeLogTupleVal();
+    }
+}
+
+#endif
 
 /**
  * Hasher for use with boost::unordered_map and similar

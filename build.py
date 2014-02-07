@@ -202,6 +202,10 @@ CTX.INPUT['common'] = """
  RecoveryProtoMessage.cpp
  RecoveryProtoMessageBuilder.cpp
  DefaultTupleSerializer.cpp
+ StringRef.cpp
+ ThreadLocalPool.cpp
+ CompactingStringPool.cpp
+ CompactingStringStorage.cpp
 """
 
 CTX.INPUT['execution'] = """
@@ -301,8 +305,15 @@ CTX.INPUT['stats'] = """
 CTX.INPUT['logging'] = """
  JNILogProxy.cpp
  LogManager.cpp
+ AriesLogProxy.cpp
+ Logrecord.cpp
 """
-
+ 
+CTX.INPUT['structures'] = """
+ CompactingPool.cpp
+ ContiguousAllocator.cpp
+"""
+ 
 # specify the third party input
 
 CTX.THIRD_PARTY_INPUT['json_spirit'] = """
@@ -375,6 +386,12 @@ CTX.TESTS['storage'] = """
 if CTX.STORAGE_MMAP:
     CTX.CPPFLAGS += " -DSTORAGE_MMAP"
 
+###############################################################################
+# ARIES
+###############################################################################
+
+if CTX.ARIES:
+    CTX.CPPFLAGS += " -DARIES"
 
 ###############################################################################
 # ANTI-CACHING

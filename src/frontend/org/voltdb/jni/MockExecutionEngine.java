@@ -232,4 +232,31 @@ public class MockExecutionEngine extends ExecutionEngine {
      // TODO Auto-generated method stub        
     }
     
+    @Override
+    public long getArieslogBufferLength() { 
+    // XXX: do nothing, we only implement this for JNI now.
+        return 0;
+    }
+
+    @Override
+    public void getArieslogData(int bufferLength, byte[] arieslogDataArray) { 
+    // XXX: do nothing, we only implement this for JNI now.
+    }
+
+    @Override
+    public void doAriesRecoveryPhase(long replayPointer, long replayLogSize, long replayTxnId) { 
+    // TODO Auto-generated method stub
+    }
+
+    @Override
+    public void freePointerToReplayLog(long ariesReplayPointer) {
+        // TODO Auto-generated method stub
+    }
+
+    @Override
+    public long readAriesLogForReplay(long[] size) {
+        // TODO Auto-generated method stub
+        return 0;
+    }
+    
 }
