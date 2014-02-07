@@ -218,6 +218,7 @@ int64_t another_timespecDiffNanoseconds(const timespec& end, const timespec& sta
 			if(persistTarget != NULL && persistTarget->hasTriggers() && persistTarget->fireTriggers()) {
                               
                                 // added by hawk, 2013/12/13, for collect data
+/*
                                 struct timeval start_;
                                 struct timeval delete_start_;
                                 struct timeval end_;
@@ -227,6 +228,7 @@ int64_t another_timespecDiffNanoseconds(const timespec& end, const timespec& sta
                         
                                 int error = gettimeofday(&start_, NULL);
                                 assert(error == 0);
+*/
                                 // ended by hawk
 				std::vector<Trigger*>::iterator trig_iter;
 
@@ -242,13 +244,16 @@ int64_t another_timespecDiffNanoseconds(const timespec& end, const timespec& sta
 
                                 // to ensure this is a stream, by hawk, 2013.11.25
                                 //added by hawk, 2013/12/13, to collect data
+                                /*
                                 error = gettimeofday(&delete_start_, NULL);
                                 assert(error == 0);
+                                */
                                 //ended by hawk
                                 if (persistTarget->isStream() == true)
 				    persistTarget->deleteAllTuples(true);
 
                                 //added by hawk, 2013/12/13, to collect data
+/*
                                 error = gettimeofday(&end_, NULL);
                                 assert(error == 0);
 
@@ -261,6 +266,7 @@ int64_t another_timespecDiffNanoseconds(const timespec& end, const timespec& sta
                                 persistTarget->add_latency_data(latency, delete_latency);
 
                                  VOLT_DEBUG("hawk: latency: %ld with delete latency: %ld ...", latency, delete_latency);
+*/
                                 //ended by hawk
 				WindowTable* windowTarget = dynamic_cast<WindowTable*>(persistTarget);
 				if(windowTarget != NULL)
