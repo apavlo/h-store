@@ -1375,7 +1375,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     }
 
     // ARIES
-    public void doSiteRecovery() {        
+    public void doSiteRecovery() {
+        LOG.warn("ARIES : doSiteRecovery at site :"+this.site_id);
         while (!m_ariesLog.isReadyForReplay()) {
             try {
                 // don't sleep for too long as recovery numbers might get biased
@@ -1386,11 +1387,14 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             }
         }        
 
+        LOG.warn("ARIES : ariesLog is ready for replay at site :"+this.site_id);
+
         if (!m_ariesLog.isRecoveryCompleted()) {
             int m_siteId = this.getSiteId();
 
             for (PartitionExecutor pe : executors ) {
                 ExecutionEngine ee = pe.getExecutionEngine();
+                LOG.warn("ARIES : start recovery at partition  :"+pe.getPartitionId()+" on site :"+pe.getSiteId());
                 
                 if (!m_ariesLog.isRecoveryCompletedForSite(m_siteId)) {
                     ee.doAriesRecoveryPhase(m_ariesLog.getPointerToReplayLog(), m_ariesLog.getReplayLogSize(), m_ariesLog.getTxnIdToBeginReplay());
@@ -1398,11 +1402,14 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 }
             }
         }
+
+        LOG.warn("ARIES : recovery completed at site :"+this.site_id);
     }
     
     private void waitForAriesLogInit() {
         // wait for the main thread to complete Aries recovery
         // and initialize the log
+        LOG.warn("ARIES : wait for log to be inititalized at site :"+this.site_id);
         while (!m_ariesLog.isInitialized) {
             try {
                 Thread.sleep(100);
@@ -1411,6 +1418,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 e.printStackTrace();
             }
         }
+        LOG.warn("ARIES : log is inititalized at site :"+this.site_id);
     }        
     
     // ----------------------------------------------------------------------------

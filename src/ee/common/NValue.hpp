@@ -1973,6 +1973,8 @@ inline void NValue::serializeToTupleStorageAllocateForObjects(void *storage, con
 inline void NValue::serializeToTupleStorage(void *storage, const bool isInlined, const int32_t maxLength) const
 {
     const ValueType type = getValueType();
+	//VOLT_WARN("Type : %d :: Storage : %p isInlined : %d maxLength: %d", type, storage, (int)isInlined, maxLength);
+
     switch (type) {
       case VALUE_TYPE_TIMESTAMP:
         *reinterpret_cast<int64_t*>(storage) = getTimestamp();
@@ -1996,7 +1998,6 @@ inline void NValue::serializeToTupleStorage(void *storage, const bool isInlined,
         ::memcpy( storage, m_data, NValue::getTupleStorageSize(type));
         break;
       case VALUE_TYPE_VARCHAR:
-      case VALUE_TYPE_VARBINARY:
         //Potentially non-inlined type requires special handling
         if (isInlined) {
             inlineCopyObject(storage, maxLength);
@@ -2006,6 +2007,28 @@ inline void NValue::serializeToTupleStorage(void *storage, const bool isInlined,
                 // copy the pointers
                 *reinterpret_cast<char**>(storage) =
                   *reinterpret_cast<char* const*>(m_data);
+            }
+            else {
+                const int32_t length = getObjectLength();
+                char msg[1024];
+                snprintf(msg, 1024, "Object exceeds specified size. Size is %d and max is %d", length, maxLength);
+                throw SQLException(
+                    SQLException::data_exception_string_data_length_mismatch,
+                    msg);
+
+            }
+        }
+        break;
+      case VALUE_TYPE_VARBINARY:
+        //Potentially non-inlined type requires special handling
+        if (isInlined) {
+            inlineCopyObject(storage, maxLength);
+        }
+        else {
+            if (isNull() || getObjectLength() <= maxLength) {
+                // copy the pointers
+                *reinterpret_cast<StringRef**>(storage) =
+                  *reinterpret_cast<StringRef* const*>(m_data);
             }
             else {
                 const int32_t length = getObjectLength();

@@ -100,7 +100,7 @@ bool DeleteExecutor::p_execute(const NValueArray &params, ReadWriteTracker *trac
         // count the truncated tuples as deleted
         m_engine->m_tuplesModified += m_inputTable->activeTupleCount();
 
-#ifdef ARIES
+//#ifdef ARIES
 		// no need of persistency check, m_targetTable is
 		// always persistent for deletes
 
@@ -126,7 +126,11 @@ bool DeleteExecutor::p_execute(const NValueArray &params, ReadWriteTracker *trac
 
 		logrecord->serializeTo(output);
 
-		const Logger *logger = LogManager::getThreadLogger(LOGGERID_MM_ARIES);
+		LogManager* m_logManager = this->m_engine->getLogManager();
+		Logger m_ariesLogger = m_logManager->getAriesLogger();
+		VOLT_WARN("m_logManager : %p AriesLogger : %p",&m_logManager, &m_ariesLogger);
+		const Logger *logger = m_logManager->getThreadLogger(LOGGERID_MM_ARIES);
+
 		logger->log(LOGLEVEL_INFO, output.data(), output.position());
 
 		delete[] logrecordBuffer;
@@ -134,7 +138,7 @@ bool DeleteExecutor::p_execute(const NValueArray &params, ReadWriteTracker *trac
 
 		delete logrecord;
 		logrecord = NULL;
-#endif
+//#endif
 
         //m_engine->context().incrementTuples(m_targetTable->activeTupleCount());
         // actually delete all the tuples
@@ -163,7 +167,7 @@ bool DeleteExecutor::p_execute(const NValueArray &params, ReadWriteTracker *trac
             tracker->markTupleWritten(m_targetTable, &m_targetTuple);
         }
 
-#ifdef ARIES
+//#ifdef ARIES
 		// no need of persistency check, m_targetTable is
 		// always persistent for deletes
 
@@ -211,7 +215,11 @@ bool DeleteExecutor::p_execute(const NValueArray &params, ReadWriteTracker *trac
 
 		logrecord->serializeTo(output);
 
-		const Logger *logger = LogManager::getThreadLogger(LOGGERID_MM_ARIES);
+		LogManager* m_logManager = this->m_engine->getLogManager();
+		Logger m_ariesLogger = m_logManager->getAriesLogger();
+		VOLT_WARN("m_logManager : %p AriesLogger : %p",&m_logManager, &m_ariesLogger);
+		const Logger *logger = m_logManager->getThreadLogger(LOGGERID_MM_ARIES);
+
 		logger->log(LOGLEVEL_INFO, output.data(), output.position());
 
 		delete[] logrecordBuffer;
@@ -229,7 +237,8 @@ bool DeleteExecutor::p_execute(const NValueArray &params, ReadWriteTracker *trac
 			delete keyTuple;
 			keyTuple = NULL;
 		}
-#endif
+//#endif
+
         // Delete from target table
         if (!m_targetTable->deleteTuple(m_targetTuple, true)) {
             VOLT_ERROR("Failed to delete tuple from table '%s'",

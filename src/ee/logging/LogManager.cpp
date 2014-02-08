@@ -49,25 +49,14 @@ const Logger<LOGGERID_HOST>* LogManager::getThreadLogger() {
  * sets up a thread local containing a reference to itself.
  * @param proxy The LogProxy that all the loggers should use
  */
-LogManager::LogManager(LogProxy *proxy)
-:  m_proxy(proxy), m_sqlLogger(proxy, LOGGERID_SQL), m_hostLogger(proxy, LOGGERID_HOST),
-   m_ariesLogger(NULL, LOGGERID_MM_ARIES)
-{
-    (void)pthread_once(&m_keyOnce, createThreadLocalKey);
-    pthread_setspecific( m_key, static_cast<const void *>(this));
-}
-
-/**
- * Constructor that initializes all the loggers with the specified proxy and
- * sets up a thread local containing a reference to itself.
- * @param proxy The LogProxy that all the loggers should use
- */
 LogManager::LogManager(LogProxy *proxy, VoltDBEngine *engine)
 :  m_proxy(proxy), m_sqlLogger(proxy, LOGGERID_SQL), m_hostLogger(proxy, LOGGERID_HOST),
    m_ariesLogger(AriesLogProxy::getAriesLogProxy(engine, ""), LOGGERID_MM_ARIES) // give the ARIES logger a different proxy
 {
     (void)pthread_once(&m_keyOnce, createThreadLocalKey);
     pthread_setspecific( m_key, static_cast<const void *>(this));
+
+    VOLT_WARN("Creating LogManager for thread : %lu key: %u ariesLogger : %p ",pthread_self(), m_key, &m_ariesLogger);
 }
 
 /*

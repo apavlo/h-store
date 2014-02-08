@@ -24,6 +24,7 @@
 #include <iostream>
 #include <pthread.h>
 
+#include "common/debuglog.h"
 
 namespace voltdb {
 
@@ -32,12 +33,6 @@ namespace voltdb {
  */
 class LogManager {
 public:
-
-    /**
-     * Constructor that initializes all the loggers with the specified proxy
-     * @param proxy The LogProxy that all the loggers should use
-     */
-	LogManager(LogProxy *proxy);
 
 	/**
 	 * Constructor that initializes all the loggers with the specified proxy
@@ -96,8 +91,24 @@ public:
      * Retrieve a logger by ID from the LogManager associated with this thread.
      * @parameter loggerId ID of the logger to retrieve
      */
-    inline static const Logger* getThreadLogger(LoggerId id) {
-        return getThreadLogManager()->getLogger(id);
+    inline const Logger* getThreadLogger(LoggerId id) {
+    	// XXX remove static stuff
+    	//LogManager* manager = getThreadLogManager();
+
+    	LogManager* manager = this;
+    	assert(manager != NULL);
+
+    	const Logger* logger = manager->getLogger(id);
+    	assert(logger != NULL);
+
+    	VOLT_WARN("Thread id : %lu",pthread_self());
+    	VOLT_WARN("LogManager : %p Logger : %p", manager, logger);
+
+        return logger;
+    }
+
+    Logger getAriesLogger(){
+    	return (m_ariesLogger);
     }
 
 private:

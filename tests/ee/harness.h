@@ -51,7 +51,6 @@
 
 // A stupid and simple unit test framework for C++ code.
 // Evan Jones <ej@evanjones.ca>
-
 #ifndef STUPIDUNIT_H__
 #define STUPIDUNIT_H__
 
@@ -63,58 +62,64 @@ class Test;
 // Contains and runs a collection of tests.
 class TestSuite {
 public:
-    void registerTest(Test* (*test_factory)());
+	void registerTest(Test* (*test_factory)());
 
-    // Returns the number of failed tests.
-    int runAll();
+	// Returns the number of failed tests.
+	int runAll();
 
-    // Returns a properly initialized static global TestSuite. This is the "standard" test suite
-    // used by the TEST and TEST_F macros.
-    static TestSuite* globalInstance();
+	// Returns a properly initialized static global TestSuite. This is the "standard" test suite
+	// used by the TEST and TEST_F macros.
+	static TestSuite* globalInstance();
 
 private:
-    std::vector<Test* (*)()> test_factories_;
+	std::vector<Test* (*)()> test_factories_;
 };
 
 // Base class for a single test. Each test creates a subclass of this that
 // implements run(). Users create subclasses via the TEST_F helper macro.
 class Test {
 public:
-    Test() {}
-    virtual ~Test() {}
+	Test() {
+	}
+	virtual ~Test() {
+	}
 
-    // Run the actual test.
-    virtual void run() = 0;
+	// Run the actual test.
+	virtual void run() = 0;
 
-    virtual const char* suiteName() const = 0;
-    virtual const char* testName() const = 0;
-    bool testSuccess() const { return errors_.empty(); }
+	virtual const char* suiteName() const = 0;
+	virtual const char* testName() const = 0;
+	bool testSuccess() const {
+		return errors_.empty();
+	}
 
-    // Fail the test with error.
-    void fail(const char* file, int line, const char* message);
+	// Fail the test with error.
+	void fail(const char* file, int line, const char* message);
 
-    // Output the errors for this test to standard output.
-    void printErrors() const;
+	// Output the errors for this test to standard output.
+	void printErrors() const;
 
-    size_t stupidunitNumErrors() const { return errors_.size(); }
-    const std::string& stupidunitError(int i) const;
+	size_t stupidunitNumErrors() const {
+		return errors_.size();
+	}
+	const std::string& stupidunitError(int i) const;
 
 private:
-    // Contains error messages if the test failed.
-    std::vector<std::string> errors_;
+	// Contains error messages if the test failed.
+	std::vector<std::string> errors_;
 };
 
 // A class used to statically register test instances with the global test suite.
-template <typename T>
+template<typename T>
 class RegisterTest {
 public:
-    RegisterTest(TestSuite* suite) {
-        suite->registerTest(&RegisterTest<T>::create);
-    }
+	RegisterTest(TestSuite* suite) {
+		suite->registerTest(&RegisterTest<T>::create);
+	}
 
-    static Test* create() {
-        return new T();
-    }
+	static Test* create() {
+		return new T();
+	}
 };
 
 // Creates a test subclass.
@@ -180,14 +185,13 @@ public:
     if ((value)) { fail(__FILE__, __LINE__, "Expected false; " #value " is true"); return; } \
 } while (0)
 
-
 namespace stupidunit {
 
 enum ExpectDeathStatus {
-    // The caller is the child: run the block and exit.
-    EXECUTE_BLOCK,
-    SUCCESS,
-    FAILED
+	// The caller is the child: run the block and exit.
+	EXECUTE_BLOCK,
+	SUCCESS,
+	FAILED
 };
 
 // Implements EXPECT_DEATH.
@@ -197,16 +201,18 @@ ExpectDeathStatus expectDeath();
 // directory will be automatically removed in the destructor.
 class ChTempDir {
 public:
-    ChTempDir();
-    ~ChTempDir();
+	ChTempDir();
+	~ChTempDir();
 
-    const std::string& name() const { return name_; }
-    std::string tempFile(const std::string &prefix) const;
+	const std::string& name() const {
+		return name_;
+	}
+	std::string tempFile(const std::string &prefix) const;
 
 private:
 
-    // The name of the temporary directory.
-    std::string name_;
+	// The name of the temporary directory.
+	std::string name_;
 };
 
 extern const char OUT_FILE_ENVIRONMENT_VARIABLE[];

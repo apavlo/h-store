@@ -50,6 +50,7 @@
 #include <set>
 #include <string>
 #include <vector>
+#include <stdint.h>
 #include "boost/shared_ptr.hpp"
 #include "json_spirit/json_spirit.h"
 #include "catalog/database.h"
@@ -128,10 +129,7 @@ class __attribute__((visibility("default"))) VoltDBEngine {
           m_currentInputDepId(-1),
           m_isELEnabled(false),
           m_numResultDependencies(0),
-          m_logManager(new StdoutLogProxy()
-#ifdef ARIES
-        	, NULL
-#endif
+          m_logManager(new StdoutLogProxy(), NULL
           ),
           m_templateSingleLongTable(NULL), m_topend(NULL)
         {

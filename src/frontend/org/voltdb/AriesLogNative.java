@@ -13,10 +13,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.voltdb.utils.DBBPool.BBContainer;
 
-/**
- * @author nirmeshmalviya
- *
- */
 public class AriesLogNative extends AriesLog {
 	boolean m_recoveryDone = false;
 	boolean m_keepLogging = true;
@@ -33,8 +29,7 @@ public class AriesLogNative extends AriesLog {
 	
 	private long txnIdToBeginReplay;
 	
-	private static final String ARIES_LOG_FILE = "aries.log";
-	
+	private final static String m_defaultLogFileName = "aries.log" ;	
 	
 	private static class LogDataWithAtom {
 		public byte b[];
@@ -59,7 +54,7 @@ public class AriesLogNative extends AriesLog {
 		this(numSites, size, 16);		
 	}
 	
-	public AriesLogNative(int numSites, int size, int syncFrequency) {
+	public AriesLogNative(int numSites, int size, int syncFrequency) {	    
 		m_perSiteRecoveryDone = new boolean[numSites];
 		
 		for (int i = 0; i < numSites; i++) {
@@ -122,7 +117,7 @@ public class AriesLogNative extends AriesLog {
 				long logsizeInMb = logsize;
 				
 				//XXX: hard code filename for now
-				ariesLogfile = new RandomAccessFile(ARIES_LOG_FILE, "rw");
+				ariesLogfile = new RandomAccessFile(m_defaultLogFileName, "rw");
 				ariesLogfile.setLength(logsizeInMb * 1024 * 1024);
 				
 				ariesLogfile.seek(0);

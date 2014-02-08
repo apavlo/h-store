@@ -25,7 +25,8 @@ using std::endl;
 
 using namespace voltdb;
 
-string AriesLogProxy::defaultLogfileName = "log.out";
+//XXX Must match with AriesLogNative.java
+string AriesLogProxy::defaultLogfileName = "aries.log";
 
 AriesLogProxy::AriesLogProxy(VoltDBEngine *engine) {
 	init(engine, defaultLogfileName);

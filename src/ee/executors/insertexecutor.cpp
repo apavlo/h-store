@@ -145,7 +145,7 @@ bool InsertExecutor::p_execute(const NValueArray &params, ReadWriteTracker *trac
                    m_targetTable->name().c_str(), m_targetTable->schema()->debug().c_str());
 
 
-#ifdef ARIES
+//#ifdef ARIES
 		// add persistency check:
 		PersistentTable* table = dynamic_cast<PersistentTable*>(m_targetTable);
 
@@ -173,7 +173,11 @@ bool InsertExecutor::p_execute(const NValueArray &params, ReadWriteTracker *trac
 
 			logrecord->serializeTo(output);
 
-			const Logger *logger = LogManager::getThreadLogger(LOGGERID_MM_ARIES);
+			LogManager* m_logManager = this->m_engine->getLogManager();
+			Logger m_ariesLogger = m_logManager->getAriesLogger();
+			VOLT_WARN("m_logManager : %p AriesLogger : %p",&m_logManager, &m_ariesLogger);
+			const Logger *logger = m_logManager->getThreadLogger(LOGGERID_MM_ARIES);
+
 			// output.position() indicates the actual number of bytes written out
 			logger->log(LOGLEVEL_INFO, output.data(), output.position());
 
@@ -183,7 +187,7 @@ bool InsertExecutor::p_execute(const NValueArray &params, ReadWriteTracker *trac
 			delete logrecord;
 			logrecord = NULL;
 		}
-#endif
+//#endif
 
         // if there is a partition column for the target table
         if (m_partitionColumn != -1) {

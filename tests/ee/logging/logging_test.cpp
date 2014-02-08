@@ -24,6 +24,7 @@
 #include "harness.h"
 #include "logging/LogManager.h"
 #include "logging/LogProxy.h"
+#include "execution/VoltDBEngine.h"
 #include <stdint.h>
 
 voltdb::LoggerId loggerIds[] = {
@@ -66,7 +67,7 @@ public:
 
 class LoggingTest : public Test {
     public:
-        LoggingTest() : m_logManager(new TestProxy()) {}
+        LoggingTest() : m_logManager(new TestProxy(), NULL) {}
         voltdb::LogManager m_logManager;
 };
 

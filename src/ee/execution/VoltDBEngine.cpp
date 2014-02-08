@@ -123,11 +123,7 @@ VoltDBEngine::VoltDBEngine(Topend *topend, LogProxy *logProxy)
       m_isELEnabled(false),
       m_stringPool(16777216, 2),
       m_numResultDependencies(0),
-#ifdef ARIES
       m_logManager(logProxy, this),
-#else
-      m_logManager(logProxy),
-#endif
       m_templateSingleLongTable(NULL),
       m_topend(topend)
 {
@@ -763,12 +759,22 @@ bool VoltDBEngine::loadTable(PersistentTable *table,
 
 		logrecord->serializeTo(output);
 
-		const Logger *logger = LogManager::getThreadLogger(LOGGERID_MM_ARIES);
+		VOLT_WARN("loadTable : Going to log a record ");
+
+		LogManager* m_logManager = getLogManager();
+		Logger m_ariesLogger = m_logManager->getAriesLogger();
+		VOLT_WARN("m_logManager : %p AriesLogger : %p",&m_logManager, &m_ariesLogger);
+		const Logger *logger = m_logManager->getThreadLogger(LOGGERID_MM_ARIES);
+
+		assert(logger != NULL);
+		VOLT_WARN("loadTable : logger : %p ",logger);
 
 		// we could ALSO directly write via writeToAriesLogBuffer(buffer, size)
 		// but not doing that for consistency while logging to Aries.
 
 		logger->log(LOGLEVEL_INFO, output.data(), output.position());
+
+		VOLT_WARN("loadTable : logged the record ");
 
 		// CAREFUL -- the number of bytes might just be too many
 		// Its possible they could cause a buffer overflow
@@ -1408,9 +1414,11 @@ char* VoltDBEngine::readAriesLogForReplay(int64_t* sizes) {
 
 	// read custom file names later
 	logfilestream.open(AriesLogProxy::defaultLogfileName.c_str(), ios::binary | ios::in);
+	VOLT_WARN("Opened aries log file at : %s",AriesLogProxy::defaultLogfileName.c_str());
 
 	if (!logfilestream.is_open()) {
 		sizes[0] = 0;
+		VOLT_WARN("Did not find aries log file at : %s", AriesLogProxy::defaultLogfileName.c_str());
 		return NULL;	// log file does not exist
 	}
 
@@ -1466,7 +1474,9 @@ void VoltDBEngine::doAriesRecovery(char *logData, size_t length, int64_t replay_
 
 	bool noMoreLogRecords = false;
 
-	const Logger *logger = LogManager::getThreadLogger(LOGGERID_MM_ARIES);
+	Logger m_ariesLogger = m_logManager.getAriesLogger();
+	VOLT_WARN("m_logManager : %p AriesLogger : %p",&m_logManager, &m_ariesLogger);
+	const Logger *logger = m_logManager.getThreadLogger(LOGGERID_MM_ARIES);
 	logger->log(LOGLEVEL_INFO, "Running ARIES recovery, repeating history ...");
 
 	int64_t actualBufLen = length;

@@ -428,9 +428,9 @@ public class TestSnapshotRecovery extends RegressionSuite {
         builder.addServerConfig(m_config);
         */
         
-        // CONFIG #2: 1 Local Site with 2 Partitions running on JNI backend
+        // CONFIG #2: 1 Local Site with 1 Partitions running on JNI backend
         NUM_SITES = 1;
-        NUM_PARTITIONS = 2;        
+        NUM_PARTITIONS = 1;        
         m_config = new LocalSingleProcessServer("snapshot-"+PREFIX+"-"+NUM_SITES+"-site-"+NUM_PARTITIONS+"-partition.jar", NUM_PARTITIONS, BackendTarget.NATIVE_EE_JNI);
         success = m_config.compile(project);
         assert (success);
