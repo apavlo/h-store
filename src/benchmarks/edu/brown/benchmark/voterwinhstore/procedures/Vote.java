@@ -43,7 +43,7 @@ import edu.brown.benchmark.voterwinhstore.VoterWinHStoreConstants;
 )
 public class Vote extends VoltProcedure {
 	public final int windowSize = 100;
-	public final int slideSize = 1;
+	public final int slideSize = 10;
 	
     // Checks if the vote is for a valid contestant
     public final SQLStmt checkContestantStmt = new SQLStmt(

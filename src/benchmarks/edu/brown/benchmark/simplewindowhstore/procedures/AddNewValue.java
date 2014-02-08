@@ -15,10 +15,10 @@ public class AddNewValue extends VoltProcedure{
 	Random r = new Random();
 	int currentTimestamp = 0;
 	int tsCounter = 1;
-	int tuplesPerTimestamp = 3;
+	int tuplesPerTimestamp = 1;
 	int curTime = 0;
 	//int nextVal = -5;
-	final int slideSize = 1;
+	final int slideSize = 10;
 	final int windowSize = 100;
 	
 	public final SQLStmt insertStagingValue = new SQLStmt(

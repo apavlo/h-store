@@ -75,7 +75,7 @@ public class Vote extends VoltProcedure {
     
  // Find the cutoff vote
     public final SQLStmt checkStagingCount = new SQLStmt(
-		"SELECT count(*) FROM w_staging;"
+		"SELECT min(time) FROM w_staging;"
     );
     
  // Find the cutoff vote
