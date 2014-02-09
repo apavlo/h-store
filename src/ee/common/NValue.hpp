@@ -44,7 +44,7 @@
 #include "serializeio.h"
 #include "SerializableEEException.h"
 #include "SQLException.h"
-#include "common/StringRef.h"
+//#include "common/StringRef.h"
 #include "common/ThreadLocalPool.h"
 #include "types.h"
 #include "value_defs.h"
@@ -112,9 +112,9 @@ class NValue {
     /* Release memory associated to object type NValues */
     void free() const;
 
-    #ifdef ARIES
-        void freeLogTupleVal() const;
-    #endif
+    //#ifdef ARIES
+    void freeLogTupleVal() const;
+    //#endif
 
     /* Set value to the correct SQL NULL representation. */
     void setNull();
@@ -1536,11 +1536,15 @@ class NValue {
 		hexDecodeToBinary(buf.get(), value.c_str());
 		const int8_t lengthLength = getAppropriateObjectLengthLength(length);
 		const int32_t minLength = length + lengthLength;
-		StringRef* sref = StringRef::create(minLength);
-		char* storage = sref->get();
+
+		//StringRef* sref = StringRef::create(minLength);
+		//char* storage = sref->get();
+
+		char* storage = new char[minLength];
+
 		setObjectLengthToLocation(length, storage);
 		::memcpy( storage + lengthLength, buf.get(), length);
-		retval.setObjectValue(sref);
+		retval.setObjectValue(storage);
 		retval.setObjectLength(length);
 		retval.setObjectLengthLength(lengthLength);
 		return retval;
@@ -1550,11 +1554,15 @@ class NValue {
 		NValue retval(VALUE_TYPE_VARBINARY);
 		const int8_t lengthLength = getAppropriateObjectLengthLength(length);
 		const int32_t minLength = length + lengthLength;
-		StringRef* sref = StringRef::create(minLength);
-		char* storage = sref->get();
+
+		//StringRef* sref = StringRef::create(minLength);
+		//char* storage = sref->get();
+
+		char* storage = new char[minLength];
+
 		setObjectLengthToLocation(length, storage);
 		::memcpy( storage + lengthLength, value, length);
-		retval.setObjectValue(sref);
+		retval.setObjectValue(storage);
 		retval.setObjectLength(length);
 		retval.setObjectLengthLength(lengthLength);
 		return retval;
@@ -1696,14 +1704,14 @@ inline void NValue::free() const {
     }
 }
 
-#ifdef ARIES
+//#ifdef ARIES
 
 inline void NValue::freeLogTupleVal() const {
 	switch (getValueType())
 	{
 		case VALUE_TYPE_VARCHAR:
 		{
-			assert(!m_sourceInlined);
+			//assert(!isInlined);
 	        delete[] *reinterpret_cast<const char* const*>(m_data);
 	        break;
 
@@ -1720,7 +1728,7 @@ inline void NValue::freeLogTupleVal() const {
 	}
 }
 
-#endif
+//#endif
 
 
 
@@ -1973,7 +1981,7 @@ inline void NValue::serializeToTupleStorageAllocateForObjects(void *storage, con
 inline void NValue::serializeToTupleStorage(void *storage, const bool isInlined, const int32_t maxLength) const
 {
     const ValueType type = getValueType();
-	//VOLT_WARN("Type : %d :: Storage : %p isInlined : %d maxLength: %d", type, storage, (int)isInlined, maxLength);
+	VOLT_WARN("Type : %d :: Storage : %p isInlined : %d maxLength: %d", type, storage, (int)isInlined, maxLength);
 
     switch (type) {
       case VALUE_TYPE_TIMESTAMP:
@@ -1998,6 +2006,7 @@ inline void NValue::serializeToTupleStorage(void *storage, const bool isInlined,
         ::memcpy( storage, m_data, NValue::getTupleStorageSize(type));
         break;
       case VALUE_TYPE_VARCHAR:
+      case VALUE_TYPE_VARBINARY:
         //Potentially non-inlined type requires special handling
         if (isInlined) {
             inlineCopyObject(storage, maxLength);
@@ -2019,6 +2028,7 @@ inline void NValue::serializeToTupleStorage(void *storage, const bool isInlined,
             }
         }
         break;
+       /*
       case VALUE_TYPE_VARBINARY:
         //Potentially non-inlined type requires special handling
         if (isInlined) {
@@ -2041,6 +2051,7 @@ inline void NValue::serializeToTupleStorage(void *storage, const bool isInlined,
             }
         }
         break;
+        */
       default:
           char message[128];
           snprintf(message, 128, "NValue::serializeToTupleStorage() unrecognized type '%d'", type);

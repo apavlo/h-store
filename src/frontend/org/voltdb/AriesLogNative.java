@@ -11,9 +11,21 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.apache.log4j.Logger;
 import org.voltdb.utils.DBBPool.BBContainer;
 
+import edu.brown.hstore.PartitionExecutor;
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
+
 public class AriesLogNative extends AriesLog {
+    private static final Logger LOG = Logger.getLogger(AriesLogNative.class);
+    private static final LoggerBoolean debug = new LoggerBoolean();
+    private static final LoggerBoolean trace = new LoggerBoolean();
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
+
 	boolean m_recoveryDone = false;
 	boolean m_keepLogging = true;
 	
@@ -45,7 +57,7 @@ public class AriesLogNative extends AriesLog {
 	private List<LogDataWithAtom> m_beingFlushed;
 	
 	public AriesLogNative(int numSites) {
-		this(numSites, 1*1024); // hardcode to 1GB for now.
+		this(numSites, 1024*1024); // hardcode to 1 GB for now.
 	}
 	
 	public AriesLogNative(int numSites, int size) {
@@ -155,10 +167,16 @@ public class AriesLogNative extends AriesLog {
 		return String.valueOf(getAverageLogSize());
 	}
 	
-	private void flushData() {
+	private void flushData() {	    
 		swapFlushListWithEmpty();
 		
 		if (m_beingFlushed == null || m_beingFlushed.size() == 0) {
+		    if(m_beingFlushed == null){
+		        //LOG.warn("AriesLogNative : m_beingFlushed :"+m_beingFlushed);
+		    }
+		    else{
+		        //LOG.warn("AriesLogNative : m_beingFlushed size :"+m_beingFlushed.size());
+		    }		        
 			return;
 		}
 		
@@ -176,6 +194,8 @@ public class AriesLogNative extends AriesLog {
 		// flush the log out
 		try {
 			ariesLogfile.getFD().sync();
+			
+	        LOG.warn("AriesLogNative : finished flushData :: File Size : "+ariesLogfile.length());
 		} catch (SyncFailedException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -187,7 +207,7 @@ public class AriesLogNative extends AriesLog {
 		for(LogDataWithAtom l : m_beingFlushed) {
 			l.isDurable.set(true);
 		}
-		
+
 		m_beingFlushed = null;
 	}
 
@@ -233,6 +253,7 @@ public class AriesLogNative extends AriesLog {
 	public synchronized void log(byte[] logbytes, AtomicBoolean isDurable) {
 		LogDataWithAtom atom = new LogDataWithAtom(logbytes, isDurable);
 		
+		LOG.warn("AriesLogNative : log add atom :: size :"+m_waitingToFlush.size());
 		//totalLogSize += logbytes.length;
 		//numTransactions++;
 		
@@ -250,6 +271,7 @@ public class AriesLogNative extends AriesLog {
 	
     @Override
     public void run() {
+        LOG.warn("AriesLogNative : wait for recovery completion ");
         while (!isRecoveryCompleted()) {
             try {
                 Thread.sleep(500);
@@ -259,9 +281,13 @@ public class AriesLogNative extends AriesLog {
             }
         }
 
+        LOG.warn("AriesLogNative : recovery completed ");
+
         if (!isInitialized) {
             init();
         }
+
+        LOG.warn("AriesLogNative : initialized log");
 
         while (m_keepLogging) {
             try {

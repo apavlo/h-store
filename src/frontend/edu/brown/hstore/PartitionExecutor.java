@@ -1048,7 +1048,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                                        this.getClass().getSimpleName(), this.partitionId);
             throw new RuntimeException(msg);
         }
-
+        
         // Initialize all of our VoltProcedures handles
         // This needs to be done here so that the Workload trace handles can be 
         // set up properly

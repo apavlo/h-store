@@ -946,7 +946,8 @@ public abstract class VoltProcedure implements Poolable {
             // ARIES
             byte[] arieslogData = null;            
             int bufferLength = (int) this.executor.getArieslogBufferLength();
-           
+            LOG.warn("ARIES :: voltLoadTable : ariesLogBufferLength :"+bufferLength);
+            
             if (bufferLength > 0) {
                 arieslogData = new byte[bufferLength];
                 this.executor.getArieslogData(bufferLength, arieslogData);

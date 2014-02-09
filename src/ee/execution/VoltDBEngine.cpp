@@ -759,15 +759,11 @@ bool VoltDBEngine::loadTable(PersistentTable *table,
 
 		logrecord->serializeTo(output);
 
-		VOLT_WARN("loadTable : Going to log a record ");
-
 		LogManager* m_logManager = getLogManager();
 		Logger m_ariesLogger = m_logManager->getAriesLogger();
-		VOLT_WARN("m_logManager : %p AriesLogger : %p",&m_logManager, &m_ariesLogger);
 		const Logger *logger = m_logManager->getThreadLogger(LOGGERID_MM_ARIES);
 
 		assert(logger != NULL);
-		VOLT_WARN("loadTable : logger : %p ",logger);
 
 		// we could ALSO directly write via writeToAriesLogBuffer(buffer, size)
 		// but not doing that for consistency while logging to Aries.
@@ -1414,7 +1410,7 @@ char* VoltDBEngine::readAriesLogForReplay(int64_t* sizes) {
 
 	// read custom file names later
 	logfilestream.open(AriesLogProxy::defaultLogfileName.c_str(), ios::binary | ios::in);
-	VOLT_WARN("Opened aries log file at : %s",AriesLogProxy::defaultLogfileName.c_str());
+	VOLT_WARN("readAriesLogForReplay at : %s",AriesLogProxy::defaultLogfileName.c_str());
 
 	if (!logfilestream.is_open()) {
 		sizes[0] = 0;
@@ -1431,6 +1427,7 @@ char* VoltDBEngine::readAriesLogForReplay(int64_t* sizes) {
 
 	if (length == 0) {
 		logfilestream.close();
+		VOLT_WARN("Log file is empty : %s", AriesLogProxy::defaultLogfileName.c_str());
 		return NULL; //log is empty
 	}
 
@@ -1470,6 +1467,8 @@ void VoltDBEngine::doAriesRecovery(char *logData, size_t length, int64_t replay_
 		return;
 	}
 
+	VOLT_WARN("ARIES : doAriesRecovery at partition : %d starting from replay_txnid : %ld",this->m_partitionId, replay_txnid);
+
 	m_isRecovering = true;
 
 	bool noMoreLogRecords = false;
@@ -1486,6 +1485,8 @@ void VoltDBEngine::doAriesRecovery(char *logData, size_t length, int64_t replay_
 
 	int32_t counter = 0;
 
+	VOLT_WARN("actualBufLen : %ld", actualBufLen);
+
 	while (input.getRawPointer(0) < endOfBuffer) {
 		const char* logInitPosition = reinterpret_cast<const char*>(input.getRawPointer(0));
 
@@ -1494,7 +1495,10 @@ void VoltDBEngine::doAriesRecovery(char *logData, size_t length, int64_t replay_
 		// log header is 4 bytes
 		int64_t breathingSpace = endOfBuffer - (logInitPosition + sizeof(int32_t));
 
+		VOLT_WARN("breathingSpace : %ld endOfBuffer : %p logInitPosition : %p", breathingSpace, endOfBuffer, logInitPosition);
+
 		if (breathingSpace < 0) {
+			VOLT_WARN("breathingSpace is negative");
 			// read the full header along with the next chunk
 			// seek in reverse direction
 			break;//XXX:hack when we have a single buffer for the entire file
@@ -1504,6 +1508,7 @@ void VoltDBEngine::doAriesRecovery(char *logData, size_t length, int64_t replay_
 			memcpy(&recordSize, logInitPosition, sizeof(recordSize));
 			recordSize = ntohl(recordSize);
 
+			VOLT_WARN("recordSize : %d", recordSize);
 			if (recordSize <= 0) {
 				// hit junk, no more log records.
 				noMoreLogRecords = true;
@@ -1529,6 +1534,7 @@ void VoltDBEngine::doAriesRecovery(char *logData, size_t length, int64_t replay_
 
 		int64_t numBulkLoadBytes = 0;
 
+		VOLT_WARN("LogRecord :: TXN Type : %d", txnType);
 		if (txnType == static_cast<int8_t>(LogRecord::T_BULKLOAD)) {
 			memcpy(&numBulkLoadBytes, logInitPosition + sizeof(int32_t) + recordSize, sizeof(numBulkLoadBytes));
 			numBulkLoadBytes = ntohll(numBulkLoadBytes);
@@ -1538,6 +1544,8 @@ void VoltDBEngine::doAriesRecovery(char *logData, size_t length, int64_t replay_
 		int64_t txnId;
 		memcpy(&txnId, logInitPosition + sizeof(int32_t) + OFFSET_TO_TXNID, sizeof(txnId));
 		txnId = ntohll(txnId);
+
+		VOLT_WARN("LogRecord :: TXN Id : %ld", txnId);
 
 		// Check the site-id, re-run only if original site-id matches
 		// Correctness follows because all updates from a site are to
@@ -1666,7 +1674,7 @@ void VoltDBEngine::doAriesRecovery(char *logData, size_t length, int64_t replay_
 	std::ostringstream sstm;
 	sstm << counter;
 
-	std::string outputString = "ARIES recovery completed, " + sstm.str() + " log records found, all replayed.";
+	std::string outputString = "ARIES : recovery completed, " + sstm.str() + " log records found, all replayed.";
 	logger->log(LOGLEVEL_INFO, &outputString);
 }
 

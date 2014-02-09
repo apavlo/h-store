@@ -128,7 +128,7 @@ bool DeleteExecutor::p_execute(const NValueArray &params, ReadWriteTracker *trac
 
 		LogManager* m_logManager = this->m_engine->getLogManager();
 		Logger m_ariesLogger = m_logManager->getAriesLogger();
-		VOLT_WARN("m_logManager : %p AriesLogger : %p",&m_logManager, &m_ariesLogger);
+		//VOLT_WARN("m_logManager : %p AriesLogger : %p",&m_logManager, &m_ariesLogger);
 		const Logger *logger = m_logManager->getThreadLogger(LOGGERID_MM_ARIES);
 
 		logger->log(LOGLEVEL_INFO, output.data(), output.position());
@@ -217,7 +217,7 @@ bool DeleteExecutor::p_execute(const NValueArray &params, ReadWriteTracker *trac
 
 		LogManager* m_logManager = this->m_engine->getLogManager();
 		Logger m_ariesLogger = m_logManager->getAriesLogger();
-		VOLT_WARN("m_logManager : %p AriesLogger : %p",&m_logManager, &m_ariesLogger);
+		//VOLT_WARN("m_logManager : %p AriesLogger : %p",&m_logManager, &m_ariesLogger);
 		const Logger *logger = m_logManager->getThreadLogger(LOGGERID_MM_ARIES);
 
 		logger->log(LOGLEVEL_INFO, output.data(), output.position());

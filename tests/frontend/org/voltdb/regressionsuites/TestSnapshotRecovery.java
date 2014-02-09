@@ -57,6 +57,8 @@ import com.sun.net.httpserver.Authenticator.Success;
 import edu.brown.benchmark.ycsb.YCSBConstants;
 import edu.brown.benchmark.ycsb.YCSBLoader;
 import edu.brown.benchmark.ycsb.YCSBProjectBuilder;
+import edu.brown.benchmark.ycsb.procedures.DeleteRecord;
+import edu.brown.benchmark.ycsb.procedures.InsertRecord;
 import edu.brown.benchmark.ycsb.procedures.ReadRecord;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.Hstoreservice.Status;
@@ -190,6 +192,8 @@ public class TestSnapshotRecovery extends RegressionSuite {
         loader.load();
     }    
         
+    int numDeletedTuples = 10;
+
     public void testSaveAndRestoreYCSB() throws IOException, InterruptedException, ProcCallException {
         
         System.out.println("Starting testSaveAndRestoreYCSB");
@@ -240,6 +244,20 @@ public class TestSnapshotRecovery extends RegressionSuite {
         
         System.out.println("Read Record Test Passed");
         
+        for (long k_itr = 0; k_itr < numDeletedTuples; k_itr++) {
+            procName = DeleteRecord.class.getSimpleName();
+            Object paramst[] = { k_itr };
+            
+            cresponse = client.callProcedure(procName, paramst);
+            assertEquals(Status.OK, cresponse.getStatus());
+            results = cresponse.getResults();
+
+            assertEquals(1, results.length);
+            assertNotNull(cresponse);
+        }
+
+        System.out.println("Insert Record Test Passed");
+
         // Snapshot
         results = null;
         results = saveTables(client);
@@ -367,7 +385,7 @@ public class TestSnapshotRecovery extends RegressionSuite {
         VoltTable vt = null;
         boolean adv = true;
         
-        for(key_itr = 0 ; key_itr < numTuples ; key_itr++){
+        for(key_itr = numDeletedTuples ; key_itr < numTuples ; key_itr++){
             procName = ReadRecord.class.getSimpleName();
             Object params[] = { key_itr };
             

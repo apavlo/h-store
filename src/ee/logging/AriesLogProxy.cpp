@@ -38,6 +38,7 @@ AriesLogProxy::AriesLogProxy(VoltDBEngine *engine, string logfileName) {
 
 void AriesLogProxy::init(VoltDBEngine *engine, string logfileName) {
 	this->logfileName = logfileName;
+	// CHANGE :: originally true
 	jniLogging = true;
 
 	if (!jniLogging) {
@@ -78,11 +79,11 @@ void AriesLogProxy::log(LoggerId loggerId, LogLevel level, const char *statement
 	case voltdb::LOGGERID_SQL:
 		loggerName = "SQL";
 		break;
-#ifdef ARIES
+//#ifdef ARIES
 	case voltdb::LOGGERID_MM_ARIES:
 		loggerName = "MM_ARIES";
 		break;
-#endif
+//#endif
 	default:
 		loggerName = "UNKNOWN";
 		break;
@@ -125,8 +126,10 @@ void AriesLogProxy::log(LoggerId loggerId, LogLevel level, const char *statement
 
 void AriesLogProxy::logBinaryOutput(const char *data, size_t size) {
 	if (jniLogging) {
+		VOLT_WARN("AriesLogProxy : logToEngineBuffer : %lu", size);
 		logToEngineBuffer(data, size);
 	} else {
+		VOLT_WARN("AriesLogProxy : logLocally : %lu", size);
 		logLocally(data, size);
 	}
 }
@@ -142,7 +145,7 @@ void AriesLogProxy::logLocally(const char *data, size_t size) {
 }
 
 void AriesLogProxy::logToEngineBuffer(const char *data, size_t size) {
-#ifdef ARIES
+//#ifdef ARIES
 	engine->writeToAriesLogBuffer(data, size);
-#endif
+//#endif
 }
