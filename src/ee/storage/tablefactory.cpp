@@ -255,7 +255,7 @@ Table* TableFactory::getEvictedTable(voltdb::CatalogId databaseId,
     return dynamic_cast<Table*>(table);
 }
 #endif
-
+/**
 Table* TableFactory::getWindowTable(
             voltdb::CatalogId databaseId,
             ExecutorContext *ctx,
@@ -438,11 +438,11 @@ Table* TableFactory::getWindowTable(
 
     return dynamic_cast<Table*>(table);
 }
-
+*/
 ////////////////////////////////////////////////////////////////////////////////////////
 //TODO: These are temporary versions of the window table producers, so as not to break any existing code.
 ////////////////////////////////////////////////////////////////////////////////////////
-/**
+
 Table* TableFactory::getWindowTable(
             voltdb::CatalogId databaseId,
             ExecutorContext *ctx,
@@ -647,7 +647,7 @@ Table* TableFactory::getWindowTable(
 
     return table;
 }
-*/
+
 //////////////////////////////////////////////////////////////////////////////
 //END
 //////////////////////////////////////////////////////////////////////////////
