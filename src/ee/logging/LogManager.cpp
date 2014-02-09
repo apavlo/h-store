@@ -56,7 +56,7 @@ LogManager::LogManager(LogProxy *proxy, VoltDBEngine *engine)
     (void)pthread_once(&m_keyOnce, createThreadLocalKey);
     pthread_setspecific( m_key, static_cast<const void *>(this));
 
-    VOLT_WARN("Creating LogManager for thread : %lu key: %u ariesLogger : %p ",pthread_self(), m_key, &m_ariesLogger);
+    //VOLT_WARN("Creating LogManager for thread : %lu key: %u ariesLogger : %p ",pthread_self(), m_key, &m_ariesLogger);
 }
 
 /*

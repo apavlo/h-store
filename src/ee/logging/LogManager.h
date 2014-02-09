@@ -111,6 +111,7 @@ public:
     	return (m_ariesLogger);
     }
 
+
 private:
 
     static LogManager* getThreadLogManager();

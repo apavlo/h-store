@@ -481,7 +481,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // Starts native thread
         this.m_ariesLog = new AriesLogNative(
                 1, 
-                1024*1024,   // 1 GB
+                0,   // 0 MB
                 16); // Sync Frequency
         this.m_recoveryLog  = new VoltLogger("RECOVERY");        
 

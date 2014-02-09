@@ -770,8 +770,6 @@ bool VoltDBEngine::loadTable(PersistentTable *table,
 
 		logger->log(LOGLEVEL_INFO, output.data(), output.position());
 
-		VOLT_WARN("loadTable : logged the record ");
-
 		// CAREFUL -- the number of bytes might just be too many
 		// Its possible they could cause a buffer overflow
 		// in the shared Aries buffer.
@@ -1495,10 +1493,7 @@ void VoltDBEngine::doAriesRecovery(char *logData, size_t length, int64_t replay_
 		// log header is 4 bytes
 		int64_t breathingSpace = endOfBuffer - (logInitPosition + sizeof(int32_t));
 
-		VOLT_WARN("breathingSpace : %ld endOfBuffer : %p logInitPosition : %p", breathingSpace, endOfBuffer, logInitPosition);
-
 		if (breathingSpace < 0) {
-			VOLT_WARN("breathingSpace is negative");
 			// read the full header along with the next chunk
 			// seek in reverse direction
 			break;//XXX:hack when we have a single buffer for the entire file
@@ -1508,7 +1503,7 @@ void VoltDBEngine::doAriesRecovery(char *logData, size_t length, int64_t replay_
 			memcpy(&recordSize, logInitPosition, sizeof(recordSize));
 			recordSize = ntohl(recordSize);
 
-			VOLT_WARN("recordSize : %d", recordSize);
+			VOLT_WARN("breathingSpace : %ld recordSize : %d", breathingSpace, recordSize);
 			if (recordSize <= 0) {
 				// hit junk, no more log records.
 				noMoreLogRecords = true;
@@ -1534,7 +1529,6 @@ void VoltDBEngine::doAriesRecovery(char *logData, size_t length, int64_t replay_
 
 		int64_t numBulkLoadBytes = 0;
 
-		VOLT_WARN("LogRecord :: TXN Type : %d", txnType);
 		if (txnType == static_cast<int8_t>(LogRecord::T_BULKLOAD)) {
 			memcpy(&numBulkLoadBytes, logInitPosition + sizeof(int32_t) + recordSize, sizeof(numBulkLoadBytes));
 			numBulkLoadBytes = ntohll(numBulkLoadBytes);
@@ -1545,7 +1539,7 @@ void VoltDBEngine::doAriesRecovery(char *logData, size_t length, int64_t replay_
 		memcpy(&txnId, logInitPosition + sizeof(int32_t) + OFFSET_TO_TXNID, sizeof(txnId));
 		txnId = ntohll(txnId);
 
-		VOLT_WARN("LogRecord :: TXN Id : %ld", txnId);
+		VOLT_WARN("LogRecord :: TXN Type : %d TXN Id : %ld", txnType, txnId);
 
 		// Check the site-id, re-run only if original site-id matches
 		// Correctness follows because all updates from a site are to
@@ -1611,6 +1605,7 @@ void VoltDBEngine::doAriesRecovery(char *logData, size_t length, int64_t replay_
 				afterImage = NULL;
 			}
 
+			VOLT_WARN("Log record recovery : INSERT");
 		} else if (logrecord.getType() == LogRecord::T_UPDATE) {
 			beforeImage = logrecord.getTupleBeforeImage();
 			afterImage = logrecord.getTupleAfterImage();
@@ -1632,6 +1627,8 @@ void VoltDBEngine::doAriesRecovery(char *logData, size_t length, int64_t replay_
 			//afterImage->freeObjectColumns();
 			delete afterImage;
 			afterImage = NULL;
+
+			VOLT_WARN("Log record recovery : UPDATE");
 		} else if (logrecord.getType() == LogRecord::T_BULKLOAD) {
 			numBulkLoadBytes = input.readLong();
 
@@ -1655,6 +1652,8 @@ void VoltDBEngine::doAriesRecovery(char *logData, size_t length, int64_t replay_
 
 			// advance read position to the correct place.
 			input.getRawPointer(numBulkLoadBytes);
+
+			VOLT_WARN("Log record recovery : BULKLOAD");
 		} else if (logrecord.getType() == LogRecord::T_DELETE) {
 			beforeImage = logrecord.getTupleBeforeImage();
 			table->deleteTuple(*beforeImage, true);
@@ -1663,10 +1662,15 @@ void VoltDBEngine::doAriesRecovery(char *logData, size_t length, int64_t replay_
 			//beforeImage->freeObjectColumns();
 			delete beforeImage;
 			beforeImage = NULL;
+
+			VOLT_WARN("Log record recovery : DELETE");
 		} else if (logrecord.getType() == LogRecord::T_TRUNCATE) {
 			table->deleteAllTuples(true);
+
+			VOLT_WARN("Log record recovery : TRUNCATE");
 		} else {
 			// do nothing for invalid records
+			VOLT_WARN("Log record recovery : Invalid Record");
 		}
 	}
 

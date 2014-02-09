@@ -39,10 +39,13 @@ AriesLogProxy::AriesLogProxy(VoltDBEngine *engine, string logfileName) {
 void AriesLogProxy::init(VoltDBEngine *engine, string logfileName) {
 	this->logfileName = logfileName;
 	// CHANGE :: originally true
-	jniLogging = true;
+	jniLogging = false;
 
 	if (!jniLogging) {
 		logfile.open(logfileName.c_str(), ios::out | ios::binary | ios::app);
+
+		long pos = logfile.tellp();
+		VOLT_WARN("AriesLogProxy : opened logfile %s :: pos %ld", logfileName.c_str(), pos);
 	} else {
 		if (engine == NULL) {
 			cout << "what in the god's name is this shit " << endl;
@@ -52,8 +55,10 @@ void AriesLogProxy::init(VoltDBEngine *engine, string logfileName) {
 }
 
 AriesLogProxy::~AriesLogProxy() {
+	VOLT_WARN("AriesLogProxy : destructor : %s", logfileName.c_str());
 	if (logfile.is_open()) {
 		logfile.close();
+		VOLT_WARN("AriesLogProxy : closed logfile %s", logfileName.c_str());
 	}
 }
 
@@ -137,11 +142,19 @@ void AriesLogProxy::logBinaryOutput(const char *data, size_t size) {
 void AriesLogProxy::logLocally(const char *data, size_t size) {
 	logfile.write(data, size);
 
-	if (logfile.badbit) {
+	if (logfile.fail()) {
 		// XXX: couldn't write, wait what?
+		if(logfile.bad()){
+			VOLT_ERROR("logLocally failed : badbit set");
+		}
+		else{
+			VOLT_ERROR("logLocally failed : failbit set");
+		}
 	}
 
 	logfile.flush();
+	long pos = logfile.tellp();
+ 	VOLT_WARN("logLocally : flushed : file pos %ld",pos);
 }
 
 void AriesLogProxy::logToEngineBuffer(const char *data, size_t size) {

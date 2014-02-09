@@ -80,7 +80,7 @@ public class TestSnapshotRecovery extends RegressionSuite {
 
     // YCSB
     private static final String PREFIX = "ycsb";
-    private static final int NUM_TUPLES = 16;
+    private static final int NUM_TUPLES = 4;
 
     public TestSnapshotRecovery(String name) {
         super(name);
@@ -192,7 +192,7 @@ public class TestSnapshotRecovery extends RegressionSuite {
         loader.load();
     }    
         
-    int numDeletedTuples = 10;
+    int numDeletedTuples = 2;
 
     public void testSaveAndRestoreYCSB() throws IOException, InterruptedException, ProcCallException {
         

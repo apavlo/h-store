@@ -190,7 +190,6 @@ public:
                 break;
 
               case VALUE_TYPE_VARCHAR:
-              case VALUE_TYPE_VARBINARY:
                   // 32 bit length preceding value and
                   // actual character data without null string terminator.
                   if (!getNValue(i).isNull())
