@@ -5,8 +5,9 @@ import org.voltdb.VoltProcedure;
 import edu.brown.benchmark.AbstractProjectBuilder;
 import edu.brown.api.BenchmarkComponent;
 
-import edu.brown.benchmark.wordcount.procedures.SimpleCall; 
-import edu.brown.benchmark.wordcount.procedures.SimpleTrigger; 
+import edu.brown.benchmark.wordcounthstore.procedures.SimpleCall; 
+import edu.brown.benchmark.wordcounthstore.procedures.NextBatch; 
+ 
 public class WordCountHStoreProjectBuilder extends AbstractProjectBuilder {
 
     // REQUIRED: Retrieved via reflection by BenchmarkController
@@ -18,7 +19,8 @@ public class WordCountHStoreProjectBuilder extends AbstractProjectBuilder {
 	// a list of procedures implemented in this benchmark
     @SuppressWarnings("unchecked")
     public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
-        SimpleCall.class
+        SimpleCall.class,
+        NextBatch.class
     };
 	
 	{
@@ -30,7 +32,7 @@ public class WordCountHStoreProjectBuilder extends AbstractProjectBuilder {
     };
 
     public WordCountHStoreProjectBuilder() {
-        super("wordcount", WordCountHStoreProjectBuilder.class, PROCEDURES, PARTITIONING);
+        super("wordcounthstore", WordCountHStoreProjectBuilder.class, PROCEDURES, PARTITIONING);
     }
 }
 

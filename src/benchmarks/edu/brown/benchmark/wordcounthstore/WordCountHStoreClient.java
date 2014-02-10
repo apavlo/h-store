@@ -9,11 +9,14 @@ import org.voltdb.client.ProcedureCallback;
 
 import edu.brown.api.BenchmarkComponent;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
-import edu.brown.benchmark.wordcount.procedures.SimpleCall;
+import edu.brown.benchmark.wordcounthstore.procedures.SimpleCall;
+import edu.brown.benchmark.wordcounthstore.procedures.NextBatch; 
 
 public class WordCountHStoreClient extends BenchmarkComponent {
     private static final Logger LOG = Logger.getLogger(WordCountHStoreClient.class);
     private static final LoggerBoolean debug = new LoggerBoolean();
+    private static long lastTime;
+    private static int timestamp;
     
     // word generator
     WordGenerator wordGenerator;
@@ -29,22 +32,18 @@ public class WordCountHStoreClient extends BenchmarkComponent {
         String strFileName = "word.txt";
         
         this.wordGenerator = new WordGenerator(this.getClientId(), strFileName);
+        lastTime = System.nanoTime();
+        timestamp = 0;
     }
 
     @Override
     public void runLoop() {
-        try {
-            while (true) {
-                try {
-                    runOnce();
-                } catch (Exception e) {
-	            e.printStackTrace();
-                }
-
-            } // WHILE
-        } catch (Exception e) {
-            // Client has no clean mechanism for terminating with the DB.
+        while (true) {
+            try {
+                runOnce();
+            } catch (Exception e) {
             e.printStackTrace();
+            }
         }
     }
 
@@ -57,10 +56,19 @@ public class WordCountHStoreClient extends BenchmarkComponent {
                 wordGenerator.reset();
             
             word = wordGenerator.nextWord();
-
+            boolean response = false;
             Client client = this.getClientHandle();
-            boolean response = client.callProcedure(callback,
-                                                    "SimpleCall", word);
+            
+        	if(System.nanoTime() - lastTime >= 1000000000)
+        	{
+        		lastTime = System.nanoTime();
+        		timestamp++;
+        		response = client.callProcedure(callback, "NextBatch");
+        	}
+        	else
+        	{
+	            response = client.callProcedure(callback, "SimpleCall", word, timestamp);
+        	}
             return response;
         }
         else

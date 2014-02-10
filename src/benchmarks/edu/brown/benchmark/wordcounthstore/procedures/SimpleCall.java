@@ -15,22 +15,21 @@ public class SimpleCall extends VoltProcedure {
         );
     
     public final SQLStmt insertNewWordStmt = new SQLStmt(
-            "INSERT INTO counts (word, num) VALUES (?, 0);"
+            "INSERT INTO counts (word, num, time) VALUES (?, 0, ?);"
         );
     
     public final SQLStmt addWord = new SQLStmt(
-    		"UPDATE num SET num = num + 1 FROM counts WHERE word=?;"
+    		"UPDATE counts SET num = num + 1 WHERE word=?;"
         );
     
-    public long run(String word) {
+    public long run(String word, int time) {
 
         voltQueueSQL(checkWordStmt, word);
         VoltTable validation[] = voltExecuteSQL();
-        voltExecuteSQL();
         
         // initialize the counts table
         if (validation[0].getRowCount() == 0) {
-            voltQueueSQL(insertNewWordStmt, word);
+            voltQueueSQL(insertNewWordStmt, word, time);
         }
         
         voltQueueSQL(addWord, word);

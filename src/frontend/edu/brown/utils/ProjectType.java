@@ -91,6 +91,7 @@ public enum ProjectType {
     SIMPLESTATEMENT("SimpleStatement", "edu.brown.benchmark.simplestatement"),
     TEST("Test", null),
     WORDCOUNT("WordCount", "edu.brown.benchmark.wordcount"),
+    WORDCOUNTHSTORE("WordCountHStore", "edu.brown.benchmark.wordcounthstore"),
     ;
 
 
