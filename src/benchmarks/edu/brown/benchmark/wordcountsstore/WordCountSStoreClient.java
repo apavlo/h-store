@@ -10,7 +10,6 @@ import org.voltdb.client.ProcedureCallback;
 import edu.brown.api.BenchmarkComponent;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.benchmark.wordcountsstore.procedures.SimpleCall;
-import edu.brown.benchmark.wordcountsstore.procedures.NextBatch; 
 
 public class WordCountSStoreClient extends BenchmarkComponent {
     private static final Logger LOG = Logger.getLogger(WordCountSStoreClient.class);
@@ -59,16 +58,13 @@ public class WordCountSStoreClient extends BenchmarkComponent {
             boolean response = false;
             Client client = this.getClientHandle();
             
-            if(System.nanoTime() - lastTime >= 2000000000)
+            if(System.nanoTime() - lastTime >= 1000000000)
             {
             	lastTime = System.nanoTime();
             	timestamp++;
-            	response = client.callProcedure(callback, "NextBatch", timestamp);
             }
-        	else
-        	{
-	            response = client.callProcedure(callback, "SimpleCall", word, timestamp);
-        	}
+	        response = client.callProcedure(callback, "SimpleCall", word, timestamp);
+
             return response;
         }
         else

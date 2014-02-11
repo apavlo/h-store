@@ -54,10 +54,10 @@ public class WordGenerator {
         m_position = 0;
         m_words= new ArrayList<String>();
         
-        m_words.add("Apple");
-        m_words.add("Banana");
-        m_words.add("Cantalope");
-        m_words.add("Durian");
+        m_words.add("A");
+        m_words.add("B");
+        m_words.add("C");
+        m_words.add("D");
         
         m_size = m_words.size();
         

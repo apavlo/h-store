@@ -1,11 +1,14 @@
-CREATE TABLE counts
+CREATE STREAM words
 (
   word  varchar(20)  NOT NULL
-, num   int     NOT NULL
 , time  int     NOT NULL
-, CONSTRAINT PK_word PRIMARY KEY
-  (
-    word
-  )
 );
 
+CREATE WINDOW W_WORDS ON words RANGE 30 SLIDE 2;
+
+CREATE TABLE results
+(
+   word  varchar(20) NOT NULL
+,  time  int         NOT NULL
+,  num   int         NOT NULL
+);

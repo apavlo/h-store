@@ -10,30 +10,13 @@ import org.voltdb.VoltTable;
     )
 public class SimpleCall extends VoltProcedure {
     
-    public final SQLStmt checkWordStmt = new SQLStmt(
-            "SELECT word FROM counts WHERE word = ? AND time = ?;"
-        );
-    
-    public final SQLStmt insertNewWordStmt = new SQLStmt(
-            "INSERT INTO counts (word, num, time) VALUES (?, 1, ?);"
-        );
-    
-    public final SQLStmt addWord = new SQLStmt(
-    		"UPDATE counts SET num = num + 1 WHERE word=? AND time=?;"
+    public final SQLStmt insertWordStmt = new SQLStmt(
+            "INSERT INTO words VALUES (?, ?);"
         );
     
     public long run(String word, int time) {
 
-        voltQueueSQL(checkWordStmt, word, time);
-        VoltTable validation[] = voltExecuteSQL();
-        
-        // initialize the counts table
-        if (validation[0].getRowCount() == 0) {
-            voltQueueSQL(insertNewWordStmt, word, time);
-        }
-        else {
-        	voltQueueSQL(addWord, word, time);
-        }
+        voltQueueSQL(insertWordStmt, word, time);
         voltExecuteSQL(true);
 
         return 0;

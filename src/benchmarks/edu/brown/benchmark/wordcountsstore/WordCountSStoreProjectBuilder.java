@@ -6,7 +6,8 @@ import edu.brown.benchmark.AbstractProjectBuilder;
 import edu.brown.api.BenchmarkComponent;
 
 import edu.brown.benchmark.wordcountsstore.procedures.SimpleCall; 
-import edu.brown.benchmark.wordcountsstore.procedures.NextBatch; 
+import edu.brown.benchmark.wordcountsstore.procedures.WindowTrigger; 
+import edu.brown.benchmark.wordcountsstore.procedures.CountTrigger; 
  
 public class WordCountSStoreProjectBuilder extends AbstractProjectBuilder {
 
@@ -20,7 +21,8 @@ public class WordCountSStoreProjectBuilder extends AbstractProjectBuilder {
     @SuppressWarnings("unchecked")
     public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
         SimpleCall.class,
-        NextBatch.class
+        WindowTrigger.class,
+        CountTrigger.class
     };
 	
 	{
@@ -28,7 +30,8 @@ public class WordCountSStoreProjectBuilder extends AbstractProjectBuilder {
 	
 	// a list of tables used in this benchmark with corresponding partitioning keys
     public static final String PARTITIONING[][] = new String[][] {
-        { "counts", "word"}
+        { "words", "word"},
+        { "results", "word"}
     };
 
     public WordCountSStoreProjectBuilder() {
