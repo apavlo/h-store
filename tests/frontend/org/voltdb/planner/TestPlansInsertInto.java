@@ -84,6 +84,21 @@ public class TestPlansInsertInto extends TestCase{
             System.out.println(pn.toJSONString());
     }
 
+    public void testInsertSingleLine() {
+        AbstractPlanNode pn = null;
+        pn = compile("INSERT INTO D1 (D1_PKEY, D1_NAME) VALUES (1,'AAA')",0);
+        assertNotNull(pn);
+        if (pn != null)
+            System.out.println(pn.toJSONString());
+    }
+
+    public void testInsertMultipleLines() {
+        AbstractPlanNode pn = null;
+        pn = compile("INSERT INTO D1 (D1_PKEY, D1_NAME) VALUES (1,'AAA'), (2, 'BBB')",0);
+        assertNotNull(pn);
+        if (pn != null)
+            System.out.println(pn.toJSONString());
+    }
 
     // This plan won't compile right until ENG-490 is fixed...
     /*public void testGroupSingleJoin() {

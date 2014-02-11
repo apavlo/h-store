@@ -18,6 +18,7 @@
 package org.voltdb.planner;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map.Entry;
@@ -757,64 +758,73 @@ public class PlanAssembler {
                 assert (inputNode.getChildPlanNodeCount() == 1);
                 inputNode = inputNode.getChild(0);
             }
+            // connect the insert and the materialize nodes together
+            insertNode.addAndLinkChild(inputNode);
+
 		} else {
 
-	        // the materialize node creates a tuple to insert (which is frankly not
-	        // always optimal)
-	        MaterializePlanNode materializeNode =
-	            new MaterializePlanNode(m_context, getNextPlanNodeId());
-	
 	        // get the ordered list of columns for the targettable using a helper
 	        // function they're not guaranteed to be in order in the catalog
 	        List<Column> columns =
 	            CatalogUtil.getSortedCatalogItems(targetTable.getColumns(), "index");
 	
-	        // for each column in the table in order...
-	        for (Column column : columns) {
-	
-	            // get the expression for the column
-	            AbstractExpression expr = m_parsedInsert.columns.get(column);
-	
-	            // if there's no expression, make sure the column has
-	            // some supported default value
-	            if (expr == null) {
-	                // if it's not nullable or defaulted we have a problem
-	                if (column.getNullable() == false && column.getDefaulttype() == 0)
-	                {
-	                    throw new PlanningErrorException("Column " + column.getName()
-	                            + " has no default and is not nullable.");
-	                }
-	                ConstantValueExpression const_expr =
-	                    new ConstantValueExpression();
-	                expr = const_expr;
-	                if (column.getDefaulttype() != 0)
-	                {
-	                    const_expr.setValue(column.getDefaultvalue());
-	                }
-	                else
-	                {
-	                    const_expr.setValue("NULL");
-	                }
-	            }
-	            // set the expression type to match the corresponding Column.
-	            // in reality, the expression will cast its resulting NValue to
-	            // the intermediate table's tuple; but, that tuple takes its
-	            // type from these expression types (for now). The tempTuple is
-	            // eventually tableTuple::copy()'d into the persistent table
-	            // and must match the persistent table's column type and size.
-	            // A little round-about, I know. Will get better.
-	            expr.setValueSize(column.getSize());
-	            expr.setValueType(VoltType.get((byte)column.getType()));
-	
-	            // add column to the materialize node.
-	            PlanColumn colInfo = m_context.getPlanColumn(expr, column.getTypeName());
-	            materializeNode.appendOutputColumn(colInfo);
+	        // for each value row
+	        for (int index = 0; index < m_parsedInsert.rows.size(); index++)
+	        {
+	            HashMap<Column, AbstractExpression> cols = m_parsedInsert.rows.get(index);
+
+	            // the materialize node creates a tuple to insert (which is frankly not
+	            // always optimal)
+	            MaterializePlanNode materializeNode =
+	                new MaterializePlanNode(m_context, getNextPlanNodeId());
+	    
+    	        // for each column in the table in order...
+    	        for (Column column : columns) {
+    	
+    	            // get the expression for the column
+    	            AbstractExpression expr = cols.get(column);
+    	
+    	            // if there's no expression, make sure the column has
+    	            // some supported default value
+    	            if (expr == null) {
+    	                // if it's not nullable or defaulted we have a problem
+    	                if (column.getNullable() == false && column.getDefaulttype() == 0)
+    	                {
+    	                    throw new PlanningErrorException("Column " + column.getName()
+    	                            + " has no default and is not nullable.");
+    	                }
+    	                ConstantValueExpression const_expr =
+    	                    new ConstantValueExpression();
+    	                expr = const_expr;
+    	                if (column.getDefaulttype() != 0)
+    	                {
+    	                    const_expr.setValue(column.getDefaultvalue());
+    	                }
+    	                else
+    	                {
+    	                    const_expr.setValue("NULL");
+    	                }
+    	            }
+    	            // set the expression type to match the corresponding Column.
+    	            // in reality, the expression will cast its resulting NValue to
+    	            // the intermediate table's tuple; but, that tuple takes its
+    	            // type from these expression types (for now). The tempTuple is
+    	            // eventually tableTuple::copy()'d into the persistent table
+    	            // and must match the persistent table's column type and size.
+    	            // A little round-about, I know. Will get better.
+    	            expr.setValueSize(column.getSize());
+    	            expr.setValueType(VoltType.get((byte)column.getType()));
+    	
+    	            // add column to the materialize node.
+    	            PlanColumn colInfo = m_context.getPlanColumn(expr, column.getTypeName());
+    	            materializeNode.appendOutputColumn(colInfo);
+    	        }
+    	        inputNode = materializeNode;
+    	        // connect the insert and the materialize nodes together
+    	        insertNode.addAndLinkChild(inputNode);
 	        }
-	        inputNode = materializeNode;
         }
 
-        // connect the insert and the materialize nodes together
-        insertNode.addAndLinkChild(inputNode);
         AbstractPlanNode rootNode = insertNode;
 
         if (m_singlePartition == false) {

@@ -17,7 +17,9 @@
 
 package org.voltdb.planner;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map.Entry;
 
 import org.voltdb.VoltType;
@@ -36,12 +38,15 @@ import org.w3c.dom.NodeList;
  */
 public class ParsedInsertStmt extends AbstractParsedStmt {
 
-    public HashMap<Column, AbstractExpression> columns = new HashMap<Column, AbstractExpression>();
+    //public HashMap<Column, AbstractExpression> columns = new HashMap<Column, AbstractExpression>();
+    public List<HashMap<Column, AbstractExpression>> rows; 
+    
     public ParsedSelectStmt select;
     public boolean hasSelect = false;
 
     ParsedInsertStmt() {
-        columns = new HashMap<Column, AbstractExpression>();
+        //columns = new HashMap<Column, AbstractExpression>();
+        rows = new ArrayList<HashMap<Column, AbstractExpression>>();
     }
 
     @Override
@@ -64,12 +69,20 @@ public class ParsedInsertStmt extends AbstractParsedStmt {
         NodeList children = stmtNode.getChildNodes();
         for (int i = 0; i < children.getLength(); i++) {
             Node node = children.item(i);
-            if (node.getNodeName().equalsIgnoreCase("columns")) {
-                NodeList colChildren = node.getChildNodes();
-                for (int j = 0; j < colChildren.getLength(); j++) {
-                    Node colNode = colChildren.item(j);
-                    if (colNode.getNodeName().equalsIgnoreCase("column")) {
-                         parseInsertColumn(colNode, db, table);
+            if (node.getNodeName().equalsIgnoreCase("rows")) {
+                NodeList columnsChildren = node.getChildNodes();
+                for (int j = 0; j < columnsChildren.getLength(); j++) {
+                    Node columnsNode = columnsChildren.item(j);
+                    if (columnsNode.getNodeName().equalsIgnoreCase("columns")) {
+                        HashMap<Column, AbstractExpression> columns = new HashMap<Column, AbstractExpression>();
+                        NodeList colChildren = columnsNode.getChildNodes();
+                        for (int jj = 0; jj < colChildren.getLength(); jj++) {
+                            Node colNode = colChildren.item(jj);
+                            if (colNode.getNodeName().equalsIgnoreCase("column")) {
+                                 parseInsertColumn(columns, colNode, db, table);
+                            }
+                        }
+                        rows.add(columns);
                     }
                 }
             }
@@ -79,7 +92,7 @@ public class ParsedInsertStmt extends AbstractParsedStmt {
         }
     }
 
-    void parseInsertColumn(Node columnNode, Database db, Table table) {
+    void parseInsertColumn(HashMap<Column, AbstractExpression> columns, Node columnNode, Database db, Table table) {
         NamedNodeMap attrs = columnNode.getAttributes();
         Node tableNameAttr = attrs.getNamedItem("table");
         Node columnNameAttr = attrs.getNamedItem("name");
@@ -130,15 +143,19 @@ public class ParsedInsertStmt extends AbstractParsedStmt {
     @Override
     public String toString() {
         String retval = super.toString() + "\n";
-
-        retval += "COLUMNS:\n";
-        for (Entry<Column, AbstractExpression> col : columns.entrySet()) {
-            retval += "\tColumn: " + col.getKey().getTypeName();
-            if (col.getValue() != null) //to avoid breaking on INSERT INTO ... SELECT
-            	retval +=  ": " + col.getValue().toString() + "\n";
+        
+        retval += "ROWS:\n";
+        for(int i = 0; i < rows.size(); i++)
+        {
+            HashMap<Column, AbstractExpression> columns = rows.get(i);
+            retval += "COLUMNS:\n";
+            for (Entry<Column, AbstractExpression> col : columns.entrySet()) {
+                retval += "\tColumn: " + col.getKey().getTypeName();
+                if (col.getValue() != null) //to avoid breaking on INSERT INTO ... SELECT
+                	retval +=  ": " + col.getValue().toString() + "\n";
+            }
         }
         retval = retval.trim();
-
         return retval;
     }
     

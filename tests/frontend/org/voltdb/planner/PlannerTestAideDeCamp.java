@@ -105,7 +105,8 @@ public class PlannerTestAideDeCamp {
     public AbstractPlanNode compile(String sql, int paramCount, boolean Upsertable) {
         Statement catalogStmt = proc.getStatements().add("stmt-" + String.valueOf(compileCounter++));
         catalogStmt.setSqltext(sql);
-        catalogStmt.setSinglepartition(false);
+        //catalogStmt.setSinglepartition(false);
+        catalogStmt.setSinglepartition(true);
         catalogStmt.setBatched(false);
         catalogStmt.setParamnum(paramCount);
 

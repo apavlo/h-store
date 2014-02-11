@@ -19,7 +19,7 @@ public class SimpleCall extends VoltProcedure {
         );
     
     public final SQLStmt insertWords = new SQLStmt(
-            "INSERT INTO words (word) VALUES (?);"
+            "INSERT INTO words (word) VALUES (?),(?),(?);"
         );
     
     public long run(String word) {
@@ -33,7 +33,7 @@ public class SimpleCall extends VoltProcedure {
             voltExecuteSQL();
         }
         
-        voltQueueSQL(insertWords, word);
+        voltQueueSQL(insertWords, word, word, word);
         voltExecuteSQL(true);
 
         return 0;

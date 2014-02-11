@@ -47,6 +47,42 @@ public class TestHSQLDB extends TestCase {
         public int read() throws IOException { return sr.read(); }
     }
 
+    
+    // test insert statements with multiple values
+    public void testInsertMultipleValues() throws HSQLParseException {
+        
+        HSQLInterface hsql = HSQLInterface.loadHsqldb();
+        String xml = null;
+
+        try {
+            String ddl = "create table test (C_SINCE int NOT NULL, phone_number bigint NOT NULL, cash integer default 23);";
+            hsql.runDDLCommand(ddl);
+            xml = hsql.getXMLFromCatalog();
+            // display the catalog information in xml foramt
+            System.out.println(xml);
+        } catch (HSQLInterface.HSQLParseException e1) {
+            System.out.println(e1.getMessage());
+            assertFalse(true);
+        }
+
+        assertTrue(xml != null);
+        try {
+            String sql = "INSERT INTO test (C_SINCE, phone_number, cash) VALUES (1, 2, 3);";
+            xml = hsql.getXMLCompiledStatement(sql);
+            System.out.println(xml);
+
+            sql = "INSERT INTO test (C_SINCE, phone_number, cash) VALUES (1, 2, 3), (2, 3, 4);";
+            xml = hsql.getXMLCompiledStatement(sql);
+            System.out.println(xml);
+            
+        } catch (HSQLInterface.HSQLParseException e) {
+            e.printStackTrace();
+        }
+
+        assertTrue(xml != null);
+        
+    }
+    
      // test stream related DDL and DML statements parsing
     public void testStreamRelatedCatalogRead() throws HSQLParseException {
 
