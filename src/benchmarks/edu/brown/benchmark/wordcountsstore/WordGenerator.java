@@ -32,7 +32,7 @@ public class WordGenerator {
                 // current we use delimiter to split line into words 
                 StringTokenizer st = new StringTokenizer(line_msg, " ,;.");
                 while (st.hasMoreTokens()) {
-                    m_words.add(st.nextToken());
+                    m_words.add(st.nextToken().toLowerCase());
                 }
             }
             
