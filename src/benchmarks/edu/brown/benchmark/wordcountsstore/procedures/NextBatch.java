@@ -1,4 +1,4 @@
-package edu.brown.benchmark.wordcounthstore.procedures;
+package edu.brown.benchmark.wordcountsstore.procedures;
 
 //import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;

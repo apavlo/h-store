@@ -1,4 +1,4 @@
-package edu.brown.benchmark.wordcounthstore;
+package edu.brown.benchmark.wordcountsstore;
 
 import java.io.IOException;
 
@@ -9,11 +9,11 @@ import org.voltdb.client.ProcedureCallback;
 
 import edu.brown.api.BenchmarkComponent;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
-import edu.brown.benchmark.wordcounthstore.procedures.SimpleCall;
-import edu.brown.benchmark.wordcounthstore.procedures.NextBatch; 
+import edu.brown.benchmark.wordcountsstore.procedures.SimpleCall;
+import edu.brown.benchmark.wordcountsstore.procedures.NextBatch; 
 
-public class WordCountHStoreClient extends BenchmarkComponent {
-    private static final Logger LOG = Logger.getLogger(WordCountHStoreClient.class);
+public class WordCountSStoreClient extends BenchmarkComponent {
+    private static final Logger LOG = Logger.getLogger(WordCountSStoreClient.class);
     private static final LoggerBoolean debug = new LoggerBoolean();
     private static long lastTime;
     private static int timestamp;
@@ -24,10 +24,10 @@ public class WordCountHStoreClient extends BenchmarkComponent {
     final Callback callback = new Callback();
 
     public static void main(String args[]) {
-        BenchmarkComponent.main(WordCountHStoreClient.class, args, false);
+        BenchmarkComponent.main(WordCountSStoreClient.class, args, false);
     }
 
-    public WordCountHStoreClient(String args[]) {
+    public WordCountSStoreClient(String args[]) {
         super(args);
         String strFileName = "word.txt";
         

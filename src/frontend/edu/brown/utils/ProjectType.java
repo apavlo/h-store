@@ -92,6 +92,7 @@ public enum ProjectType {
     TEST("Test", null),
     WORDCOUNT("WordCount", "edu.brown.benchmark.wordcount"),
     WORDCOUNTHSTORE("WordCountHStore", "edu.brown.benchmark.wordcounthstore"),
+    WORDCOUNTSSTORE("WordCountSStore", "edu.brown.benchmark.wordcountsstore"),
     ;
 
 
