@@ -12,7 +12,7 @@ public class WordGenerator {
     
     private int m_position;
     
-    /**
+    
     public WordGenerator(int clientId, String strFileName) {
        
         m_size = 0;
@@ -46,8 +46,8 @@ public class WordGenerator {
             e.printStackTrace();
         }
         
-    } */
-    
+    } 
+    /**
     public WordGenerator(int clientId, String strFileName) {
         
         m_size = 0;
@@ -61,7 +61,7 @@ public class WordGenerator {
         
         m_size = m_words.size();
         
-    } 
+    } */
     
     public boolean isEmpty()
     {
