@@ -121,6 +121,14 @@ public:
 		return NULL;
 	}
 
+	inline TableTuple* getPrimaryKey() {
+		if (isValid) {
+			return primaryKey;
+		}
+
+		return NULL;
+	}
+
     void dellocateBeforeImageData()
     {
     	if (beforeImageData != NULL) {

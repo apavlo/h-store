@@ -95,6 +95,7 @@ bool DeleteExecutor::p_init(AbstractPlanNode *abstract_node, const catalog::Data
 
 bool DeleteExecutor::p_execute(const NValueArray &params, ReadWriteTracker *tracker) {
     assert(m_targetTable);
+
     if (m_truncate) {
         VOLT_TRACE("truncating table %s...", m_targetTable->name().c_str());
         // count the truncated tuples as deleted
@@ -218,9 +219,20 @@ bool DeleteExecutor::p_execute(const NValueArray &params, ReadWriteTracker *trac
 		LogManager* m_logManager = this->m_engine->getLogManager();
 		Logger m_ariesLogger = m_logManager->getAriesLogger();
 		//VOLT_WARN("m_logManager : %p AriesLogger : %p",&m_logManager, &m_ariesLogger);
+
+		/*
 		const Logger *logger = m_logManager->getThreadLogger(LOGGERID_MM_ARIES);
 
+		// CHANGE ::
 		logger->log(LOGLEVEL_INFO, output.data(), output.position());
+
+		if(beforeImage != NULL){
+			VOLT_WARN("DEBUG : %s", beforeImage->debugNoHeader().c_str());
+		}
+		else if(keyTuple != NULL){
+			VOLT_WARN("DEBUG : beforeImage null :: keyTuple : %s", keyTuple->debugNoHeader().c_str());
+		}
+		*/
 
 		delete[] logrecordBuffer;
 		logrecordBuffer = NULL;

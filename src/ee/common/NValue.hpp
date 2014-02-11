@@ -44,8 +44,6 @@
 #include "serializeio.h"
 #include "SerializableEEException.h"
 #include "SQLException.h"
-//#include "common/StringRef.h"
-#include "common/ThreadLocalPool.h"
 #include "types.h"
 #include "value_defs.h"
 
@@ -1731,9 +1729,9 @@ inline const NValue NValue::deserializeFromTupleStorage(const void *storage,
                                                  const ValueType type,
                                                  const bool isInlined)
 {
-		VOLT_WARN("From :: Type : %d :: Storage : %p isInlined : %d ", type, storage, (int)isInlined);
+		//VOLT_WARN("ARIES :: From :: Type : %d :: Storage : %p isInlined : %d ", type, storage, (int)isInlined);
 
-        NValue retval(type);
+		NValue retval(type);
         switch (type) {
           case VALUE_TYPE_TIMESTAMP:
             retval.getTimestamp() = *reinterpret_cast<const int64_t*>(storage);
@@ -1863,7 +1861,7 @@ inline void NValue::serializeToTupleStorageAllocateForObjects(void *storage, con
 inline void NValue::serializeToTupleStorage(void *storage, const bool isInlined, const int32_t maxLength) const
 {
     const ValueType type = getValueType();
-	VOLT_WARN("To :: Type : %d :: Storage : %p isInlined : %d maxLength: %d", type, storage, (int)isInlined, maxLength);
+	//VOLT_WARN("ARIES :: To :: Type : %d :: Storage : %p isInlined : %d maxLength: %d", type, storage, (int)isInlined, maxLength);
 
     switch (type) {
       case VALUE_TYPE_TIMESTAMP:

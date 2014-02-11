@@ -292,6 +292,10 @@ TableTuple* LogRecord::initRecordTuple() {
 		recordTuple->setNValue(11, ValueFactory::getNullStringValue());
 	}
 
+	// debug
+	std::string recordValue = recordTuple->debugNoHeader();
+	VOLT_WARN("Log Record Tuple : %s",recordValue.c_str());
+
 	return recordTuple;
 }
 

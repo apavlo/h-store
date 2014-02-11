@@ -57,6 +57,7 @@ import com.sun.net.httpserver.Authenticator.Success;
 import edu.brown.benchmark.ycsb.YCSBConstants;
 import edu.brown.benchmark.ycsb.YCSBLoader;
 import edu.brown.benchmark.ycsb.YCSBProjectBuilder;
+import edu.brown.benchmark.ycsb.YCSBUtil;
 import edu.brown.benchmark.ycsb.procedures.DeleteRecord;
 import edu.brown.benchmark.ycsb.procedures.InsertRecord;
 import edu.brown.benchmark.ycsb.procedures.ReadRecord;
@@ -192,8 +193,6 @@ public class TestSnapshotRecovery extends RegressionSuite {
         loader.load();
     }    
         
-    int numDeletedTuples = 2;
-
     public void testSaveAndRestoreYCSB() throws IOException, InterruptedException, ProcCallException {
         
         System.out.println("Starting testSaveAndRestoreYCSB");
@@ -230,7 +229,8 @@ public class TestSnapshotRecovery extends RegressionSuite {
         
         long key = NUM_TUPLES / 2;
         String procName = ReadRecord.class.getSimpleName();
-        Object params[] = { key };
+        Object params[] ;
+        params = new Object[]{ key };
         
         cresponse = client.callProcedure(procName, params);
         assertNotNull(cresponse);
@@ -242,13 +242,36 @@ public class TestSnapshotRecovery extends RegressionSuite {
         assert(adv);
         assertEquals(key, vt.getLong(0));
         
+        // Delete, then Insert these many tuples back
+        int numTestTuples = 2;
+
         System.out.println("Read Record Test Passed");
         
-        for (long k_itr = 0; k_itr < numDeletedTuples; k_itr++) {
+        for (long k_itr = 0; k_itr < numTestTuples; k_itr++) {
             procName = DeleteRecord.class.getSimpleName();
-            Object paramst[] = { k_itr };
+            key = k_itr;
+            params =  new Object[]{ key };
             
-            cresponse = client.callProcedure(procName, paramst);
+            cresponse = client.callProcedure(procName, params);
+            assertEquals(Status.OK, cresponse.getStatus());
+            results = cresponse.getResults();
+
+            assertEquals(1, results.length);
+            assertNotNull(cresponse);
+        }
+
+        System.out.println("Delete Record Test Passed");
+
+        for (long k_itr = 0; k_itr < numTestTuples; k_itr++) {
+            procName = InsertRecord.class.getSimpleName();
+            key = k_itr;
+            String fields[] = new String[YCSBConstants.NUM_COLUMNS];
+            for (int i = 0; i < fields.length; i++) {
+                fields[i] = YCSBUtil.astring(YCSBConstants.COLUMN_LENGTH, YCSBConstants.COLUMN_LENGTH);
+            } // FOR
+            params = new Object[]{ key, fields };
+                        
+            cresponse = client.callProcedure(procName, params);
             assertEquals(Status.OK, cresponse.getStatus());
             results = cresponse.getResults();
 
@@ -385,7 +408,7 @@ public class TestSnapshotRecovery extends RegressionSuite {
         VoltTable vt = null;
         boolean adv = true;
         
-        for(key_itr = numDeletedTuples ; key_itr < numTuples ; key_itr++){
+        for(key_itr = 0 ; key_itr < numTuples ; key_itr++){
             procName = ReadRecord.class.getSimpleName();
             Object params[] = { key_itr };
             

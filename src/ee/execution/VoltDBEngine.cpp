@@ -761,6 +761,7 @@ bool VoltDBEngine::loadTable(PersistentTable *table,
 
 		LogManager* m_logManager = getLogManager();
 		Logger m_ariesLogger = m_logManager->getAriesLogger();
+		/*
 		const Logger *logger = m_logManager->getThreadLogger(LOGGERID_MM_ARIES);
 
 		assert(logger != NULL);
@@ -768,6 +769,7 @@ bool VoltDBEngine::loadTable(PersistentTable *table,
 		// we could ALSO directly write via writeToAriesLogBuffer(buffer, size)
 		// but not doing that for consistency while logging to Aries.
 
+		// CHANGE :: skip
 		logger->log(LOGLEVEL_INFO, output.data(), output.position());
 
 		// CAREFUL -- the number of bytes might just be too many
@@ -781,13 +783,13 @@ bool VoltDBEngine::loadTable(PersistentTable *table,
 		int64_t value = htonll(numBytes);
 
 		// first log the size of the bulkload array
-		logger->log(LOGLEVEL_INFO, reinterpret_cast<char*>(&value),
-				sizeof(value));
+		// CHANGE :: skip
+		logger->log(LOGLEVEL_INFO, reinterpret_cast<char*>(&value), sizeof(value));
 
 		// next log the raw bytes of the bulkload array
-		logger->log(LOGLEVEL_INFO,
-				reinterpret_cast<const char *>(serializeIn.getRawPointer(0)),
-				numBytes);
+		// CHANGE :: skip
+		logger->log(LOGLEVEL_INFO, reinterpret_cast<const char *>(serializeIn.getRawPointer(0)), numBytes);
+		*/
 
 		delete[] logrecordBuffer;
 		logrecordBuffer = NULL;
@@ -1656,6 +1658,13 @@ void VoltDBEngine::doAriesRecovery(char *logData, size_t length, int64_t replay_
 			VOLT_WARN("Log record recovery : BULKLOAD");
 		} else if (logrecord.getType() == LogRecord::T_DELETE) {
 			beforeImage = logrecord.getTupleBeforeImage();
+			TableTuple* primaryKey = logrecord.getPrimaryKey();
+
+			if(primaryKey != NULL)
+				VOLT_WARN("DEBUG PKEY : %s", primaryKey->debugNoHeader().c_str());
+			if(beforeImage != NULL)
+				VOLT_WARN("DEBUG BEFORE IMAGE : %s", beforeImage->debugNoHeader().c_str());
+
 			table->deleteTuple(*beforeImage, true);
 
 			logrecord.dellocateBeforeImageData();
