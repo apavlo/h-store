@@ -8,7 +8,7 @@ import org.voltdb.VoltProcedure;
 public class NextBatch extends VoltProcedure {
     
     public final SQLStmt updateAgg = new SQLStmt(
-            "INSERT INTO persecond SELECT * FROM counts;"
+            "SELECT word, num, time FROM counts;"
         );
     
     public final SQLStmt deleteCounts = new SQLStmt(

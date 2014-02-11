@@ -15,7 +15,7 @@ public class SimpleCall extends VoltProcedure {
         );
     
     public final SQLStmt insertNewWordStmt = new SQLStmt(
-            "INSERT INTO counts (word, num, time) VALUES (?, 0, ?);"
+            "INSERT INTO counts (word, num, time) VALUES (?, 1, ?);"
         );
     
     public final SQLStmt addWord = new SQLStmt(
@@ -31,8 +31,9 @@ public class SimpleCall extends VoltProcedure {
         if (validation[0].getRowCount() == 0) {
             voltQueueSQL(insertNewWordStmt, word, time);
         }
-        
-        voltQueueSQL(addWord, word);
+        else {
+        	voltQueueSQL(addWord, word);
+        }
         voltExecuteSQL(true);
 
         return 0;
