@@ -148,8 +148,12 @@ class TimeWindowTest : public Test {
             assert(tableutil::addRandomTuplesFixedColumn(this->table, NUM_OF_TUPLES,
                                     		TS_COL, ValueFactory::getIntegerValue(4)));
             VOLT_DEBUG("Initial Table (4): %s", table->debug().c_str());
-			//VOLT_DEBUG("TABLE SIZE: %d", int(table->activeTupleCount()));
-            //VOLT_DEBUG("TEST ASSERT END");
+            assert(tableutil::addRandomTuplesFixedColumn(this->table, NUM_OF_TUPLES,
+                                            TS_COL, ValueFactory::getIntegerValue(5)));
+            VOLT_DEBUG("Initial Table (5): %s", table->debug().c_str());
+            assert(tableutil::addRandomTuplesFixedColumn(this->table, NUM_OF_TUPLES,
+											TS_COL, ValueFactory::getIntegerValue(6)));
+			VOLT_DEBUG("Initial Table (6): %s", table->debug().c_str());
 
             // clean up
             delete[] columnNames;

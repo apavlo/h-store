@@ -14,7 +14,7 @@ public class SimpleCall extends VoltProcedure {
 	Random r = new Random();
 	int currentTimestamp = 0;
 	int tsCounter = 1;
-	int tuplesPerTimestamp = 3;
+	int tuplesPerTimestamp = 1;
     
     public final SQLStmt insertS1 = new SQLStmt(
             "INSERT INTO S1 (myvalue, time) VALUES (?,?);"

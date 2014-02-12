@@ -113,6 +113,7 @@ int64_t timespecDiffNanoseconds(const timespec& end, const timespec& start) {
 }
 
 void Trigger::fire(VoltDBEngine *engine, Table *input) {
+        /*
 	struct timeval start_;
 	struct timeval end_;
 	struct timespec start;
@@ -121,6 +122,8 @@ void Trigger::fire(VoltDBEngine *engine, Table *input) {
 
 	int error = gettimeofday(&start_, NULL);
         assert(error == 0);
+        */
+
 	// TODO: Loop through all the single-partition plan fragment ids for
 	// the target Statement. Then for each of them, invoke engine->executeQueryNoOutput()
 	// Throw an exception if something bad happens...
@@ -143,14 +146,16 @@ void Trigger::fire(VoltDBEngine *engine, Table *input) {
 		send_tuple_count = false;
 	}
 
+        /*
 	error = gettimeofday(&end_, NULL);
-       assert(error == 0);
+        assert(error == 0);
 
 	TIMEVAL_TO_TIMESPEC(&start_, &start);
 	TIMEVAL_TO_TIMESPEC(&end_, &end);
 	m_latency = timespecDiffNanoseconds(end, start);
 
 	VOLT_DEBUG("m_latency: %ld", m_latency);
+        */
 }
 
 bool Trigger::setType(unsigned char t) {

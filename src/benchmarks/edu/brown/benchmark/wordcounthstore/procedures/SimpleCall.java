@@ -1,4 +1,4 @@
-package edu.brown.benchmark.wordcount.procedures;
+package edu.brown.benchmark.wordcounthstore.procedures;
 
 import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
@@ -11,29 +11,29 @@ import org.voltdb.VoltTable;
 public class SimpleCall extends VoltProcedure {
     
     public final SQLStmt checkWordStmt = new SQLStmt(
-            "SELECT word FROM counts WHERE word = ?;"
+            "SELECT word FROM counts WHERE word = ? AND time = ?;"
         );
     
     public final SQLStmt insertNewWordStmt = new SQLStmt(
-            "INSERT INTO counts (word, num) VALUES (?, 0);"
+            "INSERT INTO counts (word, num, time) VALUES (?, 1, ?);"
         );
     
-    public final SQLStmt insertWords = new SQLStmt(
-            "INSERT INTO words (word) VALUES (?),(?),(?);"
+    public final SQLStmt addWord = new SQLStmt(
+    		"UPDATE counts SET num = num + 1 WHERE word=? AND time=?;"
         );
     
-    public long run(String word) {
+    public long run(String word, int time) {
 
-        voltQueueSQL(checkWordStmt, word);
+        voltQueueSQL(checkWordStmt, word, time);
         VoltTable validation[] = voltExecuteSQL();
-
+        
         // initialize the counts table
         if (validation[0].getRowCount() == 0) {
-            voltQueueSQL(insertNewWordStmt, word);
-            voltExecuteSQL();
+            voltQueueSQL(insertNewWordStmt, word, time);
         }
-        
-        voltQueueSQL(insertWords, word, word, word);
+        else {
+        	voltQueueSQL(addWord, word, time);
+        }
         voltExecuteSQL(true);
 
         return 0;

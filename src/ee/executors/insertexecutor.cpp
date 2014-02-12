@@ -154,13 +154,21 @@ int64_t another_timespecDiffNanoseconds(const timespec& end, const timespec& sta
 		Table* outputTable = m_node->getOutputTable();
 		assert(outputTable);
 
+		bool beProcessed = false;
+
+                // Implement insert multiple values. Added by hawk, 10/2/2014
+                std::vector<Table*> allInputTable = m_node->getInputTables();
+                for (int ii = 0; ii < allInputTable.size(); ++ii) 
+                {
+                     m_inputTable = allInputTable[ii];
+                // ended by hawk
+
 		//
 		// An insert is quite simple really. We just loop through our m_inputTable
 		// and insert any tuple that we find into our m_targetTable. It doesn't get any easier than that!
 		//
 		assert (m_tuple.sizeInValues() == m_inputTable->columnCount());
 		TableIterator iterator(m_inputTable);
-		bool beProcessed = false;
 		while (iterator.next(m_tuple)) {
 			beProcessed = true;
 			VOLT_DEBUG("Inserting tuple '%s' into target table '%s'",
@@ -187,7 +195,6 @@ int64_t another_timespecDiffNanoseconds(const timespec& end, const timespec& sta
 				}
 			}
 
-
 			// try to put the tuple into the target table
 			if (!m_targetTable->insertTuple(m_tuple)) {
 				VOLT_ERROR("Failed to insert tuple from input table '%s' into"
@@ -210,6 +217,11 @@ int64_t another_timespecDiffNanoseconds(const timespec& end, const timespec& sta
 			modifiedTuples++;
 
 		}
+
+                // for insert multiple values, added by hawk, 10/2/2014
+                }
+                // ended by hawk
+
 		// Check if the target table is persistent, and if hasTriggers flag is true
 		// If it is, then iterate through each one and pass in outputTable
 		if (beProcessed == true)
@@ -218,6 +230,7 @@ int64_t another_timespecDiffNanoseconds(const timespec& end, const timespec& sta
 			if(persistTarget != NULL && persistTarget->hasTriggers() && persistTarget->fireTriggers()) {
                               
                                 // added by hawk, 2013/12/13, for collect data
+/*
                                 struct timeval start_;
                                 struct timeval delete_start_;
                                 struct timeval end_;
@@ -227,6 +240,7 @@ int64_t another_timespecDiffNanoseconds(const timespec& end, const timespec& sta
                         
                                 int error = gettimeofday(&start_, NULL);
                                 assert(error == 0);
+*/
                                 // ended by hawk
 				std::vector<Trigger*>::iterator trig_iter;
 
@@ -242,13 +256,16 @@ int64_t another_timespecDiffNanoseconds(const timespec& end, const timespec& sta
 
                                 // to ensure this is a stream, by hawk, 2013.11.25
                                 //added by hawk, 2013/12/13, to collect data
+                                /*
                                 error = gettimeofday(&delete_start_, NULL);
                                 assert(error == 0);
+                                */
                                 //ended by hawk
                                 if (persistTarget->isStream() == true)
 				    persistTarget->deleteAllTuples(true);
 
                                 //added by hawk, 2013/12/13, to collect data
+/*
                                 error = gettimeofday(&end_, NULL);
                                 assert(error == 0);
 
@@ -261,6 +278,7 @@ int64_t another_timespecDiffNanoseconds(const timespec& end, const timespec& sta
                                 persistTarget->add_latency_data(latency, delete_latency);
 
                                  VOLT_DEBUG("hawk: latency: %ld with delete latency: %ld ...", latency, delete_latency);
+*/
                                 //ended by hawk
 				WindowTable* windowTarget = dynamic_cast<WindowTable*>(persistTarget);
 				if(windowTarget != NULL)

@@ -160,6 +160,7 @@ public abstract class DTDSource {
         sb.append("    aggregated CDATA #IMPLIED>\n");
 
         sb.append("  <!ELEMENT values (columnref*|").append(getExpressionElementList()).append(")>\n");
+        sb.append("  <!ELEMENT rows (columns*)>\n");
         sb.append("  <!ELEMENT columns (columnref*|column*|").append(getExpressionElementList()).append(")>\n");
 
         // columnref is declared in the included expression section
@@ -199,7 +200,7 @@ public abstract class DTDSource {
         sb.append("    name CDATA #REQUIRED\n");
         sb.append("    table CDATA #REQUIRED>\n");
 
-        sb.append("  <!ELEMENT insert (columns,parameters,tablescan?,condition?)>\n");
+        sb.append("  <!ELEMENT insert (rows,parameters,tablescan?,condition?)>\n");
         sb.append("  <!ATTLIST insert\n");
         sb.append("    table CDATA #REQUIRED>\n");
 

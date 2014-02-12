@@ -266,7 +266,8 @@ Table* TableFactory::getWindowTable(
             bool exportEnabled,
             bool exportOnly,
             int windowSize,
-            int slideSize)
+            int slideSize,
+            int windowType)
 {
     std::vector<TableIndexScheme> dummy;
     std::vector<Trigger*>* dummyTrig = NULL;
@@ -286,7 +287,8 @@ Table* TableFactory::getWindowTable(
             bool exportEnabled,
             bool exportOnly,
             int windowSize,
-            int slideSize)
+            int slideSize,
+            int windowType)
 {
     std::vector<TableIndexScheme> dummy;
     std::vector<Trigger*>* dummyTrig = NULL;
@@ -306,7 +308,8 @@ Table* TableFactory::getWindowTable(
             bool exportEnabled,
             bool exportOnly,
             int windowSize,
-            int slideSize)
+            int slideSize,
+            int windowType)
 {
 	std::vector<Trigger*>* dummyTrig = NULL;
 	return getWindowTable(databaseId, ctx, name, schema, columnNames, indexes,
@@ -325,7 +328,8 @@ Table* TableFactory::getWindowTable(
             bool exportEnabled,
             bool exportOnly,
             int windowSize,
-            int slideSize)
+            int slideSize,
+            int windowType)
 {
     Table *table = NULL;
 
@@ -373,7 +377,8 @@ Table* TableFactory::getWindowTable(
             bool exportEnabled,
             bool exportOnly,
             int windowSize,
-            int slideSize)
+            int slideSize,
+            int windowType)
 {
 	std::vector<Trigger*>* dummyTrig = NULL;
 	return getWindowTable(databaseId, ctx, name, schema, columnNames, pkeyIndex,
@@ -394,7 +399,8 @@ Table* TableFactory::getWindowTable(
             bool exportEnabled,
             bool exportOnly,
             int windowSize,
-            int slideSize)
+            int slideSize,
+            int windowType)
 {
     Table *table = NULL;
 

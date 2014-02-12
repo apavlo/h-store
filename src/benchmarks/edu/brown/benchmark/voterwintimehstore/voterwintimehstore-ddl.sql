@@ -29,7 +29,7 @@ CREATE TABLE votes
   phone_number       bigint     NOT NULL
 , state              varchar(2) NOT NULL -- REFERENCES area_code_state (state)
 , contestant_number  integer    NOT NULL REFERENCES contestants (contestant_number)
-, created            timestamp  NOT NULL
+, time		     integer    NOT NULL
 , CONSTRAINT PK_votes PRIMARY KEY
   (
     vote_id
@@ -43,7 +43,7 @@ CREATE TABLE w_staging
   phone_number       bigint     NOT NULL
 , state              varchar(2) NOT NULL -- REFERENCES area_code_state (state)
 , contestant_number  integer    NOT NULL REFERENCES contestants (contestant_number)
-, created            timestamp  NOT NULL
+, time		     integer    NOT NULL
 , CONSTRAINT PK_stage PRIMARY KEY
   (
     vote_id
@@ -57,7 +57,7 @@ CREATE TABLE w_rows
   phone_number       bigint     NOT NULL
 , state              varchar(2) NOT NULL -- REFERENCES area_code_state (state)
 , contestant_number  integer    NOT NULL REFERENCES contestants (contestant_number)
-, created            timestamp  NOT NULL
+, time 		     integer    NOT NULL
 , CONSTRAINT PK_win PRIMARY KEY
   (
     vote_id

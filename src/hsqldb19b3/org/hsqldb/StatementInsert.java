@@ -245,20 +245,30 @@ public class StatementInsert extends StatementDML {
                                                  String orig_indent)
     throws HSQLParseException
     {
-        sb.append(orig_indent).append("<columns>\n");
+        sb.append(orig_indent).append("<rows>\n");
+
         String indent = orig_indent + HSQLInterface.XML_INDENT;
-
-
-        for (int i = 0; i < insertColumnMap.length; i++)
+        if(insertExpression != null)
         {
-            sb.append(indent).append("<column table=\"").append(targetTable.tableName.name);
-            sb.append("\" name=\"").append(targetTable.getColumn(insertColumnMap[i]).getName().name);
-            sb.append("\">\n");
-            if(insertExpression != null)
-            	sb.append(insertExpression.nodes[0].nodes[i].voltGetXML(session, indent + HSQLInterface.XML_INDENT)).append("\n");
-            sb.append(indent).append("</column>\n");
+            for(int j = 0; j < insertExpression.nodes.length; j++) // each node represent a value row
+            {
+                sb.append(indent).append("<columns>\n");
+                
+        
+                for (int i = 0; i < insertColumnMap.length; i++)
+                {
+                    sb.append(indent + HSQLInterface.XML_INDENT).append("<column table=\"").append(targetTable.tableName.name);
+                    sb.append("\" name=\"").append(targetTable.getColumn(insertColumnMap[i]).getName().name);
+                    sb.append("\">\n");
+                    if(insertExpression != null)
+                    	sb.append(insertExpression.nodes[j].nodes[i].voltGetXML(session, indent + HSQLInterface.XML_INDENT + HSQLInterface.XML_INDENT)).append("\n");
+                    sb.append(indent + HSQLInterface.XML_INDENT).append("</column>\n");
+                }
+                sb.append(indent).append("</columns>\n");
+            }
         }
-        sb.append(orig_indent).append("</columns>");
+
+        sb.append(orig_indent).append("</rows>");
 
         return sb;
     }
