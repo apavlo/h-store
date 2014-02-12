@@ -17,6 +17,8 @@ public class TimerWheel {
     private WheelTime                                      currentTime;
     private WheelTime                                      nextTime;
     private TWheelConfig                                wheelConfig;
+    /*DEBUGGING: not sure this is the right data structure? In C++ TimerWheel. this is a list of arrays. May be why
+     * our code has so many problems*/
     private ArrayList<LinkedList< TimerWheelTimer>>      timerWheel;
     private int                                           numberOfTimers;
     private int                                         period;
@@ -38,6 +40,13 @@ public class TimerWheel {
         nextTime = new WheelTime( wheelConfig, TWheelConfig.MaxWheelCycles, ( period * ( EGenDate.MsPerSecond / resolution )) - 1 );
         numberOfTimers = 0;
         timerWheel = new ArrayList<LinkedList< TimerWheelTimer>>(period * ( EGenDate.MsPerSecond / resolution )) ;
+        /*DEBUGGING: in java setting capacity/initial size of Arraylist does not allow you to get/set with index values
+         * all index values must first be set to another value and then it can be changed. C++ allows a user to access/get/set
+         * values that are not set but within given size/capacity I added the for loop below for debugging purposes*/
+        for(int i = 0; i < period * ( EGenDate.MsPerSecond / resolution ); i++ ){
+            timerWheel.add(null);
+            
+        }
         this.expiryData = expiryData;
         this.expiryObject = expiryObject;
         this.expiryFunction = expiryFunction;
@@ -55,15 +64,37 @@ public class TimerWheel {
         GregorianCalendar                   Now = new GregorianCalendar();
         WheelTime                  RequestedTime = new WheelTime( wheelConfig , baseTime, Now, (int) (Offset * ( EGenDate.MsPerSecond / resolution )));
         TimerWheelTimer    pNewTimer = new TimerWheelTimer( expiryObject, expiryFunction, expiryData );
-
+        System.out.println("IN START TIMER");
+        System.out.println("Is timer empty"+ timerWheel.isEmpty());
         currentTime.set( baseTime, Now );
         expiryProcessing();
-
-        timerWheel.get(RequestedTime.getIndex()).add( pNewTimer );
+        System.out.println("back in start timer out of expiry processing");
+        
+        /*DEBUGGING: 
+         * previous code: timerWheel.get(RequestedTime.getIndex()).add( pNewTimer );
+         * not valid in java when list here is set to be null originally (as I did in constructor)
+         * add an if statement to check that the value exists and is null
+         * then use call set, otherwise use add
+         */
+        
+        //timerWheel.get(RequestedTime.getIndex()).add( pNewTimer );
+        //changed to set
+        if(timerWheel.get(RequestedTime.getIndex()) == null){
+            System.out.println("This was true");
+            LinkedList<TimerWheelTimer> newList = new LinkedList<TimerWheelTimer>();
+            newList.add(pNewTimer);
+          //  timerWheel.get(RequestedTime.getIndex()).add( pNewTimer );
+            timerWheel.set(RequestedTime.getIndex(), newList);
+        }
+        else{
+            System.out.println("Second was true");
+            timerWheel.get(RequestedTime.getIndex()).add( pNewTimer );
+        }
         numberOfTimers++;
         if( RequestedTime.getCycles() == nextTime.getCycles() ? (RequestedTime.getIndex() < nextTime.getIndex()) : ( RequestedTime.getCycles() < nextTime.getCycles() )){
             nextTime = RequestedTime;
         }
+        System.out.println("LENGTH" + timerWheel.size());
 
         return( nextTime.offset( currentTime ));
     }
@@ -83,21 +114,27 @@ public class TimerWheel {
         System.out.println("currentTime cycles" + currentTime.getCycles() );
         System.out.println("lastTime index" + lastTime.getIndex() );
         System.out.println("currentTime index" + currentTime.getIndex() );
+        
         while( lastTime.getCycles() == currentTime.getCycles() ? ( lastTime.getIndex() < currentTime.getIndex() ) : ( lastTime.getCycles() < currentTime.getCycles() )){
-      // while(lastTime < currentTime){
             System.out.println("last time index before" + lastTime.getIndex());
-        lastTime.add(1);
-        if(timerWheel == null){
-            System.out.println("null tw");
-        }
-        System.out.println(timerWheel.size());
-        System.out.println("last time index up" + lastTime.getIndex());
+            lastTime.add(1);
+       
+            System.out.println(timerWheel.size());
+        
+            System.out.println("last time index up" + lastTime.getIndex());
             System.out.println("in loop");
-           // System.out.println("timerWheel etc" + timerWheel.get(lastTime.getIndex()));
-           
-            if( ! timerWheel.get( lastTime.getIndex()).isEmpty() ){
-                System.out.println("adding to timer list");
-                processTimerList( timerWheel.get( lastTime.getIndex()) );
+            /*DEBUGGING: first make sure timer wheel isn't empty. Otherwise 3rd if condition will break same C++/Java reasons
+             * then check that the value at the index isn't null - valid java code
+             * 
+             * */
+            if(! timerWheel.isEmpty()){ //DEBUGGING: added if
+                if( !( timerWheel.get(lastTime.getIndex()) == null)){ //DEBUGGING: added if
+                    System.out.println("This worked");
+                if( ! timerWheel.get( lastTime.getIndex()).isEmpty() ){ //original statement
+                    System.out.println("adding to timer list");
+                    processTimerList( timerWheel.get( lastTime.getIndex()) );
+                }
+                }
             }
         }
         return( setNextTime() );
@@ -133,9 +170,15 @@ public class TimerWheel {
         else{
             
             nextTime = currentTime;
-            while( timerWheel.get(nextTime.getIndex()).isEmpty() ){
-                System.out.println("adding one to time");
-                nextTime.add(1);
+            /*DEBUGGING: added in the if statement b/c java will not recognize condition in the while loop if it is null*/
+            if( !(timerWheel.get(nextTime.getIndex()) == null )){
+              
+                // the while loop breaks when you increase the next time index. most likely b/c timerWheel is not initialized
+                // this is valid in c++ when only size/capacity is set. in Java must have values (even null filled in)
+                while( timerWheel.get(nextTime.getIndex()).isEmpty() ){
+                    nextTime.add(1);
+                   
+                }
             }
             return( nextTime.offset( currentTime ));
         }
