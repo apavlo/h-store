@@ -195,6 +195,11 @@
   <isset property="regressions"/>
 </condition>
 
+<condition property="junitclass" value="TestWorkloadAnalyzer">
+	<not><isset property="junitclass"/></not>
+</condition>
+
+	
 <!-- Workload Tracer Properties -->
 <condition property="workload.trace.class" value="">
     <not><isset property="workload.trace.class"/></not>
