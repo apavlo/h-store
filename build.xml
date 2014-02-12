@@ -139,10 +139,24 @@
 -->
 
 <!-- Default Project -->
-<!--<condition property="project" value="tpcc">
+<condition property="project" value="tm1">
     <not><isset property="project"/></not>
-</condition>-->
+</condition>
 
+<condition property="target.workload" value="${project}-1">
+	<not><isset property="target.workload"/></not>
+</condition>
+
+<condition property="workload" value="${files.workloads.dir}/${target.workload}.trace.gz">
+	<not><isset property="workload"/></not>
+</condition>
+<condition property="stats" value="${benchmark.tablestats}">
+	<not><isset property="stats"/></not>
+</condition>
+<condition property="output" value="${files.stats.dir}/${project}.stats">
+	<not><isset property="output"/></not>
+</condition>
+	
 <!-- Project Jar File -->
 <property name="benchmark.jar" location="${project}.jar" />
 <condition property="jar" value="${benchmark.jar}">
@@ -2064,6 +2078,24 @@ UTILITIES
         <assertions><enable /></assertions>
     </java>
 </target>
+
+	<target name='workload-analyzer'
+	        description="analyze workload">
+	    <java fork="yes" classname="edu.brown.workload.WorkloadAnalyzer" failonerror='true'>
+	        <jvmarg value="-Xmx${global.memory}m" />
+	        <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
+	        <arg value="catalog.jar=${jar}" />
+	        <arg value="workload=${workload}" />
+			<arg value="workload.output=${output}" />
+	        <arg value="workload.xactlimit=${limit}" />
+	        <arg value="workload.xactoffset=${offset}" />
+	        <arg value="workload.procexclude=${exclude}" />
+	        <arg value="workload.procinclude=${include}" />
+	        <arg value="workload.procinclude.multiplier=${multiplier}" />
+	        <classpath refid='project.classpath' />
+	        <assertions><enable /></assertions>
+	    </java>
+	</target>
 
 <!--
 ******************************************************************************
