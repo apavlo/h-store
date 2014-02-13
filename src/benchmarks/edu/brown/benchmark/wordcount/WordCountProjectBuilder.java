@@ -18,7 +18,7 @@ public class WordCountProjectBuilder extends AbstractProjectBuilder {
 	// a list of procedures implemented in this benchmark
     @SuppressWarnings("unchecked")
     public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
-        //SimpleTrigger.class,
+        SimpleTrigger.class,
         SimpleCall.class
     };
 	

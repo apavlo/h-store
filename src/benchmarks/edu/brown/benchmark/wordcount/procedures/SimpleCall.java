@@ -1,9 +1,14 @@
 package edu.brown.benchmark.wordcount.procedures;
 
+import java.util.List;
+
 import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
+
+import edu.brown.stream.Batch;
+import edu.brown.stream.Tuple;
 
 @ProcInfo (
         singlePartition = true
@@ -19,23 +24,44 @@ public class SimpleCall extends VoltProcedure {
         );
     
     public final SQLStmt insertWords = new SQLStmt(
-            "INSERT INTO words (word) VALUES (?),(?),(?);"
+            "INSERT INTO words (word) VALUES (?);"
         );
     
-    public long run(String word) {
+    public long run(String batchJSONString) {
 
-        voltQueueSQL(checkWordStmt, word);
-        VoltTable validation[] = voltExecuteSQL();
+        System.out.println(batchJSONString);
 
-        // initialize the counts table
-        if (validation[0].getRowCount() == 0) {
-            voltQueueSQL(insertNewWordStmt, word);
-            voltExecuteSQL();
+        Batch objBatch = new Batch();
+        objBatch.fromJSONString(batchJSONString);
+        
+        List<Tuple> tuples = objBatch.getTuples();
+        
+        long bid = objBatch.getID();
+        String word = "";
+
+        for(Tuple tuple : tuples)
+        {
+            word = (String)tuple.getField("WORD");
+            
+            voltQueueSQL(checkWordStmt, word);
+            VoltTable validation[] = voltExecuteSQL();
+    
+            // initialize the counts table
+            if (validation[0].getRowCount() == 0) {
+                voltQueueSQL(insertNewWordStmt, word);
+                voltExecuteSQL();
+            }
+
         }
         
-        voltQueueSQL(insertWords, word, word, word);
+        for(Tuple tuple : tuples)
+        {
+            word = (String)tuple.getField("WORD");
+            voltQueueSQL(insertWords, word);
+        }
         voltExecuteSQL(true);
 
         return 0;
     }
+    
 }
