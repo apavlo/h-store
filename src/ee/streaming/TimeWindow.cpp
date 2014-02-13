@@ -63,7 +63,7 @@ TimeWindow::TimeWindow(ExecutorContext *ctx, bool exportEnabled, int windowSize,
 	: WindowTableTemp(ctx, exportEnabled, windowSize, slideSize), TS_COLUMN("TIME")
 {
 	m_tsColumn = -1;
-	m_latestTS = 0;
+	m_latestTS = -1;
 }
 
 TimeWindow::~TimeWindow()

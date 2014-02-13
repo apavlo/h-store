@@ -15,6 +15,6 @@ public class UpdateLeaderBoard extends VoltTrigger{
     );
     
     public final SQLStmt insertIntoLeaderBoard = new SQLStmt(
-        "INSERT INTO leaderboard (contestant_number, numvotes) SELECT contestant_number, count(*) FROM W_ROWS GROUP BY contestant_number;"
+        "INSERT INTO leaderboard (contestant_number, numvotes, phone_number) SELECT contestant_number, count(*), max(phone_number) FROM W_ROWS GROUP BY contestant_number;"
     );
 }
