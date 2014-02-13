@@ -6,12 +6,18 @@ import edu.brown.utils.ThreadUtil;
 public class TupleProducer implements Runnable {
     
     private BlockingQueue<Tuple> queue;
-    private long fixnum;
+    //private long fixnum;
+    private int sendrate;
+
+    private WordGenerator wordGenerator;
      
-    public TupleProducer(BlockingQueue<Tuple> q, long number){
+    public TupleProducer(BlockingQueue<Tuple> q, String filename, int sendrate){
         this.queue = q;
-        this.fixnum = number;
+        //this.fixnum = number;
+        this.sendrate = sendrate;
+        this.wordGenerator = new WordGenerator( filename );
     }
+    
     @Override
     public void run() {
         //produce tuples
@@ -41,7 +47,8 @@ public class TupleProducer implements Runnable {
     
     private void rateControlledRunLoop() throws Exception {
         
-        int transactionRate=1000;
+        int transactionRate= this.sendrate;
+        
         double txnsPerMillisecond = transactionRate / 1000.0;
         
         long lastRequestTime = System.currentTimeMillis();
@@ -66,22 +73,31 @@ public class TupleProducer implements Runnable {
                 try {
                     for (int ii = 0; ii < transactionsToCreate; ii++) 
                     {
-                        // create tuple
-                        tuple = new Tuple();
-                        String fieldname = "WORD";
-                        String fieldvalue = "word-" + String.valueOf(ii);
-                        tuple.addField(fieldname, fieldvalue);
+                        if(this.wordGenerator.hasMoreWords()==true)
+                        {
+                            // create tuple
+                            tuple = new Tuple();
+                            String fieldname = "WORD";
+                            String fieldvalue = this.wordGenerator.nextWord();
+                            tuple.addField(fieldname, fieldvalue);
+                        }
+                        else
+                        {
+                          System.out.println("Info - TupleProducer :" + "finish sending #tuples - " + (counter));
+                          beStop = true;
+                          break;
+                        }
                         
                         queue.put(tuple);
                         counter++;
                         //System.out.println("Produced: "+ Long.toString(counter));
                         
-                        if(counter == this.fixnum)
-                        {
-                            System.out.println("Info - TupleProducer :" + "finish sending #tuples - " + this.fixnum );
-                            beStop = true;
-                            break;
-                        }
+//                        if(counter == this.fixnum)
+//                        {
+//                            System.out.println("Info - TupleProducer :" + "finish sending #tuples - " + this.fixnum );
+//                            beStop = true;
+//                            break;
+//                        }
                     } 
                 } catch (final Exception e) {
                     if (hadErrors) return;

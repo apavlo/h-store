@@ -76,6 +76,12 @@ if __name__ == '__main__':
                          help='Hostname of an HStoreSite to connect to.')
     aparser.add_argument('--port', type=int,
                          help='Port number of an HStoreSite to connect to.')
+    aparser.add_argument('--file', type=str,
+                         help='input file, default is word.txt.')
+    aparser.add_argument('--rate', type=int,
+                         help='tuple sending rate.')
+    aparser.add_argument('--interval', type=int,
+                         help='batch time interval.')
     args = vars(aparser.parse_args())
     
     # Check whether we have a jar file
@@ -97,7 +103,16 @@ if __name__ == '__main__':
         if key in args and args[key]:
             options.append("terminal.%s=%s" % (key, args[key]))
     ## FOR
-        
+    for key in ('file', 'rate'):
+        if key in args and args[key]:
+            options.append("source.%s=%s" % (key, args[key]))
+    #end for
+    
+    for key in ('interval'):
+        if key in args and args[key]:
+            options.append("batch.%s=%s" % (key, args[key]))
+    #end for
+    
     # Invoke java directly
     cmd = "java %s -classpath %s %s catalog.jar=%s %s" % (\
         " ".join(JVM_ARGS), \

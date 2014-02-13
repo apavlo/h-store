@@ -120,7 +120,7 @@ public class InputClient implements Runnable {
                     
                     Batch batch = this.batchQueue.take();
                     String batchJSONString = batch.toJSONString();
-                    System.out.println("InputClient consume: " + batchJSONString);
+                    //System.out.println("InputClient consume: " + batchJSONString);
                     
                     // empty batch encountered, quit processing
                     if(batch==null || batch.getID()==-1)
@@ -426,23 +426,42 @@ public class InputClient implements Runnable {
 
 
     public static void main(String vargs[]) throws Exception {
-        ArgumentsParser args = ArgumentsParser.load(vargs,
-                ArgumentsParser.PARAM_CATALOG
-        );
+        
+        
+        AnotherArgumentsParser args = AnotherArgumentsParser.load( vargs );
         
         InputClient ic = new InputClient(args.catalog);
         
         // HOSTNAME
-        if (args.hasParam(ArgumentsParser.PARAM_TERMINAL_HOST)) {
-            ic.hostname = args.getParam(ArgumentsParser.PARAM_TERMINAL_HOST);
+        if (args.hasParam(AnotherArgumentsParser.ORIGIN_TERMINAL_HOST)) {
+            ic.hostname = args.getParam(AnotherArgumentsParser.ORIGIN_TERMINAL_HOST);
         }
         // PORT
-        if (args.hasParam(ArgumentsParser.PARAM_TERMINAL_PORT)) {
-            ic.port = args.getIntParam(ArgumentsParser.PARAM_TERMINAL_PORT);
+        if (args.hasParam(AnotherArgumentsParser.ORIGIN_TERMINAL_PORT)) {
+            ic.port = args.getIntParam(AnotherArgumentsParser.ORIGIN_TERMINAL_PORT);
         }
         
-        BatchProducer batchProducer = new BatchProducer(ic.batchQueue);
-        TupleProducer tupleProducer = new TupleProducer(batchProducer.queue, 2000);
+        int inverval = 1000; // ms
+        if (args.hasParam(AnotherArgumentsParser.PARAM_BATCH_INTERVAL)) {
+            inverval = args.getIntParam(AnotherArgumentsParser.PARAM_BATCH_INTERVAL);
+        }
+
+        String filename = "word.txt";
+        if (args.hasParam(AnotherArgumentsParser.PARAM_SOURCE_FILE)) {
+            filename = args.getParam(AnotherArgumentsParser.PARAM_SOURCE_FILE);
+        }
+
+        int sendrate = 1000; // tuple/s
+        if (args.hasParam(AnotherArgumentsParser.PARAM_SOURCE_SENDRATE)) {
+            sendrate = args.getIntParam(AnotherArgumentsParser.PARAM_SOURCE_SENDRATE);
+        }
+        
+        BatchProducer batchProducer = new BatchProducer(ic.batchQueue, inverval);
+        TupleProducer tupleProducer = new TupleProducer(batchProducer.queue, filename, sendrate);
+        
+//        System.out.println("inverval-" + inverval);
+//        System.out.println("filename-" + filename);
+//        System.out.println("sendrate-" + sendrate);
         
         //starting producer to produce messages in queue
         new Thread(tupleProducer).start();
