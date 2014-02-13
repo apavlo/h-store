@@ -7,6 +7,7 @@ import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 
+import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.stream.Batch;
 import edu.brown.stream.Tuple;
 
@@ -54,12 +55,32 @@ public class SimpleCall extends VoltProcedure {
 
         }
         
+        int maximum = HStoreConf.singleton().site.planner_max_batch_size;
+        
+        int i = 0;
+        int j = 0;
+        int size = tuples.size();
+        boolean beFinalBatch = false;
+        
         for(Tuple tuple : tuples)
         {
             word = (String)tuple.getField("WORD");
             voltQueueSQL(insertWords, word);
+            
+            i++;
+            j++;
+            if( i == maximum )
+            {
+                if( j == size )
+                    beFinalBatch = true;
+                
+                voltExecuteSQL(beFinalBatch);
+                i = 0;
+            }
         }
-        voltExecuteSQL(true);
+        
+        if( i !=0 )
+            voltExecuteSQL(true);
 
         return 0;
     }
