@@ -42,11 +42,9 @@ import edu.brown.benchmark.voterwintimehstore.VoterWinTimeHStoreConstants;
     singlePartition = true
 )
 public class Vote extends VoltProcedure {
-	public final int windowSize = 100;
-	public final int slideSize = 10;
-	public final int tuplesPerTimestamp = 3;
-	int currentTimestamp = 0;
-	int tsCounter = 1;
+	public final int windowSize = 30;
+	public final int slideSize = 2;
+
 	
     // Checks if the vote is for a valid contestant
     public final SQLStmt checkContestantStmt = new SQLStmt(
@@ -123,7 +121,7 @@ public class Vote extends VoltProcedure {
 		"INSERT INTO votes (vote_id, phone_number, state, contestant_number, created) VALUES (?, ?, ?, ?, ?);"
     );
 	
-    public long run(long voteId, long phoneNumber, int contestantNumber, long maxVotesPerPhoneNumber) {
+    public long run(long voteId, long phoneNumber, int contestantNumber, long maxVotesPerPhoneNumber, int currentTimestamp) {
 		
         // Queue up validation statements
         voltQueueSQL(checkContestantStmt, contestantNumber);

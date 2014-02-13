@@ -49,6 +49,8 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
 public class VoterWinTimeHStoreClient extends BenchmarkComponent {
     private static final Logger LOG = Logger.getLogger(VoterWinTimeHStoreClient.class);
     private static final LoggerBoolean debug = new LoggerBoolean();
+    private static long lastTime;
+    private static int timestamp;
 
     // Phone number generator
     PhoneCallGenerator switchboard;
@@ -73,6 +75,8 @@ public class VoterWinTimeHStoreClient extends BenchmarkComponent {
         super(args);
         int numContestants = VoterWinTimeHStoreUtil.getScaledNumContestants(this.getScaleFactor());
         this.switchboard = new PhoneCallGenerator(this.getClientId(), numContestants);
+        lastTime = System.nanoTime();
+        timestamp = 0;
     }
 
     @Override
@@ -96,6 +100,12 @@ public class VoterWinTimeHStoreClient extends BenchmarkComponent {
     @Override
     protected boolean runOnce() throws IOException {
         // Get the next phone call
+    	if(System.nanoTime() - lastTime >= 1000000000)
+        {
+        	lastTime = System.nanoTime();
+        	timestamp++;
+        }
+    	
         PhoneCallGenerator.PhoneCall call = switchboard.receive();
 
         Client client = this.getClientHandle();
@@ -104,7 +114,8 @@ public class VoterWinTimeHStoreClient extends BenchmarkComponent {
                                                 call.voteId,
                                                 call.phoneNumber,
                                                 call.contestantNumber,
-                                                VoterWinTimeHStoreConstants.MAX_VOTES);
+                                                VoterWinTimeHStoreConstants.MAX_VOTES,
+                                                timestamp);
         return response;
     }
 
