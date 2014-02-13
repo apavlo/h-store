@@ -18,6 +18,7 @@ public class WordCountSStoreWithBatchClient extends BenchmarkComponent {
     private static final LoggerBoolean debug = new LoggerBoolean();
     private static long lastTime;
     private static int timestamp;
+    Batch batch;
     
     // word generator
     WordGenerator wordGenerator;
@@ -35,6 +36,9 @@ public class WordCountSStoreWithBatchClient extends BenchmarkComponent {
         this.wordGenerator = new WordGenerator(this.getClientId(), strFileName);
         lastTime = System.nanoTime();
         timestamp = 0;
+        batch = new Batch();
+        batch.setID(timestamp);
+        batch.setTimestamp(timestamp);
     }
 
     @Override
@@ -65,19 +69,19 @@ public class WordCountSStoreWithBatchClient extends BenchmarkComponent {
             {
             	lastTime = System.nanoTime();
             	timestamp++;
+            	Batch oldbatch = batch;
+            	batch = new Batch();
+            	batch.setID(timestamp);
+                batch.setTimestamp(timestamp);
+                
+            	response = client.callProcedure(callback, "SimpleCall", oldbatch.toJSONString());
             }
-            
-            // create batch
-            Batch batch = new Batch();
-            batch.setID(timestamp);
-            batch.setTimestamp(timestamp);
+
             Tuple tuple = new Tuple();
             tuple.addField("WORD", word);
             tuple.addField("TIMESTAMP", currentTime);
             batch.addTuple(tuple);
-            
-	        response = client.callProcedure(callback, "SimpleCall", batch.toJSONString());
-
+             
             return response;
         }
         else

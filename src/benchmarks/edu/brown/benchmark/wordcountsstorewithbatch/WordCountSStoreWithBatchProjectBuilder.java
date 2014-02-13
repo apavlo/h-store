@@ -24,8 +24,8 @@ public class WordCountSStoreWithBatchProjectBuilder extends AbstractProjectBuild
     public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
         SimpleCall.class,
         WindowTrigger.class,
-        MidStreamTrigger.class,
-        ResultsWinTrigger.class,
+        //MidStreamTrigger.class,
+        //ResultsWinTrigger.class,
         CountTrigger.class
     };
 	

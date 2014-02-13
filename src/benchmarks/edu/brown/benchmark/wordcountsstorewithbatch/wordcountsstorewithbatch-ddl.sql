@@ -13,7 +13,7 @@ CREATE STREAM midstream
 , num   bigint     NOT NULL
 );
 
-CREATE WINDOW W_RESULTS ON midstream RANGE 100 SLIDE 1;
+CREATE WINDOW W_RESULTS ON midstream RANGE 30 SLIDE 2;
 
 CREATE TABLE results
 (
