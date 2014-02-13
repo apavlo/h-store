@@ -43,10 +43,6 @@ import edu.brown.benchmark.voterwintimesstore.VoterWinTimeSStoreConstants;
 )
 public class Vote extends VoltProcedure {
 	
-	int currentTimestamp = 0;
-	int tsCounter = 1;
-	int tuplesPerTimestamp = 3;
-	
     // Checks if the voter has exceeded their allowed number of votes
     public final SQLStmt checkVoterStmt = new SQLStmt(
 		"SELECT num_votes FROM v_votes_by_phone_number WHERE phone_number = ?;"
@@ -62,7 +58,7 @@ public class Vote extends VoltProcedure {
 		"INSERT INTO votes_stream (vote_id, phone_number, state, contestant_number, time) VALUES (?, ?, ?, ?, ?);"
     );
 	
-    public long run(long voteId, long phoneNumber, int contestantNumber, long maxVotesPerPhoneNumber) {
+    public long run(long voteId, long phoneNumber, int contestantNumber, long maxVotesPerPhoneNumber, int currentTimestamp) {
 		
         // Queue up validation statements
         voltQueueSQL(checkVoterStmt, phoneNumber);
@@ -85,14 +81,6 @@ public class Vote extends VoltProcedure {
         // Post the vote
         //TimestampType timestamp = new TimestampType();
         voltQueueSQL(insertVoteStmt, voteId, phoneNumber, state, contestantNumber, currentTimestamp);
-        
-        if(tsCounter == tuplesPerTimestamp)
-        {
-        	tsCounter = 1;
-        	currentTimestamp++;
-        }
-        else
-        	tsCounter++;
         
         voltExecuteSQL(true);
 		

@@ -41,6 +41,7 @@ CREATE TABLE leaderboard
 (
   contestant_number         integer    NOT NULL
 , numvotes                  integer    NOT NULL
+, phone_number              integer    NOT NULL
 );
 
 CREATE VIEW v_votes_by_phone_number
@@ -90,6 +91,6 @@ CREATE STREAM S1
 , time               integer    NOT NULL
 );
 
-CREATE WINDOW W_ROWS ON S1 RANGE 100 SLIDE 10;
+CREATE WINDOW W_ROWS ON S1 RANGE 30 SLIDE 2;
 
 
