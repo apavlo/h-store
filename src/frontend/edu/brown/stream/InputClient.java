@@ -1,6 +1,8 @@
 package edu.brown.stream;
 
 import org.apache.log4j.Logger;
+import org.json.JSONArray;
+import org.json.JSONObject;
 import org.voltdb.SysProcSelector;
 import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
@@ -49,6 +51,8 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.text.*;
+import java.util.*;
 
 
 public class InputClient implements Runnable {
@@ -75,7 +79,8 @@ public class InputClient implements Runnable {
     private final Database catalog_db;
     private String hostname = null;
     private int port = HStoreConstants.DEFAULT_PORT;
-    private BlockingQueue<Tuple> queue = new LinkedBlockingQueue<Tuple>();
+    
+    private BlockingQueue<Batch> batchQueue = new LinkedBlockingQueue<Batch>();
     
     private static final Pattern SPLITTER = Pattern.compile("[ ]+");
     
@@ -94,34 +99,31 @@ public class InputClient implements Runnable {
     public void run() {
         InputClientConnection icc = this.getClientConnection();
         
-        String query = "";
         long success_count = 0;
+        
+        long batchInterval = 1000; // FIXME, this parameter can be customized 
         
         try {
             
+            // get transactions execution information before running benchmark 
             try {
-                this.preProcessBenchmark(icc.client);
+                //this.preProcessBenchmark(icc.client);
             } catch (Exception e1) {
                 // TODO Auto-generated catch block
                 e1.printStackTrace();
             }
             
+            boolean finishOperation = false;
+            
             do {
                 try {
-                    Tuple tuple = this.queue.take();
-                    query = tuple.getValue();// FIXME
-                    System.out.println("Consume: " + query);
                     
-                    String tokens[] = SPLITTER.split(query);
+                    Batch batch = this.batchQueue.take();
+                    String batchJSONString = batch.toJSONString();
+                    System.out.println("InputClient consume: " + batchJSONString);
                     
-                    /* FIXME
-                    query = this.makeInsertStatement(tuple);
-                    */
-
-                    if (query == null || query.isEmpty()) continue;
-                    query = query.trim();
-                    
-                    if(query.equals("exit")==true)
+                    // empty batch encountered, quit processing
+                    if(batch==null || batch.getID()==-1)
                         break;
                     
                     int retries = 3;
@@ -131,7 +133,7 @@ public class InputClient implements Runnable {
                         try {
                             
                             //this.execQuery(icc.client, query);
-                            boolean successful = this.execProcedure(icc.client, "SimpleCall", query, reconnect);
+                            boolean successful = this.execProcedure(icc.client, "SimpleCall", batchJSONString, reconnect);
                             if(successful==true)
                                 success_count++;
                             
@@ -155,23 +157,29 @@ public class InputClient implements Runnable {
                         if (debug.val) cause.printStackTrace();
                     }
                 }
+                
             } while (true);
             
             try {
+                // get transactions execution information after running benchmark 
                 // get metrics
-                this.postProcessBenchmark(icc.client);
+                //this.postProcessBenchmark(icc.client);
             } catch (Exception e) {
                 e.printStackTrace();
             }
         } finally {
-            try {
-                if (icc != null) icc.client.close();
-            } catch (InterruptedException ex) {
-                // Ignore
-            }
+//            try {
+//                if (icc != null) icc.client.close();
+//            } catch (InterruptedException ex) {
+//                // Ignore
+//            }
         }
         
-        System.out.println("InputClient : successful tuples number- " + Long.toString(success_count));
+        // generating benchmark report
+        
+        
+        //
+        System.out.println("InputClient : successful execute #batch - " + success_count);
     }
 
     private void preProcessBenchmark(Client client) throws Exception {
@@ -359,10 +367,10 @@ public class InputClient implements Runnable {
 
         Object params[] = procParams.toArray(); 
         boolean result = true;
-        result = client.asynCallProcedure(null, catalog_proc.getName(), null, params);
-//        ClientResponse response = client.callProcedure(catalog_proc.getName(), params);
-//        if(response.getStatus()!=Status.OK)
-//            result = false;
+        //result = client.asynCallProcedure(null, catalog_proc.getName(), null, params);
+        ClientResponse response = client.callProcedure(catalog_proc.getName(), params);
+        if(response.getStatus()!=Status.OK)
+            result = false;
         return result;
     }
     
@@ -433,10 +441,14 @@ public class InputClient implements Runnable {
             ic.port = args.getIntParam(ArgumentsParser.PARAM_TERMINAL_PORT);
         }
         
-        TupleProducer producer = new TupleProducer(ic.queue, 1000);
+        BatchProducer batchProducer = new BatchProducer(ic.batchQueue);
+        TupleProducer tupleProducer = new TupleProducer(batchProducer.queue, 2000);
         
         //starting producer to produce messages in queue
-        new Thread(producer).start();
+        new Thread(tupleProducer).start();
+        
+        // starting batch producer to manager tuples in batch
+        new Thread(batchProducer).start();
 
         ic.run();
         

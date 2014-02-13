@@ -25,11 +25,12 @@ public class TupleProducer implements Runnable {
         {
             Tuple tuple = null;
             //adding exit message
-            tuple = new Tuple("exit");
+            tuple = new Tuple();
             
             try 
             {
                 queue.put(tuple);
+                System.out.println("Info - TupleProducer :" + "put empty tuple to indicate end" );
             } 
             catch (InterruptedException e) 
             {
@@ -65,13 +66,19 @@ public class TupleProducer implements Runnable {
                 try {
                     for (int ii = 0; ii < transactionsToCreate; ii++) 
                     {
-                        tuple = new Tuple("" + counter);
+                        // create tuple
+                        tuple = new Tuple();
+                        String fieldname = "WORD";
+                        String fieldvalue = "word-" + String.valueOf(ii);
+                        tuple.addField(fieldname, fieldvalue);
+                        
                         queue.put(tuple);
                         counter++;
                         //System.out.println("Produced: "+ Long.toString(counter));
                         
                         if(counter == this.fixnum)
                         {
+                            System.out.println("Info - TupleProducer :" + "finish sending #tuples - " + this.fixnum );
                             beStop = true;
                             break;
                         }
