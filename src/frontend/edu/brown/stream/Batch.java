@@ -13,12 +13,14 @@ import org.json.JSONObject;
 public class Batch {
     
     private long m_id;
+    private long m_timestamp;
     
     private List<Tuple> m_tuples; 
     
     public Batch()
     {
         m_id = -1; // -1 is regarded as illegal id
+        m_timestamp = -1; // illegal time
         m_tuples = new ArrayList<Tuple>();
     }
     
@@ -30,6 +32,16 @@ public class Batch {
     public long getID()
     {
         return this.m_id;
+    }
+    
+    public void setTimestamp(long timestamp)
+    {
+        this.m_timestamp = timestamp;
+    }
+    
+    public long getTimestamp()
+    {
+        return this.m_timestamp;
     }
 
     public void addTuple(Tuple tuple)
@@ -55,6 +67,7 @@ public class Batch {
     public void reset()
     {
         m_id = -1;
+        m_timestamp = -1;
         m_tuples.clear();
     }
     
@@ -66,6 +79,8 @@ public class Batch {
         {
             // prepare ID
             jsonBatch.put("ID", this.m_id);
+            // prepare timestamp
+            jsonBatch.put("TIMESTAMP", this.m_timestamp);
             
             // prepare tuples
             JSONArray jsonTuples = new JSONArray();
@@ -97,8 +112,11 @@ public class Batch {
         this.reset();
         
         try {
-            int batchid = jsonBatch.getInt("ID");
+            //get id
+            long batchid = jsonBatch.getLong("ID");
             this.m_id = batchid;
+            //get timestamp
+            this.m_timestamp = jsonBatch.getLong("TIMESTAMP");
             
             JSONArray jsonBatchTuples = jsonBatch.getJSONArray("TUPLES");
             

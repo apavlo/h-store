@@ -40,6 +40,7 @@ public class BatchProducer implements Runnable {
                 // create new batch
                 Batch batch = new Batch();
                 batch.setID(batchid++);
+                batch.setTimestamp(currentTimeStamp);
 
                 finishOperation = false;
                 // get all the tuples in a batch interval
