@@ -7,16 +7,18 @@ public class BatchProducer implements Runnable {
 
     BlockingQueue<Tuple> queue = new LinkedBlockingQueue<Tuple>();
     private BlockingQueue<Batch> batchQueue;
+    private int timeinterval;
 
-    public BatchProducer(BlockingQueue<Batch> q) {
+    public BatchProducer(BlockingQueue<Batch> q, int timeinterval) {
         this.batchQueue = q;
+        this.timeinterval = timeinterval;
     }
 
     @Override
     public void run() {
         long success_count = 0;
 
-        long batchInterval = 1000; // FIXME, this parameter can be customized
+        long batchInterval = this.timeinterval; 
 
         try {
 
