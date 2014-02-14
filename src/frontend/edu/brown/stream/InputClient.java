@@ -30,6 +30,7 @@ import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.statistics.ObjectHistogram;
 import edu.brown.terminal.HStoreTerminal;
 import edu.brown.terminal.HStoreTerminal.Command;
 import edu.brown.utils.ArgumentsParser;
@@ -43,6 +44,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -56,394 +58,153 @@ import java.util.*;
 
 
 public class InputClient implements Runnable {
-    private static final Logger LOG = Logger.getLogger(InputClient.class);
-    private static final LoggerBoolean debug = new LoggerBoolean();
+    // used for format output
+    private static final String RESULT_FORMAT = "%.2f";
     
-    private class InputClientConnection {
-        final Client client;
-        final String hostname;
-        final int port;
-        
-        public InputClientConnection(Client client, String hostname, int port) {
-            this.client = client;
-            this.hostname = hostname;
-            this.port = port;
-        }
-    } // CLASS
-    
-    // ---------------------------------------------------------------
-    // INSTANCE CONFIGURATION MEMBERS
-    // ---------------------------------------------------------------
-    
-    private final Catalog catalog;
-    private final Database catalog_db;
-    private String hostname = null;
-    private int port = HStoreConstants.DEFAULT_PORT;
-    
-    private BlockingQueue<Batch> batchQueue = new LinkedBlockingQueue<Batch>();
-    
-    private static final Pattern SPLITTER = Pattern.compile("[ ]+");
+    //
+    private BlockingQueue<BatchRunnerResults> batchResultQueue = new LinkedBlockingQueue<BatchRunnerResults>();
+
+    private int batchRounds = 10;
     
     // ---------------------------------------------------------------
     // CONSTRUCTOR
     // ---------------------------------------------------------------
     
-    public InputClient(Catalog catalog) throws Exception{
+    public InputClient() throws Exception{
 
-        this.catalog = catalog;
-        this.catalog_db = CatalogUtil.getDatabase(this.catalog);
     }
     
+    private void setBatchRounds(int rounds) {
+        this.batchRounds  = rounds;
+    }
     
     @Override
     public void run() {
-        InputClientConnection icc = this.getClientConnection();
-        
-        long success_count = 0;
-        
-        long batchInterval = 1000; // FIXME, this parameter can be customized 
-        
+        int batchlimit = this.batchRounds;
         try {
+            long i = 0;
+            BatchRunnerResults batchresult = null;
+
+            StringBuilder sb = new StringBuilder();
+            final int width = 80;
+            sb.append(String.format("\n%s\n", StringUtil.repeat("=", width)));
+            String strOutput = sb.toString();
+            System.out.println(strOutput);
+
             
-            // get transactions execution information before running benchmark 
-            try {
-                //this.preProcessBenchmark(icc.client);
-            } catch (Exception e1) {
-                // TODO Auto-generated catch block
-                e1.printStackTrace();
-            }
-            
-            boolean finishOperation = false;
-            
-            do {
-                try {
-                    
-                    Batch batch = this.batchQueue.take();
-                    String batchJSONString = batch.toJSONString();
-                    //System.out.println("InputClient consume: " + batchJSONString);
-                    
-                    // empty batch encountered, quit processing
-                    if(batch==null || batch.getID()==-1)
-                        break;
-                    
-                    int retries = 3;
-                    boolean reconnect = false;
-                    
-                    while (retries-- > 0) {
-                        try {
-                            
-                            //this.execQuery(icc.client, query);
-                            boolean successful = this.execProcedure(icc.client, "SimpleCall", batchJSONString, reconnect);
-                            if(successful==true)
-                                success_count++;
-                            
-                        } catch (NoConnectionsException ex) {
-                            LOG.warn("Connection lost. Going to try to connect again...");
-                            icc = this.getClientConnection();
-                            reconnect = true;
-                            continue;
-                        }
-                        break;
-                    } // WHILE
-                    
-                } catch (RuntimeException ex) {
-                    throw ex;
-                // Friendly Error
-                } catch (Exception ex) {
-                    LOG.error(ex.getMessage());
-                    Throwable cause = ex.getCause();
-                    if (cause != null) {
-                        LOG.error(cause.getMessage());
-                        if (debug.val) cause.printStackTrace();
-                    }
-                }
+            while (true) {
                 
-            } while (true);
-            
-            try {
-                // get transactions execution information after running benchmark 
-                // get metrics
-                //this.postProcessBenchmark(icc.client);
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        } finally {
-//            try {
-//                if (icc != null) icc.client.close();
-//            } catch (InterruptedException ex) {
-//                // Ignore
-//            }
-        }
-        
-        // generating benchmark report
-        
-        
-        //
-        System.out.println("InputClient : successful execute #batch - " + success_count);
-    }
+                if (i == batchlimit)
+                    break;
 
-    private void preProcessBenchmark(Client client) throws Exception {
-        // DUMP PROFILING INFORMATION
-        Map<SysProcSelector, String> map = new HashMap<SysProcSelector, String>();
-        map.put(SysProcSelector.PROCEDURE, "s-store_proc_pre.csv");
-        map.put(SysProcSelector.TRIGGER, "s-store_trigger_pre.csv");
-        map.put(SysProcSelector.STREAM, "s-store_stream_pre.csv");
-     
-        for (Map.Entry<SysProcSelector, String> entry : map.entrySet()) {
-            this.writeProfilingData(client, entry.getKey(), new File(entry.getValue()));
-        }
-    }
-
-    private void postProcessBenchmark(Client client) throws Exception {
-        if (debug.val) LOG.debug("Performing post-processing on benchmark");
-        
-        // Then tell the cluster to drain all txns
-//        if (debug.val) LOG.debug("Draining execution queues on cluster");
-//        ClientResponse cresponse = null;
-//        String procName = VoltSystemProcedure.procCallName(Quiesce.class);
-//        try {
-//            cresponse = client.callProcedure(procName);
-//        } catch (Exception ex) {
-//            throw new Exception("Failed to execute " + procName, ex);
-//        }
-//        assert(cresponse.getStatus() == Status.OK) :
-//            String.format("Failed to quiesce cluster!\n%s", cresponse);
-
-        //Thread.sleep(10000);
-        
-        // DUMP PROFILING INFORMATION
-        Map<SysProcSelector, String> map = new HashMap<SysProcSelector, String>();
-        map.put(SysProcSelector.PROCEDURE, "s-store_proc_post.csv");
-        map.put(SysProcSelector.TRIGGER, "s-store_trigger_post.csv");
-        map.put(SysProcSelector.STREAM, "s-store_stream_post.csv");
-     
-        for (Map.Entry<SysProcSelector, String> entry : map.entrySet()) {
-            this.writeProfilingData(client, entry.getKey(), new File(entry.getValue()));
-        }
-    }
+                batchresult = batchResultQueue.take();
+                if(batchresult!=null)
+                {
+                    int size = batchresult.sizes.get((Long)i);
+                    int latency = batchresult.latencies.get((Long)i);
+                    double throughput = batchresult.throughputs.get((Long)i);
+                    strOutput = " batch id : " + String.format("%4d", i);
+                    strOutput += " - tuple size : " + String.format("%5d", size);
+                    strOutput += " - latency : " + String.format("%5d", latency) + " ms";
+                    strOutput += " - #tuple/s :" + String.format("%8.2f", throughput);
+                    strOutput += " ";
+                    System.out.println(strOutput);
     
-    private void writeProfilingData(Client client, SysProcSelector sps, File outputPath) throws Exception {
-        Object params[];
-        String sysproc;
-        
-        sysproc = VoltSystemProcedure.procCallName(Statistics.class);
-        params = new Object[]{ sps.name(), 0 };
-        
-        // Grab the data that we need from the cluster
-        ClientResponse cresponse;
-        try {
-            cresponse = client.callProcedure(sysproc, params);
-        } catch (Exception ex) {
-            throw new Exception("Failed to execute " + sysproc, ex);
-        }
-        assert(cresponse.getStatus() == Status.OK) :
-            String.format("Failed to get %s stats\n%s", sps, cresponse); 
-        assert(cresponse.getResults().length == 1) :
-            String.format("Failed to get %s stats\n%s", sps, cresponse);
-        VoltTable vt = cresponse.getResults()[0];
-        
-        // Write out CSV
-        FileWriter out = new FileWriter(outputPath);
-        VoltTableUtil.csv(out, vt, true);
-        out.close();
-        LOG.info(String.format("Wrote %s information to '%s'", sps, outputPath));
-        return;
-    }
-    
-    
-    /**
-     * Get a client handle to a random site in the running cluster
-     * The return value includes what site the client connected to
-     * @return
-     */
-    private InputClientConnection getClientConnection() {
-        String hostname = null;
-        int port = -1;
-        
-        // Fixed hostname
-        if (this.hostname != null) {
-            if (this.hostname.contains(":")) {
-                String split[] = this.hostname.split("\\:", 2);
-                hostname = split[0];
-                port = Integer.valueOf(split[1]);
-            } else {
-                hostname = this.hostname;
-                port = this.port;
-            }
-        }
-        // Connect to random host and using a random port that it's listening on
-        else if (this.catalog != null) {
-            Site catalog_site = CollectionUtil.random(CatalogUtil.getAllSites(this.catalog));
-            hostname = catalog_site.getHost().getIpaddr();
-            port = catalog_site.getProc_port();
-        }
-        assert(hostname != null);
-        assert(port > 0);
-        
-        if (debug.val)
-            LOG.debug(String.format("Creating new client connection to %s:%d",
-                      hostname, port));
-        System.out.println(String.format("Creating new client connection to %s:%d",
-                      hostname, port));
-        Client client = ClientFactory.createClient(128, null, false, null);
-        try {
-            client.createConnection(null, hostname, port, "user", "password");
-            System.out.println("InputClient: connection is ok ... ");
-        } catch (Exception ex) {
-            String msg = String.format("Failed to connect to HStoreSite at %s:%d", hostname, port);
-            throw new RuntimeException(msg);
-        }
-        return new InputClientConnection(client, hostname, port);
-    }
-    
-    /**
-     * Execute the given query as an ad-hoc request on the server and
-     * return the result.
-     * @param client
-     * @param query
-     * @return
-     * @throws Exception
-     */
-    private boolean execQuery(Client client, String query) throws Exception {
-        //if (debug.val) LOG.debug("QUERY: " + query);
-        System.out.println("QUERY: " + query);
-        boolean result = true;
-        result = client.asynCallProcedure(null, "@AdHoc", null, query);
-        return result;
-    }
-    
-    private boolean execProcedure(Client client, String procName, String query, boolean reconnect) throws Exception {
-        Procedure catalog_proc = this.catalog_db.getProcedures().getIgnoreCase(procName);
-        if (catalog_proc == null) {
-            throw new Exception("Invalid stored procedure name '" + procName + "'");
-        }
-        
-        List<Object> procParams = new ArrayList<Object>();
-        {
-            // Extract the parameters and then convert them to their appropriate type
-            List<String> params = InputClient.extractParams(query);
-            if (debug.val) LOG.debug("PARAMS: " + params);
-            if (params.size() != catalog_proc.getParameters().size()) {
-                String msg = String.format("Expected %d params for '%s' but %d parameters were given",
-                                           catalog_proc.getParameters().size(), catalog_proc.getName(), params.size());
-                throw new Exception(msg);
-            }
-            int i = 0;
-            for (ProcParameter catalog_param : catalog_proc.getParameters()) {
-                VoltType vtype = VoltType.get(catalog_param.getType());
-                Object value = VoltTypeUtil.getObjectFromString(vtype, params.get(i));
-                
-                // HACK: Allow us to send one-element array parameters
-                if (catalog_param.getIsarray()) {
-                    switch (vtype) {
-                        case BOOLEAN:
-                            value = new boolean[]{ (Boolean)value };
-                            break;
-                        case TINYINT:
-                        case SMALLINT:
-                        case INTEGER:
-                            value = new int[]{ (Integer)value };
-                            break;
-                        case BIGINT:
-                            value = new long[]{ (Long)value };
-                            break;
-                        case FLOAT:
-                        case DECIMAL:
-                            value = new double[]{ (Double)value };
-                            break;
-                        case STRING:
-                            value = new String[]{ (String)value };
-                            break;
-                        case TIMESTAMP:
-                            value = new TimestampType[]{ (TimestampType)value };
-                        default:
-                            assert(false);
-                    } // SWITCH
+                    i++;
                 }
-                procParams.add(value);
-                i++;
-            } // FOR
-        }
-
-        Object params[] = procParams.toArray(); 
-        boolean result = true;
-        //result = client.asynCallProcedure(null, catalog_proc.getName(), null, params);
-        ClientResponse response = client.callProcedure(catalog_proc.getName(), params);
-        if(response.getStatus()!=Status.OK)
-            result = false;
-        return result;
-    }
-    
-    protected static List<String> extractParams(String paramStr) throws Exception {
-        List<String> params = new ArrayList<String>();
-        int pos = -1;
-        int len = paramStr.length();
-        while (++pos < len) {
-            char cur = paramStr.charAt(pos);
-            
-            // Skip if it's just a space
-            if (cur == ' ') continue;
-            
-            // See if our current position is a quotation mark
-            // If it is, then we know that we have a string parameter
-            if (cur == '"') {
-                // Keep going until we reach an unescaped quotation mark
-                boolean escaped = false;
-                boolean valid = false;
-                StringBuilder sb = new StringBuilder();
-                while (++pos < len) {
-                    cur = paramStr.charAt(pos); 
-                    if (cur == '\\') {
-                        escaped = true;
-                    } else if (cur == '"' && escaped == false) {
-                        valid = true;
-                        break;
-                    } else {
-                        escaped = false;
-                    }
-                    sb.append(cur);
-                } // WHILE
-                if (valid == false) {
-                    throw new Exception("Invalid parameter string '" + sb + "'");
-                }
-                params.add(sb.toString());
-
-            // Otherwise just grab the substring to the next space 
-            } else {
-                int next = paramStr.indexOf(" ", pos);
-                if (next == -1) {
-                    params.add(paramStr.substring(pos));
-                    pos = len;
-                } else {
-                    params.add(paramStr.substring(pos, next));
-                    pos = next;
-                }
+                else
+                    System.out.println("InputClient: run empty result - strange !");
             }
+
+            outputFinalResult(batchresult);
+
+        } catch (InterruptedException e) {
+            e.printStackTrace();
         }
-        return (params);
     }
 
+    public void outputFinalResult(BatchRunnerResults batchresult)
+    {
+        batchresult.generateStdev();
+        
+        // generate the result string with format
+        StringBuilder sb = new StringBuilder();
+        final int width = 80; 
+        sb.append(String.format("\n%s\n\n", StringUtil.header("INPUTCLIENT BATCHRUNNER RESULTS", "=", width)));
 
+        // throuput
+        StringBuilder throughput = new StringBuilder();
+        throughput.append(String.format(RESULT_FORMAT + " txn/s", batchresult.averageThrouput))
+             .append(" [")
+             .append(String.format("min:" + RESULT_FORMAT, batchresult.minThrouput))
+             .append(" / ")
+             .append(String.format("max:" + RESULT_FORMAT, batchresult.maxThrouput))
+             .append(" / ")
+             .append(String.format("stdev:" + RESULT_FORMAT, batchresult.stddevThrouput))
+             .append("]");
+
+        // size
+        StringBuilder size = new StringBuilder();
+        size.append(String.format(RESULT_FORMAT + " #", (double)batchresult.averageSize))
+             .append(" [")
+             .append(String.format("min:" + RESULT_FORMAT, (double)batchresult.minSize))
+             .append(" / ")
+             .append(String.format("max:" + RESULT_FORMAT, (double)batchresult.maxSize))
+             .append(" / ")
+             .append(String.format("stdev:" + RESULT_FORMAT, batchresult.stddevSize))
+             .append("]");
+        
+        // latency
+        StringBuilder latency = new StringBuilder();
+        latency.append(String.format(RESULT_FORMAT + " ms", (double)batchresult.averageLatency))
+             .append(" [")
+             .append(String.format("min:" + RESULT_FORMAT, (double)batchresult.minLatency))
+             .append(" / ")
+             .append(String.format("max:" + RESULT_FORMAT, (double)batchresult.maxLatency))
+             .append(" / ")
+             .append(String.format("stdev:" + RESULT_FORMAT, batchresult.stddevLatency))
+             .append("]");
+        
+        Map<String, Object> m = new LinkedHashMap<String, Object>();
+        m.put("Tuple Throughput", throughput.toString()); 
+        m.put("Batch Size", size.toString());
+        m.put("Batch Latency", latency.toString());
+        sb.append(StringUtil.formatMaps(m));
+        sb.append(String.format("\n%s\n", StringUtil.repeat("=", width)));
+        
+        String strOutput = sb.toString();
+        
+        // print out the final result
+        System.out.println(strOutput);
+    }
 
     public static void main(String vargs[]) throws Exception {
         
         
         AnotherArgumentsParser args = AnotherArgumentsParser.load( vargs );
         
-        InputClient ic = new InputClient(args.catalog);
+        InputClient ic = new InputClient();
+        
+        BatchRunner batchRunner = new BatchRunner(ic.batchResultQueue);
+        batchRunner.setCatalog(args.catalog);
         
         // HOSTNAME
         if (args.hasParam(AnotherArgumentsParser.ORIGIN_TERMINAL_HOST)) {
-            ic.hostname = args.getParam(AnotherArgumentsParser.ORIGIN_TERMINAL_HOST);
+            batchRunner.setHost(args.getParam(AnotherArgumentsParser.ORIGIN_TERMINAL_HOST));
         }
         // PORT
         if (args.hasParam(AnotherArgumentsParser.ORIGIN_TERMINAL_PORT)) {
-            ic.port = args.getIntParam(AnotherArgumentsParser.ORIGIN_TERMINAL_PORT);
+            batchRunner.setPort(args.getIntParam(AnotherArgumentsParser.ORIGIN_TERMINAL_PORT));
         }
         
         int inverval = 1000; // ms
         if (args.hasParam(AnotherArgumentsParser.PARAM_BATCH_INTERVAL)) {
             inverval = args.getIntParam(AnotherArgumentsParser.PARAM_BATCH_INTERVAL);
+        }
+
+        int rounds = 10; // ms
+        if (args.hasParam(AnotherArgumentsParser.PARAM_BATCH_ROUNDS)) {
+            rounds = args.getIntParam(AnotherArgumentsParser.PARAM_BATCH_ROUNDS);
         }
 
         String filename = "word.txt";
@@ -455,13 +216,14 @@ public class InputClient implements Runnable {
         if (args.hasParam(AnotherArgumentsParser.PARAM_SOURCE_SENDRATE)) {
             sendrate = args.getIntParam(AnotherArgumentsParser.PARAM_SOURCE_SENDRATE);
         }
+
+        boolean sendstop = false; 
+        if (args.hasParam(AnotherArgumentsParser.PARAM_SOURCE_SENDSTOP)) {
+            sendstop = args.getBooleanParam(AnotherArgumentsParser.PARAM_SOURCE_SENDSTOP);
+        }
         
-        BatchProducer batchProducer = new BatchProducer(ic.batchQueue, inverval);
-        TupleProducer tupleProducer = new TupleProducer(batchProducer.queue, filename, sendrate);
-        
-//        System.out.println("inverval-" + inverval);
-//        System.out.println("filename-" + filename);
-//        System.out.println("sendrate-" + sendrate);
+        BatchProducer batchProducer = new BatchProducer(batchRunner.batchQueue, inverval);
+        TupleProducer tupleProducer = new TupleProducer(batchProducer.queue, filename, sendrate, sendstop);
         
         //starting producer to produce messages in queue
         new Thread(tupleProducer).start();
@@ -469,8 +231,18 @@ public class InputClient implements Runnable {
         // starting batch producer to manager tuples in batch
         new Thread(batchProducer).start();
 
+        // starting batch runner
+        new Thread(batchRunner).start();
+        
+        // start inputclient monitor
+        ic.setBatchRounds(rounds);
         ic.run();
         
+        tupleProducer.stop();
+        //batchRunner.stop();
+        
+        
     }
+
 
 }

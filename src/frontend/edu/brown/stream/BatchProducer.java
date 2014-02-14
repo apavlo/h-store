@@ -54,7 +54,7 @@ public class BatchProducer implements Runnable {
                         Tuple tuple = this.queue.take();
 
                         if (tuple == null || tuple.getFieldLength() == 0) {
-                            System.out.println("Info - BatchProducer : encounter the last empty tuple");
+                            //System.out.println("Info - BatchProducer : encounter the last empty tuple");
                             finishOperation = true;
                             batchQueue.put(batch);
                             break;
@@ -84,7 +84,7 @@ public class BatchProducer implements Runnable {
                 } while (true);
 
                 // print for debugging
-                System.out.println("Batch-" + batch.getID() + " : " + currentTimeStamp + " - #tuples : " + batch.getSize());
+                //System.out.println("Batch-" + batch.getID() + " : " + currentTimeStamp + " - #tuples : " + batch.getSize());
 
                 if (finishOperation == true)
                     break;

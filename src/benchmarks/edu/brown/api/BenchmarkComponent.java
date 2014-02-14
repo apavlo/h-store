@@ -972,8 +972,8 @@ public abstract class BenchmarkComponent {
 
             // LATENCIES COUNTERS
             // Ignore zero latencies... Not sure why this happens...
-            //int latency = cresponse.getClusterRoundtrip();
-            int latency = cresponse.getClientRoundtrip();// modified by hawk, 2013/12/11, for micro-benchmark 4
+            int latency = cresponse.getClusterRoundtrip();
+            //int latency = cresponse.getClientRoundtrip();// modified by hawk, 2013/12/11, for micro-benchmark 4
             if (latency > 0) {
                 Map<Integer, ObjectHistogram<Integer>> latenciesMap = (is_dtxn ? m_txnStats.dtxnLatencies :
                                                                                  m_txnStats.spLatencies); 
