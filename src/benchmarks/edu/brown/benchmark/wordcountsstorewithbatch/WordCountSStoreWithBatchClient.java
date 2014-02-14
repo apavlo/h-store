@@ -18,7 +18,8 @@ public class WordCountSStoreWithBatchClient extends BenchmarkComponent {
     private static final LoggerBoolean debug = new LoggerBoolean();
     private static long lastTime;
     private static int timestamp;
-    Batch batch;
+    private static boolean firstRun;
+    private Batch batch;
     
     // word generator
     WordGenerator wordGenerator;
@@ -34,15 +35,11 @@ public class WordCountSStoreWithBatchClient extends BenchmarkComponent {
         String strFileName = "word.txt";
         
         this.wordGenerator = new WordGenerator(this.getClientId(), strFileName);
-        lastTime = System.nanoTime();
-        timestamp = 0;
-        batch = new Batch();
-        batch.setID(timestamp);
-        batch.setTimestamp(timestamp);
+        firstRun = true;
     }
 
     @Override
-    public void runLoop() {
+    public void runLoop() {        
         while (true) {
             try {
                 runOnce();
@@ -51,7 +48,7 @@ public class WordCountSStoreWithBatchClient extends BenchmarkComponent {
             }
         }
     }
-
+    /**
     @Override
     protected boolean runOnce() throws IOException {
         String word;
@@ -64,23 +61,73 @@ public class WordCountSStoreWithBatchClient extends BenchmarkComponent {
             boolean response = false;
             Client client = this.getClientHandle();
             
+            //long currentTime = System.nanoTime();
+            //if(currentTime - lastTime >= 1000000000)
+            //{
+            //	lastTime = System.nanoTime();
+            	
+            //}
+            
+            // create batch
+            Batch batch = new Batch();
+            batch.setID(timestamp);
+            batch.setTimestamp(timestamp);
+            Tuple tuple = new Tuple();
+            tuple.addField("WORD", word);
+            //tuple.addField("TIMESTAMP", currentTime);
+            batch.addTuple(tuple);
+            
+	        response = client.callProcedure(callback, "SimpleCall", batch.toJSONString());
+	        timestamp++;
+
+            return response;
+        }
+        else
+            return false;
+    }
+    */
+
+    @Override
+    protected boolean runOnce() throws IOException {
+        String word;
+        if(firstRun)
+        {
+        	lastTime = System.nanoTime();
+            timestamp = 0;
+            batch = new Batch();
+            batch.setID(timestamp);
+            batch.setTimestamp(timestamp);
+            firstRun = false;
+        }
+        
+        
+        if(wordGenerator.isEmpty()==false)
+        {
+            if(wordGenerator.hasMoreWords()==false)
+                wordGenerator.reset();
+            
+            word = wordGenerator.nextWord();
+            boolean response = false;
+            Client client = this.getClientHandle();
+            
             long currentTime = System.nanoTime();
-            if(currentTime - lastTime >= 1000000000)
+            if((long)(currentTime - lastTime) >= 1000000000L)
             {
             	lastTime = System.nanoTime();
             	timestamp++;
-            	Batch oldbatch = batch;
+            	response = client.callProcedure(callback, "SimpleCall", batch.toJSONString());
+            	
             	batch = new Batch();
             	batch.setID(timestamp);
                 batch.setTimestamp(timestamp);
-                
-            	response = client.callProcedure(callback, "SimpleCall", oldbatch.toJSONString());
             }
 
             Tuple tuple = new Tuple();
             tuple.addField("WORD", word);
-            tuple.addField("TIMESTAMP", currentTime);
+            //tuple.addField("TIMESTAMP", currentTime);
             batch.addTuple(tuple);
+            
+            //response = client.callProcedure(callback, "SimpleCall", batch.toJSONString());
              
             return response;
         }
