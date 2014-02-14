@@ -5,6 +5,7 @@ import java.io.IOException;
 import org.apache.log4j.Logger;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
+import org.voltdb.client.NoConnectionsException;
 import org.voltdb.client.ProcedureCallback;
 
 import edu.brown.api.BenchmarkComponent;
@@ -108,14 +109,16 @@ public class WordCountSStoreWithBatchClient extends BenchmarkComponent {
             
             word = wordGenerator.nextWord();
             boolean response = false;
-            Client client = this.getClientHandle();
+            
             
             long currentTime = System.nanoTime();
             if((long)(currentTime - lastTime) >= 1000000000L)
             {
             	lastTime = System.nanoTime();
             	timestamp++;
-            	response = client.callProcedure(callback, "SimpleCall", batch.toJSONString());
+            	Client client = this.getClientHandle();
+            	Thread t = new Thread(new TransactionRunner(batch, client));
+        		t.start();
             	
             	batch = new Batch();
             	batch.setID(timestamp);
@@ -153,5 +156,28 @@ public class WordCountSStoreWithBatchClient extends BenchmarkComponent {
             incrementTransactionCounter(clientResponse, 0);
         }
     } // END CLASS
+    
+    public class TransactionRunner implements Runnable{
+    	private Batch b;
+    	private Client client;
+    	
+    	public TransactionRunner(Batch b, Client client) {
+    		this.b = b;
+    		this.client = client;
+    	}
+    	
+    	public void run() {
+    		try {
+    			client.callProcedure(callback, "SimpleCall", b.toJSONString());
+    			//ois.close();
+    		}
+    	/*	catch(IOException e) {
+    			e.printStackTrace();
+    		} */
+    		catch(IOException e){
+    			e.printStackTrace();
+    		}
+    	}
+    }
 }
 
