@@ -8,13 +8,17 @@ public class TupleProducer implements Runnable {
     private BlockingQueue<Tuple> queue;
     //private long fixnum;
     private int sendrate;
+    private boolean sendstop;
+    private boolean stop = false;
 
     private WordGenerator wordGenerator;
      
-    public TupleProducer(BlockingQueue<Tuple> q, String filename, int sendrate){
+    public TupleProducer(BlockingQueue<Tuple> q, String filename, int sendrate, boolean sendstop){
         this.queue = q;
         //this.fixnum = number;
         this.sendrate = sendrate;
+        this.sendstop = sendstop;
+        
         this.wordGenerator = new WordGenerator( filename );
     }
     
@@ -36,7 +40,7 @@ public class TupleProducer implements Runnable {
             try 
             {
                 queue.put(tuple);
-                System.out.println("Info - TupleProducer :" + "put empty tuple to indicate end" );
+                //System.out.println("Info - TupleProducer :" + "put empty tuple to indicate end" );
             } 
             catch (InterruptedException e) 
             {
@@ -73,6 +77,12 @@ public class TupleProducer implements Runnable {
                 try {
                     for (int ii = 0; ii < transactionsToCreate; ii++) 
                     {
+                        if(stop==true)
+                        {
+                            beStop = true;
+                            break;
+                        }
+                        
                         if(this.wordGenerator.hasMoreWords()==true)
                         {
                             // create tuple
@@ -83,9 +93,21 @@ public class TupleProducer implements Runnable {
                         }
                         else
                         {
-                          System.out.println("Info - TupleProducer :" + "finish sending #tuples - " + (counter));
-                          beStop = true;
-                          break;
+                            if (sendstop==true)
+                            {
+                              System.out.println("Info - TupleProducer :" + "finish sending #tuples - " + (counter));
+                              beStop = true;
+                              break;
+                            }
+                            else
+                            {
+                                wordGenerator.reset();
+                                // create tuple
+                                tuple = new Tuple();
+                                String fieldname = "WORD";
+                                String fieldvalue = this.wordGenerator.nextWord();
+                                tuple.addField(fieldname, fieldvalue);
+                            }
                         }
                         
                         queue.put(tuple);
@@ -118,6 +140,10 @@ public class TupleProducer implements Runnable {
             lastRequestTime = now;
             
         } // WHILE
+    }
+
+    public void stop() {
+        this.stop = true;
     }
  
 }

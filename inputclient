@@ -80,8 +80,12 @@ if __name__ == '__main__':
                          help='input file, default is word.txt.')
     aparser.add_argument('--rate', type=int,
                          help='tuple sending rate.')
+    aparser.add_argument('--stop', type=bool,
+                         help='stop after all tuple sends out or repeat again.')
     aparser.add_argument('--interval', type=int,
                          help='batch time interval.')
+    aparser.add_argument('--rounds', type=int,
+                         help='to indicate how batch rounds we need.')
     args = vars(aparser.parse_args())
     
     # Check whether we have a jar file
@@ -103,12 +107,12 @@ if __name__ == '__main__':
         if key in args and args[key]:
             options.append("terminal.%s=%s" % (key, args[key]))
     ## FOR
-    for key in ('file', 'rate'):
+    for key in ('file', 'rate', 'stop'):
         if key in args and args[key]:
             options.append("source.%s=%s" % (key, args[key]))
     #end for
     
-    for key in ('interval'):
+    for key in ('interval', 'rounds'):
         if key in args and args[key]:
             options.append("batch.%s=%s" % (key, args[key]))
     #end for

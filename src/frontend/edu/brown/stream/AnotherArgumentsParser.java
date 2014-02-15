@@ -23,7 +23,9 @@ public class AnotherArgumentsParser {
     public static final String ORIGIN_TERMINAL_PORT      = ArgumentsParser.PARAM_TERMINAL_PORT;
     public static final String PARAM_SOURCE_FILE        = "source.file";
     public static final String PARAM_SOURCE_SENDRATE       = "source.rate";
+    public static final String PARAM_SOURCE_SENDSTOP       = "source.stop";
     public static final String PARAM_BATCH_INTERVAL        = "batch.interval";
+    public static final String PARAM_BATCH_ROUNDS        = "batch.rounds";
     
     public static final List<String> PARAMS = new ArrayList<String>();
     static {
