@@ -20,7 +20,7 @@ public class WordCountSStoreWithBatchClient extends BenchmarkComponent {
     private static long lastTime;
     private static int timestamp;
     private static boolean firstRun;
-    private Batch batch;
+    private static Batch batch;
     
     // word generator
     WordGenerator wordGenerator;
@@ -108,7 +108,7 @@ public class WordCountSStoreWithBatchClient extends BenchmarkComponent {
                 wordGenerator.reset();
             
             word = wordGenerator.nextWord();
-            boolean response = false;
+            boolean response = true;
             
             
             long currentTime = System.nanoTime();
@@ -117,8 +117,9 @@ public class WordCountSStoreWithBatchClient extends BenchmarkComponent {
             	lastTime = System.nanoTime();
             	timestamp++;
             	Client client = this.getClientHandle();
-            	Thread t = new Thread(new TransactionRunner(batch, client));
-        		t.start();
+            	//Thread t = new Thread(new TransactionRunner(batch, client));
+        		//t.start();
+        		response = client.callProcedure(callback, "SimpleCall", batch.toJSONString());
             	
             	batch = new Batch();
             	batch.setID(timestamp);
