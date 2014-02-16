@@ -134,7 +134,7 @@ public class InputClient implements Runnable {
 
         // throuput
         StringBuilder throughput = new StringBuilder();
-        throughput.append(String.format(RESULT_FORMAT + " txn/s", batchresult.averageThrouput))
+        throughput.append(String.format(RESULT_FORMAT + " #tuple/s", batchresult.averageThrouput))
              .append(" [")
              .append(String.format("min:" + RESULT_FORMAT, batchresult.minThrouput))
              .append(" / ")
@@ -154,7 +154,7 @@ public class InputClient implements Runnable {
              .append(String.format("stdev:" + RESULT_FORMAT, batchresult.stddevSize))
              .append("]");
         
-        // latency
+        // batch latency
         StringBuilder latency = new StringBuilder();
         latency.append(String.format(RESULT_FORMAT + " ms", (double)batchresult.averageLatency))
              .append(" [")
@@ -165,10 +165,23 @@ public class InputClient implements Runnable {
              .append(String.format("stdev:" + RESULT_FORMAT, batchresult.stddevLatency))
              .append("]");
         
+        // tuple latency
+        StringBuilder tuplelatency = new StringBuilder();
+        tuplelatency.append(String.format(RESULT_FORMAT + " ms", (double)batchresult.averageTupleLatency))
+             .append(" [")
+             .append(String.format("min:" + RESULT_FORMAT, (double)batchresult.minTupleLatency))
+             .append(" / ")
+             .append(String.format("max:" + RESULT_FORMAT, (double)batchresult.maxTupleLatency))
+             .append(" / ")
+             .append(String.format("stdev:" + RESULT_FORMAT, batchresult.stddevTupleLatency))
+             .append("]");
+
         Map<String, Object> m = new LinkedHashMap<String, Object>();
         m.put("Tuple Throughput", throughput.toString()); 
         m.put("Batch Size", size.toString());
         m.put("Batch Latency", latency.toString());
+        m.put("Tuple Latency", tuplelatency.toString());
+
         sb.append(StringUtil.formatMaps(m));
         sb.append(String.format("\n%s\n", StringUtil.repeat("=", width)));
         

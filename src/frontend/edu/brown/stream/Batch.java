@@ -14,6 +14,7 @@ public class Batch {
     
     private long m_id;
     private long m_timestamp;
+    private long m_endtimestamp;
     
     private List<Tuple> m_tuples; 
     
@@ -21,6 +22,7 @@ public class Batch {
     {
         m_id = -1; // -1 is regarded as illegal id
         m_timestamp = -1; // illegal time
+        m_endtimestamp = -1; // illegal time
         m_tuples = new ArrayList<Tuple>();
     }
     
@@ -42,6 +44,21 @@ public class Batch {
     public long getTimestamp()
     {
         return this.m_timestamp;
+    }
+
+    public void setEndTimestamp(long timestamp)
+    {
+        this.m_endtimestamp = timestamp;
+    }
+    
+    public long getEndTimestamp()
+    {
+        return this.m_endtimestamp;
+    }
+
+    public long getLatency()
+    {
+        return this.m_endtimestamp - this.m_timestamp;
     }
 
     public void addTuple(Tuple tuple)
@@ -68,6 +85,7 @@ public class Batch {
     {
         m_id = -1;
         m_timestamp = -1;
+        m_endtimestamp = -1;
         m_tuples.clear();
     }
     
@@ -81,6 +99,7 @@ public class Batch {
             jsonBatch.put("ID", this.m_id);
             // prepare timestamp
             jsonBatch.put("TIMESTAMP", this.m_timestamp);
+            jsonBatch.put("ENDTIMESTAMP", this.m_endtimestamp);
             
             // prepare tuples
             JSONArray jsonTuples = new JSONArray();
@@ -117,6 +136,7 @@ public class Batch {
             this.m_id = batchid;
             //get timestamp
             this.m_timestamp = jsonBatch.getLong("TIMESTAMP");
+            this.m_endtimestamp = jsonBatch.getLong("ENDTIMESTAMP");
             
             JSONArray jsonBatchTuples = jsonBatch.getJSONArray("TUPLES");
             
