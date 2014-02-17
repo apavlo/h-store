@@ -26,6 +26,7 @@ public class AnotherArgumentsParser {
     public static final String PARAM_SOURCE_SENDSTOP       = "source.stop";
     public static final String PARAM_BATCH_INTERVAL        = "batch.interval";
     public static final String PARAM_BATCH_ROUNDS        = "batch.rounds";
+    public static final String PARAM_RESULT_JSON        = "result.json";
     
     public static final List<String> PARAMS = new ArrayList<String>();
     static {
@@ -139,7 +140,9 @@ public class AnotherArgumentsParser {
         String val = this.getParam(key);
         Boolean ret = defaultValue;
         if (val != null)
+        {
             ret = Boolean.valueOf(val);
+        }
         return (ret);
     }
 
