@@ -146,6 +146,17 @@ public class InputClient implements Runnable {
     }
 
     public static void main(String vargs[]) throws Exception {
+
+//        Batch batch = new Batch();
+//        Tuple tuple = new Tuple();
+//        tuple.addField("name", "hawk");
+//        tuple.addField("sex", "male");
+//        batch.addTuple(tuple);
+//        String strJSON = batch.toJSONString();
+//        System.out.println(strJSON);
+//        byte[] objJSON = StringCompressor.compress(strJSON);
+//        String strRetrieved = StringCompressor.decompress(objJSON);
+//        System.out.println(strRetrieved);
         
         
         AnotherArgumentsParser args = AnotherArgumentsParser.load( vargs );

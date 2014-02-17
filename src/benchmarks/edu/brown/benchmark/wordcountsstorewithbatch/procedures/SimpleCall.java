@@ -22,7 +22,7 @@ public class SimpleCall extends VoltProcedure {
         );
     
     //public long run(String word, int time) 
-    public long run(String batchJSONString) 
+    public long run(String batchJSONString)
     {
         
         Batch objBatch = new Batch();
