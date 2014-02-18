@@ -101,8 +101,8 @@ public:
     	const Logger* logger = manager->getLogger(id);
     	assert(logger != NULL);
 
-    	VOLT_WARN("Thread id : %lu",pthread_self());
-    	VOLT_WARN("LogManager : %p Logger : %p", manager, logger);
+    	//VOLT_WARN("Thread id : %lu",pthread_self());
+    	//VOLT_WARN("LogManager : %p Logger : %p", manager, logger);
 
         return logger;
     }

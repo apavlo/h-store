@@ -221,13 +221,18 @@ TableTuple* LogRecord::initRecordTuple() {
 		output.initializeWithPosition(pkeyRawData, len, 0);
 
 		primaryKey->serializeTo(output);
-		recordTuple->setNValue(7, ValueFactory::getStringValue((const_cast<char*>(output.data()))));
+		recordTuple->setNValue(7,
+				ValueFactory::getBinaryValue(
+				reinterpret_cast<unsigned char*>(const_cast<char*>(output.data())),
+				static_cast<int32_t>(output.position())
+				)
+		);
 
 		// Safe to delete, ValueFactory copies out the data.
 		delete[] pkeyRawData;
 		pkeyRawData = NULL;
 	} else {
-		recordTuple->setNValue(7, ValueFactory::getNullStringValue());
+		recordTuple->setNValue(7, ValueFactory::getNullBinaryValue());
 	}
 
 	recordTuple->setNValue(8, ValueFactory::getIntegerValue(numColumnsModified));
@@ -242,12 +247,17 @@ TableTuple* LogRecord::initRecordTuple() {
 			output.writeInt(columnsModified[i]);
 		}
 
-		recordTuple->setNValue(9, ValueFactory::getStringValue((const_cast<char*>(output.data()))));
+		recordTuple->setNValue(9,
+				ValueFactory::getBinaryValue(
+				reinterpret_cast<unsigned char*>(const_cast<char*>(output.data())),
+				static_cast<int32_t>(output.position())
+				)
+		);
 
 		delete[] colData;
 		colData = NULL;
 	} else {
-		recordTuple->setNValue(9, ValueFactory::getNullStringValue());
+		recordTuple->setNValue(9, ValueFactory::getNullBinaryValue());
 	}
 
 	// only present for T_UPDATE and T_DELETE, that too in the absence of a primary index
@@ -259,7 +269,11 @@ TableTuple* LogRecord::initRecordTuple() {
 		output.initializeWithPosition(beforeRawData, len, 0);
 
 		beforeImage->serializeTo(output);
-		recordTuple->setNValue(10, ValueFactory::getStringValue((const_cast<char*>(output.data())))
+		recordTuple->setNValue(10,
+				ValueFactory::getBinaryValue(
+				reinterpret_cast<unsigned char*>(const_cast<char*>(output.data())),
+				static_cast<int32_t>(output.position())
+				)
 		);
 
 		// Safe to delete beforeData because
@@ -268,7 +282,7 @@ TableTuple* LogRecord::initRecordTuple() {
 		beforeRawData = NULL;
 
 	} else {
-		recordTuple->setNValue(10, ValueFactory::getNullStringValue());
+		recordTuple->setNValue(10, ValueFactory::getNullBinaryValue());
 	}
 
 	// only present for T_INSERT, T_UPDATE (not for T_BULKLOAD, T_DELETE, T_TRUNCATE)
@@ -283,18 +297,21 @@ TableTuple* LogRecord::initRecordTuple() {
 		output.initializeWithPosition(afterRawData, len, 0);
 
 		afterImage->serializeTo(output);
-		recordTuple->setNValue(11, ValueFactory::getStringValue((const_cast<char*>(output.data())))
+		recordTuple->setNValue(11,
+				ValueFactory::getBinaryValue(
+				reinterpret_cast<unsigned char*>(const_cast<char*>(output.data())),
+				static_cast<int32_t>(output.position())
+				)
 		);
 
 		delete[] afterRawData;
 		afterRawData = NULL;
 	} else {
-		recordTuple->setNValue(11, ValueFactory::getNullStringValue());
+		recordTuple->setNValue(11, ValueFactory::getNullBinaryValue());
 	}
 
-	// debug
-	std::string recordValue = recordTuple->debugNoHeader();
-	VOLT_WARN("Log Record Tuple : %s",recordValue.c_str());
+	//debug
+	VOLT_WARN("Logrecord : %s", recordTuple->debugNoHeader().c_str());
 
 	return recordTuple;
 }
@@ -493,7 +510,7 @@ TupleSchema* LogRecord::initSchema() {
 
     // If there is a primary key, its recorded here in case
     // of an update record, is null otherwise
-    types.push_back(VALUE_TYPE_VARCHAR);
+    types.push_back(VALUE_TYPE_VARBINARY);
     columnLengths.push_back(MAX_TUPLE_PKEY_LEN);
     allowNull.push_back(true);
 
@@ -505,7 +522,7 @@ TupleSchema* LogRecord::initSchema() {
 
     // Columns modified -- the number is in the previous field
     // Also, a value of -1 in that field is a NULL here.
-    types.push_back(VALUE_TYPE_VARCHAR);
+    types.push_back(VALUE_TYPE_VARBINARY);
     columnLengths.push_back(MAX_NUM_COL_LEN);
     allowNull.push_back(true);
 
@@ -514,7 +531,7 @@ TupleSchema* LogRecord::initSchema() {
     // In case there is no primary key/unique index though,
     // the entire before image must be written
     // (eg no primary key)
-    types.push_back(VALUE_TYPE_VARCHAR);
+    types.push_back(VALUE_TYPE_VARBINARY);
     columnLengths.push_back(MAX_RAW_TUPLE_LEN);
     allowNull.push_back(true);			// can be null
 
@@ -523,7 +540,7 @@ TupleSchema* LogRecord::initSchema() {
     // BULKLOADS: NULL (all the bytes are stored beyond the log record entry)
     // UPDATES: only the relevant columns modified
     // (ie a different TableTuple with an appropriate subset schema)
-    types.push_back(VALUE_TYPE_VARCHAR);
+    types.push_back(VALUE_TYPE_VARBINARY);
     columnLengths.push_back(MAX_RAW_TUPLE_LEN);
     allowNull.push_back(true);		// XXX: can this be null?
 

@@ -131,10 +131,10 @@ void AriesLogProxy::log(LoggerId loggerId, LogLevel level, const char *statement
 
 void AriesLogProxy::logBinaryOutput(const char *data, size_t size) {
 	if (jniLogging) {
-		VOLT_WARN("AriesLogProxy : logToEngineBuffer : %lu", size);
+		//VOLT_WARN("AriesLogProxy : logToEngineBuffer : %lu", size);
 		logToEngineBuffer(data, size);
 	} else {
-		VOLT_WARN("AriesLogProxy : logLocally : %lu", size);
+		//VOLT_WARN("AriesLogProxy : logLocally : %lu", size);
 		logLocally(data, size);
 	}
 }

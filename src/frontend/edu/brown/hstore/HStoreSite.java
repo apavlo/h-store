@@ -1376,7 +1376,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
 
     // ARIES
     public void doSiteRecovery() {
-        LOG.warn("ARIES : doSiteRecovery at site :"+this.site_id);
         while (!m_ariesLog.isReadyForReplay()) {
             try {
                 // don't sleep for too long as recovery numbers might get biased
@@ -1409,7 +1408,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     private void waitForAriesLogInit() {
         // wait for the main thread to complete Aries recovery
         // and initialize the log
-        LOG.warn("ARIES : wait for log to be inititalized at site :"+this.site_id);
+        //LOG.warn("ARIES : wait for log to be inititalized at site :"+this.site_id);
         while (!m_ariesLog.isInitialized) {
             try {
                 Thread.sleep(100);
@@ -1418,7 +1417,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 e.printStackTrace();
             }
         }
-        LOG.warn("ARIES : log is inititalized at site :"+this.site_id);
+        //LOG.warn("ARIES : log is inititalized at site :"+this.site_id);
     }        
     
     // ----------------------------------------------------------------------------
@@ -2558,7 +2557,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         LOG.trace("Is SysProc :"+ts.isSysProc());
         
         if (this.commandLogger != null && status == Status.OK && ts.isSysProc() == false) {
-            sendResponse = this.commandLogger.appendToLog(ts, cresponse, LogEntry.REDO);
+            sendResponse = this.commandLogger.appendToLog(ts, cresponse);
         }
 
         if (sendResponse) {

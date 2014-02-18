@@ -58,15 +58,6 @@ public class LogEntry implements FastSerializable, Poolable {
     private long timestamp;
     private int procId;
     private ParameterSet procParams;
-
-    /* LogEntry Type : 
-     * 0 - redo 
-     * 1 - undo (WAL)
-     */
-    private boolean type;    
-
-    public static final boolean REDO = false;    
-    public static final boolean UNDO = true;        
     
     /**
      * Initialization method.
@@ -79,7 +70,6 @@ public class LogEntry implements FastSerializable, Poolable {
         this.txnId = ts.getTransactionId();
         this.procId = ts.getProcedure().getId();
         this.procParams = ts.getProcedureParameters();
-        this.type = false;
         assert(this.isInitialized()) : 
             "Unexpected uninitialized " + this.getClass().getSimpleName();
         return (this);
@@ -89,7 +79,6 @@ public class LogEntry implements FastSerializable, Poolable {
         this.txnId = ts.getTransactionId();
         this.procId = ts.getProcedure().getId();
         this.procParams = ts.getProcedureParameters();
-        this.type = type;
         assert(this.isInitialized()) : 
             "Unexpected uninitialized " + this.getClass().getSimpleName();
         return (this);
@@ -112,15 +101,7 @@ public class LogEntry implements FastSerializable, Poolable {
     public boolean isInitialized() {
         return (this.txnId != null);
     }
-    
-    public boolean getType() {
-        return (this.type);
-    }
-    
-    public void setType(Boolean b) {
-       this.type = b;
-    }    
-    
+        
     @Override
     public void finish() {
         this.txnId = null;
@@ -131,7 +112,6 @@ public class LogEntry implements FastSerializable, Poolable {
 
     @Override
     public void readExternal(FastDeserializer in) throws IOException {
-        this.type = Boolean.valueOf(in.readBoolean());
         this.txnId = Long.valueOf(in.readLong());
         this.timestamp = in.readLong();
         this.procId = in.readInt();
@@ -142,7 +122,6 @@ public class LogEntry implements FastSerializable, Poolable {
     public void writeExternal(FastSerializer out) throws IOException {
         assert(this.isInitialized()) : 
             "Unexpected uninitialized " + this.getClass().getSimpleName();               
-        out.writeBoolean(this.type);
         out.writeLong(this.txnId.longValue());
         out.writeLong(EstTime.currentTimeMillis());
         out.writeInt(this.procId);

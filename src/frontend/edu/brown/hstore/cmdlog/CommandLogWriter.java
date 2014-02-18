@@ -89,12 +89,12 @@ public class CommandLogWriter extends ExceptionHandlingRunnable implements Shutd
         protected long initiateTime;
         protected int restartCounter;
         
-        public LogEntry init(LocalTransaction ts, ClientResponseImpl cresponse, Boolean type) {
+        public LogEntry init(LocalTransaction ts, ClientResponseImpl cresponse) {
             this.cresponse = cresponse;
             this.clientCallback = ts.getClientCallback();
             this.initiateTime = ts.getInitiateTime();
             this.restartCounter = ts.getRestartCounter();
-            return super.init(ts, type);
+            return super.init(ts);
         }
         
         @Override
@@ -124,7 +124,7 @@ public class CommandLogWriter extends ExceptionHandlingRunnable implements Shutd
             this.startPos = 0;
             this.nextPos = 0; 
         }
-        public LogEntry next(LocalTransaction ts, ClientResponseImpl cresponse, Boolean type) {
+        public LogEntry next(LocalTransaction ts, ClientResponseImpl cresponse) {
             // Check that they don't try add the same txn twice right after each other
             if (hstore_conf.site.jvm_asserts) {
                 LogEntry prev = this.buffer[this.previous()];
@@ -139,7 +139,7 @@ public class CommandLogWriter extends ExceptionHandlingRunnable implements Shutd
             // we are going to maintain separate buffers for each partition.
             // But we need to think about what happens if we are about to wrap around and we
             // haven't been flushed to disk yet.
-            LogEntry ret = this.buffer[this.nextPos].init(ts, cresponse, type); 
+            LogEntry ret = this.buffer[this.nextPos].init(ts, cresponse); 
             this.nextPos = (this.nextPos + 1) % this.buffer.length;;
             return ret;
         }
@@ -500,9 +500,7 @@ public class CommandLogWriter extends ExceptionHandlingRunnable implements Shutd
                 CircularLogEntryBuffer buffer = eb[i];
                 int start = buffer.getStart();
                 for (int j = 0, size = buffer.size(); j < size; j++) {
-                    WriterLogEntry entry = buffer.buffer[(start + j) % buffer.buffer.length];
-                    // CHANGE :: Do this only for REDO
-                    if(entry.getType() == LogEntry.REDO){
+                    WriterLogEntry entry = buffer.buffer[(start + j) % buffer.buffer.length];                
                         if (entry.isInitialized()) {
                             if (this.usePostProcessor) {
                                 hstore_site.responseQueue(entry.cresponse,
@@ -519,7 +517,7 @@ public class CommandLogWriter extends ExceptionHandlingRunnable implements Shutd
                         } else {
                             LOG.warn("Unexpected unintialized " + entry.getClass().getSimpleName());
                         }
-                    }
+                    
                 } // FOR
                 buffer.flushCleanup();
             } // FOR
@@ -538,17 +536,8 @@ public class CommandLogWriter extends ExceptionHandlingRunnable implements Shutd
      * @param ts
      * @return
      */
-    public boolean appendToLog(final LocalTransaction ts, final ClientResponseImpl cresponse, final Boolean type) {
+    public boolean appendToLog(final LocalTransaction ts, final ClientResponseImpl cresponse) {
         boolean sendResponse = true ;
-
-        if (trace.val){
-            if(type == false){
-                LOG.trace("REDO record append : Txn "+ts.getTransactionId());
-            }
-            else{
-                LOG.trace("UNDO record append : Txn "+ts.getTransactionId());
-            }
-        }                
         
         // -------------------------------
         // QUEUE FOR GROUP COMMIT
@@ -572,7 +561,7 @@ public class CommandLogWriter extends ExceptionHandlingRunnable implements Shutd
                 // create an entry for this transaction in the buffer for this partition
                 // NOTE: this is guaranteed to be thread-safe because there is
                 // only one thread per partition
-                LogEntry entry = buffer.next(ts, cresponse, type);
+                LogEntry entry = buffer.next(ts, cresponse);
                 assert(entry != null);
                 if (trace.val)
                     LOG.trace(String.format("New %s %s from %s for partition %d",

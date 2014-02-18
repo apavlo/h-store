@@ -126,7 +126,7 @@ public class TestCommandLogger extends BaseTestCase {
                                                                   Status.OK,
                                                                   HStoreConstants.EMPTY_RESULT,
                                                                   "");
-            boolean ret = logger.appendToLog(ts, cresponse, LogEntry.REDO);
+            boolean ret = logger.appendToLog(ts, cresponse);
             assertFalse(ret);
         }
         logger.flush(); //This makes sure everything is written to the file

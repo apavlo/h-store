@@ -202,12 +202,11 @@ CTX.INPUT['common'] = """
  RecoveryProtoMessage.cpp
  RecoveryProtoMessageBuilder.cpp
  DefaultTupleSerializer.cpp
-""" 
-# StringRef.cpp
-# ThreadLocalPool.cpp
-# CompactingStringPool.cpp
-# CompactingStringStorage.cpp
-#"""
+ StringRef.cpp
+ ThreadLocalPool.cpp
+ CompactingStringPool.cpp
+ CompactingStringStorage.cpp
+"""
 
 CTX.INPUT['execution'] = """
  JNITopend.cpp
@@ -310,10 +309,10 @@ CTX.INPUT['logging'] = """
  Logrecord.cpp
 """
  
-#CTX.INPUT['structures'] = """
-# CompactingPool.cpp
-# ContiguousAllocator.cpp
-#"""
+CTX.INPUT['structures'] = """
+ CompactingPool.cpp
+ ContiguousAllocator.cpp
+"""
  
 # specify the third party input
 

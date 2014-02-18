@@ -45,6 +45,8 @@ public:
     ThreadLocalPool();
     ~ThreadLocalPool();
 
+    static void initialize();
+
     /**
      * Retrieve a pool that allocates approximately sized chunks of memory. Provides pools that
      * are powers of two and powers of two + the previous power of two.
@@ -60,6 +62,7 @@ public:
     static std::size_t getPoolAllocationSize();
 
     static CompactingStringStorage* getStringPool();
+
 };
 }
 

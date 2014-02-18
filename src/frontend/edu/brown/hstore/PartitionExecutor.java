@@ -999,18 +999,15 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         if (m_ariesLog  != null) {
             long logReadStartTime = System.currentTimeMillis();
 
-            LOG.warn("ARIES : partition recovery started at partition : "+this.partitionId);
-
             // define an array so that we can pass to native code by reference
             long size[] = new long[1];
             long ariesReplayPointer = readAriesLogForReplay(size);
 
-            LOG.warn("ARIES : replay pointer address: " + ariesReplayPointer);
-            LOG.warn("ARIES : log size :" + size[0]);
+            //LOG.warn("ARIES : replay pointer address: " + ariesReplayPointer);
+            LOG.warn("ARIES : partition recovery started at partition : "+this.partitionId+ " log size :"+size[0]);
 
             long logReadEndTime = System.currentTimeMillis();
-
-            LOG.warn("ARIES : log read in " + (logReadEndTime - logReadStartTime) + " milliseconds");
+            //LOG.warn("ARIES : log read in " + (logReadEndTime - logReadStartTime) + " milliseconds");
 
             long ariesStartTime = System.currentTimeMillis();
 
@@ -1394,13 +1391,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                           ts, work.getClass().getSimpleName(), this.partitionId));
             return;
         }
-        
-        // CHANGE :: Log it in undo log
-        CommandLogWriter cwriter = this.hstore_site.getCommandLogWriter();
-        if(cwriter != null){
-                cwriter.appendToLog((LocalTransaction) ts, null, LogEntry.UNDO);
-        }
-            
+                    
         if (debug.val)
             LOG.debug(String.format("Processing %s at partition %d", work, this.partitionId));
         
@@ -4603,13 +4594,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             LOG.debug(String.format("%s - Successfully %sed transaction at partition %d",
                       ts, (commit ? "committ" : "abort"), this.partitionId));
         this.markTransactionFinished(ts);
-
-        // CHANGE :: Log it in Undo log
-        CommandLogWriter cwriter = this.hstore_site.getCommandLogWriter();
-        if(cwriter != null){
-            if(ts.isInitialized())
-                cwriter.appendToLog((LocalTransaction) ts, null, LogEntry.UNDO);
-        }
 
     }
     

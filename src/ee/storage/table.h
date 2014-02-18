@@ -57,6 +57,7 @@
 #include "common/Pool.hpp"
 #include "common/tabletuple.h"
 #include "common/MMAPMemoryManager.h"
+#include "common/ThreadLocalPool.h"
 
 namespace voltdb {
 
@@ -452,6 +453,7 @@ protected:
     
   private:
     int32_t m_refcount;
+    ThreadLocalPool m_tlPool;
 
     bool m_enableMMAP;
 

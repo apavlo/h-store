@@ -20,6 +20,8 @@
 #include "common/FatalException.hpp"
 #include <iostream>
 
+#include "common/debuglog.h"
+
 namespace voltdb {
 /**
  * Thread local key for storing thread specific memory pools
@@ -57,6 +59,22 @@ ThreadLocalPool::ThreadLocalPool() {
         pthread_setspecific( m_key, new PairType( p->first + 1, p->second));
         delete p;
     }
+}
+
+void ThreadLocalPool::initialize() {
+	(void) pthread_once(&m_keyOnce, createThreadLocalKey);
+	if (pthread_getspecific(m_key) == NULL) {
+		pthread_setspecific(m_keyAllocated,
+				static_cast<const void *>(new std::size_t(0)));
+		pthread_setspecific(m_key,
+				static_cast<const void *>(new PairType(1, new MapType())));
+		pthread_setspecific(m_stringKey,
+				static_cast<const void*>(new CompactingStringStorage()));
+	} else {
+		PairTypePtr p = static_cast<PairTypePtr>(pthread_getspecific(m_key));
+		pthread_setspecific(m_key, new PairType(p->first + 1, p->second));
+		delete p;
+	}
 }
 
 ThreadLocalPool::~ThreadLocalPool() {
@@ -175,8 +193,15 @@ boost::shared_ptr<boost::pool<voltdb_pool_allocator_new_delete> > ThreadLocalPoo
 }
 
 boost::shared_ptr<boost::pool<voltdb_pool_allocator_new_delete> > ThreadLocalPool::getExact(std::size_t size) {
+	//VOLT_WARN("getExact : thread id %lu size %lu m_key %u pthread_getspecific %p", pthread_self(), size, m_key, (pthread_getspecific(m_key)));
+
+	if(pthread_getspecific(m_key) == NULL){
+		initialize();
+	}
+
     MapTypePtr pools =
             static_cast< PairTypePtr >(pthread_getspecific(m_key))->second;
+
     boost::unordered_map< std::size_t, boost::shared_ptr<boost::pool<voltdb_pool_allocator_new_delete> > >::iterator
         iter = pools->find(size);
     if (iter == pools->end()) {
@@ -206,6 +231,7 @@ boost::shared_ptr<boost::pool<voltdb_pool_allocator_new_delete> > ThreadLocalPoo
             pool->set_next_size(2);
         }
     }
+
     return iter->second;
 }
 

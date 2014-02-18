@@ -178,8 +178,10 @@ bool DeleteExecutor::p_execute(const NValueArray &params, ReadWriteTracker *trac
 		TableTuple *keyTuple = NULL;
 		char *keydata = NULL;
 
+		/*
 		// See if we use an index instead
 		TableIndex *index = m_targetTable->primaryKeyIndex();
+
 
 		if (index != NULL) {
 			// First construct tuple for primary key
@@ -193,6 +195,7 @@ bool DeleteExecutor::p_execute(const NValueArray &params, ReadWriteTracker *trac
 			// no before image need be recorded, just the primary key
 			beforeImage = NULL;
 		}
+		*/
 
 		LogRecord *logrecord = new LogRecord(computeTimeStamp(),
 				LogRecord::T_DELETE,	// this is a delete record
@@ -216,23 +219,16 @@ bool DeleteExecutor::p_execute(const NValueArray &params, ReadWriteTracker *trac
 
 		logrecord->serializeTo(output);
 
+
 		LogManager* m_logManager = this->m_engine->getLogManager();
 		Logger m_ariesLogger = m_logManager->getAriesLogger();
 		//VOLT_WARN("m_logManager : %p AriesLogger : %p",&m_logManager, &m_ariesLogger);
 
-		/*
 		const Logger *logger = m_logManager->getThreadLogger(LOGGERID_MM_ARIES);
 
 		// CHANGE ::
 		logger->log(LOGLEVEL_INFO, output.data(), output.position());
 
-		if(beforeImage != NULL){
-			VOLT_WARN("DEBUG : %s", beforeImage->debugNoHeader().c_str());
-		}
-		else if(keyTuple != NULL){
-			VOLT_WARN("DEBUG : beforeImage null :: keyTuple : %s", keyTuple->debugNoHeader().c_str());
-		}
-		*/
 
 		delete[] logrecordBuffer;
 		logrecordBuffer = NULL;
