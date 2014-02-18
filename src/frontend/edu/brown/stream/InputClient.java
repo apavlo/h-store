@@ -58,13 +58,12 @@ import java.util.*;
 
 
 public class InputClient implements Runnable {
-    // used for format output
-    private static final String RESULT_FORMAT = "%.2f";
-    
     //
     private BlockingQueue<BatchRunnerResults> batchResultQueue = new LinkedBlockingQueue<BatchRunnerResults>();
 
     private int batchRounds = 10;
+
+    private boolean json = false;
     
     // ---------------------------------------------------------------
     // CONSTRUCTOR
@@ -76,6 +75,10 @@ public class InputClient implements Runnable {
     
     private void setBatchRounds(int rounds) {
         this.batchRounds  = rounds;
+    }
+    
+    private void setResultFormat(boolean json) {
+        this.json  = json;
     }
     
     @Override
@@ -125,73 +128,35 @@ public class InputClient implements Runnable {
 
     public void outputFinalResult(BatchRunnerResults batchresult)
     {
-        batchresult.generateStdev();
         
-        // generate the result string with format
-        StringBuilder sb = new StringBuilder();
-        final int width = 80; 
-        sb.append(String.format("\n%s\n\n", StringUtil.header("INPUTCLIENT BATCHRUNNER RESULTS", "=", width)));
-
-        // throuput
-        StringBuilder throughput = new StringBuilder();
-        throughput.append(String.format(RESULT_FORMAT + " #tuple/s", batchresult.averageThrouput))
-             .append(" [")
-             .append(String.format("min:" + RESULT_FORMAT, batchresult.minThrouput))
-             .append(" / ")
-             .append(String.format("max:" + RESULT_FORMAT, batchresult.maxThrouput))
-             .append(" / ")
-             .append(String.format("stdev:" + RESULT_FORMAT, batchresult.stddevThrouput))
-             .append("]");
-
-        // size
-        StringBuilder size = new StringBuilder();
-        size.append(String.format(RESULT_FORMAT + " #", (double)batchresult.averageSize))
-             .append(" [")
-             .append(String.format("min:" + RESULT_FORMAT, (double)batchresult.minSize))
-             .append(" / ")
-             .append(String.format("max:" + RESULT_FORMAT, (double)batchresult.maxSize))
-             .append(" / ")
-             .append(String.format("stdev:" + RESULT_FORMAT, batchresult.stddevSize))
-             .append("]");
+        FinalResult finalResult = new FinalResult(batchresult);
         
-        // batch latency
-        StringBuilder latency = new StringBuilder();
-        latency.append(String.format(RESULT_FORMAT + " ms", (double)batchresult.averageLatency))
-             .append(" [")
-             .append(String.format("min:" + RESULT_FORMAT, (double)batchresult.minLatency))
-             .append(" / ")
-             .append(String.format("max:" + RESULT_FORMAT, (double)batchresult.maxLatency))
-             .append(" / ")
-             .append(String.format("stdev:" + RESULT_FORMAT, batchresult.stddevLatency))
-             .append("]");
-        
-        // tuple latency
-        StringBuilder tuplelatency = new StringBuilder();
-        tuplelatency.append(String.format(RESULT_FORMAT + " ms", (double)batchresult.averageTupleLatency))
-             .append(" [")
-             .append(String.format("min:" + RESULT_FORMAT, (double)batchresult.minTupleLatency))
-             .append(" / ")
-             .append(String.format("max:" + RESULT_FORMAT, (double)batchresult.maxTupleLatency))
-             .append(" / ")
-             .append(String.format("stdev:" + RESULT_FORMAT, batchresult.stddevTupleLatency))
-             .append("]");
-
-        Map<String, Object> m = new LinkedHashMap<String, Object>();
-        m.put("Tuple Throughput", throughput.toString()); 
-        m.put("Batch Size", size.toString());
-        m.put("Batch Latency", latency.toString());
-        m.put("Tuple Latency", tuplelatency.toString());
-
-        sb.append(StringUtil.formatMaps(m));
-        sb.append(String.format("\n%s\n", StringUtil.repeat("=", width)));
-        
-        String strOutput = sb.toString();
+        String strOutput = finalResult.generateNormalOutputFormat();
         
         // print out the final result
         System.out.println(strOutput);
+        
+        // if needed we can generate json results for experiments
+        if(this.json==true)
+        {
+            strOutput = "\n\n" + finalResult.generateJSONOutputFormat();
+            System.out.println(strOutput);
+        }
+        
     }
 
     public static void main(String vargs[]) throws Exception {
+
+//        Batch batch = new Batch();
+//        Tuple tuple = new Tuple();
+//        tuple.addField("name", "hawk");
+//        tuple.addField("sex", "male");
+//        batch.addTuple(tuple);
+//        String strJSON = batch.toJSONString();
+//        System.out.println(strJSON);
+//        byte[] objJSON = StringCompressor.compress(strJSON);
+//        String strRetrieved = StringCompressor.decompress(objJSON);
+//        System.out.println(strRetrieved);
         
         
         AnotherArgumentsParser args = AnotherArgumentsParser.load( vargs );
@@ -235,6 +200,11 @@ public class InputClient implements Runnable {
             sendstop = args.getBooleanParam(AnotherArgumentsParser.PARAM_SOURCE_SENDSTOP);
         }
         
+        boolean json = false; 
+        if (args.hasParam(AnotherArgumentsParser.PARAM_RESULT_JSON)) {
+            json = args.getBooleanParam(AnotherArgumentsParser.PARAM_RESULT_JSON);
+        }
+        
         BatchProducer batchProducer = new BatchProducer(batchRunner.batchQueue, inverval);
         TupleProducer tupleProducer = new TupleProducer(batchProducer.queue, filename, sendrate, sendstop);
         
@@ -249,6 +219,7 @@ public class InputClient implements Runnable {
         
         // start inputclient monitor
         ic.setBatchRounds(rounds);
+        ic.setResultFormat(json);
         ic.run();
         
         tupleProducer.stop();
@@ -256,6 +227,8 @@ public class InputClient implements Runnable {
         
         
     }
+
+
 
 
 }

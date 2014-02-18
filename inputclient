@@ -82,6 +82,8 @@ if __name__ == '__main__':
                          help='tuple sending rate.')
     aparser.add_argument('--stop', type=bool,
                          help='stop after all tuple sends out or repeat again.')
+    aparser.add_argument('--json', type=bool,
+                         help='indicate if json result format should be printed out.')
     aparser.add_argument('--interval', type=int,
                          help='batch time interval.')
     aparser.add_argument('--rounds', type=int,
@@ -115,6 +117,11 @@ if __name__ == '__main__':
     for key in ('interval', 'rounds'):
         if key in args and args[key]:
             options.append("batch.%s=%s" % (key, args[key]))
+    #end for
+    
+    for key in ('json',):
+        if key in args and args[key]:
+            options.append("result.%s=%s" % (key, args[key]))
     #end for
     
     # Invoke java directly
