@@ -60,7 +60,7 @@ public class WorkloadAnalyzer {
 
 		repeat with correlation of tables in mind
 		 */
-		final int mainMemMapCapacity = 35000;
+		final int mainMemMapCapacity = 300000;
 		final LinkedHashMap<String, Long> DiskData = new LinkedHashMap<String, Long>(0, (float) 1.0, true);
 		LinkedHashMap<String, Long> memoryLRUMap = new LinkedHashMap<String, Long>(mainMemMapCapacity+1, 1.0f, true) {
 	        protected boolean removeEldestEntry(Map.Entry<String,Long> entry)
