@@ -16,6 +16,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import org.voltdb.catalog.CatalogMap;
 import org.voltdb.catalog.Column;
+import org.voltdb.catalog.Constraint;
 import org.voltdb.catalog.ConstraintRef;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Statement;
@@ -130,6 +131,7 @@ public class WorkloadAnalyzer {
 		System.out.println(result.size() + " entries were required in memory again after they were thrown");
 		Iterator<Entry<String, Long>> it = result.entrySet().iterator();
 		Map<Map<String, String>, Long> s = new HashMap<Map<String, String>, Long>();
+		HashMap<Map<String, String>, Integer> finalResult = new HashMap<Map<String, String>, Integer>();
 		while(it.hasNext()){
 			Entry<String, Long> e = it.next();
 			String key = e.getKey();
@@ -139,28 +141,47 @@ public class WorkloadAnalyzer {
 			Long timestamp = e.getValue();
 			HashMap<String, String> map = new HashMap<String, String>();
 			map.put(colFullName, value);
-			s.put(map, timestamp);
-		}
-		Iterator<Entry<Map<String, String>, Long>> it2 = s.entrySet().iterator();
-		while(it2.hasNext()){
-			Entry<Map<String, String>, Long> map = it2.next();
-			Map<String, String> colValueMap = map.getKey();
-			Long timestamp = map.getValue();
-			Entry<String, String> colValueEntry = CollectionUtil.first(colValueMap.entrySet().iterator());
-			String colFullName = colValueEntry.getKey();
-			String value = colValueEntry.getValue();
 			int endIndex = colFullName.indexOf('.');
 			String tableName = colFullName.substring(0, endIndex);
 			String colName = colFullName.substring(endIndex+1, colFullName.length());
 			Column column = CatalogUtil.getColumn(db, tableName, colName);
 			CatalogMap<ConstraintRef> constraintMap = column.getConstraints();
+
 			if(!constraintMap.isEmpty()){
-				System.out.println("name: "+colFullName+ " value: "+ value + " time: "+ timestamp);
+				String foreignKey = null;
+				try{
+					Constraint constraint = CollectionUtil.first(constraintMap).getConstraint();
+					Column foreignKeyCol = CollectionUtil.first(constraint.getForeignkeycols()).getColumn();
+					foreignKey = foreignKeyCol.fullName();
+				}catch (Exception exc) {
+					exc.printStackTrace();
+				}
+				if(foreignKey!=null){
+					Map<String, String> foreignKeyValueMap = new HashMap<String, String>();
+					foreignKeyValueMap.put(foreignKey, value);
+					if(finalResult.containsKey(foreignKeyValueMap)){
+						Integer refs = finalResult.get(foreignKeyValueMap) + 1;
+						finalResult.put(foreignKeyValueMap, refs);
+					}else{
+						finalResult.put(foreignKeyValueMap, 1);	
+					}					
+				}
+						
+			//	System.out.println("name: "+colFullName+ " value: "+ value + " time: "+ timestamp);
 				//System.out.println(constraintMap);				
 			}
+
+			s.put(map, timestamp);
 		}
 		
-		//System.out.println(s);
+		Iterator<Integer> it3 = finalResult.values().iterator();
+		int overallDiskReads = 0;
+		while(it3.hasNext()){
+			overallDiskReads+= it3.next();
+		}
+		int possibleGroupings = finalResult.size();
+		System.out.println("we could have grouped "+possibleGroupings + " out of "+overallDiskReads + " disk reads!!");
+//		System.out.println(finalResult);
 		
 		return count;
 	}
