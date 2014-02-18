@@ -105,10 +105,14 @@ public class InputClient implements Runnable {
                 {
                     int size = batchresult.sizes.get((Long)i);
                     int latency = batchresult.latencies.get((Long)i);
+                    int clusterlatency = batchresult.clusterlatencies.get((Long)i);
+                    double batchthroughput = batchresult.batchthroughputs.get((Long)i);
                     double throughput = batchresult.throughputs.get((Long)i);
                     strOutput = " batch id : " + String.format("%4d", i);
                     strOutput += " - tuple size : " + String.format("%5d", size);
-                    strOutput += " - latency : " + String.format("%5d", latency) + " ms";
+                    strOutput += " - client latency : " + String.format("%5d", latency) + " ms";
+                    strOutput += " - cluster latency : " + String.format("%5d", clusterlatency) + " ms";
+                    strOutput += " - cluster #batch/s :" + String.format("%8.2f", batchthroughput);
                     strOutput += " - #tuple/s :" + String.format("%8.2f", throughput);
                     strOutput += " ";
                     System.out.println(strOutput);

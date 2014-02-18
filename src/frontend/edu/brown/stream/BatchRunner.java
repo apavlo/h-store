@@ -188,8 +188,7 @@ public class BatchRunner implements Runnable{
     
     private void increaseBatchCounter(Batch batch, int latency) throws InterruptedException {
         //System.out.println("BatchRunner : increaseBatchCounter " );
-        latency = (int)(batch.getLatency());
-        m_batchStats.addOneBatchResult(batch.getID(), batch.getSize(), latency);
+        m_batchStats.addOneBatchResult(batch.getID(), batch.getSize(), (int)(batch.getLatency()), latency);
         batchResultQueue.put(m_batchStats);
         
     }

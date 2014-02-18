@@ -18,17 +18,28 @@ public class FinalResult {
     private final double maxThrouput;
     private final double averageThrouput;
     private final double stddevThrouput;
+    // batch cluster throuput
+    private final double minBatchThrouput;
+    private final double maxBatchThrouput;
+    private final double averageBatchThrouput;
+    private final double stddevBatchThrouput;
     // size
     private final double minSize;
     private final double maxSize;
     private final double averageSize;
     private final double stddevSize;
     
-    // batch latency
+    // batch client latency
     private final double minLatency;
     private final double maxLatency;
     private final double averageLatency;
     private final double stddevLatency;
+
+    // batch cluster latency
+    private final double minClusterLatency;
+    private final double maxClusterLatency;
+    private final double averageClusterLatency;
+    private final double stddevClusterLatency;
     
     // tuple latency
     private final double minTupleLatency;
@@ -47,6 +58,11 @@ public class FinalResult {
         maxThrouput = batchresult.maxThrouput;
         averageThrouput = batchresult.averageThrouput;
         stddevThrouput = batchresult.stddevThrouput;
+
+        minBatchThrouput = batchresult.minBatchThrouput;
+        maxBatchThrouput = batchresult.maxBatchThrouput;
+        averageBatchThrouput = batchresult.averageBatchThrouput;
+        stddevBatchThrouput = batchresult.stddevBatchThrouput;
         
         minSize = batchresult.minSize;
         maxSize = batchresult.maxSize;
@@ -58,6 +74,11 @@ public class FinalResult {
         averageLatency = batchresult.averageLatency;
         stddevLatency = batchresult.stddevLatency;
         
+        minClusterLatency = batchresult.minClusterLatency;
+        maxClusterLatency = batchresult.maxClusterLatency;
+        averageClusterLatency = batchresult.averageClusterLatency;
+        stddevClusterLatency = batchresult.stddevClusterLatency;
+
         minTupleLatency = batchresult.minTupleLatency;
         maxTupleLatency = batchresult.maxTupleLatency;
         averageTupleLatency = batchresult.averageTupleLatency;
@@ -72,7 +93,18 @@ public class FinalResult {
         final int width = 80; 
         sb.append(String.format("\n%s\n\n", StringUtil.header("INPUTCLIENT BATCHRUNNER RESULTS", "=", width)));
 
-        // throuput
+        // batch cluster throuput
+        StringBuilder batchthroughput = new StringBuilder();
+        batchthroughput.append(String.format(RESULT_FORMAT + " #batch/s", this.averageBatchThrouput))
+             .append(" [")
+             .append(String.format("min:" + RESULT_FORMAT, this.minBatchThrouput))
+             .append(" / ")
+             .append(String.format("max:" + RESULT_FORMAT, this.maxBatchThrouput))
+             .append(" / ")
+             .append(String.format("stdev:" + RESULT_FORMAT, this.stddevBatchThrouput))
+             .append("]");
+
+        // tuple throuput
         StringBuilder throughput = new StringBuilder();
         throughput.append(String.format(RESULT_FORMAT + " #tuple/s", this.averageThrouput))
              .append(" [")
@@ -94,7 +126,7 @@ public class FinalResult {
              .append(String.format("stdev:" + RESULT_FORMAT, this.stddevSize))
              .append("]");
         
-        // batch latency
+        // batch client latency
         StringBuilder latency = new StringBuilder();
         latency.append(String.format(RESULT_FORMAT + " ms", (double)this.averageLatency))
              .append(" [")
@@ -103,6 +135,17 @@ public class FinalResult {
              .append(String.format("max:" + RESULT_FORMAT, (double)this.maxLatency))
              .append(" / ")
              .append(String.format("stdev:" + RESULT_FORMAT, this.stddevLatency))
+             .append("]");
+
+        // batch cluster latency
+        StringBuilder clusterlatency = new StringBuilder();
+        clusterlatency.append(String.format(RESULT_FORMAT + " ms", (double)this.averageClusterLatency))
+             .append(" [")
+             .append(String.format("min:" + RESULT_FORMAT, (double)this.minClusterLatency))
+             .append(" / ")
+             .append(String.format("max:" + RESULT_FORMAT, (double)this.maxClusterLatency))
+             .append(" / ")
+             .append(String.format("stdev:" + RESULT_FORMAT, this.stddevClusterLatency))
              .append("]");
         
         // tuple latency
@@ -117,9 +160,11 @@ public class FinalResult {
              .append("]");
 
         Map<String, Object> m = new LinkedHashMap<String, Object>();
-        m.put("Tuple Throughput", throughput.toString()); 
         m.put("Batch Size", size.toString());
+        m.put("Batch Throughput", batchthroughput.toString()); 
         m.put("Batch Latency", latency.toString());
+        m.put("Batch Cluster Latency", clusterlatency.toString());
+        m.put("Tuple Throughput", throughput.toString()); 
         m.put("Tuple Latency", tuplelatency.toString());
 
         sb.append(StringUtil.formatMaps(m));
@@ -149,6 +194,10 @@ public class FinalResult {
             jsonBatch.put("MAXTHROUPUT", this.maxThrouput);
             jsonBatch.put("AVERAGETHROUPUT", this.averageThrouput);
             jsonBatch.put("STDDEVTHROUPUT", this.stddevThrouput);
+            jsonBatch.put("MINBATCHTHROUPUT", this.minBatchThrouput);
+            jsonBatch.put("MAXBATCHTHROUPUT", this.maxBatchThrouput);
+            jsonBatch.put("AVERAGEBATCHTHROUPUT", this.averageBatchThrouput);
+            jsonBatch.put("STDDEVBATCHTHROUPUT", this.stddevBatchThrouput);
             jsonBatch.put("MINSIZE", this.minSize);
             jsonBatch.put("MAXSIZE", this.maxSize);
             jsonBatch.put("AVERAGESIZE", this.averageSize);
@@ -157,6 +206,10 @@ public class FinalResult {
             jsonBatch.put("MAXLATENCY", this.maxLatency);
             jsonBatch.put("AVERAGELATENCY", this.averageLatency);
             jsonBatch.put("STDDEVLATENCY", this.stddevLatency);
+            jsonBatch.put("MINCLUSTERLATENCY", this.minClusterLatency);
+            jsonBatch.put("MAXCLUSTERLATENCY", this.maxClusterLatency);
+            jsonBatch.put("AVERAGECLUSTERLATENCY", this.averageClusterLatency);
+            jsonBatch.put("STDDEVCLUSTERLATENCY", this.stddevClusterLatency);
             jsonBatch.put("MINTUPLELATENCY", this.minTupleLatency);
             jsonBatch.put("MAXTUPLELATENCY", this.maxTupleLatency);
             jsonBatch.put("AVERAGETUPLELATENCY", this.averageTupleLatency);

@@ -32,6 +32,22 @@ def generateReport(benchmark_result):
 	STDDEVSIZE = str(output[0])
 	anlyze_result.append(STDDEVSIZE)
 
+	# get AVERAGEBATCHTHROUPUT
+	output  = re.compile('AVERAGEBATCHTHROUPUT:(.*?),', re.DOTALL |  re.IGNORECASE).findall(jsonsnippet)
+	AVERAGEBATCHTHROUPUT = str(output[0])
+	anlyze_result.append(AVERAGEBATCHTHROUPUT)
+	# get MINBATCHTHROUPUT
+	output  = re.compile('MINBATCHTHROUPUT:(.*?),', re.DOTALL |  re.IGNORECASE).findall(jsonsnippet)
+	MINBATCHTHROUPUT = str(output[0])
+	anlyze_result.append(MINBATCHTHROUPUT)
+	# get MAXBATCHTHROUPUT
+	output  = re.compile('MAXBATCHTHROUPUT:(.*?),', re.DOTALL |  re.IGNORECASE).findall(jsonsnippet)
+	MAXBATCHTHROUPUT = str(output[0])
+	anlyze_result.append(MAXBATCHTHROUPUT)
+	# get STDDEVBATCHTHROUPUT
+	output  = re.compile('STDDEVBATCHTHROUPUT:(.*?),', re.DOTALL |  re.IGNORECASE).findall(jsonsnippet)
+	STDDEVBATCHTHROUPUT = str(output[0])
+	anlyze_result.append(STDDEVBATCHTHROUPUT)
 
 	# get AVERAGELATENCY 
 	output  = re.compile('AVERAGELATENCY:(.*?),', re.DOTALL |  re.IGNORECASE).findall(jsonsnippet)
@@ -49,6 +65,23 @@ def generateReport(benchmark_result):
 	output  = re.compile('STDDEVLATENCY:(.*?),', re.DOTALL |  re.IGNORECASE).findall(jsonsnippet)
 	STDDEVLATENCY = str(output[0])
 	anlyze_result.append(STDDEVLATENCY)
+
+	# get AVERAGECLUSTERLATENCY 
+	output  = re.compile('AVERAGECLUSTERLATENCY:(.*?),', re.DOTALL |  re.IGNORECASE).findall(jsonsnippet)
+	AVERAGECLUSTERLATENCY = str(output[0])
+	anlyze_result.append(AVERAGECLUSTERLATENCY)
+	# get 
+	output  = re.compile('MINCLUSTERLATENCY:(.*?),', re.DOTALL |  re.IGNORECASE).findall(jsonsnippet)
+	MINCLUSTERLATENCY = str(output[0])
+	anlyze_result.append(MINCLUSTERLATENCY)
+	# get 
+	output  = re.compile('MAXCLUSTERLATENCY:(.*?),', re.DOTALL |  re.IGNORECASE).findall(jsonsnippet)
+	MAXCLUSTERLATENCY = str(output[0])
+	anlyze_result.append(MAXCLUSTERLATENCY)
+	# get STDDEVCLUSTERLATENCY
+	output  = re.compile('STDDEVCLUSTERLATENCY:(.*?),', re.DOTALL |  re.IGNORECASE).findall(jsonsnippet)
+	STDDEVCLUSTERLATENCY = str(output[0])
+	anlyze_result.append(STDDEVCLUSTERLATENCY)
 
 	# get AVERAGETHROUPUT
 	output  = re.compile('AVERAGETHROUPUT:(.*?),', re.DOTALL |  re.IGNORECASE).findall(jsonsnippet)
@@ -143,7 +176,9 @@ file = open(resultfile, "w")
 #print fields
 fields  = "rate " + "interval " + "#round "
 fields += "BATCH_SIZE_AVG " + "BATCH_SIZE_MIN " + "BATCH_SIZE_MAX " + "BATCH_SIZE_STDEV "
+fields += "BATCH_THROUGHPUT_AVG " + "BATCH_THROUGHPUT_MIN " + "BATCH_THROUGHPUT_MAX " + "BATCH_THROUGHPUT_STDEV "
 fields += "BATCH_LATENCY_AVG " + "BATCH_LATENCY_MIN " + "BATCH_LATENCY_MAX " + "BATCH_LATENCY_STDEV "
+fields += "BATCH_CLUSTER_LATENCY_AVG " + "BATCH_CLUSTER_LATENCY_MIN " + "BATCH_CLUSTER_LATENCY_MAX " + "BATCH_CLUSTER_LATENCY_STDEV "
 fields += "TUPLE_THROUGHPUT_AVG " + "TUPLE_THROUGHPUT_MIN " + "TUPLE_THROUGHPUT_MAX " + "TUPLE_THROUGHPUT_STDEV "
 fields += "TUPLE_LATENCY_AVG " + "TUPLE_LATENCY_MIN " + "TUPLE_LATENCY_MAX " + "TUPLE_LATENCY_STDEV"
 file.write(fields + "\n")
