@@ -2,19 +2,28 @@ package edu.brown.workload;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
 
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.voltdb.catalog.CatalogMap;
 import org.voltdb.catalog.Column;
+import org.voltdb.catalog.ConstraintRef;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.Table;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.utils.ArgumentsParser;
+import edu.brown.utils.CollectionUtil;
 
 public class WorkloadAnalyzer {
 
@@ -55,7 +64,19 @@ public class WorkloadAnalyzer {
 		repeat with correlation of tables in mind
 		 */
 		int count = 0;
-		LinkedHashMap<String, Boolean> LRUmap = new LinkedHashMap<String, Boolean>(0, (float) 0.75, true);
+		final int capacity = 35000;
+		//LinkedHashMap<String, Long> LRUmap = new LinkedHashMap<String, Long>(0, (float) 0.75, true);
+		final LinkedHashMap<String, Long> DiskData = new LinkedHashMap<String, Long>(0, (float) 1.0, true);
+		LinkedHashMap<String, Long> LRUmap = new LinkedHashMap<String, Long>(capacity+1, 1.0f, true) {
+	        protected boolean removeEldestEntry(Map.Entry<String,Long> entry)
+	        {
+	            if (this.size() > capacity) {
+	                DiskData.put(entry.getKey(), entry.getValue());
+	                return true;
+	            }
+	            return false;
+	        };
+	    };
 		for (TransactionTrace txn : workload) {
 			for (QueryTrace query : txn.getQueries()) {
 				
@@ -88,7 +109,8 @@ public class WorkloadAnalyzer {
 				for(Column col : columnsReferenced){
 					if(allPrimaryKeyColumns.contains(col)){
 						try {
-							LRUmap.put(col.fullName()+paramsArray.get(i), true);
+							
+							LRUmap.put("Name:"+col.fullName()+" Value:"+paramsArray.get(i), query.start_timestamp);
 						} catch (JSONException e) {
 						}											
 					}
@@ -98,8 +120,48 @@ public class WorkloadAnalyzer {
 			}
 		}
 
-		System.out.println(LRUmap);
+		//System.out.println(LRUmap);
 		System.out.println(LRUmap.size());
+		//System.out.println(DiskData);
+		System.out.println(DiskData.size());
+		Map<String, Long> result = new LinkedHashMap<String, Long>(LRUmap);
+		
+		result.keySet().retainAll(DiskData.keySet());
+		System.out.println(result.size() + " entries were required in memory again after they were thrown");
+		Iterator<Entry<String, Long>> it = result.entrySet().iterator();
+		Map<Map<String, String>, Long> s = new HashMap<Map<String, String>, Long>();
+		while(it.hasNext()){
+			Entry<String, Long> e = it.next();
+			String key = e.getKey();
+			int index = key.indexOf(" Value");
+			String colFullName = key.substring(5, index);
+			String value = key.substring(index + 8, key.length());
+			Long timestamp = e.getValue();
+			HashMap<String, String> map = new HashMap<String, String>();
+			map.put(colFullName, value);
+			s.put(map, timestamp);
+		}
+		Iterator<Entry<Map<String, String>, Long>> it2 = s.entrySet().iterator();
+		while(it2.hasNext()){
+			Entry<Map<String, String>, Long> map = it2.next();
+			Map<String, String> colValueMap = map.getKey();
+			Long timestamp = map.getValue();
+			Entry<String, String> colValueEntry = CollectionUtil.first(colValueMap.entrySet().iterator());
+			String colFullName = colValueEntry.getKey();
+			String value = colValueEntry.getValue();
+			int endIndex = colFullName.indexOf('.');
+			String tableName = colFullName.substring(0, endIndex);
+			String colName = colFullName.substring(endIndex+1, colFullName.length());
+			Column column = CatalogUtil.getColumn(db, tableName, colName);
+			CatalogMap<ConstraintRef> constraintMap = column.getConstraints();
+			if(!constraintMap.isEmpty()){
+				System.out.println("name: "+colFullName+ " value: "+ value + " time: "+ timestamp);
+				//System.out.println(constraintMap);				
+			}
+		}
+		
+		//System.out.println(s);
+		
 		return count;
 	}
 
