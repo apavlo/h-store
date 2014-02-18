@@ -60,10 +60,7 @@ public class WorkloadAnalyzer {
 
 		repeat with correlation of tables in mind
 		 */
-		int count = 0;
 		final int mainMemMapCapacity = 35000;
-		Long maxDifference = (long) 0;
-		Long minDifference = (long) 999999999;
 		final LinkedHashMap<String, Long> DiskData = new LinkedHashMap<String, Long>(0, (float) 1.0, true);
 		LinkedHashMap<String, Long> memoryLRUMap = new LinkedHashMap<String, Long>(mainMemMapCapacity+1, 1.0f, true) {
 	        protected boolean removeEldestEntry(Map.Entry<String,Long> entry)
@@ -114,8 +111,8 @@ public class WorkloadAnalyzer {
 			}
 		}
 
-		System.out.println(memoryLRUMap.size());
-		System.out.println(DiskData.size());
+		System.out.println("Main mem size is " + memoryLRUMap.size());
+		System.out.println("Disk data (anticache analogous) size is " + DiskData.size());
 		Map<String, Long> result = new LinkedHashMap<String, Long>(memoryLRUMap);
 		
 		result.keySet().retainAll(DiskData.keySet());
@@ -123,12 +120,12 @@ public class WorkloadAnalyzer {
 		Iterator<Entry<String, Long>> it = result.entrySet().iterator();
 		HashMap<Map<String, String>, List<Long>> finalResult = new HashMap<Map<String, String>, List<Long>>();
 		while(it.hasNext()){
-			Entry<String, Long> e = it.next();
-			String key = e.getKey();
+			Entry<String, Long> entry = it.next();
+			String key = entry.getKey();
 			int index = key.indexOf(" Value");
 			String colFullName = key.substring(5, index);
 			String value = key.substring(index + 8, key.length());
-			Long timestamp = e.getValue();
+			Long timestamp = entry.getValue();
 			HashMap<String, String> map = new HashMap<String, String>();
 			map.put(colFullName, value);
 			int endIndex = colFullName.indexOf('.');
@@ -159,10 +156,13 @@ public class WorkloadAnalyzer {
 			}
 		}
 		
-		Iterator<List<Long>> it3 = finalResult.values().iterator();
-		int overallDiskReads = 0;
-		while(it3.hasNext()){
-			List<Long> timestamps = it3.next();
+		Long maxDifferenceInAccessToRelatedTuples = (long) 0;
+		Long minDifferenceInAccessToRelatedTuples = (long) 999999999;
+
+		Iterator<List<Long>> iterator = finalResult.values().iterator();
+		int overallDiskReadsOfRelatedTuples = 0;
+		while(iterator.hasNext()){
+			List<Long> timestamps = iterator.next();
 			Long min = (long) 999999999;
 			Long max = (long) 0;
 			for(Long t:timestamps){
@@ -173,19 +173,18 @@ public class WorkloadAnalyzer {
 					max = t;
 				}
 			}
-			if((max - min) > maxDifference)
-				maxDifference = max-min;
-			if((max - min) < minDifference)
-				maxDifference = max-min;
-			overallDiskReads+= timestamps.size();
+			if((max - min) > maxDifferenceInAccessToRelatedTuples)
+				maxDifferenceInAccessToRelatedTuples = max-min;
+			if((max - min) < minDifferenceInAccessToRelatedTuples)
+				maxDifferenceInAccessToRelatedTuples = max-min;
+			overallDiskReadsOfRelatedTuples+= timestamps.size();
 		}
 		int possibleGroupings = finalResult.size();
-		System.out.println("we could have grouped "+possibleGroupings + " out of "+overallDiskReads + " disk reads!!");
-		System.out.println("Max interval of access between the grouped records is "+maxDifference/(1000*1000*1000) + " seconds");
-		System.out.println("Min interval of access between the grouped records is "+minDifference/(1000*1000) + " milliseconds");
+		System.out.println("we could have grouped "+possibleGroupings + " out of "+overallDiskReadsOfRelatedTuples + " disk reads!!");
+		System.out.println("Max interval of access between the grouped records is "+maxDifferenceInAccessToRelatedTuples/(1000*1000*1000) + " seconds");
+		System.out.println("Min interval of access between the grouped records is "+minDifferenceInAccessToRelatedTuples/(1000*1000) + " milliseconds");
 		System.out.println("workload duration is approx "+duration/(1000*1000*1000) + " seconds");
-		count = possibleGroupings;
-		return count;
+		return possibleGroupings;
 	}
 
 }
