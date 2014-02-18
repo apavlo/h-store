@@ -222,6 +222,9 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
                     case TPCE:
                         c = projectBuilder.createCatalog(fkeys, full_catalog);
                         break;
+                    case TPCEB:
+                        c = projectBuilder.createCatalog(fkeys, full_catalog);
+                        break;
                     default:
                         c = projectBuilder.getFullCatalog(fkeys);
                         if (LOG.isDebugEnabled()) 

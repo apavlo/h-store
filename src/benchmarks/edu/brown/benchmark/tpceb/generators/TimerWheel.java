@@ -44,7 +44,7 @@ public class TimerWheel {
          * all index values must first be set to another value and then it can be changed. C++ allows a user to access/get/set
          * values that are not set but within given size/capacity I added the for loop below for debugging purposes*/
         for(int i = 0; i < period * ( EGenDate.MsPerSecond / resolution ); i++ ){
-            timerWheel.add(null);
+            timerWheel.add(new LinkedList<TimerWheelTimer>());
             
         }
         this.expiryData = expiryData;

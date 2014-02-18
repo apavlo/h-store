@@ -958,7 +958,8 @@ TEST CASES
             <env key="VOLTDBIPC_PATH" value="${build.prod.dir}/voltdbipc" />
 
             <!-- Brown Benchmark Parameters -->
-<!--             <env key="TPCE_LOADER_FILES" value="${src.tpce.dir}" /> -->
+             <env key="TPCE_LOADER_FILES" value="${src.tpce.dir}" />
+             <env key="TPCEB_LOADER_FILES" value="${src.tpceb.dir}" />
             <env key="AIRLINE_DATA_DIR" value="${src.test.dir}/edu/brown/benchmark/airline/data" />
 
             <!-- code coverage output settings, harmless if not in use -->

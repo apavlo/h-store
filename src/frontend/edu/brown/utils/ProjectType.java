@@ -37,7 +37,7 @@ public enum ProjectType {
 
     TPCC("TPC-C", "org.voltdb.benchmark.tpcc"),
     TPCE("TPC-E", "edu.brown.benchmark.tpce"),
-    TPCEB("TPC-EB", "edu.brown.benchmark.tpceb"),
+    TPCEB("TPC-E", "edu.brown.benchmark.tpceb"),
     TM1("TM1", "edu.brown.benchmark.tm1"),
     SIMPLE("Simple", null),
     SEATS("SEATS", "edu.brown.benchmark.seats"),
