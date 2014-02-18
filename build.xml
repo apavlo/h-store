@@ -139,7 +139,7 @@
 -->
 
 <!-- Default Project -->
-<condition property="project" value="tm1">
+<condition property="project" value="auctionmark">
     <not><isset property="project"/></not>
 </condition>
 
