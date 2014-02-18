@@ -19,8 +19,7 @@ public class TestWorkloadAnalyzer extends BaseTestCase {
 
 		WorkloadAnalyzer analyzer = new WorkloadAnalyzer(this.getDatabase(),
 				workload);
-		int timeInterval = 20000;
-		int result = analyzer.getCountOfReferencesInInterval(timeInterval);
+		int result = analyzer.getCountOfGroupingsPossible();
 
 		assertNotNull(result);
 		assertEquals(2210, result);
