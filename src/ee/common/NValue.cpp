@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB Inc.
+ * Copyright (C) 2008-2011 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -114,6 +114,8 @@ std::string NValue::debug() const {
     }
     std::ostringstream buffer;
     std::string out_val;
+    const char* ptr;
+    int64_t addr;
     buffer << getTypeName(type) << "::";
     switch (type) {
       case VALUE_TYPE_TINYINT:
@@ -130,10 +132,18 @@ std::string NValue::debug() const {
         buffer << getDouble();
         break;
       case VALUE_TYPE_VARCHAR:
-        out_val = std::string(reinterpret_cast<const char*>(getObjectValue()),
-                              getObjectLength());
+        ptr = reinterpret_cast<const char*>(getObjectValue());
+        addr = reinterpret_cast<int64_t>(ptr);
+        out_val = std::string(ptr, getObjectLength());
         buffer << "[" << getObjectLength() << "]";
-        buffer << "\"" << out_val << "\"";
+        buffer << "\"" << out_val << "\"[@" << addr << "]";
+        break;
+      case VALUE_TYPE_VARBINARY:
+        ptr = reinterpret_cast<const char*>(getObjectValue());
+        addr = reinterpret_cast<int64_t>(ptr);
+        out_val = std::string(ptr, getObjectLength());
+        buffer << "[" << getObjectLength() << "]";
+        buffer << "-bin[@" << addr << "]";
         break;
       case VALUE_TYPE_DECIMAL:
         buffer << createStringFromDecimal();
@@ -170,6 +180,9 @@ std::string NValue::getTypeName(ValueType type) {
         break;
       case (VALUE_TYPE_VARCHAR):
         ret = "varchar";
+        break;
+      case (VALUE_TYPE_VARBINARY):
+        ret = "varbinary";
         break;
       case (VALUE_TYPE_TIMESTAMP):
         ret = "timestamp";
@@ -246,8 +259,11 @@ void NValue::createDecimalFromString(const std::string &txt) {
      */
     for (int ii = (setSign ? 1 : 0); ii < static_cast<int>(txt.size()); ii++) {
         if ((txt[ii] < '0' || txt[ii] > '9') && txt[ii] != '.') {
+            char message[4096];
+            snprintf(message, 4096, "Invalid characters in decimal string: %s",
+                     txt.c_str());
             throw SQLException(SQLException::volt_decimal_serialization_error,
-                               "Invalid characters");
+                               message);
         }
     }
 

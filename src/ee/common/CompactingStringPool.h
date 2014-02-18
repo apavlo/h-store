@@ -15,29 +15,28 @@
  * along with VoltDB.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef DEFAULTTUPLESERIALIZER_H_
-#define DEFAULTTUPLESERIALIZER_H_
-#include "common/TupleSerializer.h"
-#include "common/tabletuple.h"
+#ifndef _EE_COMMON_COMPACTINGSTRINGPOOL_H_
+#define _EE_COMMON_COMPACTINGSTRINGPOOL_H_
 
-namespace voltdb {
-class ReferenceSerializeOutput;
-class TupleSchema;
+#include "structures/CompactingPool.h"
 
-class DefaultTupleSerializer : public TupleSerializer {
-public:
-    /**
-     * Serialize the provided tuple to the provide serialize output
-     */
-    void serializeTo(TableTuple tuple, ReferenceSerializeOutput *out);
+#include <cstdlib>
 
-    /**
-     * Calculate the maximum size of a serialized tuple based upon the schema of the table/tuple
-     */
-    int getMaxSerializedTupleSize(const TupleSchema *schema);
+namespace voltdb
+{
+    class CompactingStringPool
+    {
+    public:
+        CompactingStringPool(int32_t elementSize, int32_t elementsPerBuf);
 
-    virtual ~DefaultTupleSerializer() {}
-};
+        void* malloc();
+        void free(void* element);
+        size_t getBytesAllocated() const;
+
+    private:
+        CompactingPool m_pool;
+    };
 }
 
-#endif /* DEFAULTTUPLESERIALIZER_H_ */
+
+#endif // _EE_COMMON_COMPACTINGSTRINGPOOL_H_

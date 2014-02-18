@@ -190,6 +190,7 @@ public:
                 break;
 
               case VALUE_TYPE_VARCHAR:
+              case VALUE_TYPE_VARBINARY:
                   // 32 bit length preceding value and
                   // actual character data without null string terminator.
                   if (!getNValue(i).isNull())
@@ -218,7 +219,7 @@ public:
             for (int i = 0; i < cols; ++i)
             {
                 // peekObjectLength is unhappy with non-varchar
-                if (getType(i) == VALUE_TYPE_VARCHAR &&
+            	if ((getType(i) == VALUE_TYPE_VARCHAR || (getType(i) == VALUE_TYPE_VARBINARY))  &&
                     !m_schema->columnIsInlined(i))
                 {
                     if (!getNValue(i).isNull())
@@ -369,9 +370,9 @@ public:
 
     void freeObjectColumns();
 
-#ifdef ARIES
+//#ifdef ARIES
     void freeObjectColumnsOfLogTuple();
-#endif
+//#endif
 
     size_t hashCode(size_t seed) const;
     size_t hashCode() const;
@@ -887,7 +888,7 @@ inline void TableTuple::freeObjectColumns() {
     }
 }
 
-#ifdef ARIES
+//#ifdef ARIES
 
 inline void TableTuple::freeObjectColumnsOfLogTuple() {
     const uint16_t unlinlinedColumnCount = m_schema->getUninlinedObjectColumnCount();
@@ -897,7 +898,7 @@ inline void TableTuple::freeObjectColumnsOfLogTuple() {
     }
 }
 
-#endif
+//#endif
 
 /**
  * Hasher for use with boost::unordered_map and similar

@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB Inc.
+ * Copyright (C) 2008-2011 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,6 +35,7 @@ bool isNumeric(ValueType type) {
         return true;
       break;
       case (VALUE_TYPE_VARCHAR):
+      case (VALUE_TYPE_VARBINARY):
       case (VALUE_TYPE_TIMESTAMP):
       case (VALUE_TYPE_NULL):
       case (VALUE_TYPE_DECIMAL):   // test assumes castAsBigInt() makes sense if isNumeric()
@@ -71,6 +72,17 @@ NValue getRandomValue(ValueType type) {
             //printf("Characters are \"%s\"\n", characters);
             return ValueFactory::getStringValue(string(characters));
         }
+        case VALUE_TYPE_VARBINARY: {
+            int length = (rand() % 16);
+            unsigned char bytes[17];
+            for (int ii = 0; ii < length; ii++) {
+                bytes[ii] = (unsigned char)rand() % 256; //printable characters
+            }
+            bytes[length] = '\0';
+            //printf("Characters are \"%s\"\n", characters);
+            return ValueFactory::getBinaryValue(bytes, length);
+        }
+            break;
         default: {
             throwFatalException("Attempted to get a random value of unsupported value type %d", type);
         }
@@ -99,6 +111,9 @@ string getTypeName(ValueType type) {
             break;
         case (VALUE_TYPE_VARCHAR):
             ret = "varchar";
+            break;
+        case (VALUE_TYPE_VARBINARY):
+            ret = "varbinary";
             break;
         case (VALUE_TYPE_TIMESTAMP):
             ret = "timestamp";
@@ -149,6 +164,9 @@ string valueToString(ValueType type)
       case VALUE_TYPE_VARCHAR: {
           return "VARCHAR";
       }
+      case VALUE_TYPE_VARBINARY: {
+          return "VARBINARY";
+      }
       case VALUE_TYPE_TIMESTAMP: {
           return "TIMESTAMP";
       }
@@ -178,6 +196,8 @@ ValueType stringToValue(string str )
         return VALUE_TYPE_DOUBLE;
     } else if (str == "STRING") {
         return VALUE_TYPE_VARCHAR;
+    } else if (str == "VARBINARY") {
+        return VALUE_TYPE_VARBINARY;
     } else if (str == "TIMESTAMP") {
         return VALUE_TYPE_TIMESTAMP;
     } else if (str == "DECIMAL") {
@@ -520,8 +540,9 @@ ExpressionType stringToExpression(string str )
         return EXPRESSION_TYPE_AGGREGATE_MAX;
     } else if (str == "AGGREGATE_AVG") {
         return EXPRESSION_TYPE_AGGREGATE_AVG;
-    } else if (str == "AGGREGATE_WEIGHTED_AVG") {
-        return EXPRESSION_TYPE_AGGREGATE_WEIGHTED_AVG;
+    }
+    else if (str == "AGGREGATE_WEIGHTED_AVG") {
+    	return EXPRESSION_TYPE_AGGREGATE_WEIGHTED_AVG;
     }
 
     return EXPRESSION_TYPE_INVALID;
@@ -625,4 +646,5 @@ bool hexDecodeToBinary(unsigned char *bufferdst, const char *hexString) {
     return true;
 }
 
+// namespace voltdb
 }

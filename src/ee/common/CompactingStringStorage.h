@@ -15,29 +15,30 @@
  * along with VoltDB.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef DEFAULTTUPLESERIALIZER_H_
-#define DEFAULTTUPLESERIALIZER_H_
-#include "common/TupleSerializer.h"
-#include "common/tabletuple.h"
+#ifndef _EE_COMMON_COMPACTINGSTRINGSTORAGE_H_
+#define _EE_COMMON_COMPACTINGSTRINGSTORAGE_H_
+
+#include "CompactingStringPool.h"
+#include <boost/shared_ptr.hpp>
+#include <boost/unordered_map.hpp>
 
 namespace voltdb {
-class ReferenceSerializeOutput;
-class TupleSchema;
 
-class DefaultTupleSerializer : public TupleSerializer {
-public:
-    /**
-     * Serialize the provided tuple to the provide serialize output
-     */
-    void serializeTo(TableTuple tuple, ReferenceSerializeOutput *out);
+    class CompactingStringStorage {
+    public:
+        CompactingStringStorage();
+        ~CompactingStringStorage();
 
-    /**
-     * Calculate the maximum size of a serialized tuple based upon the schema of the table/tuple
-     */
-    int getMaxSerializedTupleSize(const TupleSchema *schema);
+        boost::shared_ptr<CompactingStringPool> get(size_t size);
 
-    virtual ~DefaultTupleSerializer() {}
-};
+        boost::shared_ptr<CompactingStringPool> getExact(size_t size);
+
+        std::size_t getPoolAllocationSize();
+
+    private:
+        boost::unordered_map<size_t,
+                             boost::shared_ptr<CompactingStringPool> > m_poolMap;
+    };
 }
 
-#endif /* DEFAULTTUPLESERIALIZER_H_ */
+#endif /* COMPACTINGSTRINGSTORAGE_H_ */
