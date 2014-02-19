@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.regex.Pattern;
@@ -42,6 +43,7 @@ public class BatchRunner implements Runnable{
     private final BatchRunnerResults m_batchStats = new BatchRunnerResults();
     
     private boolean stop = false;
+    private boolean display = false;
     
     private class InputClientConnection {
         final Client client;
@@ -62,6 +64,9 @@ public class BatchRunner implements Runnable{
     private Catalog catalog;
     private Database catalog_db;
     private String hostname = null;
+    private List<String> hostnames = new ArrayList<String>();
+    private List<InputClientConnection> connections = new ArrayList<InputClientConnection>();
+    
     private int port = HStoreConstants.DEFAULT_PORT;
     
     public BlockingQueue<BatchRunnerResults> batchResultQueue;
@@ -74,9 +79,10 @@ public class BatchRunner implements Runnable{
     // ---------------------------------------------------------------
 
     
-    public BatchRunner(BlockingQueue<BatchRunnerResults> batchResultQueue)
+    public BatchRunner(BlockingQueue<BatchRunnerResults> batchResultQueue, boolean display)
     {
         this.batchResultQueue = batchResultQueue;
+        this.display = !display;
     }
     
     public void setCatalog(Catalog catalog) throws Exception{
@@ -84,9 +90,14 @@ public class BatchRunner implements Runnable{
         this.catalog_db = CatalogUtil.getDatabase(this.catalog);
     }
     
-    public void setHost(String hostname)
+    public void setHosts(String names)
     {
-        this.hostname = hostname;
+        //this.hostname = hostname;
+        String[] hosts = names.split(",");
+        for (int i=0; i<hosts.length; i++)
+        {
+            hostnames.add(hosts[i]);
+        }
     }
     
     public void setPort(int port)
@@ -94,8 +105,66 @@ public class BatchRunner implements Runnable{
         this.port = port;
     }
     
+    private void createConnections() 
+    {
+        if(this.hostnames.isEmpty())
+            this.hostnames.add("localhost");
+            
+        
+        for(int i=0; i<this.hostnames.size();i++)
+        {
+            InputClientConnection connection = this.getClientConnection(hostnames.get(i));
+            connections.add(connection);
+        }
+    }
+    
+    private void closeConnections() throws InterruptedException
+    {
+        for(int i=0; i<this.connections.size();i++)
+        {
+            InputClientConnection connection = connections.get(i);
+            connection.client.close();
+            connections.remove(i);
+        }
+    }
+    
+    private void resetConnections() throws InterruptedException
+    {
+        closeConnections();
+        createConnections();
+    }
+    
+    private InputClientConnection getConnection(long batchid)
+    {
+        int length = connections.size();
+        int index = (int)batchid % length;
+        
+        return connections.get(index);
+    }
+    
+    private InputClientConnection getRandomConnection()
+    {
+        int length = connections.size();
+        
+        Random randomGenerator = new Random();
+        int randomInt = randomGenerator.nextInt(length);
+        
+        return connections.get(randomInt);
+    }
+    
+    private boolean isRoundFinished(long batchid)
+    {
+        int length = connections.size();
+        int index = (int)batchid % length;
+        if(index == (length-1))
+            return true;
+        else
+            return false;
+    }
+    
     public void run() {
-        InputClientConnection icc = this.getClientConnection();
+        
+        createConnections();
         
         long success_count = 0;
         
@@ -130,6 +199,9 @@ public class BatchRunner implements Runnable{
                     boolean reconnect = false;
                     
                     while (retries-- > 0) {
+                        
+                        InputClientConnection icc = this.getConnection(batch.getID());
+                        
                         try {
                             
                             //this.execQuery(icc.client, query);
@@ -138,12 +210,47 @@ public class BatchRunner implements Runnable{
                             if(successful==true)
                             {
                                 success_count++;
-                                //System.out.println("BatchRunner : successful execute #batchs - " + success_count);
+                            }
+                            
+                            // if round is over, then we get the result and print it out
+                            if(isRoundFinished(batch.getID()))
+                            {
+                                // get one round result
+                                InputClientConnection anothericc = this.getRandomConnection();
+                                VoltTable table = getResult(anothericc.client, "GetResults");
+                                
+                                // print out
+                                if(this.display==true)
+                                    if(table != null)
+                                    {
+                                        int rowsize = table.getRowCount();
+                                        System.out.println("batch:" + batch.getID() + " - total words: " + batch.getSize() + " - words:"+ rowsize);
+                                        System.out.println("--------------BEGIN------------");
+                                        int igroup = 5;
+                                        String groupoutput = "";
+                                        for(int rowindex=0; rowindex<rowsize; rowindex++)
+                                        {
+                                            String word = table.fetchRow(rowindex).getString(0);
+                                            int num = (int)table.fetchRow(rowindex).getLong(1);
+                                            word = String.format("%-15s - ", word);
+                                            String strNum = String.format("%5d    ", num);
+                                            groupoutput += word + strNum;
+                                            if(rowindex % igroup == (igroup-1)){
+                                                System.out.println( groupoutput );
+                                                groupoutput = "";
+                                            }
+                                        }
+                                        System.out.println("--------------END--------------");
+                                    }
+                                
                             }
                             
                         } catch (NoConnectionsException ex) {
                             LOG.warn("Connection lost. Going to try to connect again...");
-                            icc = this.getClientConnection();
+                            
+                            resetConnections();
+                            icc = this.getConnection(batch.getID());
+                            
                             reconnect = true;
                             continue;
                         }
@@ -172,11 +279,12 @@ public class BatchRunner implements Runnable{
                 e.printStackTrace();
             }
         } finally {
-//            try {
-//                if (icc != null) icc.client.close();
-//            } catch (InterruptedException ex) {
-//                // Ignore
-//            }
+            try {
+                this.closeConnections();
+                //if (icc != null) icc.client.close();
+            } catch (InterruptedException ex) {
+                // Ignore
+            }
         }
         
         // generating benchmark report
@@ -268,18 +376,18 @@ public class BatchRunner implements Runnable{
      * The return value includes what site the client connected to
      * @return
      */
-    private InputClientConnection getClientConnection() {
+    private InputClientConnection getClientConnection(String host) {
         String hostname = null;
         int port = -1;
         
         // Fixed hostname
-        if (this.hostname != null) {
-            if (this.hostname.contains(":")) {
-                String split[] = this.hostname.split("\\:", 2);
+        if (host != null) {
+            if (host.contains(":")) {
+                String split[] = host.split("\\:", 2);
                 hostname = split[0];
                 port = Integer.valueOf(split[1]);
             } else {
-                hostname = this.hostname;
+                hostname = host;
                 port = this.port;
             }
         }
@@ -396,6 +504,28 @@ public class BatchRunner implements Runnable{
         return result;
     }
     
+    private VoltTable getResult(Client client, String procName) throws Exception 
+    {
+        VoltTable result = null;
+        
+        Procedure catalog_proc = this.catalog_db.getProcedures().getIgnoreCase(procName);
+        if (catalog_proc == null) {
+            throw new Exception("Invalid stored procedure name '" + procName + "'");
+        }
+        
+        //result = client.asynCallProcedure(null, catalog_proc.getName(), null, params);
+        ClientResponse response = client.callProcedure(catalog_proc.getName());
+        
+        if(response.getStatus()==Status.OK)
+        {
+            result = response.getResults()[0];
+        }
+        else
+            System.out.println("Failed : " + catalog_proc.getName());
+        
+        return result;
+    }
+
     protected static List<String> extractParams(String paramStr) throws Exception {
         List<String> params = new ArrayList<String>();
         int pos = -1;

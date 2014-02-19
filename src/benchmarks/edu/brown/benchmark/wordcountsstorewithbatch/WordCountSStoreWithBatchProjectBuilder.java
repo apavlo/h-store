@@ -4,7 +4,7 @@ import org.voltdb.VoltProcedure;
 
 import edu.brown.benchmark.AbstractProjectBuilder;
 import edu.brown.api.BenchmarkComponent;
-
+import edu.brown.benchmark.wordcountsstorewithbatch.procedures.GetResults;
 import edu.brown.benchmark.wordcountsstorewithbatch.procedures.SimpleCall; 
 import edu.brown.benchmark.wordcountsstorewithbatch.procedures.WindowTrigger; 
 import edu.brown.benchmark.wordcountsstorewithbatch.procedures.MidStreamTrigger; 
@@ -24,8 +24,9 @@ public class WordCountSStoreWithBatchProjectBuilder extends AbstractProjectBuild
     public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
         SimpleCall.class,
         WindowTrigger.class,
-        //MidStreamTrigger.class,
-        //ResultsWinTrigger.class,
+        MidStreamTrigger.class,
+        ResultsWinTrigger.class,
+        GetResults.class,
         CountTrigger.class
     };
 	

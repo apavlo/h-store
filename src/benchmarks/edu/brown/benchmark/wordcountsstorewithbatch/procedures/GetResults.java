@@ -17,16 +17,17 @@ import edu.brown.stream.Tuple;
 public class GetResults extends VoltProcedure {
     
     public final SQLStmt selectResultsStmt = new SQLStmt(
-            "SELECT word, sum(num) FROM W_RESULTS group by word;"
+            "SELECT word, sum(num) FROM W_RESULTS GROUP BY word ORDER BY word ASC;"
     		//"INSERT INTO W_WORDS VALUES (?, ?);"
         );
     
     //public long run(String word, int time) 
-    public long run()
+    public VoltTable[] run()
     {
+       VoltTable[] results;
        voltQueueSQL(selectResultsStmt);
-       voltExecuteSQL(true);
+       results = voltExecuteSQL(true);
 
-       return 0;
+       return results;
     }
 }
