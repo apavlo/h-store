@@ -227,6 +227,7 @@ public class BatchRunner implements Runnable{
                                 
                                 // print out
                                 if(this.display==true)
+                                {
                                     System.out.println("Getting result from node -" + anothericc.hostname + "...");
                                     if(table != null)
                                     {
@@ -249,7 +250,7 @@ public class BatchRunner implements Runnable{
                                         }
                                         System.out.println("--------------END--------------");
                                     }
-                                
+                                }
                             }
                             
                         } catch (NoConnectionsException ex) {
