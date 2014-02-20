@@ -22,8 +22,8 @@ public class SimpleCall extends VoltProcedure {
         );
     
     public final SQLStmt selectResultsStmt = new SQLStmt(
-            "SELECT word, sum(num) FROM W_RESULTS group by word;"
-    		//"INSERT INTO W_WORDS VALUES (?, ?);"
+            //"SELECT word, sum(num) FROM W_RESULTS group by word;"
+    		"SELECT word, num FROM W_RESULTS;"
         );
     
     //public long run(String word, int time) 
@@ -52,19 +52,27 @@ public class SimpleCall extends VoltProcedure {
             
             i++;
             j++;
+            
             if( i == maximum )
             {
                 if( j == size )
+                {
                     beFinalBatch = true;
+                	//voltQueueSQL(selectResultsStmt);
+                }
                                 
                 voltExecuteSQL(beFinalBatch);
                 i = 0;
             }
+            
         }
         
-        //voltQueueSQL(selectResultsStmt);
+        
         if( i !=0 )
-        voltExecuteSQL(true);
+        {
+        	//voltQueueSQL(selectResultsStmt);
+        	voltExecuteSQL(true);
+        }
 
         return 0;
     }

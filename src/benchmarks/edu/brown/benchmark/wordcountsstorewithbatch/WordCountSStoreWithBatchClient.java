@@ -120,6 +120,7 @@ public class WordCountSStoreWithBatchClient extends BenchmarkComponent {
             	//Thread t = new Thread(new TransactionRunner(batch, client));
         		//t.start();
         		response = client.callProcedure(callback, "SimpleCall", batch.toJSONString());
+        		response = client.callProcedure(callback, "GetResults");
             	
             	batch = new Batch();
             	batch.setID(timestamp);

@@ -72,28 +72,14 @@ public class Vote extends VoltProcedure {
     );
     
  // Find the cutoff vote
-    public final SQLStmt checkStagingCount = new SQLStmt(
+    public final SQLStmt checkStagingTime = new SQLStmt(
 		"SELECT min(time) FROM w_staging;"
     );
-    
- // Find the cutoff vote
-    public final SQLStmt selectWindowCountStmt = new SQLStmt(
-		"SELECT count(*) FROM w_rows;"
-    );
-    
- // Find the cutoff vote
-    public final SQLStmt selectFullWindowStmt = new SQLStmt(
-		"SELECT vote_id FROM w_rows ORDER BY vote_id;"
-    );
-    
-    // Find the cutoff vote
-    public final SQLStmt selectCutoffVoteStmt = new SQLStmt(
-		"SELECT vote_id FROM w_rows ORDER BY vote_id ASC LIMIT ?;"
-    );
+
     
  // Find the cutoff vote
     public final SQLStmt deleteCutoffVoteStmt = new SQLStmt(
-		"DELETE FROM w_rows WHERE vote_id <= ?;"
+		"DELETE FROM w_rows WHERE time < ?;"
     );
     
     // Put the staging votes into the window
@@ -117,9 +103,9 @@ public class Vote extends VoltProcedure {
     );
     
  // Put the vote into the staging window
-    public final SQLStmt UpdateLeaderBoardStmt = new SQLStmt(
-		"INSERT INTO votes (vote_id, phone_number, state, contestant_number, created) VALUES (?, ?, ?, ?, ?);"
-    );
+   // public final SQLStmt UpdateLeaderBoardStmt = new SQLStmt(
+	//	"INSERT INTO votes (vote_id, phone_number, state, contestant_number, created) VALUES (?, ?, ?, ?, ?);"
+    //);
 	
     public long run(long voteId, long phoneNumber, int contestantNumber, long maxVotesPerPhoneNumber, int currentTimestamp) {
 		
@@ -146,35 +132,29 @@ public class Vote extends VoltProcedure {
         final String state = (validation[2].getRowCount() > 0) ? validation[2].fetchRow(0).getString(0) : "XX";
 		 		
         // Post the vote
-        TimestampType timestamp = new TimestampType();
-        voltQueueSQL(insertVoteStmt, voteId, phoneNumber, state, contestantNumber, timestamp);
-        voltQueueSQL(insertVoteStagingStmt, voteId, phoneNumber, state, contestantNumber, timestamp);
-        voltQueueSQL(checkStagingCount);
-        voltQueueSQL(selectWindowCountStmt);
-        voltQueueSQL(selectCutoffVoteStmt, slideSize);
+        //TimestampType timestamp = new TimestampType();
+        voltQueueSQL(insertVoteStmt, voteId, phoneNumber, state, contestantNumber, currentTimestamp);
+        voltQueueSQL(checkStagingTime);
         validation = voltExecuteSQL();
         
-        if((int)(validation[2].fetchRow(0).getLong(0)) == slideSize)
+        if(validation[1].getRowCount() != 0 && currentTimestamp - (int)(validation[1].fetchRow(0).getLong(0)) >= slideSize)
         {
         	//Check the window size and cutoff vote can be done one of two ways:
         	//1) Two statements: one gets window size, one gets all rows to be deleted
         	//2) Return full window to Java, and let it sort it out.  Better for large slides.
         	//Likewise, either of these methods can be called in the earlier batch if that's better.
         	//voltQueueSQL(selectFullWindowStmt);
-        	
+
         	//validation = voltExecuteSQL();
-        	if((int)(validation[3].fetchRow(0).getLong(0)) >= windowSize)
-        	{
-        		long cutoffId = validation[4].fetchRow(slideSize-1).getLong(0);
-        		voltQueueSQL(deleteCutoffVoteStmt, cutoffId);
-        	}
+        	voltQueueSQL(deleteCutoffVoteStmt, currentTimestamp - windowSize );
         	voltQueueSQL(insertVoteWindowStmt);
     		voltQueueSQL(deleteLeaderBoardStmt);
     		voltQueueSQL(updateLeaderBoardStmt);
     		voltQueueSQL(deleteStagingStmt);
-    		voltExecuteSQL(true);
         }
-		
+        voltQueueSQL(insertVoteStagingStmt, voteId, phoneNumber, state, contestantNumber, currentTimestamp);
+        voltExecuteSQL(true);
+        
         // Set the return value to 0: successful vote
         return VoterWinTimeHStoreConstants.VOTE_SUCCESSFUL;
     }

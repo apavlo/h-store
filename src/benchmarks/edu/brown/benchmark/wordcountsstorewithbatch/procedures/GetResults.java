@@ -17,8 +17,8 @@ import edu.brown.stream.Tuple;
 public class GetResults extends VoltProcedure {
     
     public final SQLStmt selectResultsStmt = new SQLStmt(
-            "SELECT word, sum(num) FROM W_RESULTS GROUP BY word ORDER BY word ASC;"
-    		//"INSERT INTO W_WORDS VALUES (?, ?);"
+            //"SELECT word, sum(num) FROM W_WORDS GROUP BY word ORDER BY word ASC;"
+    		"SELECT word, count(*) FROM W_WORDS GROUP BY word ORDER BY word ASC;"
         );
     
     //public long run(String word, int time) 
