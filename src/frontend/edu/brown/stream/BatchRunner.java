@@ -204,7 +204,10 @@ public class BatchRunner implements Runnable{
                         
                         try {
                             
-                            //this.execQuery(icc.client, query);
+                            if(this.display==true)
+                            {
+                                System.out.println("Sending batch-" + batch.getID() + " to node-" + icc.hostname + "...");
+                            }
                             boolean successful = this.execBatch(icc.client, "SimpleCall", batch, reconnect);
                             //boolean successful = this.execProcedure(icc.client, "SimpleCall", batchJSONString, reconnect);
                             if(successful==true)
