@@ -82,7 +82,10 @@ public class BatchRunner implements Runnable{
     public BatchRunner(BlockingQueue<BatchRunnerResults> batchResultQueue, boolean display)
     {
         this.batchResultQueue = batchResultQueue;
-        this.display = !display;
+        if(display == true)
+            this.display = false;
+        else
+            this.display = true;
     }
     
     public void setCatalog(Catalog catalog) throws Exception{
@@ -216,7 +219,7 @@ public class BatchRunner implements Runnable{
                             }
                             
                             // if round is over, then we get the result and print it out
-                            if(isRoundFinished(batch.getID()))
+                            //if(isRoundFinished(batch.getID()))
                             {
                                 // get one round result
                                 InputClientConnection anothericc = this.getRandomConnection();
@@ -224,6 +227,7 @@ public class BatchRunner implements Runnable{
                                 
                                 // print out
                                 if(this.display==true)
+                                    System.out.println("Getting result from node -" + anothericc.hostname + "...");
                                     if(table != null)
                                     {
                                         int rowsize = table.getRowCount();
