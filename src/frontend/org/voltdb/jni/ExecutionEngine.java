@@ -864,14 +864,32 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
      * On LINUX, procfs is read to get RSS
      * @return Returns the RSS size in bytes or -1 on error (or wrong platform).
      */
-    public native static long nativeGetRSS();
+    public native static long nativeGetRSS();    
     
-    // ARIES
+    // ----------------------------------------------------------------------------
+    // STORAGE MMAP
+    // ----------------------------------------------------------------------------
+    
+    public abstract void MMAPInitialize(File dbDir, long mapSize, long syncFrequency) throws EEException;
     
     /**
-    * Start ARIES recovery.
-    * @param pointer Pointer to an engine instance
-    */
+     * Enables the mmap storage feature in the EE. The given database directory path
+     * must be a unique location for this partition where the EE can store MMAP'ed files.
+     */
+    protected native int nativeMMAPInitialize(long pointer, String dbDir, long mapSize, long syncFrequency);
+
+    // ----------------------------------------------------------------------------
+    // ARIES
+    // ----------------------------------------------------------------------------
+
+    public abstract void ARIESInitialize(File dbDir) throws EEException;
+
+    /**
+     * Enables the ARIES  feature in the EE. The given database directory path
+     * must be a unique location for this partition where the EE can store ARIES logs
+     */
+    protected native int nativeARIESInitialize(long pointer, String dbDir);
+        
     protected native void nativeDoAriesRecoveryPhase(long pointer, long replayPointer, long replayLogSize, long replayTxnId);
 
     protected native long nativeGetArieslogBufferLength(long pointer);
@@ -881,33 +899,6 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
     protected native long nativeReadAriesLogForReplay(long pointer, long[] size);
 
     protected native void nativeFreePointerToReplayLog(long pointer, long ariesReplayPointer);
-    
-    
-    // ----------------------------------------------------------------------------
-    // STORAGE MMAP
-    // ----------------------------------------------------------------------------
-    
-    /**
-     * Initialize mmap storage feature at this partition's EE.  
-     * <B>NOTE:</B> This must be invoked before loadCatalog is invoked
-     * @param dbDir
-     * @param mapSize TODO
-     * @throws EEException
-     * @return
-     */
-    public abstract void MMAPInitialize(File dbDir, long mapSize, long syncFrequency) throws EEException;
-    
-    /**
-     * Enables the mmap storage feature in the EE. The given database directory path
-     * must be a unique location for this partition where the EE can store 
-     * evicted blocks of tuples. The EE assumes that the parent directories 
-     * for dbDir exist and are writable.  
-     * @param pointer
-     * @param dbDir
-     * @param mapSize TODO
-     * @return
-     */
-    protected native int nativeMMAPInitialize(long pointer, String dbDir, long mapSize, long syncFrequency);
- 
+
     
 }

@@ -18,8 +18,8 @@
 #ifndef ARIESLOGPROXY_H_
 #define ARIESLOGPROXY_H_
 
-#include "LogDefs.h"
-#include "LogProxy.h"
+#include "logging/LogDefs.h"
+#include "logging/LogProxy.h"
 
 #include <iostream>
 #include <fstream>
@@ -36,12 +36,11 @@ public:
 	~AriesLogProxy();
 
 	void log(LoggerId loggerId, LogLevel level, const char *statement) const;
-	static AriesLogProxy* getAriesLogProxy(VoltDBEngine*, std::string logfileName);
+	static AriesLogProxy* getAriesLogProxy(VoltDBEngine* engine);
 	void logBinaryOutput(const char *data, size_t size);
 	//void setEngine(VoltDBEngine*);
 
 	std::string getLogFileName();
-
 	static std::string defaultLogfileName;
 
 private:
@@ -57,6 +56,7 @@ private:
 	std::ofstream logfile;
 
 	bool jniLogging;
+	bool initialized;
 	VoltDBEngine* engine;
 };
 

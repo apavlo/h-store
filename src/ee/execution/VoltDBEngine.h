@@ -130,11 +130,14 @@ class __attribute__((visibility("default"))) VoltDBEngine {
           m_currentInputDepId(-1),
           m_isELEnabled(false),
           m_numResultDependencies(0),
-          m_logManager(new StdoutLogProxy(), NULL
-          ),
-          m_templateSingleLongTable(NULL), m_topend(NULL)
+          m_templateSingleLongTable(NULL),
+          m_topend(NULL),
+          m_logProxy(NULL),
+          m_logManager(new StdoutLogProxy(), NULL),
+          m_ARIESEnabled(false)
         {
             m_currentUndoQuantum = new DummyUndoQuantum();
+
         }
 
         VoltDBEngine(Topend *topend, LogProxy *logProxy);
@@ -149,6 +152,7 @@ class __attribute__((visibility("default"))) VoltDBEngine {
 
         inline int32_t getClusterIndex() const { return m_clusterIndex; }
         inline int32_t getSiteId() const { return m_siteId; }
+        inline int32_t getPartitionId() const { return m_partitionId; }
 
         // ------------------------------------------------------------------
         // OBJECT ACCESS FUNCTIONS
@@ -292,16 +296,37 @@ class __attribute__((visibility("default"))) VoltDBEngine {
         // ANTI-CACHE FUNCTIONS
         // -------------------------------------------------
         void antiCacheInitialize(std::string dbDir, long blockSize) const;
-        #ifdef ANTICACHE
-        int antiCacheReadBlocks(int32_t tableId, int numBlocks, int16_t blockIds[], int32_t tupleOffsets[]);
-        int antiCacheEvictBlock(int32_t tableId, long blockSize, int numBlocks);
-        int antiCacheMergeBlocks(int32_t tableId);
-        #endif
+#ifdef ANTICACHE
+	int antiCacheReadBlocks(int32_t tableId, int numBlocks, int16_t blockIds[], int32_t tupleOffsets[]);
+	int antiCacheEvictBlock(int32_t tableId, long blockSize, int numBlocks);
+	int antiCacheMergeBlocks(int32_t tableId);
+#endif
         
         // -------------------------------------------------
         // STORAGE MMAP
         // -------------------------------------------------
         void MMAPInitialize(std::string dbDir, long mapSize, long syncFrequency ) const;
+
+
+        // ARIES
+        void ARIESInitialize(std::string dbDir) ;
+
+        std::string getARIESDir(){
+        	return m_ARIESDir;
+        }
+
+        void setARIESDir(std::string dbDir){
+        	m_ARIESDir = dbDir;
+        }
+
+        bool isARIESEnabled() {
+        	return m_ARIESEnabled;
+        }
+
+        void setARIESEnabled(bool status) {
+        	m_ARIESEnabled = status;
+        }
+
 
         // -------------------------------------------------
         // Debug functions
@@ -412,19 +437,20 @@ class __attribute__((visibility("default"))) VoltDBEngine {
          */
         void processRecoveryMessage(RecoveryProtoMsg *message);
 
-//#ifdef ARIES
-        char* readAriesLogForReplay(int64_t* sizes);
-        void freePointerToReplayLog(char *logData);
-
+#ifdef ARIES
         // do aries recovery - startup work.
         void doAriesRecovery(char *logData, size_t length, int64_t replay_txnid);
+
+        char* readAriesLogForReplay(int64_t* sizes);
+
+        void freePointerToReplayLog(char *logData);
 
         void writeToAriesLogBuffer(const char *data, size_t size);
 
         size_t getArieslogBufferLength();
 
         void rewindArieslogBuffer();
-//#endif
+#endif
 
         /**
          * Perform an action on behalf of Export.
@@ -555,9 +581,12 @@ class __attribute__((visibility("default"))) VoltDBEngine {
         // ARIES
         /** buffer object to store aries log */
         char* m_arieslogBuffer;
+
         int m_arieslogBufferCapacity;
 
         size_t m_ariesWriteOffset;
+
+        std::string m_ARIESDir ;
 
         bool m_isRecovering;	// are we currently recovering?
 
@@ -597,8 +626,6 @@ class __attribute__((visibility("default"))) VoltDBEngine {
          */
         std::vector<PlanNodeFragment*> m_planFragments;
 
-        LogManager m_logManager;
-
         char *m_templateSingleLongTable;
 
         // depid + table size + status code + header size + column count + column type
@@ -612,6 +639,12 @@ class __attribute__((visibility("default"))) VoltDBEngine {
         ExecutorContext *m_executorContext;
 
         DefaultTupleSerializer m_tupleSerializer;
+
+        LogProxy* m_logProxy;
+
+        LogManager m_logManager;
+
+        bool m_ARIESEnabled ;
 
     private:
         ThreadLocalPool m_tlPool;
@@ -636,6 +669,7 @@ void VoltDBEngine::releaseUndoToken(int64_t undoToken){
     return;
   }
 
+#ifdef STORAGE_MMAP
   if(m_executorContext->isMMAPEnabled()){    
       for (std::map<int32_t, Table*>::iterator m_tables_itr = m_tables.begin() ; m_tables_itr != m_tables.end() ; ++m_tables_itr){
           Table* table = m_tables_itr->second;
@@ -662,6 +696,7 @@ void VoltDBEngine::releaseUndoToken(int64_t undoToken){
           }
       }
   }
+#endif
 
   if (m_currentUndoQuantum != NULL && m_currentUndoQuantum->getUndoToken() == undoToken) {
       m_currentUndoQuantum = NULL;    

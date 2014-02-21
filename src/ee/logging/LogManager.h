@@ -122,7 +122,6 @@ private:
     const LogProxy *m_proxy;
     Logger m_sqlLogger;
     Logger m_hostLogger;
-
     Logger m_ariesLogger;
 };
 }

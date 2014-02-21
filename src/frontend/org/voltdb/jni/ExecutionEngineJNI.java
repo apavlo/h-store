@@ -838,8 +838,22 @@ public class ExecutionEngineJNI extends ExecutionEngine {
         checkErrorCode(errorCode);
         m_anticache = true;
     }
+
+    /*
+     * ARIES
+     */
     
-    // ARIES
+    @Override
+    public void ARIESInitialize(File dbDir) throws EEException {
+        
+        LOG.info("Initializing ARIES feature at partition " + this.executor.getPartitionId());
+        LOG.info(String.format("Partition #%d ARIES Directory: %s",
+                 this.executor.getPartitionId(), dbDir.getAbsolutePath()));
+        final int errorCode = nativeARIESInitialize(this.pointer, dbDir.getAbsolutePath());
+        checkErrorCode(errorCode);
+        m_anticache = true;
+    }
+    
     @Override
     public void doAriesRecoveryPhase(long replayPointer, long replayLogSize, long replayTxnId) {
         nativeDoAriesRecoveryPhase(pointer, replayPointer, replayLogSize, replayTxnId);

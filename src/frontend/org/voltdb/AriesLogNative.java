@@ -129,6 +129,8 @@ public class AriesLogNative extends AriesLog {
 				long logsizeInMb = logsize;
 				
 				//XXX: hard code filename for now
+				String m_logFileName = null;
+				
 				ariesLogfile = new RandomAccessFile(m_defaultLogFileName, "rw");
 				ariesLogfile.setLength(logsizeInMb * 1024 * 1024);
 				

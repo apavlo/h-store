@@ -1504,6 +1504,11 @@ public class ExecutionEngineIPC extends ExecutionEngine {
     
     // ARIES 
     @Override
+    public void ARIESInitialize(File dbDir) throws EEException {
+        throw new NotImplementedException("ARIES recovery is disabled for IPC ExecutionEngine");
+    }
+    
+    @Override
     public long getArieslogBufferLength() {
         // XXX: do nothing, we only implement this for JNI now.
         throw new NotImplementedException("ARIES recovery is disabled for IPC ExecutionEngine");

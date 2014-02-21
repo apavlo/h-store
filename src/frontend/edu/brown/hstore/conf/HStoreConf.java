@@ -717,9 +717,7 @@ public final class HStoreConf {
         // ----------------------------------------------------------------------------
         
         @ConfigProperty(
-            description="Use mmap to store database on local filesystem. " +
-                        "This is very experimental. Unless you are James, you probably " +
-                        "don't want to enable this feature.",
+            description="Use mmap to store database on local filesystem. ",
             defaultBoolean=false,
             experimental=true
         )
@@ -755,6 +753,33 @@ public final class HStoreConf {
         )
         public long storage_mmap_sync_frequency; 
 
+        // ----------------------------------------------------------------------------
+        // ARIES Options
+        // ----------------------------------------------------------------------------
+        @ConfigProperty(
+                description="ARIES recovery system enabled. ",
+                defaultBoolean=false,
+                experimental=true
+        )
+        public boolean aries;
+            
+        @ConfigProperty(
+                description="Location of where H-Store will store ARIES log files for each partition. " +
+                            "This is only used if ${site.aries} is enabled. ",
+                defaultString="${global.temp_dir}/aries",
+                experimental=true
+        )
+        public String aries_dir;
+
+            
+        @ConfigProperty(
+                description="Reset the ARIES directory for each partition when " +
+                            "the HStoreSite is started (disabled by default).",
+                defaultBoolean=false,
+                experimental=true
+        )
+        public boolean aries_reset;
+                    
         
         // ----------------------------------------------------------------------------
         // MapReduce Options

@@ -440,10 +440,13 @@ public class TestSnapshotRecovery extends RegressionSuite {
      */
     static public Test suite() {
         MultiConfigSuiteBuilder builder = new MultiConfigSuiteBuilder(TestSnapshotRecovery.class);
-        builder.setGlobalConfParameter("site.commandlog_enable", true);
+        builder.setGlobalConfParameter("site.commandlog_enable", false);
         builder.setGlobalConfParameter("site.commandlog_timeout", 10);
         builder.setGlobalConfParameter("site.status_enable", true);
         builder.setGlobalConfParameter("site.status_exec_info", true);
+        
+        builder.setGlobalConfParameter("site.aries", true);        
+        
                 
         YCSBProjectBuilder project = new YCSBProjectBuilder();
 

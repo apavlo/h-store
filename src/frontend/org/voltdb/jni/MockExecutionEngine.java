@@ -233,6 +233,11 @@ public class MockExecutionEngine extends ExecutionEngine {
     }
     
     @Override
+    public void ARIESInitialize(File dbDir) throws EEException {
+     // TODO Auto-generated method stub        
+    }
+
+    @Override
     public long getArieslogBufferLength() { 
     // XXX: do nothing, we only implement this for JNI now.
         return 0;

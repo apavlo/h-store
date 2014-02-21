@@ -37,15 +37,20 @@ AriesLogProxy::AriesLogProxy(VoltDBEngine *engine, string logfileName) {
 }
 
 void AriesLogProxy::init(VoltDBEngine *engine, string logfileName) {
+	if(initialized){
+		return;
+	}
+
 	this->logfileName = logfileName;
 	// CHANGE :: originally true
 	jniLogging = false;
 
 	if (!jniLogging) {
 		logfile.open(logfileName.c_str(), ios::out | ios::binary | ios::app);
-
 		long pos = logfile.tellp();
 		VOLT_WARN("AriesLogProxy : opened logfile %s :: pos %ld", logfileName.c_str(), pos);
+
+		initialized = true;
 	} else {
 		if (engine == NULL) {
 			cout << "what in the god's name is this shit " << endl;
@@ -62,12 +67,15 @@ AriesLogProxy::~AriesLogProxy() {
 	}
 }
 
-AriesLogProxy* AriesLogProxy::getAriesLogProxy(VoltDBEngine *engine, string logfileName) {
-	if (logfileName == "") {
-		return new AriesLogProxy(engine);
+AriesLogProxy* AriesLogProxy::getAriesLogProxy(VoltDBEngine *engine) {
+	if (engine != NULL && engine->isARIESEnabled()) {
+		ostringstream ss;
+		ss << engine->getARIESDir();
+		ss << "/" << defaultLogfileName;
+		return new AriesLogProxy(engine, ss.str());
 	}
 
-	return new AriesLogProxy(engine, logfileName);
+	return NULL;
 }
 
 string AriesLogProxy::getLogFileName() {
@@ -158,7 +166,7 @@ void AriesLogProxy::logLocally(const char *data, size_t size) {
 }
 
 void AriesLogProxy::logToEngineBuffer(const char *data, size_t size) {
-//#ifdef ARIES
+#ifdef ARIES
 	engine->writeToAriesLogBuffer(data, size);
-//#endif
+#endif
 }

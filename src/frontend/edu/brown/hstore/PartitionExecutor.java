@@ -807,6 +807,12 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                     eeTemp.MMAPInitialize(dbFile, mapSize, syncFrequency);
                 }
                 
+                // Initialize ARIES
+                if (hstore_conf.site.aries) {
+                    File dbFile = getARIESDir(this);
+                    eeTemp.ARIESInitialize(dbFile);
+                }                            
+                
                 // Important: This has to be called *after* we initialize the anti-cache
                 //            and the storage information!
                 eeTemp.loadCatalog(catalogContext.catalog.serialize());
@@ -1065,9 +1071,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         assert(this.specExecScheduler != null);
         assert(this.queueManager != null);
         
-        // ARIES
-        // Starts recovery setup on partition
-        doPartitionRecovery(Long.MIN_VALUE);
+        // ARIES :: Starts recovery on partition
+        if(m_ariesLog != null){
+            doPartitionRecovery(Long.MIN_VALUE);
+        }
         
         // *********************************** DEBUG ***********************************
         if (hstore_conf.site.exec_validate_work) {
@@ -2067,6 +2074,36 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         return (dbDirPath);
     }
     
+    /**
+     * Returns the directory where the EE should store the ARIES log files
+     * for this PartitionExecutor
+     * @return
+     */
+    public static File getARIESDir(PartitionExecutor executor) {
+        HStoreConf hstore_conf = executor.getHStoreConf();
+        Database catalog_db = CatalogUtil.getDatabase(executor.getPartition());
+
+        // First make sure that our base directory exists
+        String base_dir = FileUtil.realpath(hstore_conf.site.aries_dir +
+                File.separatorChar +
+                catalog_db.getProject());
+
+        //synchronized (AntiCacheManager.class) {
+        FileUtil.makeDirIfNotExists(base_dir);
+        //} // SYNC
+
+        // Then each partition will have a separate directory inside of the base one
+        String partitionName = HStoreThreadManager.formatPartitionName(executor.getSiteId(),
+                executor.getPartitionId());
+        File dbDirPath = new File(base_dir + File.separatorChar + partitionName);
+        if (hstore_conf.site.aries_reset) {
+            LOG.warn(String.format("Deleting aries directory '%s'", dbDirPath));
+            FileUtil.deleteDirectory(dbDirPath);
+        }
+        FileUtil.makeDirIfNotExists(dbDirPath);
+
+        return (dbDirPath);
+    }
     // ---------------------------------------------------------------
     // PartitionExecutor API
     // ---------------------------------------------------------------

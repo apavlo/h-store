@@ -424,12 +424,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     
     // ARIES
     private AriesLog m_ariesLog = null;
-    
-    private boolean m_recovering = false;
-    private boolean m_haveRecoveryPermit = false;
-    private long m_recoveryStartTime = 0;
-    private static AtomicLong m_recoveryBytesTransferred = new AtomicLong();
-    
+        
     private VoltLogger m_recoveryLog = null;    
 
     public AriesLog getAriesLogger() {
@@ -477,14 +472,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         this.p_estimator = new PartitionEstimator(this.catalogContext, this.hasher);
         this.remoteTxnEstimator = new RemoteEstimator(this.p_estimator);
         
-        // ARIES        
-        // Starts native thread
-        this.m_ariesLog = new AriesLogNative(
-                1, 
-                0,   // 0 MB
-                16); // Sync Frequency
-        this.m_recoveryLog  = new VoltLogger("RECOVERY");        
-
+        // ARIES 
+        if(hstore_conf.site.aries){
+            LOG.warn("Starting ARIES recovery at 1 site");           
+            this.m_ariesLog = new AriesLogNative(1); // numSites -> 1
+            this.m_recoveryLog = new VoltLogger("RECOVERY");
+        }
         
         // **IMPORTANT**
         // Always clear out the CatalogUtil and BatchPlanner before we start our new HStoreSite
@@ -1317,7 +1310,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         // ARIES
         if (m_ariesLog != null) {
-            LOG.warn("Starting ARIES recovery");
             doSiteRecovery();
             waitForAriesLogInit();
         }

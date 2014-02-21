@@ -51,7 +51,7 @@ const Logger<LOGGERID_HOST>* LogManager::getThreadLogger() {
  */
 LogManager::LogManager(LogProxy *proxy, VoltDBEngine *engine)
 :  m_proxy(proxy), m_sqlLogger(proxy, LOGGERID_SQL), m_hostLogger(proxy, LOGGERID_HOST),
-   m_ariesLogger(AriesLogProxy::getAriesLogProxy(engine, ""), LOGGERID_MM_ARIES) // give the ARIES logger a different proxy
+   m_ariesLogger(AriesLogProxy::getAriesLogProxy(engine), LOGGERID_MM_ARIES) // give the ARIES logger a different proxy
 {
     (void)pthread_once(&m_keyOnce, createThreadLocalKey);
     pthread_setspecific( m_key, static_cast<const void *>(this));
@@ -62,8 +62,7 @@ LogManager::LogManager(LogProxy *proxy, VoltDBEngine *engine)
 /*
 #ifdef ARIES
 void LogManager::setAriesProxyEngine(VoltDBEngine* engine) {
-AriesLogProxy* ariesProxy = const_cast<AriesLogProxy*>(dynamic_cast<const AriesLogProxy*>(m_ariesLogger.m_logProxy));
-
+	AriesLogProxy* ariesProxy = const_cast<AriesLogProxy*>(dynamic_cast<const AriesLogProxy*>(m_ariesLogger.m_logProxy));
 }
 #endif
 */
