@@ -115,11 +115,19 @@ namespace voltdb {
 const int64_t AD_HOC_FRAG_ID = -1;
 
 VoltDBEngine::VoltDBEngine(Topend *topend, LogProxy *logProxy) :
-		m_currentUndoQuantum(NULL), m_catalogVersion(0), m_staticParams(
-		MAX_PARAM_COUNT), m_currentOutputDepId(-1), m_currentInputDepId(-1), m_isELEnabled(
-				false), m_stringPool(16777216, 2), m_numResultDependencies(0), m_templateSingleLongTable(
-				NULL), m_topend(topend), m_logProxy(logProxy), m_logManager(
-				logProxy, this), m_ARIESEnabled(false) {
+		m_currentUndoQuantum(NULL),
+		m_catalogVersion(0), m_staticParams(
+		MAX_PARAM_COUNT),
+		m_currentOutputDepId(-1),
+		m_currentInputDepId(-1),
+		m_isELEnabled(false),
+		m_stringPool(16777216, 2),
+		m_numResultDependencies(0),
+		m_templateSingleLongTable(NULL),
+		m_topend(topend),
+		m_logProxy(logProxy),
+		m_logManager(new LogManager(logProxy)),
+		m_ARIESEnabled(false) {
 	m_currentUndoQuantum = new DummyUndoQuantum();
 
 	// init the number of planfragments executed
@@ -1397,9 +1405,12 @@ void VoltDBEngine::processRecoveryMessage(RecoveryProtoMsg *message) {
 
 #ifdef ARIES
 void VoltDBEngine::ARIESInitialize(std::string dbDir) {
-	VOLT_INFO("Enabling ARIES Feature at Partition %d ", m_partitionId);
+	VOLT_WARN("Enabling ARIES Feature at Partition %d ", m_partitionId);
 	setARIESDir(dbDir);
 	setARIESEnabled(true);
+
+	// Do this only after ARIES dir is set
+	m_logManager = new LogManager(m_logProxy, this);
 	m_executorContext->enableARIES(dbDir);
 }
 #else
@@ -1410,16 +1421,24 @@ void VoltDBEngine::ARIESInitialize(std::string dbDir) {
 
 #ifdef ARIES
 char* VoltDBEngine::readAriesLogForReplay(int64_t* sizes) {
+	if(!isARIESEnabled()) {
+		return NULL;
+	}
+
 	ifstream logfilestream;
 
 	// read custom file names later
-	string logFileName = AriesLogProxy::getAriesLogProxy(this)->getLogFileName();
+	ostringstream ss;
+	ss << getARIESDir();
+	ss << "/" << AriesLogProxy::defaultLogfileName;
+	string logFileName = ss.str();
+	VOLT_WARN("readAriesLogForReplay at : --%s--",logFileName.c_str());
+
 	logfilestream.open(logFileName.c_str(), ios::binary | ios::in);
-	VOLT_WARN("readAriesLogForReplay at : %s",logFileName.c_str());
 
 	if (!logfilestream.is_open()) {
 		sizes[0] = 0;
-		VOLT_WARN("Did not find aries log file at : %s", AriesLogProxy::defaultLogfileName.c_str());
+		VOLT_WARN("Did not find aries log file at : %s", logFileName.c_str());
 		return NULL;	// log file does not exist
 	}
 
@@ -1484,9 +1503,9 @@ void VoltDBEngine::doAriesRecovery(char *logData, size_t length, int64_t replay_
 
 	bool noMoreLogRecords = false;
 
-	Logger m_ariesLogger = m_logManager.getAriesLogger();
+	Logger m_ariesLogger = m_logManager->getAriesLogger();
 	VOLT_WARN("m_logManager : %p AriesLogger : %p",&m_logManager, &m_ariesLogger);
-	const Logger *logger = m_logManager.getThreadLogger(LOGGERID_MM_ARIES);
+	const Logger *logger = m_logManager->getThreadLogger(LOGGERID_MM_ARIES);
 	logger->log(LOGLEVEL_INFO, "Running ARIES recovery, repeating history ...");
 
 	int64_t actualBufLen = length;

@@ -34,6 +34,8 @@ namespace voltdb {
 class LogManager {
 public:
 
+	LogManager(LogProxy *proxy);
+
 	/**
 	 * Constructor that initializes all the loggers with the specified proxy
 	 * @param proxy The LogProxy that all the loggers should use

@@ -44,6 +44,15 @@ const Logger<LOGGERID_HOST>* LogManager::getThreadLogger() {
     return static_cast<LogManager*>(pthread_getspecific(m_key))->getLogger<LOGGERID_HOST>();
 }*/
 
+//  Another Constructor
+LogManager::LogManager(LogProxy *proxy)
+:  m_proxy(proxy), m_sqlLogger(proxy, LOGGERID_SQL), m_hostLogger(proxy, LOGGERID_HOST),
+   m_ariesLogger(NULL, LOGGERID_MM_ARIES)
+{
+    //VOLT_WARN("Creating LogManager for thread : %lu key: %u ariesLogger : %p ",pthread_self(), m_key, &m_ariesLogger);
+}
+
+
 /**
  * Constructor that initializes all the loggers with the specified proxy and
  * sets up a thread local containing a reference to itself.

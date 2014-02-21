@@ -41,7 +41,7 @@ public class AriesLogNative extends AriesLog {
 	
 	private long txnIdToBeginReplay;
 	
-	private final static String m_defaultLogFileName = "aries.log" ;	
+	private static String m_logFileName ; 
 	
 	private static class LogDataWithAtom {
 		public byte b[];
@@ -56,18 +56,20 @@ public class AriesLogNative extends AriesLog {
 	private List<LogDataWithAtom> m_waitingToFlush;
 	private List<LogDataWithAtom> m_beingFlushed;
 	
-	public AriesLogNative(int numSites) {
-		this(numSites, 1024*1024); // hardcode to 1 GB for now.
+	public AriesLogNative(int numSites, String logFileName) {
+		this(numSites, 0, logFileName); // hardcode to 0 MB for now.
 	}
 	
-	public AriesLogNative(int numSites, int size) {
+	public AriesLogNative(int numSites, int size, String logFileName) {
 		// Hardcode for now -- default value of 16 is also specified in
 		// org.voltdb.compiler.DeploymentFileSchema.xsd
-		this(numSites, size, 16);		
+		this(numSites, size, 16, logFileName);		
 	}
 	
-	public AriesLogNative(int numSites, int size, int syncFrequency) {	    
-		m_perSiteRecoveryDone = new boolean[numSites];
+	public AriesLogNative(int numSites, int size, int syncFrequency, String logFileName) {	    
+        LOG.warn("AriesLogNative : numSites : "+numSites+ " logFileName : "+logFileName);
+	    
+	    m_perSiteRecoveryDone = new boolean[numSites];
 		
 		for (int i = 0; i < numSites; i++) {
 			m_perSiteRecoveryDone[i] = false;
@@ -89,6 +91,8 @@ public class AriesLogNative extends AriesLog {
 		// initially set pointer to invalid value
 		pointerToReplayLog = Long.MIN_VALUE;
 		replayLogSize = 0;
+		
+		m_logFileName = logFileName;
 		
 		new Thread(this).start();
 	}
@@ -126,13 +130,10 @@ public class AriesLogNative extends AriesLog {
 	public synchronized void init() {
         if (!isInitialized) {
 			try {
-				long logsizeInMb = logsize;
+				long logsizeInMB = logsize;
 				
-				//XXX: hard code filename for now
-				String m_logFileName = null;
-				
-				ariesLogfile = new RandomAccessFile(m_defaultLogFileName, "rw");
-				ariesLogfile.setLength(logsizeInMb * 1024 * 1024);
+				ariesLogfile = new RandomAccessFile(m_logFileName, "rw");
+				ariesLogfile.setLength(logsizeInMB * 1024 * 1024);
 				
 				ariesLogfile.seek(0);
 				

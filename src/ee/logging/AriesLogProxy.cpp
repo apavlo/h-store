@@ -25,7 +25,7 @@ using std::endl;
 
 using namespace voltdb;
 
-//XXX Must match with AriesLogNative.java
+//XXX Must match with HStoreSite
 string AriesLogProxy::defaultLogfileName = "aries.log";
 
 AriesLogProxy::AriesLogProxy(VoltDBEngine *engine) {
@@ -37,10 +37,6 @@ AriesLogProxy::AriesLogProxy(VoltDBEngine *engine, string logfileName) {
 }
 
 void AriesLogProxy::init(VoltDBEngine *engine, string logfileName) {
-	if(initialized){
-		return;
-	}
-
 	this->logfileName = logfileName;
 	// CHANGE :: originally true
 	jniLogging = false;
@@ -49,8 +45,6 @@ void AriesLogProxy::init(VoltDBEngine *engine, string logfileName) {
 		logfile.open(logfileName.c_str(), ios::out | ios::binary | ios::app);
 		long pos = logfile.tellp();
 		VOLT_WARN("AriesLogProxy : opened logfile %s :: pos %ld", logfileName.c_str(), pos);
-
-		initialized = true;
 	} else {
 		if (engine == NULL) {
 			cout << "what in the god's name is this shit " << endl;
@@ -68,14 +62,22 @@ AriesLogProxy::~AriesLogProxy() {
 }
 
 AriesLogProxy* AriesLogProxy::getAriesLogProxy(VoltDBEngine *engine) {
-	if (engine != NULL && engine->isARIESEnabled()) {
-		ostringstream ss;
-		ss << engine->getARIESDir();
-		ss << "/" << defaultLogfileName;
-		return new AriesLogProxy(engine, ss.str());
+	if(!engine || !engine->isARIESEnabled()) {
+		return NULL;
 	}
 
-	return NULL;
+	ostringstream ss;
+	if(!(engine->getARIESDir().empty())){
+		ss << engine->getARIESDir();
+		ss << "/" << defaultLogfileName;
+	}
+	else{
+		ss << defaultLogfileName;
+	}
+
+	VOLT_WARN("AriesLogProxy : logfile %s", ss.str().c_str());
+
+	return new AriesLogProxy(engine, ss.str());
 }
 
 string AriesLogProxy::getLogFileName() {
@@ -139,10 +141,10 @@ void AriesLogProxy::log(LoggerId loggerId, LogLevel level, const char *statement
 
 void AriesLogProxy::logBinaryOutput(const char *data, size_t size) {
 	if (jniLogging) {
-		//VOLT_WARN("AriesLogProxy : logToEngineBuffer : %lu", size);
+		VOLT_WARN("AriesLogProxy : logToEngineBuffer : %lu", size);
 		logToEngineBuffer(data, size);
 	} else {
-		//VOLT_WARN("AriesLogProxy : logLocally : %lu", size);
+		VOLT_WARN("AriesLogProxy : logLocally : %lu", size);
 		logLocally(data, size);
 	}
 }

@@ -56,7 +56,6 @@ private:
 	std::ofstream logfile;
 
 	bool jniLogging;
-	bool initialized;
 	VoltDBEngine* engine;
 };
 

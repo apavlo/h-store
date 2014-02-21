@@ -2064,6 +2064,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         // Then each partition will have a separate directory inside of the base one
         String partitionName = HStoreThreadManager.formatPartitionName(executor.getSiteId(),
                 executor.getPartitionId());
+        
         File dbDirPath = new File(base_dir + File.separatorChar + partitionName);
         if (hstore_conf.site.storage_mmap_reset) {
             LOG.warn(String.format("Deleting storage mmap directory '%s'", dbDirPath));
@@ -2084,18 +2085,18 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         Database catalog_db = CatalogUtil.getDatabase(executor.getPartition());
 
         // First make sure that our base directory exists
-        String base_dir = FileUtil.realpath(hstore_conf.site.aries_dir +
-                File.separatorChar +
-                catalog_db.getProject());
+        String base_dir = FileUtil.realpath(hstore_conf.site.aries_dir);
 
-        //synchronized (AntiCacheManager.class) {
-        FileUtil.makeDirIfNotExists(base_dir);
-        //} // SYNC
+        synchronized (PartitionExecutor.class) {
+            FileUtil.makeDirIfNotExists(base_dir);
+        } // SYNC
 
-        // Then each partition will have a separate directory inside of the base one
-        String partitionName = HStoreThreadManager.formatPartitionName(executor.getSiteId(),
-                executor.getPartitionId());
-        File dbDirPath = new File(base_dir + File.separatorChar + partitionName);
+        // Single log file for all partitions on site
+        String siteName = HStoreThreadManager.formatSiteName(executor.getSiteId());
+        String ariesSiteDirPath = hstore_conf.site.aries_dir + File.separatorChar + siteName + File.separatorChar;
+        
+        // Single log file for all partitions on site
+        File dbDirPath = new File(ariesSiteDirPath);
         if (hstore_conf.site.aries_reset) {
             LOG.warn(String.format("Deleting aries directory '%s'", dbDirPath));
             FileUtil.deleteDirectory(dbDirPath);

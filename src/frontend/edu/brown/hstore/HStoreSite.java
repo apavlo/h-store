@@ -28,6 +28,7 @@ package edu.brown.hstore;
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.file.FileSystem;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -425,10 +426,19 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     // ARIES
     private AriesLog m_ariesLog = null;
         
+    private String m_ariesLogFileName = null;
+    
+    //XXX Must match with AriesLogProxy
+    private final String m_ariesDefaultLogFileName = "aries.log";
+    
     private VoltLogger m_recoveryLog = null;    
-
+    
     public AriesLog getAriesLogger() {
         return m_ariesLog;
+    }
+
+    public String getAriesLogFileName() {
+        return m_ariesLogFileName;
     }
     
     // ----------------------------------------------------------------------------
@@ -474,8 +484,14 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         // ARIES 
         if(hstore_conf.site.aries){
-            LOG.warn("Starting ARIES recovery at 1 site");           
-            this.m_ariesLog = new AriesLogNative(1); // numSites -> 1
+            LOG.warn("Starting ARIES recovery at site");           
+
+            // Single log file for all partitions on site
+            String siteName = HStoreThreadManager.formatSiteName(this.getSiteId());
+            String ariesSiteDirPath = hstore_conf.site.aries_dir + File.separatorChar + siteName + File.separatorChar;
+           
+            this.m_ariesLogFileName =  ariesSiteDirPath + m_ariesDefaultLogFileName ;
+            this.m_ariesLog = new AriesLogNative(catalogContext.numberOfSites, this.m_ariesLogFileName);
             this.m_recoveryLog = new VoltLogger("RECOVERY");
         }
         

@@ -133,7 +133,7 @@ class __attribute__((visibility("default"))) VoltDBEngine {
           m_templateSingleLongTable(NULL),
           m_topend(NULL),
           m_logProxy(NULL),
-          m_logManager(new StdoutLogProxy(), NULL),
+          m_logManager(new LogManager(new StdoutLogProxy())),
           m_ARIESEnabled(false)
         {
             m_currentUndoQuantum = new DummyUndoQuantum();
@@ -368,7 +368,7 @@ class __attribute__((visibility("default"))) VoltDBEngine {
         inline Pool* getStringPool() { return &m_stringPool; }
 
         inline LogManager* getLogManager() {
-            return &m_logManager;
+            return m_logManager;
         }
 
         inline void setUndoToken(int64_t nextUndoToken) {
@@ -642,7 +642,7 @@ class __attribute__((visibility("default"))) VoltDBEngine {
 
         LogProxy* m_logProxy;
 
-        LogManager m_logManager;
+        LogManager* m_logManager;
 
         bool m_ARIESEnabled ;
 
