@@ -44,6 +44,7 @@ public class BatchRunner implements Runnable{
     
     private boolean stop = false;
     private boolean display = false;
+    private int rounds = 10;
     
     private class InputClientConnection {
         final Client client;
@@ -79,9 +80,11 @@ public class BatchRunner implements Runnable{
     // ---------------------------------------------------------------
 
     
-    public BatchRunner(BlockingQueue<BatchRunnerResults> batchResultQueue, boolean display)
+    public BatchRunner(BlockingQueue<BatchRunnerResults> batchResultQueue, int rounds, boolean display)
     {
         this.batchResultQueue = batchResultQueue;
+        this.rounds = rounds;
+        
         if(display == true)
             this.display = false;
         else
@@ -189,6 +192,12 @@ public class BatchRunner implements Runnable{
                     //
                     if (this.stop==true)
                         break;
+                    
+                    if (success_count == this.rounds)
+                    {
+                        batchQueue.clear();
+                        break;
+                    }
                     
                     Batch batch = this.batchQueue.take();
                     String batchJSONString = batch.toJSONString();
@@ -302,9 +311,11 @@ public class BatchRunner implements Runnable{
         //System.out.println("BatchRunner : successful execute #batch - " + success_count);
     }
     
-    private void increaseBatchCounter(Batch batch, int latency) throws InterruptedException {
+    //private void increaseBatchCounter(Batch batch, int latency) throws InterruptedException {
+    private void increaseBatchCounter(long batchid, int batchsize, int clientlatency, int latency) throws InterruptedException {
         //System.out.println("BatchRunner : increaseBatchCounter " );
-        m_batchStats.addOneBatchResult(batch.getID(), batch.getSize(), (int)(batch.getLatency()), latency);
+        //m_batchStats.addOneBatchResult(batch.getID(), batch.getSize(), (int)(batch.getLatency()), latency);
+        m_batchStats.addOneBatchResult(batchid, batchsize, clientlatency, latency);
         batchResultQueue.put(m_batchStats);
         
     }
@@ -441,7 +452,7 @@ public class BatchRunner implements Runnable{
     }
     
     private boolean execBatch(Client client, String procName, Batch batch, boolean reconnect) throws Exception {
-        String query = batch.toJSONString();
+        //String query = batch.toJSONString();
         
         Procedure catalog_proc = this.catalog_db.getProcedures().getIgnoreCase(procName);
         if (catalog_proc == null) {
@@ -451,7 +462,21 @@ public class BatchRunner implements Runnable{
         List<Object> procParams = new ArrayList<Object>();
         {
             // Extract the parameters and then convert them to their appropriate type
-            List<String> params = BatchRunner.extractParams(query);
+            //List<String> params = BatchRunner.extractParams(query);
+            List<String> params = new ArrayList<String>();
+            int parametersize = catalog_proc.getParameters().size();
+            String parameters[] = Batch.splictToMultipleJSONString(batch, parametersize);
+            //System.out.println("parametersize-" + parametersize);
+            
+            for (int iPar=0; iPar<parametersize; iPar++)
+            {
+                //System.out.println("Parameter - " + parameters[iPar]);
+                params.add(parameters[iPar]);
+                //byte[] strbytes = parameters[iPar].getBytes("UTF-8");
+                //int len = strbytes.length;
+                //System.out.println("Sending parameter:" + iPar + " - size:" + len);
+            }
+            
             if (debug.val) LOG.debug("PARAMS: " + params);
             if (params.size() != catalog_proc.getParameters().size()) {
                 String msg = String.format("Expected %d params for '%s' but %d parameters were given",
@@ -506,7 +531,7 @@ public class BatchRunner implements Runnable{
         {
             long currentTimeStamp = System.currentTimeMillis();
             batch.setEndTimestamp(currentTimeStamp);            
-            this.increaseBatchCounter(batch, response.getClusterRoundtrip());
+            this.increaseBatchCounter(batch.getID(), batch.getSize(), (int)batch.getLatency(), response.getClusterRoundtrip());
         }
         
         return result;

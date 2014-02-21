@@ -130,6 +130,7 @@ public class TupleProducer implements Runnable {
                 
                 if( beStop == true )
                 {
+                    queue.clear();
                     break;
                 }
             }

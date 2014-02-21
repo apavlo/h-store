@@ -59,7 +59,8 @@ public class BatchRunnerResults {
     
     public void addOneBatchResult(long batchid, int size, int latency, int clusterlatency)
     {
-        double throuput = (double)((double)size*1000/(double)latency);  // #/s
+        //double throuput = (double)((double)size*1000/(double)latency);  // #/s
+        double throuput = (double)((double)size*1000/(double)clusterlatency);  // #/s
         double tuplelatency = (double)((double)latency/(double)size);   // ms
         double batchthrouput = (double)((double)1000/(double)clusterlatency);  // #/s
 

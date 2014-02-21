@@ -182,18 +182,6 @@ public class InputClient implements Runnable {
             display = args.getBooleanParam(AnotherArgumentsParser.PARAM_RESULT_DISPLAY);
         }
         
-        BatchRunner batchRunner = new BatchRunner(ic.batchResultQueue, display);
-        batchRunner.setCatalog(args.catalog);
-        
-        // HOSTNAME
-        if (args.hasParam(AnotherArgumentsParser.ORIGIN_TERMINAL_HOST)) {
-            batchRunner.setHosts(args.getParam(AnotherArgumentsParser.ORIGIN_TERMINAL_HOST));
-        }
-        // PORT
-        if (args.hasParam(AnotherArgumentsParser.ORIGIN_TERMINAL_PORT)) {
-            batchRunner.setPort(args.getIntParam(AnotherArgumentsParser.ORIGIN_TERMINAL_PORT));
-        }
-        
         int inverval = 1000; // ms
         if (args.hasParam(AnotherArgumentsParser.PARAM_BATCH_INTERVAL)) {
             inverval = args.getIntParam(AnotherArgumentsParser.PARAM_BATCH_INTERVAL);
@@ -222,6 +210,18 @@ public class InputClient implements Runnable {
         boolean json = false; 
         if (args.hasParam(AnotherArgumentsParser.PARAM_RESULT_JSON)) {
             json = args.getBooleanParam(AnotherArgumentsParser.PARAM_RESULT_JSON);
+        }
+
+        BatchRunner batchRunner = new BatchRunner(ic.batchResultQueue, rounds, display);
+        batchRunner.setCatalog(args.catalog);
+        
+        // HOSTNAME
+        if (args.hasParam(AnotherArgumentsParser.ORIGIN_TERMINAL_HOST)) {
+            batchRunner.setHosts(args.getParam(AnotherArgumentsParser.ORIGIN_TERMINAL_HOST));
+        }
+        // PORT
+        if (args.hasParam(AnotherArgumentsParser.ORIGIN_TERMINAL_PORT)) {
+            batchRunner.setPort(args.getIntParam(AnotherArgumentsParser.ORIGIN_TERMINAL_PORT));
         }
         
         BatchProducer batchProducer = new BatchProducer(batchRunner.batchQueue, inverval);

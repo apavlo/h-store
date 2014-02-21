@@ -59,7 +59,7 @@ BUILD_1_DIR = "obj/release/benchmarks"
 
 JVM_ARGS = [
     "-client",
-    "-Xmx128m",
+    "-Xmx2048m",
     "-Dlog4j.configuration=log4j.properties",
     "-ea", 
 ]
