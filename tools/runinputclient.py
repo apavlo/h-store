@@ -138,6 +138,7 @@ defaultinput = 'word.txt'
 # get paramets from command line input
 
 parser = argparse.ArgumentParser(description='This is a benchmark auto-run script, made by hawk.')
+parser.add_argument('--host', help='host', default='localhost')
 parser.add_argument('-p','--project', help='Benchmark name', default='tpcc')
 parser.add_argument('-i','--inputfile', help='input file', default=defaultinput)
 parser.add_argument('-o','--outputfile', help='output file', default=defaultoutput)
@@ -154,7 +155,8 @@ parser.add_argument('--rndstep', help='step - round', type=int, default=10)
 args = parser.parse_args()
 
 projectname = args.project
-inputfile  = args.inputfile
+host        = args.host
+inputfile   = args.inputfile
 resultfile  = args.outputfile
 rmin	    = args.rmin
 rmax	    = args.rmax
@@ -167,7 +169,7 @@ rndmax	    = args.rndmax
 rndstep       = args.rndstep
 
 
-print projectname, inputfile, resultfile, rmin, rmax, rstep, imin, imax, istep, rndmin, rndmax, rndstep
+print host, projectname, inputfile, resultfile, rmin, rmax, rstep, imin, imax, istep, rndmin, rndmax, rndstep
 
 #exit(0)
 
@@ -193,15 +195,16 @@ while batch_round <= rndmax:
 	while source_rate <= rmax:
 		batch_interval	= imin
 		while batch_interval <= imax:
-			str_inputcmd 			= "./inputclient"
-			str_project 			= " " + projectname
+			str_inputcmd 		 = "./inputclient"
+                        str_host                 = " --host " + host
+			str_project 		 = " " + projectname
 			str_output_results_json  = " --json" + " true" + " --display true"
-			str_source_inputfile		= " --file " + inputfile
-			str_source_rate		= " --rate " + "{0:d}".format(source_rate)
-			str_batch_interval	= " --interval " + "{0:d}".format(batch_interval)
-			str_batch_round		= " --rounds " + "{0:d}".format(batch_round)
+			str_source_inputfile	 = " --file " + inputfile
+			str_source_rate		 = " --rate " + "{0:d}".format(source_rate)
+			str_batch_interval	 = " --interval " + "{0:d}".format(batch_interval)
+			str_batch_round		 = " --rounds " + "{0:d}".format(batch_round)
 		
-			runcmd = str_inputcmd + str_project + str_output_results_json + str_source_rate + str_batch_interval + str_batch_round + str_source_inputfile
+			runcmd = str_inputcmd + str_host + str_project + str_output_results_json + str_source_rate + str_batch_interval + str_batch_round + str_source_inputfile
 		
 			print "running inputclient with following configuration:"
 			print runcmd
