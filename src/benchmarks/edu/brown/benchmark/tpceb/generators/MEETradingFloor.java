@@ -26,15 +26,16 @@ public class MEETradingFloor {
         orderProcessingDelayMean = 1.0;
         Method SendTradeResult = null;
             try{
-                System.out.println("in try");
+           //     System.out.println("in try");
                 SendTradeResult = MEETradingFloor.class.getMethod("sendTradeResult", TTradeRequest.class);
             }catch(Exception e){
                 e.printStackTrace();
             }
-            System.out.println("calling orderTimers");
-            
+           // System.out.println("calling orderTimers");
+
+       // System.out.println("TradeRequest = TTradeRequest.class" + TTradeRequest.class);
         orderTimers = new TimerWheel(TTradeRequest.class, this, SendTradeResult, 5, 1);
-        System.out.println("done with trade orders");
+      //  System.out.println("done with trade orders");
      }
         
     
@@ -63,14 +64,18 @@ public class MEETradingFloor {
         switch( tradeReq.eAction ){
         case eMEEProcessOrder:
             {
-                System.out.println("in eMEEProcessOrder - fails");
-                return( orderTimers.startTimer( genProcessingDelay( orderProcessingDelayMean )));
+              //  System.out.println("in eMEEProcessOrder - fails");
+               // sendTradeResult(tradeReq); //added for debugging
+               /*added b/c original uses pointers*/
+                TTradeRequest newTradeRequest = new TTradeRequest();
+                newTradeRequest = tradeReq;
+                return( orderTimers.startTimer( genProcessingDelay( orderProcessingDelayMean ), this, newTradeRequest));
             }
         case eMEESetLimitOrderTrigger:
-            System.out.println("going into post limit order");
+         //   System.out.println("going into post limit order");
             tickerTape.PostLimitOrder( tradeReq );
-            System.out.println("out of post limit order");
-          //  sendTradeResult(tradeReq); //added for debugging
+           System.out.println("out of post limit order");
+           // sendTradeResult(tradeReq); //added for debugging
 
             return( orderTimers.processExpiredTimers() );
         default:
@@ -98,19 +103,25 @@ public class MEETradingFloor {
     
         if(( eTradeType == TradeType.eLimitBuy && tradeReq.price_quote < CurrentPrice )||( eTradeType == TradeType.eLimitSell && tradeReq.price_quote > CurrentPrice )){
             txnInput.trade_price = tradeReq.price_quote;
+            System.out.println("IN IF");
         }
         else{
             txnInput.trade_price = CurrentPrice;
+            System.out.println("IN ELSE");
         }
     
         sut.TradeResult(  txnInput );
+        System.out.println("Got to here");
     
         TickerEntry.symbol = new String( tradeReq.symbol);
         TickerEntry.trade_qty = tradeReq.trade_qty;
+        System.out.println("Got to here2");
     
         TickerEntry.price_quote = CurrentPrice;
+        System.out.println("Got to here3");
     
         tickerTape.AddEntry(TickerEntry);
+        System.out.println("Got to here4");
     }
     
     private MEESUTInterface                                        sut;
