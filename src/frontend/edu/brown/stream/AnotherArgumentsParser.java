@@ -27,6 +27,7 @@ public class AnotherArgumentsParser {
     public static final String PARAM_BATCH_INTERVAL        = "batch.interval";
     public static final String PARAM_BATCH_ROUNDS        = "batch.rounds";
     public static final String PARAM_RESULT_JSON        = "result.json";
+    public static final String PARAM_RESULT_DISPLAY        = "result.display";
     
     public static final List<String> PARAMS = new ArrayList<String>();
     static {

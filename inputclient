@@ -59,7 +59,7 @@ BUILD_1_DIR = "obj/release/benchmarks"
 
 JVM_ARGS = [
     "-client",
-    "-Xmx128m",
+    "-Xmx2048m",
     "-Dlog4j.configuration=log4j.properties",
     "-ea", 
 ]
@@ -82,8 +82,10 @@ if __name__ == '__main__':
                          help='tuple sending rate.')
     aparser.add_argument('--stop', type=bool,
                          help='stop after all tuple sends out or repeat again.')
-    aparser.add_argument('--json', type=bool,
+    aparser.add_argument('--json', type=str,
                          help='indicate if json result format should be printed out.')
+    aparser.add_argument('--display', type=str,
+                         help='indicate if the terminal display the statistic result, otherwise, it will display the function result.')
     aparser.add_argument('--interval', type=int,
                          help='batch time interval.')
     aparser.add_argument('--rounds', type=int,
@@ -119,7 +121,7 @@ if __name__ == '__main__':
             options.append("batch.%s=%s" % (key, args[key]))
     #end for
     
-    for key in ('json',):
+    for key in ('json','display'):
         if key in args and args[key]:
             options.append("result.%s=%s" % (key, args[key]))
     #end for
@@ -131,6 +133,7 @@ if __name__ == '__main__':
         JVM_TARGET, \
         args['project'],
         " ".join(options))
+    #logging.error(cmd)
     logging.debug(cmd)
     try:
         p = subprocess.Popen(cmd, shell=True)

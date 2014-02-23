@@ -56,8 +56,7 @@ public class VoterProjectBuilder extends AbstractProjectBuilder {
 	
 	// a list of tables used in this benchmark with corresponding partitioning keys
     public static final String PARTITIONING[][] = new String[][] {
-        { "votes", "phone_number" },
-        { "leaderboard", "contestant_number"}
+        { "votes", "phone_number" }
     };
 
     public VoterProjectBuilder() {

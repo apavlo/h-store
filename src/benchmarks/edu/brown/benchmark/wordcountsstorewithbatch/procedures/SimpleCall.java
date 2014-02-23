@@ -21,15 +21,36 @@ public class SimpleCall extends VoltProcedure {
     		//"INSERT INTO W_WORDS VALUES (?, ?);"
         );
     
+    public final SQLStmt selectResultsStmt = new SQLStmt(
+            //"SELECT word, sum(num) FROM W_RESULTS group by word;"
+    		"SELECT word, num FROM W_RESULTS;"
+        );
+    
     //public long run(String word, int time) 
-    public long run(String batchJSONString)
+    public long run(String batchJSONString0, String batchJSONString1, String batchJSONString2 , String batchJSONString3, String batchJSONString4)
     {
         
         Batch objBatch = new Batch();
-        objBatch.fromJSONString(batchJSONString);
+        objBatch.fromJSONString(batchJSONString0);
         
         List<Tuple> tuples = objBatch.getTuples();
         
+        objBatch = new Batch();
+        objBatch.fromJSONString(batchJSONString1);
+        tuples.addAll(objBatch.getTuples());
+        
+        objBatch = new Batch();
+        objBatch.fromJSONString(batchJSONString2);
+        tuples.addAll(objBatch.getTuples());
+
+        objBatch = new Batch();
+        objBatch.fromJSONString(batchJSONString3);
+        tuples.addAll(objBatch.getTuples());
+
+        objBatch = new Batch();
+        objBatch.fromJSONString(batchJSONString4);
+        tuples.addAll(objBatch.getTuples());
+
         long bid    = objBatch.getID();
         long btime  = objBatch.getTimestamp();
 
@@ -47,18 +68,27 @@ public class SimpleCall extends VoltProcedure {
             
             i++;
             j++;
+            
             if( i == maximum )
             {
                 if( j == size )
+                {
                     beFinalBatch = true;
-                
+                	//voltQueueSQL(selectResultsStmt);
+                }
+                                
                 voltExecuteSQL(beFinalBatch);
                 i = 0;
             }
+            
         }
         
+        
         if( i !=0 )
-            voltExecuteSQL(true);
+        {
+        	//voltQueueSQL(selectResultsStmt);
+        	voltExecuteSQL(true);
+        }
 
         return 0;
     }

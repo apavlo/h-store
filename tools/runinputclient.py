@@ -32,6 +32,22 @@ def generateReport(benchmark_result):
 	STDDEVSIZE = str(output[0])
 	anlyze_result.append(STDDEVSIZE)
 
+	# get AVERAGEBATCHTHROUPUT
+	output  = re.compile('AVERAGEBATCHTHROUPUT:(.*?),', re.DOTALL |  re.IGNORECASE).findall(jsonsnippet)
+	AVERAGEBATCHTHROUPUT = str(output[0])
+	anlyze_result.append(AVERAGEBATCHTHROUPUT)
+	# get MINBATCHTHROUPUT
+	output  = re.compile('MINBATCHTHROUPUT:(.*?),', re.DOTALL |  re.IGNORECASE).findall(jsonsnippet)
+	MINBATCHTHROUPUT = str(output[0])
+	anlyze_result.append(MINBATCHTHROUPUT)
+	# get MAXBATCHTHROUPUT
+	output  = re.compile('MAXBATCHTHROUPUT:(.*?),', re.DOTALL |  re.IGNORECASE).findall(jsonsnippet)
+	MAXBATCHTHROUPUT = str(output[0])
+	anlyze_result.append(MAXBATCHTHROUPUT)
+	# get STDDEVBATCHTHROUPUT
+	output  = re.compile('STDDEVBATCHTHROUPUT:(.*?),', re.DOTALL |  re.IGNORECASE).findall(jsonsnippet)
+	STDDEVBATCHTHROUPUT = str(output[0])
+	anlyze_result.append(STDDEVBATCHTHROUPUT)
 
 	# get AVERAGELATENCY 
 	output  = re.compile('AVERAGELATENCY:(.*?),', re.DOTALL |  re.IGNORECASE).findall(jsonsnippet)
@@ -49,6 +65,23 @@ def generateReport(benchmark_result):
 	output  = re.compile('STDDEVLATENCY:(.*?),', re.DOTALL |  re.IGNORECASE).findall(jsonsnippet)
 	STDDEVLATENCY = str(output[0])
 	anlyze_result.append(STDDEVLATENCY)
+
+	# get AVERAGECLUSTERLATENCY 
+	output  = re.compile('AVERAGECLUSTERLATENCY:(.*?),', re.DOTALL |  re.IGNORECASE).findall(jsonsnippet)
+	AVERAGECLUSTERLATENCY = str(output[0])
+	anlyze_result.append(AVERAGECLUSTERLATENCY)
+	# get 
+	output  = re.compile('MINCLUSTERLATENCY:(.*?),', re.DOTALL |  re.IGNORECASE).findall(jsonsnippet)
+	MINCLUSTERLATENCY = str(output[0])
+	anlyze_result.append(MINCLUSTERLATENCY)
+	# get 
+	output  = re.compile('MAXCLUSTERLATENCY:(.*?),', re.DOTALL |  re.IGNORECASE).findall(jsonsnippet)
+	MAXCLUSTERLATENCY = str(output[0])
+	anlyze_result.append(MAXCLUSTERLATENCY)
+	# get STDDEVCLUSTERLATENCY
+	output  = re.compile('STDDEVCLUSTERLATENCY:(.*?),', re.DOTALL |  re.IGNORECASE).findall(jsonsnippet)
+	STDDEVCLUSTERLATENCY = str(output[0])
+	anlyze_result.append(STDDEVCLUSTERLATENCY)
 
 	# get AVERAGETHROUPUT
 	output  = re.compile('AVERAGETHROUPUT:(.*?),', re.DOTALL |  re.IGNORECASE).findall(jsonsnippet)
@@ -105,6 +138,7 @@ defaultinput = 'word.txt'
 # get paramets from command line input
 
 parser = argparse.ArgumentParser(description='This is a benchmark auto-run script, made by hawk.')
+parser.add_argument('--host', help='host', default='localhost')
 parser.add_argument('-p','--project', help='Benchmark name', default='tpcc')
 parser.add_argument('-i','--inputfile', help='input file', default=defaultinput)
 parser.add_argument('-o','--outputfile', help='output file', default=defaultoutput)
@@ -121,7 +155,8 @@ parser.add_argument('--rndstep', help='step - round', type=int, default=10)
 args = parser.parse_args()
 
 projectname = args.project
-inputfile  = args.inputfile
+host        = args.host
+inputfile   = args.inputfile
 resultfile  = args.outputfile
 rmin	    = args.rmin
 rmax	    = args.rmax
@@ -134,7 +169,7 @@ rndmax	    = args.rndmax
 rndstep       = args.rndstep
 
 
-print projectname, inputfile, resultfile, rmin, rmax, rstep, imin, imax, istep, rndmin, rndmax, rndstep
+print host, projectname, inputfile, resultfile, rmin, rmax, rstep, imin, imax, istep, rndmin, rndmax, rndstep
 
 #exit(0)
 
@@ -143,7 +178,9 @@ file = open(resultfile, "w")
 #print fields
 fields  = "rate " + "interval " + "#round "
 fields += "BATCH_SIZE_AVG " + "BATCH_SIZE_MIN " + "BATCH_SIZE_MAX " + "BATCH_SIZE_STDEV "
+fields += "BATCH_THROUGHPUT_AVG " + "BATCH_THROUGHPUT_MIN " + "BATCH_THROUGHPUT_MAX " + "BATCH_THROUGHPUT_STDEV "
 fields += "BATCH_LATENCY_AVG " + "BATCH_LATENCY_MIN " + "BATCH_LATENCY_MAX " + "BATCH_LATENCY_STDEV "
+fields += "BATCH_CLUSTER_LATENCY_AVG " + "BATCH_CLUSTER_LATENCY_MIN " + "BATCH_CLUSTER_LATENCY_MAX " + "BATCH_CLUSTER_LATENCY_STDEV "
 fields += "TUPLE_THROUGHPUT_AVG " + "TUPLE_THROUGHPUT_MIN " + "TUPLE_THROUGHPUT_MAX " + "TUPLE_THROUGHPUT_STDEV "
 fields += "TUPLE_LATENCY_AVG " + "TUPLE_LATENCY_MIN " + "TUPLE_LATENCY_MAX " + "TUPLE_LATENCY_STDEV"
 file.write(fields + "\n")
@@ -158,15 +195,16 @@ while batch_round <= rndmax:
 	while source_rate <= rmax:
 		batch_interval	= imin
 		while batch_interval <= imax:
-			str_inputcmd 			= "./inputclient"
-			str_project 			= " " + projectname
-			str_output_results_json  = " --json" + " true"
-			str_source_inputfile		= " --file " + inputfile
-			str_source_rate		= " --rate " + "{0:d}".format(source_rate)
-			str_batch_interval	= " --interval " + "{0:d}".format(batch_interval)
-			str_batch_round		= " --rounds " + "{0:d}".format(batch_round)
+			str_inputcmd 		 = "./inputclient"
+                        str_host                 = " --host " + host
+			str_project 		 = " " + projectname
+			str_output_results_json  = " --json" + " true" + " --display true"
+			str_source_inputfile	 = " --file " + inputfile
+			str_source_rate		 = " --rate " + "{0:d}".format(source_rate)
+			str_batch_interval	 = " --interval " + "{0:d}".format(batch_interval)
+			str_batch_round		 = " --rounds " + "{0:d}".format(batch_round)
 		
-			runcmd = str_inputcmd + str_project + str_output_results_json + str_source_rate + str_batch_interval + str_batch_round + str_source_inputfile
+			runcmd = str_inputcmd + str_host + str_project + str_output_results_json + str_source_rate + str_batch_interval + str_batch_round + str_source_inputfile
 		
 			print "running inputclient with following configuration:"
 			print runcmd

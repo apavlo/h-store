@@ -64,6 +64,7 @@ public class InputClient implements Runnable {
     private int batchRounds = 10;
 
     private boolean json = false;
+    private boolean display = false;
     
     // ---------------------------------------------------------------
     // CONSTRUCTOR
@@ -79,6 +80,11 @@ public class InputClient implements Runnable {
     
     private void setResultFormat(boolean json) {
         this.json  = json;
+    }
+    
+    private void setDisplay(boolean display)
+    {
+        this.display = display;
     }
     
     @Override
@@ -103,15 +109,22 @@ public class InputClient implements Runnable {
                 batchresult = batchResultQueue.take();
                 if(batchresult!=null)
                 {
-                    int size = batchresult.sizes.get((Long)i);
-                    int latency = batchresult.latencies.get((Long)i);
-                    double throughput = batchresult.throughputs.get((Long)i);
-                    strOutput = " batch id : " + String.format("%4d", i);
-                    strOutput += " - tuple size : " + String.format("%5d", size);
-                    strOutput += " - latency : " + String.format("%5d", latency) + " ms";
-                    strOutput += " - #tuple/s :" + String.format("%8.2f", throughput);
-                    strOutput += " ";
-                    System.out.println(strOutput);
+                    if(display==true)
+                    {
+                        int size = batchresult.sizes.get((Long)i);
+                        int latency = batchresult.latencies.get((Long)i);
+                        int clusterlatency = batchresult.clusterlatencies.get((Long)i);
+                        double batchthroughput = batchresult.batchthroughputs.get((Long)i);
+                        double throughput = batchresult.throughputs.get((Long)i);
+                        strOutput = " batch id : " + String.format("%4d", i);
+                        strOutput += " - tuple size : " + String.format("%5d", size);
+                        strOutput += " - client latency : " + String.format("%5d", latency) + " ms";
+                        strOutput += " - cluster latency : " + String.format("%5d", clusterlatency) + " ms";
+                        strOutput += " - cluster #batch/s :" + String.format("%8.2f", batchthroughput);
+                        strOutput += " - #tuple/s :" + String.format("%8.2f", throughput);
+                        strOutput += " ";
+                        System.out.println(strOutput);
+                    }
     
                     i++;
                 }
@@ -119,7 +132,8 @@ public class InputClient implements Runnable {
                     System.out.println("InputClient: run empty result - strange !");
             }
 
-            outputFinalResult(batchresult);
+            if(display==true)
+                outputFinalResult(batchresult);
 
         } catch (InterruptedException e) {
             e.printStackTrace();
@@ -162,17 +176,10 @@ public class InputClient implements Runnable {
         AnotherArgumentsParser args = AnotherArgumentsParser.load( vargs );
         
         InputClient ic = new InputClient();
-        
-        BatchRunner batchRunner = new BatchRunner(ic.batchResultQueue);
-        batchRunner.setCatalog(args.catalog);
-        
-        // HOSTNAME
-        if (args.hasParam(AnotherArgumentsParser.ORIGIN_TERMINAL_HOST)) {
-            batchRunner.setHost(args.getParam(AnotherArgumentsParser.ORIGIN_TERMINAL_HOST));
-        }
-        // PORT
-        if (args.hasParam(AnotherArgumentsParser.ORIGIN_TERMINAL_PORT)) {
-            batchRunner.setPort(args.getIntParam(AnotherArgumentsParser.ORIGIN_TERMINAL_PORT));
+
+        boolean display = false; 
+        if (args.hasParam(AnotherArgumentsParser.PARAM_RESULT_DISPLAY)) {
+            display = args.getBooleanParam(AnotherArgumentsParser.PARAM_RESULT_DISPLAY);
         }
         
         int inverval = 1000; // ms
@@ -204,6 +211,18 @@ public class InputClient implements Runnable {
         if (args.hasParam(AnotherArgumentsParser.PARAM_RESULT_JSON)) {
             json = args.getBooleanParam(AnotherArgumentsParser.PARAM_RESULT_JSON);
         }
+
+        BatchRunner batchRunner = new BatchRunner(ic.batchResultQueue, rounds, display);
+        batchRunner.setCatalog(args.catalog);
+        
+        // HOSTNAME
+        if (args.hasParam(AnotherArgumentsParser.ORIGIN_TERMINAL_HOST)) {
+            batchRunner.setHosts(args.getParam(AnotherArgumentsParser.ORIGIN_TERMINAL_HOST));
+        }
+        // PORT
+        if (args.hasParam(AnotherArgumentsParser.ORIGIN_TERMINAL_PORT)) {
+            batchRunner.setPort(args.getIntParam(AnotherArgumentsParser.ORIGIN_TERMINAL_PORT));
+        }
         
         BatchProducer batchProducer = new BatchProducer(batchRunner.batchQueue, inverval);
         TupleProducer tupleProducer = new TupleProducer(batchProducer.queue, filename, sendrate, sendstop);
@@ -220,11 +239,12 @@ public class InputClient implements Runnable {
         // start inputclient monitor
         ic.setBatchRounds(rounds);
         ic.setResultFormat(json);
+        ic.setDisplay(display);
+        
         ic.run();
         
         tupleProducer.stop();
         //batchRunner.stop();
-        
         
     }
 
