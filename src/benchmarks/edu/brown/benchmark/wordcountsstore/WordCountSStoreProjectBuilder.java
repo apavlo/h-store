@@ -10,7 +10,7 @@ import edu.brown.benchmark.wordcountsstore.procedures.WindowTrigger;
 import edu.brown.benchmark.wordcountsstore.procedures.MidStreamTrigger; 
 import edu.brown.benchmark.wordcountsstore.procedures.ResultsWinTrigger; 
 import edu.brown.benchmark.wordcountsstore.procedures.CountTrigger; 
-import edu.brown.benchmark.wordcountsstore.procedures.GetResults; 
+//import edu.brown.benchmark.wordcountsstore.procedures.GetResults; 
  
 public class WordCountSStoreProjectBuilder extends AbstractProjectBuilder {
 
