@@ -12,70 +12,77 @@ def generateReport(benchmark_result):
 	strbegin = "<json>"
 	strend = "</json>"
 	output  = re.compile('<json>(.*?)</json>', re.DOTALL |  re.IGNORECASE).findall(benchmark_result)
-	jsonsnippet = str(output[0])
-	jsonsnippet = jsonsnippet.replace("\n","")
-	jsonsnippet = jsonsnippet.replace("\"","")
-	
-	# get 	THROUGHPUT
-	output  = re.compile('TXNPERMILLI: (.*?),', re.DOTALL |  re.IGNORECASE).findall(jsonsnippet)
-	THROUGHPUT = str(output[0])
-	basic = " " + THROUGHPUT
-	anlyze_result.append(THROUGHPUT)
-	# get 	AVG LATENCY
-	output  = re.compile('TOTALAVGLATENCY: (.*?),', re.DOTALL |  re.IGNORECASE).findall(jsonsnippet)
-	AVGLATENCY = str(output[0])
-	basic += " " + AVGLATENCY
-	anlyze_result.append(AVGLATENCY)
-	
-	# total transaction count
-	output  = re.compile('TXNTOTALCOUNT: (.*?),', re.DOTALL |  re.IGNORECASE).findall(jsonsnippet)
-	TXNTOTALCOUNT = str(output[0])
-	basic += " " + TXNTOTALCOUNT
-	anlyze_result.append(TXNTOTALCOUNT)
-	# DTXNTOTALCOUNT
-	output  = re.compile('DTXNTOTALCOUNT: (.*?),', re.DOTALL |  re.IGNORECASE).findall(jsonsnippet)
-	DTXNTOTALCOUNT = str(output[0])
-	basic += " " + DTXNTOTALCOUNT
-	anlyze_result.append(DTXNTOTALCOUNT)
-	# SPECEXECTOTALCOUNT
-	output  = re.compile('SPECEXECTOTALCOUNT: (.*?),', re.DOTALL |  re.IGNORECASE).findall(jsonsnippet)
-	SPECEXECTOTALCOUNT = str(output[0])
-	basic += " " + SPECEXECTOTALCOUNT
-	anlyze_result.append(SPECEXECTOTALCOUNT)
 
-	# TXNMINPERSECOND 
-	output  = re.compile('TXNMINPERSECOND: (.*?),', re.DOTALL |  re.IGNORECASE).findall(jsonsnippet)
-	TXNMINPERSECOND = str(output[0])
-	basic += " " + TXNMINPERSECOND
-	anlyze_result.append(TXNMINPERSECOND)
-	# TXNMAXPERSECOND
-	output  = re.compile('TXNMAXPERSECOND: (.*?),', re.DOTALL |  re.IGNORECASE).findall(jsonsnippet)
-	TXNMAXPERSECOND = str(output[0])
-	basic += " " + TXNMAXPERSECOND
-	anlyze_result.append(TXNMAXPERSECOND)
-	# STDDEVTXNPERSECOND
-	output  = re.compile('STDDEVTXNPERSECOND: (.*?),', re.DOTALL |  re.IGNORECASE).findall(jsonsnippet)
-	STDDEVTXNPERSECOND = str(output[0])
-	basic += " " + STDDEVTXNPERSECOND
-	anlyze_result.append(STDDEVTXNPERSECOND)
+	try:
+		jsonsnippet = str(output[0])
+		jsonsnippet = jsonsnippet.replace("\n","")
+		jsonsnippet = jsonsnippet.replace("\"","")
+		
+		# get 	THROUGHPUT
+		output  = re.compile('TXNPERMILLI: (.*?),', re.DOTALL |  re.IGNORECASE).findall(jsonsnippet)
+		THROUGHPUT = str(output[0])
+		basic = " " + THROUGHPUT
+		anlyze_result.append(THROUGHPUT)
+		# get 	AVG LATENCY
+		output  = re.compile('TOTALAVGLATENCY: (.*?),', re.DOTALL |  re.IGNORECASE).findall(jsonsnippet)
+		AVGLATENCY = str(output[0])
+		basic += " " + AVGLATENCY
+		anlyze_result.append(AVGLATENCY)
+		
+		# total transaction count
+		output  = re.compile('TXNTOTALCOUNT: (.*?),', re.DOTALL |  re.IGNORECASE).findall(jsonsnippet)
+		TXNTOTALCOUNT = str(output[0])
+		basic += " " + TXNTOTALCOUNT
+		anlyze_result.append(TXNTOTALCOUNT)
+		# DTXNTOTALCOUNT
+		output  = re.compile('DTXNTOTALCOUNT: (.*?),', re.DOTALL |  re.IGNORECASE).findall(jsonsnippet)
+		DTXNTOTALCOUNT = str(output[0])
+		basic += " " + DTXNTOTALCOUNT
+		anlyze_result.append(DTXNTOTALCOUNT)
+		# SPECEXECTOTALCOUNT
+		output  = re.compile('SPECEXECTOTALCOUNT: (.*?),', re.DOTALL |  re.IGNORECASE).findall(jsonsnippet)
+		SPECEXECTOTALCOUNT = str(output[0])
+		basic += " " + SPECEXECTOTALCOUNT
+		anlyze_result.append(SPECEXECTOTALCOUNT)
+
+		# TXNMINPERSECOND 
+		output  = re.compile('TXNMINPERSECOND: (.*?),', re.DOTALL |  re.IGNORECASE).findall(jsonsnippet)
+		TXNMINPERSECOND = str(output[0])
+		basic += " " + TXNMINPERSECOND
+		anlyze_result.append(TXNMINPERSECOND)
+		# TXNMAXPERSECOND
+		output  = re.compile('TXNMAXPERSECOND: (.*?),', re.DOTALL |  re.IGNORECASE).findall(jsonsnippet)
+		TXNMAXPERSECOND = str(output[0])
+		basic += " " + TXNMAXPERSECOND
+		anlyze_result.append(TXNMAXPERSECOND)
+		# STDDEVTXNPERSECOND
+		output  = re.compile('STDDEVTXNPERSECOND: (.*?),', re.DOTALL |  re.IGNORECASE).findall(jsonsnippet)
+		STDDEVTXNPERSECOND = str(output[0])
+		basic += " " + STDDEVTXNPERSECOND
+		anlyze_result.append(STDDEVTXNPERSECOND)
+		
+		# TOTALMINLATENCY
+		output  = re.compile('TOTALMINLATENCY: (.*?),', re.DOTALL |  re.IGNORECASE).findall(jsonsnippet)
+		TOTALMINLATENCY = str(output[0])
+		basic += " " + TOTALMINLATENCY
+		anlyze_result.append(TOTALMINLATENCY)
+		# TOTALMAXLATENCY
+		output  = re.compile('TOTALMAXLATENCY: (.*?),', re.DOTALL |  re.IGNORECASE).findall(jsonsnippet)
+		TOTALMAXLATENCY = str(output[0])
+		basic += " " + TOTALMAXLATENCY
+		anlyze_result.append(TOTALMAXLATENCY)
+		# TOTALSTDEVLATENCY
+		output  = re.compile('TOTALSTDEVLATENCY: (.*?),', re.DOTALL |  re.IGNORECASE).findall(jsonsnippet)
+		TOTALSTDEVLATENCY = str(output[0])
+		basic += " " + TOTALSTDEVLATENCY
+		anlyze_result.append(TOTALSTDEVLATENCY)
+
+		print basic
+
+	except:
+		print "Report Failed"
 	
-	# TOTALMINLATENCY
-	output  = re.compile('TOTALMINLATENCY: (.*?),', re.DOTALL |  re.IGNORECASE).findall(jsonsnippet)
-	TOTALMINLATENCY = str(output[0])
-	basic += " " + TOTALMINLATENCY
-	anlyze_result.append(TOTALMINLATENCY)
-	# TOTALMAXLATENCY
-	output  = re.compile('TOTALMAXLATENCY: (.*?),', re.DOTALL |  re.IGNORECASE).findall(jsonsnippet)
-	TOTALMAXLATENCY = str(output[0])
-	basic += " " + TOTALMAXLATENCY
-	anlyze_result.append(TOTALMAXLATENCY)
-	# TOTALSTDEVLATENCY
-	output  = re.compile('TOTALSTDEVLATENCY: (.*?),', re.DOTALL |  re.IGNORECASE).findall(jsonsnippet)
-	TOTALSTDEVLATENCY = str(output[0])
-	basic += " " + TOTALSTDEVLATENCY
-	anlyze_result.append(TOTALSTDEVLATENCY)
 	
-	print basic
 	#analyze the content
 	#print "This benchmark result is :", jsonsnippet
 	return anlyze_result

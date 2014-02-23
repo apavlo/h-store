@@ -20,7 +20,10 @@ public class MEEPriceBoard {
     }
     
     public    void getSymbol(long securityIndex,String szOutput, int outputLen){
+        System.out.println("Getting symbol" +  szOutput);
+        System.out.println("Getting symbol length" + outputLen);
         szOutput = securityFile.createSymbol( securityIndex, outputLen );
+        System.out.println("Got symbol");
     }
     
     public    EGenMoney getMinPrice(){
