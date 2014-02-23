@@ -13,8 +13,8 @@ public class WindowTrigger extends VoltTrigger {
     public final SQLStmt insertW1Stmt = 
         new SQLStmt("INSERT INTO W_WORDS SELECT * FROM words;");
     
-    public final SQLStmt insertpermanent = 
-            new SQLStmt("INSERT INTO words_full SELECT * FROM words;");
+    //public final SQLStmt insertpermanent = 
+    //        new SQLStmt("INSERT INTO words_full SELECT * FROM words;");
 
     
     

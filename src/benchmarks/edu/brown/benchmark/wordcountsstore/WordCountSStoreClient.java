@@ -62,6 +62,7 @@ public class WordCountSStoreClient extends BenchmarkComponent {
             {
             	lastTime = System.nanoTime();
             	timestamp++;
+            	//client.callProcedure(callback, "GetResults");
             }
 	        response = client.callProcedure(callback, "SimpleCall", word, timestamp);
 
