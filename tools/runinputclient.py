@@ -49,7 +49,24 @@ def generateReport(benchmark_result):
 	STDDEVBATCHTHROUPUT = str(output[0])
 	anlyze_result.append(STDDEVBATCHTHROUPUT)
 
-	# get AVERAGELATENCY 
+	# get AVERAGECLIENTBATCHTHROUPUT
+	output  = re.compile('AVERAGECLIENTBATCHTHROUPUT:(.*?),', re.DOTALL |  re.IGNORECASE).findall(jsonsnippet)
+	AVERAGECLIENTBATCHTHROUPUT = str(output[0])
+	anlyze_result.append(AVERAGECLIENTBATCHTHROUPUT)
+	# get MINCLIENTBATCHTHROUPUT
+	output  = re.compile('MINCLIENTBATCHTHROUPUT:(.*?),', re.DOTALL |  re.IGNORECASE).findall(jsonsnippet)
+	MINCLIENTBATCHTHROUPUT = str(output[0])
+	anlyze_result.append(MINCLIENTBATCHTHROUPUT)
+	# get MAXCLIENTBATCHTHROUPUT
+	output  = re.compile('MAXCLIENTBATCHTHROUPUT:(.*?),', re.DOTALL |  re.IGNORECASE).findall(jsonsnippet)
+	MAXCLIENTBATCHTHROUPUT = str(output[0])
+	anlyze_result.append(MAXCLIENTBATCHTHROUPUT)
+	# get STDDEVCLIENTBATCHTHROUPUT
+	output  = re.compile('STDDEVCLIENTBATCHTHROUPUT:(.*?),', re.DOTALL |  re.IGNORECASE).findall(jsonsnippet)
+	STDDEVCLIENTBATCHTHROUPUT = str(output[0])
+	anlyze_result.append(STDDEVCLIENTBATCHTHROUPUT)
+	
+        # get AVERAGELATENCY 
 	output  = re.compile('AVERAGELATENCY:(.*?),', re.DOTALL |  re.IGNORECASE).findall(jsonsnippet)
 	AVERAGELATENCY = str(output[0])
 	anlyze_result.append(AVERAGELATENCY)
@@ -100,7 +117,24 @@ def generateReport(benchmark_result):
 	STDDEVTHROUPUT = str(output[0])
 	anlyze_result.append(STDDEVTHROUPUT)
 
-	# get AVERAGETUPLELATENCY
+	# get AVERAGECLIENTTHROUPUT
+	output  = re.compile('AVERAGECLIENTTHROUPUT:(.*?),', re.DOTALL |  re.IGNORECASE).findall(jsonsnippet)
+	AVERAGECLIENTTHROUPUT = str(output[0])
+	anlyze_result.append(AVERAGECLIENTTHROUPUT)
+	# get MINCLIENTTHROUPUT
+	output  = re.compile('MINCLIENTTHROUPUT:(.*?),', re.DOTALL |  re.IGNORECASE).findall(jsonsnippet)
+	MINCLIENTTHROUPUT = str(output[0])
+	anlyze_result.append(MINCLIENTTHROUPUT)
+	# get MAXCLIENTTHROUPUT
+	output  = re.compile('MAXCLIENTTHROUPUT:(.*?),', re.DOTALL |  re.IGNORECASE).findall(jsonsnippet)
+	MAXCLIENTTHROUPUT = str(output[0])
+	anlyze_result.append(MAXCLIENTTHROUPUT)
+	# get STDDEVCLIENTTHROUPUT
+	output  = re.compile('STDDEVCLIENTTHROUPUT:(.*?),', re.DOTALL |  re.IGNORECASE).findall(jsonsnippet)
+	STDDEVCLIENTTHROUPUT = str(output[0])
+	anlyze_result.append(STDDEVCLIENTTHROUPUT)
+	
+        # get AVERAGETUPLELATENCY
 	output  = re.compile('AVERAGETUPLELATENCY:(.*?),', re.DOTALL |  re.IGNORECASE).findall(jsonsnippet)
 	AVERAGETUPLELATENCY = str(output[0])
 	anlyze_result.append(AVERAGETUPLELATENCY)
@@ -179,9 +213,11 @@ file = open(resultfile, "w")
 fields  = "rate " + "interval " + "#round "
 fields += "BATCH_SIZE_AVG " + "BATCH_SIZE_MIN " + "BATCH_SIZE_MAX " + "BATCH_SIZE_STDEV "
 fields += "BATCH_THROUGHPUT_AVG " + "BATCH_THROUGHPUT_MIN " + "BATCH_THROUGHPUT_MAX " + "BATCH_THROUGHPUT_STDEV "
+fields += "CLIENT_BATCH_THROUGHPUT_AVG " + "CLIENT_BATCH_THROUGHPUT_MIN " + "CLIENT_BATCH_THROUGHPUT_MAX " + "CLIENT_BATCH_THROUGHPUT_STDEV "
 fields += "BATCH_LATENCY_AVG " + "BATCH_LATENCY_MIN " + "BATCH_LATENCY_MAX " + "BATCH_LATENCY_STDEV "
 fields += "BATCH_CLUSTER_LATENCY_AVG " + "BATCH_CLUSTER_LATENCY_MIN " + "BATCH_CLUSTER_LATENCY_MAX " + "BATCH_CLUSTER_LATENCY_STDEV "
 fields += "TUPLE_THROUGHPUT_AVG " + "TUPLE_THROUGHPUT_MIN " + "TUPLE_THROUGHPUT_MAX " + "TUPLE_THROUGHPUT_STDEV "
+fields += "CLIENT_TUPLE_THROUGHPUT_AVG " + "CLIENT_TUPLE_THROUGHPUT_MIN " + "CLIENT_TUPLE_THROUGHPUT_MAX " + "CLIENT_TUPLE_THROUGHPUT_STDEV "
 fields += "TUPLE_LATENCY_AVG " + "TUPLE_LATENCY_MIN " + "TUPLE_LATENCY_MAX " + "TUPLE_LATENCY_STDEV"
 file.write(fields + "\n")
 

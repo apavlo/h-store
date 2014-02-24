@@ -68,6 +68,8 @@ public class BatchRunner implements Runnable{
     private List<String> hostnames = new ArrayList<String>();
     private List<InputClientConnection> connections = new ArrayList<InputClientConnection>();
     
+    private List<Thread> workers =  new ArrayList<Thread>();
+    
     private int port = HStoreConstants.DEFAULT_PORT;
     
     public BlockingQueue<BatchRunnerResults> batchResultQueue;
@@ -200,15 +202,12 @@ public class BatchRunner implements Runnable{
                     }
                     
                     Batch batch = this.batchQueue.take();
-                    String batchJSONString = batch.toJSONString();
-                    //System.out.println("InputClient consume: " + batchJSONString);
                     
                     // empty batch encountered, quit processing
                     if(batch==null || batch.getID()==-1)
                         break;
                     
                     int retries = 3;
-                    boolean reconnect = false;
                     
                     while (retries-- > 0) {
                         
@@ -216,13 +215,17 @@ public class BatchRunner implements Runnable{
                         
                         try {
                             
-                            if(this.display==true)
+                            //if(this.display==true)
                             {
-                                System.out.println("Sending batch-" + batch.getID() + " to node-" + icc.hostname + "...");
+                                long currentTimeStamp = System.currentTimeMillis();
+                                System.out.println("Sending batch-" + batch.getID() + " to node-" + icc.hostname + " at time: " + currentTimeStamp);
                             }
-                            boolean successful = this.execBatch(icc.client, "SimpleCall", batch, reconnect);
-                            //boolean successful = this.execProcedure(icc.client, "SimpleCall", batchJSONString, reconnect);
-                            if(successful==true)
+                            //boolean successful = this.execBatch(icc.client, "SimpleCall", batch);
+                            Thread t = new Thread(new TransactionRunner(this, batch, icc.client,"SimpleCall"));
+                            workers.add(t);
+                            t.start();
+
+                            //if(successful==true)
                             {
                                 success_count++;
                             }
@@ -230,45 +233,44 @@ public class BatchRunner implements Runnable{
                             // if round is over, then we get the result and print it out
                             //if(isRoundFinished(batch.getID()))
                             {
-                                // get one round result
-                                InputClientConnection anothericc = this.getRandomConnection();
-                                VoltTable table = getResult(anothericc.client, "GetResults");
-                                
                                 // print out
-                                if(this.display==true)
-                                {
-                                    System.out.println("Getting result from node -" + anothericc.hostname + "...");
-                                    if(table != null)
-                                    {
-                                        int rowsize = table.getRowCount();
-                                        System.out.println("batch:" + batch.getID() + " - total words: " + batch.getSize() + " - words:"+ rowsize);
-                                        System.out.println("--------------BEGIN------------");
-                                        int igroup = 5;
-                                        String groupoutput = "";
-                                        for(int rowindex=0; rowindex<rowsize; rowindex++)
-                                        {
-                                            String word = table.fetchRow(rowindex).getString(0);
-                                            int num = (int)table.fetchRow(rowindex).getLong(1);
-                                            word = String.format("%-15s - ", word);
-                                            String strNum = String.format("%5d    ", num);
-                                            groupoutput += word + strNum;
-                                            if(rowindex % igroup == (igroup-1)){
-                                                System.out.println( groupoutput );
-                                                groupoutput = "";
-                                            }
-                                        }
-                                        System.out.println("--------------END--------------");
-                                    }
-                                }
+//                                if(this.display==true)
+//                                {
+//                                    // get one round result
+//                                    InputClientConnection anothericc = this.getRandomConnection();
+//                                    VoltTable table = getResult(anothericc.client, "GetResults");
+//                                
+//                                    System.out.println("Getting result from node -" + anothericc.hostname + "...");
+//                                    if(table != null)
+//                                    {
+//                                        int rowsize = table.getRowCount();
+//                                        System.out.println("batch:" + batch.getID() + " - total words: " + batch.getSize() + " - words:"+ rowsize);
+//                                        System.out.println("--------------BEGIN------------");
+//                                        int igroup = 5;
+//                                        String groupoutput = "";
+//                                        for(int rowindex=0; rowindex<rowsize; rowindex++)
+//                                        {
+//                                            String word = table.fetchRow(rowindex).getString(0);
+//                                            int num = (int)table.fetchRow(rowindex).getLong(1);
+//                                            word = String.format("%-15s - ", word);
+//                                            String strNum = String.format("%5d    ", num);
+//                                            groupoutput += word + strNum;
+//                                            if(rowindex % igroup == (igroup-1)){
+//                                                System.out.println( groupoutput );
+//                                                groupoutput = "";
+//                                            }
+//                                        }
+//                                        System.out.println("--------------END--------------");
+//                                    }
+//                                }
                             }
                             
-                        } catch (NoConnectionsException ex) {
-                            LOG.warn("Connection lost. Going to try to connect again...");
+                        } catch (Exception ex) {
+                            //LOG.warn("Connection lost. Going to try to connect again...");
                             
-                            resetConnections();
-                            icc = this.getConnection(batch.getID());
+                            //resetConnections();
+                            //icc = this.getConnection(batch.getID());
                             
-                            reconnect = true;
                             continue;
                         }
                         break;
@@ -297,6 +299,9 @@ public class BatchRunner implements Runnable{
             }
         } finally {
             try {
+                for(int iWorker=0; iWorker<workers.size();iWorker++)
+                    workers.get(iWorker).join();
+                
                 this.closeConnections();
                 //if (icc != null) icc.client.close();
             } catch (InterruptedException ex) {
@@ -451,7 +456,7 @@ public class BatchRunner implements Runnable{
         return result;
     }
     
-    private boolean execBatch(Client client, String procName, Batch batch, boolean reconnect) throws Exception {
+    private boolean execBatch(Client client, String procName, Batch batch) throws Exception {
         //String query = batch.toJSONString();
         
         Procedure catalog_proc = this.catalog_db.getProcedures().getIgnoreCase(procName);
@@ -610,6 +615,182 @@ public class BatchRunner implements Runnable{
 
     public void stop() {
         stop = true;
+    }
+    
+    public class TransactionRunner implements Runnable{
+        private BatchRunner runner;
+        private Batch batch;
+        private Client client;
+        private String procedurename;
+        
+        public TransactionRunner(BatchRunner runner, Batch batch, Client client, String procedurename) {
+            this.runner = runner;
+            this.batch = batch;
+            this.client = client;
+            this.procedurename = procedurename;
+        }
+        
+        public void run() {
+            try {
+                //client.callProcedure(callback, "SimpleCall", b.toJSONString());
+                //ois.close();
+                this.execBatch(client, procedurename, batch);
+                
+                displayResult();
+            }
+            catch(Exception e){
+                e.printStackTrace();
+            }
+        }
+        
+        private void displayResult() throws Exception
+        {
+            {
+                // print out
+                if(runner.display==true)
+                {
+                    // get one round result
+                    InputClientConnection anothericc = runner.getRandomConnection();
+                    VoltTable table = getResult(anothericc.client, "GetResults");
+                
+                    System.out.println("Getting result from node -" + anothericc.hostname + "...");
+                    if(table != null)
+                    {
+                        int rowsize = table.getRowCount();
+                        System.out.println("batch:" + batch.getID() + " - total words: " + batch.getSize() + " - words:"+ rowsize);
+                        System.out.println("--------------BEGIN------------");
+                        int igroup = 5;
+                        String groupoutput = "";
+                        for(int rowindex=0; rowindex<rowsize; rowindex++)
+                        {
+                            String word = table.fetchRow(rowindex).getString(0);
+                            int num = (int)table.fetchRow(rowindex).getLong(1);
+                            word = String.format("%-15s - ", word);
+                            String strNum = String.format("%5d    ", num);
+                            groupoutput += word + strNum;
+                            if(rowindex % igroup == (igroup-1)){
+                                System.out.println( groupoutput );
+                                groupoutput = "";
+                            }
+                        }
+                        System.out.println("--------------END--------------");
+                    }
+                }
+            }
+
+        }
+        
+        private boolean execBatch(Client client, String procName, Batch batch) throws Exception {
+            //String query = batch.toJSONString();
+            long currentTimeStamp = System.currentTimeMillis();
+            //batch.setTimestamp(currentTimeStamp);
+            
+            Procedure catalog_proc = runner.catalog_db.getProcedures().getIgnoreCase(procName);
+            if (catalog_proc == null) {
+                throw new Exception("Invalid stored procedure name '" + procName + "'");
+            }
+            
+            List<Object> procParams = new ArrayList<Object>();
+            {
+                // Extract the parameters and then convert them to their appropriate type
+                //List<String> params = BatchRunner.extractParams(query);
+                List<String> params = new ArrayList<String>();
+                int parametersize = catalog_proc.getParameters().size();
+                String parameters[] = Batch.splictToMultipleJSONString(batch, parametersize);
+                //System.out.println("parametersize-" + parametersize);
+                
+                for (int iPar=0; iPar<parametersize; iPar++)
+                {
+                    //System.out.println("Parameter - " + parameters[iPar]);
+                    params.add(parameters[iPar]);
+                    //byte[] strbytes = parameters[iPar].getBytes("UTF-8");
+                    //int len = strbytes.length;
+                    //System.out.println("Sending parameter:" + iPar + " - size:" + len);
+                }
+                
+                if (debug.val) LOG.debug("PARAMS: " + params);
+                if (params.size() != catalog_proc.getParameters().size()) {
+                    String msg = String.format("Expected %d params for '%s' but %d parameters were given",
+                                               catalog_proc.getParameters().size(), catalog_proc.getName(), params.size());
+                    throw new Exception(msg);
+                }
+                int i = 0;
+                for (ProcParameter catalog_param : catalog_proc.getParameters()) {
+                    VoltType vtype = VoltType.get(catalog_param.getType());
+                    Object value = VoltTypeUtil.getObjectFromString(vtype, params.get(i));
+                    
+                    // HACK: Allow us to send one-element array parameters
+                    if (catalog_param.getIsarray()) {
+                        switch (vtype) {
+                            case BOOLEAN:
+                                value = new boolean[]{ (Boolean)value };
+                                break;
+                            case TINYINT:
+                            case SMALLINT:
+                            case INTEGER:
+                                value = new int[]{ (Integer)value };
+                                break;
+                            case BIGINT:
+                                value = new long[]{ (Long)value };
+                                break;
+                            case FLOAT:
+                            case DECIMAL:
+                                value = new double[]{ (Double)value };
+                                break;
+                            case STRING:
+                                value = new String[]{ (String)value };
+                                break;
+                            case TIMESTAMP:
+                                value = new TimestampType[]{ (TimestampType)value };
+                            default:
+                                assert(false);
+                        } // SWITCH
+                    }
+                    procParams.add(value);
+                    i++;
+                } // FOR
+            }
+
+            Object params[] = procParams.toArray(); 
+            boolean result = true;
+            //result = client.asynCallProcedure(null, catalog_proc.getName(), null, params);
+            ClientResponse response = client.callProcedure(catalog_proc.getName(), params);
+            
+            if(response.getStatus()!=Status.OK)
+                result = false;
+            else
+            {
+                currentTimeStamp = System.currentTimeMillis();
+                batch.setEndTimestamp(currentTimeStamp);      
+                //System.out.println("finishing batch-" + batch.getID() + " at time: " + currentTimeStamp);
+                runner.increaseBatchCounter(batch.getID(), batch.getSize(), (int)batch.getLatency(), response.getClusterRoundtrip());
+            }
+            
+            return result;
+        }
+        
+        private VoltTable getResult(Client client, String procName) throws Exception 
+        {
+            VoltTable result = null;
+            
+            Procedure catalog_proc = runner.catalog_db.getProcedures().getIgnoreCase(procName);
+            if (catalog_proc == null) {
+                throw new Exception("Invalid stored procedure name '" + procName + "'");
+            }
+            
+            //result = client.asynCallProcedure(null, catalog_proc.getName(), null, params);
+            ClientResponse response = client.callProcedure(catalog_proc.getName());
+            
+            if(response.getStatus()==Status.OK)
+            {
+                result = response.getResults()[0];
+            }
+            else
+                System.out.println("Failed : " + catalog_proc.getName());
+            
+            return result;
+        }
+
     }
 
 }

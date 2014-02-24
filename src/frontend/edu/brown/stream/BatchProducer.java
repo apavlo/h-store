@@ -43,6 +43,7 @@ public class BatchProducer implements Runnable {
                 Batch batch = new Batch();
                 batch.setID(batchid++);
                 batch.setTimestamp(currentTimeStamp);
+                //System.out.println("Creating batch-" + batch.getID() + " at time : " + currentTimeStamp);
 
                 finishOperation = false;
                 // get all the tuples in a batch interval
@@ -68,6 +69,7 @@ public class BatchProducer implements Runnable {
 
                         //
                         if (current >= nextTimeStamp) {
+                            //System.out.println("Finish packaging batch-" + batch.getID() + " and put it in queue at time : " + current);
                             // put this batch into batch queue
                             batchQueue.put(batch);
                             // break to next interval
