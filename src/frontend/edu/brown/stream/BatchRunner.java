@@ -68,7 +68,7 @@ public class BatchRunner implements Runnable{
     private List<String> hostnames = new ArrayList<String>();
     private List<InputClientConnection> connections = new ArrayList<InputClientConnection>();
     
-    private List<Thread> workers =  new ArrayList<Thread>();
+    private List<TransactionRunner> workers =  new ArrayList<TransactionRunner>();
     
     private int port = HStoreConstants.DEFAULT_PORT;
     
@@ -221,7 +221,7 @@ public class BatchRunner implements Runnable{
                                 System.out.println("Sending batch-" + batch.getID() + " to node-" + icc.hostname + " at time: " + currentTimeStamp);
                             }
                             //boolean successful = this.execBatch(icc.client, "SimpleCall", batch);
-                            Thread t = new Thread(new TransactionRunner(this, batch, icc.client,"SimpleCall"));
+                            TransactionRunner t = new TransactionRunner(this, batch, icc.client,"SimpleCall");
                             workers.add(t);
                             t.start();
 
@@ -300,8 +300,16 @@ public class BatchRunner implements Runnable{
         } finally {
             try {
                 for(int iWorker=0; iWorker<workers.size();iWorker++)
-                    workers.get(iWorker).join();
+                {
+                    TransactionRunner worker = workers.get(iWorker);
+                    worker.join();
+                }
                 
+                for(int iWorker=0; iWorker<workers.size();iWorker++)
+                {
+                    TransactionRunner worker = workers.get(iWorker);
+                    this.increaseBatchCounter(worker.batchid, worker.batchsize, worker.clientlatency, worker.clusterlatency);
+                }
                 this.closeConnections();
                 //if (icc != null) icc.client.close();
             } catch (InterruptedException ex) {
@@ -617,11 +625,17 @@ public class BatchRunner implements Runnable{
         stop = true;
     }
     
-    public class TransactionRunner implements Runnable{
+    public class TransactionRunner extends Thread{
         private BatchRunner runner;
         private Batch batch;
         private Client client;
         private String procedurename;
+        
+        // result information
+        public long batchid;
+        public int batchsize;
+        public int clientlatency; 
+        public int clusterlatency;
         
         public TransactionRunner(BatchRunner runner, Batch batch, Client client, String procedurename) {
             this.runner = runner;
@@ -763,7 +777,11 @@ public class BatchRunner implements Runnable{
                 currentTimeStamp = System.currentTimeMillis();
                 batch.setEndTimestamp(currentTimeStamp);      
                 //System.out.println("finishing batch-" + batch.getID() + " at time: " + currentTimeStamp);
-                runner.increaseBatchCounter(batch.getID(), batch.getSize(), (int)batch.getLatency(), response.getClusterRoundtrip());
+                batchid = batch.getID();
+                batchsize = batch.getSize();
+                clientlatency = (int)batch.getLatency(); 
+                clusterlatency = response.getClusterRoundtrip();
+                //runner.increaseBatchCounter(batch.getID(), batch.getSize(), (int)batch.getLatency(), response.getClusterRoundtrip());
             }
             
             return result;
