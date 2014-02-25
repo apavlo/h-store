@@ -42,7 +42,7 @@ public class BatchProducer implements Runnable {
                 // create new batch
                 Batch batch = new Batch();
                 batch.setID(batchid++);
-                batch.setTimestamp(currentTimeStamp);
+                //batch.setTimestamp(currentTimeStamp);
                 //System.out.println("Creating batch-" + batch.getID() + " at time : " + currentTimeStamp);
 
                 finishOperation = false;
@@ -71,6 +71,7 @@ public class BatchProducer implements Runnable {
                         if (current >= nextTimeStamp) {
                             //System.out.println("Finish packaging batch-" + batch.getID() + " and put it in queue at time : " + current);
                             // put this batch into batch queue
+                            batch.setTimestamp(current);
                             batchQueue.put(batch);
                             // break to next interval
                             break;
