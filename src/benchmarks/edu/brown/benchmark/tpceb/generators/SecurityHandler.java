@@ -55,6 +55,7 @@ public class SecurityHandler {
     
     public SecurityHandler(TPCEGenerator generator) {
         secFile = generator.getInputFile(InputFile.SECURITY);
+        
         secRecords = secFile.getRecordsNum();
         compRecords = generator.getInputFile(InputFile.COMPANY).getRecordsNum();
     

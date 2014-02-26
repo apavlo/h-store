@@ -50,8 +50,8 @@ public class MEETradingFloor {
      }
      
      private double  genProcessingDelay(double mean){
-        double result = ( -1.0 * Math.log( rnd.rndDouble() )) * mean;
-    
+       // double result = ( -1.0 * Math.log( rnd.rndDouble() )) * mean;
+         double result = ( -1.0 * Math.log(rnd.doubleIncrRange(0.0, 1.0, 0.000000000001)) * mean);
         if( result > maxOrderProcessingDelay ){
             return( maxOrderProcessingDelay );
         }
@@ -64,7 +64,7 @@ public class MEETradingFloor {
         switch( tradeReq.eAction ){
         case eMEEProcessOrder:
             {
-              //  System.out.println("in eMEEProcessOrder - fails");
+                System.out.println("in eMEEProcessOrder - fails");
                // sendTradeResult(tradeReq); //added for debugging
                /*added b/c original uses pointers*/
                 TTradeRequest newTradeRequest = new TTradeRequest();

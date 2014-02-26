@@ -1,12 +1,14 @@
 package edu.brown.benchmark.tpceb.generators;
 
 import java.lang.reflect.Method;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.LinkedList;
 import java.util.Queue;
 
 import edu.brown.benchmark.tpceb.generators.TradeGenerator.TradeType;
+import edu.brown.benchmark.tpceb.util.EGenDate;
 import edu.brown.benchmark.tpceb.util.EGenMoney;
 import edu.brown.benchmark.tpceb.util.EGenRandom;
 
@@ -32,6 +34,7 @@ public class MEETickerTape {
         this.sut = sut;
         this.priceBoard = priceBoard;
         batchIndex = 0;
+        batchDuplicates = 0; //added
         rnd = new EGenRandom( EGenRandom.RNG_SEED_BASE_MEE_TICKER_TAPE);
         enabled = true;
         this.baseTime = baseTime;
@@ -128,7 +131,14 @@ public class MEETickerTape {
             GregorianCalendar baseGreTime = new GregorianCalendar();
             currGreTime.setTime(currentTime);
             baseGreTime.setTime(baseTime);
-            double fCurrentTime = currGreTime.getTimeInMillis() - baseGreTime.getTimeInMillis();
+           
+            double dSecs =  (double) (currGreTime.get(Calendar.DAY_OF_WEEK) - baseGreTime.get(Calendar.DAY_OF_WEEK) );
+            dSecs = dSecs * EGenDate.SecondsPerMinute * EGenDate.MinutesPerHour * EGenDate.HoursPerDay;
+            GregorianCalendar Now2 = new GregorianCalendar();
+            dSecs += (currGreTime.get(Calendar.MILLISECOND) - baseGreTime.get(Calendar.MILLISECOND)) / EGenDate.MsPerSecondDivisor;
+             
+            //double fCurrentTime = currGreTime.getTimeInMillis() - baseGreTime.getTimeInMillis();
+            double fCurrentTime = dSecs;
             //TODO the third para, compare to c++
             TriggerTimeDelay = priceBoard.getSubmissionTime(pNewEntry.symbol, fCurrentTime, new EGenMoney(pNewEntry.price_quote), eTradeType) - fCurrentTime;
             //modified
@@ -178,7 +188,7 @@ public class MEETickerTape {
         }
     }
 
-    public void  AddToBatch( TTickerEntry tickerEntry ){
+  /*  public void  AddToBatch( TTickerEntry tickerEntry ){
         System.out.println("in add to batch  --> batch index " + batchIndex);
         txnInput.Entries[batchIndex++] = tickerEntry;
         System.out.println("Ticker Entry:" + tickerEntry.price_quote + " " + tickerEntry.symbol + " " + tickerEntry.trade_qty);
@@ -187,6 +197,24 @@ public class MEETickerTape {
             sut.MarketFeed( txnInput );
             System.out.println("added to txnInput");
             batchIndex = 0;
+        }
+    }*/
+    public void  AddToBatch( TTickerEntry tickerEntry ){
+        System.out.println("in add to batch  --> batch index " + batchIndex);
+        for(int i = 0; i < batchIndex; i++){
+               if(tickerEntry.symbol.equals(txnInput.Entries[i])){
+                   batchDuplicates++;
+                      break;
+               }
+        }
+        txnInput.Entries[batchIndex++] = tickerEntry;
+        System.out.println("Ticker Entry:" + tickerEntry.price_quote + " " + tickerEntry.symbol + " " + tickerEntry.trade_qty);
+        if( TxnHarnessStructs.max_feed_len == batchIndex ){
+            System.out.println("max feed len equals batch index");
+            sut.MarketFeed( txnInput );
+            System.out.println("added to txnInput");
+            batchIndex = 0;
+            batchDuplicates = 0;
         }
     }
 
@@ -242,7 +270,7 @@ public class MEETickerTape {
     private boolean              enabled;
     private InputFileHandler     statusType;
     private InputFileHandler     tradeType;
-
+    private int                     batchDuplicates; //added
     public final int              LIMIT_TRIGGER_TRADE_QTY = 375;
     public final int             RANDOM_TRADE_QTY_1 = 325;
     public final int              RANDOM_TRADE_QTY_2 = 425;

@@ -144,12 +144,14 @@ public class TPCEGenerator {
         inputFiles.put(InputFile.SECURITY, new FlatFile(new File(inputDir + File.separator + SECURITY_FILE)));
         inputFiles.put(InputFile.STATUS, new FlatFile(new File(inputDir + File.separator + STATUS_FILE)));
         inputFiles.put(InputFile.TRADETYPE, new FlatFile(new File(inputDir + File.separator + TRADETYPE_FILE)));
-   
+      
         this.currentCustomers = total_customers;
         this.customerStartId = TPCEConstants.DEFAULT_START_CUSTOMER_ID;
         this.total_customers = total_customers;
         this.scaling_factor = scaling_factor;
         this.initial_days = initial_days;
+        
+        parseInputFiles();
     }
      
     /**

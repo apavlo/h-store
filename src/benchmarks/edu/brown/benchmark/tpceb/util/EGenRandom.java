@@ -275,8 +275,52 @@ public class EGenRandom {
         
         return min + (int)(rndDouble() * (double)(max - min));
     }
-    
+
     public long int64Range(long min, long max) {
+        if ( max <= min) {
+            return min;
+        }
+        
+        long range = (max - min + 1);
+        
+        if ( range <= 1 )
+            return min; 
+        
+        long MASK32 = 0xFFFFFFFFL;
+        int UPPER32 = 32;
+        long temp = 0x8000000000000000L; //BIT63
+        long CARRY32 = 0x100000000L;
+        BigInteger BIT63 = BigInteger.valueOf(temp);
+        long       SL = (seed & MASK32),           // lower 32 bits of seed
+                SU = (seed >> UPPER32),         // upper 32 bits of seed
+                RL = (range & MASK32),          // lower 32 bits of range
+                RU = (range >> UPPER32);        // upper 32 bits of range
+
+        long       p0 = (SL * RL),                 // partial products
+                p1 = (SU * RL),
+                p2 = (SL * RU),
+                p3 = (SU * RU),
+                p12_carry = 0,
+                s;
+        BigInteger num1 = BigInteger.valueOf(p1);
+        //BigInteger num2 = BigInteger.valueOf(s);
+        BigInteger num3 = BigInteger.valueOf(p2);
+        BigInteger tempNum = (num1.and(BIT63)).or(num1.and(BIT63));
+            s = p0;
+            s >>= UPPER32;
+            s += p1;
+            p12_carry = (( ( ( (p1 & temp) - (s & temp) ) - (p2 & temp)) == 0 ) ? CARRY32 : 0) ;
+            s += p2;
+            s >>= UPPER32;
+            s += p12_carry;
+            s += p3;
+
+        return (min + s);
+        
+
+    }
+    
+    /*public long int64Range(long min, long max) {
         if (min == max) {
             return min;
         }
@@ -287,7 +331,19 @@ public class EGenRandom {
         }
         
         return min + (long)(rndDouble() * (double)(max - min));
-    }
+        
+         if ( max <= min )
+        return min;
+
+    UINT64 range = (max - min + 1);
+
+    if ( range <= 1 )
+        return min;        // overflow happened
+
+    UInt64Rand();          // generate next seed value
+
+    return (min + (INT64)Mul6464WithShiftRight64(m_seed,range));
+    }*/
 
     public int intRangeExclude(int low, int high, int exclude) {
         int tmp;

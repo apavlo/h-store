@@ -68,17 +68,19 @@ public class TimerWheel {
 
     /*added*/
     public int  startTimer( double Offset, Object expiryObject, Object expiryData ){
+        System.out.println("IN START TIMER");
         GregorianCalendar                   Now = new GregorianCalendar();
         
         WheelTime                  RequestedTime = new WheelTime( wheelConfig , baseTime, Now, (int) (Offset * ( EGenDate.MsPerSecond / resolution )));
         TimerWheelTimer    pNewTimer = new TimerWheelTimer( expiryObject, expiryFunction, expiryData );
-        //System.out.println("IN START TIMER");
-        //System.out.println("Is timer empty"+ timerWheel.isEmpty());
+        System.out.println("Original: " + RequestedTime.getIndex());
         currentTime.set( baseTime, Now );
+        System.out.println("Original currentTime: " + currentTime.getIndex());
         expiryProcessing();
-        //System.out.println("back in start timer out of expiry processing");
+        
         this.expiryData = expiryData;
         this.expiryObject = expiryObject;
+        System.out.println("ADDING TO:" + RequestedTime.getIndex());
         /*DEBUGGING: 
          * previous code: timerWheel.get(RequestedTime.getIndex()).add( pNewTimer );
          * not valid in java when list here is set to be null originally (as I did in constructor)
@@ -98,14 +100,13 @@ public class TimerWheel {
             timerWheel.set(RequestedTime.getIndex(), newList);
         }
         else{
-           // System.out.println("Second was true");
-          //  System.out.println("timer wheel length: "+ timerWheel.size());
-           // System.out.println("timerwheel size at " + RequestedTime.getIndex() + " " + timerWheel.get(RequestedTime.getIndex()).size());
             timerWheel.get(RequestedTime.getIndex()).add( pNewTimer );
            // System.out.println("NOW: timerwheel size at " + RequestedTime.getIndex() + " " + timerWheel.get(RequestedTime.getIndex()).size());
         }
         numberOfTimers++;
+        System.out.println("Number of timers" + numberOfTimers);
         if( RequestedTime.getCycles() == nextTime.getCycles() ? (RequestedTime.getIndex() < nextTime.getIndex()) : ( RequestedTime.getCycles() < nextTime.getCycles() )){
+            System.out.println("new next time");
             nextTime = RequestedTime;
         }
        // System.out.println("LENGTH" + timerWheel.size());
@@ -164,43 +165,38 @@ public class TimerWheel {
         GregorianCalendar   Now = new GregorianCalendar();
 
         currentTime.set( baseTime, Now );
-       // System.out.println(baseTime);// + " " + Now);
-       // System.out.println("going to expiry processing");
+
         return( expiryProcessing() );
     }
 
     private int  expiryProcessing(){
-       // System.out.println("In expiry processing");
-       // System.out.println("lastTime cycles" + lastTime.getCycles() );
-       // System.out.println("currentTime cycles" + currentTime.getCycles() );
-       // System.out.println("lastTime index" + lastTime.getIndex() );
-        //System.out.println("currentTime index" + currentTime.getIndex() );
-        
+ 
+        System.out.println("in expiry processing last time cycles" + lastTime.getCycles());
+        System.out.println("in expiry processing last time index" + lastTime.getIndex());
         while( lastTime.getCycles() == currentTime.getCycles() ? ( lastTime.getIndex() < currentTime.getIndex() ) : ( lastTime.getCycles() < currentTime.getCycles() )){
           //  System.out.println("last time index before" + lastTime.getIndex());
             lastTime.add(1);
        
-          //  System.out.println("timerWheel size in expiry processing " + timerWheel.size());
         
-          //  System.out.println("last time index up" + lastTime.getIndex());
-          //  System.out.println("in loop");
             /*DEBUGGING: first make sure timer wheel isn't empty. Otherwise 3rd if condition will break same C++/Java reasons
              * then check that the value at the index isn't null - valid java code
              * 
              * */
-          //  System.out.println("index trying to access: " + lastTime.getIndex());
-          //  System.out.println("size at that index" + timerWheel.get(lastTime.getIndex()).size() );
+            System.out.println("index trying to access: " + lastTime.getIndex());
+            System.out.println("size at that index" + timerWheel.get(lastTime.getIndex()).size() );
             if(! timerWheel.isEmpty()){ //DEBUGGING: added if
                 if( !( timerWheel.get(lastTime.getIndex()) == null)){ //DEBUGGING: added if
-               //     System.out.println("This worked");
+                    System.out.println("This worked");
+                    System.out.println("value was " + timerWheel.get(lastTime.getIndex()) );
                 if( ! timerWheel.get( lastTime.getIndex()).isEmpty() ){ //original statement
-                //    System.out.println("adding to timer list");
-                 //   System.out.println("print" + timerWheel.get(lastTime.getIndex()));
+                    System.out.println("adding to timer list");
+                    System.out.println("print" + timerWheel.get(lastTime.getIndex()));
                     processTimerList( timerWheel.get( lastTime.getIndex()) );
                 }
                 }
             }
         }
+        
         return( setNextTime() );
     }
 
@@ -223,16 +219,7 @@ public class TimerWheel {
                 TimerWheelTimer value = pList.poll();
                 if(value !=null){
                     System.out.println("Got next");
-                ////System.out.println("Getting Function:" + ExpiredTimer.next().getExpiryFunction());
-                //ExpiredTimer.next().getExpiryFunction().invoke(expiryObject, expiryData);
-                  //  if(expiryObject == null){
-                   //     System.out.println("Expriy object was null");
-                        
-                   // }
-                   // if(expiryData == null){
-                    //    System.out.println("Expiry Data was null");
-                   // }
-                   // System.out.println("DATA1: " + value.getExpiryData());
+                
                     System.out.println("DATA2: " + expiryData);
                     //expiryData = new TTradeRequest();
                   //  System.out.println("OBJECT1: " + value.getExpiryObject());
@@ -261,16 +248,18 @@ public class TimerWheel {
 
      
     private int  setNextTime(){
-       // System.out.println("in set next time");
+        System.out.println("in set next time");
         if( 0 == numberOfTimers ){
-          //  System.out.println("number of timers was 0");
+            System.out.println("number of timers was 0");
             nextTime.set( TWheelConfig.MaxWheelCycles, ( period * ( EGenDate.MsPerSecond / resolution )) - 1 );
-           // System.out.println("new next time" + nextTime.getCycles());
+            System.out.println("new next time" + nextTime.getCycles());
             return( NO_OUTSTANDING_TIMERS );
         }
         else{
             
             nextTime = currentTime;
+            System.out.println("nextTime.getIndex()" + nextTime.getIndex());
+            System.out.println("timerWheel at index" + timerWheel.get(nextTime.getIndex()) );
             /*DEBUGGING: added in the if statement b/c java will not recognize condition in the while loop if it is null*/
             if( !(timerWheel.get(nextTime.getIndex()) == null )){
               
@@ -281,6 +270,7 @@ public class TimerWheel {
                    
                 }
             }
+            System.out.println("returning");
             return( nextTime.offset( currentTime ));
         }
     }

@@ -150,7 +150,8 @@ public class MEESecurity {
         if (((tradeType == TradeType.eLimitBuy || tradeType == TradeType.eStopLoss) && priceAtPendingTime.lessThanOrEqual(limitPrice)) ||
             ((tradeType == TradeType.eLimitSell) && limitPrice.lessThanOrEqual(priceAtPendingTime))) {
             // Trigger the order immediately.
-            submissionTimeFromPending = rnd.doubleRange(0.5 * meanInTheMoneySubmissionDelay, 1.5 * meanInTheMoneySubmissionDelay);
+            //submissionTimeFromPending = rnd.doubleRange(0.5 * meanInTheMoneySubmissionDelay, 1.5 * meanInTheMoneySubmissionDelay);
+            submissionTimeFromPending = rnd.doubleIncrRange(0.5 * meanInTheMoneySubmissionDelay, 1.5 * meanInTheMoneySubmissionDelay, 0.001);
         }
         else {
             int directionAtPendingTime;
