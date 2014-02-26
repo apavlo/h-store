@@ -14,6 +14,8 @@ public class BatchRunnerResults {
     public final Map<Long, Double> tuplelatencies = new HashMap<Long, Double>();
     public final Map<Long, Double> throughputs = new HashMap<Long, Double>();
     public final Map<Long, Double> batchthroughputs = new HashMap<Long, Double>();
+    public final Map<Long, Double> clientthroughputs = new HashMap<Long, Double>();
+    public final Map<Long, Double> clientbatchthroughputs = new HashMap<Long, Double>();
     
     private long length = 0;
     
@@ -24,6 +26,8 @@ public class BatchRunnerResults {
     public double minTupleLatency = Double.MAX_VALUE;
     public double minThrouput = Double.MAX_VALUE;
     public double minBatchThrouput = Double.MAX_VALUE;
+    public double minClientThrouput = Double.MAX_VALUE;
+    public double minClientBatchThrouput = Double.MAX_VALUE;
 
     public int maxSize = Integer.MIN_VALUE; 
     public int maxLatency = Integer.MIN_VALUE;
@@ -31,6 +35,8 @@ public class BatchRunnerResults {
     public double maxTupleLatency = Double.MIN_VALUE;
     public double maxThrouput = Double.MIN_VALUE;
     public double maxBatchThrouput = Double.MIN_VALUE;
+    public double maxClientThrouput = Double.MIN_VALUE;
+    public double maxClientBatchThrouput = Double.MIN_VALUE;
 
     public int totalSize = 0;
     public int totalLatency = 0;
@@ -38,6 +44,8 @@ public class BatchRunnerResults {
     public double totalTupleLatency = (double) 0.0;
     public double totalThrouput = (double) 0.0;
     public double totalBatchThrouput = (double) 0.0;
+    public double totalClientThrouput = (double) 0.0;
+    public double totalClientBatchThrouput = (double) 0.0;
 
     public int averageSize = 0;
     public int averageLatency = 0;
@@ -45,6 +53,8 @@ public class BatchRunnerResults {
     public double averageTupleLatency = (double) 0.0;
     public double averageThrouput = (double) 0.0;
     public double averageBatchThrouput = (double) 0.0;
+    public double averageClientThrouput = (double) 0.0;
+    public double averageClientBatchThrouput = (double) 0.0;
 
     public double stddevSize = (double) 0.0;
     public double stddevLatency = (double) 0.0;
@@ -52,6 +62,8 @@ public class BatchRunnerResults {
     public double stddevTupleLatency = (double) 0.0;
     public double stddevThrouput = (double) 0.0;
     public double stddevBatchThrouput = (double) 0.0;
+    public double stddevClientThrouput = (double) 0.0;
+    public double stddevClientBatchThrouput = (double) 0.0;
 
     public BatchRunnerResults() {
         // TODO Auto-generated constructor stub
@@ -63,6 +75,8 @@ public class BatchRunnerResults {
         double throuput = (double)((double)size*1000/(double)clusterlatency);  // #/s
         double tuplelatency = (double)((double)latency/(double)size);   // ms
         double batchthrouput = (double)((double)1000/(double)clusterlatency);  // #/s
+        double clientthrouput = (double)((double)size*1000/(double)latency);  // #/s
+        double clientbatchthrouput = (double)((double)1000/(double)latency);  // #/s
 
         sizes.put(batchid, size);
         latencies.put(batchid, latency);
@@ -70,6 +84,8 @@ public class BatchRunnerResults {
         tuplelatencies.put(batchid, tuplelatency);
         throughputs.put(batchid, throuput);
         batchthroughputs.put(batchid, batchthrouput);
+        clientthroughputs.put(batchid, clientthrouput);
+        clientbatchthroughputs.put(batchid, clientbatchthrouput);
         
         length++;
         
@@ -112,6 +128,20 @@ public class BatchRunnerResults {
         if (batchthrouput < minBatchThrouput)
             minBatchThrouput = batchthrouput;
         
+        totalClientThrouput += clientthrouput;
+        
+        if (clientthrouput > maxClientThrouput)
+            maxClientThrouput = clientthrouput;
+        if (clientthrouput < minClientThrouput)
+            minClientThrouput = clientthrouput;
+
+        totalClientBatchThrouput += clientbatchthrouput;
+        
+        if (clientbatchthrouput > maxClientBatchThrouput)
+            maxClientBatchThrouput = clientbatchthrouput;
+        if (clientbatchthrouput < minClientBatchThrouput)
+            minClientBatchThrouput = clientbatchthrouput;
+
         //
         averageSize = (int)(totalSize/length);
         averageLatency = (int)(totalLatency/length);
@@ -119,6 +149,8 @@ public class BatchRunnerResults {
         averageTupleLatency = (double)(totalTupleLatency/length);
         averageThrouput = (double)(totalThrouput/length);
         averageBatchThrouput = (double)(totalBatchThrouput/length);
+        averageClientThrouput = (double)(totalClientThrouput/length);
+        averageClientBatchThrouput = (double)(totalClientBatchThrouput/length);
         
     }
     
@@ -130,6 +162,8 @@ public class BatchRunnerResults {
         double tuplelatencies[] = new double[(int)length];
         double throuputs[] = new double[(int)length];
         double batchthrouputs[] = new double[(int)length];
+        double clientthrouputs[] = new double[(int)length];
+        double clientbatchthrouputs[] = new double[(int)length];
         
         for(long i = 0; i<length; i++)
         {
@@ -139,6 +173,8 @@ public class BatchRunnerResults {
             tuplelatencies[(int)i] = (double)this.tuplelatencies.get((Long)i);
             throuputs[(int)i] = (double)this.throughputs.get((Long)i);
             batchthrouputs[(int)i] = (double)this.batchthroughputs.get((Long)i);
+            clientthrouputs[(int)i] = (double)this.clientthroughputs.get((Long)i);
+            clientbatchthrouputs[(int)i] = (double)this.clientbatchthroughputs.get((Long)i);
         }
 
         this.stddevSize = MathUtil.stdev(sizes);
@@ -147,6 +183,8 @@ public class BatchRunnerResults {
         this.stddevTupleLatency = MathUtil.stdev(tuplelatencies);
         this.stddevThrouput = MathUtil.stdev(throuputs);
         this.stddevBatchThrouput = MathUtil.stdev(batchthrouputs);
+        this.stddevClientThrouput = MathUtil.stdev(clientthrouputs);
+        this.stddevClientBatchThrouput = MathUtil.stdev(clientbatchthrouputs);
         
     }
     

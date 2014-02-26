@@ -116,12 +116,16 @@ public class InputClient implements Runnable {
                         int clusterlatency = batchresult.clusterlatencies.get((Long)i);
                         double batchthroughput = batchresult.batchthroughputs.get((Long)i);
                         double throughput = batchresult.throughputs.get((Long)i);
-                        strOutput = " batch id : " + String.format("%4d", i);
-                        strOutput += " - tuple size : " + String.format("%5d", size);
-                        strOutput += " - client latency : " + String.format("%5d", latency) + " ms";
-                        strOutput += " - cluster latency : " + String.format("%5d", clusterlatency) + " ms";
-                        strOutput += " - cluster #batch/s :" + String.format("%8.2f", batchthroughput);
-                        strOutput += " - #tuple/s :" + String.format("%8.2f", throughput);
+                        double clientbatchthroughput = batchresult.clientbatchthroughputs.get((Long)i);
+                        double clientthroughput = batchresult.clientthroughputs.get((Long)i);
+                        strOutput = "batch id:" + String.format("%2d", i);
+                        strOutput += " size:" + String.format("%4d", size);
+                        strOutput += " client latency:" + String.format("%4d", latency) + "ms";
+                        strOutput += " cluster latency:" + String.format("%3d", clusterlatency) + "ms";
+                        strOutput += " cluster #batch/s:" + String.format("%6.2f", batchthroughput);
+                        strOutput += " #tuple/s:" + String.format("%6.2f", throughput);
+                        strOutput += " client #batch/s:" + String.format("%6.2f", clientbatchthroughput);
+                        strOutput += " #tuple/s:" + String.format("%6.2f", clientthroughput);
                         strOutput += " ";
                         System.out.println(strOutput);
                     }

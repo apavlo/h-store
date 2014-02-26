@@ -23,6 +23,16 @@ public class FinalResult {
     private final double maxBatchThrouput;
     private final double averageBatchThrouput;
     private final double stddevBatchThrouput;
+    // client throuput
+    private final double minClientThrouput;
+    private final double maxClientThrouput;
+    private final double averageClientThrouput;
+    private final double stddevClientThrouput;
+    // batch client throuput
+    private final double minClientBatchThrouput;
+    private final double maxClientBatchThrouput;
+    private final double averageClientBatchThrouput;
+    private final double stddevClientBatchThrouput;
     // size
     private final double minSize;
     private final double maxSize;
@@ -64,6 +74,16 @@ public class FinalResult {
         averageBatchThrouput = batchresult.averageBatchThrouput;
         stddevBatchThrouput = batchresult.stddevBatchThrouput;
         
+        minClientThrouput = batchresult.minClientThrouput;
+        maxClientThrouput = batchresult.maxClientThrouput;
+        averageClientThrouput = batchresult.averageClientThrouput;
+        stddevClientThrouput = batchresult.stddevClientThrouput;
+
+        minClientBatchThrouput = batchresult.minClientBatchThrouput;
+        maxClientBatchThrouput = batchresult.maxClientBatchThrouput;
+        averageClientBatchThrouput = batchresult.averageClientBatchThrouput;
+        stddevClientBatchThrouput = batchresult.stddevClientBatchThrouput;
+
         minSize = batchresult.minSize;
         maxSize = batchresult.maxSize;
         averageSize = batchresult.averageSize;
@@ -115,6 +135,28 @@ public class FinalResult {
              .append(String.format("stdev:" + RESULT_FORMAT, this.stddevThrouput))
              .append("]");
 
+        // batch client throuput
+        StringBuilder clientbatchthroughput = new StringBuilder();
+        clientbatchthroughput.append(String.format(RESULT_FORMAT + " #batch/s", this.averageClientBatchThrouput))
+             .append(" [")
+             .append(String.format("min:" + RESULT_FORMAT, this.minClientBatchThrouput))
+             .append(" / ")
+             .append(String.format("max:" + RESULT_FORMAT, this.maxClientBatchThrouput))
+             .append(" / ")
+             .append(String.format("stdev:" + RESULT_FORMAT, this.stddevClientBatchThrouput))
+             .append("]");
+
+        // tuple throuput
+        StringBuilder clientthroughput = new StringBuilder();
+        clientthroughput.append(String.format(RESULT_FORMAT + " #tuple/s", this.averageClientThrouput))
+             .append(" [")
+             .append(String.format("min:" + RESULT_FORMAT, this.minClientThrouput))
+             .append(" / ")
+             .append(String.format("max:" + RESULT_FORMAT, this.maxClientThrouput))
+             .append(" / ")
+             .append(String.format("stdev:" + RESULT_FORMAT, this.stddevClientThrouput))
+             .append("]");
+
         // size
         StringBuilder size = new StringBuilder();
         size.append(String.format(RESULT_FORMAT + " #", (double)this.averageSize))
@@ -162,9 +204,11 @@ public class FinalResult {
         Map<String, Object> m = new LinkedHashMap<String, Object>();
         m.put("Batch Size", size.toString());
         m.put("Batch Throughput", batchthroughput.toString()); 
+        m.put("Batch Throughput(client)", clientbatchthroughput.toString()); 
         m.put("Batch Latency", latency.toString());
         m.put("Batch Cluster Latency", clusterlatency.toString());
         m.put("Tuple Throughput", throughput.toString()); 
+        m.put("Tuple Throughput(client)", clientthroughput.toString()); 
         m.put("Tuple Latency", tuplelatency.toString());
 
         sb.append(StringUtil.formatMaps(m));
@@ -194,22 +238,37 @@ public class FinalResult {
             jsonBatch.put("MAXTHROUPUT", this.maxThrouput);
             jsonBatch.put("AVERAGETHROUPUT", this.averageThrouput);
             jsonBatch.put("STDDEVTHROUPUT", this.stddevThrouput);
+            
             jsonBatch.put("MINBATCHTHROUPUT", this.minBatchThrouput);
             jsonBatch.put("MAXBATCHTHROUPUT", this.maxBatchThrouput);
             jsonBatch.put("AVERAGEBATCHTHROUPUT", this.averageBatchThrouput);
             jsonBatch.put("STDDEVBATCHTHROUPUT", this.stddevBatchThrouput);
+            
+            jsonBatch.put("MINCLIENTTHROUPUT", this.minClientThrouput);
+            jsonBatch.put("MAXCLIENTTHROUPUT", this.maxClientThrouput);
+            jsonBatch.put("AVERAGECLIENTTHROUPUT", this.averageClientThrouput);
+            jsonBatch.put("STDDEVCLIENTTHROUPUT", this.stddevClientThrouput);
+            
+            jsonBatch.put("MINCLIENTBATCHTHROUPUT", this.minClientBatchThrouput);
+            jsonBatch.put("MAXCLIENTBATCHTHROUPUT", this.maxClientBatchThrouput);
+            jsonBatch.put("AVERAGECLIENTBATCHTHROUPUT", this.averageClientBatchThrouput);
+            jsonBatch.put("STDDEVCLIENTBATCHTHROUPUT", this.stddevClientBatchThrouput);
+            
             jsonBatch.put("MINSIZE", this.minSize);
             jsonBatch.put("MAXSIZE", this.maxSize);
             jsonBatch.put("AVERAGESIZE", this.averageSize);
             jsonBatch.put("STDDEVSIZE", this.stddevSize);
+            
             jsonBatch.put("MINLATENCY", this.minLatency);
             jsonBatch.put("MAXLATENCY", this.maxLatency);
             jsonBatch.put("AVERAGELATENCY", this.averageLatency);
             jsonBatch.put("STDDEVLATENCY", this.stddevLatency);
+            
             jsonBatch.put("MINCLUSTERLATENCY", this.minClusterLatency);
             jsonBatch.put("MAXCLUSTERLATENCY", this.maxClusterLatency);
             jsonBatch.put("AVERAGECLUSTERLATENCY", this.averageClusterLatency);
             jsonBatch.put("STDDEVCLUSTERLATENCY", this.stddevClusterLatency);
+            
             jsonBatch.put("MINTUPLELATENCY", this.minTupleLatency);
             jsonBatch.put("MAXTUPLELATENCY", this.maxTupleLatency);
             jsonBatch.put("AVERAGETUPLELATENCY", this.averageTupleLatency);

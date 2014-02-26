@@ -9,6 +9,7 @@ import org.voltdb.client.ProcedureCallback;
 
 import edu.brown.api.BenchmarkComponent;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.stream.Batch;
 import edu.brown.benchmark.wordcountsstore.procedures.SimpleCall;
 
 public class WordCountSStoreClient extends BenchmarkComponent {
@@ -16,6 +17,7 @@ public class WordCountSStoreClient extends BenchmarkComponent {
     private static final LoggerBoolean debug = new LoggerBoolean();
     private static long lastTime;
     private static int timestamp;
+    private static boolean firstRun;
     
     // word generator
     WordGenerator wordGenerator;
@@ -31,8 +33,7 @@ public class WordCountSStoreClient extends BenchmarkComponent {
         String strFileName = "word.txt";
         
         this.wordGenerator = new WordGenerator(this.getClientId(), strFileName);
-        lastTime = System.nanoTime();
-        timestamp = 0;
+        firstRun = true;
     }
 
     @Override
@@ -49,6 +50,13 @@ public class WordCountSStoreClient extends BenchmarkComponent {
     @Override
     protected boolean runOnce() throws IOException {
         String word;
+        if(firstRun)
+        {
+        	lastTime = System.nanoTime();
+            timestamp = 0;
+            firstRun = false;
+        }
+        
         if(wordGenerator.isEmpty()==false)
         {
             if(wordGenerator.hasMoreWords()==false)
@@ -62,6 +70,7 @@ public class WordCountSStoreClient extends BenchmarkComponent {
             {
             	lastTime = System.nanoTime();
             	timestamp++;
+            	//client.callProcedure(callback, "GetResults");
             }
 	        response = client.callProcedure(callback, "SimpleCall", word, timestamp);
 

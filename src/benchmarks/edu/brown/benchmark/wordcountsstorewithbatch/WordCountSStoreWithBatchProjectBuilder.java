@@ -7,9 +7,6 @@ import edu.brown.api.BenchmarkComponent;
 
 import edu.brown.benchmark.wordcountsstorewithbatch.procedures.SimpleCall;
 import edu.brown.benchmark.wordcountsstorewithbatch.procedures.WindowTrigger;
-import edu.brown.benchmark.wordcountsstorewithbatch.procedures.MidStreamTrigger;
-import edu.brown.benchmark.wordcountsstorewithbatch.procedures.ResultsWinTrigger;
-import edu.brown.benchmark.wordcountsstorewithbatch.procedures.CountTrigger;
 import edu.brown.benchmark.wordcountsstorewithbatch.procedures.GetResults;
  
 public class WordCountSStoreWithBatchProjectBuilder extends AbstractProjectBuilder {
@@ -25,9 +22,6 @@ public class WordCountSStoreWithBatchProjectBuilder extends AbstractProjectBuild
     public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
         SimpleCall.class,
         WindowTrigger.class,
-        //MidStreamTrigger.class,
-        //ResultsWinTrigger.class,
-        //CountTrigger.class,
         GetResults.class
     };
 
@@ -37,9 +31,6 @@ public class WordCountSStoreWithBatchProjectBuilder extends AbstractProjectBuild
 // a list of tables used in this benchmark with corresponding partitioning keys
     public static final String PARTITIONING[][] = new String[][] {
         { "words", "word"},
-        { "words_full", "word"},
-        { "midstream", "word"},
-        { "results", "word"}
     };
 
     public WordCountSStoreWithBatchProjectBuilder() {
