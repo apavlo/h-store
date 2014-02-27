@@ -1404,9 +1404,10 @@ void VoltDBEngine::processRecoveryMessage(RecoveryProtoMsg *message) {
 }
 
 #ifdef ARIES
-void VoltDBEngine::ARIESInitialize(std::string dbDir) {
+void VoltDBEngine::ARIESInitialize(std::string dbDir, std::string logFile) {
 	VOLT_WARN("Enabling ARIES Feature at Partition %d ", m_partitionId);
 	setARIESDir(dbDir);
+	setARIESFile(logFile);
 	setARIESEnabled(true);
 
 	// Do this only after ARIES dir is set
@@ -1414,7 +1415,7 @@ void VoltDBEngine::ARIESInitialize(std::string dbDir) {
 	m_executorContext->enableARIES(dbDir);
 }
 #else
-void VoltDBEngine::ARIESInitialize(std::string dbDir) {
+void VoltDBEngine::ARIESInitialize(std::string dbDir, std::string logFile) {
 	VOLT_ERROR("ARIES feature was not enabled when compiling the EE");
 }
 #endif
@@ -1487,6 +1488,8 @@ void VoltDBEngine::freePointerToReplayLog(char *logData) {
  * Do Aries recovery
  */
 void VoltDBEngine::doAriesRecovery(char *logData, size_t length, int64_t replay_txnid) {
+	VOLT_WARN("ARIES : doAriesRecovery check at partition : %d ",this->m_partitionId);
+
 	if(!isARIESEnabled()) {
 		return;
 	}
@@ -1494,6 +1497,7 @@ void VoltDBEngine::doAriesRecovery(char *logData, size_t length, int64_t replay_
 	// every thread sets its own copy of m_isRecovering
 	// XXX: could make this static but not sure if that's a good idea
 	if (logData == NULL || length == 0) {
+		VOLT_WARN("ARIES : logData NULL or length %lu",length);
 		return;
 	}
 

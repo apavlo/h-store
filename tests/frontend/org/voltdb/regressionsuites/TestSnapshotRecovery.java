@@ -210,21 +210,7 @@ public class TestSnapshotRecovery extends RegressionSuite {
         catch(Exception e){
             e.printStackTrace();
         }        
-        
-        // Stream of Adhoc Select Queries
-        /*
-        for (int q_itr = 0; q_itr < 2; q_itr++) {
-            String query = "SELECT COUNT(*) FROM " + YCSBConstants.TABLE_NAME;
-
-            cresponse = client.callProcedure("@AdHoc", query);
-            assertEquals(Status.OK, cresponse.getStatus());
-            results = cresponse.getResults();
-
-            assertEquals(1, results.length);
-            assertEquals(NUM_TUPLES, results[0].asScalarLong());
-        }
-        */
-        
+                
         // Read Record
         
         long key = NUM_TUPLES / 2;
@@ -242,10 +228,11 @@ public class TestSnapshotRecovery extends RegressionSuite {
         assert(adv);
         assertEquals(key, vt.getLong(0));
         
+        results = client.callProcedure("@Statistics", "table", 0).getResults();
+        System.out.println(results[0]);
+        
         // Delete, then Insert these many tuples back
         int numTestTuples = 2;
-
-        System.out.println("Read Record Test Passed");
         
         for (long k_itr = 0; k_itr < numTestTuples; k_itr++) {
             procName = DeleteRecord.class.getSimpleName();
@@ -299,19 +286,9 @@ public class TestSnapshotRecovery extends RegressionSuite {
         m_config.startUp();
         client = getClient();
 
-        try {
-            /*
-            results = client.callProcedure("@Undo").getResults();
-
-            System.out.println(results[0]);
-            
-            while (results[0].advanceRow()) {
-                if (results[0].getString("RESULT").equals("FAILURE")) {
-                    fail(results[0].getString("ERR_MSG"));
-                }
-            }
-            */
-            
+        // LOGICAL : SNAPSHOT + CMD LOG
+        /*
+        try {            
             results = client.callProcedure("@SnapshotRestore", TMPDIR, TESTNONCE, ALLOWEXPORT).getResults();
 
             System.out.println(results[0]);
@@ -331,11 +308,12 @@ public class TestSnapshotRecovery extends RegressionSuite {
         System.out.println(results[0]);
                
         validateSnapshot(true);        
+
+        parseAndApplyCommandLog();
+        */
         
         checkYCSBTable(client, NUM_TUPLES);              
 
-        // Skip Command Log
-        //parseAndApplyCommandLog();
     }
     
     void parseAndApplyCommandLog() throws NoConnectionsException, IOException, ProcCallException{
@@ -445,6 +423,7 @@ public class TestSnapshotRecovery extends RegressionSuite {
         builder.setGlobalConfParameter("site.status_enable", true);
         builder.setGlobalConfParameter("site.status_exec_info", true);
         
+        // PHYSICAL
         builder.setGlobalConfParameter("site.aries", true);        
         
                 

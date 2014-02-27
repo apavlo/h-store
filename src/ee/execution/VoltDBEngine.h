@@ -309,7 +309,7 @@ class __attribute__((visibility("default"))) VoltDBEngine {
 
 
         // ARIES
-        void ARIESInitialize(std::string dbDir) ;
+        void ARIESInitialize(std::string dbDir, std::string logFile) ;
 
         std::string getARIESDir(){
         	return m_ARIESDir;
@@ -317,6 +317,14 @@ class __attribute__((visibility("default"))) VoltDBEngine {
 
         void setARIESDir(std::string dbDir){
         	m_ARIESDir = dbDir;
+        }
+
+        std::string getARIESFile() {
+        	return m_ARIESFile;
+        }
+
+        void setARIESFile(std::string logFile) {
+        	m_ARIESFile = logFile;
         }
 
         bool isARIESEnabled() {
@@ -587,6 +595,7 @@ class __attribute__((visibility("default"))) VoltDBEngine {
         size_t m_ariesWriteOffset;
 
         std::string m_ARIESDir ;
+        std::string m_ARIESFile ;
 
         bool m_isRecovering;	// are we currently recovering?
 

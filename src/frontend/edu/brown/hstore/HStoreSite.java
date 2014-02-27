@@ -490,7 +490,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             String siteName = HStoreThreadManager.formatSiteName(this.getSiteId());
             String ariesSiteDirPath = hstore_conf.site.aries_dir + File.separatorChar + siteName + File.separatorChar;
            
-            this.m_ariesLogFileName =  ariesSiteDirPath + m_ariesDefaultLogFileName ;
+            this.m_ariesLogFileName =  ariesSiteDirPath + m_ariesDefaultLogFileName ;             
             this.m_ariesLog = new AriesLogNative(catalogContext.numberOfSites, this.m_ariesLogFileName);
             this.m_recoveryLog = new VoltLogger("RECOVERY");
         }

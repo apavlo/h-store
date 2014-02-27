@@ -63,21 +63,17 @@ AriesLogProxy::~AriesLogProxy() {
 
 AriesLogProxy* AriesLogProxy::getAriesLogProxy(VoltDBEngine *engine) {
 	if(!engine || !engine->isARIESEnabled()) {
+		VOLT_WARN("AriesLogProxy : NULL");
 		return NULL;
 	}
 
-	ostringstream ss;
-	if(!(engine->getARIESDir().empty())){
-		ss << engine->getARIESDir();
-		ss << "/" << defaultLogfileName;
-	}
-	else{
-		ss << defaultLogfileName;
+	if (!(engine->getARIESFile().empty())) {
+		VOLT_WARN("AriesLogProxy : logfile %s", engine->getARIESFile().c_str());
+		return new AriesLogProxy(engine, engine->getARIESFile());
 	}
 
-	VOLT_WARN("AriesLogProxy : logfile %s", ss.str().c_str());
-
-	return new AriesLogProxy(engine, ss.str());
+	VOLT_WARN("AriesLogProxy : NULL");
+	return NULL;
 }
 
 string AriesLogProxy::getLogFileName() {

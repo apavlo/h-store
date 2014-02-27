@@ -233,7 +233,7 @@ public class MockExecutionEngine extends ExecutionEngine {
     }
     
     @Override
-    public void ARIESInitialize(File dbDir) throws EEException {
+    public void ARIESInitialize(File dbDir, File logFile) throws EEException {
      // TODO Auto-generated method stub        
     }
 

@@ -882,13 +882,13 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
     // ARIES
     // ----------------------------------------------------------------------------
 
-    public abstract void ARIESInitialize(File dbDir) throws EEException;
+    public abstract void ARIESInitialize(File dbDir, File logFile) throws EEException;
 
     /**
      * Enables the ARIES  feature in the EE. The given database directory path
      * must be a unique location for this partition where the EE can store ARIES logs
      */
-    protected native int nativeARIESInitialize(long pointer, String dbDir);
+    protected native int nativeARIESInitialize(long pointer, String dbDir, String logFile);
         
     protected native void nativeDoAriesRecoveryPhase(long pointer, long replayPointer, long replayLogSize, long replayTxnId);
 

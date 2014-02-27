@@ -395,6 +395,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
     // ARIES    
     private boolean m_ariesRecovery;    
      
+    private final String m_ariesDefaultLogFileName = "aries.log";
+    
     public long getArieslogBufferLength() {
         return ee.getArieslogBufferLength();
     }
@@ -810,7 +812,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 // Initialize ARIES
                 if (hstore_conf.site.aries) {
                     File dbFile = getARIESDir(this);
-                    eeTemp.ARIESInitialize(dbFile);
+                    File logFile = getARIESFile(this);
+                    eeTemp.ARIESInitialize(dbFile, logFile);
                 }                            
                 
                 // Important: This has to be called *after* we initialize the anti-cache
@@ -2085,18 +2088,16 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         Database catalog_db = CatalogUtil.getDatabase(executor.getPartition());
 
         // First make sure that our base directory exists
-        String base_dir = FileUtil.realpath(hstore_conf.site.aries_dir);
+        String base_dir = FileUtil.realpath(hstore_conf.site.storage_mmap_dir + File.separatorChar + catalog_db.getProject());
 
         synchronized (PartitionExecutor.class) {
             FileUtil.makeDirIfNotExists(base_dir);
         } // SYNC
 
-        // Single log file for all partitions on site
-        String siteName = HStoreThreadManager.formatSiteName(executor.getSiteId());
-        String ariesSiteDirPath = hstore_conf.site.aries_dir + File.separatorChar + siteName + File.separatorChar;
-        
-        // Single log file for all partitions on site
-        File dbDirPath = new File(ariesSiteDirPath);
+        String partitionName = HStoreThreadManager.formatPartitionName(executor.getSiteId(), executor.getPartitionId());
+
+        File dbDirPath = new File(base_dir + File.separatorChar + partitionName);
+
         if (hstore_conf.site.aries_reset) {
             LOG.warn(String.format("Deleting aries directory '%s'", dbDirPath));
             FileUtil.deleteDirectory(dbDirPath);
@@ -2105,6 +2106,21 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
 
         return (dbDirPath);
     }
+
+    /**
+     * Returns the file where the EE should store the ARIES log for this
+     * PartitionExecutor
+     * 
+     * @return
+     */
+    public static File getARIESFile(PartitionExecutor executor) {
+
+        File dbDir = getARIESDir(executor);
+        File logFile = new File(dbDir.getAbsolutePath() + File.separatorChar + executor.m_ariesDefaultLogFileName);
+
+        return (logFile);
+    }
+    
     // ---------------------------------------------------------------
     // PartitionExecutor API
     // ---------------------------------------------------------------

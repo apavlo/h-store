@@ -844,12 +844,12 @@ public class ExecutionEngineJNI extends ExecutionEngine {
      */
     
     @Override
-    public void ARIESInitialize(File dbDir) throws EEException {
+    public void ARIESInitialize(File dbDir, File logFile) throws EEException {
         
         LOG.info("Initializing ARIES feature at partition " + this.executor.getPartitionId());
         LOG.info(String.format("Partition #%d ARIES Directory: %s",
                  this.executor.getPartitionId(), dbDir.getAbsolutePath()));
-        final int errorCode = nativeARIESInitialize(this.pointer, dbDir.getAbsolutePath());
+        final int errorCode = nativeARIESInitialize(this.pointer, dbDir.getAbsolutePath(), logFile.getAbsolutePath());
         checkErrorCode(errorCode);
         m_anticache = true;
     }
