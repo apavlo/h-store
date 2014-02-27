@@ -84,7 +84,7 @@ public class TestEGenClientDriver extends BaseTestCase {
     }
 
     /**
-     * testGetBrokerVolumeParams
+     * testGetMarketFeedParams
      */
     public void testGetMarketFeedParams() throws Exception {
         //Object params[] = driver.getBrokerVolumeParams();

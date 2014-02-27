@@ -10,6 +10,7 @@ import org.voltdb.client.ProcedureCallback;
 import edu.brown.api.BenchmarkComponent;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.stream.Batch;
+import edu.brown.benchmark.wordcountsstore.procedures.GetResults;
 import edu.brown.benchmark.wordcountsstoregetresults.procedures.SimpleCall;
 
 public class WordCountSStoreGetResultsClient extends BenchmarkComponent {
@@ -19,11 +20,12 @@ public class WordCountSStoreGetResultsClient extends BenchmarkComponent {
     private static long getBatch;
     private static int timestamp;
     private static boolean firstRun;
+    private int txn_idx;
     
     // word generator
     WordGenerator wordGenerator;
 
-    final Callback callback = new Callback();
+    //final Callback callback = new Callback();
 
     public static void main(String args[]) {
         BenchmarkComponent.main(WordCountSStoreGetResultsClient.class, args, false);
@@ -54,7 +56,7 @@ public class WordCountSStoreGetResultsClient extends BenchmarkComponent {
         if(firstRun)
         {
         	lastTime = System.nanoTime();
-        	getBatch = System.nanoTime() - 500000000L;
+        	getBatch = System.nanoTime() + 500000000L;
             timestamp = 0;
             firstRun = false;
         }
@@ -70,6 +72,7 @@ public class WordCountSStoreGetResultsClient extends BenchmarkComponent {
             if(System.nanoTime() - getBatch >= 1000000000)
             {
             	getBatch = System.nanoTime();
+            	Callback callback = new Callback(1);
             	return client.callProcedure(callback, "GetResults");
             }
             
@@ -77,10 +80,10 @@ public class WordCountSStoreGetResultsClient extends BenchmarkComponent {
             {
             	lastTime = System.nanoTime();
             	timestamp++;
-            	//client.callProcedure(callback, "GetResults");
             }
 
             word = wordGenerator.nextWord();
+            Callback callback = new Callback(0);
             response = client.callProcedure(callback, "SimpleCall", word, timestamp);
 
             return response;
@@ -93,18 +96,26 @@ public class WordCountSStoreGetResultsClient extends BenchmarkComponent {
     public String[] getTransactionDisplayNames() {
         // Return an array of transaction names
         String procNames[] = new String[]{
-             SimpleCall.class.getSimpleName()
+             SimpleCall.class.getSimpleName(),
+             GetResults.class.getSimpleName()
         };
         return (procNames);
     }
 
     private class Callback implements ProcedureCallback {
+    	
+    	private int txn_idx;
+    	
+    	public Callback(int i)
+    	{
+    		txn_idx = i;
+    	}
 
         @Override
         public void clientCallback(ClientResponse clientResponse) {
             // Increment the BenchmarkComponent's internal counter on the
             // number of transactions that have been completed
-            incrementTransactionCounter(clientResponse, 0);
+            incrementTransactionCounter(clientResponse, txn_idx);
         }
     } // END CLASS
 }
