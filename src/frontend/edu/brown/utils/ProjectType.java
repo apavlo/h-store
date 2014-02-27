@@ -93,6 +93,7 @@ public enum ProjectType {
     WORDCOUNT("WordCount", "edu.brown.benchmark.wordcount"),
     WORDCOUNTHSTORE("WordCountHStore", "edu.brown.benchmark.wordcounthstore"),
     WORDCOUNTSSTORE("WordCountSStore", "edu.brown.benchmark.wordcountsstore"),
+    WORDCOUNTSSTOREGETRESULTS("WordCountSStoreGetResults", "edu.brown.benchmark.wordcountsstoregetresults"),
     WORDCOUNTSSTOREWITHBATCH("WordCountSStoreWithBatch", "edu.brown.benchmark.wordcountsstorewithbatch"),
     ;
 
