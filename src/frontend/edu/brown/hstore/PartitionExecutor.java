@@ -44,6 +44,7 @@ package edu.brown.hstore;
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.file.FileSystem;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -65,6 +66,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.log4j.Logger;
 import org.voltdb.AriesLog;
+import org.voltdb.AriesLogNative;
 import org.voltdb.BackendTarget;
 import org.voltdb.CatalogContext;
 import org.voltdb.ClientResponseImpl;
@@ -393,6 +395,22 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
     private long lastCommittedUndoToken = -1l;
     
     // ARIES    
+    private AriesLog m_ariesLog = null;
+        
+    private String m_ariesLogFileName = null;
+    
+    private final String m_ariesDefaultLogFileName = "aries.log";
+    
+    private VoltLogger m_recoveryLog = null;    
+    
+    public AriesLog getAriesLogger() {
+        return m_ariesLog;
+    }
+
+    public String getAriesLogFileName() {
+        return m_ariesLogFileName;
+    }
+        
     private boolean m_ariesRecovery;    
      
     public long getArieslogBufferLength() {
@@ -411,8 +429,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         ee.freePointerToReplayLog(ariesReplayPointer);
     }
 
-    public boolean doingAriesRecovery() 
-    {
+    public boolean doingAriesRecovery() {
         return m_ariesRecovery;
     }
     
@@ -686,7 +703,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
     }
 
     private final SystemProcedureContext m_systemProcedureContext = new SystemProcedureContext();
-    private AriesLog m_ariesLog ;
 
     public SystemProcedureExecutionContext getSystemProcedureExecutionContext(){
 	return m_systemProcedureContext;
@@ -810,7 +826,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 // Initialize ARIES
                 if (hstore_conf.site.aries) {
                     File dbFile = getARIESDir(this);
-                    eeTemp.ARIESInitialize(dbFile);
+                    File logFile = getARIESFile(this);
+                    eeTemp.ARIESInitialize(dbFile, logFile);
                 }                            
                 
                 // Important: This has to be called *after* we initialize the anti-cache
@@ -876,9 +893,14 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             tmp_def_txn = new LocalTransaction(hstore_site);
         }
 
-        // ARIES        
-        this.m_ariesLog = this.hstore_site.getAriesLogger();
-
+        // ARIES         
+        if (this.hstore_conf.site.aries) {
+            this.m_ariesLogFileName = getARIESFile(this).getAbsolutePath();
+            int partitionsPerSite = this.catalogContext.numberOfPartitions/this.catalogContext.numberOfSites;
+            this.m_ariesLog = new AriesLogNative(partitionsPerSite, this.m_ariesLogFileName);
+            this.m_recoveryLog = new VoltLogger("RECOVERY");
+        }
+        
         // -------------------------------
         // BENCHMARK START NOTIFICATIONS
         // -------------------------------
@@ -985,51 +1007,41 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         }
     }
     
-    // ARIES
-    public void waitForAriesRecoveryCompletion() {
-        // wait for other threads to complete Aries recovery
-        // ONLY called from main site.
-        while (!m_ariesLog.isRecoveryCompleted()) {
-            try {
-                // don't sleep too long, shouldn't bias
-                // numbers
-                Thread.sleep(500);
-            } catch (InterruptedException e) {
-                // TODO Auto-generated catch block
-                e.printStackTrace();
-            }
+    // ARIES    
+    public void doRecovery(long txnIdToBeginReplay) {       
+    
+        // check for log
+        if(m_ariesLog == null){
+            LOG.error("ARIES : ariesLog is null at partition : "+this.getPartitionId());
+            return;
         }
+        
+        long logReadStartTime = System.currentTimeMillis();
+
+        // define an array so that we can pass to native code by reference
+        long size[] = new long[1];
+        long ariesReplayPointer = readAriesLogForReplay(size);
+
+        // LOG.warn("ARIES : replay pointer address: " + ariesReplayPointer);
+        LOG.warn("ARIES : partition recovery started at partition : " + this.partitionId + " log size :" + size[0]);
+
+        long logReadEndTime = System.currentTimeMillis();
+        // LOG.warn("ARIES : log read in " + (logReadEndTime - logReadStartTime)
+        // + " milliseconds");
+
+        long ariesStartTime = System.currentTimeMillis();
+
+        m_ariesLog.setPointerToReplayLog(ariesReplayPointer, size[0]);
+        m_ariesLog.setTxnIdToBeginReplay(txnIdToBeginReplay);
+      
+        freePointerToReplayLog(ariesReplayPointer);
+
+        long ariesEndTime = System.currentTimeMillis();
+        LOG.warn("ARIES : partition recovery finished in " + (ariesEndTime - ariesStartTime) + " milliseconds");
+
+        m_ariesLog.init();
     }
     
-    public void doPartitionRecovery(long txnIdToBeginReplay) {        
-        if (m_ariesLog  != null) {
-            long logReadStartTime = System.currentTimeMillis();
-
-            // define an array so that we can pass to native code by reference
-            long size[] = new long[1];
-            long ariesReplayPointer = readAriesLogForReplay(size);
-
-            //LOG.warn("ARIES : replay pointer address: " + ariesReplayPointer);
-            LOG.warn("ARIES : partition recovery started at partition : "+this.partitionId+ " log size :"+size[0]);
-
-            long logReadEndTime = System.currentTimeMillis();
-            //LOG.warn("ARIES : log read in " + (logReadEndTime - logReadStartTime) + " milliseconds");
-
-            long ariesStartTime = System.currentTimeMillis();
-
-            m_ariesLog.setPointerToReplayLog(ariesReplayPointer, size[0]);
-            m_ariesLog.setTxnIdToBeginReplay(txnIdToBeginReplay);
-
-            waitForAriesRecoveryCompletion();
-
-            freePointerToReplayLog(ariesReplayPointer);
-
-            long ariesEndTime = System.currentTimeMillis();
-            LOG.warn("ARIES : partition recovery finished in " + (ariesEndTime - ariesStartTime) + " milliseconds");
-
-            m_ariesLog.init();
-        }
-    }
     
     // ----------------------------------------------------------------------------
     // MAIN EXECUTION LOOP
@@ -1071,9 +1083,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         assert(this.specExecScheduler != null);
         assert(this.queueManager != null);
         
-        // ARIES :: Starts recovery on partition
-        if(m_ariesLog != null){
-            doPartitionRecovery(Long.MIN_VALUE);
+        // ARIES :: Starts recovery on partition        
+        if (this.hstore_conf.site.aries) {
+            doRecovery(Long.MIN_VALUE);
         }
         
         // *********************************** DEBUG ***********************************
@@ -2076,7 +2088,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
     }
     
     /**
-     * Returns the directory where the EE should store the ARIES log files
+     * Returns the directory where the EE should store the ARIES log file
      * for this PartitionExecutor
      * @return
      */
@@ -2085,18 +2097,19 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         Database catalog_db = CatalogUtil.getDatabase(executor.getPartition());
 
         // First make sure that our base directory exists
-        String base_dir = FileUtil.realpath(hstore_conf.site.aries_dir);
+        String base_dir = FileUtil.realpath(hstore_conf.site.aries_dir+
+                File.separatorChar +
+                catalog_db.getProject());
 
         synchronized (PartitionExecutor.class) {
             FileUtil.makeDirIfNotExists(base_dir);
         } // SYNC
 
-        // Single log file for all partitions on site
-        String siteName = HStoreThreadManager.formatSiteName(executor.getSiteId());
-        String ariesSiteDirPath = hstore_conf.site.aries_dir + File.separatorChar + siteName + File.separatorChar;
+        // Then each partition will have a separate directory inside of the base one
+        String partitionName = HStoreThreadManager.formatPartitionName(executor.getSiteId(),
+                executor.getPartitionId());
         
-        // Single log file for all partitions on site
-        File dbDirPath = new File(ariesSiteDirPath);
+        File dbDirPath = new File(base_dir + File.separatorChar + partitionName);
         if (hstore_conf.site.aries_reset) {
             LOG.warn(String.format("Deleting aries directory '%s'", dbDirPath));
             FileUtil.deleteDirectory(dbDirPath);
@@ -2105,6 +2118,21 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
 
         return (dbDirPath);
     }
+    
+    /**
+     * Returns the file where the EE should store the ARIES log
+     * for this PartitionExecutor
+     * @return
+     */
+    public static File getARIESFile(PartitionExecutor executor) {
+            
+        File dbDir = getARIESDir(executor);        
+        File logFile = new File(dbDir.getAbsolutePath() + File.separatorChar + executor.m_ariesDefaultLogFileName);
+                        
+        return (logFile);
+    }
+    
+    
     // ---------------------------------------------------------------
     // PartitionExecutor API
     // ---------------------------------------------------------------

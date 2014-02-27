@@ -203,29 +203,17 @@ public class TestSnapshotRecovery extends RegressionSuite {
         VoltTable results[] = null;
         ClientResponse cresponse = null;
         Client client = this.getClient();
-        
+                
         try{
             this.initializeDatabase(client, NUM_TUPLES);
         }
         catch(Exception e){
             e.printStackTrace();
-        }        
-        
-        // Stream of Adhoc Select Queries
-        /*
-        for (int q_itr = 0; q_itr < 2; q_itr++) {
-            String query = "SELECT COUNT(*) FROM " + YCSBConstants.TABLE_NAME;
-
-            cresponse = client.callProcedure("@AdHoc", query);
-            assertEquals(Status.OK, cresponse.getStatus());
-            results = cresponse.getResults();
-
-            assertEquals(1, results.length);
-            assertEquals(NUM_TUPLES, results[0].asScalarLong());
-        }
-        */
-        
+        }      
+                
         // Read Record
+        results = client.callProcedure("@Statistics", "table", 0).getResults();
+        System.out.println(results[0]);
         
         long key = NUM_TUPLES / 2;
         String procName = ReadRecord.class.getSimpleName();
@@ -259,7 +247,10 @@ public class TestSnapshotRecovery extends RegressionSuite {
             assertEquals(1, results.length);
             assertNotNull(cresponse);
         }
-
+        
+        results = client.callProcedure("@Statistics", "table", 0).getResults();
+        System.out.println(results[0]);
+      
         System.out.println("Delete Record Test Passed");
 
         for (long k_itr = 0; k_itr < numTestTuples; k_itr++) {
@@ -278,6 +269,9 @@ public class TestSnapshotRecovery extends RegressionSuite {
             assertEquals(1, results.length);
             assertNotNull(cresponse);
         }
+        
+        results = client.callProcedure("@Statistics", "table", 0).getResults();
+        System.out.println(results[0]);
 
         System.out.println("Insert Record Test Passed");
 
@@ -299,19 +293,9 @@ public class TestSnapshotRecovery extends RegressionSuite {
         m_config.startUp();
         client = getClient();
 
+        // LOGICAL : SNAPSHOT + CMD LOG
+        /*
         try {
-            /*
-            results = client.callProcedure("@Undo").getResults();
-
-            System.out.println(results[0]);
-            
-            while (results[0].advanceRow()) {
-                if (results[0].getString("RESULT").equals("FAILURE")) {
-                    fail(results[0].getString("ERR_MSG"));
-                }
-            }
-            */
-            
             results = client.callProcedure("@SnapshotRestore", TMPDIR, TESTNONCE, ALLOWEXPORT).getResults();
 
             System.out.println(results[0]);
@@ -331,11 +315,23 @@ public class TestSnapshotRecovery extends RegressionSuite {
         System.out.println(results[0]);
                
         validateSnapshot(true);        
-        
-        checkYCSBTable(client, NUM_TUPLES);              
 
-        // Skip Command Log
-        //parseAndApplyCommandLog();
+        parseAndApplyCommandLog();
+        */
+
+        // Stream of Adhoc Select Queries
+        
+        
+        //assertEquals(1, results.length);
+        //assertEquals(NUM_TUPLES, results[0].asScalarLong());
+        
+        results_tmp = null;
+        results_tmp = client.callProcedure("@Statistics", "table", 0).getResults();
+
+        System.out.println("@Statistics after PHYSICAL restore :");
+        System.out.println(results_tmp[0]);      
+
+        //checkYCSBTable(client);              
     }
     
     void parseAndApplyCommandLog() throws NoConnectionsException, IOException, ProcCallException{
@@ -396,14 +392,14 @@ public class TestSnapshotRecovery extends RegressionSuite {
     }
     
     
-    private void checkYCSBTable(Client client, int numTuples) {
+    private void checkYCSBTable(Client client) {
         long key_itr, key;
         String procName;
         ClientResponse cresponse = null;
         VoltTable vt = null;
         boolean adv = true;
         
-        for(key_itr = 0 ; key_itr < numTuples ; key_itr++){
+        for(key_itr = 0 ; key_itr < NUM_TUPLES ; key_itr++){
             procName = ReadRecord.class.getSimpleName();
             Object params[] = { key_itr };
             
@@ -413,18 +409,16 @@ public class TestSnapshotRecovery extends RegressionSuite {
             catch(Exception e){
                 e.printStackTrace();
             }
-                
-            assertNotNull(cresponse);
-            assertEquals(Status.OK, cresponse.getStatus());
-            assertEquals(1, cresponse.getResults().length);
             
-            vt = cresponse.getResults()[0];
-            adv = vt.advanceRow();
-            if(adv == false)
-                System.err.println("key :"+key_itr+" no result");
-            else
-                System.err.println("key :"+key_itr+" result:"+vt.getLong(0));
-
+            if (cresponse != null) {
+                vt = cresponse.getResults()[0];
+                adv = vt.advanceRow();
+                if (adv == false)
+                    System.err.println("key :" + key_itr + " no result");
+                else
+                    System.err.println("key :" + key_itr + " result:" + vt.getLong(0));
+            }
+            
             //assert(adv);
             //assertEquals(key_itr, vt.getLong(0));            
         }                               
@@ -444,9 +438,10 @@ public class TestSnapshotRecovery extends RegressionSuite {
         builder.setGlobalConfParameter("site.commandlog_timeout", 10);
         builder.setGlobalConfParameter("site.status_enable", true);
         builder.setGlobalConfParameter("site.status_exec_info", true);
-        
-        builder.setGlobalConfParameter("site.aries", true);        
-        
+
+    
+        // PHYSICAL 
+        builder.setGlobalConfParameter("site.aries", true);         
                 
         YCSBProjectBuilder project = new YCSBProjectBuilder();
 
@@ -457,24 +452,26 @@ public class TestSnapshotRecovery extends RegressionSuite {
 
         setUpSnapshotDir();
 
-        // CONFIG #1: 2 Local Site with 4 Partitions running on JNI backend
-        /*
+        // CONFIG #1: 2 Local Site with 2 Partitions running on JNI backend               
+        
         NUM_SITES = 2;
-        NUM_PARTITIONS = 2;
+        NUM_PARTITIONS = 1;
         m_config = new LocalCluster("snapshot-"+PREFIX+"-"+NUM_SITES+"-site-"+NUM_PARTITIONS+"-partition.jar", NUM_SITES, NUM_PARTITIONS, 1, BackendTarget.NATIVE_EE_JNI);
+        success = m_config.compile(project);
+        assert (success);
+        builder.addServerConfig(m_config);
+        
+                
+        /*
+        // CONFIG #2: 1 Local Site with 1 Partitions running on JNI backend
+        NUM_SITES = 1;
+        NUM_PARTITIONS = 2;        
+        m_config = new LocalSingleProcessServer("snapshot-"+PREFIX+"-"+NUM_SITES+"-site-"+NUM_PARTITIONS+"-partition.jar", NUM_PARTITIONS, BackendTarget.NATIVE_EE_JNI);
         success = m_config.compile(project);
         assert (success);
         builder.addServerConfig(m_config);
         */
         
-        // CONFIG #2: 1 Local Site with 1 Partitions running on JNI backend
-        NUM_SITES = 1;
-        NUM_PARTITIONS = 1;        
-        m_config = new LocalSingleProcessServer("snapshot-"+PREFIX+"-"+NUM_SITES+"-site-"+NUM_PARTITIONS+"-partition.jar", NUM_PARTITIONS, BackendTarget.NATIVE_EE_JNI);
-        success = m_config.compile(project);
-        assert (success);
-        builder.addServerConfig(m_config);
-
         return builder;
     }
 }

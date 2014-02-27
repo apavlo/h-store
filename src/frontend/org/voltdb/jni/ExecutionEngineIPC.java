@@ -1504,7 +1504,7 @@ public class ExecutionEngineIPC extends ExecutionEngine {
     
     // ARIES 
     @Override
-    public void ARIESInitialize(File dbDir) throws EEException {
+    public void ARIESInitialize(File dbDir, File logFile) throws EEException {
         throw new NotImplementedException("ARIES recovery is disabled for IPC ExecutionEngine");
     }
     

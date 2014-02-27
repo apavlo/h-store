@@ -1597,7 +1597,8 @@ SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeARIES
         JNIEnv *env,
         jobject obj,
         jlong engine_ptr,
-        jstring dbDir) {
+        jstring dbDir,
+        jstring logFile) {
 
     VOLT_DEBUG("nativeARIESInitialize() start");
     VoltDBEngine *engine = castToEngine(engine_ptr);
@@ -1610,7 +1611,11 @@ SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeARIES
         std::string dbDirString(dbDirChars);
         env->ReleaseStringUTFChars(dbDir, dbDirChars);
 
-        engine->ARIESInitialize(dbDirString);
+        const char *logFileChars = env->GetStringUTFChars(logFile, NULL);
+        std::string logFileString(logFileChars);
+        env->ReleaseStringUTFChars(logFile, logFileChars);
+
+        engine->ARIESInitialize(dbDirString, logFileString);
     } catch (FatalException e) {
         topend->crashVoltDB(e);
     }

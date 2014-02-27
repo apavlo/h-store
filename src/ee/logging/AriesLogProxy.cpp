@@ -25,7 +25,6 @@ using std::endl;
 
 using namespace voltdb;
 
-//XXX Must match with HStoreSite
 string AriesLogProxy::defaultLogfileName = "aries.log";
 
 AriesLogProxy::AriesLogProxy(VoltDBEngine *engine) {
@@ -66,18 +65,12 @@ AriesLogProxy* AriesLogProxy::getAriesLogProxy(VoltDBEngine *engine) {
 		return NULL;
 	}
 
-	ostringstream ss;
-	if(!(engine->getARIESDir().empty())){
-		ss << engine->getARIESDir();
-		ss << "/" << defaultLogfileName;
-	}
-	else{
-		ss << defaultLogfileName;
+	if(!(engine->getARIESFile().empty())){
+		VOLT_WARN("AriesLogProxy : logfile %s", engine->getARIESFile().c_str());
+		return new AriesLogProxy(engine, engine->getARIESFile());
 	}
 
-	VOLT_WARN("AriesLogProxy : logfile %s", ss.str().c_str());
-
-	return new AriesLogProxy(engine, ss.str());
+	return NULL;
 }
 
 string AriesLogProxy::getLogFileName() {

@@ -245,8 +245,8 @@ public class AriesLogNative extends AriesLog {
 		return isRecoveryDone;		
 	}
 
-	public boolean isRecoveryCompletedForSite(int siteId) {
-		int index = siteId ;
+	public boolean isRecoveryCompletedForPartition(int partitionId) {
+		int index = partitionId ;
 		return m_perSiteRecoveryDone[index];
 	}
 	
@@ -267,8 +267,8 @@ public class AriesLogNative extends AriesLog {
 	}
 
 	@Override
-	public synchronized void setRecoveryCompleted(int siteId) {
-		int index = siteId ;
+	public synchronized void setRecoveryCompleted(int partitionId) {
+		int index = partitionId ;
 		m_perSiteRecoveryDone[index] = true;
 	}
 	

@@ -211,8 +211,10 @@ public abstract class HStore {
             singleton.addPartitionExecutor(local_partition, executor);
             first = false;
         } // FOR
-        
+                
         TheHashinator.initialize(catalogContext.catalog);
+        
+        LOG.warn("HStore initialization complete");
         
         return (singleton);
     }
