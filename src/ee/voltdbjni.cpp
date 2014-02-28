@@ -1599,7 +1599,6 @@ SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeARIES
         jlong engine_ptr,
         jstring dbDir,
         jstring logFile) {
-
     VOLT_DEBUG("nativeARIESInitialize() start");
     VoltDBEngine *engine = castToEngine(engine_ptr);
     Topend *topend = static_cast<JNITopend*>(engine->getTopend())->updateJNIEnv(env);

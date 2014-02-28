@@ -14,11 +14,9 @@ public abstract class AriesLog implements Runnable {
 	public abstract long getTxnIdToBeginReplay();
 	public abstract boolean isReadyForReplay();
     public abstract void log(byte[] logbytes, AtomicBoolean isDurable);
-
-    public abstract void setRecoveryCompleted(int partitionId);
-    public abstract boolean isRecoveryCompleted();	
-	public abstract boolean isRecoveryCompletedForPartition(int partitionId);
-	
+	public abstract void setRecoveryCompleted(int siteId);
+	public abstract boolean isRecoveryCompleted();
+	public abstract boolean isRecoveryCompletedForSite(int siteId);
 	public abstract void setPointerToReplayLog(long ariesReplayPointer, long size);
 	public abstract long getPointerToReplayLog();
 	public abstract long getReplayLogSize();

@@ -319,11 +319,11 @@ class __attribute__((visibility("default"))) VoltDBEngine {
         	m_ARIESDir = dbDir;
         }
 
-        std::string getARIESFile(){
+        std::string getARIESFile() {
         	return m_ARIESFile;
         }
 
-        void setARIESFile(std::string logFile){
+        void setARIESFile(std::string logFile) {
         	m_ARIESFile = logFile;
         }
 
@@ -596,7 +596,6 @@ class __attribute__((visibility("default"))) VoltDBEngine {
 
         std::string m_ARIESDir ;
         std::string m_ARIESFile ;
-
 
         bool m_isRecovering;	// are we currently recovering?
 

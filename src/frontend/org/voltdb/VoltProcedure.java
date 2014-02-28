@@ -953,7 +953,7 @@ public abstract class VoltProcedure implements Poolable {
                 this.executor.getArieslogData(bufferLength, arieslogData);
 
                 // we don't really care much about this atomic boolean here
-                this.executor.getAriesLogger().log(arieslogData, new AtomicBoolean());
+                this.hstore_site.getAriesLogger().log(arieslogData, new AtomicBoolean());
             }
             
         } catch (EEException e) {
