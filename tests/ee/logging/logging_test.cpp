@@ -86,12 +86,12 @@ TEST_F(LoggingTest, TestManagerSetLevels) {
                 for (int zz = 0; zz < numLoggers; zz++) {
                     if (zz == loggerIndex) {
                         if (ii >= levelIndex) {
-                            ASSERT_TRUE(voltdb::LogManager::getThreadLogger(loggerIds[zz])->isLoggable(logLevels[ii]));
+                            ASSERT_TRUE(m_logManager.getThreadLogger(loggerIds[zz])->isLoggable(logLevels[ii]));
                         } else {
-                            ASSERT_FALSE(voltdb::LogManager::getThreadLogger(loggerIds[zz])->isLoggable(logLevels[ii]));
+                            ASSERT_FALSE(m_logManager.getThreadLogger(loggerIds[zz])->isLoggable(logLevels[ii]));
                         }
                     } else {
-                        ASSERT_FALSE(voltdb::LogManager::getThreadLogger(loggerIds[zz])->isLoggable(logLevels[ii]));
+                        ASSERT_FALSE(m_logManager.getThreadLogger(loggerIds[zz])->isLoggable(logLevels[ii]));
                     }
                 }
             }
@@ -116,14 +116,14 @@ TEST_F(LoggingTest, TestLoggerUsesProxyLevels) {
                     proxy->lastLoggerId = voltdb::LOGGERID_INVALID;
                     if (zz == loggerIndex) {
                         if (ii >= levelIndex) {
-                            voltdb::LogManager::getThreadLogger(loggerIds[zz])->log( logLevels[ii], "foo");
+                        	m_logManager.getThreadLogger(loggerIds[zz])->log( logLevels[ii], "foo");
                             ASSERT_NE(static_cast<int>(proxy->lastLoggerId), voltdb::LOGGERID_INVALID);
                         } else {
-                            voltdb::LogManager::getThreadLogger(loggerIds[zz])->log(logLevels[ii], "foo");
+                        	m_logManager.getThreadLogger(loggerIds[zz])->log(logLevels[ii], "foo");
                             ASSERT_EQ(static_cast<int>(proxy->lastLoggerId), voltdb::LOGGERID_INVALID);
                         }
                     } else {
-                        voltdb::LogManager::getThreadLogger(loggerIds[zz])->log(logLevels[ii], "foo");
+                    	m_logManager.getThreadLogger(loggerIds[zz])->log(logLevels[ii], "foo");
                         ASSERT_EQ(static_cast<int>(proxy->lastLoggerId), voltdb::LOGGERID_INVALID);
                     }
                 }

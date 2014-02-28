@@ -133,10 +133,11 @@ class __attribute__((visibility("default"))) VoltDBEngine {
           m_templateSingleLongTable(NULL),
           m_topend(NULL),
           m_logProxy(NULL),
-          m_logManager(new LogManager(new StdoutLogProxy())),
           m_ARIESEnabled(false)
         {
             m_currentUndoQuantum = new DummyUndoQuantum();
+
+            m_logManager = new LogManager(new StdoutLogProxy());
 
         }
 

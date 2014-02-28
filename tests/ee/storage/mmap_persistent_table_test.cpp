@@ -152,9 +152,12 @@ public:
 
     std::string dbDir = "/tmp";
     
+
+#ifdef STORAGE_MMAP
     /** Enable MMAP_PersistentTable **/
     ExecutorContext* ec = m_engine->getExecutorContext();
     ec->enableMMAP(dbDir, true, 1024);
+#endif
     
     // MEASURE TIME TAKEN FOR CREATION
     m_table = dynamic_cast<voltdb::PersistentTable*>(voltdb::TableFactory::getPersistentTable
