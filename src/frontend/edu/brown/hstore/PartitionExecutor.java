@@ -2088,7 +2088,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         Database catalog_db = CatalogUtil.getDatabase(executor.getPartition());
 
         // First make sure that our base directory exists
-        String base_dir = FileUtil.realpath(hstore_conf.site.storage_mmap_dir + File.separatorChar + catalog_db.getProject());
+        String base_dir = FileUtil.realpath(hstore_conf.site.aries_dir + File.separatorChar + catalog_db.getProject());
 
         synchronized (PartitionExecutor.class) {
             FileUtil.makeDirIfNotExists(base_dir);

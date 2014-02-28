@@ -41,7 +41,8 @@ public class AriesLogNative extends AriesLog {
 	
 	private long txnIdToBeginReplay;
 	
-	private static String m_logFileName ; 
+	private static String m_logFileName ;
+	private int m_numSites ;
 	
 	private static class LogDataWithAtom {
 		public byte b[];
@@ -93,6 +94,7 @@ public class AriesLogNative extends AriesLog {
 		replayLogSize = 0;
 		
 		m_logFileName = logFileName;
+		m_numSites = numSites;
 		
 		new Thread(this).start();
 	}

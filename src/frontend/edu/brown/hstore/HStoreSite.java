@@ -486,12 +486,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if(hstore_conf.site.aries){
             LOG.warn("Starting ARIES recovery at site");           
 
-            // Single log file for all partitions on site
             String siteName = HStoreThreadManager.formatSiteName(this.getSiteId());
             String ariesSiteDirPath = hstore_conf.site.aries_dir + File.separatorChar + siteName + File.separatorChar;
            
-            this.m_ariesLogFileName =  ariesSiteDirPath + m_ariesDefaultLogFileName ;             
-            this.m_ariesLog = new AriesLogNative(catalogContext.numberOfSites, this.m_ariesLogFileName);
+            this.m_ariesLogFileName =  ariesSiteDirPath + m_ariesDefaultLogFileName ; 
+            int numberOfPartitions =   this.catalog_site.getPartitions().size();
+            
+            this.m_ariesLog = new AriesLogNative(numberOfPartitions, this.m_ariesLogFileName);
             this.m_recoveryLog = new VoltLogger("RECOVERY");
         }
         
@@ -1398,14 +1399,22 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
 
         if (!m_ariesLog.isRecoveryCompleted()) {
             int m_siteId = this.getSiteId();
+            CatalogMap<Partition> partitionMap = this.catalog_site.getPartitions();
 
-            for (PartitionExecutor pe : executors ) {
+            for (Partition pt : partitionMap ) {
+                PartitionExecutor pe =  getPartitionExecutor(pt.getId());
+                assert (pe != null);
+
                 ExecutionEngine ee = pe.getExecutionEngine();
-                LOG.warn("ARIES : start recovery at partition  :"+pe.getPartitionId()+" on site :"+pe.getSiteId());
+                assert (ee != null);
+
+                int m_partitionId = pe.getPartitionId();
+
+                LOG.warn("ARIES : start recovery at partition  :"+m_partitionId+" on site :"+m_siteId);
                 
-                if (!m_ariesLog.isRecoveryCompletedForSite(m_siteId)) {
+                if (!m_ariesLog.isRecoveryCompletedForSite(m_partitionId)) {
                     ee.doAriesRecoveryPhase(m_ariesLog.getPointerToReplayLog(), m_ariesLog.getReplayLogSize(), m_ariesLog.getTxnIdToBeginReplay());
-                    m_ariesLog.setRecoveryCompleted(m_siteId);                
+                    m_ariesLog.setRecoveryCompleted(m_partitionId);                
                 }
             }
         }
