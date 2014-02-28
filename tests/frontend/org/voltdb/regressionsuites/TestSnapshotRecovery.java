@@ -29,7 +29,9 @@ import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.io.UnsupportedEncodingException;
+import java.nio.file.Path;
 import java.util.Iterator;
+import java.util.Stack;
 
 import junit.framework.Test;
 
@@ -73,6 +75,8 @@ import edu.brown.hstore.cmdlog.LogEntry;
 public class TestSnapshotRecovery extends RegressionSuite {
 
     private static final String TMPDIR = "./snapshot";
+    private static final String ARIESDIR = "./obj/aries";    
+    
     private static final String TESTNONCE = "testnonce";
     private static final int ALLOWEXPORT = 0;
     
@@ -89,7 +93,7 @@ public class TestSnapshotRecovery extends RegressionSuite {
 
     @Override
     public void setUp() {
-        deleteTestFiles();
+        deleteTestFiles();        
         super.setUp();
         DefaultSnapshotDataTarget.m_simulateFullDiskWritingChunk = false;
         DefaultSnapshotDataTarget.m_simulateFullDiskWritingHeader = false;
@@ -106,6 +110,38 @@ public class TestSnapshotRecovery extends RegressionSuite {
         }
     }
 
+    // Recursively delete all files in a dir 
+    // XXX Java 7 has direct support
+    public static void removeRecursive(File startDir) throws IOException {
+        File dir = startDir;
+        File[] currList;
+
+        Stack<File> stack = new Stack<File>();
+        stack.push(dir);
+
+        while (!stack.isEmpty()) {
+            if (stack.lastElement().isDirectory()) {
+                currList = stack.lastElement().listFiles();
+                if (currList == null) {
+                    stack.pop();
+                    continue;
+                }
+
+                if (currList.length > 0) {
+                    for (File curr : currList) {
+                        stack.push(curr);
+                    }
+                } else {
+                    System.out.println("Deleting file "+stack.lastElement().getAbsolutePath());
+                    stack.pop().delete();
+                }
+            } else {
+                System.out.println("Deleting file "+stack.lastElement().getAbsolutePath());
+                stack.pop().delete();
+            }
+        }
+    }
+   
     private void deleteTestFiles() {
         FilenameFilter cleaner = new FilenameFilter() {
             public boolean accept(File dir, String file) {
@@ -117,7 +153,8 @@ public class TestSnapshotRecovery extends RegressionSuite {
         File[] tmp_files = tmp_dir.listFiles(cleaner);
         for (File tmp_file : tmp_files) {
             tmp_file.delete();
-        }
+        }        
+          
     }
 
     private static synchronized void setUpSnapshotDir(){
@@ -196,7 +233,7 @@ public class TestSnapshotRecovery extends RegressionSuite {
     public void testSaveAndRestoreYCSB() throws IOException, InterruptedException, ProcCallException {
         
         System.out.println("Starting testSaveAndRestoreYCSB");
-        
+                
         deleteTestFiles();
         setUpSnapshotDir();
     
@@ -431,8 +468,7 @@ public class TestSnapshotRecovery extends RegressionSuite {
         
         // PHYSICAL
         builder.setGlobalConfParameter("site.aries", true);        
-        
-                
+                   
         YCSBProjectBuilder project = new YCSBProjectBuilder();
 
         project.addAllDefaults();
@@ -441,18 +477,25 @@ public class TestSnapshotRecovery extends RegressionSuite {
         boolean success = false;
 
         setUpSnapshotDir();
+        // ARIES
+        File aries_dir = new File(ARIESDIR);
+        try {
+            removeRecursive(aries_dir);
+        } catch (IOException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
 
         // CONFIG #1: 2 Local Site with 4 Partitions running on JNI backend
-        /*
         NUM_SITES = 2;
         NUM_PARTITIONS = 2;
         m_config = new LocalCluster("snapshot-"+PREFIX+"-"+NUM_SITES+"-site-"+NUM_PARTITIONS+"-partition.jar", NUM_SITES, NUM_PARTITIONS, 1, BackendTarget.NATIVE_EE_JNI);
         success = m_config.compile(project);
         assert (success);
         builder.addServerConfig(m_config);
-        */
         
         
+        /*
         // CONFIG #2: 1 Local Site with 1 Partitions running on JNI backend
         NUM_SITES = 1;
         NUM_PARTITIONS = 2;        
@@ -460,7 +503,7 @@ public class TestSnapshotRecovery extends RegressionSuite {
         success = m_config.compile(project);
         assert (success);
         builder.addServerConfig(m_config);
-        
+        */
         
         return builder;
     }

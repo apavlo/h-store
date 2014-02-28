@@ -490,9 +490,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             String ariesSiteDirPath = hstore_conf.site.aries_dir + File.separatorChar + siteName + File.separatorChar;
            
             this.m_ariesLogFileName =  ariesSiteDirPath + m_ariesDefaultLogFileName ; 
-            int numberOfPartitions =   this.catalog_site.getPartitions().size();
-            
-            this.m_ariesLog = new AriesLogNative(numberOfPartitions, this.m_ariesLogFileName);
+            int numPartitionsPerSite =   this.catalog_site.getPartitions().size();
+            int numSites = this.catalogContext.numberOfSites;
+
+            LOG.warn("ARIES : Log Native creation :: numSites : "+numSites+" numPartitionsPerSite : "+numPartitionsPerSite);           
+            this.m_ariesLog = new AriesLogNative(numSites, numPartitionsPerSite, this.m_ariesLogFileName);
             this.m_recoveryLog = new VoltLogger("RECOVERY");
         }
         

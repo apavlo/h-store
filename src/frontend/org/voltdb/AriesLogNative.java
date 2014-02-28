@@ -42,7 +42,9 @@ public class AriesLogNative extends AriesLog {
 	private long txnIdToBeginReplay;
 	
 	private static String m_logFileName ;
+
 	private int m_numSites ;
+    private int m_numPartitionsPerSite ;
 	
 	private static class LogDataWithAtom {
 		public byte b[];
@@ -57,22 +59,22 @@ public class AriesLogNative extends AriesLog {
 	private List<LogDataWithAtom> m_waitingToFlush;
 	private List<LogDataWithAtom> m_beingFlushed;
 	
-	public AriesLogNative(int numSites, String logFileName) {
-		this(numSites, 0, logFileName); // hardcode to 0 MB for now.
+	public AriesLogNative(int numSites, int numPartitionsPerSite, String logFileName) {
+		this(numSites, numPartitionsPerSite, 0, logFileName); // hardcode to 0 MB for now.
 	}
 	
-	public AriesLogNative(int numSites, int size, String logFileName) {
+	public AriesLogNative(int numSites, int numPartitionsPerSite, int size, String logFileName) {
 		// Hardcode for now -- default value of 16 is also specified in
 		// org.voltdb.compiler.DeploymentFileSchema.xsd
-		this(numSites, size, 16, logFileName);		
+		this(numSites, numPartitionsPerSite, size, 16, logFileName);		
 	}
 	
-	public AriesLogNative(int numSites, int size, int syncFrequency, String logFileName) {	    
+	public AriesLogNative(int numSites, int numPartitionsPerSite, int size, int syncFrequency, String logFileName) {	    
         LOG.warn("AriesLogNative : numSites : "+numSites+ " logFileName : "+logFileName);
 	    
-	    m_perSiteRecoveryDone = new boolean[numSites];
+	    m_perSiteRecoveryDone = new boolean[numSites*numPartitionsPerSite];
 		
-		for (int i = 0; i < numSites; i++) {
+		for (int i = 0; i < numSites*numPartitionsPerSite; i++) {
 			m_perSiteRecoveryDone[i] = false;
 		}
 		
@@ -95,6 +97,7 @@ public class AriesLogNative extends AriesLog {
 		
 		m_logFileName = logFileName;
 		m_numSites = numSites;
+		m_numPartitionsPerSite= numPartitionsPerSite;
 		
 		new Thread(this).start();
 	}
@@ -134,6 +137,7 @@ public class AriesLogNative extends AriesLog {
 			try {
 				long logsizeInMB = logsize;
 				
+				//XXX Disable this
 				ariesLogfile = new RandomAccessFile(m_logFileName, "rw");
 				ariesLogfile.setLength(logsizeInMB * 1024 * 1024);
 				
@@ -150,7 +154,7 @@ public class AriesLogNative extends AriesLog {
 				*/
 			} catch (FileNotFoundException e) {
 				// TODO Auto-generated catch block
-				e.printStackTrace();
+				//e.printStackTrace();
 			} catch (IOException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
@@ -235,12 +239,15 @@ public class AriesLogNative extends AriesLog {
 		}
 		
 		boolean isRecoveryDone = true;
+		int cnt = 0;
 		
 		for (int i = 0; i < m_perSiteRecoveryDone.length; i++) {
 			isRecoveryDone &= m_perSiteRecoveryDone[i];
-		}
+			if(m_perSiteRecoveryDone[i] == true)
+			    cnt++;
+		}				
 		
-		if (isRecoveryDone) {
+		if (isRecoveryDone || cnt == this.m_numPartitionsPerSite) {
 			m_recoveryDone = true;
 		}
 		
