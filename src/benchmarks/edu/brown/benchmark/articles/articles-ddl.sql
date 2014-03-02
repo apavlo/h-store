@@ -1,5 +1,5 @@
 -- ================================================================ 
--- USER
+-- USERS
 -- Represents users 
 -- u_id             User ID
 -- u_firstname      User's first name
@@ -7,7 +7,7 @@
 -- u_password       User's password
 -- u_email          User's email
 -- ================================================================
-CREATE TABLE USER (
+CREATE TABLE USERS (
 	u_id	BIGINT NOT NULL,
 		u_firstname	VARCHAR(100),
 			u_lastname	VARCHAR(100),
@@ -16,7 +16,7 @@ CREATE TABLE USER (
 						PRIMARY KEY (u_id)
 							);
 -- ================================================================
--- ARTICLE
+-- ARTICLES
 -- Represents articles
 -- a_id                  ID
 -- a_title				 Article's title
@@ -38,7 +38,7 @@ CREATE TABLE ARTICLES (
 -- u_id            User's ID
 -- c_text            Actual comment text
 -- ================================================================
-CREATE TABLE COMMENT (
+CREATE TABLE COMMENTS (
 	c_id	BIGINT NOT NULL,
 		a_id	BIGINT NOT NULL REFERENCES ARTICLES (a_id),
 			u_id	BIGINT NOT NULL REFERENCES USERS (u_id),

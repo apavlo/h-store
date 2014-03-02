@@ -16,10 +16,15 @@ public class ArticlesProjectBuilder extends AbstractProjectBuilder{
     public static final Class<?> PROCEDURES[] = new Class<?>[] {
         GetArticle.class,
     };
+    {
+        // Transaction Frequencies
+        addTransactionFrequency(GetArticle.class, ArticlesConstants.FREQUENCY_GET_ARTICLE);
+    }
+
     public static final String PARTITIONING[][] = new String[][] {
-        // { "TABLE NAME", "PARTITIONING COLUMN NAME" }
-        {"TABLEA", "A_ID"},
-        {"TABLEB", "B_A_ID"},
+        { ArticlesConstants.TABLENAME_ARTICLES, "A_ID" },
+        { ArticlesConstants.TABLENAME_USERS, "U_ID" },
+        { ArticlesConstants.TABLENAME_COMMENTS, "A_ID" }
     };
  
     @SuppressWarnings("unchecked")
@@ -29,4 +34,3 @@ public class ArticlesProjectBuilder extends AbstractProjectBuilder{
     }
 
 }
-
