@@ -27,6 +27,7 @@ namespace voltdb {
 enum LoggerId {
     LOGGERID_SQL,
     LOGGERID_HOST,
+    LOGGERID_MM_ARIES,
     LOGGERID_INVALID
 };
 

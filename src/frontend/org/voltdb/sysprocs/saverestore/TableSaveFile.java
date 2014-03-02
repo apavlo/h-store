@@ -35,29 +35,30 @@ import org.voltdb.utils.DBBPool;
 import org.voltdb.utils.DBBPool.BBContainer;
 import org.voltdb.EELibraryLoader;
 
+import edu.brown.hstore.HStoreConstants;
+import edu.brown.hstore.PartitionExecutor.SystemProcedureExecutionContext;
+import edu.brown.catalog.CatalogUtil;
+import edu.brown.utils.CollectionUtil;
+
 /**
- * An abstraction around a table's save file for restore.  Deserializes the
- * meta-data that was stored when the table was saved and makes it available
- * to clients.  This follows the structure in
- * src/ee/storage/TableDiskHeader.{h,cpp} and looks like:
- *
- * Header length - 4 octet integer
- * version       - 4 octet integer
- * Host ID       - 4 octet integer (this is the name, *not* the GUID)
- * Cluster name  - VoltDB serialized string (2 octet length followed by chars)
- * Database name - VoltDB serialized string
- * Table name    - VoltDB serialized string
- * isReplicated  - 1 octet, indicates whether the table was replicated
- *   The following fields are conditional on isReplicated == false
- * Partition Ids - Array of 4 octet integer ids for partitions in this file
- * Total Hosts - The number of hosts for this table when it was saved
+ * An abstraction around a table's save file for restore. Deserializes the
+ * meta-data that was stored when the table was saved and makes it available to
+ * clients. This follows the structure in src/ee/storage/TableDiskHeader.{h,cpp}
+ * and looks like: Header length - 4 octet integer version - 4 octet integer
+ * Host ID - 4 octet integer (this is the name, *not* the GUID) Cluster name -
+ * VoltDB serialized string (2 octet length followed by chars) Database name -
+ * VoltDB serialized string Table name - VoltDB serialized string isReplicated -
+ * 1 octet, indicates whether the table was replicated The following fields are
+ * conditional on isReplicated == false Partition Ids - Array of 4 octet integer
+ * ids for partitions in this file Total Hosts - The number of hosts for this
+ * table when it was saved
  */
-public class TableSaveFile
-{
+public class TableSaveFile {
 
     private static class Container extends BBContainer {
         @SuppressWarnings("unused")
         private final BBContainer m_origin;
+
         Container(ByteBuffer b, long pointer, BBContainer origin) {
             super(b, pointer);
             m_origin = origin;
@@ -70,26 +71,17 @@ public class TableSaveFile
     }
 
     /**
-     * It is actually possible to make a bigger chunk then this if the table header is
-     * big enough...
+     * It is actually possible to make a bigger chunk then this if the table
+     * header is big enough...
      */
-    private static final int DEFAULT_CHUNKSIZE =
-        org.voltdb.SnapshotSiteProcessor.m_snapshotBufferLength + (1024 * 256);
+    private static final int DEFAULT_CHUNKSIZE = org.voltdb.SnapshotSiteProcessor.m_snapshotBufferLength + (1024 * 256);
 
-    public TableSaveFile(
-            FileChannel dataIn,
-            int readAheadChunks,
-            int relevantPartitionIds[]) throws IOException {
+    public TableSaveFile(FileChannel dataIn, int readAheadChunks, int relevantPartitionIds[]) throws IOException {
         this(dataIn, readAheadChunks, relevantPartitionIds, false);
     }
 
     // XXX maybe consider an IOException subclass at some point
-    public TableSaveFile(
-            FileChannel dataIn,
-            int readAheadChunks,
-            int relevantPartitionIds[],
-            boolean continueOnCorruptedChunk) throws IOException
-    {
+    public TableSaveFile(FileChannel dataIn, int readAheadChunks, int relevantPartitionIds[], boolean continueOnCorruptedChunk) throws IOException {
         try {
             EELibraryLoader.loadExecutionEngineLibrary(true);
             if (relevantPartitionIds == null) {
@@ -147,18 +139,17 @@ public class TableSaveFile
             secondCRC.update(saveRestoreHeader.array(), 1, saveRestoreHeader.array().length - 1);
 
             /*
-             *  Get the template for the VoltTable serialization header.
-             *  It will have an extra length value preceded to it so that
-             *  it can be sucked straight into a buffer. This will not
-             *  contain a row count since that varies from chunk to chunk
-             *  and is supplied by the chunk
+             * Get the template for the VoltTable serialization header. It will
+             * have an extra length value preceded to it so that it can be
+             * sucked straight into a buffer. This will not contain a row count
+             * since that varies from chunk to chunk and is supplied by the
+             * chunk
              */
             lengthBuffer.clear();
             lengthBuffer.limit(4);
             /*
-             * Why this stupidity and no while loop?
-             * Because java is broken and complains about a random final
-             * elsewhere if you do.
+             * Why this stupidity and no while loop? Because java is broken and
+             * complains about a random final elsewhere if you do.
              */
             {
                 final int read = m_saveFile.read(lengthBuffer);
@@ -192,12 +183,13 @@ public class TableSaveFile
 
             boolean failedCRCDueToNotCompleted = false;
 
-            final int actualCRC = (int)crc.getValue();
+            final int actualCRC = (int) crc.getValue();
             if (originalCRC != actualCRC) {
                 /*
-                 * Check if the CRC mismatch is due to the snapshot not being completed
+                 * Check if the CRC mismatch is due to the snapshot not being
+                 * completed
                  */
-                final int secondCRCValue = (int)secondCRC.getValue();
+                final int secondCRCValue = (int) secondCRC.getValue();
                 if (secondCRCValue == originalCRC) {
                     failedCRCDueToNotCompleted = true;
                 } else {
@@ -208,6 +200,7 @@ public class TableSaveFile
             FastDeserializer fd = new FastDeserializer(saveRestoreHeader);
             byte completedByte = fd.readByte();
             m_completed = failedCRCDueToNotCompleted ? false : (completedByte == 1 ? true : false);
+
             for (int ii = 0; ii < 4; ii++) {
                 m_versionNum[ii] = fd.readInt();
             }
@@ -219,7 +212,7 @@ public class TableSaveFile
             m_tableName = fd.readString();
             m_isReplicated = fd.readBoolean();
             if (!m_isReplicated) {
-                m_partitionIds = (int[])fd.readArray(int.class);
+                m_partitionIds = (int[]) fd.readArray(int.class);
                 if (!m_completed) {
                     for (Integer partitionId : m_partitionIds) {
                         m_corruptedPartitions.add(partitionId);
@@ -227,15 +220,23 @@ public class TableSaveFile
                 }
                 m_totalPartitions = fd.readInt();
             } else {
-                m_partitionIds = new int[] {0};
+                m_partitionIds = new int[] { 0 };
                 m_totalPartitions = 1;
                 if (!m_completed) {
                     m_corruptedPartitions.add(0);
                 }
             }
+
+            //System.err.println("Tablename :" + m_tableName);
+            //System.err.println("Replicated :" + m_isReplicated);
+            //System.err.println("# Partitions :" + m_totalPartitions);
+            // System.err.println("Completed :"+m_completed);
+            //System.err.println("File Channel Size :" + m_saveFile.size());
+            //System.err.println("File Channel Position :" + m_saveFile.position());
+            //System.err.println("-----");
             /*
-             * Several runtime exceptions can be thrown in valid failure cases where
-             * a corrupt save file is being detected.
+             * Several runtime exceptions can be thrown in valid failure cases
+             * where a corrupt save file is being detected.
              */
         } catch (BufferUnderflowException e) {
             throw new IOException(e);
@@ -246,33 +247,27 @@ public class TableSaveFile
         }
     }
 
-    public int[] getVersionNumber()
-    {
+    public int[] getVersionNumber() {
         return m_versionNum;
     }
 
-    public int getHostId()
-    {
+    public int getHostId() {
         return m_hostId;
     }
 
-    public String getHostname()
-    {
+    public String getHostname() {
         return m_hostname;
     }
 
-    public String getClusterName()
-    {
+    public String getClusterName() {
         return m_clusterName;
     }
 
-    public String getDatabaseName()
-    {
+    public String getDatabaseName() {
         return m_databaseName;
     }
 
-    public String getTableName()
-    {
+    public String getTableName() {
         return m_tableName;
     }
 
@@ -280,8 +275,7 @@ public class TableSaveFile
         return m_partitionIds;
     }
 
-    public boolean isReplicated()
-    {
+    public boolean isReplicated() {
         return m_isReplicated;
     }
 
@@ -295,6 +289,18 @@ public class TableSaveFile
 
     public long getCreateTime() {
         return m_createTime;
+    }
+
+    public FileChannel getFileChannel() {
+        return m_saveFile;
+    }
+
+    public void setFilePath(String path) {
+        m_filePath = path;
+    }
+
+    public String getFilePath() {
+        return m_filePath;
     }
 
     public void close() throws IOException {
@@ -323,8 +329,11 @@ public class TableSaveFile
     }
 
     // Will get the next chunk of the table that is just over the chunk size
-    public synchronized BBContainer getNextChunk() throws IOException
-    {
+    public synchronized BBContainer getNextChunk() throws IOException {
+        if (m_chunkReaderException != null) {
+            throw m_chunkReaderException;
+        }
+
         if (!m_hasMoreChunks) {
             return m_availableChunks.poll();
         }
@@ -342,56 +351,59 @@ public class TableSaveFile
                 try {
                     wait();
                 } catch (InterruptedException e) {
+                    e.printStackTrace();
                     throw new IOException(e);
                 }
             }
         }
+
         if (c != null) {
             m_chunkReads.release();
-        }
-        if (m_chunkReaderException != null) {
-            throw m_chunkReaderException;
         }
         return c;
     }
 
-    public synchronized boolean hasMoreChunks()
-    {
+    public synchronized boolean hasMoreChunks() throws IOException {
+        if (m_chunkReaderException != null) {
+            throw m_chunkReaderException;
+        }
+
         return m_hasMoreChunks || !m_availableChunks.isEmpty();
     }
-//
-//    /**
-//     * A wrapper for the in memory storage for a table chunk
-//     * that counts the number of times the chunk is discarded
-//     * and only returns the memory back to the pool when the
-//     * chunk has been read by enough times. This is necessary
-//     * for replicated tables so that they only have to
-//     *
-//     */
-//    private class ChunkCounter {
-//
-//        private ChunkCounter(BBContainer c, int chunkIndex) {
-//            m_container = c;
-//            m_chunkIndex = chunkIndex;
-//        }
-//
-//        private BBContainer fetch() {
-//            m_fetches++;
-//            if (m_fetches == m_fetchCount) {
-//                return m_container;
-//            }
-//        }
-//
-//        private final BBContainer m_container;
-//        private int m_chunkIndex;
-//        private int m_fetches = 0;
-//    }
 
-//    /**
-//     * Number of times a chunk must be fetched before its buffer can
-//     * be returned to the pool
-//     */
-//    private final int m_fetchCount;
+    //
+    // /**
+    // * A wrapper for the in memory storage for a table chunk
+    // * that counts the number of times the chunk is discarded
+    // * and only returns the memory back to the pool when the
+    // * chunk has been read by enough times. This is necessary
+    // * for replicated tables so that they only have to
+    // *
+    // */
+    // private class ChunkCounter {
+    //
+    // private ChunkCounter(BBContainer c, int chunkIndex) {
+    // m_container = c;
+    // m_chunkIndex = chunkIndex;
+    // }
+    //
+    // private BBContainer fetch() {
+    // m_fetches++;
+    // if (m_fetches == m_fetchCount) {
+    // return m_container;
+    // }
+    // }
+    //
+    // private final BBContainer m_container;
+    // private int m_chunkIndex;
+    // private int m_fetches = 0;
+    // }
+
+    // /**
+    // * Number of times a chunk must be fetched before its buffer can
+    // * be returned to the pool
+    // */
+    // private final int m_fetchCount;
 
     private final FileChannel m_saveFile;
     private final ByteBuffer m_tableHeader;
@@ -410,15 +422,17 @@ public class TableSaveFile
     private static ConcurrentLinkedQueue<Container> m_buffers = new ConcurrentLinkedQueue<Container>();
     private final ArrayDeque<Container> m_availableChunks = new ArrayDeque<Container>();
     private final HashSet<Integer> m_relevantPartitionIds;
+    private String m_filePath;
 
     /**
-     * Maintain a list of corrupted partitions. It is possible for uncorrupted partitions
-     * to be recovered from a save file in the future
+     * Maintain a list of corrupted partitions. It is possible for uncorrupted
+     * partitions to be recovered from a save file in the future
      */
     private final HashSet<Integer> m_corruptedPartitions = new HashSet<Integer>();
 
     /**
-     * Ignore corrupted chunks and continue validation of the rest of the chunks.
+     * Ignore corrupted chunks and continue validation of the rest of the
+     * chunks.
      */
     private final boolean m_continueOnCorruptedChunk;
 
@@ -447,10 +461,11 @@ public class TableSaveFile
                 } catch (InterruptedException e) {
                     return;
                 }
+                boolean expectedAnotherChunk = false;
                 try {
-
                     /*
-                     * Get the length of the next chunk, partition id, crc for partition id,
+                     * Get the length of the next chunk, partition id, crc for
+                     * partition id,
                      */
                     ByteBuffer chunkLengthB = ByteBuffer.allocate(16);
                     while (chunkLengthB.hasRemaining()) {
@@ -461,12 +476,14 @@ public class TableSaveFile
                     }
                     chunkLengthB.flip();
                     final int nextChunkLength = chunkLengthB.getInt();
+                    expectedAnotherChunk = true;
 
                     /*
-                     * Get the partition id and its CRC and validate it. Validating the
-                     * partition ID for the chunk separately makes it possible to
-                     * continue processing chunks from other partitions if only one partition
-                     * has corrupt chunks in the file.
+                     * Get the partition id and its CRC and validate it.
+                     * Validating the partition ID for the chunk separately
+                     * makes it possible to continue processing chunks from
+                     * other partitions if only one partition has corrupt chunks
+                     * in the file.
                      */
                     final CRC32 partitionIdCRC = new CRC32();
                     chunkLengthB.mark();
@@ -476,16 +493,19 @@ public class TableSaveFile
                     byte partitionIdBytes[] = new byte[4];
                     chunkLengthB.get(partitionIdBytes);
                     partitionIdCRC.update(partitionIdBytes);
-                    int generatedValue = (int)partitionIdCRC.getValue();
+                    int generatedValue = (int) partitionIdCRC.getValue();
+
                     if (generatedValue != nextChunkPartitionIdCRC) {
                         chunkLengthB.position(0);
                         for (int partitionId : m_partitionIds) {
                             m_corruptedPartitions.add(partitionId);
                         }
-                        throw new IOException("Chunk partition ID CRC check failed. " +
-                                "This corrupts all partitions in this file");
+                        throw new IOException("Chunk partition ID CRC check failed. " + "This corrupts all partitions in this file");
                     }
 
+                    //System.err.println("nextChunkPartitionId :"+nextChunkPartitionId);
+                    //System.err.println("nextChunkLength :"+nextChunkLength);
+                    
                     /*
                      * CRC for the data portion of the chunk
                      */
@@ -493,23 +513,24 @@ public class TableSaveFile
                     final int nextChunkCRC = chunkLengthB.getInt();
 
                     /*
-                     * Sanity check the length value to ensure there isn't
-                     * a runtime exception or OOM.
+                     * Sanity check the length value to ensure there isn't a
+                     * runtime exception or OOM.
                      */
                     if (nextChunkLength < 0) {
                         throw new IOException("Corrupted TableSaveFile chunk has negative chunk length");
                     }
 
                     if (nextChunkLength > DEFAULT_CHUNKSIZE) {
-                        throw new IOException("Corrupted TableSaveFile chunk has unreasonable length " +
-                                "> DEFAULT_CHUNKSIZE bytes");
+                        throw new IOException("Corrupted TableSaveFile chunk has unreasonable length " + "> DEFAULT_CHUNKSIZE bytes");
                     }
 
                     /*
-                     * Now allocate space to store the chunk using the VoltTable serialization representation.
-                     * The chunk will contain an integer row count preceding it so it can
-                     * be sucked straight in. There is a little funny business to overwrite the
-                     * partition id that is not part of the serialization format
+                     * Now allocate space to store the chunk using the VoltTable
+                     * serialization representation. The chunk will contain an
+                     * integer row count preceding it so it can be sucked
+                     * straight in. There is a little funny business to
+                     * overwrite the partition id that is not part of the
+                     * serialization format
                      */
                     Container c = m_buffers.poll();
                     if (c == null) {
@@ -520,29 +541,33 @@ public class TableSaveFile
                     }
 
                     /*
-                     * If the length value is wrong or not all data made it to disk this read will
-                     * not complete correctly. There could be overflow, underflow etc.
-                     * so use a try finally block to indicate that all partitions are now corrupt.
-                     * The enclosing exception handlers will do the right thing WRT to
-                     * propagating the error and closing the file.
+                     * If the length value is wrong or not all data made it to
+                     * disk this read will not complete correctly. There could
+                     * be overflow, underflow etc. so use a try finally block to
+                     * indicate that all partitions are now corrupt. The
+                     * enclosing exception handlers will do the right thing WRT
+                     * to propagating the error and closing the file.
                      */
                     boolean completedRead = false;
                     int checksumStartPosition = 0;
                     int rowCount = 0;
                     try {
                         /*
-                         * Assemble a VoltTable out of the chunk of tuples.
-                         * Put in the header that was cached in the constructor,
+                         * Assemble a VoltTable out of the chunk of tuples. Put
+                         * in the header that was cached in the constructor,
                          * then copy the tuple data. The row count is at the end
-                         * because it isn't known until serialization is complete.
-                         * It will have to be moved back to the beginning of the tuple data
-                         * after the header once the CRC has been calculated.
+                         * because it isn't known until serialization is
+                         * complete. It will have to be moved back to the
+                         * beginning of the tuple data after the header once the
+                         * CRC has been calculated.
                          */
                         c.b.clear();
-                        c.b.limit((nextChunkLength - 8)  + m_tableHeader.capacity());
+                        c.b.limit((nextChunkLength - 8) + m_tableHeader.capacity());
                         m_tableHeader.position(0);
                         c.b.put(m_tableHeader);
-                        c.b.position(c.b.position() + 4);//Leave space for row count to be moved into
+                        c.b.position(c.b.position() + 4);// Leave space for row
+                                                         // count to be moved
+                                                         // into
                         checksumStartPosition = c.b.position();
                         while (c.b.hasRemaining()) {
                             final int read = m_saveFile.read(c.b);
@@ -563,8 +588,8 @@ public class TableSaveFile
                     }
 
                     /*
-                     * Validate the rest of the chunk. This can fail if the data is corrupted
-                     * or the length value was corrupted.
+                     * Validate the rest of the chunk. This can fail if the data
+                     * is corrupted or the length value was corrupted.
                      */
                     final int calculatedCRC = DBBPool.getBufferCRC32(c.b, c.b.position(), c.b.remaining());
                     if (calculatedCRC != nextChunkCRC) {
@@ -579,8 +604,9 @@ public class TableSaveFile
                     }
 
                     /*
-                     * Skip irrelevant chunks after CRC is calculated. Always calulate the CRC
-                     * in case it is the length value that is corrupted
+                     * Skip irrelevant chunks after CRC is calculated. Always
+                     * calulate the CRC in case it is the length value that is
+                     * corrupted
                      */
                     if (m_relevantPartitionIds != null) {
                         if (!m_relevantPartitionIds.contains(nextChunkPartitionId)) {
@@ -591,12 +617,12 @@ public class TableSaveFile
                     }
 
                     /*
-                     * The row count which was stored on disk at the end (and for the CRC calc)
-                     * is now moved to the appropriate place for the table serialization format.
-                     * Update the limit to reflect that.
-                     *
-                     * Surrounded in a try finally just in case there is overflow/underflow. Shouldn't
-                     * happen but I could be wrong.
+                     * The row count which was stored on disk at the end (and
+                     * for the CRC calc) is now moved to the appropriate place
+                     * for the table serialization format. Update the limit to
+                     * reflect that. Surrounded in a try finally just in case
+                     * there is overflow/underflow. Shouldn't happen but I could
+                     * be wrong.
                      */
                     boolean success = false;
                     try {
@@ -613,6 +639,7 @@ public class TableSaveFile
                         }
                     }
                     ++chunksRead;
+
                     synchronized (TableSaveFile.this) {
                         m_availableChunks.offer(c);
                         TableSaveFile.this.notifyAll();
@@ -620,6 +647,9 @@ public class TableSaveFile
                 } catch (EOFException eof) {
                     synchronized (TableSaveFile.this) {
                         m_hasMoreChunks = false;
+                        if (expectedAnotherChunk) {
+                            m_chunkReaderException = new IOException("Expected to find another chunk but reached end of file instead");
+                        }
                         TableSaveFile.this.notifyAll();
                     }
                 } catch (IOException e) {
@@ -649,6 +679,7 @@ public class TableSaveFile
                 }
             }
         }
+
         @Override
         public void run() {
             try {

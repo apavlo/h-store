@@ -86,8 +86,9 @@ bool setRandomTupleValues(voltdb::Table* table, voltdb::TableTuple *tuple) {
          * if the pointer wasn't transferred into the tuple by setSlimValue(). The pointer won't be transferred into
          * the tuple if the schema has that column inlined.
          */
-        if (tuple->getSchema()->columnType(col_ctr) == voltdb::VALUE_TYPE_VARCHAR &&
-                tuple->getSchema()->columnIsInlined(col_ctr)) {
+        voltdb::ValueType t = tuple->getSchema()->columnType(col_ctr);
+        if ((t == voltdb::VALUE_TYPE_VARCHAR || (t == voltdb::VALUE_TYPE_VARBINARY) )
+        		&& tuple->getSchema()->columnIsInlined(col_ctr)) {
             value.free();
         }
     }
@@ -102,7 +103,7 @@ bool addRandomTuples(voltdb::Table* table, int num_of_tuples) {
             return (false);
         }
         //std::cout << std::endl << "Creating tuple " << std::endl << tuple.debugNoHeader() << std::endl;
-        //VOLT_DEBUG("Created random tuple: %s", tuple.debug().c_str());
+        //VOLT_DEBUG("Created random tuple: %s", tuple.debug(table->name()).c_str());
         if (!table->insertTuple(tuple)) {
             return (false);
         }

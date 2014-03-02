@@ -198,9 +198,14 @@ CTX.INPUT['common'] = """
  types.cpp
  UndoLog.cpp
  NValue.cpp
+ MMAPMemoryManager.cpp
  RecoveryProtoMessage.cpp
  RecoveryProtoMessageBuilder.cpp
  DefaultTupleSerializer.cpp
+ StringRef.cpp
+ ThreadLocalPool.cpp
+ CompactingStringPool.cpp
+ CompactingStringStorage.cpp
 """
 
 CTX.INPUT['execution'] = """
@@ -273,6 +278,7 @@ CTX.INPUT['storage'] = """
  CopyOnWriteIterator.cpp
  ConstraintFailureException.cpp
  MaterializedViewMetadata.cpp
+ mmap_persistenttable.cpp
  persistenttable.cpp
  PersistentTableStats.cpp
  PersistentTableUndoDeleteAction.cpp
@@ -299,8 +305,15 @@ CTX.INPUT['stats'] = """
 CTX.INPUT['logging'] = """
  JNILogProxy.cpp
  LogManager.cpp
+ AriesLogProxy.cpp
+ Logrecord.cpp
 """
-
+ 
+CTX.INPUT['structures'] = """
+ CompactingPool.cpp
+ ContiguousAllocator.cpp
+"""
+ 
 # specify the third party input
 
 CTX.THIRD_PARTY_INPUT['json_spirit'] = """
@@ -353,6 +366,7 @@ CTX.TESTS['storage'] = """
  CopyOnWriteTest
  constraint_test
  filter_test
+ mmap_persistent_table_test
  persistent_table_log_test
  serialize_test
  StreamedTable_test
@@ -366,11 +380,18 @@ CTX.TESTS['storage'] = """
 # CTX.TESTS['expressions'] = """expserialize_test expression_test"""
 
 ###############################################################################
-# MMAP STORAGE
+# STORAGE MMAP
 ###############################################################################
 
-if CTX.MMAP_STORAGE:
-    CTX.CPPFLAGS += " -DMMAP_STORAGE"
+if CTX.STORAGE_MMAP:
+    CTX.CPPFLAGS += " -DSTORAGE_MMAP"
+
+###############################################################################
+# ARIES
+###############################################################################
+
+if CTX.ARIES:
+    CTX.CPPFLAGS += " -DARIES"
 
 ###############################################################################
 # ANTI-CACHING

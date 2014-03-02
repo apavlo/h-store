@@ -80,7 +80,7 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
         VoltTable[] result = new VoltTable[1];
         result[0] = new VoltTable(new VoltTable.ColumnInfo("TxnId", VoltType.BIGINT));
         result[0].addRow(txn_id);
-
+        
         if (fragmentId == SysProcFragmentId.PF_loadDistribute) {
             assert context.getCluster().getName() != null;
             assert context.getDatabase().getName() != null;
@@ -222,8 +222,8 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
             pf.last_task = false;
             pfs.add(pf);
             if (trace.val)
-                sb.append(String.format("\n  Partition #%d: %d tuples",
-                          partition, partitionedTables[partition].getRowCount()));
+                sb.append(String.format("\n  Partition #%d: %d tuples \n Data : %s",
+                          partition, partitionedTables[partition].getRowCount(), partitionedTables[partition]));
         } // FOR
         if (trace.val) LOG.trace(sb.toString());
 
@@ -266,7 +266,7 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
         return (createReplicatedPlan(ts, virtual_tbl, vt));
     }
     
-    
+
     public VoltTable[] run(String tableName, VoltTable table) throws VoltAbortException {
         assert(table != null) : 
             "VoltTable to be loaded into " + tableName + " is null in txn #" + this.getTransactionId();

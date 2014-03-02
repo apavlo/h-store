@@ -1,0 +1,11 @@
+{"MAPPINGS": [
+ {
+  "STATEMENT": "{'GetData':'readStmt'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'GetData.readStmt':'0'}",
+  "STATEMENT_COLUMN": "{'STABLE':'S_KEY'}",
+  "PROCEDURE_PARAMETER": "{'GetData':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ }
+]}

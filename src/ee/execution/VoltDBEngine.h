@@ -50,14 +50,16 @@
 #include <set>
 #include <string>
 #include <vector>
+#include <stdint.h>
 #include "boost/shared_ptr.hpp"
 #include "json_spirit/json_spirit.h"
 #include "catalog/database.h"
 #include "common/ids.h"
+#include "common/Pool.hpp"
+#include "common/MMAPMemoryManager.h"
 #include "common/serializeio.h"
 #include "common/types.h"
 #include "common/valuevector.h"
-#include "common/Pool.hpp"
 #include "common/UndoLog.h"
 #include "common/DummyUndoQuantum.hpp"
 #include "common/SerializableEEException.h"
@@ -67,6 +69,9 @@
 #include "logging/LogProxy.h"
 #include "logging/StdoutLogProxy.h"
 #include "stats/StatsAgent.h"
+#include "storage/persistenttable.h"
+#include "storage/mmap_persistenttable.h"
+#include "common/ThreadLocalPool.h"
 
 #ifdef ANTICACHE
 #include "anticache/EvictedTupleAccessException.h"
@@ -125,12 +130,19 @@ class __attribute__((visibility("default"))) VoltDBEngine {
           m_currentInputDepId(-1),
           m_isELEnabled(false),
           m_numResultDependencies(0),
-          m_logManager(new StdoutLogProxy()), m_templateSingleLongTable(NULL), m_topend(NULL)
+          m_templateSingleLongTable(NULL),
+          m_topend(NULL),
+          m_logProxy(NULL),
+          m_ARIESEnabled(false)
         {
             m_currentUndoQuantum = new DummyUndoQuantum();
+
+            m_logManager = new LogManager(new StdoutLogProxy());
+
         }
 
         VoltDBEngine(Topend *topend, LogProxy *logProxy);
+	
         bool initialize(
                 int32_t clusterIndex,
                 int32_t siteId,
@@ -141,6 +153,7 @@ class __attribute__((visibility("default"))) VoltDBEngine {
 
         inline int32_t getClusterIndex() const { return m_clusterIndex; }
         inline int32_t getSiteId() const { return m_siteId; }
+        inline int32_t getPartitionId() const { return m_partitionId; }
 
         // ------------------------------------------------------------------
         // OBJECT ACCESS FUNCTIONS
@@ -193,12 +206,24 @@ class __attribute__((visibility("default"))) VoltDBEngine {
                        ReferenceSerializeInput &serializeIn,
                        int64_t txnId, int64_t lastCommittedTxnId);
 
+        // ARIES
+        bool loadTable(PersistentTable *table,
+                               ReferenceSerializeInput &serializeIn,
+                               int64_t txnId, int64_t lastCommittedTxnId,
+                               bool isExecutionNormal);
+
         void resetReusedResultOutputBuffer(const size_t headerSize = 0);
         inline ReferenceSerializeOutput* getResultOutputSerializer() { return &m_resultOutput; }
         inline ReferenceSerializeOutput* getExceptionOutputSerializer() { return &m_exceptionOutput; }
-        void setBuffers(char *parameter_buffer, int m_parameterBuffercapacity,
+
+        void setBuffers(char *parameterBuffer, int parameterBuffercapacity,
                 char *resultBuffer, int resultBufferCapacity,
                 char *exceptionBuffer, int exceptionBufferCapacity);
+
+        void setBuffers(char *parameter_buffer, int m_parameterBuffercapacity,
+                char *resultBuffer, int resultBufferCapacity,
+                char *exceptionBuffer, int exceptionBufferCapacity,
+                char *arieslogBuffer, int arieslogBufferCapacity);
         inline const char* getParameterBuffer() const { return m_parameterBuffer;}
         /** Returns the size of buffer for passing parameters to EE. */
         inline int getParameterBufferCapacity() const { return m_parameterBufferCapacity;}
@@ -272,12 +297,46 @@ class __attribute__((visibility("default"))) VoltDBEngine {
         // ANTI-CACHE FUNCTIONS
         // -------------------------------------------------
         void antiCacheInitialize(std::string dbDir, long blockSize) const;
-        #ifdef ANTICACHE
-        int antiCacheReadBlocks(int32_t tableId, int numBlocks, int16_t blockIds[], int32_t tupleOffsets[]);
-        int antiCacheEvictBlock(int32_t tableId, long blockSize, int numBlocks);
-        int antiCacheMergeBlocks(int32_t tableId);
-        #endif
+#ifdef ANTICACHE
+	int antiCacheReadBlocks(int32_t tableId, int numBlocks, int16_t blockIds[], int32_t tupleOffsets[]);
+	int antiCacheEvictBlock(int32_t tableId, long blockSize, int numBlocks);
+	int antiCacheMergeBlocks(int32_t tableId);
+#endif
         
+        // -------------------------------------------------
+        // STORAGE MMAP
+        // -------------------------------------------------
+        void MMAPInitialize(std::string dbDir, long mapSize, long syncFrequency ) const;
+
+
+        // ARIES
+        void ARIESInitialize(std::string dbDir, std::string logFile) ;
+
+        std::string getARIESDir(){
+        	return m_ARIESDir;
+        }
+
+        void setARIESDir(std::string dbDir){
+        	m_ARIESDir = dbDir;
+        }
+
+        std::string getARIESFile() {
+        	return m_ARIESFile;
+        }
+
+        void setARIESFile(std::string logFile) {
+        	m_ARIESFile = logFile;
+        }
+
+        bool isARIESEnabled() {
+        	return m_ARIESEnabled;
+        }
+
+        void setARIESEnabled(bool status) {
+        	m_ARIESEnabled = status;
+        }
+
+
         // -------------------------------------------------
         // Debug functions
         // -------------------------------------------------
@@ -318,7 +377,7 @@ class __attribute__((visibility("default"))) VoltDBEngine {
         inline Pool* getStringPool() { return &m_stringPool; }
 
         inline LogManager* getLogManager() {
-            return &m_logManager;
+            return m_logManager;
         }
 
         inline void setUndoToken(int64_t nextUndoToken) {
@@ -343,16 +402,8 @@ class __attribute__((visibility("default"))) VoltDBEngine {
             m_currentUndoQuantum = m_undoLog.generateUndoQuantum(nextUndoToken);
         }
 
-        inline void releaseUndoToken(int64_t undoToken) {
-            if (m_currentUndoQuantum != NULL && m_currentUndoQuantum->isDummy()) {
-                return;
-            }
-            if (m_currentUndoQuantum != NULL && m_currentUndoQuantum->getUndoToken() == undoToken) {
-                m_currentUndoQuantum = NULL;
-            }
-            VOLT_TRACE("Committing Buffer Token %ld at partition %d", undoToken, m_partitionId);
-            m_undoLog.release(undoToken);
-        }
+        inline void releaseUndoToken(int64_t undoToken);
+
         inline void undoUndoToken(int64_t undoToken) {
             if (m_currentUndoQuantum != NULL && m_currentUndoQuantum->isDummy()) {
                 return;
@@ -394,6 +445,21 @@ class __attribute__((visibility("default"))) VoltDBEngine {
          * Apply the updates in a recovery message.
          */
         void processRecoveryMessage(RecoveryProtoMsg *message);
+
+#ifdef ARIES
+        // do aries recovery - startup work.
+        void doAriesRecovery(char *logData, size_t length, int64_t replay_txnid);
+
+        char* readAriesLogForReplay(int64_t* sizes);
+
+        void freePointerToReplayLog(char *logData);
+
+        void writeToAriesLogBuffer(const char *data, size_t size);
+
+        size_t getArieslogBufferLength();
+
+        void rewindArieslogBuffer();
+#endif
 
         /**
          * Perform an action on behalf of Export.
@@ -500,6 +566,10 @@ class __attribute__((visibility("default"))) VoltDBEngine {
         /** buffer object for result tables. set when the result table is sent out to localsite. */
         ReferenceSerializeOutput m_resultOutput;
 
+        // ARIES
+        /** buffer object for aries log generated by the EE */
+        FallbackSerializeOutput m_arieslogOutput;
+
         /** buffer object for exceptions generated by the EE **/
         ReferenceSerializeOutput m_exceptionOutput;
 
@@ -516,6 +586,19 @@ class __attribute__((visibility("default"))) VoltDBEngine {
         char* m_reusedResultBuffer;
         /** size of reused_result_buffer. */
         int m_reusedResultCapacity;
+
+        // ARIES
+        /** buffer object to store aries log */
+        char* m_arieslogBuffer;
+
+        int m_arieslogBufferCapacity;
+
+        size_t m_ariesWriteOffset;
+
+        std::string m_ARIESDir ;
+        std::string m_ARIESFile ;
+
+        bool m_isRecovering;	// are we currently recovering?
 
         int64_t m_batchFragmentIdsContainer[MAX_BATCH_COUNT];
         /** PAVLO **/
@@ -553,8 +636,6 @@ class __attribute__((visibility("default"))) VoltDBEngine {
          */
         std::vector<PlanNodeFragment*> m_planFragments;
 
-        LogManager m_logManager;
-
         char *m_templateSingleLongTable;
 
         // depid + table size + status code + header size + column count + column type
@@ -568,13 +649,73 @@ class __attribute__((visibility("default"))) VoltDBEngine {
         ExecutorContext *m_executorContext;
 
         DefaultTupleSerializer m_tupleSerializer;
+
+        LogProxy* m_logProxy;
+
+        LogManager* m_logManager;
+
+        bool m_ARIESEnabled ;
+
+    private:
+        ThreadLocalPool m_tlPool;
+
 };
 
 inline void VoltDBEngine::resetReusedResultOutputBuffer(const size_t headerSize) {
     m_resultOutput.initializeWithPosition(m_reusedResultBuffer, m_reusedResultCapacity, headerSize);
     m_exceptionOutput.initializeWithPosition(m_exceptionBuffer, m_exceptionBufferCapacity, headerSize);
     *reinterpret_cast<int32_t*>(m_exceptionBuffer) = voltdb::VOLT_EE_EXCEPTION_TYPE_NONE;
+
+    //#ifdef ARIES
+	// XXX: I don't see function being called anywhere else beside when exceptions are thrown,
+	// not sure if this initialization even ever happens unless a serializeexception is thrown.
+	m_arieslogOutput.initializeWithPosition(m_arieslogBuffer,
+			m_arieslogBufferCapacity, headerSize);
+	//#endif
 }
+
+void VoltDBEngine::releaseUndoToken(int64_t undoToken){
+  if (m_currentUndoQuantum != NULL && m_currentUndoQuantum->isDummy()) {
+    return;
+  }
+
+#ifdef STORAGE_MMAP
+  if(m_executorContext->isMMAPEnabled()){    
+      for (std::map<int32_t, Table*>::iterator m_tables_itr = m_tables.begin() ; m_tables_itr != m_tables.end() ; ++m_tables_itr){
+          Table* table = m_tables_itr->second;
+
+          // Fix Group Commit Interval       
+          int64_t m_groupCommitInterval = m_executorContext->getMMAPSyncFrequency() ;
+          VOLT_WARN("Sync Frequency: %ld", m_groupCommitInterval);
+
+          if(m_currentUndoQuantum != NULL && m_currentUndoQuantum->getUndoToken() % m_groupCommitInterval == 0){
+              VOLT_WARN("Undo Token: %ld", m_currentUndoQuantum->getUndoToken());
+
+              if(table != NULL){
+                  //VOLT_WARN("Syncing Table %s",table->name().c_str());	  
+                  /*Pool* pool = table->getPool();
+                  if(pool != NULL)
+                      MMAPMemoryManager* m_pool_manager = pool->getPoolManager();
+                  if(m_pool_manager != NULL)
+                      m_pool_manager->sync();*/
+
+                  MMAPMemoryManager* m_data_manager = table->getDataManager();
+                  if(m_data_manager != NULL)
+                      m_data_manager->sync();
+              }
+          }
+      }
+  }
+#endif
+
+  if (m_currentUndoQuantum != NULL && m_currentUndoQuantum->getUndoToken() == undoToken) {
+      m_currentUndoQuantum = NULL;    
+  }
+
+  VOLT_TRACE("Committing Buffer Token %ld at partition %d", undoToken, m_partitionId);
+  m_undoLog.release(undoToken);
+}
+
 
 } // namespace voltdb
 

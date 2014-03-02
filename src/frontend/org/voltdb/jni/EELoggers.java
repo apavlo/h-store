@@ -47,7 +47,9 @@ public class EELoggers {
      */
     public static final Logger loggers[] = new Logger[] {
         Logger.getLogger("SQL", VoltLoggerFactory.instance()),
-        Logger.getLogger("HOST", VoltLoggerFactory.instance())
+        Logger.getLogger("HOST", VoltLoggerFactory.instance()),
+        // ARIES
+        Logger.getLogger("ARIES", VoltLoggerFactory.instance())
     };
 
     /**
