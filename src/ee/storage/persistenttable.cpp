@@ -230,6 +230,10 @@ bool PersistentTable::evictBlockToDisk(const long block_size, int num_blocks) {
             if(!evict_itr.next(tuple))
                 break;
             
+	    // HACK HACK!! This is here for testing purposes. 
+	    if(tuple.getTupleID() < 60000)
+	      continue; 
+
             // If this is the first tuple, then we need to allocate all of the memory and
             // what not that we're going to need
             if (tuple_length == -1) {
@@ -237,16 +241,22 @@ bool PersistentTable::evictBlockToDisk(const long block_size, int num_blocks) {
             }
             
             //current_tuple_start_position = out.position();
+
+	    //VOLT_INFO("tuple size: %d, non-inlined memory size: %d", tuple.tupleLength(), tuple.getNonInlinedMemorySize()); 
             
-            // remove the tuple from the eviction chain
-            eviction_manager->removeTuple(this, &tuple);
             if (tuple.isEvicted())
             {
                 VOLT_INFO("Tuple %d is already evicted. Skipping", tuple.getTupleID()); 
+		VOLT_INFO("Active Tuple Count: %d", (int)activeTupleCount());
+		VOLT_INFO("Tuples in Eviction Chaing: %d", getNumTuplesInEvictionChain()); 
                 continue;
             } 
-            VOLT_DEBUG("Evicting Tuple: %s", tuple.debug(name()).c_str());
-            tuple.setEvictedTrue();
+
+            // remove the tuple from the eviction chain
+            eviction_manager->removeTuple(this, &tuple);
+
+	    tuple.setEvictedTrue();
+            //VOLT_INFO("Evicting Tuple: %s", tuple.debug(name()).c_str());
             
             // Populate the evicted_tuple with the block id and tuple offset
             // Make sure this tuple is marked as evicted, so that we know it is an evicted 
@@ -254,7 +264,7 @@ bool PersistentTable::evictBlockToDisk(const long block_size, int num_blocks) {
             evicted_tuple.setNValue(0, ValueFactory::getSmallIntValue(block_id));
             evicted_tuple.setNValue(1, ValueFactory::getIntegerValue(num_tuples_evicted));
             evicted_tuple.setEvictedTrue(); 
-            VOLT_DEBUG("EvictedTuple: %s", evicted_tuple.debug(m_evictedTable->name()).c_str());
+            //VOLT_INFO("EvictedTuple: %s", evicted_tuple.debug(m_evictedTable->name()).c_str());
 
             // Then add it to this table's EvictedTable
             const void* evicted_tuple_address = static_cast<EvictedTable*>(m_evictedTable)->insertEvictedTuple(evicted_tuple);
@@ -264,7 +274,14 @@ bool PersistentTable::evictBlockToDisk(const long block_size, int num_blocks) {
 
             // Now copy the raw bytes for this tuple into the serialized buffer
             tuple.serializeWithHeaderTo(out);
-            
+
+	    // ReferenceSerializeInput in(out.data(), out.size());
+	    //nextFreeTuple(&m_tmpTarget2); 
+	    //m_tmpTarget2.deserializeWithHeaderFrom(in);
+	    //if(m_tmpTarget2.equals(tuple))
+	    //    VOLT_INFO("Tuples match!"); 
+
+
             // At this point it's safe for us to delete this mofo
             tuple.freeObjectColumns(); // will return memory for uninlined strings to the heap
             deleteTupleStorage(tuple);
@@ -342,7 +359,12 @@ bool PersistentTable::readEvictedBlock(int16_t block_id, int32_t tuple_offset) {
     std::map<int16_t,int16_t>::iterator it;
     it = m_unevictedBlockIDs.find(block_id); 
     if(it != m_unevictedBlockIDs.end()) // this block has already been read
+    {
+        #ifdef VOLT_INFO_ENABLED
+        VOLT_DEBUG("Block %d has already been read.", block_id); 
+	#endif
         return true; 
+    }  
     
     AntiCacheDB* antiCacheDB = m_executorContext->getAntiCacheDB(); 
     
@@ -356,6 +378,7 @@ bool PersistentTable::readEvictedBlock(int16_t block_id, int32_t tuple_offset) {
         m_unevictedBlocks.push_back(unevicted_tuples);
         m_mergeTupleOffset.push_back(tuple_offset); 
         
+	/*
         // Update eviction stats
         m_bytesEvicted -= value.getSize(); 
         m_bytesRead += value.getSize();
@@ -363,14 +386,14 @@ bool PersistentTable::readEvictedBlock(int16_t block_id, int32_t tuple_offset) {
         // update block eviction stats
         m_blocksEvicted -= 1;
         m_blocksRead += 1;
+	*/
         m_unevictedBlockIDs.insert(std::pair<int16_t,int16_t>(block_id, 0)); 
     }
     catch(UnknownBlockAccessException e)
     {
         throw e; 
         
-        VOLT_INFO("UnknownBlockAccessException caught.");
-        
+        VOLT_INFO("UnknownBlockAccessException caught.");   
         return false;
     }
     
@@ -435,6 +458,7 @@ bool PersistentTable::mergeUnevictedTuples()
             m_tmpTarget1.setEvictedFalse();
             m_tmpTarget1.setDeletedFalse(); 
             
+     
             // Note, this goal of the section below is to get a tuple that points to the tuple in the EvictedTable and has the
             // schema of the evicted tuple. However, the lookup has to be done using the schema of the original (unevicted) version
             m_tmpTarget2 = lookupTuple(m_tmpTarget1);       // lookup the tuple in the table
@@ -443,13 +467,29 @@ bool PersistentTable::mergeUnevictedTuples()
             
             // update the indexes to point to this newly unevicted tuple
             setEntryToNewAddressForAllIndexes(&m_tmpTarget1, m_tmpTarget1.address());
-            
+	    
+	    //deleteFromAllIndexes(&m_tmpTarget1); 
+	    //insertTuple(m_tmpTarget1); 
+
+	    m_tmpTarget1.setEvictedFalse(); 
+
+	    //VOLT_INFO("Merged Tuple: %s", m_tmpTarget1.debug(name()).c_str()); 
+	    //VOLT_INFO("tuple size: %d, non-inlined memory size: %d", m_tmpTarget1.tupleLength(), m_tmpTarget1.getNonInlinedMemorySize()); 
+
             // re-insert the tuple back into the eviction chain
             if(j == merge_tuple_offset)  // put it at the back of the chain
                 eviction_manager->updateTuple(this, &m_tmpTarget1, true);
             else
                 eviction_manager->updateUnevictedTuple(this, &m_tmpTarget1);
         }
+
+        // Update eviction stats
+        //m_bytesEvicted -= value.getSize(); 
+        //m_bytesRead += value.getSize();
+        
+        // update block eviction stats
+        m_blocksEvicted -= 1;
+        m_blocksRead += 1;
         
         if(m_blockMerge)
             tuplesRead += num_tuples_in_block;

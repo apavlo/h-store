@@ -39,10 +39,9 @@ using namespace std;
 
 namespace voltdb {
 
-  AntiCacheBlock::AntiCacheBlock(int16_t blockId, Dbt value, char* nvmBlock, long size) :
+  AntiCacheBlock::AntiCacheBlock(int16_t blockId, char* block, long size) :
         m_blockId(blockId),
-        m_value(value),
-        m_NVMBlock(nvmBlock),
+        m_block(block),
         m_size(size) 
 {
 }
@@ -50,7 +49,7 @@ namespace voltdb {
 AntiCacheBlock::~AntiCacheBlock() {
     // we asked BDB to allocate memory for data dynamically, so we must delete
     if(m_blockId > 0)
-        delete [] (char*)m_value.get_data(); 
+        delete [] m_block; 
 }
     
 AntiCacheDB::AntiCacheDB(ExecutorContext *ctx, std::string db_dir, long blockSize) :
@@ -102,12 +101,15 @@ void AntiCacheDB::initializeBerkeleyDB() {
     char nvm_file_name[150];
     char partition_str[5]; 
 
+    m_totalBlocks = 0; 
+
     // use executor context to figure out which partition we are at
     int partition_id = (int)m_executorContext->getPartitionId(); 
     sprintf(partition_str, "%d", partition_id); 
 
     // there will be one NVM anti-cache file per partition, saved in /mnt/pmfs/anticache-XX
     strcpy(nvm_file_name, "/mnt/pmfs/anticache-");
+    //strcpy(nvm_file_name, "anticache-");
     strcat(nvm_file_name, partition_str); 
     nvm_file = fopen(nvm_file_name, "w"); 
     fclose(nvm_file); 
@@ -134,9 +136,16 @@ void AntiCacheDB::initializeBerkeleyDB() {
         VOLT_ERROR("Failed to ftruncate anti-cache PMFS file %s: %s", nvm_file_name, strerror(errno));
         throwFatalException("Failed to initialize anti-cache PMFS file in directory %s.", m_dbDir.c_str());
     }
-    
-    m_NVMBlocks =  (char*)mmap(NULL, NVM_FILE_SIZE, PROT_READ | PROT_WRITE, MAP_PRIVATE, nvm_fd, 0); 
 
+    //off_t aligned_file_size = (((NVM_FILE_SIZE) + MMAP_PAGE_SIZE - 1) / MMAP_PAGE_SIZE * MMAP_PAGE_SIZE);  
+    off_t aligned_file_size = NVM_FILE_SIZE; 
+
+    #ifdef ANTICACHE_DRAM
+        m_NVMBlocks = new char[aligned_file_size]; 
+    #else
+        m_NVMBlocks =  (char*)mmap(NULL, aligned_file_size, PROT_READ | PROT_WRITE, MAP_SHARED, nvm_fd, 0);
+    #endif
+ 
     if(m_NVMBlocks == MAP_FAILED)
     {
         VOLT_ERROR("Anti-Cache initialization error."); 
@@ -176,7 +185,12 @@ void AntiCacheDB::shutdownBerkeleyDB() {
 }
 
 void AntiCacheDB::shutdownNVM()
-{    
+{   
+  fclose(nvm_file);
+
+  #ifdef ANTICACHE_DRAM 
+      delete [] m_NVMBlocks;
+  #endif 
 }
 
 AntiCacheDB::~AntiCacheDB() {
@@ -231,7 +245,7 @@ AntiCacheBlock AntiCacheDB::readBlockBerkeleyDB(std::string tableName, int16_t b
         assert(value.get_data() != NULL);
     }
     
-    AntiCacheBlock block(blockId, value, NULL, value.get_size());
+    AntiCacheBlock block(blockId, static_cast<char*>(value.get_data()), value.get_size());
     return (block);
 }
 
@@ -241,35 +255,41 @@ void AntiCacheDB::writeBlockNVM(const std::string tableName,
                              const char* data,
                              const long size)  {
    
-   int index = getFreeNVMBlockIndex();
-   char* block = getNVMBlock(index);
-             
-   memcpy(block, data, size);                      
+  //int index = getFreeNVMBlockIndex();
+  //char* block = getNVMBlock(index);
+    char* block = getNVMBlock(m_totalBlocks); 
+    memcpy(block, data, size);                      
    //m_NVMBlocks[m_totalBlocks] = new char[size]; 
    //memcpy(m_NVMBlocks[m_totalBlocks], data, size); 
 
-   VOLT_INFO("Writing NVM Block: ID = %d, index = %d, size = %ld", blockId, index, size); 
-   m_blockMap.insert(std::pair<int16_t, std::pair<int, long> >(blockId, std::pair<int, long>(index, size))); 
+    VOLT_INFO("Writing NVM Block: ID = %d, index = %d, size = %ld", blockId, m_totalBlocks, size); 
+    m_blockMap.insert(std::pair<int16_t, std::pair<int, int32_t> >(blockId, std::pair<int, int32_t>(m_totalBlocks, static_cast<int32_t>(size))));
+    m_totalBlocks++; 
 }
 
 AntiCacheBlock AntiCacheDB::readBlockNVM(std::string tableName, int16_t blockId) {
     
-   Dbt empty;
-   std::map<int16_t, std::pair<int, long> >::iterator itr; 
+   std::map<int16_t, std::pair<int, int32_t> >::iterator itr; 
    itr = m_blockMap.find(blockId); 
   
    if (itr == m_blockMap.end()) 
    {
+     VOLT_INFO("Invalid anti-cache blockId '%d' for table '%s'", blockId, tableName.c_str());
      VOLT_ERROR("Invalid anti-cache blockId '%d' for table '%s'", blockId, tableName.c_str());
      throw UnknownBlockAccessException(tableName, blockId);
    }
 
    int blockIndex = itr->second.first; 
    VOLT_INFO("Reading NVM block: ID = %d, index = %d, size = %ld.", blockId, blockIndex, itr->second.second);
- 
-   char* block_ptr = getNVMBlock(blockIndex); 
-   AntiCacheBlock block(blockId, empty, block_ptr, itr->second.second);
-   return (block);
+   
+   char* block_ptr = getNVMBlock(blockIndex);
+   char* block = new char[itr->second.second];
+   memcpy(block, block_ptr, itr->second.second); 
+
+   AntiCacheBlock anticache_block(blockId, block, itr->second.second);
+   
+   m_blockMap.erase(itr); 
+   return (anticache_block);
 }
 
 
@@ -315,6 +335,7 @@ char* AntiCacheDB::getNVMBlock(int index) {
 
 int AntiCacheDB::getFreeNVMBlockIndex()
 {
+  /*
     int free_index = 0; 
     //if(m_NVMBlockFreeList.size() > 0)
     if(false)
@@ -326,8 +347,8 @@ int AntiCacheDB::getFreeNVMBlockIndex()
         free_index = m_nextFreeBlock;
         m_nextFreeBlock++;  
     }
-    
-    m_totalBlocks++; 
+  */
+    int free_index = m_totalBlocks++; 
     return free_index; 
 }
 

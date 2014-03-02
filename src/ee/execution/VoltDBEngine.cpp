@@ -375,7 +375,7 @@ int VoltDBEngine::executeQuery(int64_t planfragmentId,
             } catch (SerializableEEException &e) {
                 VOLT_DEBUG("The Executor's execution at position '%d' failed for PlanFragment '%jd'",
                            ctr, (intmax_t)planfragmentId);
-                VOLT_INFO("SerializableEEException: %s", e.message().c_str());
+                VOLT_DEBUG("SerializableEEException for PlanFragment '%jd': %s", (intmax_t)planfragmentId,  e.message().c_str());
                 if (cleanUpTable != NULL)
                     cleanUpTable->deleteAllTuples(false);
                 resetReusedResultOutputBuffer();

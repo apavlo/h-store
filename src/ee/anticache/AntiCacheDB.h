@@ -57,18 +57,15 @@ class AntiCacheBlock {
 	  return m_size; 
         }
         inline char* getData() const {
-	    if(m_NVMBlock != NULL)
-	       return m_NVMBlock; 
-	    else
-	       return (static_cast<char*>(m_value.get_data()));
+
+	    return m_block; 
         }
     
     private:
-        AntiCacheBlock(int16_t blockId, Dbt value, char* NVMBlock, long size);
+        AntiCacheBlock(int16_t blockId, char* block, long size);
         
         int16_t m_blockId;
-        Dbt m_value;
-	char* m_NVMBlock;
+	char* m_block;
 	long m_size; 
 }; // CLASS
 
@@ -117,7 +114,8 @@ class AntiCacheDB {
          * NVM constants
          */
         static const off_t NVM_FILE_SIZE = 1073741824; 
-        static const int NVM_BLOCK_SIZE = 524288 * 2; 
+        static const int NVM_BLOCK_SIZE = 524288 + 1000; 
+	static const int MMAP_PAGE_SIZE = 2 * 1024 * 1024; 
         
         ExecutorContext *m_executorContext;
         string m_dbDir;
@@ -134,14 +132,14 @@ class AntiCacheDB {
         /**
          *  Maps a block id to a <index, size> pair
          */
-		std::map<int16_t, pair<int, long> > m_blockMap; 
+		std::map<int16_t, pair<int, int32_t> > m_blockMap; 
 		
 		/**
 		 *  List of free block indexes before the end of the last allocated block.
 		 */
         std::vector<int> m_NVMBlockFreeList; 
 		
-		int m_totalBlocks; 
+	int m_totalBlocks; 
         int m_nextFreeBlock; 
 		
 		void shutdownNVM(); 

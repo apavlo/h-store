@@ -278,6 +278,10 @@ class PersistentTable : public Table {
     void setEntryToNewAddressForAllIndexes(const TableTuple *tuple, const void* address);
 
 protected:
+
+#ifdef MMAP_STORAGE    
+    void allocateNextBlock();
+#endif
     
     size_t allocatedBlockCount() const {
         return m_data.size();
@@ -355,6 +359,9 @@ protected:
     
     // partition key
     int m_partitionColumn;
+    
+    // TODO: Partition id of where this table is stored in
+    int32_t m_partitionId;
 
     // list of materialized views that are sourced from this table
     std::vector<MaterializedViewMetadata *> m_views;
@@ -378,6 +385,26 @@ inline TableTuple& PersistentTable::getTempTupleInlined(TableTuple &source) {
     m_tempTuple.copy(source);
     return m_tempTuple;
 }
+
+#ifdef MMAP_STORAGE
+inline void PersistentTable::allocateNextBlock() {
+    // TODO: Figure out what the size of the file should be
+    // int bytes = 99999; // FIXME
+    
+    // TODO: Allocate a new file on the NVM filesystem and mmap() it in
+    //       Create a new path in the filesystem based on tablename (this->name) and
+    //       the partitionId of where this table is stored (m_executorContext->getPartitionId)
+    // char *memory = NULL; // FIXME
+
+    // Push the new block into our list of blocks
+    // m_data.push_back(memory);
+
+    // Update the counter of the number of tuples we've allocated
+    // m_allocatedTuples += m_tuplesPerBlock;
+}
+#endif
+    
+    
 }
 
 #endif

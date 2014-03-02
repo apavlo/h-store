@@ -39,6 +39,7 @@ import org.voltdb.client.ProcedureCallback;
 
 import edu.brown.api.BenchmarkComponent;
 import edu.brown.benchmark.ycsb.distributions.ZipfianGenerator;
+import edu.brown.benchmark.ycsb.distributions.CustomSkewGenerator; 
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.rand.RandomDistribution.FlatHistogram;
@@ -81,11 +82,11 @@ public class YCSBClient extends BenchmarkComponent {
     } // TRANSCTION ENUM
 
     private final long init_record_count;
-//    private final CustomSkewGenerator readRecord;
+    //private final CustomSkewGenerator readRecord;
     private final ZipfianGenerator readRecord;
     @SuppressWarnings("unused")
     private final ZipfianGenerator insertRecord;
-//    private final CustomSkewGenerator insertRecord;
+    //private final CustomSkewGenerator insertRecord;
     private final ZipfianGenerator randScan;
     private final FlatHistogram<Transaction> txnWeights;
     private final Random rand_gen;
@@ -134,19 +135,20 @@ public class YCSBClient extends BenchmarkComponent {
         
         this.rand_gen = new Random(); 
         this.randScan = new ZipfianGenerator(YCSBConstants.MAX_SCAN);
-                
-//        // initialize distribution generators 
-//        // We must know where to start inserting
-//        this.insertRecord = new CustomSkewGenerator(this.rand_gen, this.init_record_count, 
-//                                            YCSBConstants.HOT_DATA_WORKLOAD_SKEW, YCSBConstants.HOT_DATA_SIZE, 
-//                                            YCSBConstants.WARM_DATA_WORKLOAD_SKEW, YCSBConstants.WARM_DATA_SIZE);
-//
-//        this.readRecord = new CustomSkewGenerator(this.rand_gen, this.init_record_count, 
-//                                            YCSBConstants.HOT_DATA_WORKLOAD_SKEW, YCSBConstants.HOT_DATA_SIZE, 
-//                                            YCSBConstants.WARM_DATA_WORKLOAD_SKEW, YCSBConstants.WARM_DATA_SIZE);
-        
-        this.insertRecord = new ZipfianGenerator(YCSBConstants.NUM_RECORDS, YCSBConstants.ZIPFIAN_CONSTANT);
-        this.readRecord = new ZipfianGenerator(YCSBConstants.NUM_RECORDS, YCSBConstants.ZIPFIAN_CONSTANT);
+	/*          
+        // initialize distribution generators 
+        // We must know where to start inserting
+        this.insertRecord = new CustomSkewGenerator(this.rand_gen, this.init_record_count, 
+                                            YCSBConstants.HOT_DATA_WORKLOAD_SKEW, YCSBConstants.HOT_DATA_SIZE, 
+                                            YCSBConstants.WARM_DATA_WORKLOAD_SKEW, YCSBConstants.WARM_DATA_SIZE);
+
+        this.readRecord = new CustomSkewGenerator(this.rand_gen, this.init_record_count, 
+                                            YCSBConstants.HOT_DATA_WORKLOAD_SKEW, YCSBConstants.HOT_DATA_SIZE, 
+                                            YCSBConstants.WARM_DATA_WORKLOAD_SKEW, YCSBConstants.WARM_DATA_SIZE);
+	*/
+
+	this.insertRecord = new ZipfianGenerator(YCSBConstants.NUM_RECORDS, YCSBConstants.ZIPFIAN_CONSTANT);
+	this.readRecord = new ZipfianGenerator(YCSBConstants.NUM_RECORDS, YCSBConstants.ZIPFIAN_CONSTANT);
         
         // Initialize the sampling table
         Histogram<Transaction> txns = new ObjectHistogram<Transaction>(); 
