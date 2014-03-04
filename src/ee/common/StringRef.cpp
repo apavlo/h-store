@@ -18,8 +18,6 @@
 #include "StringRef.h"
 
 #include "Pool.hpp"
-#include "ThreadLocalPool.h"
-#include "CompactingStringStorage.h"
 
 using namespace voltdb;
 using namespace std;
@@ -30,16 +28,13 @@ StringRef::create(size_t size, Pool* dataPool)
     StringRef* retval;
     if (dataPool != NULL)
     {
+    	VOLT_WARN("using dataPool");
         retval =
             new(dataPool->allocate(sizeof(StringRef))) StringRef(size, dataPool);
     }
     else
     {
-#ifdef MEMCHECK
         retval = new StringRef(size);
-#else
-        retval = new(ThreadLocalPool::get(sizeof(StringRef))->malloc()) StringRef(size);
-#endif
     }
     return retval;
 }
@@ -47,42 +42,14 @@ StringRef::create(size_t size, Pool* dataPool)
 void
 StringRef::destroy(StringRef* sref)
 {
-#ifdef MEMCHECK
     delete sref;
-#else
-    bool temp_pool = sref->m_tempPool;
-    sref->~StringRef();
-    if (!temp_pool)
-    {
-        ThreadLocalPool::get(sizeof(StringRef))->free(sref);
-    }
-#endif
 }
-
-//#ifdef ARIES_NIRMESH
-void
-StringRef::destroyLogNval(StringRef* sref)
-{
-	// XXX: changed to do the thing with well defined semantics
-	destroy(sref);
-
-	//XXX: don't do this because the allocation
-	// was not done in a symmetrical manner.
-	// this will lead to bizzare errors and crashes
-	// delete sref;
-}
-//#endif
 
 StringRef::StringRef(size_t size)
 {
     m_size = size + sizeof(StringRef*);
     m_tempPool = false;
-#ifdef MEMCHECK
     m_stringPtr = new char[m_size];
-#else
-    m_stringPtr =
-        reinterpret_cast<char*>(ThreadLocalPool::getStringPool()->get(m_size)->malloc());
-#endif
     setBackPtr();
 }
 
@@ -98,11 +65,7 @@ StringRef::~StringRef()
 {
     if (!m_tempPool)
     {
-#ifdef MEMCHECK
         delete[] m_stringPtr;
-#else
-        ThreadLocalPool::getStringPool()->get(m_size)->free(m_stringPtr);
-#endif
     }
 }
 

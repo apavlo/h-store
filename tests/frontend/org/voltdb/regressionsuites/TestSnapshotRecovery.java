@@ -85,7 +85,7 @@ public class TestSnapshotRecovery extends RegressionSuite {
 
     // YCSB
     private static final String PREFIX = "ycsb";
-    private static final int NUM_TUPLES = 4;
+    private static final int NUM_TUPLES = 1024*64;
 
     public TestSnapshotRecovery(String name) {
         super(name);
@@ -355,7 +355,7 @@ public class TestSnapshotRecovery extends RegressionSuite {
         System.out.println("@Statistics after PHYSICAL restore :");
         System.out.println(results_tmp[0]);      
         
-        checkYCSBTable(client, NUM_TUPLES);              
+        //checkYCSBTable(client, NUM_TUPLES);              
 
     }
     
@@ -486,6 +486,7 @@ public class TestSnapshotRecovery extends RegressionSuite {
             e.printStackTrace();
         }
 
+        /*
         // CONFIG #1: 2 Local Site with 4 Partitions running on JNI backend
         NUM_SITES = 2;
         NUM_PARTITIONS = 2;
@@ -493,17 +494,17 @@ public class TestSnapshotRecovery extends RegressionSuite {
         success = m_config.compile(project);
         assert (success);
         builder.addServerConfig(m_config);
+        */
         
         
-        /*
         // CONFIG #2: 1 Local Site with 1 Partitions running on JNI backend
         NUM_SITES = 1;
-        NUM_PARTITIONS = 2;        
+        NUM_PARTITIONS = 1;        
         m_config = new LocalSingleProcessServer("snapshot-"+PREFIX+"-"+NUM_SITES+"-site-"+NUM_PARTITIONS+"-partition.jar", NUM_PARTITIONS, BackendTarget.NATIVE_EE_JNI);
         success = m_config.compile(project);
         assert (success);
         builder.addServerConfig(m_config);
-        */
+        
         
         return builder;
     }

@@ -121,7 +121,7 @@ Table* TableFactory::getPersistentTable(
         else
             table = new MMAP_PersistentTable(ctx, name, exportEnabled);
 
-        VOLT_DEBUG("MMAP Enabled : %d \n", (int)ctx->isMMAPEnabled());
+        VOLT_WARN("MMAP Enabled : %d \n", (int)ctx->isMMAPEnabled());
         
         PersistentTable *pTable = dynamic_cast<PersistentTable*>(table);
         TableFactory::initCommon(databaseId, pTable, name, schema, columnNames, true);
@@ -290,10 +290,14 @@ void TableFactory::configureStats(voltdb::CatalogId databaseId,
         std::string name,
         Table *table) {
 
+	std::string hostname = "";
+	if(ctx != NULL)
+		hostname = ctx->m_hostname;
+
     // initialize stats for the table
     table->getTableStats()->configure(name + " stats",
             ctx->m_hostId,
-            ctx->m_hostname,
+            hostname,
             ctx->m_siteId,
             ctx->m_partitionId,
             databaseId);
@@ -305,7 +309,7 @@ void TableFactory::configureStats(voltdb::CatalogId databaseId,
         index->getIndexStats()->configure(index->getName() + " stats",
                 table->name(),
                 ctx->m_hostId,
-                ctx->m_hostname,
+                hostname,
                 ctx->m_siteId,
                 ctx->m_partitionId,
                 databaseId);

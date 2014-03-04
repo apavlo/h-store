@@ -321,7 +321,6 @@ public:
 
 	std::string m_MMAPDir;
 	bool m_MMAPEnabled;
-
 	bool m_ARIESEnabled;
 
 	/** local epoch for voltdb, somtime around 2008, pulled from catalog */

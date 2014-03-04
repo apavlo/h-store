@@ -223,6 +223,8 @@ VoltDBEngine::~VoltDBEngine() {
 
 	delete m_topend;
 	delete m_executorContext;
+
+    delete m_logManager;
 }
 
 // ------------------------------------------------------------------

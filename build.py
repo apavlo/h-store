@@ -203,9 +203,6 @@ CTX.INPUT['common'] = """
  RecoveryProtoMessageBuilder.cpp
  DefaultTupleSerializer.cpp
  StringRef.cpp
- ThreadLocalPool.cpp
- CompactingStringPool.cpp
- CompactingStringStorage.cpp
 """
 
 CTX.INPUT['execution'] = """
@@ -307,11 +304,6 @@ CTX.INPUT['logging'] = """
  LogManager.cpp
  AriesLogProxy.cpp
  Logrecord.cpp
-"""
- 
-CTX.INPUT['structures'] = """
- CompactingPool.cpp
- ContiguousAllocator.cpp
 """
  
 # specify the third party input
