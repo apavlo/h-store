@@ -71,7 +71,6 @@
 #include "stats/StatsAgent.h"
 #include "storage/persistenttable.h"
 #include "storage/mmap_persistenttable.h"
-#include "common/ThreadLocalPool.h"
 
 #ifdef ANTICACHE
 #include "anticache/EvictedTupleAccessException.h"
@@ -655,9 +654,6 @@ class __attribute__((visibility("default"))) VoltDBEngine {
         LogManager* m_logManager;
 
         bool m_ARIESEnabled ;
-
-    private:
-        ThreadLocalPool m_tlPool;
 
 };
 

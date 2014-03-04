@@ -37,7 +37,6 @@
 #include "common/Pool.hpp"
 #include "common/SQLException.h"
 #include "common/StringRef.h"
-#include "common/ThreadLocalPool.h"
 #include "common/debuglog.h"
 #include "common/serializeio.h"
 #include "common/types.h"
@@ -1727,28 +1726,6 @@ inline void NValue::free() const {
         return;
     }
 }
-
-//#ifdef ARIES_NIRMESH
-inline void NValue::freeLogTupleVal() const {
-    switch (getValueType())
-    {
-    case VALUE_TYPE_VARCHAR:
-    case VALUE_TYPE_VARBINARY:
-        {
-            assert(!m_sourceInlined);
-            StringRef* sref = *reinterpret_cast<StringRef* const*>(m_data);
-            if (sref != NULL)
-            {
-            	// just trying to reduce performance hit.
-                StringRef::destroyLogNval(sref);
-            }
-        }
-        break;
-    default:
-        return;
-    }
-}
-//#endif
 
 /**
  * Get the amount of storage necessary to store a value of the specified type

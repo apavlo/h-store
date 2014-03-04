@@ -161,13 +161,11 @@ PersistentTable::~PersistentTable() {
     voltdb::TableIterator ti(this);
     voltdb::TableTuple tuple(m_schema);
 
-    if(m_executorContext->isMMAPEnabled() == false){
-      while (ti.next(tuple)) {
-	  // indexes aren't released as they don't have ownership of strings
-	  tuple.freeObjectColumns();
-	  tuple.setDeletedTrue();
-      }
-    }
+	while (ti.next(tuple)) {
+		// indexes aren't released as they don't have ownership of strings
+		tuple.freeObjectColumns();
+		tuple.setDeletedTrue();
+	}
     
     for (int i = 0; i < m_indexCount; ++i) {
         TableIndex *index = m_indexes[i];
@@ -631,8 +629,8 @@ bool PersistentTable::insertTuple(TableTuple &source) {
     //
     // Then copy the source into the target
     //
-    /** Using MMAP pool **/
-    m_tmpTarget1.copyForPersistentInsert(source, m_pool); // tuple in freelist must be already cleared
+    /** Don't use MMAP pool **/
+    m_tmpTarget1.copyForPersistentInsert(source, NULL); // tuple in freelist must be already cleared
     m_tmpTarget1.setDeletedFalse();
 
     /**
