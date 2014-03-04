@@ -15,10 +15,17 @@ public class ArticlesProjectBuilder extends AbstractProjectBuilder{
  
     public static final Class<?> PROCEDURES[] = new Class<?>[] {
         GetArticle.class,
+        GetArticles.class,
+        AddComment.class,
+        UpdateUserInfo.class
     };
     {
         // Transaction Frequencies
         addTransactionFrequency(GetArticle.class, ArticlesConstants.FREQUENCY_GET_ARTICLE);
+    	addTransactionFrequency(GetArticles.class, ArticlesConstants.FREQUENCY_GET_ARTICLES);
+    	addTransactionFrequency(AddComment.class, ArticlesConstants.FREQUENCY_ADD_COMMENT);
+    	addTransactionFrequency(UpdateUserInfo.class, ArticlesConstants.FREQUENCY_UPDATE_USER_INFO);
+        
     }
 
     public static final String PARTITIONING[][] = new String[][] {
