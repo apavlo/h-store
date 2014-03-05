@@ -170,7 +170,8 @@ public class TimerWheel {
     }
 
     private int  expiryProcessing(){
- 
+        System.out.println("in expiry processing current time cycles" + currentTime.getCycles());
+        System.out.println("in expiry processing current time index" + currentTime.getIndex());
         System.out.println("in expiry processing last time cycles" + lastTime.getCycles());
         System.out.println("in expiry processing last time index" + lastTime.getIndex());
         while( lastTime.getCycles() == currentTime.getCycles() ? ( lastTime.getIndex() < currentTime.getIndex() ) : ( lastTime.getCycles() < currentTime.getCycles() )){

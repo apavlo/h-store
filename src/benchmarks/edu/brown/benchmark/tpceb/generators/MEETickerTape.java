@@ -93,7 +93,7 @@ public class MEETickerTape {
 
         
         eTradeType = ConvertTradeTypeIdToEnum(tradeRequest.trade_type_id.toCharArray());
-
+        System.out.println("TradeType:"+ eTradeType);
         pNewEntry.price_quote = tradeRequest.price_quote;
         System.out.println("tickerentry price quote" + pNewEntry.price_quote);
         
@@ -211,10 +211,11 @@ public class MEETickerTape {
         System.out.println("Ticker Entry:" + tickerEntry.price_quote + " " + tickerEntry.symbol + " " + tickerEntry.trade_qty);
         if( TxnHarnessStructs.max_feed_len == batchIndex ){
             System.out.println("max feed len equals batch index");
+            //txnInput.
             sut.MarketFeed( txnInput );
             System.out.println("added to txnInput");
             batchIndex = 0;
-            batchDuplicates = 0;
+            batchDuplicates = 0; //added
         }
     }
 
@@ -266,6 +267,7 @@ public class MEETickerTape {
     private MEEPriceBoard        priceBoard;
     private TMarketFeedTxnInput  txnInput;
     private int                  batchIndex;
+    
     private EGenRandom           rnd;
     private boolean              enabled;
     private InputFileHandler     statusType;

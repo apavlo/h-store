@@ -68,7 +68,7 @@ public class TradeOrder extends VoltProcedure {
             new VoltTable.ColumnInfo("eAction", VoltType.INTEGER)
     );
     
-
+    
     public final SQLStmt getCustomerAccount = new SQLStmt("select CA_B_ID, C_ID, C_TIER, CA_BAL from CUSTOMER_INFO where CA_ID = ?");
 
     public final SQLStmt getSecurity2 = new SQLStmt("select S_NAME, S_SYMB, S_DIVIDEND, S_YIELD from SECURITY where S_SYMB = ?");

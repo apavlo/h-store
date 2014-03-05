@@ -59,6 +59,7 @@ public class WheelTime {
         int       offset; 
     
         offset = (int)(now.getTimeInMillis() - base.getTimeInMillis()) / wheelConfig.getWheelResolution(); // convert based on wheel resolution
+        System.out.println("offset" + offset);
         cycles = offset / wheelConfig.getWheelSize();
         index = offset % wheelConfig.getWheelSize();
     }

@@ -77,7 +77,7 @@ public class ClientDriver {
 
         //tradeReq.eAction = eMEETradeRequestAction.eMEESetLimitOrderTrigger;
         tradeReq.eAction = eMEETradeRequestAction.eMEEProcessOrder;
-        tradeReq.price_quote = 10.0;
+        tradeReq.price_quote = 100.0;
         tradeReq.symbol = "LARS";
         tradeReq.trade_id = 200000000173806l;
         tradeReq.trade_qty = 5;
@@ -88,7 +88,7 @@ public class ClientDriver {
         /*This one*/
         //tradeReq.eAction = eMEETradeRequestAction.eMEESetLimitOrderTrigger;
         tradeReq.eAction = eMEETradeRequestAction.eMEEProcessOrder;
-        tradeReq.price_quote = 10.0;
+        tradeReq.price_quote = 1000.0;
         tradeReq.symbol = "BRY";
         tradeReq.trade_id = 200000000173803l;
         tradeReq.trade_qty = 5;
@@ -146,8 +146,8 @@ public class ClientDriver {
         
         marketExchangeGenerator.submitTradeRequest(tradeReq);
 
-        tradeReq.eAction = eMEETradeRequestAction.eMEESetLimitOrderTrigger;
-        //tradeReq.eAction = eMEETradeRequestAction.eMEEProcessOrder;
+        ///tradeReq.eAction = eMEETradeRequestAction.eMEESetLimitOrderTrigger;
+        tradeReq.eAction = eMEETradeRequestAction.eMEEProcessOrder;
         tradeReq.price_quote = 10.0;
         tradeReq.symbol = "BANC";
         tradeReq.trade_id = 200000000173810l;
@@ -156,8 +156,8 @@ public class ClientDriver {
         
         marketExchangeGenerator.submitTradeRequest(tradeReq);
 
-        tradeReq.eAction = eMEETradeRequestAction.eMEESetLimitOrderTrigger;
-        //tradeReq.eAction = eMEETradeRequestAction.eMEEProcessOrder;
+        //tradeReq.eAction = eMEETradeRequestAction.eMEESetLimitOrderTrigger;
+        tradeReq.eAction = eMEETradeRequestAction.eMEEProcessOrder;
         tradeReq.price_quote = 10.0;
         tradeReq.symbol = "BDK";
         tradeReq.trade_id = 200000000173811l;
@@ -168,8 +168,8 @@ public class ClientDriver {
         
 
         /*This one*/
-        tradeReq.eAction = eMEETradeRequestAction.eMEESetLimitOrderTrigger;
-        //tradeReq.eAction = eMEETradeRequestAction.eMEEProcessOrder;
+        //tradeReq.eAction = eMEETradeRequestAction.eMEESetLimitOrderTrigger;
+        tradeReq.eAction = eMEETradeRequestAction.eMEEProcessOrder;
         tradeReq.price_quote = 10.0;
         tradeReq.symbol = "GUPB";
         tradeReq.trade_id = 200000000173840l;
@@ -190,9 +190,9 @@ public class ClientDriver {
         marketExchangeGenerator.submitTradeRequest(tradeReq);
         
         
-        //tradeReq.eAction = eMEETradeRequestAction.eMEESetLimitOrderTrigger;
-        tradeReq.eAction = eMEETradeRequestAction.eMEEProcessOrder;
-        tradeReq.price_quote = 10.0;
+        tradeReq.eAction = eMEETradeRequestAction.eMEESetLimitOrderTrigger;
+        //tradeReq.eAction = eMEETradeRequestAction.eMEEProcessOrder;
+        tradeReq.price_quote = 10000.0;
         tradeReq.symbol = "AVZ";
         tradeReq.trade_id = 200000000173879l;
         tradeReq.trade_qty = 5;
@@ -201,13 +201,13 @@ public class ClientDriver {
         marketExchangeGenerator.submitTradeRequest(tradeReq);
         
         
-        //tradeReq.eAction = eMEETradeRequestAction.eMEESetLimitOrderTrigger;
-        tradeReq.eAction = eMEETradeRequestAction.eMEEProcessOrder;
+        tradeReq.eAction = eMEETradeRequestAction.eMEESetLimitOrderTrigger;
+        //tradeReq.eAction = eMEETradeRequestAction.eMEEProcessOrder;
         tradeReq.price_quote = 10.0;
         tradeReq.symbol = "WFC";
         tradeReq.trade_id = 200000000173893l;
         tradeReq.trade_qty = 5;
-        tradeReq.trade_type_id = "TLS";
+        tradeReq.trade_type_id = "TMS";
         
         marketExchangeGenerator.submitTradeRequest(tradeReq);
         
