@@ -38,10 +38,17 @@ import java.util.Map;
 
 import org.apache.log4j.Logger;
 import org.jfree.util.Log;
+import org.voltdb.CatalogContext;
+import org.voltdb.VoltTable;
+import org.voltdb.client.Client;
+import org.voltdb.client.ClientResponse;
+import org.voltdb.client.NoConnectionsException;
+import org.voltdb.client.ProcCallException;
 import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.utils.CompressionService;
 import org.voltdb.utils.NotImplementedException;
 
+import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 
@@ -70,8 +77,13 @@ public class CommandLogReader implements Iterable<LogEntry> {
         File f = new File(path);
         try {
             roChannel = new RandomAccessFile(f, "r").getChannel();
+            LOG.trace("File Size :"+roChannel.size());            
+
+            
             readonlybuffer = roChannel.map(FileChannel.MapMode.READ_ONLY, 0, (int)roChannel.size());
-            LOG.trace("Opened file :"+f.getAbsolutePath());                        
+            LOG.trace("Opened file :"+f.getAbsolutePath());            
+            LOG.trace("Size :"+readonlybuffer.remaining());            
+            
         } catch (IOException ex) {
             LOG.trace("Failed to open file :"+f.getAbsolutePath());            
             throw new RuntimeException(ex);
@@ -177,4 +189,5 @@ public class CommandLogReader implements Iterable<LogEntry> {
         
         return (procedures);
     }
+    
 }

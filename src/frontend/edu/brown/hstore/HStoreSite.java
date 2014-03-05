@@ -26,14 +26,19 @@
 package edu.brown.hstore;
 
 import java.io.File;
+import java.io.FilenameFilter;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.file.FileSystem;
+import java.sql.Date;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Calendar;
 import java.util.Collection;
 import java.util.ConcurrentModificationException;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
@@ -58,12 +63,18 @@ import org.voltdb.StatsSource;
 import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.SysProcSelector;
 import org.voltdb.TransactionIdManager;
+import org.voltdb.VoltTable;
 import org.voltdb.catalog.CatalogMap;
 import org.voltdb.catalog.Host;
 import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Table;
+import org.voltdb.client.Client;
+import org.voltdb.client.ClientFactory;
+import org.voltdb.client.ClientResponse;
+import org.voltdb.client.NoConnectionsException;
+import org.voltdb.client.ProcCallException;
 import org.voltdb.compiler.AdHocPlannedStmt;
 import org.voltdb.compiler.AsyncCompilerResult;
 import org.voltdb.compiler.AsyncCompilerWorkThread;
@@ -98,6 +109,7 @@ import edu.brown.hstore.callbacks.LocalFinishCallback;
 import edu.brown.hstore.callbacks.LocalInitQueueCallback;
 import edu.brown.hstore.callbacks.PartitionCountingCallback;
 import edu.brown.hstore.callbacks.RedirectCallback;
+import edu.brown.hstore.cmdlog.CommandLogReader;
 import edu.brown.hstore.cmdlog.CommandLogWriter;
 import edu.brown.hstore.cmdlog.LogEntry;
 import edu.brown.hstore.conf.HStoreConf;
@@ -484,7 +496,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         // ARIES 
         if(hstore_conf.site.aries){
-            LOG.warn("Starting ARIES recovery at site");           
+            LOG.info("Starting ARIES recovery at site");           
 
             String siteName = HStoreThreadManager.formatSiteName(this.getSiteId());
             String ariesSiteDirPath = hstore_conf.site.aries_dir + File.separatorChar + siteName + File.separatorChar;
@@ -493,7 +505,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             int numPartitionsPerSite =   this.catalog_site.getPartitions().size();
             int numSites = this.catalogContext.numberOfSites;
 
-            LOG.warn("ARIES : Log Native creation :: numSites : "+numSites+" numPartitionsPerSite : "+numPartitionsPerSite);           
+            LOG.info("ARIES : Log Native creation :: numSites : "+numSites+" numPartitionsPerSite : "+numPartitionsPerSite);           
             this.m_ariesLog = new AriesLogNative(numSites, numPartitionsPerSite, this.m_ariesLogFileName);
             this.m_recoveryLog = new VoltLogger("RECOVERY");
         }
@@ -588,10 +600,17 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             // It would be nice if we could come up with a unique name for this
             // invocation of the system (like the cluster instanceId). But for now
             // we'll just write out to our directory...
+            
+            Calendar calendar = Calendar.getInstance();            
+            java.util.Date now = calendar.getTime();
+            Timestamp currentTimestamp = new Timestamp(now.getTime());
+            
             File logFile = new File(hstore_conf.site.commandlog_dir +
                                     File.separator +
                                     this.getSiteName().toLowerCase() +
-                                    CommandLogWriter.LOG_OUTPUT_EXT);
+                                    "_" + currentTimestamp +
+                                    CommandLogWriter.LOG_OUTPUT_EXT);                      
+                     
             this.commandLogger = new CommandLogWriter(this, logFile);
         } else {
             this.commandLogger = null;
@@ -1383,8 +1402,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      */
     public boolean isRunning() {
         return (this.ready);
-    }
-
+    }   
+        
     // ARIES
     public void doSiteRecovery() {
         while (!m_ariesLog.isReadyForReplay()) {
@@ -1397,7 +1416,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             }
         }        
 
-        LOG.warn("ARIES : ariesLog is ready for replay at site :"+this.site_id);
+        LOG.info("ARIES : ariesLog is ready for replay at site :"+this.site_id);
 
         if (!m_ariesLog.isRecoveryCompleted()) {
             int m_siteId = this.getSiteId();
@@ -1412,7 +1431,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
 
                 int m_partitionId = pe.getPartitionId();
 
-                LOG.warn("ARIES : start recovery at partition  :"+m_partitionId+" on site :"+m_siteId);
+                LOG.info("ARIES : start recovery at partition  :"+m_partitionId+" on site :"+m_siteId);
                 
                 if (!m_ariesLog.isRecoveryCompletedForSite(m_partitionId)) {
                     ee.doAriesRecoveryPhase(m_ariesLog.getPointerToReplayLog(), m_ariesLog.getReplayLogSize(), m_ariesLog.getTxnIdToBeginReplay());
@@ -1421,7 +1440,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             }
         }
 
-        LOG.warn("ARIES : recovery completed at site :"+this.site_id);
+        LOG.info("ARIES : recovery completed at site :"+this.site_id);
     }
     
     private void waitForAriesLogInit() {

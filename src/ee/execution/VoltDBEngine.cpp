@@ -1505,12 +1505,16 @@ void VoltDBEngine::doAriesRecovery(char *logData, size_t length, int64_t replay_
 
 	VOLT_WARN("ARIES : doAriesRecovery at partition : %d starting from replay_txnid : %ld",this->m_partitionId, replay_txnid);
 
+	// TIMING
+	struct timeval tv1, tv2;
+	gettimeofday(&tv1, NULL);
+
 	m_isRecovering = true;
 
 	bool noMoreLogRecords = false;
 
 	Logger m_ariesLogger = m_logManager->getAriesLogger();
-	VOLT_WARN("m_logManager : %p AriesLogger : %p",&m_logManager, &m_ariesLogger);
+	VOLT_DEBUG("m_logManager : %p AriesLogger : %p",&m_logManager, &m_ariesLogger);
 	const Logger *logger = m_logManager->getThreadLogger(LOGGERID_MM_ARIES);
 	logger->log(LOGLEVEL_INFO, "Running ARIES recovery, repeating history ...");
 
@@ -1521,7 +1525,7 @@ void VoltDBEngine::doAriesRecovery(char *logData, size_t length, int64_t replay_
 
 	int32_t counter = 0;
 
-	VOLT_WARN("actualBufLen : %ld", actualBufLen);
+	VOLT_DEBUG("actualBufLen : %ld", actualBufLen);
 
 	while (input.getRawPointer(0) < endOfBuffer) {
 		const char* logInitPosition = reinterpret_cast<const char*>(input.getRawPointer(0));
@@ -1541,7 +1545,7 @@ void VoltDBEngine::doAriesRecovery(char *logData, size_t length, int64_t replay_
 			memcpy(&recordSize, logInitPosition, sizeof(recordSize));
 			recordSize = ntohl(recordSize);
 
-			VOLT_WARN("breathingSpace : %ld recordSize : %d", breathingSpace, recordSize);
+			VOLT_DEBUG("breathingSpace : %ld recordSize : %d", breathingSpace, recordSize);
 			if (recordSize <= 0) {
 				// hit junk, no more log records.
 				noMoreLogRecords = true;
@@ -1577,7 +1581,7 @@ void VoltDBEngine::doAriesRecovery(char *logData, size_t length, int64_t replay_
 		memcpy(&txnId, logInitPosition + sizeof(int32_t) + OFFSET_TO_TXNID, sizeof(txnId));
 		txnId = ntohll(txnId);
 
-		VOLT_WARN("LogRecord :: TXN Type : %d TXN Id : %ld", txnType, txnId);
+		VOLT_DEBUG("LogRecord :: TXN Type : %d TXN Id : %ld", txnType, txnId);
 
 		// Check the site-id, re-run only if original site-id matches
 		// Correctness follows because all updates from a site are to
@@ -1626,7 +1630,7 @@ void VoltDBEngine::doAriesRecovery(char *logData, size_t length, int64_t replay_
 		TableTuple *afterImage = NULL;
 
 		if (logrecord.getType() == LogRecord::T_INSERT) {
-			VOLT_WARN("Log record recovery : INSERT start");
+			VOLT_DEBUG("Log record recovery : INSERT start");
 
 			// at this point, don't worry about
 			// logging during recovery
@@ -1645,9 +1649,9 @@ void VoltDBEngine::doAriesRecovery(char *logData, size_t length, int64_t replay_
 				afterImage = NULL;
 			}
 
-			VOLT_WARN("Log record recovery : INSERT end");
+			VOLT_DEBUG("Log record recovery : INSERT end");
 		} else if (logrecord.getType() == LogRecord::T_UPDATE) {
-			VOLT_WARN("Log record recovery : UPDATE start");
+			VOLT_DEBUG("Log record recovery : UPDATE start");
 
 			beforeImage = logrecord.getTupleBeforeImage();
 			afterImage = logrecord.getTupleAfterImage();
@@ -1670,9 +1674,9 @@ void VoltDBEngine::doAriesRecovery(char *logData, size_t length, int64_t replay_
 			delete afterImage;
 			afterImage = NULL;
 
-			VOLT_WARN("Log record recovery : UPDATE end");
+			VOLT_DEBUG("Log record recovery : UPDATE end");
 		} else if (logrecord.getType() == LogRecord::T_BULKLOAD) {
-			VOLT_WARN("Log record recovery : BULKLOAD start");
+			VOLT_DEBUG("Log record recovery : BULKLOAD start");
 
 			numBulkLoadBytes = input.readLong();
 
@@ -1697,9 +1701,9 @@ void VoltDBEngine::doAriesRecovery(char *logData, size_t length, int64_t replay_
 			// advance read position to the correct place.
 			input.getRawPointer(numBulkLoadBytes);
 
-			VOLT_WARN("Log record recovery : BULKLOAD end");
+			VOLT_DEBUG("Log record recovery : BULKLOAD end");
 		} else if (logrecord.getType() == LogRecord::T_DELETE) {
-			VOLT_WARN("Log record recovery : DELETE start");
+			VOLT_DEBUG("Log record recovery : DELETE start");
 
 			beforeImage = logrecord.getTupleBeforeImage();
 
@@ -1710,11 +1714,11 @@ void VoltDBEngine::doAriesRecovery(char *logData, size_t length, int64_t replay_
 			delete beforeImage;
 			beforeImage = NULL;
 
-			VOLT_WARN("Log record recovery : DELETE end");
+			VOLT_DEBUG("Log record recovery : DELETE end");
 		} else if (logrecord.getType() == LogRecord::T_TRUNCATE) {
 			table->deleteAllTuples(true);
 
-			VOLT_WARN("Log record recovery : TRUNCATE");
+			VOLT_DEBUG("Log record recovery : TRUNCATE");
 		} else {
 			// do nothing for invalid records
 			VOLT_WARN("Log record recovery : Invalid Record");
@@ -1723,6 +1727,14 @@ void VoltDBEngine::doAriesRecovery(char *logData, size_t length, int64_t replay_
 
 	std::ostringstream sstm;
 	sstm << counter;
+
+	gettimeofday(&tv2, NULL);
+
+	// XXX Overflow
+	long microseconds = (tv2.tv_sec - tv1.tv_sec) * 1000000 + ((int)tv2.tv_usec - (int)tv1.tv_usec);
+	long milliseconds = microseconds/1000;
+
+	VOLT_WARN("ARIES : recovery latency : completed in %ld ms", milliseconds);
 
 	std::string outputString = "ARIES : recovery completed, " + sstm.str() + " log records found, all replayed.";
 	logger->log(LOGLEVEL_INFO, &outputString);

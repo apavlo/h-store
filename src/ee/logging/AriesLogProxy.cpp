@@ -43,8 +43,7 @@ void AriesLogProxy::init(VoltDBEngine *engine, string logfileName) {
 
 	if (!jniLogging) {
 		logfile.open(logfileName.c_str(), ios::out | ios::binary | ios::app);
-		long pos = logfile.tellp();
-		VOLT_WARN("AriesLogProxy : opened logfile %s :: pos %ld", logfileName.c_str(), pos);
+		VOLT_DEBUG("AriesLogProxy : opened logfile %s :: pos %ld", logfileName.c_str(), logfile.tellp());
 	} else {
 		if (engine == NULL) {
 			cout << "what in the god's name is this shit " << endl;
@@ -54,25 +53,25 @@ void AriesLogProxy::init(VoltDBEngine *engine, string logfileName) {
 }
 
 AriesLogProxy::~AriesLogProxy() {
-	VOLT_WARN("AriesLogProxy : destructor : %s", logfileName.c_str());
+	VOLT_DEBUG("AriesLogProxy : destructor : %s", logfileName.c_str());
 	if (logfile.is_open()) {
 		logfile.close();
-		VOLT_WARN("AriesLogProxy : closed logfile %s", logfileName.c_str());
+		VOLT_DEBUG("AriesLogProxy : closed logfile %s", logfileName.c_str());
 	}
 }
 
 AriesLogProxy* AriesLogProxy::getAriesLogProxy(VoltDBEngine *engine) {
 	if(!engine || !engine->isARIESEnabled()) {
-		VOLT_WARN("AriesLogProxy : NULL");
+		VOLT_DEBUG("AriesLogProxy : NULL");
 		return NULL;
 	}
 
 	if (!(engine->getARIESFile().empty())) {
-		VOLT_WARN("AriesLogProxy : logfile %s", engine->getARIESFile().c_str());
+		VOLT_DEBUG("AriesLogProxy : logfile %s", engine->getARIESFile().c_str());
 		return new AriesLogProxy(engine, engine->getARIESFile());
 	}
 
-	VOLT_WARN("AriesLogProxy : NULL");
+	VOLT_DEBUG("AriesLogProxy : NULL");
 	return NULL;
 }
 
@@ -137,10 +136,10 @@ void AriesLogProxy::log(LoggerId loggerId, LogLevel level, const char *statement
 
 void AriesLogProxy::logBinaryOutput(const char *data, size_t size) {
 	if (jniLogging) {
-		VOLT_WARN("AriesLogProxy : logToEngineBuffer : %lu", size);
+		VOLT_DEBUG("AriesLogProxy : logToEngineBuffer : %lu", size);
 		logToEngineBuffer(data, size);
 	} else {
-		VOLT_WARN("AriesLogProxy : logLocally : %lu", size);
+		VOLT_DEBUG("AriesLogProxy : logLocally : %lu", size);
 		logLocally(data, size);
 	}
 }
@@ -159,8 +158,7 @@ void AriesLogProxy::logLocally(const char *data, size_t size) {
 	}
 
 	logfile.flush();
-	long pos = logfile.tellp();
- 	VOLT_WARN("logLocally : flushed : file pos %ld",pos);
+ 	VOLT_DEBUG("logLocally : flushed : file pos %ld", logfile.tellp());
 }
 
 void AriesLogProxy::logToEngineBuffer(const char *data, size_t size) {

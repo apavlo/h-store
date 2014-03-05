@@ -311,7 +311,7 @@ TableTuple* LogRecord::initRecordTuple() {
 	}
 
 	//debug
-	VOLT_WARN("Logrecord : %s", recordTuple->debugNoHeader().c_str());
+	VOLT_DEBUG("Logrecord : %s", recordTuple->debugNoHeader().c_str());
 
 	return recordTuple;
 }

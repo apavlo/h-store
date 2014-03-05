@@ -1012,11 +1012,11 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             long size[] = new long[1];
             long ariesReplayPointer = readAriesLogForReplay(size);
 
-            //LOG.warn("ARIES : replay pointer address: " + ariesReplayPointer);
-            LOG.warn("ARIES : partition recovery started at partition : "+this.partitionId+ " log size :"+size[0]);
+            //LOG.info("ARIES : replay pointer address: " + ariesReplayPointer);
+            LOG.info("ARIES : partition recovery started at partition : "+this.partitionId+ " log size :"+size[0]);
 
             long logReadEndTime = System.currentTimeMillis();
-            //LOG.warn("ARIES : log read in " + (logReadEndTime - logReadStartTime) + " milliseconds");
+            //LOG.info("ARIES : log read in " + (logReadEndTime - logReadStartTime) + " milliseconds");
 
             long ariesStartTime = System.currentTimeMillis();
 
@@ -1028,7 +1028,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             freePointerToReplayLog(ariesReplayPointer);
 
             long ariesEndTime = System.currentTimeMillis();
-            LOG.warn("ARIES : partition recovery finished in " + (ariesEndTime - ariesStartTime) + " milliseconds");
+            LOG.info("ARIES : partition recovery finished in " + (ariesEndTime - ariesStartTime) + " milliseconds");
 
             m_ariesLog.init();
         }
