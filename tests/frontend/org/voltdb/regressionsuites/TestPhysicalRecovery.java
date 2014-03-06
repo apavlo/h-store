@@ -62,7 +62,7 @@ public class TestPhysicalRecovery extends RegressionSuite {
 
     // YCSB
     private static final String PREFIX = "ycsb";
-    private static final int NUM_TUPLES = 1024*64;
+    private static final int NUM_TUPLES = 1024*1024;
 
     public TestPhysicalRecovery(String name) {
         super(name);
@@ -120,7 +120,7 @@ public class TestPhysicalRecovery extends RegressionSuite {
             "NOCONNECTIONS=true",
             "BENCHMARK.FIXED_SIZE=true",
             "BENCHMARK.NUM_RECORDS="+num_tuples,
-            "BENCHMARK.LOADTHREADS=1",
+            "BENCHMARK.LOADTHREADS=4",
         };
         final CatalogContext catalogContext = this.getCatalogContext();
         YCSBLoader loader = new YCSBLoader(args) {
@@ -172,7 +172,7 @@ public class TestPhysicalRecovery extends RegressionSuite {
         System.out.println(results[0]);
         
         // Delete, then Insert these many tuples back
-        int numTestTuples = NUM_TUPLES/2;
+        int numTestTuples = 2;
         
         for (long k_itr = 0; k_itr < numTestTuples; k_itr++) {
             procName = DeleteRecord.class.getSimpleName();
@@ -364,7 +364,7 @@ public class TestPhysicalRecovery extends RegressionSuite {
         
         // CONFIG #2: 1 Local Site with 1 Partitions running on JNI backend
         NUM_SITES = 1;
-        NUM_PARTITIONS = 1;        
+        NUM_PARTITIONS = 2;        
         m_config = new LocalSingleProcessServer("aries-"+PREFIX+"-"+NUM_SITES+"-site-"+NUM_PARTITIONS+"-partition.jar", NUM_PARTITIONS, BackendTarget.NATIVE_EE_JNI);
         success = m_config.compile(project);
         assert (success);
