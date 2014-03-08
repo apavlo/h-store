@@ -11,9 +11,11 @@ public class AddComment extends VoltProcedure{
 //	-- c_text            Actual comment text
 	
     public final SQLStmt AddComment = new SQLStmt("INSERT INTO COMMENTS VALUES(?, ?, ?, ?)");
-    
+    public final SQLStmt UpdateArticle = new SQLStmt("UPDATE ARTICLES SET A_NUM_COMMENTS=A_NUM_COMMENTS+1 where AID=?");
+
     public VoltTable[] run(long c_id, long a_id, long u_id, String c_text) {
         voltQueueSQL(AddComment, c_id, a_id, u_id, c_text);
+        voltQueueSQL(UpdateArticle, a_id);
         return (voltExecuteSQL());
     }   
 
