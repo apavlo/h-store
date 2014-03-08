@@ -600,15 +600,19 @@ public abstract class VoltProcedure implements Poolable {
                 this.results = this.getResultsFromRawResults(rawResult);
                 if (this.results == null) results = HStoreConstants.EMPTY_RESULT;
 
-                // ARIES
-                if (!this.catalog_proc.getReadonly()) {
-                    bufferLength = (int) this.executor.getArieslogBufferLength();
-
-                    if (bufferLength > 0) {
-                        arieslogData = new byte[bufferLength];
-                        this.executor.getArieslogData(bufferLength, arieslogData);
+                // ARIES                                
+                if(hstore_conf.site.aries){      
+                    LOG.info("ARIES : VoltProcedure");
+                    if (!this.catalog_proc.getReadonly()) {
+                        bufferLength = (int) this.executor.getArieslogBufferLength();
+    
+                        if (bufferLength > 0) {
+                            arieslogData = new byte[bufferLength];
+                            this.executor.getArieslogData(bufferLength, arieslogData);
+                        }
                     }
                 }
+                
                 
             } catch (IllegalAccessException e) {
                 // If reflection fails, invoke the same error handling that other exceptions do
@@ -756,11 +760,13 @@ public abstract class VoltProcedure implements Poolable {
          *  Since call returns a ClientResponseImpl you can add a field for the log data
          *  that isn't serialized during messaging that is the log data for the txn
          */
-        if (this.status == status.OK && this.error == null) {
-            if (bufferLength > 0) {
-                response.setAriesLogData(arieslogData);
+        if (hstore_conf.site.aries) {
+            if (this.status == status.OK && this.error == null) {
+                if (bufferLength > 0) {
+                    response.setAriesLogData(arieslogData);
+                }
             }
-        }
+        }    
         
         return (response);
     }
@@ -944,16 +950,18 @@ public abstract class VoltProcedure implements Poolable {
             this.executor.loadTable(this.localTxnState, clusterName, databaseName, tableName, data, allowELT);
             
             // ARIES
-            byte[] arieslogData = null;            
-            int bufferLength = (int) this.executor.getArieslogBufferLength();
-            LOG.warn("ARIES :: voltLoadTable : ariesLogBufferLength :"+bufferLength);
-            
-            if (bufferLength > 0) {
-                arieslogData = new byte[bufferLength];
-                this.executor.getArieslogData(bufferLength, arieslogData);
+            if (this.hstore_conf.site.aries) {
+                byte[] arieslogData = null;
+                int bufferLength = (int) this.executor.getArieslogBufferLength();
+                LOG.warn("ARIES :: voltLoadTable : ariesLogBufferLength :" + bufferLength);
 
-                // we don't really care much about this atomic boolean here
-                this.hstore_site.getAriesLogger().log(arieslogData, new AtomicBoolean());
+                if (bufferLength > 0) {
+                    arieslogData = new byte[bufferLength];
+                    this.executor.getArieslogData(bufferLength, arieslogData);
+
+                    // we don't really care much about this atomic boolean here
+                    this.hstore_site.getAriesLogger().log(arieslogData, new AtomicBoolean());
+                }
             }
             
         } catch (EEException e) {

@@ -62,7 +62,7 @@ public class TestPhysicalRecovery extends RegressionSuite {
 
     // YCSB
     private static final String PREFIX = "ycsb";
-    private static final int NUM_TUPLES = 1024*1024;
+    private static final int NUM_TUPLES = 1000*1000;
 
     public TestPhysicalRecovery(String name) {
         super(name);
@@ -333,7 +333,7 @@ public class TestPhysicalRecovery extends RegressionSuite {
         MultiConfigSuiteBuilder builder = new MultiConfigSuiteBuilder(TestPhysicalRecovery.class);
         
         // PHYSICAL
-        builder.setGlobalConfParameter("site.aries", true);        
+        builder.setGlobalConfParameter("site.aries", false);        
                    
         YCSBProjectBuilder project = new YCSBProjectBuilder();
 
@@ -351,7 +351,7 @@ public class TestPhysicalRecovery extends RegressionSuite {
             e.printStackTrace();
         }
 
-        /*
+        
         // CONFIG #1: 2 Local Site with 4 Partitions running on JNI backend
         NUM_SITES = 2;
         NUM_PARTITIONS = 2;
@@ -359,9 +359,9 @@ public class TestPhysicalRecovery extends RegressionSuite {
         success = m_config.compile(project);
         assert (success);
         builder.addServerConfig(m_config);
-        */
         
         
+        /*
         // CONFIG #2: 1 Local Site with 1 Partitions running on JNI backend
         NUM_SITES = 1;
         NUM_PARTITIONS = 2;        
@@ -369,7 +369,7 @@ public class TestPhysicalRecovery extends RegressionSuite {
         success = m_config.compile(project);
         assert (success);
         builder.addServerConfig(m_config);
-        
+        */
         
         return builder;
     }
