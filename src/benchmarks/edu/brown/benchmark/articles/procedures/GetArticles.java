@@ -9,7 +9,7 @@ public class GetArticles extends VoltProcedure{
     
     public VoltTable[] run(long a_id) {
         voltQueueSQL(GetArticles, a_id);
-        return (voltExecuteSQL());
+        return (voltExecuteSQL(true));
     }   
 
 }
