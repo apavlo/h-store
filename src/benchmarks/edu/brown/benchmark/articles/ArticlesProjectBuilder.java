@@ -36,7 +36,7 @@ public class ArticlesProjectBuilder extends AbstractProjectBuilder{
  
     @SuppressWarnings("unchecked")
 	public ArticlesProjectBuilder() {
-    	super("Articles", ArticlesProjectBuilder.class, (Class<? extends VoltProcedure>[]) PROCEDURES, PARTITIONING);
+    	super("articles", ArticlesProjectBuilder.class, (Class<? extends VoltProcedure>[]) PROCEDURES, PARTITIONING);
  
     }
 
