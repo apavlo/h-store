@@ -75,7 +75,7 @@ public class TestLogicalRecovery extends RegressionSuite {
 
     // YCSB
     private static final String PREFIX = "ycsb";
-    private static final int NUM_TUPLES = 100000;
+    private static final int NUM_TUPLES = 1000;
 
     public TestLogicalRecovery(String name) {
         super(name);
@@ -168,7 +168,7 @@ public class TestLogicalRecovery extends RegressionSuite {
     }
 
     private void initializeDatabase(final Client client, final int num_tuples) throws Exception {
-        String args[] = { "NOCONNECTIONS=true", "BENCHMARK.FIXED_SIZE=true", "BENCHMARK.NUM_RECORDS=" + num_tuples, "BENCHMARK.LOADTHREADS=1", };
+        String args[] = { "NOCONNECTIONS=true", "BENCHMARK.FIXED_SIZE=true", "BENCHMARK.NUM_RECORDS=" + num_tuples, "BENCHMARK.LOADTHREADS=4", };
         final CatalogContext catalogContext = this.getCatalogContext();
         YCSBLoader loader = new YCSBLoader(args) {
             {
@@ -203,7 +203,7 @@ public class TestLogicalRecovery extends RegressionSuite {
 
         // Read Record
 
-        long key = NUM_TUPLES / 32;
+        long key = NUM_TUPLES/2;
         String procName = ReadRecord.class.getSimpleName();
         Object params[];
         params = new Object[] { key };
@@ -222,7 +222,7 @@ public class TestLogicalRecovery extends RegressionSuite {
         System.out.println(results[0]);
 
         // Delete, then Insert these many tuples back
-        int numTestTuples = NUM_TUPLES / 16;
+        int numTestTuples = NUM_TUPLES/4;
 
         for (long k_itr = 0; k_itr < numTestTuples; k_itr++) {
             procName = DeleteRecord.class.getSimpleName();
