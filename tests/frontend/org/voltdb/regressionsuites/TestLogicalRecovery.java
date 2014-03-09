@@ -75,7 +75,7 @@ public class TestLogicalRecovery extends RegressionSuite {
 
     // YCSB
     private static final String PREFIX = "ycsb";
-    private static final int NUM_TUPLES = 64;
+    private static final int NUM_TUPLES = 100000;
 
     public TestLogicalRecovery(String name) {
         super(name);
@@ -203,7 +203,7 @@ public class TestLogicalRecovery extends RegressionSuite {
 
         // Read Record
 
-        long key = NUM_TUPLES / 2;
+        long key = NUM_TUPLES / 32;
         String procName = ReadRecord.class.getSimpleName();
         Object params[];
         params = new Object[] { key };
@@ -222,7 +222,7 @@ public class TestLogicalRecovery extends RegressionSuite {
         System.out.println(results[0]);
 
         // Delete, then Insert these many tuples back
-        int numTestTuples = NUM_TUPLES / 2;
+        int numTestTuples = NUM_TUPLES / 16;
 
         for (long k_itr = 0; k_itr < numTestTuples; k_itr++) {
             procName = DeleteRecord.class.getSimpleName();
