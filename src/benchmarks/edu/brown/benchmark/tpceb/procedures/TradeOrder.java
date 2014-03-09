@@ -279,7 +279,7 @@ public class TradeOrder extends VoltProcedure {
             tradeRequest.eAction = TPCEConstants.eMEETradeRequestAction.eMEESetLimitOrderTrigger;
         }
         /*********************/
-        VoltTable ret_values = trade_order_ret_template.clone(512);//128
+        VoltTable ret_values = trade_order_ret_template.clone(128);//128
         //ret_values.addRow(buy_value, sell_value, tax_amount, trade_id, eAction);
         ret_values.addRow(requested_price, symbol, trade_id, (double) trade_qty, trade_type_id, (double) eAction);
         return new VoltTable[] {ret_values};

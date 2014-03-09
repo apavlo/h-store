@@ -274,6 +274,9 @@ int countRow =0;
                   // System.out.println("after next advance"+ tradeOrderResult[0].getActiveRowIndex());
                   // System.out.println(tradeOrderResult[0].advanceToRow(0));
                 }
+                System.out.println(tradeOrderResult[0]);
+                
+                System.out.println("with advancing to count row" + tradeOrderResult[0].advanceToRow(countRow));
                 tradeRequest.price_quote = tradeOrderResult[0].getDouble("price_quote");
                 tradeRequest.trade_qty = (int) tradeOrderResult[0].getDouble("trade_qty");
                 tradeRequest.eActionTemp = (int) tradeOrderResult[0].getDouble("eAction");

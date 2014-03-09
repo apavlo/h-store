@@ -201,6 +201,7 @@ public abstract class VoltTableRow {
      */
     public boolean advanceToRow(int rowIndex) {
         m_activeRowIndex = rowIndex;
+        
         if (m_activeRowIndex >= getRowCount())
             return false;
 
@@ -208,14 +209,19 @@ public abstract class VoltTableRow {
         if (m_offsets == null)
             m_offsets = new int[getColumnCount()];
 
-        if (m_activeRowIndex == 0)
+        if (m_activeRowIndex == 0){
+            
             m_position = getRowStart() + ROW_COUNT_SIZE + ROW_HEADER_SIZE;
+           
+        }
         else {
             int rowlength = m_buffer.getInt(m_position - ROW_HEADER_SIZE);
             if (rowlength <= 0) {
                 throw new RuntimeException("Invalid row length.");
             }
+            
             m_position += rowlength + ROW_HEADER_SIZE;
+           
             if (m_position >= m_buffer.limit())
                 throw new RuntimeException("Row length exceeds table boundary.");
         }
@@ -608,8 +614,7 @@ public abstract class VoltTableRow {
 
     /** Validates that type and columnIndex match and are valid. */
     protected final void validateColumnType(int columnIndex, VoltType... types) {
-        System.out.println(columnIndex);
-        System.out.println(types);
+      
         if (m_position < 0)
             throw new RuntimeException("VoltTableRow is in an invalid state. Consider calling advanceRow().");
 
