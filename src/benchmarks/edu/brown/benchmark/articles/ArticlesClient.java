@@ -2,6 +2,7 @@ package edu.brown.benchmark.articles;
 import java.io.IOException;
 import java.util.Random;
 
+import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.NoConnectionsException;
 import org.voltdb.client.ProcedureCallback;
@@ -99,10 +100,11 @@ public class ArticlesClient extends BenchmarkComponent {
 	 
 	    @Override
 	    public void runLoop() {
+	    	Client client = this.getClientHandle();
 	        try {
 	          while (true) {
 	              runOnce();
-	              this.run_count++; 
+	              client.backpressureBarrier();
 	          } 
 	      } catch (NoConnectionsException e) {
 	          // Client has no clean mechanism for terminating with the DB.
@@ -111,7 +113,9 @@ public class ArticlesClient extends BenchmarkComponent {
 	          // At shutdown an IOException is thrown for every connection to
 	          // the DB that is lost Ignore the exception here in order to not
 	          // get spammed, but will miss lost connections at runtime
-	      } 
+	      } catch (InterruptedException e){
+	    	  
+	      }
 	    	
 	    }
 	    

@@ -74,7 +74,7 @@ public class ArticlesLoader extends Loader{
             row[col++] = numComments; // number of comments
             
             this.articleToCommentMap.put(a_id, numComments);
-            assert col == table.getColumnCount();
+//            assert col == table.getColumnCount();
             table.addRow(row);
             total++;
 
