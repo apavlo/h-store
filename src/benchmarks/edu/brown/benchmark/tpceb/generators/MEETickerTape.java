@@ -176,7 +176,7 @@ public class MEETickerTape {
             TickerEntry.trade_qty = ( rnd.rndPercent( 50 )) ? RANDOM_TRADE_QTY_1 : RANDOM_TRADE_QTY_2;
             System.out.println("here1");
             
-            SecurityIndex = rnd.int64Range( 0, priceBoard.getNumOfSecurities() - 1 );
+            SecurityIndex = rnd.int64RangeAlt( 0, priceBoard.getNumOfSecurities() - 1 );
             System.out.println("here2");
             TickerEntry.price_quote = (priceBoard.getCurrentPrice( SecurityIndex )).getDollars();
             System.out.println("here3");

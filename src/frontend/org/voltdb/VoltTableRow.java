@@ -608,6 +608,8 @@ public abstract class VoltTableRow {
 
     /** Validates that type and columnIndex match and are valid. */
     protected final void validateColumnType(int columnIndex, VoltType... types) {
+        System.out.println(columnIndex);
+        System.out.println(types);
         if (m_position < 0)
             throw new RuntimeException("VoltTableRow is in an invalid state. Consider calling advanceRow().");
 

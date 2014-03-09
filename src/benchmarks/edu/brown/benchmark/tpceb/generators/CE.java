@@ -244,4 +244,11 @@ public class CE {
     private  TTradeOrderTxnInput         tradeOrderTxnInput;
 
     private  boolean                     bClearBufferBeforeGeneration;
+    
+    /******************ADDED*********/
+    private SendToMarket pSendToMarket;
+    
+    public void setSendToMarket(SendToMarket pSendToMarket){
+        this.pSendToMarket = pSendToMarket;
+    }
 }

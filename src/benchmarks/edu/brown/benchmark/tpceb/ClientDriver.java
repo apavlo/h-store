@@ -58,13 +58,16 @@ public class ClientDriver {
         
         //CE input generator
         sut = new SUT();
-        cutomerEmulator = new CE(sut, logger, inputFiles, configuredCustomerCount, totalCustomerCount, scaleFactor, initialDays, 0, driverCETxnSettings);
+        customerEmulator = new CE(sut, logger, inputFiles, configuredCustomerCount, totalCustomerCount, scaleFactor, initialDays, 0, driverCETxnSettings);
         
         marketExchangeCallback = new MarketExchangeCallback(tradeResultTxnInput, marketFeedTxnInput);
         marketExchangeGenerator = new MEE(0, marketExchangeCallback, logger, securityHandler, 1, configuredCustomerCount);
         
+        //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        pSendToMarket = new SendToMarket(marketExchangeGenerator); //ADDED!!!!!!!!!!!!!!!!!!!!!!!!
+        //customerEmulator.setSendToMarket(pSendToMarket);
         /*for debugging*/
-        tradeReq = new TTradeRequest();
+       /* tradeReq = new TTradeRequest();
         //tradeReq.eAction = eMEETradeRequestAction.eMEESetLimitOrderTrigger;
         tradeReq.eAction = eMEETradeRequestAction.eMEEProcessOrder;
         tradeReq.price_quote = 10.0;
@@ -87,7 +90,7 @@ public class ClientDriver {
 
         /*This one*/
         //tradeReq.eAction = eMEETradeRequestAction.eMEESetLimitOrderTrigger;
-        tradeReq.eAction = eMEETradeRequestAction.eMEEProcessOrder;
+     /*   tradeReq.eAction = eMEETradeRequestAction.eMEEProcessOrder;
         tradeReq.price_quote = 1000.0;
         tradeReq.symbol = "BRY";
         tradeReq.trade_id = 200000000173803l;
@@ -169,7 +172,7 @@ public class ClientDriver {
 
         /*This one*/
         //tradeReq.eAction = eMEETradeRequestAction.eMEESetLimitOrderTrigger;
-        tradeReq.eAction = eMEETradeRequestAction.eMEEProcessOrder;
+       /* tradeReq.eAction = eMEETradeRequestAction.eMEEProcessOrder;
         tradeReq.price_quote = 10.0;
         tradeReq.symbol = "GUPB";
         tradeReq.trade_id = 200000000173840l;
@@ -275,7 +278,7 @@ public class ClientDriver {
         tradeReq.trade_qty = 5;
         tradeReq.trade_type_id = "TLS";
         
-        marketExchangeGenerator.submitTradeRequest(tradeReq);
+        marketExchangeGenerator.submitTradeRequest(tradeReq);*/
       
         
         
@@ -286,18 +289,25 @@ public class ClientDriver {
     }
     
     public CE getCE(){
-        return cutomerEmulator;
+        return customerEmulator;
     }
     
     public MEE getMEE(){
         return marketExchangeGenerator;
     }
 
-
+    /***ADDED!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!***/
+    public SendToMarket getSendToMarket(){     /*****/
+        return pSendToMarket;                  /*****/
+    }                                          /*****/
+    /*************************************** ********/
+    
+    /****MODIFIED!!!! now takes send to market obj too!!!!!!!!!!!!!!!!!*****************/
    public TTradeOrderTxnInput generateTradeOrderInput(int tradeType) {
-        cutomerEmulator.getCETxnInputGenerator().generateTradeOrderInput( tradeOrderTxnInput, tradeType );
+        customerEmulator.getCETxnInputGenerator().generateTradeOrderInput( tradeOrderTxnInput, tradeType );
         return (tradeOrderTxnInput);
     }
+   /***************************************************************************************/
     
  /*   public TMarketWatchTxnInput generateMarketWatchInput() {
 //      System.out.println("Executing generateMarketWatchInput ... \n");
@@ -325,7 +335,7 @@ public class ClientDriver {
    private TDriverCETxnSettings        driverCETxnSettings;
    private EGenLogFormatterTab         logFormat;
    private BaseLogger                  logger;
-   private CE                          cutomerEmulator;
+   private CE                          customerEmulator;
    private CESUTInterface              sut;
 
    private MEE                         marketExchangeGenerator;
@@ -333,6 +343,9 @@ public class ClientDriver {
    private MEETradingFloor  marketExchangeTradingFloor;
     
    private SecurityHandler             securityHandler;
+   
+   //*!*!*!*!*!*!*!*!*!*!*
+   private SendToMarket                 pSendToMarket; //ADDED***********************
 
 }
 

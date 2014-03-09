@@ -341,35 +341,44 @@ public class TradeGenerator implements Iterator<Object[]> {
     }
     
     private void generateNewTrade() {
+       // System.out.println("Generating new trade");
         newTrade = new TradeInfo();
-        
+       // System.out.println("created new trade");
         newTrade.tradeId = ++currentTradeId;
-        
+        //System.out.println("incremented id");
         Object[] custIdAndTier = custSelection.genRandomCustomer();
         newTrade.customer = (Long)custIdAndTier[0]; 
         newTrade.customerTier = (TierId)custIdAndTier[1];
-        
+        //System.out.println("set tier");
         long[] accIdAndSecs = holdsGenerator.generateRandomAccSecurity(newTrade.customer, newTrade.customerTier);
         newTrade.accId = accIdAndSecs[0];
-
+        //System.out.println("set accID");
         newTrade.secAccIndex = (int)accIdAndSecs[1];
         newTrade.secFileIndex = accIdAndSecs[2];
-        
+       // System.out.println("secFileIndex");
         newTrade.tradeType = generateTradeType();
-        newTrade.tradeStatus = StatusTypeId.E_COMPLETED; // always "completed" for the loading phase
+       // System.out.println("generated type");
         
+        newTrade.tradeStatus = StatusTypeId.E_COMPLETED; // always "completed" for the loading phase
+       // System.out.println("set status");
         newTrade.bidPrice = new EGenMoney(rnd.doubleIncrRange(TPCEConstants.minSecPrice, TPCEConstants.maxSecPrice, 0.01));
+       // System.out.println("double Incr range done");
+        
         newTrade.tradeQty = HoldingsAndTrades.TRADE_QTY_SIZES[rnd.intRange(0, HoldingsAndTrades.TRADE_QTY_SIZES.length - 1)];
+       // System.out.println("tradeQtydone");
         
         if (newTrade.tradeType == TradeType.eMarketBuy || newTrade.tradeType == TradeType.eMarketSell) {
+          //  System.out.println("if statement");
             newTrade.submissionTime = currentSimulatedTime;
             newTrade.bidPrice = meeSecurity.calculatePrice(newTrade.secFileIndex, currentSimulatedTime); // correcting the price
+           // System.out.println("bidPrice done");
         }
         else { // limit order
+            //System.out.println("in else");
             newTrade.pendingTime = currentSimulatedTime;
             newTrade.submissionTime = meeSecurity.getSubmissionTime(newTrade.secFileIndex, newTrade.pendingTime,
                     newTrade.bidPrice, newTrade.tradeType);
-        
+           // System.out.println("got submission time");
             /*
              * Move orders that would submit after market close (5pm)
              * to the beginning of the next day.
@@ -395,8 +404,9 @@ public class TradeGenerator implements Iterator<Object[]> {
         if ((newTrade.tradeType == TradeType.eLimitBuy && newTrade.bidPrice.lessThan(newTrade.tradePrice)) ||
             (newTrade.tradeType == TradeType.eLimitSell && newTrade.tradePrice.lessThan(newTrade.bidPrice))) {
             newTrade.tradePrice = newTrade.bidPrice;
+            //System.out.println("tradePriceRight");
         }
-
+       // System.out.println("beforeLIFO");
         // determine if the trade is a LIFO one
         if (rnd.rndPercent(PERCENT_TRADE_IS_LIFO)) {
             newTrade.isLIFO = true;
@@ -406,6 +416,7 @@ public class TradeGenerator implements Iterator<Object[]> {
         }
 
         currInitiatedTrades++;
+        //System.out.println("done");
     }
     
     private TradeType generateTradeType() {
@@ -659,7 +670,9 @@ public class TradeGenerator implements Iterator<Object[]> {
     }
 
     private void generateNextTrade() {
+        //System.out.println("in gen next trade");
         if (currCompletedTrades < totalTrades) {
+            //System.out.println("less than");
             /*
              * While the earliest completion time is before the current
              * simulated ('Trade Order') time, keep creating new
@@ -668,12 +681,12 @@ public class TradeGenerator implements Iterator<Object[]> {
              */
             while ((currCompletedTrades + currentTrades.size() < totalTrades) &&
                    (currentTrades.isEmpty() || currentSimulatedTime < currentTrades.peek().completionTime)) {
-                
+                //System.out.println("in while");
                 currentSimulatedTime = (currInitiatedTrades / tradesPerWorkDay) * 3600 * 24 + // seconds per day
                         (currInitiatedTrades % tradesPerWorkDay) * meanBetweenTrades + generateDelay();
-                
+                //System.out.println("fixed time");
                 generateNewTrade();
-                
+                //System.out.println("gen new trade");
                 // ignore aborted trades
                 if (HoldingsAndTrades.isAbortedTrade(currInitiatedTrades)) {
                     continue;
@@ -681,27 +694,28 @@ public class TradeGenerator implements Iterator<Object[]> {
                 
                 currentTrades.add(newTrade);
             }
-            
+            //System.out.println("out of while");
             newTrade = currentTrades.remove();
             
             updateHoldings();
-            
+            //System.out.println("updated holdings");
             generateCompleteTrade();
-            
+            //System.out.println("gen completed trade");
             hasNextTrade = currCompletedTrades < totalTrades;
         }
         else {
             hasNextTrade = false;
+            //System.out.println("was in else");
         }
         
         if (!hasNextTrade) {
             // find next holding for the holding generator 
             holdingIterator = 0;
             findNextHolding();
-            
+            //System.out.println("find next holding");
             // find a non-empty holding list for the holding summary
             findNextHoldingList(); 
-            
+            //System.out.println("find next holding list");
             assert currentTrades.size() == 0;
         }
     }
@@ -711,7 +725,7 @@ public class TradeGenerator implements Iterator<Object[]> {
         currTable = TPCEConstants.TABLENAME_TRADE;
         
         tuple[0] = newTrade.tradeId; // t_id
-        //System.out.println("inserted id: "+ newTrade.tradeId);
+       // System.out.println("inserted id: "+ newTrade.tradeId);
         tuple[1] = new TimestampType(getCurrentTradeCompletionTime()); // t_dts
         tuple[2] = statusTypeFile.getTupleByIndex(newTrade.tradeStatus.ordinal())[0]; // t_st_id
         tuple[3] = tradeTypeFile.getTupleByIndex(newTrade.tradeType.ordinal())[0]; // t_tt_id
@@ -888,20 +902,23 @@ public class TradeGenerator implements Iterator<Object[]> {
      */
     public Object[] next() {
         Object[] tuple = null;
-        
+       // System.out.println("in next");
+        //System.out.println(currState);
         switch (currState) {
             case stNone:
                
                 assert false;
                 tuple = null;
+               // System.out.println("stNone");
                 break;
-                
+               
             case stTrade:
                
                 generateNextTrade(); // generating all the necessary info about the trade
-                
+                //System.out.println("trade generated");
                 tuple = generateTradeRow();
                 currState = State.stTradeHistory;
+                //System.out.println("stTradeHistory");
                 break;
                 
             case stTradeHistory:
@@ -920,13 +937,14 @@ public class TradeGenerator implements Iterator<Object[]> {
                 break;
    
             case stCash:
-             
+               // System.out.println("stCash");
                 tuple = generateCashRow();
                 currState = State.stHoldHistory;
                 break;
                 
             case stHoldHistory:
                 // we always have at least one tuple here
+                //System.out.println("stholdinghistory");
                 assert holdingHistory.size() != 0;
                 
                 currTable = TPCEConstants.TABLENAME_HOLDING_HISTORY;
@@ -940,6 +958,7 @@ public class TradeGenerator implements Iterator<Object[]> {
                 break;
                 
             case stBroker:
+                //System.out.println("stbroker");
                 // we always have at least one BROKER tuple
                 assert brokerGenerator.hasNext();
                 
@@ -952,6 +971,7 @@ public class TradeGenerator implements Iterator<Object[]> {
                 break;
                 
             case stHoldSummary:
+                //System.out.println("stholdingsummary");
                 // we always have at least one tuple
                 assert hasNextHoldingSummary;
                 
@@ -964,6 +984,7 @@ public class TradeGenerator implements Iterator<Object[]> {
                 
             case stHolding:
                 // we always have at least one tuple
+                //System.out.println("stholding");
                 assert hasNextHolding;
                 
                 tuple = generateNextHoldingRow();

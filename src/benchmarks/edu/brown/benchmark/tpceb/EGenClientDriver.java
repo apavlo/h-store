@@ -36,6 +36,7 @@ import org.apache.log4j.Logger;
 import org.voltdb.types.TimestampType;
 
 import edu.brown.benchmark.tpceb.generators.BaseLogger;
+import edu.brown.benchmark.tpceb.generators.SendToMarket;
 
 public class EGenClientDriver {
     private static final Logger LOG = Logger.getLogger(EGenClientDriver.class.getName());
@@ -82,7 +83,9 @@ public class EGenClientDriver {
 
     public Object[] getTradeOrderParams() {
         int   iTradeType = 0; 
-        Object[] obj = driver_ptr.generateTradeOrderInput(iTradeType).InputParameters().toArray();
+        SendToMarket pSendToMarket = driver_ptr.getSendToMarket();/**********/
+        //MODIFIED INPUT
+        Object[] obj = driver_ptr.generateTradeOrderInput(iTradeType ).InputParameters().toArray();
       
         return (this.cleanParams(obj));
     }

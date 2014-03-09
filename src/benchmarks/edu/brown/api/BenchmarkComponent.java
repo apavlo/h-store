@@ -958,7 +958,7 @@ public abstract class BenchmarkComponent {
         // Only include it if it wasn't rejected
         // This is actually handled in the Distributer, but it doesn't hurt to have this here
         Status status = cresponse.getStatus();
-        //System.out.println(status);
+        System.out.println(status);
         if (status == Status.OK || status == Status.ABORT_USER) {
            
             // TRANSACTION COUNTERS
@@ -1614,6 +1614,7 @@ public abstract class BenchmarkComponent {
                                        boolean abortExpected,
                                        boolean errorExpected) {
         final Status status = clientResponse.getStatus();
+        System.out.println(status);
         if (status != Status.OK) {
             if (errorExpected)
                 return true;

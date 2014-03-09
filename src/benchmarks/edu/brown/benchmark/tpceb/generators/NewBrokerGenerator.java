@@ -109,6 +109,7 @@ public class NewBrokerGenerator extends TableGenerator {
         tuple[0] = brokerId; // b_id
         tuple[1] = numTrades[(int)(brokerId - startFromBroker)]; // b_num_trades
         tuple[2] = commTotal[(int)(brokerId - startFromBroker)]; // b_comm_total
+        System.out.println("here");
         
         counter++;
         

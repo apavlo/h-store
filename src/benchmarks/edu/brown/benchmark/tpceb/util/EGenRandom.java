@@ -276,7 +276,7 @@ public class EGenRandom {
         return min + (int)(rndDouble() * (double)(max - min));
     }
 
-    public long int64Range(long min, long max) {
+    public long int64RangeAlt(long min, long max) {
         if ( max <= min) {
             return min;
         }
@@ -319,7 +319,19 @@ public class EGenRandom {
         
 
     }
-    
+    public long int64Range(long min, long max) {
+        if (min == max) {
+            return min;
+        }
+        
+        max++; // overflow?
+        if (max <= min) {
+            return max;
+        }
+        
+        return min + (long)(rndDouble() * (double)(max - min));
+    }
+
     /*public long int64Range(long min, long max) {
         if (min == max) {
             return min;

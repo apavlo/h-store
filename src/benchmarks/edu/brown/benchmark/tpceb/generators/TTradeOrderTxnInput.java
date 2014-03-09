@@ -25,10 +25,17 @@ public class TTradeOrderTxnInput {
         para.add(symbol);
         para.add(trade_type_id);
         para.add(trade_id);
-   
+        //para.add(pSendToMarket); //added
         return para;
     }
-    
+    /*Added*/
+    public SendToMarket getSendToMarket(){
+        return pSendToMarket;
+    }
+    public void setSendToMarket(SendToMarket pSendToMarket){
+        this.pSendToMarket = pSendToMarket;
+    }
+    /*******************/
     public double getRequestedPrice(){
         return requested_price;
     }
@@ -107,4 +114,8 @@ public class TTradeOrderTxnInput {
     private String          st_submitted_id;
     private String          symbol;
     private String          trade_type_id;
+    
+    
+    /***ADDED**/
+    private SendToMarket pSendToMarket;
 }

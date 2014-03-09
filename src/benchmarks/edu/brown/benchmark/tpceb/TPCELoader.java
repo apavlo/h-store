@@ -205,26 +205,27 @@ public class TPCELoader extends BenchmarkComponent {
     private void loadGrowingTables(Database catalog, int batchSize) {
         LOG.debug("Loading records for growing tables in batches of " + batchSize);
         boolean debug = true;
-        
+       // System.out.println("Loading growing tables");
         Map<String, VoltTable> growingVoltTables = new HashMap<String, VoltTable>();
         
         for (String tableName: TPCEConstants.GROWING_TABLES) {
-            
+            //System.out.println(tableName);
             VoltTable vt = CatalogUtil.getVoltTable(catalog.getTables().get(tableName));
             growingVoltTables.put(tableName, vt);
         }
-        
+        //System.out.println("out of loop");
         
         try {
+            //System.out.println("in try");
             TradeGenerator tableGen = new TradeGenerator(this.generator, catalog);
           
             while (tableGen.hasNext()) {
-               
+               //System.out.println("in while loop");
                 Object tuple[] = tableGen.next(); // tuple
                
-               
+              // System.out.println("Got tuple");
                 String tableName = tableGen.getCurrentTable(); // table name the tuple is for
-              
+              //  System.out.println(tableName);
                 VoltTable vt = growingVoltTables.get(tableName);
                 int row_idx = vt.getRowCount();
              
@@ -253,7 +254,7 @@ public class TPCELoader extends BenchmarkComponent {
             LOG.error("Failed to load growing tables", ex);
             System.exit(1);
         }
-        
+      //  System.out.println("out of try/catch");
         // loading remaining (out-of-batch) tuples
         for (Entry<String, VoltTable> table: growingVoltTables.entrySet()) {
             String tableName = table.getKey();

@@ -110,12 +110,14 @@ public class HoldingsAndTrades {
      * @return (account number, security account index, security flat_in file position)
      */
     public long[] generateRandomAccSecurity(long cid, TierId tier) {
+        //System.out.println("in genAccountSecurity");
         long[] custAccAndCount = custAccGen.genRandomAccId(rnd, cid, tier);
-        
+        //System.out.println("in gen Random Acc Id");
         int secNum = getNumberOfSecurities(custAccAndCount[0], tier, (int)custAccAndCount[1]);
+        //System.out.println("get Num of Securities");
         int secAccIndex = rnd.intRange(1, secNum);
         long secFlatFileIndex = getSecurityFlatFileIndex(custAccAndCount[0], secAccIndex);
-        
+        //System.out.println("get security file index");
         long[] res = new long[3];
         res[0] = custAccAndCount[0];
         res[1] = secAccIndex;
@@ -150,10 +152,10 @@ public class HoldingsAndTrades {
      */
     public long getSecurityFlatFileIndex(long accId, int secIndex) {
         long  secFlatFileIndex = 0; // index of the selected security in the input flat file
-
+        //System.out.println("in get security flate file index");
         long oldSeed = rnd.getSeed();
         rnd.setSeedNth(EGenRandom.RNG_SEED_BASE_STARTING_SECURITY_ID, accId * MAX_SECURITIES_PER_ACCOUNT);
-
+        // System.out.println("did rnd set Seed nth");
         /*
          * The main idea behind the loop below is that we want to generate secIndex _unique_ flat
          * file indexes. The array is used to keep track of them.
@@ -161,10 +163,12 @@ public class HoldingsAndTrades {
         int generatedIndexCount = 0;
         while (generatedIndexCount < secIndex) {
             secFlatFileIndex = rnd.int64Range(0, secCount - 1);
+           // System.out.println("did int 64 range");
                     
             int i;
             for (i = 0; i < generatedIndexCount; i++) {
                 if (secIds[i] == secFlatFileIndex) {
+                    //System.out.println("break");
                     break;
                 }
             }
@@ -180,7 +184,7 @@ public class HoldingsAndTrades {
         }
 
         rnd.setSeed(oldSeed);
-
+        //System.out.println("setSeed");
         return secFlatFileIndex;
     }
     

@@ -72,6 +72,7 @@ public class TPCEClient extends BenchmarkComponent {
         private final Transaction t;
         public TPCECallback(Transaction t) {
             this.t = t;
+            
         }
 
         @Override
@@ -172,32 +173,32 @@ public class TPCEClient extends BenchmarkComponent {
     }
 
     protected Transaction selectTransaction() {
-        if(countTotal %2 == 0){
+      //  if(countTotal %2 == 0){
         int iTxnType = egen_clientDriver.driver_ptr.getCE().getCETxnMixGenerator().generateNextTxnType( );
         egen_clientDriver.driver_ptr.getCE().zeroInputBuffer(iTxnType);
        // egen_clientDriver.driver_ptr.getMEE();
         //egen_clientDriver.driver_ptr.getMEE();
         //      return Transaction.TRADE_UPDATE;
         System.out.println(iTxnType);
-        countTotal++;
+     //   countTotal++;
         return XTRANS[iTxnType];
-        }
-        else{
-            if(countTotal <= 50){
-                countTotal++;
-                egen_clientDriver.driver_ptr.getMEE();
-               // return null;
-                return XTRANS[2];
+      //  }
+      //  else{
+      //      if(countTotal <= 50){
+      //          countTotal++;
+      //          egen_clientDriver.driver_ptr.getMEE();
+      //         // return null;
+     //           return XTRANS[2];
+     //           
+     //       }
+     //       else{
+     //           countTotal++;
+     //           egen_clientDriver.driver_ptr.getMEE();
+     //           return XTRANS[1];
                 
-            }
-            else{
-                countTotal++;
-                egen_clientDriver.driver_ptr.getMEE();
-                return XTRANS[1];
-                
-            }
+     //       }
             
-        }
+     //   }
       /* int iTxnType = egen_clientDriver.driver_ptr.getCE().getCETxnMixGenerator().generateNextTxnType( );
         egen_clientDriver.driver_ptr.getCE().zeroInputBuffer(iTxnType);
         return XTRANS[0];*/
@@ -224,7 +225,8 @@ public class TPCEClient extends BenchmarkComponent {
             final Transaction target = selectTransaction();
 
             LOG.debug("Executing txn " + target);
-            
+            //TPCECallback temp = new TPCECallback(target);
+        
            while (!this.getClientHandle().callProcedure(new TPCECallback(target), target.callName, this.generateClientArgs(target))) {
                 this.getClientHandle().backpressureBarrier();
             }
@@ -240,7 +242,7 @@ public class TPCEClient extends BenchmarkComponent {
             System.exit(1);
         }
     }
-//int countNumRuns =0;
+int countRow =0;
  //   @Override
     protected boolean runOnce() throws IOException {
         boolean ret = false;
@@ -250,8 +252,42 @@ public class TPCEClient extends BenchmarkComponent {
            // final Transaction targetME = selectTransactionME();
 
             LOG.debug("Executing txn " + target);
-            ret = this.getClientHandle().callProcedure(new TPCECallback(target), target.callName, this.generateClientArgs(target));
-           // retME = this.getClientHandle().callProcedure(new TPCECallback(target), target.callName, this.generateClientArgs(targetME));
+           // ret = this.getClientHandle().callProcedure(new TPCECallback(target), target.callName, this.generateClientArgs(target));
+            tradeOrderResult = this.getClientHandle().callProcedure(target.callName, this.generateClientArgs(target)).getResults();
+            
+           // System.out.println("countRow:"+ countRow + "  " +tradeOrderResult[countRow]);
+           // System.out.println(tradeOrderResult[0]);
+
+           System.out.println(tradeOrderResult.length);
+            if(tradeOrderResult.length == 0){
+                ret = false;
+            }
+            else{
+                if(countRow != 0){
+                   //tradeOrderResult[0].advanceRow();
+                  // System.out.println("Active index"+ tradeOrderResult[0].getActiveRowIndex());
+                   tradeOrderResult[0].advanceRow();
+                  // System.out.println("after advance"+ tradeOrderResult[0].getActiveRowIndex());
+                  //  tradeOrderResult[0].resetRowPosition();
+                  // System.out.println("after reset"+ tradeOrderResult[0].getActiveRowIndex());
+                  // tradeOrderResult[0].advanceRow();
+                  // System.out.println("after next advance"+ tradeOrderResult[0].getActiveRowIndex());
+                  // System.out.println(tradeOrderResult[0].advanceToRow(0));
+                }
+                tradeRequest.price_quote = tradeOrderResult[0].getDouble("price_quote");
+                tradeRequest.trade_qty = (int) tradeOrderResult[0].getDouble("trade_qty");
+                tradeRequest.eActionTemp = (int) tradeOrderResult[0].getDouble("eAction");
+                tradeRequest.symbol = tradeOrderResult[0].getString("symbol");
+                tradeRequest.trade_id = tradeOrderResult[0].getLong("trade_id");
+                tradeRequest.trade_type_id = tradeOrderResult[0].getString("trade_type_id");
+                tradeRequest.eAction = null;
+                ret = true;
+                countRow++;
+                System.out.println("true");
+            }
+          
+            // clientResponse.getResults();
+            //  tradeOrderResult = this.getClientHandle().getResults();// retME = this.getClientHandle().callProcedure(new TPCECallback(target), target.callName, this.generateClientArgs(targetME));
         } catch (Exception ex) {
             ex.printStackTrace();
             System.exit(1);
@@ -295,6 +331,8 @@ public class TPCEClient extends BenchmarkComponent {
     public static void main(String[] args) {
         BenchmarkComponent.main(TPCEClient.class, args, false);
     }
+    private TTradeRequest tradeRequest;
+    private VoltTable[] tradeOrderResult;
 }
 
 

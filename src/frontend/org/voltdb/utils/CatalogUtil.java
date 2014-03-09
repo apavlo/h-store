@@ -128,6 +128,7 @@ public abstract class CatalogUtil {
      */
     public static VoltTable getVoltTable(Table catalogTable) {
         assert(catalogTable != null) : "Unexpected null catalog table";
+        //System.out.println("in this");
         List<Column> catalogColumns = CatalogUtil.getSortedCatalogItems(catalogTable.getColumns(), "index");
         return CatalogUtil.getVoltTable(catalogColumns);
     }

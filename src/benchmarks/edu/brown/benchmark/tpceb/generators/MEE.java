@@ -6,6 +6,7 @@ import java.util.GregorianCalendar;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
+import edu.brown.benchmark.tpceb.TPCEConstants;
 import edu.brown.benchmark.tpceb.util.EGenDate;
 import edu.brown.benchmark.tpceb.generators.TDriverCETxnSettings;
 import edu.brown.benchmark.tpceb.TPCEConstants.eMEETradeRequestAction;;
@@ -201,7 +202,13 @@ public class MEE {
         System.out.println();
         System.out.println();
         System.out.println("ACQUIRED LOCK");
-        
+        if(pTradeRequest.eActionTemp == 1){
+            pTradeRequest.eAction = TPCEConstants.eMEETradeRequestAction.eMEEProcessOrder;
+        }
+        else{
+            pTradeRequest.eAction = TPCEConstants.eMEETradeRequestAction.eMEESetLimitOrderTrigger;
+            
+        }
         Calendar cal = Calendar.getInstance();
         currentTime.setTime(cal.getTimeInMillis()); 
         //currentTime = new Date();

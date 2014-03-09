@@ -231,8 +231,10 @@ public class CETxnInputGenerator {
     *
     *  RETURNS:
     *           none.
+    *           
+    *           ADDED MEE AND SEND TO MARKET STUFF***********************************!!!!!!!!!!!!!!!!!!11
     */
-    public void generateTradeOrderInput(TTradeOrderTxnInput inputStructure, int iTradeType){
+    public void generateTradeOrderInput(TTradeOrderTxnInput inputStructure, int iTradeType ){
 
         long          customerID;
         TierId   	  tierID;
@@ -243,7 +245,9 @@ public class CETxnInputGenerator {
       //  String[]      flTaxId;
         TradeType    eTradeType;
         inputStructure.setTradeID(currentTradeID.getAndIncrement());
-
+        /***********ADDDED**/
+        //inputStructure.setSendToMarket(pSendToMarket);
+        /*******************/
         Object[] customer = new Object[2];
         
         customer = customerSelection.genRandomCustomer();

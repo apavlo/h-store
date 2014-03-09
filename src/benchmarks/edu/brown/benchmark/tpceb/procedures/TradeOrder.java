@@ -45,6 +45,8 @@ import org.voltdb.VoltType;
 import org.voltdb.types.TimestampType;
 
 import edu.brown.benchmark.tpceb.TPCEConstants;
+import edu.brown.benchmark.tpceb.generators.SendToMarket;
+import edu.brown.benchmark.tpceb.generators.TTradeRequest;
 
 /**
  * Trade-Order Transaction <br/>
@@ -61,11 +63,18 @@ import edu.brown.benchmark.tpceb.TPCEConstants;
  */
 public class TradeOrder extends VoltProcedure {
     private final VoltTable trade_order_ret_template = new VoltTable(
-            new VoltTable.ColumnInfo("buy_value", VoltType.FLOAT),
+        /*    new VoltTable.ColumnInfo("buy_value", VoltType.FLOAT),
             new VoltTable.ColumnInfo("sell_value", VoltType.FLOAT),
             new VoltTable.ColumnInfo("tax_amount", VoltType.FLOAT),
             new VoltTable.ColumnInfo("trade_id", VoltType.BIGINT),
-            new VoltTable.ColumnInfo("eAction", VoltType.INTEGER)
+            new VoltTable.ColumnInfo("eAction", VoltType.INTEGER)*/
+            new VoltTable.ColumnInfo("price_quote", VoltType.FLOAT),
+            new VoltTable.ColumnInfo("symbol", VoltType.STRING),
+            new VoltTable.ColumnInfo("trade_id", VoltType.BIGINT),
+            new VoltTable.ColumnInfo("trade_qty", VoltType.FLOAT),
+            new VoltTable.ColumnInfo("trade_type_id", VoltType.STRING),
+            new VoltTable.ColumnInfo("eAction", VoltType.FLOAT)
+            
     );
     
     
@@ -254,9 +263,28 @@ public class TradeOrder extends VoltProcedure {
         // frame 6: commit (nothing to do) and send_to_market, which is returned with the result
         int eAction = (type_is_market == 1) ? TPCEConstants.eMEEProcessOrder : TPCEConstants.eMEESetLimitOrderTrigger;
         double tax_amount = 10;
-        VoltTable ret_values = trade_order_ret_template.clone(128);
-        ret_values.addRow(buy_value, sell_value, tax_amount, trade_id, eAction);
+        
+        
+        /**********ADDED************/
+        TTradeRequest tradeRequest = new TTradeRequest();
+        tradeRequest.price_quote =  requested_price;
+        tradeRequest.symbol = symbol;
+        tradeRequest.trade_id = trade_id;
+        tradeRequest.trade_qty = (int) trade_qty;
+        tradeRequest.trade_type_id = trade_type_id;
+        if(type_is_market == 1){
+            tradeRequest.eAction = TPCEConstants.eMEETradeRequestAction.eMEEProcessOrder;
+        }
+        else{
+            tradeRequest.eAction = TPCEConstants.eMEETradeRequestAction.eMEESetLimitOrderTrigger;
+        }
+        /*********************/
+        VoltTable ret_values = trade_order_ret_template.clone(512);//128
+        //ret_values.addRow(buy_value, sell_value, tax_amount, trade_id, eAction);
+        ret_values.addRow(requested_price, symbol, trade_id, (double) trade_qty, trade_type_id, (double) eAction);
         return new VoltTable[] {ret_values};
+        
+        //return tradeRequest;
     }
 }
 
