@@ -463,25 +463,25 @@ public class TestLogicalRecovery extends RegressionSuite {
         boolean success = false;
 
         setUpSnapshotDir();
-
-        /*
-         * // CONFIG #1: 2 Local Site with 4 Partitions running on JNI backend
-         * NUM_SITES = 2; NUM_PARTITIONS = 2; m_config = new
-         * LocalCluster("snapshot-"
-         * +PREFIX+"-"+NUM_SITES+"-site-"+NUM_PARTITIONS+"-partition.jar",
-         * NUM_SITES, NUM_PARTITIONS, 1, BackendTarget.NATIVE_EE_JNI); success =
-         * m_config.compile(project); assert (success);
-         * builder.addServerConfig(m_config);
-         */
-
-        // CONFIG #2: 1 Local Site with 1 Partitions running on JNI backend
-        NUM_SITES = 1;
-        NUM_PARTITIONS = 1;
-        m_config = new LocalSingleProcessServer("snapshot-" + PREFIX + "-" + NUM_SITES + "-site-" + NUM_PARTITIONS + "-partition.jar", NUM_PARTITIONS, BackendTarget.NATIVE_EE_JNI);
+        
+        // CONFIG #1: 2 Local Site with 4 Partitions running on JNI backend
+        NUM_SITES = 2;
+        NUM_PARTITIONS = 2;
+        m_config = new LocalCluster("snapshot-" + PREFIX + "-" + NUM_SITES + "-site-" + NUM_PARTITIONS + "-partition.jar", NUM_SITES, NUM_PARTITIONS, 1, BackendTarget.NATIVE_EE_JNI);
         success = m_config.compile(project);
         assert (success);
         builder.addServerConfig(m_config);
 
+        /*
+        // CONFIG #2: 1 Local Site with 1 Partitions running on JNI backend
+        NUM_SITES = 1;
+        NUM_PARTITIONS = 2;
+        m_config = new LocalSingleProcessServer("snapshot-" + PREFIX + "-" + NUM_SITES + "-site-" + NUM_PARTITIONS + "-partition.jar", NUM_PARTITIONS, BackendTarget.NATIVE_EE_JNI);
+        success = m_config.compile(project);
+        assert (success);
+        builder.addServerConfig(m_config);
+        */
+        
         return builder;
     }
 }

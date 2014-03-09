@@ -757,12 +757,19 @@ public final class HStoreConf {
         // ARIES Physical Recovery Options
         // ----------------------------------------------------------------------------
         @ConfigProperty(
-                description="ARIES recovery system enabled. ",
+                description="ARIES recovery enabled. ",
                 defaultBoolean=false,
                 experimental=true
         )
         public boolean aries;
-            
+
+        @ConfigProperty(
+                description="ARIES forward processing only enabled, recovery disabled - for throughput evaluation",
+                defaultBoolean=true,
+                experimental=true
+        )
+        public boolean aries_forward_only;
+
         @ConfigProperty(
                 description="Location of where H-Store will store ARIES log files for each partition. " +
                             "This is only used if ${site.aries} is enabled. ",

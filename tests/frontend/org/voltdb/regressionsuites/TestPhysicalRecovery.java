@@ -334,6 +334,7 @@ public class TestPhysicalRecovery extends RegressionSuite {
         
         // PHYSICAL
         builder.setGlobalConfParameter("site.aries", true);        
+        builder.setGlobalConfParameter("site.aries_forward_only", false);     
                    
         YCSBProjectBuilder project = new YCSBProjectBuilder();
 

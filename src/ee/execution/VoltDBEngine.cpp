@@ -1630,7 +1630,7 @@ void VoltDBEngine::doAriesRecovery(char *logData, size_t length, int64_t replay_
 		TableTuple *afterImage = NULL;
 
 		if (logrecord.getType() == LogRecord::T_INSERT) {
-			VOLT_DEBUG("Log record recovery : INSERT start");
+			VOLT_WARN("Log record recovery : INSERT start");
 
 			// at this point, don't worry about
 			// logging during recovery
@@ -1651,7 +1651,7 @@ void VoltDBEngine::doAriesRecovery(char *logData, size_t length, int64_t replay_
 
 			VOLT_WARN("Log record recovery : INSERT end");
 		} else if (logrecord.getType() == LogRecord::T_UPDATE) {
-			VOLT_DEBUG("Log record recovery : UPDATE start");
+			VOLT_WARN("Log record recovery : UPDATE start");
 
 			beforeImage = logrecord.getTupleBeforeImage();
 			afterImage = logrecord.getTupleAfterImage();
@@ -1676,7 +1676,7 @@ void VoltDBEngine::doAriesRecovery(char *logData, size_t length, int64_t replay_
 
 			VOLT_WARN("Log record recovery : UPDATE end");
 		} else if (logrecord.getType() == LogRecord::T_BULKLOAD) {
-			VOLT_DEBUG("Log record recovery : BULKLOAD start");
+			VOLT_WARN("Log record recovery : BULKLOAD start");
 
 			numBulkLoadBytes = input.readLong();
 
@@ -1703,7 +1703,7 @@ void VoltDBEngine::doAriesRecovery(char *logData, size_t length, int64_t replay_
 
 			VOLT_WARN("Log record recovery : BULKLOAD end");
 		} else if (logrecord.getType() == LogRecord::T_DELETE) {
-			VOLT_DEBUG("Log record recovery : DELETE start");
+			VOLT_WARN("Log record recovery : DELETE start");
 
 			beforeImage = logrecord.getTupleBeforeImage();
 

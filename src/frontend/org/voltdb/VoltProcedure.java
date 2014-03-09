@@ -601,7 +601,7 @@ public abstract class VoltProcedure implements Poolable {
                 if (this.results == null) results = HStoreConstants.EMPTY_RESULT;
 
                 // ARIES                                
-                if(hstore_conf.site.aries){      
+                if(hstore_conf.site.aries && this.hstore_conf.site.aries_forward_only == false){      
                     LOG.info("ARIES : VoltProcedure");
                     if (!this.catalog_proc.getReadonly()) {
                         bufferLength = (int) this.executor.getArieslogBufferLength();
@@ -760,7 +760,7 @@ public abstract class VoltProcedure implements Poolable {
          *  Since call returns a ClientResponseImpl you can add a field for the log data
          *  that isn't serialized during messaging that is the log data for the txn
          */
-        if (hstore_conf.site.aries) {
+        if (hstore_conf.site.aries && this.hstore_conf.site.aries_forward_only == false) {
             if (this.status == status.OK && this.error == null) {
                 if (bufferLength > 0) {
                     response.setAriesLogData(arieslogData);
@@ -950,7 +950,7 @@ public abstract class VoltProcedure implements Poolable {
             this.executor.loadTable(this.localTxnState, clusterName, databaseName, tableName, data, allowELT);
             
             // ARIES
-            if (this.hstore_conf.site.aries) {
+            if (this.hstore_conf.site.aries && this.hstore_conf.site.aries_forward_only == false) {
                 byte[] arieslogData = null;
                 int bufferLength = (int) this.executor.getArieslogBufferLength();
                 LOG.warn("ARIES :: voltLoadTable : ariesLogBufferLength :" + bufferLength);

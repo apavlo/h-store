@@ -510,7 +510,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             // Don't use both recovery modes
             assert(hstore_conf.site.snapshot == false);
 
-            LOG.info("Starting ARIES recovery at site");           
+            LOG.warn("Starting ARIES recovery at site");           
 
             String siteName = HStoreThreadManager.formatSiteName(this.getSiteId());
             String ariesSiteDirPath = hstore_conf.site.aries_dir + File.separatorChar + siteName + File.separatorChar;
@@ -519,18 +519,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             int numPartitionsPerSite =   this.catalog_site.getPartitions().size();
             int numSites = this.catalogContext.numberOfSites;
 
-            LOG.info("ARIES : Log Native creation :: numSites : "+numSites+" numPartitionsPerSite : "+numPartitionsPerSite);           
+            LOG.warn("ARIES : Log Native creation :: numSites : "+numSites+" numPartitionsPerSite : "+numPartitionsPerSite);           
             this.m_ariesLog = new AriesLogNative(numSites, numPartitionsPerSite, this.m_ariesLogFileName);
             this.m_recoveryLog = new VoltLogger("RECOVERY");
         }
-        
-
-        // LOGICAL
-        if(hstore_conf.site.snapshot){
-            this.lastTickTime =  EstTime.currentTimeMillis();
-        }
-        
-                
+                        
         // **IMPORTANT**
         // Always clear out the CatalogUtil and BatchPlanner before we start our new HStoreSite
         // TODO: Move this cache information into CatalogContext
@@ -1368,7 +1361,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         this.init();
         
         // ARIES
-        if (m_ariesLog != null) {
+        if (this.hstore_conf.site.aries && this.hstore_conf.site.aries_forward_only == false) {
             doPhysicalRecovery();
             waitForAriesLogInit();
         }

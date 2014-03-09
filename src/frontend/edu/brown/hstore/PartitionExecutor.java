@@ -1008,19 +1008,23 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         }
     }
     
-    public void doPartitionRecovery(long txnIdToBeginReplay) {        
-        if (m_ariesLog  != null) {
+    public void doPartitionRecovery(long txnIdToBeginReplay) {    
+        LOG.warn("ARIES : aries : " + this.hstore_conf.site.aries+ " aries forward only : "+this.hstore_conf.site.aries_forward_only );
+
+        if (this.hstore_conf.site.aries && this.hstore_conf.site.aries_forward_only == false) {
             long logReadStartTime = System.currentTimeMillis();
 
             // define an array so that we can pass to native code by reference
             long size[] = new long[1];
             long ariesReplayPointer = readAriesLogForReplay(size);
 
-            //LOG.info("ARIES : replay pointer address: " + ariesReplayPointer);
-            LOG.info("ARIES : partition recovery started at partition : "+this.partitionId+ " log size :"+size[0]);
+            // LOG.info("ARIES : replay pointer address: " +
+            // ariesReplayPointer);
+            LOG.info("ARIES : partition recovery started at partition : " + this.partitionId + " log size :" + size[0]);
 
             long logReadEndTime = System.currentTimeMillis();
-            //LOG.info("ARIES : log read in " + (logReadEndTime - logReadStartTime) + " milliseconds");
+            // LOG.info("ARIES : log read in " + (logReadEndTime -
+            // logReadStartTime) + " milliseconds");
 
             long ariesStartTime = System.currentTimeMillis();
 
