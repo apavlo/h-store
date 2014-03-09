@@ -27,4 +27,6 @@ public abstract class ArticlesConstants {
                                                 TABLENAME_USERS,
                                                 TABLENAME_COMMENTS
                                                 };
+	public static final long MAX_COMMENTS_PER_ARTICLE = 10;
+	public static final int COMMENTS_NUM_COLUMNS = 0;
 }

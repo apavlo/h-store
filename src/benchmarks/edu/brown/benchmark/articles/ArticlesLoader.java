@@ -26,7 +26,7 @@ public class ArticlesLoader extends Loader{
         super(args);
         this.articlesSize = Math.round(ArticlesConstants.ARTICLES_SIZE * this.getScaleFactor());
         this.usersSize = Math.round(ArticlesConstants.USERS_SIZE * this.getScaleFactor());
-        this.maxComments = 10;
+        this.maxComments = ArticlesConstants.MAX_COMMENTS_PER_ARTICLE;
         this.articleToCommentMap = new HashMap<Long, Long>();
     }
 
