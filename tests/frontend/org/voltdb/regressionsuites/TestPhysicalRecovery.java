@@ -62,7 +62,7 @@ public class TestPhysicalRecovery extends RegressionSuite {
 
     // YCSB
     private static final String PREFIX = "ycsb";
-    private static final int NUM_TUPLES = 1000*1000;
+    private static final int NUM_TUPLES = 1000;
 
     public TestPhysicalRecovery(String name) {
         super(name);
@@ -333,7 +333,7 @@ public class TestPhysicalRecovery extends RegressionSuite {
         MultiConfigSuiteBuilder builder = new MultiConfigSuiteBuilder(TestPhysicalRecovery.class);
         
         // PHYSICAL
-        builder.setGlobalConfParameter("site.aries", false);        
+        builder.setGlobalConfParameter("site.aries", true);        
                    
         YCSBProjectBuilder project = new YCSBProjectBuilder();
 

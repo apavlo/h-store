@@ -162,6 +162,9 @@
 <arg value="site.aries=${site.aries}" />
 <arg value="site.aries_dir=${site.aries_dir}" />
 <arg value="site.aries_reset=${site.aries_reset}" />
+<arg value="site.snapshot=${site.snapshot}" />
+<arg value="site.snapshot_dir=${site.snapshot_dir}" />
+<arg value="site.snapshot_reset=${site.snapshot_reset}" />
 <arg value="site.mr_map_blocking=${site.mr_map_blocking}" />
 <arg value="site.mr_reduce_blocking=${site.mr_reduce_blocking}" />
 <arg value="site.network_heartbeats_interval=${site.network_heartbeats_interval}" />

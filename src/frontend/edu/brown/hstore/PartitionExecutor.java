@@ -44,6 +44,7 @@ package edu.brown.hstore;
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -74,6 +75,7 @@ import org.voltdb.MemoryStats;
 import org.voltdb.ParameterSet;
 import org.voltdb.SQLStmt;
 import org.voltdb.SnapshotSiteProcessor;
+import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.SnapshotSiteProcessor.SnapshotTableTask;
 import org.voltdb.SysProcSelector;
 import org.voltdb.VoltProcedure;
@@ -81,6 +83,7 @@ import org.voltdb.VoltProcedure.VoltAbortException;
 import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.catalog.Catalog;
+import org.voltdb.catalog.CatalogMap;
 import org.voltdb.catalog.Cluster;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Host;
@@ -104,6 +107,7 @@ import org.voltdb.jni.MockExecutionEngine;
 import org.voltdb.logging.VoltLogger;
 import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.messaging.FastSerializer;
+import org.voltdb.sysprocs.SnapshotSave;
 import org.voltdb.types.SpecExecSchedulerPolicyType;
 import org.voltdb.types.SpeculationConflictCheckerType;
 import org.voltdb.types.SpeculationType;
@@ -1033,7 +1037,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             m_ariesLog.init();
         }
     }
-    
+        
     // ----------------------------------------------------------------------------
     // MAIN EXECUTION LOOP
     // ----------------------------------------------------------------------------
@@ -1636,12 +1640,65 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             this.lastTickTime = time;
         }
         
-        // CHANGE : TICK
+        // LOGICAL
         // do other periodic work
-        if (m_snapshotter != null) 
-	  m_snapshotter.doSnapshotWork(this.ee);
+        if (m_snapshotter != null)
+            m_snapshotter.doSnapshotWork(this.ee);
 
+        if (this.hstore_conf.site.snapshot) {
+            // Do this only on partition with lowest id on site with lowest site id
+            SystemProcedureExecutionContext context = this.getSystemProcedureExecutionContext();
+            Host catalog_host = context.getHost();
+            Site site = context.getSite();
+
+            CatalogMap<Partition> partition_map = site.getPartitions();
+            Integer lowest_partition_id = Integer.MAX_VALUE, p_id;
+            Integer lowest_site_id = Integer.MAX_VALUE, s_id;
+
+            for (Site st : CatalogUtil.getAllSites(catalog_host)) {
+                s_id = st.getId();
+                lowest_site_id = Math.min(s_id, lowest_site_id);
+            }
+
+            for (Partition pt : partition_map) {
+                p_id = pt.getId();
+                lowest_partition_id = Math.min(p_id, lowest_partition_id);
+            }
+
+            assert (lowest_partition_id != Integer.MAX_VALUE);
+            
+            int m_siteId = context.getSite().getId();
+            int m_partitionId  = context.getPartitionExecutor().getPartitionId();
+            
+            if (m_siteId == lowest_site_id && m_partitionId == lowest_partition_id) {
+                //LOG.warn("Taking snapshot at partition " + m_partitionId +" on site "+m_siteId);
+
+                VoltTable[] results = null;
+                try {
+                    File snapshotDir = getSnapshotDir(this);
+                    String path = snapshotDir.getAbsolutePath();
+
+                    java.util.Date date = new java.util.Date();
+                    Timestamp current = new Timestamp(date.getTime());
+                    String nonce = Long.toString(current.getTime());
+
+                    CatalogContext cc = this.getCatalogContext();         
+                    String procName = "@SnapshotSave";
+                    Procedure catalog_proc = cc.procedures.getIgnoreCase(procName);
+                                       
+                    StoredProcedureInvocation spi = new StoredProcedureInvocation(1, procName, path, nonce, 0);                    
+                    
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                    LOG.fatal("SnapshotSave exception: " + ex.getMessage());
+                    this.hstore_coordinator.shutdown();
+                }
+            }
+        }
+        
     }
+        
+    
     
     private void updateMemoryStats(long time) {
         if (trace.val)
@@ -2100,6 +2157,31 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
 
         if (hstore_conf.site.aries_reset) {
             LOG.warn(String.format("Deleting aries directory '%s'", dbDirPath));
+            FileUtil.deleteDirectory(dbDirPath);
+        }
+        FileUtil.makeDirIfNotExists(dbDirPath);
+
+        return (dbDirPath);
+    }    
+    
+    /**
+     * Returns the directory where snapshot files are stored
+     * @return
+     */
+    public static File getSnapshotDir(PartitionExecutor executor) {
+        HStoreConf hstore_conf = executor.getHStoreConf();
+
+        // First make sure that our base directory exists
+        String base_dir = FileUtil.realpath(hstore_conf.site.snapshot_dir);
+
+        synchronized (HStoreSite.class) {
+            FileUtil.makeDirIfNotExists(base_dir);
+        } // SYNC
+
+        File dbDirPath = new File(base_dir);
+
+        if (hstore_conf.site.snapshot_reset) {
+            LOG.warn(String.format("Deleting snapshot directory '%s'", dbDirPath));
             FileUtil.deleteDirectory(dbDirPath);
         }
         FileUtil.makeDirIfNotExists(dbDirPath);

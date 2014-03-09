@@ -754,7 +754,7 @@ public final class HStoreConf {
         public long storage_mmap_sync_frequency; 
 
         // ----------------------------------------------------------------------------
-        // ARIES Options
+        // ARIES Physical Recovery Options
         // ----------------------------------------------------------------------------
         @ConfigProperty(
                 description="ARIES recovery system enabled. ",
@@ -779,6 +779,33 @@ public final class HStoreConf {
                 experimental=true
         )
         public boolean aries_reset;
+        
+        // ----------------------------------------------------------------------------
+        //  Logical Recovery Options
+        // ----------------------------------------------------------------------------
+        @ConfigProperty(
+                description="Logical recovery using snapshots enabled. ",
+                defaultBoolean=false,
+                experimental=true
+        )
+        public boolean snapshot;
+            
+        @ConfigProperty(
+                description="Location of where H-Store will store snapshot files for each partition's tables. " +
+                            "This is only used if ${site.snapshot} is enabled. ",
+                defaultString="${global.temp_dir}/snapshot",
+                experimental=true
+        )
+        public String snapshot_dir;
+
+            
+        @ConfigProperty(
+                description="Reset the snapshot directory for each partition when " +
+                            "the HStoreSite is started (disabled by default).",
+                defaultBoolean=false,
+                experimental=true
+        )
+        public boolean snapshot_reset;        
                     
         
         // ----------------------------------------------------------------------------

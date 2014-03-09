@@ -65,6 +65,7 @@ import org.voltdb.SysProcSelector;
 import org.voltdb.TransactionIdManager;
 import org.voltdb.VoltTable;
 import org.voltdb.catalog.CatalogMap;
+import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Host;
 import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Procedure;
@@ -89,6 +90,7 @@ import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.messaging.FastSerializer;
 import org.voltdb.network.Connection;
 import org.voltdb.network.VoltNetwork;
+import org.voltdb.sysprocs.SnapshotSave;
 import org.voltdb.utils.DBBPool;
 import org.voltdb.utils.EstTime;
 import org.voltdb.utils.EstTimeUpdater;
@@ -149,6 +151,7 @@ import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObservableExceptionHandler;
 import edu.brown.utils.EventObserver;
 import edu.brown.utils.ExceptionHandlingRunnable;
+import edu.brown.utils.FileUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.PartitionSet;
 import edu.brown.utils.StringUtil;
@@ -435,11 +438,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     
     private final String REJECTION_MESSAGE;    
     
+    // ----------------------------------------------------------------------------    
     // ARIES
+    // ----------------------------------------------------------------------------
+
     private AriesLog m_ariesLog = null;
         
-    private String m_ariesLogFileName = null;
-    
+    private String m_ariesLogFileName = null;    
     //XXX Must match with AriesLogProxy
     private final String m_ariesDefaultLogFileName = "aries.log";
     
@@ -452,6 +457,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     public String getAriesLogFileName() {
         return m_ariesLogFileName;
     }
+
+    // ----------------------------------------------------------------------------
+    // LOGICAL RECOVERY
+    // ----------------------------------------------------------------------------
+    
+    private long lastTickTime = 0;
     
     // ----------------------------------------------------------------------------
     // CONSTRUCTOR
@@ -496,6 +507,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         // ARIES 
         if(hstore_conf.site.aries){
+            // Don't use both recovery modes
+            assert(hstore_conf.site.snapshot == false);
+
             LOG.info("Starting ARIES recovery at site");           
 
             String siteName = HStoreThreadManager.formatSiteName(this.getSiteId());
@@ -510,6 +524,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             this.m_recoveryLog = new VoltLogger("RECOVERY");
         }
         
+
+        // LOGICAL
+        if(hstore_conf.site.snapshot){
+            this.lastTickTime =  EstTime.currentTimeMillis();
+        }
+        
+                
         // **IMPORTANT**
         // Always clear out the CatalogUtil and BatchPlanner before we start our new HStoreSite
         // TODO: Move this cache information into CatalogContext
@@ -1348,8 +1369,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         // ARIES
         if (m_ariesLog != null) {
-            doSiteRecovery();
+            doPhysicalRecovery();
             waitForAriesLogInit();
+        }
+        
+        // LOGICAL
+        if (this.hstore_conf.site.snapshot){
+            doLogicalRecovery();
         }
         
         try {
@@ -1405,7 +1431,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     }   
         
     // ARIES
-    public void doSiteRecovery() {
+    public void doPhysicalRecovery() {
         while (!m_ariesLog.isReadyForReplay()) {
             try {
                 // don't sleep for too long as recovery numbers might get biased
@@ -1458,6 +1484,17 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         //LOG.warn("ARIES : log is inititalized at site :"+this.site_id);
     }        
     
+    // LOGICAL
+    public void doLogicalRecovery() {        
+        LOG.warn("Logical : recovery at site with min id :" + this.site_id);
+                
+        //XXX Load snapshot using @SnapshotRestore
+        //XXX Load command log and redo all entires
+     
+        LOG.warn("Logical : recovery completed on site with min id :" + this.site_id);
+    }
+
+        
     // ----------------------------------------------------------------------------
     // SHUTDOWN STUFF
     // ----------------------------------------------------------------------------

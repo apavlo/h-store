@@ -453,7 +453,8 @@ public class TestLogicalRecovery extends RegressionSuite {
         builder.setGlobalConfParameter("site.commandlog_enable", true);
         builder.setGlobalConfParameter("site.commandlog_timeout", 10);
 
-        
+        builder.setGlobalConfParameter("site.snapshot", true);
+
         YCSBProjectBuilder project = new YCSBProjectBuilder();
 
         project.addAllDefaults();
@@ -475,7 +476,7 @@ public class TestLogicalRecovery extends RegressionSuite {
 
         // CONFIG #2: 1 Local Site with 1 Partitions running on JNI backend
         NUM_SITES = 1;
-        NUM_PARTITIONS = 2;
+        NUM_PARTITIONS = 1;
         m_config = new LocalSingleProcessServer("snapshot-" + PREFIX + "-" + NUM_SITES + "-site-" + NUM_PARTITIONS + "-partition.jar", NUM_PARTITIONS, BackendTarget.NATIVE_EE_JNI);
         success = m_config.compile(project);
         assert (success);

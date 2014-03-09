@@ -43,6 +43,7 @@ class BuildContext:
         self.ANTICACHE_BUILD = True
         self.ANTICACHE_REVERSIBLE_LRU = True
         self.ARIES= False
+        self.SNAPSHOT= False
 
         for arg in [x.strip().upper() for x in args]:
             if arg in ["DEBUG", "RELEASE", "MEMCHECK", "MEMCHECK_NOFREELIST"]:
@@ -61,6 +62,9 @@ class BuildContext:
                 parts = arg.split("=")
                 if len(parts) > 1 and not (parts[1].startswith("${")): self.STORAGE_MMAP_SYNC_FREQUENCY = long(parts[1])
             if arg.startswith("ARIES="):
+                parts = arg.split("=")
+                if len(parts) > 1 and not (parts[1].startswith("${")): self.ARIES = bool(parts[1])
+            if arg.startswith("SNAPSHOT="):
                 parts = arg.split("=")
                 if len(parts) > 1 and not (parts[1].startswith("${")): self.ARIES = bool(parts[1])
             if arg.startswith("ANTICACHE_ENABLE="):
