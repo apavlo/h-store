@@ -62,7 +62,7 @@ public class TestPhysicalRecovery extends RegressionSuite {
 
     // YCSB
     private static final String PREFIX = "ycsb";
-    private static final int NUM_TUPLES = 100000;
+    private static final int NUM_TUPLES = 10000;
 
     public TestPhysicalRecovery(String name) {
         super(name);
@@ -151,79 +151,87 @@ public class TestPhysicalRecovery extends RegressionSuite {
             e.printStackTrace();
         }        
                 
-        // Read Record
-        
-        long key = NUM_TUPLES/2;
-        String procName = ReadRecord.class.getSimpleName();
-        Object params[] ;
-        params = new Object[]{ key };
-        
-        cresponse = client.callProcedure(procName, params);
-        assertNotNull(cresponse);
-        assertEquals(Status.OK, cresponse.getStatus());
-        assertEquals(1, cresponse.getResults().length);
-        
-        VoltTable vt = cresponse.getResults()[0];
-        boolean adv = vt.advanceRow();
-        assert(adv);
-        assertEquals(key, vt.getLong(0));
-        
+        // Statistics 
         results = client.callProcedure("@Statistics", "table", 0).getResults();
+        System.out.println("@Statistics before RESTART :");               
         System.out.println(results[0]);
+
+        int numTestTuples = NUM_TUPLES;        
+        int period = numTestTuples/10;
+        long key, k_itr ;
+        String procName ;
+        Object params[];
+        VoltTable vt;
         
-        // Delete, then Insert these many tuples back
-        int numTestTuples = NUM_TUPLES/4;
-        
-        for (long k_itr = 0; k_itr < numTestTuples; k_itr++) {
+        // Read tuples
+        for (k_itr = 0; k_itr < numTestTuples; k_itr++) {
+            key = k_itr;
+            procName = ReadRecord.class.getSimpleName();
+            params = new Object[] { key };
+
+            cresponse = client.callProcedure(procName, params);
+            assertNotNull(cresponse);
+            assertEquals(Status.OK, cresponse.getStatus());
+            assertEquals(1, cresponse.getResults().length);
+            
+            if(k_itr%period == 0)
+                System.out.println(String.format("Records Processed: %6d / %d",k_itr, numTestTuples));                
+        }
+
+        System.out.println(String.format("Records Processed: %6d / %d",k_itr, numTestTuples));                
+        System.out.println("ReadRecord Test Passed");
+
+        // Delete and then Insert these many tuples back
+        for (k_itr = 0; k_itr < numTestTuples; k_itr++) {
             procName = DeleteRecord.class.getSimpleName();
             key = k_itr;
-            params =  new Object[]{ key };
-            
+            params = new Object[] { key };
+
             cresponse = client.callProcedure(procName, params);
             assertEquals(Status.OK, cresponse.getStatus());
             results = cresponse.getResults();
 
             assertEquals(1, results.length);
             assertNotNull(cresponse);
+
+            if(k_itr%period == 0)
+                System.out.println(String.format("Records Processed: %6d / %d",k_itr, numTestTuples));                
         }
 
+        System.out.println(String.format("Records Processed: %6d / %d",k_itr, numTestTuples));                
         System.out.println("Delete Record Test Passed");
 
-        for (long k_itr = 0; k_itr < numTestTuples; k_itr++) {
+        for (k_itr = 0; k_itr < numTestTuples; k_itr++) {
             procName = InsertRecord.class.getSimpleName();
             key = k_itr;
             String fields[] = new String[YCSBConstants.NUM_COLUMNS];
             for (int i = 0; i < fields.length; i++) {
                 fields[i] = YCSBUtil.astring(YCSBConstants.COLUMN_LENGTH, YCSBConstants.COLUMN_LENGTH);
             } // FOR
-            params = new Object[]{ key, fields };
-                        
+            params = new Object[] { key, fields };
+
             cresponse = client.callProcedure(procName, params);
             assertEquals(Status.OK, cresponse.getStatus());
             results = cresponse.getResults();
 
             assertEquals(1, results.length);
             assertNotNull(cresponse);
+            
+            if(k_itr%period == 0)
+                System.out.println(String.format("Records Processed: %6d / %d",k_itr, numTestTuples));                
         }
 
+        System.out.println(String.format("Records Processed: %6d / %d",k_itr, numTestTuples));                
         System.out.println("Insert Record Test Passed");
-
-        VoltTable[] results_tmp = null;
-        results_tmp = client.callProcedure("@Statistics", "table", 0).getResults();
-
-        System.out.println("@Statistics before RESTART :");
-        System.out.println(results_tmp[0]);      
         
         // Kill and restart all the execution sites.
         m_config.shutDown();
         m_config.startUp();
         client = getClient();        
-        
-        results_tmp = null;
-        results_tmp = client.callProcedure("@Statistics", "table", 0).getResults();
 
+        results = client.callProcedure("@Statistics", "table", 0).getResults();
         System.out.println("@Statistics after PHYSICAL restore :");
-        System.out.println(results_tmp[0]);      
+        System.out.println(results[0]);      
         
         //checkYCSBTable(client, NUM_TUPLES);              
 

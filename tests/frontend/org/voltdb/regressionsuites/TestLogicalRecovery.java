@@ -29,10 +29,8 @@ import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.io.UnsupportedEncodingException;
-import java.sql.Timestamp;
 import java.util.Calendar;
 import java.util.Iterator;
-import java.util.Stack;
 
 import junit.framework.Test;
 
@@ -41,7 +39,6 @@ import org.voltdb.CatalogContext;
 import org.voltdb.DefaultSnapshotDataTarget;
 import org.voltdb.VoltTable;
 import org.voltdb.client.Client;
-import org.voltdb.client.ClientFactory;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.NoConnectionsException;
 import org.voltdb.client.ProcCallException;
@@ -54,7 +51,6 @@ import edu.brown.benchmark.ycsb.YCSBUtil;
 import edu.brown.benchmark.ycsb.procedures.DeleteRecord;
 import edu.brown.benchmark.ycsb.procedures.InsertRecord;
 import edu.brown.benchmark.ycsb.procedures.ReadRecord;
-import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.cmdlog.CommandLogReader;
 import edu.brown.hstore.cmdlog.CommandLogWriter;
@@ -75,7 +71,7 @@ public class TestLogicalRecovery extends RegressionSuite {
 
     // YCSB
     private static final String PREFIX = "ycsb";
-    private static final int NUM_TUPLES = 1000;
+    private static final int NUM_TUPLES = 10000;
 
     public TestLogicalRecovery(String name) {
         super(name);
@@ -201,30 +197,38 @@ public class TestLogicalRecovery extends RegressionSuite {
             e.printStackTrace();
         }
 
-        // Read Record
-
-        long key = NUM_TUPLES/2;
-        String procName = ReadRecord.class.getSimpleName();
-        Object params[];
-        params = new Object[] { key };
-
-        cresponse = client.callProcedure(procName, params);
-        assertNotNull(cresponse);
-        assertEquals(Status.OK, cresponse.getStatus());
-        assertEquals(1, cresponse.getResults().length);
-
-        VoltTable vt = cresponse.getResults()[0];
-        boolean adv = vt.advanceRow();
-        assert (adv);
-        assertEquals(key, vt.getLong(0));
-
+        // Statistics 
+        
         results = client.callProcedure("@Statistics", "table", 0).getResults();
         System.out.println(results[0]);
 
-        // Delete, then Insert these many tuples back
-        int numTestTuples = NUM_TUPLES/4;
+        int numTestTuples = NUM_TUPLES;        
+        int period = numTestTuples/10;
+        long key, k_itr ;
+        String procName ;
+        Object params[];
+        VoltTable vt;
+        
+        // Read tuples
+        for (k_itr = 0; k_itr < numTestTuples; k_itr++) {
+            key = k_itr;
+            procName = ReadRecord.class.getSimpleName();
+            params = new Object[] { key };
 
-        for (long k_itr = 0; k_itr < numTestTuples; k_itr++) {
+            cresponse = client.callProcedure(procName, params);
+            assertNotNull(cresponse);
+            assertEquals(Status.OK, cresponse.getStatus());
+            assertEquals(1, cresponse.getResults().length);
+            
+            if(k_itr%period == 0)
+                System.out.println(String.format("Records Processed: %6d / %d",k_itr, numTestTuples));                
+        }
+
+        System.out.println(String.format("Records Processed: %6d / %d",k_itr, numTestTuples));                
+        System.out.println("ReadRecord Test Passed");
+
+        // Delete and then Insert these many tuples back
+        for (k_itr = 0; k_itr < numTestTuples; k_itr++) {
             procName = DeleteRecord.class.getSimpleName();
             key = k_itr;
             params = new Object[] { key };
@@ -235,11 +239,15 @@ public class TestLogicalRecovery extends RegressionSuite {
 
             assertEquals(1, results.length);
             assertNotNull(cresponse);
+
+            if(k_itr%period == 0)
+                System.out.println(String.format("Records Processed: %6d / %d",k_itr, numTestTuples));                
         }
 
+        System.out.println(String.format("Records Processed: %6d / %d",k_itr, numTestTuples));                
         System.out.println("Delete Record Test Passed");
 
-        for (long k_itr = 0; k_itr < numTestTuples; k_itr++) {
+        for (k_itr = 0; k_itr < numTestTuples; k_itr++) {
             procName = InsertRecord.class.getSimpleName();
             key = k_itr;
             String fields[] = new String[YCSBConstants.NUM_COLUMNS];
@@ -254,8 +262,12 @@ public class TestLogicalRecovery extends RegressionSuite {
 
             assertEquals(1, results.length);
             assertNotNull(cresponse);
+            
+            if(k_itr%period == 0)
+                System.out.println(String.format("Records Processed: %6d / %d",k_itr, numTestTuples));                
         }
 
+        System.out.println(String.format("Records Processed: %6d / %d",k_itr, numTestTuples));                
         System.out.println("Insert Record Test Passed");
 
         // Take Snapshot

@@ -2,17 +2,15 @@
 # YCSB MMAP Experiments
  
 USAGE="Usage: `basename $0` 
-       [-hv]  
-       [-a (enable anticache)]  
-       [-r (clean and rebuild)] 
-       [-m (enable storage_mmap)] 
+       [-h]  
        [-g (get latency)] 
        [-s (set latency)] 
+       [-r (clean and rebuild)] 
+       [-d (disable anticache)]  
         "
 
-ENABLE_ANTICACHE=false
+ENABLE_ANTICACHE=true
 REBUILD=false
-ENABLE_MMAP=false
 
 NVM_LATENCY=110
 
@@ -23,20 +21,13 @@ while getopts hvarmgs: OPT; do
             echo "$USAGE"
             exit 0
             ;;
-        v)
-            echo "`basename $0` version 0.1"
-            exit 0
-            ;;
+        
         a)
-            ENABLE_ANTICACHE=true
+            ENABLE_ANTICACHE=false
             ;;
 
         r)
             REBUILD=true
-            ;;
-        
-        m)
-            ENABLE_MMAP=true
             ;;
 
         g)
@@ -78,7 +69,6 @@ shift `expr $OPTIND - 1`
 echo "---------------------------------------------------------"
 echo "ENABLE_ANTICACHE : " $ENABLE_ANTICACHE
 echo "REBUILD : " $REBUILD
-echo "ENABLE_MMAP : " $ENABLE_MMAP
 echo "---------------------------------------------------------"
  
 # Access additional arguments as usual through 
@@ -186,11 +176,6 @@ BASE_ARGS=( \
     "-Dclient.anticache_evict_interval=10000" \
     "-Dclient.anticache_evict_size=102400" \
     "-Dclient.output_csv=results.csv" \
-
-    # MMAP Experiments
-    "-Dsite.storage_mmap=${ENABLE_MMAP}" \
-    "-Dsite.storage_mmap_dir=\"/mnt/pmfs/mmap/\"" \
-    "-Dsite.storage_mmap_sync_frequency=1024" \
 
     # CLIENT DEBUG
 #    "-Dclient.output_txn_counters=txncounters.csv" \
