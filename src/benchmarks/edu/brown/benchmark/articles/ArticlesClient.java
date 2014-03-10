@@ -35,11 +35,12 @@ public class ArticlesClient extends BenchmarkComponent {
 	        } // FOR
 	        assert(txns.getSampleCount() == 100) : txns;
 	        this.rand_gen = new Random(); 
-	        this.txnWeights = new FlatHistogram<Transaction>(this.rand_gen, txns);
 	        this.readRecord = new Zipf(this.rand_gen, 0,
                     ArticlesConstants.ARTICLES_SIZE, 1.0001);
 	        this.insertRecord = new Zipf(this.rand_gen, 0, ArticlesConstants.ARTICLES_SIZE*ArticlesConstants.MAX_COMMENTS_PER_ARTICLE, 1.0001);
 	        this.userRecord = new Zipf(this.rand_gen, 0, ArticlesConstants.USERS_SIZE, 1.0001);
+
+	        this.txnWeights = new FlatHistogram<Transaction>(this.rand_gen, txns);
 	    }
 		  public static enum Transaction {
 		  GET_ARTICLE("Get Article", ArticlesConstants.FREQUENCY_GET_ARTICLE),
@@ -67,19 +68,21 @@ public class ArticlesClient extends BenchmarkComponent {
 	    protected boolean runOnce() throws IOException {
 	        // pick random transaction to call, weighted by txnWeights
 	        final Transaction target = this.txnWeights.nextValue();
-	        
+	        System.out.println("Runnin once part 1");
 	        
 	        Object params[];
 	        switch (target) {
 	            case GET_ARTICLES:
 	            case GET_ARTICLE: {
 	                params = new Object[]{ ((Random) this.readRecord).nextInt() };
+	                System.out.println("Runnin once get article");
 	                break;
 	            }
 	            case ADD_COMMENT: {
 	                int key = this.insertRecord.nextInt(); // cid
 	                int a_id = this.readRecord.nextInt(); // aid
 	                int u_id = this.userRecord.nextInt();// uid
+	                System.out.println("Runnin once add comments");
 	                String text = ArticlesUtil.astring(100, 100);
 	                params = new Object[]{ key, a_id, u_id, text};
 	                break;
@@ -87,6 +90,7 @@ public class ArticlesClient extends BenchmarkComponent {
 	            case UPDATE_USER:
 	            	String lastname = ArticlesUtil.astring(100, 100);
 	            	int u_id = this.userRecord.nextInt();
+	            	System.out.println("Runnin once update user");
 	                params = new Object[]{ lastname, u_id };
 	                break;
 	            default:
@@ -95,28 +99,42 @@ public class ArticlesClient extends BenchmarkComponent {
 	        assert(params != null);
 	        
 	        Callback callback = new Callback(target.ordinal());
-	        return this.getClientHandle().callProcedure(callback, target.callName, params);
+	        System.out.println(target.callName);
+	        System.out.println(params);
+	        boolean val = this.getClientHandle().callProcedure(callback, target.callName, params);
+	        
+	        return val;
 	    }
 	 
+	    @SuppressWarnings("unused")
+	    @Deprecated
 	    @Override
 	    public void runLoop() {
 	    	Client client = this.getClientHandle();
 	        try {
-	          while (true) {
-	              runOnce();
-	              client.backpressureBarrier();
-	          } 
-	      } catch (NoConnectionsException e) {
-	          // Client has no clean mechanism for terminating with the DB.
-	          e.printStackTrace();
-	      } catch (IOException e) {
-	          // At shutdown an IOException is thrown for every connection to
-	          // the DB that is lost Ignore the exception here in order to not
-	          // get spammed, but will miss lost connections at runtime
-	      } catch (InterruptedException e){
-	    	  
-	      }
-	    	
+	            while (true) {
+	                this.runOnce();
+	                client.backpressureBarrier();
+	            } // WHILE
+	        } catch (Exception ex) {
+	            ex.printStackTrace();
+	        }
+//
+//	    	
+//	        try {
+//	            
+//	            Random rand = new Random();
+//	            int key = -1; 
+//	            int scan_count; 
+//	            while (true) {
+//	            	System.out.println("loop print");
+//	                runOnce();
+//	                this.run_count++; 
+//	            } 
+//	        } 
+//	        catch (IOException e) {
+//	            
+//	        }
 	    }
 	    
 	    

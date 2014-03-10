@@ -12,8 +12,9 @@ public class ArticlesProjectBuilder extends AbstractProjectBuilder{
  
     // REQUIRED: Retrieved via reflection by BenchmarkController
     public static final Class<? extends BenchmarkComponent> m_loaderClass = ArticlesLoader.class;
- 
-    public static final Class<?> PROCEDURES[] = new Class<?>[] {
+    
+    @SuppressWarnings("unchecked")
+    public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[]) new Class<?>[] {
         GetArticle.class,
         GetArticles.class,
         AddComment.class,
@@ -33,10 +34,9 @@ public class ArticlesProjectBuilder extends AbstractProjectBuilder{
         { ArticlesConstants.TABLENAME_USERS, "U_ID" },
         { ArticlesConstants.TABLENAME_COMMENTS, "A_ID" }
     };
- 
-    @SuppressWarnings("unchecked")
+    
 	public ArticlesProjectBuilder() {
-    	super("articles", ArticlesProjectBuilder.class, (Class<? extends VoltProcedure>[]) PROCEDURES, PARTITIONING);
+    	super("articles", ArticlesProjectBuilder.class, PROCEDURES, PARTITIONING);
  
     }
 
