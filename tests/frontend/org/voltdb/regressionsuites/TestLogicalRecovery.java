@@ -29,6 +29,7 @@ import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.io.UnsupportedEncodingException;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Iterator;
 
@@ -38,6 +39,9 @@ import org.voltdb.BackendTarget;
 import org.voltdb.CatalogContext;
 import org.voltdb.DefaultSnapshotDataTarget;
 import org.voltdb.VoltTable;
+import org.voltdb.catalog.CatalogMap;
+import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.Site;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.NoConnectionsException;
@@ -71,7 +75,7 @@ public class TestLogicalRecovery extends RegressionSuite {
 
     // YCSB
     private static final String PREFIX = "ycsb";
-    private static final int NUM_TUPLES = 10000;
+    private static final int NUM_TUPLES = 100;
 
     public TestLogicalRecovery(String name) {
         super(name);
@@ -315,9 +319,19 @@ public class TestLogicalRecovery extends RegressionSuite {
         results = client.callProcedure("@Statistics", "table", 0).getResults();
         System.out.println(results[0]);
                 
-        File logDir = new File("./obj" + File.separator + "cmdlog");
-                               
-        parseAndApplyCommandLog(logDir);
+        File logDir = new File("./obj" + File.separator + "cmdlog");                               
+        
+        // Parse WAL logs for all sites
+        CatalogContext cc = this.getCatalogContext();
+        CatalogMap<Site> sites = cc.sites;
+
+        for(Site site : sites){
+            String siteName = site.getName().toLowerCase();
+            siteName = "h0" + siteName;            
+            System.err.println("Site Prefix : "+siteName);
+            
+            parseAndApplyCommandLog(logDir, siteName);            
+        }
 
         calendar = Calendar.getInstance();                    
         t2 = calendar.getTimeInMillis();
@@ -328,42 +342,57 @@ public class TestLogicalRecovery extends RegressionSuite {
     }
     
     // COMMAND LOG        
-    File scanForLatestLogFile(File logDir){
+    File scanForLatestLogFile(File logDir, String prefix){
         System.err.println("Scanning logDir :" + logDir.getAbsolutePath());           
 
+        final String logPrefix = prefix;
         FilenameFilter cleaner = new FilenameFilter() {
             public boolean accept(File dir, String file) {
-                return  file.endsWith(CommandLogWriter.LOG_OUTPUT_EXT);
+                return  file.startsWith(logPrefix) && file.endsWith(CommandLogWriter.LOG_OUTPUT_EXT);
             }
         };
 
         File[] logFiles = logDir.listFiles(cleaner);
-        File latestFile = null, prevFile = null;
-        long timeStamp = Long.MIN_VALUE;
+        File latestFile = null, prevFile = null;        
+        long maxTimeStamp = Long.MIN_VALUE;
+        
         for (File logFile : logFiles) {
-            if(logFile.lastModified() > timeStamp){
-                timeStamp = logFile.lastModified();
+            String name = logFile.getName();
+            String delims = "_|\\.";
+            String[] tokens = name.split(delims);
+
+            //System.err.println("Tokens :"+Arrays.toString(tokens));
+
+            if(tokens.length <= 1)
+                continue;
+            
+            long fileTimestamp = Long.parseLong(tokens[1]) ;
+            if(fileTimestamp > maxTimeStamp){
+                maxTimeStamp = fileTimestamp;
                 prevFile = latestFile;
                 latestFile = logFile;         
             }
         }       
-        
+
         if(prevFile != null){
-            System.err.println("Using logfile :" + prevFile.getAbsolutePath()+ " total space :"+prevFile.getTotalSpace());           
+            System.err.println("Using logfile :" + prevFile.getAbsolutePath());           
         }
-        
+
         if(latestFile != null){
-            System.err.println("Found latest logfile :" + latestFile.getAbsolutePath() + " total space :"+ latestFile.getTotalSpace());           
+            //System.err.println("Found latest logfile :" + latestFile.getAbsolutePath());           
         }
         
         return prevFile;
     }
     
-    void parseAndApplyCommandLog(File logDir) throws NoConnectionsException, IOException, ProcCallException {
+    void parseAndApplyCommandLog(File logDir, String hostPrefix) throws NoConnectionsException, IOException, ProcCallException {
 
-        assert(logDir != null);
-        
-        File latestFile = scanForLatestLogFile(logDir);
+        if(logDir == null){
+            System.err.println("logDir null ");           
+            return;
+        }
+
+        File latestFile = scanForLatestLogFile(logDir, hostPrefix);
         
         if(latestFile == null){
             System.err.println("Command log not found :" + logDir.getAbsolutePath());           
@@ -400,16 +429,17 @@ public class TestLogicalRecovery extends RegressionSuite {
             Object[] entryParams = entry.getProcedureParams().toArray();
         
             String procName = cc.getProcedureById(entry.getProcedureId()).fullName();
-            //System.out.println("Invoking procedure ::" + procName);
+            Procedure catalog_proc = cc.procedures.getIgnoreCase(procName);
 
-            cresponse = client.callProcedure(procName, entry.getProcedureParams().toArray());
-            assertEquals(cresponse.getStatus(), Status.OK);
-            results = cresponse.getResults();
+            if(catalog_proc.getReadonly() == false){
+                // System.out.println("Invoking procedure ::" + procName);
 
-            assertEquals(results.length, 1);
-            // assertEquals(NUM_TUPLES, results[0].asScalarLong());
-            // System.out.println("Results for procedure ::" + procName + " " +
-            // results[0]);
+                cresponse = client.callProcedure(procName, entry.getProcedureParams().toArray());
+                assertEquals(cresponse.getStatus(), Status.OK);
+                
+                // results = cresponse.getResults();
+                // assertEquals(results.length, 1);
+            }
 
             ctr++;
         }

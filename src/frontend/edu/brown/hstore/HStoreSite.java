@@ -618,14 +618,14 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             // invocation of the system (like the cluster instanceId). But for now
             // we'll just write out to our directory...
             
-            Calendar calendar = Calendar.getInstance();            
-            java.util.Date now = calendar.getTime();
-            Timestamp currentTimestamp = new Timestamp(now.getTime());
+            java.util.Date date = new java.util.Date();
+            Timestamp current = new Timestamp(date.getTime());
+            String nonce = Long.toString(current.getTime());            
             
             File logFile = new File(hstore_conf.site.commandlog_dir +
                                     File.separator +
                                     this.getSiteName().toLowerCase() +
-                                    "_" + currentTimestamp +
+                                    "_" + nonce +
                                     CommandLogWriter.LOG_OUTPUT_EXT);                      
                      
             this.commandLogger = new CommandLogWriter(this, logFile);
