@@ -36,6 +36,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.ConcurrentModificationException;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -63,6 +64,7 @@ import org.voltdb.StatsSource;
 import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.SysProcSelector;
 import org.voltdb.TransactionIdManager;
+import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.catalog.CatalogMap;
 import org.voltdb.catalog.Database;
@@ -106,6 +108,7 @@ import edu.brown.hstore.HStoreThreadManager.ThreadGroupType;
 import edu.brown.hstore.Hstoreservice.QueryEstimate;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
+import edu.brown.hstore.PartitionExecutor.SystemProcedureExecutionContext;
 import edu.brown.hstore.callbacks.ClientResponseCallback;
 import edu.brown.hstore.callbacks.LocalFinishCallback;
 import edu.brown.hstore.callbacks.LocalInitQueueCallback;
@@ -904,6 +907,124 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
     }
     
+    // -------------------------------
+    // SNAPSHOTTING SETUP
+    // -------------------------------
+    
+    /**
+     * Returns the directory where snapshot files are stored
+     * @return
+     */
+    public File getSnapshotDir() {
+        // First make sure that our base directory exists
+        String base_dir = FileUtil.realpath(this.hstore_conf.site.snapshot_dir);
+
+        synchronized (HStoreSite.class) {
+            FileUtil.makeDirIfNotExists(base_dir);
+        } // SYNC
+
+        File dbDirPath = new File(base_dir);
+
+        if (this.hstore_conf.site.snapshot_reset) {
+            LOG.warn(String.format("Deleting snapshot directory '%s'", dbDirPath));
+            FileUtil.deleteDirectory(dbDirPath);
+        }
+        FileUtil.makeDirIfNotExists(dbDirPath);
+
+        return (dbDirPath);
+    }
+    
+    /**
+     * Thread that is periodically executed to take snapshots
+     */
+    private final ExceptionHandlingRunnable snapshotter = new ExceptionHandlingRunnable() {
+        @Override
+        public void runImpl() {
+            synchronized(HStoreSite.this) {
+                try {
+                    // take snapshot
+                    takeSnapshot();                    
+                } catch (Throwable ex) {
+                    ex.printStackTrace();
+                }
+            }
+        }
+    };
+
+    /**
+     * Take snapshots
+     */
+    private void takeSnapshot(){
+        // Do this only on site lowest id
+        Host catalog_host = this.getHost();
+        Site site = this.getSite();
+
+        Integer lowest_site_id = Integer.MAX_VALUE, s_id;
+
+        for (Site st : CatalogUtil.getAllSites(catalog_host)) {
+            s_id = st.getId();
+            lowest_site_id = Math.min(s_id, lowest_site_id);
+        }
+
+        int m_siteId = this.getSiteId();
+        
+        if (m_siteId == lowest_site_id) {
+            LOG.warn("Taking snapshot at site "+m_siteId);
+
+            VoltTable[] results = null;
+            try {
+                File snapshotDir = this.getSnapshotDir();
+                String path = snapshotDir.getAbsolutePath();
+
+                java.util.Date date = new java.util.Date();
+                Timestamp current = new Timestamp(date.getTime());
+                String nonce = Long.toString(current.getTime());
+
+                CatalogContext cc = this.getCatalogContext();
+                String procName = VoltSystemProcedure.procCallName(SnapshotSave.class);
+                Procedure catalog_proc = cc.procedures.getIgnoreCase(procName);
+
+                ParameterSet params = new ParameterSet();
+                params.setParameters(
+                        path,  // snapshot dir
+                        nonce, // nonce - timestamp
+                        1      // block
+                        );
+
+                int base_partition = Collections.min(this.local_partitions);
+
+                RpcCallback<ClientResponseImpl> callback = new RpcCallback<ClientResponseImpl>() {
+                    @Override
+                    public void run(ClientResponseImpl parameter) {
+                        // Do nothing!
+                    }
+                };
+
+                LocalTransaction ts = this.txnInitializer.createLocalTransaction(
+                        null, 
+                        EstTime.currentTimeMillis(), 
+                        99999999, 
+                        base_partition, 
+                        catalog_proc, 
+                        params, 
+                        callback
+                        );
+
+                LOG.warn("Queuing snapshot transaction : base partition : "+base_partition+" path :"+ path + " nonce :"+ nonce);
+
+                // Queue @SnapshotSave transaction
+                this.transactionQueue(ts);
+
+            } catch (Exception ex) {
+                ex.printStackTrace();
+                LOG.fatal("SnapshotSave exception: " + ex.getMessage());
+                this.hstore_coordinator.shutdown();
+            }
+        }        
+        
+    }
+    
+    
     /**
      * Schedule all the periodic works
      */
@@ -985,8 +1106,20 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 SystemStatsCollector.asyncSampleSystemNow(true, true);
             }
         }, 0, 6, TimeUnit.MINUTES);
+        
+        // Take Snapshots
+        /* Disable for now
+        if (this.hstore_conf.site.snapshot) {
+                this.threadManager.schedulePeriodicWork(
+                        this.snapshotter,
+                        hstore_conf.site.snapshot_interval,
+                        hstore_conf.site.snapshot_interval,
+                        TimeUnit.MILLISECONDS);
+        }
+        */
+        
     }
-    
+        
     // ----------------------------------------------------------------------------
     // INTERFACE METHODS
     // ----------------------------------------------------------------------------

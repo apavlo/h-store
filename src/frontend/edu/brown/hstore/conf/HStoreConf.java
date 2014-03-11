@@ -814,6 +814,12 @@ public final class HStoreConf {
         )
         public boolean snapshot_reset;        
                     
+        @ConfigProperty(
+                description="How often in milliseconds should we take snapshots in HStoreSite ",
+                defaultInt=10000,
+                experimental=true
+            )
+            public int snapshot_interval;
         
         // ----------------------------------------------------------------------------
         // MapReduce Options

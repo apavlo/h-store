@@ -48,6 +48,7 @@ import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -1648,58 +1649,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         // do other periodic work
         if (m_snapshotter != null)
             m_snapshotter.doSnapshotWork(this.ee);
-
-        if (this.hstore_conf.site.snapshot) {
-            // Do this only on partition with lowest id on site with lowest site id
-            SystemProcedureExecutionContext context = this.getSystemProcedureExecutionContext();
-            Host catalog_host = context.getHost();
-            Site site = context.getSite();
-
-            CatalogMap<Partition> partition_map = site.getPartitions();
-            Integer lowest_partition_id = Integer.MAX_VALUE, p_id;
-            Integer lowest_site_id = Integer.MAX_VALUE, s_id;
-
-            for (Site st : CatalogUtil.getAllSites(catalog_host)) {
-                s_id = st.getId();
-                lowest_site_id = Math.min(s_id, lowest_site_id);
-            }
-
-            for (Partition pt : partition_map) {
-                p_id = pt.getId();
-                lowest_partition_id = Math.min(p_id, lowest_partition_id);
-            }
-
-            assert (lowest_partition_id != Integer.MAX_VALUE);
-            
-            int m_siteId = context.getSite().getId();
-            int m_partitionId  = context.getPartitionExecutor().getPartitionId();
-            
-            if (m_siteId == lowest_site_id && m_partitionId == lowest_partition_id) {
-                //LOG.warn("Taking snapshot at partition " + m_partitionId +" on site "+m_siteId);
-
-                VoltTable[] results = null;
-                try {
-                    File snapshotDir = getSnapshotDir(this);
-                    String path = snapshotDir.getAbsolutePath();
-
-                    java.util.Date date = new java.util.Date();
-                    Timestamp current = new Timestamp(date.getTime());
-                    String nonce = Long.toString(current.getTime());
-
-                    CatalogContext cc = this.getCatalogContext();         
-                    String procName = "@SnapshotSave";
-                    Procedure catalog_proc = cc.procedures.getIgnoreCase(procName);
-                                       
-                    StoredProcedureInvocation spi = new StoredProcedureInvocation(1, procName, path, nonce, 0);                    
-                    
-                } catch (Exception ex) {
-                    ex.printStackTrace();
-                    LOG.fatal("SnapshotSave exception: " + ex.getMessage());
-                    this.hstore_coordinator.shutdown();
-                }
-            }
-        }
-        
+                
     }
         
     
@@ -2167,31 +2117,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
 
         return (dbDirPath);
     }    
-    
-    /**
-     * Returns the directory where snapshot files are stored
-     * @return
-     */
-    public static File getSnapshotDir(PartitionExecutor executor) {
-        HStoreConf hstore_conf = executor.getHStoreConf();
-
-        // First make sure that our base directory exists
-        String base_dir = FileUtil.realpath(hstore_conf.site.snapshot_dir);
-
-        synchronized (HStoreSite.class) {
-            FileUtil.makeDirIfNotExists(base_dir);
-        } // SYNC
-
-        File dbDirPath = new File(base_dir);
-
-        if (hstore_conf.site.snapshot_reset) {
-            LOG.warn(String.format("Deleting snapshot directory '%s'", dbDirPath));
-            FileUtil.deleteDirectory(dbDirPath);
-        }
-        FileUtil.makeDirIfNotExists(dbDirPath);
-
-        return (dbDirPath);
-    }
+      
 
     /**
      * Returns the file where the EE should store the ARIES log for this
@@ -5208,6 +5134,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
     }
 
     public Collection<Exception> completeSnapshotWork() throws InterruptedException {
+        LOG.warn("completeSnapshotWork at partition :"+this.getPartitionId());
         return m_snapshotter.completeSnapshotWork(ee);
     }    
     
