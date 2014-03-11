@@ -27,6 +27,7 @@
 #define HSTOREANTICACHE_H
 
 #include <db_cxx.h>
+#include "common/debuglog.h"
 
 #define ANTICACHE_DB_NAME "anticache.db"
 
@@ -54,6 +55,7 @@ class AntiCacheBlock {
             return (m_value.get_size());
         }
         inline char* getData() const {
+        	VOLT_DEBUG("Tablename %s", m_header.m_tableName);
             return (static_cast<char*>(m_value.get_data()));
         }
         struct blockHeader {
