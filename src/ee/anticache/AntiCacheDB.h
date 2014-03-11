@@ -48,7 +48,7 @@ class AntiCacheBlock {
         ~AntiCacheBlock();
         
         inline int16_t getBlockId() const {
-            return (m_blockId);
+            return (m_header->m_blockId);
         }
         inline int getSize() const {
             return (m_value.get_size());
@@ -56,11 +56,14 @@ class AntiCacheBlock {
         inline char* getData() const {
             return (static_cast<char*>(m_value.get_data()));
         }
+        struct blockHeader {
+        	int16_t m_blockId;
+        	std::string m_tableName;
+        };
     
     private:
-        AntiCacheBlock(int16_t blockId, Dbt value);
-        
-        int16_t m_blockId;
+        AntiCacheBlock(int16_t blockId, std::string tableName, Dbt value);
+        blockHeader *m_header;
         Dbt m_value;
 }; // CLASS
 

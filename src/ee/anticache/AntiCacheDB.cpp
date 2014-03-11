@@ -32,16 +32,18 @@ using namespace std;
 
 namespace voltdb {
 
-AntiCacheBlock::AntiCacheBlock(int16_t blockId, Dbt value) :
-        m_blockId(blockId),
-        m_value(value) {
+AntiCacheBlock::AntiCacheBlock(int16_t blockId, std::string m_tableName, Dbt value) {
+        m_header = new blockHeader;
+        m_header->m_blockId = blockId;
+        m_header->m_tableName = m_tableName;
+        m_value = value;
     // They see me rollin'
     // They hatin'
 }
 
 AntiCacheBlock::~AntiCacheBlock() {
     // we asked BDB to allocate memory for data dynamically, so we must delete
-    if(m_blockId > 0)
+    if(m_header->m_blockId > 0)
         delete [] (char*)m_value.get_data(); 
 }
     
@@ -103,9 +105,13 @@ void AntiCacheDB::writeBlock(const std::string tableName,
                              const int tupleCount,
                              const char* data,
                              const long size) {
+
     Dbt key; 
-    key.set_data(&blockId);
-    key.set_size(sizeof(int16_t));
+    AntiCacheBlock::blockHeader * header = new AntiCacheBlock::blockHeader;
+    header->m_blockId = blockId;
+    header->m_tableName = tableName;
+    key.set_data(header);
+    key.set_size(sizeof(header));
     
     Dbt value;
     value.set_data(const_cast<char*>(data));
@@ -124,8 +130,11 @@ void AntiCacheDB::flushBlocks()
 
 AntiCacheBlock AntiCacheDB::readBlock(std::string tableName, int16_t blockId) {
     Dbt key;
-    key.set_data(&blockId);
-    key.set_size(sizeof(int16_t));
+    AntiCacheBlock::blockHeader *header = new AntiCacheBlock::blockHeader;
+    header->m_blockId = blockId;
+    header->m_tableName = tableName;
+    key.set_data(header);
+    key.set_size(sizeof(header));
 
     Dbt value;
     value.set_flags(DB_DBT_MALLOC);
@@ -142,7 +151,7 @@ AntiCacheBlock AntiCacheDB::readBlock(std::string tableName, int16_t blockId) {
         assert(value.get_data() != NULL);
     }
     
-    AntiCacheBlock block(blockId, value);
+    AntiCacheBlock block(blockId, tableName, value);
     return (block);
 }
     
