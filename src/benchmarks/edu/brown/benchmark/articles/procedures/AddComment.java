@@ -4,8 +4,9 @@ import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
+
 @ProcInfo(
-	    partitionInfo = "ARTICLES.A_ID: 0",
+	    partitionParam = 1,
 	    singlePartition = true
 	)
 public class AddComment extends VoltProcedure{
@@ -20,8 +21,11 @@ public class AddComment extends VoltProcedure{
     public VoltTable[] run(long c_id, long a_id, long u_id, String c_text) {
     	System.out.println("Running procedure Add comment "+a_id);
         voltQueueSQL(AddComment, c_id, a_id, u_id, c_text);
-        //voltQueueSQL(UpdateArticle, a_id);
-        return (voltExecuteSQL(true));
+        return voltExecuteSQL(true);
+//        voltQueueSQL(UpdateArticle, a_id);
+//        VoltTable[] results = voltExecuteSQL(true); 
+//        assert results.length == 1;
+//        return results[0].asScalarLong();
     }   
 
 }
