@@ -33,9 +33,10 @@ using namespace std;
 namespace voltdb {
 
 AntiCacheBlock::AntiCacheBlock(int16_t blockId, std::string m_tableName, Dbt value) {
-        m_header = new blockHeader;
-        m_header->m_blockId = blockId;
-        m_header->m_tableName = m_tableName;
+		blockHeader b;
+		b.m_blockId = blockId;
+		b.m_tableName = m_tableName;
+        m_header = b;
         m_value = value;
     // They see me rollin'
     // They hatin'
@@ -43,8 +44,10 @@ AntiCacheBlock::AntiCacheBlock(int16_t blockId, std::string m_tableName, Dbt val
 
 AntiCacheBlock::~AntiCacheBlock() {
     // we asked BDB to allocate memory for data dynamically, so we must delete
-    if(m_header->m_blockId > 0)
-        delete [] (char*)m_value.get_data(); 
+    if(m_header.m_blockId > 0){
+    	delete [] (char*)m_value.get_data();
+    }
+
 }
     
 AntiCacheDB::AntiCacheDB(ExecutorContext *ctx, std::string db_dir, long blockSize) :
@@ -107,10 +110,10 @@ void AntiCacheDB::writeBlock(const std::string tableName,
                              const long size) {
 
     Dbt key; 
-    AntiCacheBlock::blockHeader * header = new AntiCacheBlock::blockHeader;
-    header->m_blockId = blockId;
-    header->m_tableName = tableName;
-    key.set_data(header);
+    AntiCacheBlock::blockHeader header;
+    header.m_blockId = blockId;
+    header.m_tableName = tableName;
+    key.set_data(&header);
     key.set_size(sizeof(header));
     
     Dbt value;
@@ -130,10 +133,10 @@ void AntiCacheDB::flushBlocks()
 
 AntiCacheBlock AntiCacheDB::readBlock(std::string tableName, int16_t blockId) {
     Dbt key;
-    AntiCacheBlock::blockHeader *header = new AntiCacheBlock::blockHeader;
-    header->m_blockId = blockId;
-    header->m_tableName = tableName;
-    key.set_data(header);
+    AntiCacheBlock::blockHeader header;
+    header.m_blockId = blockId;
+    header.m_tableName = tableName;
+    key.set_data(&header);
     key.set_size(sizeof(header));
 
     Dbt value;
