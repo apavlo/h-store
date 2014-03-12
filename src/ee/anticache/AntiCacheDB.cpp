@@ -133,7 +133,7 @@ void AntiCacheDB::flushBlocks()
 //    m_db->sync(0); 
 }
 
-AntiCacheBlock AntiCacheDB::readBlock(std::string tableName, int16_t blockId) {
+AntiCacheBlock AntiCacheDB::readBlock(int16_t blockId) {
     Dbt key;
     key.set_data(&blockId);
     key.set_size(sizeof(blockId));
@@ -145,8 +145,8 @@ AntiCacheBlock AntiCacheDB::readBlock(std::string tableName, int16_t blockId) {
     
     int ret_value = m_db->get(NULL, &key, &value, 0);
     if (ret_value != 0) {
-        VOLT_ERROR("Invalid anti-cache blockId '%d' for table '%s'", blockId, tableName.c_str());
-        throw UnknownBlockAccessException(tableName, blockId);
+        VOLT_ERROR("Invalid anti-cache blockId '%d'", blockId);
+        throw UnknownBlockAccessException(blockId);
     }
     else {
 //        m_db->del(NULL, &key, 0);  // if we have this the benchmark won't end

@@ -347,7 +347,7 @@ bool PersistentTable::readEvictedBlock(int16_t block_id, int32_t tuple_offset) {
     
     try
     {
-        AntiCacheBlock value = antiCacheDB->readBlock(this->name(), block_id);
+        AntiCacheBlock value = antiCacheDB->readBlock(block_id);
         cout << value.getTableName();
         cout << "******";
         // allocate the memory for this block
