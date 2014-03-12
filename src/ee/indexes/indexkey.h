@@ -174,7 +174,7 @@ public:
             retval |= (0xFF & (data[keyOffset] >> (intraKeyOffset * 8))) << (ii * 8);
             intraKeyOffset--;
             if (intraKeyOffset < 0) {
-                intraKeyOffset = sizeof(uint64_t) - 1;
+                intraKeyOffset = (int)sizeof(uint64_t) - 1;
                 keyOffset++;
             }
         }
@@ -185,14 +185,10 @@ public:
         std::ostringstream buffer;
         int keyOffset = 0;
 <<<<<<< HEAD
-<<<<<<< HEAD
         int intraKeyOffset = sizeof(uint64_t) - (int)1;
 =======
         int intraKeyOffset = (int)sizeof(uint64_t) - 1;
 >>>>>>> origin/master
-=======
-        int intraKeyOffset = sizeof(uint64_t) - 1;
->>>>>>> parent of d0ae5e3... make gcc 4.8.* happy
         const int columnCount = keySchema->columnCount();
         for (int ii = 0; ii < columnCount; ii++) {
             switch(keySchema->columnType(ii)) {
@@ -230,7 +226,7 @@ public:
         const TupleSchema *keySchema = tuple->getSchema();
         const int columnCount = keySchema->columnCount();
         int keyOffset = 0;
-        int intraKeyOffset = sizeof(uint64_t) - 1;
+        int intraKeyOffset = (int)sizeof(uint64_t) - 1;
         for (int ii = 0; ii < columnCount; ii++) {
             switch(keySchema->columnType(ii)) {
             case voltdb::VALUE_TYPE_BIGINT: {
@@ -268,7 +264,7 @@ public:
         ::memset(data, 0, keySize * sizeof(uint64_t));
         const int columnCount = keySchema->columnCount();
         int keyOffset = 0;
-        int intraKeyOffset = sizeof(uint64_t) - 1;
+        int intraKeyOffset = (int)sizeof(uint64_t) - 1;
         for (int ii = 0; ii < columnCount; ii++) {
             switch(keySchema->columnType(ii)) {
             case voltdb::VALUE_TYPE_BIGINT: {
