@@ -77,6 +77,28 @@ TEST_F(AntiCacheDBTest, WriteBlock) {
         ASSERT_TRUE(false);
     }
 }
+
+TEST_F(AntiCacheDBTest, ReadBlock) {
+    // This will create a tempdir that will automatically be cleaned up
+    ChTempDir tempdir;
+    AntiCacheDB anticache(NULL, ".", BLOCK_SIZE);
+
+    string tableName("FAKE");
+    string payload("Test Read");
+    uint16_t blockId = anticache.nextBlockId();
+	anticache.writeBlock(tableName,
+						 blockId,
+						 1,
+						 const_cast<char*>(payload.data()),
+						 static_cast<int>(payload.size())+1);
+
+	AntiCacheBlock block = anticache.readBlock(tableName, blockId);
+
+	ASSERT_EQ(block.getTableName(), tableName);
+	ASSERT_EQ(block.getBlockId(), blockId);
+
+}
+
 int main() {
     return TestSuite::globalInstance()->runAll();
 }
