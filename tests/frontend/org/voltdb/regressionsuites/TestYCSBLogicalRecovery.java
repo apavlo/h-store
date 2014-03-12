@@ -74,6 +74,8 @@ public class TestYCSBLogicalRecovery extends RegressionSuite {
     // YCSB
     private static final String PREFIX = "ycsb";
     private static int NUM_TRANSACTIONS = 1000;
+    private static final String projectJAR = "logical_" + PREFIX + ".jar";
+
 
     public TestYCSBLogicalRecovery(String name) {
         super(name);
@@ -165,8 +167,6 @@ public class TestYCSBLogicalRecovery extends RegressionSuite {
         }
     }
     
-
-
     private void initializeYCSBDatabase(final CatalogContext catalogContext, final Client client, final int num_tuples) throws Exception {
         String args[] = { 
                 "NOCONNECTIONS=true", 
@@ -192,8 +192,6 @@ public class TestYCSBLogicalRecovery extends RegressionSuite {
 
         System.out.println("Starting testYCSB - Logical Recovery");                
 
-        System.out.println("Starting testTPCC - Logical Recovery");                
-
         deleteTestFiles();
         setUpSnapshotDir();
 
@@ -208,29 +206,25 @@ public class TestYCSBLogicalRecovery extends RegressionSuite {
             e.printStackTrace();
         }
         
-        final String MOCK_ARGS[] = {
-            "HOST=localhost",
-            "NUMCLIENTS=1",
-            // XXX HACK to find catalog jar
-            "CATALOG="+"./obj/release/testobjects/"+"logical_" + PREFIX + ".jar",
-            ""
-        };
+        final String MOCK_ARGS[] = { "HOST=localhost", "NUMCLIENTS=1",
+                // XXX HACK to find catalog jar
+                "CATALOG=" + "./obj/release/testobjects/" + projectJAR, "" };
 
-        MOCK_ARGS[MOCK_ARGS.length-1] = HStoreConstants.BENCHMARK_PARAM_PREFIX;
+        MOCK_ARGS[MOCK_ARGS.length - 1] = HStoreConstants.BENCHMARK_PARAM_PREFIX;
 
         YCSBClient yscbClient = new YCSBClient(MOCK_ARGS);
-        
+
         // Run transactions
         long k_itr = 0;
         long numTransactions = NUM_TRANSACTIONS;
-        long period = numTransactions/10;
-                
+        long period = numTransactions / 10;
+
         for (k_itr = 0; k_itr < numTransactions; k_itr++) {
             boolean response = yscbClient.runOnce();
             assertEquals(response, true);
- 
-            if(k_itr%period == 0)
-                System.out.println(String.format("Transactions Processed: %6d / %d",k_itr, numTransactions));                
+
+            if (k_itr % period == 0)
+                System.out.println(String.format("Transactions Processed: %6d / %d", k_itr, numTransactions));
         }
         
         // Statistics         
@@ -472,7 +466,7 @@ public class TestYCSBLogicalRecovery extends RegressionSuite {
         /*
         NUM_SITES = 2;
         NUM_PARTITIONS = 2;
-        m_config = new LocalCluster("logical_" + PREFIX + ".jar", NUM_SITES, NUM_PARTITIONS, 1, BackendTarget.NATIVE_EE_JNI);
+        m_config = new LocalCluster(projectJAR, NUM_SITES, NUM_PARTITIONS, 1, BackendTarget.NATIVE_EE_JNI);
         success = m_config.compile(project);
         assert (success);
         builder.addServerConfig(m_config);
@@ -482,7 +476,7 @@ public class TestYCSBLogicalRecovery extends RegressionSuite {
         // CONFIG #2: 1 Local Site with 1 Partitions running on JNI backend        
         NUM_SITES = 1;
         NUM_PARTITIONS = 1;
-        m_config = new LocalSingleProcessServer("logical_" + PREFIX + ".jar", NUM_PARTITIONS, BackendTarget.NATIVE_EE_JNI);
+        m_config = new LocalSingleProcessServer(projectJAR, NUM_PARTITIONS, BackendTarget.NATIVE_EE_JNI);
         success = m_config.compile(project);
         assert (success);
         builder.addServerConfig(m_config);     

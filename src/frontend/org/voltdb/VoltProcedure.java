@@ -602,7 +602,6 @@ public abstract class VoltProcedure implements Poolable {
 
                 // ARIES                                
                 if(hstore_conf.site.aries && this.hstore_conf.site.aries_forward_only == false){      
-                    LOG.info("ARIES : VoltProcedure");
                     if (!this.catalog_proc.getReadonly()) {
                         bufferLength = (int) this.executor.getArieslogBufferLength();
     
