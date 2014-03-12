@@ -600,6 +600,7 @@ public abstract class VoltProcedure implements Poolable {
                 this.results = this.getResultsFromRawResults(rawResult);
                 if (this.results == null) results = HStoreConstants.EMPTY_RESULT;
 
+		/*
                 // ARIES
                 if (!this.catalog_proc.getReadonly()) {
                     bufferLength = (int) this.executor.getArieslogBufferLength();
@@ -609,6 +610,7 @@ public abstract class VoltProcedure implements Poolable {
                         this.executor.getArieslogData(bufferLength, arieslogData);
                     }
                 }
+		*/
                 
             } catch (IllegalAccessException e) {
                 // If reflection fails, invoke the same error handling that other exceptions do

@@ -112,6 +112,14 @@ void AntiCacheDB::initializeBerkeleyDB() {
     //strcpy(nvm_file_name, "anticache-");
     strcat(nvm_file_name, partition_str); 
     nvm_file = fopen(nvm_file_name, "w"); 
+
+    if(nvm_file == NULL)
+    {
+        VOLT_ERROR("Anti-Cache initialization error."); 
+        VOLT_ERROR("Failed to open PMFS file %s: %s.", nvm_file_name, strerror(errno));
+        throwFatalException("Failed to initialize anti-cache PMFS file in directory %s.", m_dbDir.c_str());
+    }
+
     fclose(nvm_file); 
     nvm_file = fopen(nvm_file_name, "rw+"); 
 
@@ -153,11 +161,15 @@ void AntiCacheDB::initializeBerkeleyDB() {
         throwFatalException("Failed to initialize anti-cache PMFS file in directory %s.", m_dbDir.c_str());
     }
 
+    close(nvm_fd); // can safely close file now, mmap creates new reference
+
+    /*
     // write out NULL characters to ensure entire file has been fetchted from memory
     for(int i = 0; i < NVM_FILE_SIZE; i++)
     {
         m_NVMBlocks[i] = '\0'; 
     }
+    */
 }
 
 void AntiCacheDB::shutdownBerkeleyDB() {
@@ -252,7 +264,7 @@ AntiCacheBlock AntiCacheDB::readBlockBerkeleyDB(std::string tableName, int16_t b
 void AntiCacheDB::writeBlockNVM(const std::string tableName,
                              int16_t blockId,
                              const int tupleCount,
-                             const char* data,
+			     const char* data,
                              const long size)  {
    
   //int index = getFreeNVMBlockIndex();
@@ -288,6 +300,8 @@ AntiCacheBlock AntiCacheDB::readBlockNVM(std::string tableName, int16_t blockId)
 
    AntiCacheBlock anticache_block(blockId, block, itr->second.second);
    
+   freeNVMBlock(blockId); 
+
    m_blockMap.erase(itr); 
    return (anticache_block);
 }
@@ -335,27 +349,27 @@ char* AntiCacheDB::getNVMBlock(int index) {
 
 int AntiCacheDB::getFreeNVMBlockIndex()
 {
-  /*
+  
     int free_index = 0; 
-    //if(m_NVMBlockFreeList.size() > 0)
-    if(false)
+    if(m_NVMBlockFreeList.size() > 0)
     {
         free_index = m_NVMBlockFreeList.back(); 
+	m_NVMBlockFreeList.pop_back(); 
     }
     else 
     {
         free_index = m_nextFreeBlock;
         m_nextFreeBlock++;  
     }
-  */
-    int free_index = m_totalBlocks++; 
+  
+    //int free_index = m_totalBlocks++; 
     return free_index; 
 }
 
 void AntiCacheDB::freeNVMBlock(int index)
 {
     m_NVMBlockFreeList.push_back(index); 
-    m_totalBlocks--; 
+    //m_totalBlocks--; 
 }
     
 }

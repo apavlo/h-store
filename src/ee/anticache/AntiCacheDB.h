@@ -113,7 +113,7 @@ class AntiCacheDB {
         /**
          * NVM constants
          */
-        static const off_t NVM_FILE_SIZE = 1073741824; 
+        static const off_t NVM_FILE_SIZE = 1073741824/2; 
         static const int NVM_BLOCK_SIZE = 524288 + 1000; 
 	static const int MMAP_PAGE_SIZE = 2 * 1024 * 1024; 
         

@@ -11,24 +11,30 @@ function onexit() {
 
 # ---------------------------------------------------------------------
 
-ENABLE_ANTICACHE=false
+ENABLE_ANTICACHE=true
 
 SITE_HOST="10.212.84.152"
 
 CLIENT_HOSTS=( \
-        "debrabant@client1" \
-#        "localhost" \
+        "client1" \
+        "client2" \
+        "10.212.84.152" \
+        "10.212.84.152" \
 )
 
-BASE_CLIENT_THREADS=2
+BASE_CLIENT_THREADS=1
+#BASE_SITE_MEMORY=8192
+#BASE_SITE_MEMORY_PER_PARTITION=1024
 BASE_SITE_MEMORY=8192
-BASE_SITE_MEMORY_PER_PARTITION=1024
+BASE_SITE_MEMORY_PER_PARTITION=750
 BASE_PROJECT="ycsb"
 BASE_DIR=`pwd`
 OUTPUT_DIR="~/data/ycsb/read-heavy/2/80-20"
 
-#ANTICACHE_BLOCK_SIZE=524288
-ANTICACHE_BLOCK_SIZE=1048576
+#ANTICACHE_BLOCK_SIZE=131072
+#ANTICACHE_BLOCK_SIZE=262144
+ANTICACHE_BLOCK_SIZE=524288
+#ANTICACHE_BLOCK_SIZE=1048576
 #ANTICACHE_BLOCK_SIZE=2097152
 #ANTICACHE_BLOCK_SIZE=4194304
 #ANTICACHE_BLOCK_SIZE=131072
@@ -42,7 +48,7 @@ BASE_ARGS=( \
 #    "-Dsite.status_check_for_zombies=true" \
 #    "-Dsite.exec_profiling=true" \
 #     "-Dsite.profiling=true" \
-#	 "-Dsite.txn_counters=true" \
+# "-Dsite.txn_counters=true" \
 #    "-Dsite.pool_profiling=true" \
 #     "-Dsite.network_profiling=false" \
 #     "-Dsite.log_backup=true"\
@@ -54,11 +60,10 @@ BASE_ARGS=( \
     "-Dsite.cpu_affinity_one_partition_per_core=true" \
     #"-Dsite.cpu_partition_blacklist=0,2,4,6,8,10,12,14,16,18" \
     #"-Dsite.cpu_utility_blacklist=0,2,4,6,8,10,12,14,16,18" \
-    "-Dsite.network_incoming_limit_txns=50000" \
+    "-Dsite.network_incoming_limit_txns=10000" \
     "-Dsite.commandlog_enable=true" \
     "-Dsite.txn_incoming_delay=5" \
-    "-Dsite.exec_postprocessing_threads=true" \
-    "-Dsite.anticache_profiling=${ENABLE_ANTICACHE}" \
+    "-Dsite.exec_postprocessing_threads=false" \
     "-Dsite.anticache_eviction_distribution=even" \
     
 #    "-Dsite.queue_allow_decrease=true" \
@@ -69,26 +74,26 @@ BASE_ARGS=( \
     "-Dclient.scalefactor=1" \
     "-Dclient.memory=2048" \
     "-Dclient.txnrate=10000" \
-    "-Dclient.warmup=120000" \
-    "-Dclient.duration=120000" \
-    "-Dclient.interval=5000" \
+    "-Dclient.warmup=60000" \
+    "-Dclient.duration=60000" \
+    "-Dclient.interval=20000" \
     "-Dclient.shared_connection=false" \
     "-Dclient.blocking=false" \
     "-Dclient.blocking_concurrent=100" \
     "-Dclient.throttle_backoff=100" \
-    "-Dclient.output_interval=5000" \
+    "-Dclient.output_interval=10000" \
 #    "-Dclient.output_anticache_evictions=evictions.csv" \
 #    "-Dclient.output_memory=memory.csv" \
 
     # Anti-Caching Experiments
     "-Dsite.anticache_enable=${ENABLE_ANTICACHE}" \
-#    "-Dsite.anticache_profiling=true" \
+    "-Dsite.anticache_profiling=false" \
     "-Dsite.anticache_reset=false" \
     "-Dsite.anticache_block_size=${ANTICACHE_BLOCK_SIZE}" \
-    "-Dsite.anticache_check_interval=10000" \
-    "-Dsite.anticache_threshold_mb=20000" \
-    "-Dsite.anticache_blocks_per_eviction=200" \
-    "-Dsite.anticache_max_evicted_blocks=325" \
+    "-Dsite.anticache_check_interval=5000" \
+    "-Dsite.anticache_threshold_mb=600" \
+    "-Dsite.anticache_blocks_per_eviction=1000" \
+    "-Dsite.anticache_max_evicted_blocks=1000" \
 #    "-Dsite.anticache_evict_size=${ANTICACHE_EVICT_SIZE}" \
     "-Dsite.anticache_threshold=${ANTICACHE_THRESHOLD}" \
     "-Dclient.anticache_enable=false" \
@@ -167,12 +172,12 @@ for i in 8; do
         fi
     done
     wait
-    
+
     # EXECUTE BENCHMARK
     ant hstore-benchmark ${BASE_ARGS[@]} \
         -Dproject=${BASE_PROJECT} \
         -Dkillonzero=false \
-        -Dclient.threads_per_host=${NUM_CLIENTS} \
+	-Dclient.threads_per_host=4 \
         -Dsite.memory=${SITE_MEMORY} \
         -Dclient.hosts=${CLIENT_HOSTS_STR} \
         -Dclient.count=${CLIENT_COUNT}

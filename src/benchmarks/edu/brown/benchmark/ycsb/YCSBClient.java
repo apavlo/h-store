@@ -172,7 +172,6 @@ public class YCSBClient extends BenchmarkComponent {
             } 
         } 
         catch (IOException e) {
-            
         }
     }
     

@@ -348,8 +348,8 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
             this.profilers[partition].restarted_txns++;
             this.profilers[partition].addEvictedAccess(ts, (EvictedTupleAccessException)ts.getPendingError());
 
-	    LOG.info("Restarting transaction " + String.format("%s",ts) + ", " + ts.getRestartCounter() + " total restarts."); 
-	    LOG.info("Total Restarted Txns: " + this.profilers[partition].restarted_txns); 
+	    LOG.debug("Restarting transaction " + String.format("%s",ts) + ", " + ts.getRestartCounter() + " total restarts."); 
+	    LOG.debug("Total Restarted Txns: " + this.profilers[partition].restarted_txns); 
         }
 
         QueueEntry e = new QueueEntry(ts, partition, catalog_tbl, block_ids, tuple_offsets);

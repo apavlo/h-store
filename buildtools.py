@@ -38,11 +38,13 @@ class BuildContext:
         self.NM = "/usr/bin/nm"
         self.NMFLAGS = "-n"    # specialized by platform in build.py
         self.COVERAGE = False
+        self.LOG_LEVEL = "DEBUG"
         self.VOLT_LOG_LEVEL = None
         self.STORAGE_MMAP = False
         self.ANTICACHE_BUILD = True
         self.ANTICACHE_REVERSIBLE_LRU = True
         self.ANTICACHE_NVM = True
+        self.ANTICACHE_DRAM = True
         self.ARIES= False
 
         for arg in [x.strip().upper() for x in args]:

@@ -51,8 +51,8 @@ import edu.brown.statistics.ObjectHistogram;
 @ProcInfo(singlePartition = false)
 public class LoadMultipartitionTable extends VoltSystemProcedure {
     private static final Logger LOG = Logger.getLogger(LoadMultipartitionTable.class);
-    private static final LoggerBoolean debug = new LoggerBoolean();
-    private static final LoggerBoolean trace = new LoggerBoolean();
+    private static final LoggerBoolean debug = new LoggerBoolean(true);
+    private static final LoggerBoolean trace = new LoggerBoolean(true);
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
@@ -271,7 +271,7 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
         assert(table != null) : 
             "VoltTable to be loaded into " + tableName + " is null in txn #" + this.getTransactionId();
         
-        if (debug.val)
+	if (debug.val)
             LOG.debug(String.format("Executing multi-partition loader for %s with %d tuples in txn #%d [bytes=%d]",
                       tableName, table.getRowCount(), this.getTransactionId(), table.getUnderlyingBufferSize()));
         
@@ -308,6 +308,10 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
         if (debug.val) LOG.debug("Passing " + pfs.length + " sysproc fragments to executeSysProcPlanFragments()");
         results = executeSysProcPlanFragments(pfs, (int)DEP_aggregate);
         
+	if(debug.val)
+	    LOG.debug("Finished executing " + pfs.length + " sysproc plan fragments."); 
+       
+	/*
         // Check whether this table has a vertical partition
         // If so, then we'll automatically blast out the data that it needs
         MaterializedViewInfo catalog_view = CatalogUtil.getVerticalPartition(catalog_tbl);
@@ -320,7 +324,8 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
                           ts, catalog_tbl.getName(), catalog_view.getDest().getName()));
             executeSysProcPlanFragments(createVerticalPartitionPlan(ts, catalog_view, table), (int)DEP_aggregate);
         }
-        
+	*/
+       
         return (results);
     }
 }
