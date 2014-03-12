@@ -1,18 +1,21 @@
 #!/bin/bash
-# YCSB MMAP Experiments
+# DAMON Experiments
  
 USAGE="Usage: `basename $0` 
        [-h]  
        [-g (get latency)] 
        [-s (set latency)] 
+       [-t (tpcc project)]
+       [-y (ycsb project)]
        [-r (clean and rebuild)] 
        [-d (disable anticache)]  
         "
 
-ENABLE_ANTICACHE=true
+ENABLE_ANTICACHE=false
 REBUILD=false
 
 NVM_LATENCY=110
+BASE_PROJECT="ycsb"
 
 # Parse command line options.
 while getopts hvarmgs: OPT; do
@@ -21,13 +24,17 @@ while getopts hvarmgs: OPT; do
             echo "$USAGE"
             exit 0
             ;;
-        
-        a)
-            ENABLE_ANTICACHE=false
-            ;;
 
         r)
             REBUILD=true
+            ;;
+
+        t)
+            BASE_PROJECT="tpcc"
+            ;;
+        
+        y) 
+            BASE_PROJECT="ycsb"
             ;;
 
         g)
@@ -67,7 +74,7 @@ done
 shift `expr $OPTIND - 1`
 
 echo "---------------------------------------------------------"
-echo "ENABLE_ANTICACHE : " $ENABLE_ANTICACHE
+echo "BASE_PROJECT : " $BASE_PROJECT
 echo "REBUILD : " $REBUILD
 echo "---------------------------------------------------------"
  
@@ -99,14 +106,12 @@ CLIENT_HOSTS=( \
 
 BASE_CLIENT_THREADS=1
 #BASE_SITE_MEMORY=8192
-#BASE_SITE_MEMORY_PER_PARTITION=750
+#BASE_SITE_MEMORY_PER_PARTITION=1024
 BASE_SITE_MEMORY=8192
 BASE_SITE_MEMORY_PER_PARTITION=750
-BASE_PROJECT="ycsb"
 BASE_DIR=`readlink -f /home/user/joy/h-store`
-OUTPUT_DIR="~/data/ycsb/read-heavy/2/80-20"
 
-#ANTICACHE_BLOCK_SIZE=262144
+#ANTICACHE_BLOCK_SIZE=131072
 ANTICACHE_BLOCK_SIZE=524288
 #ANTICACHE_BLOCK_SIZE=1048576
 #ANTICACHE_BLOCK_SIZE=2097152
@@ -135,10 +140,9 @@ BASE_ARGS=( \
     #"-Dsite.cpu_partition_blacklist=0,2,4,6,8,10,12,14,16,18" \
     #"-Dsite.cpu_utility_blacklist=0,2,4,6,8,10,12,14,16,18" \
     "-Dsite.network_incoming_limit_txns=10000" \
-    "-Dsite.commandlog_enable=false" \
+    "-Dsite.commandlog_enable=true" \
     "-Dsite.txn_incoming_delay=5" \
     "-Dsite.exec_postprocessing_threads=false" \
-    "-Dsite.anticache_profiling=false" \
     "-Dsite.anticache_eviction_distribution=even" \
     
 #    "-Dsite.queue_allow_decrease=true" \
@@ -148,9 +152,9 @@ BASE_ARGS=( \
     # Client Params
     "-Dclient.scalefactor=1" \
     "-Dclient.memory=2048" \
-    "-Dclient.txnrate=50000" \
-    "-Dclient.warmup=120000" \
-    "-Dclient.duration=120000" \
+    "-Dclient.txnrate=10000" \
+    "-Dclient.warmup=60000" \
+    "-Dclient.duration=60000" \
     "-Dclient.interval=20000" \
     "-Dclient.shared_connection=false" \
     "-Dclient.blocking=false" \
@@ -159,15 +163,14 @@ BASE_ARGS=( \
     "-Dclient.output_interval=10000" \
 #    "-Dclient.output_anticache_evictions=evictions.csv" \
 #    "-Dclient.output_memory=memory.csv" \
-    "-Dclient.threads_per_host=4" \
 
     # Anti-Caching Experiments
     "-Dsite.anticache_enable=${ENABLE_ANTICACHE}" \
     "-Dsite.anticache_profiling=false" \
-    "-Dsite.anticache_reset=true" \
+    "-Dsite.anticache_reset=false" \
     "-Dsite.anticache_block_size=${ANTICACHE_BLOCK_SIZE}" \
-    "-Dsite.anticache_check_interval=2000" \
-    "-Dsite.anticache_threshold_mb=500" \
+    "-Dsite.anticache_check_interval=5000" \
+    "-Dsite.anticache_threshold_mb=600" \
     "-Dsite.anticache_blocks_per_eviction=1000" \
     "-Dsite.anticache_max_evicted_blocks=1000" \
 #    "-Dsite.anticache_evict_size=${ANTICACHE_EVICT_SIZE}" \
@@ -218,7 +221,7 @@ for HOST in ${HOSTS_TO_UPDATE[@]}; do
         ssh $HOST "cd $BASE_DIR && ant compile" 
     else
         echo "CLEANING AND REBUILDING BINARIES"
-        ssh $HOST "cd $BASE_DIR && git pull && ant compile && ant clean-all && ant build -Dsite.storage_mmap=True" 
+        ssh $HOST "cd $BASE_DIR && git pull && ant compile && ant clean-all && ant build" 
     fi
 done
 wait
@@ -230,7 +233,7 @@ else
     echo "CLEANING AND REBUILDING BINARIES"
     ant compile
     ant clean-all
-    ant build -Dsite.storage_mmap=True
+    ant build
 fi
 
 for i in 8; do
@@ -269,6 +272,7 @@ for i in 8; do
     ant hstore-benchmark ${BASE_ARGS[@]} \
         -Dproject=${BASE_PROJECT} \
         -Dkillonzero=false \
+		-Dclient.threads_per_host=4 \
         -Dsite.memory=${SITE_MEMORY} \
         -Dclient.hosts=${CLIENT_HOSTS_STR} \
         -Dclient.count=${CLIENT_COUNT} 
