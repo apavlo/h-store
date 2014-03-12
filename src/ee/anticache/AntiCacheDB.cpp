@@ -43,6 +43,7 @@ AntiCacheBlock::~AntiCacheBlock() {
     // we asked BDB to allocate memory for data dynamically, so we must delete
     if(m_blockId > 0){
     	delete getData();
+    	delete m_payload;
     }
 
 }
