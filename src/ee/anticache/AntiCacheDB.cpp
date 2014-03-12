@@ -32,20 +32,17 @@ using namespace std;
 
 namespace voltdb {
 
-AntiCacheBlock::AntiCacheBlock(int16_t blockId, std::string m_tableName, Dbt value) {
-		blockHeader b;
-		b.m_blockId = blockId;
-		b.m_tableName = m_tableName;
-        m_header = b;
-        m_value = value;
+AntiCacheBlock::AntiCacheBlock(int16_t blockId, Dbt value) {
+		m_payload = (payload *) value.get_data();
+		m_blockId = blockId;
     // They see me rollin'
     // They hatin'
 }
 
 AntiCacheBlock::~AntiCacheBlock() {
     // we asked BDB to allocate memory for data dynamically, so we must delete
-    if(m_header.m_blockId > 0){
-    	delete [] (char*)m_value.get_data();
+    if(m_blockId > 0){
+    	delete getData();
     }
 
 }
@@ -110,15 +107,19 @@ void AntiCacheDB::writeBlock(const std::string tableName,
                              const long size) {
 
     Dbt key; 
-    AntiCacheBlock::blockHeader header;
-    header.m_blockId = blockId;
-    header.m_tableName = tableName;
-    key.set_data(&header);
-    key.set_size(sizeof(header));
-    
+    key.set_data(&blockId);
+    key.set_size(sizeof(blockId));
+
     Dbt value;
-    value.set_data(const_cast<char*>(data));
-    value.set_size(static_cast<int32_t>(size)); 
+    AntiCacheBlock::blockHeader header;
+    header.blockId = blockId;
+    header.tableName = tableName;
+    AntiCacheBlock::payload payload;
+    payload.header = header;
+    payload.data = const_cast<char*>(data);
+    payload.size = static_cast<int32_t>(size);
+    value.set_data(&payload);
+    value.set_size(sizeof(payload));
     
     VOLT_DEBUG("Writing out a block #%d to anti-cache database [tuples=%d / size=%ld]",
                blockId, tupleCount, size);
@@ -133,11 +134,8 @@ void AntiCacheDB::flushBlocks()
 
 AntiCacheBlock AntiCacheDB::readBlock(std::string tableName, int16_t blockId) {
     Dbt key;
-    AntiCacheBlock::blockHeader header;
-    header.m_blockId = blockId;
-    header.m_tableName = tableName;
-    key.set_data(&header);
-    key.set_size(sizeof(header));
+    key.set_data(&blockId);
+    key.set_size(sizeof(blockId));
 
     Dbt value;
     value.set_flags(DB_DBT_MALLOC);
@@ -154,7 +152,7 @@ AntiCacheBlock AntiCacheDB::readBlock(std::string tableName, int16_t blockId) {
         assert(value.get_data() != NULL);
     }
     
-    AntiCacheBlock block(blockId, tableName, value);
+    AntiCacheBlock block(blockId, value);
     return (block);
 }
     
