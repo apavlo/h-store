@@ -29,6 +29,7 @@ import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.io.UnsupportedEncodingException;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Iterator;
 
@@ -38,14 +39,9 @@ import org.voltdb.BackendTarget;
 import org.voltdb.CatalogContext;
 import org.voltdb.DefaultSnapshotDataTarget;
 import org.voltdb.VoltTable;
-import org.voltdb.benchmark.Clock;
-import org.voltdb.benchmark.tpcc.RandomGenerator;
-import org.voltdb.benchmark.tpcc.ScaleParameters;
 import org.voltdb.benchmark.tpcc.TPCCClient;
-import org.voltdb.benchmark.tpcc.TPCCConfig;
 import org.voltdb.benchmark.tpcc.TPCCLoader;
 import org.voltdb.benchmark.tpcc.TPCCProjectBuilder;
-import org.voltdb.benchmark.tpcc.TPCCSimulation;
 import org.voltdb.catalog.CatalogMap;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
@@ -55,8 +51,6 @@ import org.voltdb.client.NoConnectionsException;
 import org.voltdb.client.ProcCallException;
 import org.voltdb.utils.SnapshotVerifier;
 
-import edu.brown.benchmark.ycsb.YCSBLoader;
-import edu.brown.benchmark.ycsb.procedures.DeleteRecord;
 import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.cmdlog.CommandLogReader;
@@ -78,6 +72,7 @@ public class TestTPCCLogicalRecovery extends RegressionSuite {
 
     // TPCC
     private static final String PREFIX = "tpcc";
+    private static int NUM_TRANSACTIONS = 1000;
 
     public TestTPCCLogicalRecovery(String name) {
         super(name);
@@ -169,11 +164,11 @@ public class TestTPCCLogicalRecovery extends RegressionSuite {
         }
     }
 
-    public static final void initializeTPCCDatabase(final CatalogContext catalogContext, final Client client, boolean scaleItems) throws Exception {
+    public void initializeTPCCDatabase(final CatalogContext catalogContext, final Client client, boolean scaleItems) throws Exception {
         String args[] = {
             "NOCONNECTIONS=true",
             "BENCHMARK.WAREHOUSE_PER_PARTITION=true",
-            "BENCHMARK.NUM_LOADTHREADS=1",
+            "BENCHMARK.NUM_LOADTHREADS=4",
             "BENCHMARK.SCALE_ITEMS="+scaleItems,
         };
         TPCCLoader loader = new TPCCLoader(args) {
@@ -198,24 +193,16 @@ public class TestTPCCLogicalRecovery extends RegressionSuite {
         setUpSnapshotDir();
 
         VoltTable results[] = null;
-        ClientResponse cresponse = null;
         Client client = this.getClient();
         CatalogContext cc = this.getCatalogContext();       
         
+        // Load database
         try {
-            this.initializeTPCCDatabase(cc, client, true);
+            initializeTPCCDatabase(cc, client, false);
         } catch (Exception e) {
             e.printStackTrace();
         }
         
-        RandomGenerator generator = new RandomGenerator.Implementation(0);
-        Clock clock = new Clock.Mock();
-        
-        int warehouses = 8;
-        ScaleParameters parameters = ScaleParameters.makeDefault(warehouses) ;        
-        
-        TPCCConfig config = TPCCConfig.defaultConfig();        
-      
         final String MOCK_ARGS[] = {
             "HOST=localhost",
             "NUMCLIENTS=1",
@@ -227,9 +214,10 @@ public class TestTPCCLogicalRecovery extends RegressionSuite {
         MOCK_ARGS[MOCK_ARGS.length-1] = HStoreConstants.BENCHMARK_PARAM_PREFIX;
 
         TPCCClient tpccClient = new TPCCClient(MOCK_ARGS);
-        
+
+        // Run transactions
         long k_itr = 0;
-        long numTransactions = 1000;
+        long numTransactions = NUM_TRANSACTIONS;
         long period = numTransactions/10;
                 
         for (k_itr = 0; k_itr < numTransactions; k_itr++) {
@@ -348,7 +336,7 @@ public class TestTPCCLogicalRecovery extends RegressionSuite {
         }
 
         if(latestFile != null){
-            //System.err.println("Found latest logfile :" + latestFile.getAbsolutePath());           
+            System.err.println("Found latest logfile :" + latestFile.getAbsolutePath());           
         }
         
         return prevFile;
@@ -403,7 +391,7 @@ public class TestTPCCLogicalRecovery extends RegressionSuite {
             if(catalog_proc.getReadonly() == false){
                 // System.out.println("Invoking procedure ::" + procName);
 
-                cresponse = client.callProcedure(procName, entry.getProcedureParams().toArray());
+                cresponse = client.callProcedure(procName, entryParams);
                 assertEquals(cresponse.getStatus(), Status.OK);
                 
                 // results = cresponse.getResults();
@@ -448,7 +436,7 @@ public class TestTPCCLogicalRecovery extends RegressionSuite {
         assert (success);
         builder.addServerConfig(m_config);
         */
-           
+                   
         
         // CONFIG #2: 1 Local Site with 1 Partitions running on JNI backend        
         NUM_SITES = 1;
@@ -456,8 +444,7 @@ public class TestTPCCLogicalRecovery extends RegressionSuite {
         m_config = new LocalSingleProcessServer("logical_" + PREFIX + ".jar", NUM_PARTITIONS, BackendTarget.NATIVE_EE_JNI);
         success = m_config.compile(project);
         assert (success);
-        builder.addServerConfig(m_config);
-        
+        builder.addServerConfig(m_config);     
         
         return builder;
     }

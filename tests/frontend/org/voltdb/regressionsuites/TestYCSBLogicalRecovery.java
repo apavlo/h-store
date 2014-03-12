@@ -29,7 +29,6 @@ import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.io.UnsupportedEncodingException;
-import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Iterator;
 
@@ -48,13 +47,12 @@ import org.voltdb.client.NoConnectionsException;
 import org.voltdb.client.ProcCallException;
 import org.voltdb.utils.SnapshotVerifier;
 
+import edu.brown.benchmark.ycsb.YCSBClient;
 import edu.brown.benchmark.ycsb.YCSBConstants;
 import edu.brown.benchmark.ycsb.YCSBLoader;
 import edu.brown.benchmark.ycsb.YCSBProjectBuilder;
-import edu.brown.benchmark.ycsb.YCSBUtil;
-import edu.brown.benchmark.ycsb.procedures.DeleteRecord;
-import edu.brown.benchmark.ycsb.procedures.InsertRecord;
 import edu.brown.benchmark.ycsb.procedures.ReadRecord;
+import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.cmdlog.CommandLogReader;
 import edu.brown.hstore.cmdlog.CommandLogWriter;
@@ -63,7 +61,7 @@ import edu.brown.hstore.cmdlog.LogEntry;
 /**
  * Test logical recovery
  */
-public class TestLogicalRecovery extends RegressionSuite {
+public class TestYCSBLogicalRecovery extends RegressionSuite {
 
     private static final String TMPDIR = "./snapshot";
 
@@ -75,9 +73,9 @@ public class TestLogicalRecovery extends RegressionSuite {
 
     // YCSB
     private static final String PREFIX = "ycsb";
-    private static final int NUM_TUPLES = 100;
+    private static int NUM_TRANSACTIONS = 1000;
 
-    public TestLogicalRecovery(String name) {
+    public TestYCSBLogicalRecovery(String name) {
         super(name);
     }
 
@@ -166,10 +164,16 @@ public class TestLogicalRecovery extends RegressionSuite {
             System.setOut(original);
         }
     }
+    
 
-    private void initializeDatabase(final Client client, final int num_tuples) throws Exception {
-        String args[] = { "NOCONNECTIONS=true", "BENCHMARK.FIXED_SIZE=true", "BENCHMARK.NUM_RECORDS=" + num_tuples, "BENCHMARK.LOADTHREADS=4", };
-        final CatalogContext catalogContext = this.getCatalogContext();
+
+    private void initializeYCSBDatabase(final CatalogContext catalogContext, final Client client, final int num_tuples) throws Exception {
+        String args[] = { 
+                "NOCONNECTIONS=true", 
+                "BENCHMARK.FIXED_SIZE=true", 
+                "BENCHMARK.NUM_RECORDS=" + num_tuples, 
+                "BENCHMARK.LOADTHREADS=4", };
+        
         YCSBLoader loader = new YCSBLoader(args) {
             {
                 this.setCatalogContext(catalogContext);
@@ -188,91 +192,50 @@ public class TestLogicalRecovery extends RegressionSuite {
 
         System.out.println("Starting testYCSB - Logical Recovery");                
 
+        System.out.println("Starting testTPCC - Logical Recovery");                
+
         deleteTestFiles();
         setUpSnapshotDir();
 
         VoltTable results[] = null;
-        ClientResponse cresponse = null;
         Client client = this.getClient();
-
+        CatalogContext cc = this.getCatalogContext();       
+        
+        // Load database
         try {
-            this.initializeDatabase(client, NUM_TUPLES);
+            initializeYCSBDatabase(cc, client, YCSBConstants.NUM_RECORDS);
         } catch (Exception e) {
             e.printStackTrace();
         }
-
-        // Statistics 
         
+        final String MOCK_ARGS[] = {
+            "HOST=localhost",
+            "NUMCLIENTS=1",
+            // XXX HACK to find catalog jar
+            "CATALOG="+"./obj/release/testobjects/"+"logical_" + PREFIX + ".jar",
+            ""
+        };
+
+        MOCK_ARGS[MOCK_ARGS.length-1] = HStoreConstants.BENCHMARK_PARAM_PREFIX;
+
+        YCSBClient yscbClient = new YCSBClient(MOCK_ARGS);
+        
+        // Run transactions
+        long k_itr = 0;
+        long numTransactions = NUM_TRANSACTIONS;
+        long period = numTransactions/10;
+                
+        for (k_itr = 0; k_itr < numTransactions; k_itr++) {
+            boolean response = yscbClient.runOnce();
+            assertEquals(response, true);
+ 
+            if(k_itr%period == 0)
+                System.out.println(String.format("Transactions Processed: %6d / %d",k_itr, numTransactions));                
+        }
+        
+        // Statistics         
         results = client.callProcedure("@Statistics", "table", 0).getResults();
         System.out.println(results[0]);
-
-        int numTestTuples = NUM_TUPLES;        
-        int period = numTestTuples/10;
-        long key, k_itr ;
-        String procName ;
-        Object params[];
-        VoltTable vt;
-        
-        // Read tuples
-        for (k_itr = 0; k_itr < numTestTuples; k_itr++) {
-            key = k_itr;
-            procName = ReadRecord.class.getSimpleName();
-            params = new Object[] { key };
-
-            cresponse = client.callProcedure(procName, params);
-            assertNotNull(cresponse);
-            assertEquals(Status.OK, cresponse.getStatus());
-            assertEquals(1, cresponse.getResults().length);
-            
-            if(k_itr%period == 0)
-                System.out.println(String.format("Records Processed: %6d / %d",k_itr, numTestTuples));                
-        }
-
-        System.out.println(String.format("Records Processed: %6d / %d",k_itr, numTestTuples));                
-        System.out.println("ReadRecord Test Passed");
-
-        // Delete and then Insert these many tuples back
-        for (k_itr = 0; k_itr < numTestTuples; k_itr++) {
-            procName = DeleteRecord.class.getSimpleName();
-            key = k_itr;
-            params = new Object[] { key };
-
-            cresponse = client.callProcedure(procName, params);
-            assertEquals(Status.OK, cresponse.getStatus());
-            results = cresponse.getResults();
-
-            assertEquals(1, results.length);
-            assertNotNull(cresponse);
-
-            if(k_itr%period == 0)
-                System.out.println(String.format("Records Processed: %6d / %d",k_itr, numTestTuples));                
-        }
-
-        System.out.println(String.format("Records Processed: %6d / %d",k_itr, numTestTuples));                
-        System.out.println("Delete Record Test Passed");
-
-        for (k_itr = 0; k_itr < numTestTuples; k_itr++) {
-            procName = InsertRecord.class.getSimpleName();
-            key = k_itr;
-            String fields[] = new String[YCSBConstants.NUM_COLUMNS];
-            for (int i = 0; i < fields.length; i++) {
-                fields[i] = YCSBUtil.astring(YCSBConstants.COLUMN_LENGTH, YCSBConstants.COLUMN_LENGTH);
-            } // FOR
-            params = new Object[] { key, fields };
-
-            cresponse = client.callProcedure(procName, params);
-            assertEquals(Status.OK, cresponse.getStatus());
-            results = cresponse.getResults();
-
-            assertEquals(1, results.length);
-            assertNotNull(cresponse);
-            
-            if(k_itr%period == 0)
-                System.out.println(String.format("Records Processed: %6d / %d",k_itr, numTestTuples));                
-        }
-
-        System.out.println(String.format("Records Processed: %6d / %d",k_itr, numTestTuples));                
-        System.out.println("Insert Record Test Passed");
 
         // Take Snapshot
         results = null;
@@ -322,7 +285,6 @@ public class TestLogicalRecovery extends RegressionSuite {
         File logDir = new File("./obj" + File.separator + "cmdlog");                               
         
         // Parse WAL logs for all sites
-        CatalogContext cc = this.getCatalogContext();
         CatalogMap<Site> sites = cc.sites;
 
         for(Site site : sites){
@@ -379,7 +341,7 @@ public class TestLogicalRecovery extends RegressionSuite {
         }
 
         if(latestFile != null){
-            //System.err.println("Found latest logfile :" + latestFile.getAbsolutePath());           
+            System.err.println("Found latest logfile :" + latestFile.getAbsolutePath());           
         }
         
         return prevFile;
@@ -434,7 +396,7 @@ public class TestLogicalRecovery extends RegressionSuite {
             if(catalog_proc.getReadonly() == false){
                 // System.out.println("Invoking procedure ::" + procName);
 
-                cresponse = client.callProcedure(procName, entry.getProcedureParams().toArray());
+                cresponse = client.callProcedure(procName, entryParams);
                 assertEquals(cresponse.getStatus(), Status.OK);
                 
                 // results = cresponse.getResults();
@@ -489,7 +451,7 @@ public class TestLogicalRecovery extends RegressionSuite {
      * helper classes.
      */
     static public Test suite() {
-        MultiConfigSuiteBuilder builder = new MultiConfigSuiteBuilder(TestLogicalRecovery.class);
+        MultiConfigSuiteBuilder builder = new MultiConfigSuiteBuilder(TestYCSBLogicalRecovery.class);
 
         // COMMAND LOG
         builder.setGlobalConfParameter("site.commandlog_enable", true);
@@ -507,22 +469,23 @@ public class TestLogicalRecovery extends RegressionSuite {
         setUpSnapshotDir();
         
         // CONFIG #1: 2 Local Site with 4 Partitions running on JNI backend
+        /*
         NUM_SITES = 2;
         NUM_PARTITIONS = 2;
-        m_config = new LocalCluster("snapshot-" + PREFIX + "-" + NUM_SITES + "-site-" + NUM_PARTITIONS + "-partition.jar", NUM_SITES, NUM_PARTITIONS, 1, BackendTarget.NATIVE_EE_JNI);
-        success = m_config.compile(project);
-        assert (success);
-        builder.addServerConfig(m_config);
-
-        /*
-        // CONFIG #2: 1 Local Site with 1 Partitions running on JNI backend
-        NUM_SITES = 1;
-        NUM_PARTITIONS = 2;
-        m_config = new LocalSingleProcessServer("snapshot-" + PREFIX + "-" + NUM_SITES + "-site-" + NUM_PARTITIONS + "-partition.jar", NUM_PARTITIONS, BackendTarget.NATIVE_EE_JNI);
+        m_config = new LocalCluster("logical_" + PREFIX + ".jar", NUM_SITES, NUM_PARTITIONS, 1, BackendTarget.NATIVE_EE_JNI);
         success = m_config.compile(project);
         assert (success);
         builder.addServerConfig(m_config);
         */
+                   
+        
+        // CONFIG #2: 1 Local Site with 1 Partitions running on JNI backend        
+        NUM_SITES = 1;
+        NUM_PARTITIONS = 1;
+        m_config = new LocalSingleProcessServer("logical_" + PREFIX + ".jar", NUM_PARTITIONS, BackendTarget.NATIVE_EE_JNI);
+        success = m_config.compile(project);
+        assert (success);
+        builder.addServerConfig(m_config);     
         
         return builder;
     }
