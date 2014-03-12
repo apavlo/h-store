@@ -229,7 +229,6 @@ bool DeleteExecutor::p_execute(const NValueArray &params, ReadWriteTracker *trac
 
 			const Logger *logger = m_logManager->getThreadLogger(LOGGERID_MM_ARIES);
 
-			// CHANGE ::
 			logger->log(LOGLEVEL_INFO, output.data(), output.position());
 
 			delete[] logrecordBuffer;

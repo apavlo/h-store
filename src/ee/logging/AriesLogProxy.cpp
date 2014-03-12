@@ -38,7 +38,7 @@ AriesLogProxy::AriesLogProxy(VoltDBEngine *engine, string logfileName) {
 
 void AriesLogProxy::init(VoltDBEngine *engine, string logfileName) {
 	this->logfileName = logfileName;
-	// CHANGE :: originally true
+	// XXX originally true
 	jniLogging = false;
 
 	if (!jniLogging) {

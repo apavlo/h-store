@@ -751,8 +751,6 @@ bool VoltDBEngine::loadTable(PersistentTable *table,
 
 		// we could ALSO directly write via writeToAriesLogBuffer(buffer, size)
 		// but not doing that for consistency while logging to Aries.
-
-		// CHANGE :: skip
 		logger->log(LOGLEVEL_INFO, output.data(), output.position());
 
 		// CAREFUL -- the number of bytes might just be too many
@@ -766,11 +764,9 @@ bool VoltDBEngine::loadTable(PersistentTable *table,
 		int64_t value = htonll(numBytes);
 
 		// first log the size of the bulkload array
-		// CHANGE :: skip
 		logger->log(LOGLEVEL_INFO, reinterpret_cast<char*>(&value), sizeof(value));
 
 		// next log the raw bytes of the bulkload array
-		// CHANGE :: skip
 		logger->log(LOGLEVEL_INFO, reinterpret_cast<const char *>(serializeIn.getRawPointer(0)), numBytes);
 
 		delete[] logrecordBuffer;
