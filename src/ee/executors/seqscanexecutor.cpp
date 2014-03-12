@@ -207,7 +207,7 @@ bool SeqScanExecutor::p_execute(const NValueArray &params, ReadWriteTracker *tra
         {
             // Read/Write Set Tracking
             if (tracker != NULL) {
-                tracker->markTupleRead(target_table->name(), &tuple);
+                tracker->markTupleRead(target_table, &tuple);
             }
             
             target_table->updateTupleAccessCount();

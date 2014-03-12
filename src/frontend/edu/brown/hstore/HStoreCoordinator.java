@@ -220,7 +220,8 @@ public class HStoreCoordinator implements Shutdownable {
                     HStoreCoordinator.this.shutdownCluster(error);
                 }
             }
-            if (trace.val) LOG.trace("Messenger Thread for Site #" + catalog_site.getId() + " has stopped!");
+            if (trace.val)
+                LOG.trace("Messenger Thread for Site #" + catalog_site.getId() + " has stopped!");
         }
     }
     

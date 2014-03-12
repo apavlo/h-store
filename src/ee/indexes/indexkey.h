@@ -184,7 +184,11 @@ public:
     std::string debug( const voltdb::TupleSchema *keySchema) const {
         std::ostringstream buffer;
         int keyOffset = 0;
+<<<<<<< HEAD
         int intraKeyOffset = sizeof(uint64_t) - (int)1;
+=======
+        int intraKeyOffset = (int)sizeof(uint64_t) - 1;
+>>>>>>> origin/master
         const int columnCount = keySchema->columnCount();
         for (int ii = 0; ii < columnCount; ii++) {
             switch(keySchema->columnType(ii)) {
