@@ -40,8 +40,8 @@ class BuildContext:
         self.COVERAGE = False
         self.VOLT_LOG_LEVEL = None
         self.STORAGE_MMAP = False
-        self.ANTICACHE_BUILD = True
-        self.ANTICACHE_REVERSIBLE_LRU = True
+        self.ANTICACHE_BUILD = False
+        self.ANTICACHE_REVERSIBLE_LRU = False
         self.ARIES= False
         self.SNAPSHOT= False
 
