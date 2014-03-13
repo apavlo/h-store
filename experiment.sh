@@ -104,6 +104,8 @@ CLIENT_HOSTS=( \
     "10.212.84.152" \
 )
 
+#BASE_SITE_MEMORY=8192
+#BASE_SITE_MEMORY_PER_PARTITION=0
 BASE_CLIENT_THREADS=1
 BASE_DIR=`readlink -f /home/user/joy/h-store`
 
@@ -135,7 +137,7 @@ BASE_ARGS=( \
     "-Dsite.cpu_affinity_one_partition_per_core=true" \
     #"-Dsite.cpu_partition_blacklist=0,2,4,6,8,10,12,14,16,18" \
     #"-Dsite.cpu_utility_blacklist=0,2,4,6,8,10,12,14,16,18" \
-    "-Dsite.network_incoming_limit_txns=10000" \
+    #"-Dsite.network_incoming_limit_txns=10000" \
     "-Dsite.commandlog_enable=true" \
     "-Dsite.txn_incoming_delay=5" \
     "-Dsite.exec_postprocessing_threads=false" \
@@ -147,14 +149,13 @@ BASE_ARGS=( \
     
     # Client Params
     "-Dclient.scalefactor=1" \
-    "-Dclient.memory=2048" \
+#    "-Dclient.memory=2048" \
     "-Dclient.txnrate=10000" \
-    "-Dclient.warmup=5000" \
     "-Dclient.warmup=60000" \
     "-Dclient.duration=60000" \
-    "-Dclient.interval=20000" \
+    "-Dclient.interval=10000" \
     "-Dclient.shared_connection=false" \
-    "-Dclient.blocking=false" \
+#    "-Dclient.blocking=false" \
     "-Dclient.blocking_concurrent=100" \
     "-Dclient.throttle_backoff=100" \
     "-Dclient.output_interval=10000" \
@@ -233,7 +234,8 @@ for i in 8; do
 
     HSTORE_HOSTS="${SITE_HOST}:0:0-"`expr $i - 1`
     NUM_CLIENTS=`expr $i \* $BASE_CLIENT_THREADS`
-    
+    #SITE_MEMORY=`expr $BASE_SITE_MEMORY + \( $i \* $BASE_SITE_MEMORY_PER_PARTITION \)`
+
     # BUILD PROJECT JAR
     ant hstore-prepare \
         -Dproject=${BASE_PROJECT} \
