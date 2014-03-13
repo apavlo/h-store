@@ -609,9 +609,9 @@ public abstract class VoltProcedure implements Poolable {
                             arieslogData = new byte[bufferLength];
                             this.executor.getArieslogData(bufferLength, arieslogData);
                         }
+                
                     }
                 }
-                
                 
             } catch (IllegalAccessException e) {
                 // If reflection fails, invoke the same error handling that other exceptions do

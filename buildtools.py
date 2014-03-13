@@ -38,10 +38,13 @@ class BuildContext:
         self.NM = "/usr/bin/nm"
         self.NMFLAGS = "-n"    # specialized by platform in build.py
         self.COVERAGE = False
+        self.LOG_LEVEL = "DEBUG"
         self.VOLT_LOG_LEVEL = None
         self.STORAGE_MMAP = False
-        self.ANTICACHE_BUILD = False
-        self.ANTICACHE_REVERSIBLE_LRU = False
+        self.ANTICACHE_BUILD = True
+        self.ANTICACHE_REVERSIBLE_LRU = True
+        self.ANTICACHE_NVM = True
+        self.ANTICACHE_DRAM = True
         self.ARIES= False
         self.SNAPSHOT= False
 
@@ -82,6 +85,10 @@ class BuildContext:
                 parts = arg.split("=")
                 if len(parts) > 1 and not parts[1].startswith("${"):
                     self.ANTICACHE_REVERSIBLE_LRU = bool(parts[1])
+            if arg.startswith("ANTICACHE_NVM="):
+                parts = arg.split("=")
+                if len(parts) > 1 and not parts[1].startswith("${"):
+                    self.ANTICACHE_NVM = bool(parts[1])
                 
             if arg.startswith("LOG_LEVEL="):
                 parts = arg.split("=")

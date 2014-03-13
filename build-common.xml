@@ -144,6 +144,7 @@
 <arg value="site.anticache_enable=${site.anticache_enable}" />
 <arg value="site.anticache_build=${site.anticache_build}" />
 <arg value="site.anticache_reversible_lru=${site.anticache_reversible_lru}" />
+<arg value="site.anticache_nvm=${site.anticache_nvm}" />
 <arg value="site.anticache_profiling=${site.anticache_profiling}" />
 <arg value="site.anticache_dir=${site.anticache_dir}" />
 <arg value="site.anticache_block_size=${site.anticache_block_size}" />

@@ -79,7 +79,7 @@ CTX.OUTPUT_PREFIX += "/"
 # these are the base compile options that get added to every compile step
 # this does not include header/lib search paths or specific flags for
 #  specific targets
-CTX.CPPFLAGS = """-Wall -Wextra -Werror -Woverloaded-virtual -Wconversion
+CTX.CPPFLAGS = """ -Wextra -Woverloaded-virtual -Wconversion
             -Wpointer-arith -Wcast-qual -Wcast-align -Wwrite-strings
             -Winit-self -Wno-sign-compare -Wno-unused-parameter
             -pthread
@@ -399,8 +399,14 @@ if CTX.SNAPSHOT:
 if CTX.ANTICACHE_BUILD:
     CTX.CPPFLAGS += " -DANTICACHE"
 
+    if CTX.ANTICACHE_NVM:
+        CTX.CPPFLAGS += " -DANTICACHE_NVM"
+
     if CTX.ANTICACHE_REVERSIBLE_LRU:
         CTX.CPPFLAGS += " -DANTICACHE_REVERSIBLE_LRU"
+        
+    if CTX.ANTICACHE_DRAM:
+        CTX.CPPFLAGS += " -DANTICACHE_DRAM"
 
     # Bring in berkeleydb library
     CTX.SYSTEM_DIRS.append(os.path.join(CTX.OUTPUT_PREFIX, 'berkeleydb'))

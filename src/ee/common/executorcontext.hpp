@@ -326,7 +326,6 @@ public:
 	/** local epoch for voltdb, somtime around 2008, pulled from catalog */
 	int64_t m_epoch;
 };
-
 }
 
 #endif

@@ -83,6 +83,8 @@ echo "---------------------------------------------------------"
 for PARAM; do
     echo $PARAM
 done 
+=======
+>>>>>>> 57bdfa5eccbda3311d90d6003702fa65528ec377:ycsb.sh
 
 # ---------------------------------------------------------------------
 
@@ -95,27 +97,29 @@ function onexit() {
 
 # ---------------------------------------------------------------------
 
+ENABLE_ANTICACHE=true
+
 SITE_HOST="10.212.84.152"
 
 CLIENT_HOSTS=( \
-    "client1" \
-    "client2" \
-    "10.212.84.152" \     
-    "10.212.84.152" \
+        "client1" \
+        "client2" \
+        "10.212.84.152" \
+        "10.212.84.152" \
 )
 
 #BASE_SITE_MEMORY=8192
-#BASE_SITE_MEMORY_PER_PARTITION=0
-BASE_CLIENT_THREADS=1
+#BASE_SITE_MEMORY_PER_PARTITION=1024
+BASE_SITE_MEMORY=8192
+BASE_SITE_MEMORY_PER_PARTITION=750
+BASE_PROJECT="ycsb"
 BASE_DIR=`readlink -f /home/user/joy/h-store`
+OUTPUT_DIR="~/data/ycsb/read-heavy/2/80-20"
 
 #ANTICACHE_BLOCK_SIZE=131072
+#ANTICACHE_BLOCK_SIZE=262144
 ANTICACHE_BLOCK_SIZE=524288
 #ANTICACHE_BLOCK_SIZE=1048576
-#ANTICACHE_BLOCK_SIZE=2097152
-#ANTICACHE_BLOCK_SIZE=4194304
-#ANTICACHE_BLOCK_SIZE=131072
-ANTICACHE_THRESHOLD=.5
 
 BASE_ARGS=( \
     # SITE DEBUG
@@ -137,7 +141,7 @@ BASE_ARGS=( \
     "-Dsite.cpu_affinity_one_partition_per_core=true" \
     #"-Dsite.cpu_partition_blacklist=0,2,4,6,8,10,12,14,16,18" \
     #"-Dsite.cpu_utility_blacklist=0,2,4,6,8,10,12,14,16,18" \
-    #"-Dsite.network_incoming_limit_txns=10000" \
+    "-Dsite.network_incoming_limit_txns=10000" \
     "-Dsite.commandlog_enable=true" \
     "-Dsite.txn_incoming_delay=5" \
     "-Dsite.exec_postprocessing_threads=false" \
@@ -153,11 +157,11 @@ BASE_ARGS=( \
     "-Dclient.txnrate=10000" \
     "-Dclient.warmup=60000" \
     "-Dclient.duration=60000" \
-    "-Dclient.interval=10000" \
+    "-Dclient.interval=20000" \
     "-Dclient.shared_connection=false" \
-#    "-Dclient.blocking=false" \
-    "-Dclient.blocking_concurrent=1000" \
-#    "-Dclient.throttle_backoff=100" \
+    "-Dclient.blocking=false" \
+    "-Dclient.blocking_concurrent=100" \
+    "-Dclient.throttle_backoff=100" \
     "-Dclient.output_interval=10000" \
 #    "-Dclient.output_anticache_evictions=evictions.csv" \
 #    "-Dclient.output_memory=memory.csv" \
@@ -213,23 +217,11 @@ for CLIENT_HOST in ${CLIENT_HOSTS[@]}; do
     fi
 done
 for HOST in ${HOSTS_TO_UPDATE[@]}; do
-    echo "BASE DIR : " $BASE_DIR
-    if [ "$REBUILD" = "false" ]; then
-        echo "REUSING BINARIES"
-    else
-        echo "CLEANING AND REBUILDING BINARIES"
-        ssh $HOST "cd $BASE_DIR && git pull && ant compile" 
-    fi
+    ssh $HOST "cd $BASE_DIR && git pull && ant compile" &
 done
 wait
 
-if [ "$REBUILD" = "false" ]; then
-    echo "REUSING BINARIES"
-else
-    echo "CLEANING AND REBUILDING BINARIES"
-    ant compile
-fi
-
+ant compile
 for i in 8; do
 
     HSTORE_HOSTS="${SITE_HOST}:0:0-"`expr $i - 1`
@@ -267,8 +259,9 @@ for i in 8; do
         -Dproject=${BASE_PROJECT} \
         -Dkillonzero=false \
         -Dclient.threads_per_host=4 \
+        -Dsite.memory=${SITE_MEMORY} \
         -Dclient.hosts=${CLIENT_HOSTS_STR} \
-        -Dclient.count=${CLIENT_COUNT} 
+        -Dclient.count=${CLIENT_COUNT}
     result=$?
     if [ $result != 0 ]; then
         exit $result

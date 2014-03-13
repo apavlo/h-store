@@ -867,6 +867,7 @@ NATIVE EE STUFF
         <arg value="ANTICACHE_ENABLE=${site.anticache_enable}" />
         <arg value="ANTICACHE_BUILD=${site.anticache_build}" />
         <arg value="ANTICACHE_REVERSIBLE_LRU=${site.anticache_reversible_lru}" />
+	<arg value="ANTICACHE_NVM=${site.anticache_nvm}" />
         <arg value="${build}" />
     </exec>
 </target>
