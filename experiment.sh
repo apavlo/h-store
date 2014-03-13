@@ -149,14 +149,14 @@ BASE_ARGS=( \
     
     # Client Params
     "-Dclient.scalefactor=1" \
-#    "-Dclient.memory=2048" \
+    "-Dclient.memory=2048" \
     "-Dclient.txnrate=10000" \
     "-Dclient.warmup=60000" \
     "-Dclient.duration=60000" \
     "-Dclient.interval=10000" \
     "-Dclient.shared_connection=false" \
 #    "-Dclient.blocking=false" \
-    "-Dclient.blocking_concurrent=100" \
+    "-Dclient.blocking_concurrent=5000" \
     "-Dclient.throttle_backoff=100" \
     "-Dclient.output_interval=10000" \
 #    "-Dclient.output_anticache_evictions=evictions.csv" \
