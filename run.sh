@@ -5,14 +5,14 @@ DEFAULT_LATENCY=110
 LOG_DIR=log
 SCRIPT=./experiment.sh
 
-for ((i=2; i<=2; i*=4))
+for ((i=2; i<=8; i*=4))
 do
     l=$(($i*$DEFAULT_LATENCY))
     
     echo "---------------------------------------------------"
     echo "LATENCY" $l
 
-    #$SCRIPT -s $l &> $LOG_DIR/$i.log
+    $SCRIPT -s $l &> $LOG_DIR/$i.log
 
     # RESET SKEW AT START
     cp ./src/benchmarks/edu/brown/benchmark/ycsb/YCSBConstants.java.base ./src/benchmarks/edu/brown/benchmark/ycsb/YCSBConstants.java
@@ -22,8 +22,8 @@ do
     grep "ZIPFIAN_CONSTANT =" ./src/benchmarks/edu/brown/benchmark/ycsb/YCSBConstants.java
 
     echo "---------------------------------------------------"
-
-    for ((s=2; s<=3; s+=1))
+    
+    for ((s=1; s<=5; s+=1))
     do
         p=$((0.25*$s));
         q=$((0.25*$(($s+1))));
@@ -31,13 +31,13 @@ do
 
         sed -i "s/skew_factor = $p/skew_factor = $q/g" ./properties/benchmarks/ycsb.properties
         sed -i "s/ZIPFIAN_CONSTANT = $p/ZIPFIAN_CONSTANT = $q/g" ./src/benchmarks/edu/brown/benchmark/ycsb/YCSBConstants.java
-        ant compile
+        #ant compile
 
         grep "skew_factor =" ./properties/benchmarks/ycsb.properties
         grep "ZIPFIAN_CONSTANT =" ./src/benchmarks/edu/brown/benchmark/ycsb/YCSBConstants.java
 
         $SCRIPT &>> $LOG_DIR/$i.log
 
-        cp results.csv $LOG_DIR/$i_$s.csv
+        cp results.csv "$LOG_DIR/""$i""_$s.csv"
     done
 done
