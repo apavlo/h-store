@@ -18,7 +18,7 @@ NVM_LATENCY=110
 BASE_PROJECT="ycsb"
 
 # Parse command line options.
-while getopts hvarmgs: OPT; do
+while getopts hrgsd:yt OPT; do
     case "$OPT" in
         h)
             echo "$USAGE"
@@ -98,8 +98,6 @@ function onexit() {
 SITE_HOST="10.212.84.152"
 
 CLIENT_HOSTS=( \
-    "client1" \
-    "client2" \
     "10.212.84.152" \     
     "10.212.84.152" \
 )
@@ -150,14 +148,14 @@ BASE_ARGS=( \
     # Client Params
     "-Dclient.scalefactor=1" \
     "-Dclient.memory=2048" \
-    "-Dclient.txnrate=10000" \
+    "-Dclient.txnrate=20000" \
     "-Dclient.warmup=60000" \
     "-Dclient.duration=60000" \
-    "-Dclient.interval=10000" \
+    "-Dclient.interval=20000" \
     "-Dclient.shared_connection=false" \
-#    "-Dclient.blocking=false" \
-    "-Dclient.blocking_concurrent=1000" \
-#    "-Dclient.throttle_backoff=100" \
+    "-Dclient.blocking=false" \
+    "-Dclient.blocking_concurrent=100" \
+    "-Dclient.throttle_backoff=100" \
     "-Dclient.output_interval=10000" \
 #    "-Dclient.output_anticache_evictions=evictions.csv" \
 #    "-Dclient.output_memory=memory.csv" \
