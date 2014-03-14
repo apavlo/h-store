@@ -53,7 +53,7 @@ public class TestTPCCPhysicalRecovery extends RegressionSuite {
 
     // TPCC
     private static final String PREFIX = "tpcc";
-    private static int NUM_TRANSACTIONS = 10;
+    private static int NUM_TRANSACTIONS = 20000;
     private static final String projectJAR = "physical_" + PREFIX + ".jar";    
 
     public TestTPCCPhysicalRecovery(String name) {
@@ -215,9 +215,8 @@ public class TestTPCCPhysicalRecovery extends RegressionSuite {
         success = m_config.compile(project);
         assert (success);
         builder.addServerConfig(m_config);
-        
                            
-        // CONFIG #2: 1 Local Site with 1 Partitions running on JNI backend            
+        // CONFIG #2: 1 Local Site with 1 Partitions running on JNI backend                  
         /*
         NUM_SITES = 1;
         NUM_PARTITIONS = 1;
