@@ -73,7 +73,7 @@ public class TestYCSBLogicalRecovery extends RegressionSuite {
 
     // YCSB
     private static final String PREFIX = "ycsb";
-    private static int NUM_TRANSACTIONS = 1000;
+    private static int NUM_TRANSACTIONS = 100000;
     private static final String projectJAR = "logical_" + PREFIX + ".jar";
 
 
@@ -450,6 +450,7 @@ public class TestYCSBLogicalRecovery extends RegressionSuite {
         // COMMAND LOG
         builder.setGlobalConfParameter("site.commandlog_enable", true);
         builder.setGlobalConfParameter("site.commandlog_timeout", 10);
+        builder.setGlobalConfParameter("site.anticache_enable", false);     
 
         builder.setGlobalConfParameter("site.snapshot", true);
 

@@ -1728,8 +1728,8 @@ void VoltDBEngine::doAriesRecovery(char *logData, size_t length, int64_t replay_
 	long microseconds = (tv2.tv_sec - tv1.tv_sec) * 1000000 + ((int)tv2.tv_usec - (int)tv1.tv_usec);
 	long milliseconds = microseconds/1000;
 
-	VOLT_INFO("ARIES : ######################### Recovery Latency : completed in %ld ms", milliseconds);
-	VOLT_INFO("ARIES : ######################### Recovery Completed : %d log records replayed", counter);
+	VOLT_WARN("ARIES : ######################### Recovery Latency : completed in %ld ms", milliseconds);
+	VOLT_WARN("ARIES : ######################### Recovery Completed : %d log records replayed", counter);
 
 	std::ostringstream sstm;
 	sstm << counter;
