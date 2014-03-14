@@ -351,8 +351,8 @@ protected:
     std::vector<char*> m_unevictedBlocks;
     std::vector<int32_t> m_mergeTupleOffset; 
     
-    std::map<int, int> m_unevictedTuplesPerBlocks;
-    
+    std::map<int, int> m_unevictedTuplesPerBlocks; 
+
     char* m_unevictedTuples; 
     int m_numUnevictedTuples; 
     

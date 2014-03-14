@@ -39,6 +39,7 @@ import org.voltdb.client.ProcedureCallback;
 
 import edu.brown.api.BenchmarkComponent;
 import edu.brown.benchmark.ycsb.distributions.ZipfianGenerator;
+import edu.brown.benchmark.ycsb.distributions.CustomSkewGenerator; 
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.rand.RandomDistribution.FlatHistogram;
@@ -81,11 +82,11 @@ public class YCSBClient extends BenchmarkComponent {
     } // TRANSCTION ENUM
 
     private final long init_record_count;
-//    private final CustomSkewGenerator readRecord;
+    //private final CustomSkewGenerator readRecord;
     private final ZipfianGenerator readRecord;
     @SuppressWarnings("unused")
     private final ZipfianGenerator insertRecord;
-//    private final CustomSkewGenerator insertRecord;
+    //private final CustomSkewGenerator insertRecord;
     private final ZipfianGenerator randScan;
     private final FlatHistogram<Transaction> txnWeights;
     private final Random rand_gen;
@@ -171,7 +172,6 @@ public class YCSBClient extends BenchmarkComponent {
             } 
         } 
         catch (IOException e) {
-            
         }
     }
     
