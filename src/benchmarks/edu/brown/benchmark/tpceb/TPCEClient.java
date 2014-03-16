@@ -44,6 +44,7 @@ import org.voltdb.SysProcSelector;
 import org.voltdb.VoltTable;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.NoConnectionsException;
+import org.voltdb.client.ProcCallException;
 import org.voltdb.client.ProcedureCallback;
 
 import edu.brown.api.BenchmarkComponent;
@@ -314,7 +315,12 @@ int countRow =0;
           
             // clientResponse.getResults();
             //  tradeOrderResult = this.getClientHandle().getResults();// retME = this.getClientHandle().callProcedure(new TPCECallback(target), target.callName, this.generateClientArgs(targetME));
-        } catch (Exception ex) {
+        } 
+        catch (ProcCallException ex) {
+            ex.printStackTrace();
+        }
+        catch (Exception ex) {
+        
             ex.printStackTrace();
             System.exit(1);
         }
