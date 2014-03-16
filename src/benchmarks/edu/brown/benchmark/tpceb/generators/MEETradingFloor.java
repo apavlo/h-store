@@ -61,10 +61,11 @@ public class MEETradingFloor {
     }
     
      public int  submitTradeRequest( TTradeRequest tradeReq ){
+         System.out.println("trade request");
         switch( tradeReq.eAction ){
         case eMEEProcessOrder:
             {
-                System.out.println("in eMEEProcessOrder - fails");
+                //System.out.println("in eMEEProcessOrder - fails");
                // sendTradeResult(tradeReq); //added for debugging
                /*added b/c original uses pointers*/
                 TTradeRequest newTradeRequest = new TTradeRequest();
@@ -74,7 +75,7 @@ public class MEETradingFloor {
         case eMEESetLimitOrderTrigger:
          //   System.out.println("going into post limit order");
             tickerTape.PostLimitOrder( tradeReq );
-           System.out.println("out of post limit order");
+           //System.out.println("out of post limit order");
            // sendTradeResult(tradeReq); //added for debugging
 
             return( orderTimers.processExpiredTimers() );
@@ -88,7 +89,7 @@ public class MEETradingFloor {
     }
     
     public void  sendTradeResult( TTradeRequest tradeReq ){
-        System.out.println("trying to send trade result");
+       System.out.println("trying to send trade result");
         TradeType            eTradeType;
         TTradeResultTxnInput    txnInput = new TTradeResultTxnInput();
         TTickerEntry            TickerEntry = new TTickerEntry();
@@ -98,30 +99,30 @@ public class MEETradingFloor {
         CurrentPrice = priceBoard.getCurrentPrice( tradeReq.symbol ).getDollars();
     
         txnInput.trade_id = tradeReq.trade_id;
-        System.out.println("Trade id:" + txnInput.trade_id);
+        //System.out.println("Trade id:" + txnInput.trade_id);
        // txnInput.st_completed_id =  "E_COMPLETED";
     
         if(( eTradeType == TradeType.eLimitBuy && tradeReq.price_quote < CurrentPrice )||( eTradeType == TradeType.eLimitSell && tradeReq.price_quote > CurrentPrice )){
             txnInput.trade_price = tradeReq.price_quote;
-            System.out.println("IN IF");
+           // System.out.println("IN IF");
         }
         else{
             txnInput.trade_price = CurrentPrice;
-            System.out.println("IN ELSE");
+           // System.out.println("IN ELSE");
         }
     
         sut.TradeResult(  txnInput );
-        System.out.println("Got to here");
+       // System.out.println("Got to here");
     
         TickerEntry.symbol = new String( tradeReq.symbol);
         TickerEntry.trade_qty = tradeReq.trade_qty;
-        System.out.println("Got to here2");
+        //System.out.println("Got to here2");
     
         TickerEntry.price_quote = CurrentPrice;
-        System.out.println("Got to here3");
+       // System.out.println("Got to here3");
     
         tickerTape.AddEntry(TickerEntry);
-        System.out.println("Got to here4");
+       // System.out.println("Got to here4");
     }
     
     private MEESUTInterface                                        sut;

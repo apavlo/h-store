@@ -173,24 +173,27 @@ public class TPCEClient extends BenchmarkComponent {
     }
 
     protected Transaction selectTransaction() {
-      //  if(countTotal %2 == 0){
+        if(countTotal <= 100){
+            System.out.println("Trade Order");
         int iTxnType = egen_clientDriver.driver_ptr.getCE().getCETxnMixGenerator().generateNextTxnType( );
         egen_clientDriver.driver_ptr.getCE().zeroInputBuffer(iTxnType);
        // egen_clientDriver.driver_ptr.getMEE();
         //egen_clientDriver.driver_ptr.getMEE();
         //      return Transaction.TRADE_UPDATE;
-        System.out.println(iTxnType);
-     //   countTotal++;
+        //System.out.println(iTxnType);
+        //countTotal++;
+        
         return XTRANS[iTxnType];
-      //  }
-      //  else{
+        }
+        else{
+            System.out.println("Market Feed");
       //      if(countTotal <= 50){
       //          countTotal++;
       //          egen_clientDriver.driver_ptr.getMEE();
       //         // return null;
-     //           return XTRANS[2];
+                return XTRANS[2];
      //           
-     //       }
+            }
      //       else{
      //           countTotal++;
      //           egen_clientDriver.driver_ptr.getMEE();
@@ -250,7 +253,7 @@ int countRow =0;
         try {
             final Transaction target = selectTransaction();
            // final Transaction targetME = selectTransactionME();
-
+            tradeRequest = new TTradeRequest();
             LOG.debug("Executing txn " + target);
            // ret = this.getClientHandle().callProcedure(new TPCECallback(target), target.callName, this.generateClientArgs(target));
             tradeOrderResult = this.getClientHandle().callProcedure(target.callName, this.generateClientArgs(target)).getResults();
@@ -258,35 +261,55 @@ int countRow =0;
            // System.out.println("countRow:"+ countRow + "  " +tradeOrderResult[countRow]);
            // System.out.println(tradeOrderResult[0]);
 
-           System.out.println(tradeOrderResult.length);
+           //System.out.println(tradeOrderResult.length);
             if(tradeOrderResult.length == 0){
                 ret = false;
             }
+            else if(tradeOrderResult[0] == null){
+                System.out.println("was null");
+                   ret = false;
+            }
+            else if(tradeOrderResult[0].fetchRow(0) == null){
+                System.out.println("second option was null");
+            }
             else{
-                if(countRow != 0){
+              //  if(countRow != 0){
                    //tradeOrderResult[0].advanceRow();
                   // System.out.println("Active index"+ tradeOrderResult[0].getActiveRowIndex());
-                   tradeOrderResult[0].advanceRow();
+               //    tradeOrderResult[0].advanceRow();
                   // System.out.println("after advance"+ tradeOrderResult[0].getActiveRowIndex());
                   //  tradeOrderResult[0].resetRowPosition();
                   // System.out.println("after reset"+ tradeOrderResult[0].getActiveRowIndex());
                   // tradeOrderResult[0].advanceRow();
                   // System.out.println("after next advance"+ tradeOrderResult[0].getActiveRowIndex());
                   // System.out.println(tradeOrderResult[0].advanceToRow(0));
-                }
-                System.out.println(tradeOrderResult[0]);
+             //   }
+              // System.out.println(tradeOrderResult[0]);
+               // tradeOrderResult[0].advanceToRow(0);
+               // System.out.println("not null");
+              //  System.out.println("val" + tradeOrderResult[0].fetchRow(0));
+                tradeRequest.price_quote = tradeOrderResult[0].fetchRow(0).getDouble("price_quote");
+               // System.out.println("price_quote " + tradeOrderResult[0].fetchRow(0).getDouble("price_quote"));
                 
-                System.out.println("with advancing to count row" + tradeOrderResult[0].advanceToRow(countRow));
-                tradeRequest.price_quote = tradeOrderResult[0].getDouble("price_quote");
-                tradeRequest.trade_qty = (int) tradeOrderResult[0].getDouble("trade_qty");
-                tradeRequest.eActionTemp = (int) tradeOrderResult[0].getDouble("eAction");
-                tradeRequest.symbol = tradeOrderResult[0].getString("symbol");
-                tradeRequest.trade_id = tradeOrderResult[0].getLong("trade_id");
-                tradeRequest.trade_type_id = tradeOrderResult[0].getString("trade_type_id");
+                tradeRequest.trade_qty = (int) tradeOrderResult[0].fetchRow(0).getDouble("trade_qty");
+               // System.out.println("trade_qty " + tradeOrderResult[0].fetchRow(0).getDouble("trade_qty"));
+                
+                tradeRequest.eActionTemp = (int) tradeOrderResult[0].fetchRow(0).getDouble("eAction");
+                //System.out.println("eActionTemp " + tradeOrderResult[0].fetchRow(0).getDouble("eAction"));
+                
+                tradeRequest.symbol = tradeOrderResult[0].fetchRow(0).getString("symbol");
+                //System.out.println("symbol " + tradeOrderResult[0].fetchRow(0).getString("symbol"));
+                
+                tradeRequest.trade_id = tradeOrderResult[0].fetchRow(0).getLong("trade_id");
+                //System.out.println("trade_id " + tradeOrderResult[0].fetchRow(0).getLong("trade_id"));
+                
+                tradeRequest.trade_type_id = tradeOrderResult[0].fetchRow(0).getString("trade_type_id");
+                //System.out.println("trade_type_id " + tradeOrderResult[0].fetchRow(0).getString("trade_type_id"));
                 tradeRequest.eAction = null;
                 ret = true;
+                egen_clientDriver.driver_ptr.getMEE().submitTradeRequest(tradeRequest);
                 countRow++;
-                System.out.println("true");
+               // System.out.println("true");
             }
           
             // clientResponse.getResults();

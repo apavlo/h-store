@@ -12,7 +12,7 @@ public class MEEPriceBoard {
         security = new MEESecurity();
         this.securityFile = securityFile;
         numberOfSecurities = 0;
-        System.out.println("meepriceboard current time" + currentTime);
+       // System.out.println("meepriceboard current time" + currentTime);
         numberOfSecurities = SecurityHandler.getSecurityNum(configuredCustomerCount);
         security.init( tradingTimeSoFar, baseTime, currentTime, fMeanInTheMoneySubmissionDelay );
         securityFile.loadSymbolToIdMap();
@@ -20,10 +20,10 @@ public class MEEPriceBoard {
     }
     
     public    void getSymbol(long securityIndex,String szOutput, int outputLen){
-        System.out.println("Getting symbol" +  szOutput);
-        System.out.println("Getting symbol length" + outputLen);
+        //System.out.println("Getting symbol" +  szOutput);
+        //System.out.println("Getting symbol length" + outputLen);
         szOutput = securityFile.createSymbol( securityIndex, outputLen );
-        System.out.println("Got symbol");
+       // System.out.println("Got symbol");
     }
     
     public    EGenMoney getMinPrice(){

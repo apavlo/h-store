@@ -210,16 +210,16 @@ public abstract class VoltTableRow {
             m_offsets = new int[getColumnCount()];
 
         if (m_activeRowIndex == 0){
-            
-            m_position = getRowStart() + ROW_COUNT_SIZE + ROW_HEADER_SIZE;
            
+            m_position = getRowStart() + ROW_COUNT_SIZE + ROW_HEADER_SIZE;
+          
         }
         else {
             int rowlength = m_buffer.getInt(m_position - ROW_HEADER_SIZE);
             if (rowlength <= 0) {
                 throw new RuntimeException("Invalid row length.");
             }
-            
+           
             m_position += rowlength + ROW_HEADER_SIZE;
            
             if (m_position >= m_buffer.limit())

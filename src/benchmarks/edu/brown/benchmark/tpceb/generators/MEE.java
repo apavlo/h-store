@@ -87,10 +87,10 @@ public class MEE {
         Seed <<= 33;
         Seed += uniqueID;
 
-        System.out.println("setting RNGSeed for ticker tape");
+       // System.out.println("setting RNGSeed for ticker tape");
         tickerTape.setRNGSeed( Seed );
         driverMEESettings.cur_TickerTapeRNGSeed = Seed;
-        System.out.println("set rngseed");
+       // System.out.println("set rngseed");
         Seed |= 0x0000000100000000L;
         
         tradingFloor.setRNGSeed( Seed );
@@ -104,13 +104,13 @@ public class MEE {
         this.logger = logger;
         currentTime = new Date();
         baseTime = new Date();
-        System.out.println("mee current time" + currentTime);
-        System.out.println("trading time so far:" + tradingTimeSoFar);
+        //System.out.println("mee current time" + currentTime);
+       // System.out.println("trading time so far:" + tradingTimeSoFar);
         priceBoard = new MEEPriceBoard( tradingTimeSoFar,  baseTime,  currentTime, securityFile, configuredCustomerCount);
      
-        System.out.println("Creating new ticker tape");
+        //System.out.println("Creating new ticker tape");
         tickerTape = new MEETickerTape( pSUT,  priceBoard,  baseTime,  currentTime );
-        System.out.println("created new ticker tape");
+       // System.out.println("created new ticker tape");
         
         tradingFloor = new MEETradingFloor( pSUT,  priceBoard,  tickerTape,  baseTime,  currentTime );
         
@@ -199,9 +199,9 @@ public class MEE {
     public int submitTradeRequest( TTradeRequest pTradeRequest ){
         int nextTime;
         lock.lock();
-        System.out.println();
-        System.out.println();
-        System.out.println("ACQUIRED LOCK");
+       // System.out.println();
+       // System.out.println();
+       // System.out.println("ACQUIRED LOCK");
         if(pTradeRequest.eActionTemp == 1){
             pTradeRequest.eAction = TPCEConstants.eMEETradeRequestAction.eMEEProcessOrder;
         }
@@ -214,9 +214,9 @@ public class MEE {
         //currentTime = new Date();
         nextTime = tradingFloor.submitTradeRequest( pTradeRequest );
         lock.unlock();
-        System.out.println("RELEASED LOCK");
-        System.out.println();
-        System.out.println();
+       // System.out.println("RELEASED LOCK");
+       // System.out.println();
+       // System.out.println();
         return( nextTime );
     }
 
