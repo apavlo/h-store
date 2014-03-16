@@ -10,12 +10,12 @@ public class TMarketFeedTxnInput {
     public TMarketFeedTxnInput(){
         StatusAndTradeType = new TStatusAndTradeType();
         zz_padding = new char[4];
-        System.out.println("getting to entries");
+       // System.out.println("getting to entries");
         Entries = new TTickerEntry[TxnHarnessStructs.max_feed_len];
         price_quotes = new double[Entries.length];
         symbols = new String[Entries.length];
         trade_qtys = new long[Entries.length];
-        System.out.println("Entries length" +Entries.length);
+       // System.out.println("Entries length" +Entries.length);
       /*  for(int i =0; i < Entries.length; i++){
             System.out.println(Entries.length);
             System.out.println(Entries[i]);
