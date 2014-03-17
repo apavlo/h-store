@@ -19,6 +19,7 @@ import org.voltdb.ClientResponseImpl;
 import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
+import org.voltdb.catalog.Column;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Table;
 import org.voltdb.exceptions.EvictedTupleAccessException;
@@ -202,6 +203,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
             LOG.debug("AVAILABLE MEMORY: " + StringUtil.formatSize(this.availableMemory));
 
         CatalogContext catalogContext = hstore_site.getCatalogContext();
+        
         evictableTables = new String[catalogContext.getEvictableTables().size()];
         int i = 0;
         for (Table table : catalogContext.getEvictableTables()) {
@@ -449,12 +451,20 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
             long evictBlockSizes[] = new long[pdist.size()];
             int evictBlocks[] = new int[pdist.size()];
             int i = 0;
+            CatalogContext catalogContext = hstore_site.getCatalogContext();
             for (String table : pdist.keySet()) {
                 tableNames[i] = table;
+                Table catalogTable = catalogContext.getTableByName(table);
+                if(hstore_conf.site.anticache_batching == true){
+                    Collection<Table> children = CatalogUtil.getChildTables(catalogContext.database, catalogTable);
+                    System.out.println(children);                	
+                }
                 evictBlockSizes[i] = hstore_conf.site.anticache_block_size;
                 evictBlocks[i] = pdist.get(table); 
                 i++;
             }
+            
+            
             Object params[] = new Object[] { partition, tableNames, evictBlockSizes, evictBlocks};
 
             StoredProcedureInvocation invocation = new StoredProcedureInvocation(1, procName, params);

@@ -3,11 +3,13 @@ package edu.brown.catalog;
 import java.util.Collection;
 
 import org.voltdb.catalog.Column;
+import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.Table;
 
 import edu.brown.BaseTestCase;
+import edu.brown.benchmark.articles.ArticlesConstants;
 import edu.brown.benchmark.tm1.TM1Constants;
 import edu.brown.benchmark.tm1.procedures.GetSubscriberData;
 import edu.brown.utils.CollectionUtil;
@@ -40,5 +42,22 @@ public class TestCatalogUtil2 extends BaseTestCase {
         for (Column c : expected) {
             assert (columns.contains(c)) : "Missing " + c.fullName();
         } // FOR
+    }
+    
+    public void testGetChildTables() throws Exception{
+    	super.setUp(ProjectType.ARTICLES);
+    	
+        Table catalog_tbl = this.getTable(ArticlesConstants.TABLENAME_ARTICLES);
+        Database db = this.getDatabase();
+        Table expected[] = { this.getTable(ArticlesConstants.TABLENAME_COMMENTS) };
+
+    	Collection<Table> tables = CatalogUtil.getChildTables(db, catalog_tbl);
+    	
+        assertNotNull(tables);
+        assertEquals(tables.toString(), expected.length, tables.size());
+        for (Table t : expected) {
+            assert (tables.contains(t)) : "Missing " + t.fullName();
+        } // FOR
+
     }
 }
