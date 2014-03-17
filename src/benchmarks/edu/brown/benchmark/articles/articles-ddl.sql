@@ -70,8 +70,8 @@ CREATE TABLE ARTICLES (
 -- ================================================================
 CREATE TABLE COMMENTS (
 	c_id	BIGINT NOT NULL,
-		a_id	BIGINT NOT NULL REFERENCES ARTICLES (a_id),
-			u_id	BIGINT NOT NULL REFERENCES USERS (u_id),
+		c_a_id	BIGINT NOT NULL REFERENCES ARTICLES (a_id),
+			c_u_id	BIGINT NOT NULL REFERENCES USERS (u_id),
 				c_text	VARCHAR(100),
 				    c_attr01      VARCHAR(8),
 				    c_attr02      VARCHAR(8),
@@ -83,5 +83,6 @@ CREATE TABLE COMMENTS (
 				    c_attr08      VARCHAR(8),
 				    c_attr09      VARCHAR(8),
 				    c_attr10      VARCHAR(8),
-					PRIMARY KEY (c_id)
+					PRIMARY KEY (c_a_id, c_id)
 						);
+CREATE INDEX idx_comments_article_id ON COMMENTS (c_a_id);

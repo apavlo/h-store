@@ -32,7 +32,7 @@ public class ArticlesProjectBuilder extends AbstractProjectBuilder{
     public static final String PARTITIONING[][] = new String[][] {
         { ArticlesConstants.TABLENAME_ARTICLES, "A_ID" },
         { ArticlesConstants.TABLENAME_USERS, "U_ID" },
-        { ArticlesConstants.TABLENAME_COMMENTS, "A_ID" }
+        { ArticlesConstants.TABLENAME_COMMENTS, "C_A_ID" }
     };
     
 	public ArticlesProjectBuilder() {

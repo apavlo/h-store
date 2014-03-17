@@ -5,7 +5,7 @@ import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 @ProcInfo(
-	    partitionInfo = "USERS.U_ID: 0",
+	    partitionInfo = "USERS.U_ID: 1",
 	    singlePartition = true
 	)
 public class UpdateUserInfo extends VoltProcedure{
