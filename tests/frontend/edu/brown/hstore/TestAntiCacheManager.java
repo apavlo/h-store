@@ -55,6 +55,7 @@ public class TestAntiCacheManager extends BaseTestCase {
     private PartitionExecutor executor;
     private ExecutionEngine ee;
     private Table catalog_tbl;
+    private Table child_tbl;
     private int locators[];
 
     private final AbstractProjectBuilder builder = new YCSBProjectBuilder() {
@@ -145,7 +146,32 @@ public class TestAntiCacheManager extends BaseTestCase {
         assertTrue(adv);
           return (evictResult);
     }
-    
+
+    private VoltTable evictDataInBatch() throws Exception {
+        VoltTable results[] = this.ee.getStats(SysProcSelector.TABLE, this.locators, false, 0L);
+        assertEquals(1, results.length);
+        // System.err.println(VoltTableUtil.format(results));
+        for (String col : statsFields) {
+			results[0].advanceRow(); 
+            int idx = results[0].getColumnIndex(col);
+            assertEquals(0, results[0].getLong(idx));    
+        } // FOR
+
+        // Now force the EE to evict our boys out
+        // We'll tell it to remove 1MB, which is guaranteed to include all of our tuples
+        VoltTable evictResult = this.ee.antiCacheEvictBlockInBatch(catalog_tbl, child_tbl, 1024 * 500, 1);
+
+        System.err.println("-------------------------------");
+        System.err.println(VoltTableUtil.format(evictResult));
+        assertNotNull(evictResult);
+        assertEquals(1, evictResult.getRowCount());
+        //assertNotSame(results[0].getColumnCount(), evictResult.getColumnCount());
+        evictResult.resetRowPosition();
+        boolean adv = evictResult.advanceRow();
+        assertTrue(adv);
+          return (evictResult);
+    }
+
     // --------------------------------------------------------------------------------------------
     // TEST CASES
     // --------------------------------------------------------------------------------------------
@@ -304,6 +330,32 @@ public class TestAntiCacheManager extends BaseTestCase {
     public void testEvictTuples() throws Exception {
         this.loadData();
         VoltTable evictResult = this.evictData();
+		evictResult.advanceRow(); 
+
+        // Our stats should now come back with at least one block evicted
+        VoltTable results[] = this.ee.getStats(SysProcSelector.TABLE, this.locators, false, 0L);
+        assertEquals(1, results.length);
+        System.err.println("-------------------------------");
+        System.err.println(VoltTableUtil.format(results));
+
+		results[0].advanceRow(); 
+        for (String col : statsFields) {
+            assertEquals(col, evictResult.getLong(col), results[0].getLong(col));
+            if (col == "BLOCKS_EVICTED") {
+                assertEquals(col, 1, results[0].getLong(col));
+            } else {
+                assertNotSame(col, 0, results[0].getLong(col));
+            }
+        } // FOR
+    }
+
+    /**
+     * testEvictTuplesInBatch
+     */
+    @Test
+    public void testEvictTuplesInBatch() throws Exception {
+        this.loadData();
+        VoltTable evictResult = this.evictDataInBatch();
 		evictResult.advanceRow(); 
 
         // Our stats should now come back with at least one block evicted
