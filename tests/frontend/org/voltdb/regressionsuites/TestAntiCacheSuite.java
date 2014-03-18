@@ -105,7 +105,8 @@ public class TestAntiCacheSuite extends RegressionSuite {
         int numBlocks[] = { 1 };
         for (int partition : catalogContext.getAllPartitionIds()) {
 //            System.err.printf("Evicting data at partition %d...\n", partition);
-            Object params[] = { partition, tableNames, evictBytes, numBlocks };
+        	String children[] = null;
+            Object params[] = { partition, tableNames, children, evictBytes, numBlocks };
             boolean result = client.callProcedure(callback, procName, params);
             assertTrue(result);
         } // FOR
@@ -258,6 +259,7 @@ public class TestAntiCacheSuite extends RegressionSuite {
         builder.setGlobalConfParameter("site.anticache_profiling", true);
         builder.setGlobalConfParameter("site.anticache_reset", true);
         builder.setGlobalConfParameter("site.anticache_check_interval", Integer.MAX_VALUE);
+        builder.setGlobalConfParameter("site.anticache_batching", false);
 
         // build up a project builder for the TPC-C app
         VoterProjectBuilder project = new VoterProjectBuilder();

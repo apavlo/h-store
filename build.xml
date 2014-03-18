@@ -195,7 +195,7 @@
   <isset property="regressions"/>
 </condition>
 
-<condition property="junitclass" value="TestCatalogUtil2">
+<condition property="junitclass" value="TestAntiCacheSuite">
 	<not><isset property="junitclass"/></not>
 </condition>
 

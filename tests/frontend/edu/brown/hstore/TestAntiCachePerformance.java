@@ -157,7 +157,7 @@ public class TestAntiCachePerformance extends BaseTestCase {
 
         for (int partition : catalogContext.getAllPartitionIds()) {
 //            System.err.printf("Evicting data at partition %d...\n", partition);
-            Object params[] = { partition, tableNames, evictBytes, numBlocks };
+            Object params[] = { partition, tableNames, null, evictBytes, numBlocks };
             boolean result = this.client.callProcedure(callback, procName, params);
             assertTrue(result);
         } // FOR

@@ -1495,6 +1495,31 @@ SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeAntiC
     return (retval);
 }
 
+SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeAntiCacheEvictBlockInBatch (
+        JNIEnv *env,
+        jobject obj,
+        jlong engine_ptr,
+        jint tableId,
+        jint childTableId,
+        jlong blockSize,
+        jint numBlocks) {
+
+    int retval = -1;
+    VOLT_DEBUG("nativeAntiCacheEvictBlockInBatch() start");
+    VoltDBEngine *engine = castToEngine(engine_ptr);
+    Topend *topend = static_cast<JNITopend*>(engine->getTopend())->updateJNIEnv(env);
+    if (engine == NULL) return (retval);
+
+    engine->resetReusedResultOutputBuffer();
+
+    try {
+        retval = engine->antiCacheEvictBlockInBatch(static_cast<int32_t>(tableId), static_cast<int32_t>(childTableId), static_cast<long>(blockSize), static_cast<int>(numBlocks));
+    } catch (FatalException e) {
+        topend->crashVoltDB(e);
+    }
+    return (retval);
+}
+
 SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeAntiCacheMergeBlocks (
         JNIEnv *env,
         jobject obj,
