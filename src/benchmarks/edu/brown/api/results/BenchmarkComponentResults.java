@@ -32,7 +32,7 @@ public class BenchmarkComponentResults implements JSONSerializable {
     /**
      * The number of txns executed base on WorkflowID
      */
-    public FastIntHistogram workflows = new FastIntHistogram(true);
+    //public FastIntHistogram workflows = new FastIntHistogram(true);
 
     /**
      * The number of speculatively executed txns
@@ -50,7 +50,7 @@ public class BenchmarkComponentResults implements JSONSerializable {
     public final Map<Integer, ObjectHistogram<Integer>> spLatencies = new HashMap<Integer, ObjectHistogram<Integer>>();
     public final Map<Integer, ObjectHistogram<Integer>> dtxnLatencies = new HashMap<Integer, ObjectHistogram<Integer>>();
     // added by hawk
-    public final Map<Integer, ObjectHistogram<Integer>> workflowLatencies = new HashMap<Integer, ObjectHistogram<Integer>>();
+    //public final Map<Integer, ObjectHistogram<Integer>> workflowLatencies = new HashMap<Integer, ObjectHistogram<Integer>>();
     
     public FastIntHistogram basePartitions = new FastIntHistogram(true);
     private boolean enableBasePartitions = false;
@@ -73,9 +73,9 @@ public class BenchmarkComponentResults implements JSONSerializable {
         copy.transactions.put(this.transactions);
         
         // added by hawk
-        assert(copy.workflows != null);
-        copy.workflows.setDebugLabels(this.workflows.getDebugLabels());
-        copy.workflows.put(this.workflows);
+//        assert(copy.workflows != null);
+//        copy.workflows.setDebugLabels(this.workflows.getDebugLabels());
+//        copy.workflows.put(this.workflows);
         // ended by hawk
 
         assert(copy.specexecs != null);
@@ -109,16 +109,16 @@ public class BenchmarkComponentResults implements JSONSerializable {
         } // SYNCH
         
         // added by hawk
-        copy.workflowLatencies.clear();
-        synchronized (this.workflowLatencies) {
-            for (Entry<Integer, ObjectHistogram<Integer>> e : this.workflowLatencies.entrySet()) {
-                ObjectHistogram<Integer> h = new ObjectHistogram<Integer>();
-                synchronized (e.getValue()) {
-                    h.put(e.getValue());
-                } // SYNCH
-                copy.workflowLatencies.put(e.getKey(), h);
-            } // FOR
-        } // SYNCH
+//        copy.workflowLatencies.clear();
+//        synchronized (this.workflowLatencies) {
+//            for (Entry<Integer, ObjectHistogram<Integer>> e : this.workflowLatencies.entrySet()) {
+//                ObjectHistogram<Integer> h = new ObjectHistogram<Integer>();
+//                synchronized (e.getValue()) {
+//                    h.put(e.getValue());
+//                } // SYNCH
+//                copy.workflowLatencies.put(e.getKey(), h);
+//            } // FOR
+//        } // SYNCH
         // ended by hawk
 
         copy.enableBasePartitions = this.enableBasePartitions;
@@ -149,13 +149,13 @@ public class BenchmarkComponentResults implements JSONSerializable {
             this.transactions.clearValues();
             this.specexecs.clearValues();
             this.dtxns.clearValues();
-            this.workflows.clearValues();// added by hawk
+//            this.workflows.clearValues();// added by hawk
         }
         
         
         this.spLatencies.clear();
         this.dtxnLatencies.clear();
-        this.workflowLatencies.clear(); // ended by hawk
+//        this.workflowLatencies.clear(); // ended by hawk
         this.basePartitions.clearValues();
         this.responseStatuses.clearValues();
     }
@@ -196,7 +196,7 @@ public class BenchmarkComponentResults implements JSONSerializable {
     public void fromJSON(JSONObject json_object, Database catalog_db) throws JSONException {
         this.spLatencies.clear();
         this.dtxnLatencies.clear();
-        this.workflowLatencies.clear(); // added by hawk
+//        this.workflowLatencies.clear(); // added by hawk
         Field fields[] = JSONUtil.getSerializableFields(this.getClass());
         JSONUtil.fieldsFromJSON(json_object, catalog_db, this, BenchmarkComponentResults.class, true, fields);
         assert(this.transactions != null);

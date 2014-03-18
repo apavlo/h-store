@@ -3135,9 +3135,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                         //System.out.println("hawk - txn:" + String.format("%d...",ts.getTransactionId()) + "firing frontend trigger 0:" + procedure.getName());
     
                         if(procedure.getBedefault() == true)  // FIXME modified by hawk, 2014-3-7
-                            this.hstore_site.invocationTriggerProcedureProcess(/*ts.getBatchId(),*/ ts.getClientHandle(), ts.getInitiateTime(), procedure);
+                            this.hstore_site.invocationTriggerProcedureProcess(/*ts.getBatchId(),*/ ts.getClientHandle(), /*ts.getInitiateTime()*/ EstTime.currentTimeMillis(), procedure);
                         else // second way - send it back to client to run it (Client side)
-                            ts.addFollowingProcedure(procedure);
+                            ;//ts.addFollowingProcedure(procedure);
                     }
                 }
             }
@@ -3190,118 +3190,118 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
     
     // added by hawk, 2013/12/6
     // to update trigger stats information
-    private void updateTriggerStats(long time) {
-        
-        System.out.println("hawk: entering updateTriggerStats...");
-        
-        Collection<Table> tables = this.catalogContext.database.getTables();
-        int[] tableIds = new int[tables.size()];
-        
-        ArrayList<Integer> trigger_id_list = new ArrayList<Integer>();
+//    private void updateTriggerStats(long time) {
+//        
+//        System.out.println("hawk: entering updateTriggerStats...");
+//        
+//        Collection<Table> tables = this.catalogContext.database.getTables();
+//        int[] tableIds = new int[tables.size()];
+//        
+//        ArrayList<Integer> trigger_id_list = new ArrayList<Integer>();
+//
+//        
+//        int i = 0;
+//        for (Table table : tables) {
+//            tableIds[i++] = table.getRelativeIndex();
+//            
+//            Collection<Trigger> triggers = table.getTriggers();
+//            for(Trigger trigger : triggers)
+//            {
+//                trigger_id_list.add(trigger.getId());
+//            }
+//            
+//        }
+//        
+//        if(trigger_id_list.size()==0)
+//            return;
+//        
+//        int[] triggerIds = new int[trigger_id_list.size()];
+//        for(int ii=0; ii<trigger_id_list.size();ii++)
+//            triggerIds[ii] = trigger_id_list.get(ii);
+//
+//        TriggerStatsCollector triggerStatsCollector = this.hstore_site.getTriggerStatsSource();
+//
+//        // update trigger stats
+//        VoltTable[] s1 = null;
+//        try {
+//            LOG.debug("hawk : this.ee.getStats(trigger)...");
+//            s1 = this.ee.getStats(SysProcSelector.TRIGGER, triggerIds, false, time);
+//        } catch (RuntimeException ex) {
+//            LOG.warn("Unexpected error when trying to retrieve EE trigger stats for partition " + this.partitionId, ex);
+//        }
+//        if (s1 != null) {
+//            VoltTable stats = s1[0];
+//            assert(stats != null);
+//
+//            // rollup the table memory stats for this site
+//            while (stats.advanceRow()) {
+//                int idx = 5;
+//                String triggerName = stats.getString(idx++);
+//                long executionTime = stats.getLong(idx++);
+//                if( executionTime > 0 )
+//                    triggerStatsCollector.addTriggerInfo(triggerName, executionTime);
+//                else
+//                    System.out.println("Trigger has illegal latency value! ");
+//                    
+//            }
+//            stats.resetRowPosition();
+//        }
+//        System.out.println("hawk: ending updateTriggerStats...");
+//    }
 
-        
-        int i = 0;
-        for (Table table : tables) {
-            tableIds[i++] = table.getRelativeIndex();
-            
-            Collection<Trigger> triggers = table.getTriggers();
-            for(Trigger trigger : triggers)
-            {
-                trigger_id_list.add(trigger.getId());
-            }
-            
-        }
-        
-        if(trigger_id_list.size()==0)
-            return;
-        
-        int[] triggerIds = new int[trigger_id_list.size()];
-        for(int ii=0; ii<trigger_id_list.size();ii++)
-            triggerIds[ii] = trigger_id_list.get(ii);
-
-        TriggerStatsCollector triggerStatsCollector = this.hstore_site.getTriggerStatsSource();
-
-        // update trigger stats
-        VoltTable[] s1 = null;
-        try {
-            LOG.debug("hawk : this.ee.getStats(trigger)...");
-            s1 = this.ee.getStats(SysProcSelector.TRIGGER, triggerIds, false, time);
-        } catch (RuntimeException ex) {
-            LOG.warn("Unexpected error when trying to retrieve EE trigger stats for partition " + this.partitionId, ex);
-        }
-        if (s1 != null) {
-            VoltTable stats = s1[0];
-            assert(stats != null);
-
-            // rollup the table memory stats for this site
-            while (stats.advanceRow()) {
-                int idx = 5;
-                String triggerName = stats.getString(idx++);
-                long executionTime = stats.getLong(idx++);
-                if( executionTime > 0 )
-                    triggerStatsCollector.addTriggerInfo(triggerName, executionTime);
-                else
-                    System.out.println("Trigger has illegal latency value! ");
-                    
-            }
-            stats.resetRowPosition();
-        }
-        System.out.println("hawk: ending updateTriggerStats...");
-    }
-
-    private void updateStreamStats(long time) {
-        
-        System.out.println("hawk: entering updateStreamStats...");
-        
-        Collection<Table> tables = this.catalogContext.database.getTables();
-        int[] tableIds = new int[tables.size()];
-        
-        ArrayList<Integer> stream_id_list = new ArrayList<Integer>();
-
-        
-        int i = 0;
-        for (Table table : tables) {
-            if(table.getIsstream())
-                stream_id_list.add(table.getRelativeIndex());
-        }
-        
-        if(stream_id_list.size()==0)
-            return;
-        
-        int[] streamIds = new int[stream_id_list.size()];
-        for(int ii=0; ii<stream_id_list.size();ii++)
-            streamIds[ii] = stream_id_list.get(ii);
-
-        StreamStatsCollector streamStatsCollector = this.hstore_site.getStreamStatsSource();
-
-        // update stream stats
-        VoltTable[] s1 = null;
-        try {
-            LOG.debug("hawk : this.ee.getStats(stream)...");
-            s1 = this.ee.getStats(SysProcSelector.STREAM, streamIds, false, time);
-        } catch (RuntimeException ex) {
-            LOG.warn("Unexpected error when trying to retrieve EE trigger stats for partition " + this.partitionId, ex);
-        }
-        if (s1 != null) {
-            VoltTable stats = s1[0];
-            assert(stats != null);
-
-            // rollup the table memory stats for this site
-            while (stats.advanceRow()) {
-                int idx = 5;
-                String streamName = stats.getString(idx++);
-                long executionTime = stats.getLong(idx++);
-                long deleteExecutionTime = stats.getLong(idx++);
-                if( executionTime > 0 )
-                    streamStatsCollector.addStreamInfo(streamName, executionTime, deleteExecutionTime);
-                else
-                    System.out.println("Stream has illegal latency value! ");
-                    
-            }
-            stats.resetRowPosition();
-        }
-        System.out.println("hawk: ending updateStreamStats...");
-    }
+//    private void updateStreamStats(long time) {
+//        
+//        System.out.println("hawk: entering updateStreamStats...");
+//        
+//        Collection<Table> tables = this.catalogContext.database.getTables();
+//        int[] tableIds = new int[tables.size()];
+//        
+//        ArrayList<Integer> stream_id_list = new ArrayList<Integer>();
+//
+//        
+//        int i = 0;
+//        for (Table table : tables) {
+//            if(table.getIsstream())
+//                stream_id_list.add(table.getRelativeIndex());
+//        }
+//        
+//        if(stream_id_list.size()==0)
+//            return;
+//        
+//        int[] streamIds = new int[stream_id_list.size()];
+//        for(int ii=0; ii<stream_id_list.size();ii++)
+//            streamIds[ii] = stream_id_list.get(ii);
+//
+//        StreamStatsCollector streamStatsCollector = this.hstore_site.getStreamStatsSource();
+//
+//        // update stream stats
+//        VoltTable[] s1 = null;
+//        try {
+//            LOG.debug("hawk : this.ee.getStats(stream)...");
+//            s1 = this.ee.getStats(SysProcSelector.STREAM, streamIds, false, time);
+//        } catch (RuntimeException ex) {
+//            LOG.warn("Unexpected error when trying to retrieve EE trigger stats for partition " + this.partitionId, ex);
+//        }
+//        if (s1 != null) {
+//            VoltTable stats = s1[0];
+//            assert(stats != null);
+//
+//            // rollup the table memory stats for this site
+//            while (stats.advanceRow()) {
+//                int idx = 5;
+//                String streamName = stats.getString(idx++);
+//                long executionTime = stats.getLong(idx++);
+//                long deleteExecutionTime = stats.getLong(idx++);
+//                if( executionTime > 0 )
+//                    streamStatsCollector.addStreamInfo(streamName, executionTime, deleteExecutionTime);
+//                else
+//                    System.out.println("Stream has illegal latency value! ");
+//                    
+//            }
+//            stats.resetRowPosition();
+//        }
+//        System.out.println("hawk: ending updateStreamStats...");
+//    }
     
     
     /**
@@ -5346,10 +5346,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
     }
     
     //added by hawk, 2013/12/11, for micro-benchmark 3
-    public ProcedureStatsCollector getProcedureStatsSource()
-    {
-        ProcedureStatsCollector collector = this.hstore_site.getProcedureStatsSource();
-        return collector;
-    }
+//    public ProcedureStatsCollector getProcedureStatsSource()
+//    {
+//        ProcedureStatsCollector collector = this.hstore_site.getProcedureStatsSource();
+//        return collector;
+//    }
     //ended by hawk
 }

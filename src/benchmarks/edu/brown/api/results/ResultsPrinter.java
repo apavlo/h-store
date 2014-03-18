@@ -117,37 +117,37 @@ public class ResultsPrinter implements BenchmarkInterest {
                                         (fr.getTotalSpecExecCount() / (double)fr.getTotalTxnCount())*100);
         
         //added by hawk
-        StringBuilder wkfThroughput = new StringBuilder();
-        wkfThroughput.append(String.format(RESULT_FORMAT + " wkf/s", fr.getWkfPerSecond()))
-             .append(" [")
-             .append(String.format("min:" + RESULT_FORMAT, fr.getMinWkfPerSecond()))
-             .append(" / ")
-             .append(String.format("max:" + RESULT_FORMAT, fr.getMaxWkfPerSecond()))
-             .append(" / ")
-             .append(String.format("stdev:" + RESULT_FORMAT, fr.getStandardDeviationWkfPerSecond()))
-             .append("]");
-        
-        StringBuilder wkfLatencies = new StringBuilder();
-        wkfLatencies.append(String.format(RESULT_FORMAT + " ms", fr.getWkfAvgLatency()))
-             .append(" [")
-             .append(String.format("min:" + RESULT_FORMAT, fr.getWkfMinLatency()))
-             .append(" / ")
-             .append(String.format("max:" + RESULT_FORMAT, fr.getWkfMaxLatency()))
-             .append(" / ")
-             .append(String.format("stdev:" + RESULT_FORMAT, fr.getWkfStdDevLatency()))
-             .append("]");
-        //ended by hawk
+//        StringBuilder wkfThroughput = new StringBuilder();
+//        wkfThroughput.append(String.format(RESULT_FORMAT + " wkf/s", fr.getWkfPerSecond()))
+//             .append(" [")
+//             .append(String.format("min:" + RESULT_FORMAT, fr.getMinWkfPerSecond()))
+//             .append(" / ")
+//             .append(String.format("max:" + RESULT_FORMAT, fr.getMaxWkfPerSecond()))
+//             .append(" / ")
+//             .append(String.format("stdev:" + RESULT_FORMAT, fr.getStandardDeviationWkfPerSecond()))
+//             .append("]");
+//        
+//        StringBuilder wkfLatencies = new StringBuilder();
+//        wkfLatencies.append(String.format(RESULT_FORMAT + " ms", fr.getWkfAvgLatency()))
+//             .append(" [")
+//             .append(String.format("min:" + RESULT_FORMAT, fr.getWkfMinLatency()))
+//             .append(" / ")
+//             .append(String.format("max:" + RESULT_FORMAT, fr.getWkfMaxLatency()))
+//             .append(" / ")
+//             .append(String.format("stdev:" + RESULT_FORMAT, fr.getWkfStdDevLatency()))
+//             .append("]");
+//        //ended by hawk
         Map<String, Object> m = new LinkedHashMap<String, Object>();
         m.put("Execution Time", String.format("%d ms", fr.getDuration()));
         m.put("Transactions", txnInfo);
         m.put("Throughput", throughput.toString()); 
         m.put("Latency", latencies.toString());
         //added by hawk
-        if(fr.getWkfPerSecond()!=0) // that we do not have any related workflow, we will not display the result
-        {
-            m.put("Wkf Throughput", wkfThroughput.toString()); 
-            m.put("Wkf Latency", wkfLatencies.toString());
-        }
+//        if(fr.getWkfPerSecond()!=0) // that we do not have any related workflow, we will not display the result
+//        {
+//            m.put("Wkf Throughput", wkfThroughput.toString()); 
+//            m.put("Wkf Latency", wkfLatencies.toString());
+//        }
         //ended by hawk
         sb.append(StringUtil.formatMaps(m));
         sb.append("\n");
@@ -251,7 +251,7 @@ public class ResultsPrinter implements BenchmarkInterest {
         if (hstore_conf.client.output_interval == false) return;
         
         Pair<Long, Long> p = results.computeTotalAndDelta();
-        Pair<Long, Long> w = results.computeTotalAndDeltaWkf();//added by hawk
+//        Pair<Long, Long> w = results.computeTotalAndDeltaWkf();//added by hawk
         
         assert(p != null);
         long totalTxnCount = p.getFirst();
@@ -290,33 +290,33 @@ public class ResultsPrinter implements BenchmarkInterest {
         
 
         //added by hawk
-        if( (w!=null) && (w.getFirst()!=0) ){
-            long totalWkfCount = w.getFirst();
-            long wkfDelta = w.getSecond();
-            
-            // INTERVAL LATENCY
-            lastLatencies = results.getLastWkfLatencies();
-            intervalLatency = HistogramUtil.sum(lastLatencies) / (double)lastLatencies.getSampleCount();
-            
-            // TOTAL LATENCY
-            allLatencies = results.getAllTotalWkfLatencies();        
-            totalLatency = HistogramUtil.sum(allLatencies) / (double)allLatencies.getSampleCount();
-
-            sb.append("\n" + SPACER);
-            sb.append(String.format("In the past %d ms:",
-                                    duration / pollCount));
-            sb.append("\n" + SPACER + SPACER);
-            sb.append(String.format("Completed %d wkfs at a rate of " + RESULT_FORMAT + " wkfs/s",
-                                    wkfDelta, wkfDelta / (double)(results.getIntervalDuration()) * 1000d));
-            sb.append(String.format(" with " + RESULT_FORMAT + " ms avg latency", intervalLatency));
-            
-            sb.append("\n" + SPACER);
-            sb.append("Since the benchmark began:");
-            sb.append("\n" + SPACER + SPACER);
-            sb.append(String.format("Completed %d wkfs at a rate of " + RESULT_FORMAT + " wkfs/s",
-                                    totalWkfCount, totalWkfCount / (double)(pollIndex * results.getIntervalDuration()) * 1000d));
-            sb.append(String.format(" with " + RESULT_FORMAT + " ms avg latency", totalLatency));
-        }
+//        if( (w!=null) && (w.getFirst()!=0) ){
+//            long totalWkfCount = w.getFirst();
+//            long wkfDelta = w.getSecond();
+//            
+//            // INTERVAL LATENCY
+//            lastLatencies = results.getLastWkfLatencies();
+//            intervalLatency = HistogramUtil.sum(lastLatencies) / (double)lastLatencies.getSampleCount();
+//            
+//            // TOTAL LATENCY
+//            allLatencies = results.getAllTotalWkfLatencies();        
+//            totalLatency = HistogramUtil.sum(allLatencies) / (double)allLatencies.getSampleCount();
+//
+//            sb.append("\n" + SPACER);
+//            sb.append(String.format("In the past %d ms:",
+//                                    duration / pollCount));
+//            sb.append("\n" + SPACER + SPACER);
+//            sb.append(String.format("Completed %d wkfs at a rate of " + RESULT_FORMAT + " wkfs/s",
+//                                    wkfDelta, wkfDelta / (double)(results.getIntervalDuration()) * 1000d));
+//            sb.append(String.format(" with " + RESULT_FORMAT + " ms avg latency", intervalLatency));
+//            
+//            sb.append("\n" + SPACER);
+//            sb.append("Since the benchmark began:");
+//            sb.append("\n" + SPACER + SPACER);
+//            sb.append(String.format("Completed %d wkfs at a rate of " + RESULT_FORMAT + " wkfs/s",
+//                                    totalWkfCount, totalWkfCount / (double)(pollIndex * results.getIntervalDuration()) * 1000d));
+//            sb.append(String.format(" with " + RESULT_FORMAT + " ms avg latency", totalLatency));
+//        }
         //ended by hawk
         
         System.out.println();

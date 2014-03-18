@@ -111,7 +111,7 @@ public class MockHStoreCoordinator extends HStoreCoordinator {
             RemoteTransaction ts = hstore_site.getTransactionInitializer()
                                              .createRemoteTransaction(//request.getBatchId(),
                                                                       request.getTransactionId(),
-                                                                      request.getInitiateTime(),//added by hawk, 2013/11/20
+                                                                      //request.getInitiateTime(),//added by hawk, 2013/11/20
                                                                       partitions,
                                                                       null,
                                                                       request.getBasePartition(),

@@ -106,8 +106,8 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
      * The timestamp (from EstTime) that our transaction showed up
      * at this HStoreSite, moved from LocalTransaction class by hawk
      */
-    private long initiateTime; // used to save the initiate time by initiator, caller or newer
-    private long localInitiateTime; // used to save the initiate time for locally
+//    private long initiateTime; // used to save the initiate time by initiator, caller or newer
+//    private long localInitiateTime; // used to save the initiate time for locally
 
 
     /**
@@ -246,23 +246,23 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
     
     
     // added by hawk, 2013/11/5
-    protected List<String> followingProcedures = new ArrayList<String>();
-    
-    public void addFollowingProcedure(Procedure procedure)
-    {
-        followingProcedures.add(procedure.getName());
-    }
-    
-    public void addFollowingProcedures(List<Procedure> procedures)
-    {
-        for(Procedure proc_catalog : procedures)
-            followingProcedures.add(proc_catalog.getName());
-    }
-    
-    public List<String> getFollowingProcedures()
-    {
-        return followingProcedures;
-    }
+//    protected List<String> followingProcedures = new ArrayList<String>();
+//    
+//    public void addFollowingProcedure(Procedure procedure)
+//    {
+//        followingProcedures.add(procedure.getName());
+//    }
+//    
+//    public void addFollowingProcedures(List<Procedure> procedures)
+//    {
+//        for(Procedure proc_catalog : procedures)
+//            followingProcedures.add(proc_catalog.getName());
+//    }
+//    
+//    public List<String> getFollowingProcedures()
+//    {
+//        return followingProcedures;
+//    }
     // ended by hawk
     
     // ----------------------------------------------------------------------------
@@ -315,8 +315,8 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
      */
     protected final AbstractTransaction init(//int batch_id,
                                              Long txn_id,
-                                             long initiateTime,
-                                             long localInitiateTime,
+                                             //long initiateTime,
+                                             //long localInitiateTime,
                                              long client_handle,
                                              int base_partition,
                                              ParameterSet parameters,
@@ -329,8 +329,8 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
         assert(predict_touchedPartitions.isEmpty() == false);
         assert(catalog_proc != null) : "Unexpected null Procedure catalog handle";
         
-        this.initiateTime = initiateTime; // moved from LocalTransaction class, by hawk
-        this.localInitiateTime = localInitiateTime;
+//        this.initiateTime = initiateTime; // moved from LocalTransaction class, by hawk
+//        this.localInitiateTime = localInitiateTime;
 
         //this.batch_id = batch_id;
         this.txn_id = txn_id;
@@ -363,8 +363,8 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
      */
     @Override
     public void finish() {
-        this.initiateTime = 0; // moved from LocalTransaction class, by hawk, 2013/11/20
-        this.localInitiateTime = 0; // by hawk, 2013/11/20
+//        this.initiateTime = 0; // moved from LocalTransaction class, by hawk, 2013/11/20
+//        this.localInitiateTime = 0; // by hawk, 2013/11/20
         this.predict_singlePartition = false;
         this.predict_abortable = true;
         this.predict_readOnly = false;
@@ -1359,12 +1359,12 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
      * Get the timestamp that this LocalTransaction handle was initiated
      * Moved from LocalTransaction class
      */
-    public long getInitiateTime() {
-        return (this.initiateTime);
-    }
+//    public long getInitiateTime() {
+//        return (this.initiateTime);
+//    }
     
-    public long getLocalInitiateTime() {
-        return (this.localInitiateTime);
-    }
+//    public long getLocalInitiateTime() {
+//        return (this.localInitiateTime);
+//    }
 
 }

@@ -59,19 +59,19 @@ public class FinalResult implements JSONSerializable {
 
     // added by hawk
     // for #workflow
-    public long   wkfTotalCount;
-    public long   wkfMinCount;
-    public long   wkfMaxCount;
-
-    public double wkfPerSecond;
-    public double wkfMinPerSecond;
-    public double wkfMaxPerSecond;
-    public double stddevWkfPerSecond;
-
-    public double wkfAvgLatency;
-    public double wkfStdevLatency;
-    public double wkfMinLatency;
-    public double wkfMaxLatency;
+//    public long   wkfTotalCount;
+//    public long   wkfMinCount;
+//    public long   wkfMaxCount;
+//
+//    public double wkfPerSecond;
+//    public double wkfMinPerSecond;
+//    public double wkfMaxPerSecond;
+//    public double stddevWkfPerSecond;
+//
+//    public double wkfAvgLatency;
+//    public double wkfStdevLatency;
+//    public double wkfMinLatency;
+//    public double wkfMaxLatency;
     // ended by hawk
     
     /** TransactionName -> Results */
@@ -80,7 +80,7 @@ public class FinalResult implements JSONSerializable {
     public final Map<String, EntityResult> clientResults = new HashMap<String, EntityResult>();
     
     //added by hawk
-    public final Map<String, EntityResult> wkfResults = new HashMap<String, EntityResult>();
+//    public final Map<String, EntityResult> wkfResults = new HashMap<String, EntityResult>();
     
     public FinalResult(BenchmarkResults results) {
         
@@ -92,19 +92,19 @@ public class FinalResult implements JSONSerializable {
         this.txnMaxCount = 0;
         this.dtxnTotalCount = 0;
         // added by hawk
-        this.wkfTotalCount = 0;
-        this.wkfMinCount = Long.MAX_VALUE;
-        this.wkfMaxCount = 0;
+//        this.wkfTotalCount = 0;
+//        this.wkfMinCount = Long.MAX_VALUE;
+//        this.wkfMaxCount = 0;
         // ended by hawk
         
         Histogram<String> clientTxnCounts = new ObjectHistogram<String>(true);
-        Histogram<String> clientWkfCounts = new ObjectHistogram<String>(true);//added by hawk
+//        Histogram<String> clientWkfCounts = new ObjectHistogram<String>(true);//added by hawk
         Histogram<String> clientSpecExecCounts = new ObjectHistogram<String>(true);
         Histogram<String> clientDtxnCounts = new ObjectHistogram<String>(true);
         Histogram<String> txnCounts = new ObjectHistogram<String>(true);
         Histogram<String> specexecCounts = new ObjectHistogram<String>(true);
         Histogram<String> dtxnCounts = new ObjectHistogram<String>(true);
-        Histogram<String> wkfCounts = new ObjectHistogram<String>(true);//added by hawk
+//        Histogram<String> wkfCounts = new ObjectHistogram<String>(true);//added by hawk
         
         double intervalTotals[] = results.computeIntervalTotals();
         if (debug.val) LOG.debug("INTERVAL TOTALS: " + Arrays.toString(intervalTotals));
@@ -115,13 +115,13 @@ public class FinalResult implements JSONSerializable {
         this.stddevTxnPerSecond = MathUtil.stdev(intervalTotals);
         
         //added by hawk
-        double workflowIntervalTotals[] = results.computeWorkflowIntervalTotals();
-        if (debug.val) LOG.debug("INTERVAL WORKFLOW TOTALS: " + Arrays.toString(workflowIntervalTotals));
-        for (int i = 0; i < workflowIntervalTotals.length; i++) {
-            workflowIntervalTotals[i] /= (results.pollIntervalInMillis / 1000.0);
-        } // FOR
-        if (debug.val) LOG.debug("INTERVAL TPS: " + Arrays.toString(workflowIntervalTotals));
-        this.stddevWkfPerSecond = MathUtil.stdev(workflowIntervalTotals);
+//        double workflowIntervalTotals[] = results.computeWorkflowIntervalTotals();
+//        if (debug.val) LOG.debug("INTERVAL WORKFLOW TOTALS: " + Arrays.toString(workflowIntervalTotals));
+//        for (int i = 0; i < workflowIntervalTotals.length; i++) {
+//            workflowIntervalTotals[i] /= (results.pollIntervalInMillis / 1000.0);
+//        } // FOR
+//        if (debug.val) LOG.debug("INTERVAL TPS: " + Arrays.toString(workflowIntervalTotals));
+//        this.stddevWkfPerSecond = MathUtil.stdev(workflowIntervalTotals);
         //ended by hawk
         
         for (String clientName : results.getClientNames()) {
@@ -144,25 +144,25 @@ public class FinalResult implements JSONSerializable {
                 } // FOR
             } // FOR
             //added by hawk
-            clientWkfCounts.set(clientName, 0);
-            for (String wkfName : results.getWorkflowNames()) {
-                if (wkfCounts.contains(wkfName) == false) wkfCounts.set(wkfName, 0);
-                Result[] rs = results.getResultsForClientAndWorkflow(clientName, wkfName);
-                for (Result r : rs) {
-                    this.wkfTotalCount += r.workflowCount;
-                    clientWkfCounts.put(clientName, r.workflowCount);
-                    wkfCounts.put(wkfName, r.transactionCount);
-                } // FOR
-            } // FOR
+//            clientWkfCounts.set(clientName, 0);
+//            for (String wkfName : results.getWorkflowNames()) {
+//                if (wkfCounts.contains(wkfName) == false) wkfCounts.set(wkfName, 0);
+//                Result[] rs = results.getResultsForClientAndWorkflow(clientName, wkfName);
+//                for (Result r : rs) {
+//                    this.wkfTotalCount += r.workflowCount;
+//                    clientWkfCounts.put(clientName, r.workflowCount);
+//                    wkfCounts.put(wkfName, r.transactionCount);
+//                } // FOR
+//            } // FOR
             //ended by hawk
         } // FOR
         this.txnTotalPerSecond = this.txnTotalCount / (double)this.duration * 1000.0;
-        this.wkfPerSecond = this.wkfTotalCount / (double)this.duration * 1000.0;//added by hawk
+//        this.wkfPerSecond = this.wkfTotalCount / (double)this.duration * 1000.0;//added by hawk
         
         // Min/Max Transactions Per Second
         for (int i = 0; i < results.getCompletedIntervalCount(); i++) {
             long txnCount = 0;
-            long wkfCount = 0;//added by hawk
+//            long wkfCount = 0;//added by hawk
             for (String client : results.getClientNames()) {
                 for (String txn : results.getTransactionNames()) {
                     Result[] rs = results.getResultsForClientAndTransaction(client, txn);
@@ -171,13 +171,13 @@ public class FinalResult implements JSONSerializable {
                         txnCount += rs[i].transactionCount;
                     }
                 } // FOR (txn)
-                for (String wkf : results.getWorkflowNames()) {
-                    Result[] rs = results.getResultsForClientAndWorkflow(client, wkf);
-                    if (i < rs.length) 
-                    {
-                        wkfCount += rs[i].workflowCount;
-                    }
-                } // FOR (wkf)
+//                for (String wkf : results.getWorkflowNames()) {
+//                    Result[] rs = results.getResultsForClientAndWorkflow(client, wkf);
+//                    if (i < rs.length) 
+//                    {
+//                        wkfCount += rs[i].workflowCount;
+//                    }
+//                } // FOR (wkf)
 
             } // FOR (client)
             if (debug.val)
@@ -185,49 +185,49 @@ public class FinalResult implements JSONSerializable {
             this.txnMinCount = Math.min(this.txnMinCount, txnCount);
             this.txnMaxCount = Math.max(this.txnMaxCount, txnCount);
             //added by hawk
-            this.wkfMinCount = Math.min(this.wkfMinCount, wkfCount);
-            this.wkfMaxCount = Math.max(this.wkfMaxCount, wkfCount);
+//            this.wkfMinCount = Math.min(this.wkfMinCount, wkfCount);
+//            this.wkfMaxCount = Math.max(this.wkfMaxCount, wkfCount);
             //ended by hawk
         } // FOR
         double interval = results.getIntervalDuration() / 1000.0d;
         this.txnMinPerSecond = this.txnMinCount / interval;
         this.txnMaxPerSecond = this.txnMaxCount / interval;
         //added by hawk
-        this.wkfMinPerSecond = this.wkfMinCount / interval;
-        this.wkfMaxPerSecond = this.wkfMaxCount / interval;
+//        this.wkfMinPerSecond = this.wkfMinCount / interval;
+//        this.wkfMaxPerSecond = this.wkfMaxCount / interval;
         //ended by hawk
         // TRANSACTION RESULTS
         Histogram<Integer> totalLatencies = new ObjectHistogram<Integer>();
         Histogram<Integer> spLatencies = new ObjectHistogram<Integer>();
         Histogram<Integer> dtxnLatencies = new ObjectHistogram<Integer>();
-        Histogram<Integer> wkfLatencies = new ObjectHistogram<Integer>();//added by hawk
+//        Histogram<Integer> wkfLatencies = new ObjectHistogram<Integer>();//added by hawk
         for (String txnName : txnCounts.values()) {
             Histogram<Integer> allTxnLatencies = results.getTransactionTotalLatencies(txnName);
             Histogram<Integer> spTxnLatencies = results.getTransactionSinglePartitionLatencies(txnName);
             Histogram<Integer> dtxnTxnLatencies = results.getTransactionDistributedLatencies(txnName);
-            Histogram<Integer> WkfLatencies = new ObjectHistogram<Integer>();//added by hawk
-            assert(txnCounts!=null);
-            assert(dtxnCounts!=null);
-            assert(this!=null);
-            assert(allTxnLatencies!=null);
-            assert(spTxnLatencies!=null);
-            assert(dtxnTxnLatencies!=null);
+//            Histogram<Integer> WkfLatencies = new ObjectHistogram<Integer>();//added by hawk
+//            assert(txnCounts!=null);
+//            assert(dtxnCounts!=null);
+//            assert(this!=null);
+//            assert(allTxnLatencies!=null);
+//            assert(spTxnLatencies!=null);
+//            assert(dtxnTxnLatencies!=null);
             EntityResult er = new EntityResult(this.txnTotalCount, this.duration,
-                                               txnCounts.get(txnName), dtxnCounts.get(txnName),0l, WkfLatencies,//modified by hawk
+                                               txnCounts.get(txnName), dtxnCounts.get(txnName),/*0l, WkfLatencies,*///modified by hawk
                                                allTxnLatencies, spTxnLatencies, dtxnTxnLatencies);
             this.txnResults.put(txnName, er);
             totalLatencies.put(allTxnLatencies);
             spLatencies.put(spTxnLatencies);
             dtxnLatencies.put(dtxnTxnLatencies);
         } // FOR
-        for (String wkfName : wkfCounts.values()) {
-            Histogram<Integer> WkfLatencies = results.getWorkflowLatencies(wkfName);
-            EntityResult er = new EntityResult(0l, this.duration,
-                                               0l, 0l, wkfCounts.get(wkfName), WkfLatencies,//modified by hawk
-                                               null, null, null);
-            this.wkfResults.put(wkfName, er);
-            wkfLatencies.put(WkfLatencies);
-        } // FOR
+//        for (String wkfName : wkfCounts.values()) {
+//            Histogram<Integer> WkfLatencies = results.getWorkflowLatencies(wkfName);
+//            EntityResult er = new EntityResult(0l, this.duration,
+//                                               0l, 0l, wkfCounts.get(wkfName), WkfLatencies,//modified by hawk
+//                                               null, null, null);
+//            this.wkfResults.put(wkfName, er);
+//            wkfLatencies.put(WkfLatencies);
+//        } // FOR
         if (totalLatencies.isEmpty() == false) {
             double x[] = BenchmarkControllerUtil.computeLatencies(totalLatencies);
             int i = 0;
@@ -253,14 +253,14 @@ public class FinalResult implements JSONSerializable {
             this.dtxnStdevLatency = x[i++];
         }
         //added by hawk
-        if (wkfLatencies.isEmpty() == false) {
-            double x[] = BenchmarkControllerUtil.computeLatencies(wkfLatencies);
-            int i = 0;
-            this.wkfMinLatency = x[i++];
-            this.wkfMaxLatency = x[i++];
-            this.wkfAvgLatency = x[i++];
-            this.wkfStdevLatency = x[i++];
-        }
+//        if (wkfLatencies.isEmpty() == false) {
+//            double x[] = BenchmarkControllerUtil.computeLatencies(wkfLatencies);
+//            int i = 0;
+//            this.wkfMinLatency = x[i++];
+//            this.wkfMaxLatency = x[i++];
+//            this.wkfAvgLatency = x[i++];
+//            this.wkfStdevLatency = x[i++];
+//        }
         //ended by hawk
         
         // CLIENTS RESULTS
@@ -268,9 +268,9 @@ public class FinalResult implements JSONSerializable {
             totalLatencies = results.getClientTotalLatencies(clientName);
             spLatencies = results.getClientSinglePartitionLatencies(clientName);
             dtxnLatencies = results.getClientDistributedLatencies(clientName);
-            wkfLatencies = results.getTotalWorkflowLatencies(clientName);//added by hawk
+//            wkfLatencies = results.getTotalWorkflowLatencies(clientName);//added by hawk
             EntityResult er = new EntityResult(this.txnTotalCount, this.duration,
-                                               clientTxnCounts.get(clientName), clientDtxnCounts.get(clientName),wkfCounts.get("0"), wkfLatencies,//modified by hawk
+                                               clientTxnCounts.get(clientName), clientDtxnCounts.get(clientName),/*wkfCounts.get("0"), wkfLatencies,*///modified by hawk
                                                totalLatencies, spLatencies, dtxnLatencies);
             this.clientResults.put(clientName.replace("client-", ""), er);
         } // FOR
@@ -336,39 +336,39 @@ public class FinalResult implements JSONSerializable {
     }
     
     //added by hawk
-    public long getWkfCount() {
-        return this.wkfTotalCount;
-    }
-    public long getMinWkfCount() {
-        return this.wkfMinCount;
-    }
-    public long getMaxWkfCount() {
-        return this.wkfMaxCount;
-    }
-    public double getWkfPerSecond() {
-        return this.wkfPerSecond;
-    }
-    public double getMinWkfPerSecond() {
-        return this.wkfMinPerSecond;
-    }
-    public double getMaxWkfPerSecond() {
-        return this.wkfMaxPerSecond;
-    }
-    public double getStandardDeviationWkfPerSecond() {
-        return this.stddevWkfPerSecond;
-    }
-    public double getWkfAvgLatency() {
-        return this.wkfAvgLatency;
-    }
-    public double getWkfStdDevLatency() {
-        return this.wkfStdevLatency;
-    }
-    public double getWkfMinLatency() {
-        return this.wkfMinLatency;
-    }
-    public double getWkfMaxLatency() {
-        return this.wkfMaxLatency;
-    }
+//    public long getWkfCount() {
+//        return this.wkfTotalCount;
+//    }
+//    public long getMinWkfCount() {
+//        return this.wkfMinCount;
+//    }
+//    public long getMaxWkfCount() {
+//        return this.wkfMaxCount;
+//    }
+//    public double getWkfPerSecond() {
+//        return this.wkfPerSecond;
+//    }
+//    public double getMinWkfPerSecond() {
+//        return this.wkfMinPerSecond;
+//    }
+//    public double getMaxWkfPerSecond() {
+//        return this.wkfMaxPerSecond;
+//    }
+//    public double getStandardDeviationWkfPerSecond() {
+//        return this.stddevWkfPerSecond;
+//    }
+//    public double getWkfAvgLatency() {
+//        return this.wkfAvgLatency;
+//    }
+//    public double getWkfStdDevLatency() {
+//        return this.wkfStdevLatency;
+//    }
+//    public double getWkfMinLatency() {
+//        return this.wkfMinLatency;
+//    }
+//    public double getWkfMaxLatency() {
+//        return this.wkfMaxLatency;
+//    }
     //ended by hawk
     
     // ----------------------------------------------------------------------------

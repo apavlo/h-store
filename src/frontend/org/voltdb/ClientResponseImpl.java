@@ -320,14 +320,14 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         }
         
         // added by hawk, 2013/11/5
-        String[] proArr = (String[]) in.readArray(String.class);
-        for(int i=0;i<proArr.length;i++)
-            followingProcedures.add(proArr[i]);
-        if ((presentFields & (1 << 4)) != 0) {
-            m_exception = SerializableException.deserializeFromBuffer(in.buffer());
-        } else {
-            m_exception = null;
-        }
+//        String[] proArr = (String[]) in.readArray(String.class);
+//        for(int i=0;i<proArr.length;i++)
+//            followingProcedures.add(proArr[i]);
+//        if ((presentFields & (1 << 4)) != 0) {
+//            m_exception = SerializableException.deserializeFromBuffer(in.buffer());
+//        } else {
+//            m_exception = null;
+//        }
         this.initiateTime = in.readLong();
         //this.batchId = in.readInt();
 
@@ -353,7 +353,7 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         }
         if (m_exception != null) {
             presentFields |= 1 << 6;
-            presentFields |= 1 << 4; // added by hawk
+            //presentFields |= 1 << 4; // added by hawk
         }
         if (statusString != null) {
             presentFields |= 1 << 5;
@@ -382,9 +382,9 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         }
 
         // added by hawk
-        String[] procArr = new String[followingProcedures.size()];
-        procArr = followingProcedures.toArray(procArr);
-        out.writeArray(procArr);
+//        String[] procArr = new String[followingProcedures.size()];
+//        procArr = followingProcedures.toArray(procArr);
+//        out.writeArray(procArr);
         out.writeLong(initiateTime);
         //out.writeInt(batchId);
         // ended by hawk
@@ -417,13 +417,13 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         m.put("Results", inner);
         
         // added by hawk, 2013/11/5
-        Map<String, String> procedures = new LinkedHashMap<String, String>();
-        int i = 0;
-        for (String procedure : followingProcedures) {
-            procedures.put(String.format("[%d]", i), procedure);
-            i++;
-        }
-        m.put("Following Procedures", procedures);  
+//        Map<String, String> procedures = new LinkedHashMap<String, String>();
+//        int i = 0;
+//        for (String procedure : followingProcedures) {
+//            procedures.put(String.format("[%d]", i), procedure);
+//            i++;
+//        }
+//        m.put("Following Procedures", procedures);  
         if (this.clusterRoundTripTime > 0) {
             m.put("Initiate Time in cluster", this.initiateTime + " ms");
         }
@@ -474,20 +474,20 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
     }
 
     // added by hawk
-    private List<String> followingProcedures =  new ArrayList<String>();
+//    private List<String> followingProcedures =  new ArrayList<String>();
     private long initiateTime = 0;
     //private int batchId = -1;
     
-    public void addFollowingProcedures(List<String> procedures)
-    {
-        for(String procedure : procedures)
-            followingProcedures.add(procedure);
-    }
+//    public void addFollowingProcedures(List<String> procedures)
+//    {
+//        for(String procedure : procedures)
+//            followingProcedures.add(procedure);
+//    }
     
     @Override
-    public List<String> getFollowingProcedures() {
-        return followingProcedures;
-    }
+//    public List<String> getFollowingProcedures() {
+//        return followingProcedures;
+//    }
 
     public void setInitiateTime(long initiateTime) {
         this.initiateTime = initiateTime;

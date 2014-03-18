@@ -32,7 +32,7 @@ public abstract class BenchmarkControllerUtil {
      */
     public static final ProfilingOutput[] PROFILING_OUTPUTS = {
         new ProfilingOutput(SysProcSelector.TABLE, "client.output_table_stats", null),
-        new ProfilingOutput(SysProcSelector.PROCEDURE, "client.output_procedure_stats", null), // added by hawk, 2013/11/25
+        //new ProfilingOutput(SysProcSelector.PROCEDURE, "client.output_procedure_stats", null), // added by hawk, 2013/11/25
         //new ProfilingOutput(SysProcSelector.TRIGGER, "client.output_trigger_stats", null), // added by hawk, 2013/12/6
         //new ProfilingOutput(SysProcSelector.STREAM, "client.output_stream_stats", null), // added by hawk, 2013/12/13
         new ProfilingOutput(SysProcSelector.EXECPROFILER, "client.output_exec_profiling", "site.exec_profiling"),

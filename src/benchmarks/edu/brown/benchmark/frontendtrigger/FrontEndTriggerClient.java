@@ -66,7 +66,7 @@ public class FrontEndTriggerClient extends BenchmarkComponent {
             callFollowingProcedures(client, clientResponse, workflowResponse);
             
             //
-            incrementWorkflowCounter(workflowResponse, 0);
+            //incrementWorkflowCounter(workflowResponse, 0);
 
         } catch (ProcCallException e) {
             e.printStackTrace();
@@ -77,21 +77,21 @@ public class FrontEndTriggerClient extends BenchmarkComponent {
     
     private void callFollowingProcedures(Client client, ClientResponse clientResponse, WorkflowResponse workflowResponse) 
     {
-        for(String procedure : clientResponse.getFollowingProcedures())
-        {
-                //System.out.println("client running frontend trigger procedure : " + procedure);
-                //assert(client != null);
-                try {
-                    clientResponse = client.callProcedure(procedure);
-                    incrementTransactionCounter(clientResponse, 0);
-                    workflowResponse.addClientResponse(clientResponse);
-                    callFollowingProcedures(client, clientResponse, workflowResponse);
-                }
-                catch (Exception e)
-                {
-                    e.printStackTrace();
-                }
-        }
+//        for(String procedure : clientResponse.getFollowingProcedures())
+//        {
+//                //System.out.println("client running frontend trigger procedure : " + procedure);
+//                //assert(client != null);
+//                try {
+//                    clientResponse = client.callProcedure(procedure);
+//                    incrementTransactionCounter(clientResponse, 0);
+//                    workflowResponse.addClientResponse(clientResponse);
+//                    callFollowingProcedures(client, clientResponse, workflowResponse);
+//                }
+//                catch (Exception e)
+//                {
+//                    e.printStackTrace();
+//                }
+//        }
     }
 
     @Override

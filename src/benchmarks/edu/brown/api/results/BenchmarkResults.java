@@ -65,21 +65,23 @@ public class BenchmarkResults {
         public final long dtxnCount;
         public final Histogram<Integer> spLatencies = new ObjectHistogram<Integer>();
         public final Histogram<Integer> dtxnLatencies = new ObjectHistogram<Integer>();
-        public final long workflowCount;//added by hawk
-        public final Histogram<Integer> workflowLatencies = new ObjectHistogram<Integer>();// added by hawk
+//        public final long workflowCount;//added by hawk
+//        public final Histogram<Integer> workflowLatencies = new ObjectHistogram<Integer>();// added by hawk
         
-        public Result(long timestamp, long benchmarkTimeDelta, long transactionCount, long specexecCount, long dtxnCount, long workflowCount) {
+        public Result(long timestamp, long benchmarkTimeDelta, long transactionCount, long specexecCount, long dtxnCount/*, long workflowCount*/) {
             this.timestamp = timestamp;
             this.benchmarkTimeDelta = benchmarkTimeDelta;
             this.transactionCount = transactionCount;
             this.specexecCount = specexecCount;
             this.dtxnCount = dtxnCount;
-            this.workflowCount = workflowCount;
+//            this.workflowCount = workflowCount;
         }
         @Override
         public String toString() {
-            return String.format("<TxnCount:%d / DtxnCount:%d / Delta:%d / WkfCount:%d>",
-                                 this.transactionCount, this.dtxnCount, this.benchmarkTimeDelta, this.workflowCount);
+//            return String.format("<TxnCount:%d / DtxnCount:%d / Delta:%d / WkfCount:%d>",
+//                                 this.transactionCount, this.dtxnCount, this.benchmarkTimeDelta, this.workflowCount);
+            return String.format("<TxnCount:%d / DtxnCount:%d / Delta:%d>",
+                    this.transactionCount, this.dtxnCount, this.benchmarkTimeDelta);
         }
     }
 
@@ -87,7 +89,7 @@ public class BenchmarkResults {
      * ClientName -> TxnName -> List<Result>
      */
     private final Map<String, Map<String, List<Result>>> data = new TreeMap<String, Map<String, List<Result>>>();
-    private final Map<String, Map<String, List<Result>>> wkfdata = new TreeMap<String, Map<String, List<Result>>>();
+//    private final Map<String, Map<String, List<Result>>> wkfdata = new TreeMap<String, Map<String, List<Result>>>();
     private final Set<Error> errors = new HashSet<Error>();
 
     protected final long durationInMillis;
@@ -107,10 +109,10 @@ public class BenchmarkResults {
     // cached data for performance and consistency
     // TxnName -> FastIntHistogram Offset
     private final Map<String, Integer> transactionNames = new TreeMap<String, Integer>();
-    private final Map<String, Integer> workflowNames = new TreeMap<String, Integer>();//added by hawk
+//    private final Map<String, Integer> workflowNames = new TreeMap<String, Integer>();//added by hawk
     
     private Pair<Long, Long> CACHE_computeTotalAndDelta = null;
-    private Pair<Long, Long> CACHE_computeTotalAndDeltaWkf = null;//added by hawk
+//    private Pair<Long, Long> CACHE_computeTotalAndDeltaWkf = null;//added by hawk
 
     public BenchmarkResults(long pollIntervalInMillis, long durationInMillis, int clientCount) {
         assert((durationInMillis % pollIntervalInMillis) == 0) : "duration does not comprise an integral number of polling intervals.";
@@ -189,14 +191,14 @@ public class BenchmarkResults {
     }
     
     //added by hawk
-    public String[] getWorkflowNames() {
-        String wkfNames[] = new String[this.workflowNames.size()];
-        for (String wkfName : this.workflowNames.keySet()) {
-            int offset = this.workflowNames.get(wkfName).intValue();
-            wkfNames[offset] = wkfName;
-        }
-        return (wkfNames);
-    }    
+//    public String[] getWorkflowNames() {
+//        String wkfNames[] = new String[this.workflowNames.size()];
+//        for (String wkfName : this.workflowNames.keySet()) {
+//            int offset = this.workflowNames.get(wkfName).intValue();
+//            wkfNames[offset] = wkfName;
+//        }
+//        return (wkfNames);
+//    }    
     //ended by hawk
 
     public Set<String> getClientNames() {
@@ -226,19 +228,19 @@ public class BenchmarkResults {
         return (latencies);
     }
     
-    private Histogram<Integer> getAllWkfLatencies() {
-        ObjectHistogram<Integer> latencies = new ObjectHistogram<Integer>();
-        for (Map<String, List<Result>> clientResults : wkfdata.values()) {
-            for (List<Result> txnResults : clientResults.values()) {
-                for (Result r : txnResults) {
-                    if (r != null) {
-                        latencies.put(r.workflowLatencies);
-                    }
-                } // FOR
-            } // FOR
-        } // FOR
-        return (latencies);
-    }
+//    private Histogram<Integer> getAllWkfLatencies() {
+//        ObjectHistogram<Integer> latencies = new ObjectHistogram<Integer>();
+//        for (Map<String, List<Result>> clientResults : wkfdata.values()) {
+//            for (List<Result> txnResults : clientResults.values()) {
+//                for (Result r : txnResults) {
+//                    if (r != null) {
+//                        latencies.put(r.workflowLatencies);
+//                    }
+//                } // FOR
+//            } // FOR
+//        } // FOR
+//        return (latencies);
+//    }
 
     
     public Histogram<Integer> getAllTotalLatencies() {
@@ -266,31 +268,31 @@ public class BenchmarkResults {
     }
     
     //added by hawk
-    public Histogram<Integer> getLastWkfLatencies() {
-        Histogram<Integer> latencies = new ObjectHistogram<Integer>();
-        for (Map<String, List<Result>> clientResults : wkfdata.values()) {
-            for (List<Result> wkfResults : clientResults.values()) {
-                Result r = CollectionUtil.last(wkfResults);
-                if (r != null) {
-                    latencies.put(r.workflowLatencies);
-                }
-            } // FOR
-        } // FOR
-        return (latencies);
-    }
-
-    public Histogram<Integer> getAllTotalWkfLatencies() {
-        Histogram<Integer> latencies = new ObjectHistogram<Integer>();
-        for (Map<String, List<Result>> clientResults : wkfdata.values()) {
-            for (List<Result> wkfResults : clientResults.values()) {
-                for (Result wkfResult : wkfResults)
-                {
-                    latencies.put(wkfResult.workflowLatencies);
-                }
-            } // FOR
-        } // FOR
-        return (latencies);
-    }
+//    public Histogram<Integer> getLastWkfLatencies() {
+//        Histogram<Integer> latencies = new ObjectHistogram<Integer>();
+//        for (Map<String, List<Result>> clientResults : wkfdata.values()) {
+//            for (List<Result> wkfResults : clientResults.values()) {
+//                Result r = CollectionUtil.last(wkfResults);
+//                if (r != null) {
+//                    latencies.put(r.workflowLatencies);
+//                }
+//            } // FOR
+//        } // FOR
+//        return (latencies);
+//    }
+//
+//    public Histogram<Integer> getAllTotalWkfLatencies() {
+//        Histogram<Integer> latencies = new ObjectHistogram<Integer>();
+//        for (Map<String, List<Result>> clientResults : wkfdata.values()) {
+//            for (List<Result> wkfResults : clientResults.values()) {
+//                for (Result wkfResult : wkfResults)
+//                {
+//                    latencies.put(wkfResult.workflowLatencies);
+//                }
+//            } // FOR
+//        } // FOR
+//        return (latencies);
+//    }
     //ended by hawk
     
     public Histogram<Integer> getLastTotalLatencies() {
@@ -316,29 +318,29 @@ public class BenchmarkResults {
     }
     
     // added by hawk
-    private Histogram<Integer> getClientWkfLatencies(String clientName) {
-        Histogram<Integer> latencies = new ObjectHistogram<Integer>();
-        Map<String, List<Result>> clientResults = wkfdata.get(clientName);
-        if (clientResults == null) return (latencies);
-        for (List<Result> results : clientResults.values()) {
-            for (Result r : results) {
-                latencies.put(r.workflowLatencies);
-            } // FOR
-        } // FOR
-        return (latencies);
-    }
-
-    public Histogram<Integer> getTotalWorkflowLatencies(String clientName) {
-        Histogram<Integer> latencies = new ObjectHistogram<Integer>();
-        Map<String, List<Result>> clientResults = wkfdata.get(clientName);
-        if (clientResults == null) return (latencies);
-        for (List<Result> results : clientResults.values()) {
-            for (Result r : results) {
-                latencies.put(r.workflowLatencies);
-            } // FOR
-        } // FOR
-        return (latencies);
-    }
+//    private Histogram<Integer> getClientWkfLatencies(String clientName) {
+//        Histogram<Integer> latencies = new ObjectHistogram<Integer>();
+//        Map<String, List<Result>> clientResults = wkfdata.get(clientName);
+//        if (clientResults == null) return (latencies);
+//        for (List<Result> results : clientResults.values()) {
+//            for (Result r : results) {
+//                latencies.put(r.workflowLatencies);
+//            } // FOR
+//        } // FOR
+//        return (latencies);
+//    }
+//
+//    public Histogram<Integer> getTotalWorkflowLatencies(String clientName) {
+//        Histogram<Integer> latencies = new ObjectHistogram<Integer>();
+//        Map<String, List<Result>> clientResults = wkfdata.get(clientName);
+//        if (clientResults == null) return (latencies);
+//        for (List<Result> results : clientResults.values()) {
+//            for (Result r : results) {
+//                latencies.put(r.workflowLatencies);
+//            } // FOR
+//        } // FOR
+//        return (latencies);
+//    }
 
     public Histogram<Integer> getClientTotalLatencies(String clientName) {
         Histogram<Integer> latencies = new ObjectHistogram<Integer>();
@@ -365,16 +367,16 @@ public class BenchmarkResults {
     }
 
     //added by hawk
-    public Histogram<Integer> getWorkflowLatencies(String wkfName) {
-        Histogram<Integer> latencies = new ObjectHistogram<Integer>();
-        for (Map<String, List<Result>> clientResults : wkfdata.values()) {
-            if (clientResults.containsKey(wkfName) == false) continue;
-            for (Result r : clientResults.get(wkfName)) {
-                latencies.put(r.workflowLatencies);
-            } // FOR
-        } // FOR
-        return (latencies);
-    }
+//    public Histogram<Integer> getWorkflowLatencies(String wkfName) {
+//        Histogram<Integer> latencies = new ObjectHistogram<Integer>();
+//        for (Map<String, List<Result>> clientResults : wkfdata.values()) {
+//            if (clientResults.containsKey(wkfName) == false) continue;
+//            for (Result r : clientResults.get(wkfName)) {
+//                latencies.put(r.workflowLatencies);
+//            } // FOR
+//        } // FOR
+//        return (latencies);
+//    }
     //ended by hawk
     public Histogram<Integer> getTransactionTotalLatencies(String txnName) {
         Histogram<Integer> latencies = new ObjectHistogram<Integer>();
@@ -400,7 +402,7 @@ public class BenchmarkResults {
         long txnsTillNow = 0;
         long specexecsTillNow = 0;
         long dtxnsTillNow = 0;
-        long workflowTillNow = 0;//added by hawk
+//        long workflowTillNow = 0;//added by hawk
         Result[] retval = new Result[intervals];
         for (int i = 0; i < intervals; i++) {
             Result r = results.get(i);
@@ -408,47 +410,47 @@ public class BenchmarkResults {
                                    r.benchmarkTimeDelta,
                                    r.transactionCount - txnsTillNow,
                                    r.specexecCount - specexecsTillNow,
-                                   r.dtxnCount - dtxnsTillNow,
-                                   r.workflowCount - workflowTillNow);
+                                   r.dtxnCount - dtxnsTillNow/*,
+                                   r.workflowCount - workflowTillNow*/);
             txnsTillNow = r.transactionCount;
             specexecsTillNow = r.specexecCount;
             dtxnsTillNow = r.dtxnCount;
-            workflowTillNow = r.workflowCount;
+            //workflowTillNow = r.workflowCount;
         } // FOR
 //        assert(intervals == results.size());
         return retval;
     }
 //  added by hawk
-    public Result[] getResultsForClientAndWorkflow(String clientName, String wkfName) {
-        int intervals = getCompletedIntervalCount();
-        
-        Map<String, List<Result>> wkfResults = wkfdata.get(clientName);
-        List<Result> results = wkfResults.get(wkfName);
-        assert(results != null) :
-            String.format("Null results for wkf '%s' from client '%s'\n%s",
-                    wkfName, clientName, StringUtil.formatMaps(wkfResults));
-        
-        long txnsTillNow = 0;
-        long specexecsTillNow = 0;
-        long dtxnsTillNow = 0;
-        long workflowTillNow = 0;//added by hawk
-        Result[] retval = new Result[intervals];
-        for (int i = 0; i < intervals; i++) {
-            Result r = results.get(i);
-            retval[i] = new Result(r.timestamp,
-                                   r.benchmarkTimeDelta,
-                                   r.transactionCount - txnsTillNow,
-                                   r.specexecCount - specexecsTillNow,
-                                   r.dtxnCount - dtxnsTillNow,
-                                   r.workflowCount - workflowTillNow);
-            txnsTillNow = r.transactionCount;
-            specexecsTillNow = r.specexecCount;
-            dtxnsTillNow = r.dtxnCount;
-            workflowTillNow = r.workflowCount;
-        } // FOR
-//        assert(intervals == results.size());
-        return retval;
-    }
+//    public Result[] getResultsForClientAndWorkflow(String clientName, String wkfName) {
+//        int intervals = getCompletedIntervalCount();
+//        
+//        Map<String, List<Result>> wkfResults = wkfdata.get(clientName);
+//        List<Result> results = wkfResults.get(wkfName);
+//        assert(results != null) :
+//            String.format("Null results for wkf '%s' from client '%s'\n%s",
+//                    wkfName, clientName, StringUtil.formatMaps(wkfResults));
+//        
+//        long txnsTillNow = 0;
+//        long specexecsTillNow = 0;
+//        long dtxnsTillNow = 0;
+//        long workflowTillNow = 0;//added by hawk
+//        Result[] retval = new Result[intervals];
+//        for (int i = 0; i < intervals; i++) {
+//            Result r = results.get(i);
+//            retval[i] = new Result(r.timestamp,
+//                                   r.benchmarkTimeDelta,
+//                                   r.transactionCount - txnsTillNow,
+//                                   r.specexecCount - specexecsTillNow,
+//                                   r.dtxnCount - dtxnsTillNow,
+//                                   r.workflowCount - workflowTillNow);
+//            txnsTillNow = r.transactionCount;
+//            specexecsTillNow = r.specexecCount;
+//            dtxnsTillNow = r.dtxnCount;
+//            workflowTillNow = r.workflowCount;
+//        } // FOR
+////        assert(intervals == results.size());
+//        return retval;
+//    }
     
     //ended by hawk
     public double[] computeIntervalTotals() {
@@ -471,49 +473,49 @@ public class BenchmarkResults {
     }
     
     // added by hawk
-    public double[] computeWorkflowIntervalTotals() {
-        double results[] = new double[this.completedIntervals];
-        Arrays.fill(results, 0d);
-        
-        for (Map<String, List<Result>> clientResults : wkfdata.values()) {
-            for (List<Result> wkfResults : clientResults.values()) {
-                Result last = null;
-                for (int i = 0; i < results.length; i++) {
-                    Result r = wkfResults.get(i); 
-                    long total = r.workflowCount;
-                    if (last != null) total -= last.workflowCount;
-                    results[i] += total;
-                    last = r;
-                } // FOR
-            } // FOR
-        } // FOR
-        return (results);
-    }
-
-    public Pair<Long, Long> computeTotalAndDeltaWkf() {
-        if (CACHE_computeTotalAndDeltaWkf == null) {
-            synchronized (this) {
-                long totalWkfCount = 0;
-                long wkfDelta = 0;
-                
-                for (Map<String, List<Result>> clientResults : this.wkfdata.values()) {
-                    for (List<Result> wkfResults : clientResults.values()) {
-                        // Get previous result
-                        int num_results = wkfResults.size();
-                        long prevWkfCount = (num_results > 1 ? wkfResults.get(num_results-2).workflowCount : 0);
-                        
-                        // Get current result
-                        Result current = CollectionUtil.last(wkfResults);
-                        long delta = current.workflowCount - prevWkfCount;
-                        totalWkfCount += current.workflowCount;
-                        wkfDelta += delta;
-                    } // FOR
-                } // FOR
-                CACHE_computeTotalAndDeltaWkf = Pair.of(totalWkfCount, wkfDelta);
-            } // SYNCH
-        }
-        return (CACHE_computeTotalAndDeltaWkf); 
-    }
+//    public double[] computeWorkflowIntervalTotals() {
+//        double results[] = new double[this.completedIntervals];
+//        Arrays.fill(results, 0d);
+//        
+//        for (Map<String, List<Result>> clientResults : wkfdata.values()) {
+//            for (List<Result> wkfResults : clientResults.values()) {
+//                Result last = null;
+//                for (int i = 0; i < results.length; i++) {
+//                    Result r = wkfResults.get(i); 
+//                    long total = r.workflowCount;
+//                    if (last != null) total -= last.workflowCount;
+//                    results[i] += total;
+//                    last = r;
+//                } // FOR
+//            } // FOR
+//        } // FOR
+//        return (results);
+//    }
+//
+//    public Pair<Long, Long> computeTotalAndDeltaWkf() {
+//        if (CACHE_computeTotalAndDeltaWkf == null) {
+//            synchronized (this) {
+//                long totalWkfCount = 0;
+//                long wkfDelta = 0;
+//                
+//                for (Map<String, List<Result>> clientResults : this.wkfdata.values()) {
+//                    for (List<Result> wkfResults : clientResults.values()) {
+//                        // Get previous result
+//                        int num_results = wkfResults.size();
+//                        long prevWkfCount = (num_results > 1 ? wkfResults.get(num_results-2).workflowCount : 0);
+//                        
+//                        // Get current result
+//                        Result current = CollectionUtil.last(wkfResults);
+//                        long delta = current.workflowCount - prevWkfCount;
+//                        totalWkfCount += current.workflowCount;
+//                        wkfDelta += delta;
+//                    } // FOR
+//                } // FOR
+//                CACHE_computeTotalAndDeltaWkf = Pair.of(totalWkfCount, wkfDelta);
+//            } // SYNCH
+//        }
+//        return (CACHE_computeTotalAndDeltaWkf); 
+//    }
 
     // ended by hawk
 
@@ -617,8 +619,8 @@ public class BenchmarkResults {
                                       offsetTime,
                                       cmpResults.transactions.get(txnOffset.intValue(), 0),
                                       cmpResults.specexecs.get(txnOffset.intValue(), 0),
-                                      cmpResults.dtxns.get(txnOffset.intValue(), 0),
-                                      cmpResults.workflows.get(0,0)
+                                      cmpResults.dtxns.get(txnOffset.intValue(), 0)/*,
+                                      cmpResults.workflows.get(0,0)*/
                                       );
                 if (cmpResults.spLatencies != null) {
                     Histogram<Integer> latencies = cmpResults.spLatencies.get(txnOffset);
@@ -641,47 +643,47 @@ public class BenchmarkResults {
             
             //added by hawk
             // put the workflows names:
-            if (this.workflowNames.isEmpty()) {
-                assert(cmpResults.workflows.getDebugLabels() != null);
-                for (Entry<Object, String> e : cmpResults.workflows.getDebugLabels().entrySet()) {
-                    Integer offset = (Integer)e.getKey();
-                    this.workflowNames.put(e.getValue(), offset);
-                } // FOR
-            }
-
-            Map<String, List<Result>> wkfResults = this.wkfdata.get(clientName);
-            if (wkfResults == null) {
-                wkfResults = new TreeMap<String, List<Result>>();
-                this.wkfdata.put(clientName, wkfResults);
-            }
-            
-            for (String wkfName : this.workflowNames.keySet()) {
-                List<Result> results = wkfResults.get(wkfName);
-                if (results == null) {
-                    results = new ArrayList<Result>();
-                    wkfResults.put(wkfName, results);
-                }
-                assert(results != null);
-                
-                Integer wkfOffset = this.workflowNames.get(wkfName);
-                // FIXME, hacking way, not good
-                Result r = new Result(timestamp,
-                                      offsetTime,
-                                      cmpResults.transactions.get(0, 0),
-                                      cmpResults.specexecs.get(0, 0),
-                                      cmpResults.dtxns.get(0, 0),
-                                      cmpResults.workflows.get(wkfOffset.intValue(),0)
-                                      );
-                if (cmpResults.workflowLatencies != null) {
-                    Histogram<Integer> latencies = cmpResults.workflowLatencies.get(wkfOffset);
-                    if (latencies != null) {
-                        synchronized (latencies) {
-                            r.workflowLatencies.put(latencies);
-                        } // SYNCH
-                    }
-                }
-                results.add(r);
-            } // FOR
+//            if (this.workflowNames.isEmpty()) {
+//                assert(cmpResults.workflows.getDebugLabels() != null);
+//                for (Entry<Object, String> e : cmpResults.workflows.getDebugLabels().entrySet()) {
+//                    Integer offset = (Integer)e.getKey();
+//                    this.workflowNames.put(e.getValue(), offset);
+//                } // FOR
+//            }
+//
+//            Map<String, List<Result>> wkfResults = this.wkfdata.get(clientName);
+//            if (wkfResults == null) {
+//                wkfResults = new TreeMap<String, List<Result>>();
+//                this.wkfdata.put(clientName, wkfResults);
+//            }
+//            
+//            for (String wkfName : this.workflowNames.keySet()) {
+//                List<Result> results = wkfResults.get(wkfName);
+//                if (results == null) {
+//                    results = new ArrayList<Result>();
+//                    wkfResults.put(wkfName, results);
+//                }
+//                assert(results != null);
+//                
+//                Integer wkfOffset = this.workflowNames.get(wkfName);
+//                // FIXME, hacking way, not good
+//                Result r = new Result(timestamp,
+//                                      offsetTime,
+//                                      cmpResults.transactions.get(0, 0),
+//                                      cmpResults.specexecs.get(0, 0),
+//                                      cmpResults.dtxns.get(0, 0),
+//                                      cmpResults.workflows.get(wkfOffset.intValue(),0)
+//                                      );
+//                if (cmpResults.workflowLatencies != null) {
+//                    Histogram<Integer> latencies = cmpResults.workflowLatencies.get(wkfOffset);
+//                    if (latencies != null) {
+//                        synchronized (latencies) {
+//                            r.workflowLatencies.put(latencies);
+//                        } // SYNCH
+//                    }
+//                }
+//                results.add(r);
+//            } // FOR
             //ended by hawk
             
             this.clientResultCount.put(clientName);
@@ -721,16 +723,16 @@ public class BenchmarkResults {
             clone.data.put(entry.getKey(), txnsForClient);
         } // FOR
         //added by hawk
-        for (Entry<String, Map<String, List<Result>>> entry : this.wkfdata.entrySet()) {
-            Map<String, List<Result>> wkfsForClient = new TreeMap<String, List<Result>>();
-            for (Entry<String, List<Result>> entry2 : entry.getValue().entrySet()) {
-                ArrayList<Result> newResults = new ArrayList<Result>();
-                for (Result r : entry2.getValue())
-                    newResults.add(r);
-                wkfsForClient.put(entry2.getKey(), newResults);
-            }
-            clone.wkfdata.put(entry.getKey(), wkfsForClient);
-        } // FOR
+//        for (Entry<String, Map<String, List<Result>>> entry : this.wkfdata.entrySet()) {
+//            Map<String, List<Result>> wkfsForClient = new TreeMap<String, List<Result>>();
+//            for (Entry<String, List<Result>> entry2 : entry.getValue().entrySet()) {
+//                ArrayList<Result> newResults = new ArrayList<Result>();
+//                for (Result r : entry2.getValue())
+//                    newResults.add(r);
+//                wkfsForClient.put(entry2.getKey(), newResults);
+//            }
+//            clone.wkfdata.put(entry.getKey(), wkfsForClient);
+//        } // FOR
 
         return clone;
     }
@@ -739,7 +741,7 @@ public class BenchmarkResults {
         Map<String, Object> m = new ListOrderedMap<String, Object>();
         m.put("Transaction Names", StringUtil.join("\n", transactionNames.keySet()));
         m.put("Transaction Data", data);
-        m.put("Workflow Data", wkfdata);
+//        m.put("Workflow Data", wkfdata);
         m.put("Responses Statuses", basePartitions);
         
         if (this.enableBasePartitions) {

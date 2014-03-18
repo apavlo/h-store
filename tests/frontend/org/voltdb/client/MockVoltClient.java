@@ -190,14 +190,15 @@ public class MockVoltClient implements Client {
             }
 
             @Override
-            public List<String> getFollowingProcedures() {
-                return null;
-            }
-
-            @Override
             public long getInitiateTime() {
                 // TODO Auto-generated method stub
                 return 0;
+            }
+
+            @Override
+            public void setInitiateTime(long initiateTime) {
+                // TODO Auto-generated method stub
+                
             }
 
 //            @Override
