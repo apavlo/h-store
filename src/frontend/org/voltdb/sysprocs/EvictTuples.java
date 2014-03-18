@@ -1,5 +1,6 @@
 package org.voltdb.sysprocs;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
@@ -61,7 +62,7 @@ public class EvictTuples extends VoltSystemProcedure {
         throw new IllegalAccessError("Invalid invocation of " + this.getClass() + ".executePlanFragment()");
     }
     
-    public VoltTable[] run(int partition, String tableNames[], long blockSizes[], int numBlocks[]) {
+    public VoltTable[] run(int partition, String tableNames[], String childrenTableNames[], long blockSizes[], int numBlocks[]) {
         ExecutionEngine ee = executor.getExecutionEngine();
         assert(tableNames.length == blockSizes.length);
         
@@ -79,6 +80,7 @@ public class EvictTuples extends VoltSystemProcedure {
             throw new VoltAbortException("No tables to evict were given");
         }
         Table tables[] = new Table[tableNames.length];
+        Table childTables[] = new Table[tableNames.length];
         for (int i = 0; i < tableNames.length; i++) {
             tables[i] = catalogContext.database.getTables().getIgnoreCase(tableNames[i]);
             if (tables[i] == null) {
@@ -109,8 +111,14 @@ public class EvictTuples extends VoltSystemProcedure {
             if (debug.val)
                 LOG.debug(String.format("Evicting %d blocks of blockSize %d",
                           numBlocks[i], blockSizes[i]));
+            VoltTable vt = null;
+            if(hstore_conf.site.anticache_batching == true){
+            	childTables[i] = catalogContext.database.getTables().getIgnoreCase(tableNames[i]);
+            	vt = ee.antiCacheEvictBlockInBatch(tables[i], childTables[i], blockSizes[i], numBlocks[i]);
+            }else{
+            	vt = ee.antiCacheEvictBlock(tables[i], blockSizes[i], numBlocks[i]);	
+            }
             
-            VoltTable vt = ee.antiCacheEvictBlock(tables[i], blockSizes[i], numBlocks[i]);
             boolean adv = vt.advanceRow();
             
             if(!adv) {
