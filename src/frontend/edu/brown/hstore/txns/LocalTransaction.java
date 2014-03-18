@@ -225,7 +225,8 @@ public class LocalTransaction extends AbstractTransaction {
      * @param client_callback
      * @return
      */
-    public LocalTransaction init(Long txn_id,
+    public LocalTransaction init(//int batch_id,
+                                 Long txn_id,
                                  long initiateTime,
                                  long clientHandle,
                                  int base_partition,
@@ -236,7 +237,8 @@ public class LocalTransaction extends AbstractTransaction {
                                  ParameterSet params,
                                  RpcCallback<ClientResponseImpl> client_callback) {
         long localInitiateTime = EstTime.currentTimeMillis();
-        super.init(txn_id,
+        super.init(//batch_id,
+                   txn_id,
                    initiateTime,
                    localInitiateTime,
                    clientHandle,
@@ -293,7 +295,8 @@ public class LocalTransaction extends AbstractTransaction {
         
         long localInitiateTime = EstTime.currentTimeMillis();
         
-        super.init(txn_id,                       // TxnId
+        super.init(//-1,
+                   txn_id,                       // TxnId
                    EstTime.currentTimeMillis(),  // initializeTime
                    localInitiateTime,
                    Integer.MAX_VALUE,            // ClientHandle

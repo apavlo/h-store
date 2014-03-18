@@ -105,7 +105,8 @@ public class RemoteTransaction extends AbstractTransaction {
      * @param predict_abortable
      * @return
      */
-    public RemoteTransaction init(long txnId,
+    public RemoteTransaction init(//int batchid,
+                                  long txnId,
                                   long initiateTime, // added by hawk, 2013/11/20
                                   int base_partition,
                                   ParameterSet parameters,
@@ -114,7 +115,8 @@ public class RemoteTransaction extends AbstractTransaction {
                                   boolean predict_abortable) {
         
         long localInitiateTime = EstTime.currentTimeMillis(); // added by hawk, 2013/11/20
-        super.init(txnId,              // TxnId
+        super.init(//batchid, 
+                   txnId,              // TxnId
                    initiateTime,
                    localInitiateTime,
                    -1,                 // ClientHandle

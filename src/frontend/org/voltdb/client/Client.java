@@ -95,7 +95,13 @@ public interface Client {
      */
     public void createConnection(Integer siteId, String host, int port, String username, String password)
         throws UnknownHostException, IOException;
-
+    
+//    public ClientResponse callStreamProcedure(String procName, Integer batchId, Object... parameters)
+//            throws IOException, NoConnectionsException, ProcCallException;
+//    
+//    public ClientResponse callStreamProcedure(String procName, StoredProcedureInvocationHints hints, Integer batchId, Object... parameters) 
+//            throws IOException, NoConnectionsException, ProcCallException;
+    
     /**
      * Synchronously invoke a procedure. Blocks until a result is available. A {@link ProcCallException}
      * is thrown if the response is anything other then success.

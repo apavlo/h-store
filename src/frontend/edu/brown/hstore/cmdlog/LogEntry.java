@@ -44,6 +44,7 @@ import edu.brown.pools.Poolable;
  */
 public class LogEntry implements FastSerializable, Poolable {
     
+    //private int  batchId;
     private Long txnId;
     private long timestamp;
     private int procId;
@@ -57,6 +58,7 @@ public class LogEntry implements FastSerializable, Poolable {
      * @return
      */
     public LogEntry init(LocalTransaction ts) {
+        //this.batchId = ts.getBatchId();
         this.txnId = ts.getTransactionId();
         this.procId = ts.getProcedure().getId();
         this.procParams = ts.getProcedureParameters();
@@ -74,6 +76,9 @@ public class LogEntry implements FastSerializable, Poolable {
     public int getProcedureId() {
         return procId;
     }
+//    public int getBatchId() {
+//        return batchId;
+//    }
     public ParameterSet getProcedureParams() {
         return procParams;
     }
@@ -85,6 +90,7 @@ public class LogEntry implements FastSerializable, Poolable {
     
     @Override
     public void finish() {
+//        this.batchId = -1;
         this.txnId = null;
         this.timestamp = -1;
         this.procId = -1;
@@ -93,6 +99,7 @@ public class LogEntry implements FastSerializable, Poolable {
 
     @Override
     public void readExternal(FastDeserializer in) throws IOException {
+//        this.batchId = in.readInt();
         this.txnId = Long.valueOf(in.readLong());
         this.timestamp = in.readLong();
         this.procId = in.readInt();
@@ -103,6 +110,7 @@ public class LogEntry implements FastSerializable, Poolable {
     public void writeExternal(FastSerializer out) throws IOException {
         assert(this.isInitialized()) : 
             "Unexpected uninitialized " + this.getClass().getSimpleName();
+//        out.writeInt(this.batchId);
         out.writeLong(this.txnId.longValue());
         out.writeLong(EstTime.currentTimeMillis());
         out.writeInt(this.procId);

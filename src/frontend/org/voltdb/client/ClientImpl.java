@@ -282,6 +282,58 @@ final class ClientImpl implements Client {
         return callProcedure(callback, m_expectedOutgoingMessageSize, procName, hints, parameters);
     }
 
+//    public final ClientResponse callStreamProcedure(String procName, Integer batchId, Object... parameters) throws IOException, NoConnectionsException, ProcCallException {
+//        return this.callStreamProcedure(procName, null, batchId, parameters);
+//    }
+//    
+//    public final ClientResponse callStreamProcedure(String procName, StoredProcedureInvocationHints hints, Integer batchId, Object... parameters) throws IOException, NoConnectionsException,
+//            ProcCallException {
+//        if (m_isShutdown) {
+//            throw new NoConnectionsException("Client instance is shutdown");
+//        }
+//        final SyncCallback cb = new SyncCallback();
+//        cb.setArgs(parameters);
+//        final StoredProcedureInvocation invocation = new StoredProcedureInvocation(m_handle.getAndIncrement(), procName, parameters);
+//        //invocation.setBatchId(batchId);
+//
+//        Integer site_id = null;
+//        if (hints != null && hints.basePartition != HStoreConstants.NULL_PARTITION_ID) {
+//            invocation.setBasePartition(hints.basePartition);
+//            if (m_partitionSiteXref != null) {
+//                site_id = m_partitionSiteXref[hints.basePartition];
+//            }
+//        } else if (m_catalog != null && procName.startsWith("@") == false) {
+//            try {
+//                int partition = m_pEstimator.getBasePartition(invocation);
+//                if (partition != HStoreConstants.NULL_PARTITION_ID) {
+//                    site_id = m_partitionSiteXref[partition];
+//                    invocation.setBasePartition(partition);
+//                }
+//            } catch (Exception ex) {
+//                throw new RuntimeException("Failed to estimate base partition for new invocation of '" + procName + "'", ex);
+//            }
+//        }
+//
+//        long start = ProfileMeasurement.getTime();
+//        m_distributer.queue(invocation, cb, m_expectedOutgoingMessageSize, true, site_id);
+//        m_queueTime.appendTime(start, ProfileMeasurement.getTime());
+//
+//        try {
+//            if (trace.val)
+//                LOG.trace(String.format("Waiting for response for %s txn [clientHandle=%d]", procName, invocation.getClientHandle()));
+//            cb.waitForResponse();
+//        } catch (final InterruptedException e) {
+//            throw new java.io.InterruptedIOException("Interrupted while waiting for response");
+//        }
+//        if (cb.getResponse().getStatus() != Status.OK) {
+//            throw new ProcCallException(cb.getResponse(), cb.getResponse().getStatusString(), cb.getResponse().getException());
+//        }
+//        // cb.result() throws ProcCallException if procedure failed
+//        return cb.getResponse();
+//    }
+
+
+    
     @Override
     public int calculateInvocationSerializedSize(String procName,
             Object... parameters) {

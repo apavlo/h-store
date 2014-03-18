@@ -1326,7 +1326,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             // deferred this query.
             tmp_def_stmt[0] = def_work.getStmt();
             tmp_def_params[0] = def_work.getParams();
-            tmp_def_txn.init(def_work.getTxnId(), 
+            tmp_def_txn.init( //-1,
+                       def_work.getTxnId(), 
                        -1, // We don't really need the clientHandle
                        EstTime.currentTimeMillis(),
                        this.partitionId,
@@ -3133,8 +3134,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                         // first way - direct execute such procedure in HStoreSite (Server side)
                         //System.out.println("hawk - txn:" + String.format("%d...",ts.getTransactionId()) + "firing frontend trigger 0:" + procedure.getName());
     
-                        if(procedure.getBedefault() == true)
-                            this.hstore_site.invocationTriggerProcedureProcess(ts.getClientHandle(), ts.getInitiateTime(), procedure);
+                        if(procedure.getBedefault() == true)  // FIXME modified by hawk, 2014-3-7
+                            this.hstore_site.invocationTriggerProcedureProcess(/*ts.getBatchId(),*/ ts.getClientHandle(), ts.getInitiateTime(), procedure);
                         else // second way - send it back to client to run it (Client side)
                             ts.addFollowingProcedure(procedure);
                     }
