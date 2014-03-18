@@ -1534,17 +1534,6 @@ int VoltDBEngine::antiCacheEvictBlock(int32_t tableId, long blockSize, int numBl
 }
 
 /**
- * Somebody wants us to forcibly evict a certain number of bytes from the given table and its children tables in batch.
- * @param tableId
- * @param childTableId
- * @param blockSize The number of bytes to evict from this table
- */
-int VoltDBEngine::antiCacheEvictBlockInBatch(int32_t tableId, int32_t childTableId, long blockSize, int numBlocks) {
-    //TODO
-    return -1;
-}
-
-/**
  * Merge the recently all of the unevicted data for the given tableId
  * Note: This should only be called when no other txn is running
  * @param tableId

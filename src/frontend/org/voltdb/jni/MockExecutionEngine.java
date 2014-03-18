@@ -225,11 +225,4 @@ public class MockExecutionEngine extends ExecutionEngine {
         // TODO Auto-generated method stub
         return (null);
     }
-
-	@Override
-	public VoltTable antiCacheEvictBlockInBatch(Table catalog_tbl,
-			Table childTable, long block_size, int num_blocks) {
-		// TODO Auto-generated method stub
-		return null;
-	}
 }

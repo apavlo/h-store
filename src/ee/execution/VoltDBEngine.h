@@ -275,7 +275,6 @@ class __attribute__((visibility("default"))) VoltDBEngine {
         #ifdef ANTICACHE
         int antiCacheReadBlocks(int32_t tableId, int numBlocks, int16_t blockIds[], int32_t tupleOffsets[]);
         int antiCacheEvictBlock(int32_t tableId, long blockSize, int numBlocks);
-        int antiCacheEvictBlockInBatch(int32_t tableId, int32_t childTableId, long blockSize, int numBlocks);
         int antiCacheMergeBlocks(int32_t tableId);
         #endif
         

@@ -1496,10 +1496,4 @@ public class ExecutionEngineIPC extends ExecutionEngine {
     public VoltTable antiCacheEvictBlock(Table catalog_tbl, long block_size, int num_blocks) {
         throw new NotImplementedException("Anti-Caching is disabled for IPC ExecutionEngine");
     }
-
-    @Override
-    public VoltTable antiCacheEvictBlockInBatch(Table catalog_tbl, Table child_tbl, long block_size, int num_blocks) {
-        throw new NotImplementedException("Anti-Caching is disabled for IPC ExecutionEngine");
-    }
-    
 }

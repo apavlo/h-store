@@ -452,12 +452,11 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
             int evictBlocks[] = new int[pdist.size()];
             int i = 0;
             CatalogContext catalogContext = hstore_site.getCatalogContext();
-            Collection<Table> children = null;
             for (String table : pdist.keySet()) {
                 tableNames[i] = table;
                 Table catalogTable = catalogContext.getTableByName(table);
                 if(hstore_conf.site.anticache_batching == true){
-                    children = CatalogUtil.getChildTables(catalogContext.database, catalogTable);
+                    Collection<Table> children = CatalogUtil.getChildTables(catalogContext.database, catalogTable);
                     System.out.println(children);                	
                 }
                 evictBlockSizes[i] = hstore_conf.site.anticache_block_size;
@@ -466,7 +465,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
             }
             
             
-            Object params[] = new Object[] { partition, tableNames, children, evictBlockSizes, evictBlocks};
+            Object params[] = new Object[] { partition, tableNames, evictBlockSizes, evictBlocks};
 
             StoredProcedureInvocation invocation = new StoredProcedureInvocation(1, procName, params);
 
