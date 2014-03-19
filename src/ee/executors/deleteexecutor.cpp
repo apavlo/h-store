@@ -182,24 +182,22 @@ bool DeleteExecutor::p_execute(const NValueArray &params, ReadWriteTracker *trac
 			TableTuple *keyTuple = NULL;
 			char *keydata = NULL;
 
-			/*
-			 // See if we use an index instead
-			 TableIndex *index = m_targetTable->primaryKeyIndex();
 
+			// See if we use an index instead
+			TableIndex *index = m_targetTable->primaryKeyIndex();
 
-			 if (index != NULL) {
-			 // First construct tuple for primary key
-			 keydata = new char[index->getKeySchema()->tupleLength()];
-			 keyTuple = new TableTuple(keydata, index->getKeySchema());
+			if (index != NULL) {
+				// First construct tuple for primary key
+				keydata = new char[index->getKeySchema()->tupleLength()];
+				keyTuple = new TableTuple(keydata, index->getKeySchema());
 
-			 for (int i = 0; i < index->getKeySchema()->columnCount(); i++) {
-			 keyTuple->setNValue(i, beforeImage->getNValue(index->getColumnIndices()[i]));
-			 }
+				for (int i = 0; i < index->getKeySchema()->columnCount(); i++) {
+					keyTuple->setNValue(i, beforeImage->getNValue(index->getColumnIndices()[i]));
+				}
 
-			 // no before image need be recorded, just the primary key
-			 beforeImage = NULL;
-			 }
-			 */
+				// no before image need be recorded, just the primary key
+				beforeImage = NULL;
+			}
 
 			LogRecord *logrecord = new LogRecord(computeTimeStamp(),
 					LogRecord::T_DELETE,// this is a delete record
