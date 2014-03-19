@@ -192,6 +192,8 @@ public class TestTPCCPhysicalRecovery extends RegressionSuite {
         builder.setGlobalConfParameter("site.aries", true);        
         builder.setGlobalConfParameter("site.aries_forward_only", false);     
                    
+        builder.setGlobalConfParameter("site.anticache_enable", false);     
+        
         TPCCProjectBuilder project = new TPCCProjectBuilder();
 
         project.addAllDefaults();
