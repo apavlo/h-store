@@ -59,17 +59,17 @@ public class WorkflowResponseImpl implements WorkflowResponse, FastSerializable 
 
     @Override
     public void addClientResponse(ClientResponse cresponse) {
-//        if(initiateTime==-1)
-//            initiateTime = cresponse.getInitiateTime();
-//        else
-//            initiateTime = Math.min(cresponse.getInitiateTime(),initiateTime);
-//        endTime = Math.max(cresponse.getInitiateTime()+(long)cresponse.getClusterRoundtrip(),endTime);
-//        
-//        if (cresponse.getStatus() != Status.OK)
-//        {
-//            // FIXME: we should maintain a map for all procedures, not just a value
-//            status = cresponse.getStatus();
-//        }            
+        if(initiateTime==-1)
+            initiateTime = cresponse.getInitiateTime();
+        else
+            initiateTime = Math.min(cresponse.getInitiateTime(),initiateTime);
+        endTime = Math.max(cresponse.getInitiateTime()+(long)cresponse.getClusterRoundtrip(),endTime);
+        
+        if (cresponse.getStatus() != Status.OK)
+        {
+            // FIXME: we should maintain a map for all procedures, not just a value
+            status = cresponse.getStatus();
+        }            
     }
 
 }

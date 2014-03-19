@@ -328,7 +328,7 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
 //        } else {
 //            m_exception = null;
 //        }
-//        this.initiateTime = in.readLong();
+        this.initiateTime = in.readLong();
         //this.batchId = in.readInt();
 
         // ended by hawk
@@ -385,7 +385,7 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
 //        String[] procArr = new String[followingProcedures.size()];
 //        procArr = followingProcedures.toArray(procArr);
 //        out.writeArray(procArr);
-//        out.writeLong(initiateTime);
+        out.writeLong(initiateTime);
         //out.writeInt(batchId);
         // ended by hawk
     }
@@ -424,9 +424,9 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
 //            i++;
 //        }
 //        m.put("Following Procedures", procedures);  
-//        if (this.clusterRoundTripTime > 0) {
-//            m.put("Initiate Time in cluster", this.initiateTime + " ms");
-//        }
+        if (this.clusterRoundTripTime > 0) {
+            m.put("Initiate Time in cluster", this.initiateTime + " ms");
+        }
         //m.put("Batch ID", this.batchId);
         // ended by hawk
         
@@ -475,7 +475,7 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
 
     // added by hawk
 //    private List<String> followingProcedures =  new ArrayList<String>();
-//    private long initiateTime = 0;
+    private long initiateTime = 0;
     //private int batchId = -1;
     
 //    public void addFollowingProcedures(List<String> procedures)
@@ -489,14 +489,14 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
 //        return followingProcedures;
 //    }
 
-//    public void setInitiateTime(long initiateTime) {
-//        this.initiateTime = initiateTime;
-//    }
-//
-//    @Override
-//    public long getInitiateTime() {
-//        return initiateTime;
-//    }
+    public void setInitiateTime(long initiateTime) {
+        this.initiateTime = initiateTime;
+    }
+
+    @Override
+    public long getInitiateTime() {
+        return initiateTime;
+    }
 
 //    public void setBatchId(int batchId) {
 //        this.batchId = batchId;
