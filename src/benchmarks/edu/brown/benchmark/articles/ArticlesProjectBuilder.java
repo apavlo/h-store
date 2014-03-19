@@ -16,9 +16,9 @@ public class ArticlesProjectBuilder extends AbstractProjectBuilder{
     @SuppressWarnings("unchecked")
     public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[]) new Class<?>[] {
         GetArticle.class,
-        GetArticles.class,
         AddComment.class,
-        UpdateUserInfo.class
+        UpdateUserInfo.class,
+        GetArticles.class
     };
     {
         // Transaction Frequencies

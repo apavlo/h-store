@@ -33,7 +33,7 @@ public class ArticlesClient extends BenchmarkComponent {
 	            if (weight == null) weight = t.weight;
 	            txns.put(t, weight);
 	        } // FOR
-	        assert(txns.getSampleCount() == 100) : txns;
+	        //assert(txns.getSampleCount() == 100) : txns;
 	        this.rand_gen = new Random(); 
 	        this.readRecord = new Zipf(this.rand_gen, 0,
                     ArticlesConstants.ARTICLES_SIZE, 1.0001);
@@ -44,8 +44,8 @@ public class ArticlesClient extends BenchmarkComponent {
 	    }
 		  public static enum Transaction {
 		  GET_ARTICLE("Get Article", ArticlesConstants.FREQUENCY_GET_ARTICLE),
-		  ADD_COMMENT("Add Comment", ArticlesConstants.FREQUENCY_ADD_COMMENT), 
-		  UPDATE_USER("Update User Info", ArticlesConstants.FREQUENCY_UPDATE_USER_INFO), 
+		  ADD_COMMENT("Add Comment", ArticlesConstants.FREQUENCY_ADD_COMMENT),
+		  UPDATE_USER("Update User Info", ArticlesConstants.FREQUENCY_UPDATE_USER_INFO),
 		  GET_ARTICLES("Get Articles", ArticlesConstants.FREQUENCY_GET_ARTICLES); 
 
 		  
