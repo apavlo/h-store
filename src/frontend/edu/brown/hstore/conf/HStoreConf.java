@@ -130,6 +130,14 @@ public final class HStoreConf {
             experimental=true
         )
         public boolean nanosecond_latencies;
+        
+        //added by hawk, 2004/3/19, to indicate service is s-store or h-store
+        @ConfigProperty(
+                description="Indicate if the service is running as s-store or h-store instance.",
+                defaultBoolean=false,
+                experimental=false
+            )
+        public boolean sstore;
 
     }
     
