@@ -791,7 +791,7 @@ public abstract class VoltProcedure implements Poolable {
         
         // added by hawk, 2013/11/5
         //response.addFollowingProcedures(this.localTxnState.getFollowingProcedures());
-        response.setInitiateTime(this.localTxnState.getInitiateTime());
+        //response.setInitiateTime(this.localTxnState.getInitiateTime());
         // added by hawk
         //response.setBatchId(this.localTxnState.getBatchId());
         // ended by hawk
