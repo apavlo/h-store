@@ -124,7 +124,7 @@ public enum VoltType {
     /**
      * Size in bytes of the maximum length for a VoltDB field value, presumably a string or blob
      */
-    public static final int MAX_VALUE_LENGTH = 1048576*2;
+    public static final int MAX_VALUE_LENGTH = 1048576 /** 2*/;
     public static final String MAX_VALUE_LENGTH_STR = String.valueOf(MAX_VALUE_LENGTH / 1024) + "k";
 
     /**
