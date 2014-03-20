@@ -290,14 +290,10 @@ void TableFactory::configureStats(voltdb::CatalogId databaseId,
         std::string name,
         Table *table) {
 
-	std::string hostname = "";
-	if(ctx != NULL)
-		hostname = ctx->m_hostname;
-
     // initialize stats for the table
     table->getTableStats()->configure(name + " stats",
             ctx->m_hostId,
-            hostname,
+            ctx->m_hostname,
             ctx->m_siteId,
             ctx->m_partitionId,
             databaseId);
@@ -309,7 +305,7 @@ void TableFactory::configureStats(voltdb::CatalogId databaseId,
         index->getIndexStats()->configure(index->getName() + " stats",
                 table->name(),
                 ctx->m_hostId,
-                hostname,
+                ctx->m_hostname,
                 ctx->m_siteId,
                 ctx->m_partitionId,
                 databaseId);

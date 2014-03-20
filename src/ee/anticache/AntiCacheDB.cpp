@@ -99,7 +99,7 @@ void AntiCacheDB::initializeBerkeleyDB() {
   void AntiCacheDB::initializeNVM() {
     
     char nvm_file_name[150];
-    char partition_str[5]; 
+    char partition_str[50];
 
     m_totalBlocks = 0; 
 

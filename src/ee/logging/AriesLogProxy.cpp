@@ -163,6 +163,6 @@ void AriesLogProxy::logLocally(const char *data, size_t size) {
 
 void AriesLogProxy::logToEngineBuffer(const char *data, size_t size) {
 #ifdef ARIES
-	engine->writeToAriesLogBuffer(data, size);
+	//engine->writeToAriesLogBuffer(data, size);
 #endif
 }
