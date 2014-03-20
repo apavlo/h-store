@@ -504,14 +504,14 @@ public class CommandLogWriter extends ExceptionHandlingRunnable implements Shutd
                             hstore_site.responseQueue(entry.cresponse,            // FIXME, also need to add batchId as parameter
                                                       entry.clientCallback,
                                                       entry.initiateTime,
-                                                      entry.restartCounter/*,
-                                                      entry.getBatchId()*/
+                                                      entry.restartCounter,
+                                                      entry.getBatchId()
                                                       );
                         }
                         else {
                             hstore_site.responseSend(entry.cresponse,
                                                      entry.clientCallback,
-                                                     /*entry.getBatchId(),*/
+                                                     entry.getBatchId(),
                                                      entry.initiateTime,
                                                      entry.restartCounter
                                                      );

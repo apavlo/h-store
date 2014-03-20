@@ -768,7 +768,8 @@ public class BatchRunner implements Runnable{
             Object params[] = procParams.toArray(); 
             boolean result = true;
             //result = client.asynCallProcedure(null, catalog_proc.getName(), null, params);
-            ClientResponse response = client.callProcedure(catalog_proc.getName(), params);
+            //ClientResponse response = client.callProcedure(catalog_proc.getName(), params);
+            ClientResponse response = client.callStreamProcedure(catalog_proc.getName(), (int)batch.getID(), params);
             
             if(response.getStatus()!=Status.OK)
                 result = false;
@@ -776,7 +777,9 @@ public class BatchRunner implements Runnable{
             {
                 currentTimeStamp = System.currentTimeMillis();
                 batch.setEndTimestamp(currentTimeStamp);      
-                //System.out.println("finishing batch-" + batch.getID() + " at time: " + currentTimeStamp);
+                System.out.println("finishing batch-" + batch.getID() 
+                        + " at time: " + currentTimeStamp 
+                        + " with return batchid: " + response.getBatchId());
                 batchid = batch.getID();
                 batchsize = batch.getSize();
                 clientlatency = (int)batch.getLatency(); 

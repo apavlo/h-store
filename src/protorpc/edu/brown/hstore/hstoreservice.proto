@@ -160,7 +160,8 @@ message TransactionInitRequest {
    //required int64 initiateTime = 9;
 
     // batch id, added by hawk
-    //required int32 batch_id = 10;    
+    //required int32 batch_id = 10;
+    required int32 batch_id = 9;    
 }
 
 message TransactionInitResponse {

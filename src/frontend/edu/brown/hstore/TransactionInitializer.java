@@ -261,7 +261,7 @@ public class TransactionInitializer {
      * @param clientCallback
      * @return
      */
-    public LocalTransaction createLocalTransaction(//int batch_id,
+    public LocalTransaction createLocalTransaction(int batch_id,
                                                    ByteBuffer serializedRequest,
                                                    long initiateTime,
                                                    long client_handle,
@@ -298,7 +298,7 @@ public class TransactionInitializer {
         // Initialize our LocalTransaction handle
         Long txn_id = this.registerTransaction(ts, base_partition);
         this.populateProperties(ts,
-                                //batch_id,
+                                batch_id,
                                 txn_id,
                                 initiateTime,
                                 client_handle,
@@ -353,7 +353,7 @@ public class TransactionInitializer {
         }
         
         Long new_txn_id = this.registerTransaction(new_ts, base_partition);
-        new_ts.init(//orig_ts.getBatchId(),
+        new_ts.init(orig_ts.getBatchId(),
                     new_txn_id,
                     orig_ts.getInitiateTime(),
                     orig_ts.getClientHandle(),
@@ -389,7 +389,7 @@ public class TransactionInitializer {
      * @param request
      * @return
      */
-    public RemoteTransaction createRemoteTransaction(//int batch_id, 
+    public RemoteTransaction createRemoteTransaction(int batch_id, 
                                                      Long txn_id,
                                                      //long initiateTime, // added by hawk, 2013/11/20
                                                      PartitionSet partitions,
@@ -401,7 +401,7 @@ public class TransactionInitializer {
         try {
             ts = new RemoteTransaction(this.hstore_site);
             assert(ts.isInitialized() == false);
-            ts.init(/*batch_id,*/ txn_id, /*initiateTime,*/ base_partition, procParams, catalog_proc, partitions, true);
+            ts.init(batch_id, txn_id, /*initiateTime,*/ base_partition, procParams, catalog_proc, partitions, true);
             if (debug.val)
                 LOG.debug(String.format("Creating new RemoteTransactionState %s from " +
                 		  "remote partition %d [partitions=%s, hashCode=%d]",
@@ -560,7 +560,7 @@ public class TransactionInitializer {
      * @param client_callback
      */
     private void populateProperties(LocalTransaction ts,
-                                    //int  batch_id,
+                                    int  batch_id,
                                     Long txn_id,
                                     long initiateTime,
                                     long client_handle,
@@ -757,7 +757,7 @@ public class TransactionInitializer {
         // SET EXECUTION PROPERTIES
         // -------------------------------
         
-        ts.init(/*batch_id,*/
+        ts.init(batch_id,
                 txn_id,
                 initiateTime,
                 client_handle,

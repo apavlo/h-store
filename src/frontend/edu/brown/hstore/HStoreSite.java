@@ -1638,7 +1638,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         final long client_handle = StoredProcedureInvocation.getClientHandle(buffer);
         final int procId = StoredProcedureInvocation.getProcedureId(buffer);
         int base_partition = StoredProcedureInvocation.getBasePartition(buffer);
-        //int batchId = StoredProcedureInvocation.getBatchId(buffer); // added by hawk, 2014-3-7
+        int batchId = StoredProcedureInvocation.getBatchId(buffer); // added by hawk, 2014-3-7
         
         if (debug.val)
             LOG.debug(String.format("Raw Request: clientHandle=%d / basePartition=%d / procId=%d / procName=%s",
@@ -1658,7 +1658,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                                    Status.ABORT_UNEXPECTED,
                                    msg,
                                    clientCallback,
-                                   //batchId,
+                                   batchId,
                                    timestamp);
                 return;
             }
@@ -1734,7 +1734,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             LOG.trace("Initializing transaction request using network processing thread");
         // FIXME add batchId, modified by hawk, 2014-3-7
         LocalTransaction ts = this.txnInitializer.createLocalTransaction(
-                                        //batchId,
+                                        batchId,
                                         buffer,
                                         timestamp,
                                         client_handle,
@@ -1752,7 +1752,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     }
     
     // added by hawk, 2013/11/1
-    public void invocationTriggerProcedureProcess(/*int batchId,*/ long clientHandle, long initiateTime, Procedure procedure) {
+    public void invocationTriggerProcedureProcess(int batchId, long clientHandle, long initiateTime, Procedure procedure) {
         
       // hawk: for micro-benchmark 2, start point
       long startNanoTime = System.nanoTime();
@@ -1826,7 +1826,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
       //System.out.println("hawk - firing frontend trigger 2:" + procedure.getName());
       // FIXME modified by hawk, 2014-3-7
       LocalTransaction ts = this.txnInitializer.createLocalTransaction(
-                                      //batchId,
+                                      batchId,
                                       buffer,//null,
                                       timestamp,//initiateTime,
                                       client_handle,
@@ -1884,7 +1884,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                     Status.OK,
                     HStoreConstants.EMPTY_RESULT,
                     "");
-            this.responseSend(cresponse, clientCallback, /*-1,*/ EstTime.currentTimeMillis(), 0);
+            this.responseSend(cresponse, clientCallback, -1, EstTime.currentTimeMillis(), 0);
 
             // Non-blocking....
             Exception error = new Exception("Shutdown command received at " + this.getSiteName());
@@ -1917,7 +1917,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                     Status.OK,
                     HStoreConstants.EMPTY_RESULT,
                     "");
-            this.responseSend(cresponse, clientCallback, /*-1,*/ EstTime.currentTimeMillis(), 0);
+            this.responseSend(cresponse, clientCallback, -1, EstTime.currentTimeMillis(), 0);
             return (true);
         }
         
@@ -1943,7 +1943,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                                    Status.ABORT_GRACEFUL,
                                    msg,
                                    clientCallback,
-                                   //-1,                  // for system procedure, the batchId is always -1 !!!
+                                   -1,                  // for system procedure, the batchId is always -1 !!!
                                    EstTime.currentTimeMillis());
                 return (true);
             }
@@ -1959,7 +1959,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             int idx = (int)(Math.abs(client_handle) % this.local_partitions.size());
             int base_partition = this.local_partitions.values()[idx];
             
-            LocalTransaction ts = this.txnInitializer.createLocalTransaction(/*-1,*/
+            LocalTransaction ts = this.txnInitializer.createLocalTransaction(-1,
                                                                              null,
                                                                              EstTime.currentTimeMillis(),
                                                                              client_handle,
@@ -2415,7 +2415,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                                                                               orig_ts.getProcedureParameters().toArray());
                 spi.setBasePartition(redirect_partition);
                 spi.setRestartCounter(orig_ts.getRestartCounter()+1);
-                //spi.setBatchId(orig_ts.getBatchId());
+                spi.setBatchId(orig_ts.getBatchId());
                 
                 FastSerializer out = this.outgoingSerializers.get();
                 try {
@@ -2641,7 +2641,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             } else {
                 this.responseSend(cresponse,
                                   ts.getClientCallback(),
-                                  //ts.getBatchId(),
+                                  ts.getBatchId(),
                                   ts.getInitiateTime(),
                                   ts.getRestartCounter());
             }
@@ -2667,8 +2667,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                                             cresponse,
                                             ts.getClientCallback(),
                                             ts.getInitiateTime(),
-                                            ts.getRestartCounter()/*,
-                                            ts.getBatchId()*/
+                                            ts.getRestartCounter(),
+                                            ts.getBatchId()
         });
     }
 
@@ -2682,16 +2682,16 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     public void responseQueue(ClientResponseImpl cresponse,
                               RpcCallback<ClientResponseImpl> clientCallback,
                               long initiateTime,
-                              int restartCounter/*,
-                              int batchId*/
+                              int restartCounter,
+                              int batchId
                               ) 
     {
         this.postProcessorQueue.add(new Object[]{
                                             cresponse,
                                             clientCallback,
                                             initiateTime,
-                                            restartCounter/*,
-                                            batchId*/
+                                            restartCounter,
+                                            batchId
         });
     }
 
@@ -2707,7 +2707,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                               Status status,
                               String message,
                               RpcCallback<ClientResponseImpl> clientCallback,
-                              //int batchId,
+                              int batchId,
                               long initiateTime) {
         ClientResponseImpl cresponse = new ClientResponseImpl(
                                             -1,
@@ -2716,7 +2716,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                                             status,
                                             HStoreConstants.EMPTY_RESULT,
                                             message);
-        this.responseSend(cresponse, clientCallback, /*batchId,*/ initiateTime, 0);
+        this.responseSend(cresponse, clientCallback, batchId, initiateTime, 0);
     }
     
     /**
@@ -2729,7 +2729,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      */
     public void responseSend(ClientResponseImpl cresponse,
                              RpcCallback<ClientResponseImpl> clientCallback,
-                             //int batchId,
+                             int batchId,
                              long initiateTime,
                              int restartCounter) {
         Status status = cresponse.getStatus();
@@ -2761,7 +2761,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         cresponse.setClusterRoundtrip((int)(now - initiateTime));
         cresponse.setRestartCounter(restartCounter);
-        //cresponse.setBatchId(batchId);
+        cresponse.setBatchId(batchId);
         
         // added by hawk, 2013/11/25, this code snippet is used for transaction statistic, 
         // can be resued for micro-benchmark 2 & 3

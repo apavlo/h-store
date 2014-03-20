@@ -141,6 +141,6 @@ public interface ClientResponse extends Poolable {
 //    public List<String> getFollowingProcedures();
     public void setInitiateTime(long initiateTime);
     public long getInitiateTime();
-    //public int getBatchId();
+    public int getBatchId();
     // ended by hawk
 }

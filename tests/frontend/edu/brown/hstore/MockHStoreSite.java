@@ -49,8 +49,8 @@ public class MockHStoreSite extends HStoreSite {
         RpcCallback<ClientResponseImpl> client_callback = null;
         
         LocalTransaction ts = new LocalTransaction(hstore_site);
-        //int batchId = -1;
-        ts.init(/*batchId,*/ txnId, EstTime.currentTimeMillis(), clientHandle, base_partition,
+        int batchId = -1;
+        ts.init(batchId, txnId, EstTime.currentTimeMillis(), clientHandle, base_partition,
                 predict_touchedPartitions, predict_readOnly, predict_canAbort,
                 catalog_proc, params, client_callback);
         EstTimeUpdater.update(System.currentTimeMillis());

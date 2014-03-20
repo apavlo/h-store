@@ -201,11 +201,11 @@ public class MockVoltClient implements Client {
                 
             }
 
-//            @Override
-//            public int getBatchId() {
-//                // TODO Auto-generated method stub
-//                return -1;
-//            }
+            @Override
+            public int getBatchId() {
+                // TODO Auto-generated method stub
+                return -1;
+            }
         };
     }
 
@@ -354,16 +354,16 @@ public class MockVoltClient implements Client {
         return callProcedure(callback, procName, hints, parameters);
     }
 
-//    @Override
-//    public ClientResponse callStreamProcedure(String procName, Integer batchId, Object... parameters) throws IOException, NoConnectionsException, ProcCallException {
-//        // TODO Auto-generated method stub
-//        return null;
-//    }
-//
-//    @Override
-//    public ClientResponse callStreamProcedure(String procName, StoredProcedureInvocationHints hints, Integer batchId, Object... parameters) throws IOException, NoConnectionsException,
-//            ProcCallException {
-//        // TODO Auto-generated method stub
-//        return null;
-//    }
+    @Override
+    public ClientResponse callStreamProcedure(String procName, Integer batchId, Object... parameters) throws IOException, NoConnectionsException, ProcCallException {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
+    @Override
+    public ClientResponse callStreamProcedure(String procName, StoredProcedureInvocationHints hints, Integer batchId, Object... parameters) throws IOException, NoConnectionsException,
+            ProcCallException {
+        // TODO Auto-generated method stub
+        return null;
+    }
 }

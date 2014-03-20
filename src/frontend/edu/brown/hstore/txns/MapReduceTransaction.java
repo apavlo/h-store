@@ -122,7 +122,8 @@ public class MapReduceTransaction extends LocalTransaction {
     
     
     @Override
-    public LocalTransaction init(/*int batch_id,*/ Long txn_id,
+    public LocalTransaction init(int batch_id, 
+                                 Long txn_id,
                                  long initiateTime,
                                  long clientHandle,
                                  int base_partition,
@@ -132,7 +133,7 @@ public class MapReduceTransaction extends LocalTransaction {
                                  Procedure catalog_proc,
                                  ParameterSet params,
                                  RpcCallback<ClientResponseImpl> client_callback) {
-        super.init(//-1,
+        super.init(-1,
                    txn_id,
                    initiateTime,
                    clientHandle,
@@ -157,7 +158,7 @@ public class MapReduceTransaction extends LocalTransaction {
         for (int partition : this.hstore_site.getLocalPartitionIds()) {
             if (debug.val) LOG.debug(String.format("Partition[%d] -> Offset[%d]", partition, partition));
             this.local_txns[partition].init(
-                                         //-1,
+                                         -1,
                                          this.txn_id,
                                          initiateTime,
                                          this.client_handle,
@@ -202,7 +203,7 @@ public class MapReduceTransaction extends LocalTransaction {
                                      Procedure catalog_proc,
                                      ParameterSet params) {
         this.init(
-                  //batch_id, 
+                  batch_id, 
                   txn_id,
                   initiateTime,
                   client_handle,

@@ -329,7 +329,7 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
 //            m_exception = null;
 //        }
         this.initiateTime = in.readLong();
-        //this.batchId = in.readInt();
+        this.batchId = in.readInt();
 
         // ended by hawk
     }
@@ -386,7 +386,7 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
 //        procArr = followingProcedures.toArray(procArr);
 //        out.writeArray(procArr);
         out.writeLong(initiateTime);
-        //out.writeInt(batchId);
+        out.writeInt(batchId);
         // ended by hawk
     }
     
@@ -427,7 +427,7 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         if (this.clusterRoundTripTime > 0) {
             m.put("Initiate Time in cluster", this.initiateTime + " ms");
         }
-        //m.put("Batch ID", this.batchId);
+        m.put("Batch ID", this.batchId);
         // ended by hawk
         
         return String.format("ClientResponse[#%d]\n%s", this.txn_id, StringUtil.formatMaps(m));
@@ -476,7 +476,7 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
     // added by hawk
 //    private List<String> followingProcedures =  new ArrayList<String>();
     private long initiateTime = 0;
-    //private int batchId = -1;
+    private int batchId = -1;
     
 //    public void addFollowingProcedures(List<String> procedures)
 //    {
@@ -498,14 +498,14 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         return initiateTime;
     }
 
-//    public void setBatchId(int batchId) {
-//        this.batchId = batchId;
-//    }
-//
-//    @Override
-//    public int getBatchId() {
-//        return batchId;
-//    }
+    public void setBatchId(int batchId) {
+        this.batchId = batchId;
+    }
+
+    @Override
+    public int getBatchId() {
+        return batchId;
+    }
 
     // ended by hawk
 
