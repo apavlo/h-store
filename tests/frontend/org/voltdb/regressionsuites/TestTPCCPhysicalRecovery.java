@@ -53,7 +53,7 @@ public class TestTPCCPhysicalRecovery extends RegressionSuite {
 
     // TPCC
     private static final String PREFIX = "tpcc";
-    private static int NUM_TRANSACTIONS = 20000;
+    private static int NUM_TRANSACTIONS = 1000;
     private static final String projectJAR = "physical_" + PREFIX + ".jar";    
 
     public TestTPCCPhysicalRecovery(String name) {
@@ -149,7 +149,7 @@ public class TestTPCCPhysicalRecovery extends RegressionSuite {
 
         MOCK_ARGS[MOCK_ARGS.length - 1] = HStoreConstants.BENCHMARK_PARAM_PREFIX;
 
-        TPCCClient yscbClient = new TPCCClient(MOCK_ARGS);
+        TPCCClient tpccClient = new TPCCClient(MOCK_ARGS);
 
         // Run transactions
         long k_itr = 0;
@@ -157,7 +157,7 @@ public class TestTPCCPhysicalRecovery extends RegressionSuite {
         long period = numTransactions / 10;
 
         for (k_itr = 0; k_itr < numTransactions; k_itr++) {
-            boolean response = yscbClient.runOnce();
+            boolean response = tpccClient.runOnce();
             assertEquals(response, true);
 
             if (k_itr % period == 0)
@@ -222,7 +222,7 @@ public class TestTPCCPhysicalRecovery extends RegressionSuite {
                            
         // CONFIG #2: 1 Local Site with 2 Partitions running on JNI backend          
         NUM_SITES = 1;
-        NUM_PARTITIONS = 2;
+        NUM_PARTITIONS = 1;
         m_config = new LocalSingleProcessServer(projectJAR, NUM_PARTITIONS, BackendTarget.NATIVE_EE_JNI);
         success = m_config.compile(project);
         assert (success);
