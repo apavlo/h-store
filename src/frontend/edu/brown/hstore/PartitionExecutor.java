@@ -998,14 +998,15 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         // wait for other threads to complete Aries recovery
         // ONLY called from main site.
         while (!m_ariesLog.isRecoveryCompleted()) {
+            /*
             try {
-                // don't sleep too long, shouldn't bias
-                // numbers
-                Thread.sleep(500);
+                // don't sleep too long, shouldn't bias numbers
+                Thread.sleep(1000);
             } catch (InterruptedException e) {
                 // TODO Auto-generated catch block
-                e.printStackTrace();
+                //e.printStackTrace();
             }
+            */
         }
     }
     

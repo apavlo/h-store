@@ -62,7 +62,7 @@ import edu.brown.hstore.cmdlog.LogEntry;
  */
 public class TestTPCCLogicalRecovery extends RegressionSuite {
 
-    private static final String TMPDIR = "./snapshot";
+    private static final String TMPDIR = "/mnt/pmfs/snapshot";
 
     private static final String TESTNONCE = "testnonce";
     private static final int ALLOWEXPORT = 0;
@@ -72,7 +72,7 @@ public class TestTPCCLogicalRecovery extends RegressionSuite {
 
     // TPCC
     private static final String PREFIX = "tpcc";
-    private static int NUM_TRANSACTIONS = 1000;
+    private static int NUM_TRANSACTIONS = 50000;
     private static final String projectJAR = "logical_" + PREFIX + ".jar";    
 
     public TestTPCCLogicalRecovery(String name) {
@@ -203,7 +203,13 @@ public class TestTPCCLogicalRecovery extends RegressionSuite {
         } catch (Exception e) {
             e.printStackTrace();
         }
+ 
+        // Take Snapshot
+        results = null;
+        results = saveTables(client);
 
+        validateSnapshot(true);
+ 
         final String MOCK_ARGS[] = { "HOST=localhost", "NUMCLIENTS=1",
                 // XXX HACK to find catalog jar
                 "CATALOG=" + "./obj/release/testobjects/" + projectJAR, "" };
@@ -228,13 +234,6 @@ public class TestTPCCLogicalRecovery extends RegressionSuite {
         // Statistics         
         results = client.callProcedure("@Statistics", "table", 0).getResults();
         System.out.println(results[0]);
-
-        
-        // Take Snapshot
-        results = null;
-        results = saveTables(client);
-
-        validateSnapshot(true);
 
         VoltTable[] results_tmp = null;
         results_tmp = client.callProcedure("@Statistics", "table", 0).getResults();
@@ -274,7 +273,7 @@ public class TestTPCCLogicalRecovery extends RegressionSuite {
         results = client.callProcedure("@Statistics", "table", 0).getResults();
         System.out.println(results[0]);
                 
-        File logDir = new File("./obj" + File.separator + "cmdlog");                               
+        File logDir = new File("/mnt/pmfs" + File.separator + "cmdlog");                               
         
         // Parse WAL logs for all sites
         CatalogMap<Site> sites = cc.sites;
@@ -412,7 +411,7 @@ public class TestTPCCLogicalRecovery extends RegressionSuite {
         // COMMAND LOG
         builder.setGlobalConfParameter("site.commandlog_enable", true);
         builder.setGlobalConfParameter("site.commandlog_timeout", 1000);     
-        //builder.setGlobalConfParameter("site.commandlog_dir", "/mnt/pmfs/cmdlog");     
+        builder.setGlobalConfParameter("site.commandlog_dir", "/mnt/pmfs/cmdlog");     
 
         builder.setGlobalConfParameter("site.anticache_enable", false);     
 
