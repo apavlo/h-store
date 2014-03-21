@@ -411,9 +411,9 @@ public class TestTPCCLogicalRecovery extends RegressionSuite {
 
         // COMMAND LOG
         builder.setGlobalConfParameter("site.commandlog_enable", true);
-        builder.setGlobalConfParameter("site.commandlog_timeout", 10);
+        builder.setGlobalConfParameter("site.commandlog_timeout", 1000);     
+        //builder.setGlobalConfParameter("site.commandlog_dir", "/mnt/pmfs/cmdlog");     
 
-        builder.setGlobalConfParameter("site.snapshot", true);
         builder.setGlobalConfParameter("site.anticache_enable", false);     
 
         TPCCProjectBuilder project = new TPCCProjectBuilder();
