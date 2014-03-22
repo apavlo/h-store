@@ -785,6 +785,7 @@ public class HStoreCoordinator implements Shutdownable {
                 status = Status.OK;
             } else {
                 debug = "";
+                LOG.info("Found the abort!!!");
                 status = Status.ABORT_UNEXPECTED;
             }
             TransactionDebugResponse response = TransactionDebugResponse.newBuilder()

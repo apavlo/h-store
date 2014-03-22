@@ -2536,16 +2536,20 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             status = Status.ABORT_EVICTEDACCESS;
             error = ex;
         } catch (ConstraintFailureException ex) {
+        	LOG.info("Found the abort!!!"+ex);
             status = Status.ABORT_UNEXPECTED;
             error = ex;
         } catch (SQLException ex) {
+        	LOG.info("Found the abort!!!"+ex);
             status = Status.ABORT_UNEXPECTED;
             error = ex;
         } catch (EEException ex) {
             // this.crash(ex);
+        	LOG.info("Found the abort!!!"+ex);
             status = Status.ABORT_UNEXPECTED;
             error = ex;
         } catch (Throwable ex) {
+        	LOG.info("Found the abort!!!"+ex);
             status = Status.ABORT_UNEXPECTED;
             if (ex instanceof SerializableException) {
                 error = (SerializableException)ex;
@@ -2566,6 +2570,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                                            fragment.getFragmentIdList(), this.partitionId, ts);
                 Exception ex = new Exception(msg);
                 if (debug.val) LOG.warn(ex);
+                LOG.info("Found the abort!!!"+ex);
                 status = Status.ABORT_UNEXPECTED;
                 error = new SerializableException(ex);
             }

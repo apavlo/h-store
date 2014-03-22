@@ -2,19 +2,29 @@ package edu.brown.benchmark.articles;
 import java.io.IOException;
 import java.util.Random;
 
+import org.apache.log4j.Logger;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.NoConnectionsException;
 import org.voltdb.client.ProcedureCallback;
 
 import edu.brown.api.BenchmarkComponent;
+import edu.brown.benchmark.seats.SEATSClient;
+import edu.brown.hstore.Hstoreservice.Status;
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.rand.RandomDistribution.FlatHistogram;
 import edu.brown.rand.RandomDistribution.Zipf;
 import edu.brown.statistics.Histogram;
 import edu.brown.statistics.ObjectHistogram;
 
 public class ArticlesClient extends BenchmarkComponent {
-	 
+		private static final Logger LOG = Logger.getLogger(SEATSClient.class);
+	    private static final LoggerBoolean debug = new LoggerBoolean();
+	    private static final LoggerBoolean trace = new LoggerBoolean();
+	    static {
+	        LoggerUtil.attachObserver(LOG, debug, trace);
+	    }
 	    public static void main(String args[]) {
 	        BenchmarkComponent.main(ArticlesClient.class, args, false);
 	    }
@@ -67,22 +77,19 @@ public class ArticlesClient extends BenchmarkComponent {
 	    protected boolean runOnce() throws IOException {
 	        // pick random transaction to call, weighted by txnWeights
 	        final Transaction target = this.txnWeights.nextValue();
-	        System.out.println("Runnin once part 1");
 	        
 	        Object params[];
-	        ProcedureCallback callback = null;
+//	        ProcedureCallback callback = null;
 	        switch (target) {
 	            case GET_ARTICLE: {
 	                params = new Object[]{ ((Random) this.readRecord).nextInt() };
-	                System.out.println("Runnin once get article");
-	                callback = new GetCommentsCallback(this.getClientHandle(), params);
+//	                callback = new GetCommentsCallback(this.getClientHandle(), params);
 	                break;
 	            }
 	            case ADD_COMMENT: {
 	                int key = this.insertRecord.nextInt(); // cid
 	                int a_id = this.readRecord.nextInt(); // aid
 	                int u_id = this.userRecord.nextInt();// uid
-	                System.out.println("Runnin once add comments");
 	                String text = ArticlesUtil.astring(100, 100);
 	                params = new Object[]{ key, a_id, u_id, text};
 	                break;
@@ -90,17 +97,15 @@ public class ArticlesClient extends BenchmarkComponent {
 	            case UPDATE_USER:
 	            	String lastname = ArticlesUtil.astring(100, 100);
 	            	int u_id = this.userRecord.nextInt();
-	            	System.out.println("Runnin once update user");
 	                params = new Object[]{ lastname, u_id };
 	                break;
 	            default:
 	                throw new RuntimeException("Unexpected txn '" + target + "'");
 	        } // SWITCH
 	        assert(params != null);
-	        if(callback==null)
-	        	callback = new Callback(target.ordinal());
-	        System.out.println(target.callName);
-	        System.out.println(params);
+//	        if(callback==null)
+	        Callback callback = new Callback(target.ordinal());
+	        System.out.println(target.callName+"-----------"+target.ordinal());
 	        boolean val = this.getClientHandle().callProcedure(callback, target.callName, params);
 	        
 	        return val;
@@ -147,6 +152,15 @@ public class ArticlesClient extends BenchmarkComponent {
 	        }
 	        @Override
 	        public void clientCallback(ClientResponse clientResponse) {
+	        	if (clientResponse.getStatus() == Status.ABORT_UNEXPECTED) {
+                    LOG.error(String.format("Unexpected Error in %s: %s",
+                              this.idx, clientResponse.getStatusString()),
+                              clientResponse.getException());
+                    System.out.println(String.format("Unexpected Error in %s: %s",
+                            this.idx, clientResponse.getStatusString())+ clientResponse.getException());
+                    
+                }	        	
+	        	
 	            // Increment the BenchmarkComponent's internal counter on the
 	            // number of transactions that have been completed
 	            incrementTransactionCounter(clientResponse, this.idx);
