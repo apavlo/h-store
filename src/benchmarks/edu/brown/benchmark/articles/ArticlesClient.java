@@ -45,8 +45,7 @@ public class ArticlesClient extends BenchmarkComponent {
 		  public static enum Transaction {
 		  GET_ARTICLE("Get Article", ArticlesConstants.FREQUENCY_GET_ARTICLE),
 		  ADD_COMMENT("Add Comment", ArticlesConstants.FREQUENCY_ADD_COMMENT),
-		  UPDATE_USER("Update User Info", ArticlesConstants.FREQUENCY_UPDATE_USER_INFO),
-		  GET_ARTICLES("Get Articles", ArticlesConstants.FREQUENCY_GET_ARTICLES); 
+		  UPDATE_USER("Update User Info", ArticlesConstants.FREQUENCY_UPDATE_USER_INFO);
 
 		  
 		  /**
@@ -72,7 +71,6 @@ public class ArticlesClient extends BenchmarkComponent {
 	        
 	        Object params[];
 	        switch (target) {
-	            case GET_ARTICLES:
 	            case GET_ARTICLE: {
 	                params = new Object[]{ ((Random) this.readRecord).nextInt() };
 	                System.out.println("Runnin once get article");
