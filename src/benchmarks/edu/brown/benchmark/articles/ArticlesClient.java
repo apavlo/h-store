@@ -33,7 +33,7 @@ public class ArticlesClient extends BenchmarkComponent {
 	            if (weight == null) weight = t.weight;
 	            txns.put(t, weight);
 	        } // FOR
-	        //assert(txns.getSampleCount() == 100) : txns;
+	        assert(txns.getSampleCount() == 100) : txns;
 	        this.rand_gen = new Random(); 
 	        this.readRecord = new Zipf(this.rand_gen, 0,
                     ArticlesConstants.ARTICLES_SIZE, 1.0001);
@@ -70,10 +70,12 @@ public class ArticlesClient extends BenchmarkComponent {
 	        System.out.println("Runnin once part 1");
 	        
 	        Object params[];
+	        ProcedureCallback callback = null;
 	        switch (target) {
 	            case GET_ARTICLE: {
 	                params = new Object[]{ ((Random) this.readRecord).nextInt() };
 	                System.out.println("Runnin once get article");
+	                callback = new GetCommentsCallback(this.getClientHandle(), params);
 	                break;
 	            }
 	            case ADD_COMMENT: {
@@ -95,8 +97,8 @@ public class ArticlesClient extends BenchmarkComponent {
 	                throw new RuntimeException("Unexpected txn '" + target + "'");
 	        } // SWITCH
 	        assert(params != null);
-	        
-	        Callback callback = new Callback(target.ordinal());
+	        if(callback==null)
+	        	callback = new Callback(target.ordinal());
 	        System.out.println(target.callName);
 	        System.out.println(params);
 	        boolean val = this.getClientHandle().callProcedure(callback, target.callName, params);
@@ -148,6 +150,30 @@ public class ArticlesClient extends BenchmarkComponent {
 	            // Increment the BenchmarkComponent's internal counter on the
 	            // number of transactions that have been completed
 	            incrementTransactionCounter(clientResponse, this.idx);
+	        }
+	    } // END CLASS
+	 
+	    private class GetCommentsCallback implements ProcedureCallback {	    	
+	        
+	 
+	        private Client clientHandle;
+			private Object[] params;
+			public GetCommentsCallback(Client clientHandle, Object[] params) {
+	        	this.clientHandle = clientHandle;
+	        	this.params = params;
+				// TODO Auto-generated constructor stub
+			}
+			@Override
+	        public void clientCallback(ClientResponse clientResponse) {
+				try {
+					this.clientHandle.callProcedure(null, "GetComments", this.params);
+				} catch (NoConnectionsException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
 	        }
 	    } // END CLASS
 	 
