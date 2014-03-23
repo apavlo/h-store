@@ -31,7 +31,6 @@ public class ArticlesClient extends BenchmarkComponent {
 		private FlatHistogram<Transaction> txnWeights;
 		private final Random rand_gen;
 		private Zipf readRecord;
-//		private Zipf insertRecord;
 		private Zipf userRecord;
 		public ArticlesClient(String[] args) {
 	        super(args);
@@ -43,11 +42,13 @@ public class ArticlesClient extends BenchmarkComponent {
 	            txns.put(t, weight);
 	        } // FOR
 	        assert(txns.getSampleCount() == 100) : txns;
-	        this.rand_gen = new Random(); 
+	        this.rand_gen = new Random();
+	        long articlesSize = Math.round(ArticlesConstants.ARTICLES_SIZE * this.getScaleFactor());
+	        long usersSize = Math.round(ArticlesConstants.USERS_SIZE * this.getScaleFactor());
+
 	        this.readRecord = new Zipf(this.rand_gen, 0,
-                    ArticlesConstants.ARTICLES_SIZE, 1.0001);
-//	        this.insertRecord = new Zipf(this.rand_gen, 0, ArticlesConstants.ARTICLES_SIZE*ArticlesConstants.MAX_COMMENTS_PER_ARTICLE, 1.0001);
-	        this.userRecord = new Zipf(this.rand_gen, 0, ArticlesConstants.USERS_SIZE, 1.0001);
+                    articlesSize, 1.0001);
+	        this.userRecord = new Zipf(this.rand_gen, 0, usersSize, 1.0001);
 
 	        this.txnWeights = new FlatHistogram<Transaction>(this.rand_gen, txns);
 	    }
