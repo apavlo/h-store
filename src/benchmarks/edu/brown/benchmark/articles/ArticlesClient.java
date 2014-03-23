@@ -32,7 +32,7 @@ public class ArticlesClient extends BenchmarkComponent {
 		private FlatHistogram<Transaction> txnWeights;
 		private final Random rand_gen;
 		private Zipf readRecord;
-		private Zipf insertRecord;
+//		private Zipf insertRecord;
 		private Zipf userRecord;
 		public ArticlesClient(String[] args) {
 	        super(args);
@@ -47,7 +47,7 @@ public class ArticlesClient extends BenchmarkComponent {
 	        this.rand_gen = new Random(); 
 	        this.readRecord = new Zipf(this.rand_gen, 0,
                     ArticlesConstants.ARTICLES_SIZE, 1.0001);
-	        this.insertRecord = new Zipf(this.rand_gen, 0, ArticlesConstants.ARTICLES_SIZE*ArticlesConstants.MAX_COMMENTS_PER_ARTICLE, 1.0001);
+//	        this.insertRecord = new Zipf(this.rand_gen, 0, ArticlesConstants.ARTICLES_SIZE*ArticlesConstants.MAX_COMMENTS_PER_ARTICLE, 1.0001);
 	        this.userRecord = new Zipf(this.rand_gen, 0, ArticlesConstants.USERS_SIZE, 1.0001);
 
 	        this.txnWeights = new FlatHistogram<Transaction>(this.rand_gen, txns);
@@ -87,11 +87,10 @@ public class ArticlesClient extends BenchmarkComponent {
 	                break;
 	            }
 	            case ADD_COMMENT: {
-	                int key = this.insertRecord.nextInt(); // cid
 	                int a_id = this.readRecord.nextInt(); // aid
 	                int u_id = this.userRecord.nextInt();// uid
 	                String text = ArticlesUtil.astring(100, 100);
-	                params = new Object[]{ key, a_id, u_id, text};
+	                params = new Object[]{ a_id, u_id, text};
 	                break;
 	            }
 	            case UPDATE_USER:

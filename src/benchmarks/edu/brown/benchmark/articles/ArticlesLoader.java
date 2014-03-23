@@ -147,12 +147,11 @@ public class ArticlesLoader extends Loader{
         VoltTable speTbl = CatalogUtil.getVoltTable(catalog_comments);
 
         long speTotal = 0;
-        long c_id = 0;
         for (long a_id = 0; a_id < this.articlesSize; a_id++) {
         	Long numComments = this.articleToCommentMap.get(a_id);
         	for (long i = 0 ; i < numComments; i++){
                 Object row_spe[] = new Object[speTbl.getColumnCount()];
-                row_spe[0] = c_id++;
+                row_spe[0] = a_id*ArticlesConstants.MAX_COMMENTS_PER_ARTICLE+i;
                 row_spe[1] = a_id; // random number from the article id
                 row_spe[2] = ArticlesUtil.number(0, this.usersSize); // random number from user id
                 row_spe[3] = ArticlesUtil.astring(5, 5); // comment
