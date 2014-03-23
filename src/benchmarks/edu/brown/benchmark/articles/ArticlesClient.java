@@ -9,7 +9,6 @@ import org.voltdb.client.NoConnectionsException;
 import org.voltdb.client.ProcedureCallback;
 
 import edu.brown.api.BenchmarkComponent;
-import edu.brown.benchmark.seats.SEATSClient;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
@@ -19,7 +18,7 @@ import edu.brown.statistics.Histogram;
 import edu.brown.statistics.ObjectHistogram;
 
 public class ArticlesClient extends BenchmarkComponent {
-		private static final Logger LOG = Logger.getLogger(SEATSClient.class);
+		private static final Logger LOG = Logger.getLogger(ArticlesClient.class);
 	    private static final LoggerBoolean debug = new LoggerBoolean();
 	    private static final LoggerBoolean trace = new LoggerBoolean();
 	    static {
