@@ -263,6 +263,7 @@ class PersistentTable : public Table {
     void setEvictedTable(voltdb::Table *evictedTable);
     voltdb::Table* getEvictedTable(); 
     bool evictBlockToDisk(const long block_size, int num_blocks);
+    bool evictBlockToDiskInBatch(PersistentTable childTable, const long block_size, int num_blocks);
     bool readEvictedBlock(int16_t block_id, int32_t tuple_offset);
     bool mergeUnevictedTuples();
     

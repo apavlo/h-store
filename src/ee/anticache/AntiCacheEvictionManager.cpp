@@ -460,6 +460,32 @@ Table* AntiCacheEvictionManager::evictBlock(PersistentTable *table, long blockSi
     return (m_evictResultTable);
 }
 
+Table* AntiCacheEvictionManager::evictBlockInBatch(PersistentTable *table, PersistentTable *childTable,  long blockSize, int numBlocks) {
+    int32_t lastTuplesEvicted = table->getTuplesEvicted();
+    int32_t lastBlocksEvicted = table->getBlocksEvicted();
+    int64_t lastBytesEvicted  = table->getBytesEvicted();
+
+    if (table->evictBlockToDisk(blockSize, numBlocks) == false) {
+        throwFatalException("Failed to evict tuples from table '%s'", table->name().c_str());
+    }
+
+    int32_t tuplesEvicted = table->getTuplesEvicted() - lastTuplesEvicted;
+    int32_t blocksEvicted = table->getBlocksEvicted() - lastBlocksEvicted;
+    int64_t bytesEvicted = table->getBytesEvicted() - lastBytesEvicted;
+
+    m_evictResultTable->deleteAllTuples(false);
+    TableTuple tuple = m_evictResultTable->tempTuple();
+
+    int idx = 0;
+    tuple.setNValue(idx++, ValueFactory::getStringValue(table->name()));
+    tuple.setNValue(idx++, ValueFactory::getIntegerValue(static_cast<int32_t>(tuplesEvicted)));
+    tuple.setNValue(idx++, ValueFactory::getIntegerValue(static_cast<int32_t>(blocksEvicted)));
+    tuple.setNValue(idx++, ValueFactory::getBigIntValue(static_cast<int32_t>(bytesEvicted)));
+    m_evictResultTable->insertTuple(tuple);
+
+    return (m_evictResultTable);
+}
+
 Table* AntiCacheEvictionManager::readBlocks(PersistentTable *table, int numBlocks, int16_t blockIds[], int32_t tuple_offsets[]) {
     
     VOLT_INFO("Reading %d evicted blocks.", numBlocks);
