@@ -100,7 +100,7 @@ ENABLE_ANTICACHE=true
 SITE_HOST="10.212.84.152"
 
 CLIENT_HOSTS=( \
-        "client1" \
+#        "client1" \
         "client2" \
         "10.212.84.152" \
         "10.212.84.152" \
@@ -110,7 +110,6 @@ CLIENT_HOSTS=( \
 #BASE_SITE_MEMORY_PER_PARTITION=1024
 BASE_SITE_MEMORY=8192
 BASE_SITE_MEMORY_PER_PARTITION=750
-BASE_PROJECT="ycsb"
 BASE_DIR=`readlink -f /home/user/joy/h-store`
 OUTPUT_DIR="~/data/ycsb/read-heavy/2/80-20"
 
@@ -140,7 +139,13 @@ BASE_ARGS=( \
     #"-Dsite.cpu_partition_blacklist=0,2,4,6,8,10,12,14,16,18" \
     #"-Dsite.cpu_utility_blacklist=0,2,4,6,8,10,12,14,16,18" \
     "-Dsite.network_incoming_limit_txns=10000" \
-    "-Dsite.commandlog_enable=true" \
+    # ENABLE EITHER ONE OF THESE - NOT BOTH
+    # COMMAND LOG 
+    "-Dsite.commandlog_enable=false" \
+    "-Dsite.commandlog_dir=/mnt/pmfs/cmdlog" \
+    # ARIES
+    "-Dsite.aries=true" \
+    "-Dsite.aries_dir=/mnt/pmfs/aries" \
     "-Dsite.txn_incoming_delay=5" \
     "-Dsite.exec_postprocessing_threads=false" \
     "-Dsite.anticache_eviction_distribution=even" \
@@ -153,9 +158,12 @@ BASE_ARGS=( \
     "-Dclient.scalefactor=1" \
     "-Dclient.memory=2048" \
     "-Dclient.txnrate=20000" \
-    "-Dclient.warmup=60000" \
-    "-Dclient.duration=60000" \
-    "-Dclient.interval=20000" \
+    "-Dclient.warmup=10000" \
+    "-Dclient.duration=10000" \
+    "-Dclient.interval=10000" \
+    #"-Dclient.warmup=60000" \
+    #"-Dclient.duration=60000" \
+    #"-Dclient.interval=20000" \
     "-Dclient.shared_connection=false" \
     "-Dclient.blocking=false" \
     "-Dclient.blocking_concurrent=100" \
@@ -193,12 +201,6 @@ BASE_ARGS=( \
 EVICTABLE_TABLES=( \
     "USERTABLE" \
 )
-EVICTABLES=""
-if [ "$ENABLE_ANTICACHE" = "true" ]; then
-    for t in ${EVICTABLE_TABLES[@]}; do
-        EVICTABLES="${t},${EVICTABLES}"
-    done
-fi
 
 # Compile
 HOSTS_TO_UPDATE=("$SITE_HOST")
@@ -224,13 +226,12 @@ for i in 8; do
 
     HSTORE_HOSTS="${SITE_HOST}:0:0-"`expr $i - 1`
     NUM_CLIENTS=`expr $i \* $BASE_CLIENT_THREADS`
-    #SITE_MEMORY=`expr $BASE_SITE_MEMORY + \( $i \* $BASE_SITE_MEMORY_PER_PARTITION \)`
+    SITE_MEMORY=`expr $BASE_SITE_MEMORY + \( $i \* $BASE_SITE_MEMORY_PER_PARTITION \)`
 
     # BUILD PROJECT JAR
     ant hstore-prepare \
         -Dproject=${BASE_PROJECT} \
-        -Dhosts=${HSTORE_HOSTS} \
-        -Devictable=${EVICTABLES}
+        -Dhosts=${HSTORE_HOSTS} 
     test -f ${BASE_PROJECT}.jar || exit -1
     
     # UPDATE CLIENTS
