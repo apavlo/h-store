@@ -19,7 +19,6 @@
 #define JNITOPEND_H_
 #include "common/Topend.h"
 #include "common/FatalException.hpp"
-#include "common/Pool.hpp"
 #include <jni.h>
 
 namespace voltdb {

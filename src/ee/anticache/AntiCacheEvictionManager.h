@@ -61,7 +61,7 @@ protected:
     Table *m_readResultTable;
     
     bool removeTupleSingleLinkedList(PersistentTable* table, uint32_t removal_id);
-    bool removeTupleDoubleLinkedList(PersistentTable* table, uint32_t removal_id);
+    bool removeTupleDoubleLinkedList(PersistentTable* table, TableTuple* tuple_to_remove, uint32_t removal_id);
     
     void printLRUChain(PersistentTable* table, int max, bool forward);
     char *itoa(uint32_t i);

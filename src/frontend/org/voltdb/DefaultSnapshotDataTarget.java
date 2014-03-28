@@ -21,6 +21,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.channels.ClosedChannelException;
 import java.nio.channels.FileChannel;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
@@ -241,7 +242,8 @@ public class DefaultSnapshotDataTarget implements SnapshotDataTarget {
             }
             m_syncTask.cancel(false);
             m_channel.force(false);
-        } finally {
+        } 
+        finally {
             m_bytesAllowedBeforeSync.release(m_bytesWrittenSinceLastSync.getAndSet(0));
         }
         m_channel.position(8);
@@ -253,7 +255,11 @@ public class DefaultSnapshotDataTarget implements SnapshotDataTarget {
         }
         m_channel.write(completed);
         m_channel.force(false);
+
+        LOG.trace("Closing file " + m_file);
+
         m_channel.close();
+
         if (m_onCloseHandler != null) {
             m_onCloseHandler.run();
         }
@@ -263,13 +269,17 @@ public class DefaultSnapshotDataTarget implements SnapshotDataTarget {
     public int getHeaderSize() {
         return 4;
     }
+    
+    public String  toString(){
+        return "File :"+m_file.getAbsolutePath();        
+    }
 
     private Future<?> write(final BBContainer tupleData, final boolean prependLength) {
         if (m_writeFailed) {
             tupleData.discard();
             return null;
         }
-
+        
         if (prependLength) {
             tupleData.b.putInt(tupleData.b.remaining() - 4);
             tupleData.b.position(0);
@@ -296,6 +306,9 @@ public class DefaultSnapshotDataTarget implements SnapshotDataTarget {
                     }
                     m_bytesWritten += totalWritten;
                     m_bytesWrittenSinceLastSync.addAndGet(totalWritten);
+                    
+                    LOG.trace("Attempting to write snapshot data to file " + m_file);
+
                 } catch (IOException e) {
                     m_writeException = e;
                     LOG.error("Error while attempting to write snapshot data to file " + m_file, e);

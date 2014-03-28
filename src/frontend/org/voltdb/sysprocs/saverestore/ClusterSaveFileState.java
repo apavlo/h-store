@@ -27,6 +27,12 @@ import org.voltdb.VoltTable.ColumnInfo;
 import org.voltdb.VoltTableRow;
 import org.voltdb.VoltType;
 
+import org.voltdb.catalog.Host;
+import org.voltdb.catalog.Site;
+import org.voltdb.catalog.Table;
+
+import edu.brown.hstore.PartitionExecutor.SystemProcedureExecutionContext;
+
 public class ClusterSaveFileState
 {
     public static VoltTable constructEmptySaveFileStateVoltTable()
@@ -58,10 +64,12 @@ public class ClusterSaveFileState
         if (row.getString("IS_REPLICATED").equals("TRUE"))
         {
             table_state = new ReplicatedTableSaveFileState(table_name, m_allowExport);
+            table_state.setSystemProcedureExecutionContext(this.m_context);
         }
         else if (row.getString("IS_REPLICATED").equals("FALSE"))
         {
             table_state = new PartitionedTableSaveFileState(table_name, m_allowExport);
+            table_state.setSystemProcedureExecutionContext(this.m_context);
         }
         else
         {
@@ -71,7 +79,7 @@ public class ClusterSaveFileState
         return table_state;
     }
 
-    public ClusterSaveFileState(VoltTable saveFileState, int allowExport)
+    public ClusterSaveFileState(VoltTable saveFileState, SystemProcedureExecutionContext context, int allowExport)
         throws IOException
     {
         if (saveFileState.getRowCount() == 0)
@@ -84,6 +92,7 @@ public class ClusterSaveFileState
         m_databaseName = a_row.getString("DATABASE");
         m_allowExport = allowExport;
 
+        m_context = context;
 
         m_tableStateMap = new HashMap<String, TableSaveFileState>();
         while (saveFileState.advanceRow())
@@ -139,6 +148,16 @@ public class ClusterSaveFileState
             throw new IOException(error);
         }
     }
+    
+    public void setSystemProcedureExecutionContext(SystemProcedureExecutionContext context){
+        m_context = context;
+    }
+    
+    public SystemProcedureExecutionContext getSystemProcedureExecutionContext(){
+        return m_context;
+    }
+    
+    private SystemProcedureExecutionContext m_context;
 
     private String m_clusterName;
     private String m_databaseName;

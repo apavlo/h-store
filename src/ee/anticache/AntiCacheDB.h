@@ -27,7 +27,12 @@
 #define HSTOREANTICACHE_H
 
 #include <db_cxx.h>
+
 #include "common/debuglog.h"
+
+#include <map>
+#include <vector>
+
 
 #define ANTICACHE_DB_NAME "anticache.db"
 
@@ -51,14 +56,15 @@ class AntiCacheBlock {
         inline int16_t getBlockId() const {
             return (m_blockId);
         }
-        inline int getSize() const {
-            return (m_payload->size);
-        }
-        inline std::string getTableName() const {
-        	return (m_payload->header.tableName);
+
+
+        inline long getSize() const {
+	  //return (m_value.get_size());
+	  return m_size;
         }
         inline char* getData() const {
-            return (static_cast<char*>(m_payload->data));
+
+	    return m_block;
         }
         struct blockHeader {
         	int16_t blockId;
@@ -71,9 +77,11 @@ class AntiCacheBlock {
         };
     
     private:
-        AntiCacheBlock(int16_t blockId, Dbt value);
+        AntiCacheBlock(int16_t blockId, char* block, long size);
+
         int16_t m_blockId;
-        payload * m_payload;
+	char* m_block;
+	long m_size;
 
 }; // CLASS
 
@@ -86,6 +94,10 @@ class AntiCacheDB {
         AntiCacheDB(ExecutorContext *ctx, std::string db_dir, long blockSize);
         ~AntiCacheDB();
 
+		void initializeNVM(); 
+		
+		void initializeBerkeleyDB(); 
+
         /**
          * Write a block of serialized tuples out to the anti-cache database
          */
@@ -94,12 +106,12 @@ class AntiCacheDB {
                         const int tupleCount,
                         const char* data,
                         const long size);
-        
         /**
          * Read a block and return its contents
          */
-        AntiCacheBlock readBlock(int16_t blockId);
-    
+        AntiCacheBlock readBlock(std::string tableName, int16_t blockId);
+
+
         /**
          * Flush the buffered blocks to disk.
          */
@@ -114,25 +126,75 @@ class AntiCacheDB {
         }
         
     private:
+        
+        /**
+         * NVM constants
+         */
+        static const off_t NVM_FILE_SIZE = 1073741824/2; 
+        static const int NVM_BLOCK_SIZE = 524288 + 1000; 
+	static const int MMAP_PAGE_SIZE = 2 * 1024 * 1024; 
+        
         ExecutorContext *m_executorContext;
         string m_dbDir;
         long m_blockSize;
         DbEnv* m_dbEnv;
         Db* m_db; 
         int16_t m_nextBlockId;
+	int m_partitionId; 
+
+        FILE* nvm_file;
+        char* m_NVMBlocks; 
+        int nvm_fd; 
+
+        /**
+         *  Maps a block id to a <index, size> pair
+         */
+		std::map<int16_t, pair<int, int32_t> > m_blockMap; 
+		
+		/**
+		 *  List of free block indexes before the end of the last allocated block.
+		 */
+        std::vector<int> m_NVMBlockFreeList; 
+		
+	int m_totalBlocks; 
+        int m_nextFreeBlock; 
+		
+		void shutdownNVM(); 
+		
+		void shutdownBerkeleyDB();
+		
+		void writeBlockNVM(const std::string tableName, 
+				   int16_t blockID, 
+				   const int tupleCount, 
+				   const char* data, 
+				   const long size); 
+				
+		void writeBlockBerkeleyDB(	const std::string tableName, 
+					   int16_t blockID, 
+					   const int tupleCount, 
+					   const char* data, 
+					   const long size);
+		
+        AntiCacheBlock readBlockNVM(std::string tableName, int16_t blockId); 
+
+        AntiCacheBlock readBlockBerkeleyDB(std::string tableName, int16_t blockId);
+        
+        /**
+         *   Returns a pointer to the start of the block at the specified index. 
+         */
+        char* getNVMBlock(int index); 
+        
+        /**
+         *    Adds the index to the free block list. 
+         */
+        void freeNVMBlock(int index);
+        
+        /**
+         *   Returns the index of a free slot in the NVM block array. 
+         */
+        int getFreeNVMBlockIndex(); 
+        
 }; // CLASS
 
 }
 #endif
-
-
-
-
-
-
-
-
-
-
-
-

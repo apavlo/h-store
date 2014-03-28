@@ -509,7 +509,8 @@ int deserializeParameterSet(const char* serialized_parameterset, jint serialized
 SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeSetBuffers
   (JNIEnv *env, jobject obj, jlong engine_ptr, jobject parameter_buffer, jint parameter_buffer_size,
    jobject result_buffer, jint result_buffer_size,
-   jobject exception_buffer, jint exception_buffer_size)
+   jobject exception_buffer, jint exception_buffer_size,
+   jobject arieslog_buffer, jint arieslog_buffer_size)
 {
     VOLT_DEBUG("nativeSetBuffers() start");
     VoltDBEngine *engine = castToEngine(engine_ptr);
@@ -532,9 +533,16 @@ SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeSetBu
                  env->GetDirectBufferAddress(exception_buffer));
         int exceptionBufferCapacity = exception_buffer_size;
 
+        //#ifdef ARIES
+                char *arieslogBuffer = reinterpret_cast<char*>(
+                 env->GetDirectBufferAddress(arieslog_buffer));
+                int arieslogBufferCapacity = arieslog_buffer_size;
+        //#endif
+
         engine->setBuffers(parameterBuffer, parameterBufferCapacity,
             reusedResultBuffer, reusedResultBufferCapacity,
-            exceptionBuffer, exceptionBufferCapacity);
+            exceptionBuffer, exceptionBufferCapacity,
+            arieslogBuffer, arieslogBufferCapacity);
     } catch (FatalException e) {
         topend->crashVoltDB(e);
     }
@@ -1142,6 +1150,29 @@ SHAREDLIB_JNIEXPORT void JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeProce
     //ProfilerDisable();
 }
 
+#ifdef ARIES
+/*
+* Class: org_voltdb_jni_ExecutionEngine
+* Method: nativeDoAriesRecoveryPhase
+* Signature: (J)V
+*/
+SHAREDLIB_JNIEXPORT void JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeDoAriesRecoveryPhase
+  (JNIEnv *env, jobject obj, jlong engine_ptr, jlong buffer_ptr, jlong buf_size, jlong replay_txnid) {
+    VOLT_DEBUG("nativeDoAriesRecoveryPhase in C++ called");
+    VoltDBEngine *engine = castToEngine(engine_ptr);
+    Topend *topend = static_cast<JNITopend*>(engine->getTopend())->updateJNIEnv(env);
+
+    char *buf = reinterpret_cast<char*>((buffer_ptr));
+
+    try {
+        engine->doAriesRecovery(buf, buf_size, replay_txnid);
+    } catch (FatalException e) {
+        topend->crashVoltDB(e);
+    }
+
+}
+#endif // ARIES
+
 /*
  * Class:     org_voltdb_jni_ExecutionEngine
  * Method:    nativeHashinate
@@ -1248,7 +1279,7 @@ SHAREDLIB_JNIEXPORT jboolean JNICALL Java_org_voltdb_utils_ThreadUtils_setThread
         }
     }
       
-    int errno = 0; 
+    int errno ; 
     int result = sched_setaffinity(0, sizeof(mask), &mask);
     if (result == -1) {
         char buff[256];
@@ -1542,6 +1573,148 @@ SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeAntiC
 #endif // ANTICACHE
 
 
+#endif
+
+#ifdef STORAGE_MMAP
+/**
+ * Enables the storage mmap feature in the EE.
+ * This can only be called *after* the buffers have been initialized
+ * but *before* the catalog has been initialized
+ * @param pointer the VoltDBEngine pointer
+ * @param dbDir the directory where EE should store the mmap'ed files
+ * @return error code
+ */
+SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeMMAPInitialize (
+        JNIEnv *env,
+        jobject obj,
+        jlong engine_ptr,
+        jstring dbDir,
+        jlong mapSize,
+        jlong syncFrequency) {
+
+    VOLT_DEBUG("nativeMMAPInitialize() start");
+    VoltDBEngine *engine = castToEngine(engine_ptr);
+    Topend *topend = static_cast<JNITopend*>(engine->getTopend())->updateJNIEnv(env);
+    if (engine == NULL) {
+        return org_voltdb_jni_ExecutionEngine_ERRORCODE_ERROR;
+    }
+    try {
+        const char *dbDirChars = env->GetStringUTFChars(dbDir, NULL);
+        std::string dbDirString(dbDirChars);
+        env->ReleaseStringUTFChars(dbDir, dbDirChars);
+
+        engine->MMAPInitialize(dbDirString, static_cast<int64_t>(mapSize), static_cast<int64_t>(syncFrequency));
+    } catch (FatalException e) {
+        topend->crashVoltDB(e);
+    }
+    return org_voltdb_jni_ExecutionEngine_ERRORCODE_SUCCESS;
+}
+#endif
+
+#ifdef ARIES
+/**
+ * Enables the ARIES feature in the EE.
+ * @param pointer the VoltDBEngine pointer
+ * @param dbDir the directory where EE should store ARIES log files
+ * @return error code
+ */
+SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeARIESInitialize (
+        JNIEnv *env,
+        jobject obj,
+        jlong engine_ptr,
+        jstring dbDir,
+        jstring logFile) {
+    VOLT_DEBUG("nativeARIESInitialize() start");
+    VoltDBEngine *engine = castToEngine(engine_ptr);
+    Topend *topend = static_cast<JNITopend*>(engine->getTopend())->updateJNIEnv(env);
+    if (engine == NULL) {
+        return org_voltdb_jni_ExecutionEngine_ERRORCODE_ERROR;
+    }
+    try {
+        const char *dbDirChars = env->GetStringUTFChars(dbDir, NULL);
+        std::string dbDirString(dbDirChars);
+        env->ReleaseStringUTFChars(dbDir, dbDirChars);
+
+        const char *logFileChars = env->GetStringUTFChars(logFile, NULL);
+        std::string logFileString(logFileChars);
+        env->ReleaseStringUTFChars(logFile, logFileChars);
+
+        engine->ARIESInitialize(dbDirString, logFileString);
+    } catch (FatalException e) {
+        topend->crashVoltDB(e);
+    }
+    return org_voltdb_jni_ExecutionEngine_ERRORCODE_SUCCESS;
+}
+
+/*
+* Class: org_voltdb_jni_ExecutionEngine
+* Method: getArieslogBufferLength
+* Signature: (J)I
+*/
+SHAREDLIB_JNIEXPORT jlong JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeGetArieslogBufferLength
+(JNIEnv *env, jobject obj, jlong engine_ptr) {
+    VoltDBEngine *engine = castToEngine(engine_ptr);
+
+return engine->getArieslogBufferLength();
+}
+
+/*
+* Class: org_voltdb_jni_ExecutionEngine
+* Method: nativeRewindArieslogBuffer
+* Signature: (J)V
+*/
+SHAREDLIB_JNIEXPORT void JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeRewindArieslogBuffer
+  (JNIEnv *env, jobject obj, jlong engine_ptr) {
+VoltDBEngine *engine = castToEngine(engine_ptr);
+
+return engine->rewindArieslogBuffer();
+}
+
+/*
+* Class: org_voltdb_jni_ExecutionEngine
+* Method: nativeReadAriesLogForReplay
+* Signature: ([J)J
+*/
+SHAREDLIB_JNIEXPORT jlong JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeReadAriesLogForReplay
+  (JNIEnv *env, jobject obj, jlong engine_ptr, jlongArray sizeArray) {
+VoltDBEngine *engine = castToEngine(engine_ptr);
+
+int64_t* sizes = NULL;
+
+    if (sizeArray != NULL) {
+        sizes = env->GetLongArrayElements(sizeArray, NULL);
+
+        if (sizes == NULL) {
+            env->ExceptionDescribe();
+            return reinterpret_cast<jlong>((void *)NULL);
+        }
+
+        if (env->ExceptionCheck()) {
+            env->ExceptionDescribe();
+            env->ReleaseLongArrayElements(sizeArray, sizes, JNI_ABORT);
+            return reinterpret_cast<jlong>((void *)NULL);
+        }
+    }
+
+    char *replayLogData = engine->readAriesLogForReplay(sizes);
+
+    env->ReleaseLongArrayElements(sizeArray, sizes, 0);
+
+return reinterpret_cast<jlong>(replayLogData);
+}
+
+/*
+* Class: org_voltdb_jni_ExecutionEngine
+* Method: nativeFreePointerToReplayLog
+* Signature: (J)V
+*/
+SHAREDLIB_JNIEXPORT void JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeFreePointerToReplayLog
+  (JNIEnv *env, jobject obj, jlong engine_ptr, jlong replay_ptr) {
+VoltDBEngine *engine = castToEngine(engine_ptr);
+
+char *replayLogData = reinterpret_cast<char*>((replay_ptr));
+engine->freePointerToReplayLog(replayLogData);
+}
 #endif
 
 /** @} */ // end of JNI doxygen group

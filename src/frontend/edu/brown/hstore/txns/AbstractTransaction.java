@@ -34,6 +34,7 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.log4j.Logger;
+import org.voltdb.ClientResponseImpl;
 import org.voltdb.ParameterSet;
 import org.voltdb.VoltTable;
 import org.voltdb.catalog.Procedure;
@@ -42,6 +43,7 @@ import org.voltdb.exceptions.SerializableException;
 import org.voltdb.utils.NotImplementedException;
 
 import com.google.protobuf.ByteString;
+import com.google.protobuf.RpcCallback;
 
 import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.HStoreSite;
@@ -1308,4 +1310,5 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
         }
         return this.cachedDebugContext;
     }
+
 }

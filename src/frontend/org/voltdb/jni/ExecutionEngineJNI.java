@@ -88,6 +88,10 @@ public class ExecutionEngineJNI extends ExecutionEngine {
     private final BBContainer exceptionBufferOrigin = org.voltdb.utils.DBBPool.allocateDirect(1024 * 1024 * 20);
     private ByteBuffer exceptionBuffer = exceptionBufferOrigin.b;
 
+    // ARIES
+    private final BBContainer ariesLogBufferOrigin = org.voltdb.utils.DBBPool.allocateDirect(5 * 1024 * 1024 * 20);
+    private ByteBuffer ariesLogBuffer = ariesLogBufferOrigin.b;
+    
     /**
      * Java cache for read/write tracking sets
      */
@@ -113,7 +117,7 @@ public class ExecutionEngineJNI extends ExecutionEngine {
          * EE needs this info in order to decide whether it's safe to install
          * the signal handler or not.
          */
-        pointer = nativeCreate(System.getProperty("java.vm.vendor", "xyz").toLowerCase().contains("sun microsystems"));
+	 pointer = nativeCreate(System.getProperty("java.vm.vendor", "xyz").toLowerCase().contains("sun microsystems"));
         nativeSetLogLevels(this.pointer, EELoggers.getLogLevels());
         int errorCode =
             nativeInitialize(
@@ -131,7 +135,8 @@ public class ExecutionEngineJNI extends ExecutionEngine {
                         fsForParameterSet.getContainerNoFlip().b,
                         fsForParameterSet.getContainerNoFlip().b.capacity(),
                         deserializer.buffer(), deserializer.buffer().capacity(),
-                        exceptionBuffer, exceptionBuffer.capacity());
+                        exceptionBuffer, exceptionBuffer.capacity(),
+                        ariesLogBuffer, ariesLogBuffer.capacity());
                 checkErrorCode(code);
             }
         }, null);
@@ -139,7 +144,9 @@ public class ExecutionEngineJNI extends ExecutionEngine {
         errorCode = nativeSetBuffers(this.pointer, fsForParameterSet.getContainerNoFlip().b,
                 fsForParameterSet.getContainerNoFlip().b.capacity(),
                 deserializer.buffer(), deserializer.buffer().capacity(),
-                exceptionBuffer, exceptionBuffer.capacity());
+                exceptionBuffer, exceptionBuffer.capacity(),
+                ariesLogBuffer, ariesLogBuffer.capacity());
+
         checkErrorCode(errorCode);
         
         //LOG.info("Initialized Execution Engine");
@@ -843,6 +850,74 @@ public class ExecutionEngineJNI extends ExecutionEngine {
         assert(m_anticache);
         final int errorCode = nativeAntiCacheMergeBlocks(this.pointer, catalog_tbl.getRelativeIndex());
         checkErrorCode(errorCode);
+    }
+
+    
+    /*
+     * MMAP STORAGE
+     */
+    
+    @Override
+    public void MMAPInitialize(File dbDir, long mapSize, long syncFrequency) throws EEException {
+        
+        LOG.info("Initializing storage mmap feature at partition " + this.executor.getPartitionId());
+        LOG.info(String.format("Partition #%d MMAP Directory: %s",
+                 this.executor.getPartitionId(), dbDir.getAbsolutePath()));
+        final int errorCode = nativeMMAPInitialize(this.pointer, dbDir.getAbsolutePath(), mapSize, syncFrequency);
+        checkErrorCode(errorCode);
+        m_anticache = true;
+    }
+
+    /*
+     * ARIES
+     */
+    
+    @Override
+    public void ARIESInitialize(File dbDir, File logFile) throws EEException {
+        
+        LOG.info("Initializing ARIES feature at partition " + this.executor.getPartitionId());
+        LOG.info(String.format("Partition #%d ARIES Directory: %s",
+                 this.executor.getPartitionId(), dbDir.getAbsolutePath()));
+        final int errorCode = nativeARIESInitialize(this.pointer, dbDir.getAbsolutePath(), logFile.getAbsolutePath());
+        checkErrorCode(errorCode);
+        m_anticache = true;
+    }
+    
+    @Override
+    public void doAriesRecoveryPhase(long replayPointer, long replayLogSize, long replayTxnId) {
+        LOG.info("do ARIES Recovery at partition " + this.executor.getPartitionId());
+
+        nativeDoAriesRecoveryPhase(pointer, replayPointer, replayLogSize, replayTxnId);
+    }
+    
+    @Override
+    public long getArieslogBufferLength() {
+        return nativeGetArieslogBufferLength(pointer);
+    }
+
+    @Override
+    public void getArieslogData(int bufferLength, byte[] arieslogDataArray) {
+        // rewind this buffer to be able to copy from start
+        // XXX: The native methods apparently keep their own offset
+        // and unless they are rewinded as well after each call, massive
+        // disaster might ensue.
+        ariesLogBuffer.rewind();
+        ariesLogBuffer.get(arieslogDataArray, 0, bufferLength);
+
+        // now that the data for a transaction
+        // has been copied out, time to rewind the C++
+        // pointers as well.
+        nativeRewindArieslogBuffer(pointer);
+    }
+
+    @Override
+    public void freePointerToReplayLog(long ariesReplayPointer) {
+        nativeFreePointerToReplayLog(pointer, ariesReplayPointer);
+    }
+
+    @Override
+    public long readAriesLogForReplay(long[] size) {
+        return nativeReadAriesLogForReplay(pointer, size);
     }
 
 }

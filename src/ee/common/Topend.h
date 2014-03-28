@@ -20,9 +20,9 @@
 #include "common/ids.h"
 #include <string>
 #include "common/FatalException.hpp"
+#include "common/Pool.hpp"
 namespace voltdb {
 class Table;
-class Pool;
 
 /*
  * Topend abstracts the EE's calling interface to Java to
