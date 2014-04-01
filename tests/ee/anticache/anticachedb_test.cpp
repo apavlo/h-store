@@ -94,7 +94,7 @@ TEST_F(AntiCacheDBTest, ReadBlock) {
 
 	AntiCacheBlock block = anticache.readBlock(tableName,blockId);
 
-//	ASSERT_EQ(block.getTableName(), tableName);
+	ASSERT_EQ(block.getTableName(), tableName);
 	ASSERT_EQ(block.getBlockId(), blockId);
 	ASSERT_EQ(block.getData(), const_cast<char*>(payload.data()));
 

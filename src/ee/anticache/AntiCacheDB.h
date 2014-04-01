@@ -54,13 +54,15 @@ class AntiCacheBlock {
         ~AntiCacheBlock();
         
         inline int16_t getBlockId() const {
-            return (m_blockId);
+        	return m_blockId;
         }
 
+        inline std::string getTableName() const {
+            return (m_payload->header.tableName);
+        }
 
         inline long getSize() const {
-	  //return (m_value.get_size());
-	  return m_size;
+        	return m_size;
         }
         inline char* getData() const {
 
@@ -77,11 +79,12 @@ class AntiCacheBlock {
         };
     
     private:
+        AntiCacheBlock(int16_t blockId, Dbt value);
         AntiCacheBlock(int16_t blockId, char* block, long size);
-
         int16_t m_blockId;
-	char* m_block;
+        payload * m_payload;
 	long m_size;
+	char * m_block;
 
 }; // CLASS
 
@@ -177,7 +180,7 @@ class AntiCacheDB {
 		
         AntiCacheBlock readBlockNVM(std::string tableName, int16_t blockId); 
 
-        AntiCacheBlock readBlockBerkeleyDB(std::string tableName, int16_t blockId);
+        AntiCacheBlock readBlockBerkeleyDB(int16_t blockId);
         
         /**
          *   Returns a pointer to the start of the block at the specified index. 
