@@ -9,10 +9,10 @@ public class TestWorkloadAnalyzer extends BaseTestCase {
 	protected static final int WORKLOAD_XACT_LIMIT = 1000;
 
 	public void testCountOfReferences() throws Exception {
-		super.setUp(ProjectType.TM1);
+		super.setUp(ProjectType.AUCTIONMARK);
 
 		Workload workload;
-		File workload_file = this.getWorkloadFile(ProjectType.TM1);
+		File workload_file = this.getWorkloadFile(ProjectType.AUCTIONMARK);
 		workload = new Workload(catalog);
 		((Workload) workload).load(workload_file, catalog_db, null);
 		assert (workload.getTransactionCount() > 0) : "No transaction loaded from workload";
@@ -22,7 +22,8 @@ public class TestWorkloadAnalyzer extends BaseTestCase {
 		int result = analyzer.getCountOfGroupingsPossible();
 
 		assertNotNull(result);
-		assertEquals(2210, result);
+		assertTrue(result > 2200);
+		
 	}
 
 }
