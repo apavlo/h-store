@@ -360,7 +360,6 @@ public class TestAntiCacheManager extends BaseTestCase {
             ee.antiCacheReadBlocks(catalog_tbl, block_ids, tuple_offsets);
         } catch (UnknownBlockAccessException ex) {
             // This is what we want!
-            assertEquals(catalog_tbl, ex.getTableId(catalog_db));
             assertEquals(block_ids[0], ex.getBlockId());
             failed = true;
             System.err.println(ex);

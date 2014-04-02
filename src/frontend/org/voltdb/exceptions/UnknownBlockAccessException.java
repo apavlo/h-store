@@ -3,8 +3,6 @@ package org.voltdb.exceptions;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
-import org.voltdb.catalog.Database;
-import org.voltdb.catalog.Table;
 import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.messaging.FastSerializer;
 
@@ -17,7 +15,6 @@ public class UnknownBlockAccessException extends SerializableException {
 
     public static final long serialVersionUID = 0L;
 
-    public final String table_name;
     public final short block_id;
     
     /**
@@ -28,26 +25,15 @@ public class UnknownBlockAccessException extends SerializableException {
         super(buffer);
         
         FastDeserializer fds = new FastDeserializer(buffer);
-        String _table_name;
         short _block_id;
         try {
-            _table_name = fds.readString();
             _block_id = fds.readShort();
         } catch (IOException ex) {
             throw new RuntimeException(ex);
         }
-        this.table_name = _table_name;
         this.block_id = _block_id;
     }
 
-    /**
-     * Retrieve the Table that the txn tried to access that generated this exception.
-     * @param catalog_db The current Database catalog handle
-     */
-    public Table getTableId(Database catalog_db) {
-        return catalog_db.getTables().getIgnoreCase(this.table_name);
-    }
-    
     /**
      * Retrieve the block ids that the txn tried to access that generated this exception.
      */
@@ -60,7 +46,7 @@ public class UnknownBlockAccessException extends SerializableException {
      */
     @Override
     protected int p_getSerializedSize() {
-        return (4 + this.table_name.length() + 2);
+        return (6);
     }
 
     /**
@@ -71,7 +57,6 @@ public class UnknownBlockAccessException extends SerializableException {
     protected void p_serializeToBuffer(ByteBuffer b) throws IOException {
         FastSerializer fs = new FastSerializer();
         try {
-            fs.writeString(this.table_name);
             fs.writeShort(this.block_id);
         } catch (IOException ex) {
             throw new RuntimeException(ex);
