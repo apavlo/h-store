@@ -89,6 +89,7 @@ public enum ProjectType {
     SIMPLESTREAMTRIGGER("SimpleStreamTrigger", "edu.brown.benchmark.simplestreamtrigger"),
     SIMPLENOOP("SimpleNoOp", "edu.brown.benchmark.simplenoop"),
     SIMPLESTATEMENT("SimpleStatement", "edu.brown.benchmark.simplestatement"),
+    SIMPLEDISTRIBUTION("SimpleDistribution", "edu.brown.benchmark.simpledistribution"),
     TEST("Test", null),
     WORDCOUNT("WordCount", "edu.brown.benchmark.wordcount"),
     WORDCOUNTHSTORE("WordCountHStore", "edu.brown.benchmark.wordcounthstore"),

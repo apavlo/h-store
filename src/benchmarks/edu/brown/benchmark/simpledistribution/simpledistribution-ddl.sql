@@ -1,0 +1,18 @@
+CREATE TABLE TABLEA (
+   A_ID     BIGINT NOT NULL,
+   A_VALUE  VARCHAR(64)
+);
+
+CREATE TABLE TABLEB (
+   B_ID	    BIGINT NOT NULL,
+   NUMROWS  INT    NOT NULL
+);
+
+CREATE TABLE S1
+(
+  value            integer     NOT NULL
+);
+
+
+
+
