@@ -1230,7 +1230,8 @@ TEST CASES
             <tests>
                 <fileset dir='${build.test.dir}'>
                     <exclude name="**/*$*.class"/>
-                    <include name='org/voltdb/regressionsuites/TestSaveRestore*.class'/>
+        	<include name='org/voltdb/regressionsuites/Test*.class'/>    
+	        <include name='org/voltdb/regressionsuites/TestSaveRestore*.class'/>
                     <exclude name="**/TestCatalogUpdateSuite.class" />
                     <exclude name="**/TestFailureDetectSuite.class" />
                     <exclude name="**/TestSneakyExecutionOrderSuite.class" />
@@ -1238,7 +1239,6 @@ TEST CASES
                     <exclude name="**/TestMapReduceTransactionSuite.class" />
                     <exclude name="**/TestWikipediaSuite.class" />
                     <exclude name="**/TestWikipediaLoader.class" /> 
-                    <exclude name="**/TestAntiCache*.class" /> 
                 </fileset>
             </tests>
         </run_junit>
