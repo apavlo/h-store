@@ -55,11 +55,9 @@ namespace voltdb {
 
 AntiCacheBlock::~AntiCacheBlock() {
     // we asked BDB to allocate memory for data dynamically, so we must delete
-
-	if(m_blockId > 0){
-		delete [] m_block;
-		delete m_payload;
-	}
+    if(m_blockId > 0){
+    	delete m_payload;
+    }
 }
     
 AntiCacheDB::AntiCacheDB(ExecutorContext *ctx, std::string db_dir, long blockSize) :
@@ -235,12 +233,9 @@ void AntiCacheDB::writeBlockBerkeleyDB(const std::string tableName,
     key.set_data(&blockId);
     key.set_size(sizeof(blockId));
 
-
-    AntiCacheBlock::blockHeader header;
-    header.blockId = blockId;
-    header.tableName = tableName;
     AntiCacheBlock::payload payload;
-    payload.header = header;
+    payload.blockId = blockId;
+    payload.tableName = tableName;
     payload.data = const_cast<char*>(data);
     payload.size = static_cast<int32_t>(size);
     Dbt value;

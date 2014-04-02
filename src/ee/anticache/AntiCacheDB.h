@@ -58,22 +58,18 @@ class AntiCacheBlock {
         }
 
         inline std::string getTableName() const {
-            return (m_payload->header.tableName);
+            return (m_payload->tableName);
         }
 
         inline long getSize() const {
         	return m_size;
         }
         inline char* getData() const {
-
 	    return m_block;
         }
-        struct blockHeader {
+        struct payload{
         	int16_t blockId;
         	std::string tableName;
-        };
-        struct payload{
-        	blockHeader header;
             char * data;
             int size;
         };
