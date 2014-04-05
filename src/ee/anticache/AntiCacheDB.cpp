@@ -266,8 +266,8 @@ void AntiCacheDB::writeBlockBerkeleyDB(const std::string tableName,
     }
     VOLT_INFO("anticache block data %s", data); 
     long payload_size = sizeof(blockId) + tableName.size() + 1 + size + sizeof(payload.size);
-    char databuf_[50000];
-	memset(databuf_, 0, 50000);
+    char * databuf_ = new char [size+28];
+	memset(databuf_, 0, size+28);
 	// Now pack the data into a single contiguous memory location
 	// for storage.
 	long bufLen_ = 0;
@@ -294,6 +294,8 @@ void AntiCacheDB::writeBlockBerkeleyDB(const std::string tableName,
                blockId, tupleCount, size);
     // TODO: Error checking
     m_db->put(NULL, &key, &value, 0);
+
+    delete [] databuf_;
 }
 
 AntiCacheBlock AntiCacheDB::readBlockBerkeleyDB(int16_t blockId) {

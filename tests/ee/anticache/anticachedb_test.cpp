@@ -25,7 +25,6 @@
 
 #include <string>
 #include "harness.h"
-
 #include "anticache/AntiCacheDB.h"
 
 using namespace std;
@@ -96,7 +95,7 @@ TEST_F(AntiCacheDBTest, ReadBlock) {
 
 	ASSERT_EQ(block.getTableName(), tableName);
 	ASSERT_EQ(block.getBlockId(), blockId);
-//	ASSERT_EQ(block.getData(), payload.c_str());
+	ASSERT_EQ(0, payload.compare(block.getData()));
 	long expected_size = payload.size()+1;
 	ASSERT_EQ(block.getSize(), expected_size);
 }

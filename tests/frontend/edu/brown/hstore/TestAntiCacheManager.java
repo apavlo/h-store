@@ -264,7 +264,7 @@ public class TestAntiCacheManager extends BaseTestCase {
         assertTrue("No tuples were evicted!"+evictResult, evicted > 0);
     }
         
-/*    @Test
+    @Test
     public void testMultipleReadEvictedTuples() throws Exception {
         this.loadData();
         
@@ -292,7 +292,7 @@ public class TestAntiCacheManager extends BaseTestCase {
         assertNotNull(profiler);
         assertEquals(1, profiler.evictedaccess_history.size());
     }
-  */  
+    
     @Test
     public void testEvictTuples() throws Exception {
         this.loadData();
