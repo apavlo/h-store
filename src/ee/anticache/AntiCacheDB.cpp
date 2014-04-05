@@ -40,14 +40,36 @@ using namespace std;
 namespace voltdb {
 
   AntiCacheBlock::AntiCacheBlock(int16_t blockId, Dbt value) {
-	  m_payload = (payload *) value.get_data();
-	  m_size = m_payload->size;
-	  m_blockId = blockId;
-	  m_block = (static_cast<char*>(m_payload->data));
+	m_buf = (char *) value.get_data();
+
+	int16_t id = *((int16_t *)m_buf);
+	long bufLen_ = sizeof(int16_t);
+	std::string tableName = m_buf + bufLen_;
+	bufLen_ += tableName.size()+1;
+	long size = *((long *)(m_buf+bufLen_));
+	bufLen_+=sizeof(long);
+	char * data = m_buf + bufLen_;
+	bufLen_ += size;
+	for(int i=0;i<size;i++){
+	   VOLT_INFO("%x", data[i]);
+	}
+
+	payload p;
+	p.blockId = id;
+	p.tableName = tableName;
+	p.data = data;
+	p.size = size;
+	m_size = size;
+	m_payload = p;
+	VOLT_INFO("size of anticache block data %ld in read", m_payload.size);
+	VOLT_INFO("size of anticache block data %ld in read", m_size);
+	VOLT_INFO("data in anticache block data %s in read", m_payload.data);
+	m_block = m_payload.data;
+	VOLT_INFO("data from getBlock %s", getData());
+	m_blockId = blockId;
   }
 
   AntiCacheBlock::AntiCacheBlock(int16_t blockId, char* block, long size) {
-  	  m_payload = (payload *) block;
   	  m_block = block;
   	  m_blockId = blockId;
   	  m_size = size;
@@ -55,8 +77,8 @@ namespace voltdb {
 
 AntiCacheBlock::~AntiCacheBlock() {
     // we asked BDB to allocate memory for data dynamically, so we must delete
-    if(m_blockId > 0){
-    	delete m_payload;
+    if(m_blockId > 0 && m_buf != NULL){
+    	delete m_buf;
     }
 }
     
@@ -237,12 +259,38 @@ void AntiCacheDB::writeBlockBerkeleyDB(const std::string tableName,
     payload.blockId = blockId;
     payload.tableName = tableName;
     payload.data = const_cast<char*>(data);
-    payload.size = static_cast<int32_t>(size);
-    Dbt value;
-    value.set_data(&payload);
-    value.set_size(sizeof(payload));
+    payload.size = size; 
+    VOLT_INFO("size of anticache block data %ld", size);
+    for(int i=0;i<size;i++){
+    	VOLT_INFO("%x", data[i]);
+    }
+    VOLT_INFO("anticache block data %s", data); 
+    long payload_size = sizeof(blockId) + tableName.size() + 1 + size + sizeof(payload.size);
+    char databuf_[50000];
+	memset(databuf_, 0, 50000);
+	// Now pack the data into a single contiguous memory location
+	// for storage.
+	long bufLen_ = 0;
+	long dataLen = 0;
+	dataLen = sizeof(blockId);
+	memcpy(databuf_, &blockId, dataLen);
+	bufLen_ += dataLen;
+	dataLen = tableName.size() + 1;
+	memcpy(databuf_ + bufLen_, tableName.c_str(), dataLen);
+	bufLen_ += dataLen;
+	dataLen = sizeof(size);
+	memcpy(databuf_ + bufLen_, &size, dataLen);
+	bufLen_ += dataLen;
+	dataLen = size;
+	memcpy(databuf_ + bufLen_, data, dataLen);
+	bufLen_ += dataLen;
 
-    VOLT_DEBUG("Writing out a block #%d to anti-cache database [tuples=%d / size=%ld]",
+    Dbt value;
+	value.set_data(databuf_);
+	value.set_size(static_cast<int32_t>(bufLen_));
+
+
+    VOLT_INFO("Writing out a block #%d to anti-cache database [tuples=%d / size=%ld]",
                blockId, tupleCount, size);
     // TODO: Error checking
     m_db->put(NULL, &key, &value, 0);

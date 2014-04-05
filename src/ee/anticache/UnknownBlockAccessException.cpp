@@ -46,6 +46,8 @@ UnknownBlockAccessException::UnknownBlockAccessException(uint16_t blockId) :
 }
 
 void UnknownBlockAccessException::p_serialize(ReferenceSerializeOutput *output) {
+    if(!m_tableName.empty()){
 	output->writeTextString(m_tableName);
+    }
     output->writeShort(m_blockId);
 }

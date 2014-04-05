@@ -58,7 +58,7 @@ class AntiCacheBlock {
         }
 
         inline std::string getTableName() const {
-            return (m_payload->tableName);
+            return (m_payload.tableName);
         }
 
         inline long getSize() const {
@@ -71,16 +71,17 @@ class AntiCacheBlock {
         	int16_t blockId;
         	std::string tableName;
             char * data;
-            int size;
+            long size;
         };
     
     private:
         AntiCacheBlock(int16_t blockId, Dbt value);
         AntiCacheBlock(int16_t blockId, char* block, long size);
         int16_t m_blockId;
-        payload * m_payload;
+        payload m_payload;
 	long m_size;
 	char * m_block;
+	char * m_buf;
 
 }; // CLASS
 

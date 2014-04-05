@@ -318,6 +318,7 @@ bool PersistentTable::evictBlockToDisk(const long block_size, int num_blocks) {
 
         // write out the block header (i.e. number of tuples in block)
         out.writeIntAt(0, num_tuples_evicted);
+        VOLT_INFO("data before serialization is %x", out.data()[0]);
 
         #ifdef VOLT_INFO_ENABLED
         VOLT_DEBUG("Evicted %d tuples / %d bytes.", num_tuples_evicted, (int)out.size());
@@ -327,6 +328,7 @@ bool PersistentTable::evictBlockToDisk(const long block_size, int num_blocks) {
 
         // Only write out a bock if there are tuples in it
         if (num_tuples_evicted >= 0) {
+
             antiCacheDB->writeBlock(name(),
                                     block_id,
                                     num_tuples_evicted,
@@ -582,7 +584,9 @@ bool PersistentTable::readEvictedBlock(int16_t block_id, int32_t tuple_offset) {
 
         // allocate the memory for this block
         char* unevicted_tuples = new char[value.getSize()]; 
-        memcpy(unevicted_tuples, value.getData(), value.getSize()); 
+	memcpy(unevicted_tuples, value.getData(), value.getSize()); 
+        VOLT_INFO("data from anticache block %s", unevicted_tuples);
+        VOLT_INFO("size from anticache block %ld", value.getSize());
         m_unevictedBlocks.push_back(unevicted_tuples);
         m_mergeTupleOffset.push_back(tuple_offset); 
         
@@ -662,7 +666,9 @@ bool PersistentTable::mergeUnevictedTuples()
             m_tupleCount++;
             
             // deserialize tuple from unevicted block
+            VOLT_INFO("Before deserialize.%d", m_tupleCount);
             m_tmpTarget1.deserializeWithHeaderFrom(in);
+            VOLT_INFO("after deserialize %d", m_tmpTarget1.getTupleID());
             m_tmpTarget1.setEvictedFalse();
             m_tmpTarget1.setDeletedFalse(); 
             
