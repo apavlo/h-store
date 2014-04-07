@@ -37,20 +37,6 @@ CREATE TABLE votes
 -- PARTITION BY ( phone_number )
 );
 
-CREATE TABLE w_staging
-(
-  vote_id            bigint     NOT NULL,
-  phone_number       bigint     NOT NULL
-, state              varchar(2) NOT NULL -- REFERENCES area_code_state (state)
-, contestant_number  integer    NOT NULL REFERENCES contestants (contestant_number)
-, time		     integer    NOT NULL
-, CONSTRAINT PK_stage PRIMARY KEY
-  (
-    vote_id
-  )
--- PARTITION BY ( phone_number )
-);
-
 CREATE TABLE w_rows
 (
   vote_id            bigint     NOT NULL,
@@ -65,7 +51,7 @@ CREATE TABLE w_rows
 -- PARTITION BY ( phone_number )
 );
 
-CREATE TABLE leaderboard
+CREATE TABLE top_three_last_30_sec
 (
   contestant_number  integer   NOT NULL
 , numvotes           integer   NOT NULL
@@ -84,18 +70,30 @@ AS
  GROUP BY phone_number
 ;
 
--- rollup of votes by contestant and state for the heat map and results
-CREATE VIEW v_votes_by_contestant_number_state
+CREATE VIEW v_top_three_contestants
 (
   contestant_number
-, state
 , num_votes
 )
 AS
    SELECT contestant_number
-        , state
-        , COUNT(*)
+	, COUNT(*)
      FROM votes
  GROUP BY contestant_number
-        , state
+ ORDER BY COUNT(*)
+ LIMIT 3 DESC
+;
+
+CREATE VIEW v_bottom_three_contestants
+(
+  contestant_number
+, num_votes
+)
+AS
+   SELECT contestant_number
+	, COUNT(*)
+     FROM votes
+ GROUP BY contestant_number
+ ORDER BY COUNT(*) ASC
+ LIMIT 3
 ;

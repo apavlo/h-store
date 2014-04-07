@@ -36,6 +36,7 @@ import org.voltdb.VoltTable;
 import org.voltdb.types.TimestampType;
 
 import edu.brown.benchmark.voterdemosstore.VoterDemoSStoreConstants;
+import edu.brown.benchmark.voterwintimesstore.VoterWinTimeSStoreConstants;
 
 @ProcInfo (
     partitionInfo = "votes.phone_number:1",
@@ -51,8 +52,8 @@ public class Vote extends VoltProcedure {
 	   "SELECT contestant_number FROM contestants WHERE contestant_number = ?;"
     );
 	
-    // Checks if the voterdemosstore has exceeded their allowed number of votes
-    public final SQLStmt checkVoterDemoSStoreStmt = new SQLStmt(
+    // Checks if the voter has exceeded their allowed number of votes
+    public final SQLStmt checkVoterStmt = new SQLStmt(
 		"SELECT num_votes FROM v_votes_by_phone_number WHERE phone_number = ?;"
     );
 	
@@ -63,64 +64,21 @@ public class Vote extends VoltProcedure {
 	
     // Records a vote
     public final SQLStmt insertVoteStmt = new SQLStmt(
-		"INSERT INTO votes (vote_id, phone_number, state, contestant_number, time) VALUES (?, ?, ?, ?, ?);"
+		"INSERT INTO votes_stream (vote_id, phone_number, state, contestant_number, time) VALUES (?, ?, ?, ?, ?);"
     );
     
-    // Put the vote into the staging window
-    public final SQLStmt insertVoteStagingStmt = new SQLStmt(
-		"INSERT INTO w_staging (vote_id, phone_number, state, contestant_number, time) VALUES (?, ?, ?, ?, ?);"
-    );
-    
- // Find the cutoff vote
-    public final SQLStmt checkStagingTime = new SQLStmt(
-		"SELECT min(time) FROM w_staging;"
-    );
-
-    
- // Find the cutoff vote
-    public final SQLStmt deleteCutoffVoteStmt = new SQLStmt(
-		"DELETE FROM w_rows WHERE time < ?;"
-    );
-    
-    // Put the staging votes into the window
-    public final SQLStmt insertVoteWindowStmt = new SQLStmt(
-		"INSERT INTO w_rows (vote_id, phone_number, state, contestant_number, time) SELECT * FROM w_staging;"
-    );
-    
- // Pull aggregate from window
-    public final SQLStmt deleteLeaderBoardStmt = new SQLStmt(
-		"DELETE FROM leaderboard;"
-    );
-    
-    // Pull aggregate from window
-    public final SQLStmt updateLeaderBoardStmt = new SQLStmt(
-		"INSERT INTO leaderboard (contestant_number, numvotes) SELECT contestant_number, count(*) FROM w_rows GROUP BY contestant_number;"
-    );
-    
- // Clear the staging window
-    public final SQLStmt deleteStagingStmt = new SQLStmt(
-		"DELETE FROM w_staging;"
-    );
-    
- // Put the vote into the staging window
-   // public final SQLStmt UpdateLeaderBoardStmt = new SQLStmt(
-	//	"INSERT INTO votes (vote_id, phone_number, state, contestant_number, created) VALUES (?, ?, ?, ?, ?);"
-    //);
 	
-    public long run(long voteId, long phoneNumber, int contestantNumber, long maxVotesPerPhoneNumber, int currentTimestamp) {
+public long run(long voteId, long phoneNumber, int contestantNumber, long maxVotesPerPhoneNumber, int currentTimestamp) {
 		
         // Queue up validation statements
-        voltQueueSQL(checkContestantStmt, contestantNumber);
-        voltQueueSQL(checkVoterDemoSStoreStmt, phoneNumber);
+		voltQueueSQL(checkContestantStmt, contestantNumber);
+        voltQueueSQL(checkVoterStmt, phoneNumber);
         voltQueueSQL(checkStateStmt, (short)(phoneNumber / 10000000l));
         VoltTable validation[] = voltExecuteSQL();
 		
-        if (validation[0].getRowCount() == 0) {
-            return VoterDemoSStoreConstants.ERR_INVALID_CONTESTANT;
-        }
-		
-        if ((validation[1].getRowCount() == 1) &&
-			(validation[1].asScalarLong() >= maxVotesPerPhoneNumber)) {
+        // validate the maximum limit for votes number
+        if ((validation[0].getRowCount() == 1) &&
+			(validation[0].asScalarLong() >= maxVotesPerPhoneNumber)) {
             return VoterDemoSStoreConstants.ERR_VOTER_OVER_VOTE_LIMIT;
         }
 		
@@ -129,32 +87,14 @@ public class Vote extends VoltProcedure {
         // the "XX" fake state (those votes will not appear on the Live Statistics dashboard,
         // but are tracked as legitimate instead of invalid, as old clients would mostly get
         // it wrong and see all their transactions rejected).
-        final String state = (validation[2].getRowCount() > 0) ? validation[2].fetchRow(0).getString(0) : "XX";
+        final String state = (validation[1].getRowCount() > 0) ? validation[1].fetchRow(0).getString(0) : "XX";
 		 		
         // Post the vote
         //TimestampType timestamp = new TimestampType();
         voltQueueSQL(insertVoteStmt, voteId, phoneNumber, state, contestantNumber, currentTimestamp);
-        voltQueueSQL(checkStagingTime);
-        validation = voltExecuteSQL();
         
-        if(validation[1].getRowCount() != 0 && currentTimestamp - (int)(validation[1].fetchRow(0).getLong(0)) >= slideSize)
-        {
-        	//Check the window size and cutoff vote can be done one of two ways:
-        	//1) Two statements: one gets window size, one gets all rows to be deleted
-        	//2) Return full window to Java, and let it sort it out.  Better for large slides.
-        	//Likewise, either of these methods can be called in the earlier batch if that's better.
-        	//voltQueueSQL(selectFullWindowStmt);
-
-        	//validation = voltExecuteSQL();
-        	voltQueueSQL(deleteCutoffVoteStmt, currentTimestamp - windowSize );
-        	voltQueueSQL(insertVoteWindowStmt);
-    		voltQueueSQL(deleteLeaderBoardStmt);
-    		voltQueueSQL(updateLeaderBoardStmt);
-    		voltQueueSQL(deleteStagingStmt);
-        }
-        voltQueueSQL(insertVoteStagingStmt, voteId, phoneNumber, state, contestantNumber, currentTimestamp);
         voltExecuteSQL(true);
-        
+		
         // Set the return value to 0: successful vote
         return VoterDemoSStoreConstants.VOTE_SUCCESSFUL;
     }
