@@ -284,7 +284,7 @@ public class TestAntiCachePerformance extends BaseTestCase {
     /**
      * testWithAntiCache
      */
-/*    @Test
+    @Test
     public void testEvictData1() throws Exception {
         this.startSite(true);
         this.loadData(50000);
@@ -292,18 +292,18 @@ public class TestAntiCachePerformance extends BaseTestCase {
         this.evictData(BLOCK_SIZE_1_MB);
         this.UnevictData();
     }
-*/
-//    /**
-//     * testWithAntiCache
-//     */
-//    @Test
-//    public void testEvictData2() throws Exception {
-//        this.startSite(true);
-//        this.loadData(50000);
-//        System.err.println("Testing with 2 MB block size: ");
-//        this.evictData(BLOCK_SIZE_2_MB);
-//        this.UnevictData();
-//    }
+
+    /**
+     * testWithAntiCache
+     */
+    @Test
+    public void testEvictData2() throws Exception {
+        this.startSite(true);
+        this.loadData(50000);
+        System.err.println("Testing with 2 MB block size: ");
+        this.evictData(BLOCK_SIZE_2_MB);
+        this.UnevictData();
+    }
 
 //    /**
 //     * testWithAntiCache
