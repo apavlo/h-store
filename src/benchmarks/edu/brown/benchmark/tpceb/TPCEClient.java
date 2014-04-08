@@ -172,9 +172,11 @@ public class TPCEClient extends BenchmarkComponent {
         }
         return names;
     }
-
+private int num = 1;
     protected Transaction selectTransaction() {
-        if(countTotal <= 100){
+        //getNumThreads * 20
+        if(countTotal <= 200){ //probably 200
+            num = 1;
             System.out.println("Trade Order");
         int iTxnType = egen_clientDriver.driver_ptr.getCE().getCETxnMixGenerator().generateNextTxnType( );
         egen_clientDriver.driver_ptr.getCE().zeroInputBuffer(iTxnType);
@@ -187,6 +189,7 @@ public class TPCEClient extends BenchmarkComponent {
         return XTRANS[iTxnType];
         }
         else{
+            num = 2;
             System.out.println("Market Feed");
       //      if(countTotal <= 50){
       //          countTotal++;
@@ -251,6 +254,8 @@ int countRow =0;
     protected boolean runOnce() throws IOException {
         boolean ret = false;
       //  boolean retME = false;
+        if(num ==1){
+            System.out.println("num was 1");
         try {
             final Transaction target = selectTransaction();
            // final Transaction targetME = selectTransactionME();
@@ -323,6 +328,28 @@ int countRow =0;
         
             ex.printStackTrace();
             System.exit(1);
+        }
+        }
+        else{
+            
+            try {
+                final Transaction target = selectTransaction();
+               // final Transaction targetME = selectTransactionME();
+                
+                LOG.debug("Executing txn " + target);
+               ret = this.getClientHandle().callProcedure(new TPCECallback(target), target.callName, this.generateClientArgs(target));
+               // tradeOrderResult = this.getClientHandle().callProcedure(target.callName, this.generateClientArgs(target)).getResults();
+              
+                
+              
+                // clientResponse.getResults();
+                //  tradeOrderResult = this.getClientHandle().getResults();// retME = this.getClientHandle().callProcedure(new TPCECallback(target), target.callName, this.generateClientArgs(targetME));
+            } 
+            catch (Exception ex) {
+            
+                ex.printStackTrace();
+                System.exit(1);
+            }  
         }
 
         return ret;

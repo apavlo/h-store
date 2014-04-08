@@ -61,7 +61,7 @@ public class MEETradingFloor {
     }
     
      public int  submitTradeRequest( TTradeRequest tradeReq ){
-         System.out.println("trade request");
+        // System.out.println("trade request");
         switch( tradeReq.eAction ){
         case eMEEProcessOrder:
             {
@@ -89,7 +89,7 @@ public class MEETradingFloor {
     }
     
     public void  sendTradeResult( TTradeRequest tradeReq ){
-       System.out.println("trying to send trade result");
+       //System.out.println("trying to send trade result");
         TradeType            eTradeType;
         TTradeResultTxnInput    txnInput = new TTradeResultTxnInput();
         TTickerEntry            TickerEntry = new TTickerEntry();

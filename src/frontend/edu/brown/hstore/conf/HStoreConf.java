@@ -1452,6 +1452,7 @@ public final class HStoreConf {
         )
         public int singlepartition_threads;
 
+        //MODIFIED!!!!
         @ConfigProperty(
             description="How long should the benchmark trial run (in milliseconds). Does not " +
                         "include ${client.warmup} time.",
