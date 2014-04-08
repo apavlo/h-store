@@ -152,7 +152,7 @@ public class TestAntiCacheManager extends BaseTestCase {
     // --------------------------------------------------------------------------------------------
     
     
-/*    @Test
+    @Test
     public void testStats() throws Exception {
         boolean adv;
         this.loadData();
@@ -234,7 +234,7 @@ public class TestAntiCacheManager extends BaseTestCase {
         } // FOR
         
     }
-*/
+
     @Test
     public void testReadEvictedTuples() throws Exception {
         this.loadData();
