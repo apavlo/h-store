@@ -48,6 +48,7 @@ public:
     bool removeTuple(PersistentTable* table, TableTuple* tuple); 
 
     Table* evictBlock(PersistentTable *table, long blockSize, int numBlocks);
+    bool evictBlockToDisk(PersistentTable *table, const long block_size, int num_blocks);
     Table* evictBlockInBatch(PersistentTable *table, PersistentTable *childTable, long blockSize, int numBlocks);
     Table* readBlocks(PersistentTable *table, int numBlocks, int16_t blockIds[], int32_t tuple_offsets[]);
     

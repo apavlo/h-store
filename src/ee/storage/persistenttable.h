@@ -270,9 +270,7 @@ class PersistentTable : public Table {
     // ------------------------------------------------------------------
     #ifdef ANTICACHE
     void setEvictedTable(voltdb::Table *evictedTable);
-    voltdb::Table* getEvictedTable(); 
-    bool evictBlockToDisk(const long block_size, int num_blocks);
-    bool evictBlockToDiskInBatch(PersistentTable childTable, const long block_size, int num_blocks);
+    voltdb::Table* getEvictedTable();
     bool readEvictedBlock(int16_t block_id, int32_t tuple_offset);
     bool mergeUnevictedTuples();
     
@@ -283,6 +281,20 @@ class PersistentTable : public Table {
     uint32_t getOldestTupleID();
     void setNumTuplesInEvictionChain(int num_tuples);
     int getNumTuplesInEvictionChain(); 
+    AntiCacheDB* getAntiCacheDB();
+    int getTuplesEvicted();
+    int getBlocksEvicted();
+    int getBytesEvicted();
+    int getTuplesWritten();
+    int getBlocksWritten();
+    int getBytesWritten();
+    void setTuplesEvicted(int tuplesEvicted);
+    void setBlocksEvicted(int blocksEvicted);
+    void setBytesEvicted(int bytesEvicted);
+    void setTuplesWritten(int tuplesWritten);
+    void setBlocksWritten(int blocksWritten);
+    void setBytesWritten(int bytesWritten);
+
     #endif
     
     void setEntryToNewAddressForAllIndexes(const TableTuple *tuple, const void* address);

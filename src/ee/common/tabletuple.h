@@ -376,6 +376,11 @@ public:
 
     size_t hashCode(size_t seed) const;
     size_t hashCode() const;
+    inline void setEvictedTrue()
+    {
+            // treat the first "value" as a boolean flag
+        *(reinterpret_cast<char*> (m_data)) |= static_cast<char>(EVICTED_MASK);
+    }
 protected:
     inline void setDeletedTrue() {
         // treat the first "value" as a boolean flag
@@ -393,12 +398,6 @@ protected:
     inline void setDirtyFalse() {
         // treat the first "value" as a boolean flag
         *(reinterpret_cast<char*> (m_data)) &= static_cast<char>(~DIRTY_MASK);
-    }
-
-    inline void setEvictedTrue() 
-    {
-        // treat the first "value" as a boolean flag
-        *(reinterpret_cast<char*> (m_data)) |= static_cast<char>(EVICTED_MASK);
     }
 
     inline void setEvictedFalse() 
