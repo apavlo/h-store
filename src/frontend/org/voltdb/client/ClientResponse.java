@@ -138,7 +138,9 @@ public interface ClientResponse extends Poolable {
     public ClientResponseDebug getDebug();
     
     // added by hawk, 2013/11/5
-    public List<String> getFollowingProcedures();
+//    public List<String> getFollowingProcedures();
+    public void setInitiateTime(long initiateTime);
     public long getInitiateTime();
+    public int getBatchId();
     // ended by hawk
 }

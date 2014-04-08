@@ -14,6 +14,7 @@
 <arg value="global.hasher_plan=${global.hasher_plan}" />
 <arg value="global.log_refresh=${global.log_refresh}" />
 <arg value="global.nanosecond_latencies=${global.nanosecond_latencies}" />
+<arg value="global.sstore=${global.sstore}" />
 
 <!-- CLIENT -->
 <arg value="client.log_dir=${client.log_dir}" />

@@ -157,8 +157,11 @@ message TransactionInitRequest {
     repeated bytes prefetch_params = 8;
 
    // initiateTime, added by hawk, 2013/11/20
-   required int64 initiateTime = 9;
+   //required int64 initiateTime = 9;
 
+    // batch id, added by hawk
+    //required int32 batch_id = 10;
+    required int32 batch_id = 9;    
 }
 
 message TransactionInitResponse {

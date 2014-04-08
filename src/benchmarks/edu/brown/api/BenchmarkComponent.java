@@ -103,7 +103,7 @@ import edu.brown.statistics.Histogram;
 import edu.brown.statistics.ObjectHistogram;
 import edu.brown.statistics.TableStatistics;
 import edu.brown.statistics.WorkloadStatistics;
-import edu.brown.stream.WorkflowResponse;
+//import edu.brown.stream.WorkflowResponse;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.StringUtil;
@@ -261,8 +261,8 @@ public abstract class BenchmarkComponent {
      * Number of fixed transactions used in benchmark running
      */
     //added by hawk, 2014/1/2
-    final boolean m_fixed_txns;
-    final long m_fixed_txns_count;
+//    final boolean m_fixed_txns;
+//    final long m_fixed_txns_count;
     //ended by hawk
 
     /**
@@ -403,8 +403,8 @@ public abstract class BenchmarkComponent {
         m_statsPollerInterval = -1;
         
         //added by hawk, 2014/1/2
-        m_fixed_txns = false;
-        m_fixed_txns_count = 0;
+//        m_fixed_txns = false;
+//        m_fixed_txns_count = 0;
         //ended by hawk
         
         // FIXME
@@ -452,8 +452,8 @@ public abstract class BenchmarkComponent {
         int tickInterval = m_hstoreConf.client.tick_interval;
         
         //added by hawk, 2014/1/2
-        boolean fixed_txns = m_hstoreConf.client.fixed_txns;
-        long fixed_txns_count = m_hstoreConf.client.fixed_txns_count;
+//        boolean fixed_txns = m_hstoreConf.client.fixed_txns;
+//        long fixed_txns_count = m_hstoreConf.client.fixed_txns_count;
         //ended by hawk
 
         
@@ -616,8 +616,8 @@ public abstract class BenchmarkComponent {
         m_statsPollerInterval = statsPollInterval;
         
         //added by hawk, 2014/1/2
-        m_fixed_txns = fixed_txns;
-        m_fixed_txns_count = fixed_txns_count;
+//        m_fixed_txns = fixed_txns;
+//        m_fixed_txns_count = fixed_txns_count;
         //ended by hawk
 
         
@@ -712,10 +712,10 @@ public abstract class BenchmarkComponent {
         
         // added by hawk, for stream workflow
         // FIXME, current we only test one workflow - "0"
-        m_txnStats.workflows.put(0, 0);
-        Map<Integer, String> workflowDebugLabels = new TreeMap<Integer, String>();
-        workflowDebugLabels.put(0, "0");
-        m_txnStats.workflows.setDebugLabels(workflowDebugLabels);
+//        m_txnStats.workflows.put(0, 0);
+//        Map<Integer, String> workflowDebugLabels = new TreeMap<Integer, String>();
+//        workflowDebugLabels.put(0, "0");
+//        m_txnStats.workflows.setDebugLabels(workflowDebugLabels);
         // ended by hawk
         
         // If we need to call tick more frequently than when POLL is called,
@@ -1022,37 +1022,37 @@ public abstract class BenchmarkComponent {
         }
     }
     
-    protected final void incrementWorkflowCounter(final WorkflowResponse workflowResponse, final int wkf_idx) {
-        Status status = workflowResponse.getStatus();
-        // FIXME: should consider different situation
-        if (status != Status.OK)
-            return;
-
-        synchronized (m_txnStats.workflows) {
-            m_txnStats.workflows.put(wkf_idx);
-        } // SYNCH
-
-        // LATENCIES COUNTERS
-        int latency = workflowResponse.getClusterRoundtrip();
-        
-        if (latency > 0) {
-            System.out.println("latency was greater than 0");
-            Map<Integer, ObjectHistogram<Integer>> latenciesMap = m_txnStats.workflowLatencies ; 
-            Histogram<Integer> latencies = latenciesMap.get(wkf_idx);
-            if (latencies == null) {
-                synchronized (latenciesMap) {
-                    latencies = latenciesMap.get(wkf_idx);
-                    if (latencies == null) {
-                        latencies = new ObjectHistogram<Integer>();
-                        latenciesMap.put(wkf_idx, (ObjectHistogram<Integer>)latencies);
-                    }
-                } // SYNCH
-            }
-            synchronized (latencies) {
-                latencies.put(latency);
-            } // SYNCH
-        }
-    }
+//    protected final void incrementWorkflowCounter(final WorkflowResponse workflowResponse, final int wkf_idx) {
+//        Status status = workflowResponse.getStatus();
+//        // FIXME: should consider different situation
+//        if (status != Status.OK)
+//            return;
+//
+//        synchronized (m_txnStats.workflows) {
+//            m_txnStats.workflows.put(wkf_idx);
+//        } // SYNCH
+//
+//        // LATENCIES COUNTERS
+//        int latency = workflowResponse.getClusterRoundtrip();
+//        
+//        if (latency > 0) {
+//            System.out.println("latency was greater than 0");
+//            Map<Integer, ObjectHistogram<Integer>> latenciesMap = m_txnStats.workflowLatencies ; 
+//            Histogram<Integer> latencies = latenciesMap.get(wkf_idx);
+//            if (latencies == null) {
+//                synchronized (latenciesMap) {
+//                    latencies = latenciesMap.get(wkf_idx);
+//                    if (latencies == null) {
+//                        latencies = new ObjectHistogram<Integer>();
+//                        latenciesMap.put(wkf_idx, (ObjectHistogram<Integer>)latencies);
+//                    }
+//                } // SYNCH
+//            }
+//            synchronized (latencies) {
+//                latencies.put(latency);
+//            } // SYNCH
+//        }
+//    }
     
     // ----------------------------------------------------------------------------
     // PUBLIC UTILITY METHODS

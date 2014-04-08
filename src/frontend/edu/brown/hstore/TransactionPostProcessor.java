@@ -41,6 +41,7 @@ public final class TransactionPostProcessor extends AbstractProcessingRunnable<O
         RpcCallback<ClientResponseImpl> clientCallback = (RpcCallback<ClientResponseImpl>)data[1];
         long initiateTime = (Long)data[2];
         int restartCounter = (Integer)data[3];
+        int batchId = (Integer)data[4];
         
         assert(cresponse != null);
         assert(clientCallback != null);
@@ -49,7 +50,7 @@ public final class TransactionPostProcessor extends AbstractProcessingRunnable<O
             LOG.debug(String.format("Processing ClientResponse for txn #%d at partition %d [status=%s]",
                       cresponse.getTransactionId(), cresponse.getBasePartition(), cresponse.getStatus()));
         try {
-            this.hstore_site.responseSend(cresponse, clientCallback, initiateTime, restartCounter);
+            this.hstore_site.responseSend(cresponse, clientCallback, batchId, initiateTime, restartCounter);
         } catch (Throwable ex) {
             if (this.isShuttingDown() == false) throw new RuntimeException(ex);
             this.shutdown();

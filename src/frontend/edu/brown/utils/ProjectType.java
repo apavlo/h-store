@@ -89,13 +89,16 @@ public enum ProjectType {
     SIMPLESTREAMTRIGGER("SimpleStreamTrigger", "edu.brown.benchmark.simplestreamtrigger"),
     SIMPLENOOP("SimpleNoOp", "edu.brown.benchmark.simplenoop"),
     SIMPLESTATEMENT("SimpleStatement", "edu.brown.benchmark.simplestatement"),
+    SIMPLEDISTRIBUTION("SimpleDistribution", "edu.brown.benchmark.simpledistribution"),
     TEST("Test", null),
     WORDCOUNT("WordCount", "edu.brown.benchmark.wordcount"),
     WORDCOUNTHSTORE("WordCountHStore", "edu.brown.benchmark.wordcounthstore"),
     WORDCOUNTSSTORE("WordCountSStore", "edu.brown.benchmark.wordcountsstore"),
     WORDCOUNTSSTOREGETRESULTS("WordCountSStoreGetResults", "edu.brown.benchmark.wordcountsstoregetresults"),
     WORDCOUNTSSTOREWITHBATCH("WordCountSStoreWithBatch", "edu.brown.benchmark.wordcountsstorewithbatch"),
-    ;
+    VOTERDEMOHSTORE("VoterDemoHStore", "edu.brown.benchmark.voterdemohstore"),
+    VOTERDEMOSSTORE("VoterDemoSStore", "edu.brown.benchmark.voterdemosstore"),
+;
 
 
     private final String package_name;

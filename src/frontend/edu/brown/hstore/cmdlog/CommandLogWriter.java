@@ -501,16 +501,20 @@ public class CommandLogWriter extends ExceptionHandlingRunnable implements Shutd
                     WriterLogEntry entry = buffer.buffer[(start + j) % buffer.buffer.length];
                     if (entry.isInitialized()) {
                         if (this.usePostProcessor) {
-                            hstore_site.responseQueue(entry.cresponse,
+                            hstore_site.responseQueue(entry.cresponse,            // FIXME, also need to add batchId as parameter
                                                       entry.clientCallback,
                                                       entry.initiateTime,
-                                                      entry.restartCounter);
+                                                      entry.restartCounter,
+                                                      entry.getBatchId()
+                                                      );
                         }
                         else {
                             hstore_site.responseSend(entry.cresponse,
                                                      entry.clientCallback,
+                                                     entry.getBatchId(),
                                                      entry.initiateTime,
-                                                     entry.restartCounter);
+                                                     entry.restartCounter
+                                                     );
                         }
                     } else {
                         LOG.warn("Unexpected unintialized " + entry.getClass().getSimpleName());

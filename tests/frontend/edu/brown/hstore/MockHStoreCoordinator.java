@@ -109,8 +109,9 @@ public class MockHStoreCoordinator extends HStoreCoordinator {
             LOG.info("Incoming " + request.getClass().getSimpleName());
             PartitionSet partitions = new PartitionSet(request.getPartitionsList());
             RemoteTransaction ts = hstore_site.getTransactionInitializer()
-                                             .createRemoteTransaction(request.getTransactionId(),
-                                                                      request.getInitiateTime(),//added by hawk, 2013/11/20
+                                             .createRemoteTransaction(request.getBatchId(),
+                                                                      request.getTransactionId(),
+                                                                      //request.getInitiateTime(),//added by hawk, 2013/11/20
                                                                       partitions,
                                                                       null,
                                                                       request.getBasePartition(),

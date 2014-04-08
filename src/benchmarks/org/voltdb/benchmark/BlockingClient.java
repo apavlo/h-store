@@ -263,4 +263,17 @@ public class BlockingClient extends Semaphore implements Client {
     public boolean asynCallProcedure(ProcedureCallback callback, String procName, StoredProcedureInvocationHints hints, Object... parameters) throws IOException, NoConnectionsException {
         return callProcedure(callback, procName, hints, parameters);
     }
+
+    @Override
+    public ClientResponse callStreamProcedure(String procName, Integer batchId, Object... parameters) throws IOException, NoConnectionsException, ProcCallException {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
+    @Override
+    public ClientResponse callStreamProcedure(String procName, StoredProcedureInvocationHints hints, Integer batchId, Object... parameters) throws IOException, NoConnectionsException,
+            ProcCallException {
+        // TODO Auto-generated method stub
+        return null;
+    }
 }

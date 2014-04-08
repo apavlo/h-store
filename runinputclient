@@ -1,2 +1,2 @@
-python ./tools/runinputclient.py -p wordcountsstorewithbatch --host istc3.csail.mit.edu,istc4.csail.mit.edu --rmin 10000 --rmax 100000 --rstep 10000 --imin 1000 --imax 1000 --istep 1000 --rndmin 10 --rndmax 10 --rndstep 10 -i word.txt
+python ./tools/runinputclient.py -p wordcountsstorewithbatch --host istc4.csail.mit.edu --rmin 1000 --rmax 100000 --rstep 1000 --imin 1000 --imax 1000 --istep 1000 --rndmin 10 --rndmax 10 --rndstep 10 -i word.txt
 

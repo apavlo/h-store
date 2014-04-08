@@ -82,9 +82,9 @@ class ControlWorker extends Thread {
         boolean bp = false;
         
         //added by hawk, 2014/1/2, to make the number of fixed txns used by benchmark running
-        boolean fixed_txns = cmp.m_fixed_txns;
-        long fixed_txns_count = cmp.m_fixed_txns_count;
-        boolean hasFinished = false;
+//        boolean fixed_txns = cmp.m_fixed_txns;
+//        long fixed_txns_count = cmp.m_fixed_txns_count;
+//        boolean hasFinished = false;
         //ended by hawk
         
         while (true) {
@@ -162,10 +162,10 @@ class ControlWorker extends Thread {
             m_lastRequestTime = now;
             
             //added by hawk, 2014/1/2
-            if ( hasFinished==true ) {
-                //cmp.m_controlState = ControlState.PAUSED;
-                //break;
-            }
+//            if ( hasFinished==true ) {
+//                //cmp.m_controlState = ControlState.PAUSED;
+//                //break;
+//            }
             //ended by hawk
         } // WHILE
     }

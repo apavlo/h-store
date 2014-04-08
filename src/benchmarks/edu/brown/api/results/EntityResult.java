@@ -38,17 +38,17 @@ public class EntityResult implements JSONSerializable {
     public double dtxnMaxLatency = 0d;
     
     //added by hawk
-    public long   wkfCount;
-    public double wkfPerMilli;
-    public double wkfPerSecond;
-    
-    public double wkfAvgLatency = 0d;
-    public double wkfStdevLatency = 0d;
-    public double wkfMinLatency = 0d;
-    public double wkfMaxLatency = 0d;
+//    public long   wkfCount;
+//    public double wkfPerMilli;
+//    public double wkfPerSecond;
+//    
+//    public double wkfAvgLatency = 0d;
+//    public double wkfStdevLatency = 0d;
+//    public double wkfMinLatency = 0d;
+//    public double wkfMaxLatency = 0d;
     //ended by hawk
     
-    public EntityResult(long totalTxnCount, long duration, long txnCount, long dtxnCount, long wkfCount, Histogram<Integer> wkfLatencies,//added by hawk
+    public EntityResult(long totalTxnCount, long duration, long txnCount, long dtxnCount, //long wkfCount, Histogram<Integer> wkfLatencies,//added by hawk
                         Histogram<Integer> totalLatencies, Histogram<Integer> spLatencies, Histogram<Integer> dtxnLatencies) {
         this.txnCount = txnCount;
         this.dtxnCount = dtxnCount;
@@ -97,27 +97,27 @@ public class EntityResult implements JSONSerializable {
             }
         }
         //added by hawk
-        this.wkfCount = wkfCount;
-        if (wkfCount == 0) {
-            this.wkfPerMilli = 0;
-            this.wkfPerSecond = 0;
-            this.wkfAvgLatency = 0;
-            this.wkfStdevLatency = 0;
-            this.wkfMinLatency = 0;
-            this.wkfMaxLatency = 0;
-        } else {
-            this.wkfPerMilli = wkfCount / (double)duration * 1000.0;
-            this.wkfPerSecond = wkfCount / (double)duration * 1000.0 * 60.0;
-            
-            if (wkfLatencies.isEmpty() == false) {
-                double x[] = BenchmarkControllerUtil.computeLatencies(wkfLatencies);
-                int i = 0;
-                this.wkfMinLatency = x[i++];
-                this.wkfMaxLatency = x[i++];
-                this.wkfAvgLatency = x[i++];
-                this.wkfStdevLatency = x[i++];
-            }
-        }
+//        this.wkfCount = wkfCount;
+//        if (wkfCount == 0) {
+//            this.wkfPerMilli = 0;
+//            this.wkfPerSecond = 0;
+//            this.wkfAvgLatency = 0;
+//            this.wkfStdevLatency = 0;
+//            this.wkfMinLatency = 0;
+//            this.wkfMaxLatency = 0;
+//        } else {
+//            this.wkfPerMilli = wkfCount / (double)duration * 1000.0;
+//            this.wkfPerSecond = wkfCount / (double)duration * 1000.0 * 60.0;
+//            
+//            if (wkfLatencies.isEmpty() == false) {
+//                double x[] = BenchmarkControllerUtil.computeLatencies(wkfLatencies);
+//                int i = 0;
+//                this.wkfMinLatency = x[i++];
+//                this.wkfMaxLatency = x[i++];
+//                this.wkfAvgLatency = x[i++];
+//                this.wkfStdevLatency = x[i++];
+//            }
+//        }
 
         //ended by hawk
     }
@@ -187,28 +187,28 @@ public class EntityResult implements JSONSerializable {
     }
     
     //added by hawk
-    public long getWkfCount() {
-        return this.wkfCount;
-    }
-    
-    public double getWkfPerMilli() {
-        return this.txnPerMilli;
-    }
-    public double getWkfPerSecond() {
-        return this.txnPerSecond;
-    }
-    public double getWkfAvgLatency() {
-        return this.totalAvgLatency;
-    }
-    public double getWkfStdevLatency() {
-        return this.totalStdevLatency;
-    }
-    public double getWkfMinLatency() {
-        return this.totalMinLatency;
-    }
-    public double getWkfMaxLatency() {
-        return this.totalMaxLatency;
-    }
+//    public long getWkfCount() {
+//        return this.wkfCount;
+//    }
+//    
+//    public double getWkfPerMilli() {
+//        return this.txnPerMilli;
+//    }
+//    public double getWkfPerSecond() {
+//        return this.txnPerSecond;
+//    }
+//    public double getWkfAvgLatency() {
+//        return this.totalAvgLatency;
+//    }
+//    public double getWkfStdevLatency() {
+//        return this.totalStdevLatency;
+//    }
+//    public double getWkfMinLatency() {
+//        return this.totalMinLatency;
+//    }
+//    public double getWkfMaxLatency() {
+//        return this.totalMaxLatency;
+//    }
 
 
     //ended by hawk
