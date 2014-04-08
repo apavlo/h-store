@@ -14,10 +14,10 @@ public class Upsert extends VoltProcedure {
 
 
 
-    public long run(int size) {
+    public long run(int size, int value) {
 		for(int i = 0; i < size; i++)
 		{
-			voltQueueSQL(operationStmt, i, 100*i);
+			voltQueueSQL(operationStmt, i, value*i);
 			voltExecuteSQL();
 		}
         return 0;

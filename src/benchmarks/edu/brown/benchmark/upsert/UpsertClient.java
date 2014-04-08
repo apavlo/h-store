@@ -46,7 +46,7 @@ public class UpsertClient extends BenchmarkComponent {
         boolean response = client.callProcedure(callback,
                                                 "Upsert",
                                                 //"Update",
-                                                100000);
+                                                10, 20);
         return response;
     }
 

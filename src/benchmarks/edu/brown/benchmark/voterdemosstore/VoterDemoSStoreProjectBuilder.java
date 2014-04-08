@@ -50,7 +50,7 @@ public class VoterDemoSStoreProjectBuilder extends AbstractProjectBuilder {
         Vote.class, 
         Initialize.class,
         GenerateLeaderboard.class,
-        ProcOneTrigger.class,
+        //ProcOneTrigger.class,
         LeaderboardTrigger.class
         };
 	
@@ -62,7 +62,8 @@ public class VoterDemoSStoreProjectBuilder extends AbstractProjectBuilder {
     public static final String PARTITIONING[][] = new String[][] {
         { "votes", "phone_number" },
         { "trending_leaderboard", "phone_number" },
-        { "top_three_last_30_sec", "contestant_number" }
+        { "top_three_last_30_sec", "contestant_number" },
+        { "voteCount", "row_id"}
     };
 
     public VoterDemoSStoreProjectBuilder() {

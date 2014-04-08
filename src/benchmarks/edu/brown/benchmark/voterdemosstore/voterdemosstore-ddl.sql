@@ -41,6 +41,10 @@ CREATE TABLE voteCount
 (
   row_id	     integer    NOT NULL,
   cnt		     integer    NOT NULL
+, CONSTRAINT PK_voteCount PRIMARY KEY
+  (
+    row_id
+  )
 );
 
 CREATE STREAM votes_stream

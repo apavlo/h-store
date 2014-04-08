@@ -69,7 +69,7 @@ public class GenerateLeaderboard extends VoltProcedure {
             upsertable=true
         )
     public final SQLStmt updateCount = new SQLStmt(
-    	"INSERT INTO voteCount (row_id, cnt) VALUES (1,10);"//SELECT row_id, cnt + 1 FROM voteCount WHERE row_id = 1;"
+    	"INSERT INTO voteCount (row_id, cnt) SELECT row_id, cnt + 1 FROM voteCount WHERE row_id = 1;"
     );
     
     public final SQLStmt getCount = new SQLStmt(
@@ -102,7 +102,7 @@ public long run() {
 		
         // Queue up leaderboard stmts
 		voltQueueSQL(trendingLeaderboardStmt);
-        //voltQueueSQL(updateCount);
+        voltQueueSQL(updateCount);
         voltQueueSQL(getCount);
         voltQueueSQL(getLowestContestant);
 
