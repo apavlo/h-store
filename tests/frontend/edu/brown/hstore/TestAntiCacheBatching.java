@@ -27,7 +27,7 @@ import edu.brown.utils.FileUtil;
 public class TestAntiCacheBatching extends BaseTestCase {
     
     private static final int NUM_PARTITIONS = 1;
-    private static final int NUM_TUPLES = 100000;
+    private static final int NUM_TUPLES = 10;
     private static final String TARGET_TABLE = ArticlesConstants.TABLENAME_ARTICLES;
     private static final String CHILD_TABLE = ArticlesConstants.TABLENAME_COMMENTS;
     
