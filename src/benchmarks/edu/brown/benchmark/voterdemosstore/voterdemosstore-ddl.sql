@@ -39,6 +39,7 @@ CREATE TABLE votes
 
 CREATE TABLE voteCount
 (
+  row_id	     integer    NOT NULL,
   cnt		     integer    NOT NULL
 );
 
@@ -71,8 +72,9 @@ CREATE WINDOW trending_leaderboard ON proc_one_out RANGE 30 SLIDE 2;
 
 CREATE TABLE top_three_last_30_sec
 (
+  --phone_number       bigint    NOT NULL,
   contestant_number  integer   NOT NULL
-, numvotes           integer   NOT NULL
+, num_votes          integer
 );
 
 -- rollup of votes by phone number, used to reject excessive voting

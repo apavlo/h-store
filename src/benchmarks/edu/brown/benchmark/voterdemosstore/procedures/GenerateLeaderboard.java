@@ -31,6 +31,7 @@ package edu.brown.benchmark.voterdemosstore.procedures;
 
 import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
+import org.voltdb.StmtInfo;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.types.TimestampType;
@@ -38,20 +39,24 @@ import org.voltdb.types.TimestampType;
 import edu.brown.benchmark.voterdemosstore.VoterDemoSStoreConstants;
 
 @ProcInfo (
-    partitionInfo = "votes.phone_number:1",
+	//partitionInfo = "votes.phone_number:1",
     singlePartition = true
 )
 public class GenerateLeaderboard extends VoltProcedure {
+	
 	
 	protected void toSetTriggerTableName()
 	{
 		addTriggerTable("proc_one_out");
 	}
-
 	
     // Put vote into leaderboard
     public final SQLStmt trendingLeaderboardStmt = new SQLStmt(
 	   "INSERT INTO trending_leaderboard (vote_id, phone_number, state, contestant_number, time) SELECT * FROM proc_one_out;"
+    );
+    
+    public final SQLStmt proc_one_out = new SQLStmt(
+    	"DELETE FROM proc_one_out;"	
     );
     
     /**
@@ -60,9 +65,11 @@ public class GenerateLeaderboard extends VoltProcedure {
     );
     */
     
-    //need way of updating the count
+    @StmtInfo(
+            upsertable=true
+        )
     public final SQLStmt updateCount = new SQLStmt(
-    	"UPDATE voteCount SET cnt = cnt + 1;"
+    	"INSERT INTO voteCount (row_id, cnt) VALUES (1,10);"//SELECT row_id, cnt + 1 FROM voteCount WHERE row_id = 1;"
     );
     
     public final SQLStmt getCount = new SQLStmt(
@@ -95,7 +102,7 @@ public long run() {
 		
         // Queue up leaderboard stmts
 		voltQueueSQL(trendingLeaderboardStmt);
-        voltQueueSQL(updateCount);
+        //voltQueueSQL(updateCount);
         voltQueueSQL(getCount);
         voltQueueSQL(getLowestContestant);
 

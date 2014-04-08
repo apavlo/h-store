@@ -46,7 +46,7 @@ public class Initialize extends VoltProcedure
     public final SQLStmt insertContestantStmt = new SQLStmt("INSERT INTO contestants (contestant_name, contestant_number) VALUES (?, ?);");
 	
     // Inserts a row into the count
-    public final SQLStmt insertVoteCountStmt = new SQLStmt("INSERT INTO voteCount (cnt) VALUES (0);");
+    public final SQLStmt insertVoteCountStmt = new SQLStmt("INSERT INTO voteCount (row_id, cnt) VALUES (1, 0);");
     
     // Domain data: matching lists of Area codes and States
     public static final short[] areaCodes = new short[]{

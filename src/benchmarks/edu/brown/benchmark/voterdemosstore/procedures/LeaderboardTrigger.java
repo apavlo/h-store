@@ -1,8 +1,14 @@
 package edu.brown.benchmark.voterdemosstore.procedures;
 
+import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
 import org.voltdb.StmtInfo;
 import org.voltdb.VoltTrigger;
+
+@ProcInfo (
+	partitionInfo = "top_three_last_30_sec.contestant_number:1",
+    singlePartition = true
+)
 
 public class LeaderboardTrigger extends VoltTrigger {
 
@@ -16,7 +22,7 @@ public class LeaderboardTrigger extends VoltTrigger {
     );
 
     public final SQLStmt updateLeaderboard = new SQLStmt(
-            "INSERT INTO top_three_last_30_sec (contestant_number, num_votes) SELECT contestant_number, count(*) FROM trending_leaderboard GROUP BY contestant_number ORDER BY COUNT(*) DESC LIMIT 3;"
+            "INSERT INTO top_three_last_30_sec (contestant_number, num_votes) SELECT contestant_number, count(*) FROM trending_leaderboard GROUP BY contestant_number;"
     );
-    
+
 }
