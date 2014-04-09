@@ -17,7 +17,7 @@ public class UpsertLoader extends Loader {
 
         try {
             this.getClientHandle().callProcedure("Initialize",
-                                                 100000);
+                                                 10);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

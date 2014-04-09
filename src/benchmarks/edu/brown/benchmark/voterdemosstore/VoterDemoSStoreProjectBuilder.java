@@ -34,8 +34,7 @@ import org.voltdb.VoltProcedure;
 import edu.brown.benchmark.AbstractProjectBuilder;
 import edu.brown.api.BenchmarkComponent;
 
-import edu.brown.benchmark.voterdemosstore.procedures.Vote; 
-import edu.brown.benchmark.voterdemosstore.procedures.Initialize; 
+import edu.brown.benchmark.voterdemosstore.procedures.*;  
 
 public class VoterDemoSStoreProjectBuilder extends AbstractProjectBuilder {
 
@@ -48,7 +47,12 @@ public class VoterDemoSStoreProjectBuilder extends AbstractProjectBuilder {
 	// a list of procedures implemented in this benchmark
     @SuppressWarnings("unchecked")
     public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
-        Vote.class, Initialize.class};
+        Vote.class, 
+        Initialize.class,
+        GenerateLeaderboard.class,
+        //ProcOneTrigger.class,
+        LeaderboardTrigger.class
+        };
 	
 	{
 		//addTransactionFrequency(Vote.class, 100);
@@ -57,9 +61,9 @@ public class VoterDemoSStoreProjectBuilder extends AbstractProjectBuilder {
 	// a list of tables used in this benchmark with corresponding partitioning keys
     public static final String PARTITIONING[][] = new String[][] {
         { "votes", "phone_number" },
-        { "w_staging", "phone_number" },
-        { "w_rows", "phone_number" },
-        { "leaderboard", "contestant_number"}
+        { "trending_leaderboard", "phone_number" },
+        { "top_three_last_30_sec", "contestant_number" },
+        { "voteCount", "row_id"}
     };
 
     public VoterDemoSStoreProjectBuilder() {

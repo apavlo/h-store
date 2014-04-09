@@ -35,6 +35,7 @@ import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.types.TimestampType;
 
+import edu.brown.benchmark.voter.VoterConstants;
 import edu.brown.benchmark.voterdemosstore.VoterDemoSStoreConstants;
 import edu.brown.benchmark.voterwintimesstore.VoterWinTimeSStoreConstants;
 
@@ -43,10 +44,7 @@ import edu.brown.benchmark.voterwintimesstore.VoterWinTimeSStoreConstants;
     singlePartition = true
 )
 public class Vote extends VoltProcedure {
-	public final int windowSize = 30;
-	public final int slideSize = 2;
 
-	
     // Checks if the vote is for a valid contestant
     public final SQLStmt checkContestantStmt = new SQLStmt(
 	   "SELECT contestant_number FROM contestants WHERE contestant_number = ?;"
@@ -64,7 +62,12 @@ public class Vote extends VoltProcedure {
 	
     // Records a vote
     public final SQLStmt insertVoteStmt = new SQLStmt(
-		"INSERT INTO votes_stream (vote_id, phone_number, state, contestant_number, time) VALUES (?, ?, ?, ?, ?);"
+		"INSERT INTO votes (vote_id, phone_number, state, contestant_number, time) VALUES (?, ?, ?, ?, ?);"
+    );
+    
+    // Records a vote
+    public final SQLStmt insertProcEndStmt = new SQLStmt(
+		"INSERT INTO proc_one_out (vote_id, phone_number, state, contestant_number, time) VALUES (?, ?, ?, ?, ?);"
     );
     
 	
@@ -81,18 +84,23 @@ public long run(long voteId, long phoneNumber, int contestantNumber, long maxVot
 			(validation[0].asScalarLong() >= maxVotesPerPhoneNumber)) {
             return VoterDemoSStoreConstants.ERR_VOTER_OVER_VOTE_LIMIT;
         }
+        
+        if ((validation[1].getRowCount() == 1) &&
+			(validation[1].asScalarLong() >= maxVotesPerPhoneNumber)) {
+            return VoterConstants.ERR_VOTER_OVER_VOTE_LIMIT;
+        }
 		
         // Some sample client libraries use the legacy random phone generation that mostly
         // created invalid phone numbers. Until refactoring, re-assign all such votes to
         // the "XX" fake state (those votes will not appear on the Live Statistics dashboard,
         // but are tracked as legitimate instead of invalid, as old clients would mostly get
         // it wrong and see all their transactions rejected).
-        final String state = (validation[1].getRowCount() > 0) ? validation[1].fetchRow(0).getString(0) : "XX";
+        final String state = (validation[2].getRowCount() > 0) ? validation[2].fetchRow(0).getString(0) : "XX";
 		 		
         // Post the vote
         //TimestampType timestamp = new TimestampType();
         voltQueueSQL(insertVoteStmt, voteId, phoneNumber, state, contestantNumber, currentTimestamp);
-        
+        voltQueueSQL(insertProcEndStmt, voteId, phoneNumber, state, contestantNumber, currentTimestamp);
         voltExecuteSQL(true);
 		
         // Set the return value to 0: successful vote

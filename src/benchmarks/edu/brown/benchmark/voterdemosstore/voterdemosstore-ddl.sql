@@ -37,24 +37,48 @@ CREATE TABLE votes
 -- PARTITION BY ( phone_number )
 );
 
-CREATE TABLE w_rows
+CREATE TABLE voteCount
+(
+  row_id	     integer    NOT NULL,
+  cnt		     integer    NOT NULL
+, CONSTRAINT PK_voteCount PRIMARY KEY
+  (
+    row_id
+  )
+);
+
+CREATE STREAM votes_stream
 (
   vote_id            bigint     NOT NULL,
   phone_number       bigint     NOT NULL
-, state              varchar(2) NOT NULL -- REFERENCES area_code_state (state)
-, contestant_number  integer    NOT NULL REFERENCES contestants (contestant_number)
-, time 		     integer    NOT NULL
-, CONSTRAINT PK_win PRIMARY KEY
-  (
-    vote_id
-  )
--- PARTITION BY ( phone_number )
+, state              varchar(2) NOT NULL
+, contestant_number  integer    NOT NULL
+, time		     integer    NOT NULL
 );
+
+CREATE STREAM proc_one_out
+(
+  vote_id            bigint     NOT NULL,
+  phone_number       bigint     NOT NULL
+, state              varchar(2) NOT NULL
+, contestant_number  integer    NOT NULL
+, time		     integer    NOT NULL
+);
+
+CREATE STREAM counting_stream
+(
+  vote_id	     bigint     NOT NULL
+);
+
+CREATE WINDOW counting_win ON counting_stream ROWS 10000 SLIDE 10000;
+
+CREATE WINDOW trending_leaderboard ON proc_one_out RANGE 30 SLIDE 2;
 
 CREATE TABLE top_three_last_30_sec
 (
+  --phone_number       bigint    NOT NULL,
   contestant_number  integer   NOT NULL
-, numvotes           integer   NOT NULL
+, num_votes          integer
 );
 
 -- rollup of votes by phone number, used to reject excessive voting
@@ -80,8 +104,6 @@ AS
 	, COUNT(*)
      FROM votes
  GROUP BY contestant_number
- ORDER BY COUNT(*)
- LIMIT 3 DESC
 ;
 
 CREATE VIEW v_bottom_three_contestants
@@ -94,6 +116,4 @@ AS
 	, COUNT(*)
      FROM votes
  GROUP BY contestant_number
- ORDER BY COUNT(*) ASC
- LIMIT 3
 ;
