@@ -177,7 +177,7 @@ private int num = 1;
         //getNumThreads * 20
         if(countTotal <= 200){ //probably 200
             num = 1;
-            System.out.println("Trade Order");
+            System.out.println("Trade Order number:" + countTotal);
         int iTxnType = egen_clientDriver.driver_ptr.getCE().getCETxnMixGenerator().generateNextTxnType( );
         egen_clientDriver.driver_ptr.getCE().zeroInputBuffer(iTxnType);
        // egen_clientDriver.driver_ptr.getMEE();
