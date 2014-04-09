@@ -184,7 +184,7 @@ private int num = 1;
         //egen_clientDriver.driver_ptr.getMEE();
         //      return Transaction.TRADE_UPDATE;
         //System.out.println(iTxnType);
-        //countTotal++;
+        countTotal++;
         
         return XTRANS[iTxnType];
         }
