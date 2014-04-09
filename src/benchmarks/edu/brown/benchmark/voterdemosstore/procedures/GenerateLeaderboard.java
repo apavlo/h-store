@@ -39,7 +39,7 @@ import org.voltdb.types.TimestampType;
 import edu.brown.benchmark.voterdemosstore.VoterDemoSStoreConstants;
 
 @ProcInfo (
-	//partitionInfo = "votes.phone_number:1",
+	//partitionInfo = "contestants.contestant_number:1",
     singlePartition = true
 )
 public class GenerateLeaderboard extends VoltProcedure {
@@ -55,7 +55,7 @@ public class GenerateLeaderboard extends VoltProcedure {
 	   "INSERT INTO trending_leaderboard (vote_id, phone_number, state, contestant_number, time) SELECT * FROM proc_one_out;"
     );
     
-    public final SQLStmt proc_one_out = new SQLStmt(
+    public final SQLStmt clearProcOut = new SQLStmt(
     	"DELETE FROM proc_one_out;"	
     );
     
@@ -77,7 +77,7 @@ public class GenerateLeaderboard extends VoltProcedure {
     );
     
     public final SQLStmt getLowestContestant = new SQLStmt(
-    	"SELECT contestant_number, num_votes FROM v_bottom_three_contestants ORDER BY num_votes ASC LIMIT 1;"
+    	"SELECT contestant_number, count(*) FROM votes group by contestant_number ORDER BY count(*) ASC LIMIT 1;"
     );
     
     public final SQLStmt deleteContestant = new SQLStmt(
@@ -105,6 +105,7 @@ public long run() {
         voltQueueSQL(updateCount);
         voltQueueSQL(getCount);
         voltQueueSQL(getLowestContestant);
+        voltQueueSQL(clearProcOut);
 
         VoltTable validation[] = voltExecuteSQL();
 		
@@ -112,9 +113,9 @@ public long run() {
         if ((validation[2].fetchRow(0).getLong(0)) >= VoterDemoSStoreConstants.VOTE_THRESHOLD) {
         	long contestant_number = validation[3].fetchRow(0).getLong(0);
         	
+        	voltQueueSQL(deleteVotes, contestant_number);
+        	voltQueueSQL(deleteFromLeaderboard, contestant_number);
         	voltQueueSQL(deleteContestant, contestant_number);
-            voltQueueSQL(deleteVotes, contestant_number);
-            voltQueueSQL(deleteFromLeaderboard, contestant_number);
             voltQueueSQL(resetCount);
             
             voltExecuteSQL(true);

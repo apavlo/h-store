@@ -80,9 +80,8 @@ public long run(long voteId, long phoneNumber, int contestantNumber, long maxVot
         VoltTable validation[] = voltExecuteSQL();
 		
         // validate the maximum limit for votes number
-        if ((validation[0].getRowCount() == 1) &&
-			(validation[0].asScalarLong() >= maxVotesPerPhoneNumber)) {
-            return VoterDemoSStoreConstants.ERR_VOTER_OVER_VOTE_LIMIT;
+        if (validation[0].getRowCount() == 0) {
+            return VoterConstants.ERR_INVALID_CONTESTANT;
         }
         
         if ((validation[1].getRowCount() == 1) &&
