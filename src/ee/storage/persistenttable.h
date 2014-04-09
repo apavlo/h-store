@@ -271,9 +271,6 @@ class PersistentTable : public Table {
     #ifdef ANTICACHE
     void setEvictedTable(voltdb::Table *evictedTable);
     voltdb::Table* getEvictedTable();
-    bool readEvictedBlock(int16_t block_id, int32_t tuple_offset);
-    bool mergeUnevictedTuples();
-    
     // needed for LRU chain eviction
     void setNewestTupleID(uint32_t id); 
     void setOldestTupleID(uint32_t id); 
@@ -282,19 +279,29 @@ class PersistentTable : public Table {
     void setNumTuplesInEvictionChain(int num_tuples);
     int getNumTuplesInEvictionChain(); 
     AntiCacheDB* getAntiCacheDB();
-    int getTuplesEvicted();
-    int getBlocksEvicted();
-    int getBytesEvicted();
-    int getTuplesWritten();
-    int getBlocksWritten();
-    int getBytesWritten();
-    void setTuplesEvicted(int tuplesEvicted);
-    void setBlocksEvicted(int blocksEvicted);
-    void setBytesEvicted(int bytesEvicted);
-    void setTuplesWritten(int tuplesWritten);
-    void setBlocksWritten(int blocksWritten);
-    void setBytesWritten(int bytesWritten);
-
+    std::map<int16_t, int16_t> getUnevictedBlockIDs();
+    std::vector<char*> getUnevictedBlocks();
+    std::vector<int32_t> getMergeTupleOffset();
+    bool mergeStrategy();
+    int32_t getTuplesEvicted();
+    void setTuplesEvicted(int32_t tuplesEvicted);
+    int32_t getBlocksEvicted();
+    void setBlocksEvicted(int32_t blocksEvicted);
+    int64_t getBytesEvicted();
+    void setBytesEvicted(int64_t bytesEvicted);
+    int32_t getTuplesWritten();
+    void setTuplesWritten(int32_t tuplesWritten);
+    int32_t getBlocksWritten();
+    void setBlocksWritten(int32_t blocksWritten);
+    int64_t getBytesWritten();
+    void setBytesWritten(int64_t bytesWritten);
+    voltdb::TableTuple getTempTarget1();
+    void insertUnevictedBlockID(std::pair<int16_t,int16_t>);
+    void insertUnevictedBlock(char* unevicted_tuples);
+    void insertTupleOffset(int32_t tuple_offset);
+    bool isAlreadyUnEvicted(int16_t blockId);
+    int32_t getTuplesRead();
+    void setTuplesRead(int32_t tuplesRead);
     #endif
     
     void setEntryToNewAddressForAllIndexes(const TableTuple *tuple, const void* address);
@@ -373,8 +380,9 @@ protected:
     uint32_t m_newestTupleID; 
     
     int m_numTuplesInEvictionChain;
-    bool m_blockMerge;
     
+    bool m_blockMerge;
+
     #endif
     
     // partition key

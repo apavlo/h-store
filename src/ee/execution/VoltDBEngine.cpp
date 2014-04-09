@@ -1946,9 +1946,10 @@ int VoltDBEngine::antiCacheReadBlocks(int32_t tableId, int numBlocks, int16_t bl
 
 	// We can now ask it directly to read in the evicted blocks that they want
 	bool finalResult = true;
+	AntiCacheEvictionManager* eviction_manager = m_executorContext->getAntiCacheEvictionManager();
 	try {
 		for (int i = 0; i < numBlocks; i++) {
-			finalResult = table->readEvictedBlock(blockIds[i], tupleOffsets[i]) && finalResult;
+			finalResult = eviction_manager->readEvictedBlock(table, blockIds[i], tupleOffsets[i]) && finalResult;
 		} // FOR
 
 	} catch (SerializableEEException &e) {
@@ -2035,7 +2036,7 @@ int VoltDBEngine::antiCacheMergeBlocks(int32_t tableId) {
 	VOLT_DEBUG("Merging unevicted blocks for table %d", tableId);
 	// Merge all the newly unevicted blocks back into our regular table data
 	try {
-		table->mergeUnevictedTuples();
+		m_executorContext->getAntiCacheEvictionManager()->mergeUnevictedTuples(table);
 	} catch (SerializableEEException &e) {
 		VOLT_INFO("Failed to merge blocks for table %d", tableId);
 

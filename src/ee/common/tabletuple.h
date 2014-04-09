@@ -381,14 +381,20 @@ public:
             // treat the first "value" as a boolean flag
         *(reinterpret_cast<char*> (m_data)) |= static_cast<char>(EVICTED_MASK);
     }
-protected:
-    inline void setDeletedTrue() {
+    inline void setEvictedFalse()
+    {
         // treat the first "value" as a boolean flag
-        *(reinterpret_cast<char*> (m_data)) |= static_cast<char>(DELETED_MASK);
+        *(reinterpret_cast<char*> (m_data)) &= static_cast<char>(~EVICTED_MASK);
     }
     inline void setDeletedFalse() {
         // treat the first "value" as a boolean flag
         *(reinterpret_cast<char*> (m_data)) &= static_cast<char>(~DELETED_MASK);
+    }
+
+protected:
+    inline void setDeletedTrue() {
+        // treat the first "value" as a boolean flag
+        *(reinterpret_cast<char*> (m_data)) |= static_cast<char>(DELETED_MASK);
     }
 
     inline void setDirtyTrue() {
@@ -400,11 +406,6 @@ protected:
         *(reinterpret_cast<char*> (m_data)) &= static_cast<char>(~DIRTY_MASK);
     }
 
-    inline void setEvictedFalse() 
-    {
-        // treat the first "value" as a boolean flag
-        *(reinterpret_cast<char*> (m_data)) &= static_cast<char>(~EVICTED_MASK);
-    }
 
     /** The types of the columns in the tuple */
     const TupleSchema *m_schema;
