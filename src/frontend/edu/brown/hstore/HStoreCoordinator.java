@@ -643,6 +643,7 @@ public class HStoreCoordinator implements Shutdownable {
         
         @Override
         public void transactionRedirect(RpcController controller, TransactionRedirectRequest request, RpcCallback<TransactionRedirectResponse> done) {
+            
             // We need to create a wrapper callback so that we can get the output that
             // HStoreSite wants to send to the client and forward 
             // it back to whomever told us about this txn
@@ -809,6 +810,7 @@ public class HStoreCoordinator implements Shutdownable {
      * @param callback
      */
     public void transactionInit(LocalTransaction ts, RpcCallback<TransactionInitResponse> callback) {
+
         if (debug.val)
             LOG.debug(String.format("%s - Sending %s to %d partitions %s",
                       ts, TransactionInitRequest.class.getSimpleName(),

@@ -69,7 +69,6 @@ public class ThreadChannel extends Thread implements RpcChannel {
                 return;
             }
 
-//            System.out.println("calling task in thread");
             service.callMethod(task.method, null, task.request, task);
         }
     }

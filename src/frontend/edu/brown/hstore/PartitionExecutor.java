@@ -4437,7 +4437,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         if (status == Status.ABORT_MISPREDICT ||
             status == Status.ABORT_SPECULATIVE ||
             status == Status.ABORT_EVICTEDACCESS) {
-            
+
             // If the txn was mispredicted, then we will pass the information over to the
             // HStoreSite so that it can re-execute the transaction. We want to do this 
             // first so that the txn gets re-executed as soon as possible...
@@ -4472,6 +4472,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         // ALL: Single-Partition Transactions
         // -------------------------------
         else if (ts.isPredictSinglePartition()) {
+            
             // Commit or abort the transaction only if we haven't done it already
             // This can happen when we commit speculative txns out of order
             if (ts.isMarkedFinished(this.partitionId) == false) {
@@ -4491,6 +4492,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         // COMMIT: Distributed Transaction
         // -------------------------------
         else if (status == Status.OK) {
+
             // We need to set the new ExecutionMode before we invoke transactionPrepare
             // because the LocalTransaction handle might get cleaned up immediately
             ExecutionMode newMode = null;
@@ -4522,6 +4524,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         // ABORT: Distributed Transaction
         // -------------------------------
         else {
+            
             // Send back the result to the client right now, since there's no way 
             // that we're magically going to be able to recover this and get them a result
             // This has to come before the network messages above because this will clean-up the 

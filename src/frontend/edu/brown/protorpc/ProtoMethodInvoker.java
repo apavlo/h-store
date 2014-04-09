@@ -23,7 +23,7 @@ public final class ProtoMethodInvoker {
             RpcCallback<Message> callback) throws InvalidProtocolBufferException {
         Message.Builder builder = requestPrototype.newBuilderForType();
         builder.mergeFrom(request);
-
+        
         service.callMethod(method, controller, builder.build(), callback);
     }
 }
