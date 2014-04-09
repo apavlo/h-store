@@ -98,13 +98,17 @@ public abstract class AbstractTransactionHandler<T extends GeneratedMessage, U e
                 assert(channel != null) : "Invalid partition id '" + partition + "'";
                 ProtoRpcController controller = this.getProtoRpcController(ts, dest_site_id);
                 assert(controller != null) : "Invalid " + request.getClass().getSimpleName() + " ProtoRpcController for site #" + dest_site_id;
+
                 this.sendRemote(channel, controller, request, callback);
             }
             site_sent[dest_site_id] = true;
         } // FOR
         // Optimization: We'll invoke sendLocal() after we have sent out
         // all of the messages to remote sites
-        if (send_local) this.sendLocal(ts.getTransactionId(), request, partitions, callback);
+        if (send_local)
+        {
+            this.sendLocal(ts.getTransactionId(), request, partitions, callback);
+        }
     }
     
     /**

@@ -8,7 +8,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
@@ -101,7 +103,8 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
      * A queue of transactions that need to be added to the lock queues at the partitions 
      * at this site.
      */
-    private final BlockingQueue<AbstractTransaction> initQueue; 
+    //private final BlockingQueue<AbstractTransaction> initQueue;
+    private final BlockingDeque<AbstractTransaction> initQueue;
 
     
     // ----------------------------------------------------------------------------
@@ -132,7 +135,8 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
         this.lockQueues = new PartitionLockQueue[catalogContext.numberOfPartitions];
         this.lockQueueLastTxns = new Long[catalogContext.numberOfPartitions];
         this.lockQueueBarriers = new ReentrantLock[catalogContext.numberOfPartitions];
-        this.initQueue = new LinkedBlockingQueue<AbstractTransaction>();
+        //this.initQueue = new LinkedBlockingQueue<AbstractTransaction>();
+        this.initQueue = new LinkedBlockingDeque<AbstractTransaction>(); // modified by hawk, 2014/4/7
         this.restartQueue = new LinkedBlockingQueue<Pair<LocalTransaction,Status>>();
         this.profilers = new TransactionQueueManagerProfiler[catalogContext.numberOfPartitions];
         
@@ -205,6 +209,10 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
             while (stop == false) {
                 try {
                     nextTxn = initQueue.take();
+                    // added by hawk, 2014/4/7
+//                    WorkflowScheduler wkfScheduler = hstore_site.getWorkflowScheduler();
+//                    nextTxn = wkfScheduler.getScheduledNextTxn(nextTxn, initQueue);
+                    // ended by hawk
                 } catch (InterruptedException ex) {
                     // IGNORE
                 }
@@ -225,6 +233,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
                 LOG.debug(String.format("Starting %s thread", this.getClass().getSimpleName()));
             Pair<LocalTransaction, Status> pair = null;
             while (stop == false) {
+                
                 try {
                     pair = restartQueue.take();
                 } catch (InterruptedException ex) {

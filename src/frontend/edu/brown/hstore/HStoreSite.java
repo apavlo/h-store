@@ -61,9 +61,13 @@ import org.voltdb.TransactionIdManager;
 import org.voltdb.TriggerStatsCollector;
 import org.voltdb.StreamStatsCollector;
 import org.voltdb.VoltTable;
+import org.voltdb.catalog.CatalogMap;
 import org.voltdb.catalog.Host;
+import org.voltdb.catalog.PlanFragment;
 import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.ProcedureRef;
 import org.voltdb.catalog.Site;
+import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.Table;
 import org.voltdb.catalog.Trigger;
 import org.voltdb.compiler.AdHocPlannedStmt;
@@ -78,6 +82,9 @@ import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.messaging.FastSerializer;
 import org.voltdb.network.Connection;
 import org.voltdb.network.VoltNetwork;
+import org.voltdb.plannodes.AbstractPlanNode;
+import org.voltdb.plannodes.InsertPlanNode;
+import org.voltdb.types.QueryType;
 import org.voltdb.utils.DBBPool;
 import org.voltdb.utils.EstTime;
 import org.voltdb.utils.EstTimeUpdater;
@@ -258,6 +265,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     // added by hawk, 2013/11/6
 //    private TriggerStatsCollector m_triggerStatsCollector;
 //    private StreamStatsCollector m_streamStatsCollector;
+    // used to hold workflow topology (frontend trigger) added by hawk, 2014/4/7
+    private final Map<String, List<String>> m_workflowTopology = new HashMap<String, List<String>>();
+    //private WorkflowScheduler workflowScheduler;
     // ended by hawk
 
     
@@ -610,6 +620,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         this.initTxnProcessors();
         this.initStatSources();
         
+        // added by hawk, 2014/4/7
+        //this.initWorkflowTopology();
+        //this.workflowScheduler = new WorkflowScheduler(this);
+        // ended by hawk
+        
         // Profiling
         if (hstore_conf.site.profiling) {
             this.profiler = new HStoreSiteProfiler();
@@ -625,6 +640,75 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         LoggerUtil.refreshLogging(hstore_conf.global.log_refresh);
     }
     
+    private void initWorkflowTopology() {
+        //m_workflowTopology;
+        String key = null;
+        List<String> triggerProcedures = null;
+        
+        for( Procedure procedure : catalogContext.database.getProcedures())
+        {
+            for(Statement statement_cat : procedure.getStatements())
+            {
+                if (statement_cat.getQuerytype() != QueryType.INSERT.getValue())
+                    continue;
+                for (boolean is_singlepartition : new boolean[] { true, false }) {
+                    // Plan Fragments
+                    CatalogMap<PlanFragment> fragments = (is_singlepartition ? statement_cat.getFragments() : statement_cat.getMs_fragments());
+                    for (PlanFragment fragment_cat : CatalogUtil.getSortedCatalogItems(fragments, "id")) {
+                        AbstractPlanNode node = null;
+
+                        try {
+                            node = PlanNodeUtil.getPlanNodeTreeForPlanFragment(fragment_cat);
+                            Collection<InsertPlanNode> insert_nodes = PlanNodeUtil.getPlanNodes(node, InsertPlanNode.class);
+                            for(InsertPlanNode plannode : insert_nodes)
+                            {
+                                String targetTableName = plannode.getTargetTableName();
+                                // get all the related frontend triggers
+                                Table catalog_tbl = catalogContext.database.getTables().get(targetTableName);
+                                
+                                CatalogMap<ProcedureRef> procedures = catalog_tbl.getTriggerprocedures();
+                                if((procedures!=null)&&(procedures.isEmpty()==false))
+                                {
+                                    key = procedure.getName();
+                                    triggerProcedures = this.m_workflowTopology.get(key);
+                                    if(triggerProcedures==null)
+                                        triggerProcedures = new ArrayList<String>();
+                                }
+                                for(ProcedureRef procedureRef : procedures)
+                                {
+                                    String strChild = procedureRef.getProcedure().getName();
+                                    System.out.println( "workflow pair: " + key + "-" + strChild );
+                                    triggerProcedures.add(strChild);
+                                }
+                                m_workflowTopology.put(key, triggerProcedures);
+                            }
+                            
+                        } catch (Exception e) {
+                            String msg = e.getMessage();
+                            if (msg == null || msg.length() == 0) {
+                                e.printStackTrace();
+                            } else {
+                                LOG.warn(msg);
+                            }
+                        }
+                    }
+
+                }
+            }
+        }
+
+    }
+    
+    public Map<String, List<String>> getWorflowTopology()
+    {
+        return m_workflowTopology;
+    }
+    
+//    public WorkflowScheduler getWorkflowScheduler()
+//    {
+//        return this.workflowScheduler;
+//    }
+
     // ----------------------------------------------------------------------------
     // INITIALIZATION STUFF
     // ----------------------------------------------------------------------------
@@ -2244,7 +2328,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             LOG.debug(String.format("Forwarding %s request to partition %d [clientHandle=%d]",
                      catalog_proc.getName(), base_partition,
                      StoredProcedureInvocation.getClientHandle(serializedRequest)));
-        
         // Make a wrapper for the original callback so that when the result comes back frm the remote partition
         // we will just forward it back to the client. How sweet is that??
         RedirectCallback callback = null;
@@ -2280,6 +2363,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param status
      */
     public void transactionRequeue(LocalTransaction ts, Status status) {
+        
         assert(ts != null);
         assert(status != Status.OK) :
             "Unexpected requeue status " + status + " for " + ts;
@@ -2631,6 +2715,15 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }
 
         if (sendResponse) {
+            // added by hawk, 2014/4/7
+//            Integer workflowid = ts.getBatchId();
+//            String spname = ts.getProcedure().getName();
+//            WorkflowScheduler wkfScheduler = this.getWorkflowScheduler();
+//            System.out.println("---------------------------------------------");
+//            wkfScheduler.addSPEndStatus( workflowid, spname );
+//            System.out.println("---------------------------------------------");
+            // ended by hawk
+            
             // NO GROUP COMMIT -- SEND OUT AND COMPLETE
             // NO COMMAND LOGGING OR TXN ABORTED -- SEND OUT AND COMPLETE
             if (hstore_conf.site.exec_postprocessing_threads) {
@@ -2757,6 +2850,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             now = System.currentTimeMillis();
             EstTimeUpdater.update(now);
         }
+        
         
         
         cresponse.setClusterRoundtrip((int)(now - initiateTime));
