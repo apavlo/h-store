@@ -109,6 +109,7 @@ public class MarketFeed extends VoltProcedure {
         System.out.println("got date time and made list");
         // let's do the updates first in a batch
         for (int i = 0; i <= MAX_FEED_LEN; i++) {
+            System.out.println("i: "+ i);
             if(symbols[i] == null){
                 System.out.println("Symbols"+ symbols[i]+ " "+ symbols[i].length());
             }
