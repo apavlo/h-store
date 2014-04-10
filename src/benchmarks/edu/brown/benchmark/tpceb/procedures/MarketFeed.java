@@ -118,6 +118,7 @@ public class MarketFeed extends VoltProcedure {
             //System.out.println("queued sql");
         }
         try{
+            System.out.println("in try");
         voltExecuteSQL();
         }
         catch(Exception ex){
