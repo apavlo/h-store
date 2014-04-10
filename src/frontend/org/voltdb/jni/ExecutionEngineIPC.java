@@ -1497,48 +1497,9 @@ public class ExecutionEngineIPC extends ExecutionEngine {
         throw new NotImplementedException("Anti-Caching is disabled for IPC ExecutionEngine");
     }
 
-
     @Override
     public VoltTable antiCacheEvictBlockInBatch(Table catalog_tbl, Table child_tbl, long block_size, int num_blocks) {
         throw new NotImplementedException("Anti-Caching is disabled for IPC ExecutionEngine");
-	}
-
-    
-    @Override
-    public void MMAPInitialize(File dbDir, long mapSize, long syncFrequency) throws EEException {
-        throw new NotImplementedException("Storage MMAP is disabled for IPC ExecutionEngine");
-    }
-    
-    // ARIES 
-    @Override
-    public void ARIESInitialize(File dbDir, File logFile) throws EEException {
-        throw new NotImplementedException("ARIES recovery is disabled for IPC ExecutionEngine");
-    }
-    
-    @Override
-    public long getArieslogBufferLength() {
-        // XXX: do nothing, we only implement this for JNI now.
-        throw new NotImplementedException("ARIES recovery is disabled for IPC ExecutionEngine");
-    }
-
-    @Override
-    public void getArieslogData(int bufferLength, byte[] arieslogDataArray) {
-        throw new NotImplementedException("ARIES recovery is disabled for IPC ExecutionEngine");
-    }
-
-    @Override
-    public void doAriesRecoveryPhase(long replayPointer, long replayLogSize, long replayTxnId) {
-        throw new NotImplementedException("ARIES recovery is disabled for IPC ExecutionEngine");
-    }
-
-    @Override
-    public void freePointerToReplayLog(long ariesReplayPointer) {
-        throw new NotImplementedException("ARIES recovery is disabled for IPC ExecutionEngine");
-    }   
-
-    @Override
-    public long readAriesLogForReplay(long[] size) {
-        throw new NotImplementedException("ARIES recovery is disabled for IPC ExecutionEngine");
     }
     
 }

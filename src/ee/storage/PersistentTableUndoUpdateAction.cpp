@@ -51,7 +51,7 @@ void PersistentTableUndoUpdateAction::undo() {
     for (std::vector<const char*>::iterator i = newUninlineableColumns.begin();
          i != newUninlineableColumns.end(); i++)
     {
-        delete (*i);
+        delete [] (*i);
     }
 }
 

@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2011 VoltDB Inc.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,6 +18,15 @@
 #ifndef NVALUE_HPP_
 #define NVALUE_HPP_
 
+#include "common/Pool.hpp"
+#include "common/SQLException.h"
+#include "common/debuglog.h"
+#include "common/serializeio.h"
+#include "common/ExportSerializeIo.h"
+#include "common/types.h"
+#include "common/value_defs.h"
+#include "common/FatalException.hpp"
+
 #include <cassert>
 #include <cfloat>
 #include <climits>
@@ -28,19 +37,8 @@
 #include <string>
 #include <algorithm>
 
-#include "boost/scoped_ptr.hpp"
 #include "boost/unordered_map.hpp"
 #include "ttmath/ttmathint.h"
-
-#include "common/ExportSerializeIo.h"
-#include "common/FatalException.hpp"
-#include "common/Pool.hpp"
-#include "common/SQLException.h"
-#include "common/StringRef.h"
-#include "common/debuglog.h"
-#include "common/serializeio.h"
-#include "common/types.h"
-#include "common/value_defs.h"
 
 #define CHECK_FPE( x ) ( std::isinf(x) || std::isnan(x) )
 namespace voltdb {
@@ -104,10 +102,6 @@ class NValue {
 
     /* Release memory associated to object type NValues */
     void free() const;
-
-//#ifdef ARIES_NIRMESH
-    void freeLogTupleVal() const;
-//#endif
 
     /* Set value to the correct SQL NULL representation. */
     void setNull();
@@ -267,11 +261,20 @@ class NValue {
     static const uint16_t kMaxDecScale = 12;
     static const int64_t kMaxScaleFactor = 1000000000000;
 
+    
     const int32_t& getInteger() const {
         assert(getValueType() == VALUE_TYPE_INTEGER);
         return *reinterpret_cast<const int32_t*>(m_data);
     }
 
+    /**
+     * Get the type of the value. This information is private
+     * to prevent code outside of NValue from branching based on the type of a value.
+     */
+    ValueType getValueType() const {
+        return static_cast<ValueType>(m_data[16]);
+    }
+    
   private:
     /*
      * Private methods are private for a reason. Don't expose the raw
@@ -314,7 +317,6 @@ class NValue {
           // no valid promotion (currently) for these types
           case VALUE_TYPE_ADDRESS:
           case VALUE_TYPE_VARCHAR:
-          case VALUE_TYPE_VARBINARY:
           case VALUE_TYPE_BOOLEAN:
           case VALUE_TYPE_INVALID:
           case VALUE_TYPE_NULL:
@@ -327,11 +329,10 @@ class NValue {
     }
 
     /**
-     * 16 bytes of storage for NValue data.
+     * 17 bytes of storage for NValue data.
+     * The 17th byte stores the ValueType!
      */
-    char m_data[16];
-    ValueType m_valueType;
-    bool m_sourceInlined;
+    char m_data[17];
 
     /**
      * Private constructor that initializes storage and the specifies the type of value
@@ -340,7 +341,6 @@ class NValue {
     NValue(const ValueType type) {
         ::memset( m_data, 0, 16);
         setValueType(type);
-        m_sourceInlined = false;
     }
 
     /**
@@ -349,21 +349,10 @@ class NValue {
      * is used to store the type
      */
     void setValueType(ValueType type) {
-        m_valueType = type;
+        reinterpret_cast<uint8_t*>(m_data)[16] = static_cast<uint8_t>(type);
     }
 
-    /**
-     * Get the type of the value. This information is private
-     * to prevent code outside of NValue from branching based on the type of a value.
-     */
-    ValueType getValueType() const {
-        return m_valueType;
-    }
 
-    void setSourceInlined(bool sourceInlined)
-    {
-        m_sourceInlined = sourceInlined;
-    }
 
     /**
      * An Object is something like a String that has a variable length
@@ -383,7 +372,7 @@ class NValue {
             // defensive "return 0" in the future? (rtb)
             throwFatalException("Must not ask  for object length on sql null object.");
         }
-        if ((getValueType() != VALUE_TYPE_VARCHAR) && (getValueType() != VALUE_TYPE_VARBINARY)) {
+        if (getValueType() != VALUE_TYPE_VARCHAR) {
             // probably want getTupleStorageSize() for non-object types.
             // at the moment, only varchars are using getObjectLength().
             throwFatalException("Must not ask for object length for non-object types");
@@ -499,8 +488,8 @@ class NValue {
      * Not truly symmetrical with getObjectValue which returns the actual object past
      * the length preceding value
      */
-    void setObjectValue(void* object) {
-        *reinterpret_cast<void**>(m_data) = object;
+    void setObjectValue(char *object) {
+        *reinterpret_cast<char**>(m_data) = object;
     }
 
     /**
@@ -512,16 +501,7 @@ class NValue {
         } else if(*reinterpret_cast<const int32_t*>(&m_data[8]) == OBJECTLENGTH_NULL) {
             return NULL;
         } else {
-            void* value;
-            if (m_sourceInlined)
-            {
-                value = *reinterpret_cast<char* const*>(m_data) + getObjectLengthLength();
-            }
-            else
-            {
-                StringRef* sref = *reinterpret_cast<StringRef* const*>(m_data);
-                value = sref->get() + getObjectLengthLength();
-            }
+            void * value = *reinterpret_cast<char* const*>(m_data) + getObjectLengthLength();
             return value;
         }
     }
@@ -607,9 +587,6 @@ class NValue {
         assert(getValueType() == VALUE_TYPE_BOOLEAN);
         return *reinterpret_cast<bool*>(m_data);
     }
-
-    std::size_t getAllocationSizeForObject() const;
-    static std::size_t getAllocationSizeForObject(int32_t length);
 
     static void throwCastSQLException(const ValueType origType,
                                       const ValueType newType)
@@ -699,7 +676,6 @@ class NValue {
           case VALUE_TYPE_DOUBLE:
             return getDouble();
           case VALUE_TYPE_VARCHAR:
-          case VALUE_TYPE_VARBINARY:
           case VALUE_TYPE_DECIMAL:
           default:
             throwCastSQLException(type, VALUE_TYPE_DOUBLE);
@@ -729,7 +705,6 @@ class NValue {
           case VALUE_TYPE_DECIMAL:
               return getDecimal();
           case VALUE_TYPE_VARCHAR:
-          case VALUE_TYPE_VARBINARY:
           default:
             throwCastSQLException(type, VALUE_TYPE_DOUBLE);
             return 0; // NOT REACHED
@@ -762,7 +737,6 @@ class NValue {
             }
             retval.getBigInt() = static_cast<int64_t>(getDouble()); break;
         case VALUE_TYPE_VARCHAR:
-        case VALUE_TYPE_VARBINARY:
         case VALUE_TYPE_DECIMAL:
         default:
             throwCastSQLException(type, VALUE_TYPE_BIGINT);
@@ -794,7 +768,6 @@ class NValue {
             }
             retval.getTimestamp() = static_cast<int64_t>(getDouble()); break;
         case VALUE_TYPE_VARCHAR:
-        case VALUE_TYPE_VARBINARY:
         case VALUE_TYPE_DECIMAL:
         default:
             throwCastSQLException(type, VALUE_TYPE_TIMESTAMP);
@@ -832,7 +805,6 @@ class NValue {
             }
             retval.getInteger() = static_cast<int32_t>(getDouble()); break;
         case VALUE_TYPE_VARCHAR:
-        case VALUE_TYPE_VARBINARY:
         case VALUE_TYPE_DECIMAL:
         default:
             throwCastSQLException(type, VALUE_TYPE_INTEGER);
@@ -873,7 +845,6 @@ class NValue {
             }
             retval.getSmallInt() = static_cast<int16_t>(getDouble()); break;
         case VALUE_TYPE_VARCHAR:
-        case VALUE_TYPE_VARBINARY:
         case VALUE_TYPE_DECIMAL:
         default:
             throwCastSQLException(type, VALUE_TYPE_SMALLINT);
@@ -917,7 +888,6 @@ class NValue {
             }
             retval.getTinyInt() = static_cast<int8_t>(getDouble()); break;
         case VALUE_TYPE_VARCHAR:
-        case VALUE_TYPE_VARBINARY:
         case VALUE_TYPE_DECIMAL:
         default:
             throwCastSQLException(type, VALUE_TYPE_TINYINT);
@@ -946,7 +916,6 @@ class NValue {
         case VALUE_TYPE_DOUBLE:
             retval.getDouble() = getDouble(); break;
         case VALUE_TYPE_VARCHAR:
-        case VALUE_TYPE_VARBINARY:
         case VALUE_TYPE_DECIMAL:
         default:
             throwCastSQLException(type, VALUE_TYPE_DOUBLE);
@@ -961,33 +930,12 @@ class NValue {
             retval.setNull();
             return retval;
         }
-        // note: we allow binary conversion to strings to support
-        // byte[] as string parameters...
-        // In the future, it would be nice to check this is a decent string here...
         switch (type) {
         case VALUE_TYPE_VARCHAR:
-        case VALUE_TYPE_VARBINARY:
-            memcpy(retval.m_data, m_data, sizeof(m_data));
+            *reinterpret_cast<char**>(retval.m_data) = *reinterpret_cast<char* const*>(m_data);
             break;
         default:
             throwCastSQLException(type, VALUE_TYPE_VARCHAR);
-        }
-        return retval;
-    }
-
-    NValue castAsBinary() const {
-        NValue retval(VALUE_TYPE_VARBINARY);
-        const ValueType type = getValueType();
-        if (isNull()) {
-            retval.setNull();
-            return retval;
-        }
-        switch (type) {
-        case VALUE_TYPE_VARBINARY:
-            memcpy(retval.m_data, m_data, sizeof(m_data));
-            break;
-        default:
-            throwCastSQLException(type, VALUE_TYPE_VARBINARY);
         }
         return retval;
     }
@@ -1039,17 +987,7 @@ class NValue {
                 throw SQLException(SQLException::data_exception_string_data_length_mismatch,
                                    msg);
             }
-            if (m_sourceInlined)
-            {
-                ::memcpy( storage, *reinterpret_cast<char *const *>(m_data), getObjectLengthLength() + objectLength);
-            }
-            else
-            {
-                const StringRef* sref =
-                    *reinterpret_cast<StringRef* const*>(m_data);
-                ::memcpy(storage, sref->get(),
-                         getObjectLengthLength() + objectLength);
-            }
+            ::memcpy( storage, *reinterpret_cast<char *const *>(m_data), getObjectLengthLength() + objectLength);
         }
 
     }
@@ -1138,7 +1076,7 @@ class NValue {
     }
 
     int compareStringValue (const NValue rhs) const {
-        if ((rhs.getValueType() != VALUE_TYPE_VARCHAR) && (rhs.getValueType() != VALUE_TYPE_VARBINARY)) {
+        if (rhs.getValueType() != VALUE_TYPE_VARCHAR) {
             char message[128];
             snprintf(message, 128,
                      "Type %s cannot be cast for comparison to type %s",
@@ -1162,48 +1100,6 @@ class NValue {
         const int32_t leftLength = getObjectLength();
         const int32_t rightLength = rhs.getObjectLength();
         const int result = ::strncmp(left, right, std::min(leftLength, rightLength));
-        if (result == 0 && leftLength != rightLength) {
-            if (leftLength > rightLength) {
-                return  VALUE_COMPARE_GREATERTHAN;
-            } else {
-                return VALUE_COMPARE_LESSTHAN;
-            }
-        }
-        else if (result > 0) {
-            return VALUE_COMPARE_GREATERTHAN;
-        }
-        else if (result < 0) {
-            return VALUE_COMPARE_LESSTHAN;
-        }
-
-        return VALUE_COMPARE_EQUAL;
-    }
-
-    int compareBinaryValue (const NValue rhs) const {
-        if (rhs.getValueType() != VALUE_TYPE_VARBINARY) {
-            char message[128];
-            snprintf(message, 128,
-                     "Type %s cannot be cast for comparison to type %s",
-                     valueToString(rhs.getValueType()).c_str(),
-                     valueToString(getValueType()).c_str());
-            throw SQLException(SQLException::
-                               data_exception_most_specific_type_mismatch,
-                               message);
-        }
-        const char* left = reinterpret_cast<const char*>(getObjectValue());
-        const char* right = reinterpret_cast<const char*>(rhs.getObjectValue());
-        if (isNull()) {
-            if (rhs.isNull()) {
-                return VALUE_COMPARE_EQUAL;
-            } else {
-                return VALUE_COMPARE_LESSTHAN;
-            }
-        } else if (rhs.isNull()) {
-            return VALUE_COMPARE_GREATERTHAN;
-        }
-        const int32_t leftLength = getObjectLength();
-        const int32_t rightLength = rhs.getObjectLength();
-        const int result = ::memcmp(left, right, std::min(leftLength, rightLength));
         if (result == 0 && leftLength != rightLength) {
             if (leftLength > rightLength) {
                 return  VALUE_COMPARE_GREATERTHAN;
@@ -1534,44 +1430,11 @@ class NValue {
         NValue retval(VALUE_TYPE_VARCHAR);
         const int32_t length = static_cast<int32_t>(value.length());
         const int8_t lengthLength = getAppropriateObjectLengthLength(length);
-        const int32_t minLength = length + lengthLength;
-        StringRef* sref = StringRef::create(minLength);
-        char* storage = sref->get();
+        const std::size_t minLength = value.length() + lengthLength;
+        char *storage = new char[minLength];
         setObjectLengthToLocation(length, storage);
         ::memcpy( storage + lengthLength, value.c_str(), length);
-        retval.setObjectValue(sref);
-        retval.setObjectLength(length);
-        retval.setObjectLengthLength(lengthLength);
-        return retval;
-    }
-
-    // assumes binary value in hex
-    static NValue getBinaryValue(const std::string value) {
-        NValue retval(VALUE_TYPE_VARBINARY);
-        const int32_t length = static_cast<int32_t>(value.length() / 2);
-        boost::scoped_array<unsigned char> buf(new unsigned char[length]);
-        hexDecodeToBinary(buf.get(), value.c_str());
-        const int8_t lengthLength = getAppropriateObjectLengthLength(length);
-        const int32_t minLength = length + lengthLength;
-        StringRef* sref = StringRef::create(minLength);
-        char* storage = sref->get();
-        setObjectLengthToLocation(length, storage);
-        ::memcpy( storage + lengthLength, buf.get(), length);
-        retval.setObjectValue(sref);
-        retval.setObjectLength(length);
-        retval.setObjectLengthLength(lengthLength);
-        return retval;
-    }
-
-    static NValue getBinaryValue(const unsigned char *value, const int32_t length) {
-        NValue retval(VALUE_TYPE_VARBINARY);
-        const int8_t lengthLength = getAppropriateObjectLengthLength(length);
-        const int32_t minLength = length + lengthLength;
-        StringRef* sref = StringRef::create(minLength);
-        char* storage = sref->get();
-        setObjectLengthToLocation(length, storage);
-        ::memcpy( storage + lengthLength, value, length);
-        retval.setObjectValue(sref);
+        retval.setObjectValue(storage);
         retval.setObjectLength(length);
         retval.setObjectLengthLength(lengthLength);
         return retval;
@@ -1579,12 +1442,6 @@ class NValue {
 
     static NValue getNullStringValue() {
         NValue retval(VALUE_TYPE_VARCHAR);
-        *reinterpret_cast<char**>(retval.m_data) = NULL;
-        return retval;
-    }
-
-    static NValue getNullBinaryValue() {
-        NValue retval(VALUE_TYPE_VARBINARY);
         *reinterpret_cast<char**>(retval.m_data) = NULL;
         return retval;
     }
@@ -1709,20 +1566,11 @@ inline NValue NValue::op_or(const NValue rhs) const {
  * the object to the heap
  */
 inline void NValue::free() const {
-    switch (getValueType())
-    {
-    case VALUE_TYPE_VARCHAR:
-    case VALUE_TYPE_VARBINARY:
-        {
-            assert(!m_sourceInlined);
-            StringRef* sref = *reinterpret_cast<StringRef* const*>(m_data);
-            if (sref != NULL)
-            {
-                StringRef::destroy(sref);
-            }
-        }
+    switch (getValueType()) {
+      case VALUE_TYPE_VARCHAR:
+        delete[] *reinterpret_cast<const char* const*>(m_data);
         break;
-    default:
+      default:
         return;
     }
 }
@@ -1745,7 +1593,6 @@ inline uint16_t NValue::getTupleStorageSize(const ValueType type) {
       case VALUE_TYPE_DOUBLE:
         return sizeof(double);
       case VALUE_TYPE_VARCHAR:
-      case VALUE_TYPE_VARBINARY:
         return sizeof(char*);
       case VALUE_TYPE_DECIMAL:
         return sizeof(TTInt);
@@ -1821,7 +1668,6 @@ inline void NValue::setNull() {
         getDouble() = DOUBLE_MIN;
         break;
       case VALUE_TYPE_VARCHAR:
-      case VALUE_TYPE_VARBINARY:
         *reinterpret_cast<void**>(m_data) = NULL;
         break;
       case VALUE_TYPE_DECIMAL:
@@ -1844,65 +1690,49 @@ inline const NValue NValue::deserializeFromTupleStorage(const void *storage,
                                                  const ValueType type,
                                                  const bool isInlined)
 {
-    NValue retval(type);
-    switch (type)
-    {
-    case VALUE_TYPE_TIMESTAMP:
-        retval.getTimestamp() = *reinterpret_cast<const int64_t*>(storage);
-        break;
-    case VALUE_TYPE_TINYINT:
-        retval.getTinyInt() = *reinterpret_cast<const int8_t*>(storage);
-        break;
-    case VALUE_TYPE_SMALLINT:
-        retval.getSmallInt() = *reinterpret_cast<const int16_t*>(storage);
-        break;
-    case VALUE_TYPE_INTEGER:
-        retval.getInteger() = *reinterpret_cast<const int32_t*>(storage);
-        break;
-    case VALUE_TYPE_BIGINT:
-        retval.getBigInt() = *reinterpret_cast<const int64_t*>(storage);
-        break;
-    case VALUE_TYPE_DOUBLE:
-        retval.getDouble() = *reinterpret_cast<const double*>(storage);
-        break;
-    case VALUE_TYPE_DECIMAL:
-        ::memcpy( retval.m_data, storage, NValue::getTupleStorageSize(type));
-        break;
-    case VALUE_TYPE_VARCHAR:
-    case VALUE_TYPE_VARBINARY:
-    {
-        //Potentially non-inlined type requires special handling
-        char* data = NULL;
-        if (isInlined) {
-            //If it is inlined the storage area contains the actual data so copy a reference
-            //to the storage area
-            *reinterpret_cast<void**>(retval.m_data) = const_cast<void*>(storage);
-            data = *reinterpret_cast<char**>(retval.m_data);
-            retval.setSourceInlined(true);
-        } else {
-            //If it isn't inlined the storage area contains a pointer to the
-            // StringRef object containing the string's memory
-            memcpy( retval.m_data, storage, sizeof(void*));
-            StringRef* sref = *reinterpret_cast<StringRef**>(retval.m_data);
-            // If the StringRef pointer is null, that's because this
-            // was a null value; leave the data pointer as NULL so
-            // that getObjectLengthFromLocation will figure this out
-            // correctly, otherwise get the right char* from the StringRef
-            if (sref != NULL)
-            {
-                data = sref->get();
+        NValue retval(type);
+        switch (type) {
+          case VALUE_TYPE_TIMESTAMP:
+            retval.getTimestamp() = *reinterpret_cast<const int64_t*>(storage);
+            break;
+          case VALUE_TYPE_TINYINT:
+            retval.getTinyInt() = *reinterpret_cast<const int8_t*>(storage);
+            break;
+          case VALUE_TYPE_SMALLINT:
+            retval.getSmallInt() = *reinterpret_cast<const int16_t*>(storage);
+            break;
+          case VALUE_TYPE_INTEGER:
+            retval.getInteger() = *reinterpret_cast<const int32_t*>(storage);
+            break;
+          case VALUE_TYPE_BIGINT:
+            retval.getBigInt() = *reinterpret_cast<const int64_t*>(storage);
+            break;
+          case VALUE_TYPE_DOUBLE:
+            retval.getDouble() = *reinterpret_cast<const double*>(storage);
+            break;
+          case VALUE_TYPE_DECIMAL:
+            ::memcpy( retval.m_data, storage, NValue::getTupleStorageSize(type));
+            break;
+          case VALUE_TYPE_VARCHAR: {
+            //Potentially non-inlined type requires special handling
+            if (isInlined) {
+                //If it is inlined the storage area contains the actual data so copy a reference
+                //to the storage area
+                *reinterpret_cast<void**>(retval.m_data) = const_cast<void*>(storage);
+            } else {
+                //If it isn't inlined the storage area contains a pointer to the memory location
+                //containing the string.
+                memcpy( retval.m_data, storage, sizeof(void*));
             }
+            const int32_t length = getObjectLengthFromLocation(*reinterpret_cast<char**>(retval.m_data));
+            retval.setObjectLength(length);
+            retval.setObjectLengthLength(getAppropriateObjectLengthLength(length));
+            break;
+          }
+          default:
+              throwFatalException( "NValue::getLength() unrecognized type '%d'", type);
         }
-        const int32_t length = getObjectLengthFromLocation(data);
-        //std::cout << "NValue::deserializeFromTupleStorage: length: " << length << std::endl;
-        retval.setObjectLength(length);
-        retval.setObjectLengthLength(getAppropriateObjectLengthLength(length));
-        break;
-    }
-    default:
-        throwFatalException( "NValue::getLength() unrecognized type '%d'", type);
-    }
-    return retval;
+        return retval;
 }
 
 /**
@@ -1940,7 +1770,6 @@ inline void NValue::serializeToTupleStorageAllocateForObjects(void *storage, con
         ::memcpy( storage, m_data, NValue::getTupleStorageSize(type));
         break;
       case VALUE_TYPE_VARCHAR:
-      case VALUE_TYPE_VARBINARY:
         //Potentially non-inlined type requires special handling
         if (isInlined) {
             inlineCopyObject(storage, maxLength);
@@ -1952,7 +1781,8 @@ inline void NValue::serializeToTupleStorageAllocateForObjects(void *storage, con
             else {
                 length = getObjectLength();
                 const int8_t lengthLength = getObjectLengthLength();
-                const int32_t minlength = lengthLength + length;
+                const size_t minlength = lengthLength + length;
+                char *copy = NULL;
                 if (length > maxLength) {
                     char msg[1024];
                     snprintf(msg, 1024, "Object exceeds specified size. Size is %d"
@@ -1962,11 +1792,14 @@ inline void NValue::serializeToTupleStorageAllocateForObjects(void *storage, con
                         msg);
 
                 }
-                StringRef* sref = StringRef::create(minlength, dataPool);
-                char *copy = sref->get();
+                if (dataPool != NULL) {
+                    copy = reinterpret_cast<char*>(dataPool->allocate(length + lengthLength));
+                } else {
+                    copy = new char[minlength];
+                }
                 setObjectLengthToLocation(length, copy);
                 ::memcpy(copy + lengthLength, getObjectValue(), length);
-                *reinterpret_cast<StringRef**>(storage) = sref;
+                *reinterpret_cast<char**>(storage) = copy;
             }
         }
         break;
@@ -2009,20 +1842,15 @@ inline void NValue::serializeToTupleStorage(void *storage, const bool isInlined,
         ::memcpy( storage, m_data, NValue::getTupleStorageSize(type));
         break;
       case VALUE_TYPE_VARCHAR:
-      case VALUE_TYPE_VARBINARY:
         //Potentially non-inlined type requires special handling
         if (isInlined) {
             inlineCopyObject(storage, maxLength);
         }
         else {
             if (isNull() || getObjectLength() <= maxLength) {
-                if (m_sourceInlined && !isInlined)
-                {
-                    throwFatalException("Cannot serialize an inlined string to non-inlined tuple storage in serializeToTupleStorage()");
-                }
-                // copy the StringRef pointers
-                *reinterpret_cast<StringRef**>(storage) =
-                  *reinterpret_cast<StringRef* const*>(m_data);
+                // copy the pointers
+                *reinterpret_cast<char**>(storage) =
+                  *reinterpret_cast<char* const*>(m_data);
             }
             else {
                 const int32_t length = getObjectLength();
@@ -2070,10 +1898,9 @@ inline void NValue::deserializeFrom(SerializeInput &input, const ValueType type,
       case VALUE_TYPE_DOUBLE:
         *reinterpret_cast<double* >(storage) = input.readDouble();
         break;
-      case VALUE_TYPE_VARCHAR:
-      case VALUE_TYPE_VARBINARY:
-      {
+      case VALUE_TYPE_VARCHAR: {
           const int32_t length = input.readInt();
+                    
           if (length > maxLength) {
               char msg[1024];
               snprintf(msg, 1024, "Object exceeds specified size. Size is %d and max is %d", length, maxLength);
@@ -2081,10 +1908,11 @@ inline void NValue::deserializeFrom(SerializeInput &input, const ValueType type,
                   SQLException::data_exception_string_data_length_mismatch,
                   msg);
           }
-
+          
           const int8_t lengthLength = getAppropriateObjectLengthLength(length);
           // the NULL SQL string is a NULL C pointer
           if (isInlined) {
+              
               setObjectLengthToLocation(length, storage);
               if (length == OBJECTLENGTH_NULL) {
                   break;
@@ -2097,12 +1925,16 @@ inline void NValue::deserializeFrom(SerializeInput &input, const ValueType type,
                   return;
               }
               const char *data = reinterpret_cast<const char*>(input.getRawPointer(length));
-              const int32_t minlength = lengthLength + length;
-              StringRef* sref = StringRef::create(minlength, dataPool);
-              char* copy = sref->get();
+              const size_t minlength = lengthLength + length;
+              char *copy = NULL;
+              if (dataPool != NULL) {
+                  copy = reinterpret_cast<char*>(dataPool->allocate(length + lengthLength));
+              } else {
+                  copy = new char[minlength];
+              }
               setObjectLengthToLocation( length, copy);
               ::memcpy(copy + lengthLength, data, length);
-              *reinterpret_cast<StringRef**>(storage) = sref;
+              *reinterpret_cast<char**>(storage) = copy;
           }
           break;
       }
@@ -2149,9 +1981,7 @@ inline const NValue NValue::deserializeFromAllocateForStorage(SerializeInput &in
       case VALUE_TYPE_DOUBLE:
         retval.getDouble() = input.readDouble();
         break;
-      case VALUE_TYPE_VARCHAR:
-      case VALUE_TYPE_VARBINARY:
-      {
+      case VALUE_TYPE_VARCHAR: {
           const int32_t length = input.readInt();
           const int8_t lengthLength = getAppropriateObjectLengthLength(length);
           // the NULL SQL string is a NULL C pointer
@@ -2160,12 +1990,16 @@ inline const NValue NValue::deserializeFromAllocateForStorage(SerializeInput &in
               break;
           }
           const void *str = input.getRawPointer(length);
-          const int32_t minlength = lengthLength + length;
-          StringRef* sref = StringRef::create(minlength, dataPool);
-          char* copy = sref->get();
+          const size_t minlength = lengthLength + length;
+          char *copy = NULL;
+          if (dataPool != NULL) {
+              copy = reinterpret_cast<char*>(dataPool->allocate(length + lengthLength));
+          } else {
+              copy = new char[minlength];
+          }
           retval.setObjectLengthToLocation( length, copy);
           ::memcpy(copy + lengthLength, str, length);
-          retval.setObjectValue(sref);
+          retval.setObjectValue(copy);
           retval.setObjectLength(length);
           retval.setObjectLengthLength(lengthLength);
           break;
@@ -2192,9 +2026,8 @@ inline const NValue NValue::deserializeFromAllocateForStorage(SerializeInput &in
 inline void NValue::serializeTo(SerializeOutput &output) const {
     const ValueType type = getValueType();
     switch (type) {
-      case VALUE_TYPE_VARCHAR:
-      case VALUE_TYPE_VARBINARY:
-      {
+      case VALUE_TYPE_VARCHAR: {
+                    
           if (isNull()) {
               output.writeInt(OBJECTLENGTH_NULL);
               break;
@@ -2203,7 +2036,9 @@ inline void NValue::serializeTo(SerializeOutput &output) const {
           if (length < OBJECTLENGTH_NULL) {
               throwFatalException("Attempted to serialize an NValue with a negative length");
           }
+          
           output.writeInt(static_cast<int32_t>(length));
+          
           if (length != OBJECTLENGTH_NULL) {
               // Not a null string: write it out
               const char * str = reinterpret_cast<const char*>(getObjectValue());
@@ -2212,7 +2047,7 @@ inline void NValue::serializeTo(SerializeOutput &output) const {
           } else {
               assert(getObjectValue() == NULL || length == OBJECTLENGTH_NULL);
           }
-
+          
           break;
       }
       case VALUE_TYPE_TINYINT: {
@@ -2270,7 +2105,6 @@ inline void NValue::serializeToExport(ExportSerializeOutput &io) const
           return;
       }
       case VALUE_TYPE_VARCHAR:
-      case VALUE_TYPE_VARBINARY:
       {
           // requires (and uses) bytecount not character count
           io.writeBinaryString(getObjectValue(), getObjectLength());
@@ -2316,7 +2150,6 @@ inline bool NValue::isNull() const {
       case VALUE_TYPE_DOUBLE:
         return getDouble() <= DOUBLE_NULL;
       case VALUE_TYPE_VARCHAR:
-      case VALUE_TYPE_VARBINARY:
         return *reinterpret_cast<void* const*>(m_data) == NULL ||
           *reinterpret_cast<const int32_t*>(&m_data[8]) == OBJECTLENGTH_NULL;
       case VALUE_TYPE_DECIMAL: {
@@ -2401,17 +2234,6 @@ inline void NValue::hashCombine(std::size_t &seed) const {
         }
         break;
       }
-      case VALUE_TYPE_VARBINARY: {
-        if (getObjectValue() == NULL) {
-            boost::hash_combine( seed, std::string(""));
-        } else {
-            const int32_t length = getObjectLength();
-            char* data = reinterpret_cast<char*>(getObjectValue());
-            for (int32_t i = 0; i < length; i++)
-                boost::hash_combine(seed, data[i]);
-        }
-        break;
-      }
       case VALUE_TYPE_DECIMAL:
         getDecimal().hash(seed); break;
       default:
@@ -2443,8 +2265,6 @@ inline NValue NValue::castAs(ValueType type) const {
         return castAsDouble();
       case VALUE_TYPE_VARCHAR:
         return castAsString();
-      case VALUE_TYPE_VARBINARY:
-        return castAsBinary();
       case VALUE_TYPE_DECIMAL:
         return castAsDecimal();
       default:

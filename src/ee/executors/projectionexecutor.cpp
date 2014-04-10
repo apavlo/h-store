@@ -195,10 +195,6 @@ bool ProjectionExecutor::p_execute(const NValueArray &params, ReadWriteTracker *
     }
 
     //VOLT_TRACE("PROJECTED TABLE: %s\n", output_table->debug().c_str());
-    //#ifdef ARIES
-    // std::string logString = output_table->debug();
-    // LogManager::getThreadLogger(LOGGERID_MM_ARIES)->log(LOGLEVEL_INFO, ("Table after projection " + logString).c_str());
-    //#endif
 
     return (true);
 }

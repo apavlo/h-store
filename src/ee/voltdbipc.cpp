@@ -27,6 +27,7 @@
 
 #include "common/debuglog.h"
 #include "common/serializeio.h"
+#include "common/Pool.hpp"
 #include "common/FatalException.hpp"
 #include "common/SegvException.hpp"
 #include "common/RecoveryProtoMessage.h"

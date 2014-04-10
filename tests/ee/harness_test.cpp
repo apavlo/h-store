@@ -404,7 +404,7 @@ const struct BasicTest tests[] = {
     ADD_TEST(testAssertTrue),
 };
 #undef ADD_TEST
-static const int TESTS_SIZE = static_cast<int>(sizeof(tests)/sizeof(*tests));
+static const int TESTS_SIZE = sizeof(tests)/sizeof(*tests);
 
 int main() {
     int failure_count = 0;

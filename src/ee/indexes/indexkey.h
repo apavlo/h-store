@@ -185,7 +185,6 @@ public:
         std::ostringstream buffer;
         int keyOffset = 0;
         int intraKeyOffset = (int)sizeof(uint64_t) - 1;
-
         const int columnCount = keySchema->columnCount();
         for (int ii = 0; ii < columnCount; ii++) {
             switch(keySchema->columnType(ii)) {
@@ -262,7 +261,6 @@ public:
         const int columnCount = keySchema->columnCount();
         int keyOffset = 0;
         int intraKeyOffset = (int)sizeof(uint64_t) - 1;
-
         for (int ii = 0; ii < columnCount; ii++) {
             switch(keySchema->columnType(ii)) {
             case voltdb::VALUE_TYPE_BIGINT: {

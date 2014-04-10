@@ -28,17 +28,13 @@ package edu.brown.hstore.cmdlog;
 
 import java.io.IOException;
 
-import org.apache.log4j.Logger;
 import org.voltdb.ParameterSet;
 import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.messaging.FastSerializable;
 import org.voltdb.messaging.FastSerializer;
 import org.voltdb.utils.EstTime;
 
-import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
-import edu.brown.logging.LoggerUtil;
-import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.pools.Poolable;
 
 /**
@@ -47,12 +43,6 @@ import edu.brown.pools.Poolable;
  * @author pavlo
  */
 public class LogEntry implements FastSerializable, Poolable {
-    private static final Logger LOG = Logger.getLogger(CommandLogWriter.class);
-    private static final LoggerBoolean debug = new LoggerBoolean();
-    private static final LoggerBoolean trace = new LoggerBoolean();
-    static {
-        LoggerUtil.attachObserver(LOG, debug, trace);
-    }
     
     private Long txnId;
     private long timestamp;
@@ -66,7 +56,7 @@ public class LogEntry implements FastSerializable, Poolable {
      * @param ts
      * @return
      */
-    public LogEntry init(AbstractTransaction ts) {
+    public LogEntry init(LocalTransaction ts) {
         this.txnId = ts.getTransactionId();
         this.procId = ts.getProcedure().getId();
         this.procParams = ts.getProcedureParameters();
@@ -75,15 +65,6 @@ public class LogEntry implements FastSerializable, Poolable {
         return (this);
     }
 
-    public LogEntry init(AbstractTransaction ts, Boolean type) {
-        this.txnId = ts.getTransactionId();
-        this.procId = ts.getProcedure().getId();
-        this.procParams = ts.getProcedureParameters();
-        assert(this.isInitialized()) : 
-            "Unexpected uninitialized " + this.getClass().getSimpleName();
-        return (this);
-    }
-    
     public Long getTransactionId() {
         return txnId;
     }
@@ -101,7 +82,7 @@ public class LogEntry implements FastSerializable, Poolable {
     public boolean isInitialized() {
         return (this.txnId != null);
     }
-        
+    
     @Override
     public void finish() {
         this.txnId = null;
@@ -121,7 +102,7 @@ public class LogEntry implements FastSerializable, Poolable {
     @Override
     public void writeExternal(FastSerializer out) throws IOException {
         assert(this.isInitialized()) : 
-            "Unexpected uninitialized " + this.getClass().getSimpleName();               
+            "Unexpected uninitialized " + this.getClass().getSimpleName();
         out.writeLong(this.txnId.longValue());
         out.writeLong(EstTime.currentTimeMillis());
         out.writeInt(this.procId);

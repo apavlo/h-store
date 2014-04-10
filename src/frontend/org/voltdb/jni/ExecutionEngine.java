@@ -88,10 +88,6 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
     public boolean getDirtyStatus() {
         return m_dirty;
     }
-    
-    public PartitionExecutor getPartitionExecutor(){
-	return executor;
-    }
 
     /** Utility method to verify return code and throw as required */
     final protected void checkErrorCode(final int errorCode) {
@@ -302,9 +298,6 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
     public abstract int tableStreamSerializeMore(BBContainer c, int tableId, TableStreamType type);
 
     public abstract void processRecoveryMessage( ByteBuffer buffer, long pointer);
-    
-    // ARIES
-    public abstract void doAriesRecoveryPhase(long replayPointer, long replayLogSize, long replayTxnId);
 
     /** Releases the Engine object. */
     abstract public void release() throws EEException, InterruptedException;
@@ -454,15 +447,6 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
      */
     public abstract int hashinate(Object value, int partitionCount);
 
-    // ARIES
-    public abstract long getArieslogBufferLength();
-
-    public abstract void getArieslogData(int bufferLength, byte[] arieslogDataArray);
-
-    public abstract long readAriesLogForReplay(long[] size);
-
-    public abstract void freePointerToReplayLog(long ariesReplayPointer);
-    
     /*
      * Declare the native interface. Structurally, in Java, it would be cleaner to
      * declare this in ExecutionEngineJNI.java. However, that would necessitate multiple
@@ -518,8 +502,7 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
      */
     protected native int nativeSetBuffers(long pointer, ByteBuffer parameter_buffer, int parameter_buffer_size,
                                           ByteBuffer resultBuffer, int result_buffer_size,
-                                          ByteBuffer exceptionBuffer, int exception_buffer_size,
-                                          ByteBuffer ariesLogBuffer, int arieslog_buffer_size);
+                                          ByteBuffer exceptionBuffer, int exception_buffer_size);
     
     /**
      * Load the system catalog for this engine.
@@ -829,7 +812,7 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
      * @param catalog_tbl
      */
     public abstract void antiCacheMergeBlocks(Table catalog_tbl);
-        
+    
     /**
      * Enables the anti-cache feature in the EE. The given database directory path
      * must be a unique location for this partition where the EE can store 
@@ -842,7 +825,7 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
      */
     protected native int nativeAntiCacheInitialize(long pointer, String dbDir, long blockSize);
     
-     /**
+    /**
      * 
      * @param pointer
      * @param tableId
@@ -882,41 +865,6 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
      * On LINUX, procfs is read to get RSS
      * @return Returns the RSS size in bytes or -1 on error (or wrong platform).
      */
-    public native static long nativeGetRSS();    
-    
-    // ----------------------------------------------------------------------------
-    // STORAGE MMAP
-    // ----------------------------------------------------------------------------
-    
-    public abstract void MMAPInitialize(File dbDir, long mapSize, long syncFrequency) throws EEException;
-    
-    /**
-     * Enables the mmap storage feature in the EE. The given database directory path
-     * must be a unique location for this partition where the EE can store MMAP'ed files.
-     */
-    protected native int nativeMMAPInitialize(long pointer, String dbDir, long mapSize, long syncFrequency);
+    public native static long nativeGetRSS();
 
-    // ----------------------------------------------------------------------------
-    // ARIES
-    // ----------------------------------------------------------------------------
-
-    public abstract void ARIESInitialize(File dbDir, File logFile) throws EEException;
-
-    /**
-     * Enables the ARIES  feature in the EE. The given database directory path
-     * must be a unique location for this partition where the EE can store ARIES logs
-     */
-    protected native int nativeARIESInitialize(long pointer, String dbDir, String logFile);
-        
-    protected native void nativeDoAriesRecoveryPhase(long pointer, long replayPointer, long replayLogSize, long replayTxnId);
-
-    protected native long nativeGetArieslogBufferLength(long pointer);
-    
-    protected native void nativeRewindArieslogBuffer(long pointer);
-
-    protected native long nativeReadAriesLogForReplay(long pointer, long[] size);
-
-    protected native void nativeFreePointerToReplayLog(long pointer, long ariesReplayPointer);
-
-   
 }

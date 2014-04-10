@@ -32,7 +32,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.CatalogMap;
@@ -56,7 +55,6 @@ import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.PartitionExecutor;
-import edu.brown.hstore.PartitionExecutor.SystemProcedureExecutionContext;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.hstore.util.ParameterSetArrayCache;
@@ -132,7 +130,6 @@ public abstract class VoltProcedure implements Poolable {
     protected PartitionEstimator p_estimator;
     protected HStoreSite hstore_site;
     protected HStoreConf hstore_conf;
-    protected SystemProcedureExecutionContext execution_context;
     
     /** The local partition id where this VoltProcedure is running */
     protected int partitionId = -1;
@@ -188,7 +185,6 @@ public abstract class VoltProcedure implements Poolable {
      */
     private byte m_statusCode = Byte.MIN_VALUE;
     private String m_statusString = null;
-    private BackendTarget m_backendTarget;
     
     /**
      * End users should not instantiate VoltProcedure instances.
@@ -235,7 +231,6 @@ public abstract class VoltProcedure implements Poolable {
         assert(executor != null);
         
         this.executor = executor;
-        this.execution_context = executor.getSystemProcedureExecutionContext();
         this.p_estimator = executor.getPartitionEstimator();
         this.hstore_site = executor.getHStoreSite();
         this.hstore_conf = HStoreConf.singleton();
@@ -243,7 +238,6 @@ public abstract class VoltProcedure implements Poolable {
         this.procedure_id = this.catalog_proc.getId();
         this.procedure_name = this.catalog_proc.getName();
         this.isNative = (eeType != BackendTarget.HSQLDB_BACKEND);
-        this.m_backendTarget = eeType;
         this.partitionId = this.executor.getPartitionId();
         assert(this.partitionId != HStoreConstants.NULL_PARTITION_ID);
         
@@ -543,10 +537,6 @@ public abstract class VoltProcedure implements Poolable {
                 return (response);
             }
         }
-        
-        // ARIES
-        int bufferLength = 0;
-        byte[] arieslogData = null;
 
         // Workload Trace
         // Create a new transaction record in the trace manager. This will give us back
@@ -599,19 +589,6 @@ public abstract class VoltProcedure implements Poolable {
                 Object rawResult = this.procMethod.invoke(this, this.procParams);
                 this.results = this.getResultsFromRawResults(rawResult);
                 if (this.results == null) results = HStoreConstants.EMPTY_RESULT;
-
-		/*
-                // ARIES
-                if (!this.catalog_proc.getReadonly()) {
-                    bufferLength = (int) this.executor.getArieslogBufferLength();
-
-                    if (bufferLength > 0) {
-                        arieslogData = new byte[bufferLength];
-                        this.executor.getArieslogData(bufferLength, arieslogData);
-                    }
-                }
-		*/
-                
             } catch (IllegalAccessException e) {
                 // If reflection fails, invoke the same error handling that other exceptions do
                 throw new InvocationTargetException(e);
@@ -756,28 +733,12 @@ public abstract class VoltProcedure implements Poolable {
 
         if (this.observable != null) this.observable.notifyObservers(response);
         if (trace.val) LOG.trace(response);
-        
-        // ARIES
-        /*
-         *  Since call returns a ClientResponseImpl you can add a field for the log data
-         *  that isn't serialized during messaging that is the log data for the txn
-         */
-        if (this.status == status.OK && this.error == null) {
-            if (bufferLength > 0) {
-                response.setAriesLogData(arieslogData);
-            }
-        }
-        
         return (response);
     }
 
     
     protected final Procedure getProcedure() {
         return (this.catalog_proc);
-    }
-    
-    protected final BackendTarget getBackendTarget(){
-        return (this.m_backendTarget);
     }
     
     protected final VoltTable executeNoJavaProcedure(Object...params) {
@@ -948,20 +909,6 @@ public abstract class VoltProcedure implements Poolable {
             assert(this.localTxnState != null);
             assert(this.executor != null);
             this.executor.loadTable(this.localTxnState, clusterName, databaseName, tableName, data, allowELT);
-            
-            // ARIES
-            byte[] arieslogData = null;            
-            int bufferLength = (int) this.executor.getArieslogBufferLength();
-            LOG.warn("ARIES :: voltLoadTable : ariesLogBufferLength :"+bufferLength);
-            
-            if (bufferLength > 0) {
-                arieslogData = new byte[bufferLength];
-                this.executor.getArieslogData(bufferLength, arieslogData);
-
-                // we don't really care much about this atomic boolean here
-                this.hstore_site.getAriesLogger().log(arieslogData, new AtomicBoolean());
-            }
-            
         } catch (EEException e) {
             throw new VoltAbortException("Failed to load table: " + tableName);
         }

@@ -36,7 +36,6 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.lang.reflect.InvocationTargetException;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -308,7 +307,8 @@ public class VoltProjectBuilder {
     // -------------------------------------------------------------------
 
     public void addSchema(final URL schemaURL) {
-	assert(schemaURL != null);
+        assert(schemaURL != null) :
+            "Invalid null schema file for " + this.project_name;
         addSchema(schemaURL.getPath());
     }
     
@@ -318,14 +318,12 @@ public class VoltProjectBuilder {
     }
 
     public void addSchema(String schemaPath) {
-	System.out.println("In addSchema");
         try {
             schemaPath = URLDecoder.decode(schemaPath, "UTF-8");
         } catch (final UnsupportedEncodingException e) {
             e.printStackTrace();
             System.exit(-1);
         }
-
         assert(m_schemas.contains(schemaPath) == false);
         final File schemaFile = new File(schemaPath);
         assert(schemaFile != null);
@@ -333,6 +331,7 @@ public class VoltProjectBuilder {
         // this check below fails in some valid cases (like when the file is in a jar)
         //assert schemaFile.canRead()
         //    : "can't read file: " + schemaPath;
+
         m_schemas.add(schemaPath);
     }
 
@@ -524,13 +523,13 @@ public class VoltProjectBuilder {
         addProcedures(new ProcedureInfo(new String[0], new String[0], name, sql, partitionInfo));
     }
     
-    public void addProcedure(final Class<?> procedure) {
+    public void addProcedure(final Class<? extends VoltProcedure> procedure) {
         final ArrayList<ProcedureInfo> procArray = new ArrayList<ProcedureInfo>();
         procArray.add(new ProcedureInfo(new String[0], new String[0], procedure));
         addProcedures(procArray);
     }
 
-    public void addProcedures(final Class<?>... procedures) {
+    public void addProcedures(final Class<? extends VoltProcedure>... procedures) {
         if (procedures != null && procedures.length > 0) {
             final ArrayList<ProcedureInfo> procArray = new ArrayList<ProcedureInfo>();
             for (final Class<?> procedure : procedures)
@@ -567,11 +566,6 @@ public class VoltProjectBuilder {
         }
     }
 
-    public void addPartitionInfo(final String tableName, final String partitionColumnName) {
-        assert(m_partitionInfos.containsKey(tableName) == false);
-        m_partitionInfos.put(tableName, partitionColumnName);
-    }
-    
     public void addSupplementalClasses(final Class<?>... supplementals) {
         final ArrayList<Class<?>> suppArray = new ArrayList<Class<?>>();
         for (final Class<?> supplemental : supplementals)

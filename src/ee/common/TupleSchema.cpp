@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2011 VoltDB Inc.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 #include "common/NValue.hpp"
 
 namespace voltdb {
+
 
 TupleSchema* TupleSchema::createTupleSchema(const std::vector<ValueType> columnTypes,
                                             const std::vector<int32_t> columnSizes,
@@ -140,28 +141,28 @@ TupleSchema::createTupleSchema(const TupleSchema *first,
 
     return schema;
 }
-
+    
 TupleSchema* TupleSchema::createEvictedTupleSchema() {
     std::vector<ValueType> columnTypes(2);
     std::vector<int32_t> columnSizes(2);
     std::vector<bool> allowNull(2);
-
+    
     // create a schema containing a single column for the block_id
-    columnTypes[0] = VALUE_TYPE_SMALLINT;
-    columnSizes[0] = static_cast<int32_t>(NValue::getTupleStorageSize(VALUE_TYPE_SMALLINT));
+    columnTypes[0] = VALUE_TYPE_SMALLINT; 
+    columnSizes[0] = static_cast<int32_t>(NValue::getTupleStorageSize(VALUE_TYPE_SMALLINT)); 
     allowNull[0] = false;
-
+    
     columnTypes[1] = VALUE_TYPE_INTEGER;
     columnSizes[1] = static_cast<int32_t>(NValue::getTupleStorageSize(VALUE_TYPE_INTEGER));
-    allowNull[1] = false;
-
+    allowNull[1] = false; 
+    
     TupleSchema *blockids_schema = TupleSchema::createTupleSchema(columnTypes, columnSizes, allowNull, false);
-
+    
     //TupleSchema *evicted_schema = TupleSchema::createTupleSchema(pkey_schema, blockids_schema);
-
+    
     // Always make sure that we return memory!
     //TupleSchema::freeTupleSchema(blockids_schema);
-
+    
     return (blockids_schema);
 }
 
@@ -169,19 +170,19 @@ TupleSchema* TupleSchema::createTrackerTupleSchema() {
     std::vector<ValueType> columnTypes(2);
     std::vector<int32_t> columnSizes(2);
     std::vector<bool> allowNull(2);
-
+    
     // COLUMN 0: TABLE_NAME
-    columnTypes[0] = VALUE_TYPE_VARCHAR;
-    columnSizes[0] = static_cast<int32_t>(32);
+    columnTypes[0] = VALUE_TYPE_VARCHAR; 
+    columnSizes[0] = static_cast<int32_t>(32); 
     allowNull[0] = false;
-
+    
     // COLUMN 1: TUPLE_ID
     columnTypes[1] = VALUE_TYPE_INTEGER;
     columnSizes[1] = static_cast<int32_t>(NValue::getTupleStorageSize(VALUE_TYPE_INTEGER));
-    allowNull[1] = false;
-
+    allowNull[1] = false; 
+    
     TupleSchema *schema = TupleSchema::createTupleSchema(columnTypes, columnSizes, allowNull, false);
-
+    
     return (schema);
 }
 
@@ -200,7 +201,7 @@ void TupleSchema::setColumnMetaData(uint16_t index, ValueType type, const int32_
     columnInfo->type = static_cast<char>(type);
     columnInfo->allowNull = (char)(allowNull ? 1 : 0);
     columnInfo->length = length;
-    if ((type == VALUE_TYPE_VARCHAR) || (type == VALUE_TYPE_VARBINARY)) {
+    if (type == VALUE_TYPE_VARCHAR ) {
         if (length < UNINLINEABLE_OBJECT_LENGTH && m_allowInlinedObjects) {
             /*
              * Inline the string if it is less then UNINLINEABLE_OBJECT_LENGTH bytes.
@@ -212,7 +213,7 @@ void TupleSchema::setColumnMetaData(uint16_t index, ValueType type, const int32_
             /*
              * Set the length to the size of a String pointer since it won't be inlined.
              */
-            offset = static_cast<uint32_t>(NValue::getTupleStorageSize(type));
+            offset = static_cast<uint32_t>(NValue::getTupleStorageSize(VALUE_TYPE_VARCHAR));
             columnInfo->inlined = false;
             setUninlinedObjectColumnInfoIndex(uninlinedObjectColumnIndex++, index);
         }
@@ -279,7 +280,7 @@ uint16_t TupleSchema::countUninlineableObjectColumns(
     const uint16_t numColumns = static_cast<uint16_t>(columnTypes.size());
     uint16_t numUninlineableObjects = 0;
     for (int ii = 0; ii < numColumns; ii++) {
-        if ((columnTypes[ii] == VALUE_TYPE_VARCHAR) || ((columnTypes[ii] == VALUE_TYPE_VARBINARY))) {
+        if (columnTypes[ii] == VALUE_TYPE_VARCHAR) {
             if (!allowInlineObjects) {
                 numUninlineableObjects++;
             } else if (columnSizes[ii] >= UNINLINEABLE_OBJECT_LENGTH) {

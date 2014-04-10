@@ -61,9 +61,6 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
     /** opaque data optionally provided by and returned to the client */
     private long clientHandle = -1;
     
-    // ARIES
-    private byte[] arieslogData = null;
-    
     public ClientResponseImpl() {}
 
     /**
@@ -395,26 +392,6 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         return String.format("ClientResponse[#%d]\n%s", this.txn_id, StringUtil.formatMaps(m));
     }
 
-    // ARIES
-    public void setAriesLogData(byte[] arieslogDataArray) {
-        arieslogData = arieslogDataArray;
-    }
-
-    public boolean hasAriesLogData() {
-        if (arieslogData == null || arieslogData.length == 0)
-            return false;
-
-        return true;
-    }
-
-    public byte[] getAriesLogData() {
-        if (hasAriesLogData()) {
-            return arieslogData;
-        }
-
-        return null;
-    }
-    
     // ----------------------------------------------------------------------------
     // SPECIAL BYTEBUFFER MODIFIERS
     // ----------------------------------------------------------------------------

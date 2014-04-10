@@ -27,19 +27,14 @@ import org.voltdb.DependencySet;
 import org.voltdb.ParameterSet;
 import org.voltdb.ProcInfo;
 import org.voltdb.VoltDB;
-import org.voltdb.catalog.Host;
-import org.voltdb.catalog.Site;
-import org.voltdb.catalog.Table;
 import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltTable.ColumnInfo;
 import org.voltdb.VoltType;
 import org.voltdb.sysprocs.saverestore.SnapshotUtil;
 
-import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.PartitionExecutor.SystemProcedureExecutionContext;
-import edu.brown.utils.CollectionUtil;
 
 @ProcInfo(singlePartition = false)
 public class SnapshotDelete extends VoltSystemProcedure {
@@ -74,14 +69,9 @@ public class SnapshotDelete extends VoltSystemProcedure {
         {
             // Choose the lowest site ID on this host to do the deletion.
             // All other sites should just return empty results tables.
-            Host catalog_host = context.getHost();
-            Site catalog_site = CollectionUtil.first(CatalogUtil.getSitesForHost(catalog_host));
-            Integer lowest_site_id = catalog_site.getId();
-            
-            LOG.trace("Site id :"+context.getPartitionExecutor().getSiteId());                       
-            int partition_id = context.getPartitionExecutor().getPartitionId();
-            LOG.trace("Partition Id : " + partition_id);
-                        
+            int host_id = context.getHStoreSite().getHostId();
+            Integer lowest_site_id = null; // FIXME
+                // getLowestLiveExecSiteIdForHost(host_id);
             if (context.getPartitionExecutor().getSiteId() == lowest_site_id)
             {
                 assert(params.toArray()[0] != null);

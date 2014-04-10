@@ -720,11 +720,13 @@ public final class HStoreConf {
         public boolean anticache_batching;
         
         // ----------------------------------------------------------------------------
-        // Storage MMAP Options
+        // Storage Options
         // ----------------------------------------------------------------------------
         
         @ConfigProperty(
-            description="Use mmap to store database on local filesystem. ",
+            description="Use mmap to store database on local filesystem. " +
+                        "This is very experimental. Unless you are James, you probably " +
+                        "don't want to enable this feature.",
             defaultBoolean=false,
             experimental=true
         )
@@ -737,56 +739,6 @@ public final class HStoreConf {
             experimental=true
         )
         public String storage_mmap_dir;
-
-        @ConfigProperty(
-            description="The size (in bytes) for the mmap file objects on NVM device.",
-            defaultLong=2097152, // 2MB
-            experimental=true
-        )
-        public long storage_mmap_file_size;
-        
-        @ConfigProperty(
-            description="Reset the mmap directory for each partition when " +
-                        "the HStoreSite is started.",
-            defaultBoolean=true,
-            experimental=true
-        )
-        public boolean storage_mmap_reset;
-        
-        @ConfigProperty(
-            description="Frequency with which changes are synced via msync with memory",
-            defaultLong=100000,
-            experimental=true
-        )
-        public long storage_mmap_sync_frequency; 
-
-        // ----------------------------------------------------------------------------
-        // ARIES Options
-        // ----------------------------------------------------------------------------
-        @ConfigProperty(
-                description="ARIES recovery system enabled. ",
-                defaultBoolean=false,
-                experimental=true
-        )
-        public boolean aries;
-            
-        @ConfigProperty(
-                description="Location of where H-Store will store ARIES log files for each partition. " +
-                            "This is only used if ${site.aries} is enabled. ",
-                defaultString="${global.temp_dir}/aries",
-                experimental=true
-        )
-        public String aries_dir;
-
-            
-        @ConfigProperty(
-                description="Reset the ARIES directory for each partition when " +
-                            "the HStoreSite is started (disabled by default).",
-                defaultBoolean=false,
-                experimental=true
-        )
-        public boolean aries_reset;
-                    
         
         // ----------------------------------------------------------------------------
         // MapReduce Options

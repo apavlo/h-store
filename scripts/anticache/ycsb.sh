@@ -11,22 +11,19 @@ function onexit() {
 
 # ---------------------------------------------------------------------
 
-ENABLE_ANTICACHE=true
+ENABLE_ANTICACHE=false
 
-SITE_HOST="10.212.84.152"
+SITE_HOST="istc12"
 
 CLIENT_HOSTS=( \
-        "client1" \
-        "client2" \
-        "10.212.84.152" \
-        "10.212.84.152" \
+        "istc12" \
+        "istc13" \
+        "istc13" \
 )
 
-BASE_CLIENT_THREADS=1
-#BASE_SITE_MEMORY=8192
-#BASE_SITE_MEMORY_PER_PARTITION=1024
+BASE_CLIENT_THREADS=2
 BASE_SITE_MEMORY=8192
-BASE_SITE_MEMORY_PER_PARTITION=750
+BASE_SITE_MEMORY_PER_PARTITION=1024
 BASE_PROJECT="ycsb"
 BASE_DIR=`pwd`
 OUTPUT_DIR="~/data/ycsb/read-heavy/2/80-20"
@@ -54,10 +51,11 @@ BASE_ARGS=( \
     "-Dsite.cpu_affinity_one_partition_per_core=true" \
     #"-Dsite.cpu_partition_blacklist=0,2,4,6,8,10,12,14,16,18" \
     #"-Dsite.cpu_utility_blacklist=0,2,4,6,8,10,12,14,16,18" \
-    "-Dsite.network_incoming_limit_txns=10000" \
+    "-Dsite.network_incoming_limit_txns=50000" \
     "-Dsite.commandlog_enable=true" \
     "-Dsite.txn_incoming_delay=5" \
-    "-Dsite.exec_postprocessing_threads=false" \
+    "-Dsite.exec_postprocessing_threads=true" \
+    "-Dsite.anticache_profiling=${ENABLE_ANTICACHE}" \
     "-Dsite.anticache_eviction_distribution=even" \
     
 #    "-Dsite.queue_allow_decrease=true" \
@@ -75,13 +73,13 @@ BASE_ARGS=( \
     "-Dclient.blocking=false" \
     "-Dclient.blocking_concurrent=100" \
     "-Dclient.throttle_backoff=100" \
-    "-Dclient.output_interval=10000" \
+    "-Dclient.output_interval=5000" \
 #    "-Dclient.output_anticache_evictions=evictions.csv" \
 #    "-Dclient.output_memory=memory.csv" \
 
     # Anti-Caching Experiments
     "-Dsite.anticache_enable=${ENABLE_ANTICACHE}" \
-    "-Dsite.anticache_profiling=false" \
+#    "-Dsite.anticache_profiling=true" \
     "-Dsite.anticache_reset=false" \
     "-Dsite.anticache_block_size=${ANTICACHE_BLOCK_SIZE}" \
     "-Dsite.anticache_check_interval=5000" \
@@ -164,12 +162,12 @@ ant compile
         fi
     done
     wait
-
+    
     # EXECUTE BENCHMARK
     ant hstore-benchmark ${BASE_ARGS[@]} \
         -Dproject=${BASE_PROJECT} \
         -Dkillonzero=false \
-	-Dclient.threads_per_host=4 \
+        -Dclient.threads_per_host=${NUM_CLIENTS} \
         -Dsite.memory=${SITE_MEMORY} \
         -Dclient.hosts=${CLIENT_HOSTS_STR} \
         -Dclient.count=${CLIENT_COUNT}

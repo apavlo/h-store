@@ -348,10 +348,9 @@ public class DependencyInfo implements Poolable {
     // ----------------------------------------------------------------------------
 
     @Override
-    public String toString() {        
-        String res = String.format("DependencyInfo[#%d/hashCode:%d]",
-                             this.dependency_id, this.hashCode());  
-        return res;
+    public String toString() {
+        return String.format("DependencyInfo[#%d/hashCode:%d]",
+                             this.dependency_id, this.hashCode());
     }
     
     public String debug() {

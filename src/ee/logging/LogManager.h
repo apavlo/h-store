@@ -24,7 +24,6 @@
 #include <iostream>
 #include <pthread.h>
 
-#include "common/debuglog.h"
 
 namespace voltdb {
 
@@ -34,14 +33,11 @@ namespace voltdb {
 class LogManager {
 public:
 
-	LogManager(LogProxy *proxy);
-
-	/**
-	 * Constructor that initializes all the loggers with the specified proxy
-	 * @param proxy The LogProxy that all the loggers should use
-	 * @param engine
-	 */
-	LogManager(LogProxy *proxy, VoltDBEngine *engine);
+    /**
+     * Constructor that initializes all the loggers with the specified proxy
+     * @param proxy The LogProxy that all the loggers should use
+     */
+    LogManager(LogProxy *proxy);
 
     /**
      * Retrieve a logger by ID
@@ -53,8 +49,6 @@ public:
             return &m_sqlLogger;
         case LOGGERID_HOST:
             return &m_hostLogger;
-        case LOGGERID_MM_ARIES:
-            return &m_ariesLogger;
         default:
             return NULL;
         }
@@ -67,8 +61,6 @@ public:
     inline void setLogLevels(int64_t logLevels) {
         m_sqlLogger.m_level = static_cast<LogLevel>((7 & logLevels));
         m_hostLogger.m_level = static_cast<LogLevel>(((7 << 3) & logLevels) >> 3);
-
-        m_ariesLogger.m_level = static_cast<LogLevel>(LOGLEVEL_TRACE);
     }
 
     /**
@@ -78,8 +70,6 @@ public:
     inline const LogProxy* getLogProxy() {
         return m_proxy;
     }
-
-    void setAriesProxyEngine(VoltDBEngine*);
 
     /**
      * Frees the log proxy
@@ -93,26 +83,9 @@ public:
      * Retrieve a logger by ID from the LogManager associated with this thread.
      * @parameter loggerId ID of the logger to retrieve
      */
-    inline const Logger* getThreadLogger(LoggerId id) {
-    	// XXX remove static stuff
-    	//LogManager* manager = getThreadLogManager();
-
-    	LogManager* manager = this;
-    	assert(manager != NULL);
-
-    	const Logger* logger = manager->getLogger(id);
-    	assert(logger != NULL);
-
-    	//VOLT_WARN("Thread id : %lu",pthread_self());
-    	//VOLT_WARN("LogManager : %p Logger : %p", manager, logger);
-
-        return logger;
+    inline static const Logger* getThreadLogger(LoggerId id) {
+        return getThreadLogManager()->getLogger(id);
     }
-
-    Logger getAriesLogger(){
-    	return (m_ariesLogger);
-    }
-
 
 private:
 
@@ -124,7 +97,6 @@ private:
     const LogProxy *m_proxy;
     Logger m_sqlLogger;
     Logger m_hostLogger;
-    Logger m_ariesLogger;
 };
 }
 #endif /* LOGMANAGER_H_ */

@@ -42,11 +42,6 @@ class StdoutLogProxy : public LogProxy {
         case voltdb::LOGGERID_SQL:
             loggerName = "SQL";
             break;
-#ifdef ARIES
-        case voltdb::LOGGERID_MM_ARIES:
-            loggerName = "MM_ARIES";
-            break;
-#endif
         default:
             loggerName = "UNKNOWN";
             break;

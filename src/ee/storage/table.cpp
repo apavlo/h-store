@@ -80,10 +80,7 @@ Table::Table(int tableAllocationTargetSize) :
     m_ownsTupleSchema(true),
     m_tableAllocationTargetSize(tableAllocationTargetSize),
     m_tempTableMemoryInBytes(NULL),
-    m_pool(NULL),
-    m_data_manager(NULL),
-    m_refcount(0),
-    m_enableMMAP(false)
+    m_refcount(0)
 {
     #ifdef ANTICACHE
     m_tuplesEvicted = 0;
@@ -94,45 +91,6 @@ Table::Table(int tableAllocationTargetSize) :
     m_blocksWritten = 0;
     m_bytesWritten = 0;
     
-    m_tuplesRead = 0;
-    m_blocksRead = 0;
-    m_bytesRead = 0;
-    #endif
-}
-
-Table::Table(int tableAllocationTargetSize, bool enableMMAP) :
-    m_tempTuple(),
-    m_schema(NULL),
-    m_tupleCount(0),
-    m_tupleAccesses(0),
-    m_usedTuples(0),
-    m_allocatedTuples(0),
-    m_columnCount(0),
-    m_tuplesPerBlock(0),
-    m_tupleLength(0),
-    m_nonInlinedMemorySize(0),
-    m_columnHeaderData(NULL),
-    m_columnHeaderSize(-1),
-    m_columnNames(NULL),
-    m_databaseId(-1),
-    m_name(""),
-    m_ownsTupleSchema(true),
-    m_tableAllocationTargetSize(tableAllocationTargetSize),
-    m_tempTableMemoryInBytes(NULL),
-    m_pool(NULL),
-    m_data_manager(NULL),
-    m_refcount(0),
-    m_enableMMAP(enableMMAP)
-{
-    #ifdef ANTICACHE
-    m_tuplesEvicted = 0;
-    m_blocksEvicted = 0;
-    m_bytesEvicted = 0;
-
-    m_tuplesWritten = 0;
-    m_blocksWritten = 0;
-    m_bytesWritten = 0;
-
     m_tuplesRead = 0;
     m_blocksRead = 0;
     m_bytesRead = 0;
@@ -175,24 +133,15 @@ Table::~Table() {
     m_deletedTuplePointers.clear();
     m_data.clear();
 #else
-    /** Clean only if MMAP is not enabled **/
-    if(m_enableMMAP == false){
     // clear the tuple memory
     for (std::vector<char*>::iterator iter = m_data.begin(); iter != m_data.end(); ++iter)
         delete[] reinterpret_cast<char*>(*iter);
-    }
 #endif
 
     // clear any cached column serializations
     if (m_columnHeaderData)
         delete[] m_columnHeaderData;
     m_columnHeaderData = NULL;
-
-    /** Clean MMAP pool pointer **/
-    delete m_pool;
-
-     /** Clean MMAP storage pointer **/
-    delete m_data_manager;
 }
 
 void Table::initializeWithColumns(TupleSchema *schema, const std::string* columnNames, bool ownsTupleSchema) {
