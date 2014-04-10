@@ -5,6 +5,11 @@ import org.voltdb.VoltProcedure;
 import edu.brown.benchmark.AbstractProjectBuilder;
 import edu.brown.api.BenchmarkComponent;
 import edu.brown.benchmark.simpledistribution.procedures.Initialize;
+import edu.brown.benchmark.simpledistribution.procedures.SP2;
+import edu.brown.benchmark.simpledistribution.procedures.SP3;
+import edu.brown.benchmark.simpledistribution.procedures.SP4;
+import edu.brown.benchmark.simpledistribution.procedures.SP5;
+import edu.brown.benchmark.simpledistribution.procedures.SP6;
 import edu.brown.benchmark.simpledistribution.procedures.SimpleCall;
 
 public class SimpleDistributionProjectBuilder extends AbstractProjectBuilder {
@@ -19,6 +24,11 @@ public class SimpleDistributionProjectBuilder extends AbstractProjectBuilder {
     @SuppressWarnings("unchecked")
     public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
         Initialize.class,
+        SP2.class,
+        SP3.class,
+        SP4.class,
+        SP5.class,
+        SP6.class,
         SimpleCall.class
     };
 	

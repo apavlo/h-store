@@ -177,7 +177,7 @@ private int num = 1;
         //getNumThreads * 20
         if(countTotal <= 200){ //probably 200
             num = 1;
-            System.out.println("Trade Order");
+            System.out.println("Trade Order number:" + countTotal);
         int iTxnType = egen_clientDriver.driver_ptr.getCE().getCETxnMixGenerator().generateNextTxnType( );
         egen_clientDriver.driver_ptr.getCE().zeroInputBuffer(iTxnType);
        // egen_clientDriver.driver_ptr.getMEE();
@@ -304,7 +304,7 @@ int countRow =0;
                 //System.out.println("eActionTemp " + tradeOrderResult[0].fetchRow(0).getDouble("eAction"));
                 
                 tradeRequest.symbol = tradeOrderResult[0].fetchRow(0).getString("symbol");
-                //System.out.println("symbol " + tradeOrderResult[0].fetchRow(0).getString("symbol"));
+                System.out.println("symbol " + tradeOrderResult[0].fetchRow(0).getString("symbol"));
                 
                 tradeRequest.trade_id = tradeOrderResult[0].fetchRow(0).getLong("trade_id");
                 //System.out.println("trade_id " + tradeOrderResult[0].fetchRow(0).getLong("trade_id"));

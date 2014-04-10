@@ -7,19 +7,17 @@ import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 
 @ProcInfo (
-        //partitionInfo = "TABLEA.A_ID: 0",
-        singlePartition = false
+        singlePartition = true
     )
 public class SimpleCall extends VoltProcedure {
     
-    public final SQLStmt selectStatement = new SQLStmt(
-            "SELECT * FROM TABLEA;"
-        );
-    
-    public VoltTable[] run() {
+    public final SQLStmt insertS1 = new SQLStmt("INSERT INTO S1 (value) VALUES (0);");
 
-        voltQueueSQL(selectStatement);
+    public long run() {
 
-        return voltExecuteSQL();
+        voltQueueSQL(insertS1);
+        voltExecuteSQL();
+
+        return 0;
     }
 }

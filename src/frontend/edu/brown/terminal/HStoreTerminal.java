@@ -52,6 +52,7 @@ public class HStoreTerminal implements Runnable {
     public enum Command {
         DESCRIBE("Not Implemented"),
         EXEC("ProcedureName [OptionalParams]"),
+        EXES("StreamProcedureName batchID [OptionalParams]"),
         ENABLE("OptionName"),
         SHOW("Not Implemented"),
         QUIT("");
@@ -158,6 +159,15 @@ public class HStoreTerminal implements Runnable {
                                             usage = true;
                                         } else {
                                             cresponse = this.execProcedure(tc.client, tokens[1], query, reconnect);
+                                        }
+                                        break;
+                                    case EXES:
+                                        // The second position should be the name of the procedure
+                                        // that they want to execute
+                                        if (tokens.length < 3) {
+                                            usage = true;
+                                        } else {
+                                            cresponse = this.execStreamProcedure(tc.client, tokens[1], tokens[2], query, reconnect);
                                         }
                                         break;
                                     case ENABLE:
@@ -375,6 +385,90 @@ public class HStoreTerminal implements Runnable {
 //        System.out.println("hawk - begin call procedure: " + dateFormat.format(cal.getTime()));
         // ended by hawk
         ClientResponse cresponse = client.callProcedure(catalog_proc.getName(), params);
+        // added by hawk to test procedure execution performance
+        //long endTime=System.currentTimeMillis();
+//        dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss.SSS");
+//        cal = Calendar.getInstance();
+//        System.out.println("hawk - after call procedure: " + dateFormat.format(cal.getTime()));
+        long endTime=System.nanoTime();
+        System.out.println("Execution time: " + (endTime-startTime) + "ns");   
+        // ended by hawk
+        return (cresponse);
+    }
+    
+    private ClientResponse execStreamProcedure(Client client, String procName, String strBatchId, String query, boolean reconnect) throws Exception {
+        Procedure catalog_proc = this.catalog_db.getProcedures().getIgnoreCase(procName);
+        if (catalog_proc == null) {
+            throw new Exception("Invalid stored procedure name '" + procName + "'");
+        }
+        
+        // We now need to go through the rest of the parameters and convert them
+        // to proper type
+        Pattern p = Pattern.compile("^" + Command.EXEC.name() + "[ ]+" + procName +  "[ ]+" + strBatchId + "[ ]+(.*?)[;]*", Pattern.CASE_INSENSITIVE);
+        Matcher m = p.matcher(query);
+        List<Object> procParams = new ArrayList<Object>();
+        if (m.matches()) {
+            // Extract the parameters and then convert them to their appropriate type
+            List<String> params = HStoreTerminal.extractParams(m.group(1));
+            if (debug.val) LOG.debug("PARAMS: " + params);
+            if (params.size() != catalog_proc.getParameters().size()) {
+                String msg = String.format("Expected %d params for '%s' but %d parameters were given",
+                                           catalog_proc.getParameters().size(), catalog_proc.getName(), params.size());
+                throw new Exception(msg);
+            }
+            int i = 0;
+            for (ProcParameter catalog_param : catalog_proc.getParameters()) {
+                VoltType vtype = VoltType.get(catalog_param.getType());
+                Object value = VoltTypeUtil.getObjectFromString(vtype, params.get(i));
+                
+                // HACK: Allow us to send one-element array parameters
+                if (catalog_param.getIsarray()) {
+                    switch (vtype) {
+                        case BOOLEAN:
+                            value = new boolean[]{ (Boolean)value };
+                            break;
+                        case TINYINT:
+                        case SMALLINT:
+                        case INTEGER:
+                            value = new int[]{ (Integer)value };
+                            break;
+                        case BIGINT:
+                            value = new long[]{ (Long)value };
+                            break;
+                        case FLOAT:
+                        case DECIMAL:
+                            value = new double[]{ (Double)value };
+                            break;
+                        case STRING:
+                            value = new String[]{ (String)value };
+                            break;
+                        case TIMESTAMP:
+                            value = new TimestampType[]{ (TimestampType)value };
+                        default:
+                            assert(false);
+                    } // SWITCH
+                }
+                procParams.add(value);
+                i++;
+            } // FOR
+        }
+        
+        Object params[] = procParams.toArray(); 
+        if (this.enable_csv == false && reconnect == false) {
+            LOG.info(String.format("Executing transaction " + setBoldText + "%s(%s)" + setPlainText, 
+                     catalog_proc.getName(), StringUtil.toString(params, false, false)));
+        }
+        // added by hawk to test procedure execution performance
+        //long startTime=System.currentTimeMillis();
+        long startTime=System.nanoTime();
+//        DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss.SSS");
+//        Calendar cal = Calendar.getInstance();
+//        System.out.println("hawk - begin call procedure: " + dateFormat.format(cal.getTime()));
+        // ended by hawk
+        
+        Integer batchId = Integer.parseInt( strBatchId);
+        
+        ClientResponse cresponse = client.callStreamProcedure(catalog_proc.getName(), batchId, params);
         // added by hawk to test procedure execution performance
         //long endTime=System.currentTimeMillis();
 //        dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss.SSS");

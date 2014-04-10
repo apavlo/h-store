@@ -8,7 +8,32 @@ CREATE TABLE TABLEB (
    NUMROWS  INT    NOT NULL
 );
 
-CREATE TABLE S1
+CREATE STREAM S1
+(
+  value            integer     NOT NULL
+);
+
+CREATE STREAM S2
+(
+  value            integer     NOT NULL
+);
+
+CREATE STREAM S3
+(
+  value            integer     NOT NULL
+);
+
+CREATE STREAM S4
+(
+  value            integer     NOT NULL
+);
+
+CREATE STREAM S5
+(
+  value            integer     NOT NULL
+);
+
+CREATE STREAM S6
 (
   value            integer     NOT NULL
 );

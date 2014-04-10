@@ -30,22 +30,30 @@ public class TMarketFeedTxnInput {
     /*added in order to complete*/
     public ArrayList<Object>InputParameters(){
         ArrayList<Object> para = new ArrayList<Object>();
-       System.out.println("in here");
+      // System.out.println("in here");
        for(int i =0; i < Entries.length; i++){
-           System.out.println(Entries.length);
-           System.out.println(Entries[i]);
+         //  System.out.println(Entries.length);
+           
+           System.out.println("SYMBOL: "+ Entries[i].symbol);
            price_quotes[i] = Entries[i].price_quote;
            symbols[i] = Entries[i].symbol;
-           trade_qtys[i] = Entries[i].trade_qty;
+           if(Entries[i].symbol.length() == 0){
+               symbols[i] = "EXLN";
+           }
+           trade_qtys[i] = (long) Entries[i].trade_qty;
        }
-       System.out.println("compeleted loop");
+     //  System.out.println("compeleted loop");
+        status_submitted =  StatusAndTradeType.status_submitted;
+       type_limit_buy =  StatusAndTradeType.type_limit_buy;
+       type_limit_sell =  StatusAndTradeType.type_limit_sell;
+       type_stop_loss = StatusAndTradeType.type_stop_loss;
         para.add(price_quotes);
-        para.add(StatusAndTradeType.status_submitted);
+        para.add(status_submitted);
         para.add(symbols);
         para.add(trade_qtys);
-        para.add(StatusAndTradeType.type_limit_buy);
-        para.add(StatusAndTradeType.type_limit_sell);
-        para.add(StatusAndTradeType.type_stop_loss);
+        para.add( type_limit_buy );
+        para.add( type_limit_sell);
+        para.add( type_stop_loss);
     
         return para;
     }
