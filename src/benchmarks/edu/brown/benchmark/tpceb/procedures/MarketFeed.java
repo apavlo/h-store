@@ -108,10 +108,10 @@ public class MarketFeed extends VoltProcedure {
         List<TradeRequest> tradeRequestBuffer = new ArrayList<TradeRequest>();
         System.out.println("got date time and made list");
         // let's do the updates first in a batch
-        for (int i = 0; i <= MAX_FEED_LEN; i++) {
-            System.out.println("i: "+ i);
+        for (int i = 0; i < MAX_FEED_LEN; i++) {
+           // System.out.println("i: "+ i);
             
-                System.out.println("Symbols"+ symbols[i]+ " "+ symbols[i].length());
+           //     System.out.println("Symbols"+ symbols[i]+ " "+ symbols[i].length());
             
            
             // System.out.println("price quote"+ price_quotes[i] );
