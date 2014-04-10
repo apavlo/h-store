@@ -37,6 +37,7 @@
  ***************************************************************************/
 package edu.brown.benchmark.tpceb.procedures;
 
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
@@ -101,7 +102,9 @@ public class MarketFeed extends VoltProcedure {
             throws VoltAbortException {
         System.out.println("in market feed");
         
-        Date now_dts = Calendar.getInstance().getTime();
+       // Date now_dts = Calendar.getInstance().getTime();
+        long now_dts = Calendar.getInstance().getTimeInMillis();
+        Timestamp test = new Timestamp(now_dts);
         List<TradeRequest> tradeRequestBuffer = new ArrayList<TradeRequest>();
         System.out.println("got date time and made list");
         // let's do the updates first in a batch
