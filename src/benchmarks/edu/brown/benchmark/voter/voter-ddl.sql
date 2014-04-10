@@ -65,3 +65,4 @@ AS
  GROUP BY contestant_number
         , state
 ;
+

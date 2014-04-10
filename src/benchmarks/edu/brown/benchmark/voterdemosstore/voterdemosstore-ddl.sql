@@ -94,7 +94,7 @@ AS
  GROUP BY phone_number
 ;
 
-CREATE VIEW v_top_three_contestants
+CREATE VIEW v_contestant_count
 (
   contestant_number
 , num_votes
@@ -106,14 +106,3 @@ AS
  GROUP BY contestant_number
 ;
 
-CREATE VIEW v_bottom_three_contestants
-(
-  contestant_number
-, num_votes
-)
-AS
-   SELECT contestant_number
-	, COUNT(*)
-     FROM votes
- GROUP BY contestant_number
-;
