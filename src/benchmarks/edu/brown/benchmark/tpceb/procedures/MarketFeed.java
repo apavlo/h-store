@@ -109,10 +109,10 @@ public class MarketFeed extends VoltProcedure {
         System.out.println("got date time and made list");
         // let's do the updates first in a batch
         for (int i = 0; i <= MAX_FEED_LEN; i++) {
-            // System.out.println("price quote"+ price_quotes[i] );
-            // System.out.println("trade qtys"+ trade_qtys[i] );
+             System.out.println("price quote"+ price_quotes[i] );
+             System.out.println("trade qtys"+ trade_qtys[i] );
             // System.out.println(now_dts);
-            // System.out.println("Symbols"+ symbols[i]+ " "+ symbols[i].length());
+             System.out.println("Symbols"+ symbols[i]+ " "+ symbols[i].length());
             voltQueueSQL(updateLastTrade, price_quotes[i], trade_qtys[i], test, symbols[i]);
             System.out.println("queued sql");
         }
