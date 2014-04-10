@@ -33,7 +33,7 @@ public class TMarketFeedTxnInput {
       // System.out.println("in here");
        for(int i =0; i < Entries.length; i++){
          //  System.out.println(Entries.length);
-         //  System.out.println(Entries[i]);
+           System.out.println("SYMBOL: "+ Entries[i].symbol);
            price_quotes[i] = Entries[i].price_quote;
            symbols[i] = Entries[i].symbol;
            trade_qtys[i] = (long) Entries[i].trade_qty;
