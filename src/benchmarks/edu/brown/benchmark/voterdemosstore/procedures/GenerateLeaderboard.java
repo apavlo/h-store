@@ -77,7 +77,7 @@ public class GenerateLeaderboard extends VoltProcedure {
     );
     
     public final SQLStmt getLowestContestant = new SQLStmt(
-    	"SELECT contestant_number, count(*) FROM votes group by contestant_number ORDER BY count(*) ASC LIMIT 1;"
+    	"SELECT contestant_number, num_votes FROM v_contestant_count ORDER BY num_votes ASC LIMIT 1;"
     );
     
     public final SQLStmt deleteContestant = new SQLStmt(
