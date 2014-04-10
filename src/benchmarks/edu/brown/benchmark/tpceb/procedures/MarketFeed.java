@@ -85,8 +85,8 @@ public class MarketFeed extends VoltProcedure {
     private static int MAX_FEED_LEN = 20;
     private static int MAX_SEND_LEN = 40;
 
-    //public final SQLStmt updateLastTrade = new SQLStmt("update LAST_TRADE set LT_PRICE = ?, LT_VOL = LT_VOL + ?, LT_DTS = ? where LT_S_SYMB = ?");
-    public final SQLStmt updateLastTrade = new SQLStmt("select LT_PRICE from LAST_TRADE where LT_S_SYMB = ?");
+    public final SQLStmt updateLastTrade = new SQLStmt("update LAST_TRADE set LT_PRICE = ?, LT_VOL = LT_VOL + ?, LT_DTS = ? where LT_S_SYMB = ?");
+   // public final SQLStmt updateLastTrade = new SQLStmt("select LT_PRICE from LAST_TRADE where LT_S_SYMB = ?");
     public final SQLStmt getRequestList = new SQLStmt("select TR_T_ID, TR_BID_PRICE, TR_TT_ID, TR_QTY from TRADE_REQUEST " +
             "where TR_S_SYMB = ? and ((TR_TT_ID = ? and TR_BID_PRICE >= ?) or " +
             "(TR_TT_ID = ? and TR_BID_PRICE <= ?) or " +
@@ -118,8 +118,8 @@ public class MarketFeed extends VoltProcedure {
             // System.out.println("trade qtys"+ trade_qtys[i] );
             // System.out.println(now_dts);
             // System.out.println("Symbols"+ symbols[i]+ " "+ symbols[i].length());
-          //  voltQueueSQL(updateLastTrade, price_quotes[i], trade_qtys[i], now_dts, symbols[i]);
-            voltQueueSQL(updateLastTrade, symbols[i]);
+           voltQueueSQL(updateLastTrade, price_quotes[i], trade_qtys[i], now_dts, symbols[i]);
+           // voltQueueSQL(updateLastTrade, symbols[i]);
             //System.out.println("queued sql");
         }
         System.out.println("out of for loop");
