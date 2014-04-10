@@ -117,6 +117,7 @@ public class MarketFeed extends VoltProcedure {
             voltQueueSQL(updateLastTrade, symbols[i]);
             //System.out.println("queued sql");
         }
+        System.out.println("out of for loop");
         try{
             System.out.println("in try");
         voltExecuteSQL();
