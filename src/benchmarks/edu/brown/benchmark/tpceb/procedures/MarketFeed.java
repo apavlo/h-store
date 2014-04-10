@@ -110,9 +110,9 @@ public class MarketFeed extends VoltProcedure {
         // let's do the updates first in a batch
         for (int i = 0; i <= MAX_FEED_LEN; i++) {
             System.out.println("i: "+ i);
-            if(symbols[i] == null){
+            
                 System.out.println("Symbols"+ symbols[i]+ " "+ symbols[i].length());
-            }
+            
            
             // System.out.println("price quote"+ price_quotes[i] );
             // System.out.println("trade qtys"+ trade_qtys[i] );
