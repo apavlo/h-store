@@ -304,7 +304,7 @@ int countRow =0;
                 //System.out.println("eActionTemp " + tradeOrderResult[0].fetchRow(0).getDouble("eAction"));
                 
                 tradeRequest.symbol = tradeOrderResult[0].fetchRow(0).getString("symbol");
-                //System.out.println("symbol " + tradeOrderResult[0].fetchRow(0).getString("symbol"));
+                System.out.println("symbol " + tradeOrderResult[0].fetchRow(0).getString("symbol"));
                 
                 tradeRequest.trade_id = tradeOrderResult[0].fetchRow(0).getLong("trade_id");
                 //System.out.println("trade_id " + tradeOrderResult[0].fetchRow(0).getLong("trade_id"));
