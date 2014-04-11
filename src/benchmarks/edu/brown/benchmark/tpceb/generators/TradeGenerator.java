@@ -725,7 +725,7 @@ public class TradeGenerator implements Iterator<Object[]> {
         currTable = TPCEConstants.TABLENAME_TRADE;
         
         tuple[0] = newTrade.tradeId; // t_id
-       // System.out.println("inserted id: "+ newTrade.tradeId);
+        System.out.println("inserted id: "+ newTrade.tradeId);
         tuple[1] = new TimestampType(getCurrentTradeCompletionTime()); // t_dts
         tuple[2] = statusTypeFile.getTupleByIndex(newTrade.tradeStatus.ordinal())[0]; // t_st_id
         tuple[3] = tradeTypeFile.getTupleByIndex(newTrade.tradeType.ordinal())[0]; // t_tt_id
