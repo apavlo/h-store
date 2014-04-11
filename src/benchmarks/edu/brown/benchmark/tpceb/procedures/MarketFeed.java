@@ -156,13 +156,13 @@ public class MarketFeed extends VoltProcedure {
                 System.out.println("did trade idprice");
                 String trade_type = req.getString("TR_TT_ID");
                 System.out.println("did trade type");
-                int trade_qty = 0;
-                try{
+               
+               // try{
                 
-                    trade_qty = (int)req.get("TR_QTY", VoltType.INTEGER);
-                }catch(Exception ex){
-                    System.out.println(ex);
-                    }
+                   int trade_qty = (int)req.get("TR_QTY", VoltType.INTEGER);
+               // }catch(Exception ex){
+               //     System.out.println(ex);
+               //     }
                 System.out.println("did trade qty");
                //voltQueueSQL(updateTrade, now_dts, status_submitted, trade_id);
                // System.out.println("TRADE ID:"+ trade_id);
