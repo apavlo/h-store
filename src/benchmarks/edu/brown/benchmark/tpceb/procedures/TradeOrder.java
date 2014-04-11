@@ -71,9 +71,9 @@ public class TradeOrder extends VoltProcedure {
             new VoltTable.ColumnInfo("price_quote", VoltType.FLOAT),
             new VoltTable.ColumnInfo("symbol", VoltType.STRING),
             new VoltTable.ColumnInfo("trade_id", VoltType.BIGINT),
-            new VoltTable.ColumnInfo("trade_qty", VoltType.FLOAT),
+            new VoltTable.ColumnInfo("trade_qty", VoltType.INTEGER), //modified
             new VoltTable.ColumnInfo("trade_type_id", VoltType.STRING),
-            new VoltTable.ColumnInfo("eAction", VoltType.FLOAT)
+            new VoltTable.ColumnInfo("eAction", VoltType.INTEGER) // modified
             
     );
     
