@@ -153,7 +153,7 @@ public class MarketFeed extends VoltProcedure {
                 long trade_id = req.getLong("TR_T_ID");
                 double price_quote = req.getDouble("TR_BID_PRICE");
                 String trade_type = req.getString("TR_TT_ID");
-                int trade_qty = (int)req.getLong("TR_QTY");
+                int trade_qty = (int)req.getDouble("TR_QTY");
                 
                 voltQueueSQL(updateTrade, now_dts, status_submitted, trade_id);
                 voltQueueSQL(deleteTradeRequest, trade_id);
