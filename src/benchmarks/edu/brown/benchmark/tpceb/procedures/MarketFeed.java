@@ -114,13 +114,13 @@ public class MarketFeed extends VoltProcedure {
            //     System.out.println("Symbols"+ symbols[i]+ " "+ symbols[i].length());
             
            
-             System.out.println("price quote"+ price_quotes[i] );
-             System.out.println("trade qtys"+ trade_qtys[i] );
-             System.out.println(now_dts);
-             System.out.println("Symbols"+ symbols[i]+ " "+ symbols[i].length());
+           //  System.out.println("price quote"+ price_quotes[i] );
+            // System.out.println("trade qtys"+ trade_qtys[i] );
+            // System.out.println(now_dts);
+            // System.out.println("Symbols"+ symbols[i]+ " "+ symbols[i].length());
            voltQueueSQL(updateLastTrade, price_quotes[i], trade_qtys[i], now_dts, symbols[i]);
            // voltQueueSQL(updateLastTrade, symbols[i]);
-            System.out.println("queued sql");
+           // System.out.println("queued sql");
         }
        // System.out.println("out of for loop");
        // try{
@@ -140,6 +140,10 @@ public class MarketFeed extends VoltProcedure {
                     type_limit_sell, price_quotes[i],
                     type_limit_buy, price_quotes[i]);
           
+            /*public final SQLStmt getRequestList = new SQLStmt("select TR_T_ID, TR_BID_PRICE, TR_TT_ID, TR_QTY from TRADE_REQUEST " +
+            "where TR_S_SYMB = ? and ((TR_TT_ID = ? and TR_BID_PRICE >= ?) or " +
+            "(TR_TT_ID = ? and TR_BID_PRICE <= ?) or " +
+            "(TR_TT_ID = ? and TR_BID_PRICE >= ?))");*/
             VoltTable reqs = voltExecuteSQL()[0];
             System.out.println("executed the sql for get request list successfully");
             
