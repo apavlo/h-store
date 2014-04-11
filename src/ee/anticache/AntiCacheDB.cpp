@@ -44,9 +44,9 @@ namespace voltdb {
 	bufLen_+=sizeof(long);
 	char * data = m_buf + bufLen_;
 	bufLen_ += size;
-	for(int i=0;i<size;i++){
-	   VOLT_INFO("%x", data[i]);
-	}
+//	for(int i=0;i<size;i++){
+//	   VOLT_INFO("%x", data[i]);
+//	}
 
 	payload p;
 	p.blockId = id;
@@ -135,18 +135,8 @@ void AntiCacheDB::writeBlock(const std::string tableName,
     key.set_size(sizeof(blockId));
 
 
-    AntiCacheBlock::payload payload;
-    payload.blockId = blockId;
-    payload.tableName = tableName;
-    payload.data = const_cast<char*>(data);
-    payload.size = size; 
-    VOLT_INFO("size of anticache block data %ld", size);
-    for(int i=0;i<size;i++){
-    	VOLT_INFO("%x", data[i]);
-    }
-    VOLT_INFO("anticache block data %s", data); 
-    char * databuf_ = new char [size+28];
-	memset(databuf_, 0, size+28);
+    char * databuf_ = new char [size+tableName.size() + 1+sizeof(blockId)+sizeof(size)];
+	memset(databuf_, 0, size+tableName.size() + 1+sizeof(blockId)+sizeof(size));
 	// Now pack the data into a single contiguous memory location
 	// for storage.
 	long bufLen_ = 0;

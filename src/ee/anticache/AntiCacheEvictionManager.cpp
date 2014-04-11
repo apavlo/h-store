@@ -577,7 +577,7 @@ bool AntiCacheEvictionManager::evictBlockToDisk(PersistentTable *table, const lo
 
         // write out the block header (i.e. number of tuples in block)
         out.writeIntAt(0, num_tuples_evicted);
-        VOLT_INFO("data before serialization is %x", out.data()[0]);
+        //VOLT_INFO("data before serialization is %x", out.data()[0]);
 
         #ifdef VOLT_INFO_ENABLED
         VOLT_DEBUG("Evicted %d tuples / %d bytes.", num_tuples_evicted, (int)out.size());
@@ -702,15 +702,15 @@ bool AntiCacheEvictionManager::readEvictedBlock(PersistentTable *table, int16_t 
         table->insertUnevictedBlock(unevicted_tuples);
         table->insertTupleOffset(tuple_offset);
 
-	/*
+	
         // Update eviction stats
-        m_bytesEvicted -= value.getSize();
-        m_bytesRead += value.getSize();
+        table->m_bytesEvicted -= value.getSize();
+        table->m_bytesRead += value.getSize();
 
         // update block eviction stats
-        m_blocksEvicted -= 1;
-        m_blocksRead += 1;
-	*/
+        table->m_blocksEvicted -= 1;
+        table->m_blocksRead += 1;
+	
         table->insertUnevictedBlockID(std::pair<int16_t,int16_t>(block_id, 0));
     }
     catch(UnknownBlockAccessException e)
@@ -781,7 +781,6 @@ bool AntiCacheEvictionManager::mergeUnevictedTuples(PersistentTable *table)
             // deserialize tuple from unevicted block
             VOLT_INFO("Before deserialize.%d", table->m_tupleCount);
             m_tmpTarget1.deserializeWithHeaderFrom(in);
-            VOLT_INFO("after deserialize %d", m_tmpTarget1.getTupleID());
             m_tmpTarget1.setEvictedFalse();
             m_tmpTarget1.setDeletedFalse();
 
@@ -811,12 +810,12 @@ bool AntiCacheEvictionManager::mergeUnevictedTuples(PersistentTable *table)
         }
 
         // Update eviction stats
-        //m_bytesEvicted -= value.getSize();
-        //m_bytesRead += value.getSize();
+        //table->m_bytesEvicted -= value.getSize();
+        //table->m_bytesRead += value.getSize();
 
         // update block eviction stats
-        m_blocksEvicted -= 1;
-        table->m_blocksRead += 1;
+        //table->m_blocksEvicted -= 1;
+        //table->m_blocksRead += 1;
 
         if(table->mergeStrategy())
             tuplesRead += num_tuples_in_block;
