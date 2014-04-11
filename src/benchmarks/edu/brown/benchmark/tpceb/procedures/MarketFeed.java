@@ -62,7 +62,7 @@ public class MarketFeed extends VoltProcedure {
             new VoltTable.ColumnInfo("symbol", VoltType.STRING),
             new VoltTable.ColumnInfo("trade_id", VoltType.BIGINT),
             new VoltTable.ColumnInfo("price_quote", VoltType.FLOAT),
-            new VoltTable.ColumnInfo("trade_qty", VoltType.FLOAT),
+            new VoltTable.ColumnInfo("trade_qty", VoltType.INTEGER),
             new VoltTable.ColumnInfo("trade_type", VoltType.STRING)
     );
 
@@ -159,7 +159,7 @@ public class MarketFeed extends VoltProcedure {
                 int trade_qty = 0;
                 try{
                 
-                    trade_qty = (int)req.getDouble("TR_QTY");
+                    trade_qty = (int)req.get("TR_QTY", VoltType.INTEGER);
                 }catch(Exception ex){
                     System.out.println(ex);
                     }
