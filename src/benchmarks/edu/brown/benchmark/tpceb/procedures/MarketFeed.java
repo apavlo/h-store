@@ -170,7 +170,7 @@ public class MarketFeed extends VoltProcedure {
         for (TradeRequest req: tradeRequestBuffer) {
             stm.addRow(req.symbol, req.trade_id, req.price_quote, req.trade_qty, req.trade_type);
         }
-        
+        System.out.println("DONE!");
         return new VoltTable[] {stm};
     }
 }
