@@ -179,7 +179,7 @@ public class MarketFeed extends VoltProcedure {
         // creating send_to_market info
         VoltTable stm = stm_template.clone(512);
         for (TradeRequest req: tradeRequestBuffer) {
-            stm.addRow(req.symbol, req.trade_id, req.price_quote, req.trade_qty, req.trade_type);
+            stm.addRow(req.symbol, req.trade_id, req.price_quote, (int) req.trade_qty, req.trade_type);
         }
         System.out.println("DONE!");
         return new VoltTable[] {stm};
