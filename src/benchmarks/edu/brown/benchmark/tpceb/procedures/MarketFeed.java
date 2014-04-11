@@ -105,7 +105,7 @@ public class MarketFeed extends VoltProcedure {
         Date now_dts = Calendar.getInstance().getTime();
        // long now_dts = Calendar.getInstance().getTimeInMillis();
        // Timestamp test = new Timestamp(now_dts);
-      //  List<TradeRequest> tradeRequestBuffer = new ArrayList<TradeRequest>();
+        List<TradeRequest> tradeRequestBuffer = new ArrayList<TradeRequest>();
         System.out.println("got date time and made list");
         // let's do the updates first in a batch
         for (int i = 0; i < MAX_FEED_LEN; i++) {
