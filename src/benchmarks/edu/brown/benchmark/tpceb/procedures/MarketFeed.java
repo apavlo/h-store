@@ -102,9 +102,9 @@ public class MarketFeed extends VoltProcedure {
             throws VoltAbortException {
         System.out.println("in market feed");
         
-        Date now_dts = Calendar.getInstance().getTime();
-       // long now_dts = Calendar.getInstance().getTimeInMillis();
-       // Timestamp test = new Timestamp(now_dts);
+       // Date now_dts = Calendar.getInstance().getTime();
+        long now_dts = Calendar.getInstance().getTimeInMillis();
+        Timestamp test = new Timestamp(now_dts);
         List<TradeRequest> tradeRequestBuffer = new ArrayList<TradeRequest>();
         System.out.println("got date time and made list");
         // let's do the updates first in a batch
@@ -114,13 +114,13 @@ public class MarketFeed extends VoltProcedure {
            //     System.out.println("Symbols"+ symbols[i]+ " "+ symbols[i].length());
             
            
-            // System.out.println("price quote"+ price_quotes[i] );
-            // System.out.println("trade qtys"+ trade_qtys[i] );
-            // System.out.println(now_dts);
-            // System.out.println("Symbols"+ symbols[i]+ " "+ symbols[i].length());
+             System.out.println("price quote"+ price_quotes[i] );
+             System.out.println("trade qtys"+ trade_qtys[i] );
+             System.out.println(now_dts);
+             System.out.println("Symbols"+ symbols[i]+ " "+ symbols[i].length());
            voltQueueSQL(updateLastTrade, price_quotes[i], trade_qtys[i], now_dts, symbols[i]);
            // voltQueueSQL(updateLastTrade, symbols[i]);
-            //System.out.println("queued sql");
+            System.out.println("queued sql");
         }
        // System.out.println("out of for loop");
        // try{
