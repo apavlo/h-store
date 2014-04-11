@@ -104,7 +104,7 @@ public class MarketFeed extends VoltProcedure {
         
       //  Date now_dts = Calendar.getInstance().getTime();
         long now_dts = Calendar.getInstance().getTimeInMillis();
-        Timestamp test = new Timestamp(now_dts);
+      //  Timestamp test = new Timestamp(now_dts);
         List<TradeRequest> tradeRequestBuffer = new ArrayList<TradeRequest>();
         System.out.println("got date time and made list");
         // let's do the updates first in a batch
@@ -118,7 +118,7 @@ public class MarketFeed extends VoltProcedure {
             // System.out.println("trade qtys"+ trade_qtys[i] );
             // System.out.println(now_dts);
             // System.out.println("Symbols"+ symbols[i]+ " "+ symbols[i].length());
-           voltQueueSQL(updateLastTrade, price_quotes[i], trade_qtys[i], test, symbols[i]);
+           voltQueueSQL(updateLastTrade, price_quotes[i], trade_qtys[i], now_dts, symbols[i]);
            // voltQueueSQL(updateLastTrade, symbols[i]);
            // System.out.println("queued sql");
         }
@@ -157,7 +157,7 @@ public class MarketFeed extends VoltProcedure {
                 
                 voltQueueSQL(updateTrade, now_dts, status_submitted, trade_id);
                 voltQueueSQL(deleteTradeRequest, trade_id);
-                voltQueueSQL(insertTradeHistory, trade_id, test, status_submitted);
+                voltQueueSQL(insertTradeHistory, trade_id, now_dts, status_submitted);
                 voltExecuteSQL();
                 System.out.println("executed the sql for update trade, delete req and insert hist successfully");
                 TradeRequest tr = new TradeRequest(symbols[i], trade_id, price_quote, trade_qty, trade_type);
