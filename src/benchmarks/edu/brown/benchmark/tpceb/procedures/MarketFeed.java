@@ -118,7 +118,7 @@ public class MarketFeed extends VoltProcedure {
             // System.out.println("trade qtys"+ trade_qtys[i] );
             // System.out.println(now_dts);
             // System.out.println("Symbols"+ symbols[i]+ " "+ symbols[i].length());
-           voltQueueSQL(updateLastTrade, price_quotes[i], trade_qtys[i], now_dts, symbols[i]);
+           voltQueueSQL(updateLastTrade, price_quotes[i], trade_qtys[i], test, symbols[i]);
            // voltQueueSQL(updateLastTrade, symbols[i]);
            // System.out.println("queued sql");
         }
