@@ -120,7 +120,7 @@ public class MarketFeed extends VoltProcedure {
             // System.out.println("Symbols"+ symbols[i]+ " "+ symbols[i].length());
            voltQueueSQL(updateLastTrade, price_quotes[i], trade_qtys[i], now_dts, symbols[i]);
            // voltQueueSQL(updateLastTrade, symbols[i]);
-           // System.out.println("queued sql");
+            System.out.println("queued sql");
         }
        // System.out.println("out of for loop");
        // try{
@@ -179,6 +179,7 @@ public class MarketFeed extends VoltProcedure {
         // creating send_to_market info
         VoltTable stm = stm_template.clone(512);
         for (TradeRequest req: tradeRequestBuffer) {
+            
             stm.addRow(req.symbol, req.trade_id, req.price_quote, (int) req.trade_qty, req.trade_type);
         }
         System.out.println("DONE!");
