@@ -42,6 +42,7 @@ import java.util.concurrent.CountDownLatch;
 import org.apache.log4j.Logger;
 import org.voltdb.SysProcSelector;
 import org.voltdb.VoltTable;
+import org.voltdb.VoltType;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.NoConnectionsException;
 import org.voltdb.client.ProcCallException;
@@ -297,10 +298,11 @@ int countRow =0;
                 tradeRequest.price_quote = tradeOrderResult[0].fetchRow(0).getDouble("price_quote");
                // System.out.println("price_quote " + tradeOrderResult[0].fetchRow(0).getDouble("price_quote"));
                 
-                tradeRequest.trade_qty = (int) tradeOrderResult[0].fetchRow(0).getDouble("trade_qty");
+               // tradeRequest.trade_qty = (int) tradeOrderResult[0].fetchRow(0).getDouble("trade_qty");
                // System.out.println("trade_qty " + tradeOrderResult[0].fetchRow(0).getDouble("trade_qty"));
-                
-                tradeRequest.eActionTemp = (int) tradeOrderResult[0].fetchRow(0).getDouble("eAction");
+                tradeRequest.trade_qty = (int) tradeOrderResult[0].fetchRow(0).get("trade_qty", VoltType.INTEGER);
+                tradeRequest.eActionTemp = (int) tradeOrderResult[0].fetchRow(0).get("eAction", VoltType.INTEGER);
+              //  tradeRequest.eActionTemp = (int) tradeOrderResult[0].fetchRow(0).getDouble("eAction");
                 //System.out.println("eActionTemp " + tradeOrderResult[0].fetchRow(0).getDouble("eAction"));
                 
                 tradeRequest.symbol = tradeOrderResult[0].fetchRow(0).getString("symbol");
