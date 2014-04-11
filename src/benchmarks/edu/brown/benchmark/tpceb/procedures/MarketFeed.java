@@ -62,7 +62,7 @@ public class MarketFeed extends VoltProcedure {
             new VoltTable.ColumnInfo("symbol", VoltType.STRING),
             new VoltTable.ColumnInfo("trade_id", VoltType.BIGINT),
             new VoltTable.ColumnInfo("price_quote", VoltType.FLOAT),
-            new VoltTable.ColumnInfo("trade_qty", VoltType.INTEGER),
+            new VoltTable.ColumnInfo("trade_qty", VoltType.FLOAT),
             new VoltTable.ColumnInfo("trade_type", VoltType.STRING)
     );
 
@@ -158,16 +158,17 @@ public class MarketFeed extends VoltProcedure {
                 System.out.println("did trade type");
                 int trade_qty = 0;
                 try{
+                   req.
                     trade_qty = (int)req.getDouble("TR_QTY");
                 }catch(Exception ex){
                     System.out.println(ex);
                     }
                 System.out.println("did trade qty");
-               voltQueueSQL(updateTrade, now_dts, status_submitted, trade_id);
+               //voltQueueSQL(updateTrade, now_dts, status_submitted, trade_id);
                // System.out.println("TRADE ID:"+ trade_id);
                 voltQueueSQL(deleteTradeRequest, trade_id);
                /// System.out.println("queued");
-               voltQueueSQL(insertTradeHistory, trade_id, now_dts, status_submitted);
+              // voltQueueSQL(insertTradeHistory, trade_id, now_dts, status_submitted);
                 voltExecuteSQL();
                 System.out.println("executed the sql for update trade, delete req and insert hist successfully");
                 TradeRequest tr = new TradeRequest(symbols[i], trade_id, price_quote, trade_qty, trade_type);
