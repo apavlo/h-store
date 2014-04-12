@@ -352,7 +352,8 @@ public class TradeGenerator implements Iterator<Object[]> {
         //System.out.println("set tier");
         long[] accIdAndSecs = holdsGenerator.generateRandomAccSecurity(newTrade.customer, newTrade.customerTier);
         newTrade.accId = accIdAndSecs[0];
-        //System.out.println("set accID");
+        System.out.println("set accID");
+        System.out.println("accID" + newTrade.accId);
         newTrade.secAccIndex = (int)accIdAndSecs[1];
         newTrade.secFileIndex = accIdAndSecs[2];
        // System.out.println("secFileIndex");
