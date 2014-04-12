@@ -192,36 +192,14 @@ private int num = 1;
         else{
             num = 2;
             System.out.println("Market Feed");
-      //      if(countTotal <= 50){
-      //          countTotal++;
-      //          egen_clientDriver.driver_ptr.getMEE();
-      //         // return null;
+  
                 return XTRANS[2];
      //           
             }
-     //       else{
-     //           countTotal++;
-     //           egen_clientDriver.driver_ptr.getMEE();
-     //           return XTRANS[1];
-                
-     //       }
-            
-     //   }
-      /* int iTxnType = egen_clientDriver.driver_ptr.getCE().getCETxnMixGenerator().generateNextTxnType( );
-        egen_clientDriver.driver_ptr.getCE().zeroInputBuffer(iTxnType);
-        return XTRANS[0];*/
+   
     }
     
-  /*  protected Transaction selectTransactionME() {
-        int iTxnType = egen_clientDriver.driver_ptr.getMEE().generateTradeResult();
-        //egen_clientDriver.driver_ptr.getMEE();
-        //      return Transaction.TRADE_UPDATE;
-        System.out.println(iTxnType);
-        return XTRANS[iTxnType];
-      /* int iTxnType = egen_clientDriver.driver_ptr.getCE().getCETxnMixGenerator().generateNextTxnType( );
-        egen_clientDriver.driver_ptr.getCE().zeroInputBuffer(iTxnType);
-        return XTRANS[0];*/
-  ///  }
+  
 
     /**
      * Main control loop
@@ -229,13 +207,9 @@ private int num = 1;
     @Override
     public void runLoop() {
         int no_connection = 10000;
-        final Transaction target = selectTransaction();
-        System.out.println(target);
-        if(target == Transaction.TRADE_ORDER){
-            System.out.println("OK");
-        }
+       
         try {
-            
+            final Transaction target = selectTransaction();
 
             LOG.debug("Executing txn " + target);
             //TPCECallback temp = new TPCECallback(target);
@@ -259,12 +233,17 @@ int countRow =0;
  //   @Override
     protected boolean runOnce() throws IOException {
         boolean ret = false;
+        final Transaction target = selectTransaction();
       //  boolean retME = false;
         if(num ==1){
             System.out.println("num was 1");
         try {
-            final Transaction target = selectTransaction();
-           // final Transaction targetME = selectTransactionME();
+           
+            
+            System.out.println(target);
+            if(target == Transaction.TRADE_ORDER){
+                System.out.println("OK");
+            }
             tradeRequest = new TTradeRequest();
             LOG.debug("Executing txn " + target);
            // ret = this.getClientHandle().callProcedure(new TPCECallback(target), target.callName, this.generateClientArgs(target));
@@ -331,8 +310,8 @@ int countRow =0;
             
             try {
                 System.out.println("Starting MF");
-                final Transaction target = selectTransaction();
-               // final Transaction targetME = selectTransactionME();
+             //   final Transaction target = selectTransaction();
+             
                 
                 LOG.debug("Executing txn " + target);
                ret = this.getClientHandle().callProcedure(new TPCECallback(target), target.callName, this.generateClientArgs(target));
