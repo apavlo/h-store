@@ -236,7 +236,7 @@ public class TradeOrder extends VoltProcedure {
         
         // trade status
         String status_id = (type_is_market == 1) ? st_submitted_id : st_pending_id;
-        System.out.println("Trade Order did status");
+      // System.out.println("Trade Order did status");
         // frame 4: inserting the trade
         double comm_amount =10;
        
@@ -247,16 +247,16 @@ public class TradeOrder extends VoltProcedure {
         voltQueueSQL(insertTrade, trade_id, now_dts, status_id, trade_type_id, is_cash,
                 symbol, trade_qty, requested_price, acct_id, null, charge_amount,
                 comm_amount, 0, is_lifo);
-        System.out.println("Trade Order inserted trade");
+        //System.out.println("Trade Order inserted trade");
         
         if (type_is_market == 0) {
             voltQueueSQL(insertTradeRequest, trade_id, trade_type_id, symbol, trade_qty,
                     requested_price, acct_id);
-            System.out.println("Trade Order inserted trade");
+         //   System.out.println("Trade Order inserted trade");
         }
         
         voltQueueSQL(insertTradeHistory, trade_id, now_dts, status_id);
-        System.out.println("Trade Order inserted trade3");
+       // System.out.println("Trade Order inserted trade3");
         voltExecuteSQL();
         
         // frame 5: intentional roll-back

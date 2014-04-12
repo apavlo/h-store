@@ -351,7 +351,8 @@ int countRow =0;
                 //  tradeOrderResult = this.getClientHandle().getResults();// retME = this.getClientHandle().callProcedure(new TPCECallback(target), target.callName, this.generateClientArgs(targetME));
             } 
             catch (Exception ex) {
-            
+                System.out.println(ex);
+                ex.getMessage();
                 ex.printStackTrace();
                 System.exit(1);
             }  
