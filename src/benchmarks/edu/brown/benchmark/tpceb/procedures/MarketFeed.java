@@ -184,12 +184,14 @@ public class MarketFeed extends VoltProcedure {
         System.out.println("size of trb"+ tradeRequestBuffer.size());
         for (TradeRequest req: tradeRequestBuffer) {
             Integer newInt = new Integer(req.trade_qty);
+            System.out.println("eAction? " + req.trade_type);
             stm.addRow(req.symbol, req.trade_id, req.price_quote, newInt, req.trade_type);
             System.out.println("added row"+ j);
             j++;
         }
         System.out.println("DONE!");
         try{
+            System.out.println("in try");
         return new VoltTable[] {stm};
         }
         catch(Exception ex){

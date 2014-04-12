@@ -303,6 +303,7 @@ int countRow =0;
                // tradeRequest.trade_qty = (int) tradeOrderResult[0].fetchRow(0).get("trade_qty", VoltType.INTEGER);
             
                 tradeRequest.eActionTemp = (int) tradeOrderResult[0].fetchRow(0).getLong("eAction");
+                System.out.println("eAction val:" + tradeRequest.eActionTemp );
                 //  tradeRequest.eActionTemp = (int) tradeOrderResult[0].fetchRow(0).get("eAction", VoltType.INTEGER);
              //   tradeRequest.eActionTemp = (int) tradeOrderResult[0].fetchRow(0).getDouble("eAction");
                 //System.out.println("eActionTemp " + tradeOrderResult[0].fetchRow(0).getDouble("eAction"));
