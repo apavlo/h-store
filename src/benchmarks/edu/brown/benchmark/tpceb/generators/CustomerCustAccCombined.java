@@ -158,9 +158,9 @@ public class CustomerCustAccCombined extends TableGenerator {
         
         accCount = getNumberofAccounts(custId, tier.ordinal() + 1);
         startAcc = getStartingAccId(custId);
-        int random = (int) (Math.random() * accCount);
-        custAcc = startingAccId + random - 1;
-        //custAcc = rnd.int64Range(startAcc, startAcc + accCount - 1); // using the external generator here
+      //  int random = (int) (Math.random() * accCount);
+        //custAcc = startingAccId + random - 1;
+        custAcc = rnd.int64Range(startAcc, startAcc + accCount - 1); // using the external generator here
         
         long[] res = new long[2];
         res[0] = custAcc;
