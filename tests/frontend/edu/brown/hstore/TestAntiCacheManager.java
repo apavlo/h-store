@@ -380,5 +380,4 @@ public class TestAntiCacheManager extends BaseTestCase {
         }
         assertTrue(failed);
     }
-    
 }

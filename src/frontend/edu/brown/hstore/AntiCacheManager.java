@@ -32,6 +32,7 @@ import org.voltdb.utils.VoltTableUtil;
 import com.google.protobuf.RpcCallback;
 
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.hstore.Hstoreservice.HStoreService;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.internal.UtilityWorkMessage.TableStatsRequestMessage;
@@ -263,9 +264,15 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
     protected void processingCallback(QueueEntry next) {
         assert(next.ts.isInitialized()) :
             String.format("Unexpected uninitialized transaction handle: %s", next);
-        assert(next.partition == next.ts.getBasePartition()) :
-            String.format("The base partition for %s is %d but we want to fetch a block for partition %d: %s",
-                    next.ts, next.ts.getBasePartition(), next.partition, next);
+        if(next.partition != next.ts.getBasePartition()) { // distributed txn
+            LOG.debug(String.format("The base partition for %s is %d but we want to fetch a block for partition %d: %s",
+                    next.ts, next.ts.getBasePartition(), next.partition, next));
+            System.out.println(String.format("The base partition for %s is %d but we want to fetch a block for partition %d: %s",
+                    next.ts, next.ts.getBasePartition(), next.partition, next));
+            // if we are the remote site then we should go ahead and continue processing
+            // if no then we should simply requeue the entry? 
+            
+        }
         LOG.debug("Processing " + next);
 
         // We need to get the EE handle for the partition that this txn
@@ -339,15 +346,27 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
      *            - The list of blockIds that need to be read in for the table
      */
     public boolean queue(LocalTransaction ts, int partition, Table catalog_tbl, short block_ids[], int tuple_offsets[]) {
-
-        //        if (hstore_conf.site.anticache_profiling) {
-        assert(ts.getPendingError() != null) :
-            String.format("Missing original %s for %s", EvictedTupleAccessException.class.getSimpleName(), ts);
-        assert(ts.getPendingError() instanceof EvictedTupleAccessException) :
-            String.format("Unexpected error for %s: %s", ts, ts.getPendingError().getClass().getSimpleName());
-        this.profilers[partition].restarted_txns++;
-        this.profilers[partition].addEvictedAccess(ts, (EvictedTupleAccessException)ts.getPendingError());
-        //        }
+    	System.out.println(ts.getBasePartition()+"*********"+partition);
+    	if(ts.getBasePartition()!=partition){ // different partition generated the exception
+    		int site_id = hstore_site.getCatalogContext().getSiteIdForPartitionId(partition);
+    		return hstore_site.getCoordinator().sendUnevictDataMessage(site_id);
+    		// should we enqueue the transaction on our side?
+    		// if yes then we need to prevent the queue item from being picked up 
+    		// and prevent it from bombing the partition error
+    		// if no then simply return?
+    		
+    		// how to take care of LRU?
+    		
+    	}
+    	
+    	if (hstore_conf.site.anticache_profiling) {
+	        assert(ts.getPendingError() != null) :
+	            String.format("Missing original %s for %s", EvictedTupleAccessException.class.getSimpleName(), ts);
+	        assert(ts.getPendingError() instanceof EvictedTupleAccessException) :
+	            String.format("Unexpected error for %s: %s", ts, ts.getPendingError().getClass().getSimpleName());
+	        this.profilers[partition].restarted_txns++;
+	        this.profilers[partition].addEvictedAccess(ts, (EvictedTupleAccessException)ts.getPendingError());
+    	}
 
         QueueEntry e = new QueueEntry(ts, partition, catalog_tbl, block_ids, tuple_offsets);
 

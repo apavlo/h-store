@@ -461,6 +461,21 @@ message HeartbeatResponse {
 }
 
 // -----------------------------------
+// NODE UNEVICTDATA MESSAGES
+// -----------------------------------
+
+message UnevictDataRequest {
+    required int32 sender_site = 1;
+    // This is the largest txn acked at the sender site
+    required int64 last_transaction_id = 2;
+}
+
+message UnevictDataResponse {
+    required int32 sender_site = 1;
+    required Status status = 2;
+}
+
+// -----------------------------------
 // TIME SYNC MESSAGE
 // -----------------------------------
 
@@ -502,5 +517,6 @@ service HStoreService {
     rpc ShutdownPrepare(ShutdownPrepareRequest) returns (ShutdownPrepareResponse);
     rpc Shutdown(ShutdownRequest) returns (ShutdownResponse);
     rpc Heartbeat(HeartbeatRequest) returns (HeartbeatResponse);
+    rpc UnevictData(UnevictDataRequest) returns (UnevictDataResponse);
     rpc TimeSync(TimeSyncRequest) returns (TimeSyncResponse);
 }

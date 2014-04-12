@@ -36,6 +36,8 @@ import edu.brown.hstore.Hstoreservice.TransactionReduceRequest;
 import edu.brown.hstore.Hstoreservice.TransactionReduceResponse;
 import edu.brown.hstore.Hstoreservice.TransactionWorkRequest;
 import edu.brown.hstore.Hstoreservice.TransactionWorkResponse;
+import edu.brown.hstore.Hstoreservice.UnevictDataRequest;
+import edu.brown.hstore.Hstoreservice.UnevictDataResponse;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.EventObservable;
@@ -207,6 +209,14 @@ public class MockHStoreCoordinator extends HStoreCoordinator {
             // TODO Auto-generated method stub
             
         }
+
+		@Override
+		public void unevictData(RpcController controller,
+				UnevictDataRequest request,
+				RpcCallback<UnevictDataResponse> done) {
+			// TODO Auto-generated method stub
+			
+		}
     }
 
 }

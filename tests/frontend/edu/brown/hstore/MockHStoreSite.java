@@ -55,6 +55,8 @@ public class MockHStoreSite extends HStoreSite {
         EstTimeUpdater.update(System.currentTimeMillis());
         return (ts);
     }
+
+	private HStoreCoordinator hstore_coordinator;
     
     // ----------------------------------------------------------------------------
     // INITIALIZATION
@@ -78,6 +80,15 @@ public class MockHStoreSite extends HStoreSite {
                                                                        this.getPartitionEstimator());
             this.addPartitionExecutor(p, executor);
         } // FOR
+    }
+    
+    public void setCoordinator(){
+    	this.hstore_coordinator = this.initHStoreCoordinator();
+    }
+    
+    @Override
+    public HStoreCoordinator getCoordinator(){
+    	return this.hstore_coordinator;
     }
     
     @Override

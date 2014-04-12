@@ -65,6 +65,8 @@ import edu.brown.hstore.Hstoreservice.TransactionReduceRequest;
 import edu.brown.hstore.Hstoreservice.TransactionReduceResponse;
 import edu.brown.hstore.Hstoreservice.TransactionWorkRequest;
 import edu.brown.hstore.Hstoreservice.TransactionWorkResponse;
+import edu.brown.hstore.Hstoreservice.UnevictDataRequest;
+import edu.brown.hstore.Hstoreservice.UnevictDataResponse;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.callbacks.ShutdownPrepareCallback;
 import edu.brown.hstore.callbacks.LocalFinishCallback;
@@ -240,6 +242,25 @@ public class HStoreCoordinator implements Shutdownable {
                               HStoreThreadManager.formatSiteName(local_site_id),
                               response.getStatus()));
                 // FIXME: We need to actually store the heartbeat updates somewhere...
+                assert(response.getSenderSite() != local_site_id);
+            }
+        }
+    };
+
+    // ----------------------------------------------------------------------------
+    // UNEVICT CALLBACK
+    // ----------------------------------------------------------------------------
+    
+    private final RpcCallback<UnevictDataResponse> unevictCallback = new RpcCallback<UnevictDataResponse>() {
+        @Override
+        public void run(UnevictDataResponse response) {
+            if (response.getStatus() == Status.OK) {
+                if (trace.val)
+                    LOG.trace(String.format("%s %s -> %s [%s]",
+                              response.getClass().getSimpleName(),
+                              HStoreThreadManager.formatSiteName(response.getSenderSite()),
+                              HStoreThreadManager.formatSiteName(local_site_id),
+                              response.getStatus()));
                 assert(response.getSenderSite() != local_site_id);
             }
         }
@@ -795,6 +816,21 @@ public class HStoreCoordinator implements Shutdownable {
             done.run(response);
         }
 
+		@Override
+		public void unevictData(RpcController controller,
+				UnevictDataRequest request,
+				RpcCallback<UnevictDataResponse> done) {
+            if (debug.val)
+                LOG.debug(String.format("Received %s from HStoreSite %s",
+                          request.getClass().getSimpleName(),
+                          HStoreThreadManager.formatSiteName(request.getSenderSite())));
+            UnevictDataResponse.Builder builder = UnevictDataResponse.newBuilder()
+                                                    .setSenderSite(local_site_id)
+                                                    .setStatus(Status.OK);
+            done.run(builder.build());            
+
+		}
+
     } // END CLASS
     
     
@@ -1272,6 +1308,35 @@ public class HStoreCoordinator implements Shutdownable {
                 // Silently ignore these errors...
             }
         } // FOR
+    }
+
+    // ----------------------------------------------------------------------------
+    // UNEVICT DATA
+    // ----------------------------------------------------------------------------
+    
+    /**
+     * Send a message to a remote site to unevict data
+     * @return 
+     */
+    public boolean sendUnevictDataMessage(int remote_site_id) {
+    	UnevictDataRequest request = UnevictDataRequest.newBuilder()
+                                    .setSenderSite(this.local_site_id)
+                                    .setLastTransactionId(-1) // FIXME
+                                    .build();            
+            try {
+				this.channels[remote_site_id].unevictData(new ProtoRpcController(), request, this.unevictCallback);
+                if (trace.val)
+                    LOG.trace(String.format("Sent %s to %s",
+                              request.getClass().getSimpleName(),
+                              HStoreThreadManager.formatSiteName(remote_site_id)));
+                return true;
+            } catch (RuntimeException ex) {
+                // Silently ignore these errors...
+            	ex.printStackTrace();
+            	System.out.println("&&&&&&&&&&");
+            	return false;
+            }
+
     }
     
     // ----------------------------------------------------------------------------
