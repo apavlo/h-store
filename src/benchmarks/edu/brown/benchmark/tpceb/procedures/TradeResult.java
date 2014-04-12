@@ -254,27 +254,34 @@ public class TradeResult extends VoltProcedure {
             }
         }
         else { // buy trade
+            System.out.println("buying trade");
             if (hs_qty == 0) {
+                System.out.println("hs is 0");
                 voltQueueSQL(insertHoldingSummary, acct_id, symbol, trade_qty);
                 voltExecuteSQL();
                 System.out.println("insert buy trade holding summary");
             }
             else if (-hs_qty != trade_qty) {
+                System.out.println("-ve hs qty equal to trade qty");
                 voltQueueSQL(updateHoldingSummary, hs_qty + trade_qty, acct_id, symbol);
                 voltExecuteSQL();
                 System.out.println("update holding summary");
             }
             
             if (hs_qty < 0) {
+                System.out.println("qty less than 0");
                 if (is_lifo == 1) {
+                    System.out.println("lifo is 1");
                     voltQueueSQL(getHoldingDesc, acct_id, symbol);
                 }
                 else {
+                    System.out.println("doing holding asc");
                     voltQueueSQL(getHoldingAsc, acct_id, symbol);
                 }
                 
                 // modify existing holdings
                 VoltTable hold_list = voltExecuteSQL()[0];
+                System.out.println("executing sql");
                 for (int i = 0; i < hold_list.getRowCount() && needed_qty != 0; i++) {
                     VoltTableRow hold = hold_list.fetchRow(i);
                     
