@@ -133,7 +133,7 @@ public class TradeOrder extends VoltProcedure {
           /*  long s_div = sec_row.getLong("S_DIVIDEND");
             long s_yield = sec_row.getLong("S_YIELD");
             System.out.println("Account ID in query" + acct_id);*/
-            System.out.println("Symbol:" + symbol);
+          //  System.out.println("Symbol:" + symbol);
            // System.out.println("name" + s_name);
            // System.out.println("Dividend: " + s_div );
            // System.out.println("Yield: " + s_yield);
@@ -166,7 +166,7 @@ public class TradeOrder extends VoltProcedure {
         if (res[2].getRowCount() == 1) {
             hs_qty = (int)res[2].fetchRow(0).getLong("HS_QTY");
         }
-        System.out.println("Trade Order done if");
+       // System.out.println("Trade Order done if");
         double buy_value = 0;
         double sell_value = 0;
         long needed_qty = trade_qty;
@@ -253,6 +253,8 @@ public class TradeOrder extends VoltProcedure {
             voltQueueSQL(insertTradeRequest, trade_id, trade_type_id, symbol, trade_qty,
                     requested_price, acct_id);
             System.out.println("Trade Order inserted trade");
+            System.out.println("symbol: " + symbol);
+            System.out.println("price: " + requested_price);
         }
         
         voltQueueSQL(insertTradeHistory, trade_id, now_dts, status_id);
