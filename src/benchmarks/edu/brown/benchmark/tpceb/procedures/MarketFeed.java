@@ -141,7 +141,7 @@ public class MarketFeed extends VoltProcedure {
             "(TR_TT_ID = ? and TR_BID_PRICE <= ?) or " +
             "(TR_TT_ID = ? and TR_BID_PRICE >= ?))");*/
             VoltTable reqs = voltExecuteSQL()[0];
-         //   System.out.println("executed the sql for get request list successfully" + reqs.getRowCount());
+            System.out.println("executed the sql for get request list successfully" + reqs.getRowCount());
             
             for (int j = 0; j < reqs.getRowCount() && tradeRequestBuffer.size() < MAX_SEND_LEN; j++) {
                 VoltTableRow req = reqs.fetchRow(j);
