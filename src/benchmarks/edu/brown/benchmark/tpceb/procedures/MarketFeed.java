@@ -158,7 +158,7 @@ public class MarketFeed extends VoltProcedure {
                 System.out.println("did trade type");
                
                // try{
-                
+              
                    int trade_qty = (int) req.get("TR_QTY", VoltType.INTEGER);
                // }catch(Exception ex){
                //     System.out.println(ex);
