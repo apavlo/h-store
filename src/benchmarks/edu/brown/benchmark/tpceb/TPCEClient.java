@@ -231,7 +231,7 @@ private int num = 1;
         int no_connection = 10000;
         final Transaction target = selectTransaction();
         System.out.println(target);
-        if(target == 0){
+        if(target == Transaction.TRADE_ORDER){
             System.out.println("OK");
         }
         try {
