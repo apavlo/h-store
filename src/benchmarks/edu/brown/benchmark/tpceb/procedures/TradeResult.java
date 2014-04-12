@@ -165,6 +165,7 @@ public class TradeResult extends VoltProcedure {
         System.out.println("Successfully got cust acc info ");
         
         assert account.getRowCount() == 1;
+        System.out.println("assertion passed");
         VoltTableRow account_row = account.fetchRow(0);
         
         long broker_id = account_row.getLong("CA_B_ID");
