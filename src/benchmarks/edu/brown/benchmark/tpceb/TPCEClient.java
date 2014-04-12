@@ -339,15 +339,18 @@ int countRow =0;
      * @return
      */
     private Object[] generateClientArgs(Transaction xact) {
+        System.out.println(xact);
         switch (xact) {
+            
        /* case MARKET_WATCH:
             return (this.egen_clientDriver.getMarketWatchParams());*/
         case TRADE_ORDER:
             return (this.egen_clientDriver.getTradeOrderParams());
-        case MARKET_FEED:
-            return (this.egen_clientDriver.getMarketFeedParams());
         case TRADE_RESULT:
             return (this.egen_clientDriver.getTradeResultParams());
+        case MARKET_FEED:
+            return (this.egen_clientDriver.getMarketFeedParams());
+        
      
         default:
             LOG.error("Unsupported client transaction: " + xact);
