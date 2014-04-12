@@ -196,9 +196,8 @@ public class MarketFeed extends VoltProcedure {
             ex.getMessage();
             ex.getCause();
             ex.printStackTrace();
-        }
-        finally{
             return null;
         }
+       
     }
 }
