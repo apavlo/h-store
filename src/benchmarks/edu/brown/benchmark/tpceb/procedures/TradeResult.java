@@ -163,7 +163,7 @@ public class TradeResult extends VoltProcedure {
         voltQueueSQL(getCustomerAccount, acct_id);
         VoltTable account = voltExecuteSQL()[0];
         System.out.println("Successfully got cust acc info ");
-        
+        System.out.println(account.getRowCount());
         assert account.getRowCount() == 1;
         System.out.println("assertion passed");
         VoltTableRow account_row = account.fetchRow(0);
