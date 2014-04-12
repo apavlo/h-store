@@ -297,12 +297,14 @@ int countRow =0;
               //  System.out.println("val" + tradeOrderResult[0].fetchRow(0));
                 tradeRequest.price_quote = tradeOrderResult[0].fetchRow(0).getDouble("price_quote");
                // System.out.println("price_quote " + tradeOrderResult[0].fetchRow(0).getDouble("price_quote"));
-                
-                tradeRequest.trade_qty = (int) tradeOrderResult[0].fetchRow(0).getDouble("trade_qty");
+                tradeRequest.trade_qty = (int) tradeOrderResult[0].fetchRow(0).getLong("trade_qty");
+              //  tradeRequest.trade_qty = (int) tradeOrderResult[0].fetchRow(0).getDouble("trade_qty");
                // System.out.println("trade_qty " + tradeOrderResult[0].fetchRow(0).getDouble("trade_qty"));
                // tradeRequest.trade_qty = (int) tradeOrderResult[0].fetchRow(0).get("trade_qty", VoltType.INTEGER);
-              //  tradeRequest.eActionTemp = (int) tradeOrderResult[0].fetchRow(0).get("eAction", VoltType.INTEGER);
-                tradeRequest.eActionTemp = (int) tradeOrderResult[0].fetchRow(0).getDouble("eAction");
+            
+                tradeRequest.eActionTemp = (int) tradeOrderResult[0].fetchRow(0).getLong("eAction");
+                //  tradeRequest.eActionTemp = (int) tradeOrderResult[0].fetchRow(0).get("eAction", VoltType.INTEGER);
+             //   tradeRequest.eActionTemp = (int) tradeOrderResult[0].fetchRow(0).getDouble("eAction");
                 //System.out.println("eActionTemp " + tradeOrderResult[0].fetchRow(0).getDouble("eAction"));
                 
                 tradeRequest.symbol = tradeOrderResult[0].fetchRow(0).getString("symbol");
