@@ -126,12 +126,7 @@ public class MarketFeed extends VoltProcedure {
        // try{
         //    System.out.println("in try");
         voltExecuteSQL();
-       // }
-       // catch(Exception ex){
-           // System.out.println("exception" + ex);
-           // ex.printStackTrace();
-         //   ex.getMessage();
-        //}
+
         System.out.println("executed the sql for update last trade successfully");
         
         // then, see about pending trades

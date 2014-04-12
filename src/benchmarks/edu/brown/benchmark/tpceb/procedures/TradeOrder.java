@@ -252,7 +252,7 @@ public class TradeOrder extends VoltProcedure {
         if (type_is_market == 0) {
             voltQueueSQL(insertTradeRequest, trade_id, trade_type_id, symbol, trade_qty,
                     requested_price, acct_id);
-         //   System.out.println("Trade Order inserted trade");
+            System.out.println("Trade Order inserted trade");
         }
         
         voltQueueSQL(insertTradeHistory, trade_id, now_dts, status_id);
