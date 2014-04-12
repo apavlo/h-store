@@ -165,12 +165,12 @@ public class MarketFeed extends VoltProcedure {
                //     }
                 System.out.println("did trade qty" + trade_qty);
                 System.out.println("did trade qty" + trade_type);
-              // voltQueueSQL(updateTrade, now_dts, status_submitted, trade_id);
+               voltQueueSQL(updateTrade, now_dts, status_submitted, trade_id);
                //System.out.println("Fine");
                // System.out.println("TRADE ID:"+ trade_id);
                 voltQueueSQL(deleteTradeRequest, trade_id);
                /// System.out.println("queued");
-              // voltQueueSQL(insertTradeHistory, trade_id, now_dts, status_submitted);
+               voltQueueSQL(insertTradeHistory, trade_id, now_dts, status_submitted);
                 voltExecuteSQL();
                 System.out.println("executed the sql for update trade, delete req and insert hist successfully");
                 TradeRequest tr = new TradeRequest(symbols[i], trade_id, price_quote, (int)trade_qty, trade_type);
