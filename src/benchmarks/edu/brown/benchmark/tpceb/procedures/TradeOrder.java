@@ -285,9 +285,9 @@ public class TradeOrder extends VoltProcedure {
       //  System.out.println("Requested Price: " + requested_price);
        // System.out.println("Symbol: " + symbol);
        // System.out.println("Trade_ID: " + trade_id);
-       // System.out.println("Trade_QTY:" + trade_qty);
+        System.out.println("Trade_QTY:" + trade_qty);
        // System.out.println("Trade_type_ID:" + trade_type_id);
-       // System.out.println("eAction:" + eAction);
+        System.out.println("eAction:" + eAction);
         ret_values.addRow(requested_price, symbol, trade_id, (double) trade_qty, trade_type_id, (double) eAction);
         return new VoltTable[] {ret_values};
         
