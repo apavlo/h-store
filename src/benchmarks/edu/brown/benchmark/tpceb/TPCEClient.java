@@ -229,8 +229,13 @@ private int num = 1;
     @Override
     public void runLoop() {
         int no_connection = 10000;
+        final Transaction target = selectTransaction();
+        System.out.println(target);
+        if(target == 0){
+            System.out.println("OK");
+        }
         try {
-            final Transaction target = selectTransaction();
+            
 
             LOG.debug("Executing txn " + target);
             //TPCECallback temp = new TPCECallback(target);
@@ -280,28 +285,14 @@ int countRow =0;
                 System.out.println("second option was null");
             }
             else{
-              //  if(countRow != 0){
-                   //tradeOrderResult[0].advanceRow();
-                  // System.out.println("Active index"+ tradeOrderResult[0].getActiveRowIndex());
-               //    tradeOrderResult[0].advanceRow();
-                  // System.out.println("after advance"+ tradeOrderResult[0].getActiveRowIndex());
-                  //  tradeOrderResult[0].resetRowPosition();
-                  // System.out.println("after reset"+ tradeOrderResult[0].getActiveRowIndex());
-                  // tradeOrderResult[0].advanceRow();
-                  // System.out.println("after next advance"+ tradeOrderResult[0].getActiveRowIndex());
-                  // System.out.println(tradeOrderResult[0].advanceToRow(0));
-             //   }
-              // System.out.println(tradeOrderResult[0]);
-               // tradeOrderResult[0].advanceToRow(0);
-               // System.out.println("not null");
-              //  System.out.println("val" + tradeOrderResult[0].fetchRow(0));
+            
                 tradeRequest.price_quote = tradeOrderResult[0].fetchRow(0).getDouble("price_quote");
                // System.out.println("price_quote " + tradeOrderResult[0].fetchRow(0).getDouble("price_quote"));
                 tradeRequest.trade_qty = (int) tradeOrderResult[0].fetchRow(0).getLong("trade_qty");
               //  tradeRequest.trade_qty = (int) tradeOrderResult[0].fetchRow(0).getDouble("trade_qty");
                // System.out.println("trade_qty " + tradeOrderResult[0].fetchRow(0).getDouble("trade_qty"));
                // tradeRequest.trade_qty = (int) tradeOrderResult[0].fetchRow(0).get("trade_qty", VoltType.INTEGER);
-            
+                System.out.println("trying to get eAction");
                 tradeRequest.eActionTemp = (int) tradeOrderResult[0].fetchRow(0).getLong("eAction");
                 System.out.println("eAction val:" + tradeRequest.eActionTemp );
                 //  tradeRequest.eActionTemp = (int) tradeOrderResult[0].fetchRow(0).get("eAction", VoltType.INTEGER);
