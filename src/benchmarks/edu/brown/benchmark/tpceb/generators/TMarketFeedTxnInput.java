@@ -38,9 +38,9 @@ public class TMarketFeedTxnInput {
            
            price_quotes[i] = Entries[i].price_quote;
            symbols[i] = Entries[i].symbol;
-           if(Entries[i].symbol.length() == 0){
-               symbols[i] = "EXLN";
-           }
+          // if(Entries[i].symbol.length() == 0){
+           //    symbols[i] = "EXLN";
+           //}
            trade_qtys[i] = (long) Entries[i].trade_qty;
        }
      //  System.out.println("compeleted loop");
