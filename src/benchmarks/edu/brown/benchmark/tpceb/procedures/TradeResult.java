@@ -181,25 +181,34 @@ public class TradeResult extends VoltProcedure {
         Date trade_dts = Calendar.getInstance().getTime();
         
         if (type_is_sell == 1) {
+            System.out.println("type was sell");
             if (hs_qty == 0) {
+                System.out.println("hs qty was 0");
                 voltQueueSQL(insertHoldingSummary, acct_id, symbol, -trade_qty);
                 voltExecuteSQL();
+                System.out.println("insert holding summary");
             }
             else if (hs_qty != trade_qty) {
+                System.out.println("qtys not equal");
                 voltQueueSQL(updateHoldingSummary, hs_qty - trade_qty, acct_id, symbol);
                 voltExecuteSQL();
+                System.out.println("update holding summary holding summary");
             }
             
             if (hs_qty > 0) {
+                System.out.println("qty greater than 0");
                 if (is_lifo == 1) {
+                    System.out.println("lifo is 1");
                     voltQueueSQL(getHoldingDesc, acct_id, symbol);
                 }
                 else {
+                    System.out.println("lifo not 1");
                     voltQueueSQL(getHoldingAsc, acct_id, symbol);
                 }
                 
                 // modify existing holdings
                 VoltTable hold_list = voltExecuteSQL()[0];
+                System.out.println("execute hold list");
                 for (int i = 0; i < hold_list.getRowCount() && needed_qty != 0; i++) {
                     VoltTableRow hold = hold_list.fetchRow(i);
                     
@@ -226,6 +235,7 @@ public class TradeResult extends VoltProcedure {
                 }
                 // execute all updates from the above loop
                 voltExecuteSQL();
+                System.out.println("executed all updates");
             }
            
                 
@@ -234,21 +244,25 @@ public class TradeResult extends VoltProcedure {
                 voltQueueSQL(insertHoldingHistory, trade_id, trade_id, 0, -needed_qty);
                 voltQueueSQL(insertHolding, trade_id, acct_id, symbol, trade_dts, trade_price, -needed_qty);
                 voltExecuteSQL();
+                System.out.println("short sell done");
                 
             }
             else if (hs_qty == trade_qty) {
                 voltQueueSQL(deleteHoldingSummary, acct_id, symbol);
                 voltExecuteSQL();
+                System.out.println("delete holding summary");
             }
         }
         else { // buy trade
             if (hs_qty == 0) {
                 voltQueueSQL(insertHoldingSummary, acct_id, symbol, trade_qty);
                 voltExecuteSQL();
+                System.out.println("insert buy trade holding summary");
             }
             else if (-hs_qty != trade_qty) {
                 voltQueueSQL(updateHoldingSummary, hs_qty + trade_qty, acct_id, symbol);
                 voltExecuteSQL();
+                System.out.println("update holding summary");
             }
             
             if (hs_qty < 0) {
@@ -288,6 +302,7 @@ public class TradeResult extends VoltProcedure {
                 }
                 // execute all updates from the above loop
                 voltExecuteSQL();
+                System.out.println("did next set of updates");
             }
                 
             // all shorts are covered? a new long is created
