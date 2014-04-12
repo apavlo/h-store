@@ -197,11 +197,11 @@ private int num = 1;
      //           
             }
         else{
-            return null;
+          //  return null;
          //   num = 2;
           //  System.out.println("Trade Result");
           //  countTotal++;
-           // return XTRANS[1];
+            return XTRANS[2];
         }
     }
     
