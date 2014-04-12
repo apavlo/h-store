@@ -66,8 +66,8 @@ public class TradeResult extends VoltProcedure {
 
     public final SQLStmt getHoldingSummary = new SQLStmt("select HS_QTY from HOLDING_SUMMARY where HS_CA_ID = ? and HS_S_SYMB = ?");
 
+    //public final SQLStmt getCustomerAccount = new SQLStmt("select CA_B_ID, C_ID, CA_BAL, C_TIER from CUSTOMER_INFO where CA_ID = ?");
     public final SQLStmt getCustomerAccount = new SQLStmt("select CA_B_ID, C_ID, CA_BAL, C_TIER from CUSTOMER_INFO where CA_ID = ?");
-
     public final SQLStmt insertHoldingSummary = new SQLStmt("insert into HOLDING_SUMMARY(HS_CA_ID, HS_S_SYMB, HS_QTY) values (?, ?, ?)");
 
     public final SQLStmt updateHoldingSummary = new SQLStmt("update HOLDING_SUMMARY set HS_QTY = ? where HS_CA_ID = ? and HS_S_SYMB = ?");

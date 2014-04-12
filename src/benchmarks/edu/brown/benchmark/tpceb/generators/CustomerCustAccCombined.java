@@ -257,7 +257,7 @@ public class CustomerCustAccCombined extends TableGenerator {
         tuple[1] = accId; // ca_id
         tuple[2] = generateBrokerId(accId); // ca_b_id
        // System.out.println("Cust ID to be inserted:" + cid);
-       // System.out.println("Acc ID to be inserted:" + accId);
+        System.out.println("Acc ID to be inserted:" + accId);
         tuple[3] = (short)CustomerSelection.getTier(cid).ordinal() + 1; 
         tuple[4] = generateBalance(); // ca_bal
         
