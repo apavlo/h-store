@@ -182,7 +182,7 @@ public class TradeOrder extends VoltProcedure {
                 }
                 
                 VoltTable hold_list = voltExecuteSQL()[0];
-                System.out.println("Trade Order executed holding");
+             //   System.out.println("Trade Order executed holding");
                 
                 for (int i = 0; i < hold_list.getRowCount() && needed_qty != 0; i++) {
                     VoltTableRow hold = hold_list.fetchRow(i);
