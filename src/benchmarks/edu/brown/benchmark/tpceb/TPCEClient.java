@@ -326,7 +326,8 @@ int countRow =0;
             //  tradeOrderResult = this.getClientHandle().getResults();// retME = this.getClientHandle().callProcedure(new TPCECallback(target), target.callName, this.generateClientArgs(targetME));
         } 
         catch (ProcCallException ex) {
-            ex.printStackTrace();
+            System.out.println("intentional rollback");
+           // ex.printStackTrace();
         }
         catch (Exception ex) {
         
