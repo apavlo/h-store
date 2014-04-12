@@ -201,7 +201,7 @@ private int num = 1;
          //   num = 2;
           //  System.out.println("Trade Result");
           //  countTotal++;
-            return XTRANS[2];
+            return XTRANS[1];
         }
     }
     
