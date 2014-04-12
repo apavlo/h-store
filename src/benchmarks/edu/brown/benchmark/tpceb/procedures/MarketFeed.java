@@ -195,6 +195,7 @@ public class MarketFeed extends VoltProcedure {
         return new VoltTable[] {stm};
         }
         catch(Exception ex){
+            System.out.println("in catch");
             ex.getMessage();
             ex.getCause();
             ex.printStackTrace();
