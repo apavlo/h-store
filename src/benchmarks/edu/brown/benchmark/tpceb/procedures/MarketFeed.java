@@ -149,7 +149,7 @@ public class MarketFeed extends VoltProcedure {
             
             for (int j = 0; j < reqs.getRowCount() && tradeRequestBuffer.size() < MAX_SEND_LEN; j++) {
                 VoltTableRow req = reqs.fetchRow(j);
-                System.out.println("in loop");
+                
                 long trade_id = req.getLong("TR_T_ID");
                 System.out.println("did trade id");
                 double price_quote = req.getDouble("TR_BID_PRICE");
@@ -173,7 +173,7 @@ public class MarketFeed extends VoltProcedure {
                voltQueueSQL(insertTradeHistory, trade_id, now_dts, status_submitted);
                 voltExecuteSQL();
                 System.out.println("executed the sql for update trade, delete req and insert hist successfully");
-                TradeRequest tr = new TradeRequest(symbols[i], trade_id, price_quote, (int)trade_qty, trade_type);
+                TradeRequest tr = new TradeRequest(symbols[i], trade_id, price_quote, trade_qty, trade_type);
                 tradeRequestBuffer.add(tr);
             }
         }
@@ -183,21 +183,12 @@ public class MarketFeed extends VoltProcedure {
         int j =0;
         System.out.println("size of trb"+ tradeRequestBuffer.size());
         for (TradeRequest req: tradeRequestBuffer) {
-           Integer newInt = new Integer(req.trade_qty);
+            Integer newInt = new Integer(req.trade_qty);
             stm.addRow(req.symbol, req.trade_id, req.price_quote, newInt, req.trade_type);
             System.out.println("added row"+ j);
             j++;
         }
         System.out.println("DONE!");
-        try{
         return new VoltTable[] {stm};
-        }
-        catch(Exception ex){
-            ex.getMessage();
-            System.out.println(ex);
-        }
-        finally{
-            return null;
-        }
     }
 }
