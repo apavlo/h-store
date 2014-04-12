@@ -71,9 +71,9 @@ public class TradeOrder extends VoltProcedure {
             new VoltTable.ColumnInfo("price_quote", VoltType.FLOAT),
             new VoltTable.ColumnInfo("symbol", VoltType.STRING),
             new VoltTable.ColumnInfo("trade_id", VoltType.BIGINT),
-            new VoltTable.ColumnInfo("trade_qty", VoltType.INTEGER), //modified
+            new VoltTable.ColumnInfo("trade_qty", VoltType.FLOAT), //modified
             new VoltTable.ColumnInfo("trade_type_id", VoltType.STRING),
-            new VoltTable.ColumnInfo("eAction", VoltType.INTEGER) // modified
+            new VoltTable.ColumnInfo("eAction", VoltType.FLOAT) // modified
             
     );
     
@@ -288,7 +288,7 @@ public class TradeOrder extends VoltProcedure {
        // System.out.println("Trade_QTY:" + trade_qty);
        // System.out.println("Trade_type_ID:" + trade_type_id);
        // System.out.println("eAction:" + eAction);
-        ret_values.addRow(requested_price, symbol, trade_id, trade_qty, trade_type_id, eAction);
+        ret_values.addRow(requested_price, symbol, trade_id, (double) trade_qty, trade_type_id, (double) eAction);
         return new VoltTable[] {ret_values};
         
         //return tradeRequest;
