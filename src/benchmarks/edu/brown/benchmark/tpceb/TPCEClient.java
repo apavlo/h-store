@@ -335,6 +335,7 @@ int countRow =0;
         else{
             
             try {
+                System.out.println("Starting MF");
                 final Transaction target = selectTransaction();
                // final Transaction targetME = selectTransactionME();
                 

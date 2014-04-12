@@ -158,7 +158,7 @@ public class MarketFeed extends VoltProcedure {
                 System.out.println("did trade type");
                
                // try{
-                int trade_qty = (int) req.getDouble("TR_QTY");
+                int trade_qty = (int) Integer.valueOf((int) req.getLong("TR_QTY"));
                 //   int trade_qty = (int) req.get("TR_QTY", VoltType.INTEGER);
                // }catch(Exception ex){
                //     System.out.println(ex);
@@ -166,6 +166,7 @@ public class MarketFeed extends VoltProcedure {
                 System.out.println("did trade qty" + trade_qty);
                 System.out.println("did trade qty" + trade_type);
                voltQueueSQL(updateTrade, now_dts, status_submitted, trade_id);
+               System.out.println("Fine");
                // System.out.println("TRADE ID:"+ trade_id);
                 voltQueueSQL(deleteTradeRequest, trade_id);
                /// System.out.println("queued");
@@ -179,9 +180,13 @@ public class MarketFeed extends VoltProcedure {
         
         // creating send_to_market info
         VoltTable stm = stm_template.clone(512);
+        int j =0;
+        System.out.println("size of trb"+ tradeRequestBuffer.size());
         for (TradeRequest req: tradeRequestBuffer) {
             
             stm.addRow(req.symbol, req.trade_id, req.price_quote, (int) req.trade_qty, req.trade_type);
+            System.out.println("added row"+ j);
+            j++;
         }
         System.out.println("DONE!");
         return new VoltTable[] {stm};
