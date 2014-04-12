@@ -139,19 +139,24 @@ public class TradeOrder extends VoltProcedure {
            // System.out.println("Yield: " + s_yield);
             
         voltQueueSQL(getLastTrade, symbol);
+        System.out.println("Trade Order got last trade");
         voltQueueSQL(getTradeType, trade_type_id);
+        System.out.println("Trade Order got trade type");
         voltQueueSQL(getHoldingSummmary, acct_id, symbol);
+        System.out.println("Trade Order holding summ");
         VoltTable[] res = voltExecuteSQL();
-        
+        System.out.println("Trade order this worked!");
         assert res[0].getRowCount() == 1;
         assert res[1].getRowCount() == 1;
+        System.out.println("Trade Order assertions worked");
         
-      double market_price = res[0].fetchRow(0).getDouble("LT_PRICE");
-        
+        double market_price = res[0].fetchRow(0).getDouble("LT_PRICE");
+        System.out.println("Trade Order got market price");
         VoltTableRow tt_row = res[1].fetchRow(0);
         int type_is_market = (int)tt_row.getLong("TT_IS_MRKT");
-        
+        System.out.println("Trade Order type is market");
         int type_is_sell = (int)tt_row.getLong("TT_IS_SELL");
+        System.out.println("Trade Order got sell");
         
         if (type_is_market == 1) {
             requested_price = market_price;
