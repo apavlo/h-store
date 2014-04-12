@@ -139,24 +139,24 @@ public class TradeOrder extends VoltProcedure {
            // System.out.println("Yield: " + s_yield);
             
         voltQueueSQL(getLastTrade, symbol);
-        System.out.println("Trade Order got last trade");
+       // System.out.println("Trade Order got last trade");
         voltQueueSQL(getTradeType, trade_type_id);
-        System.out.println("Trade Order got trade type");
+       // System.out.println("Trade Order got trade type");
         voltQueueSQL(getHoldingSummmary, acct_id, symbol);
-        System.out.println("Trade Order holding summ");
+       // System.out.println("Trade Order holding summ");
         VoltTable[] res = voltExecuteSQL();
-        System.out.println("Trade order this worked!");
+       // System.out.println("Trade order this worked!");
         assert res[0].getRowCount() == 1;
         assert res[1].getRowCount() == 1;
-        System.out.println("Trade Order assertions worked");
+       // System.out.println("Trade Order assertions worked");
         
         double market_price = res[0].fetchRow(0).getDouble("LT_PRICE");
-        System.out.println("Trade Order got market price");
+       // System.out.println("Trade Order got market price");
         VoltTableRow tt_row = res[1].fetchRow(0);
         int type_is_market = (int)tt_row.getLong("TT_IS_MRKT");
-        System.out.println("Trade Order type is market");
+       // System.out.println("Trade Order type is market");
         int type_is_sell = (int)tt_row.getLong("TT_IS_SELL");
-        System.out.println("Trade Order got sell");
+       // System.out.println("Trade Order got sell");
         
         if (type_is_market == 1) {
             requested_price = market_price;
@@ -166,7 +166,7 @@ public class TradeOrder extends VoltProcedure {
         if (res[2].getRowCount() == 1) {
             hs_qty = (int)res[2].fetchRow(0).getLong("HS_QTY");
         }
-        
+        System.out.println("Trade Order done if");
         double buy_value = 0;
         double sell_value = 0;
         long needed_qty = trade_qty;
@@ -182,6 +182,7 @@ public class TradeOrder extends VoltProcedure {
                 }
                 
                 VoltTable hold_list = voltExecuteSQL()[0];
+                System.out.println("Trade Order executed holding");
                 
                 for (int i = 0; i < hold_list.getRowCount() && needed_qty != 0; i++) {
                     VoltTableRow hold = hold_list.fetchRow(i);
@@ -235,7 +236,7 @@ public class TradeOrder extends VoltProcedure {
         
         // trade status
         String status_id = (type_is_market == 1) ? st_submitted_id : st_pending_id;
-        
+        System.out.println("Trade Order did status");
         // frame 4: inserting the trade
         double comm_amount =10;
        
@@ -246,14 +247,16 @@ public class TradeOrder extends VoltProcedure {
         voltQueueSQL(insertTrade, trade_id, now_dts, status_id, trade_type_id, is_cash,
                 symbol, trade_qty, requested_price, acct_id, null, charge_amount,
                 comm_amount, 0, is_lifo);
+        System.out.println("Trade Order inserted trade");
         
         if (type_is_market == 0) {
             voltQueueSQL(insertTradeRequest, trade_id, trade_type_id, symbol, trade_qty,
                     requested_price, acct_id);
+            System.out.println("Trade Order inserted trade");
         }
         
         voltQueueSQL(insertTradeHistory, trade_id, now_dts, status_id);
-        
+        System.out.println("Trade Order inserted trade3");
         voltExecuteSQL();
         
         // frame 5: intentional roll-back
