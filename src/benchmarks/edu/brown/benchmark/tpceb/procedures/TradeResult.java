@@ -368,7 +368,7 @@ public class TradeResult extends VoltProcedure {
         System.out.println("Successfully got security info");
         VoltTable sec = sec_cust[0];
         VoltTable cust = sec_cust[1];
-        
+        System.out.println("got rows");
         assert sec.getRowCount() == 1;
         System.out.println("secuerity assertion ok");
         assert cust.getRowCount() == 1;
