@@ -388,11 +388,15 @@ public class TradeResult extends VoltProcedure {
        // double comm_rate = comm.fetchRow(0).getDouble("CR_RATE");
         
         // frame 5: recording the results
-        double comm_amount = 10;//(comm_rate / 100) * (trade_qty * trade_price);
+        double comm_amount = 4;//(comm_rate / 100) * (trade_qty * trade_price);
         
+        //SQLStmt("update TRADE set T_COMM = ?, T_DTS = ?, T_ST_ID = ?, T_TRADE_PRICE = ? where T_ID = ?");
         voltQueueSQL(updateTrade2, comm_amount, trade_dts, st_completed_id, trade_price, trade_id);
+        System.out.println("queued update trade info");
         voltQueueSQL(insertTradeHistory, trade_id, trade_dts, st_completed_id);
+        System.out.println("inserted trade history sql");
         voltQueueSQL(updateBroker, comm_amount, broker_id);
+        System.out.println("update broker info sql");
         voltExecuteSQL();
         System.out.println("Successfully did updates/insertions/deletions ");
         // frame 6: settling the trade
