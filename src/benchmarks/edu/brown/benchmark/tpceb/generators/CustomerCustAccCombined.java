@@ -31,6 +31,7 @@ package edu.brown.benchmark.tpceb.generators;
 
 import org.voltdb.catalog.Table;
 
+import edu.brown.benchmark.tpce.generators.CustomerSelection;
 import edu.brown.benchmark.tpceb.generators.CustomerSelection.TierId;
 import edu.brown.benchmark.tpceb.generators.TPCEGenerator.InputFile;
 
@@ -125,7 +126,24 @@ public class CustomerCustAccCombined extends TableGenerator {
     }
     
     public long generateAccountId() {
-        if ( getCurrentCId() % TPCEConstants.DEFAULT_LOAD_UNIT == 0) {
+        if (getCurrentCId() % TPCEConstants.DEFAULT_LOAD_UNIT == 0) {
+            initNextLoadUnit();
+        }
+        
+        if (accsToGenerate == accsGenerated) {
+            long cid = generateCustomerId();
+            
+            accsGenerated = 0;
+            accsToGenerate = getNumberofAccounts(cid, CustomerSelection.getTier(cid).ordinal() + 1);
+            
+            startingAccId = getStartingAccId(cid);
+        }
+        
+        accsGenerated++;
+        
+        return startingAccId + accsGenerated - 1;
+    }
+     /*   if ( getCurrentCId() % TPCEConstants.DEFAULT_LOAD_UNIT == 0) {
             initNextLoadUnit();
         }
         
@@ -142,7 +160,7 @@ public class CustomerCustAccCombined extends TableGenerator {
         long id = startingAccId + accsGenerated - 1;
         //System.out.println("THIS IS THE GENERATED ID:" + id);
         return startingAccId + accsGenerated - 1;
-    }
+    }*/
    
     /**
      * Generates a random account ID for the specified customer.
@@ -250,7 +268,7 @@ public class CustomerCustAccCombined extends TableGenerator {
     public Object[] next() {
         Object tuple[] = new Object[columnsNum];
         
-        long cid = generateCustomerId(); 
+        long cid = getCurrentCId(); 
         long accId = generateAccountId();
        
  
