@@ -21,7 +21,6 @@ public class TTradeResultTxnInput {
             
             para.add(trade_price);
             st_completed_id = "CMPT";
-            
             para.add(st_completed_id);
             return para;
         }

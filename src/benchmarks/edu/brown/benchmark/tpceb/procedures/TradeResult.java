@@ -186,6 +186,7 @@ public class TradeResult extends VoltProcedure {
         double sell_value = 0;
        // Date trade_dts = Calendar.getInstance().getTime();
         long trade_dts =  Calendar.getInstance().getTimeInMillis();
+        TimestampType time1 = new TimestampType(trade_dts);
         if (type_is_sell == 1) {
             System.out.println("type was sell");
             if (hs_qty == 0) {
@@ -263,7 +264,7 @@ public class TradeResult extends VoltProcedure {
                 //QLStmt("insert into HOLDING (H_T_ID, H_CA_ID, H_S_SYMB, H_DTS, H_PRICE, H_QTY) " + "values (?, ?, ?, ?, ?, ?)");
                 voltQueueSQL(insertHoldingHistory, trade_id, trade_id, 0, -needed_qty);
                 System.out.println("inserted HH");
-                voltQueueSQL(insertHolding, trade_id, acct_id, symbol, trade_dts, trade_price, -needed_qty);
+                voltQueueSQL(insertHolding, trade_id, acct_id, symbol, time1, trade_price, -needed_qty);
                 System.out.println("inserted HH");
                 voltExecuteSQL();
                 System.out.println("short sell done");
@@ -372,7 +373,7 @@ public class TradeResult extends VoltProcedure {
        // VoltTable cust = sec_cust[1];
        // System.out.println("got rows");
         assert sec.getRowCount() == 1;
-        System.out.println("secuerity assertion ok");
+        System.out.println("security assertion ok");
        // assert cust.getRowCount() == 1;
         System.out.println("cust assertion ok");
         VoltTableRow sec_row = sec.fetchRow(0);
