@@ -368,12 +368,12 @@ public class TradeResult extends VoltProcedure {
         System.out.println("Successfully got security info");
         System.out.println(sec_cust[0]);
         VoltTable sec = sec_cust[0];
-        System.out.println("got rows");
-        VoltTable cust = sec_cust[1];
-        System.out.println("got rows");
+        System.out.println("got rows1");
+       // VoltTable cust = sec_cust[1];
+       // System.out.println("got rows");
         assert sec.getRowCount() == 1;
         System.out.println("secuerity assertion ok");
-        assert cust.getRowCount() == 1;
+       // assert cust.getRowCount() == 1;
         System.out.println("cust assertion ok");
         VoltTableRow sec_row = sec.fetchRow(0);
       //  String s_ex_id = sec_row.getString("S_EX_ID");
