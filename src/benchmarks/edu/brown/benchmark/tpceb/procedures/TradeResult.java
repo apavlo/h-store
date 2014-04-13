@@ -170,6 +170,7 @@ public class TradeResult extends VoltProcedure {
         System.out.println("going to get info");
         long broker_id = account_row.getLong("CA_B_ID");
         System.out.println("BID" +  broker_id);
+      
        // long cust_id = account_row.getLong("CA_C_ID");
         //System.out.println("C ID" +  cust_id);
         //int c_tier = (int)account_row.getLong("C_TIER");
@@ -189,7 +190,11 @@ public class TradeResult extends VoltProcedure {
             System.out.println("type was sell");
             if (hs_qty == 0) {
                 System.out.println("hs qty was 0");
-                voltQueueSQL(insertHoldingSummary, acct_id, symbol, -trade_qty);
+                System.out.println("Acct ID" + acct_id);
+                System.out.println("symbol" + symbol);
+                System.out.println("trade qty" + trade_qty);
+                //new SQLStmt("insert into HOLDING_SUMMARY(HS_CA_ID, HS_S_SYMB, HS_QTY) values (?, ?, ?)");
+                voltQueueSQL(insertHoldingSummary, acct_id, symbol, trade_qty);//was -ve
                 voltExecuteSQL();
                 System.out.println("insert holding summary");
             }
