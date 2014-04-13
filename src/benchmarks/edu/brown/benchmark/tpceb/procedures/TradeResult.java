@@ -110,7 +110,7 @@ public class TradeResult extends VoltProcedure {
     public final SQLStmt insertCashTransaction = new SQLStmt("insert into CASH_TRANSACTION (CT_DTS, CT_T_ID, CT_AMT, CT_NAME) values (?, ?, ?, ?)");
 
     public VoltTable[] run(long trade_id, double trade_price, String st_completed_id) throws VoltAbortException {
-        System.out.println("In trade result");
+        System.out.println("In trade result" + trade_price);
         // frame 1: collecting info
         // info about the trade
         System.out.println(trade_id);
@@ -388,13 +388,18 @@ public class TradeResult extends VoltProcedure {
        // double comm_rate = comm.fetchRow(0).getDouble("CR_RATE");
         
         // frame 5: recording the results
-        double comm_amount = 4;//(comm_rate / 100) * (trade_qty * trade_price);
+        double comm_amount = 10;//(comm_rate / 100) * (trade_qty * trade_price);
         
         //SQLStmt("update TRADE set T_COMM = ?, T_DTS = ?, T_ST_ID = ?, T_TRADE_PRICE = ? where T_ID = ?");
+       
+        System.out.println("ST ID" + st_completed_id);
         voltQueueSQL(updateTrade2, comm_amount, trade_dts, st_completed_id, trade_price, trade_id);
         System.out.println("queued update trade info");
+        //new SQLStmt("insert into TRADE_HISTORY (TH_T_ID, TH_DTS, TH_ST_ID) values (?, ?, ?)");
+       
         voltQueueSQL(insertTradeHistory, trade_id, trade_dts, st_completed_id);
         System.out.println("inserted trade history sql");
+        //new SQLStmt("update BROKER set B_COMM_TOTAL = B_COMM_TOTAL + ?, B_NUM_TRADES = B_NUM_TRADES + 1 where B_ID = ?");
         voltQueueSQL(updateBroker, comm_amount, broker_id);
         System.out.println("update broker info sql");
         voltExecuteSQL();
