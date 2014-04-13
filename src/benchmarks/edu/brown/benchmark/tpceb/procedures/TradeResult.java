@@ -258,6 +258,7 @@ public class TradeResult extends VoltProcedure {
                 
             // need to sell more? go short
             if (needed_qty > 0) {
+                System.out.println("needed qyu g than 0");
                 voltQueueSQL(insertHoldingHistory, trade_id, trade_id, 0, -needed_qty);
                 voltQueueSQL(insertHolding, trade_id, acct_id, symbol, trade_dts, trade_price, -needed_qty);
                 voltExecuteSQL();
@@ -265,6 +266,7 @@ public class TradeResult extends VoltProcedure {
                 
             }
             else if (hs_qty == trade_qty) {
+                System.out.println("h qty = t qty");
                 voltQueueSQL(deleteHoldingSummary, acct_id, symbol);
                 voltExecuteSQL();
                 System.out.println("delete holding summary");
