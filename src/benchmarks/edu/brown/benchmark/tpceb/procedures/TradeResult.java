@@ -194,7 +194,7 @@ public class TradeResult extends VoltProcedure {
                 System.out.println("symbol" + symbol);
                 System.out.println("trade qty" + trade_qty);
                 //new SQLStmt("insert into HOLDING_SUMMARY(HS_CA_ID, HS_S_SYMB, HS_QTY) values (?, ?, ?)");
-                voltQueueSQL(insertHoldingSummary, acct_id, symbol, trade_qty);//was -ve
+                voltQueueSQL(insertHoldingSummary, acct_id, symbol, -trade_qty);//was -ve
                 voltExecuteSQL();
                 System.out.println("insert holding summary");
             }
@@ -211,7 +211,7 @@ public class TradeResult extends VoltProcedure {
                 }
                 System.out.println("update holding summary holding summary");
             }
-            
+            System.out.println("done with the first if");
             if (hs_qty > 0) {
                 System.out.println("qty greater than 0");
                 if (is_lifo == 1) {
