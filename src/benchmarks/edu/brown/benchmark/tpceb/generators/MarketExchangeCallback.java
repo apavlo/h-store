@@ -10,6 +10,7 @@ public class MarketExchangeCallback extends MEESUTInterface{
     public boolean TradeResult( TTradeResultTxnInput pTxnInput ) {
         m_TradeResultTxnInput.trade_id = pTxnInput.trade_id;
         m_TradeResultTxnInput.trade_price = pTxnInput.trade_price;
+        m_TradeResultTxnInput.st_completed_id= pTxnInput.st_completed_id;
         return (true);
     }
         
