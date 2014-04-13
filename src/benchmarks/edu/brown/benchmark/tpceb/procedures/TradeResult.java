@@ -366,7 +366,9 @@ public class TradeResult extends VoltProcedure {
       //  voltQueueSQL(getCustomer, cust_id);
         VoltTable[] sec_cust = voltExecuteSQL();
         System.out.println("Successfully got security info");
+        System.out.println(sec_cust[0]);
         VoltTable sec = sec_cust[0];
+        System.out.println("got rows");
         VoltTable cust = sec_cust[1];
         System.out.println("got rows");
         assert sec.getRowCount() == 1;
