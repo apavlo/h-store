@@ -184,8 +184,8 @@ public class TradeResult extends VoltProcedure {
         int needed_qty = trade_qty;
         double buy_value = 0;
         double sell_value = 0;
-        Date trade_dts = Calendar.getInstance().getTime();
-        
+       // Date trade_dts = Calendar.getInstance().getTime();
+        long trade_dts =  Calendar.getInstance().getTimeInMillis();
         if (type_is_sell == 1) {
             System.out.println("type was sell");
             if (hs_qty == 0) {
@@ -259,8 +259,12 @@ public class TradeResult extends VoltProcedure {
             // need to sell more? go short
             if (needed_qty > 0) {
                 System.out.println("needed qyu g than 0");
+                //SQLStmt("insert into HOLDING_HISTORY (HH_H_T_ID, HH_T_ID, HH_BEFORE_QTY, HH_AFTER_QTY) " + "values (?, ?, ?, ?)");
+                //QLStmt("insert into HOLDING (H_T_ID, H_CA_ID, H_S_SYMB, H_DTS, H_PRICE, H_QTY) " + "values (?, ?, ?, ?, ?, ?)");
                 voltQueueSQL(insertHoldingHistory, trade_id, trade_id, 0, -needed_qty);
+                System.out.println("inserted HH");
                 voltQueueSQL(insertHolding, trade_id, acct_id, symbol, trade_dts, trade_price, -needed_qty);
+                System.out.println("inserted HH");
                 voltExecuteSQL();
                 System.out.println("short sell done");
                 
@@ -390,7 +394,8 @@ public class TradeResult extends VoltProcedure {
         System.out.println("Successfully did updates/insertions/deletions ");
         // frame 6: settling the trade
         Calendar cal = Calendar.getInstance();
-        cal.setTime(trade_dts);
+        //cal.setTime(trade_dts);
+        cal.setTimeInMillis(trade_dts);
         cal.add(Calendar.DATE, 2); // the settlement is due in two days
         
         TimestampType due_date = new TimestampType(cal.getTime());
