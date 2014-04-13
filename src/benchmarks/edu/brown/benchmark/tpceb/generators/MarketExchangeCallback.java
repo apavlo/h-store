@@ -8,6 +8,7 @@ public class MarketExchangeCallback extends MEESUTInterface{
     } 
     
     public boolean TradeResult( TTradeResultTxnInput pTxnInput ) {
+        System.out.println("STATUS:" + pTxnInput.st_completed_id);
         m_TradeResultTxnInput.trade_id = pTxnInput.trade_id;
         m_TradeResultTxnInput.trade_price = pTxnInput.trade_price;
         m_TradeResultTxnInput.st_completed_id = pTxnInput.st_completed_id;
@@ -23,6 +24,7 @@ public class MarketExchangeCallback extends MEESUTInterface{
         System.out.println("populating successful");
         return (true);
         }
+    
 
     
     private TTradeResultTxnInput    m_TradeResultTxnInput;
