@@ -167,13 +167,13 @@ public class TradeResult extends VoltProcedure {
         assert account.getRowCount() == 1;
         System.out.println("assertion passed");
         VoltTableRow account_row = account.fetchRow(0);
-        
+        System.out.println("going to get info");
         long broker_id = account_row.getLong("CA_B_ID");
         System.out.println("BID" +  broker_id);
-        long cust_id = account_row.getLong("CA_C_ID");
-        System.out.println("C ID" +  cust_id);
-        int c_tier = (int)account_row.getLong("C_TIER");
-        System.out.println("tier" +  c_tier);
+       // long cust_id = account_row.getLong("CA_C_ID");
+        //System.out.println("C ID" +  cust_id);
+        //int c_tier = (int)account_row.getLong("C_TIER");
+        //System.out.println("tier" +  c_tier);
         double acct_bal = account_row.getDouble("CA_BAL");
         System.out.println("acct_bal" +  acct_bal);
         System.out.println("Successfully got info from cust acc info ");
