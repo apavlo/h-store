@@ -259,20 +259,26 @@ public class TradeResult extends VoltProcedure {
             // need to sell more? go short
             if (needed_qty > 0) {
                 System.out.println("needed qyu g than 0");
+                System.out.println("trade id"+ trade_id);
+                System.out.println("acct_id"+ acct_id);
+                System.out.println("symbol"+symbol);
+                System.out.println("trade_dts"+ trade_dts);
+                System.out.println("trade_price"+ trade_price);
+                System.out.println("needed qty"+ needed_qty);
                 //SQLStmt("insert into HOLDING_HISTORY (HH_H_T_ID, HH_T_ID, HH_BEFORE_QTY, HH_AFTER_QTY) " + "values (?, ?, ?, ?)");
                 //QLStmt("insert into HOLDING (H_T_ID, H_CA_ID, H_S_SYMB, H_DTS, H_PRICE, H_QTY) " + "values (?, ?, ?, ?, ?, ?)");
                 voltQueueSQL(insertHoldingHistory, trade_id, trade_id, 0, -needed_qty);
                 System.out.println("inserted HH");
                 voltQueueSQL(insertHolding, trade_id, acct_id, symbol, trade_dts, trade_price, -needed_qty);
                 System.out.println("inserted HH");
-                try{
+             //   try{
                     voltExecuteSQL();
-                    }
-                    catch(Exception ex){
-                        ex.getMessage();
-                        ex.getCause();
-                        ex.printStackTrace();
-                    }
+               //     }
+               ///     catch(Exception ex){
+               ///         ex.getMessage();
+               //         ex.getCause();
+               //         ex.printStackTrace();
+               //     }
                 System.out.println("short sell done");
                 
             }
