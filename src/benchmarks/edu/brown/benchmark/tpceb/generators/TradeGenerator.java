@@ -352,8 +352,8 @@ public class TradeGenerator implements Iterator<Object[]> {
         //System.out.println("set tier");
         long[] accIdAndSecs = holdsGenerator.generateRandomAccSecurity(newTrade.customer, newTrade.customerTier);
         newTrade.accId = accIdAndSecs[0];
-        System.out.println("set accID");
-        System.out.println("accID" + newTrade.accId);
+       // System.out.println("set accID");
+        //System.out.println("accID" + newTrade.accId);
         newTrade.secAccIndex = (int)accIdAndSecs[1];
         newTrade.secFileIndex = accIdAndSecs[2];
        // System.out.println("secFileIndex");
@@ -726,7 +726,7 @@ public class TradeGenerator implements Iterator<Object[]> {
         currTable = TPCEConstants.TABLENAME_TRADE;
         
         tuple[0] = newTrade.tradeId; // t_id
-       // System.out.println("inserted id: "+ newTrade.tradeId);
+        System.out.println("inserted id: "+ newTrade.tradeId);
         tuple[1] = new TimestampType(getCurrentTradeCompletionTime()); // t_dts
         tuple[2] = statusTypeFile.getTupleByIndex(newTrade.tradeStatus.ordinal())[0]; // t_st_id
         tuple[3] = tradeTypeFile.getTupleByIndex(newTrade.tradeType.ordinal())[0]; // t_tt_id
