@@ -52,7 +52,7 @@ public class GenerateLeaderboard extends VoltProcedure {
 	
     // Put vote into leaderboard
     public final SQLStmt trendingLeaderboardStmt = new SQLStmt(
-	   "INSERT INTO trending_leaderboard (vote_id, phone_number, state, contestant_number, time) SELECT * FROM proc_one_out;"
+	   "INSERT INTO w_staging (vote_id, phone_number, state, contestant_number, time) SELECT * FROM proc_one_out;"
     );
     
     public final SQLStmt clearProcOut = new SQLStmt(
@@ -64,6 +64,14 @@ public class GenerateLeaderboard extends VoltProcedure {
     	"INSERT INTO counting_win (vote_id) SELECT vote_id FROM proc_one_out;"	
     );
     */
+    
+    public final SQLStmt checkStagingTimestamp = new SQLStmt(
+    	"SELECT MAX(time) FROM w_staging;"	
+    );
+    
+    public final SQLStmt checkWindowTimestamp = new SQLStmt(
+    	"SELECT MIN(time) FROM w_trending_leaderboard;"	
+    );
     
     @StmtInfo(
             upsertable=true
@@ -131,6 +139,8 @@ public long run() {
         // Queue up leaderboard stmts
 		voltQueueSQL(trendingLeaderboardStmt);
         voltQueueSQL(updateCount);
+        voltQueueSQL(checkStagingTimestamp);
+        voltQueueSQL(checkWindowTimestamp);
         voltQueueSQL(getCount);
         voltQueueSQL(clearLowestContestant);
         voltQueueSQL(setLowestContestants);

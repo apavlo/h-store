@@ -51,7 +51,7 @@ CREATE TABLE w_staging
 -- PARTITION BY ( phone_number )
 );
 
-CREATE TABLE w_rows
+CREATE TABLE w_trending_leaderboard
 (
   vote_id            bigint     NOT NULL,
   phone_number       bigint     NOT NULL
@@ -65,10 +65,31 @@ CREATE TABLE w_rows
 -- PARTITION BY ( phone_number )
 );
 
-CREATE TABLE leaderboard
+CREATE TABLE top_three_last_30_sec
 (
+  --phone_number       bigint    NOT NULL,
   contestant_number  integer   NOT NULL
-, numvotes           integer   NOT NULL
+, num_votes          integer
+);
+
+CREATE TABLE voteCount
+(
+  row_id	     integer    NOT NULL,
+  cnt		     integer    NOT NULL
+, CONSTRAINT PK_voteCount PRIMARY KEY
+  (
+    row_id
+  )
+);
+
+CREATE TABLE votes_by_contestant
+(
+ contestant_number  integer    NOT NULL REFERENCES contestants (contestant_number)
+, num_votes                integer
+, CONSTRAINT PK_cont PRIMARY KEY
+(
+   contestant_number
+)
 );
 
 -- rollup of votes by phone number, used to reject excessive voting
