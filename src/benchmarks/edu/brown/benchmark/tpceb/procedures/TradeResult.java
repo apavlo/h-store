@@ -271,14 +271,14 @@ public class TradeResult extends VoltProcedure {
                 System.out.println("inserted HH");
                 voltQueueSQL(insertHolding, trade_id, acct_id, symbol, trade_dts, trade_price, -needed_qty);
                 System.out.println("inserted HH");
-                try{
+             //   try{
                     voltExecuteSQL();
-                    }
-                    catch(Exception ex){
-                        ex.getMessage();
-                        ex.getCause();
-                        ex.printStackTrace();
-                    }
+               //     }
+               ///     catch(Exception ex){
+               ///         ex.getMessage();
+               //         ex.getCause();
+               //         ex.printStackTrace();
+               //     }
                 System.out.println("short sell done");
                 
             }
