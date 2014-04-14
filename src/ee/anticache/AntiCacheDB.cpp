@@ -70,6 +70,10 @@ AntiCacheBlock::~AntiCacheBlock() {
     	delete m_buf;
     }
 }
+
+BerkeleyDBBlock::~BerkeleyDBBlock() {
+	delete [] serialized_data;
+}
     
 AntiCacheDB::AntiCacheDB(ExecutorContext *ctx, std::string db_dir, long blockSize) :
     m_executorContext(ctx),

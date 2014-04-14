@@ -28,6 +28,7 @@
 
 #include <db_cxx.h>
 #include "common/debuglog.h"
+#include "common/DefaultTupleSerializer.h"
 
 #define ANTICACHE_DB_NAME "anticache.db"
 
@@ -62,6 +63,7 @@ class AntiCacheBlock {
         inline char* getData() const {
         	return m_block;
         }
+
         struct payload{
         	int16_t blockId;
         	std::string tableName;
@@ -79,6 +81,43 @@ class AntiCacheBlock {
 
 }; // CLASS
 
+// Encapsulates a block that is flushed out to BerkeleyDB
+// TODO: merge it with AntiCacheBlock
+class BerkeleyDBBlock{
+public:
+	~BerkeleyDBBlock();
+
+    inline void initialize(long blockSize, std::string tableName, int16_t blockId, int numTuplesEvicted){
+        DefaultTupleSerializer serializer;
+        // buffer used for serializing a single tuple
+        serialized_data = new char[blockSize];
+        out.initializeWithPosition(serialized_data, blockSize, 0);
+        out.writeInt(numTuplesEvicted);// reserve first 4 bytes in buffer for number of tuples in block
+
+    }
+
+    inline void addTuple(TableTuple tuple){
+    	// Now copy the raw bytes for this tuple into the serialized buffer
+        tuple.serializeWithHeaderTo(out);
+    }
+
+    inline void writeHeader(int num_tuples_evicted){
+    	// write out the block header (i.e. number of tuples in block)
+    	out.writeIntAt(0, num_tuples_evicted);
+    }
+
+    inline int getSerializedSize(){
+    	return (int)out.size();
+    }
+
+    inline const char* getSerializedData(){
+    	return out.data();
+    }
+private:
+    ReferenceSerializeOutput out;
+    char * serialized_data;
+
+};
 /**
  *
  */
