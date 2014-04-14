@@ -37,6 +37,16 @@ CREATE TABLE votes
 -- PARTITION BY ( phone_number )
 );
 
+CREATE TABLE votes_by_contestant
+(
+ contestant_number  integer    NOT NULL REFERENCES contestants (contestant_number)
+, num_votes                integer
+, CONSTRAINT PK_cont PRIMARY KEY
+(
+   contestant_number
+)
+);
+
 CREATE TABLE voteCount
 (
   row_id	     integer    NOT NULL,

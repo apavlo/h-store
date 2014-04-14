@@ -27,7 +27,7 @@
 // number of allowed votes.
 //
 
-package edu.brown.benchmark.voterdemosstore.procedures;
+package edu.brown.benchmark.voterdemohstore.procedures;
 
 import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;

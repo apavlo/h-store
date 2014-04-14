@@ -64,7 +64,8 @@ public class VoterDemoSStoreProjectBuilder extends AbstractProjectBuilder {
         { "contestants", "contestant_number" },
         { "trending_leaderboard", "phone_number" },
         { "top_three_last_30_sec", "contestant_number" },
-        { "voteCount", "row_id"}
+        { "voteCount", "row_id"},
+        { "votes_by_contestant", "contestant_number"}
     };
 
     public VoterDemoSStoreProjectBuilder() {
