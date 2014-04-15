@@ -244,7 +244,9 @@ public class CETxnInputGenerator {
         long          secFlatFileIndex;
       //  String[]      flTaxId;
         TradeType    eTradeType;
+        
         inputStructure.setTradeID(currentTradeID.getAndIncrement());
+        System.out.println("TradeID " + inputStructure.getTradeID());
         /***********ADDDED**/
         //inputStructure.setSendToMarket(pSendToMarket);
         /*******************/
