@@ -186,6 +186,7 @@ public class TradeResult extends VoltProcedure {
         double sell_value = 0;
        // Date trade_dts = Calendar.getInstance().getTime();
         long trade_dts =  Calendar.getInstance().getTimeInMillis();
+        TimestampType timestamp = new TimestampType(trade_dts);
         if (type_is_sell == 1) {
             System.out.println("type was sell");
             if (hs_qty == 0) {
@@ -269,7 +270,7 @@ public class TradeResult extends VoltProcedure {
                 //QLStmt("insert into HOLDING (H_T_ID, H_CA_ID, H_S_SYMB, H_DTS, H_PRICE, H_QTY) " + "values (?, ?, ?, ?, ?, ?)");
                 voltQueueSQL(insertHoldingHistory, trade_id, trade_id, 0, -needed_qty);
                 System.out.println("inserted HH");
-                voltQueueSQL(insertHolding, trade_id, acct_id, symbol, trade_dts, trade_price, -needed_qty);
+                voltQueueSQL(insertHolding, trade_id, acct_id, symbol, timestamp, trade_price, -needed_qty); //trade_dts
                 System.out.println("inserted HH");
              //   try{
                     voltExecuteSQL();
@@ -355,8 +356,10 @@ public class TradeResult extends VoltProcedure {
             // all shorts are covered? a new long is created
             if (needed_qty > 0) {
                 System.out.println("needed qty > 0");
+                System.out.println("Trade id:" + trade_id);
+                System.out.println("acct_id"+ acct_id);
                 voltQueueSQL(insertHoldingHistory, trade_id, trade_id, 0, needed_qty);
-                voltQueueSQL(insertHolding, trade_id, acct_id, symbol, trade_dts, trade_price, needed_qty);
+                voltQueueSQL(insertHolding, trade_id, acct_id, symbol, timestamp, trade_price, needed_qty);
                 voltExecuteSQL();
             }
             else if (-hs_qty == trade_qty) {
