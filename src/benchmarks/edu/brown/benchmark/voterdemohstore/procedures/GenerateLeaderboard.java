@@ -36,7 +36,7 @@ import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.types.TimestampType;
 
-import edu.brown.benchmark.voterdemosstore.VoterDemoSStoreConstants;
+import edu.brown.benchmark.voterdemohstore.VoterDemoHStoreConstants;
 
 @ProcInfo (
 	//partitionInfo = "contestants.contestant_number:1",
@@ -50,6 +50,7 @@ public class GenerateLeaderboard extends VoltProcedure {
 		addTriggerTable("proc_one_out");
 	}
 	
+	////////////////////////////first batch of SQL statements/////////////////////////////
     // Put vote into leaderboard
     public final SQLStmt trendingLeaderboardStmt = new SQLStmt(
 	   "INSERT INTO w_staging (vote_id, phone_number, state, contestant_number, time) SELECT * FROM proc_one_out;"
@@ -100,6 +101,34 @@ public class GenerateLeaderboard extends VoltProcedure {
     	"SELECT contestant_number, num_votes FROM votes_by_contestant ORDER BY num_votes ASC LIMIT 1;"
     );
     
+    ////////////////////////////second batch of SQL statements/////////////////////////////////////////
+    public final SQLStmt slideWindow1 = new SQLStmt(
+    	"DELETE FROM w_trending_leaderboard WHERE time < ?;"
+    );
+    
+    public final SQLStmt slideWindow2 = new SQLStmt(
+    	"INSERT INTO w_trending_leaderboard (vote_id, phone_number, state, contestant_number, time) SELECT * FROM w_staging;"
+    );
+    
+    //hack because we can't use parameters in insert into.. select
+    public final SQLStmt slideWindow3 = new SQLStmt(
+    	"DELETE FROM w_trending_leaderboard WHERE time = ?;"
+    );
+    
+    public final SQLStmt clearStaging = new SQLStmt(
+    	"DELETE FROM w_staging WHERE time < ?;"
+    );
+    
+    public final SQLStmt deleteLeaderboard = new SQLStmt(
+            "DELETE FROM top_three_last_30_sec;"
+    );
+
+    public final SQLStmt updateLeaderboard = new SQLStmt(
+            "INSERT INTO top_three_last_30_sec (contestant_number, num_votes) SELECT contestant_number, count(*) FROM w_trending_leaderboard GROUP BY contestant_number;"
+    );
+    
+    
+    ////////////////////////////third batch of SQL statements//////////////////////////////////////////
     public final SQLStmt deleteContestant = new SQLStmt(
     	"DELETE FROM contestants WHERE contestant_number = ?;"	
     );
@@ -108,8 +137,12 @@ public class GenerateLeaderboard extends VoltProcedure {
         "DELETE FROM votes WHERE contestant_number = ?;"	
     );
     
+    public final SQLStmt deleteFromStaging = new SQLStmt(
+        	"DELETE FROM w_staging WHERE contestant_number = ?;"	
+        );
+    
     public final SQLStmt deleteFromWindow = new SQLStmt(
-        	"DELETE FROM trending_leaderboard WHERE contestant_number = ?;"	
+        	"DELETE FROM w_trending_leaderboard WHERE contestant_number = ?;"	
         );
     
     public final SQLStmt deleteFromLeaderboard = new SQLStmt(
@@ -141,25 +174,43 @@ public long run() {
         voltQueueSQL(updateCount);
         voltQueueSQL(checkStagingTimestamp);
         voltQueueSQL(checkWindowTimestamp);
-        voltQueueSQL(getCount);
+        voltQueueSQL(getCount); //4
         voltQueueSQL(clearLowestContestant);
         voltQueueSQL(setLowestContestants);
-        voltQueueSQL(getLowestContestant);
+        voltQueueSQL(getLowestContestant); //7
         voltQueueSQL(clearProcOut);
         voltQueueSQL(getTopLeaderboard);
         voltQueueSQL(getBottomLeaderboard);
-        voltQueueSQL(getTrendingLeaderboard);
 
         VoltTable validation[] = voltExecuteSQL();
+        
+        long minWinTimestamp = validation[3].fetchRow(0).getLong(0);
+        long maxStageTimestamp = validation[2].fetchRow(0).getLong(0);
+        
+        if(maxStageTimestamp - minWinTimestamp >= VoterDemoHStoreConstants.WIN_SIZE + VoterDemoHStoreConstants.STAGE_SIZE)
+        {
+        	voltQueueSQL(slideWindow1, maxStageTimestamp - VoterDemoHStoreConstants.WIN_SIZE);
+        	voltQueueSQL(slideWindow2);
+        	voltQueueSQL(slideWindow3, maxStageTimestamp);
+        	voltQueueSQL(clearStaging, maxStageTimestamp);
+        	voltQueueSQL(deleteLeaderboard);
+        	voltQueueSQL(updateLeaderboard);
+        	voltQueueSQL(getTrendingLeaderboard);
+        	voltExecuteSQL();
+        }
 		
-        // check the number of rows
-        if ((validation[2].fetchRow(0).getLong(0)) >= VoterDemoSStoreConstants.VOTE_THRESHOLD) {
-        	long contestant_number = validation[5].fetchRow(0).getLong(0);
+        // check the number of votes so far
+        if ((validation[4].fetchRow(0).getLong(0)) >= VoterDemoHStoreConstants.VOTE_THRESHOLD) {
+        	long contestant_number = validation[7].fetchRow(0).getLong(0);
         	
         	voltQueueSQL(deleteVotes, contestant_number);
         	voltQueueSQL(deleteFromWindow, contestant_number);
+        	voltQueueSQL(deleteFromStaging, contestant_number);
         	voltQueueSQL(deleteFromLeaderboard, contestant_number);
         	voltQueueSQL(deleteContestant, contestant_number);
+        	voltQueueSQL(clearLowestContestant);
+            voltQueueSQL(setLowestContestants);
+            voltQueueSQL(getLowestContestant);
             voltQueueSQL(resetCount);
             voltQueueSQL(getTopLeaderboard);
             voltQueueSQL(getBottomLeaderboard);
@@ -169,6 +220,6 @@ public long run() {
         }
 		
         // Set the return value to 0: successful vote
-        return VoterDemoSStoreConstants.VOTE_SUCCESSFUL;
+        return VoterDemoHStoreConstants.VOTE_SUCCESSFUL;
     }
 }

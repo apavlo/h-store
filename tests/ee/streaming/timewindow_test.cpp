@@ -155,6 +155,8 @@ class TimeWindowTest : public Test {
 											TS_COL, ValueFactory::getIntegerValue(6)));
 			VOLT_DEBUG("Initial Table (6): %s", table->debug().c_str());
 
+
+
             // clean up
             delete[] columnNames;
             assert(window_table->getTSColumn() == 0);
@@ -346,7 +348,7 @@ TEST_F(TimeWindowTest, TupleUpdate) {
 
 }
 */
-/**
+
 TEST_F(TimeWindowTest, TupleDelete) {
     //
     // We are just going to delete all of the odd tuples, then make
@@ -373,7 +375,7 @@ TEST_F(TimeWindowTest, TupleDelete) {
 
     VOLT_DEBUG("WINDOW AFTER DELETE: %s", table->debug().c_str());
 }
-*/
+
 /*TEST_F(TimeWindowTest, TupleInsertXact) {
     this->init(true);
     //

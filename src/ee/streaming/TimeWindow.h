@@ -95,11 +95,12 @@ class TimeWindow : public WindowTableTemp {
 	//bool updateTuple(TableTuple &source, TableTuple &target, bool updatesIndexes);
 	//void updateTupleForUndo(TableTuple &sourceTuple, TableTuple &targetTuple,
 	//						bool revertIndexes, size_t elMark);
-	bool deleteTuple(TableTuple &tuple, bool deleteAllocatedStrings);
-	void deleteTupleForUndo(voltdb::TableTuple &tupleCopy, size_t elMark);
 
 	std::string debug();
 	*/
+
+	bool deleteTuple(TableTuple &tuple, bool deleteAllocatedStrings);
+	void deleteTupleForUndo(voltdb::TableTuple &tupleCopy, size_t elMark);
 
   protected:
 	int m_tsColumn;

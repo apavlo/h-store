@@ -215,7 +215,7 @@ void TimeWindow::insertTupleForUndo(TableTuple &source, size_t elMark)
 	VOLT_DEBUG("stagedTuples: %d, tupleCount: %d", m_numStagedTuples, m_tupleCount);
 }
 
-/**
+
 //TODO: the tuple pointers aren't quite working right.  Fortunately we rarely delete from windows.
 bool TimeWindow::deleteTuple(TableTuple &tuple, bool deleteAllocatedStrings)
 {
@@ -262,7 +262,7 @@ bool TimeWindow::deleteTuple(TableTuple &tuple, bool deleteAllocatedStrings)
 
 	return deletedTuple;
 }
-
+/**
 void TimeWindow::deleteTupleForUndo(voltdb::TableTuple &tupleCopy, size_t elMark)
 {
 	VOLT_DEBUG("TimeWindow DELETETUPLE");
