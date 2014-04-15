@@ -37,6 +37,15 @@ CREATE TABLE votes
 -- PARTITION BY ( phone_number )
 );
 
+CREATE TABLE proc_one_out
+(
+  vote_id            bigint     NOT NULL,
+  phone_number       bigint     NOT NULL
+, state              varchar(2) NOT NULL -- REFERENCES area_code_state (state)
+, contestant_number  integer    NOT NULL REFERENCES contestants (contestant_number)
+, time		     integer    NOT NULL
+);
+
 CREATE TABLE w_staging
 (
   vote_id            bigint     NOT NULL,

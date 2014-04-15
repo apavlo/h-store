@@ -116,6 +116,12 @@ public class VoterDemoHStoreClient extends BenchmarkComponent {
                                                 call.contestantNumber,
                                                 VoterDemoHStoreConstants.MAX_VOTES,
                                                 timestamp);
+        
+        if(response)
+        {
+        	response = client.callProcedure(callback,
+                    "GenerateLeaderboard");
+        }
         return response;
     }
 
@@ -161,4 +167,5 @@ public class VoterDemoHStoreClient extends BenchmarkComponent {
             }
         }
     } // END CLASS
+    
 }
