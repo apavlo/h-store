@@ -215,15 +215,18 @@ void TimeWindow::insertTupleForUndo(TableTuple &source, size_t elMark)
 	VOLT_DEBUG("stagedTuples: %d, tupleCount: %d", m_numStagedTuples, m_tupleCount);
 }
 
-
+/**
 //TODO: the tuple pointers aren't quite working right.  Fortunately we rarely delete from windows.
 bool TimeWindow::deleteTuple(TableTuple &tuple, bool deleteAllocatedStrings)
 {
 	VOLT_DEBUG("TimeWindow DELETETUPLE");
 	WindowIterator win_itr(this);
 	TableTuple curtup = tempTuple();
-	uint32_t currentTupleID = tuple.getTupleID();
+	uint32_t currentTupleID = this->getTupleID(tuple.address());
 	uint32_t nextTupleID = tuple.getNextTupleInChain();
+
+	//VOLT_DEBUG("currentTupleID: %d", currentTupleID);
+	//VOLT_DEBUG("nextTupleID: %d", nextTupleID);
 
 	//if there are no tuples to delete
 	if(!win_itr.hasNext())
@@ -250,7 +253,9 @@ bool TimeWindow::deleteTuple(TableTuple &tuple, bool deleteAllocatedStrings)
 			win_itr.next(curtup);
 		}
 
+		//VOLT_DEBUG("Current Order: %d, %d, %d", this->getTupleID(curtup.address()), curtup.getTupleID(), nextTupleID);
 		curtup.setNextTupleInChain(nextTupleID);
+		//VOLT_DEBUG("Current Order: %d, %d", this->getTupleID(curtup.address()), curtup.getNextTupleInChain());
 	}
 
 	//TODO: must mark tuple for window before it can be deleted
@@ -262,18 +267,21 @@ bool TimeWindow::deleteTuple(TableTuple &tuple, bool deleteAllocatedStrings)
 
 	return deletedTuple;
 }
-/**
+
 void TimeWindow::deleteTupleForUndo(voltdb::TableTuple &tupleCopy, size_t elMark)
 {
 	VOLT_DEBUG("TimeWindow DELETETUPLE");
 	WindowIterator win_itr(this);
 	TableTuple curtup = tempTuple();
-	uint32_t currentTupleID = tupleCopy.getTupleID();
+	uint32_t currentTupleID = this->getTupleID(tupleCopy.address());
 	uint32_t nextTupleID = tupleCopy.getNextTupleInChain();
+
+	//VOLT_DEBUG("currentTupleID: %d", currentTupleID);
+	//VOLT_DEBUG("nextTupleID: %d", nextTupleID);
 
 	//if there are no tuples to delete
 	if(!win_itr.hasNext())
-		return;
+		return false;
 	//if there's only one tuple left
 	else if(getOldestTupleID() == getNewestTupleID())
 	{
@@ -285,7 +293,7 @@ void TimeWindow::deleteTupleForUndo(voltdb::TableTuple &tupleCopy, size_t elMark
 	//if the tuple to delete is the first one
 	else if(currentTupleID == m_oldestTupleID)
 	{
-		setOldestTupleID(tupleCopy.getNextTupleInChain());
+		setOldestTupleID(tuple.getNextTupleInChain());
 	}
 	//otherwise reorganize the chain
 	else
@@ -296,11 +304,13 @@ void TimeWindow::deleteTupleForUndo(voltdb::TableTuple &tupleCopy, size_t elMark
 			win_itr.next(curtup);
 		}
 
+		//VOLT_DEBUG("Current Order: %d, %d, %d", this->getTupleID(curtup.address()), curtup.getTupleID(), nextTupleID);
 		curtup.setNextTupleInChain(nextTupleID);
+		//VOLT_DEBUG("Current Order: %d, %d", this->getTupleID(curtup.address()), curtup.getNextTupleInChain());
 	}
 
 	//TODO: must mark tuple for window before it can be deleted
-	markTupleForWindow(tupleCopy);
+	markTupleForWindow(tuple);
 
 	//if(deletedTuple)
 	//	resetWindow();

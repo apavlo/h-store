@@ -362,9 +362,9 @@ TEST_F(TimeWindowTest, TupleDelete) {
     int i = 0;
     while (iterator.next(tuple)) {
         if (ValuePeeker::peekAsBigInt(tuple.getNValue(1)) != 0) {
-            EXPECT_EQ(true, table->deleteTuple(tuple, true));
+            EXPECT_EQ(true, window_table->deleteTuple(tuple, true));
         }
-        VOLT_DEBUG("DELETE #%d: %s", i, table->debug().c_str());
+        VOLT_DEBUG("DELETE #%d: %s", i, window_table->printChain().c_str());
         i++;
     }
 
