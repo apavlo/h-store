@@ -295,15 +295,15 @@ int countRow =0;
                 egen_clientDriver.driver_ptr.getMEE().submitTradeRequest(tradeRequest);
                 countRow++;
                // System.out.println("true");*/
-            }
+          //  }
           
             // clientResponse.getResults();
             //  tradeOrderResult = this.getClientHandle().getResults();// retME = this.getClientHandle().callProcedure(new TPCECallback(target), target.callName, this.generateClientArgs(targetME));
         } 
-        catch (ProcCallException ex) {
-            System.out.println("intentional rollback");
+       // catch (ProcCallException ex) {
+       //     System.out.println("intentional rollback");
            // ex.printStackTrace();
-        }
+       // }
         catch (Exception ex) {
         
             ex.printStackTrace();
