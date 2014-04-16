@@ -116,6 +116,7 @@ class WindowTableTemp : public PersistentTable {
 	int getNumStagedTuples();
 
 	std::string debug();
+	std::string printChain();
 
 	virtual void initWin() {}//every window type must have an initialize function
 
@@ -128,7 +129,7 @@ class WindowTableTemp : public PersistentTable {
 	uint32_t m_newestWindowTupleID;
 	uint32_t m_newestTupleID;
 	bool m_firstTuple;
-	std::string printChain();
+
 };
 }
 
