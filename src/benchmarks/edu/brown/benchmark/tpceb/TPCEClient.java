@@ -189,20 +189,20 @@ private int num = 1;
         
         return XTRANS[iTxnType];
        }
-        else {//if(countTotal <= 500){
+        else if(countTotal <= 500){
             num = 2;
             System.out.println("Market Feed");
                 countTotal++;
                 return XTRANS[2];
      //           
            }
-       // else{
+        else{
           //  return null;
-         //   num = 2;
+            num = 2;
           //  System.out.println("Trade Result");
-          //  countTotal++;
-        //    return XTRANS[1];
-       // }
+            countTotal++;
+           return XTRANS[1];
+       }
     }
     
   
