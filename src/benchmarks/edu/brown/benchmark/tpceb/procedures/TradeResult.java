@@ -360,7 +360,7 @@ public class TradeResult extends VoltProcedure {
                 System.out.println("acct_id"+ acct_id);
                 voltQueueSQL(insertHoldingHistory, trade_id, trade_id, 0, needed_qty);
                 System.out.println("this worked");
-                voltQueueSQL(insertHolding, trade_id, acct_id, symbol, trade_dts, trade_price, needed_qty);
+                voltQueueSQL(insertHolding, trade_id, acct_id, symbol, trade_dts, (float)trade_price, needed_qty);
                 voltExecuteSQL();
             }
             else if (-hs_qty == trade_qty) {
