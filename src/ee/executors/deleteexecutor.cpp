@@ -54,6 +54,7 @@
 #include "storage/tableutil.h"
 #include "storage/temptable.h"
 #include "storage/persistenttable.h"
+#include "streaming/WindowTableTemp.h"
 
 #include <cassert>
 
@@ -103,9 +104,17 @@ bool DeleteExecutor::p_execute(const NValueArray &params, ReadWriteTracker *trac
         m_targetTable->deleteAllTuples(true);
         return true;
     }
+
     assert(m_inputTable);
     assert(m_inputTuple.sizeInValues() == m_inputTable->columnCount());
     assert(m_targetTuple.sizeInValues() == m_targetTable->columnCount());
+/**
+    WindowTableTemp* windowTarget = dynamic_cast<WindowTableTemp*>(m_targetTable);
+    if(windowTarget != NULL)
+    {
+    	VOLT_DEBUG("DELETE FROM WINDOW TABLE");
+    }
+*/
     TableIterator inputIterator(m_inputTable);
     while (inputIterator.next(m_inputTuple)) {
         //
