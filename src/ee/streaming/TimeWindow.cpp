@@ -215,7 +215,7 @@ void TimeWindow::insertTupleForUndo(TableTuple &source, size_t elMark)
 	VOLT_DEBUG("stagedTuples: %d, tupleCount: %d", m_numStagedTuples, m_tupleCount);
 }
 
-/**
+
 //TODO: the tuple pointers aren't quite working right.  Fortunately we rarely delete from windows.
 bool TimeWindow::deleteTuple(TableTuple &tuple, bool deleteAllocatedStrings)
 {
@@ -281,7 +281,7 @@ void TimeWindow::deleteTupleForUndo(voltdb::TableTuple &tupleCopy, size_t elMark
 
 	//if there are no tuples to delete
 	if(!win_itr.hasNext())
-		return false;
+		return;
 	//if there's only one tuple left
 	else if(getOldestTupleID() == getNewestTupleID())
 	{
@@ -293,7 +293,7 @@ void TimeWindow::deleteTupleForUndo(voltdb::TableTuple &tupleCopy, size_t elMark
 	//if the tuple to delete is the first one
 	else if(currentTupleID == m_oldestTupleID)
 	{
-		setOldestTupleID(tuple.getNextTupleInChain());
+		setOldestTupleID(tupleCopy.getNextTupleInChain());
 	}
 	//otherwise reorganize the chain
 	else
@@ -310,14 +310,14 @@ void TimeWindow::deleteTupleForUndo(voltdb::TableTuple &tupleCopy, size_t elMark
 	}
 
 	//TODO: must mark tuple for window before it can be deleted
-	markTupleForWindow(tuple);
+	markTupleForWindow(tupleCopy);
 
 	//if(deletedTuple)
 	//	resetWindow();
 
 	PersistentTable::deleteTupleForUndo(tupleCopy, elMark);
 }
-
+/**
 std::string TimeWindow::debug()
 {
 	std::ostringstream output;
