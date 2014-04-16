@@ -83,7 +83,7 @@ public class EGenClientDriver {
 
     public Object[] getTradeOrderParams() {
         int   iTradeType = 0; 
-        SendToMarket pSendToMarket = driver_ptr.getSendToMarket();/**********/
+       // SendToMarket pSendToMarket = driver_ptr.getSendToMarket();/**********/
         //MODIFIED INPUT
         Object[] obj = driver_ptr.generateTradeOrderInput(iTradeType ).InputParameters().toArray();
       
