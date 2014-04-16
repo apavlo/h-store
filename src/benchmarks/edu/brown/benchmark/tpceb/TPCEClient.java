@@ -176,7 +176,7 @@ public class TPCEClient extends BenchmarkComponent {
 private int num = 1;
     protected Transaction selectTransaction() {
         //getNumThreads * 20
-       // if(countTotal <= 200){ //probably 200
+        if(countTotal <= 200){ //probably 200
             num = 1;
             System.out.println("Trade Order number:" + countTotal);
         int iTxnType = egen_clientDriver.driver_ptr.getCE().getCETxnMixGenerator().generateNextTxnType( );
@@ -188,7 +188,7 @@ private int num = 1;
         countTotal++;
         
         return XTRANS[iTxnType];
-     /*   }
+       }
         else if(countTotal <= 500){
             num = 2;
             System.out.println("Market Feed");
@@ -198,11 +198,11 @@ private int num = 1;
            }
         else{
           //  return null;
-         //   num = 2;
+            num = 2;
           //  System.out.println("Trade Result");
-          //  countTotal++;
-            return XTRANS[1];
-        }*/
+            countTotal++;
+           return XTRANS[1];
+       }
     }
     
   
@@ -249,15 +249,15 @@ int countRow =0;
          
             tradeRequest = new TTradeRequest();
             LOG.debug("Executing txn " + target);
-            ret = this.getClientHandle().callProcedure(new TPCECallback(target), target.callName, this.generateClientArgs(target));
            // ret = this.getClientHandle().callProcedure(new TPCECallback(target), target.callName, this.generateClientArgs(target));
-           // tradeOrderResult = this.getClientHandle().callProcedure(target.callName, this.generateClientArgs(target)).getResults();
+           // ret = this.getClientHandle().callProcedure(new TPCECallback(target), target.callName, this.generateClientArgs(target));
+            tradeOrderResult = this.getClientHandle().callProcedure(target.callName, this.generateClientArgs(target)).getResults();
             
            // System.out.println("countRow:"+ countRow + "  " +tradeOrderResult[countRow]);
            // System.out.println(tradeOrderResult[0]);
 
            //System.out.println(tradeOrderResult.length);
-          /*  if(tradeOrderResult.length == 0){
+            if(tradeOrderResult.length == 0){
                 ret = false;
             }
             else if(tradeOrderResult[0] == null){
@@ -294,16 +294,16 @@ int countRow =0;
                 ret = true;
                 egen_clientDriver.driver_ptr.getMEE().submitTradeRequest(tradeRequest);
                 countRow++;
-               // System.out.println("true");*/
-          //  }
+               // System.out.println("true");
+           }
           
             // clientResponse.getResults();
             //  tradeOrderResult = this.getClientHandle().getResults();// retME = this.getClientHandle().callProcedure(new TPCECallback(target), target.callName, this.generateClientArgs(targetME));
         } 
-       // catch (ProcCallException ex) {
-       //     System.out.println("intentional rollback");
+        catch (ProcCallException ex) {
+            System.out.println("intentional rollback");
            // ex.printStackTrace();
-       // }
+        }
         catch (Exception ex) {
         
             ex.printStackTrace();
