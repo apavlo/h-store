@@ -146,6 +146,7 @@ public class CETxnInputGenerator {
         activeSecurityCount = SecurityHandler.getSecurityNum(myCustomerCount);
 
         maxActivePrePopulatedTradeID = (int)(( hoursOfInitialTrades * EGenDate.SecondsPerHour * ( activeCustomerCount / scaleFactor )) * TPCEConstants.AbortTrade / 100 );
+        System.out.println("MAX active prepopulated tradeID" + maxActivePrePopulatedTradeID );
         currentTradeID = new AtomicLong(maxActivePrePopulatedTradeID + 1);
         startTime = EGenDate.getDateFromTime(
         		TPCEConstants.initialTradePopulationBaseYear,
@@ -247,6 +248,8 @@ public class CETxnInputGenerator {
         
         inputStructure.setTradeID(currentTradeID.getAndIncrement());
         System.out.println("TradeID " + inputStructure.getTradeID());
+        
+        
         /***********ADDDED**/
         //inputStructure.setSendToMarket(pSendToMarket);
         /*******************/
