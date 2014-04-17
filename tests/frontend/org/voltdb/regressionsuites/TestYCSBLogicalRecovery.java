@@ -73,7 +73,7 @@ public class TestYCSBLogicalRecovery extends RegressionSuite {
 
     // YCSB
     private static final String PREFIX = "ycsb";
-    private static int NUM_TRANSACTIONS = 100000;
+    private static int NUM_TRANSACTIONS = 500;
     private static final String projectJAR = "logical_" + PREFIX + ".jar";
 
 
@@ -201,7 +201,8 @@ public class TestYCSBLogicalRecovery extends RegressionSuite {
         
         // Load database
         try {
-            initializeYCSBDatabase(cc, client, YCSBConstants.NUM_RECORDS);
+            //initializeYCSBDatabase(cc, client, YCSBConstants.NUM_RECORDS);
+            initializeYCSBDatabase(cc, client, 10000);
         } catch (Exception e) {
             e.printStackTrace();
         }

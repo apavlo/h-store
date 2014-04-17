@@ -44,6 +44,7 @@ public:
     };
 };
 
+/*
 TEST_F(AntiCacheDBTest, NextBlockId) {
     ChTempDir tempdir;
     AntiCacheDB anticache(NULL, ".", BLOCK_SIZE);
@@ -77,6 +78,8 @@ TEST_F(AntiCacheDBTest, WriteBlock) {
         ASSERT_TRUE(false);
     }
 }
+*/
+
 int main() {
     return TestSuite::globalInstance()->runAll();
 }

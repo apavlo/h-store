@@ -46,14 +46,15 @@ import edu.brown.hstore.HStoreConstants;
  */
 public class TestTPCCPhysicalRecovery extends RegressionSuite {
 
-    private static final String ARIESDIR = "/mnt/pmfs/aries";    
+    //private static final String ARIESDIR = "/mnt/pmfs/aries";    
+    private static final String ARIESDIR = "./obj/aries";    
         
     private static int NUM_SITES = -1;    
     private static int NUM_PARTITIONS = -1;    
 
     // TPCC
     private static final String PREFIX = "tpcc";
-    private static int NUM_TRANSACTIONS = 50000;
+    private static int NUM_TRANSACTIONS = 5000;
     private static final String projectJAR = "physical_" + PREFIX + ".jar";    
 
     public TestTPCCPhysicalRecovery(String name) {

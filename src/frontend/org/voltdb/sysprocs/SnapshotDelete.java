@@ -98,7 +98,7 @@ public class SnapshotDelete extends VoltSystemProcedure {
                     List<File> relevantFiles = retrieveRelevantFiles(paths[ii], nonces[ii]);
                     if (relevantFiles == null) {
                         result.addRow(
-                                      Integer.parseInt(context.getSite().getHost().getTypeName()),
+                                      Integer.parseInt(context.getSite().getHost().getTypeName().replaceAll("[\\D]", "")),
                                       hostname,
                                       paths[ii],
                                       nonces[ii],
@@ -111,8 +111,8 @@ public class SnapshotDelete extends VoltSystemProcedure {
                         for (final File f : relevantFiles) {
                             long size = f.length();
                             boolean deleted = f.delete();
-                            result.addRow(
-                                          Integer.parseInt(context.getSite().getHost().getTypeName()),
+                            result.addRow(                                                          
+                                          Integer.parseInt(context.getSite().getHost().getTypeName().replaceAll("[\\D]", "")),
                                           hostname,
                                           paths[ii],
                                           nonces[ii],

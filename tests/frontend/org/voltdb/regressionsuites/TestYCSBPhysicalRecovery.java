@@ -64,7 +64,7 @@ public class TestYCSBPhysicalRecovery extends RegressionSuite {
 
     // YCSB
     private static final String PREFIX = "ycsb";
-    private static int NUM_TRANSACTIONS = 1000;
+    private static int NUM_TRANSACTIONS = 5000;
     private static final String projectJAR = "physical_" + PREFIX + ".jar";
 
     public TestYCSBPhysicalRecovery(String name) {
@@ -150,7 +150,8 @@ public class TestYCSBPhysicalRecovery extends RegressionSuite {
 
         // Load database        
         try{
-            initializeYCSBDatabase(cc, client, YCSBConstants.NUM_RECORDS);
+            //initializeYCSBDatabase(cc, client, YCSBConstants.NUM_RECORDS);
+            initializeYCSBDatabase(cc, client, 10000);
         }
         catch(Exception e){
             e.printStackTrace();

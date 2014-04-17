@@ -62,7 +62,8 @@ import edu.brown.hstore.cmdlog.LogEntry;
  */
 public class TestTPCCLogicalRecovery extends RegressionSuite {
 
-    private static final String TMPDIR = "/mnt/pmfs/snapshot";
+    //private static final String TMPDIR = "/mnt/pmfs/snapshot";
+    private static final String TMPDIR = "./obj/snapshot";
 
     private static final String TESTNONCE = "testnonce";
     private static final int ALLOWEXPORT = 0;
@@ -72,7 +73,7 @@ public class TestTPCCLogicalRecovery extends RegressionSuite {
 
     // TPCC
     private static final String PREFIX = "tpcc";
-    private static int NUM_TRANSACTIONS = 50000;
+    private static int NUM_TRANSACTIONS = 500;
     private static final String projectJAR = "logical_" + PREFIX + ".jar";    
 
     public TestTPCCLogicalRecovery(String name) {
@@ -273,7 +274,8 @@ public class TestTPCCLogicalRecovery extends RegressionSuite {
         results = client.callProcedure("@Statistics", "table", 0).getResults();
         System.out.println(results[0]);
                 
-        File logDir = new File("/mnt/pmfs" + File.separator + "cmdlog");                               
+        //File logDir = new File("/mnt/pmfs" + File.separator + "cmdlog");                               
+        File logDir = new File("./obj" + File.separator + "cmdlog");                               
         
         // Parse WAL logs for all sites
         CatalogMap<Site> sites = cc.sites;

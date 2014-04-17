@@ -129,7 +129,7 @@ public class SnapshotSaveAPI
 
             if (failures.isEmpty()) {
                 blockingResult.addRow(
-                        Integer.parseInt(context.getSite().getHost().getTypeName()),
+                        Integer.parseInt(context.getSite().getHost().getTypeName().replaceAll("[\\D]", "")),
                         hostname,
                         context.getHStoreSite().getSiteId(), 
                         context.getPartitionExecutor().getPartitionId(),                     
@@ -142,7 +142,7 @@ public class SnapshotSaveAPI
                     err = e.toString();
                 }
                 blockingResult.addRow(
-                        Integer.parseInt(context.getSite().getHost().getTypeName()),
+                        Integer.parseInt(context.getSite().getHost().getTypeName().replaceAll("[\\D]", "")),
                         hostname,
                         context.getHStoreSite().getSiteId(), 
                         context.getPartitionExecutor().getPartitionId(),                     
@@ -291,7 +291,7 @@ public class SnapshotSaveAPI
                         "RESULTED IN IOException: \n" + sw.toString();
                     }
 
-                    result.addRow(Integer.parseInt(context.getSite().getHost().getTypeName()),
+                    result.addRow(Integer.parseInt(context.getSite().getHost().getTypeName().replaceAll("[\\D]", "")),
                             hostname,
                             context.getHStoreSite().getSiteId(), 
                             context.getPartitionExecutor().getPartitionId(),                         
@@ -387,7 +387,7 @@ public class SnapshotSaveAPI
         try {
             SnapshotSiteProcessor.m_snapshotPermits.acquire();
         } catch (Exception e) {
-            result.addRow(Integer.parseInt(context.getSite().getHost().getTypeName()),
+            result.addRow(Integer.parseInt(context.getSite().getHost().getTypeName().replaceAll("[\\D]", "")),
                     hostname,
                     context.getHStoreSite().getSiteId(), 
                     context.getPartitionExecutor().getPartitionId(),                 
@@ -424,7 +424,7 @@ public class SnapshotSaveAPI
     throws IOException
     {
         return new DefaultSnapshotDataTarget(f,
-                                             Integer.parseInt(h.getTypeName()),
+                                             Integer.parseInt(h.getTypeName().replaceAll("[\\D]", "")),
                                              context.getCluster().getTypeName(),
                                              context.getDatabase().getTypeName(),
                                              table.getTypeName(),
