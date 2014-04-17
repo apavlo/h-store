@@ -1128,6 +1128,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 // Process Work
                 // -------------------------------
                 if (nextWork != null) {
+                    
                     if (trace.val) LOG.trace("Next Work: " + nextWork);
                     if (hstore_conf.site.exec_profiling) {
                         profiler.numMessages.put(nextWork.getClass().getSimpleName());
@@ -1295,7 +1296,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
      * @param work
      */
     private final void processInternalMessage(InternalMessage work) {
-        
         // -------------------------------
         // UTILITY WORK
         // -------------------------------
@@ -1362,6 +1362,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
      * @param work
      */
     private void processInternalTxnMessage(InternalTxnMessage work) {
+        
         AbstractTransaction ts = work.getTransaction();
         this.currentTxn = ts;
         this.currentTxnId = ts.getTransactionId();
@@ -2240,6 +2241,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
      * @param ts
      */
     private void executeTransaction(LocalTransaction ts) {
+
         assert(ts.isInitialized()) :
             String.format("Trying to execute uninitialized transaction %s at partition %d",
                           ts, this.partitionId);
@@ -2876,7 +2878,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
     private VoltTable[] executeLocalPlan(LocalTransaction ts,
                                          BatchPlanner.BatchPlan plan,
                                          ParameterSet parameterSets[]) {
-
         // Start the new execution round
         long undoToken = this.calculateNextUndoToken(ts, plan.isReadOnly());
         ts.initFirstRound(undoToken, plan.getBatchSize());
@@ -3135,8 +3136,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                         {
                             // step two - iterate to fire them
                             // first way - direct execute such procedure in HStoreSite (Server side)
-                            //System.out.println("hawk - txn:" + String.format("%d...",ts.getTransactionId()) + "firing frontend trigger 0:" + procedure.getName());
-        
                             if(procedure.getBedefault() == true)  // FIXME modified by hawk, 2014-3-7
                                 this.hstore_site.invocationTriggerProcedureProcess(ts.getBatchId(), ts.getClientHandle(), /*ts.getInitiateTime()*/ EstTime.currentTimeMillis(), procedure);
                             else // second way - send it back to client to run it (Client side)
@@ -3377,7 +3376,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                                            ParameterSet batchParams[],
                                            boolean finalTask,
                                            boolean forceSinglePartition) {
-        
         boolean needs_profiling = (hstore_conf.site.txn_profiling && ts.profiler != null);
         if (needs_profiling) {
             ts.profiler.addBatch(batchSize);

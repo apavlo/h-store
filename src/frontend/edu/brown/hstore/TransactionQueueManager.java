@@ -396,7 +396,6 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
     protected Status lockQueueInsert(AbstractTransaction ts,
                                      int partition,
                                      PartitionCountingCallback<? extends AbstractTransaction> callback) {
-        
         if (hstore_conf.site.queue_profiling) profilers[partition].init_time.start();
         assert(ts.isInitialized()) :
             String.format("Unexpected uninitialized transaction %s [partition=%d]", ts, partition);
@@ -439,7 +438,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
         // The next txnId that we're going to try to execute is already greater
         // than this new txnId that we were given! Rejection!
         if (next_safe_id != null && next_safe_id.compareTo(txn_id) > 0) {
-             if (debug.val)
+            if (debug.val)
                 LOG.warn(String.format("The next safe lockQueue txn for partition #%d is %s but this " +
                          "is greater than our new txn %s. Rejecting...",
                          partition, next_safe_id, ts));
