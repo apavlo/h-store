@@ -108,37 +108,70 @@ bool DeleteExecutor::p_execute(const NValueArray &params, ReadWriteTracker *trac
     assert(m_inputTable);
     assert(m_inputTuple.sizeInValues() == m_inputTable->columnCount());
     assert(m_targetTuple.sizeInValues() == m_targetTable->columnCount());
-/**
-    WindowTableTemp* windowTarget = dynamic_cast<WindowTableTemp*>(m_targetTable);
-    if(windowTarget != NULL)
-    {
-    	VOLT_DEBUG("DELETE FROM WINDOW TABLE");
-    }
-*/
-    TableIterator inputIterator(m_inputTable);
-    while (inputIterator.next(m_inputTuple)) {
-        //
-        // OPTIMIZATION: Single-Sited Query Plans
-        // If our beloved DeletePlanNode is apart of a single-site query plan,
-        // then the first column in the input table will be the address of a
-        // tuple on the target table that we will want to blow away. This saves
-        // us the trouble of having to do an index lookup
-        //
-        void *targetAddress = m_inputTuple.getNValue(0).castAsAddress();
-        m_targetTuple.move(targetAddress);
-        
-        // Read/Write Set Tracking
-        if (tracker != NULL) {
-            tracker->markTupleWritten(m_targetTable->name(), &m_targetTuple);
-        }
 
-        // Delete from target table
-        if (!m_targetTable->deleteTuple(m_targetTuple, true)) {
-            VOLT_ERROR("Failed to delete tuple from table '%s'",
-                       m_targetTable->name().c_str());
-            return false;
-        }
+    /**
+    WindowTableTemp* windowInput = dynamic_cast<WindowTableTemp*>(m_inputTable);
+    WindowTableTemp* windowTarget = dynamic_cast<WindowTableTemp*>(m_targetTable);
+    if(windowInput != NULL && windowTarget != NULL)
+    {
+    	WindowIterator inputIterator(windowInput);
+		while (inputIterator.next(m_inputTuple)) {
+			//
+			// OPTIMIZATION: Single-Sited Query Plans
+			// If our beloved DeletePlanNode is apart of a single-site query plan,
+			// then the first column in the input table will be the address of a
+			// tuple on the target table that we will want to blow away. This saves
+			// us the trouble of having to do an index lookup
+			//
+			bool staging = windowInput->tupleStaged(m_inputTuple);
+			windowInput->markTupleForWindow(m_inputTuple);
+
+			void *targetAddress = m_inputTuple.getNValue(0).castAsAddress();
+			m_targetTuple.move(targetAddress);
+
+			// Read/Write Set Tracking
+			if (tracker != NULL) {
+				tracker->markTupleWritten(m_targetTable->name(), &m_targetTuple);
+			}
+
+			// Delete from target table
+			if (!windowTarget->deleteTuple(m_targetTuple, true)) {
+				VOLT_ERROR("Failed to delete tuple from table '%s'",
+						   windowTarget->name().c_str());
+				if(staging)
+					windowTarget->markTupleForStaging(m_targetTuple);
+				return false;
+			}
+		}
     }
+    else
+    {
+    */
+	TableIterator inputIterator(m_inputTable);
+	while (inputIterator.next(m_inputTuple)) {
+		//
+		// OPTIMIZATION: Single-Sited Query Plans
+		// If our beloved DeletePlanNode is apart of a single-site query plan,
+		// then the first column in the input table will be the address of a
+		// tuple on the target table that we will want to blow away. This saves
+		// us the trouble of having to do an index lookup
+		//
+		void *targetAddress = m_inputTuple.getNValue(0).castAsAddress();
+		m_targetTuple.move(targetAddress);
+
+		// Read/Write Set Tracking
+		if (tracker != NULL) {
+			tracker->markTupleWritten(m_targetTable->name(), &m_targetTuple);
+		}
+
+		// Delete from target table
+		if (!m_targetTable->deleteTuple(m_targetTuple, true)) {
+			VOLT_ERROR("Failed to delete tuple from table '%s'",
+					   m_targetTable->name().c_str());
+			return false;
+		}
+	}
+    //}
 
     // add to the planfragments count of modified tuples
     m_engine->m_tuplesModified += m_inputTable->activeTupleCount();
