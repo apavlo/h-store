@@ -85,11 +85,11 @@ public class ExecutionEngineJNI extends ExecutionEngine {
     private final BBContainer deserializerBufferOrigin = org.voltdb.utils.DBBPool.allocateDirect(1024 * 1024 * 10);
     private FastDeserializer deserializer = new FastDeserializer(deserializerBufferOrigin.b);
 
-    private final BBContainer exceptionBufferOrigin = org.voltdb.utils.DBBPool.allocateDirect(1024 * 1024 * 20);
+    private final BBContainer exceptionBufferOrigin = org.voltdb.utils.DBBPool.allocateDirect(1024 * 1024 * 10);
     private ByteBuffer exceptionBuffer = exceptionBufferOrigin.b;
 
     // ARIES
-    private final BBContainer ariesLogBufferOrigin = org.voltdb.utils.DBBPool.allocateDirect(5 * 1024 * 1024 * 20);
+    private final BBContainer ariesLogBufferOrigin = org.voltdb.utils.DBBPool.allocateDirect(1024 * 1024 * 10);
     private ByteBuffer ariesLogBuffer = ariesLogBufferOrigin.b;
     
     /**
@@ -194,6 +194,9 @@ public class ExecutionEngineJNI extends ExecutionEngine {
         deserializerBufferOrigin.discard();
         exceptionBuffer = null;
         exceptionBufferOrigin.discard();
+        ariesLogBuffer = null;
+        ariesLogBufferOrigin.discard();
+
         if (trace.val) LOG.trace("Released Execution Engine.");
     }
     
