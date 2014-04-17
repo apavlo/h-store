@@ -544,6 +544,7 @@ public abstract class VoltProcedure implements Poolable {
      */
     public final ClientResponseImpl call(LocalTransaction txnState, Object... paramList) {
         ClientResponseImpl response = null;
+        
 //        this.txnState = txnState;
         this.localTxnState = txnState;
         this.procParams = paramList;
@@ -1065,6 +1066,7 @@ public abstract class VoltProcedure implements Poolable {
     }
     
     private VoltTable[] voltExecuteSQL(boolean isFinalSQL, boolean forceSinglePartition) {
+
         if (this.isNative == false) {
             VoltTable[] batch_results = this.queryResults.toArray(new VoltTable[queryResults.size()]);
             this.queryResults.clear();
@@ -1149,6 +1151,7 @@ public abstract class VoltProcedure implements Poolable {
                                                final Object[][] batchArgs,
                                                final boolean finalTask,
                                                final boolean forceSinglePartition) {
+        
         assert(batchStmts != null);
         assert(batchArgs != null);
         assert(batchStmts.length > 0);

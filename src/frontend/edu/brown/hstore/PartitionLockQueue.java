@@ -281,6 +281,7 @@ public class PartitionLockQueue extends ThrottlingQueue<AbstractTransaction> {
                 
                 // Call this again to prime the next txn
                 this.checkQueueState(true);
+                
             }
             
             if (trace.val)

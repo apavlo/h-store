@@ -28,6 +28,8 @@ public class AnotherArgumentsParser {
     public static final String PARAM_BATCH_ROUNDS        = "batch.rounds";
     public static final String PARAM_RESULT_JSON        = "result.json";
     public static final String PARAM_RESULT_DISPLAY        = "result.display";
+    public static final String PARAM_SHUFFLE_METHOD        = "shuffle.method";
+    public static final String PARAM_SHUFFLE_SIZE        = "shuffle.size";
     
     public static final List<String> PARAMS = new ArrayList<String>();
     static {
@@ -56,9 +58,18 @@ public class AnotherArgumentsParser {
     }
     
     public static AnotherArgumentsParser load(String args[]) throws Exception {
+        
+        return AnotherArgumentsParser.load(args, true);
+        
+    }
+    
+    public static AnotherArgumentsParser load(String args[], boolean loadOriginalParser) throws Exception {
         AnotherArgumentsParser au = new AnotherArgumentsParser();
         
-        au.setOriginalParser(au.process(args));
+        if(loadOriginalParser==true)
+            au.setOriginalParser(au.process(args));
+        else
+            au.process(args);
         
         return (au);
         
@@ -100,14 +111,14 @@ public class AnotherArgumentsParser {
     }
     
     public boolean hasParam(String key) {
-        if(m_origianlParser.hasParam(key))
+        if((m_origianlParser!=null)&&(m_origianlParser.hasParam(key)))
             return true;
-        
+        System.out.println("hasParam: key-" + key);
         return (this.params.get(key) != null);
     }
     
     public String getParam(String key) {
-        if(m_origianlParser.hasParam(key))
+        if((m_origianlParser!=null)&&(m_origianlParser.hasParam(key)))
             return m_origianlParser.getParam(key);
         
         return (this.params.get(key));
