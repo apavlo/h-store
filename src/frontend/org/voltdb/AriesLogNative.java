@@ -70,9 +70,9 @@ public class AriesLogNative extends AriesLog {
 	}
 	
 	public AriesLogNative(int numSites, int numPartitionsPerSite, int size, int syncFrequency, String logFileName) {	    
-        LOG.warn("AriesLogNative : numSites : "+numSites+ " logFileName : "+logFileName);
+                //LOG.warn("AriesLogNative : numSites : "+numSites+ " logFileName : "+logFileName);
 	    
-	    m_perSiteRecoveryDone = new boolean[numSites*numPartitionsPerSite];
+	        m_perSiteRecoveryDone = new boolean[numSites*numPartitionsPerSite];
 		
 		for (int i = 0; i < numSites*numPartitionsPerSite; i++) {
 			m_perSiteRecoveryDone[i] = false;

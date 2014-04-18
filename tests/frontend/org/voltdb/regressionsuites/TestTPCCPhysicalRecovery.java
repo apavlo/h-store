@@ -54,7 +54,9 @@ public class TestTPCCPhysicalRecovery extends RegressionSuite {
 
     // TPCC
     private static final String PREFIX = "tpcc";
-    private static int NUM_TRANSACTIONS = 5000;
+    // XXX ARIES logger fsync's a lot - so reduced this to 10 txns
+    // Either change it to group commit or use PMFS which has lightweight fsync
+    private static int NUM_TRANSACTIONS = 10;
     private static final String projectJAR = "physical_" + PREFIX + ".jar";    
 
     public TestTPCCPhysicalRecovery(String name) {
@@ -192,9 +194,9 @@ public class TestTPCCPhysicalRecovery extends RegressionSuite {
         // PHYSICAL
         builder.setGlobalConfParameter("site.aries", true);        
         builder.setGlobalConfParameter("site.aries_forward_only", false);     
-        builder.setGlobalConfParameter("site.aries_dir", "/mnt/pmfs/aries");     
-                   
         builder.setGlobalConfParameter("site.anticache_enable", false);     
+        
+        //builder.setGlobalConfParameter("site.aries_dir", "/mnt/pmfs/aries");     
         
         TPCCProjectBuilder project = new TPCCProjectBuilder();
 

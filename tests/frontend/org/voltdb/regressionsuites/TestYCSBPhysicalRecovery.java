@@ -64,7 +64,7 @@ public class TestYCSBPhysicalRecovery extends RegressionSuite {
 
     // YCSB
     private static final String PREFIX = "ycsb";
-    private static int NUM_TRANSACTIONS = 5000;
+    private static int NUM_TRANSACTIONS = 10000;
     private static final String projectJAR = "physical_" + PREFIX + ".jar";
 
     public TestYCSBPhysicalRecovery(String name) {
