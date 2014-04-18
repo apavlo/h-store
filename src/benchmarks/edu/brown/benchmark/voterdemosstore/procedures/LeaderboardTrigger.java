@@ -22,7 +22,7 @@ public class LeaderboardTrigger extends VoltTrigger {
     );
 
     public final SQLStmt updateLeaderboard = new SQLStmt(
-            "INSERT INTO top_three_last_30_sec (contestant_number, num_votes) SELECT contestant_number, count(*) FROM trending_leaderboard GROUP BY contestant_number;"
+            "INSERT INTO top_three_last_30_sec (contestant_number, num_votes) SELECT tl.contestant_number, count(*) FROM trending_leaderboard tl JOIN contestants c ON c.contestant_number = tl.contestant_number GROUP BY contestant_number;"
     );
 
 }
