@@ -24,7 +24,9 @@ import edu.brown.hstore.Hstoreservice.ShutdownPrepareRequest;
 import edu.brown.hstore.Hstoreservice.UnevictDataRequest;
 import edu.brown.hstore.Hstoreservice.UnevictDataResponse;
 import edu.brown.hstore.conf.HStoreConf;
+import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.protorpc.ProtoRpcController;
+import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.ProjectType;
 import edu.brown.utils.ThreadUtil;
 
@@ -41,7 +43,7 @@ public class TestHStoreCoordinator extends BaseTestCase {
     
     private MockHStoreSite hstore_sites[] = new MockHStoreSite[NUM_SITES];
     private HStoreCoordinator coordinators[] = new HStoreCoordinator[NUM_SITES];
-    
+    private HStoreConf hstore_conf;    
 //    private final VoltTable.ColumnInfo columns[] = {
 //        new VoltTable.ColumnInfo("key", VoltType.STRING),
 //        new VoltTable.ColumnInfo("value", VoltType.BIGINT),
@@ -52,7 +54,7 @@ public class TestHStoreCoordinator extends BaseTestCase {
     public void setUp() throws Exception {
         super.setUp(ProjectType.TM1);
         
-        HStoreConf hstore_conf = HStoreConf.singleton(); 
+        this.hstore_conf = HStoreConf.singleton(); 
         hstore_conf.site.coordinator_sync_time = false;
         hstore_conf.site.status_enable = false;
         
@@ -437,7 +439,7 @@ public class TestHStoreCoordinator extends BaseTestCase {
      * testUnevictData
      */
     @Test
-    public void testUnevictData() throws Exception {
+    public void testUnevictDataShouldInvokeSpecifiedCallback() throws Exception {
         final Map<Integer, String> responses = new HashMap<Integer, String>();
         
         // We will block on this until we get responses from the remote site
@@ -466,7 +468,9 @@ public class TestHStoreCoordinator extends BaseTestCase {
         final int dest_id = 1;
         final UnevictDataRequest request = UnevictDataRequest.newBuilder()
                         .setSenderSite(sender_id)
-                        .setLastTransactionId(-1) // FIXME
+                        .setPartitionId(0)
+                        .setTableId(99)
+                        .setTransactionId(-1)
                         .build();      
             	
         hstore_sites[sender_id].getCoordinator().getChannel(dest_id).unevictData(new ProtoRpcController(), request, callback);
@@ -474,4 +478,6 @@ public class TestHStoreCoordinator extends BaseTestCase {
         latch.await();
         assertEquals(1, responses.size());
     }    
+
+
 }

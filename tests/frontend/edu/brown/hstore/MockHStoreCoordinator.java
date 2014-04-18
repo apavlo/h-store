@@ -215,9 +215,11 @@ public class MockHStoreCoordinator extends HStoreCoordinator {
 		public void unevictData(RpcController controller,
 				UnevictDataRequest request,
 				RpcCallback<UnevictDataResponse> done) {
-			LOG.info(String.format("Received %s from HStoreSite %s",
+			LOG.info(String.format("Received %s from HStoreSite %s at HStoreSite %s",
                     request.getClass().getSimpleName(),
-                    HStoreThreadManager.formatSiteName(request.getSenderSite())));
+                    HStoreThreadManager.formatSiteName(request.getSenderSite()),
+                    HStoreThreadManager.formatSiteName(hstore_site.getSiteId())));
+
             if (debug.val)
                 LOG.debug(String.format("Received %s from HStoreSite %s",
                           request.getClass().getSimpleName(),

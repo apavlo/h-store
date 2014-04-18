@@ -22,6 +22,7 @@ import org.voltdb.catalog.Host;
 import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
+import org.voltdb.catalog.Table;
 import org.voltdb.exceptions.SerializableException;
 import org.voltdb.exceptions.ServerFaultException;
 import org.voltdb.messaging.FastSerializer;
@@ -66,6 +67,7 @@ import edu.brown.hstore.Hstoreservice.TransactionReduceResponse;
 import edu.brown.hstore.Hstoreservice.TransactionWorkRequest;
 import edu.brown.hstore.Hstoreservice.TransactionWorkResponse;
 import edu.brown.hstore.Hstoreservice.UnevictDataRequest;
+import edu.brown.hstore.Hstoreservice.UnevictDataRequest.Builder;
 import edu.brown.hstore.Hstoreservice.UnevictDataResponse;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.callbacks.ShutdownPrepareCallback;
@@ -823,9 +825,10 @@ public class HStoreCoordinator implements Shutdownable {
 		public void unevictData(RpcController controller,
 				UnevictDataRequest request,
 				RpcCallback<UnevictDataResponse> done) {
-			LOG.info(String.format("Received %s from HStoreSite %s",
+			LOG.info(String.format("Received %s from HStoreSite %s at HStoreSite %s",
                     request.getClass().getSimpleName(),
-                    HStoreThreadManager.formatSiteName(request.getSenderSite())));
+                    HStoreThreadManager.formatSiteName(request.getSenderSite()),
+                    HStoreThreadManager.formatSiteName(local_site_id)));
             if (debug.val)
                 LOG.debug(String.format("Received %s from HStoreSite %s",
                           request.getClass().getSimpleName(),
@@ -1322,13 +1325,27 @@ public class HStoreCoordinator implements Shutdownable {
     
     /**
      * Send a message to a remote site to unevict data
+     * @param tuple_offsets 
+     * @param block_ids 
+     * @param catalog_tbl 
+     * @param partition_id 
+     * @param txn 
      * @return 
      */
-    public boolean sendUnevictDataMessage(int remote_site_id) {
-    	UnevictDataRequest request = UnevictDataRequest.newBuilder()
+    public boolean sendUnevictDataMessage(int remote_site_id, LocalTransaction txn, int partition_id, Table catalog_tbl, short[] block_ids, int[] tuple_offsets) {
+    	 Builder builder = UnevictDataRequest.newBuilder()
                                     .setSenderSite(this.local_site_id)
-                                    .setLastTransactionId(-1) // FIXME
-                                    .build();            
+                                    .setTransactionId(txn.getTransactionId())
+                                    .setPartitionId(partition_id)
+                                    .setTableId(catalog_tbl.getRelativeIndex());
+                                    
+    	 for (int i = 0; i< block_ids.length; i++){
+		builder = builder.addBlockIds(block_ids[i]);
+    	 }
+    	 for (int i=0; i< tuple_offsets.length; i++){
+		builder = builder.addTupleOffsets(tuple_offsets[i]);
+    	 }
+    	 UnevictDataRequest request = builder.build();            
             try {
 				this.channels[remote_site_id].unevictData(new ProtoRpcController(), request, this.unevictCallback);
                 if (trace.val)

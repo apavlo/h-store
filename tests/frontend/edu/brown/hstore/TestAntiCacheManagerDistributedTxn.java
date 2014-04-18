@@ -5,7 +5,9 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.channels.ServerSocketChannel;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 
 import org.junit.Before;
@@ -283,5 +285,57 @@ public class TestAntiCacheManagerDistributedTxn extends BaseTestCase {
         latch.await();
 
     }
+    
+    /**
+     * testUnevictDataAddsItemToAntiCacheManagerQueue
+     */
+/*    @Test
+    public void testUnevictDataShouldAddEntryToAntiCacheManagerQueue() throws Exception {
+        final Map<Integer, String> responses = new HashMap<Integer, String>();
+        
+        // We will block on this until we get responses from the remote site
+        final CountDownLatch latch = new CountDownLatch(1);
+        
+        final RpcCallback<UnevictDataResponse> callback = new RpcCallback<UnevictDataResponse>() {
+            @Override
+            public void run(UnevictDataResponse parameter) {
+                int sender_site_id = parameter.getSenderSite();
+                String status = parameter.getStatus().name();
+                assertEquals("OK", status);
+				responses.put(sender_site_id, status );
+                StringBuilder sb = new StringBuilder();
+                sb.append("TestConnection Responses:\n");
+                for (java.util.Map.Entry<Integer, String> e : responses.entrySet()) {
+                    sb.append(String.format("  Partition %03d: %s\n", e.getKey(), e.getValue()));
+                } // FOR
+                System.err.println(sb.toString());
+                latch.countDown();
+            }
+        };
+        
+    	AntiCacheManager manager = hstore_sites[0].getAntiCacheManager();
+        short block_ids[] = new short[]{ 1111 };
+        int tuple_offsets[] = new int[]{0};
+         // different from the base partition. This means the exception was 
+        // thrown by a remote site
+        this.hstore_conf.site.anticache_profiling = false;
+        LocalTransaction txn = MockHStoreSite.makeLocalTransaction(hstore_sites[0]);
+        int partition_id = CollectionUtil.first(this.hstore_sites[1].getLocalPartitionIds());
+
+        
+        // The sender partition can just be our first partition that we have
+        final int sender_id = 0;
+        // Remote site        
+        final int dest_id = 1;
+        
+        hstore_sites[dest_id].getCoordinator().setUnevictCallback(callback);
+        hstore_sites[sender_id].getCoordinator().sendUnevictDataMessage(dest_id, txn, partition_id, catalog_tbl, block_ids, tuple_offsets);
+        
+//        hstore_sites[dest_id].getAntiCacheManager().
+        // BLOCK!
+        latch.await();
+        assertEquals(1, responses.size());
+    }    
+*/
 
 }

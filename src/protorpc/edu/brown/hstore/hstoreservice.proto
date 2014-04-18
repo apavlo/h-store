@@ -466,8 +466,11 @@ message HeartbeatResponse {
 
 message UnevictDataRequest {
     required int32 sender_site = 1;
-    // This is the largest txn acked at the sender site
-    required int64 last_transaction_id = 2;
+    required int64 transaction_id = 2;
+    required int32 partition_id = 3;
+    required int32 table_id = 4;
+    repeated int32 block_ids = 5 [packed=true];
+    repeated int32 tuple_offsets = 6 [packed=true];
 }
 
 message UnevictDataResponse {
