@@ -6,6 +6,7 @@ import java.net.InetSocketAddress;
 import java.nio.channels.ServerSocketChannel;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -18,11 +19,14 @@ import org.voltdb.client.Client;
 import org.voltdb.jni.ExecutionEngine;
 import org.voltdb.utils.VoltTableUtil;
 
+import com.google.protobuf.RpcCallback;
+
 import edu.brown.BaseTestCase;
 import edu.brown.benchmark.AbstractProjectBuilder;
 import edu.brown.benchmark.ycsb.YCSBConstants;
 import edu.brown.benchmark.ycsb.YCSBProjectBuilder;
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.hstore.Hstoreservice.UnevictDataResponse;
 import edu.brown.hstore.TestHStoreCoordinator.AssertThreadGroup;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.txns.LocalTransaction;
@@ -257,6 +261,15 @@ public class TestAntiCacheManagerDistributedTxn extends BaseTestCase {
   
     @Test
     public void testQueueingOfDistributedTransaction() throws Exception {
+    	final CountDownLatch latch = new CountDownLatch(1);
+    	final RpcCallback<UnevictDataResponse> callback = new RpcCallback<UnevictDataResponse>() {
+            @Override
+            public void run(UnevictDataResponse parameter) {
+            	// do nothing
+            	latch.countDown();
+            }
+    	};
+    	hstore_sites[0].getCoordinator().setUnevictCallback(callback);
     	AntiCacheManager manager = hstore_sites[0].getAntiCacheManager();
         short block_ids[] = new short[]{ 1111 };
         int tuple_offsets[] = new int[]{0};
@@ -267,6 +280,7 @@ public class TestAntiCacheManagerDistributedTxn extends BaseTestCase {
         int partition_id = CollectionUtil.first(this.hstore_sites[1].getLocalPartitionIds());
 
         assertTrue(manager.queue(txn, partition_id, catalog_tbl, block_ids, tuple_offsets));
+        latch.await();
 
     }
 

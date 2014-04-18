@@ -16,6 +16,7 @@ import edu.brown.hstore.Hstoreservice.ShutdownPrepareRequest;
 import edu.brown.hstore.Hstoreservice.ShutdownPrepareResponse;
 import edu.brown.hstore.Hstoreservice.ShutdownRequest;
 import edu.brown.hstore.Hstoreservice.ShutdownResponse;
+import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.TimeSyncRequest;
 import edu.brown.hstore.Hstoreservice.TimeSyncResponse;
 import edu.brown.hstore.Hstoreservice.TransactionDebugRequest;
@@ -214,7 +215,18 @@ public class MockHStoreCoordinator extends HStoreCoordinator {
 		public void unevictData(RpcController controller,
 				UnevictDataRequest request,
 				RpcCallback<UnevictDataResponse> done) {
-			// TODO Auto-generated method stub
+			LOG.info(String.format("Received %s from HStoreSite %s",
+                    request.getClass().getSimpleName(),
+                    HStoreThreadManager.formatSiteName(request.getSenderSite())));
+            if (debug.val)
+                LOG.debug(String.format("Received %s from HStoreSite %s",
+                          request.getClass().getSimpleName(),
+                          HStoreThreadManager.formatSiteName(request.getSenderSite())));
+            UnevictDataResponse.Builder builder = UnevictDataResponse.newBuilder()
+                                                    .setSenderSite(hstore_site.getSiteId())
+                                                    .setStatus(Status.OK);
+            done.run(builder.build());   
+
 			
 		}
     }

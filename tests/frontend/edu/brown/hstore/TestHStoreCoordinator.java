@@ -7,16 +7,13 @@ import java.nio.ByteBuffer;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 
 import org.junit.Before;
 import org.junit.Test;
-import org.voltdb.VoltTable;
-import org.voltdb.VoltType;
-import org.voltdb.catalog.Partition;
-import org.voltdb.catalog.Site;
 import org.voltdb.exceptions.SerializableException;
 
 import com.google.protobuf.ByteString;
@@ -24,11 +21,10 @@ import com.google.protobuf.RpcCallback;
 
 import edu.brown.BaseTestCase;
 import edu.brown.hstore.Hstoreservice.ShutdownPrepareRequest;
-import edu.brown.hstore.Hstoreservice.ShutdownPrepareResponse;
-import edu.brown.hstore.callbacks.ShutdownPrepareCallback;
+import edu.brown.hstore.Hstoreservice.UnevictDataRequest;
+import edu.brown.hstore.Hstoreservice.UnevictDataResponse;
 import edu.brown.hstore.conf.HStoreConf;
-import edu.brown.utils.EventObservable;
-import edu.brown.utils.EventObserver;
+import edu.brown.protorpc.ProtoRpcController;
 import edu.brown.utils.ProjectType;
 import edu.brown.utils.ThreadUtil;
 
@@ -43,8 +39,8 @@ public class TestHStoreCoordinator extends BaseTestCase {
     private final int NUM_PARTITIONS_PER_SITE = 2;
     private final int NUM_SITES               = (NUM_HOSTS * NUM_SITES_PER_HOST);
     
-    private final HStoreSite hstore_sites[] = new HStoreSite[NUM_SITES_PER_HOST];
-    private final HStoreCoordinator coordinators[] = new HStoreCoordinator[NUM_SITES_PER_HOST];
+    private MockHStoreSite hstore_sites[] = new MockHStoreSite[NUM_SITES];
+    private HStoreCoordinator coordinators[] = new HStoreCoordinator[NUM_SITES];
     
 //    private final VoltTable.ColumnInfo columns[] = {
 //        new VoltTable.ColumnInfo("key", VoltType.STRING),
@@ -58,19 +54,20 @@ public class TestHStoreCoordinator extends BaseTestCase {
         
         HStoreConf hstore_conf = HStoreConf.singleton(); 
         hstore_conf.site.coordinator_sync_time = false;
+        hstore_conf.site.status_enable = false;
         
         // Create a fake cluster of two HStoreSites, each with two partitions
         // This will allow us to test same site communication as well as cross-site communication
         this.initializeCatalog(NUM_HOSTS, NUM_SITES_PER_HOST, NUM_PARTITIONS_PER_SITE);
         for (int i = 0; i < NUM_SITES; i++) {
-            Site catalog_site = this.getSite(i);
-            this.hstore_sites[i] = new MockHStoreSite(i, catalogContext, HStoreConf.singleton());
-            this.coordinators[i] = this.hstore_sites[i].initHStoreCoordinator();
+            this.hstore_sites[i] = new MockHStoreSite(i, catalogContext, hstore_conf);
+            this.hstore_sites[i].setCoordinator();
+            this.coordinators[i] = this.hstore_sites[i].getCoordinator();
             
             // We have to make our fake ExecutionSites for each Partition at this site
-            for (Partition catalog_part : catalog_site.getPartitions()) {
-                MockPartitionExecutor es = new MockPartitionExecutor(catalog_part.getId(), catalogContext, p_estimator);
-                this.hstore_sites[i].addPartitionExecutor(catalog_part.getId(), es);
+            for (int id : this.hstore_sites[i].getLocalPartitionIds().values()) {
+                MockPartitionExecutor es = new MockPartitionExecutor(id, catalogContext, p_estimator);
+                this.hstore_sites[i].addPartitionExecutor(id, es);
             } // FOR
         } // FOR
 
@@ -369,9 +366,9 @@ public class TestHStoreCoordinator extends BaseTestCase {
 //      }
 //    }
     
-//    /**
-//     * testSendMessage
-//     */
+    /**
+     * testSendMessage
+     */
 //    @Test
 //    public void testSendMessage() throws Exception {
 //        // Send a StatusRequest message to each of our remote sites
@@ -436,4 +433,45 @@ public class TestHStoreCoordinator extends BaseTestCase {
 //        latch.await();
 //        assert(group.exceptions.isEmpty()) : group.exceptions;
 //    }
+    /**
+     * testUnevictData
+     */
+    @Test
+    public void testUnevictData() throws Exception {
+        final Map<Integer, String> responses = new HashMap<Integer, String>();
+        
+        // We will block on this until we get responses from the remote site
+        final CountDownLatch latch = new CountDownLatch(1);
+        
+        final RpcCallback<UnevictDataResponse> callback = new RpcCallback<UnevictDataResponse>() {
+            @Override
+            public void run(UnevictDataResponse parameter) {
+                int sender_site_id = parameter.getSenderSite();
+                String status = parameter.getStatus().name();
+                assertEquals("OK", status);
+				responses.put(sender_site_id, status );
+                StringBuilder sb = new StringBuilder();
+                sb.append("TestConnection Responses:\n");
+                for (java.util.Map.Entry<Integer, String> e : responses.entrySet()) {
+                    sb.append(String.format("  Partition %03d: %s\n", e.getKey(), e.getValue()));
+                } // FOR
+                System.err.println(sb.toString());
+                latch.countDown();
+            }
+        };
+        
+        // The sender partition can just be our first partition that we have
+        final int sender_id = 0;
+        // Remote site        
+        final int dest_id = 1;
+        final UnevictDataRequest request = UnevictDataRequest.newBuilder()
+                        .setSenderSite(sender_id)
+                        .setLastTransactionId(-1) // FIXME
+                        .build();      
+            	
+        hstore_sites[sender_id].getCoordinator().getChannel(dest_id).unevictData(new ProtoRpcController(), request, callback);
+        // BLOCK!
+        latch.await();
+        assertEquals(1, responses.size());
+    }    
 }

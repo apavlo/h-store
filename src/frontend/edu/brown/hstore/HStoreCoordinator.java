@@ -251,7 +251,7 @@ public class HStoreCoordinator implements Shutdownable {
     // UNEVICT CALLBACK
     // ----------------------------------------------------------------------------
     
-    private final RpcCallback<UnevictDataResponse> unevictCallback = new RpcCallback<UnevictDataResponse>() {
+    private RpcCallback<UnevictDataResponse> unevictCallback = new RpcCallback<UnevictDataResponse>() {
         @Override
         public void run(UnevictDataResponse response) {
             if (response.getStatus() == Status.OK) {
@@ -282,7 +282,7 @@ public class HStoreCoordinator implements Shutdownable {
         this.local_site_id = this.catalog_site.getId();
         this.num_sites = this.hstore_site.getCatalogContext().numberOfSites;
         this.channels = new HStoreService[this.num_sites];
-        
+
         if (debug.val)
             LOG.debug(String.format("Local Partitions for Site #%d: %s",
                       hstore_site.getSiteId(), hstore_site.getLocalPartitionIds()));
@@ -493,6 +493,9 @@ public class HStoreCoordinator implements Shutdownable {
         return (this.transactionFinish_handler);
     }
     
+    public void setUnevictCallback(RpcCallback<UnevictDataResponse> callback){
+    	this.unevictCallback = callback;
+    }
     /**
      * Initialize all the network connections to remote
      *  
@@ -820,6 +823,9 @@ public class HStoreCoordinator implements Shutdownable {
 		public void unevictData(RpcController controller,
 				UnevictDataRequest request,
 				RpcCallback<UnevictDataResponse> done) {
+			LOG.info(String.format("Received %s from HStoreSite %s",
+                    request.getClass().getSimpleName(),
+                    HStoreThreadManager.formatSiteName(request.getSenderSite())));
             if (debug.val)
                 LOG.debug(String.format("Received %s from HStoreSite %s",
                           request.getClass().getSimpleName(),
