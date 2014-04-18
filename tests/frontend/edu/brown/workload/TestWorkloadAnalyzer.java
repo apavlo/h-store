@@ -8,7 +8,7 @@ import edu.brown.utils.ProjectType;
 public class TestWorkloadAnalyzer extends BaseTestCase {
 	protected static final int WORKLOAD_XACT_LIMIT = 1000;
 
-	public void testCountOfReferences() throws Exception {
+	public void testGroupingsPossible() throws Exception {
 		super.setUp(ProjectType.AUCTIONMARK);
 
 		Workload workload;
@@ -22,7 +22,7 @@ public class TestWorkloadAnalyzer extends BaseTestCase {
 		int result = analyzer.getCountOfGroupingsPossible();
 
 		assertNotNull(result);
-		assertTrue(result > 2200);
+		assertTrue(result > 2000);
 		
 	}
 
