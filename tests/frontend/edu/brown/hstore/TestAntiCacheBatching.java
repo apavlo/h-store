@@ -51,6 +51,7 @@ public class TestAntiCacheBatching extends BaseTestCase {
     private final ArticlesProjectBuilder builder = new ArticlesProjectBuilder() {
         {
             this.markTableEvictable(TARGET_TABLE);
+            this.markTableEvictable(CHILD_TABLE);
             this.addAllDefaults();
             this.addStmtProcedure("GetRecord",
                                   "SELECT * FROM " + TARGET_TABLE + " WHERE a_id = ?");
@@ -67,7 +68,7 @@ public class TestAntiCacheBatching extends BaseTestCase {
         this.catalog_tbl = getTable(TARGET_TABLE);
         this.child_tbl = getTable(CHILD_TABLE);
         assertTrue(catalog_tbl.getEvictable());
-        assertFalse(child_tbl.getEvictable());
+//        assertFalse(child_tbl.getEvictable());
         this.locators = new int[] { catalog_tbl.getRelativeIndex(), child_tbl.getRelativeIndex() };
         
         Site catalog_site = CollectionUtil.first(CatalogUtil.getCluster(catalog).getSites());
@@ -183,7 +184,7 @@ public class TestAntiCacheBatching extends BaseTestCase {
         System.err.println("-------------------------------");
         System.err.println(VoltTableUtil.format(evictResult));
         assertNotNull(evictResult);
-        assertEquals(1, evictResult.getRowCount());
+        assertEquals(2, evictResult.getRowCount());
         //assertNotSame(results[0].getColumnCount(), evictResult.getColumnCount());
         evictResult.resetRowPosition();
         boolean adv = evictResult.advanceRow();
@@ -203,7 +204,7 @@ public class TestAntiCacheBatching extends BaseTestCase {
     public void testEvictTuples() throws Exception {
         this.loadData();
         VoltTable evictResult = this.evictData();
-		evictResult.advanceRow(); 
+//		evictResult.advanceRow(); 
 
         // Our stats should now come back with at least one block evicted
         VoltTable results[] = this.ee.getStats(SysProcSelector.TABLE, this.locators, false, 0L);
@@ -229,24 +230,33 @@ public class TestAntiCacheBatching extends BaseTestCase {
     public void testEvictTuplesInBatch() throws Exception {
         this.loadDataInBatch();
         VoltTable evictResult = this.evictDataInBatch();
-		evictResult.advanceRow(); 
+//		evictResult.advanceRow(); 
 
         // Our stats should now come back with at least one block evicted
         VoltTable results[] = this.ee.getStats(SysProcSelector.TABLE, this.locators, false, 0L);
         assertEquals(1, results.length);
+        assertNotNull(results[0]);
+        final VoltTable resultTable = results[0];
+        assertEquals(2, resultTable.getRowCount());
+        resultTable.resetRowPosition();
         System.err.println("-------------------------------");
         System.err.println(VoltTableUtil.format(results));
 
-		results[0].advanceRow(); 
+        resultTable.advanceRow(); 
         for (String col : statsFields) {
-            assertEquals(col, evictResult.getLong(col), results[0].getLong(col));
+            assertEquals(col, evictResult.getLong(col), resultTable.getLong(col));
             if (col == "BLOCKS_EVICTED") {
-                assertEquals(col, 1, results[0].getLong(col));
+                assertEquals(col, 1, resultTable.getLong(col));
             } else {
-                assertNotSame(col, 0, results[0].getLong(col));
+                assertNotSame(col, 0, resultTable.getLong(col));
             }
         } // FOR
     }
 
+    // TODO
+    // Test for merge post batched eviction
+    // Test to verify stats
+    // Test to refetch the child tuples only
+    // Test maybe to see that child is not tracked?
     
 }
