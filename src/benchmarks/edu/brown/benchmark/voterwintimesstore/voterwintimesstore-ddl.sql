@@ -41,7 +41,6 @@ CREATE TABLE leaderboard
 (
   contestant_number         integer    NOT NULL
 , numvotes                  integer    NOT NULL
-, phone_number              integer    NOT NULL
 );
 
 CREATE VIEW v_votes_by_phone_number

@@ -42,8 +42,6 @@ import edu.brown.benchmark.voterwintimehstore.VoterWinTimeHStoreConstants;
     singlePartition = true
 )
 public class Vote extends VoltProcedure {
-	public final int windowSize = 30;
-	public final int slideSize = 2;
 
 	
     // Checks if the vote is for a valid contestant
@@ -72,11 +70,14 @@ public class Vote extends VoltProcedure {
     );
     
  // Find the cutoff vote
-    public final SQLStmt checkStagingTime = new SQLStmt(
-		"SELECT min(time) FROM w_staging;"
+    public final SQLStmt checkStagingTimestamp = new SQLStmt(
+    	"SELECT MAX(time) FROM w_staging;"	
+    );
+    
+    public final SQLStmt checkWindowTimestamp = new SQLStmt(
+    	"SELECT MIN(time) FROM w_rows;"	
     );
 
-    
  // Find the cutoff vote
     public final SQLStmt deleteCutoffVoteStmt = new SQLStmt(
 		"DELETE FROM w_rows WHERE time < ?;"
@@ -85,6 +86,10 @@ public class Vote extends VoltProcedure {
     // Put the staging votes into the window
     public final SQLStmt insertVoteWindowStmt = new SQLStmt(
 		"INSERT INTO w_rows (vote_id, phone_number, state, contestant_number, time) SELECT * FROM w_staging;"
+    );
+    
+    public final SQLStmt deleteMostRecentVote = new SQLStmt(
+		"DELETE FROM w_rows WHERE time = ?;"
     );
     
  // Pull aggregate from window
@@ -99,7 +104,7 @@ public class Vote extends VoltProcedure {
     
  // Clear the staging window
     public final SQLStmt deleteStagingStmt = new SQLStmt(
-		"DELETE FROM w_staging;"
+		"DELETE FROM w_staging WHERE time < ?;"
     );
     
  // Put the vote into the staging window
@@ -134,10 +139,15 @@ public class Vote extends VoltProcedure {
         // Post the vote
         //TimestampType timestamp = new TimestampType();
         voltQueueSQL(insertVoteStmt, voteId, phoneNumber, state, contestantNumber, currentTimestamp);
-        voltQueueSQL(checkStagingTime);
+        voltQueueSQL(insertVoteStagingStmt, voteId, phoneNumber, state, contestantNumber, currentTimestamp);
+        voltQueueSQL(checkStagingTimestamp);
+        voltQueueSQL(checkWindowTimestamp);
         validation = voltExecuteSQL();
         
-        if(validation[1].getRowCount() != 0 && currentTimestamp - (int)(validation[1].fetchRow(0).getLong(0)) >= slideSize)
+        long minWinTimestamp = validation[3].fetchRow(0).getLong(0);
+        long maxStageTimestamp = validation[2].fetchRow(0).getLong(0);
+        
+        if(maxStageTimestamp - minWinTimestamp >= VoterWinTimeHStoreConstants.WIN_SIZE + VoterWinTimeHStoreConstants.STAGE_SIZE)
         {
         	//Check the window size and cutoff vote can be done one of two ways:
         	//1) Two statements: one gets window size, one gets all rows to be deleted
@@ -146,14 +156,14 @@ public class Vote extends VoltProcedure {
         	//voltQueueSQL(selectFullWindowStmt);
 
         	//validation = voltExecuteSQL();
-        	voltQueueSQL(deleteCutoffVoteStmt, currentTimestamp - windowSize );
+        	voltQueueSQL(deleteCutoffVoteStmt, maxStageTimestamp - VoterWinTimeHStoreConstants.WIN_SIZE);
         	voltQueueSQL(insertVoteWindowStmt);
+        	voltQueueSQL(deleteMostRecentVote, maxStageTimestamp);
     		voltQueueSQL(deleteLeaderBoardStmt);
     		voltQueueSQL(updateLeaderBoardStmt);
-    		voltQueueSQL(deleteStagingStmt);
+    		voltQueueSQL(deleteStagingStmt, maxStageTimestamp);
+    		voltExecuteSQL(true);
         }
-        voltQueueSQL(insertVoteStagingStmt, voteId, phoneNumber, state, contestantNumber, currentTimestamp);
-        voltExecuteSQL(true);
         
         // Set the return value to 0: successful vote
         return VoterWinTimeHStoreConstants.VOTE_SUCCESSFUL;
