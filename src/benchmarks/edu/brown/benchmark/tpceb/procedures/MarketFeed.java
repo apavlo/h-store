@@ -142,7 +142,7 @@ public class MarketFeed extends VoltProcedure {
             "(TR_TT_ID = ? and TR_BID_PRICE >= ?))");*/
             VoltTable reqs = voltExecuteSQL()[0];
             System.out.println("executed the sql for get request list successfully" + reqs.getRowCount());
-            
+            int count = 0;
             for (int j = 0; j < reqs.getRowCount() && tradeRequestBuffer.size() < MAX_SEND_LEN; j++) {
                 VoltTableRow req = reqs.fetchRow(j);
                 
@@ -168,12 +168,14 @@ public class MarketFeed extends VoltProcedure {
                /// System.out.println("queued");
                voltQueueSQL(insertTradeHistory, trade_id, now_dts, status_submitted);
                 voltExecuteSQL();
+                count++;
                 System.out.println("executed the sql for update trade, delete req and insert hist successfully");
                 TradeRequest tr = new TradeRequest(symbols[i], trade_id, price_quote, trade_qty, trade_type);
                 tradeRequestBuffer.add(tr);
             }
+            System.out.println("COUNTOUT" + count);
         }
-        
+      
         // creating send_to_market info
         VoltTable stm = stm_template.clone(512);
         int j =0;

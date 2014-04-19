@@ -202,15 +202,10 @@ public class TradeResult extends VoltProcedure {
             else if (hs_qty != trade_qty) {
                 System.out.println("qtys not equal");
                 voltQueueSQL(updateHoldingSummary, hs_qty - trade_qty, acct_id, symbol);
-                try{
+                
                 voltExecuteSQL();
-                }
-                catch(Exception ex){
-                    ex.getMessage();
-                    ex.getCause();
-                    ex.printStackTrace();
-                }
-                System.out.println("update holding summary holding summary");
+                
+                System.out.println("update holding summary");
             }
             System.out.println("done with the first if");
             if (hs_qty > 0) {
