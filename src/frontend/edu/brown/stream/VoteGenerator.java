@@ -21,6 +21,11 @@ public class VoteGenerator {
     {
         return m_votes.isEmpty();
     }
+    
+    public int size()
+    {
+        return this.m_votes.size();
+    }
 
     public void reset()
     {

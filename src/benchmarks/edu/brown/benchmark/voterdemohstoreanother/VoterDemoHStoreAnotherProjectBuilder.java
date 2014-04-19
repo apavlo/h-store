@@ -27,52 +27,47 @@
  *  OTHER DEALINGS IN THE SOFTWARE.                                        *
  ***************************************************************************/
 
-package edu.brown.benchmark.voterwintimesstore;
+package edu.brown.benchmark.voterdemohstoreanother;
 
 import org.voltdb.VoltProcedure;
 
 import edu.brown.benchmark.AbstractProjectBuilder;
 import edu.brown.api.BenchmarkComponent;
 
-import edu.brown.benchmark.voterwintimesstore.procedures.ValidateContestantsTrigger;
-import edu.brown.benchmark.voterwintimesstore.procedures.UpdateVotesAndTotalVotesTrigger;
-import edu.brown.benchmark.voterwintimesstore.procedures.UpdateLeaderBoard;
-import edu.brown.benchmark.voterwintimesstore.procedures.Vote; 
-import edu.brown.benchmark.voterwintimesstore.procedures.Initialize; 
+import edu.brown.benchmark.voterdemohstoreanother.procedures.Vote; 
+import edu.brown.benchmark.voterdemohstoreanother.procedures.Initialize;
+import edu.brown.benchmark.voterdemohstoreanother.procedures.GenerateLeaderboard; 
 
-public class VoterWinTimeSStoreProjectBuilder extends AbstractProjectBuilder {
+public class VoterDemoHStoreAnotherProjectBuilder extends AbstractProjectBuilder {
 
     // REQUIRED: Retrieved via reflection by BenchmarkController
-    public static final Class<? extends BenchmarkComponent> m_clientClass = VoterWinTimeSStoreClient.class;
+    public static final Class<? extends BenchmarkComponent> m_clientClass = VoterDemoHStoreAnotherClient.class;
 
     // REQUIRED: Retrieved via reflection by BenchmarkController
-    public static final Class<? extends BenchmarkComponent> m_loaderClass = VoterWinTimeSStoreLoader.class;
+    public static final Class<? extends BenchmarkComponent> m_loaderClass = VoterDemoHStoreAnotherLoader.class;
 
 	// a list of procedures implemented in this benchmark
     @SuppressWarnings("unchecked")
-    public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[]{
-        Vote.class, 
-        Initialize.class,
-        ValidateContestantsTrigger.class,
-        UpdateVotesAndTotalVotesTrigger.class,
-        UpdateLeaderBoard.class
-    };
+    public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
+        Vote.class, Initialize.class, GenerateLeaderboard.class};
 	
 	{
-		addTransactionFrequency(Vote.class, 100);
+		//addTransactionFrequency(Vote.class, 100);
 	}
 	
 	// a list of tables used in this benchmark with corresponding partitioning keys
     public static final String PARTITIONING[][] = new String[][] {
         { "votes", "phone_number" },
-        { "votes_stream", "phone_number"},
-        { "S1", "phone_number"},
-        { "W_ROWS", "phone_number"},
-        { "leaderboard", "contestant_number"}
+        { "w_staging", "phone_number" },
+        { "w_trending_leaderboard", "phone_number" },
+        { "top_three_last_30_sec", "contestant_number"},
+        { "votes_by_contestant", "contestant_number"},
+        { "voteCount", "row_id" },
+        { "proc_one_out", "phone_number" }
     };
 
-    public VoterWinTimeSStoreProjectBuilder() {
-        super("voterwintimesstore", VoterWinTimeSStoreProjectBuilder.class, PROCEDURES, PARTITIONING);
+    public VoterDemoHStoreAnotherProjectBuilder() {
+        super("voterdemohstoreanother", VoterDemoHStoreAnotherProjectBuilder.class, PROCEDURES, PARTITIONING);
     }
 }
 

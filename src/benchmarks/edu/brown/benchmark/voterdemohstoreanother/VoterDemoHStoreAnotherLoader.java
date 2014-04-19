@@ -4,7 +4,8 @@
  *  Massachusetts Institute of Technology                                  *
  *  Yale University                                                        *
  *                                                                         *
- *  Coded By:  Justin A. DeBrabant (http://www.cs.brown.edu/~debrabant/)   *								   
+ *  Original By: VoltDB Inc.											   *
+ *  Ported By:  Justin A. DeBrabant (http://www.cs.brown.edu/~debrabant/)  *								   
  *                                                                         *
  *                                                                         *
  *  Permission is hereby granted, free of charge, to any person obtaining  *
@@ -27,55 +28,39 @@
  *  OTHER DEALINGS IN THE SOFTWARE.                                        *
  ***************************************************************************/
 
-package edu.brown.benchmark.voterwintimesstore;
+package edu.brown.benchmark.voterdemohstoreanother;
 
-import org.voltdb.VoltProcedure;
+import org.apache.log4j.Logger;
 
-import edu.brown.benchmark.AbstractProjectBuilder;
-import edu.brown.api.BenchmarkComponent;
+import edu.brown.api.Loader;
 
-import edu.brown.benchmark.voterwintimesstore.procedures.ValidateContestantsTrigger;
-import edu.brown.benchmark.voterwintimesstore.procedures.UpdateVotesAndTotalVotesTrigger;
-import edu.brown.benchmark.voterwintimesstore.procedures.UpdateLeaderBoard;
-import edu.brown.benchmark.voterwintimesstore.procedures.Vote; 
-import edu.brown.benchmark.voterwintimesstore.procedures.Initialize; 
+public class VoterDemoHStoreAnotherLoader extends Loader {
 
-public class VoterWinTimeSStoreProjectBuilder extends AbstractProjectBuilder {
+    private static final Logger LOG = Logger.getLogger(VoterDemoHStoreAnotherLoader.class);
+    private static final boolean d = LOG.isDebugEnabled();
 
-    // REQUIRED: Retrieved via reflection by BenchmarkController
-    public static final Class<? extends BenchmarkComponent> m_clientClass = VoterWinTimeSStoreClient.class;
+    public static void main(String args[]) throws Exception {
+        if (d) LOG.debug("MAIN: " + VoterDemoHStoreAnotherLoader.class.getName());
+        Loader.main(VoterDemoHStoreAnotherLoader.class, args, true);
+    }
 
-    // REQUIRED: Retrieved via reflection by BenchmarkController
-    public static final Class<? extends BenchmarkComponent> m_loaderClass = VoterWinTimeSStoreLoader.class;
+    public VoterDemoHStoreAnotherLoader(String[] args) {
+        super(args);
+        if (d) LOG.debug("CONSTRUCTOR: " + VoterDemoHStoreAnotherLoader.class.getName());
+    }
 
-	// a list of procedures implemented in this benchmark
-    @SuppressWarnings("unchecked")
-    public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[]{
-        Vote.class, 
-        Initialize.class,
-        ValidateContestantsTrigger.class,
-        UpdateVotesAndTotalVotesTrigger.class,
-        UpdateLeaderBoard.class
-    };
-	
-	{
-		addTransactionFrequency(Vote.class, 100);
-	}
-	
-	// a list of tables used in this benchmark with corresponding partitioning keys
-    public static final String PARTITIONING[][] = new String[][] {
-        { "votes", "phone_number" },
-        { "votes_stream", "phone_number"},
-        { "S1", "phone_number"},
-        { "W_ROWS", "phone_number"},
-        { "leaderboard", "contestant_number"}
-    };
+    @Override
+    public void load() {
+        int numContestants = VoterDemoHStoreAnotherUtil.getScaledNumContestants(this.getScaleFactor());
+        if (d) 
+            LOG.debug("Starting VoterDemoHStoreAnotherLoader [numContestants=" + numContestants + "]");
 
-    public VoterWinTimeSStoreProjectBuilder() {
-        super("voterwintimesstore", VoterWinTimeSStoreProjectBuilder.class, PROCEDURES, PARTITIONING);
+        try {
+            this.getClientHandle().callProcedure("Initialize",
+                                                 numContestants,
+                                                 VoterDemoHStoreAnotherConstants.CONTESTANT_NAMES_CSV);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 }
-
-
-
-
