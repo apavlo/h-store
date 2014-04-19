@@ -58,6 +58,7 @@ import org.voltdb.VoltType;
  *      will use it to do its job. 
  */
 public class MarketFeed extends VoltProcedure {
+    public int count = 0;
     private final VoltTable stm_template = new VoltTable(
             new VoltTable.ColumnInfo("symbol", VoltType.STRING),
             new VoltTable.ColumnInfo("trade_id", VoltType.BIGINT),
@@ -128,7 +129,7 @@ public class MarketFeed extends VoltProcedure {
         voltExecuteSQL();
 
         System.out.println("executed the sql for update last trade successfully");
-        int count = 0;
+        
         // then, see about pending trades
         for (int i = 0; i < MAX_FEED_LEN; i++) {
             voltQueueSQL(getRequestList, symbols[i], type_stop_loss, price_quotes[i],
