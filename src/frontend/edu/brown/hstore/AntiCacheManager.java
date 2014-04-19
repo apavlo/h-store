@@ -347,7 +347,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
      */
     public boolean queue(LocalTransaction ts, int partition, Table catalog_tbl, short block_ids[], int tuple_offsets[]) {
     	System.out.println(ts.getBasePartition()+"*********"+partition);
-    	if(ts.getBasePartition()!=partition){ // different partition generated the exception
+    	if(ts.getBasePartition()!=partition  && !hstore_site.isLocalPartition(partition)){ // different partition generated the exception
     		int site_id = hstore_site.getCatalogContext().getSiteIdForPartitionId(partition);
     		return hstore_site.getCoordinator().sendUnevictDataMessage(site_id, ts, partition, catalog_tbl, block_ids, tuple_offsets);
     		// should we enqueue the transaction on our side?

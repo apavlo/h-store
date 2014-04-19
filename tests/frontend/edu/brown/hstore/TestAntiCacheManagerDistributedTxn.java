@@ -289,7 +289,7 @@ public class TestAntiCacheManagerDistributedTxn extends BaseTestCase {
     /**
      * testUnevictDataAddsItemToAntiCacheManagerQueue
      */
-/*    @Test
+    @Test
     public void testUnevictDataShouldAddEntryToAntiCacheManagerQueue() throws Exception {
         final Map<Integer, String> responses = new HashMap<Integer, String>();
         
@@ -320,22 +320,16 @@ public class TestAntiCacheManagerDistributedTxn extends BaseTestCase {
         // thrown by a remote site
         this.hstore_conf.site.anticache_profiling = false;
         LocalTransaction txn = MockHStoreSite.makeLocalTransaction(hstore_sites[0]);
-        int partition_id = CollectionUtil.first(this.hstore_sites[1].getLocalPartitionIds());
-
+        int dest_id = CollectionUtil.first(this.hstore_sites[1].getLocalPartitionIds());
+        final int sender_id = hstore_sites[0].getSiteId();
+        hstore_sites[sender_id].getCoordinator().setUnevictCallback(callback);
         
-        // The sender partition can just be our first partition that we have
-        final int sender_id = 0;
-        // Remote site        
-        final int dest_id = 1;
         
-        hstore_sites[dest_id].getCoordinator().setUnevictCallback(callback);
-        hstore_sites[sender_id].getCoordinator().sendUnevictDataMessage(dest_id, txn, partition_id, catalog_tbl, block_ids, tuple_offsets);
-        
-//        hstore_sites[dest_id].getAntiCacheManager().
+        hstore_sites[sender_id].getCoordinator().sendUnevictDataMessage(dest_id, txn, dest_id, catalog_tbl, block_ids, tuple_offsets);
         // BLOCK!
         latch.await();
         assertEquals(1, responses.size());
     }    
-*/
+
 
 }

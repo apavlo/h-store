@@ -829,6 +829,16 @@ public class HStoreCoordinator implements Shutdownable {
                     request.getClass().getSimpleName(),
                     HStoreThreadManager.formatSiteName(request.getSenderSite()),
                     HStoreThreadManager.formatSiteName(local_site_id)));
+			LocalTransaction ts = hstore_site.getTransaction(request.getTransactionId());
+			int partition = request.getPartitionId();
+			Table catalog_tbl = hstore_site.getCatalogContext().getTableById(request.getTableId());
+			short[] block_ids = new short[request.getBlockIdsList().size()];
+			for(int i = 0; i < request.getBlockIdsList().size(); i++) block_ids[i] = (short) request.getBlockIds(i);
+
+			int [] tuple_offsets = new int[request.getTupleOffsetsList().size()];
+			for(int i = 0; i < request.getTupleOffsetsList().size(); i++) tuple_offsets[i] = request.getTupleOffsets(i);
+
+			hstore_site.getAntiCacheManager().queue(ts, partition, catalog_tbl, block_ids, tuple_offsets);
             if (debug.val)
                 LOG.debug(String.format("Received %s from HStoreSite %s",
                           request.getClass().getSimpleName(),
