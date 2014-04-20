@@ -16,6 +16,7 @@ import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.TransactionInitResponse;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.txns.LocalTransaction;
+import edu.brown.hstore.txns.RemoteTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.ArgumentsParser;
@@ -55,6 +56,34 @@ public class MockHStoreSite extends HStoreSite {
         EstTimeUpdater.update(System.currentTimeMillis());
         return (ts);
     }
+    
+    static RemoteTransaction makeDistributedTransaction(HStoreSite base_hstore_site, HStoreSite remote_hstore_site) {
+        long txnId = base_hstore_site.getTransactionIdManager(0).getNextUniqueTransactionId();
+        long clientHandle = -1;
+        
+        CatalogContext catalogContext = base_hstore_site.getCatalogContext();
+        int base_partition = CollectionUtil.random(base_hstore_site.getLocalPartitionIds());
+        PartitionSet predict_touchedPartitions = catalogContext.getAllPartitionIds();
+        int partition = CollectionUtil.random(remote_hstore_site.getLocalPartitionIds());
+        predict_touchedPartitions.add(partition);
+        boolean predict_readOnly = false;
+        boolean predict_canAbort = true;
+        Procedure catalog_proc = catalogContext.procedures.getIgnoreCase("@NoOp");
+        ParameterSet params = new ParameterSet();
+        RpcCallback<ClientResponseImpl> client_callback = null;
+        
+        LocalTransaction ts = new LocalTransaction(base_hstore_site);
+        ts.init(txnId, EstTime.currentTimeMillis(), clientHandle, base_partition,
+                predict_touchedPartitions, predict_readOnly, predict_canAbort,
+                catalog_proc, params, client_callback);
+        
+        base_hstore_site.getTransactionInitializer().registerTransaction(ts, base_partition);
+        PartitionSet partitions = remote_hstore_site.getLocalPartitionIds();
+        RemoteTransaction remote_ts = remote_hstore_site.getTransactionInitializer().createRemoteTransaction(txnId, partitions, params, base_partition, catalog_proc.getId()); 
+        
+        EstTimeUpdater.update(System.currentTimeMillis());
+        return (remote_ts);
+    }
 
 	private HStoreCoordinator hstore_coordinator;
     
@@ -84,6 +113,11 @@ public class MockHStoreSite extends HStoreSite {
     
     public void setCoordinator(){
     	this.hstore_coordinator = this.initHStoreCoordinator();
+    }
+    
+    @Override
+    public AntiCacheManager getAntiCacheManager(){
+    	return new MockAntiCacheManager(this); 
     }
     
     @Override

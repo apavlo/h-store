@@ -39,6 +39,7 @@ import org.voltdb.VoltTable;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Table;
 import org.voltdb.exceptions.SerializableException;
+import org.voltdb.types.SpeculationType;
 import org.voltdb.utils.NotImplementedException;
 
 import com.google.protobuf.ByteString;
@@ -185,6 +186,11 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
     
     protected final RoundState round_state[];
     protected final int round_ctr[];
+    /**
+     * The number of times that this transaction has been restarted 
+     */
+    protected int restart_ctr = 0;
+    
 
     /**
      * The first undo token used at each local partition
@@ -234,6 +240,16 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
      * PartitionId -> TableId
      */
     protected final boolean writeTables[][];
+    /**
+     * The table that this txn needs to merge the results for in the EE
+     * before it starts executing
+     */
+    protected Table anticache_table = null;
+    /**
+     * Whether this txn was speculatively executed
+     */
+    protected SpeculationType exec_specExecType = SpeculationType.NULL;
+    
     
     // ----------------------------------------------------------------------------
     // INITIALIZATION
@@ -321,6 +337,21 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
     }
     
     /**
+     * <B>Note:</B> This should never be called by anything other than the TransactionInitializer
+     * @param txn_id
+     */
+    public void setTransactionId(Long txn_id) { 
+        this.txn_id = txn_id;
+    }
+    /**
+     * Returns the speculation type (i.e., stall point) that this txn was executed at.
+     * Will be null if this transaction was not speculatively executed
+     * @return
+     */
+    public SpeculationType getSpeculationType() {
+        return (this.exec_specExecType);
+    }
+    /**
      * Should be called once the TransactionState is finished and is
      * being returned to the pool
      */
@@ -366,7 +397,22 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
         this.base_partition = HStoreConstants.NULL_PARTITION_ID;
         this.txn_id = null;
     }
+    /**
+     * Return the number of times that this transaction was restarted
+     * @return
+     */
+    public int getRestartCounter() {
+        return (this.restart_ctr);
+    }
     
+    /**
+     * Set the number of times that this transaction has been restarted
+     * @param val
+     */
+    public void setRestartCounter(int val) {
+        this.restart_ctr = val;
+    }
+
     // ----------------------------------------------------------------------------
     // DATA STORAGE
     // ----------------------------------------------------------------------------
@@ -804,6 +850,23 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
      */
     public final boolean isAborted() {
         return (this.status != null && this.status != Status.OK);
+    }
+    
+    // ----------------------------------------------------------------------------
+    // ANTI-CACHING
+    // ----------------------------------------------------------------------------
+    
+    public boolean hasAntiCacheMergeTable() {
+        return (this.anticache_table != null);
+    }
+    
+    public Table getAntiCacheMergeTable() {
+        return (this.anticache_table);
+    }
+    
+    public void setAntiCacheMergeTable(Table catalog_tbl) {
+        assert(this.anticache_table == null);
+        this.anticache_table = catalog_tbl;
     }
     
     // ----------------------------------------------------------------------------

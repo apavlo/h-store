@@ -14,8 +14,6 @@ import org.junit.Before;
 import org.junit.Test;
 import org.voltdb.SysProcSelector;
 import org.voltdb.VoltTable;
-import org.voltdb.catalog.Partition;
-import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Table;
 import org.voltdb.client.Client;
 import org.voltdb.jni.ExecutionEngine;
@@ -29,12 +27,11 @@ import edu.brown.benchmark.ycsb.YCSBConstants;
 import edu.brown.benchmark.ycsb.YCSBProjectBuilder;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.Hstoreservice.UnevictDataResponse;
-import edu.brown.hstore.TestHStoreCoordinator.AssertThreadGroup;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.txns.LocalTransaction;
+import edu.brown.hstore.txns.RemoteTransaction;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.FileUtil;
-import edu.brown.utils.ProjectType;
 import edu.brown.utils.ThreadUtil;
 
 public class TestAntiCacheManagerDistributedTxn extends BaseTestCase {
@@ -57,8 +54,8 @@ public class TestAntiCacheManagerDistributedTxn extends BaseTestCase {
     private File anticache_dir;
     private Client client;
     
-    private PartitionExecutor executor;
-    private ExecutionEngine ee;
+    private PartitionExecutor [] executors = new PartitionExecutor[2];
+    private ExecutionEngine [] ee = new ExecutionEngine[2];
     private Table catalog_tbl;
     private int locators[];
 
@@ -66,8 +63,8 @@ public class TestAntiCacheManagerDistributedTxn extends BaseTestCase {
         {
             this.markTableEvictable(TARGET_TABLE);
             this.addAllDefaults();
-            this.addStmtProcedure("GetRecord",
-                                  "SELECT * FROM " + TARGET_TABLE + " WHERE ycsb_key = ?");
+            this.addStmtProcedure("GetRecords",
+                                  "SELECT * FROM " + TARGET_TABLE); // needs all tuples
         }
     };
 	
@@ -88,6 +85,7 @@ public class TestAntiCacheManagerDistributedTxn extends BaseTestCase {
         for (int i = 0; i < 2; i++) {
             this.hstore_conf = HStoreConf.singleton();
             this.hstore_conf.site.status_enable = false;
+            this.hstore_conf.site.txn_partition_id_managers = true;
             this.hstore_conf.site.anticache_enable = true;
             this.hstore_conf.site.anticache_profiling = true;
             this.hstore_conf.site.anticache_check_interval = Integer.MAX_VALUE;
@@ -100,18 +98,17 @@ public class TestAntiCacheManagerDistributedTxn extends BaseTestCase {
             int p_id = CollectionUtil.first(this.hstore_sites[i].getLocalPartitionIds());
             MockPartitionExecutor es = new MockPartitionExecutor(p_id, catalogContext, p_estimator);
             this.hstore_sites[i].addPartitionExecutor(p_id, es);
-            if(i == 0){
-            	this.executor = es;
-	            assertNotNull(this.executor);
-	            this.ee = executor.getExecutionEngine();
-	            assertNotNull(this.executor);
-            }            
+            
+            this.executors[i] = es;
+	        assertNotNull(this.executors[i]);
+	        this.ee[i] = this.executors[i].getExecutionEngine();
+	        assertNotNull(this.ee[i]);
             
             
         } // FOR
 
         this.startMessengers();
-
+        
         
         System.err.println("All HStoreCoordinators started!");
     }
@@ -204,22 +201,37 @@ public class TestAntiCacheManagerDistributedTxn extends BaseTestCase {
     
     private void loadData() throws Exception {
         // Load in a bunch of dummy data for this table
-        VoltTable vt = CatalogUtil.getVoltTable(catalog_tbl);
-        assertNotNull(vt);
-        for (int i = 0; i < NUM_TUPLES; i++) {
+    	// site 1
+        VoltTable vt1 = CatalogUtil.getVoltTable(catalog_tbl);
+        assertNotNull(vt1);
+        for (int i = 0; i < NUM_TUPLES/2; i++) {
             Object row[] = VoltTableUtil.getRandomRow(catalog_tbl);
             row[0] = i;
-            vt.addRow(row);
+            vt1.addRow(row);
         } // FOR
-        this.executor.loadTable(1000l, catalog_tbl, vt, false);
+        this.executors[0].loadTable(1000l, catalog_tbl, vt1, false);
         
-        VoltTable stats[] = this.ee.getStats(SysProcSelector.TABLE, this.locators, false, 0L);
+        // site 2
+        VoltTable vt2 = CatalogUtil.getVoltTable(catalog_tbl);
+        for (int i = 0; i < NUM_TUPLES/2; i++) {
+            Object row[] = VoltTableUtil.getRandomRow(catalog_tbl);
+            row[0] = i;
+            vt2.addRow(row);
+        } // FOR
+        this.executors[1].loadTable(1001l, catalog_tbl, vt2, false);
+        
+        VoltTable stats[] = this.ee[0].getStats(SysProcSelector.TABLE, this.locators, false, 0L);
         assertEquals(1, stats.length);
         System.err.println(VoltTableUtil.format(stats));
+        stats = this.ee[1].getStats(SysProcSelector.TABLE, this.locators, false, 0L);
+        assertEquals(1, stats.length);
+        System.err.println(VoltTableUtil.format(stats));
+
     }
     
     private VoltTable evictData() throws Exception {
-        VoltTable results[] = this.ee.getStats(SysProcSelector.TABLE, this.locators, false, 0L);
+    	// evict only from remote site i.e site 1
+        VoltTable results[] = this.ee[1].getStats(SysProcSelector.TABLE, this.locators, false, 0L);
         assertEquals(1, results.length);
         // System.err.println(VoltTableUtil.format(results));
         for (String col : statsFields) {
@@ -230,7 +242,7 @@ public class TestAntiCacheManagerDistributedTxn extends BaseTestCase {
 
         // Now force the EE to evict our boys out
         // We'll tell it to remove 1MB, which is guaranteed to include all of our tuples
-        VoltTable evictResult = this.ee.antiCacheEvictBlock(catalog_tbl, 1024 * 500, 1);
+        VoltTable evictResult = this.ee[1].antiCacheEvictBlock(catalog_tbl, 1024 * 500, 1);
 
         System.err.println("-------------------------------");
         System.err.println(VoltTableUtil.format(evictResult));
@@ -330,6 +342,23 @@ public class TestAntiCacheManagerDistributedTxn extends BaseTestCase {
         latch.await();
         assertEquals(1, responses.size());
     }    
+
+    @Test
+    public void testProcessingOfQueuedDistributedTransaction() throws Exception {
+        short block_ids[] = new short[]{ 1111 };
+        int tuple_offsets[] = new int[]{0};
+        this.hstore_conf.site.anticache_profiling = false;
+        
+        RemoteTransaction txn = MockHStoreSite.makeDistributedTransaction(hstore_sites[0], hstore_sites[1]);
+        int partition_id = CollectionUtil.first(this.hstore_sites[1].getLocalPartitionIds());
+        MockAntiCacheManager remotemanager = (MockAntiCacheManager) hstore_sites[1].getAntiCacheManager();
+        assertTrue(remotemanager.queue(txn, partition_id, catalog_tbl, block_ids, tuple_offsets));
+        remotemanager.processQueue(); // force to process the queued item
+        
+        assertNotNull(txn.getAntiCacheMergeTable()); // ensure that items were unevicted for this txn
+
+//        assertEquals(Status.OK, cresponse.getStatus()); // does the txn go to completion
+    }
 
 
 }

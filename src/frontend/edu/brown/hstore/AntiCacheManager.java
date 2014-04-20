@@ -34,9 +34,12 @@ import com.google.protobuf.RpcCallback;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.Hstoreservice.HStoreService;
 import edu.brown.hstore.Hstoreservice.Status;
+import edu.brown.hstore.callbacks.LocalInitQueueCallback;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.internal.UtilityWorkMessage.TableStatsRequestMessage;
+import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
+import edu.brown.hstore.txns.RemoteTransaction;
 import edu.brown.hstore.util.AbstractProcessingRunnable;
 import edu.brown.interfaces.DebugContext;
 import edu.brown.logging.LoggerUtil;
@@ -75,20 +78,21 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
     // ----------------------------------------------------------------------------
 
     protected class QueueEntry {
-        final LocalTransaction ts;
+        final AbstractTransaction ts;
         final Table catalog_tbl;
         final int partition;
         final short block_ids[];
         final int tuple_offsets[]; 
 
-        public QueueEntry(LocalTransaction ts, int partition, Table catalog_tbl, short block_ids[], int tuple_offsets[]) {
+        public QueueEntry(AbstractTransaction ts, int partition, Table catalog_tbl, short block_ids[], int tuple_offsets[]) {
             this.ts = ts;
             this.partition = partition;
             this.catalog_tbl = catalog_tbl;
             this.block_ids = block_ids;
             this.tuple_offsets = tuple_offsets;
         }
-        @Override
+
+		@Override
         public String toString() {
             return String.format("%s{%s / Table:%s / Partition:%d / BlockIds:%s}",
                     this.getClass().getSimpleName(), this.ts,
@@ -321,14 +325,21 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         //        if(merge_needed)
         next.ts.setAntiCacheMergeTable(next.catalog_tbl);
 
-
-        this.hstore_site.transactionInit(next.ts);
+        if (next.ts instanceof LocalTransaction){
+        	this.hstore_site.transactionInit(next.ts);	
+        }else{
+        	// notify the base partition that it needs to initiate a HstoreCoordinator transactionInit
+//        	LocalInitQueueCallback initCallback = (LocalInitQueueCallback)next.ts.getInitCallback();
+//        	this.hstore_site.getCoordinator().transactionInit(next.ts, initCallback);
+        }
+        
         //        this.hstore_site.transactionReject(next.ts, Status.ABORT_GRACEFUL);
     }
 
     @Override
     protected void removeCallback(QueueEntry next) {
-        this.hstore_site.transactionReject(next.ts, Status.ABORT_GRACEFUL);
+    	LocalTransaction ts = (LocalTransaction) next.ts;
+        this.hstore_site.transactionReject(ts, Status.ABORT_GRACEFUL);
     }
 
     /**
@@ -345,30 +356,33 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
      * @param block_ids
      *            - The list of blockIds that need to be read in for the table
      */
-    public boolean queue(LocalTransaction ts, int partition, Table catalog_tbl, short block_ids[], int tuple_offsets[]) {
-    	System.out.println(ts.getBasePartition()+"*********"+partition);
-    	if(ts.getBasePartition()!=partition  && !hstore_site.isLocalPartition(partition)){ // different partition generated the exception
-    		int site_id = hstore_site.getCatalogContext().getSiteIdForPartitionId(partition);
-    		return hstore_site.getCoordinator().sendUnevictDataMessage(site_id, ts, partition, catalog_tbl, block_ids, tuple_offsets);
-    		// should we enqueue the transaction on our side?
-    		// if yes then we need to prevent the queue item from being picked up 
-    		// and prevent it from bombing the partition error
-    		// if no then simply return?
-    		
-    		// how to take care of LRU?
-    		
-    	}
-    	
-    	if (hstore_conf.site.anticache_profiling) {
-	        assert(ts.getPendingError() != null) :
-	            String.format("Missing original %s for %s", EvictedTupleAccessException.class.getSimpleName(), ts);
-	        assert(ts.getPendingError() instanceof EvictedTupleAccessException) :
-	            String.format("Unexpected error for %s: %s", ts, ts.getPendingError().getClass().getSimpleName());
-	        this.profilers[partition].restarted_txns++;
-	        this.profilers[partition].addEvictedAccess(ts, (EvictedTupleAccessException)ts.getPendingError());
+    public boolean queue(AbstractTransaction txn, int partition, Table catalog_tbl, short block_ids[], int tuple_offsets[]) {
+    	System.out.println(txn.getBasePartition()+"*********"+partition);
+    	if (txn instanceof LocalTransaction){
+    		LocalTransaction ts = (LocalTransaction)txn;
+	    	if(ts.getBasePartition()!=partition  && !hstore_site.isLocalPartition(partition)){ // different partition generated the exception
+	    		int site_id = hstore_site.getCatalogContext().getSiteIdForPartitionId(partition);
+	    		return hstore_site.getCoordinator().sendUnevictDataMessage(site_id, ts, partition, catalog_tbl, block_ids, tuple_offsets);
+	    		// should we enqueue the transaction on our side?
+	    		// if yes then we need to prevent the queue item from being picked up 
+	    		// and prevent it from bombing the partition error
+	    		// if no then simply return?
+	    		
+	    		// how to take care of LRU?
+	    		
+	    	}
+	    	
+	    	if (hstore_conf.site.anticache_profiling) {
+		        assert(ts.getPendingError() != null) :
+		            String.format("Missing original %s for %s", EvictedTupleAccessException.class.getSimpleName(), ts);
+		        assert(ts.getPendingError() instanceof EvictedTupleAccessException) :
+		            String.format("Unexpected error for %s: %s", ts, ts.getPendingError().getClass().getSimpleName());
+		        this.profilers[partition].restarted_txns++;
+		        this.profilers[partition].addEvictedAccess(ts, (EvictedTupleAccessException)ts.getPendingError());
+	    	}
     	}
 
-        QueueEntry e = new QueueEntry(ts, partition, catalog_tbl, block_ids, tuple_offsets);
+        QueueEntry e = new QueueEntry(txn, partition, catalog_tbl, block_ids, tuple_offsets);
 
         // TODO: We should check whether there are any other txns that are also blocked waiting
         // for these blocks. This will ensure that we don't try to read in blocks twice.

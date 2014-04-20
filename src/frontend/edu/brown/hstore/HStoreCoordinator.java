@@ -829,7 +829,7 @@ public class HStoreCoordinator implements Shutdownable {
                     request.getClass().getSimpleName(),
                     HStoreThreadManager.formatSiteName(request.getSenderSite()),
                     HStoreThreadManager.formatSiteName(local_site_id)));
-			LocalTransaction ts = hstore_site.getTransaction(request.getTransactionId());
+			RemoteTransaction ts = hstore_site.getTransaction(request.getTransactionId());
 			int partition = request.getPartitionId();
 			Table catalog_tbl = hstore_site.getCatalogContext().getTableById(request.getTableId());
 			short[] block_ids = new short[request.getBlockIdsList().size()];
