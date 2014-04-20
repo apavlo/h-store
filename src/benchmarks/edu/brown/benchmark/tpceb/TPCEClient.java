@@ -176,7 +176,7 @@ public class TPCEClient extends BenchmarkComponent {
 private int num = 1;
     protected Transaction selectTransaction() {
         //getNumThreads * 20
-        if(countTotal <= 400){ //probably 200
+        if(countTotal <= 300){ //probably 200
             num = 1;
             System.out.println("Trade Order number:" + countTotal);
         int iTxnType = egen_clientDriver.driver_ptr.getCE().getCETxnMixGenerator().generateNextTxnType( );
@@ -189,7 +189,7 @@ private int num = 1;
         
         return XTRANS[iTxnType];
        }
-        else if(countTotal <= 700){
+        else if(countTotal <= 500){
             num = 2;
             System.out.println("Market Feed");
                 countTotal++;
