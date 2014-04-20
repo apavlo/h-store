@@ -476,6 +476,8 @@ message UnevictDataRequest {
 message UnevictDataResponse {
     required int32 sender_site = 1;
     required Status status = 2;
+    required int64 old_transaction_id = 3;
+    required int64 new_transaction_id = 4;
 }
 
 // -----------------------------------

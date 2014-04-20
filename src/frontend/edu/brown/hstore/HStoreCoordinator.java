@@ -70,6 +70,7 @@ import edu.brown.hstore.Hstoreservice.UnevictDataRequest;
 import edu.brown.hstore.Hstoreservice.UnevictDataRequest.Builder;
 import edu.brown.hstore.Hstoreservice.UnevictDataResponse;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
+import edu.brown.hstore.callbacks.LocalInitQueueCallback;
 import edu.brown.hstore.callbacks.ShutdownPrepareCallback;
 import edu.brown.hstore.callbacks.LocalFinishCallback;
 import edu.brown.hstore.callbacks.TransactionPrefetchCallback;
@@ -263,7 +264,15 @@ public class HStoreCoordinator implements Shutdownable {
                               HStoreThreadManager.formatSiteName(response.getSenderSite()),
                               HStoreThreadManager.formatSiteName(local_site_id),
                               response.getStatus()));
+                long oldTxnId = response.getOldTransactionId();
+                long newTxnId = response.getNewTransactionId();
+                LocalTransaction ts = hstore_site.getTransaction(oldTxnId);
+                hstore_site.getTransactionInitializer().registerTransactionRestartWithId(ts, oldTxnId, newTxnId);
                 assert(response.getSenderSite() != local_site_id);
+                
+            	// we need needs to initiate a HstoreCoordinator transactionInit for this transaction
+            	LocalInitQueueCallback initCallback = (LocalInitQueueCallback)ts.getInitCallback();
+            	hstore_site.getCoordinator().transactionInit(ts, initCallback);
             }
         }
     };

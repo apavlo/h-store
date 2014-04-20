@@ -514,6 +514,25 @@ public class TransactionInitializer {
         
         return (txn_id);
     }
+    
+    /**
+     * Register a new LocalTransaction handle with this HStoreSite with a new id
+     * @param ts
+     * @param oldTxnId
+     * @param newTxnId
+     * @return
+     */
+    protected void registerTransactionRestartWithId(AbstractTransaction ts, Long oldTxnId, Long newTxnId) {
+    	AbstractTransaction removed = this.inflight_txns.remove(oldTxnId);
+        assert(ts == removed);
+        ts.setTransactionId(newTxnId);
+        
+        this.inflight_txns.put(newTxnId, ts);   
+        
+        if (debug.val)
+            LOG.debug(String.format("Changed txnId from %d to %d: %s", oldTxnId, newTxnId, ts));
+             
+    }
 
     /**
      * Initialize the TransactionProfiler for the given txn handle.

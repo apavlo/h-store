@@ -317,10 +317,11 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
                 this.profilers[next.partition].retrieval_time.stopIfStarted();
         }
 
+        Long oldTxnId = next.ts.getTransactionId();
         // HACK HACK HACK HACK HACK HACK
         // We need to get a new txnId for ourselves, since the one that we
         // were given before is now probably too far in the past
-        this.hstore_site.getTransactionInitializer().resetTransactionId(next.ts, next.partition);
+        Long newTxnId = this.hstore_site.getTransactionInitializer().resetTransactionId(next.ts, next.partition);
         // Now go ahead and requeue our transaction
 
         //        if(merge_needed)
@@ -333,12 +334,11 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         	RpcCallback<UnevictDataResponse> callback = ts.getUnevictCallback();
         	UnevictDataResponse.Builder builder = UnevictDataResponse.newBuilder()
         		.setSenderSite(this.hstore_site.getSiteId())
+        		.setOldTransactionId(oldTxnId)
+        		.setNewTransactionId(newTxnId)
         		.setStatus(Status.OK);
         	callback.run(builder.build());        	
         	
-        	// notify the base partition that it needs to initiate a HstoreCoordinator transactionInit
-//        	LocalInitQueueCallback initCallback = (LocalInitQueueCallback)next.ts.getInitCallback();
-//        	this.hstore_site.getCoordinator().transactionInit(next.ts, initCallback);
         }
         
         //        this.hstore_site.transactionReject(next.ts, Status.ABORT_GRACEFUL);
