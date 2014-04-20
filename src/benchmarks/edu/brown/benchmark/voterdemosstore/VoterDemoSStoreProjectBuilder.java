@@ -66,6 +66,7 @@ public class VoterDemoSStoreProjectBuilder extends AbstractProjectBuilder {
         { "top_three_last_30_sec", "contestant_number" },
         { "voteCount", "row_id"},
         { "totalVoteCount", "row_id"},
+        { "totalLeaderboardCount", "row_id"},
         { "votes_by_contestant", "contestant_number"}
     };
 

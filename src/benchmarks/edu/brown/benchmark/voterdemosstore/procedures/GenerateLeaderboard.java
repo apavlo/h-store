@@ -76,7 +76,7 @@ public class GenerateLeaderboard extends VoltProcedure {
             upsertable=true
         )
     public final SQLStmt updateTotalCount = new SQLStmt(
-    	"INSERT INTO totalVoteCount (row_id, cnt) SELECT row_id, cnt + 1 FROM totalVoteCount WHERE row_id = 1;"
+    	"INSERT INTO totalLeaderboardCount (row_id, cnt) SELECT row_id, cnt + 1 FROM totalLeaderboardCount WHERE row_id = 1;"
     );
     
     public final SQLStmt getCount = new SQLStmt(

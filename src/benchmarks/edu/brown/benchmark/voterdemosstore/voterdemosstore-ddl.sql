@@ -67,6 +67,16 @@ CREATE TABLE totalVoteCount
   )
 );
 
+CREATE TABLE totalLeaderboardCount
+(
+  row_id	     integer    NOT NULL,
+  cnt		     integer    NOT NULL
+, CONSTRAINT PK_totalLeaderboardCount PRIMARY KEY
+  (
+    row_id
+  )
+);
+
 CREATE STREAM votes_stream
 (
   vote_id            bigint     NOT NULL,

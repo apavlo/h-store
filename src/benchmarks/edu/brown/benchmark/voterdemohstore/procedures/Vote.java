@@ -31,6 +31,7 @@ package edu.brown.benchmark.voterdemohstore.procedures;
 
 import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
+import org.voltdb.StmtInfo;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.types.TimestampType;
@@ -44,6 +45,13 @@ import edu.brown.benchmark.voterwintimehstore.VoterWinTimeHStoreConstants;
     singlePartition = true
 )
 public class Vote extends VoltProcedure {
+	
+	@StmtInfo(
+            upsertable=true
+        )
+    public final SQLStmt updateTotalCount = new SQLStmt(
+    	"INSERT INTO totalVoteCount (row_id, cnt) SELECT row_id, cnt + 1 FROM totalVoteCount WHERE row_id = 1;"
+    );
 
     // Checks if the vote is for a valid contestant
     public final SQLStmt checkContestantStmt = new SQLStmt(
@@ -77,6 +85,7 @@ public long run(long voteId, long phoneNumber, int contestantNumber, long maxVot
 		voltQueueSQL(checkContestantStmt, contestantNumber);
         voltQueueSQL(checkVoterStmt, phoneNumber);
         voltQueueSQL(checkStateStmt, (short)(phoneNumber / 10000000l));
+        voltQueueSQL(updateTotalCount);
         VoltTable validation[] = voltExecuteSQL();
 		
         // validate the maximum limit for votes number

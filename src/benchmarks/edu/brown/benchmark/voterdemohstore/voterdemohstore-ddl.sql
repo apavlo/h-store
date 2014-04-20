@@ -101,6 +101,16 @@ CREATE TABLE totalVoteCount
   )
 );
 
+CREATE TABLE totalLeaderboardCount
+(
+  row_id	     integer    NOT NULL,
+  cnt		     integer    NOT NULL
+, CONSTRAINT PK_totalLeaderboardCount PRIMARY KEY
+  (
+    row_id
+  )
+);
+
 CREATE TABLE votes_by_contestant
 (
  contestant_number  integer    NOT NULL REFERENCES contestants (contestant_number)
