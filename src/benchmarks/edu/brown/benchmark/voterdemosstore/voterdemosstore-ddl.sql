@@ -114,7 +114,7 @@ AS
  GROUP BY phone_number
 ;
 
-CREATE VIEW v_contestant_count
+CREATE VIEW v_votes_by_contestant
 (
   contestant_number
 , num_votes
