@@ -82,11 +82,11 @@ public class Vote extends VoltProcedure {
     public final SQLStmt deleteCutoffVoteStmt = new SQLStmt(
 		"DELETE FROM w_rows WHERE time < ?;"
     );
-    
+    /**
     // Put the staging votes into the window
     public final SQLStmt insertVoteWindowStmt = new SQLStmt(
 		"INSERT INTO w_rows (vote_id, phone_number, state, contestant_number, time) SELECT * FROM w_staging;"
-    );
+    );*/
     
     public final SQLStmt deleteMostRecentVote = new SQLStmt(
 		"DELETE FROM w_rows WHERE time = ?;"
@@ -96,11 +96,11 @@ public class Vote extends VoltProcedure {
     public final SQLStmt deleteLeaderBoardStmt = new SQLStmt(
 		"DELETE FROM leaderboard;"
     );
-    
+    /**
     // Pull aggregate from window
     public final SQLStmt updateLeaderBoardStmt = new SQLStmt(
 		"INSERT INTO leaderboard (contestant_number, numvotes) SELECT contestant_number, count(*) FROM w_rows GROUP BY contestant_number;"
-    );
+    );*/
     
  // Clear the staging window
     public final SQLStmt deleteStagingStmt = new SQLStmt(
@@ -157,10 +157,10 @@ public class Vote extends VoltProcedure {
 
         	//validation = voltExecuteSQL();
         	voltQueueSQL(deleteCutoffVoteStmt, maxStageTimestamp - VoterWinTimeHStoreConstants.WIN_SIZE);
-        	voltQueueSQL(insertVoteWindowStmt);
+        	//voltQueueSQL(insertVoteWindowStmt);
         	voltQueueSQL(deleteMostRecentVote, maxStageTimestamp);
     		voltQueueSQL(deleteLeaderBoardStmt);
-    		voltQueueSQL(updateLeaderBoardStmt);
+    		//voltQueueSQL(updateLeaderBoardStmt);
     		voltQueueSQL(deleteStagingStmt, maxStageTimestamp);
     		voltExecuteSQL(true);
         }
