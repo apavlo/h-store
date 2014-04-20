@@ -130,7 +130,7 @@ CREATE TABLE holding (
    h_dts TIMESTAMP NOT NULL,
    h_price FLOAT NOT NULL CHECK (h_price > 0),
    h_qty INTEGER NOT NULL,
-   PRIMARY KEY (h_t_id) /*tid , h_ca_id, h_s_symb, h_dts, h_price, h_qty*/
+   PRIMARY KEY (h_t_id, h_ca_id, h_s_symb, h_dts, h_price, h_qty) /*tid , h_ca_id, h_s_symb, h_dts, h_price, h_qty*/
 );
 CREATE INDEX i_holding ON holding (h_ca_id, h_s_symb);
 
