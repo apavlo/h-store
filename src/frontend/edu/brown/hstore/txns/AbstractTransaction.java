@@ -43,10 +43,12 @@ import org.voltdb.types.SpeculationType;
 import org.voltdb.utils.NotImplementedException;
 
 import com.google.protobuf.ByteString;
+import com.google.protobuf.RpcCallback;
 
 import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice.Status;
+import edu.brown.hstore.Hstoreservice.UnevictDataResponse;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.callbacks.PartitionCountingCallback;
 import edu.brown.hstore.estimators.Estimate;
@@ -1371,4 +1373,5 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
         }
         return this.cachedDebugContext;
     }
+
 }

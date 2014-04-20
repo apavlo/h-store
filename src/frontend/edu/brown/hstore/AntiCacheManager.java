@@ -34,6 +34,7 @@ import com.google.protobuf.RpcCallback;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.Hstoreservice.HStoreService;
 import edu.brown.hstore.Hstoreservice.Status;
+import edu.brown.hstore.Hstoreservice.UnevictDataResponse;
 import edu.brown.hstore.callbacks.LocalInitQueueCallback;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.internal.UtilityWorkMessage.TableStatsRequestMessage;
@@ -328,6 +329,13 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         if (next.ts instanceof LocalTransaction){
         	this.hstore_site.transactionInit(next.ts);	
         }else{
+        	RemoteTransaction ts = (RemoteTransaction) next.ts; 
+        	RpcCallback<UnevictDataResponse> callback = ts.getUnevictCallback();
+        	UnevictDataResponse.Builder builder = UnevictDataResponse.newBuilder()
+        		.setSenderSite(this.hstore_site.getSiteId())
+        		.setStatus(Status.OK);
+        	callback.run(builder.build());        	
+        	
         	// notify the base partition that it needs to initiate a HstoreCoordinator transactionInit
 //        	LocalInitQueueCallback initCallback = (LocalInitQueueCallback)next.ts.getInitCallback();
 //        	this.hstore_site.getCoordinator().transactionInit(next.ts, initCallback);

@@ -349,12 +349,41 @@ public class TestAntiCacheManagerDistributedTxn extends BaseTestCase {
         int tuple_offsets[] = new int[]{0};
         this.hstore_conf.site.anticache_profiling = false;
         
+        final Map<Integer, String> responses = new HashMap<Integer, String>();
+        
+        // We will block on this until we get responses from the remote site
+        final CountDownLatch latch = new CountDownLatch(1);
+        
+        // this is the callback that will be run once the Anticachemanager on the remote site is done with fetching 
+        // of tuples. This should help the site with the base partition to get a notification that the 
+        // anticache fetch is done.
+        final RpcCallback<UnevictDataResponse> callback = new RpcCallback<UnevictDataResponse>() {
+            @Override
+            public void run(UnevictDataResponse parameter) {
+                int sender_site_id = parameter.getSenderSite();
+                String status = parameter.getStatus().name();
+                assertEquals("OK", status);
+                assertEquals(hstore_sites[1].getSiteId(), sender_site_id); // remote site sent it
+				responses.put(sender_site_id, status );
+                StringBuilder sb = new StringBuilder();
+                sb.append("TestConnection Responses:\n");
+                for (java.util.Map.Entry<Integer, String> e : responses.entrySet()) {
+                    sb.append(String.format("  Partition %03d: %s\n", e.getKey(), e.getValue()));
+                } // FOR
+                System.err.println(sb.toString());
+                latch.countDown();
+            }
+        };
+        
         RemoteTransaction txn = MockHStoreSite.makeDistributedTransaction(hstore_sites[0], hstore_sites[1]);
+        txn.setUnevictCallback(callback);
         int partition_id = CollectionUtil.first(this.hstore_sites[1].getLocalPartitionIds());
         MockAntiCacheManager remotemanager = (MockAntiCacheManager) hstore_sites[1].getAntiCacheManager();
         assertTrue(remotemanager.queue(txn, partition_id, catalog_tbl, block_ids, tuple_offsets));
         remotemanager.processQueue(); // force to process the queued item
         
+        // block till the remote site executes the callback notifying that its done
+        latch.await();
         assertNotNull(txn.getAntiCacheMergeTable()); // ensure that items were unevicted for this txn
 
 //        assertEquals(Status.OK, cresponse.getStatus()); // does the txn go to completion

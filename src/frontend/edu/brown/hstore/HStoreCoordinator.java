@@ -830,6 +830,7 @@ public class HStoreCoordinator implements Shutdownable {
                     HStoreThreadManager.formatSiteName(request.getSenderSite()),
                     HStoreThreadManager.formatSiteName(local_site_id)));
 			RemoteTransaction ts = hstore_site.getTransaction(request.getTransactionId());
+			ts.setUnevictCallback(done);
 			int partition = request.getPartitionId();
 			Table catalog_tbl = hstore_site.getCatalogContext().getTableById(request.getTableId());
 			short[] block_ids = new short[request.getBlockIdsList().size()];
@@ -839,15 +840,6 @@ public class HStoreCoordinator implements Shutdownable {
 			for(int i = 0; i < request.getTupleOffsetsList().size(); i++) tuple_offsets[i] = request.getTupleOffsets(i);
 
 			hstore_site.getAntiCacheManager().queue(ts, partition, catalog_tbl, block_ids, tuple_offsets);
-            if (debug.val)
-                LOG.debug(String.format("Received %s from HStoreSite %s",
-                          request.getClass().getSimpleName(),
-                          HStoreThreadManager.formatSiteName(request.getSenderSite())));
-            UnevictDataResponse.Builder builder = UnevictDataResponse.newBuilder()
-                                                    .setSenderSite(local_site_id)
-                                                    .setStatus(Status.OK);
-            done.run(builder.build());            
-
 		}
 
     } // END CLASS
