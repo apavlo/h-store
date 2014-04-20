@@ -38,6 +38,7 @@ import org.apache.log4j.Logger;
 import org.voltdb.VoltTable;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
+import org.voltdb.client.ProcCallException;
 import org.voltdb.client.ProcedureCallback;
 
 import weka.classifiers.meta.Vote;
@@ -107,35 +108,36 @@ public class VoterDemoHStoreClient extends BenchmarkComponent {
         	lastTime = System.nanoTime();
         	timestamp++;
         }
-    	boolean response = false;
-    	Client client = this.getClientHandle();
-    	
-    	
-    	if(!genLeaderboard)
-    	{
-	        PhoneCallGenerator.PhoneCall call = switchboard.receive();
-	        Callback callback = new Callback(0);
-	
-	        response = client.callProcedure(callback,
-	                                                "Vote",
-	                                                call.voteId,
-	                                                call.phoneNumber,
-	                                                call.contestantNumber,
-	                                                VoterDemoHStoreConstants.MAX_VOTES,
-	                                                timestamp);
-	        
-	        if(response && callback.getStatus() == VoterDemoHStoreConstants.VOTE_SUCCESSFUL)
-	        {
-	        	genLeaderboard = true;
-	        }
-    	}
-    	else
-    	{
-    		Callback callback = new Callback(1);
-    		response = client.callProcedure(callback, "GenerateLeaderboard");
-    		genLeaderboard = false;
-    	}
-        return response;
+    	try {
+	    	Client client = this.getClientHandle();
+	    	
+		        PhoneCallGenerator.PhoneCall call = switchboard.receive();
+		        //Callback callback = new Callback(0);
+		
+		        ClientResponse response;
+					response = client.callProcedure(       "Vote",
+					                                        call.voteId,
+					                                        call.phoneNumber,
+					                                        call.contestantNumber,
+					                                        VoterDemoHStoreConstants.MAX_VOTES,
+					                                        timestamp);
+				
+				incrementTransactionCounter(response, 0);
+		        VoltTable results[] = response.getResults();
+		        
+		        if(results.length > 0 && results[0].asScalarLong() == VoterDemoHStoreConstants.VOTE_SUCCESSFUL)
+		        {
+		        	response = client.callProcedure("GenerateLeaderboard");
+		    		incrementTransactionCounter(response, 1);
+		        }
+		        return true;
+
+    	} 
+		catch (ProcCallException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			return false;
+		}
     }
 
     @Override

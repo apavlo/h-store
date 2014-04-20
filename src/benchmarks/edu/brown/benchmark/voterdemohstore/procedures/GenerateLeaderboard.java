@@ -44,12 +44,6 @@ import edu.brown.benchmark.voterdemohstore.VoterDemoHStoreConstants;
 )
 public class GenerateLeaderboard extends VoltProcedure {
 	
-	
-	protected void toSetTriggerTableName()
-	{
-		addTriggerTable("proc_one_out");
-	}
-	
 	////////////////////////////first batch of SQL statements/////////////////////////////
     // Put vote into leaderboard
     public final SQLStmt trendingLeaderboardStmt = new SQLStmt(
