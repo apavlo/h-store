@@ -38,11 +38,13 @@ import org.apache.log4j.Logger;
 import org.voltdb.VoltTable;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
+import org.voltdb.client.ProcCallException;
 import org.voltdb.client.ProcedureCallback;
 
 import weka.classifiers.meta.Vote;
 
 import edu.brown.api.BenchmarkComponent;
+import edu.brown.benchmark.voterdemohstore.procedures.GenerateLeaderboard;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 
@@ -64,8 +66,8 @@ public class VoterDemoHStoreClient extends BenchmarkComponent {
     AtomicLong badContestantVotes = new AtomicLong(0);
     AtomicLong badVoteCountVotes = new AtomicLong(0);
     AtomicLong failedVotes = new AtomicLong(0);
-
-    final Callback callback = new Callback();
+    
+    boolean genLeaderboard;
 
     public static void main(String args[]) {
         BenchmarkComponent.main(VoterDemoHStoreClient.class, args, false);
@@ -77,6 +79,7 @@ public class VoterDemoHStoreClient extends BenchmarkComponent {
         this.switchboard = new PhoneCallGenerator(this.getClientId(), numContestants);
         lastTime = System.nanoTime();
         timestamp = 0;
+        genLeaderboard = false;
     }
 
     @Override
@@ -105,65 +108,96 @@ public class VoterDemoHStoreClient extends BenchmarkComponent {
         	lastTime = System.nanoTime();
         	timestamp++;
         }
-    	
-        PhoneCallGenerator.PhoneCall call = switchboard.receive();
+    	try {
+	    	Client client = this.getClientHandle();
+	    	
+		        PhoneCallGenerator.PhoneCall call = switchboard.receive();
+		        //Callback callback = new Callback(0);
+		
+		        ClientResponse response;
+					response = client.callProcedure(       "Vote",
+					                                        call.voteId,
+					                                        call.phoneNumber,
+					                                        call.contestantNumber,
+					                                        VoterDemoHStoreConstants.MAX_VOTES,
+					                                        timestamp);
+				
+				incrementTransactionCounter(response, 0);
+		        VoltTable results[] = response.getResults();
+		        
+		        if(results.length > 0 && results[0].asScalarLong() == VoterDemoHStoreConstants.VOTE_SUCCESSFUL)
+		        {
+		        	response = client.callProcedure("GenerateLeaderboard");
+		    		incrementTransactionCounter(response, 1);
+		        }
+		        return true;
 
-        Client client = this.getClientHandle();
-        boolean response = client.callProcedure(callback,
-                                                "Vote",
-                                                call.voteId,
-                                                call.phoneNumber,
-                                                call.contestantNumber,
-                                                VoterDemoHStoreConstants.MAX_VOTES,
-                                                timestamp);
-        
-        if(response)
-        {
-        	response = client.callProcedure(callback,
-                    "GenerateLeaderboard");
-        }
-        return response;
+    	} 
+		catch (ProcCallException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			return false;
+		}
     }
 
     @Override
     public String[] getTransactionDisplayNames() {
         // Return an array of transaction names
         String procNames[] = new String[]{
-            Vote.class.getSimpleName()
+            Vote.class.getSimpleName(),
+            GenerateLeaderboard.class.getSimpleName()
         };
         return (procNames);
     }
 
     private class Callback implements ProcedureCallback {
+    	
+    	private int idx;
+    	private long prevStatus;
+    	
+    	public Callback(int idx)
+    	{
+    		super();
+    		this.idx = idx;
+    	}
+    	
+    	public long getStatus()
+    	{
+    		return prevStatus;
+    	}
 
         @Override
         public void clientCallback(ClientResponse clientResponse) {
             // Increment the BenchmarkComponent's internal counter on the
             // number of transactions that have been completed
-            incrementTransactionCounter(clientResponse, 0);
+            incrementTransactionCounter(clientResponse, this.idx);
             
-            // Keep track of state (optional)
-            if (clientResponse.getStatus() == Status.OK) {
-                VoltTable results[] = clientResponse.getResults();
-                assert(results.length == 1);
-                long status = results[0].asScalarLong();
-                if (status == VoterDemoHStoreConstants.VOTE_SUCCESSFUL) {
-                    acceptedVotes.incrementAndGet();
-                }
-                else if (status == VoterDemoHStoreConstants.ERR_INVALID_CONTESTANT) {
-                    badContestantVotes.incrementAndGet();
-                }
-                else if (status == VoterDemoHStoreConstants.ERR_VOTER_OVER_VOTE_LIMIT) {
-                    badVoteCountVotes.incrementAndGet();
-                }
-            }
-            else if (clientResponse.getStatus() == Status.ABORT_UNEXPECTED) {
-                if (clientResponse.getException() != null) {
-                    clientResponse.getException().printStackTrace();
-                }
-                if (debug.val && clientResponse.getStatusString() != null) {
-                    LOG.warn(clientResponse.getStatusString());
-                }
+            if(this.idx == 0)
+            {
+	            // Keep track of state (optional)
+	            if (clientResponse.getStatus() == Status.OK) {
+	                VoltTable results[] = clientResponse.getResults();
+	                assert(results.length == 1);
+	                long status = results[0].asScalarLong();
+	                prevStatus = status;
+	                if (status == VoterDemoHStoreConstants.VOTE_SUCCESSFUL) {
+	                    acceptedVotes.incrementAndGet();
+	                }
+	                else if (status == VoterDemoHStoreConstants.ERR_INVALID_CONTESTANT) {
+	                    badContestantVotes.incrementAndGet();
+	                }
+	                else if (status == VoterDemoHStoreConstants.ERR_VOTER_OVER_VOTE_LIMIT) {
+	                    badVoteCountVotes.incrementAndGet();
+	                }
+	            }
+	            else if (clientResponse.getStatus() == Status.ABORT_UNEXPECTED) {
+	                if (clientResponse.getException() != null) {
+	                    clientResponse.getException().printStackTrace();
+	                }
+	                if (debug.val && clientResponse.getStatusString() != null) {
+	                    LOG.warn(clientResponse.getStatusString());
+	                }
+	            }
             }
         }
     } // END CLASS

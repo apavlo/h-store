@@ -91,6 +91,16 @@ CREATE TABLE voteCount
   )
 );
 
+CREATE TABLE totalVoteCount
+(
+  row_id	     integer    NOT NULL,
+  cnt		     integer    NOT NULL
+, CONSTRAINT PK_totalVoteCount PRIMARY KEY
+  (
+    row_id
+  )
+);
+
 CREATE TABLE votes_by_contestant
 (
  contestant_number  integer    NOT NULL REFERENCES contestants (contestant_number)
@@ -128,4 +138,16 @@ AS
      FROM votes
  GROUP BY contestant_number
         , state
+;
+
+CREATE VIEW v_votes_by_contestant
+(
+  contestant_number
+, num_votes
+)
+AS
+   SELECT contestant_number
+        , COUNT(*)
+     FROM votes
+ GROUP BY contestant_number
 ;

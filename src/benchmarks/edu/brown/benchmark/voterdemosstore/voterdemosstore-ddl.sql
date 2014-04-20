@@ -57,6 +57,16 @@ CREATE TABLE voteCount
   )
 );
 
+CREATE TABLE totalVoteCount
+(
+  row_id	     integer    NOT NULL,
+  cnt		     integer    NOT NULL
+, CONSTRAINT PK_totalVoteCount PRIMARY KEY
+  (
+    row_id
+  )
+);
+
 CREATE STREAM votes_stream
 (
   vote_id            bigint     NOT NULL,
@@ -104,7 +114,7 @@ AS
  GROUP BY phone_number
 ;
 
-CREATE VIEW v_contestant_count
+CREATE VIEW v_votes_by_contestant
 (
   contestant_number
 , num_votes

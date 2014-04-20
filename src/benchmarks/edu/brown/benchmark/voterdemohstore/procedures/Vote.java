@@ -85,7 +85,7 @@ public long run(long voteId, long phoneNumber, int contestantNumber, long maxVot
         }
         
         if ((validation[1].getRowCount() == 1) &&
-			(validation[1].asScalarLong() >= maxVotesPerPhoneNumber)) {
+			(validation[1].fetchRow(0).getLong(0) >= maxVotesPerPhoneNumber)) {
             return VoterConstants.ERR_VOTER_OVER_VOTE_LIMIT;
         }
 		
