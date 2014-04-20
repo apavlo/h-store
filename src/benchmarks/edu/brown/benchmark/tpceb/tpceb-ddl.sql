@@ -140,7 +140,7 @@ CREATE TABLE holding_history (
    hh_t_id BIGINT NOT NULL REFERENCES trade (t_id),
    hh_before_qty INTEGER NOT NULL,
    hh_after_qty INTEGER NOT NULL,
-   PRIMARY KEY (hh_h_t_id, hh_t_id )/*both tids ,  hh_before_qty, hh_after_qty*/
+   PRIMARY KEY (hh_h_t_id, hh_t_id,  hh_before_qty, hh_after_qty )/*both tids ,  hh_before_qty, hh_after_qty*/
 );
 
 -- TPC-E Clause 2.2.6.8
