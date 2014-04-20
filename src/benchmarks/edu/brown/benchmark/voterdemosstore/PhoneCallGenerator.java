@@ -103,6 +103,7 @@ public class PhoneCallGenerator {
 		
         // Pick a random area code for the originating phone call
         int areaCodeIndex = rand.nextInt(AREA_CODES.length);
+        //int areaCodeIndex = 0;
 		
         // Pick a contestant number
         int contestantNumber = votingMap[areaCodeIndex];
@@ -118,6 +119,7 @@ public class PhoneCallGenerator {
 		
         // Build the phone number
         long phoneNumber = AREA_CODES[areaCodeIndex] * 10000000L + rand.nextInt(10000000);
+        //long phoneNumber = AREA_CODES[areaCodeIndex] * 10000000L + 9999999;
 		
         // This needs to be globally unique
         
