@@ -110,7 +110,8 @@ public class MEETradingFloor {
             txnInput.trade_price = CurrentPrice;
            // System.out.println("IN ELSE");
         }
-    
+        System.out.println("TRADEIDHERE"+  txnInput.trade_id);
+        System.out.println("TRADEPRICEHERE"+  txnInput.trade_price);
         sut.TradeResult(  txnInput );
        // System.out.println("Got to here");
     
