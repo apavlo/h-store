@@ -77,18 +77,33 @@ CREATE TABLE voteCount
 (
   row_id	     integer    NOT NULL,
   cnt		     integer    NOT NULL
+
+, CONSTRAINT PK_voteCount PRIMARY KEY
+  (
+    row_id
+  )
 );
 
 CREATE TABLE totalVoteCount
 (
   row_id	     integer    NOT NULL,
   cnt		     integer    NOT NULL
+
+, CONSTRAINT PK_totalVoteCount PRIMARY KEY
+  (
+    row_id
+  )
 );
 
 CREATE TABLE totalLeaderboardCount
 (
   row_id	     integer    NOT NULL,
   cnt		     integer    NOT NULL
+
+, CONSTRAINT PK_totalLeaderboardCount PRIMARY KEY
+  (
+    row_id
+  )
 );
 
 -- rollup of votes by phone number, used to reject excessive voting
