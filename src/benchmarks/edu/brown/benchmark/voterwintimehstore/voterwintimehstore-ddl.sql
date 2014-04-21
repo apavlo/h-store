@@ -97,5 +97,17 @@ AS
         , state
 ;
 
+CREATE VIEW v_leaderboard
+(
+   contestant_number, 
+   numvotes
+)
+AS
+   SELECT contestant_number, 
+	  count(*) 
+   FROM w_rows 
+   GROUP BY contestant_number
+;
+
 CREATE INDEX idx_w_staging ON W_STAGING (ts);
 CREATE INDEX idx_w_rows ON W_ROWS (ts);
