@@ -5,10 +5,7 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.channels.ServerSocketChannel;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.CountDownLatch;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -22,24 +19,18 @@ import org.voltdb.client.ClientResponse;
 import org.voltdb.jni.ExecutionEngine;
 import org.voltdb.utils.VoltTableUtil;
 
-import com.google.protobuf.RpcCallback;
-
 import edu.brown.BaseTestCase;
 import edu.brown.benchmark.AbstractProjectBuilder;
 import edu.brown.benchmark.ycsb.YCSBConstants;
 import edu.brown.benchmark.ycsb.YCSBProjectBuilder;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.Hstoreservice.Status;
-import edu.brown.hstore.Hstoreservice.UnevictDataResponse;
 import edu.brown.hstore.conf.HStoreConf;
-import edu.brown.hstore.txns.LocalTransaction;
-import edu.brown.hstore.txns.RemoteTransaction;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.ThreadUtil;
 
-public class TestAntiCacheManagerDistributedTxn extends BaseTestCase {
-    
+public class TestAntiCacheDistributedTxnEndToEnd extends BaseTestCase{
     private static final int NUM_PARTITIONS = 1;
     private static final int NUM_TUPLES = 100000;
     private static final String TARGET_TABLE = YCSBConstants.TABLE_NAME;
@@ -51,7 +42,7 @@ public class TestAntiCacheManagerDistributedTxn extends BaseTestCase {
     };
     
     
-    private MockHStoreSite hstore_sites[] = new MockHStoreSite[2];
+    private HStoreSite hstore_sites[] = new HStoreSite[2];
     private HStoreCoordinator coordinators[] = new HStoreCoordinator[2];
 
     private HStoreConf hstore_conf;
@@ -76,6 +67,7 @@ public class TestAntiCacheManagerDistributedTxn extends BaseTestCase {
     @Before
     public void setUp() throws Exception {
     	super.setUp(builder, false);
+        initializeCatalog(1, 2, NUM_PARTITIONS);
         this.anticache_dir = FileUtil.getTempDirectory();
         
         // Just make sure that the Table has the evictable flag set to true
@@ -85,31 +77,28 @@ public class TestAntiCacheManagerDistributedTxn extends BaseTestCase {
 
         // Create a fake cluster of two HStoreSites, each with two partitions
         // This will allow us to test same site communication as well as cross-site communication
-        this.initializeCatalog(1, 2, NUM_PARTITIONS);
         for (int i = 0; i < 2; i++) {
-            this.hstore_conf = HStoreConf.singleton();
-            this.hstore_conf.site.status_enable = false;
-            this.hstore_conf.site.txn_partition_id_managers = true;
-            this.hstore_conf.site.anticache_enable = true;
-            this.hstore_conf.site.anticache_profiling = true;
-            this.hstore_conf.site.anticache_check_interval = Integer.MAX_VALUE;
-            this.hstore_conf.site.anticache_dir = this.anticache_dir.getAbsolutePath();
-            this.hstore_conf.site.coordinator_sync_time = false;
 
-            this.hstore_sites[i] = new MockHStoreSite(i, catalogContext, hstore_conf);
-            this.hstore_sites[i].setCoordinator();
-            this.coordinators[i] = this.hstore_sites[i].getCoordinator();
-            int p_id = CollectionUtil.first(this.hstore_sites[i].getLocalPartitionIds());
-            MockPartitionExecutor es = new MockPartitionExecutor(p_id, catalogContext, p_estimator);
-            this.hstore_sites[i].addPartitionExecutor(p_id, es);
-            
-            this.executors[i] = es;
-	        assertNotNull(this.executors[i]);
-	        this.ee[i] = this.executors[i].getExecutionEngine();
-	        assertNotNull(this.ee[i]);
-            
-            
-        } // FOR
+	        this.hstore_conf = HStoreConf.singleton();
+	        this.hstore_conf.site.status_enable = false;
+	        this.hstore_conf.site.txn_partition_id_managers = true;
+	        this.hstore_conf.site.anticache_enable = true;
+	        this.hstore_conf.site.anticache_profiling = true;
+	        this.hstore_conf.site.anticache_check_interval = Integer.MAX_VALUE;
+	        this.hstore_conf.site.anticache_dir = this.anticache_dir.getAbsolutePath();
+	        this.hstore_conf.site.coordinator_sync_time = false;
+        
+	        Site catalog_site = CollectionUtil.get(CatalogUtil.getCluster(catalog).getSites(), i);
+	        hstore_sites[i] = createHStoreSite(catalog_site, hstore_conf);
+            coordinators[i] = hstore_sites[i].getCoordinator();
+            int p_id = CollectionUtil.first(hstore_sites[i].getLocalPartitionIds());
+	        executors[i] = hstore_sites[i].getPartitionExecutor(p_id);
+	        assertNotNull(executors[i]);
+	        ee[i] = executors[i].getExecutionEngine();
+	        assertNotNull(ee[i]);
+        }
+        
+        this.client = createClient();
 
         this.startMessengers();
         
@@ -258,139 +247,17 @@ public class TestAntiCacheManagerDistributedTxn extends BaseTestCase {
         assertTrue(adv);
           return (evictResult);
     }
-
-
-    // --------------------------------------------------------------------------------------------
-    // TEST CASES
-    // --------------------------------------------------------------------------------------------
-
-    @Test
-    public void testQueueingOfTransaction() throws Exception {
-    	AntiCacheManager manager = hstore_sites[0].getAntiCacheManager();
-        short block_ids[] = new short[]{ 1111 };
-        int tuple_offsets[] = new int[]{0};
-        int partition_id = 0;
-        this.hstore_conf.site.anticache_profiling = false;
-        LocalTransaction txn = MockHStoreSite.makeLocalTransaction(hstore_sites[0]);
-
-        assertTrue(manager.queue(txn, partition_id, catalog_tbl, block_ids, tuple_offsets));
-
-    }
-  
-    @Test
-    public void testQueueingOfDistributedTransaction() throws Exception {
-    	final CountDownLatch latch = new CountDownLatch(1);
-    	final RpcCallback<UnevictDataResponse> callback = new RpcCallback<UnevictDataResponse>() {
-            @Override
-            public void run(UnevictDataResponse parameter) {
-            	// do nothing
-            	latch.countDown();
-            }
-    	};
-    	hstore_sites[0].getCoordinator().setUnevictCallback(callback);
-    	AntiCacheManager manager = hstore_sites[0].getAntiCacheManager();
-        short block_ids[] = new short[]{ 1111 };
-        int tuple_offsets[] = new int[]{0};
-         // different from the base partition. This means the exception was 
-        // thrown by a remote site
-        this.hstore_conf.site.anticache_profiling = false;
-        LocalTransaction txn = MockHStoreSite.makeLocalTransaction(hstore_sites[0]);
-        int partition_id = CollectionUtil.first(this.hstore_sites[1].getLocalPartitionIds());
-
-        assertTrue(manager.queue(txn, partition_id, catalog_tbl, block_ids, tuple_offsets));
-        latch.await();
-
-    }
-    
-    /**
-     * testUnevictDataAddsItemToAntiCacheManagerQueue
-     */
-    @Test
-    public void testUnevictDataShouldAddEntryToAntiCacheManagerQueue() throws Exception {
-        final Map<Integer, String> responses = new HashMap<Integer, String>();
-        
-        // We will block on this until we get responses from the remote site
-        final CountDownLatch latch = new CountDownLatch(1);
-        
-        final RpcCallback<UnevictDataResponse> callback = new RpcCallback<UnevictDataResponse>() {
-            @Override
-            public void run(UnevictDataResponse parameter) {
-                int sender_site_id = parameter.getSenderSite();
-                String status = parameter.getStatus().name();
-                assertEquals("OK", status);
-				responses.put(sender_site_id, status );
-                StringBuilder sb = new StringBuilder();
-                sb.append("TestConnection Responses:\n");
-                for (java.util.Map.Entry<Integer, String> e : responses.entrySet()) {
-                    sb.append(String.format("  Partition %03d: %s\n", e.getKey(), e.getValue()));
-                } // FOR
-                System.err.println(sb.toString());
-                latch.countDown();
-            }
-        };
-        
-    	AntiCacheManager manager = hstore_sites[0].getAntiCacheManager();
-        short block_ids[] = new short[]{ 1111 };
-        int tuple_offsets[] = new int[]{0};
-         // different from the base partition. This means the exception was 
-        // thrown by a remote site
-        this.hstore_conf.site.anticache_profiling = false;
-        LocalTransaction txn = MockHStoreSite.makeLocalTransaction(hstore_sites[0]);
-        int dest_id = CollectionUtil.first(this.hstore_sites[1].getLocalPartitionIds());
-        final int sender_id = hstore_sites[0].getSiteId();
-        hstore_sites[sender_id].getCoordinator().setUnevictCallback(callback);
-        
-        
-        hstore_sites[sender_id].getCoordinator().sendUnevictDataMessage(dest_id, txn, dest_id, catalog_tbl, block_ids, tuple_offsets);
-        // BLOCK!
-        latch.await();
-        assertEquals(1, responses.size());
-    }    
-
-    @Test
-    public void testProcessingOfQueuedDistributedTransaction() throws Exception {
-        short block_ids[] = new short[]{ 1111 };
-        int tuple_offsets[] = new int[]{0};
-        this.hstore_conf.site.anticache_profiling = false;
-        
-        final Map<Integer, String> responses = new HashMap<Integer, String>();
-        
-        // We will block on this until we get responses from the remote site
-        final CountDownLatch latch = new CountDownLatch(1);
-        
-        // this is the callback that will be run once the Anticachemanager on the remote site is done with fetching 
-        // of tuples. This should help the site with the base partition to get a notification that the 
-        // anticache fetch is done.
-        final RpcCallback<UnevictDataResponse> callback = new RpcCallback<UnevictDataResponse>() {
-            @Override
-            public void run(UnevictDataResponse parameter) {
-                int sender_site_id = parameter.getSenderSite();
-                String status = parameter.getStatus().name();
-                assertEquals("OK", status);
-                assertEquals(hstore_sites[1].getSiteId(), sender_site_id); // remote site sent it
-				responses.put(sender_site_id, status );
-                StringBuilder sb = new StringBuilder();
-                sb.append("TestConnection Responses:\n");
-                for (java.util.Map.Entry<Integer, String> e : responses.entrySet()) {
-                    sb.append(String.format("  Partition %03d: %s\n", e.getKey(), e.getValue()));
-                } // FOR
-                System.err.println(sb.toString());
-                latch.countDown();
-            }
-        };
-        
-        RemoteTransaction txn = MockHStoreSite.makeDistributedTransaction(hstore_sites[0], hstore_sites[1]);
-        txn.setUnevictCallback(callback);
-        int partition_id = CollectionUtil.first(this.hstore_sites[1].getLocalPartitionIds());
-        MockAntiCacheManager remotemanager = (MockAntiCacheManager) hstore_sites[1].getAntiCacheManager();
-        assertTrue(remotemanager.queue(txn, partition_id, catalog_tbl, block_ids, tuple_offsets));
-        remotemanager.processQueue(); // force to process the queued item
-        
-        // block till the remote site executes the callback notifying that its done
-        latch.await();
-        assertNotNull(txn.getAntiCacheMergeTable()); // ensure that items were unevicted for this txn
-
-//        assertEquals(Status.OK, cresponse.getStatus()); // does the txn go to completion
-    }
-    
+	
+//    @Test
+//    public void testEndToEndDistributedTxn() throws Exception{
+//    	this.loadData();
+//    	this.evictData();
+//    	
+//        Procedure proc = this.getProcedure("GetRecords"); // Special Single-Stmt Proc
+//        ClientResponse cresponse = this.client.callProcedure(proc.getName());
+//        assertEquals(Status.OK, cresponse.getStatus());
+//        
+//        VoltTable results[] = cresponse.getResults();
+//        assertEquals(1, results.length);
+//    }
 }
