@@ -43,13 +43,12 @@ CREATE TABLE w_staging
   phone_number       bigint     NOT NULL
 , state              varchar(2) NOT NULL -- REFERENCES area_code_state (state)
 , contestant_number  integer    NOT NULL REFERENCES contestants (contestant_number)
-, time		     integer    NOT NULL
-, CONSTRAINT PK_stage PRIMARY KEY
-  (
-    time
-  )
+, TIME		     integer    NOT NULL
+--, CONSTRAINT PK_staging PRIMARY KEY (vote_id)
 -- PARTITION BY ( phone_number )
 );
+
+
 
 CREATE TABLE w_rows
 (
@@ -57,13 +56,12 @@ CREATE TABLE w_rows
   phone_number       bigint     NOT NULL
 , state              varchar(2) NOT NULL -- REFERENCES area_code_state (state)
 , contestant_number  integer    NOT NULL REFERENCES contestants (contestant_number)
-, time 		     integer    NOT NULL
-, CONSTRAINT PK_win PRIMARY KEY
-  (
-    time
-  )
+, TIME 		     integer    NOT NULL
+--, CONSTRAINT PK_rows PRIMARY KEY  (vote_id)
 -- PARTITION BY ( phone_number )
 );
+
+
 
 CREATE TABLE leaderboard
 (
@@ -99,3 +97,6 @@ AS
  GROUP BY contestant_number
         , state
 ;
+
+--CREATE INDEX i_w_staging ON W_STAGING (TIME);
+--CREATE INDEX i_w_rows ON W_ROWS (TIME);

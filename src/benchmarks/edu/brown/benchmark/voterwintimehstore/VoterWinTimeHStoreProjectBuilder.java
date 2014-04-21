@@ -34,6 +34,7 @@ import org.voltdb.VoltProcedure;
 import edu.brown.benchmark.AbstractProjectBuilder;
 import edu.brown.api.BenchmarkComponent;
 
+import edu.brown.benchmark.tm1.TM1Constants;
 import edu.brown.benchmark.voterwintimehstore.procedures.Vote; 
 import edu.brown.benchmark.voterwintimehstore.procedures.Initialize; 
 
@@ -52,6 +53,8 @@ public class VoterWinTimeHStoreProjectBuilder extends AbstractProjectBuilder {
 	
 	{
 		//addTransactionFrequency(Vote.class, 100);
+		//addReplicatedSecondaryIndex("w_staging", "TIME");
+		//addReplicatedSecondaryIndex("w_rows", "TIME");
 	}
 	
 	// a list of tables used in this benchmark with corresponding partitioning keys
