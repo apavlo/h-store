@@ -37,7 +37,7 @@ public abstract class VoterDemoSStoreConstants {
     
 	public static final int MAX_VOTES = 10; 
 	public static final int NUM_CONTESTANTS = 12;
-	public static final int VOTE_THRESHOLD = 10000;
+	public static final int VOTE_THRESHOLD = 50000;
 
 	// Initialize some common constants and variables
     public static final String CONTESTANT_NAMES_CSV = "Edwina Burnam,Tabatha Gehling,Kelly Clauss,Jessie Alloway," +

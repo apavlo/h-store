@@ -4,8 +4,8 @@
  *  Massachusetts Institute of Technology                                  *
  *  Yale University                                                        *
  *                                                                         *
- *  Original By: VoltDB Inc.											   *
- *  Ported By:  Justin A. DeBrabant (http://www.cs.brown.edu/~debrabant/)  *                                                                      *
+ *  Coded By:  Justin A. DeBrabant (http://www.cs.brown.edu/~debrabant/)   *								   
+ *                                                                         *
  *                                                                         *
  *  Permission is hereby granted, free of charge, to any person obtaining  *
  *  a copy of this software and associated documentation files (the        *
@@ -27,27 +27,49 @@
  *  OTHER DEALINGS IN THE SOFTWARE.                                        *
  ***************************************************************************/
 
-package edu.brown.benchmark.voterdemohstore;
+package edu.brown.benchmark.voterwintimehstoreanother;
 
-public abstract class VoterDemoHStoreConstants {
+import org.voltdb.VoltProcedure;
 
-    public static final String TABLENAME_CONTESTANTS     = "contestants";
-    public static final String TABLENAME_AREA_CODE_STATE = "area_code_state";
-    public static final String TABLENAME_VOTES           = "votes";
-    
-    public static final int VOTE_THRESHOLD = 50000;
-	public static final int MAX_VOTES = 10; 
-	public static final int NUM_CONTESTANTS = 12; 
+import edu.brown.benchmark.AbstractProjectBuilder;
+import edu.brown.api.BenchmarkComponent;
 
-	// Initialize some common constants and variables
-    public static final String CONTESTANT_NAMES_CSV = "Edwina Burnam,Tabatha Gehling,Kelly Clauss,Jessie Alloway," +
-											   "Alana Bregman,Jessie Eichman,Allie Rogalski,Nita Coster," +
-											   "Kurt Walser,Ericka Dieter,Loraine Nygren,Tania Mattioli";
-    // potential return codes
-    public static final long VOTE_SUCCESSFUL = 0;
-    public static final long ERR_INVALID_CONTESTANT = 1;
-    public static final long ERR_VOTER_OVER_VOTE_LIMIT = 2;
-    
-    public static final long WIN_SIZE = 30;
-    public static final long STAGE_SIZE = 2;
+import edu.brown.benchmark.tm1.TM1Constants;
+import edu.brown.benchmark.voterwintimehstoreanother.procedures.Vote; 
+import edu.brown.benchmark.voterwintimehstoreanother.procedures.Initialize; 
+
+public class VoterWinTimeHStoreAnotherProjectBuilder extends AbstractProjectBuilder {
+
+    // REQUIRED: Retrieved via reflection by BenchmarkController
+    public static final Class<? extends BenchmarkComponent> m_clientClass = VoterWinTimeHStoreAnotherClient.class;
+
+    // REQUIRED: Retrieved via reflection by BenchmarkController
+    public static final Class<? extends BenchmarkComponent> m_loaderClass = VoterWinTimeHStoreAnotherLoader.class;
+
+	// a list of procedures implemented in this benchmark
+    @SuppressWarnings("unchecked")
+    public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
+        Vote.class, Initialize.class};
+	
+	{
+		//addTransactionFrequency(Vote.class, 100);
+		//addReplicatedSecondaryIndex("w_staging", "TIME");
+		//addReplicatedSecondaryIndex("w_rows", "TIME");
+	}
+	
+	// a list of tables used in this benchmark with corresponding partitioning keys
+    public static final String PARTITIONING[][] = new String[][] {
+        { "votes", "phone_number" },
+        { "w_staging", "phone_number" },
+        { "w_rows", "phone_number" },
+        { "leaderboard", "contestant_number"}
+    };
+
+    public VoterWinTimeHStoreAnotherProjectBuilder() {
+        super("voterwintimehstoreanother", VoterWinTimeHStoreAnotherProjectBuilder.class, PROCEDURES, PARTITIONING);
+    }
 }
+
+
+
+

@@ -27,22 +27,21 @@
  *  OTHER DEALINGS IN THE SOFTWARE.                                        *
  ***************************************************************************/
 
-package edu.brown.benchmark.voterdemohstore;
+package edu.brown.benchmark.voterwintimehstoreanother;
 
-public abstract class VoterDemoHStoreConstants {
+public abstract class VoterWinTimeHStoreAnotherConstants {
 
     public static final String TABLENAME_CONTESTANTS     = "contestants";
     public static final String TABLENAME_AREA_CODE_STATE = "area_code_state";
     public static final String TABLENAME_VOTES           = "votes";
     
-    public static final int VOTE_THRESHOLD = 50000;
 	public static final int MAX_VOTES = 10; 
-	public static final int NUM_CONTESTANTS = 12; 
+	public static final int NUM_CONTESTANTS = 6; 
 
 	// Initialize some common constants and variables
     public static final String CONTESTANT_NAMES_CSV = "Edwina Burnam,Tabatha Gehling,Kelly Clauss,Jessie Alloway," +
 											   "Alana Bregman,Jessie Eichman,Allie Rogalski,Nita Coster," +
-											   "Kurt Walser,Ericka Dieter,Loraine Nygren,Tania Mattioli";
+											   "Kurt Walser,Ericka Dieter,Loraine NygrenTania Mattioli";
     // potential return codes
     public static final long VOTE_SUCCESSFUL = 0;
     public static final long ERR_INVALID_CONTESTANT = 1;

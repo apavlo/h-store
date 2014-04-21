@@ -53,10 +53,6 @@ CREATE TABLE w_staging
 , state              varchar(2) NOT NULL -- REFERENCES area_code_state (state)
 , contestant_number  integer    NOT NULL REFERENCES contestants (contestant_number)
 , time		     integer    NOT NULL
-, CONSTRAINT PK_stage PRIMARY KEY
-  (
-    vote_id
-  )
 -- PARTITION BY ( phone_number )
 );
 
@@ -67,10 +63,6 @@ CREATE TABLE w_trending_leaderboard
 , state              varchar(2) NOT NULL -- REFERENCES area_code_state (state)
 , contestant_number  integer    NOT NULL REFERENCES contestants (contestant_number)
 , time 		     integer    NOT NULL
-, CONSTRAINT PK_win PRIMARY KEY
-  (
-    vote_id
-  )
 -- PARTITION BY ( phone_number )
 );
 
@@ -85,6 +77,7 @@ CREATE TABLE voteCount
 (
   row_id	     integer    NOT NULL,
   cnt		     integer    NOT NULL
+
 , CONSTRAINT PK_voteCount PRIMARY KEY
   (
     row_id
@@ -95,20 +88,22 @@ CREATE TABLE totalVoteCount
 (
   row_id	     integer    NOT NULL,
   cnt		     integer    NOT NULL
+
 , CONSTRAINT PK_totalVoteCount PRIMARY KEY
   (
     row_id
   )
 );
 
-CREATE TABLE votes_by_contestant
+CREATE TABLE totalLeaderboardCount
 (
- contestant_number  integer    NOT NULL REFERENCES contestants (contestant_number)
-, num_votes                integer
-, CONSTRAINT PK_cont PRIMARY KEY
-(
-   contestant_number
-)
+  row_id	     integer    NOT NULL,
+  cnt		     integer    NOT NULL
+
+, CONSTRAINT PK_totalLeaderboardCount PRIMARY KEY
+  (
+    row_id
+  )
 );
 
 -- rollup of votes by phone number, used to reject excessive voting

@@ -79,7 +79,7 @@ public class GenerateLeaderboard extends VoltProcedure {
             upsertable=true
         )
     public final SQLStmt updateTotalCount = new SQLStmt(
-    	"INSERT INTO totalVoteCount (row_id, cnt) SELECT row_id, cnt + 1 FROM totalVoteCount WHERE row_id = 1;"
+    	"INSERT INTO totalLeaderboardCount (row_id, cnt) SELECT row_id, cnt + 1 FROM totalLeaderboardCount WHERE row_id = 1;"
     );
     
     public final SQLStmt getCount = new SQLStmt(
@@ -157,11 +157,11 @@ public class GenerateLeaderboard extends VoltProcedure {
     );
     
     public final SQLStmt getTopLeaderboard = new SQLStmt(
-    	"SELECT contestant_number, num_votes FROM votes_by_contestant ORDER BY num_votes DESC LIMIT 3;"	
+    	"SELECT contestant_number, num_votes FROM v_votes_by_contestant ORDER BY num_votes DESC LIMIT 3;"	
     );
     
     public final SQLStmt getBottomLeaderboard = new SQLStmt(
-    	"SELECT contestant_number, num_votes FROM votes_by_contestant ORDER BY num_votes ASC LIMIT 3;"	
+    	"SELECT contestant_number, num_votes FROM v_votes_by_contestant ORDER BY num_votes ASC LIMIT 3;"	
     );
     
     public final SQLStmt getTrendingLeaderboard = new SQLStmt(
