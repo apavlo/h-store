@@ -23,7 +23,7 @@ public class GetUsers extends VoltProcedure{
     	System.out.println("Running procedure Get Users");
     	
         voltQueueSQL(GetUsers);
-        VoltTable[] results = voltExecuteSQL();
+        VoltTable[] results = voltExecuteSQL(true);
         return results;
     }   
 

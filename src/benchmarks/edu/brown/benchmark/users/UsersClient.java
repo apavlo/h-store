@@ -83,7 +83,6 @@ public class UsersClient extends BenchmarkComponent {
 	        } // SWITCH
 	        assert(params != null);
 	        Callback callback = new Callback(target.ordinal());
-	        System.out.println(target.callName+"-----------"+target.ordinal());
 	        boolean val = this.getClientHandle().callProcedure(callback, target.callName, params);
 	        
 	        return val;
