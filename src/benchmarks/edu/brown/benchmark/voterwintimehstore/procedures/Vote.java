@@ -61,35 +61,35 @@ public class Vote extends VoltProcedure {
 	
     // Records a vote
     public final SQLStmt insertVoteStmt = new SQLStmt(
-		"INSERT INTO votes (vote_id, phone_number, state, contestant_number, time) VALUES (?, ?, ?, ?, ?);"
+		"INSERT INTO votes (vote_id, phone_number, state, contestant_number, ts) VALUES (?, ?, ?, ?, ?);"
     );
     
     // Put the vote into the staging window
     public final SQLStmt insertVoteStagingStmt = new SQLStmt(
-		"INSERT INTO w_staging (vote_id, phone_number, state, contestant_number, time) VALUES (?, ?, ?, ?, ?);"
+		"INSERT INTO w_staging (vote_id, phone_number, state, contestant_number, ts) VALUES (?, ?, ?, ?, ?);"
     );
     
  // Find the cutoff vote
     public final SQLStmt checkStagingTimestamp = new SQLStmt(
-    	"SELECT MAX(time) FROM w_staging;"	
+    	"SELECT MAX(ts) FROM w_staging;"	
     );
     
     public final SQLStmt checkWindowTimestamp = new SQLStmt(
-    	"SELECT MIN(time) FROM w_rows;"	
+    	"SELECT MIN(ts) FROM w_rows;"	
     );
 
  // Find the cutoff vote
     public final SQLStmt deleteCutoffVoteStmt = new SQLStmt(
-		"DELETE FROM w_rows WHERE time < ?;"
+		"DELETE FROM w_rows WHERE ts < ?;"
     );
     
     // Put the staging votes into the window
     public final SQLStmt insertVoteWindowStmt = new SQLStmt(
-		"INSERT INTO w_rows (vote_id, phone_number, state, contestant_number, time) SELECT * FROM w_staging;"
+		"INSERT INTO w_rows (vote_id, phone_number, state, contestant_number, ts) SELECT * FROM w_staging;"
     );
     
     public final SQLStmt deleteMostRecentVote = new SQLStmt(
-		"DELETE FROM w_rows WHERE time = ?;"
+		"DELETE FROM w_rows WHERE ts = ?;"
     );
     
  // Pull aggregate from window
@@ -104,7 +104,7 @@ public class Vote extends VoltProcedure {
     
  // Clear the staging window
     public final SQLStmt deleteStagingStmt = new SQLStmt(
-		"DELETE FROM w_staging WHERE time < ?;"
+		"DELETE FROM w_staging WHERE ts < ?;"
     );
     
  // Put the vote into the staging window

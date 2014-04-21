@@ -29,7 +29,7 @@ CREATE TABLE votes
   phone_number       bigint     NOT NULL
 , state              varchar(2) NOT NULL -- REFERENCES area_code_state (state)
 , contestant_number  integer    NOT NULL REFERENCES contestants (contestant_number)
-, time		     integer    NOT NULL
+, ts		     integer    NOT NULL
 , CONSTRAINT PK_votes PRIMARY KEY
   (
     vote_id
@@ -43,8 +43,8 @@ CREATE TABLE w_staging
   phone_number       bigint     NOT NULL
 , state              varchar(2) NOT NULL -- REFERENCES area_code_state (state)
 , contestant_number  integer    NOT NULL REFERENCES contestants (contestant_number)
-, TIME		     integer    NOT NULL
---, CONSTRAINT PK_staging PRIMARY KEY (vote_id)
+, ts		     integer    NOT NULL
+, CONSTRAINT PK_staging PRIMARY KEY (vote_id)
 -- PARTITION BY ( phone_number )
 );
 
@@ -56,11 +56,10 @@ CREATE TABLE w_rows
   phone_number       bigint     NOT NULL
 , state              varchar(2) NOT NULL -- REFERENCES area_code_state (state)
 , contestant_number  integer    NOT NULL REFERENCES contestants (contestant_number)
-, TIME 		     integer    NOT NULL
---, CONSTRAINT PK_rows PRIMARY KEY  (vote_id)
+, ts		     integer    NOT NULL
+, CONSTRAINT PK_rows PRIMARY KEY  (vote_id)
 -- PARTITION BY ( phone_number )
 );
-
 
 
 CREATE TABLE leaderboard
@@ -98,5 +97,5 @@ AS
         , state
 ;
 
---CREATE INDEX i_w_staging ON W_STAGING (TIME);
---CREATE INDEX i_w_rows ON W_ROWS (TIME);
+CREATE INDEX idx_w_staging ON W_STAGING (ts);
+CREATE INDEX idx_w_rows ON W_ROWS (ts);
