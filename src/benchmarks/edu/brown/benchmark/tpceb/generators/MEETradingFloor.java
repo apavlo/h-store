@@ -99,7 +99,7 @@ public class MEETradingFloor {
         CurrentPrice = priceBoard.getCurrentPrice( tradeReq.symbol ).getDollars();
     
         txnInput.trade_id = tradeReq.trade_id;
-        //System.out.println("Trade id:" + txnInput.trade_id);
+        System.out.println("Trade id:" + txnInput.trade_id);
        // txnInput.st_completed_id =  "E_COMPLETED";
     
         if(( eTradeType == TradeType.eLimitBuy && tradeReq.price_quote < CurrentPrice )||( eTradeType == TradeType.eLimitSell && tradeReq.price_quote > CurrentPrice )){

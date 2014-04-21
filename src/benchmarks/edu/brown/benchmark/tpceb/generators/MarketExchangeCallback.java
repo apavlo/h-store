@@ -19,8 +19,12 @@ public class MarketExchangeCallback extends MEESUTInterface{
             m_TradeResultTxnInput.trade_price = pTxnInput.trade_price;
             m_TradeResultTxnInput.st_completed_id = pTxnInput.st_completed_id;
             inputs.add(pTxnInput.trade_id);
+            return (true);
         }
-        return (true);
+        else{
+            return (false);
+        }
+       // return (true);
     }
         
     public boolean MarketFeed( TMarketFeedTxnInput pTxnInput ) {
