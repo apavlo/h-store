@@ -1349,7 +1349,8 @@ public class HStoreCoordinator implements Shutdownable {
                                     .setTransactionId(txn.getTransactionId())
                                     .setPartitionId(partition_id)
                                     .setTableId(catalog_tbl.getRelativeIndex());
-                                    
+                          
+    	 LOG.info(String.format("Remote site is %d", remote_site_id));
     	 for (int i = 0; i< block_ids.length; i++){
 		builder = builder.addBlockIds(block_ids[i]);
     	 }

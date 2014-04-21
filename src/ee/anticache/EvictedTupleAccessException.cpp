@@ -35,12 +35,13 @@ using namespace voltdb;
 
 std::string EvictedTupleAccessException::ERROR_MSG = std::string("Txn tried to access evicted tuples");
 
-EvictedTupleAccessException::EvictedTupleAccessException(int tableId, int numBlockIds, int16_t blockIds[], int32_t tupleIDs[]) :
+EvictedTupleAccessException::EvictedTupleAccessException(int tableId, int numBlockIds, int16_t blockIds[], int32_t tupleIDs[], int partitionId) :
     SerializableEEException(VOLT_EE_EXCEPTION_TYPE_EVICTED_TUPLE, EvictedTupleAccessException::ERROR_MSG),
         m_tableId(tableId),
         m_numBlockIds(numBlockIds),
         m_blockIds(blockIds), 
-		m_tupleKeys(tupleIDs) {
+		m_tupleKeys(tupleIDs),
+		m_partitionId(partitionId) {
 	
 			VOLT_DEBUG("In EvictedTupleAccessException constructor...setting eviction type to %d.", VOLT_EE_EXCEPTION_TYPE_EVICTED_TUPLE); 
     
@@ -60,4 +61,5 @@ void EvictedTupleAccessException::p_serialize(ReferenceSerializeOutput *output) 
     for(int ii = 0; ii<m_numBlockIds; ii++) {  // write out the tuple offsets 
         output->writeInt(m_tupleKeys[ii]);
     }
+    output->writeInt(m_partitionId);
 }

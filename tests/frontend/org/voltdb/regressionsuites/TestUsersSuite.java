@@ -168,11 +168,11 @@ public class TestUsersSuite extends RegressionSuite {
         ////////////////////////////////////////////////////////////
         // CONFIG #2: cluster of 2 nodes running 2 site each, one replica
         ////////////////////////////////////////////////////////////
-        config = new LocalCluster(PREFIX+"-cluster.jar", 2, 1, 0, BackendTarget.NATIVE_EE_JNI);
+/*        config = new LocalCluster(PREFIX+"-cluster.jar", 2, 1, 0, BackendTarget.NATIVE_EE_JNI);
         success = config.compile(project);
         assert(success);
         builder.addServerConfig(config);
-
+*/
         return builder;
     }
 

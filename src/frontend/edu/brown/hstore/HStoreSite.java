@@ -2400,7 +2400,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             
             EvictedTupleAccessException error = (EvictedTupleAccessException)orig_error;
             short block_ids[] = error.getBlockIds();
-            int tuple_offsets[] = error.getTupleOffsets(); 
+            int tuple_offsets[] = error.getTupleOffsets();
+
                         
             Table evicted_table = error.getTable(this.catalogContext.database);
             new_ts.setPendingError(error, false);
@@ -2408,7 +2409,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             if (debug.val)
                 LOG.debug(String.format("Added aborted txn to %s queue. Unevicting %d blocks from %s (%d).",
                           AntiCacheManager.class.getSimpleName(), block_ids.length, evicted_table.getName(), evicted_table.getRelativeIndex()));
-            this.anticacheManager.queue(new_ts, base_partition, evicted_table, block_ids, tuple_offsets);
+            LOG.info(String.format("Added aborted txn to %s queue. Unevicting %d blocks from %s (%d).",
+                    AntiCacheManager.class.getSimpleName(), block_ids.length, evicted_table.getName(), evicted_table.getRelativeIndex()));
+            LOG.info(String.format("error has partition id %d", error.getPartitionId()));
+
+            this.anticacheManager.queue(new_ts, error.getPartitionId(), evicted_table, block_ids, tuple_offsets);
         }
             
         // -------------------------------

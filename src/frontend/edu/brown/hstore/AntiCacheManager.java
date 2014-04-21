@@ -270,9 +270,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         assert(next.ts.isInitialized()) :
             String.format("Unexpected uninitialized transaction handle: %s", next);
         if(next.partition != next.ts.getBasePartition()) { // distributed txn
-            LOG.debug(String.format("The base partition for %s is %d but we want to fetch a block for partition %d: %s",
-                    next.ts, next.ts.getBasePartition(), next.partition, next));
-            System.out.println(String.format("The base partition for %s is %d but we want to fetch a block for partition %d: %s",
+            LOG.info(String.format("The base partition for %s is %d but we want to fetch a block for partition %d: %s",
                     next.ts, next.ts.getBasePartition(), next.partition, next));
             // if we are the remote site then we should go ahead and continue processing
             // if no then we should simply requeue the entry? 
@@ -317,6 +315,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
                 this.profilers[next.partition].retrieval_time.stopIfStarted();
         }
 
+        LOG.info("anticache block removal done");
         Long oldTxnId = next.ts.getTransactionId();
         // HACK HACK HACK HACK HACK HACK
         // We need to get a new txnId for ourselves, since the one that we
@@ -328,6 +327,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         next.ts.setAntiCacheMergeTable(next.catalog_tbl);
 
         if (next.ts instanceof LocalTransaction){
+        	LOG.info("restartin on local");
         	this.hstore_site.transactionInit(next.ts);	
         }else{
         	RemoteTransaction ts = (RemoteTransaction) next.ts; 
@@ -365,7 +365,8 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
      *            - The list of blockIds that need to be read in for the table
      */
     public boolean queue(AbstractTransaction txn, int partition, Table catalog_tbl, short block_ids[], int tuple_offsets[]) {
-    	System.out.println(txn.getBasePartition()+"*********"+partition);
+    	LOG.info(String.format("%d ************* %d",
+    			txn.getBasePartition(), partition));
     	if (txn instanceof LocalTransaction){
     		LocalTransaction ts = (LocalTransaction)txn;
 	    	if(ts.getBasePartition()!=partition  && !hstore_site.isLocalPartition(partition)){ // different partition generated the exception
@@ -390,6 +391,8 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
 	    	}
     	}
 
+    	LOG.info(String.format("queuing up %d",
+    			hstore_site.getSiteId()));
         QueueEntry e = new QueueEntry(txn, partition, catalog_tbl, block_ids, tuple_offsets);
 
         // TODO: We should check whether there are any other txns that are also blocked waiting

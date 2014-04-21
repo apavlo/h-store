@@ -18,6 +18,7 @@ public class EvictedTupleAccessException extends SerializableException {
     public final int table_id;
     public final short[] block_ids;
     public final int[] tuple_offsets;
+    public final int partition_id;
     
     /**
      * 
@@ -38,6 +39,7 @@ public class EvictedTupleAccessException extends SerializableException {
         for(int i = 0; i < this.tuple_offsets.length; i++) {
             this.tuple_offsets[i] = buffer.getInt();
         }
+        this.partition_id = buffer.getInt();
     }
 
     /**
@@ -61,6 +63,10 @@ public class EvictedTupleAccessException extends SerializableException {
     public int[] getTupleOffsets() {
         return (this.tuple_offsets);
     }
+    
+    public int getPartitionId(){
+    	return this.partition_id;
+    }
 
     /**
      * Return the amount of storage necessary to store this exception
@@ -71,7 +77,8 @@ public class EvictedTupleAccessException extends SerializableException {
         // 2 bytes for # of block_ids 
         // (2 bytes * # of block_ids)
         // (4 bytes * # of tuple offsets)
-        return (4 + 2 + (2 * this.block_ids.length) + (4 * this.tuple_offsets.length));
+    	// 4 bytes for partition id
+        return (4 + 2 + (2 * this.block_ids.length) + (4 * this.tuple_offsets.length) + 4);
     }
 
     /**
@@ -89,6 +96,7 @@ public class EvictedTupleAccessException extends SerializableException {
         for(int i = 0; i < this.tuple_offsets.length; i++) {
             b.putInt(this.tuple_offsets[i]); 
         }
+        b.putInt(this.partition_id);
     }
 
     @Override
