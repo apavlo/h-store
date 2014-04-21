@@ -43,6 +43,7 @@ import org.voltdb.client.ProcedureCallback;
 import weka.classifiers.meta.Vote;
 
 import edu.brown.api.BenchmarkComponent;
+import edu.brown.benchmark.voterdemohstore.procedures.GenerateLeaderboard;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 
@@ -123,7 +124,8 @@ public class VoterDemoSStoreClient extends BenchmarkComponent {
     public String[] getTransactionDisplayNames() {
         // Return an array of transaction names
         String procNames[] = new String[]{
-            Vote.class.getSimpleName()
+            Vote.class.getSimpleName(),
+            GenerateLeaderboard.class.getSimpleName()
         };
         return (procNames);
     }
@@ -143,6 +145,7 @@ public class VoterDemoSStoreClient extends BenchmarkComponent {
                 long status = results[0].asScalarLong();
                 if (status == VoterDemoSStoreConstants.VOTE_SUCCESSFUL) {
                     acceptedVotes.incrementAndGet();
+                    incrementTransactionCounter(clientResponse, 1);
                 }
                 else if (status == VoterDemoSStoreConstants.ERR_INVALID_CONTESTANT) {
                     badContestantVotes.incrementAndGet();

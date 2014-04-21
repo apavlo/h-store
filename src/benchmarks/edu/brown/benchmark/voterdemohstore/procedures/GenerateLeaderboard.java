@@ -47,7 +47,7 @@ public class GenerateLeaderboard extends VoltProcedure {
 	////////////////////////////first batch of SQL statements/////////////////////////////
     // Put vote into leaderboard
     public final SQLStmt trendingLeaderboardStmt = new SQLStmt(
-	   "INSERT INTO w_staging (vote_id, phone_number, state, contestant_number, time) SELECT * FROM proc_one_out;"
+	   "INSERT INTO w_staging (vote_id, phone_number, state, contestant_number, ts) SELECT * FROM proc_one_out;"
     );
     
     public final SQLStmt clearProcOut = new SQLStmt(
@@ -61,11 +61,11 @@ public class GenerateLeaderboard extends VoltProcedure {
     */
     
     public final SQLStmt checkStagingTimestamp = new SQLStmt(
-    	"SELECT MAX(time) FROM w_staging;"	
+    	"SELECT MAX(ts) FROM w_staging;"	
     );
     
     public final SQLStmt checkWindowTimestamp = new SQLStmt(
-    	"SELECT MIN(time) FROM w_trending_leaderboard;"	
+    	"SELECT MIN(ts) FROM w_trending_leaderboard;"	
     );
     
     @StmtInfo(
@@ -106,20 +106,20 @@ public class GenerateLeaderboard extends VoltProcedure {
     
     ////////////////////////////second batch of SQL statements/////////////////////////////////////////
     public final SQLStmt slideWindow1 = new SQLStmt(
-    	"DELETE FROM w_trending_leaderboard WHERE time < ?;"
+    	"DELETE FROM w_trending_leaderboard WHERE ts < ?;"
     );
     
     public final SQLStmt slideWindow2 = new SQLStmt(
-    	"INSERT INTO w_trending_leaderboard (vote_id, phone_number, state, contestant_number, time) SELECT * FROM w_staging;"
+    	"INSERT INTO w_trending_leaderboard (vote_id, phone_number, state, contestant_number, ts) SELECT * FROM w_staging;"
     );
     
     //hack because we can't use parameters in insert into.. select
     public final SQLStmt slideWindow3 = new SQLStmt(
-    	"DELETE FROM w_trending_leaderboard WHERE time = ?;"
+    	"DELETE FROM w_trending_leaderboard WHERE ts = ?;"
     );
     
     public final SQLStmt clearStaging = new SQLStmt(
-    	"DELETE FROM w_staging WHERE time < ?;"
+    	"DELETE FROM w_staging WHERE ts < ?;"
     );
     
     public final SQLStmt deleteLeaderboard = new SQLStmt(

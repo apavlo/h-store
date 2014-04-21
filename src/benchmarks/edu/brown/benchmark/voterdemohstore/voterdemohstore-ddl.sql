@@ -29,7 +29,7 @@ CREATE TABLE votes
   phone_number       bigint     NOT NULL
 , state              varchar(2) NOT NULL -- REFERENCES area_code_state (state)
 , contestant_number  integer    NOT NULL REFERENCES contestants (contestant_number)
-, time		     integer    NOT NULL
+, ts		     integer    NOT NULL
 , CONSTRAINT PK_votes PRIMARY KEY
   (
     vote_id
@@ -43,7 +43,7 @@ CREATE TABLE proc_one_out
   phone_number       bigint     NOT NULL
 , state              varchar(2) NOT NULL -- REFERENCES area_code_state (state)
 , contestant_number  integer    NOT NULL REFERENCES contestants (contestant_number)
-, time		     integer    NOT NULL
+, ts		     integer    NOT NULL
 );
 
 CREATE TABLE w_staging
@@ -52,7 +52,7 @@ CREATE TABLE w_staging
   phone_number       bigint     NOT NULL
 , state              varchar(2) NOT NULL -- REFERENCES area_code_state (state)
 , contestant_number  integer    NOT NULL REFERENCES contestants (contestant_number)
-, time		     integer    NOT NULL
+, ts		     integer    NOT NULL
 -- PARTITION BY ( phone_number )
 );
 
@@ -62,7 +62,7 @@ CREATE TABLE w_trending_leaderboard
   phone_number       bigint     NOT NULL
 , state              varchar(2) NOT NULL -- REFERENCES area_code_state (state)
 , contestant_number  integer    NOT NULL REFERENCES contestants (contestant_number)
-, time 		     integer    NOT NULL
+, ts 		     integer    NOT NULL
 -- PARTITION BY ( phone_number )
 );
 
@@ -146,3 +146,6 @@ AS
      FROM votes
  GROUP BY contestant_number
 ;
+
+CREATE INDEX idx_w_staging ON W_STAGING (ts);
+CREATE INDEX idx_w_rows ON w_trending_leaderboard (ts);

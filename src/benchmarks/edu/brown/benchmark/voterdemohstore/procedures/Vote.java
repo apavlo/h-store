@@ -70,12 +70,12 @@ public class Vote extends VoltProcedure {
 	
     // Records a vote
     public final SQLStmt insertVoteStmt = new SQLStmt(
-		"INSERT INTO votes (vote_id, phone_number, state, contestant_number, time) VALUES (?, ?, ?, ?, ?);"
+		"INSERT INTO votes (vote_id, phone_number, state, contestant_number, ts) VALUES (?, ?, ?, ?, ?);"
     );
     
     // Records a vote
     public final SQLStmt insertProcEndStmt = new SQLStmt(
-		"INSERT INTO proc_one_out (vote_id, phone_number, state, contestant_number, time) VALUES (?, ?, ?, ?, ?);"
+		"INSERT INTO proc_one_out (vote_id, phone_number, state, contestant_number, ts) VALUES (?, ?, ?, ?, ?);"
     );
     
 	

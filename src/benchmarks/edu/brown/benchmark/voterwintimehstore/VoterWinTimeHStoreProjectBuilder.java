@@ -34,7 +34,6 @@ import org.voltdb.VoltProcedure;
 import edu.brown.benchmark.AbstractProjectBuilder;
 import edu.brown.api.BenchmarkComponent;
 
-import edu.brown.benchmark.tm1.TM1Constants;
 import edu.brown.benchmark.voterwintimehstore.procedures.Vote; 
 import edu.brown.benchmark.voterwintimehstore.procedures.Initialize; 
 
