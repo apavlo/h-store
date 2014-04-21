@@ -165,7 +165,7 @@ public class GenerateLeaderboard extends VoltProcedure {
     );
     
     public final SQLStmt getTrendingLeaderboard = new SQLStmt(
-    	"SELECT contestant_number, num_votes FROM top_three_last_30_sec ORDER BY num_votes DESC LIMIT 3;"	
+    	"SELECT contestant_number, num_votes FROM v_top_three_last_30_sec ORDER BY num_votes DESC LIMIT 3;"	
     );
     
 
@@ -199,8 +199,8 @@ public long run() {
         	voltQueueSQL(slideWindow2);
         	voltQueueSQL(slideWindow3, maxStageTimestamp);
         	voltQueueSQL(clearStaging, maxStageTimestamp);
-        	voltQueueSQL(deleteLeaderboard);
-        	voltQueueSQL(updateLeaderboard);
+        	//voltQueueSQL(deleteLeaderboard);
+        	//voltQueueSQL(updateLeaderboard);
         	voltQueueSQL(getTrendingLeaderboard);
         	voltExecuteSQL();
         }
@@ -212,7 +212,7 @@ public long run() {
         	voltQueueSQL(deleteVotes, contestant_number);
         	voltQueueSQL(deleteFromWindow, contestant_number);
         	voltQueueSQL(deleteFromStaging, contestant_number);
-        	voltQueueSQL(deleteFromLeaderboard, contestant_number);
+        	//voltQueueSQL(deleteFromLeaderboard, contestant_number);
         	voltQueueSQL(deleteContestant, contestant_number);
         	//voltQueueSQL(clearLowestContestant);
             //voltQueueSQL(setLowestContestants);

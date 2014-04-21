@@ -147,5 +147,16 @@ AS
  GROUP BY contestant_number
 ;
 
+CREATE VIEW v_top_three_last_30_sec
+(
+  contestant_number, num_votes
+)
+AS
+   SELECT contestant_number
+        , count(*) 
+   FROM w_trending_leaderboard 
+   GROUP BY contestant_number
+;
+
 CREATE INDEX idx_w_staging ON W_STAGING (ts);
 CREATE INDEX idx_w_rows ON w_trending_leaderboard (ts);

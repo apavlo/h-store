@@ -35,7 +35,7 @@ public abstract class VoterDemoHStoreConstants {
     public static final String TABLENAME_AREA_CODE_STATE = "area_code_state";
     public static final String TABLENAME_VOTES           = "votes";
     
-    public static final int VOTE_THRESHOLD = 50000;
+    public static final int VOTE_THRESHOLD = 10000;
 	public static final int MAX_VOTES = 10; 
 	public static final int NUM_CONTESTANTS = 12; 
 
