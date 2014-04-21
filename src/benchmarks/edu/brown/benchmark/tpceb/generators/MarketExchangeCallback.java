@@ -4,7 +4,7 @@ import java.util.LinkedList;
 
 public class MarketExchangeCallback extends MEESUTInterface{
     //public LinkedList<TTradeResultTxnInput> inputs = new LinkedList<TTradeResultTxnInput>();
-    public LinkedList inputs = new LinkedList();
+    public LinkedList<Long> inputs = new LinkedList<Long>();
     public MarketExchangeCallback(TTradeResultTxnInput trTxnInput, TMarketFeedTxnInput mfTxnInput){
         m_TradeResultTxnInput = trTxnInput;
         m_MarketFeedTxnInput = mfTxnInput;
