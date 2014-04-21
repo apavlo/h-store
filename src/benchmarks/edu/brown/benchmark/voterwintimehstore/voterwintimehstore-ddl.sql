@@ -46,7 +46,7 @@ CREATE TABLE w_staging
 , time		     integer    NOT NULL
 , CONSTRAINT PK_stage PRIMARY KEY
   (
-    vote_id
+    time
   )
 -- PARTITION BY ( phone_number )
 );
@@ -60,7 +60,7 @@ CREATE TABLE w_rows
 , time 		     integer    NOT NULL
 , CONSTRAINT PK_win PRIMARY KEY
   (
-    vote_id
+    time
   )
 -- PARTITION BY ( phone_number )
 );
