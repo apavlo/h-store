@@ -151,7 +151,7 @@ public class TestUsersSuite extends RegressionSuite {
         builder.setGlobalConfParameter("site.network_startup_wait", 60000);
         builder.setGlobalConfParameter("site.coordinator_sync_time", false);
         builder.setGlobalConfParameter("site.status_enable", false);
-        builder.setGlobalConfParameter("site.txn_partition_id_managers", true);
+        builder.setGlobalConfParameter("site.txn_partition_id_managers", false);
 
         
         UsersProjectBuilder project = new UsersProjectBuilder();
@@ -163,19 +163,19 @@ public class TestUsersSuite extends RegressionSuite {
         /////////////////////////////////////////////////////////////
         // CONFIG #1: 1 Local Site/Partition running on JNI backend
         /////////////////////////////////////////////////////////////
-        config = new LocalSingleProcessServer(PREFIX+"-1part.jar", 2, BackendTarget.NATIVE_EE_JNI);
-        success = config.compile(project);
-        assert(success);
-        builder.addServerConfig(config);
-
-        ////////////////////////////////////////////////////////////
-        // CONFIG #2: cluster of 2 nodes running 2 site each, one replica
-        ////////////////////////////////////////////////////////////
-/*        config = new LocalCluster(PREFIX+"-cluster.jar", 2, 1, 0, BackendTarget.NATIVE_EE_JNI);
+        /*config = new LocalSingleProcessServer(PREFIX+"-1part.jar", 2, BackendTarget.NATIVE_EE_JNI);
         success = config.compile(project);
         assert(success);
         builder.addServerConfig(config);
 */
+        ////////////////////////////////////////////////////////////
+        // CONFIG #2: cluster of 2 nodes running 2 site each, one replica
+        ////////////////////////////////////////////////////////////
+        config = new LocalCluster(PREFIX+"-cluster.jar", 2, 1, 0, BackendTarget.NATIVE_EE_JNI);
+        success = config.compile(project);
+        assert(success);
+        builder.addServerConfig(config);
+
         return builder;
     }
 

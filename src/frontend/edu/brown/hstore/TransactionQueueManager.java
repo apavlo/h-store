@@ -199,8 +199,8 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
                          HStoreConstants.THREAD_NAME_QUEUE_INIT));
             hstore_site.getThreadManager().registerProcessingThread();
             
-            if (debug.val)
-                LOG.debug(String.format("Starting %s thread", this.getClass().getSimpleName()));
+            //if (debug.val)
+                LOG.info(String.format("Starting %s thread", this.getClass().getSimpleName()));
             AbstractTransaction nextTxn = null;
             while (stop == false) {
                 try {
@@ -240,6 +240,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
                     LOG.trace(String.format("%s - Got return result %s after restarting", ts, ret));
                 
                 ts.unmarkNeedsRestart();
+LOG.info("deleted here!!!!");
                 hstore_site.queueDeleteTransaction(ts.getTransactionId(), status);
             } // WHILE
         }
@@ -373,7 +374,8 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
             if (localTxn.profiler != null) localTxn.profiler.startInitQueue();
         }
         this.initQueue.add(ts);
-    }
+LOG.info("put in our txn queue");   
+ }
     
     /**
      * Add a new transaction to this queue manager.
@@ -725,6 +727,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
                 LOG.debug(String.format("%s - Unable to add txn to restart queue. Rejecting...", ts));
             this.hstore_site.transactionReject(ts, Status.ABORT_REJECT);
             ts.unmarkNeedsRestart();
+LOG.info("deleted here!!!!");
             this.hstore_site.queueDeleteTransaction(ts.getTransactionId(), Status.ABORT_REJECT);
             return;
         }
@@ -750,6 +753,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
                 LOG.trace(String.format("%s - Got return result %s after restarting", ts, ret));
             
             ts.unmarkNeedsRestart();
+LOG.info("deleted here!!!!");
             this.hstore_site.queueDeleteTransaction(ts.getTransactionId(), status);
             if (limit-- == 0) break;
         } // WHILE

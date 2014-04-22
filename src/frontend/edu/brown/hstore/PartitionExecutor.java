@@ -4261,6 +4261,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             if (hstore_conf.site.exec_profiling) this.profiler.network_time.start();
             this.hstore_site.responseSend(ts, cresponse);
             if (hstore_conf.site.exec_profiling) this.profiler.network_time.stopIfStarted();
+LOG.info("deleted here!!!!");
             this.hstore_site.queueDeleteTransaction(ts.getTransactionId(), status);
         } 
         // -------------------------------

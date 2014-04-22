@@ -76,6 +76,7 @@ public class LocalFinishCallback extends PartitionCountingCallback<LocalTransact
         this.ts.getInitCallback().cancel();
         
         try {
+LOG.info("deleted here!!!!");
             this.hstore_site.queueDeleteTransaction(this.ts.getTransactionId(), this.status);
         } catch (Throwable ex) {
             String msg = String.format("Failed to queue %s for deletion from %s",

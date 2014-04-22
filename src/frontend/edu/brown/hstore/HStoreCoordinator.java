@@ -267,12 +267,14 @@ public class HStoreCoordinator implements Shutdownable {
                 long oldTxnId = response.getTransactionId();
                 int partition = response.getPartitionId();
                 LocalTransaction ts = hstore_site.getTransaction(oldTxnId);
-
+		System.out.println(ts+"***************");
                 assert(response.getSenderSite() != local_site_id);
-                hstore_site.getTransactionInitializer().resetTransactionId(ts, partition);
+                hstore_site.getTransactionInitializer().resetTransactionId(ts, ts.getBasePartition());
 
             	LOG.info("restartin on local");
-            	hstore_site.transactionInit(ts);	
+            	hstore_site.transactionInit(ts);
+            	//LocalInitQueueCallback initCallback = (LocalInitQueueCallback)ts.getInitCallback();
+                //hstore_site.getCoordinator().transactionInit(ts, initCallback);
             }
         }
     };
@@ -780,7 +782,8 @@ public class HStoreCoordinator implements Shutdownable {
         
         @Override
         public void heartbeat(RpcController controller, HeartbeatRequest request, RpcCallback<HeartbeatResponse> done) {
-            HeartbeatResponse.Builder builder = HeartbeatResponse.newBuilder()
+            LOG.info(String.format("heartbeat from %d at %d^^^^^^^^^^", request.getSenderSite(), local_site_id));
+        	HeartbeatResponse.Builder builder = HeartbeatResponse.newBuilder()
                                                     .setSenderSite(local_site_id)
                                                     .setStatus(Status.OK);
             done.run(builder.build());            
@@ -834,7 +837,11 @@ public class HStoreCoordinator implements Shutdownable {
                     request.getClass().getSimpleName(),
                     HStoreThreadManager.formatSiteName(request.getSenderSite()),
                     HStoreThreadManager.formatSiteName(local_site_id)));
-			RemoteTransaction ts = hstore_site.getTransaction(request.getTransactionId());
+			
+			AbstractTransaction ts = hstore_site.getTransaction(request.getTransactionId());
+			System.out.println(hstore_site.getInflightTxns().size());
+			System.out.println(request.getTransactionId());
+			assert(ts!=null);
 			ts.setUnevictCallback(done);
 			int partition = request.getPartitionId();
 			Table catalog_tbl = hstore_site.getCatalogContext().getTableById(request.getTableId());
@@ -845,14 +852,6 @@ public class HStoreCoordinator implements Shutdownable {
 			for(int i = 0; i < request.getTupleOffsetsList().size(); i++) tuple_offsets[i] = request.getTupleOffsets(i);
 
 			hstore_site.getAntiCacheManager().queue(ts, partition, catalog_tbl, block_ids, tuple_offsets);
-			// TRIAL
-			RpcCallback<UnevictDataResponse> callback = ts.getUnevictCallback();
-        	UnevictDataResponse.Builder builder = UnevictDataResponse.newBuilder()
-        		.setSenderSite(hstore_site.getSiteId())
-        		.setTransactionId(request.getTransactionId())
-        		.setPartitionId(partition)
-        		.setStatus(Status.OK);
-			done.run(builder.build());
 		}
 
     } // END CLASS
@@ -1347,7 +1346,7 @@ public class HStoreCoordinator implements Shutdownable {
      * @param txn 
      * @return 
      */
-    public boolean sendUnevictDataMessage(int remote_site_id, LocalTransaction txn, int partition_id, Table catalog_tbl, short[] block_ids, int[] tuple_offsets) {
+    public void sendUnevictDataMessage(int remote_site_id, LocalTransaction txn, int partition_id, Table catalog_tbl, short[] block_ids, int[] tuple_offsets) {
     	 Builder builder = UnevictDataRequest.newBuilder()
                                     .setSenderSite(this.local_site_id)
                                     .setTransactionId(txn.getTransactionId())
@@ -1365,17 +1364,14 @@ public class HStoreCoordinator implements Shutdownable {
             try {
             	System.out.println(this.channels[remote_site_id]);
 				this.channels[remote_site_id].unevictData(new ProtoRpcController(), request, this.unevictCallback);
-				LOG.info("sent message to remote hstore site");
+				LOG.info(String.format("sent message to remote hstore site %d", remote_site_id));
                 if (trace.val)
                     LOG.trace(String.format("Sent %s to %s",
                               request.getClass().getSimpleName(),
                               HStoreThreadManager.formatSiteName(remote_site_id)));
-                return true;
             } catch (RuntimeException ex) {
                 // Silently ignore these errors...
             	ex.printStackTrace();
-            	System.out.println("&&&&&&&&&&");
-            	return false;
             }
 
     }

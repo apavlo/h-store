@@ -1366,6 +1366,7 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
     }
 
     private Debug cachedDebugContext;
+	private RpcCallback<UnevictDataResponse> unevict_callback;
     public Debug getDebugContext() {
         if (this.cachedDebugContext == null) {
             // We don't care if we're thread-safe here...
@@ -1373,5 +1374,12 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
         }
         return this.cachedDebugContext;
     }
+
+	public void setUnevictCallback(RpcCallback<UnevictDataResponse> done) {
+		this.unevict_callback = done;
+	}
+	public RpcCallback<UnevictDataResponse> getUnevictCallback() {
+		return this.unevict_callback;
+	}
 
 }

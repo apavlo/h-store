@@ -2172,6 +2172,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @return Returns the final status of this transaction
      */
     public Status transactionRestart(LocalTransaction orig_ts, Status status) {
+LOG.info("transaction restarted!!!!");
         assert(orig_ts != null) : "Null LocalTransaction handle [status=" + status + "]";
         assert(orig_ts.isInitialized()) : "Uninitialized transaction??";
         if (debug.val)
@@ -2414,8 +2415,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             LOG.info(String.format("Added aborted txn to %s queue. Unevicting %d blocks from %s (%d).",
                     AntiCacheManager.class.getSimpleName(), block_ids.length, evicted_table.getName(), evicted_table.getRelativeIndex()));
             LOG.info(String.format("error has partition id %d", error.getPartitionId()));
-
-            this.anticacheManager.queue(new_ts, error.getPartitionId(), evicted_table, block_ids, tuple_offsets);
+            
+            if(orig_ts.getBasePartition()!=error.getPartitionId() && !this.isLocalPartition(error.getPartitionId())){
+            	this.anticacheManager.queue(orig_ts, error.getPartitionId(), evicted_table, block_ids, tuple_offsets);
+            }else{
+            	this.anticacheManager.queue(new_ts, error.getPartitionId(), evicted_table, block_ids, tuple_offsets);
+            }
+            
         }
             
         // -------------------------------

@@ -119,6 +119,7 @@ public abstract class AbstractTransactionCallback<X extends AbstractTransaction,
             }
         }
         this.abortFinished = true;
+LOG.info("deleted here!!!!");
         this.hstore_site.queueDeleteTransaction(this.txn_id, status);
     }
     

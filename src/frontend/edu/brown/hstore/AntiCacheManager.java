@@ -334,14 +334,14 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         	LOG.info("restartin on local");
         	this.hstore_site.transactionInit(next.ts);	
         }else{
-//        	RemoteTransaction ts = (RemoteTransaction) next.ts; 
-//        	RpcCallback<UnevictDataResponse> callback = ts.getUnevictCallback();
-//        	UnevictDataResponse.Builder builder = UnevictDataResponse.newBuilder()
-//        		.setSenderSite(this.hstore_site.getSiteId())
-//        		.setTransactionId(oldTxnId)
-//        		.setPartitionId(next.partition)
-//        		.setStatus(Status.OK);
-//        	callback.run(builder.build());        	
+        	RemoteTransaction ts = (RemoteTransaction) next.ts; 
+        	RpcCallback<UnevictDataResponse> callback = ts.getUnevictCallback();
+        	UnevictDataResponse.Builder builder = UnevictDataResponse.newBuilder()
+        		.setSenderSite(this.hstore_site.getSiteId())
+        		.setTransactionId(oldTxnId)
+        		.setPartitionId(next.partition)
+        		.setStatus(Status.OK);
+        	callback.run(builder.build());        	
         	
         }
         
@@ -375,7 +375,8 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
     		LocalTransaction ts = (LocalTransaction)txn;
 	    	if(ts.getBasePartition()!=partition  && !hstore_site.isLocalPartition(partition)){ // different partition generated the exception
 	    		int site_id = hstore_site.getCatalogContext().getSiteIdForPartitionId(partition);
-	    		return hstore_site.getCoordinator().sendUnevictDataMessage(site_id, ts, partition, catalog_tbl, block_ids, tuple_offsets);
+	    		hstore_site.getCoordinator().sendUnevictDataMessage(site_id, ts, partition, catalog_tbl, block_ids, tuple_offsets);
+	    		return true;
 	    		// should we enqueue the transaction on our side?
 	    		// if yes then we need to prevent the queue item from being picked up 
 	    		// and prevent it from bombing the partition error
