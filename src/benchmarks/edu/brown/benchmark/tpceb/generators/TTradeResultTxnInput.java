@@ -20,13 +20,10 @@ public class TTradeResultTxnInput {
            //     trade_price_float = 0;
             //}
             //para.add(trade_price_float);
-            if(! trade_ids.contains(trade_id)){
+           
                 para.add(trade_id);
-                trade_ids.add(trade_id);
-            }
-            else{
-                para.add(null);
-            }
+             
+            
             para.add(trade_price);
             st_completed_id = "CMPT";
             para.add(st_completed_id);

@@ -13,17 +13,13 @@ public class MarketExchangeCallback extends MEESUTInterface{
     public boolean TradeResult( TTradeResultTxnInput pTxnInput ) {
         System.out.println("STATUS:" + pTxnInput.st_completed_id);
         System.out.println("IN MARKET EXCHANGE CALLBACK" + pTxnInput.trade_id);
-        if(!inputs.contains(pTxnInput.trade_id)){
-            System.out.println("AddingTID" + pTxnInput.trade_id);
+       
             m_TradeResultTxnInput.trade_id = pTxnInput.trade_id;
             m_TradeResultTxnInput.trade_price = pTxnInput.trade_price;
             m_TradeResultTxnInput.st_completed_id = pTxnInput.st_completed_id;
-            inputs.add(pTxnInput.trade_id);
+         
             return (true);
-        }
-        else{
-            return (false);
-        }
+        
        // return (true);
     }
         

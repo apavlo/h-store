@@ -2,12 +2,13 @@ package edu.brown.benchmark.tpceb.generators;
 
 import java.lang.reflect.Method;
 import java.util.Date;
+import java.util.LinkedList;
 
 import edu.brown.benchmark.tpceb.generators.TradeGenerator.TradeType;
 import edu.brown.benchmark.tpceb.util.EGenRandom;
 
 public class MEETradingFloor {
-    
+    public LinkedList<Long> inputs = new LinkedList<Long>();
     public long  getRNGSeed(){
         return( rnd.getSeed() );
     }
@@ -112,7 +113,12 @@ public class MEETradingFloor {
         }
         System.out.println("TRADEIDHERE"+  txnInput.trade_id);
         System.out.println("TRADEPRICEHERE"+  txnInput.trade_price);
-        sut.TradeResult(  txnInput );
+        if(!inputs.contains(txnInput.trade_id)){
+            System.out.println("ADDINGIDOK");
+            sut.TradeResult(  txnInput );
+            inputs.add(txnInput.trade_id);
+        }
+       
        // System.out.println("Got to here");
     
         TickerEntry.symbol = new String( tradeReq.symbol);
