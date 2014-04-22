@@ -264,15 +264,15 @@ public class HStoreCoordinator implements Shutdownable {
                               HStoreThreadManager.formatSiteName(response.getSenderSite()),
                               HStoreThreadManager.formatSiteName(local_site_id),
                               response.getStatus()));
-                long oldTxnId = response.getOldTransactionId();
-                long newTxnId = response.getNewTransactionId();
+                long oldTxnId = response.getTransactionId();
+                int partition = response.getPartitionId();
                 LocalTransaction ts = hstore_site.getTransaction(oldTxnId);
-                hstore_site.getTransactionInitializer().registerTransactionRestartWithId(ts, oldTxnId, newTxnId);
+
                 assert(response.getSenderSite() != local_site_id);
-                
-            	// we need needs to initiate a HstoreCoordinator transactionInit for this transaction
-            	LocalInitQueueCallback initCallback = (LocalInitQueueCallback)ts.getInitCallback();
-            	hstore_site.getCoordinator().transactionInit(ts, initCallback);
+                hstore_site.getTransactionInitializer().resetTransactionId(ts, partition);
+
+            	LOG.info("restartin on local");
+            	hstore_site.transactionInit(ts);	
             }
         }
     };

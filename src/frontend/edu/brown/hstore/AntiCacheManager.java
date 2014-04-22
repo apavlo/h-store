@@ -317,16 +317,17 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
 
         LOG.info("anticache block removal done");
         Long oldTxnId = next.ts.getTransactionId();
-        // HACK HACK HACK HACK HACK HACK
-        // We need to get a new txnId for ourselves, since the one that we
-        // were given before is now probably too far in the past
-        Long newTxnId = this.hstore_site.getTransactionInitializer().resetTransactionId(next.ts, next.partition);
         // Now go ahead and requeue our transaction
 
         //        if(merge_needed)
         next.ts.setAntiCacheMergeTable(next.catalog_tbl);
 
         if (next.ts instanceof LocalTransaction){
+            // HACK HACK HACK HACK HACK HACK
+            // We need to get a new txnId for ourselves, since the one that we
+            // were given before is now probably too far in the past
+            Long newTxnId = this.hstore_site.getTransactionInitializer().resetTransactionId(next.ts, next.partition);
+
         	LOG.info("restartin on local");
         	this.hstore_site.transactionInit(next.ts);	
         }else{
@@ -334,8 +335,8 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         	RpcCallback<UnevictDataResponse> callback = ts.getUnevictCallback();
         	UnevictDataResponse.Builder builder = UnevictDataResponse.newBuilder()
         		.setSenderSite(this.hstore_site.getSiteId())
-        		.setOldTransactionId(oldTxnId)
-        		.setNewTransactionId(newTxnId)
+        		.setTransactionId(oldTxnId)
+        		.setPartitionId(next.partition)
         		.setStatus(Status.OK);
         	callback.run(builder.build());        	
         	
