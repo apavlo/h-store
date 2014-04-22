@@ -77,7 +77,7 @@ public class Vote extends VoltProcedure {
     public final SQLStmt checkWindowTimestamp = new SQLStmt(
     	"SELECT MIN(ts) FROM w_rows;"	
     );
-
+    
  // Find the cutoff vote
     public final SQLStmt deleteCutoffVoteStmt = new SQLStmt(
 		"DELETE FROM w_rows WHERE ts < ?;"
@@ -159,8 +159,8 @@ public class Vote extends VoltProcedure {
         	voltQueueSQL(deleteCutoffVoteStmt, maxStageTimestamp - VoterWinTimeHStoreConstants.WIN_SIZE);
         	voltQueueSQL(insertVoteWindowStmt);
         	voltQueueSQL(deleteMostRecentVote, maxStageTimestamp);
-    		voltQueueSQL(deleteLeaderBoardStmt);
-    		voltQueueSQL(updateLeaderBoardStmt);
+    		//voltQueueSQL(deleteLeaderBoardStmt);
+    		//voltQueueSQL(updateLeaderBoardStmt);
     		voltQueueSQL(deleteStagingStmt, maxStageTimestamp);
     		voltExecuteSQL(true);
         }
