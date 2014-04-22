@@ -19,15 +19,15 @@ CLIENT_HOSTS=( \
         "localhost" \
 )
 
-BASE_CLIENT_THREADS=2
-BASE_SITE_MEMORY=128
-BASE_SITE_MEMORY_PER_PARTITION=512
+BASE_CLIENT_THREADS=1
+BASE_SITE_MEMORY=8192
+BASE_SITE_MEMORY_PER_PARTITION=1024
 BASE_PROJECT="users"
 BASE_DIR=`pwd`
 OUTPUT_DIR="~/data/users/read-heavy/2/80-20"
 
 ANTICACHE_BLOCK_SIZE=1048576
-ANTICACHE_THRESHOLD=.2
+ANTICACHE_THRESHOLD=.5
 
 BASE_ARGS=( \
     # SITE DEBUG
@@ -64,7 +64,7 @@ BASE_ARGS=( \
     "-Dclient.scalefactor=1" \
     "-Dclient.memory=2048" \
     "-Dclient.txnrate=2000" \
-    "-Dclient.warmup=120000" \
+    "-Dclient.warmup=10000" \
     "-Dclient.duration=300000" \
     "-Dclient.interval=5000" \
     "-Dclient.shared_connection=false" \
@@ -81,7 +81,7 @@ BASE_ARGS=( \
     "-Dsite.anticache_reset=false" \
     "-Dsite.anticache_block_size=${ANTICACHE_BLOCK_SIZE}" \
     "-Dsite.anticache_check_interval=5000" \
-    "-Dsite.anticache_threshold_mb=128" \
+    "-Dsite.anticache_threshold_mb=1" \
     "-Dsite.anticache_blocks_per_eviction=200" \
     "-Dsite.anticache_max_evicted_blocks=325" \
 #    "-Dsite.anticache_evict_size=${ANTICACHE_EVICT_SIZE}" \
@@ -133,7 +133,7 @@ wait
 ant compile
     HSTORE_HOSTS="${SITE_HOST}:0:0;${SITE_HOST}:1:1"
     NUM_CLIENTS=`expr 1 \* $BASE_CLIENT_THREADS`
-    SITE_MEMORY=`expr $BASE_SITE_MEMORY + \( 2 \* $BASE_SITE_MEMORY_PER_PARTITION \)`
+    SITE_MEMORY=`expr $BASE_SITE_MEMORY + \( 1 \* $BASE_SITE_MEMORY_PER_PARTITION \)`
     
     # BUILD PROJECT JAR
     ant hstore-prepare \

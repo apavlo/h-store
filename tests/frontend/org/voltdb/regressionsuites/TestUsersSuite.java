@@ -29,7 +29,7 @@ import edu.brown.utils.StringUtil;
 public class TestUsersSuite extends RegressionSuite {
 
     private static final String PREFIX = "users";
-    private static final int NUM_TUPLES = 10000;
+    private static final int NUM_TUPLES = UsersConstants.USERS_SIZE;
     private static final int NOTIFY_TIMEOUT = 2000; // ms
     
     /**
@@ -111,13 +111,13 @@ public class TestUsersSuite extends RegressionSuite {
       String tableNames[] = { UsersConstants.TABLENAME_USERS };
       LatchableProcedureCallback callback = new LatchableProcedureCallback(1);
 //      long evictBytes[] = { Integer.MAX_VALUE };
-      long evictBytes[] = {1024 * 500};
+      long evictBytes[] = {1024 * 10};
       int numBlocks[] = { 1 };
       
       int remote_partition = catalogContext.getAllPartitionIdArray()[1];
       System.err.printf("Evicting data at partition %d...\n", remote_partition);
       String children[] = null;
-          Object params[] = { remote_partition, tableNames, children, evictBytes, numBlocks };
+          Object params[] = { remote_partition, tableNames, evictBytes, numBlocks };
           boolean result = client.callProcedure(callback, procName, params);
           assertTrue(result);
       
@@ -148,8 +148,6 @@ public class TestUsersSuite extends RegressionSuite {
         builder.setGlobalConfParameter("site.anticache_profiling", true);
         builder.setGlobalConfParameter("site.anticache_reset", true);
         builder.setGlobalConfParameter("site.anticache_check_interval", Integer.MAX_VALUE);
-        builder.setGlobalConfParameter("site.anticache_batching", false);
-        builder.setGlobalConfParameter("site.anticache_threshold_mb", 128);
         
         UsersProjectBuilder project = new UsersProjectBuilder();
         project.addAllDefaults();
@@ -160,19 +158,19 @@ public class TestUsersSuite extends RegressionSuite {
         /////////////////////////////////////////////////////////////
         // CONFIG #1: 1 Local Site/Partition running on JNI backend
         /////////////////////////////////////////////////////////////
-        config = new LocalSingleProcessServer(PREFIX+"-1part.jar", 2, BackendTarget.NATIVE_EE_JNI);
-        success = config.compile(project);
-        assert(success);
-        builder.addServerConfig(config);
-
-        ////////////////////////////////////////////////////////////
-        // CONFIG #2: cluster of 2 nodes running 2 site each, one replica
-        ////////////////////////////////////////////////////////////
-/*        config = new LocalCluster(PREFIX+"-cluster.jar", 2, 1, 0, BackendTarget.NATIVE_EE_JNI);
+/*        config = new LocalSingleProcessServer(PREFIX+"-1part.jar", 2, BackendTarget.NATIVE_EE_JNI);
         success = config.compile(project);
         assert(success);
         builder.addServerConfig(config);
 */
+        ////////////////////////////////////////////////////////////
+        // CONFIG #2: cluster of 2 nodes running 2 site each, one replica
+        ////////////////////////////////////////////////////////////
+        config = new LocalCluster(PREFIX+"-cluster.jar", 2, 1, 0, BackendTarget.NATIVE_EE_JNI);
+        success = config.compile(project);
+        assert(success);
+        builder.addServerConfig(config);
+
         return builder;
     }
 

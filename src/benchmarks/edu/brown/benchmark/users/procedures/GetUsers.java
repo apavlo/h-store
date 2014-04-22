@@ -25,7 +25,8 @@ public class GetUsers extends VoltProcedure{
         VoltTable[] results = voltExecuteSQL();
         boolean adv = results[0].advanceRow();
         //assert (adv);
-        String attr1 = results[0].getString(0);
+        System.out.println(results[0]);
+        Long attr1 = results[0].getLong(0);
         voltQueueSQL(UpdateUsers, attr1, u_id2);
         results = voltExecuteSQL(true); 
         assert results.length == 1;

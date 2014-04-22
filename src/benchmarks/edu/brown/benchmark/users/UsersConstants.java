@@ -13,7 +13,7 @@ public abstract class UsersConstants {
     // ----------------------------------------------------------------
     public static final String TABLENAME_USERS = "USERS";
 
-    public static final int USERS_SIZE = 10000;
+    public static final int USERS_SIZE = 100000;
     
     public static final int BATCH_SIZE = 500;
 

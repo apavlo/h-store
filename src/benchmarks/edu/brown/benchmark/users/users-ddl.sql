@@ -13,7 +13,7 @@ CREATE TABLE USERS (
 			u_lastname	VARCHAR(100),
 				u_password	VARCHAR(100),
 					u_email	VARCHAR(100), 
-				    u_attr01      VARCHAR(8),
+					u_attr01	BIGINT,
 				    u_attr02      VARCHAR(8),
 				    u_attr03      VARCHAR(8),
 				    u_attr04      VARCHAR(8),

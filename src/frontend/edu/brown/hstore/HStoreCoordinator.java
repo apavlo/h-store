@@ -780,10 +780,6 @@ public class HStoreCoordinator implements Shutdownable {
         
         @Override
         public void heartbeat(RpcController controller, HeartbeatRequest request, RpcCallback<HeartbeatResponse> done) {
-            if (debug.val)
-                LOG.debug(String.format("Received %s from HStoreSite %s",
-                          request.getClass().getSimpleName(),
-                          HStoreThreadManager.formatSiteName(request.getSenderSite())));
             HeartbeatResponse.Builder builder = HeartbeatResponse.newBuilder()
                                                     .setSenderSite(local_site_id)
                                                     .setStatus(Status.OK);
@@ -1350,7 +1346,7 @@ public class HStoreCoordinator implements Shutdownable {
                                     .setPartitionId(partition_id)
                                     .setTableId(catalog_tbl.getRelativeIndex());
                           
-    	 LOG.info(String.format("Remote site is %d", remote_site_id));
+    	 LOG.info(String.format("our site is %d", this.hstore_site.getSiteId()));
     	 for (int i = 0; i< block_ids.length; i++){
 		builder = builder.addBlockIds(block_ids[i]);
     	 }
@@ -1359,6 +1355,7 @@ public class HStoreCoordinator implements Shutdownable {
     	 }
     	 UnevictDataRequest request = builder.build();            
             try {
+            	System.out.println(this.channels[remote_site_id]);
 				this.channels[remote_site_id].unevictData(new ProtoRpcController(), request, this.unevictCallback);
                 if (trace.val)
                     LOG.trace(String.format("Sent %s to %s",

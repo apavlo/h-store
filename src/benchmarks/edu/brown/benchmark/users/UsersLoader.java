@@ -60,6 +60,7 @@ public class UsersLoader extends Loader{
                 row[2] = UsersUtil.astring(3, 3);
                 row[3] = UsersUtil.astring(3, 3);
                 row[4] = UsersUtil.astring(3, 3);
+                row[5] = s_id;
                 table.addRow(row);
                 total++;
             if (table.getRowCount() >= UsersConstants.BATCH_SIZE) {

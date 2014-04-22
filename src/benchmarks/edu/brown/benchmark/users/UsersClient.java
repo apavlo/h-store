@@ -9,6 +9,7 @@ import org.voltdb.client.NoConnectionsException;
 import org.voltdb.client.ProcedureCallback;
 
 import edu.brown.api.BenchmarkComponent;
+import edu.brown.benchmark.articles.ArticlesUtil;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
@@ -32,6 +33,7 @@ public class UsersClient extends BenchmarkComponent {
 		private final Random rand_gen;
 		private Zipf readRecord;
 		private Zipf userRecord;
+		private long usersSize;
 		public UsersClient(String[] args) {
 	        super(args);
 	        // Initialize the sampling table
@@ -43,7 +45,7 @@ public class UsersClient extends BenchmarkComponent {
 	        } // FOR
 	        assert(txns.getSampleCount() == 100) : txns;
 	        this.rand_gen = new Random();
-	        long usersSize = Math.round(UsersConstants.USERS_SIZE * this.getScaleFactor());
+	        this.usersSize = Math.round(UsersConstants.USERS_SIZE * this.getScaleFactor());
 
 	        this.userRecord = new Zipf(this.rand_gen, 0, usersSize, 1.0001);
 
@@ -75,7 +77,9 @@ public class UsersClient extends BenchmarkComponent {
 	        Object params[];
 	        switch (target) {
 	            case GET_USERS: {
-	                params = new Object[]{ };
+	                long u_id1 = this.userRecord.nextLong();// uid
+	                long u_id2 = this.usersSize - u_id1;// uid
+	                params = new Object[]{ u_id1, u_id2};
 	                break;
 	            }
 	            default:

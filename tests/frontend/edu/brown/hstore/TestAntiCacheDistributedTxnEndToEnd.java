@@ -21,6 +21,7 @@ import org.voltdb.utils.VoltTableUtil;
 
 import edu.brown.BaseTestCase;
 import edu.brown.benchmark.AbstractProjectBuilder;
+import edu.brown.benchmark.users.procedures.GetUsers;
 import edu.brown.benchmark.ycsb.YCSBConstants;
 import edu.brown.benchmark.ycsb.YCSBProjectBuilder;
 import edu.brown.catalog.CatalogUtil;
@@ -248,16 +249,19 @@ public class TestAntiCacheDistributedTxnEndToEnd extends BaseTestCase{
           return (evictResult);
     }
 	
-//    @Test
-//    public void testEndToEndDistributedTxn() throws Exception{
-//    	this.loadData();
-//    	this.evictData();
-//    	
-//        Procedure proc = this.getProcedure("GetRecords"); // Special Single-Stmt Proc
-//        ClientResponse cresponse = this.client.callProcedure(proc.getName());
-//        assertEquals(Status.OK, cresponse.getStatus());
-//        
-//        VoltTable results[] = cresponse.getResults();
-//        assertEquals(1, results.length);
-//    }
+    @Test
+    public void testEndToEndDistributedTxn() throws Exception{
+    	this.loadData();
+    	this.evictData();
+        long user1 = 9999;
+        long user2 = 1;
+        Object params[] = { user1, user2  };
+
+        Procedure proc = this.getProcedure("GetRecords"); // Special Single-Stmt Proc
+        ClientResponse cresponse = this.client.callProcedure(GetUsers.class.getSimpleName(), params);
+        assertEquals(Status.OK, cresponse.getStatus());
+        
+        VoltTable results[] = cresponse.getResults();
+        assertEquals(1, results.length);
+    }
 }
