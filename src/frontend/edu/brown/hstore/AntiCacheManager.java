@@ -326,19 +326,22 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
             // HACK HACK HACK HACK HACK HACK
             // We need to get a new txnId for ourselves, since the one that we
             // were given before is now probably too far in the past
+        	if(next.partition != next.ts.getBasePartition()){
+        		ee.antiCacheMergeBlocks(next.catalog_tbl);
+        	}
             Long newTxnId = this.hstore_site.getTransactionInitializer().resetTransactionId(next.ts, next.partition);
 
         	LOG.info("restartin on local");
         	this.hstore_site.transactionInit(next.ts);	
         }else{
-        	RemoteTransaction ts = (RemoteTransaction) next.ts; 
-        	RpcCallback<UnevictDataResponse> callback = ts.getUnevictCallback();
-        	UnevictDataResponse.Builder builder = UnevictDataResponse.newBuilder()
-        		.setSenderSite(this.hstore_site.getSiteId())
-        		.setTransactionId(oldTxnId)
-        		.setPartitionId(next.partition)
-        		.setStatus(Status.OK);
-        	callback.run(builder.build());        	
+//        	RemoteTransaction ts = (RemoteTransaction) next.ts; 
+//        	RpcCallback<UnevictDataResponse> callback = ts.getUnevictCallback();
+//        	UnevictDataResponse.Builder builder = UnevictDataResponse.newBuilder()
+//        		.setSenderSite(this.hstore_site.getSiteId())
+//        		.setTransactionId(oldTxnId)
+//        		.setPartitionId(next.partition)
+//        		.setStatus(Status.OK);
+//        	callback.run(builder.build());        	
         	
         }
         

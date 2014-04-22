@@ -1917,6 +1917,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             }
             // We will want to delete this transaction after we reject it if it is a single-partition txn
             // Otherwise we will let the normal distributed transaction process clean things up
+            LOG.info("the reject happened here!!!");
             this.transactionReject(ts, status);
             if (singlePartitioned) this.queueDeleteTransaction(ts.getTransactionId(), status);
         }        
@@ -2192,6 +2193,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                                            orig_ts, orig_ts.getRestartCounter());
                 throw new RuntimeException(msg);
             } else {
+            	LOG.info("the reject happened coz of too many restarts");
                 this.transactionReject(orig_ts, Status.ABORT_REJECT);
                 return (Status.ABORT_REJECT);
             }

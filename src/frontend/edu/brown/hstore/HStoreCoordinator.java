@@ -845,6 +845,14 @@ public class HStoreCoordinator implements Shutdownable {
 			for(int i = 0; i < request.getTupleOffsetsList().size(); i++) tuple_offsets[i] = request.getTupleOffsets(i);
 
 			hstore_site.getAntiCacheManager().queue(ts, partition, catalog_tbl, block_ids, tuple_offsets);
+			// TRIAL
+			RpcCallback<UnevictDataResponse> callback = ts.getUnevictCallback();
+        	UnevictDataResponse.Builder builder = UnevictDataResponse.newBuilder()
+        		.setSenderSite(hstore_site.getSiteId())
+        		.setTransactionId(request.getTransactionId())
+        		.setPartitionId(partition)
+        		.setStatus(Status.OK);
+			done.run(builder.build());
 		}
 
     } // END CLASS
@@ -1357,6 +1365,7 @@ public class HStoreCoordinator implements Shutdownable {
             try {
             	System.out.println(this.channels[remote_site_id]);
 				this.channels[remote_site_id].unevictData(new ProtoRpcController(), request, this.unevictCallback);
+				LOG.info("sent message to remote hstore site");
                 if (trace.val)
                     LOG.trace(String.format("Sent %s to %s",
                               request.getClass().getSimpleName(),

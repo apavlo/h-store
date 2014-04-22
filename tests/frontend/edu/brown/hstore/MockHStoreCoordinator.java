@@ -227,8 +227,8 @@ public class MockHStoreCoordinator extends HStoreCoordinator {
             Long oldTxnId = request.getTransactionId();
             UnevictDataResponse.Builder builder = UnevictDataResponse.newBuilder()
                                                     .setSenderSite(hstore_site.getSiteId())
-                                                    .setOldTransactionId(oldTxnId)
-                                                    .setNewTransactionId(oldTxnId+1) // some new id
+                                                    .setTransactionId(oldTxnId)
+                                                    .setPartitionId(1) // some id
                                                     .setStatus(Status.OK);
             done.run(builder.build());   
 

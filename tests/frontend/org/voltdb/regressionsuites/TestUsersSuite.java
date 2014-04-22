@@ -92,7 +92,7 @@ public class TestUsersSuite extends RegressionSuite {
         System.err.println("-------------------------------");
 
         String procName = GetUsers.class.getSimpleName();
-        long user1 = 9999;
+        long user1 = 99999;
         long user2 = 1;
         Object params[] = { user1, user2  };
         ClientResponse cresponse = client.callProcedure(procName, params);
@@ -145,9 +145,14 @@ public class TestUsersSuite extends RegressionSuite {
         MultiConfigSuiteBuilder builder = new MultiConfigSuiteBuilder(TestUsersSuite.class);
         builder.setGlobalConfParameter("site.exec_voltdb_procinfo", true);
         builder.setGlobalConfParameter("site.anticache_enable", true);
-        builder.setGlobalConfParameter("site.anticache_profiling", true);
+        builder.setGlobalConfParameter("site.anticache_profiling", false);
         builder.setGlobalConfParameter("site.anticache_reset", true);
         builder.setGlobalConfParameter("site.anticache_check_interval", Integer.MAX_VALUE);
+        builder.setGlobalConfParameter("site.network_startup_wait", 60000);
+        builder.setGlobalConfParameter("site.coordinator_sync_time", false);
+        builder.setGlobalConfParameter("site.status_enable", false);
+        builder.setGlobalConfParameter("site.txn_partition_id_managers", true);
+
         
         UsersProjectBuilder project = new UsersProjectBuilder();
         project.addAllDefaults();
@@ -158,19 +163,19 @@ public class TestUsersSuite extends RegressionSuite {
         /////////////////////////////////////////////////////////////
         // CONFIG #1: 1 Local Site/Partition running on JNI backend
         /////////////////////////////////////////////////////////////
-/*        config = new LocalSingleProcessServer(PREFIX+"-1part.jar", 2, BackendTarget.NATIVE_EE_JNI);
-        success = config.compile(project);
-        assert(success);
-        builder.addServerConfig(config);
-*/
-        ////////////////////////////////////////////////////////////
-        // CONFIG #2: cluster of 2 nodes running 2 site each, one replica
-        ////////////////////////////////////////////////////////////
-        config = new LocalCluster(PREFIX+"-cluster.jar", 2, 1, 0, BackendTarget.NATIVE_EE_JNI);
+        config = new LocalSingleProcessServer(PREFIX+"-1part.jar", 2, BackendTarget.NATIVE_EE_JNI);
         success = config.compile(project);
         assert(success);
         builder.addServerConfig(config);
 
+        ////////////////////////////////////////////////////////////
+        // CONFIG #2: cluster of 2 nodes running 2 site each, one replica
+        ////////////////////////////////////////////////////////////
+/*        config = new LocalCluster(PREFIX+"-cluster.jar", 2, 1, 0, BackendTarget.NATIVE_EE_JNI);
+        success = config.compile(project);
+        assert(success);
+        builder.addServerConfig(config);
+*/
         return builder;
     }
 
