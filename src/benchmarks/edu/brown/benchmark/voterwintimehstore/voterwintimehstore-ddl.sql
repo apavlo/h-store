@@ -61,13 +61,6 @@ CREATE TABLE w_rows
 -- PARTITION BY ( phone_number )
 );
 
-
-CREATE TABLE leaderboard
-(
-  contestant_number  integer   NOT NULL
-, numvotes           integer   NOT NULL
-);
-
 -- rollup of votes by phone number, used to reject excessive voting
 CREATE VIEW v_votes_by_phone_number
 (
