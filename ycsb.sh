@@ -11,12 +11,12 @@ function onexit() {
 
 # ---------------------------------------------------------------------
 
-ENABLE_ANTICACHE=true
+ENABLE_ANTICACHE=false
 
 SITE_HOST="10.212.84.152"
 
 CLIENT_HOSTS=( \
-        "client1" \
+        "client2" \
         "client2" \
         "10.212.84.152" \
         "10.212.84.152" \
@@ -58,6 +58,7 @@ BASE_ARGS=( \
     #"-Dsite.cpu_utility_blacklist=0,2,4,6,8,10,12,14,16,18" \
     "-Dsite.network_incoming_limit_txns=10000" \
     "-Dsite.commandlog_enable=true" \
+    "-Dsite.commandlog_dir=/mnt/pmfs/cmdlog" \
     "-Dsite.txn_incoming_delay=5" \
     "-Dsite.exec_postprocessing_threads=false" \
     "-Dsite.anticache_eviction_distribution=even" \
@@ -69,7 +70,7 @@ BASE_ARGS=( \
     # Client Params
     "-Dclient.scalefactor=1" \
     "-Dclient.memory=2048" \
-    "-Dclient.txnrate=10000" \
+    "-Dclient.txnrate=20000" \
     "-Dclient.warmup=60000" \
     "-Dclient.duration=60000" \
     "-Dclient.interval=20000" \
