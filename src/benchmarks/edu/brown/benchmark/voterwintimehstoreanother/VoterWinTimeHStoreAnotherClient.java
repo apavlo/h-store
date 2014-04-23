@@ -114,6 +114,7 @@ public class VoterWinTimeHStoreAnotherClient extends BenchmarkComponent {
     	
         //PhoneCallGenerator.PhoneCall call = switchboard.receive();
         edu.brown.stream.PhoneCallGenerator.PhoneCall call = switchboard.nextVote();
+        //timestamp = (int)call.voteId;
 
         Client client = this.getClientHandle();
         boolean response = client.callProcedure(callback,

@@ -117,7 +117,8 @@ public class VoterDemoHStoreAnotherClient extends BenchmarkComponent {
     	
         //PhoneCallGenerator.PhoneCall call = switchboard.receive();
     	edu.brown.stream.PhoneCallGenerator.PhoneCall call = switchboard.nextVote();
-    	call.debug();
+    	//timestamp = (int)call.voteId;
+    	//call.debug();
 
     	if(call != null)
     	{
