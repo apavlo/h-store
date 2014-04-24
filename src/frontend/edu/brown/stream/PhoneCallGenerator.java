@@ -45,6 +45,11 @@ public class PhoneCallGenerator {
     }
     
     public class PhoneCall implements Serializable {
+        /**
+         * 
+         */
+        private static final long serialVersionUID = 1409337187611088655L;
+        
         public long voteId;
         public int contestantNumber;
         public long phoneNumber;
@@ -70,6 +75,11 @@ public class PhoneCallGenerator {
         
         public void debug() {
             System.out.println("call : " + this.voteId + "-" + this.phoneNumber + "-" + this.contestantNumber);
+        }
+        
+        public String getString()
+        {
+            return "" + this.voteId + " " + this.phoneNumber + " " + this.contestantNumber +"\n";
         }
     }
     

@@ -67,15 +67,6 @@ CREATE TABLE totalLeaderboardCount
   )
 );
 
-CREATE STREAM votes_stream
-(
-  vote_id            bigint     NOT NULL,
-  phone_number       bigint     NOT NULL
-, state              varchar(2) NOT NULL
-, contestant_number  integer    NOT NULL
-, time		     integer    NOT NULL
-);
-
 CREATE STREAM proc_one_out
 (
   vote_id            bigint     NOT NULL,
@@ -84,13 +75,6 @@ CREATE STREAM proc_one_out
 , contestant_number  integer    NOT NULL
 , time		     integer    NOT NULL
 );
-
-CREATE STREAM counting_stream
-(
-  vote_id	     bigint     NOT NULL
-);
-
-CREATE WINDOW counting_win ON counting_stream ROWS 10000 SLIDE 10000;
 
 CREATE WINDOW trending_leaderboard ON proc_one_out RANGE 30 SLIDE 2;
 

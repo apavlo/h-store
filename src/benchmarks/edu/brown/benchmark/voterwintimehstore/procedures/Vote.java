@@ -118,6 +118,7 @@ public class Vote extends VoltProcedure {
         voltQueueSQL(checkContestantStmt, contestantNumber);
         voltQueueSQL(checkVoterWinTimeHStoreStmt, phoneNumber);
         voltQueueSQL(checkStateStmt, (short)(phoneNumber / 10000000l));
+        voltQueueSQL(checkStagingTimestamp);
         VoltTable validation[] = voltExecuteSQL();
 		
         if (validation[0].getRowCount() == 0) {
@@ -140,7 +141,6 @@ public class Vote extends VoltProcedure {
         //TimestampType timestamp = new TimestampType();
         voltQueueSQL(insertVoteStmt, voteId, phoneNumber, state, contestantNumber, currentTimestamp);
         voltQueueSQL(insertVoteStagingStmt, voteId, phoneNumber, state, contestantNumber, currentTimestamp);
-        voltQueueSQL(checkStagingTimestamp);
         voltQueueSQL(checkWindowTimestamp);
         validation = voltExecuteSQL();
         

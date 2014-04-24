@@ -19,7 +19,7 @@ def generateReport(benchmark_result):
 		jsonsnippet = jsonsnippet.replace("\"","")
 		
 		# get 	THROUGHPUT
-		output  = re.compile('TXNPERMILLI: (.*?),', re.DOTALL |  re.IGNORECASE).findall(jsonsnippet)
+		output  = re.compile('TXNTOTALPERSECOND: (.*?),', re.DOTALL |  re.IGNORECASE).findall(jsonsnippet)
 		THROUGHPUT = str(output[0])
 		basic = " " + THROUGHPUT
 		anlyze_result.append(THROUGHPUT)

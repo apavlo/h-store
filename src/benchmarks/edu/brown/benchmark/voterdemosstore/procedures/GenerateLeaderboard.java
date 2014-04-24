@@ -107,10 +107,6 @@ public class GenerateLeaderboard extends VoltProcedure {
         "DELETE FROM votes WHERE contestant_number = ?;"	
     );
     
-    public final SQLStmt deleteFromWindow = new SQLStmt(
-        	"DELETE FROM trending_leaderboard WHERE contestant_number = ?;"	
-        );
-    
     public final SQLStmt deleteFromLeaderboard = new SQLStmt(
     	"DELETE FROM top_three_last_30_sec WHERE contestant_number = ?;"	
     );
@@ -155,7 +151,6 @@ public long run() {
         	long contestant_number = validation[3].fetchRow(0).getLong(0);
         	
         	voltQueueSQL(deleteVotes, contestant_number);
-        	voltQueueSQL(deleteFromWindow, contestant_number);
         	voltQueueSQL(deleteFromLeaderboard, contestant_number);
         	voltQueueSQL(deleteContestant, contestant_number);
             voltQueueSQL(resetCount);

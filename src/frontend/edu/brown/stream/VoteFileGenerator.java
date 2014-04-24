@@ -1,5 +1,9 @@
 package edu.brown.stream;
 
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.lang.System;
 import java.util.ArrayList;
 
@@ -19,6 +23,11 @@ public class VoteFileGenerator {
 
     public static void main(String[] vargs) throws Exception {
 
+//        generateTxtFile("voterdemohstoreanother-o-20000");
+//        generateTxtFile("voterdemohstoreanother-d-20000");
+//        generateTxtFile("voterdemohstoreanother-o-40000");
+//        generateTxtFile("voterdemohstoreanother-d-40000");
+        
         for(String argument : vargs){
             System.out.println(argument);
         }  
@@ -76,6 +85,35 @@ public class VoteFileGenerator {
 //            PhoneCall current_call = vg.nextVote();
 //            current_call.debug();
 //        }
+        
+    }
+    
+    public static void generateTxtFile(String name) throws IOException
+    {
+        String filename = name + ".txt";
+        BufferedWriter out;
+        out = new BufferedWriter(new FileWriter(filename,true));
+        
+//        File file=new File(filename);
+//        FileWriter fw = new FileWriter(file,true);
+        System.out.println(filename);
+        
+        filename = name + ".ser";
+        System.out.println(filename);
+        VoteGenerator vg = new VoteGenerator(filename);
+        //System.out.println(filename);
+        
+        PhoneCall current_call = vg.nextVote();
+        while(current_call !=null )
+        {
+            current_call.debug();
+            //fw.append(current_call.getString());
+            out.write(current_call.getString());
+            
+            current_call = vg.nextVote();
+        }
+        
+        out.close();
         
     }
 

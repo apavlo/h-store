@@ -24,7 +24,8 @@ public class PhoneCallAccessor {
         }
         catch (Exception e)
         {
-            System.out.println("File Not Found");
+            //System.out.println("File Not Found");
+            System.out.println(e.getMessage());
         } 
         
         return list;
