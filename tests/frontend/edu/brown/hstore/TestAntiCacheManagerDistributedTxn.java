@@ -295,6 +295,7 @@ public class TestAntiCacheManagerDistributedTxn extends BaseTestCase {
         // thrown by a remote site
         this.hstore_conf.site.anticache_profiling = false;
         LocalTransaction txn = MockHStoreSite.makeLocalTransaction(hstore_sites[0]);
+	txn.setOldTransactionId(txn.getTransactionId()); //workaround
         int partition_id = CollectionUtil.first(this.hstore_sites[1].getLocalPartitionIds());
 
         assertTrue(manager.queue(txn, partition_id, catalog_tbl, block_ids, tuple_offsets));
@@ -336,6 +337,7 @@ public class TestAntiCacheManagerDistributedTxn extends BaseTestCase {
         // thrown by a remote site
         this.hstore_conf.site.anticache_profiling = false;
         LocalTransaction txn = MockHStoreSite.makeLocalTransaction(hstore_sites[0]);
+	txn.setOldTransactionId(txn.getTransactionId()); //workaround
         int dest_id = CollectionUtil.first(this.hstore_sites[1].getLocalPartitionIds());
         final int sender_id = hstore_sites[0].getSiteId();
         hstore_sites[sender_id].getCoordinator().setUnevictCallback(callback);

@@ -471,6 +471,7 @@ public class TestHStoreCoordinator extends BaseTestCase {
                         .setPartitionId(0)
                         .setTableId(99)
                         .setTransactionId(-1)
+			.setNewTransactionId(12)
                         .build();      
             	
         hstore_sites[sender_id].getCoordinator().getChannel(dest_id).unevictData(new ProtoRpcController(), request, callback);
