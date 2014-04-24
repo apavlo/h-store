@@ -112,7 +112,7 @@ public class MEETradingFloor {
            // System.out.println("IN ELSE");
         }
         System.out.println("TRADEIDHERE"+  txnInput.trade_id);
-        System.out.println("TRADEPRICEHERE"+  txnInput.trade_price);
+        //System.out.println("TRADEPRICEHERE"+  txnInput.trade_price);
         if(!inputs.contains(txnInput.trade_id)){
             System.out.println("ADDINGIDOK");
             sut.TradeResult(  txnInput );
