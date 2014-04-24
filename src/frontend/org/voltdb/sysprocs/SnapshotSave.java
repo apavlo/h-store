@@ -189,7 +189,7 @@ public class SnapshotSave extends VoltSystemProcedure {
 
                 // CHANGE : Only 1 Site doing this
                 if (SnapshotSiteProcessor.ExecutionSitesCurrentlySnapshotting.get() != -1) {
-                    result.addRow(Integer.parseInt(context.getSite().getHost().getTypeName()), hostname, "", "FAILURE", "SNAPSHOT IN PROGRESS");
+                    result.addRow(Integer.parseInt(context.getSite().getHost().getTypeName().replaceAll("[\\D]", "")), hostname, "", "FAILURE", "SNAPSHOT IN PROGRESS");
                     return new DependencySet(DEP_saveTest, result);
                 }
 

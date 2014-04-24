@@ -37,14 +37,21 @@ AriesLogProxy::AriesLogProxy(VoltDBEngine *engine, string logfileName) {
 }
 
 void AriesLogProxy::init(VoltDBEngine *engine, string logfileName) {
-	this->logfileName = logfileName;
-	// CHANGE :: originally true
+	this->logFileName = logfileName;
+	// XXX originally true
 	jniLogging = false;
 
 	if (!jniLogging) {
-		logfile.open(logfileName.c_str(), ios::out | ios::binary | ios::app);
-		long pos = logfile.tellp();
-		VOLT_WARN("AriesLogProxy : opened logfile %s :: pos %ld", logfileName.c_str(), pos);
+		// append + binary mode
+		logFile = fopen(logfileName.c_str(), "ab+");
+		logFileFD = fileno(logFile);
+
+		if(logFile != NULL){
+			VOLT_DEBUG("AriesLogProxy : opened logfile %s ", logFileName.c_str());
+		}
+		else{
+			VOLT_ERROR("AriesLogProxy : cannot open logfile %s ", logFileName.c_str());
+		}
 	} else {
 		if (engine == NULL) {
 			cout << "what in the god's name is this shit " << endl;
@@ -54,30 +61,35 @@ void AriesLogProxy::init(VoltDBEngine *engine, string logfileName) {
 }
 
 AriesLogProxy::~AriesLogProxy() {
-	VOLT_WARN("AriesLogProxy : destructor : %s", logfileName.c_str());
-	if (logfile.is_open()) {
-		logfile.close();
-		VOLT_WARN("AriesLogProxy : closed logfile %s", logfileName.c_str());
+	if(logFile != NULL){
+		int ret = fclose(logFile);
+
+		if(ret == 0){
+			VOLT_DEBUG("AriesLogProxy : closed logfile %s", logFileName.c_str());
+		}
+		else{
+			VOLT_ERROR("AriesLogProxy : could not close logfile %s", logFileName.c_str());
+		}
 	}
 }
 
 AriesLogProxy* AriesLogProxy::getAriesLogProxy(VoltDBEngine *engine) {
 	if(!engine || !engine->isARIESEnabled()) {
-		VOLT_WARN("AriesLogProxy : NULL");
+		VOLT_DEBUG("AriesLogProxy : NULL");
 		return NULL;
 	}
 
 	if (!(engine->getARIESFile().empty())) {
-		VOLT_WARN("AriesLogProxy : logfile %s", engine->getARIESFile().c_str());
+		VOLT_DEBUG("AriesLogProxy : logfile %s", engine->getARIESFile().c_str());
 		return new AriesLogProxy(engine, engine->getARIESFile());
 	}
 
-	VOLT_WARN("AriesLogProxy : NULL");
+	VOLT_DEBUG("AriesLogProxy : NULL");
 	return NULL;
 }
 
 string AriesLogProxy::getLogFileName() {
-	return logfileName;
+	return logFileName;
 }
 
 void AriesLogProxy::log(LoggerId loggerId, LogLevel level, const char *statement) const {
@@ -137,34 +149,44 @@ void AriesLogProxy::log(LoggerId loggerId, LogLevel level, const char *statement
 
 void AriesLogProxy::logBinaryOutput(const char *data, size_t size) {
 	if (jniLogging) {
-		VOLT_WARN("AriesLogProxy : logToEngineBuffer : %lu", size);
+		VOLT_DEBUG("AriesLogProxy : logToEngineBuffer : %lu", size);
 		logToEngineBuffer(data, size);
 	} else {
-		VOLT_WARN("AriesLogProxy : logLocally : %lu", size);
+		VOLT_DEBUG("AriesLogProxy : logLocally : %lu", size);
 		logLocally(data, size);
 	}
 }
 
 void AriesLogProxy::logLocally(const char *data, size_t size) {
-	logfile.write(data, size);
+	size_t s_ret = -1;
+	int ret = -1;
 
-	if (logfile.fail()) {
-		// XXX: couldn't write, wait what?
-		if(logfile.bad()){
-			VOLT_ERROR("logLocally failed : badbit set");
-		}
-		else{
-			VOLT_ERROR("logLocally failed : failbit set");
-		}
+	s_ret = fwrite (data , sizeof(char), size, logFile);
+	if(s_ret != size){
+		VOLT_ERROR("logLocally failed : badbit set");
 	}
 
-	logfile.flush();
-	long pos = logfile.tellp();
- 	VOLT_WARN("logLocally : flushed : file pos %ld",pos);
+	ret = fflush(logFile);
+	if(ret == 0){
+	 	VOLT_DEBUG("logLocally : flushed : file pos %ld", ftell(logFile));
+	}
+	else{
+	 	VOLT_ERROR("logLocally : flushed : file pos %ld", ftell(logFile));
+	}
+
+	// SYNC changes
+	ret = fsync(logFileFD);
+	if(ret == 0){
+		VOLT_DEBUG("logLocally : synced file");
+	}
+	else{
+		VOLT_ERROR("logLocally : could not sync file ");
+	}
+
 }
 
 void AriesLogProxy::logToEngineBuffer(const char *data, size_t size) {
 #ifdef ARIES
-	engine->writeToAriesLogBuffer(data, size);
+	//engine->writeToAriesLogBuffer(data, size);
 #endif
 }

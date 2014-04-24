@@ -318,7 +318,6 @@ public class VoltProjectBuilder {
     }
 
     public void addSchema(String schemaPath) {
-	System.out.println("In addSchema");
         try {
             schemaPath = URLDecoder.decode(schemaPath, "UTF-8");
         } catch (final UnsupportedEncodingException e) {

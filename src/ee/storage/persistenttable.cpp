@@ -268,10 +268,6 @@ bool PersistentTable::evictBlockToDisk(const long block_size, int num_blocks) {
             if(!evict_itr.next(tuple))
                 break;
             
-	    // HACK HACK!! This is here for testing purposes. 
-	    if(tuple.getTupleID() < 60000)
-	      continue; 
-
             // If this is the first tuple, then we need to allocate all of the memory and
             // what not that we're going to need
             if (tuple_length == -1) {

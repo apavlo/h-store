@@ -1,4 +1,88 @@
 #!/bin/bash
+# DAMON Experiments
+ 
+USAGE="Usage: `basename $0` 
+       [-h]  
+       [-g (get latency)] 
+       [-s (set latency)] 
+       [-t (tpcc project)]
+       [-y (ycsb project)]
+       [-r (clean and rebuild)] 
+       [-d (disable anticache)]  
+        "
+
+ENABLE_ANTICACHE=false
+REBUILD=false
+
+NVM_LATENCY=110
+BASE_PROJECT="ycsb"
+
+# Parse command line options.
+while getopts hrgsd:yt OPT; do
+    case "$OPT" in
+        h)
+            echo "$USAGE"
+            exit 0
+            ;;
+
+        r)
+            REBUILD=true
+            ;;
+
+        t)
+            BASE_PROJECT="tpcc"
+            ;;
+        
+        y) 
+            BASE_PROJECT="ycsb"
+            ;;
+
+        g)
+            # GO TO SDV directory 
+            cd /data/devel/sdv-tools/sdv-release 
+            # MEASURE LATENCY
+            sudo ./ivt_pm_sdv.sh --measure
+
+            cd `readlink -f /home/user/joy/h-store`
+            exit 0
+            ;;
+
+        s)
+            # GO TO SDV directory 
+            cd /data/devel/sdv-tools/sdv-release 
+
+            # MEASURE LATENCY
+            NVM_LATENCY=$2
+            echo "SETTING NVM LATENCY : " $NVM_LATENCY
+            
+            sudo ./ivt_pm_sdv.sh --enable --pm-latency=$NVM_LATENCY
+            
+            cd `readlink -f /home/user/joy/h-store`
+        
+            exit 0
+            ;;                             
+
+        \?)
+            # getopts issues an error message
+            echo "$USAGE" >&2
+            exit 1
+            ;;
+    esac
+done
+
+# Remove the switches we parsed above.
+shift `expr $OPTIND - 1`
+
+echo "---------------------------------------------------------"
+echo "BASE_PROJECT : " $BASE_PROJECT
+echo "REBUILD : " $REBUILD
+echo "---------------------------------------------------------"
+ 
+# Access additional arguments as usual through 
+# variables $@, $*, $1, $2, etc. or using this loop:
+for PARAM; do
+    echo $PARAM
+done 
 
 # ---------------------------------------------------------------------
 
@@ -16,19 +100,17 @@ ENABLE_ANTICACHE=false
 SITE_HOST="10.212.84.152"
 
 CLIENT_HOSTS=( \
-        "client2" \
+#        "client1" \
         "client2" \
         "10.212.84.152" \
         "10.212.84.152" \
 )
 
-BASE_CLIENT_THREADS=1
 #BASE_SITE_MEMORY=8192
 #BASE_SITE_MEMORY_PER_PARTITION=1024
 BASE_SITE_MEMORY=8192
 BASE_SITE_MEMORY_PER_PARTITION=750
-BASE_PROJECT="ycsb"
-BASE_DIR=`pwd`
+BASE_DIR=`readlink -f /home/user/joy/h-store`
 OUTPUT_DIR="~/data/ycsb/read-heavy/2/80-20"
 
 #ANTICACHE_BLOCK_SIZE=131072
@@ -57,8 +139,15 @@ BASE_ARGS=( \
     #"-Dsite.cpu_partition_blacklist=0,2,4,6,8,10,12,14,16,18" \
     #"-Dsite.cpu_utility_blacklist=0,2,4,6,8,10,12,14,16,18" \
     "-Dsite.network_incoming_limit_txns=10000" \
-    "-Dsite.commandlog_enable=true" \
+
+    # ENABLE EITHER ONE OF THESE - NOT BOTH
+    # COMMAND LOG 
+    "-Dsite.commandlog_enable=false" \
     "-Dsite.commandlog_dir=/mnt/pmfs/cmdlog" \
+    # ARIES
+    "-Dsite.aries=true" \
+    "-Dsite.aries_dir=/mnt/pmfs/aries" \
+
     "-Dsite.txn_incoming_delay=5" \
     "-Dsite.exec_postprocessing_threads=false" \
     "-Dsite.anticache_eviction_distribution=even" \
@@ -71,9 +160,10 @@ BASE_ARGS=( \
     "-Dclient.scalefactor=1" \
     "-Dclient.memory=2048" \
     "-Dclient.txnrate=20000" \
-    "-Dclient.warmup=60000" \
-    "-Dclient.duration=60000" \
-    "-Dclient.interval=20000" \
+    "-Dclient.warmup=10000" \
+    "-Dclient.duration=10000" \
+    "-Dclient.interval=10000" \
+
     "-Dclient.shared_connection=false" \
     "-Dclient.blocking=false" \
     "-Dclient.blocking_concurrent=100" \
@@ -111,12 +201,6 @@ BASE_ARGS=( \
 EVICTABLE_TABLES=( \
     "USERTABLE" \
 )
-EVICTABLES=""
-if [ "$ENABLE_ANTICACHE" = "true" ]; then
-    for t in ${EVICTABLE_TABLES[@]}; do
-        EVICTABLES="${t},${EVICTABLES}"
-    done
-fi
 
 # Compile
 HOSTS_TO_UPDATE=("$SITE_HOST")
@@ -143,12 +227,11 @@ for i in 8; do
     HSTORE_HOSTS="${SITE_HOST}:0:0-"`expr $i - 1`
     NUM_CLIENTS=`expr $i \* $BASE_CLIENT_THREADS`
     SITE_MEMORY=`expr $BASE_SITE_MEMORY + \( $i \* $BASE_SITE_MEMORY_PER_PARTITION \)`
-    
+
     # BUILD PROJECT JAR
     ant hstore-prepare \
         -Dproject=${BASE_PROJECT} \
-        -Dhosts=${HSTORE_HOSTS} \
-        -Devictable=${EVICTABLES}
+        -Dhosts=${HSTORE_HOSTS} 
     test -f ${BASE_PROJECT}.jar || exit -1
     
     # UPDATE CLIENTS
@@ -171,10 +254,10 @@ for i in 8; do
     wait
 
     # EXECUTE BENCHMARK
-    ant hstore-benchmark ${BASE_ARGS[@]} \
+    numactl --membind=2 ant hstore-benchmark ${BASE_ARGS[@]} \
         -Dproject=${BASE_PROJECT} \
         -Dkillonzero=false \
-	-Dclient.threads_per_host=4 \
+        -Dclient.threads_per_host=4 \
         -Dsite.memory=${SITE_MEMORY} \
         -Dclient.hosts=${CLIENT_HOSTS_STR} \
         -Dclient.count=${CLIENT_COUNT}

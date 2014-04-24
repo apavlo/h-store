@@ -651,7 +651,7 @@ public final class HStoreConf {
             experimental=true
         )
         public String anticache_dir;
-        
+
         @ConfigProperty(
             description="The size (in bytes) for the anti-cache's blocks on disk.",
             defaultLong=262144, // 256kb
@@ -754,15 +754,22 @@ public final class HStoreConf {
         public long storage_mmap_sync_frequency; 
 
         // ----------------------------------------------------------------------------
-        // ARIES Options
+        // ARIES Physical Recovery Options
         // ----------------------------------------------------------------------------
         @ConfigProperty(
-                description="ARIES recovery system enabled. ",
+                description="ARIES recovery enabled. ",
                 defaultBoolean=false,
                 experimental=true
         )
         public boolean aries;
-            
+
+        @ConfigProperty(
+                description="ARIES forward processing only enabled, recovery disabled - for throughput evaluation",
+                defaultBoolean=true,
+                experimental=true
+        )
+        public boolean aries_forward_only;
+
         @ConfigProperty(
                 description="Location of where H-Store will store ARIES log files for each partition. " +
                             "This is only used if ${site.aries} is enabled. ",
@@ -779,7 +786,40 @@ public final class HStoreConf {
                 experimental=true
         )
         public boolean aries_reset;
+        
+        // ----------------------------------------------------------------------------
+        //  Logical Recovery Options
+        // ----------------------------------------------------------------------------
+        @ConfigProperty(
+                description="Logical recovery using snapshots enabled. ",
+                defaultBoolean=false,
+                experimental=true
+        )
+        public boolean snapshot;
+            
+        @ConfigProperty(
+                description="Location of where H-Store will store snapshot files for each partition's tables. " +
+                            "This is only used if ${site.snapshot} is enabled. ",
+                defaultString="${global.temp_dir}/snapshot",
+                experimental=true
+        )
+        public String snapshot_dir;
+
+            
+        @ConfigProperty(
+                description="Reset the snapshot directory for each partition when " +
+                            "the HStoreSite is started (disabled by default).",
+                defaultBoolean=false,
+                experimental=true
+        )
+        public boolean snapshot_reset;        
                     
+        @ConfigProperty(
+                description="How often in milliseconds should we take snapshots in HStoreSite ",
+                defaultInt=10000,
+                experimental=true
+            )
+            public int snapshot_interval;
         
         // ----------------------------------------------------------------------------
         // MapReduce Options

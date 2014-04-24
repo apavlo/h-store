@@ -742,7 +742,6 @@ public final class DBBPool {
             if (retval != null) {
                 retval.clear();
             } else {
-		System.out.println("allocateDirect: " + capacity); 
                 retval = ByteBuffer.allocateDirect(capacity);
             }
             return new BBContainer(retval, 0) {

@@ -1,9 +1,9 @@
 #!/usr/bin/zsh
 # RUN EXPERIMENTS
 
-DEFAULT_LATENCY=110
+DEFAULT_LATENCY=100
 LOG_DIR=log
-SCRIPT=./experiment.sh
+SCRIPT=./experiment.sh 
 
 for ((i=2; i<=8; i*=4))
 do
@@ -28,16 +28,24 @@ do
         p=$((0.25*$s));
         q=$((0.25*$(($s+1))));
         echo "UPDATING SKEW FROM $p TO $q"
+         
+        if [[ $s -eq 4 ]]; then
+            p=$((1.01));
+        fi
+         
+        if [[ $s -eq 3 ]]; then
+            q=$((1.01));
+        fi
 
         sed -i "s/skew_factor = $p/skew_factor = $q/g" ./properties/benchmarks/ycsb.properties
         sed -i "s/ZIPFIAN_CONSTANT = $p/ZIPFIAN_CONSTANT = $q/g" ./src/benchmarks/edu/brown/benchmark/ycsb/YCSBConstants.java
-        #ant compile
 
         grep "skew_factor =" ./properties/benchmarks/ycsb.properties
         grep "ZIPFIAN_CONSTANT =" ./src/benchmarks/edu/brown/benchmark/ycsb/YCSBConstants.java
 
-        $SCRIPT &>> $LOG_DIR/$i.log
+        $SCRIPT -y &>> $LOG_DIR/$i.log
 
         cp results.csv "$LOG_DIR/""$i""_$s.csv"
+    
     done
 done

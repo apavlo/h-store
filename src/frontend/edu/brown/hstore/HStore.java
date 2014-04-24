@@ -213,9 +213,7 @@ public abstract class HStore {
         } // FOR
                 
         TheHashinator.initialize(catalogContext.catalog);
-        
-        LOG.warn("HStore initialization complete");
-        
+                
         return (singleton);
     }
     

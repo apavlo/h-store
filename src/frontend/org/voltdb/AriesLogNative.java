@@ -70,9 +70,9 @@ public class AriesLogNative extends AriesLog {
 	}
 	
 	public AriesLogNative(int numSites, int numPartitionsPerSite, int size, int syncFrequency, String logFileName) {	    
-        LOG.warn("AriesLogNative : numSites : "+numSites+ " logFileName : "+logFileName);
+                //LOG.warn("AriesLogNative : numSites : "+numSites+ " logFileName : "+logFileName);
 	    
-	    m_perSiteRecoveryDone = new boolean[numSites*numPartitionsPerSite];
+	        m_perSiteRecoveryDone = new boolean[numSites*numPartitionsPerSite];
 		
 		for (int i = 0; i < numSites*numPartitionsPerSite; i++) {
 			m_perSiteRecoveryDone[i] = false;
@@ -204,7 +204,7 @@ public class AriesLogNative extends AriesLog {
 		try {
 			ariesLogfile.getFD().sync();
 			
-	        LOG.warn("AriesLogNative : finished flushData :: File Size : "+ariesLogfile.length());
+	        LOG.debug("AriesLogNative : finished flushData :: File Size : "+ariesLogfile.length());
 		} catch (SyncFailedException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -283,7 +283,7 @@ public class AriesLogNative extends AriesLog {
 	
     @Override
     public void run() {
-        LOG.warn("AriesLogNative : wait for recovery completion ");
+        LOG.debug("AriesLogNative : wait for recovery completion ");
         while (!isRecoveryCompleted()) {
             try {
                 Thread.sleep(500);
@@ -293,13 +293,13 @@ public class AriesLogNative extends AriesLog {
             }
         }
 
-        LOG.warn("AriesLogNative : recovery completed ");
+        LOG.debug("AriesLogNative : recovery completed ");
 
         if (!isInitialized) {
             init();
         }
 
-        LOG.warn("AriesLogNative : initialized log");
+        LOG.debug("AriesLogNative : initialized log");
 
         while (m_keepLogging) {
             try {

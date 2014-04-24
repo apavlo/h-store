@@ -565,7 +565,7 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
     }
 
     @Override
-    protected boolean runOnce() throws NoConnectionsException {
+    public boolean runOnce() throws NoConnectionsException {
         m_blockOnBackpressure = false;
         // will send procedures to first connection w/o backpressure
         // if all connections have backpressure, will round robin across

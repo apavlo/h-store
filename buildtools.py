@@ -41,11 +41,11 @@ class BuildContext:
         self.LOG_LEVEL = "DEBUG"
         self.VOLT_LOG_LEVEL = None
         self.STORAGE_MMAP = False
-        self.ANTICACHE_BUILD = False
+        self.ANTICACHE_BUILD = True
         self.ANTICACHE_REVERSIBLE_LRU = True
         self.ANTICACHE_NVM = False
         self.ANTICACHE_DRAM = False
-        self.ARIES= False
+        self.ARIES= True
 
         for arg in [x.strip().upper() for x in args]:
             if arg in ["DEBUG", "RELEASE", "MEMCHECK", "MEMCHECK_NOFREELIST"]:

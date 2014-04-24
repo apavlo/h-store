@@ -167,8 +167,8 @@ bool AntiCacheEvictionManager::updateTuple(PersistentTable* table, TableTuple* t
     // this is an update, so we have to remove the previous entry in the chain
     if (!is_insert) {
                         
-         if(rand() % SAMPLE_RATE != 0)  
-             return true;
+      if(rand() % SAMPLE_RATE != 0)  
+            return true;
         
         assert(table->getNumTuplesInEvictionChain() > 0);
 #ifdef ANTICACHE_REVERSIBLE_LRU

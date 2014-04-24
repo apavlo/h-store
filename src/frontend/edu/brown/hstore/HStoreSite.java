@@ -26,14 +26,20 @@
 package edu.brown.hstore;
 
 import java.io.File;
+import java.io.FilenameFilter;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.file.FileSystem;
+import java.sql.Date;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Calendar;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.ConcurrentModificationException;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
@@ -58,12 +64,20 @@ import org.voltdb.StatsSource;
 import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.SysProcSelector;
 import org.voltdb.TransactionIdManager;
+import org.voltdb.VoltSystemProcedure;
+import org.voltdb.VoltTable;
 import org.voltdb.catalog.CatalogMap;
+import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Host;
 import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Table;
+import org.voltdb.client.Client;
+import org.voltdb.client.ClientFactory;
+import org.voltdb.client.ClientResponse;
+import org.voltdb.client.NoConnectionsException;
+import org.voltdb.client.ProcCallException;
 import org.voltdb.compiler.AdHocPlannedStmt;
 import org.voltdb.compiler.AsyncCompilerResult;
 import org.voltdb.compiler.AsyncCompilerWorkThread;
@@ -78,6 +92,7 @@ import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.messaging.FastSerializer;
 import org.voltdb.network.Connection;
 import org.voltdb.network.VoltNetwork;
+import org.voltdb.sysprocs.SnapshotSave;
 import org.voltdb.utils.DBBPool;
 import org.voltdb.utils.EstTime;
 import org.voltdb.utils.EstTimeUpdater;
@@ -93,11 +108,13 @@ import edu.brown.hstore.HStoreThreadManager.ThreadGroupType;
 import edu.brown.hstore.Hstoreservice.QueryEstimate;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
+import edu.brown.hstore.PartitionExecutor.SystemProcedureExecutionContext;
 import edu.brown.hstore.callbacks.ClientResponseCallback;
 import edu.brown.hstore.callbacks.LocalFinishCallback;
 import edu.brown.hstore.callbacks.LocalInitQueueCallback;
 import edu.brown.hstore.callbacks.PartitionCountingCallback;
 import edu.brown.hstore.callbacks.RedirectCallback;
+import edu.brown.hstore.cmdlog.CommandLogReader;
 import edu.brown.hstore.cmdlog.CommandLogWriter;
 import edu.brown.hstore.cmdlog.LogEntry;
 import edu.brown.hstore.conf.HStoreConf;
@@ -137,6 +154,7 @@ import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObservableExceptionHandler;
 import edu.brown.utils.EventObserver;
 import edu.brown.utils.ExceptionHandlingRunnable;
+import edu.brown.utils.FileUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.PartitionSet;
 import edu.brown.utils.StringUtil;
@@ -423,11 +441,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     
     private final String REJECTION_MESSAGE;    
     
+    // ----------------------------------------------------------------------------    
     // ARIES
+    // ----------------------------------------------------------------------------
+
     private AriesLog m_ariesLog = null;
         
-    private String m_ariesLogFileName = null;
-    
+    private String m_ariesLogFileName = null;    
     //XXX Must match with AriesLogProxy
     private final String m_ariesDefaultLogFileName = "aries.log";
     
@@ -440,6 +460,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     public String getAriesLogFileName() {
         return m_ariesLogFileName;
     }
+
+    // ----------------------------------------------------------------------------
+    // LOGICAL RECOVERY
+    // ----------------------------------------------------------------------------
+    
+    private long lastTickTime = 0;
     
     // ----------------------------------------------------------------------------
     // CONSTRUCTOR
@@ -484,6 +510,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         // ARIES 
         if(hstore_conf.site.aries){
+            // Don't use both recovery modes
+            assert(hstore_conf.site.snapshot == false);
+
             LOG.warn("Starting ARIES recovery at site");           
 
             String siteName = HStoreThreadManager.formatSiteName(this.getSiteId());
@@ -497,7 +526,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             this.m_ariesLog = new AriesLogNative(numSites, numPartitionsPerSite, this.m_ariesLogFileName);
             this.m_recoveryLog = new VoltLogger("RECOVERY");
         }
-        
+                        
         // **IMPORTANT**
         // Always clear out the CatalogUtil and BatchPlanner before we start our new HStoreSite
         // TODO: Move this cache information into CatalogContext
@@ -588,10 +617,17 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             // It would be nice if we could come up with a unique name for this
             // invocation of the system (like the cluster instanceId). But for now
             // we'll just write out to our directory...
+            
+            java.util.Date date = new java.util.Date();
+            Timestamp current = new Timestamp(date.getTime());
+            String nonce = Long.toString(current.getTime());            
+            
             File logFile = new File(hstore_conf.site.commandlog_dir +
                                     File.separator +
                                     this.getSiteName().toLowerCase() +
-                                    CommandLogWriter.LOG_OUTPUT_EXT);
+                                    "_" + nonce +
+                                    CommandLogWriter.LOG_OUTPUT_EXT);                      
+                     
             this.commandLogger = new CommandLogWriter(this, logFile);
         } else {
             this.commandLogger = null;
@@ -871,6 +907,124 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
     }
     
+    // -------------------------------
+    // SNAPSHOTTING SETUP
+    // -------------------------------
+    
+    /**
+     * Returns the directory where snapshot files are stored
+     * @return
+     */
+    public File getSnapshotDir() {
+        // First make sure that our base directory exists
+        String base_dir = FileUtil.realpath(this.hstore_conf.site.snapshot_dir);
+
+        synchronized (HStoreSite.class) {
+            FileUtil.makeDirIfNotExists(base_dir);
+        } // SYNC
+
+        File dbDirPath = new File(base_dir);
+
+        if (this.hstore_conf.site.snapshot_reset) {
+            LOG.warn(String.format("Deleting snapshot directory '%s'", dbDirPath));
+            FileUtil.deleteDirectory(dbDirPath);
+        }
+        FileUtil.makeDirIfNotExists(dbDirPath);
+
+        return (dbDirPath);
+    }
+    
+    /**
+     * Thread that is periodically executed to take snapshots
+     */
+    private final ExceptionHandlingRunnable snapshotter = new ExceptionHandlingRunnable() {
+        @Override
+        public void runImpl() {
+            synchronized(HStoreSite.this) {
+                try {
+                    // take snapshot
+                    takeSnapshot();                    
+                } catch (Throwable ex) {
+                    ex.printStackTrace();
+                }
+            }
+        }
+    };
+
+    /**
+     * Take snapshots
+     */
+    private void takeSnapshot(){
+        // Do this only on site lowest id
+        Host catalog_host = this.getHost();
+        Site site = this.getSite();
+
+        Integer lowest_site_id = Integer.MAX_VALUE, s_id;
+
+        for (Site st : CatalogUtil.getAllSites(catalog_host)) {
+            s_id = st.getId();
+            lowest_site_id = Math.min(s_id, lowest_site_id);
+        }
+
+        int m_siteId = this.getSiteId();
+        
+        if (m_siteId == lowest_site_id) {
+            LOG.warn("Taking snapshot at site "+m_siteId);
+
+            VoltTable[] results = null;
+            try {
+                File snapshotDir = this.getSnapshotDir();
+                String path = snapshotDir.getAbsolutePath();
+
+                java.util.Date date = new java.util.Date();
+                Timestamp current = new Timestamp(date.getTime());
+                String nonce = Long.toString(current.getTime());
+
+                CatalogContext cc = this.getCatalogContext();
+                String procName = VoltSystemProcedure.procCallName(SnapshotSave.class);
+                Procedure catalog_proc = cc.procedures.getIgnoreCase(procName);
+
+                ParameterSet params = new ParameterSet();
+                params.setParameters(
+                        path,  // snapshot dir
+                        nonce, // nonce - timestamp
+                        1      // block
+                        );
+
+                int base_partition = Collections.min(this.local_partitions);
+
+                RpcCallback<ClientResponseImpl> callback = new RpcCallback<ClientResponseImpl>() {
+                    @Override
+                    public void run(ClientResponseImpl parameter) {
+                        // Do nothing!
+                    }
+                };
+
+                LocalTransaction ts = this.txnInitializer.createLocalTransaction(
+                        null, 
+                        EstTime.currentTimeMillis(), 
+                        99999999, 
+                        base_partition, 
+                        catalog_proc, 
+                        params, 
+                        callback
+                        );
+
+                LOG.warn("Queuing snapshot transaction : base partition : "+base_partition+" path :"+ path + " nonce :"+ nonce);
+
+                // Queue @SnapshotSave transaction
+                this.transactionQueue(ts);
+
+            } catch (Exception ex) {
+                ex.printStackTrace();
+                LOG.fatal("SnapshotSave exception: " + ex.getMessage());
+                this.hstore_coordinator.shutdown();
+            }
+        }        
+        
+    }
+    
+    
     /**
      * Schedule all the periodic works
      */
@@ -952,8 +1106,20 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 SystemStatsCollector.asyncSampleSystemNow(true, true);
             }
         }, 0, 6, TimeUnit.MINUTES);
+        
+        // Take Snapshots
+        /* Disable for now
+        if (this.hstore_conf.site.snapshot) {
+                this.threadManager.schedulePeriodicWork(
+                        this.snapshotter,
+                        hstore_conf.site.snapshot_interval,
+                        hstore_conf.site.snapshot_interval,
+                        TimeUnit.MILLISECONDS);
+        }
+        */
+        
     }
-    
+        
     // ----------------------------------------------------------------------------
     // INTERFACE METHODS
     // ----------------------------------------------------------------------------
@@ -1328,9 +1494,14 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         this.init();
         
         // ARIES
-        if (m_ariesLog != null) {
-            doSiteRecovery();
+        if (this.hstore_conf.site.aries && this.hstore_conf.site.aries_forward_only == false) {
+            doPhysicalRecovery();
             waitForAriesLogInit();
+        }
+        
+        // LOGICAL
+        if (this.hstore_conf.site.snapshot){
+            doLogicalRecovery();
         }
         
         try {
@@ -1383,10 +1554,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      */
     public boolean isRunning() {
         return (this.ready);
-    }
-
+    }   
+        
     // ARIES
-    public void doSiteRecovery() {
+    public void doPhysicalRecovery() {
         while (!m_ariesLog.isReadyForReplay()) {
             try {
                 // don't sleep for too long as recovery numbers might get biased
@@ -1397,7 +1568,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             }
         }        
 
-        LOG.warn("ARIES : ariesLog is ready for replay at site :"+this.site_id);
+        LOG.info("ARIES : ariesLog is ready for replay at site :"+this.site_id);
 
         if (!m_ariesLog.isRecoveryCompleted()) {
             int m_siteId = this.getSiteId();
@@ -1412,7 +1583,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
 
                 int m_partitionId = pe.getPartitionId();
 
-                LOG.warn("ARIES : start recovery at partition  :"+m_partitionId+" on site :"+m_siteId);
+                LOG.info("ARIES : start recovery at partition  :"+m_partitionId+" on site :"+m_siteId);
                 
                 if (!m_ariesLog.isRecoveryCompletedForSite(m_partitionId)) {
                     ee.doAriesRecoveryPhase(m_ariesLog.getPointerToReplayLog(), m_ariesLog.getReplayLogSize(), m_ariesLog.getTxnIdToBeginReplay());
@@ -1421,7 +1592,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             }
         }
 
-        LOG.warn("ARIES : recovery completed at site :"+this.site_id);
+        LOG.info("ARIES : recovery completed at site :"+this.site_id);
     }
     
     private void waitForAriesLogInit() {
@@ -1439,6 +1610,17 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         //LOG.warn("ARIES : log is inititalized at site :"+this.site_id);
     }        
     
+    // LOGICAL
+    public void doLogicalRecovery() {        
+        LOG.warn("Logical : recovery at site with min id :" + this.site_id);
+                
+        //XXX Load snapshot using @SnapshotRestore
+        //XXX Load command log and redo all entires
+     
+        LOG.warn("Logical : recovery completed on site with min id :" + this.site_id);
+    }
+
+        
     // ----------------------------------------------------------------------------
     // SHUTDOWN STUFF
     // ----------------------------------------------------------------------------

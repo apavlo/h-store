@@ -187,8 +187,8 @@ public class YCSBLoader extends Loader {
                         loadVoltTable(YCSBConstants.TABLE_NAME, table);
                         total.addAndGet(table.getRowCount());
                         table.clearRowData();
-                        if (debug.val)
-                            LOG.debug(String.format("[%d] Records Loaded: %6d / %d",
+                        //if (debug.val)
+                            LOG.info(String.format("[%d] Records Loaded: %6d / %d",
                                       thread_id, total.get(), init_record_count));
                     }
                 }

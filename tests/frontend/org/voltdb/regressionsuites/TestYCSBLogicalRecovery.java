@@ -29,9 +29,8 @@ import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.io.UnsupportedEncodingException;
-import java.nio.file.Path;
+import java.util.Calendar;
 import java.util.Iterator;
-import java.util.Stack;
 
 import junit.framework.Test;
 
@@ -39,61 +38,52 @@ import org.voltdb.BackendTarget;
 import org.voltdb.CatalogContext;
 import org.voltdb.DefaultSnapshotDataTarget;
 import org.voltdb.VoltTable;
-import org.voltdb.VoltTable.ColumnInfo;
-import org.voltdb.VoltType;
 import org.voltdb.catalog.CatalogMap;
-import org.voltdb.catalog.Cluster;
-import org.voltdb.catalog.Database;
-import org.voltdb.catalog.Partition;
+import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
-import org.voltdb.catalog.Table;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.NoConnectionsException;
 import org.voltdb.client.ProcCallException;
-import org.voltdb.sysprocs.saverestore.SaveRestoreTestProjectBuilder;
 import org.voltdb.utils.SnapshotVerifier;
 
-import com.sun.net.httpserver.Authenticator.Success;
-
+import edu.brown.benchmark.ycsb.YCSBClient;
 import edu.brown.benchmark.ycsb.YCSBConstants;
 import edu.brown.benchmark.ycsb.YCSBLoader;
 import edu.brown.benchmark.ycsb.YCSBProjectBuilder;
-import edu.brown.benchmark.ycsb.YCSBUtil;
-import edu.brown.benchmark.ycsb.procedures.DeleteRecord;
-import edu.brown.benchmark.ycsb.procedures.InsertRecord;
 import edu.brown.benchmark.ycsb.procedures.ReadRecord;
-import edu.brown.catalog.CatalogUtil;
+import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.cmdlog.CommandLogReader;
 import edu.brown.hstore.cmdlog.CommandLogWriter;
 import edu.brown.hstore.cmdlog.LogEntry;
 
 /**
- * Test the SnapshotSave and SnapshotRestore system procedures for YCSB
+ * Test logical recovery
  */
-public class TestSnapshotRecovery extends RegressionSuite {
+public class TestYCSBLogicalRecovery extends RegressionSuite {
 
     private static final String TMPDIR = "./snapshot";
-    private static final String ARIESDIR = "./obj/aries";    
-    
+
     private static final String TESTNONCE = "testnonce";
     private static final int ALLOWEXPORT = 0;
-    
-    private static int NUM_SITES = -1;    
-    private static int NUM_PARTITIONS = -1;    
+
+    private static int NUM_SITES = -1;
+    private static int NUM_PARTITIONS = -1;
 
     // YCSB
     private static final String PREFIX = "ycsb";
-    private static final int NUM_TUPLES = 1024*64;
+    private static int NUM_TRANSACTIONS = 500;
+    private static final String projectJAR = "logical_" + PREFIX + ".jar";
 
-    public TestSnapshotRecovery(String name) {
+
+    public TestYCSBLogicalRecovery(String name) {
         super(name);
     }
 
     @Override
     public void setUp() {
-        deleteTestFiles();        
+        deleteTestFiles();
         super.setUp();
         DefaultSnapshotDataTarget.m_simulateFullDiskWritingChunk = false;
         DefaultSnapshotDataTarget.m_simulateFullDiskWritingHeader = false;
@@ -108,40 +98,8 @@ public class TestSnapshotRecovery extends RegressionSuite {
         } catch (final Exception e) {
             e.printStackTrace();
         }
-    }
+    }    
 
-    // Recursively delete all files in a dir 
-    // XXX Java 7 has direct support
-    public static void removeRecursive(File startDir) throws IOException {
-        File dir = startDir;
-        File[] currList;
-
-        Stack<File> stack = new Stack<File>();
-        stack.push(dir);
-
-        while (!stack.isEmpty()) {
-            if (stack.lastElement().isDirectory()) {
-                currList = stack.lastElement().listFiles();
-                if (currList == null) {
-                    stack.pop();
-                    continue;
-                }
-
-                if (currList.length > 0) {
-                    for (File curr : currList) {
-                        stack.push(curr);
-                    }
-                } else {
-                    System.out.println("Deleting file "+stack.lastElement().getAbsolutePath());
-                    stack.pop().delete();
-                }
-            } else {
-                System.out.println("Deleting file "+stack.lastElement().getAbsolutePath());
-                stack.pop().delete();
-            }
-        }
-    }
-   
     private void deleteTestFiles() {
         FilenameFilter cleaner = new FilenameFilter() {
             public boolean accept(File dir, String file) {
@@ -153,11 +111,11 @@ public class TestSnapshotRecovery extends RegressionSuite {
         File[] tmp_files = tmp_dir.listFiles(cleaner);
         for (File tmp_file : tmp_files) {
             tmp_file.delete();
-        }        
-          
+        }
+
     }
 
-    private static synchronized void setUpSnapshotDir(){
+    private static synchronized void setUpSnapshotDir() {
         try {
             File snapshotDir = new File(TMPDIR);
 
@@ -170,8 +128,8 @@ public class TestSnapshotRecovery extends RegressionSuite {
         } catch (Exception e) {
             e.printStackTrace();
         }
-    }    
-    
+    }
+
     private VoltTable[] saveTables(Client client) {
         VoltTable[] results = null;
         try {
@@ -194,7 +152,7 @@ public class TestSnapshotRecovery extends RegressionSuite {
             ps.flush();
             String reportString = baos.toString("UTF-8");
 
-            //System.err.println("Validate Snapshot :"+reportString);
+            // System.err.println("Validate Snapshot :"+reportString);
 
             if (expectSuccess) {
                 assertTrue(reportString.startsWith("Snapshot valid\n"));
@@ -207,105 +165,74 @@ public class TestSnapshotRecovery extends RegressionSuite {
         } finally {
             System.setOut(original);
         }
-    }    
+    }
+    
+    private void initializeYCSBDatabase(final CatalogContext catalogContext, final Client client, final int num_tuples) throws Exception {
+        String args[] = { 
+                "NOCONNECTIONS=true", 
+                "BENCHMARK.FIXED_SIZE=true", 
+                "BENCHMARK.NUM_RECORDS=" + num_tuples, 
+                "BENCHMARK.LOADTHREADS=4", };
         
-    private void initializeDatabase(final Client client, final int num_tuples) throws Exception {
-        String args[] = {
-            "NOCONNECTIONS=true",
-            "BENCHMARK.FIXED_SIZE=true",
-            "BENCHMARK.NUM_RECORDS="+num_tuples,
-            "BENCHMARK.LOADTHREADS=1",
-        };
-        final CatalogContext catalogContext = this.getCatalogContext();
         YCSBLoader loader = new YCSBLoader(args) {
             {
                 this.setCatalogContext(catalogContext);
                 this.setClientHandle(client);
             }
+
             @Override
             public CatalogContext getCatalogContext() {
                 return (catalogContext);
             }
         };
         loader.load();
-    }    
-        
-    public void testSaveAndRestoreYCSB() throws IOException, InterruptedException, ProcCallException {
-        
-        System.out.println("Starting testSaveAndRestoreYCSB");
-                
+    }
+
+    public void testYCSB() throws IOException, InterruptedException, ProcCallException {
+
+        System.out.println("Starting testYCSB - Logical Recovery");                
+
         deleteTestFiles();
         setUpSnapshotDir();
-    
+
         VoltTable results[] = null;
-        ClientResponse cresponse = null;
         Client client = this.getClient();
+        CatalogContext cc = this.getCatalogContext();       
         
-        try{
-            this.initializeDatabase(client, NUM_TUPLES);
-        }
-        catch(Exception e){
+        // Load database
+        try {
+            //initializeYCSBDatabase(cc, client, YCSBConstants.NUM_RECORDS);
+            initializeYCSBDatabase(cc, client, 10000);
+        } catch (Exception e) {
             e.printStackTrace();
-        }        
-                
-        // Read Record
+        }
         
-        long key = NUM_TUPLES / 2;
-        String procName = ReadRecord.class.getSimpleName();
-        Object params[] ;
-        params = new Object[]{ key };
+        final String MOCK_ARGS[] = { "HOST=localhost", "NUMCLIENTS=1",
+                // XXX HACK to find catalog jar
+                "CATALOG=" + "./obj/release/testobjects/" + projectJAR, "" };
+
+        MOCK_ARGS[MOCK_ARGS.length - 1] = HStoreConstants.BENCHMARK_PARAM_PREFIX;
+
+        YCSBClient yscbClient = new YCSBClient(MOCK_ARGS);
+
+        // Run transactions
+        long k_itr = 0;
+        long numTransactions = NUM_TRANSACTIONS;
+        long period = numTransactions / 10;
+
+        for (k_itr = 0; k_itr < numTransactions; k_itr++) {
+            boolean response = yscbClient.runOnce();
+            assertEquals(response, true);
+
+            if (k_itr % period == 0)
+                System.out.println(String.format("Transactions Processed: %6d / %d", k_itr, numTransactions));
+        }
         
-        cresponse = client.callProcedure(procName, params);
-        assertNotNull(cresponse);
-        assertEquals(Status.OK, cresponse.getStatus());
-        assertEquals(1, cresponse.getResults().length);
-        
-        VoltTable vt = cresponse.getResults()[0];
-        boolean adv = vt.advanceRow();
-        assert(adv);
-        assertEquals(key, vt.getLong(0));
-        
+        // Statistics         
         results = client.callProcedure("@Statistics", "table", 0).getResults();
         System.out.println(results[0]);
-        
-        // Delete, then Insert these many tuples back
-        int numTestTuples = 2;
-        
-        for (long k_itr = 0; k_itr < numTestTuples; k_itr++) {
-            procName = DeleteRecord.class.getSimpleName();
-            key = k_itr;
-            params =  new Object[]{ key };
-            
-            cresponse = client.callProcedure(procName, params);
-            assertEquals(Status.OK, cresponse.getStatus());
-            results = cresponse.getResults();
 
-            assertEquals(1, results.length);
-            assertNotNull(cresponse);
-        }
-
-        System.out.println("Delete Record Test Passed");
-
-        for (long k_itr = 0; k_itr < numTestTuples; k_itr++) {
-            procName = InsertRecord.class.getSimpleName();
-            key = k_itr;
-            String fields[] = new String[YCSBConstants.NUM_COLUMNS];
-            for (int i = 0; i < fields.length; i++) {
-                fields[i] = YCSBUtil.astring(YCSBConstants.COLUMN_LENGTH, YCSBConstants.COLUMN_LENGTH);
-            } // FOR
-            params = new Object[]{ key, fields };
-                        
-            cresponse = client.callProcedure(procName, params);
-            assertEquals(Status.OK, cresponse.getStatus());
-            results = cresponse.getResults();
-
-            assertEquals(1, results.length);
-            assertNotNull(cresponse);
-        }
-
-        System.out.println("Insert Record Test Passed");
-
-        // Snapshot
+        // Take Snapshot
         results = null;
         results = saveTables(client);
 
@@ -314,8 +241,8 @@ public class TestSnapshotRecovery extends RegressionSuite {
         VoltTable[] results_tmp = null;
         results_tmp = client.callProcedure("@Statistics", "table", 0).getResults();
 
-        System.out.println("@Statistics after saveTables :");
-        System.out.println(results_tmp[0]);      
+        System.out.println("@Statistics before restart :");
+        System.out.println(results_tmp[0]);
 
         
         // Kill and restart all the execution sites.
@@ -323,13 +250,17 @@ public class TestSnapshotRecovery extends RegressionSuite {
         m_config.startUp();
         client = getClient();
 
+        Calendar calendar;
+        long t1,t2;
+
+        calendar = Calendar.getInstance();                    
+        t1 = calendar.getTimeInMillis();
+        
         // LOGICAL : SNAPSHOT + CMD LOG
-        /*
-        try {            
+        try {
             results = client.callProcedure("@SnapshotRestore", TMPDIR, TESTNONCE, ALLOWEXPORT).getResults();
 
             System.out.println(results[0]);
-            
             while (results[0].advanceRow()) {
                 if (results[0].getString("RESULT").equals("FAILURE")) {
                     fail(results[0].getString("ERR_MSG"));
@@ -338,121 +269,176 @@ public class TestSnapshotRecovery extends RegressionSuite {
         } catch (Exception ex) {
             ex.printStackTrace();
             fail("SnapshotRestore exception: " + ex.getMessage());
-        }
-
-        System.out.println("@Statistics after restore:");
+        }        
+        
+        validateSnapshot(true);
+        
+        System.out.println("@Statistics after LOGICAL snapshot restore:");
         results = client.callProcedure("@Statistics", "table", 0).getResults();
         System.out.println(results[0]);
-               
-        validateSnapshot(true);        
-
-        parseAndApplyCommandLog();
-        */
+                
+        File logDir = new File("./obj" + File.separator + "cmdlog");                               
         
-        results_tmp = null;
-        results_tmp = client.callProcedure("@Statistics", "table", 0).getResults();
+        // Parse WAL logs for all sites
+        CatalogMap<Site> sites = cc.sites;
 
-        System.out.println("@Statistics after PHYSICAL restore :");
-        System.out.println(results_tmp[0]);      
+        for(Site site : sites){
+            String siteName = site.getName().toLowerCase();
+            siteName = "h0" + siteName;            
+            System.err.println("Site Prefix : "+siteName);
+            
+            parseAndApplyCommandLog(logDir, siteName);            
+        }
+
+        calendar = Calendar.getInstance();                    
+        t2 = calendar.getTimeInMillis();
+
+        System.err.println("Recovery Latency :" + (t2-t1)+ " ms"); 
         
-        //checkYCSBTable(client, NUM_TUPLES);              
-
+        // checkYCSBTable(client, NUM_TUPLES);
     }
     
-    void parseAndApplyCommandLog() throws NoConnectionsException, IOException, ProcCallException{
-        File outputFile = new File("./obj"+File.separator+
-                "cmdlog" +
-                File.separator +
-                "h00" +
-                CommandLogWriter.LOG_OUTPUT_EXT);
+    // COMMAND LOG        
+    File scanForLatestLogFile(File logDir, String prefix){
+        System.err.println("Scanning logDir :" + logDir.getAbsolutePath());           
+
+        final String logPrefix = prefix;
+        FilenameFilter cleaner = new FilenameFilter() {
+            public boolean accept(File dir, String file) {
+                return  file.startsWith(logPrefix) && file.endsWith(CommandLogWriter.LOG_OUTPUT_EXT);
+            }
+        };
+
+        File[] logFiles = logDir.listFiles(cleaner);
+        File latestFile = null, prevFile = null;        
+        long maxTimeStamp = Long.MIN_VALUE;
         
-        System.err.println("parseCommandLog :"+outputFile);        
+        for (File logFile : logFiles) {
+            String name = logFile.getName();
+            String delims = "_|\\.";
+            String[] tokens = name.split(delims);
+
+            //System.err.println("Tokens :"+Arrays.toString(tokens));
+
+            if(tokens.length <= 1)
+                continue;
+            
+            long fileTimestamp = Long.parseLong(tokens[1]) ;
+            if(fileTimestamp > maxTimeStamp){
+                maxTimeStamp = fileTimestamp;
+                prevFile = latestFile;
+                latestFile = logFile;         
+            }
+        }       
+
+        if(prevFile != null){
+            System.err.println("Using logfile :" + prevFile.getAbsolutePath());           
+        }
+
+        if(latestFile != null){
+            System.err.println("Found latest logfile :" + latestFile.getAbsolutePath());           
+        }
         
+        return prevFile;
+    }
+    
+    void parseAndApplyCommandLog(File logDir, String hostPrefix) throws NoConnectionsException, IOException, ProcCallException {
+
+        if(logDir == null){
+            System.err.println("logDir null ");           
+            return;
+        }
+
+        File latestFile = scanForLatestLogFile(logDir, hostPrefix);
+        
+        if(latestFile == null){
+            System.err.println("Command log not found :" + logDir.getAbsolutePath());           
+            return;
+        }
+        
+        System.out.println("parseCommandLog :" + latestFile.getAbsolutePath());
+
         // Now read in the file back in and check to see that we have two
         // entries that have our expected information
         CommandLogReader reader = null;
 
-        try{
-            reader = new CommandLogReader(outputFile.getAbsolutePath());
+        try {
+            reader = new CommandLogReader(latestFile.getAbsolutePath());
+        } catch (Exception e) {
+            System.err.println("Command log not found :" + latestFile.getAbsolutePath());
+            return;
         }
-        catch(Exception e){
-            e.printStackTrace();
-        }
-        
+
         int ctr = 0;
         Iterator<LogEntry> log_itr = reader.iterator();
         ClientResponse cresponse = null;
         Client client = this.getClient();
         CatalogContext cc = this.getCatalogContext();
         VoltTable results[] = null;
-        
-        while(log_itr.hasNext()) {
+
+        while (log_itr.hasNext()) {
             LogEntry entry = log_itr.next();
 
-            assertNotNull(entry);
-            System.err.println("REDO :: TXN ID :" + entry.getTransactionId().longValue());
-            System.err.println("REDO :: PROC ID :" + entry.getProcedureId());
+            assert(entry != null);
+            //System.err.println("REDO :: TXN ID :" + entry.getTransactionId().longValue());
+            //System.err.println("REDO :: PROC ID :" + entry.getProcedureId());
 
             Object[] entryParams = entry.getProcedureParams().toArray();
-            for (Object obj : entryParams) {
-                System.err.println(obj);
+        
+            String procName = cc.getProcedureById(entry.getProcedureId()).fullName();
+            Procedure catalog_proc = cc.procedures.getIgnoreCase(procName);
+
+            if(catalog_proc.getReadonly() == false){
+                // System.out.println("Invoking procedure ::" + procName);
+
+                cresponse = client.callProcedure(procName, entryParams);
+                assertEquals(cresponse.getStatus(), Status.OK);
+                
+                // results = cresponse.getResults();
+                // assertEquals(results.length, 1);
             }
 
-            String procName = cc.getProcedureById(entry.getProcedureId()).fullName();
-            System.out.println("Invoking procedure ::" + procName);
-
-            cresponse = client.callProcedure(procName, entry.getProcedureParams().toArray());
-            assertEquals(Status.OK, cresponse.getStatus());
-            results = cresponse.getResults();
-
-            assertEquals(1, results.length);
-            // assertEquals(NUM_TUPLES, results[0].asScalarLong());
-            // System.out.println("Results for procedure ::" + procName + " " +
-            // results[0]);
-            
             ctr++;
         }
-        
-        System.err.println("WAL LOG entries :"+ctr);                   
+
+        System.out.println("################################# WAL LOG entries :" + ctr);
     }
-    
-    
+
+
     private void checkYCSBTable(Client client, int numTuples) {
         long key_itr, key;
         String procName;
         ClientResponse cresponse = null;
         VoltTable vt = null;
         boolean adv = true;
-        
-        for(key_itr = 0 ; key_itr < numTuples ; key_itr++){
+
+        for (key_itr = 0; key_itr < numTuples; key_itr++) {
             procName = ReadRecord.class.getSimpleName();
             Object params[] = { key_itr };
-            
-            try{
+
+            try {
                 cresponse = client.callProcedure(procName, params);
-            }
-            catch(Exception e){
+            } catch (Exception e) {
                 e.printStackTrace();
             }
-                
+
             assertNotNull(cresponse);
             assertEquals(Status.OK, cresponse.getStatus());
             assertEquals(1, cresponse.getResults().length);
-            
+
             vt = cresponse.getResults()[0];
             adv = vt.advanceRow();
-            if(adv == false)
-                System.err.println("key :"+key_itr+" no result");
+            if (adv == false)
+                System.err.println("key :" + key_itr + " no result");
             else
-                System.err.println("key :"+key_itr+" result:"+vt.getLong(0));
+                System.err.println("key :" + key_itr + " result:" + vt.getLong(0));
 
-            //assert(adv);
-            //assertEquals(key_itr, vt.getLong(0));            
-        }                               
-        
+            // assert(adv);
+            // assertEquals(key_itr, vt.getLong(0));
+        }
+
         System.out.println("checkYCSBTable Passed");
-    }    
-    
+    }
 
     /**
      * Build a list of the tests to be run. Use the regression suite helpers to
@@ -460,51 +446,42 @@ public class TestSnapshotRecovery extends RegressionSuite {
      * helper classes.
      */
     static public Test suite() {
-        MultiConfigSuiteBuilder builder = new MultiConfigSuiteBuilder(TestSnapshotRecovery.class);
-        builder.setGlobalConfParameter("site.commandlog_enable", false);
+        MultiConfigSuiteBuilder builder = new MultiConfigSuiteBuilder(TestYCSBLogicalRecovery.class);
+
+        // COMMAND LOG
+        builder.setGlobalConfParameter("site.commandlog_enable", true);
         builder.setGlobalConfParameter("site.commandlog_timeout", 10);
-        builder.setGlobalConfParameter("site.status_enable", true);
-        builder.setGlobalConfParameter("site.status_exec_info", true);
-        
-        // PHYSICAL
-        builder.setGlobalConfParameter("site.aries", true);        
-                   
+        builder.setGlobalConfParameter("site.anticache_enable", false);     
+
+        builder.setGlobalConfParameter("site.snapshot", true);
+
         YCSBProjectBuilder project = new YCSBProjectBuilder();
 
         project.addAllDefaults();
 
-        VoltServerConfig m_config = null;        
+        VoltServerConfig m_config = null;
         boolean success = false;
 
         setUpSnapshotDir();
-        // ARIES
-        File aries_dir = new File(ARIESDIR);
-        try {
-            removeRecursive(aries_dir);
-        } catch (IOException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        }
-
-        /*
+        
         // CONFIG #1: 2 Local Site with 4 Partitions running on JNI backend
         NUM_SITES = 2;
         NUM_PARTITIONS = 2;
-        m_config = new LocalCluster("snapshot-"+PREFIX+"-"+NUM_SITES+"-site-"+NUM_PARTITIONS+"-partition.jar", NUM_SITES, NUM_PARTITIONS, 1, BackendTarget.NATIVE_EE_JNI);
+        m_config = new LocalCluster(projectJAR, NUM_SITES, NUM_PARTITIONS, 1, BackendTarget.NATIVE_EE_JNI);
         success = m_config.compile(project);
         assert (success);
         builder.addServerConfig(m_config);
-        */
+                   
         
-        
-        // CONFIG #2: 1 Local Site with 1 Partitions running on JNI backend
+        // CONFIG #2: 1 Local Site with 1 Partitions running on JNI backend  
+        /*
         NUM_SITES = 1;
-        NUM_PARTITIONS = 1;        
-        m_config = new LocalSingleProcessServer("snapshot-"+PREFIX+"-"+NUM_SITES+"-site-"+NUM_PARTITIONS+"-partition.jar", NUM_PARTITIONS, BackendTarget.NATIVE_EE_JNI);
+        NUM_PARTITIONS = 1;
+        m_config = new LocalSingleProcessServer(projectJAR, NUM_PARTITIONS, BackendTarget.NATIVE_EE_JNI);
         success = m_config.compile(project);
         assert (success);
-        builder.addServerConfig(m_config);
-        
+        builder.addServerConfig(m_config);     
+        */
         
         return builder;
     }

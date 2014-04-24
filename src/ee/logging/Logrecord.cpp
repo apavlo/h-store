@@ -104,10 +104,10 @@ LogRecord::LogRecord(double timestamp, Logrec_type_t type, Logrec_category_t cat
 
 	schema = initSchema();
 
+	// XXX HACKY
 	// This is not arbitrary, rather its based on all the
-	// fields in the log record header (they add up to
-	// about 50)
-	size_t recordDataLen = 50;
+	// fields in the log record header
+	size_t recordDataLen = 80;
 
 	recordDataLen += tableName.capacity();
 
@@ -311,7 +311,7 @@ TableTuple* LogRecord::initRecordTuple() {
 	}
 
 	//debug
-	VOLT_WARN("Logrecord : %s", recordTuple->debugNoHeader().c_str());
+	VOLT_DEBUG("Logrecord : %s", recordTuple->debugNoHeader().c_str());
 
 	return recordTuple;
 }

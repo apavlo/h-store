@@ -21,8 +21,6 @@
 
 package org.voltdb.catalog;
 
-import org.voltdb.sysprocs.saverestore.SnapshotUtil;
-
 /**
  * A single host participating in the cluster
  */
@@ -37,9 +35,6 @@ public class Host extends CatalogType {
 
     void setBaseValues(Catalog catalog, CatalogType parent, String path, String name) {
         super.setBaseValues(catalog, parent, path, name);
-	
-	    // remove chars - for consumers of HostId that need it be a strictly digits only
-  	    m_typename = m_typename.replaceAll("[\\D]", ""); 
         
         m_fields.put("id", m_id);
         m_fields.put("ipaddr", m_ipaddr);

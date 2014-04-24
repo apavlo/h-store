@@ -90,7 +90,7 @@ public class SnapshotScan extends VoltSystemProcedure {
                 final String path = (String) params.toArray()[0];
                 List<File> relevantFiles = retrieveRelevantFiles(path);
                 if (relevantFiles == null) {
-                    results.addRow(Integer.parseInt(context.getSite().getHost().getTypeName()), hostname, "", "", 0, "", "FALSE", 0, "", "", 0, "", "FAILURE", errorString);
+                    results.addRow(Integer.parseInt(context.getSite().getHost().getTypeName().replaceAll("[\\D]", "")), hostname, "", "", 0, "", "FALSE", 0, "", "", 0, "", "FAILURE", errorString);
                 } else {
                     for (final File f : relevantFiles) {
                         if (f.getName().endsWith(".digest")) {
@@ -111,7 +111,7 @@ public class SnapshotScan extends VoltSystemProcedure {
                                         partitions = partitions.substring(1);
                                     }
 
-                                    results.addRow(Integer.parseInt(context.getSite().getHost().getTypeName()), hostname, f.getParent(), f.getName(), savefile.getCreateTime(),
+                                    results.addRow(Integer.parseInt(context.getSite().getHost().getTypeName().replaceAll("[\\D]", "")), hostname, f.getParent(), f.getName(), savefile.getCreateTime(),
                                             savefile.getTableName(), savefile.getCompleted() ? "TRUE" : "FALSE", f.length(), savefile.isReplicated() ? "TRUE" : "FALSE", partitions,
                                             savefile.getTotalPartitions(), f.canRead() ? "TRUE" : "FALSE", "SUCCESS", "");
                                 } catch (IOException e) {
@@ -123,7 +123,7 @@ public class SnapshotScan extends VoltSystemProcedure {
                                 LOG.warn(e);
                             }
                         } else {
-                            results.addRow(Integer.parseInt(context.getSite().getHost().getTypeName()), hostname, f.getParent(), f.getName(), f.lastModified(), "", "FALSE", f.length(), "FALSE", "",
+                            results.addRow(Integer.parseInt(context.getSite().getHost().getTypeName().replaceAll("[\\D]", "")), hostname, f.getParent(), f.getName(), f.lastModified(), "", "FALSE", f.length(), "FALSE", "",
                                     -1, f.canRead() ? "TRUE" : "FALSE", "SUCCESS", "");
                         }
                     }
@@ -156,7 +156,7 @@ public class SnapshotScan extends VoltSystemProcedure {
                 final String path = (String) params.toArray()[0];
                 List<File> relevantFiles = retrieveRelevantFiles(path);
                 if (relevantFiles == null) {
-                    results.addRow(Integer.parseInt(context.getSite().getHost().getTypeName()), "", "", "", "FAILURE", errorString);
+                    results.addRow(Integer.parseInt(context.getSite().getHost().getTypeName().replaceAll("[\\D]", "")), "", "", "", "FAILURE", errorString);
                 } else {
                     for (final File f : relevantFiles) {
                         if (f.getName().endsWith(".vpt")) {
@@ -172,7 +172,7 @@ public class SnapshotScan extends VoltSystemProcedure {
                                         sw.append(',');
                                     }
                                 }
-                                results.addRow(Integer.parseInt(context.getSite().getHost().getTypeName()), path, f.getName(), sw.toString(), "SUCCESS", "");
+                                results.addRow(Integer.parseInt(context.getSite().getHost().getTypeName().replaceAll("[\\D]", "")), path, f.getName(), sw.toString(), "SUCCESS", "");
                             } catch (Exception e) {
                                 LOG.warn(e);
                             }
@@ -211,9 +211,9 @@ public class SnapshotScan extends VoltSystemProcedure {
                     final long free = dir.getUsableSpace();
                     final long total = dir.getTotalSpace();
                     final long used = total - free;
-                    results.addRow(Integer.parseInt(context.getSite().getHost().getTypeName()), hostname, path, total, free, used, "SUCCESS", "");
+                    results.addRow(Integer.parseInt(context.getSite().getHost().getTypeName().replaceAll("[\\D]", "")), hostname, path, total, free, used, "SUCCESS", "");
                 } else {
-                    results.addRow(Integer.parseInt(context.getSite().getHost().getTypeName()), hostname, path, 0, 0, 0, "FAILURE", "Path is not a directory");
+                    results.addRow(Integer.parseInt(context.getSite().getHost().getTypeName().replaceAll("[\\D]", "")), hostname, path, 0, 0, 0, "FAILURE", "Path is not a directory");
                 }
             }
             return new DependencySet(DEP_hostDiskFreeScan, results);
