@@ -104,7 +104,7 @@ public class Vote extends VoltProcedure {
     */
  // Clear the staging window
     public final SQLStmt deleteStagingStmt = new SQLStmt(
-		"DELETE FROM w_staging WHERE ts < ?;"
+		"DELETE FROM w_staging;"
     );
     
  // Put the vote into the staging window
@@ -118,7 +118,8 @@ public class Vote extends VoltProcedure {
         voltQueueSQL(checkContestantStmt, contestantNumber);
         voltQueueSQL(checkVoterWinTimeHStoreStmt, phoneNumber);
         voltQueueSQL(checkStateStmt, (short)(phoneNumber / 10000000l));
-        voltQueueSQL(checkStagingTimestamp);
+        //voltQueueSQL(checkStagingTimestamp);
+        voltQueueSQL(checkWindowTimestamp);
         VoltTable validation[] = voltExecuteSQL();
 		
         if (validation[0].getRowCount() == 0) {
@@ -136,16 +137,16 @@ public class Vote extends VoltProcedure {
         // but are tracked as legitimate instead of invalid, as old clients would mostly get
         // it wrong and see all their transactions rejected).
         final String state = (validation[2].getRowCount() > 0) ? validation[2].fetchRow(0).getString(0) : "XX";
-		 		
+		 
+        //long maxStageTimestamp = validation[3].fetchRow(0).getLong(0);
+        long maxStageTimestamp = currentTimestamp;
+        long minWinTimestamp = (validation[3].getRowCount() > 0) ? validation[3].fetchRow(0).getLong(0) : 0 ;
         // Post the vote
         //TimestampType timestamp = new TimestampType();
-        voltQueueSQL(insertVoteStmt, voteId, phoneNumber, state, contestantNumber, currentTimestamp);
-        voltQueueSQL(insertVoteStagingStmt, voteId, phoneNumber, state, contestantNumber, currentTimestamp);
-        voltQueueSQL(checkWindowTimestamp);
-        validation = voltExecuteSQL();
         
-        long minWinTimestamp = validation[3].fetchRow(0).getLong(0);
-        long maxStageTimestamp = validation[2].fetchRow(0).getLong(0);
+        //validation = voltExecuteSQL();
+        
+        
         
         if(maxStageTimestamp - minWinTimestamp >= VoterWinTimeHStoreConstants.WIN_SIZE + VoterWinTimeHStoreConstants.STAGE_SIZE)
         {
@@ -158,12 +159,15 @@ public class Vote extends VoltProcedure {
         	//validation = voltExecuteSQL();
         	voltQueueSQL(deleteCutoffVoteStmt, maxStageTimestamp - VoterWinTimeHStoreConstants.WIN_SIZE);
         	voltQueueSQL(insertVoteWindowStmt);
-        	voltQueueSQL(deleteMostRecentVote, maxStageTimestamp);
+        	//voltQueueSQL(deleteMostRecentVote, maxStageTimestamp);
     		//voltQueueSQL(deleteLeaderBoardStmt);
     		//voltQueueSQL(updateLeaderBoardStmt);
-    		voltQueueSQL(deleteStagingStmt, maxStageTimestamp);
-    		voltExecuteSQL(true);
+    		voltQueueSQL(deleteStagingStmt);
+    		//voltExecuteSQL(true);
         }
+        voltQueueSQL(insertVoteStmt, voteId, phoneNumber, state, contestantNumber, currentTimestamp);
+        voltQueueSQL(insertVoteStagingStmt, voteId, phoneNumber, state, contestantNumber, currentTimestamp);
+        voltExecuteSQL(true);
         
         // Set the return value to 0: successful vote
         return VoterWinTimeHStoreConstants.VOTE_SUCCESSFUL;
