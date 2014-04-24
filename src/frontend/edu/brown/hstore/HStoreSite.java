@@ -2417,10 +2417,10 @@ LOG.info("transaction restarted!!!!");
             LOG.info(String.format("error has partition id %d", error.getPartitionId()));
             
             if(orig_ts.getBasePartition()!=error.getPartitionId() && !this.isLocalPartition(error.getPartitionId())){
-            	this.anticacheManager.queue(orig_ts, error.getPartitionId(), evicted_table, block_ids, tuple_offsets);
-            }else{
-            	this.anticacheManager.queue(new_ts, error.getPartitionId(), evicted_table, block_ids, tuple_offsets);
+            	new_ts.setOldTransactionId(orig_ts.getTransactionId());
             }
+            this.anticacheManager.queue(new_ts, error.getPartitionId(), evicted_table, block_ids, tuple_offsets);
+            
             
         }
             

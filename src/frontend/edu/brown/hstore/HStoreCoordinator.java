@@ -266,15 +266,15 @@ public class HStoreCoordinator implements Shutdownable {
                               response.getStatus()));
                 long oldTxnId = response.getTransactionId();
                 int partition = response.getPartitionId();
+
+
                 LocalTransaction ts = hstore_site.getTransaction(oldTxnId);
-		System.out.println(ts+"***************");
+                
                 assert(response.getSenderSite() != local_site_id);
                 hstore_site.getTransactionInitializer().resetTransactionId(ts, ts.getBasePartition());
-
             	LOG.info("restartin on local");
-            	hstore_site.transactionInit(ts);
-            	//LocalInitQueueCallback initCallback = (LocalInitQueueCallback)ts.getInitCallback();
-                //hstore_site.getCoordinator().transactionInit(ts, initCallback);
+            	LocalInitQueueCallback initCallback = (LocalInitQueueCallback)ts.getInitCallback();
+                hstore_site.getCoordinator().transactionInit(ts, initCallback);
             }
         }
     };
@@ -843,6 +843,9 @@ public class HStoreCoordinator implements Shutdownable {
 			System.out.println(request.getTransactionId());
 			assert(ts!=null);
 			ts.setUnevictCallback(done);
+			
+			
+			ts.setNewTransactionId(request.getNewTransactionId());
 			int partition = request.getPartitionId();
 			Table catalog_tbl = hstore_site.getCatalogContext().getTableById(request.getTableId());
 			short[] block_ids = new short[request.getBlockIdsList().size()];
@@ -1349,7 +1352,8 @@ public class HStoreCoordinator implements Shutdownable {
     public void sendUnevictDataMessage(int remote_site_id, LocalTransaction txn, int partition_id, Table catalog_tbl, short[] block_ids, int[] tuple_offsets) {
     	 Builder builder = UnevictDataRequest.newBuilder()
                                     .setSenderSite(this.local_site_id)
-                                    .setTransactionId(txn.getTransactionId())
+                                    .setTransactionId(txn.getOldTransactionId())
+                                    .setNewTransactionId(txn.getTransactionId())
                                     .setPartitionId(partition_id)
                                     .setTableId(catalog_tbl.getRelativeIndex());
                           

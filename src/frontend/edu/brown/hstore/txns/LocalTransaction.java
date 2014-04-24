@@ -186,6 +186,7 @@ public class LocalTransaction extends AbstractTransaction {
      * each query in this transaction.
      */
     private final Histogram<Statement> exec_stmtCounters = new ObjectHistogram<Statement>();
+	private Long old_transaction_id;
     
     // ----------------------------------------------------------------------------
     // INITIALIZATION
@@ -948,5 +949,13 @@ public class LocalTransaction extends AbstractTransaction {
         
         return (sb.toString());
     }
+
+	public void setOldTransactionId(Long transactionId) {
+		this.old_transaction_id = transactionId;
+	}
+	
+	public Long getOldTransactionId(){
+		return this.old_transaction_id;
+	}
     
 }

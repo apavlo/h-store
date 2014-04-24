@@ -339,7 +339,6 @@ public abstract class PartitionCountingCallback<X extends AbstractTransaction> i
                     // FIXME
                 }
             } else {
-LOG.info("deleted here!!!!");
                 this.hstore_site.queueDeleteTransaction(this.ts.getTransactionId(), status); 
             }
             this.abortFinished = true;

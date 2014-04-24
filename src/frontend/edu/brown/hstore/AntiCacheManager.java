@@ -334,11 +334,12 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         	LOG.info("restartin on local");
         	this.hstore_site.transactionInit(next.ts);	
         }else{
+        	ee.antiCacheMergeBlocks(next.catalog_tbl);
         	RemoteTransaction ts = (RemoteTransaction) next.ts; 
         	RpcCallback<UnevictDataResponse> callback = ts.getUnevictCallback();
         	UnevictDataResponse.Builder builder = UnevictDataResponse.newBuilder()
         		.setSenderSite(this.hstore_site.getSiteId())
-        		.setTransactionId(oldTxnId)
+        		.setTransactionId(ts.getNewTransactionId())
         		.setPartitionId(next.partition)
         		.setStatus(Status.OK);
         	callback.run(builder.build());        	

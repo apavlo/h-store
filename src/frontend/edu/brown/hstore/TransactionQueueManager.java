@@ -240,7 +240,6 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
                     LOG.trace(String.format("%s - Got return result %s after restarting", ts, ret));
                 
                 ts.unmarkNeedsRestart();
-LOG.info("deleted here!!!!");
                 hstore_site.queueDeleteTransaction(ts.getTransactionId(), status);
             } // WHILE
         }
@@ -374,7 +373,6 @@ LOG.info("deleted here!!!!");
             if (localTxn.profiler != null) localTxn.profiler.startInitQueue();
         }
         this.initQueue.add(ts);
-LOG.info("put in our txn queue");   
  }
     
     /**
@@ -727,7 +725,6 @@ LOG.info("put in our txn queue");
                 LOG.debug(String.format("%s - Unable to add txn to restart queue. Rejecting...", ts));
             this.hstore_site.transactionReject(ts, Status.ABORT_REJECT);
             ts.unmarkNeedsRestart();
-LOG.info("deleted here!!!!");
             this.hstore_site.queueDeleteTransaction(ts.getTransactionId(), Status.ABORT_REJECT);
             return;
         }
@@ -753,7 +750,6 @@ LOG.info("deleted here!!!!");
                 LOG.trace(String.format("%s - Got return result %s after restarting", ts, ret));
             
             ts.unmarkNeedsRestart();
-LOG.info("deleted here!!!!");
             this.hstore_site.queueDeleteTransaction(ts.getTransactionId(), status);
             if (limit-- == 0) break;
         } // WHILE

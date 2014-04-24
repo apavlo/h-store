@@ -471,6 +471,7 @@ message UnevictDataRequest {
     required int32 table_id = 4;
     repeated int32 block_ids = 5 [packed=true];
     repeated int32 tuple_offsets = 6 [packed=true];
+    required int64 new_transaction_id = 7;
 }
 
 message UnevictDataResponse {
