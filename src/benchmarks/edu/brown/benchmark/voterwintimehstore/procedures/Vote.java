@@ -91,7 +91,7 @@ public class Vote extends VoltProcedure {
     public final SQLStmt deleteMostRecentVote = new SQLStmt(
 		"DELETE FROM w_rows WHERE ts = ?;"
     );
-    
+    /**
  // Pull aggregate from window
     public final SQLStmt deleteLeaderBoardStmt = new SQLStmt(
 		"DELETE FROM leaderboard;"
@@ -101,7 +101,7 @@ public class Vote extends VoltProcedure {
     public final SQLStmt updateLeaderBoardStmt = new SQLStmt(
 		"INSERT INTO leaderboard (contestant_number, numvotes) SELECT contestant_number, count(*) FROM w_rows GROUP BY contestant_number;"
     );
-    
+    */
  // Clear the staging window
     public final SQLStmt deleteStagingStmt = new SQLStmt(
 		"DELETE FROM w_staging WHERE ts < ?;"

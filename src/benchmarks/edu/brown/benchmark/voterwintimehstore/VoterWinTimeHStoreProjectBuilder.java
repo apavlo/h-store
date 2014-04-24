@@ -60,8 +60,8 @@ public class VoterWinTimeHStoreProjectBuilder extends AbstractProjectBuilder {
     public static final String PARTITIONING[][] = new String[][] {
         { "votes", "phone_number" },
         { "w_staging", "phone_number" },
-        { "w_rows", "phone_number" },
-        { "leaderboard", "contestant_number"}
+        { "w_rows", "phone_number" }//,
+        //{ "leaderboard", "contestant_number"}
     };
 
     public VoterWinTimeHStoreProjectBuilder() {
