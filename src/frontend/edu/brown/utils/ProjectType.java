@@ -87,6 +87,7 @@ public enum ProjectType {
     VOTERWINTIMEHSTORE("VoterWinTimeHStore", "edu.brown.benchmark.voterwintimehstore"),
     VOTERWINTIMEHSTOREANOTHER("VoterWinTimeHStoreAnother", "edu.brown.benchmark.voterwintimehstoreanother"),
     VOTERWINTIMESSTORE("VoterWinTimeSStore", "edu.brown.benchmark.voterwintimesstore"),
+    VOTERWINTIMESSTOREFULLSTREAM("VoterWinTimeSStoreFullStream", "edu.brown.benchmark.voterwintimesstorefullstream"),
     SIMPLESTREAMTRIGGER("SimpleStreamTrigger", "edu.brown.benchmark.simplestreamtrigger"),
     SIMPLENOOP("SimpleNoOp", "edu.brown.benchmark.simplenoop"),
     SIMPLESTATEMENT("SimpleStatement", "edu.brown.benchmark.simplestatement"),
