@@ -118,7 +118,10 @@ public class MEETradingFloor {
             sut.TradeResult(  txnInput );
             inputs.add(txnInput.trade_id);
         }
-       
+       System.out.println("INPUTS!:");
+       for(int i = 0; i < inputs.size(); i++){
+           System.out.println("ID " + inputs.get(i));
+       }
        // System.out.println("Got to here");
     
         TickerEntry.symbol = new String( tradeReq.symbol);
