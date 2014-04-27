@@ -31,6 +31,9 @@ import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
 
+import java.util.HashSet;
+import java.util.Iterator;
+
 @ProcInfo (
 singlePartition = false
 )
@@ -91,6 +94,7 @@ public class Initialize extends VoltProcedure
     public long run(int maxContestants, String contestants) {
         
         String[] contestantArray = contestants.split(",");
+        HashSet<Short> knownCodes = new HashSet<Short>();
         
         voltQueueSQL(checkStmt);
         long existingContestantCount = voltExecuteSQL()[0].asScalarLong();
@@ -106,8 +110,18 @@ public class Initialize extends VoltProcedure
         }
         
         for (int i=0; i < areaCodes.length; i++) {
+        	knownCodes.add(areaCodes[i]);
             voltQueueSQL(insertACSStmt, areaCodes[i], states[i]);
             voltExecuteSQL();
+        }
+        
+        for(short i=100; i<1000; i++)
+        {
+        	if(!knownCodes.contains(i))
+        	{
+        		voltQueueSQL(insertACSStmt, i, "XX");
+        		voltExecuteSQL();
+        	}
         }
         
         return maxContestants;

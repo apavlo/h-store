@@ -31,6 +31,7 @@ package edu.brown.benchmark.voterwintimesstorefullstream.procedures;
 
 import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
+import org.voltdb.StmtInfo;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 //import org.voltdb.types.TimestampType;
@@ -43,21 +44,47 @@ import edu.brown.benchmark.voterwintimesstorefullstream.VoterWinTimeSStoreFullSt
 )
 public class Vote extends VoltProcedure {
 	
+	public final SQLStmt stagedVoteStmt = 
+	    	new SQLStmt("INSERT INTO staged_votes_by_phone_number (phone_number, num_votes) VALUES (?, 0);");
+	/**
+	@StmtInfo(
+            upsertable=true
+        )
+	public final SQLStmt updateStagedVoteStmt = 
+	    	new SQLStmt("INSERT INTO staged_votes_by_phone_number (phone_number, num_votes) SELECT v_votes_by_phone_number.phone_number, v_votes_by_phone_number.num_votes FROM v_votes_by_phone_number, staged_votes_by_phone_number WHERE v_votes_by_phone_number.phone_number=staged_votes_by_phone_number.phone_number;");
+	
+	public final SQLStmt deleteStagedVoteStmt = 
+	    	new SQLStmt("DELETE FROM staged_votes_by_phone_number;");
+	*/
+	
     // Records a vote
     public final SQLStmt insertVoteStmt = new SQLStmt(
-		"INSERT INTO votes_stream (vote_id, phone_number, area_code, state, contestant_number, time) VALUES (?, ?, ?, ?, ?, ?);"
+		"INSERT INTO votes_stream (vote_id, phone_number, area_code, contestant_number, time) VALUES (?, ?, ?, ?, ?);"
     );
     
-    public final SQLStmt insertVoteTestingStmt = new SQLStmt(
-		"INSERT INTO votes (vote_id, phone_number, state, contestant_number, time) VALUES (?, ?, ?, ?, ?);"
+    public final SQLStmt insertS1Stmt = new SQLStmt(
+		"INSERT INTO S1 (vote_id, phone_number, area_code, contestant_number, time) VALUES (?, ?, ?, ?, ?);"
+    );
+    
+    public final SQLStmt insertS2Stmt = new SQLStmt(
+		"INSERT INTO S2 (vote_id, phone_number, state, contestant_number, time) VALUES (?, ?, ?, ?, ?);"
+    );
+    
+    public final SQLStmt insertS3Stmt = new SQLStmt(
+		"INSERT INTO S3 (vote_id, phone_number, state, contestant_number, time) VALUES (?, ?, ?, ?, ?);"
     );
 	
     public long run(long voteId, long phoneNumber, int contestantNumber, long maxVotesPerPhoneNumber, int currentTimestamp) {
 			
         // Post the vote
         //TimestampType timestamp = new TimestampType();
-        //voltQueueSQL(insertVoteStmt, voteId, phoneNumber, (long)(phoneNumber / 10000000l), "XX", contestantNumber, currentTimestamp);
-    	voltQueueSQL(insertVoteTestingStmt, voteId, phoneNumber, "XX", contestantNumber, currentTimestamp);
+    	//voltQueueSQL(stagedVoteStmt, phoneNumber);
+    	//voltQueueSQL(updateStagedVoteStmt);
+        //voltQueueSQL(insertVoteStmt, voteId, phoneNumber, (short)(phoneNumber / 10000000l), contestantNumber, currentTimestamp);
+        //voltQueueSQL(deleteStagedVoteStmt);
+    	
+    	voltQueueSQL(insertS1Stmt, voteId, phoneNumber, (short)(phoneNumber / 10000000l), contestantNumber, currentTimestamp);
+    	//voltQueueSQL(insertS2Stmt, voteId, phoneNumber, "XX", contestantNumber, currentTimestamp);
         voltExecuteSQL(true);
 		
         // Set the return value to 0: successful vote

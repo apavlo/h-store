@@ -58,7 +58,7 @@ public class PhoneCallGenerator {
 													",864,803,605,423,865,931,615,901,731,254,325,713,940,817,430,903,806" +
 													",737,512,361,210,979,936,409,972,469,214,682,832,281,830,956,432,915" +
 													",435,801,385,434,804,757,703,571,276,236,540,802,509,360,564,206,425" +
-													",253,715,920,262,414,608,304,307").split(",");
+													",253,715,920,262,414,608,304,307,999").split(",");
 	
 	// convert the area code array to a list of digits
     private static final long[] AREA_CODES = new long[AREA_CODE_STRS.length];
@@ -118,7 +118,7 @@ public class PhoneCallGenerator {
 		
         // Build the phone number
         long phoneNumber = AREA_CODES[areaCodeIndex] * 10000000L + rand.nextInt(10000000);
-		
+		//long phoneNumber = 2125555555; 
         // This needs to be globally unique
         
         // Return the generated phone number
