@@ -85,6 +85,7 @@ public enum ProjectType {
     VOTERWINHSTORE("VoterWinHStore", "edu.brown.benchmark.voterwinhstore"),
     VOTERWINSSTORE("VoterWinSStore", "edu.brown.benchmark.voterwinsstore"),
     VOTERWINTIMEHSTORE("VoterWinTimeHStore", "edu.brown.benchmark.voterwintimehstore"),
+    VOTERWINTIMEHSTORENOCLEANUP("VoterWinTimeHStoreNoCleanup", "edu.brown.benchmark.voterwintimehstorenocleanup"),
     VOTERWINTIMEHSTOREANOTHER("VoterWinTimeHStoreAnother", "edu.brown.benchmark.voterwintimehstoreanother"),
     VOTERWINTIMESSTORE("VoterWinTimeSStore", "edu.brown.benchmark.voterwintimesstore"),
     VOTERWINTIMESSTOREFULLSTREAM("VoterWinTimeSStoreFullStream", "edu.brown.benchmark.voterwintimesstorefullstream"),
