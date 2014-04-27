@@ -77,6 +77,7 @@ CREATE STREAM votes_stream
   phone_number       bigint     NOT NULL
 , area_code          integer    NOT NULL
 , state              varchar(2) NOT NULL
+, fake_state	     varchar(2) NOT NULL
 , contestant_number  integer    NOT NULL
 , time               integer    NOT NULL
 );
@@ -88,6 +89,7 @@ CREATE STREAM S1
   phone_number       bigint     NOT NULL
 , area_code          integer    NOT NULL
 , state              varchar(2) NOT NULL
+, fake_state	     varchar(2) NOT NULL
 , contestant_number  integer    NOT NULL
 , time               integer    NOT NULL
 );
@@ -99,6 +101,7 @@ CREATE STREAM S2
   phone_number       bigint     NOT NULL
 , area_code          integer    NOT NULL
 , state              varchar(2) NOT NULL
+, fake_state	     varchar(2) NOT NULL
 , contestant_number  integer    NOT NULL
 , time               integer    NOT NULL
 );
@@ -113,7 +116,7 @@ CREATE STREAM S3
 , time               integer    NOT NULL
 );
 
-CREATE WINDOW W_ROWS ON S1 RANGE 30 SLIDE 2;
+CREATE WINDOW W_ROWS ON S3 RANGE 30 SLIDE 2;
 
 
 

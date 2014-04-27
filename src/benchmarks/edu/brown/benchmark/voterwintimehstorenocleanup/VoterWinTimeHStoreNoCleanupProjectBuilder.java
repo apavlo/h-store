@@ -27,58 +27,44 @@
  *  OTHER DEALINGS IN THE SOFTWARE.                                        *
  ***************************************************************************/
 
-package edu.brown.benchmark.voterwintimesstorefullstream;
+package edu.brown.benchmark.voterwintimehstorenocleanup;
 
 import org.voltdb.VoltProcedure;
 
 import edu.brown.benchmark.AbstractProjectBuilder;
 import edu.brown.api.BenchmarkComponent;
 
-import edu.brown.benchmark.voterwintimesstorefullstream.procedures.ValidateContestantsTrigger;
-import edu.brown.benchmark.voterwintimesstorefullstream.procedures.UpdateVotesAndTotalVotesTrigger;
-import edu.brown.benchmark.voterwintimesstorefullstream.procedures.UpdateLeaderBoard;
-import edu.brown.benchmark.voterwintimesstorefullstream.procedures.ValidatePhoneNumberTrigger;
-import edu.brown.benchmark.voterwintimesstorefullstream.procedures.ValidateState;
-import edu.brown.benchmark.voterwintimesstorefullstream.procedures.Vote; 
-import edu.brown.benchmark.voterwintimesstorefullstream.procedures.Initialize; 
+import edu.brown.benchmark.voterwintimehstorenocleanup.procedures.Vote; 
+import edu.brown.benchmark.voterwintimehstorenocleanup.procedures.Initialize; 
 
-public class VoterWinTimeSStoreFullStreamProjectBuilder extends AbstractProjectBuilder {
+public class VoterWinTimeHStoreNoCleanupProjectBuilder extends AbstractProjectBuilder {
 
     // REQUIRED: Retrieved via reflection by BenchmarkController
-    public static final Class<? extends BenchmarkComponent> m_clientClass = VoterWinTimeSStoreFullStreamClient.class;
+    public static final Class<? extends BenchmarkComponent> m_clientClass = VoterWinTimeHStoreNoCleanupClient.class;
 
     // REQUIRED: Retrieved via reflection by BenchmarkController
-    public static final Class<? extends BenchmarkComponent> m_loaderClass = VoterWinTimeSStoreFullStreamLoader.class;
+    public static final Class<? extends BenchmarkComponent> m_loaderClass = VoterWinTimeHStoreNoCleanupLoader.class;
 
 	// a list of procedures implemented in this benchmark
     @SuppressWarnings("unchecked")
-    public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[]{
-        Vote.class, 
-        Initialize.class,
-        //ValidateContestantsTrigger.class,
-        //UpdateVotesAndTotalVotesTrigger.class,
-        //UpdateLeaderBoard.class,
-        //ValidatePhoneNumberTrigger.class,
-        //ValidateState.class
-    };
+    public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
+        Vote.class, Initialize.class};
 	
 	{
-		addTransactionFrequency(Vote.class, 100);
+		//addTransactionFrequency(Vote.class, 100);
+		//addReplicatedSecondaryIndex("w_staging", "TIME");
+		//addReplicatedSecondaryIndex("w_rows", "TIME");
 	}
 	
 	// a list of tables used in this benchmark with corresponding partitioning keys
     public static final String PARTITIONING[][] = new String[][] {
         { "votes", "phone_number" },
-        { "votes_stream", "phone_number"},
-        { "S1", "phone_number"},
-        { "S2", "phone_number"},
-        { "S3", "phone_number"},
-        { "W_ROWS", "phone_number"},
-        { "leaderboard", "contestant_number"}
+        { "leaderboard", "contestant_number"},
+        { "minTS", "row_id" }
     };
 
-    public VoterWinTimeSStoreFullStreamProjectBuilder() {
-        super("voterwintimesstorefullstream", VoterWinTimeSStoreFullStreamProjectBuilder.class, PROCEDURES, PARTITIONING);
+    public VoterWinTimeHStoreNoCleanupProjectBuilder() {
+        super("voterwintimehstorenocleanup", VoterWinTimeHStoreNoCleanupProjectBuilder.class, PROCEDURES, PARTITIONING);
     }
 }
 
