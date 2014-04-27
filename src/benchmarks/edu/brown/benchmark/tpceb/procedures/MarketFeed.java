@@ -107,7 +107,7 @@ public class MarketFeed extends VoltProcedure {
         long now_dts = Calendar.getInstance().getTimeInMillis();
       //  Timestamp test = new Timestamp(now_dts);
         List<TradeRequest> tradeRequestBuffer = new ArrayList<TradeRequest>();
-        System.out.println("got date time and made list");
+       // System.out.println("got date time and made list");
         // let's do the updates first in a batch
         for (int i = 0; i < MAX_FEED_LEN; i++) {
            // System.out.println("i: "+ i);
@@ -128,7 +128,7 @@ public class MarketFeed extends VoltProcedure {
         //    System.out.println("in try");
         voltExecuteSQL();
 
-        System.out.println("executed the sql for update last trade successfully");
+       // System.out.println("executed the sql for update last trade successfully");
         
         // then, see about pending trades
         for (int i = 0; i < MAX_FEED_LEN; i++) {
@@ -142,17 +142,17 @@ public class MarketFeed extends VoltProcedure {
             "(TR_TT_ID = ? and TR_BID_PRICE <= ?) or " +
             "(TR_TT_ID = ? and TR_BID_PRICE >= ?))");*/
             VoltTable reqs = voltExecuteSQL()[0];
-            System.out.println("executed the sql for get request list successfully" + reqs.getRowCount());
+           // System.out.println("executed the sql for get request list successfully" + reqs.getRowCount());
             
             for (int j = 0; j < reqs.getRowCount() && tradeRequestBuffer.size() < MAX_SEND_LEN; j++) {
                 VoltTableRow req = reqs.fetchRow(j);
                 
                 long trade_id = req.getLong("TR_T_ID");
-                System.out.println("did trade id");
+              //  System.out.println("did trade id");
                 double price_quote = req.getDouble("TR_BID_PRICE");
-                System.out.println("did trade idprice");
+              //  System.out.println("did trade idprice");
                 String trade_type = req.getString("TR_TT_ID");
-                System.out.println("did trade type");
+               // System.out.println("did trade type");
                
                // try{
                 int trade_qty = (int)  req.getLong("TR_QTY");
@@ -160,8 +160,8 @@ public class MarketFeed extends VoltProcedure {
                // }catch(Exception ex){
                //     System.out.println(ex);
                //     }
-                System.out.println("did trade qty" + trade_qty);
-                System.out.println("did trade type" + trade_type);
+              //  System.out.println("did trade qty" + trade_qty);
+               // System.out.println("did trade type" + trade_type);
                voltQueueSQL(updateTrade, now_dts, status_submitted, trade_id);
                //System.out.println("Fine");
                // System.out.println("TRADE ID:"+ trade_id);

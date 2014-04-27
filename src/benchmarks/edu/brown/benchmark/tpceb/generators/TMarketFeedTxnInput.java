@@ -29,12 +29,13 @@ public class TMarketFeedTxnInput {
     //double[] price_quotes, String status_submitted, String[] symbols, long[] trade_qtys, String type_limit_buy, String type_limit_sell, String type_stop_loss
     /*added in order to complete*/
     public ArrayList<Object>InputParameters(){
+        System.out.println("MF");
         ArrayList<Object> para = new ArrayList<Object>();
       // System.out.println("in here");
        for(int i =0; i < Entries.length; i++){
          //  System.out.println(Entries.length);
            
-           System.out.println("SYMBOL: "+ Entries[i].symbol);
+          // System.out.println("SYMBOL: "+ Entries[i].symbol);
            
            price_quotes[i] = Entries[i].price_quote;
            symbols[i] = Entries[i].symbol;

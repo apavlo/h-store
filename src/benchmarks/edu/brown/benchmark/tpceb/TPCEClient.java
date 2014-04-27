@@ -191,17 +191,17 @@ private int num = 1;
        }
         else if(countTotal <= 700){
             num = 2;
-            System.out.println("Market Feed");
+           // System.out.println("Market Feed");
                 countTotal++;
-                return XTRANS[2];
+                return XTRANS[1];
      //           
            }
         else{
           //  return null;
             num = 2;
-          //  System.out.println("Trade Result");
+           // System.out.println("Trade Result");
             countTotal++;
-           return XTRANS[1];
+           return XTRANS[2];
        }
     }
     
@@ -217,7 +217,7 @@ private int num = 1;
         try {
             final Transaction target = selectTransaction();
 
-            LOG.debug("Executing txn " + target);
+           // LOG.debug("Executing txn " + target);
             //TPCECallback temp = new TPCECallback(target);
         
            while (!this.getClientHandle().callProcedure(new TPCECallback(target), target.callName, this.generateClientArgs(target))) {
@@ -242,13 +242,13 @@ int countRow =0;
         final Transaction target = selectTransaction();
       //  boolean retME = false;
         if(num ==1){
-            System.out.println("num was 1");
+            //System.out.println("num was 1");
         try {
            
             
          
             tradeRequest = new TTradeRequest();
-            LOG.debug("Executing txn " + target);
+           // LOG.debug("Executing txn " + target);
            // ret = this.getClientHandle().callProcedure(new TPCECallback(target), target.callName, this.generateClientArgs(target));
            // ret = this.getClientHandle().callProcedure(new TPCECallback(target), target.callName, this.generateClientArgs(target));
             tradeOrderResult = this.getClientHandle().callProcedure(target.callName, this.generateClientArgs(target)).getResults();
@@ -313,7 +313,7 @@ int countRow =0;
         else{
             
             try {
-                System.out.println("Starting MF");
+             //   System.out.println("Starting MF");
              //   final Transaction target = selectTransaction();
              
                 
@@ -321,7 +321,7 @@ int countRow =0;
                ret = this.getClientHandle().callProcedure(new TPCECallback(target), target.callName, this.generateClientArgs(target));
                // tradeOrderResult = this.getClientHandle().callProcedure(target.callName, this.generateClientArgs(target)).getResults();
               
-                System.out.println("Back in TPCE");
+              //  System.out.println("Back in TPCE");
               
                 // clientResponse.getResults();
                 //  tradeOrderResult = this.getClientHandle().getResults();// retME = this.getClientHandle().callProcedure(new TPCECallback(target), target.callName, this.generateClientArgs(targetME));
