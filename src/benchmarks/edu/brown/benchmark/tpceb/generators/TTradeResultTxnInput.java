@@ -12,7 +12,7 @@ public class TTradeResultTxnInput {
      
      public ArrayList<Object>InputParameters(){
             ArrayList<Object> para = new ArrayList<Object>();
-            
+            System.out.println("TradeIDINPUT"+ trade_id);
          //   if(trade_price != 0){
           //  trade_price_float = (float)trade_price;
           //  }
