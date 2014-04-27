@@ -45,7 +45,7 @@ public class Vote extends VoltProcedure {
 	
     // Records a vote
     public final SQLStmt insertVoteStmt = new SQLStmt(
-		"INSERT INTO votes_stream (vote_id, phone_number, area_code, state, fake_state, contestant_number, time) VALUES (?, ?, ?, ?, ?, ?, ?);"
+		"INSERT INTO votes_stream (vote_id, phone_number, area_code, state, contestant_number, time) VALUES (?, ?, ?, ?, ?, ?);"
     );
     
     public final SQLStmt insertVoteTestingStmt = new SQLStmt(
@@ -56,8 +56,8 @@ public class Vote extends VoltProcedure {
 			
         // Post the vote
         //TimestampType timestamp = new TimestampType();
-        voltQueueSQL(insertVoteStmt, voteId, phoneNumber, (long)(phoneNumber / 10000000l), "XX", contestantNumber, currentTimestamp);
-    	//voltQueueSQL(insertVoteTestingStmt, voteId, phoneNumber, "XX", contestantNumber, currentTimestamp);
+        //voltQueueSQL(insertVoteStmt, voteId, phoneNumber, (long)(phoneNumber / 10000000l), "XX", contestantNumber, currentTimestamp);
+    	voltQueueSQL(insertVoteTestingStmt, voteId, phoneNumber, "XX", contestantNumber, currentTimestamp);
         voltExecuteSQL(true);
 		
         // Set the return value to 0: successful vote

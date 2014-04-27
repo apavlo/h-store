@@ -77,7 +77,6 @@ CREATE STREAM votes_stream
   phone_number       bigint     NOT NULL
 , area_code          integer    NOT NULL
 , state              varchar(2) NOT NULL
-, fake_state	     varchar(2) NOT NULL
 , contestant_number  integer    NOT NULL
 , time               integer    NOT NULL
 );
@@ -89,7 +88,6 @@ CREATE STREAM S1
   phone_number       bigint     NOT NULL
 , area_code          integer    NOT NULL
 , state              varchar(2) NOT NULL
-, fake_state	     varchar(2) NOT NULL
 , contestant_number  integer    NOT NULL
 , time               integer    NOT NULL
 );
@@ -101,7 +99,6 @@ CREATE STREAM S2
   phone_number       bigint     NOT NULL
 , area_code          integer    NOT NULL
 , state              varchar(2) NOT NULL
-, fake_state	     varchar(2) NOT NULL
 , contestant_number  integer    NOT NULL
 , time               integer    NOT NULL
 );

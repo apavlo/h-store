@@ -55,11 +55,11 @@ public class VoterWinTimeSStoreFullStreamProjectBuilder extends AbstractProjectB
     public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[]{
         Vote.class, 
         Initialize.class,
-        //ValidateContestantsTrigger.class,
-        //UpdateVotesAndTotalVotesTrigger.class,
-        //UpdateLeaderBoard.class,
-        //ValidatePhoneNumberTrigger.class,
-        //ValidateState.class
+        ValidateContestantsTrigger.class,
+        UpdateVotesAndTotalVotesTrigger.class,
+        UpdateLeaderBoard.class,
+        ValidatePhoneNumberTrigger.class,
+        ValidateState.class
     };
 	
 	{
