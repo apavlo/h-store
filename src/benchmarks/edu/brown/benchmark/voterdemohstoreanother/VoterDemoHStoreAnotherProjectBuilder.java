@@ -33,7 +33,7 @@ import org.voltdb.VoltProcedure;
 
 import edu.brown.benchmark.AbstractProjectBuilder;
 import edu.brown.api.BenchmarkComponent;
-
+import edu.brown.benchmark.voterdemohstoreanother.procedures.Results;
 import edu.brown.benchmark.voterdemohstoreanother.procedures.Vote; 
 import edu.brown.benchmark.voterdemohstoreanother.procedures.Initialize;
 import edu.brown.benchmark.voterdemohstoreanother.procedures.GenerateLeaderboard; 
@@ -49,7 +49,7 @@ public class VoterDemoHStoreAnotherProjectBuilder extends AbstractProjectBuilder
 	// a list of procedures implemented in this benchmark
     @SuppressWarnings("unchecked")
     public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
-        Vote.class, Initialize.class, GenerateLeaderboard.class};
+        Vote.class, Initialize.class, GenerateLeaderboard.class, Results.class };
 	
 	{
 		//addTransactionFrequency(Vote.class, 100);

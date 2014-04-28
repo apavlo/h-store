@@ -30,18 +30,24 @@
 
 package edu.brown.benchmark.voterdemohstoreanother;
 
+import java.io.BufferedWriter;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.log4j.Logger;
 import org.voltdb.VoltTable;
+import org.voltdb.VoltTableRow;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
+import org.voltdb.client.NoConnectionsException;
 import org.voltdb.client.ProcedureCallback;
 
 import weka.classifiers.meta.Vote;
-
 import edu.brown.api.BenchmarkComponent;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
@@ -51,6 +57,10 @@ public class VoterDemoHStoreAnotherClient extends BenchmarkComponent {
     private static final LoggerBoolean debug = new LoggerBoolean();
     private static long lastTime;
     private static int timestamp;
+    
+    private String stat_filename;
+    public static long count = 0l;
+    public static long fixnum = 1000l;
 
     // Phone number generator
     //PhoneCallGenerator switchboard;
@@ -69,6 +79,8 @@ public class VoterDemoHStoreAnotherClient extends BenchmarkComponent {
     AtomicLong failedVotes = new AtomicLong(0);
 
     final Callback callback = new Callback();
+    final AnotherCallback another_callback = new AnotherCallback();
+    final StatisticCallback stat_callback =  new StatisticCallback();
 
     public static void main(String args[]) {
         BenchmarkComponent.main(VoterDemoHStoreAnotherClient.class, args, false);
@@ -79,9 +91,12 @@ public class VoterDemoHStoreAnotherClient extends BenchmarkComponent {
         int numContestants = VoterDemoHStoreAnotherUtil.getScaledNumContestants(this.getScaleFactor());
         //this.switchboard = new PhoneCallGenerator(this.getClientId(), numContestants);
         
+        String timeLog = new SimpleDateFormat("yyyyMMdd_HHmmss").format(Calendar.getInstance().getTime());
+        stat_filename = "voterdemohstoreanother-" + timeLog + ".txt";
+        
         String filename = "voterdemohstoreanother-o-20000.ser";
         this.switchboard = new edu.brown.stream.VoteGenerator(filename);
-        
+        System.out.println( "filename: " + filename );
         System.out.println( "Size: " + switchboard.size() );
         
         lastTime = System.nanoTime();
@@ -91,6 +106,10 @@ public class VoterDemoHStoreAnotherClient extends BenchmarkComponent {
     @Override
     public void runLoop() {
         try {
+            VoterDemoHStoreAnotherClient.count = 0l;
+            
+            System.out.println(String.valueOf(VoterDemoHStoreAnotherClient.count));
+                    
             while (true) {
                 // synchronously call the "Vote" procedure
                 try {
@@ -119,7 +138,7 @@ public class VoterDemoHStoreAnotherClient extends BenchmarkComponent {
     	edu.brown.stream.PhoneCallGenerator.PhoneCall call = switchboard.nextVote();
     	//timestamp = (int)call.voteId;
     	//call.debug();
-
+    	
     	if(call != null)
     	{
             Client client = this.getClientHandle();
@@ -133,13 +152,39 @@ public class VoterDemoHStoreAnotherClient extends BenchmarkComponent {
             
             if(response)
             {
-            	response = client.callProcedure(callback,
+            	response = client.callProcedure(another_callback,
                         "GenerateLeaderboard");
+            	
+            	GetStatisticInfo();
             }
             return response;
     	}
     	else
     	    return true;
+    }
+
+    private void GetStatisticInfo()
+    {
+        try
+        {
+            VoterDemoHStoreAnotherClient.count++;
+            if( VoterDemoHStoreAnotherClient.count == VoterDemoHStoreAnotherClient.fixnum )
+            {
+                //System.out.println("GetStatisticInfo() 1- " + String.valueOf(VoterDemoHStoreAnotherClient.fixnum));
+                //System.out.println("call GetStatisticInfo ...");
+                
+                Client client = this.getClientHandle();
+                client.callProcedure(stat_callback, "Results");
+
+                VoterDemoHStoreAnotherClient.fixnum += 1000l;
+                //System.out.println("GetStatisticInfo() 2- " + String.valueOf(VoterDemoHStoreAnotherClient.fixnum));
+                
+            }
+        }
+        catch(Exception e)
+        {
+            System.out.println(e.getMessage());
+        }
     }
 
     @Override
@@ -182,7 +227,61 @@ public class VoterDemoHStoreAnotherClient extends BenchmarkComponent {
                     LOG.warn(clientResponse.getStatusString());
                 }
             }
+            
+        }
+        
+    } // END CLASS
+    
+    private class AnotherCallback implements ProcedureCallback {
+
+        @Override
+        public void clientCallback(ClientResponse clientResponse) {
+            // Increment the BenchmarkComponent's internal counter on the
+            // number of transactions that have been completed
+            incrementTransactionCounter(clientResponse, 0);
         }
     } // END CLASS
+    
+    private class StatisticCallback implements ProcedureCallback {
+        @Override
+        public void clientCallback(ClientResponse clientResponse)
+        {
+            if (clientResponse.getStatus() == Status.OK) {
+                VoltTable vt = clientResponse.getResults()[0];
+                
+                int row_len = vt.getRowCount();
+                
+                String line =  String.valueOf(VoterDemoHStoreAnotherClient.fixnum - 1000l) + ": ";
+                for(int i=0;i<row_len; i++)
+                {
+                    VoltTableRow row = vt.fetchRow(i);
+                    String contestant_name = row.getString(0);
+                    long total_votes = row.getLong(2);
+                    
+                    String content = contestant_name + "-" + String.valueOf(total_votes);
+                    
+                    line += content + " ";
+                }
+                
+                //System.out.println(line);
+                
+                try {
+                    WriteToFile(line);
+                } catch (IOException e) {
+                    // TODO Auto-generated catch block
+                    e.printStackTrace();
+                }
+                
+            }            
+        }
+        
+        private void WriteToFile(String content) throws IOException
+        {
+            //System.out.println(stat_filename + " : " + content );
+            PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(stat_filename, true)));
+            out.println(content);
+            out.close();
+        }
+    }
     
 }
