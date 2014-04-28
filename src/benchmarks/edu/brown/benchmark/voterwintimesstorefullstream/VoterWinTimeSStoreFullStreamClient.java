@@ -100,7 +100,7 @@ public class VoterWinTimeSStoreFullStreamClient extends BenchmarkComponent {
 
     @Override
     protected boolean runOnce() throws IOException {
-    	if(System.nanoTime() - lastTime >= 1000000000)
+    	if(System.nanoTime() - lastTime >= VoterWinTimeSStoreFullStreamConstants.TS_DURATION)
         {
         	lastTime = System.nanoTime();
         	timestamp++;

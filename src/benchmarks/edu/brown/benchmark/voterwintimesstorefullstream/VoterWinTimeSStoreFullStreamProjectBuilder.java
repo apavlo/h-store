@@ -58,7 +58,7 @@ public class VoterWinTimeSStoreFullStreamProjectBuilder extends AbstractProjectB
         ValidateContestantsTrigger.class,
         UpdateVotesAndTotalVotesTrigger.class,
         UpdateLeaderBoard.class,
-        ValidatePhoneNumberTrigger.class,
+        //ValidatePhoneNumberTrigger.class,
         ValidateState.class
     };
 	
@@ -74,7 +74,8 @@ public class VoterWinTimeSStoreFullStreamProjectBuilder extends AbstractProjectB
         { "S2", "phone_number"},
         { "S3", "phone_number"},
         { "W_ROWS", "phone_number"},
-        { "leaderboard", "contestant_number"}
+        { "leaderboard", "contestant_number"},
+        { "staged_votes_by_phone_number", "phone_number" }
     };
 
     public VoterWinTimeSStoreFullStreamProjectBuilder() {

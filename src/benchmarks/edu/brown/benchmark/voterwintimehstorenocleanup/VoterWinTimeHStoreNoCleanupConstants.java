@@ -49,4 +49,5 @@ public abstract class VoterWinTimeHStoreNoCleanupConstants {
     
     public static final long WIN_SIZE = 30;
     public static final long STAGE_SIZE = 2;
+    public static final long TS_DURATION = 1000000000;
 }

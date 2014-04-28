@@ -3,7 +3,7 @@ which is a script to run benchmark with different parameters.
 
 ---------------------------------------------------------------------------
 usage example:
-python ./tools/runexperiments.py --tmin 10 --tmax 100 --tstep 10 --rmin 100 --rmax 10000 --rstep 100 --log --lmin 10 --lmax 5000 --lstep 10 --blocking --stop -p simplewindowhstore -o simplewindowhstore-nolog-11-27.txt
+python ./tools/runexperiments.py --tmin 10 --tmax 100 --tstep 10 --rmin 100 --rmax 10000 --rstep 100 --log --lmin 10 --lmax 5000 --lstep 10 --blocking --stop --warmup 10000 -p simplewindowhstore -o simplewindowhstore-nolog-11-27.txt
 
 ---------------------------------------------------------------------------
 explaination:

@@ -1,0 +1,20 @@
+VoterWinTime:
+H-Store
+voterwintimehstore - standard voter win for H-Store, with garbage collection
+voterwintimehstorenocleanup - voter win for H-Store, windows generated on the fly (without cleanup)
+S-Store
+voterwintimesstore - standard voter win for S-Store (PE to EE communication, contestant validation via stream)
+voterwintimesstorefullstream - voter win for S-Store, everything is done via stream (no midling PE to EE) (NOTE: incomplete vote validation)
+voterwintimesstorewinonly - voter win for S-Store, identical to H-Store except for window maintenance
+
+VoterDemo:
+H-Store
+voterdemohstore - standard voter demo for H-Store, with garbage collection
+voterdemohstorenocleanup - voter demo for H-Store, windows generated on the fly (without cleanup)
+S-Store
+voterdemosstore - standard voter demo for S-Store (vote validation identical to voterwinsstore)
+voterdemosstorepetrigonly - identical to voterdemohstorenocleanup except with PE triggers instead of client calls
+
+VoterEETrigTest
+voterhstoreeetrigtest - voter for H-Store, with only the contestant validation (no phone_number or state)
+votersstoreeetrigtest - identical to voterhstoreeetrigtest, only the contestant validation is through streaming

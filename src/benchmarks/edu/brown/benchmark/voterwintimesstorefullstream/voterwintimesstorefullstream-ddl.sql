@@ -55,6 +55,16 @@ AS
  GROUP BY phone_number
 ;
 
+CREATE TABLE staged_votes_by_phone_number
+(
+  phone_number bigint    NOT NULL
+, num_votes    integer   NOT NULL
+, CONSTRAINT PK_sv PRIMARY KEY
+  (
+    phone_number
+  )
+);
+
 CREATE VIEW v_votes_by_contestant_number_state
 (
   contestant_number
@@ -75,8 +85,7 @@ CREATE STREAM votes_stream
 (
   vote_id            bigint     NOT NULL,
   phone_number       bigint     NOT NULL
-, area_code          integer    NOT NULL
-, state              varchar(2) NOT NULL
+, area_code          smallint    NOT NULL
 , contestant_number  integer    NOT NULL
 , time               integer    NOT NULL
 );
@@ -86,8 +95,7 @@ CREATE STREAM S1
 (
   vote_id            bigint     NOT NULL,
   phone_number       bigint     NOT NULL
-, area_code          integer    NOT NULL
-, state              varchar(2) NOT NULL
+, area_code          smallint    NOT NULL
 , contestant_number  integer    NOT NULL
 , time               integer    NOT NULL
 );
@@ -97,7 +105,6 @@ CREATE STREAM S2
 (
   vote_id            bigint     NOT NULL,
   phone_number       bigint     NOT NULL
-, area_code          integer    NOT NULL
 , state              varchar(2) NOT NULL
 , contestant_number  integer    NOT NULL
 , time               integer    NOT NULL
