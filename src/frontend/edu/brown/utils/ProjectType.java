@@ -83,6 +83,7 @@ public enum ProjectType {
     SIMPLEWINDOWHSTORE("SimpleWindowHStore", "edu.brown.benchmark.simplewindowhstore"),
     SIMPLEWINDOWSSTORE("SimpleWindowSStore", "edu.brown.benchmark.simplewindowsstore"),
     VOTERWINHSTORE("VoterWinHStore", "edu.brown.benchmark.voterwinhstore"),
+    VOTERWINHSTORENOCLEANUP("VoterWinHStoreNoCleanup", "edu.brown.benchmark.voterwinhstorenocleanup"),
     VOTERWINSSTORE("VoterWinSStore", "edu.brown.benchmark.voterwinsstore"),
     VOTERWINTIMEHSTORE("VoterWinTimeHStore", "edu.brown.benchmark.voterwintimehstore"),
     VOTERWINTIMEHSTORENOCLEANUP("VoterWinTimeHStoreNoCleanup", "edu.brown.benchmark.voterwintimehstorenocleanup"),

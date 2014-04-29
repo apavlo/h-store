@@ -27,9 +27,9 @@
  *  OTHER DEALINGS IN THE SOFTWARE.                                        *
  ***************************************************************************/
 
-package edu.brown.benchmark.voterwinhstore;
+package edu.brown.benchmark.voterwinhstorenocleanup;
 
-public abstract class VoterWinHStoreConstants {
+public abstract class VoterWinHStoreNoCleanupConstants {
 
     public static final String TABLENAME_CONTESTANTS     = "contestants";
     public static final String TABLENAME_AREA_CODE_STATE = "area_code_state";

@@ -42,8 +42,6 @@ import edu.brown.benchmark.voterwinhstore.VoterWinHStoreConstants;
     singlePartition = true
 )
 public class Vote extends VoltProcedure {
-	public final int windowSize = 100;
-	public final int slideSize = 10;
 	
     // Checks if the vote is for a valid contestant
     public final SQLStmt checkContestantStmt = new SQLStmt(
@@ -150,10 +148,10 @@ public class Vote extends VoltProcedure {
         voltQueueSQL(insertVoteStagingStmt, voteId, phoneNumber, state, contestantNumber, timestamp);
         voltQueueSQL(checkStagingCount);
         voltQueueSQL(selectWindowCountStmt);
-        voltQueueSQL(selectCutoffVoteStmt, slideSize);
+        voltQueueSQL(selectCutoffVoteStmt, VoterWinHStoreConstants.SLIDE_SIZE);
         validation = voltExecuteSQL();
         
-        if((int)(validation[2].fetchRow(0).getLong(0)) == slideSize)
+        if((int)(validation[2].fetchRow(0).getLong(0)) == VoterWinHStoreConstants.SLIDE_SIZE)
         {
         	//Check the window size and cutoff vote can be done one of two ways:
         	//1) Two statements: one gets window size, one gets all rows to be deleted
@@ -162,9 +160,9 @@ public class Vote extends VoltProcedure {
         	//voltQueueSQL(selectFullWindowStmt);
         	
         	//validation = voltExecuteSQL();
-        	if((int)(validation[3].fetchRow(0).getLong(0)) >= windowSize)
+        	if((int)(validation[3].fetchRow(0).getLong(0)) >= VoterWinHStoreConstants.WINDOW_SIZE)
         	{
-        		long cutoffId = validation[4].fetchRow(slideSize-1).getLong(0);
+        		long cutoffId = validation[4].fetchRow((int)(VoterWinHStoreConstants.SLIDE_SIZE-1)).getLong(0);
         		voltQueueSQL(deleteCutoffVoteStmt, cutoffId);
         	}
         	voltQueueSQL(insertVoteWindowStmt);
