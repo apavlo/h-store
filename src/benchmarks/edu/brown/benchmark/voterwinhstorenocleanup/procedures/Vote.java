@@ -66,6 +66,10 @@ public class Vote extends VoltProcedure {
     public final SQLStmt getStagingCountStmt = new SQLStmt(
 		"SELECT value FROM state WHERE row_id = 1;"
     );
+    
+    public final SQLStmt getVoteCountStmt = new SQLStmt(
+		"SELECT numvotes FROM v_votecount;"
+    );
 	
     // Records a vote
     public final SQLStmt insertVoteStmt = new SQLStmt(
@@ -91,8 +95,12 @@ public class Vote extends VoltProcedure {
     	"DELETE FROM W_ROWS;"	
     );
     
+    public final SQLStmt getLowestVoteIDStmt = new SQLStmt(
+    	"SELECT * FROM votes WHERE vote_id <= ? ORDER BY vote_id DESC LIMIT ?;"
+    );
+    
     public final SQLStmt getWindowStmt = new SQLStmt(
-    	"INSERT INTO W_ROWS (vote_id, phone_number, state, contestant_number, created) SELECT * FROM votes WHERE vote_id <= ? ORDER BY vote_id DESC LIMIT ?;"
+    	"SELECT contestant_number, count(*) FROM votes WHERE vote_id <= ? AND vote_id >= ? GROUP BY CONTESTANT_NUMBER;"
     );
     
     public final SQLStmt getLeaderboardStmt = new SQLStmt(
@@ -105,7 +113,7 @@ public class Vote extends VoltProcedure {
         voltQueueSQL(checkContestantStmt, contestantNumber);
         voltQueueSQL(checkVoterWinHStoreNoCleanupStmt, phoneNumber);
         voltQueueSQL(checkStateStmt, (short)(phoneNumber / 10000000l));
-        voltQueueSQL(getStagingCountStmt);
+        //voltQueueSQL(getVoteCountStmt);
         VoltTable validation[] = voltExecuteSQL();
 		
         if (validation[0].getRowCount() == 0) {
@@ -123,25 +131,28 @@ public class Vote extends VoltProcedure {
         // but are tracked as legitimate instead of invalid, as old clients would mostly get
         // it wrong and see all their transactions rejected).
         final String state = (validation[2].getRowCount() > 0) ? validation[2].fetchRow(0).getString(0) : "XX";
-		 		
-        long stagingCount = validation[3].fetchRow(0).getLong(0);
+        //long votecount = (validation[3].getRowCount() > 0) ? validation[3].fetchRow(0).getLong(0) : 0;
         
         // Post the vote
         TimestampType timestamp = new TimestampType();
-        voltQueueSQL(insertVoteStmt, voteId, phoneNumber, state, contestantNumber, timestamp);
-        if(stagingCount + 1 >= VoterWinHStoreNoCleanupConstants.SLIDE_SIZE)
+        //voltQueueSQL(insertVoteStmt, voteId, phoneNumber, state, contestantNumber, timestamp);
+        //voltQueueSQL(updateStagingCountStmt);
+        voltQueueSQL(getStagingCountStmt);
+        validation = voltExecuteSQL();
+        /**
+        long stagingCount = validation[2].fetchRow(0).getLong(0);
+                
+        
+        if(votecount >= (VoterWinHStoreNoCleanupConstants.WINDOW_SIZE + VoterWinHStoreNoCleanupConstants.SLIDE_SIZE) && stagingCount >= VoterWinHStoreNoCleanupConstants.SLIDE_SIZE)
         {
         	voltQueueSQL(resetStagingCountStmt);
-        	voltQueueSQL(getWindowStmt, voteId, VoterWinHStoreNoCleanupConstants.WINDOW_SIZE);
+        	voltQueueSQL(getLowestVoteIDStmt, voteId, VoterWinHStoreNoCleanupConstants.WINDOW_SIZE);
+        	validation = voltExecuteSQL();
+        	long lowestVoteID = validation[1].fetchRow((int)(VoterWinHStoreNoCleanupConstants.WINDOW_SIZE-1)).getLong(0);
+        	voltQueueSQL(getWindowStmt, voteId, lowestVoteID);
+        	voltExecuteSQL(true);
         }
-        else
-        {
-        	voltQueueSQL(updateStagingCountStmt);
-        }
-        voltQueueSQL(getLeaderboardStmt);
-        
-        validation = voltExecuteSQL(true);
-        
+        */
         // Set the return value to 0: successful vote
         return VoterWinHStoreNoCleanupConstants.VOTE_SUCCESSFUL;
     }
