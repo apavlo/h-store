@@ -61,15 +61,6 @@ CREATE TABLE state
  )
 );
 
-CREATE VIEW v_votecount
-(
-  numvotes
-)
-AS
-   SELECT COUNT(*)
-     FROM votes
-;
-
 CREATE VIEW v_leaderboard
 (
   contestant_number

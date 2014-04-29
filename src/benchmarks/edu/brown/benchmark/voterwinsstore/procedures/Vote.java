@@ -35,6 +35,7 @@ import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.types.TimestampType;
 
+import edu.brown.benchmark.voterwinhstorenocleanup.VoterWinHStoreNoCleanupConstants;
 import edu.brown.benchmark.voterwinsstore.VoterWinSStoreConstants;
 
 @ProcInfo (
@@ -42,6 +43,11 @@ import edu.brown.benchmark.voterwinsstore.VoterWinSStoreConstants;
     singlePartition = true
 )
 public class Vote extends VoltProcedure {
+	
+	// Checks if the vote is for a valid contestant
+    public final SQLStmt checkContestantStmt = new SQLStmt(
+	   "SELECT contestant_number FROM contestants WHERE contestant_number = ?;"
+    );
 	
     // Checks if the voter has exceeded their allowed number of votes
     public final SQLStmt checkVoterStmt = new SQLStmt(
@@ -55,19 +61,28 @@ public class Vote extends VoltProcedure {
 	
     // Records a vote
     public final SQLStmt insertVoteStmt = new SQLStmt(
-		"INSERT INTO votes_stream (vote_id, phone_number, state, contestant_number, created) VALUES (?, ?, ?, ?, ?);"
+		"INSERT INTO S1 (vote_id, phone_number, state, contestant_number, created) VALUES (?, ?, ?, ?, ?);"
+    );
+    
+    public final SQLStmt selectLeaderboardStmt = new SQLStmt(
+		"SELECT * FROM LEADERBOARD ORDER BY CONTESTANT_NUMBER;"
     );
 	
     public long run(long voteId, long phoneNumber, int contestantNumber, long maxVotesPerPhoneNumber) {
 		
         // Queue up validation statements
+    	voltQueueSQL(checkContestantStmt, contestantNumber);
         voltQueueSQL(checkVoterStmt, phoneNumber);
         voltQueueSQL(checkStateStmt, (short)(phoneNumber / 10000000l));
         VoltTable validation[] = voltExecuteSQL();
 		
+        if (validation[0].getRowCount() == 0) {
+            return VoterWinHStoreNoCleanupConstants.ERR_INVALID_CONTESTANT;
+        }
+        
         // validate the maximum limit for votes number
-        if ((validation[0].getRowCount() == 1) &&
-			(validation[0].asScalarLong() >= maxVotesPerPhoneNumber)) {
+        if ((validation[1].getRowCount() == 1) &&
+			(validation[1].asScalarLong() >= maxVotesPerPhoneNumber)) {
             return VoterWinSStoreConstants.ERR_VOTER_OVER_VOTE_LIMIT;
         }
 		
@@ -76,11 +91,12 @@ public class Vote extends VoltProcedure {
         // the "XX" fake state (those votes will not appear on the Live Statistics dashboard,
         // but are tracked as legitimate instead of invalid, as old clients would mostly get
         // it wrong and see all their transactions rejected).
-        final String state = (validation[1].getRowCount() > 0) ? validation[1].fetchRow(0).getString(0) : "XX";
+        final String state = (validation[2].getRowCount() > 0) ? validation[2].fetchRow(0).getString(0) : "XX";
 		 		
         // Post the vote
         TimestampType timestamp = new TimestampType();
         voltQueueSQL(insertVoteStmt, voteId, phoneNumber, state, contestantNumber, timestamp);
+        voltQueueSQL(selectLeaderboardStmt);
         voltExecuteSQL(true);
 		
         // Set the return value to 0: successful vote
