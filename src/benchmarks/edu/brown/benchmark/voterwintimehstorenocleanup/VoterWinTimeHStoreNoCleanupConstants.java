@@ -48,6 +48,6 @@ public abstract class VoterWinTimeHStoreNoCleanupConstants {
     public static final long ERR_VOTER_OVER_VOTE_LIMIT = 2;
     
     public static final long WIN_SIZE = 30;
-    public static final long STAGE_SIZE = 1;
+    public static final long STAGE_SIZE = 2;
     public static final long TS_DURATION = 1000000000;
 }
