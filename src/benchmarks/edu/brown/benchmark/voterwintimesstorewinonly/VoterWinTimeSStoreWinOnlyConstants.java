@@ -46,5 +46,5 @@ public abstract class VoterWinTimeSStoreWinOnlyConstants {
     public static final long VOTE_SUCCESSFUL = 0;
     public static final long ERR_INVALID_CONTESTANT = 1;
     public static final long ERR_VOTER_OVER_VOTE_LIMIT = 2;
-    public static final long TS_DURATION = 100000000;
+    public static final long TS_DURATION = 1000000000;
 }
