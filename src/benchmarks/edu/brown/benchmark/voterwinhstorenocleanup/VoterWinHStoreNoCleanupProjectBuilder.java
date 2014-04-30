@@ -59,6 +59,7 @@ public class VoterWinHStoreNoCleanupProjectBuilder extends AbstractProjectBuilde
         { "votes", "phone_number" },
         { "w_rows", "phone_number" },
         { "state", "row_id" },
+        { "voteCount", "row_id"}
     };
 
     public VoterWinHStoreNoCleanupProjectBuilder() {

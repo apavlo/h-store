@@ -61,6 +61,16 @@ CREATE TABLE state
  )
 );
 
+CREATE TABLE voteCount
+(
+  row_id            integer    NOT NULL,
+  value             integer    NOT NULL
+, CONSTRAINT PK_voteCount PRIMARY KEY
+ (
+    row_id
+ )
+);
+
 CREATE VIEW v_leaderboard
 (
   contestant_number

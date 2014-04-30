@@ -59,16 +59,12 @@ public class Vote extends VoltProcedure {
 		"SELECT state FROM area_code_state WHERE area_code = ?;"
     );
     
-    public final SQLStmt getMaxVoteIDStmt = new SQLStmt(
-		"SELECT value FROM state WHERE row_id = 2;"
+    public final SQLStmt getVoteCountStmt = new SQLStmt(
+    	"SELECT value FROM voteCount WHERE row_id = 1;"
     );
-    
+
     public final SQLStmt getStagingCountStmt = new SQLStmt(
 		"SELECT value FROM state WHERE row_id = 1;"
-    );
-    
-    public final SQLStmt getVoteCountStmt = new SQLStmt(
-		"SELECT count(*) FROM votes;"
     );
 	
     // Records a vote
@@ -78,6 +74,13 @@ public class Vote extends VoltProcedure {
     
     public final SQLStmt updateMaxVoteIDStmt = new SQLStmt(
 		"UPDATE state SET value = ? WHERE row_id = 2;"
+    );
+    
+    @StmtInfo(
+            upsertable=true
+        )
+    public final SQLStmt updateVoteCountStmt = new SQLStmt(
+    	"INSERT INTO voteCount (row_id, value) SELECT row_id, value + 1 FROM state WHERE row_id = 1;"
     );
     
     @StmtInfo(
