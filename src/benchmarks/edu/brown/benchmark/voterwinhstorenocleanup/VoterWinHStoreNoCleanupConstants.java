@@ -47,6 +47,6 @@ public abstract class VoterWinHStoreNoCleanupConstants {
     public static final long ERR_INVALID_CONTESTANT = 1;
     public static final long ERR_VOTER_OVER_VOTE_LIMIT = 2;
     
-    public static final long WINDOW_SIZE = 100;
-    public static final long SLIDE_SIZE = 1;
+    public static final long WINDOW_SIZE = 10000;
+    public static final long SLIDE_SIZE = 100;
 }
