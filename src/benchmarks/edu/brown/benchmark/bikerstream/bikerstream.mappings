@@ -1,0 +1,11 @@
+{"MAPPINGS": [
+ {
+  "STATEMENT": "{'RideBike':'insertBikeReadingStmt'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'RideBike.insertBikeReadingStmt':'4'}",
+  "STATEMENT_COLUMN": "{'BIKEREADINGS_STREAM':'BIKE_ID'}",
+  "PROCEDURE_PARAMETER": "{'RideBike':'3'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ }
+]}
