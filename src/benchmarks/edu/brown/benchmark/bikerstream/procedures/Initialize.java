@@ -21,9 +21,7 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-//
-// Initializes the database, pushing the list of contestants and documenting domain data (Area codes and States).
-//
+/* Initialize - nothing to do */
 
 package edu.brown.benchmark.bikerstream.procedures;
 

@@ -47,6 +47,12 @@ import edu.brown.api.BenchmarkComponent;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 
+/* Biker stream client. Very simple - just calls
+ * getBikeReading - a few hacks and TODOS where I didn't
+ * understand what needed to be done or didn't understand
+ * existing code
+ */
+
 public class BikerStreamClient extends BenchmarkComponent {
     private static final Logger LOG = Logger.getLogger(BikerStreamClient.class);
     private static final LoggerBoolean debug = new LoggerBoolean();
@@ -79,7 +85,6 @@ public class BikerStreamClient extends BenchmarkComponent {
     public void runLoop() {
         try {
             while (true) {
-                // synchronously call the "Vote" procedure
                 try {
                     runOnce();
                 } catch (Exception e) {
@@ -95,7 +100,7 @@ public class BikerStreamClient extends BenchmarkComponent {
 
     @Override
     protected boolean runOnce() throws IOException {
-        // Get the next phone call
+        // Get a bike reading
 	      BikeReadingGenerator.Reading reading = bikes.pedal();
 	
 	        Client client = this.getClientHandle();
@@ -141,7 +146,7 @@ public class BikerStreamClient extends BenchmarkComponent {
                     badBikerReadings.incrementAndGet();
                 }
                 else {
-                    // REALL SHOULD TOSS AN ERROR HERE
+                    // REALLY SHOULD TOSS AN ERROR HERE
                 }
             }
             else if (clientResponse.getStatus() == Status.ABORT_UNEXPECTED) {

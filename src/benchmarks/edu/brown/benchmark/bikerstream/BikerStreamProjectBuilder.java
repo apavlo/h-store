@@ -55,6 +55,8 @@ public class BikerStreamProjectBuilder extends AbstractProjectBuilder {
     };
 	
 	{
+    // nothing to do here - code saved as
+    // placeholder/reminder
 		//addTransactionFrequency(Vote.class, 100);
 	}
 	

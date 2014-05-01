@@ -33,6 +33,7 @@ import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 
 // TODO - I don't know when this class is used...
+// so it does nothing for now...
 
 @ProcInfo (
 //singlePartition = false

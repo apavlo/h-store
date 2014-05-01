@@ -34,6 +34,8 @@ import org.apache.log4j.Logger;
 
 import edu.brown.api.Loader;
 
+/* Loader - calls initialize - that's it... */
+
 public class BikerStreamLoader extends Loader {
 
     private static final Logger LOG = Logger.getLogger(BikerStreamLoader.class);
@@ -51,7 +53,6 @@ public class BikerStreamLoader extends Loader {
 
     @Override
     public void load() {
-        //int numContestants = VoterWinSStoreUtil.getScaledNumContestants(this.getScaleFactor());
         if (d) 
             LOG.debug("Starting BikerStream");
 

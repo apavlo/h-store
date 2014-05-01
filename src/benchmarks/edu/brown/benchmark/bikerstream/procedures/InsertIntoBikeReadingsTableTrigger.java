@@ -2,6 +2,9 @@ package edu.brown.benchmark.bikerstream.procedures;
 import org.voltdb.SQLStmt;
 import org.voltdb.VoltTrigger;
 
+/* trigger to insert from bikereadings stream to
+ * bikereadings table */
+
 public class InsertIntoBikeReadingsTableTrigger extends VoltTrigger {
 
     @Override

@@ -32,6 +32,14 @@ package edu.brown.benchmark.bikerstream;
 
 import java.util.Random;
 
+/* Class to generate readings from bikes. Idea is that
+   this class generates readings like might be generated
+   from a bike GPS unit.
+
+   I used the clientId as the bikeid (so each client would 
+   have its own bikeid) and the lat/lon are completely made
+   up - probably in antartica or something.
+   */
 public class BikeReadingGenerator {
 	
     private int bikeId;

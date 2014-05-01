@@ -31,6 +31,8 @@ import java.util.Random;
 
 import edu.brown.rand.RandomDistribution.Zipf;
 
+/* primarily a placeholder for now */
+
 public abstract class BikerStreamUtil {
 
     public static final Random rand = new Random();

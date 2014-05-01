@@ -29,6 +29,8 @@
 
 package edu.brown.benchmark.bikerstream;
 
+/* a few constants, mainly a placeholder class */
+
 public abstract class BikerStreamConstants {
 
     public static final String TABLENAME_BIKEREADINGS = "bikereadings";
