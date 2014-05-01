@@ -31,6 +31,7 @@ package edu.brown.benchmark.voterdemohstore.procedures;
 
 import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
+import org.voltdb.StmtInfo;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.types.TimestampType;
@@ -44,6 +45,13 @@ import edu.brown.benchmark.voterwintimehstore.VoterWinTimeHStoreConstants;
     singlePartition = true
 )
 public class Vote extends VoltProcedure {
+	
+	@StmtInfo(
+            upsertable=true
+        )
+    public final SQLStmt updateTotalCount = new SQLStmt(
+    	"INSERT INTO totalVoteCount (row_id, cnt) SELECT row_id, cnt + 1 FROM totalVoteCount WHERE row_id = 1;"
+    );
 
     // Checks if the vote is for a valid contestant
     public final SQLStmt checkContestantStmt = new SQLStmt(
@@ -62,12 +70,12 @@ public class Vote extends VoltProcedure {
 	
     // Records a vote
     public final SQLStmt insertVoteStmt = new SQLStmt(
-		"INSERT INTO votes (vote_id, phone_number, state, contestant_number, time) VALUES (?, ?, ?, ?, ?);"
+		"INSERT INTO votes (vote_id, phone_number, state, contestant_number, ts) VALUES (?, ?, ?, ?, ?);"
     );
     
     // Records a vote
     public final SQLStmt insertProcEndStmt = new SQLStmt(
-		"INSERT INTO proc_one_out (vote_id, phone_number, state, contestant_number, time) VALUES (?, ?, ?, ?, ?);"
+		"INSERT INTO proc_one_out (vote_id, phone_number, state, contestant_number, ts) VALUES (?, ?, ?, ?, ?);"
     );
     
 	
@@ -77,6 +85,7 @@ public long run(long voteId, long phoneNumber, int contestantNumber, long maxVot
 		voltQueueSQL(checkContestantStmt, contestantNumber);
         voltQueueSQL(checkVoterStmt, phoneNumber);
         voltQueueSQL(checkStateStmt, (short)(phoneNumber / 10000000l));
+        voltQueueSQL(updateTotalCount);
         VoltTable validation[] = voltExecuteSQL();
 		
         // validate the maximum limit for votes number
@@ -85,7 +94,7 @@ public long run(long voteId, long phoneNumber, int contestantNumber, long maxVot
         }
         
         if ((validation[1].getRowCount() == 1) &&
-			(validation[1].asScalarLong() >= maxVotesPerPhoneNumber)) {
+			(validation[1].fetchRow(0).getLong(0) >= maxVotesPerPhoneNumber)) {
             return VoterConstants.ERR_VOTER_OVER_VOTE_LIMIT;
         }
 		

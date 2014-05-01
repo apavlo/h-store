@@ -52,14 +52,16 @@ public class VoterWinTimeHStoreProjectBuilder extends AbstractProjectBuilder {
 	
 	{
 		//addTransactionFrequency(Vote.class, 100);
+		//addReplicatedSecondaryIndex("w_staging", "TIME");
+		//addReplicatedSecondaryIndex("w_rows", "TIME");
 	}
 	
 	// a list of tables used in this benchmark with corresponding partitioning keys
     public static final String PARTITIONING[][] = new String[][] {
         { "votes", "phone_number" },
         { "w_staging", "phone_number" },
-        { "w_rows", "phone_number" },
-        { "leaderboard", "contestant_number"}
+        { "w_rows", "phone_number" }//,
+        //{ "leaderboard", "contestant_number"}
     };
 
     public VoterWinTimeHStoreProjectBuilder() {

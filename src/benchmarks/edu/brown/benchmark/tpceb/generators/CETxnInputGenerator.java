@@ -146,6 +146,7 @@ public class CETxnInputGenerator {
         activeSecurityCount = SecurityHandler.getSecurityNum(myCustomerCount);
 
         maxActivePrePopulatedTradeID = (int)(( hoursOfInitialTrades * EGenDate.SecondsPerHour * ( activeCustomerCount / scaleFactor )) * TPCEConstants.AbortTrade / 100 );
+        System.out.println("MAX active prepopulated tradeID" + maxActivePrePopulatedTradeID );
         currentTradeID = new AtomicLong(maxActivePrePopulatedTradeID + 1);
         startTime = EGenDate.getDateFromTime(
         		TPCEConstants.initialTradePopulationBaseYear,
@@ -244,7 +245,12 @@ public class CETxnInputGenerator {
         long          secFlatFileIndex;
       //  String[]      flTaxId;
         TradeType    eTradeType;
-        inputStructure.setTradeID(currentTradeID.getAndIncrement());
+        
+        long base = 200000000000000L;
+        inputStructure.setTradeID(base+currentTradeID.getAndIncrement());
+       // System.out.println("TradeID " + inputStructure.getTradeID());
+        
+        
         /***********ADDDED**/
         //inputStructure.setSendToMarket(pSendToMarket);
         /*******************/

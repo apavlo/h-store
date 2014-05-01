@@ -68,7 +68,7 @@ public class VoterWinTimeSStoreProjectBuilder extends AbstractProjectBuilder {
         { "votes_stream", "phone_number"},
         { "S1", "phone_number"},
         { "W_ROWS", "phone_number"},
-        { "leaderboard", "phone_number"}
+        { "leaderboard", "contestant_number"}
     };
 
     public VoterWinTimeSStoreProjectBuilder() {

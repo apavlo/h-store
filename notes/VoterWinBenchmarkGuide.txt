@@ -1,0 +1,37 @@
+VoterWin:
+H-Store
+voterwinhstore - standard voter win for H-Store (tuples), with persistent window
+voterwinhstorenocleanup - voter win for H-Store (tuples), windows generated on the fly (without cleanup)
+S-Store
+voterwinsstore - standard voter win for S-Store (tuples), same as H-Store but with S-Store windows
+
+VoterWinTime:
+H-Store
+voterwintimehstore - standard voter win for H-Store (timestamps), with persistent window
+voterwintimehstorenocleanup - voter win for H-Store (timestamps), windows generated on the fly (without cleanup)
+S-Store
+voterwintimesstore - standard voter win for S-Store (timestamps)(PE to EE communication, contestant validation via stream)
+voterwintimesstorefullstream - voter win for S-Store (timestamps), everything is done via stream (no midling PE to EE) (NOTE: incomplete vote validation)
+voterwintimesstorewinonly - voter win for S-Store (timestamps), identical to H-Store except for window maintenance
+
+VoterDemo:
+H-Store
+voterdemohstore - standard voter demo for H-Store, with garbage collection
+voterdemohstorenocleanup - voter demo for H-Store, windows generated on the fly (without cleanup)
+S-Store
+voterdemosstore - standard voter demo for S-Store (vote validation identical to voterwinsstore)
+voterdemosstorepetrigonly - identical to voterdemohstorenocleanup except with PE triggers instead of client calls
+
+VoterEETrigTest:
+voterhstoreeetrigtest - voter for H-Store, with only the contestant validation (no phone_number or state)
+votersstoreeetrigtest - identical to voterhstoreeetrigtest, only the contestant validation is through streaming
+
+
+WINDOWING TESTS:
+TUPLES (Window Size, Slide Size): (10, 1), (10, 2), (100, 1), (100, 10), (10000, 1), (10000, 10)
+voterwinhstorenocleanup
+voterwinsstore
+
+TIMESTAMPS (Window Size, Slide Size, TS Size): (30, 1, 1000), (30, 2, 1000), (30, 1, 100), (300, 1, 100), (3000, 1, 10), (3000, 2, 10)
+voterwintimehstorenocleanup
+voterwintimesstorewinonly

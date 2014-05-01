@@ -2,12 +2,13 @@ package edu.brown.benchmark.tpceb.generators;
 
 import java.lang.reflect.Method;
 import java.util.Date;
+import java.util.LinkedList;
 
 import edu.brown.benchmark.tpceb.generators.TradeGenerator.TradeType;
 import edu.brown.benchmark.tpceb.util.EGenRandom;
 
 public class MEETradingFloor {
-    
+    public LinkedList<Long> inputs = new LinkedList<Long>();
     public long  getRNGSeed(){
         return( rnd.getSeed() );
     }
@@ -99,7 +100,7 @@ public class MEETradingFloor {
         CurrentPrice = priceBoard.getCurrentPrice( tradeReq.symbol ).getDollars();
     
         txnInput.trade_id = tradeReq.trade_id;
-        //System.out.println("Trade id:" + txnInput.trade_id);
+        System.out.println("Trade id:" + txnInput.trade_id);
        // txnInput.st_completed_id =  "E_COMPLETED";
     
         if(( eTradeType == TradeType.eLimitBuy && tradeReq.price_quote < CurrentPrice )||( eTradeType == TradeType.eLimitSell && tradeReq.price_quote > CurrentPrice )){
@@ -110,8 +111,18 @@ public class MEETradingFloor {
             txnInput.trade_price = CurrentPrice;
            // System.out.println("IN ELSE");
         }
-    
-        sut.TradeResult(  txnInput );
+       // System.out.println("TRADEIDHERE"+  txnInput.trade_id);
+        //System.out.println("TRADEPRICEHERE"+  txnInput.trade_price);
+        if(!inputs.contains(txnInput.trade_id)){
+            System.out.println("TRADEIDHERE"+  txnInput.trade_id);
+            System.out.println("ADDINGIDOK");
+            sut.TradeResult(  txnInput );
+            inputs.add(txnInput.trade_id);
+        }
+       //System.out.println("INPUTS!:");
+       //for(int i = 0; i < inputs.size(); i++){
+       //    System.out.println("ID " + inputs.get(i));
+       //}
        // System.out.println("Got to here");
     
         TickerEntry.symbol = new String( tradeReq.symbol);

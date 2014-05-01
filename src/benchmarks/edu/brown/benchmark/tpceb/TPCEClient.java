@@ -176,7 +176,7 @@ public class TPCEClient extends BenchmarkComponent {
 private int num = 1;
     protected Transaction selectTransaction() {
         //getNumThreads * 20
-        if(countTotal <= 200){ //probably 200
+        if(countTotal <= 500){ //probably 200
             num = 1;
             System.out.println("Trade Order number:" + countTotal);
         int iTxnType = egen_clientDriver.driver_ptr.getCE().getCETxnMixGenerator().generateNextTxnType( );
@@ -188,21 +188,21 @@ private int num = 1;
         countTotal++;
         
         return XTRANS[iTxnType];
-        }
-        else if(countTotal <= 500){
+       }
+        else if(countTotal <= 700){
             num = 2;
-            System.out.println("Market Feed");
+           // System.out.println("Market Feed");
                 countTotal++;
                 return XTRANS[2];
      //           
-            }
+           }
         else{
           //  return null;
-         //   num = 2;
-          //  System.out.println("Trade Result");
-          //  countTotal++;
-            return XTRANS[1];
-        }
+            num = 2;
+           // System.out.println("Trade Result");
+            countTotal++;
+           return XTRANS[1];
+       }
     }
     
   
@@ -217,7 +217,7 @@ private int num = 1;
         try {
             final Transaction target = selectTransaction();
 
-            LOG.debug("Executing txn " + target);
+           // LOG.debug("Executing txn " + target);
             //TPCECallback temp = new TPCECallback(target);
         
            while (!this.getClientHandle().callProcedure(new TPCECallback(target), target.callName, this.generateClientArgs(target))) {
@@ -242,13 +242,14 @@ int countRow =0;
         final Transaction target = selectTransaction();
       //  boolean retME = false;
         if(num ==1){
-            System.out.println("num was 1");
+            //System.out.println("num was 1");
         try {
            
             
          
             tradeRequest = new TTradeRequest();
-            LOG.debug("Executing txn " + target);
+           // LOG.debug("Executing txn " + target);
+           // ret = this.getClientHandle().callProcedure(new TPCECallback(target), target.callName, this.generateClientArgs(target));
            // ret = this.getClientHandle().callProcedure(new TPCECallback(target), target.callName, this.generateClientArgs(target));
             tradeOrderResult = this.getClientHandle().callProcedure(target.callName, this.generateClientArgs(target)).getResults();
             
@@ -276,7 +277,7 @@ int countRow =0;
                // tradeRequest.trade_qty = (int) tradeOrderResult[0].fetchRow(0).get("trade_qty", VoltType.INTEGER);
                 System.out.println("trying to get eAction");
                 tradeRequest.eActionTemp = (int) tradeOrderResult[0].fetchRow(0).getLong("eAction");
-                System.out.println("eAction val:" + tradeRequest.eActionTemp );
+               // System.out.println("eAction val:" + tradeRequest.eActionTemp );
                 //  tradeRequest.eActionTemp = (int) tradeOrderResult[0].fetchRow(0).get("eAction", VoltType.INTEGER);
              //   tradeRequest.eActionTemp = (int) tradeOrderResult[0].fetchRow(0).getDouble("eAction");
                 //System.out.println("eActionTemp " + tradeOrderResult[0].fetchRow(0).getDouble("eAction"));
@@ -294,7 +295,7 @@ int countRow =0;
                 egen_clientDriver.driver_ptr.getMEE().submitTradeRequest(tradeRequest);
                 countRow++;
                // System.out.println("true");
-            }
+           }
           
             // clientResponse.getResults();
             //  tradeOrderResult = this.getClientHandle().getResults();// retME = this.getClientHandle().callProcedure(new TPCECallback(target), target.callName, this.generateClientArgs(targetME));
@@ -312,7 +313,7 @@ int countRow =0;
         else{
             
             try {
-                System.out.println("Starting MF");
+             //   System.out.println("Starting MF");
              //   final Transaction target = selectTransaction();
              
                 
@@ -320,7 +321,7 @@ int countRow =0;
                ret = this.getClientHandle().callProcedure(new TPCECallback(target), target.callName, this.generateClientArgs(target));
                // tradeOrderResult = this.getClientHandle().callProcedure(target.callName, this.generateClientArgs(target)).getResults();
               
-                System.out.println("Back in TPCE");
+              //  System.out.println("Back in TPCE");
               
                 // clientResponse.getResults();
                 //  tradeOrderResult = this.getClientHandle().getResults();// retME = this.getClientHandle().callProcedure(new TPCECallback(target), target.callName, this.generateClientArgs(targetME));

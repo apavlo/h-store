@@ -48,6 +48,10 @@ public class Initialize extends VoltProcedure
     // Inserts a row into the count
     public final SQLStmt insertVoteCountStmt = new SQLStmt("INSERT INTO voteCount (row_id, cnt) VALUES (1, 0);");
     
+    public final SQLStmt insertTotalVoteCountStmt = new SQLStmt("INSERT INTO totalVoteCount (row_id, cnt) VALUES (1, 0);");
+    
+    public final SQLStmt insertTotalLeaderboardCountStmt = new SQLStmt("INSERT INTO totalLeaderboardCount (row_id, cnt) VALUES (1, 0);");
+    
     // Domain data: matching lists of Area codes and States
     public static final short[] areaCodes = new short[]{
 	907,205,256,334,251,870,501,479,480,602,623,928,520,341,764,628,831,925,
@@ -97,6 +101,8 @@ public class Initialize extends VoltProcedure
 		
         voltQueueSQL(checkStmt);
         voltQueueSQL(insertVoteCountStmt);
+        voltQueueSQL(insertTotalLeaderboardCountStmt);
+        voltQueueSQL(insertTotalVoteCountStmt);
         long existingContestantCount = voltExecuteSQL()[0].asScalarLong();
 		
         // if the data is initialized, return the contestant count

@@ -21,6 +21,7 @@
 #include "common/debuglog.h"
 #include "common/types.h"
 #include "common/FatalException.hpp"
+#include "common/ValueFactory.hpp"
 #include "catalog/catalog.h"
 #include "catalog/columnref.h"
 #include "catalog/column.h"
@@ -69,17 +70,16 @@ MaterializedViewMetadata::MaterializedViewMetadata(
         int destIndex = destCol->index();
 
         const catalog::Column *srcCol = destCol->matviewsource();
-
+        
+        m_outputColumnAggTypes[destIndex] = static_cast<ExpressionType>(destCol->aggregatetype());
         if (srcCol) {
             m_outputColumnSrcTableIndexes[destIndex] = srcCol->index();
-            m_outputColumnAggTypes[destIndex] = static_cast<ExpressionType>(destCol->aggregatetype());
-            VOLT_DEBUG("Setting column %d to exp type %d/%d", destIndex, destCol->aggregatetype(), m_outputColumnAggTypes[destIndex]);
         }
         else {
             m_outputColumnSrcTableIndexes[destIndex] = -1;
-            m_outputColumnAggTypes[destIndex] = EXPRESSION_TYPE_INVALID;
-            VOLT_DEBUG("Setting column %d to exp type %d", destIndex, EXPRESSION_TYPE_INVALID);
         }
+        VOLT_DEBUG("%s - Setting column %d to exp type %d/%d",
+                       m_name.c_str(), destIndex, destCol->aggregatetype(), m_outputColumnAggTypes[destIndex]);
     }
 
     m_index = m_target->primaryKeyIndex();
@@ -136,12 +136,22 @@ void MaterializedViewMetadata::processTupleInsert(TableTuple &newTuple) {
         && (m_filterPredicate->eval(&newTuple, NULL).isFalse()))
         return;
 
-    VOLT_DEBUG("Attempting to insert a new tuple into materialized view %s", m_name.c_str());
+    VOLT_DEBUG("%s - Attempting to insert a new tuple into materialized view", m_name.c_str());
     
     bool exists = findExistingTuple(newTuple);
     if (!exists) {
         // create a blank tuple
         m_existingTuple.move(m_emptyTupleBackingStore);
+        VOLT_DEBUG("%s - Tuple does not already exist. Creating a blank entry", m_name.c_str());
+        
+        // PAVLO: 2014-04-18
+        // We need to make sure that we initialize the aggregate columns to zero!
+        // We assume that they are always the last columns in the output list
+        NValue zero = ValueFactory::getIntegerValue(0);
+        for (int colindex = m_groupByColumnCount; colindex < m_outputColumnCount; colindex++) {
+            // HACK: We assume the aggregate columns are integers
+            m_existingTuple.setNValue(colindex, zero);
+        } // FOR
     }
 
     // clear the tuple that will be built to insert or overwrite
@@ -155,13 +165,13 @@ void MaterializedViewMetadata::processTupleInsert(TableTuple &newTuple) {
     }
 
     // set up the next column, which is a count
-    m_updatedTuple.setNValue(colindex,
-                             m_existingTuple.getNValue(colindex).op_increment());
-    colindex++;
+//     m_updatedTuple.setNValue(colindex,
+//                              m_existingTuple.getNValue(colindex).op_increment());
+//     colindex++;
 
     // set values for the other columns
     for (int i = colindex; i < m_outputColumnCount; i++) {
-        NValue newValue = newTuple.getNValue(m_outputColumnSrcTableIndexes[i]);
+        NValue newValue = newTuple.getNValue(i); // m_outputColumnSrcTableIndexes[i]);
         NValue existingValue = m_existingTuple.getNValue(i);
 
         if (m_outputColumnAggTypes[i] == EXPRESSION_TYPE_AGGREGATE_SUM) {
@@ -169,6 +179,8 @@ void MaterializedViewMetadata::processTupleInsert(TableTuple &newTuple) {
         }
         else if (m_outputColumnAggTypes[i] == EXPRESSION_TYPE_AGGREGATE_COUNT) {
             m_updatedTuple.setNValue(i, existingValue.op_increment());
+            VOLT_DEBUG("%s - Updating COUNT column #%d -> %s",
+                       m_name.c_str(), i, m_updatedTuple.getNValue(i).debug().c_str());
         }
         else {
             char message[128];
@@ -184,9 +196,11 @@ void MaterializedViewMetadata::processTupleInsert(TableTuple &newTuple) {
         // shouldn't need to update indexes as this shouldn't ever change the
         // key
         m_target->updateTuple(m_updatedTuple, m_existingTuple, false);
+        VOLT_DEBUG("Updating entry => %s", m_updatedTuple.debug(m_name).c_str());
     }
     else {
         m_target->insertTuple(m_updatedTuple);
+        VOLT_DEBUG("Inserting new entry => %s", m_updatedTuple.debug(m_name).c_str());
     }
 }
 

@@ -37,16 +37,6 @@ CREATE TABLE votes
 -- PARTITION BY ( phone_number )
 );
 
-CREATE TABLE votes_by_contestant
-(
- contestant_number  integer    NOT NULL REFERENCES contestants (contestant_number)
-, num_votes                integer
-, CONSTRAINT PK_cont PRIMARY KEY
-(
-   contestant_number
-)
-);
-
 CREATE TABLE voteCount
 (
   row_id	     integer    NOT NULL,
@@ -57,13 +47,24 @@ CREATE TABLE voteCount
   )
 );
 
-CREATE STREAM votes_stream
+CREATE TABLE totalVoteCount
 (
-  vote_id            bigint     NOT NULL,
-  phone_number       bigint     NOT NULL
-, state              varchar(2) NOT NULL
-, contestant_number  integer    NOT NULL
-, time		     integer    NOT NULL
+  row_id	     integer    NOT NULL,
+  cnt		     integer    NOT NULL
+, CONSTRAINT PK_totalVoteCount PRIMARY KEY
+  (
+    row_id
+  )
+);
+
+CREATE TABLE totalLeaderboardCount
+(
+  row_id	     integer    NOT NULL,
+  cnt		     integer    NOT NULL
+, CONSTRAINT PK_totalLeaderboardCount PRIMARY KEY
+  (
+    row_id
+  )
 );
 
 CREATE STREAM proc_one_out
@@ -74,13 +75,6 @@ CREATE STREAM proc_one_out
 , contestant_number  integer    NOT NULL
 , time		     integer    NOT NULL
 );
-
-CREATE STREAM counting_stream
-(
-  vote_id	     bigint     NOT NULL
-);
-
-CREATE WINDOW counting_win ON counting_stream ROWS 10000 SLIDE 10000;
 
 CREATE WINDOW trending_leaderboard ON proc_one_out RANGE 30 SLIDE 2;
 
@@ -104,7 +98,7 @@ AS
  GROUP BY phone_number
 ;
 
-CREATE VIEW v_contestant_count
+CREATE VIEW v_votes_by_contestant
 (
   contestant_number
 , num_votes

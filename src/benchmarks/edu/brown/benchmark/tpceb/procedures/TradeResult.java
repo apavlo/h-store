@@ -186,6 +186,7 @@ public class TradeResult extends VoltProcedure {
         double sell_value = 0;
        // Date trade_dts = Calendar.getInstance().getTime();
         long trade_dts =  Calendar.getInstance().getTimeInMillis();
+       // TimestampType timestamp = new TimestampType(trade_dts);
         if (type_is_sell == 1) {
             System.out.println("type was sell");
             if (hs_qty == 0) {
@@ -200,16 +201,15 @@ public class TradeResult extends VoltProcedure {
             }
             else if (hs_qty != trade_qty) {
                 System.out.println("qtys not equal");
+                System.out.println("Acct ID" + acct_id);
+                System.out.println("symbol" + symbol);
+                System.out.println("trade qty" + trade_qty);
+                System.out.println("hs qty" + hs_qty);
                 voltQueueSQL(updateHoldingSummary, hs_qty - trade_qty, acct_id, symbol);
-                try{
+                
                 voltExecuteSQL();
-                }
-                catch(Exception ex){
-                    ex.getMessage();
-                    ex.getCause();
-                    ex.printStackTrace();
-                }
-                System.out.println("update holding summary holding summary");
+                
+                System.out.println("update holding summary");
             }
             System.out.println("done with the first if");
             if (hs_qty > 0) {
@@ -269,7 +269,7 @@ public class TradeResult extends VoltProcedure {
                 //QLStmt("insert into HOLDING (H_T_ID, H_CA_ID, H_S_SYMB, H_DTS, H_PRICE, H_QTY) " + "values (?, ?, ?, ?, ?, ?)");
                 voltQueueSQL(insertHoldingHistory, trade_id, trade_id, 0, -needed_qty);
                 System.out.println("inserted HH");
-                voltQueueSQL(insertHolding, trade_id, acct_id, symbol, trade_dts, trade_price, -needed_qty);
+                voltQueueSQL(insertHolding, trade_id, acct_id, symbol, trade_dts, trade_price, -needed_qty); //trade_dts
                 System.out.println("inserted HH");
              //   try{
                     voltExecuteSQL();
@@ -355,7 +355,10 @@ public class TradeResult extends VoltProcedure {
             // all shorts are covered? a new long is created
             if (needed_qty > 0) {
                 System.out.println("needed qty > 0");
+                System.out.println("Trade id:" + trade_id);
+                System.out.println("acct_id"+ acct_id);
                 voltQueueSQL(insertHoldingHistory, trade_id, trade_id, 0, needed_qty);
+                System.out.println("this worked");
                 voltQueueSQL(insertHolding, trade_id, acct_id, symbol, trade_dts, trade_price, needed_qty);
                 voltExecuteSQL();
             }
@@ -385,13 +388,13 @@ public class TradeResult extends VoltProcedure {
       //  voltQueueSQL(getCustomer, cust_id);
         VoltTable[] sec_cust = voltExecuteSQL();
         System.out.println("Successfully got security info");
-        System.out.println(sec_cust[0]);
+       // System.out.println(sec_cust[0]);
         VoltTable sec = sec_cust[0];
         System.out.println("got rows1");
        // VoltTable cust = sec_cust[1];
        // System.out.println("got rows");
         assert sec.getRowCount() == 1;
-        System.out.println("secuerity assertion ok");
+        System.out.println("security assertion ok");
        // assert cust.getRowCount() == 1;
         System.out.println("cust assertion ok");
         VoltTableRow sec_row = sec.fetchRow(0);
@@ -463,8 +466,8 @@ public class TradeResult extends VoltProcedure {
        // double acct_bal = bal.fetchRow(0).getDouble("CA_BAL");
         
         VoltTable ret_values = trade_result_ret_template.clone(64);
-        ret_values.addRow(acct_bal);
-        System.out.println("Successfully did updated volt table ");
+        ret_values.addRow(acct_bal); //took out float cast
+        System.out.println("Successfully did update volt table ");
         return new VoltTable[] {ret_values};
     }
 }

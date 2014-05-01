@@ -35,7 +35,7 @@ public abstract class VoterWinTimeHStoreConstants {
     public static final String TABLENAME_AREA_CODE_STATE = "area_code_state";
     public static final String TABLENAME_VOTES           = "votes";
     
-	public static final int MAX_VOTES = 1000; 
+	public static final int MAX_VOTES = 10; 
 	public static final int NUM_CONTESTANTS = 6; 
 
 	// Initialize some common constants and variables
@@ -46,4 +46,7 @@ public abstract class VoterWinTimeHStoreConstants {
     public static final long VOTE_SUCCESSFUL = 0;
     public static final long ERR_INVALID_CONTESTANT = 1;
     public static final long ERR_VOTER_OVER_VOTE_LIMIT = 2;
+    
+    public static final long WIN_SIZE = 30;
+    public static final long STAGE_SIZE = 2;
 }

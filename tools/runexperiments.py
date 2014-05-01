@@ -19,7 +19,7 @@ def generateReport(benchmark_result):
 		jsonsnippet = jsonsnippet.replace("\"","")
 		
 		# get 	THROUGHPUT
-		output  = re.compile('TXNPERMILLI: (.*?),', re.DOTALL |  re.IGNORECASE).findall(jsonsnippet)
+		output  = re.compile('TXNTOTALPERSECOND: (.*?),', re.DOTALL |  re.IGNORECASE).findall(jsonsnippet)
 		THROUGHPUT = str(output[0])
 		basic = " " + THROUGHPUT
 		anlyze_result.append(THROUGHPUT)
@@ -125,6 +125,7 @@ parser.add_argument('--rstep', help='step - txnrate', type=int, default=100)
 parser.add_argument('--lmin', help='min - log timeout', type=int, default=10)
 parser.add_argument('--lmax', help='max - log timeout', type=int, default=10)
 parser.add_argument('--lstep', help='step - log timeout', type=int, default=10)
+parser.add_argument('--warmup', help='warmup - time in ms', type=int, default=10000)
 
 
 args = parser.parse_args()
@@ -143,6 +144,7 @@ lmin	    = args.lmin
 lmax	    = args.lmax
 lstep       = args.lstep
 llog        = args.log
+warmup      = args.warmup
 if blockingflag==True:
     strblocking = "true"
 else:
@@ -172,6 +174,7 @@ while client_threads_per_host <= tmax:
 	client_txnrate = rmin
 	while client_txnrate <= rmax:
 		site_commandlog_timeout	= lmin
+		client_warmup = warmup
 		if llog==False:
 			print "no logging mechanism executed in system..."
 			str_antcmd 			= "ant hstore-benchmark"
@@ -180,12 +183,13 @@ while client_threads_per_host <= tmax:
 			str_client_blocking    	        = " -Dclient.blocking=" + strblocking
 			str_client_threads_per_host 	= " -Dclient.threads_per_host=" + "{0:d}".format(client_threads_per_host)
 			str_client_txnrate		= " -Dclient.txnrate=" + "{0:d}".format(client_txnrate)
+			str_client_warmup       = " -Dclient.warmup=" + "{0:d}".format(client_warmup)
 			str_site_commandlog_timeout = " -Dsite.commandlog_timeout=" + "{0:d}".format(site_commandlog_timeout)
 			str_site_commandlog_enable = " -Dsite.commandlog_enable=false"
 		
 			basic = "{0:d}".format(client_threads_per_host) + " " + "{0:d}".format(client_txnrate) + " " +  "{0:d}".format(site_commandlog_timeout)
 		
-			runcmd = str_antcmd + str_project + str_client_blocking + str_client_output_results_json + str_client_threads_per_host + str_client_txnrate + str_site_commandlog_enable
+			runcmd = str_antcmd + str_project + str_client_blocking + str_client_output_results_json + str_client_threads_per_host + str_client_txnrate + str_client_warmup + str_site_commandlog_enable
 		
 			print "running benchmark with following configuration:"
 			print runcmd

@@ -29,7 +29,7 @@ CREATE TABLE votes
   phone_number       bigint     NOT NULL
 , state              varchar(2) NOT NULL -- REFERENCES area_code_state (state)
 , contestant_number  integer    NOT NULL REFERENCES contestants (contestant_number)
-, time		     integer    NOT NULL
+, ts		     integer    NOT NULL
 , CONSTRAINT PK_votes PRIMARY KEY
   (
     vote_id
@@ -43,7 +43,7 @@ CREATE TABLE proc_one_out
   phone_number       bigint     NOT NULL
 , state              varchar(2) NOT NULL -- REFERENCES area_code_state (state)
 , contestant_number  integer    NOT NULL REFERENCES contestants (contestant_number)
-, time		     integer    NOT NULL
+, ts		     integer    NOT NULL
 );
 
 CREATE TABLE w_staging
@@ -52,11 +52,7 @@ CREATE TABLE w_staging
   phone_number       bigint     NOT NULL
 , state              varchar(2) NOT NULL -- REFERENCES area_code_state (state)
 , contestant_number  integer    NOT NULL REFERENCES contestants (contestant_number)
-, time		     integer    NOT NULL
-, CONSTRAINT PK_stage PRIMARY KEY
-  (
-    vote_id
-  )
+, ts		     integer    NOT NULL
 -- PARTITION BY ( phone_number )
 );
 
@@ -66,11 +62,7 @@ CREATE TABLE w_trending_leaderboard
   phone_number       bigint     NOT NULL
 , state              varchar(2) NOT NULL -- REFERENCES area_code_state (state)
 , contestant_number  integer    NOT NULL REFERENCES contestants (contestant_number)
-, time 		     integer    NOT NULL
-, CONSTRAINT PK_win PRIMARY KEY
-  (
-    vote_id
-  )
+, ts 		     integer    NOT NULL
 -- PARTITION BY ( phone_number )
 );
 
@@ -85,20 +77,33 @@ CREATE TABLE voteCount
 (
   row_id	     integer    NOT NULL,
   cnt		     integer    NOT NULL
+
 , CONSTRAINT PK_voteCount PRIMARY KEY
   (
     row_id
   )
 );
 
-CREATE TABLE votes_by_contestant
+CREATE TABLE totalVoteCount
 (
- contestant_number  integer    NOT NULL REFERENCES contestants (contestant_number)
-, num_votes                integer
-, CONSTRAINT PK_cont PRIMARY KEY
+  row_id	     integer    NOT NULL,
+  cnt		     integer    NOT NULL
+
+, CONSTRAINT PK_totalVoteCount PRIMARY KEY
+  (
+    row_id
+  )
+);
+
+CREATE TABLE totalLeaderboardCount
 (
-   contestant_number
-)
+  row_id	     integer    NOT NULL,
+  cnt		     integer    NOT NULL
+
+, CONSTRAINT PK_totalLeaderboardCount PRIMARY KEY
+  (
+    row_id
+  )
 );
 
 -- rollup of votes by phone number, used to reject excessive voting
@@ -129,3 +134,29 @@ AS
  GROUP BY contestant_number
         , state
 ;
+
+CREATE VIEW v_votes_by_contestant
+(
+  contestant_number
+, num_votes
+)
+AS
+   SELECT contestant_number
+        , COUNT(*)
+     FROM votes
+ GROUP BY contestant_number
+;
+
+CREATE VIEW v_top_three_last_30_sec
+(
+  contestant_number, num_votes
+)
+AS
+   SELECT contestant_number
+        , count(*) 
+   FROM w_trending_leaderboard 
+   GROUP BY contestant_number
+;
+
+CREATE INDEX idx_w_staging ON W_STAGING (ts);
+CREATE INDEX idx_w_rows ON w_trending_leaderboard (ts);
