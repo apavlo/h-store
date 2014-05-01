@@ -55,6 +55,7 @@ public enum ProjectType {
     UPSERT("Upsert", "edu.brown.benchmark.upsert"),
     STREAMEXAMPLE("StreamExample", "edu.brown.benchmark.streamexample"),
     VOTERSTREAM("VoterStream", "edu.brown.benchmark.voterstream"),
+    BIKERSTREAM("BikerStream", "edu.brown.benchmark.bikerstream"),
     ANOTHERSTREAM("AnotherStream","edu.brown.benchmark.anotherstream"),
     ANOTHERVOTER("AnotherVoter","edu.brown.benchmark.anothervoter"),
     YETANOTHERVOTER1("YetAnotherVoter1","edu.brown.benchmark.yetanothervoter1"),
