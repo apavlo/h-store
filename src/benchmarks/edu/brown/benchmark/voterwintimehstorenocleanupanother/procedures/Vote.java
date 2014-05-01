@@ -23,11 +23,11 @@
 
 //
 // Accepts a vote, enforcing business logic: make sure the vote is for a valid
-// contestant and that the voterdemohstore (phone number of the caller) is not above the
+// contestant and that the voterwintimehstorenocleanupanother (phone number of the caller) is not above the
 // number of allowed votes.
 //
 
-package edu.brown.benchmark.voterdemohstoreanother.procedures;
+package edu.brown.benchmark.voterwintimehstorenocleanupanother.procedures;
 
 import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
@@ -35,9 +35,7 @@ import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.types.TimestampType;
 
-import edu.brown.benchmark.voter.VoterConstants;
-import edu.brown.benchmark.voterdemohstoreanother.VoterDemoHStoreAnotherConstants;
-import edu.brown.benchmark.voterwintimehstore.VoterWinTimeHStoreConstants;
+import edu.brown.benchmark.voterwintimehstorenocleanupanother.VoterWinTimeHStoreNoCleanupAnotherConstants;
 
 @ProcInfo (
     partitionInfo = "votes.phone_number:1",
@@ -45,64 +43,95 @@ import edu.brown.benchmark.voterwintimehstore.VoterWinTimeHStoreConstants;
 )
 public class Vote extends VoltProcedure {
 
+	
     // Checks if the vote is for a valid contestant
     public final SQLStmt checkContestantStmt = new SQLStmt(
-       "SELECT contestant_number FROM contestants WHERE contestant_number = ?;"
+	   "SELECT contestant_number FROM contestants WHERE contestant_number = ?;"
     );
-    
-    // Checks if the voter has exceeded their allowed number of votes
-    public final SQLStmt checkVoterStmt = new SQLStmt(
-        "SELECT num_votes FROM v_votes_by_phone_number WHERE phone_number = ?;"
+	
+    // Checks if the voterwintimehstorenocleanupanother has exceeded their allowed number of votes
+    public final SQLStmt checkVoterWinTimeHStoreNoCleanupAnotherStmt = new SQLStmt(
+		"SELECT num_votes FROM v_votes_by_phone_number WHERE phone_number = ?;"
     );
-    
+	
     // Checks an area code to retrieve the corresponding state
     public final SQLStmt checkStateStmt = new SQLStmt(
-        "SELECT state FROM area_code_state WHERE area_code = ?;"
+		"SELECT state FROM area_code_state WHERE area_code = ?;"
     );
-    
+	
     // Records a vote
     public final SQLStmt insertVoteStmt = new SQLStmt(
-        "INSERT INTO votes (vote_id, phone_number, state, contestant_number, time) VALUES (?, ?, ?, ?, ?);"
+		"INSERT INTO votes (vote_id, phone_number, state, contestant_number, ts) VALUES (?, ?, ?, ?, ?);"
+    );
+    /**
+    public final SQLStmt insertVoteWindowStmt = new SQLStmt(
+		"INSERT INTO w_rows (vote_id, phone_number, state, contestant_number, ts) VALUES (?, ?, ?, ?, ?);"
+    );*/
+    
+    public final SQLStmt checkWindowTimestampStmt = new SQLStmt(
+		"SELECT min_ts FROM minTS WHERE row_id = 1;"
     );
     
-    // Records a vote
-    public final SQLStmt insertProcEndStmt = new SQLStmt(
-        "INSERT INTO proc_one_out (vote_id, phone_number, state, contestant_number, time) VALUES (?, ?, ?, ?, ?);"
+ // Put the staging votes into the window
+    public final SQLStmt deleteLeaderboardStmt = new SQLStmt(
+		"DELETE FROM leaderboard;"
     );
     
+    // Put the staging votes into the window
+    public final SQLStmt selectVoteWindowStmt = new SQLStmt(
+		"SELECT contestant_number, count(*) FROM votes WHERE ts >= ? AND ts < ? GROUP BY contestant_number;"
+    );
     
-public long run(long voteId, long phoneNumber, int contestantNumber, long maxVotesPerPhoneNumber, int currentTimestamp) {
-        
+    public final SQLStmt updateMinTSStmt = new SQLStmt(
+		"UPDATE minTS SET min_ts = ? WHERE row_id = 1;"
+    );
+    
+	
+    public long run(long voteId, long phoneNumber, int contestantNumber, long maxVotesPerPhoneNumber, int currentTimestamp) {
+		
         // Queue up validation statements
         voltQueueSQL(checkContestantStmt, contestantNumber);
-        voltQueueSQL(checkVoterStmt, phoneNumber);
+        voltQueueSQL(checkVoterWinTimeHStoreNoCleanupAnotherStmt, phoneNumber);
         voltQueueSQL(checkStateStmt, (short)(phoneNumber / 10000000l));
+        voltQueueSQL(checkWindowTimestampStmt);
         VoltTable validation[] = voltExecuteSQL();
-        
-        // validate the maximum limit for votes number
+		
         if (validation[0].getRowCount() == 0) {
-            return VoterConstants.ERR_INVALID_CONTESTANT;
+            return VoterWinTimeHStoreNoCleanupAnotherConstants.ERR_INVALID_CONTESTANT;
         }
-        
+		
         if ((validation[1].getRowCount() == 1) &&
-            (validation[1].asScalarLong() >= maxVotesPerPhoneNumber)) {
-            return VoterConstants.ERR_VOTER_OVER_VOTE_LIMIT;
+			(validation[1].asScalarLong() >= maxVotesPerPhoneNumber)) {
+            return VoterWinTimeHStoreNoCleanupAnotherConstants.ERR_VOTER_OVER_VOTE_LIMIT;
         }
-        
+		
         // Some sample client libraries use the legacy random phone generation that mostly
         // created invalid phone numbers. Until refactoring, re-assign all such votes to
         // the "XX" fake state (those votes will not appear on the Live Statistics dashboard,
         // but are tracked as legitimate instead of invalid, as old clients would mostly get
         // it wrong and see all their transactions rejected).
         final String state = (validation[2].getRowCount() > 0) ? validation[2].fetchRow(0).getString(0) : "XX";
-                
+		 
+        //long maxStageTimestamp = validation[3].fetchRow(0).getLong(0);
+        long minWinTimestamp = validation[3].fetchRow(0).getLong(0);
         // Post the vote
         //TimestampType timestamp = new TimestampType();
+        
+        //validation = voltExecuteSQL();
+        
+        
         voltQueueSQL(insertVoteStmt, voteId, phoneNumber, state, contestantNumber, currentTimestamp);
-        voltQueueSQL(insertProcEndStmt, voteId, phoneNumber, state, contestantNumber, currentTimestamp);
+        //voltQueueSQL(insertVoteWindowStmt, voteId, phoneNumber, state, contestantNumber, currentTimestamp);
+        if(currentTimestamp - minWinTimestamp >= VoterWinTimeHStoreNoCleanupAnotherConstants.WIN_SIZE + VoterWinTimeHStoreNoCleanupAnotherConstants.STAGE_SIZE)
+        {
+        	//voltQueueSQL(deleteLeaderboardStmt);
+        	voltQueueSQL(selectVoteWindowStmt, currentTimestamp - VoterWinTimeHStoreNoCleanupAnotherConstants.WIN_SIZE, currentTimestamp);
+        	voltQueueSQL(updateMinTSStmt, currentTimestamp - VoterWinTimeHStoreNoCleanupAnotherConstants.WIN_SIZE);
+        }
+        
         voltExecuteSQL(true);
         
         // Set the return value to 0: successful vote
-        return VoterDemoHStoreAnotherConstants.VOTE_SUCCESSFUL;
+        return VoterWinTimeHStoreNoCleanupAnotherConstants.VOTE_SUCCESSFUL;
     }
 }
