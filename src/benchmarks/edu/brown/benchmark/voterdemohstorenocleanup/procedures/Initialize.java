@@ -45,7 +45,8 @@ public class Initialize extends VoltProcedure
     // Inserts a contestant
     public final SQLStmt insertContestantStmt = new SQLStmt("INSERT INTO contestants (contestant_name, contestant_number) VALUES (?, ?);");
     
-    public final SQLStmt insertTimestampStmt = new SQLStmt("INSERT INTO timestamps (row_id, ts) VALUES (?, ?);");
+    public final SQLStmt insertWinTimestampStmt = new SQLStmt("INSERT INTO win_timestamp (row_id, ts) VALUES (1, ?);");
+    public final SQLStmt insertStagingTimestampStmt = new SQLStmt("INSERT INTO stage_timestamp (row_id, ts) VALUES (1, ?);");
     
     // Inserts a row into the count
     public final SQLStmt insertVoteCountStmt = new SQLStmt("INSERT INTO voteCount (row_id, cnt) VALUES (1, 0);");
@@ -107,8 +108,8 @@ public class Initialize extends VoltProcedure
         voltQueueSQL(insertVoteCountStmt);
         voltQueueSQL(insertTotalVoteCountStmt);
         voltQueueSQL(insertTotalLeaderboardCountStmt);
-        voltQueueSQL(insertTimestampStmt, 1, 0);
-        voltQueueSQL(insertTimestampStmt, 2, 0);
+        voltQueueSQL(insertWinTimestampStmt, 0);
+        voltQueueSQL(insertStagingTimestampStmt, 0);
         long existingContestantCount = voltExecuteSQL()[0].asScalarLong();
 		
         // if the data is initialized, return the contestant count

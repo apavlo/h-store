@@ -154,12 +154,12 @@ public long run() {
         	voltQueueSQL(deleteFromLeaderboard, contestant_number);
         	voltQueueSQL(deleteContestant, contestant_number);
             voltQueueSQL(resetCount);
+            voltQueueSQL(getTrendingLeaderboard);
             voltQueueSQL(getTopLeaderboard);
             voltQueueSQL(getBottomLeaderboard);
-            voltQueueSQL(getTrendingLeaderboard);
-            
             voltExecuteSQL(true);
         }
+        
 		
         // Set the return value to 0: successful vote
         return VoterDemoSStoreConstants.VOTE_SUCCESSFUL;

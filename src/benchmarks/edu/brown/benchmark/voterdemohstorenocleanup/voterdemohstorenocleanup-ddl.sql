@@ -70,10 +70,26 @@ CREATE TABLE totalLeaderboardCount
   )
 );
 
-CREATE TABLE timestamps
+CREATE TABLE win_timestamp
 (
    row_id            integer   NOT NULL,
    ts	     integer   NOT NULL
+
+, CONSTRAINT PK_win_timestamp PRIMARY KEY
+  (
+    row_id
+  )
+);
+
+CREATE TABLE stage_timestamp
+(
+   row_id            integer   NOT NULL,
+   ts	     integer   NOT NULL
+
+, CONSTRAINT PK_stage_timestamp PRIMARY KEY
+  (
+    row_id
+  )
 );
 
 -- rollup of votes by phone number, used to reject excessive voting

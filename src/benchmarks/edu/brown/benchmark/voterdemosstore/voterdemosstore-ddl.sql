@@ -83,6 +83,10 @@ CREATE TABLE top_three_last_30_sec
   --phone_number       bigint    NOT NULL,
   contestant_number  integer   NOT NULL
 , num_votes          integer
+, CONSTRAINT PK_topThree PRIMARY KEY
+  (
+    contestant_number
+  )
 );
 
 -- rollup of votes by phone number, used to reject excessive voting

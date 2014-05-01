@@ -46,11 +46,11 @@ public class GenerateLeaderboard extends VoltProcedure {
     
     ////////////////////
     public final SQLStmt checkWindowTimestampStmt = new SQLStmt(
-		"SELECT ts FROM timestamps WHERE row_id = 1;" //min window ts
+		"SELECT ts FROM win_timestamp WHERE row_id = 1;" //min window ts
     );
     
     public final SQLStmt checkMaxStagingTimestampStmt = new SQLStmt(
-		"SELECT ts FROM timestamps WHERE row_id = 2;"
+		"SELECT ts FROM stage_timestamp WHERE row_id = 1;"
     );
     
  // Put the staging votes into the window
@@ -59,7 +59,7 @@ public class GenerateLeaderboard extends VoltProcedure {
     );
     
     public final SQLStmt updateMinTSStmt = new SQLStmt(
-		"UPDATE timestamps SET ts = ? WHERE row_id = 1;" //min window ts
+		"UPDATE win_timestamp SET ts = ? WHERE row_id = 1;" //min window ts
     );
     ////////////////////
     
@@ -142,15 +142,14 @@ public long run() {
         	
         	voltQueueSQL(deleteVotes, contestant_number);
         	voltQueueSQL(deleteContestant, contestant_number);
-            voltQueueSQL(getLowestContestant);
+            //voltQueueSQL(getLowestContestant);
             voltQueueSQL(resetCount);
+            voltQueueSQL(selectVoteWindowStmt, minWinTimestamp, minWinTimestamp + VoterDemoHStoreNoCleanupConstants.WIN_SIZE);
             voltQueueSQL(getTopLeaderboard);
             voltQueueSQL(getBottomLeaderboard);
-            voltQueueSQL(selectVoteWindowStmt, minWinTimestamp, minWinTimestamp + VoterDemoHStoreNoCleanupConstants.WIN_SIZE);
-            
             voltExecuteSQL(true);
         }
-		
+        
         // Set the return value to 0: successful vote
         return VoterDemoHStoreNoCleanupConstants.VOTE_SUCCESSFUL;
     }
