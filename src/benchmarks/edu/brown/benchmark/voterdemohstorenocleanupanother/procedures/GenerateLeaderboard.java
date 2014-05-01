@@ -27,7 +27,7 @@
 // number of allowed votes.
 //
 
-package edu.brown.benchmark.voterdemohstorenocleanup.procedures;
+package edu.brown.benchmark.voterdemohstorenocleanupanother.procedures;
 
 import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
@@ -36,7 +36,7 @@ import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.types.TimestampType;
 
-import edu.brown.benchmark.voterdemohstorenocleanup.VoterDemoHStoreNoCleanupConstants;
+import edu.brown.benchmark.voterdemohstorenocleanupanother.VoterDemoHStoreNoCleanupAnotherConstants;
 
 @ProcInfo (
 	//partitionInfo = "contestants.contestant_number:1",
@@ -46,11 +46,11 @@ public class GenerateLeaderboard extends VoltProcedure {
     
     ////////////////////
     public final SQLStmt checkWindowTimestampStmt = new SQLStmt(
-		"SELECT ts FROM win_timestamp WHERE row_id = 1;" //min window ts
+		"SELECT ts FROM timestamps WHERE row_id = 1;" //min window ts
     );
     
     public final SQLStmt checkMaxStagingTimestampStmt = new SQLStmt(
-		"SELECT ts FROM stage_timestamp WHERE row_id = 1;"
+		"SELECT ts FROM timestamps WHERE row_id = 2;"
     );
     
  // Put the staging votes into the window
@@ -59,7 +59,7 @@ public class GenerateLeaderboard extends VoltProcedure {
     );
     
     public final SQLStmt updateMinTSStmt = new SQLStmt(
-		"UPDATE win_timestamp SET ts = ? WHERE row_id = 1;" //min window ts
+		"UPDATE timestamps SET ts = ? WHERE row_id = 1;" //min window ts
     );
     ////////////////////
     
@@ -128,29 +128,30 @@ public long run() {
         long voteCount = validation[3].fetchRow(0).getLong(0);
         long lowestContestant = validation[4].fetchRow(0).getLong(0);
         
-        if(maxStageTimestamp - minWinTimestamp >= VoterDemoHStoreNoCleanupConstants.WIN_SIZE + VoterDemoHStoreNoCleanupConstants.STAGE_SIZE)
+        if(maxStageTimestamp - minWinTimestamp >= VoterDemoHStoreNoCleanupAnotherConstants.WIN_SIZE + VoterDemoHStoreNoCleanupAnotherConstants.STAGE_SIZE)
         {
-        	minWinTimestamp = maxStageTimestamp - VoterDemoHStoreNoCleanupConstants.WIN_SIZE;
+        	minWinTimestamp = maxStageTimestamp - VoterDemoHStoreNoCleanupAnotherConstants.WIN_SIZE;
         	voltQueueSQL(selectVoteWindowStmt, minWinTimestamp, maxStageTimestamp);
         	voltQueueSQL(updateMinTSStmt, minWinTimestamp);
         	voltExecuteSQL();
         }
 		
         // check the number of votes so far
-        if ( voteCount >= VoterDemoHStoreNoCleanupConstants.VOTE_THRESHOLD) {
+        if ( voteCount >= VoterDemoHStoreNoCleanupAnotherConstants.VOTE_THRESHOLD) {
         	long contestant_number = lowestContestant;
         	
         	voltQueueSQL(deleteVotes, contestant_number);
         	voltQueueSQL(deleteContestant, contestant_number);
-            //voltQueueSQL(getLowestContestant);
+            voltQueueSQL(getLowestContestant);
             voltQueueSQL(resetCount);
-            voltQueueSQL(selectVoteWindowStmt, minWinTimestamp, minWinTimestamp + VoterDemoHStoreNoCleanupConstants.WIN_SIZE);
             voltQueueSQL(getTopLeaderboard);
             voltQueueSQL(getBottomLeaderboard);
+            voltQueueSQL(selectVoteWindowStmt, minWinTimestamp, minWinTimestamp + VoterDemoHStoreNoCleanupAnotherConstants.WIN_SIZE);
+            
             voltExecuteSQL(true);
         }
-        
+		
         // Set the return value to 0: successful vote
-        return VoterDemoHStoreNoCleanupConstants.VOTE_SUCCESSFUL;
+        return VoterDemoHStoreNoCleanupAnotherConstants.VOTE_SUCCESSFUL;
     }
 }

@@ -22,14 +22,14 @@ CREATE TABLE area_code_state
 );
 
 -- votes table holds every valid vote.
---   voterdemosstores are not allowed to submit more than <x> votes, x is passed to client application
+--   voterwintimehstorenocleanups are not allowed to submit more than <x> votes, x is passed to client application
 CREATE TABLE votes
 (
   vote_id            bigint     NOT NULL,
   phone_number       bigint     NOT NULL
 , state              varchar(2) NOT NULL -- REFERENCES area_code_state (state)
 , contestant_number  integer    NOT NULL REFERENCES contestants (contestant_number)
-, time		     integer    NOT NULL
+, ts		     integer    NOT NULL
 , CONSTRAINT PK_votes PRIMARY KEY
   (
     vote_id
@@ -37,56 +37,17 @@ CREATE TABLE votes
 -- PARTITION BY ( phone_number )
 );
 
-CREATE TABLE voteCount
+
+CREATE TABLE leaderboard
 (
-  row_id	     integer    NOT NULL,
-  cnt		     integer    NOT NULL
-, CONSTRAINT PK_voteCount PRIMARY KEY
-  (
-    row_id
-  )
+   contestant_number     integer    NOT NULL, 
+   numvotes              integer    NOT NULL
 );
 
-CREATE TABLE totalVoteCount
+CREATE TABLE minTS
 (
-  row_id	     integer    NOT NULL,
-  cnt		     integer    NOT NULL
-, CONSTRAINT PK_totalVoteCount PRIMARY KEY
-  (
-    row_id
-  )
-);
-
-CREATE TABLE totalLeaderboardCount
-(
-  row_id	     integer    NOT NULL,
-  cnt		     integer    NOT NULL
-, CONSTRAINT PK_totalLeaderboardCount PRIMARY KEY
-  (
-    row_id
-  )
-);
-
-CREATE STREAM proc_one_out
-(
-  vote_id            bigint     NOT NULL,
-  phone_number       bigint     NOT NULL
-, state              varchar(2) NOT NULL
-, contestant_number  integer    NOT NULL
-, time		     integer    NOT NULL
-);
-
-CREATE WINDOW trending_leaderboard ON proc_one_out RANGE 30 SLIDE 2;
-
-CREATE TABLE top_three_last_30_sec
-(
-  --phone_number       bigint    NOT NULL,
-  contestant_number  integer   NOT NULL
-, num_votes          integer
-, CONSTRAINT PK_topThree PRIMARY KEY
-  (
-    contestant_number
-  )
+   row_id            integer   NOT NULL,
+   min_ts	     integer   NOT NULL
 );
 
 -- rollup of votes by phone number, used to reject excessive voting
@@ -102,15 +63,20 @@ AS
  GROUP BY phone_number
 ;
 
-CREATE VIEW v_votes_by_contestant
+-- rollup of votes by contestant and state for the heat map and results
+CREATE VIEW v_votes_by_contestant_number_state
 (
   contestant_number
+, state
 , num_votes
 )
 AS
    SELECT contestant_number
-	, COUNT(*)
+        , state
+        , COUNT(*)
      FROM votes
  GROUP BY contestant_number
+        , state
 ;
 
+--CREATE INDEX idx_w_rows ON W_ROWS (ts);

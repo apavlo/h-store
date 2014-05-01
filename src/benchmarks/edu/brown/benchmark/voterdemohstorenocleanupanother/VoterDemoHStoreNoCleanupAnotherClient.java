@@ -4,8 +4,8 @@
  *  Massachusetts Institute of Technology                                  *
  *  Yale University                                                        *
  *                                                                         *
- *  Original By: VoltDB Inc.                                               *
- *  Ported By:  Justin A. DeBrabant (http://www.cs.brown.edu/~debrabant/)  *                                   
+ *  Original By: VoltDB Inc.											   *
+ *  Ported By:  Justin A. DeBrabant (http://www.cs.brown.edu/~debrabant/)  *								   
  *                                                                         *
  *                                                                         *
  *  Permission is hereby granted, free of charge, to any person obtaining  *
@@ -28,7 +28,7 @@
  *  OTHER DEALINGS IN THE SOFTWARE.                                        *
  ***************************************************************************/
 
-package edu.brown.benchmark.voterdemohstoreanother;
+package edu.brown.benchmark.voterdemohstorenocleanupanother;
 
 import java.io.BufferedWriter;
 import java.io.FileWriter;
@@ -44,72 +44,67 @@ import org.voltdb.VoltTable;
 import org.voltdb.VoltTableRow;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
-import org.voltdb.client.NoConnectionsException;
+import org.voltdb.client.ProcCallException;
 import org.voltdb.client.ProcedureCallback;
 
 import weka.classifiers.meta.Vote;
 import edu.brown.api.BenchmarkComponent;
+import edu.brown.benchmark.voterdemohstorenocleanupanother.procedures.GenerateLeaderboard;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 
-public class VoterDemoHStoreAnotherClient extends BenchmarkComponent {
-    private static final Logger LOG = Logger.getLogger(VoterDemoHStoreAnotherClient.class);
+public class VoterDemoHStoreNoCleanupAnotherClient extends BenchmarkComponent {
+    private static final Logger LOG = Logger.getLogger(VoterDemoHStoreNoCleanupAnotherClient.class);
     private static final LoggerBoolean debug = new LoggerBoolean();
     private static long lastTime;
     private static int timestamp;
+
+    // Phone number generator
+    //PhoneCallGenerator switchboard;
+    edu.brown.stream.VoteGenerator switchboard;
     
     private String stat_filename;
     public static long count = 0l;
     public static long fixnum = 1000l;
-
-    // Phone number generator
-    //PhoneCallGenerator switchboard;
     
-    // PhoneCall Generator
-    edu.brown.stream.VoteGenerator switchboard;
-
     // Flags to tell the worker threads to stop or go
     AtomicBoolean warmupComplete = new AtomicBoolean(false);
     AtomicBoolean benchmarkComplete = new AtomicBoolean(false);
 
-    // VoterDemoHStoreAnother benchmark state
+    // voterdemohstorenocleanupanother benchmark state
     AtomicLong acceptedVotes = new AtomicLong(0);
     AtomicLong badContestantVotes = new AtomicLong(0);
     AtomicLong badVoteCountVotes = new AtomicLong(0);
     AtomicLong failedVotes = new AtomicLong(0);
-
-    final Callback callback = new Callback();
-    final AnotherCallback another_callback = new AnotherCallback();
+    
+    boolean genLeaderboard;
+    
     final StatisticCallback stat_callback =  new StatisticCallback();
 
     public static void main(String args[]) {
-        BenchmarkComponent.main(VoterDemoHStoreAnotherClient.class, args, false);
+        BenchmarkComponent.main(VoterDemoHStoreNoCleanupAnotherClient.class, args, false);
     }
 
-    public VoterDemoHStoreAnotherClient(String args[]) {
+    public VoterDemoHStoreNoCleanupAnotherClient(String args[]) {
         super(args);
-        int numContestants = VoterDemoHStoreAnotherUtil.getScaledNumContestants(this.getScaleFactor());
+        int numContestants = VoterDemoHStoreNoCleanupAnotherUtil.getScaledNumContestants(this.getScaleFactor());
         //this.switchboard = new PhoneCallGenerator(this.getClientId(), numContestants);
-        
         String timeLog = new SimpleDateFormat("yyyyMMdd_HHmmss").format(Calendar.getInstance().getTime());
-        stat_filename = "voterdemohstoreanother-" + timeLog + ".txt";
+        stat_filename = "voterdemohstorenocleanupanother-d-" + timeLog + ".txt";
         
-        String filename = "voterdemohstoreanother-o-20000.ser";
+        String filename = "voterdemohstoreanother-d-100000.ser";
         this.switchboard = new edu.brown.stream.VoteGenerator(filename);
-        System.out.println( "filename: " + filename );
-        System.out.println( "Size: " + switchboard.size() );
+        //System.out.println( "filename: " + filename );
+        //System.out.println( "Size: " + switchboard.size() );
         
         lastTime = System.nanoTime();
         timestamp = 0;
+        genLeaderboard = false;
     }
 
     @Override
     public void runLoop() {
         try {
-            VoterDemoHStoreAnotherClient.count = 0l;
-            
-            System.out.println(String.valueOf(VoterDemoHStoreAnotherClient.count));
-                    
             while (true) {
                 // synchronously call the "Vote" procedure
                 try {
@@ -128,47 +123,54 @@ public class VoterDemoHStoreAnotherClient extends BenchmarkComponent {
     @Override
     protected boolean runOnce() throws IOException {
         // Get the next phone call
-        if(System.nanoTime() - lastTime >= 1000000000)
+    	if(System.nanoTime() - lastTime >= VoterDemoHStoreNoCleanupAnotherConstants.TS_DURATION)
         {
-            lastTime = System.nanoTime();
-            timestamp++;
+        	lastTime = System.nanoTime();
+        	timestamp++;
         }
-        
-        //PhoneCallGenerator.PhoneCall call = switchboard.receive();
-        edu.brown.stream.PhoneCallGenerator.PhoneCall call = switchboard.nextVote();
-        //timestamp = (int)call.voteId;
-        //call.debug();
-        
-        if(call != null)
-        {
-            Client client = this.getClientHandle();
-            boolean response = client.callProcedure(callback,
-                                                    "Vote",
-                                                    call.voteId,
-                                                    call.phoneNumber,
-                                                    call.contestantNumber,
-                                                    VoterDemoHStoreAnotherConstants.MAX_VOTES,
-                                                    timestamp);
-            
-            if(response)
-            {
-                response = client.callProcedure(another_callback,
-                        "GenerateLeaderboard");
-                
-                GetStatisticInfo();
-            }
-            return response;
-        }
-        else
-            return true;
-    }
+    	try {
+	    	Client client = this.getClientHandle();
+	    	
+		        //PhoneCallGenerator.PhoneCall call = switchboard.receive();
+	    	    edu.brown.stream.PhoneCallGenerator.PhoneCall call = switchboard.nextVote();
+	    	    //call.debug();
+		        //Callback callback = new Callback(0);
+		
+		        ClientResponse response;
+					response = client.callProcedure(       "Vote",
+					                                        call.voteId,
+					                                        call.phoneNumber,
+					                                        call.contestantNumber,
+					                                        VoterDemoHStoreNoCleanupAnotherConstants.MAX_VOTES,
+					                                        timestamp);
+				
+				incrementTransactionCounter(response, 0);
+		        VoltTable results[] = response.getResults();
+		        
+		        if(results.length > 0 && results[0].asScalarLong() == VoterDemoHStoreNoCleanupAnotherConstants.VOTE_SUCCESSFUL)
+		        {
+		        	response = client.callProcedure("GenerateLeaderboard");
+		    		incrementTransactionCounter(response, 1);
+		        }
+		        
+		        GetStatisticInfo();
+		        
+		        return true;
 
+    	} 
+		catch (ProcCallException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			return false;
+		}
+    }
+    
     private void GetStatisticInfo()
     {
         try
         {
-            VoterDemoHStoreAnotherClient.count++;
-            if( VoterDemoHStoreAnotherClient.count == VoterDemoHStoreAnotherClient.fixnum )
+            VoterDemoHStoreNoCleanupAnotherClient.count++;
+            if( VoterDemoHStoreNoCleanupAnotherClient.count == VoterDemoHStoreNoCleanupAnotherClient.fixnum )
             {
                 //System.out.println("GetStatisticInfo() 1- " + String.valueOf(VoterDemoHStoreAnotherClient.fixnum));
                 //System.out.println("call GetStatisticInfo ...");
@@ -176,7 +178,7 @@ public class VoterDemoHStoreAnotherClient extends BenchmarkComponent {
                 Client client = this.getClientHandle();
                 client.callProcedure(stat_callback, "Results");
 
-                VoterDemoHStoreAnotherClient.fixnum += 1000l;
+                VoterDemoHStoreNoCleanupAnotherClient.fixnum += 1000l;
                 //System.out.println("GetStatisticInfo() 2- " + String.valueOf(VoterDemoHStoreAnotherClient.fixnum));
                 
             }
@@ -191,54 +193,61 @@ public class VoterDemoHStoreAnotherClient extends BenchmarkComponent {
     public String[] getTransactionDisplayNames() {
         // Return an array of transaction names
         String procNames[] = new String[]{
-            Vote.class.getSimpleName()
+            Vote.class.getSimpleName(),
+            GenerateLeaderboard.class.getSimpleName()
         };
         return (procNames);
     }
 
     private class Callback implements ProcedureCallback {
+    	
+    	private int idx;
+    	private long prevStatus;
+    	
+    	public Callback(int idx)
+    	{
+    		super();
+    		this.idx = idx;
+    	}
+    	
+    	public long getStatus()
+    	{
+    		return prevStatus;
+    	}
 
         @Override
         public void clientCallback(ClientResponse clientResponse) {
             // Increment the BenchmarkComponent's internal counter on the
             // number of transactions that have been completed
-            incrementTransactionCounter(clientResponse, 0);
+            incrementTransactionCounter(clientResponse, this.idx);
             
-            // Keep track of state (optional)
-            if (clientResponse.getStatus() == Status.OK) {
-                VoltTable results[] = clientResponse.getResults();
-                assert(results.length == 1);
-                long status = results[0].asScalarLong();
-                if (status == VoterDemoHStoreAnotherConstants.VOTE_SUCCESSFUL) {
-                    acceptedVotes.incrementAndGet();
-                }
-                else if (status == VoterDemoHStoreAnotherConstants.ERR_INVALID_CONTESTANT) {
-                    badContestantVotes.incrementAndGet();
-                }
-                else if (status == VoterDemoHStoreAnotherConstants.ERR_VOTER_OVER_VOTE_LIMIT) {
-                    badVoteCountVotes.incrementAndGet();
-                }
+            if(this.idx == 0)
+            {
+	            // Keep track of state (optional)
+	            if (clientResponse.getStatus() == Status.OK) {
+	                VoltTable results[] = clientResponse.getResults();
+	                assert(results.length == 1);
+	                long status = results[0].asScalarLong();
+	                prevStatus = status;
+	                if (status == VoterDemoHStoreNoCleanupAnotherConstants.VOTE_SUCCESSFUL) {
+	                    acceptedVotes.incrementAndGet();
+	                }
+	                else if (status == VoterDemoHStoreNoCleanupAnotherConstants.ERR_INVALID_CONTESTANT) {
+	                    badContestantVotes.incrementAndGet();
+	                }
+	                else if (status == VoterDemoHStoreNoCleanupAnotherConstants.ERR_VOTER_OVER_VOTE_LIMIT) {
+	                    badVoteCountVotes.incrementAndGet();
+	                }
+	            }
+	            else if (clientResponse.getStatus() == Status.ABORT_UNEXPECTED) {
+	                if (clientResponse.getException() != null) {
+	                    clientResponse.getException().printStackTrace();
+	                }
+	                if (debug.val && clientResponse.getStatusString() != null) {
+	                    LOG.warn(clientResponse.getStatusString());
+	                }
+	            }
             }
-            else if (clientResponse.getStatus() == Status.ABORT_UNEXPECTED) {
-                if (clientResponse.getException() != null) {
-                    clientResponse.getException().printStackTrace();
-                }
-                if (debug.val && clientResponse.getStatusString() != null) {
-                    LOG.warn(clientResponse.getStatusString());
-                }
-            }
-            
-        }
-        
-    } // END CLASS
-    
-    private class AnotherCallback implements ProcedureCallback {
-
-        @Override
-        public void clientCallback(ClientResponse clientResponse) {
-            // Increment the BenchmarkComponent's internal counter on the
-            // number of transactions that have been completed
-            incrementTransactionCounter(clientResponse, 0);
         }
     } // END CLASS
     
@@ -251,7 +260,7 @@ public class VoterDemoHStoreAnotherClient extends BenchmarkComponent {
                 
                 int row_len = vt.getRowCount();
                 
-                String line =  String.valueOf(VoterDemoHStoreAnotherClient.fixnum - 1000l) + ": ";
+                String line =  String.valueOf(VoterDemoHStoreNoCleanupAnotherClient.fixnum - 1000l) + ": ";
                 for(int i=0;i<row_len; i++)
                 {
                     VoltTableRow row = vt.fetchRow(i);
@@ -283,5 +292,4 @@ public class VoterDemoHStoreAnotherClient extends BenchmarkComponent {
             out.close();
         }
     }
-    
 }

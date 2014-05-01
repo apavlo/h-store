@@ -4,8 +4,9 @@
  *  Massachusetts Institute of Technology                                  *
  *  Yale University                                                        *
  *                                                                         *
- *  Original By: VoltDB Inc.                                               *
- *  Ported By:  Justin A. DeBrabant (http://www.cs.brown.edu/~debrabant/)  *                                                                      *
+ *  Original By: VoltDB Inc.											   *
+ *  Ported By:  Justin A. DeBrabant (http://www.cs.brown.edu/~debrabant/)  *								   
+ *                                                                         *
  *                                                                         *
  *  Permission is hereby granted, free of charge, to any person obtaining  *
  *  a copy of this software and associated documentation files (the        *
@@ -27,27 +28,39 @@
  *  OTHER DEALINGS IN THE SOFTWARE.                                        *
  ***************************************************************************/
 
-package edu.brown.benchmark.voterdemohstoreanother;
+package edu.brown.benchmark.voterwintimehstorenocleanupanother;
 
-public abstract class VoterDemoHStoreAnotherConstants {
+import org.apache.log4j.Logger;
 
-    public static final String TABLENAME_CONTESTANTS     = "contestants";
-    public static final String TABLENAME_AREA_CODE_STATE = "area_code_state";
-    public static final String TABLENAME_VOTES           = "votes";
-    
-    public static final int VOTE_THRESHOLD = 10000;
-    public static final int MAX_VOTES = 10; 
-    public static final int NUM_CONTESTANTS = 12; 
+import edu.brown.api.Loader;
 
-    // Initialize some common constants and variables
-    public static final String CONTESTANT_NAMES_CSV = "Edwina Burnam,Tabatha Gehling,Kelly Clauss,Jessie Alloway," +
-                                               "Alana Bregman,Jessie Eichman,Allie Rogalski,Nita Coster," +
-                                               "Kurt Walser,Ericka Dieter,Loraine Nygren,Tania Mattioli";
-    // potential return codes
-    public static final long VOTE_SUCCESSFUL = 0;
-    public static final long ERR_INVALID_CONTESTANT = 1;
-    public static final long ERR_VOTER_OVER_VOTE_LIMIT = 2;
-    
-    public static final long WIN_SIZE = 30;
-    public static final long STAGE_SIZE = 2;
+public class VoterWinTimeHStoreNoCleanupAnotherLoader extends Loader {
+
+    private static final Logger LOG = Logger.getLogger(VoterWinTimeHStoreNoCleanupAnotherLoader.class);
+    private static final boolean d = LOG.isDebugEnabled();
+
+    public static void main(String args[]) throws Exception {
+        if (d) LOG.debug("MAIN: " + VoterWinTimeHStoreNoCleanupAnotherLoader.class.getName());
+        Loader.main(VoterWinTimeHStoreNoCleanupAnotherLoader.class, args, true);
+    }
+
+    public VoterWinTimeHStoreNoCleanupAnotherLoader(String[] args) {
+        super(args);
+        if (d) LOG.debug("CONSTRUCTOR: " + VoterWinTimeHStoreNoCleanupAnotherLoader.class.getName());
+    }
+
+    @Override
+    public void load() {
+        int numContestants = VoterWinTimeHStoreNoCleanupAnotherUtil.getScaledNumContestants(this.getScaleFactor());
+        if (d) 
+            LOG.debug("Starting VoterWinTimeHStoreNoCleanupAnotherLoader [numContestants=" + numContestants + "]");
+
+        try {
+            this.getClientHandle().callProcedure("Initialize",
+                                                 numContestants,
+                                                 VoterWinTimeHStoreNoCleanupAnotherConstants.CONTESTANT_NAMES_CSV);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
 }

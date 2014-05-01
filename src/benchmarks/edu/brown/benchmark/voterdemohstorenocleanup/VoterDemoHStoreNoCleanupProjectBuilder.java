@@ -61,7 +61,8 @@ public class VoterDemoHStoreNoCleanupProjectBuilder extends AbstractProjectBuild
         { "voteCount", "row_id" },
         { "totalVoteCount", "row_id" },
         { "totalLeaderboardCount", "row_id" },
-        { "timestamps", "row_id" }
+        { "win_timestamp", "row_id" },
+        { "stage_timestamp", "row_id" }
     };
 
     public VoterDemoHStoreNoCleanupProjectBuilder() {

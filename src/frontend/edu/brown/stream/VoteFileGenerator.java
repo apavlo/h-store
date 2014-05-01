@@ -27,6 +27,8 @@ public class VoteFileGenerator {
 //        generateTxtFile("voterdemohstoreanother-d-20000");
 //        generateTxtFile("voterdemohstoreanother-o-40000");
 //        generateTxtFile("voterdemohstoreanother-d-40000");
+//        generateTxtFile("voterdemohstoreanother-o-100000");
+//        generateTxtFile("voterdemohstoreanother-d-100000");
         
         for(String argument : vargs){
             System.out.println(argument);

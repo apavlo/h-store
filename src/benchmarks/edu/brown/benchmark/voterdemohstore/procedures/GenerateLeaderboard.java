@@ -182,9 +182,9 @@ public long run() {
         //voltQueueSQL(setLowestContestants);
         voltQueueSQL(getLowestContestant); //5
         voltQueueSQL(clearProcOut);
+        voltQueueSQL(updateTotalCount);
         voltQueueSQL(getTopLeaderboard);
         voltQueueSQL(getBottomLeaderboard);
-        voltQueueSQL(updateTotalCount);
 
         VoltTable validation[] = voltExecuteSQL();
         
@@ -218,13 +218,11 @@ public long run() {
             //voltQueueSQL(setLowestContestants);
             voltQueueSQL(getLowestContestant);
             voltQueueSQL(resetCount);
+            voltQueueSQL(getTrendingLeaderboard);
             voltQueueSQL(getTopLeaderboard);
             voltQueueSQL(getBottomLeaderboard);
-            voltQueueSQL(getTrendingLeaderboard);
-            
             voltExecuteSQL(true);
         }
-		
         // Set the return value to 0: successful vote
         return VoterDemoHStoreConstants.VOTE_SUCCESSFUL;
     }

@@ -25,7 +25,7 @@
 // Initializes the database, pushing the list of contestants and documenting domain data (Area codes and States).
 //
 
-package edu.brown.benchmark.voterdemohstorenocleanup.procedures;
+package edu.brown.benchmark.voterwintimehstorenocleanupanother.procedures;
 
 import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
@@ -45,17 +45,7 @@ public class Initialize extends VoltProcedure
     // Inserts a contestant
     public final SQLStmt insertContestantStmt = new SQLStmt("INSERT INTO contestants (contestant_name, contestant_number) VALUES (?, ?);");
     
-    public final SQLStmt insertWinTimestampStmt = new SQLStmt("INSERT INTO win_timestamp (row_id, ts) VALUES (1, ?);");
-    public final SQLStmt insertStagingTimestampStmt = new SQLStmt("INSERT INTO stage_timestamp (row_id, ts) VALUES (1, ?);");
-    
-    // Inserts a row into the count
-    public final SQLStmt insertVoteCountStmt = new SQLStmt("INSERT INTO voteCount (row_id, cnt) VALUES (1, 0);");
-    
-    public final SQLStmt insertTotalVoteCountStmt = new SQLStmt("INSERT INTO totalVoteCount (row_id, cnt) VALUES (1, 0);");
-    
-    public final SQLStmt insertTotalLeaderboardCountStmt = new SQLStmt("INSERT INTO totalLeaderboardCount (row_id, cnt) VALUES (1, 0);");
-    
-    
+    public final SQLStmt insertMinRow = new SQLStmt("INSERT INTO minTS (row_id, min_ts) VALUES (?, ?);");
 	
     // Domain data: matching lists of Area codes and States
     public static final short[] areaCodes = new short[]{
@@ -105,11 +95,7 @@ public class Initialize extends VoltProcedure
         String[] contestantArray = contestants.split(",");
 		
         voltQueueSQL(checkStmt);
-        voltQueueSQL(insertVoteCountStmt);
-        voltQueueSQL(insertTotalVoteCountStmt);
-        voltQueueSQL(insertTotalLeaderboardCountStmt);
-        voltQueueSQL(insertWinTimestampStmt, 0);
-        voltQueueSQL(insertStagingTimestampStmt, 0);
+        voltQueueSQL(insertMinRow, 1, 0);
         long existingContestantCount = voltExecuteSQL()[0].asScalarLong();
 		
         // if the data is initialized, return the contestant count
