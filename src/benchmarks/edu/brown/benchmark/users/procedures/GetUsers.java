@@ -19,13 +19,13 @@ public class GetUsers extends VoltProcedure{
     public final SQLStmt UpdateUsers = new SQLStmt("UPDATE USERS SET u_attr01=? WHERE U_ID=?");
 
     public VoltTable[] run(long u_id, long u_id2) {
-    	System.out.println("Running procedure Update "+u_id);
+//    	System.out.println("Running procedure Update "+u_id);
     	
         voltQueueSQL(GetUser, u_id);
         VoltTable[] results = voltExecuteSQL();
         boolean adv = results[0].advanceRow();
         //assert (adv);
-        System.out.println(results[0]);
+//        System.out.println(results[0]);
         Long attr1 = results[0].getLong(0);
         voltQueueSQL(UpdateUsers, attr1, u_id2);
         results = voltExecuteSQL(true); 

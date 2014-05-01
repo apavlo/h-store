@@ -199,7 +199,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
                          HStoreConstants.THREAD_NAME_QUEUE_INIT));
             hstore_site.getThreadManager().registerProcessingThread();
             
-            //if (debug.val)
+            if (debug.val)
                 LOG.info(String.format("Starting %s thread", this.getClass().getSimpleName()));
             AbstractTransaction nextTxn = null;
             while (stop == false) {

@@ -370,7 +370,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
      *            - The list of blockIds that need to be read in for the table
      */
     public boolean queue(AbstractTransaction txn, int partition, Table catalog_tbl, short block_ids[], int tuple_offsets[]) {
-    	LOG.info(String.format("%d ************* %d",
+    	LOG.info(String.format("\nBase partition: %d \nPartition that needs to unevict data: %d",
     			txn.getBasePartition(), partition));
     	if (txn instanceof LocalTransaction){
     		LocalTransaction ts = (LocalTransaction)txn;
@@ -397,7 +397,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
 	    	}
     	}
 
-    	LOG.info(String.format("queuing up %d",
+    	LOG.info(String.format("AntiCacheManager queuing up an item for uneviction at site %d",
     			hstore_site.getSiteId()));
         QueueEntry e = new QueueEntry(txn, partition, catalog_tbl, block_ids, tuple_offsets);
 
@@ -891,7 +891,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
                 executor.getPartitionId());
         File dbDirPath = new File(base_dir + File.separatorChar + partitionName);
         if (hstore_conf.site.anticache_reset) {
-            LOG.warn(String.format("Deleting anti-cache directory '%s'", dbDirPath));
+            //LOG.warn(String.format("Deleting anti-cache directory '%s'", dbDirPath));
             FileUtil.deleteDirectory(dbDirPath);
         }
         FileUtil.makeDirIfNotExists(dbDirPath);

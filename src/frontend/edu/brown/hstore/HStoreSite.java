@@ -2172,7 +2172,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @return Returns the final status of this transaction
      */
     public Status transactionRestart(LocalTransaction orig_ts, Status status) {
-LOG.info("transaction restarted!!!!");
+	//LOG.info(String.format("transaction %d was requested for a restarted", orig_ts.getTransactionId()));
         assert(orig_ts != null) : "Null LocalTransaction handle [status=" + status + "]";
         assert(orig_ts.isInitialized()) : "Uninitialized transaction??";
         if (debug.val)
@@ -2412,9 +2412,8 @@ LOG.info("transaction restarted!!!!");
             if (debug.val)
                 LOG.debug(String.format("Added aborted txn to %s queue. Unevicting %d blocks from %s (%d).",
                           AntiCacheManager.class.getSimpleName(), block_ids.length, evicted_table.getName(), evicted_table.getRelativeIndex()));
-            LOG.info(String.format("Added aborted txn to %s queue. Unevicting %d blocks from %s (%d).",
-                    AntiCacheManager.class.getSimpleName(), block_ids.length, evicted_table.getName(), evicted_table.getRelativeIndex()));
-            LOG.info(String.format("error has partition id %d", error.getPartitionId()));
+            //LOG.info(String.format("Added aborted txn to %s queue.",
+            //        AntiCacheManager.class.getSimpleName()));
             
             if(orig_ts.getBasePartition()!=error.getPartitionId() && !this.isLocalPartition(error.getPartitionId())){
             	new_ts.setOldTransactionId(orig_ts.getTransactionId());

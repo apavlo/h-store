@@ -72,7 +72,6 @@ public class RemoteWorkCallback extends PartitionCountingCallback<AbstractTransa
     
     @Override
     public synchronized void run(WorkResult parameter) {
-    	LOG.info(String.format("%d SIte id is ", this.hstore_site.getSiteId()));
         this.builder.addResults(parameter);
         if (debug.val)
             LOG.debug(String.format("%s - Added new %s from partition %d",

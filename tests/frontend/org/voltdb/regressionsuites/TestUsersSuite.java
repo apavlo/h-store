@@ -64,7 +64,7 @@ public class TestUsersSuite extends RegressionSuite {
     /**
      * testInitialize
      */
-    public void testInitialize() throws Exception {
+/*    public void testInitialize() throws Exception {
         Client client = this.getClient();
         this.initializeDatabase(client, NUM_TUPLES);
         
@@ -74,9 +74,8 @@ public class TestUsersSuite extends RegressionSuite {
         VoltTable results[] = cresponse.getResults();
         assertEquals(1, results.length);
         assertEquals(NUM_TUPLES, results[0].asScalarLong());
-        System.err.println(results[0]);
     }
-
+*/
     /**
      * testReadRecord
      */
@@ -86,13 +85,13 @@ public class TestUsersSuite extends RegressionSuite {
         // Force an eviction
         Map<Integer, VoltTable> evictResults = this.evictData(client);
         for (int partition : evictResults.keySet()) {
-            System.err.println("Partition " + partition);
-            System.err.println(StringUtil.prefix("  ", VoltTableUtil.format(evictResults.get(partition))));
+            System.out.println("Partition " + partition);
+            System.out.println(StringUtil.prefix("  ", VoltTableUtil.format(evictResults.get(partition))));
         }
-        System.err.println("-------------------------------");
+        System.out.println("-------------------------------");
 
         String procName = GetUsers.class.getSimpleName();
-        long user1 = 99999;
+        long user1 = 99998;
         long user2 = 1;
         Object params[] = { user1, user2  };
         ClientResponse cresponse = client.callProcedure(procName, params);
@@ -115,7 +114,7 @@ public class TestUsersSuite extends RegressionSuite {
       int numBlocks[] = { 1 };
       
       int remote_partition = catalogContext.getAllPartitionIdArray()[1];
-      System.err.printf("Evicting data at partition %d...\n", remote_partition);
+      System.out.printf("Evicting data at partition %d...\n", remote_partition);
       String children[] = null;
           Object params[] = { remote_partition, tableNames, evictBytes, numBlocks };
           boolean result = client.callProcedure(callback, procName, params);
@@ -163,11 +162,11 @@ public class TestUsersSuite extends RegressionSuite {
         /////////////////////////////////////////////////////////////
         // CONFIG #1: 1 Local Site/Partition running on JNI backend
         /////////////////////////////////////////////////////////////
-        config = new LocalSingleProcessServer(PREFIX+"-1part.jar", 2, BackendTarget.NATIVE_EE_JNI);
+/*        config = new LocalSingleProcessServer(PREFIX+"-1part.jar", 2, BackendTarget.NATIVE_EE_JNI);
         success = config.compile(project);
         assert(success);
         builder.addServerConfig(config);
-
+*/
         ////////////////////////////////////////////////////////////
         // CONFIG #2: cluster of 2 nodes running 2 site each, one replica
         ////////////////////////////////////////////////////////////

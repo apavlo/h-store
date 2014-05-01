@@ -272,7 +272,7 @@ public class HStoreCoordinator implements Shutdownable {
                 
                 assert(response.getSenderSite() != local_site_id);
                 hstore_site.getTransactionInitializer().resetTransactionId(ts, ts.getBasePartition());
-            	LOG.info("restartin on local");
+            	LOG.info(String.format("transaction %d is being restarted", ts.getTransactionId()));
             	LocalInitQueueCallback initCallback = (LocalInitQueueCallback)ts.getInitCallback();
                 hstore_site.getCoordinator().transactionInit(ts, initCallback);
             }
@@ -1357,7 +1357,6 @@ public class HStoreCoordinator implements Shutdownable {
                                     .setPartitionId(partition_id)
                                     .setTableId(catalog_tbl.getRelativeIndex());
                           
-    	 LOG.info(String.format("our site is %d", this.hstore_site.getSiteId()));
     	 for (int i = 0; i< block_ids.length; i++){
 		builder = builder.addBlockIds(block_ids[i]);
     	 }
@@ -1366,9 +1365,8 @@ public class HStoreCoordinator implements Shutdownable {
     	 }
     	 UnevictDataRequest request = builder.build();            
             try {
-            	System.out.println(this.channels[remote_site_id]);
 				this.channels[remote_site_id].unevictData(new ProtoRpcController(), request, this.unevictCallback);
-				LOG.info(String.format("sent message to remote hstore site %d", remote_site_id));
+				LOG.info(String.format("Sent unevict message request to remote hstore site %d from base site %d", remote_site_id, this.hstore_site.getSiteId()));
                 if (trace.val)
                     LOG.trace(String.format("Sent %s to %s",
                               request.getClass().getSimpleName(),
