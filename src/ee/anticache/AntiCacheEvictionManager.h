@@ -30,6 +30,7 @@
 #include "storage/TupleIterator.h"
 #include "anticache/EvictionIterator.h"
 #include "common/tabletuple.h"
+#include "execution/VoltDBEngine.h"
 
 namespace voltdb {
 
@@ -40,7 +41,7 @@ class EvictionIterator;
 class AntiCacheEvictionManager {
         
 public: 
-    AntiCacheEvictionManager();
+    AntiCacheEvictionManager(const VoltDBEngine *engine);
     ~AntiCacheEvictionManager();
     
     bool updateTuple(PersistentTable* table, TableTuple* tuple, bool is_insert);
@@ -59,6 +60,7 @@ public:
 protected:
     void initEvictResultTable();
     Table *m_evictResultTable;
+    const VoltDBEngine *m_engine;
     
     // TODO void initReadResultTable();
     Table *m_readResultTable;

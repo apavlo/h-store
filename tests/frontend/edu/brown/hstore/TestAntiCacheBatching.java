@@ -6,9 +6,11 @@ import org.junit.Before;
 import org.junit.Test;
 import org.voltdb.SysProcSelector;
 import org.voltdb.VoltTable;
+import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Table;
 import org.voltdb.client.Client;
+import org.voltdb.client.ClientResponse;
 import org.voltdb.jni.ExecutionEngine;
 import org.voltdb.utils.VoltTableUtil;
 
@@ -16,7 +18,9 @@ import edu.brown.BaseTestCase;
 import edu.brown.benchmark.articles.ArticlesConstants;
 import edu.brown.benchmark.articles.ArticlesProjectBuilder;
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.conf.HStoreConf;
+import edu.brown.profilers.AntiCacheManagerProfiler;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.FileUtil;
 
@@ -262,5 +266,35 @@ public class TestAntiCacheBatching extends BaseTestCase {
     // Test to verify stats
     // Test to refetch the child tuples only
     // Test maybe to see that child is not tracked?
-    
+    /**
+     * testReadEvictedTuples
+     */
+    @Test
+    public void testReadEvictedTuples() throws Exception {
+        this.loadDataInBatch();
+        
+        // We should have all of our tuples evicted
+        VoltTable evictResult = this.evictDataInBatch();
+        
+        // Now execute a query that needs to access data from this block
+        // the article fetch will also cause comments to be fetched
+        long expected = 1;
+        Procedure proc = this.getProcedure("GetRecord"); // Special Single-Stmt Proc
+        ClientResponse cresponse = this.client.callProcedure(proc.getName(), expected);
+        assertEquals(Status.OK, cresponse.getStatus());
+        
+        VoltTable results[] = cresponse.getResults();
+        assertEquals(1, results.length);
+        boolean adv = results[0].advanceRow();
+        assertTrue(adv);
+        assertEquals(expected, results[0].getLong(0));
+        
+        AntiCacheManagerProfiler profiler = hstore_site.getAntiCacheManager().getDebugContext().getProfiler(0);
+        assertNotNull(profiler);
+        assertEquals(1, profiler.evictedaccess_history.size());
+        
+        // Now execute a query to get comments
+        // there should not be any anticachemanager activity
+    }
+        
 }

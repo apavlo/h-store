@@ -25,6 +25,7 @@
 #ifdef ANTICACHE
 #include "anticache/AntiCacheDB.h"
 #include "anticache/AntiCacheEvictionManager.h"
+#include "execution/VoltDBEngine.h"
 #endif
 
 namespace voltdb {
@@ -180,11 +181,11 @@ namespace voltdb {
          * The input parameter is the directory where our disk-based storage
          * will write out evicted blocks of tuples for this partition
          */
-        void enableAntiCache(std::string &dbDir, long blockSize) {
+        void enableAntiCache(const VoltDBEngine *engine, std::string &dbDir, long blockSize) {
             assert(m_antiCacheEnabled == false);
             m_antiCacheEnabled = true;
             m_antiCacheDB = new AntiCacheDB(this, dbDir, blockSize);
-            m_antiCacheEvictionManager = new AntiCacheEvictionManager(); 
+            m_antiCacheEvictionManager = new AntiCacheEvictionManager(engine);
         }
         #endif
         
