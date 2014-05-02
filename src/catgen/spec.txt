@@ -127,6 +127,7 @@ begin Table                   "A table (relation) in the database"
     bool systable               "Is this table an internal system table?"
     bool mapreduce              "Is this table a MapReduce transaction table?"
     bool evictable              "Can contents of this table be evicted by the anti-cache?"
+    bool batchEvicted			"Are contents of this table evicted only along with a parent table and not by itself?"
 end
 begin TableRef
     Table? table

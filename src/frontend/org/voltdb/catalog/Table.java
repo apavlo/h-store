@@ -35,6 +35,7 @@ public class Table extends CatalogType {
     boolean m_systable;
     boolean m_mapreduce;
     boolean m_evictable;
+    boolean m_batchEvicted;
 
     void setBaseValues(Catalog catalog, CatalogType parent, String path, String name) {
         super.setBaseValues(catalog, parent, path, name);
@@ -53,6 +54,7 @@ public class Table extends CatalogType {
         m_fields.put("systable", m_systable);
         m_fields.put("mapreduce", m_mapreduce);
         m_fields.put("evictable", m_evictable);
+        m_fields.put("batchEvicted", m_batchEvicted);
     }
 
     public void update() {
@@ -61,6 +63,7 @@ public class Table extends CatalogType {
         m_systable = (Boolean) m_fields.get("systable");
         m_mapreduce = (Boolean) m_fields.get("mapreduce");
         m_evictable = (Boolean) m_fields.get("evictable");
+        m_batchEvicted = (Boolean) m_fields.get("batchEvicted");
     }
 
     /** GETTER: The set of columns in the table */
@@ -134,6 +137,11 @@ public class Table extends CatalogType {
         return m_evictable;
     }
 
+    /** GETTER: Are contents of this table evicted only along with a parent table and not by itself? */
+    public boolean getBatchevicted() {
+        return m_batchEvicted;
+    }
+
     /** SETTER: Is the table replicated? */
     public void setIsreplicated(boolean value) {
         m_isreplicated = value; m_fields.put("isreplicated", value);
@@ -167,6 +175,11 @@ public class Table extends CatalogType {
     /** SETTER: Can contents of this table be evicted by the anti-cache? */
     public void setEvictable(boolean value) {
         m_evictable = value; m_fields.put("evictable", value);
+    }
+
+    /** SETTER: Are contents of this table evicted only along with a parent table and not by itself? */
+    public void setBatchevicted(boolean value) {
+        m_batchEvicted = value; m_fields.put("batchEvicted", value);
     }
 
 }

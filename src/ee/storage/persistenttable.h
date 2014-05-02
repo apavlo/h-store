@@ -293,6 +293,8 @@ class PersistentTable : public Table {
     bool isAlreadyUnEvicted(int16_t blockId);
     int32_t getTuplesRead();
     void setTuplesRead(int32_t tuplesRead);
+    void setBatchEvicted(bool batchEvicted);
+    bool isBatchEvicted();
     #endif
     
     void setEntryToNewAddressForAllIndexes(const TableTuple *tuple, const void* address);
@@ -375,6 +377,7 @@ protected:
     int m_numTuplesInEvictionChain;
     
     bool m_blockMerge;
+    bool m_batchEvicted;
 
     #endif
     

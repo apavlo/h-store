@@ -110,6 +110,7 @@ PersistentTable::PersistentTable(ExecutorContext *ctx, bool exportEnabled) :
     m_oldestTupleID = 0;
     m_numTuplesInEvictionChain = 0;
     m_blockMerge = true;
+    m_batchEvicted = false;
     #endif
     
     if (exportEnabled) {
@@ -168,7 +169,15 @@ voltdb::Table* PersistentTable::getEvictedTable() {
     return m_evictedTable; 
 }
 
-    
+void PersistentTable::setBatchEvicted(bool batchEvicted) {
+    VOLT_INFO("Marked batch evicted value as '%d' for table '%s'", batchEvicted, this->name().c_str());
+    m_batchEvicted = batchEvicted;
+}
+
+bool PersistentTable::isBatchEvicted(){
+	return m_batchEvicted;
+}
+
 void PersistentTable::setNumTuplesInEvictionChain(int num_tuples)
 {
     m_numTuplesInEvictionChain = num_tuples; 
