@@ -63,7 +63,7 @@ public class VoterWinTimeHStoreNoCleanupAnotherClient extends BenchmarkComponent
     
     private String stat_filename;
     public static long count = 0l;
-    public static long fixnum = 1000l;
+    public static long fixnum = 10000l;
 
 
     // Flags to tell the worker threads to stop or go
@@ -91,7 +91,7 @@ public class VoterWinTimeHStoreNoCleanupAnotherClient extends BenchmarkComponent
         String timeLog = new SimpleDateFormat("yyyyMMdd_HHmmss").format(Calendar.getInstance().getTime());
         stat_filename = "voterwintimehstorenocleanupanother-d-" + timeLog + ".txt";
         
-        String filename = "voterdemohstoreanother-d-100000.ser";
+        String filename = "votes-d-40000.ser";
         this.switchboard = new edu.brown.stream.VoteGenerator(filename);
 
         lastTime = System.nanoTime();
@@ -119,14 +119,17 @@ public class VoterWinTimeHStoreNoCleanupAnotherClient extends BenchmarkComponent
     @Override
     protected boolean runOnce() throws IOException {
         // Get the next phone call
-    	if(System.nanoTime() - lastTime >= VoterWinTimeHStoreNoCleanupAnotherConstants.TS_DURATION)
-        {
-        	lastTime = System.nanoTime();
-        	timestamp++;
-        }
+//    	if(System.nanoTime() - lastTime >= VoterWinTimeHStoreNoCleanupAnotherConstants.TS_DURATION)
+//        {
+//        	lastTime = System.nanoTime();
+//        	timestamp++;
+//        }
     	
         //PhoneCallGenerator.PhoneCall call = switchboard.receive();
     	edu.brown.stream.PhoneCallGenerator.PhoneCall call = switchboard.nextVote();
+    	
+    	if(call==null)
+    	    return true;
 
         Client client = this.getClientHandle();
         boolean response = client.callProcedure(callback,
@@ -135,7 +138,9 @@ public class VoterWinTimeHStoreNoCleanupAnotherClient extends BenchmarkComponent
                                                 call.phoneNumber,
                                                 call.contestantNumber,
                                                 VoterWinTimeHStoreNoCleanupAnotherConstants.MAX_VOTES,
-                                                timestamp);
+                                                call.timestamp
+                                                //timestamp
+                                                );
         
         GetStatisticInfo();
         
@@ -156,7 +161,7 @@ public class VoterWinTimeHStoreNoCleanupAnotherClient extends BenchmarkComponent
                 Client client = this.getClientHandle();
                 client.callProcedure(stat_callback, "Results");
 
-                VoterWinTimeHStoreNoCleanupAnotherClient.fixnum += 1000l;
+                VoterWinTimeHStoreNoCleanupAnotherClient.fixnum += 10000l;
                 //System.out.println("GetStatisticInfo() 2- " + String.valueOf(VoterWinTimeHStoreNoCleanupAnotherClient.fixnum));
                 
             }
@@ -219,7 +224,7 @@ public class VoterWinTimeHStoreNoCleanupAnotherClient extends BenchmarkComponent
                 
                 int row_len = vt.getRowCount();
                 
-                String line =  String.valueOf(VoterWinTimeHStoreNoCleanupAnotherClient.fixnum - 1000l) + ": ";
+                String line =  String.valueOf(VoterWinTimeHStoreNoCleanupAnotherClient.fixnum - 10000l) + ": ";
                 for(int i=0;i<row_len; i++)
                 {
                     VoltTableRow row = vt.fetchRow(i);
