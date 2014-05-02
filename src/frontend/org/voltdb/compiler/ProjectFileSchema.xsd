@@ -52,6 +52,7 @@
       <xsd:element name="procedures" type="proceduresType"/>
       <xsd:element name="partitions" type="partitionsType" minOccurs="0"/>
       <xsd:element name="evictables" type="evictablesType" minOccurs="0"/>
+      <xsd:element name="batchevictables" type="evictablesType" minOccurs="0"/>
       <xsd:element name="verticalpartitions" type="verticalpartitionsType" minOccurs="0"/>
       <xsd:element name="classdependencies" type="classdependenciesType" minOccurs="0"/>
       <xsd:element name="exports" type="exportsType" minOccurs="0"/>

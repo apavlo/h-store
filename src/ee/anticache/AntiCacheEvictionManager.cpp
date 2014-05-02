@@ -688,7 +688,10 @@ bool AntiCacheEvictionManager::evictBlockToDiskInBatch(PersistentTable *table, P
 
     for(int i = 0; i < num_blocks; i++)
     {
-
+    	VOLT_INFO("Printing parent's LRU chain");
+    	this->printLRUChain(table, 4, true);
+    	VOLT_INFO("Printing child's LRU chain");
+    	this->printLRUChain(childTable, 4, true);
         // get a unique block id from the executorContext
         int16_t block_id = antiCacheDB->nextBlockId();
 
@@ -833,6 +836,10 @@ bool AntiCacheEvictionManager::evictBlockToDiskInBatch(PersistentTable *table, P
         VOLT_DEBUG("Finished evictable tuple iterator for %s [tuplesEvicted=%d]",
                    table->name().c_str(), num_tuples_evicted);
 
+    	VOLT_INFO("Printing parent's LRU chain");
+    	this->printLRUChain(table, 4, true);
+    	VOLT_INFO("Printing child's LRU chain");
+    	this->printLRUChain(childTable, 4, true);
 
         block.writeHeader(num_tuples_evicted);
 

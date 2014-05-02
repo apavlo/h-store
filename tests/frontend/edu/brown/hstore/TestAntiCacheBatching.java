@@ -52,6 +52,8 @@ public class TestAntiCacheBatching extends BaseTestCase {
         {
             this.markTableEvictable(TARGET_TABLE);
             this.markTableEvictable(CHILD_TABLE);
+            this.markTableBatchEvictable(CHILD_TABLE);
+            
             this.addAllDefaults();
             this.addStmtProcedure("GetRecord",
                                   "SELECT * FROM " + TARGET_TABLE + " WHERE a_id = ?");
@@ -67,8 +69,10 @@ public class TestAntiCacheBatching extends BaseTestCase {
         // Just make sure that the Table has the evictable flag set to true
         this.catalog_tbl = getTable(TARGET_TABLE);
         this.child_tbl = getTable(CHILD_TABLE);
+        
         assertTrue(catalog_tbl.getEvictable());
-//        assertFalse(child_tbl.getEvictable());
+        assertTrue(child_tbl.getEvictable());
+        assertTrue(child_tbl.getBatchevicted());
         this.locators = new int[] { catalog_tbl.getRelativeIndex(), child_tbl.getRelativeIndex() };
         
         Site catalog_site = CollectionUtil.first(CatalogUtil.getCluster(catalog).getSites());

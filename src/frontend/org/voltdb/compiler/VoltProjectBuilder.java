@@ -219,6 +219,8 @@ public class VoltProjectBuilder {
      */
     private final HashSet<String> m_evictableTables = new HashSet<String>();
     
+    private final HashSet<String> m_batchEvictableTables = new HashSet<String>();
+    
     /**
      * Prefetchable Queries
      * ProcedureName -> StatementName
@@ -259,6 +261,8 @@ public class VoltProjectBuilder {
     private int m_snapshotRetain = 0;
     private String m_snapshotPrefix = null;
     private String m_snapshotFrequency = null;
+
+	
 
     public VoltProjectBuilder(String project_name) {
         this.project_name = project_name;
@@ -476,7 +480,16 @@ public class VoltProjectBuilder {
     public void markTableEvictable(String tableName) {
         m_evictableTables.add(tableName);
     }
-    
+
+    /**
+     * Mark a table as evictable. When using the anti-caching feature, this means
+     * that portions of this table can be moved out to blocks on disk 
+     * @param tableName
+     */
+    public void markTableBatchEvictable(String tableName) {
+        m_batchEvictableTables.add(tableName);
+    }
+
     // -------------------------------------------------------------------
     // DEFERRABLE STATEMENTS
     // -------------------------------------------------------------------
@@ -1074,7 +1087,18 @@ public class VoltProjectBuilder {
                 evictables.appendChild(table);
             }
         }
-        
+        // BatchEvictable Tables
+        if (m_batchEvictableTables.isEmpty() == false) {
+            final Element batchevictables = doc.createElement("batchevictables");
+            database.appendChild(batchevictables);
+            
+            // Table entries
+            for (String tableName : m_batchEvictableTables) {
+                final Element table = doc.createElement("evictable");
+                table.setAttribute("table", tableName);
+                batchevictables.appendChild(table);
+            }
+        }        
         // Vertical Partitions
         if (m_replicatedSecondaryIndexes.size() > 0) {
             // /project/database/partitions
