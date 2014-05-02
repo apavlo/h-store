@@ -27,11 +27,11 @@
  *  OTHER DEALINGS IN THE SOFTWARE.                                        *
  ***************************************************************************/
 
-package edu.brown.benchmark.microwinhstorefull;
+package edu.brown.benchmark.microwinhstoresomecleanup;
 
 import edu.brown.benchmark.microwinsstore.MicroWinSStoreConstants;
 
-public abstract class MicroWinHStoreFullConstants {
+public abstract class MicroWinHStoreSomeCleanupConstants {
 
     public static final String TABLENAME_CONTESTANTS     = "contestants";
     public static final String TABLENAME_AREA_CODE_STATE = "area_code_state";

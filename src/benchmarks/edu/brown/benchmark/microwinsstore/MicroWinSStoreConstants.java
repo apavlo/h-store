@@ -27,11 +27,9 @@
  *  OTHER DEALINGS IN THE SOFTWARE.                                        *
  ***************************************************************************/
 
-package edu.brown.benchmark.microwinhstorefull;
+package edu.brown.benchmark.microwinsstore;
 
-import edu.brown.benchmark.microwinsstore.MicroWinSStoreConstants;
-
-public abstract class MicroWinHStoreFullConstants {
+public abstract class MicroWinSStoreConstants {
 
     public static final String TABLENAME_CONTESTANTS     = "contestants";
     public static final String TABLENAME_AREA_CODE_STATE = "area_code_state";
@@ -49,6 +47,6 @@ public abstract class MicroWinHStoreFullConstants {
     public static final long ERR_INVALID_CONTESTANT = 1;
     public static final long ERR_VOTER_OVER_VOTE_LIMIT = 2;
     
-    public static final long WINDOW_SIZE = MicroWinSStoreConstants.WINDOW_SIZE;
-    public static final long SLIDE_SIZE = MicroWinSStoreConstants.SLIDE_SIZE;
+    public static final long WINDOW_SIZE = 100;
+    public static final long SLIDE_SIZE = 10;
 }

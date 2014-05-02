@@ -23,11 +23,11 @@
 
 //
 // Accepts a vote, enforcing business logic: make sure the vote is for a valid
-// contestant and that the microwinhstorefull (phone number of the caller) is not above the
+// contestant and that the microwinhstorecleanup (phone number of the caller) is not above the
 // number of allowed votes.
 //
 
-package edu.brown.benchmark.microwinhstorefull.procedures;
+package edu.brown.benchmark.microwinhstorecleanup.procedures;
 
 import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
@@ -36,7 +36,7 @@ import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.types.TimestampType;
 
-import edu.brown.benchmark.microwinhstorefull.MicroWinHStoreFullConstants;
+import edu.brown.benchmark.microwinhstorecleanup.MicroWinHStoreCleanupConstants;
 
 @ProcInfo (
 	partitionInfo = "w_rows.phone_number:1",
@@ -45,8 +45,8 @@ import edu.brown.benchmark.microwinhstorefull.MicroWinHStoreFullConstants;
 public class Vote extends VoltProcedure {
 	   
     // Put the vote into the staging window
-    public final SQLStmt insertVoteStagingStmt = new SQLStmt(
-		"INSERT INTO w_staging (vote_id, phone_number, state, contestant_number, created) VALUES (?, ?, ?, ?, ?);"
+    public final SQLStmt insertVoteStmt = new SQLStmt(
+		"INSERT INTO w_rows (vote_id, phone_number, state, contestant_number, created) VALUES (?, ?, ?, ?, ?);"
     );
     
     @StmtInfo(
@@ -63,7 +63,15 @@ public class Vote extends VoltProcedure {
     	"INSERT INTO window_count (row_id, cnt) SELECT row_id, cnt + 1 FROM window_count WHERE row_id = 1;"
     );
     
- // Find the cutoff vote
+    public final SQLStmt getMaxWinIdStmt = new SQLStmt(
+        	"SELECT vote_id FROM max_win_id WHERE row_id = 1;"
+        );
+    
+    public final SQLStmt updateMaxWinIdStmt = new SQLStmt(
+    	"UPDATE max_win_id SET vote_id = ? WHERE row_id = 1;"
+    );
+    
+    // Find the cutoff vote
     public final SQLStmt checkStagingCount = new SQLStmt(
 		"SELECT cnt FROM staging_count WHERE row_id = 1;"
     );
@@ -88,11 +96,6 @@ public class Vote extends VoltProcedure {
 		"DELETE FROM w_rows WHERE vote_id <= ?;"
     );
     
-    // Put the staging votes into the window
-    public final SQLStmt insertVoteWindowStmt = new SQLStmt(
-		"INSERT INTO w_rows (vote_id, phone_number, state, contestant_number, created) SELECT * FROM w_staging;"
-    );
-    
  // Pull aggregate from window
     public final SQLStmt deleteLeaderBoardStmt = new SQLStmt(
 		"DELETE FROM leaderboard;"
@@ -107,10 +110,6 @@ public class Vote extends VoltProcedure {
     	"SELECT contestant_number, numvotes FROM leaderboard ORDER BY numvotes DESC;"
     );
     
- // Clear the staging window
-    public final SQLStmt deleteStagingStmt = new SQLStmt(
-		"DELETE FROM w_staging;"
-    );
     
     public final SQLStmt resetStagingCount = new SQLStmt(
     	"UPDATE staging_count SET cnt = 0 WHERE row_id = 1;"
@@ -120,22 +119,22 @@ public class Vote extends VoltProcedure {
 		
          // Post the vote
         TimestampType timestamp = new TimestampType();
-        voltQueueSQL(insertVoteStagingStmt, voteId, phoneNumber, "XX", contestantNumber, timestamp);
+        voltQueueSQL(insertVoteStmt, voteId, phoneNumber, "XX", contestantNumber, timestamp);
         voltQueueSQL(updateStagingCount);
         voltQueueSQL(updateTotalVoteCount);
-        voltQueueSQL(selectTotalVoteCountStmt);
         voltQueueSQL(checkStagingCount);
+        voltQueueSQL(selectTotalVoteCountStmt);
         VoltTable validation[] = voltExecuteSQL();
         
-        int winsize = (int)MicroWinHStoreFullConstants.WINDOW_SIZE;
-    	int slidesize = (int)MicroWinHStoreFullConstants.SLIDE_SIZE;
+        int winsize = (int)MicroWinHStoreCleanupConstants.WINDOW_SIZE;
+    	int slidesize = (int)MicroWinHStoreCleanupConstants.SLIDE_SIZE;
     	
-    	int curwincount = (int)(validation[3].fetchRow(0).getLong(0));
-    	int curstagecount = (int)(validation[4].fetchRow(0).getLong(0));
+    	
+    	int curstagecount = (int)(validation[3].fetchRow(0).getLong(0));
+    	int curwincount = (int)(validation[4].fetchRow(0).getLong(0));
         
         if(curstagecount >= slidesize)
         {
-        	
         	//Check the window size and cutoff vote can be done one of two ways:
         	//1) Two statements: one gets window size, one gets all rows to be deleted
         	//2) Return full window to Java, and let it sort it out.  Better for large slides.
@@ -150,18 +149,17 @@ public class Vote extends VoltProcedure {
         	
         		voltQueueSQL(deleteCutoffVoteStmt, cutoffVote);
         	}
-        	
-        	voltQueueSQL(insertVoteWindowStmt);
     		voltQueueSQL(deleteLeaderBoardStmt);
     		voltQueueSQL(updateLeaderBoardStmt);
-        	
-    		voltQueueSQL(deleteStagingStmt);
+        	voltQueueSQL(updateMaxWinIdStmt, voteId);
     		voltQueueSQL(resetStagingCount);
+    		
         }
         voltQueueSQL(selectLeaderBoardStmt);
-        voltExecuteSQL(true);
+		
+    	voltExecuteSQL(true);
 		
         // Set the return value to 0: successful vote
-        return MicroWinHStoreFullConstants.VOTE_SUCCESSFUL;
+        return MicroWinHStoreCleanupConstants.VOTE_SUCCESSFUL;
     }
 }

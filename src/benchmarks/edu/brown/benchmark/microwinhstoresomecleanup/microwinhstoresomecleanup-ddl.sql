@@ -70,3 +70,14 @@ CREATE TABLE window_count
   )
 );
 
+CREATE TABLE max_win_id
+(
+   row_id             integer   NOT NULL,
+   vote_id	     bigint   NOT NULL
+
+, CONSTRAINT PK_maxwinid PRIMARY KEY
+  (
+    row_id
+  )
+);
+
