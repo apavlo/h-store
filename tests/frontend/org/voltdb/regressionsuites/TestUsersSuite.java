@@ -64,7 +64,7 @@ public class TestUsersSuite extends RegressionSuite {
     /**
      * testInitialize
      */
-/*    public void testInitialize() throws Exception {
+    public void testInitialize() throws Exception {
         Client client = this.getClient();
         this.initializeDatabase(client, NUM_TUPLES);
         
@@ -75,7 +75,7 @@ public class TestUsersSuite extends RegressionSuite {
         assertEquals(1, results.length);
         assertEquals(NUM_TUPLES, results[0].asScalarLong());
     }
-*/
+
     /**
      * testReadRecord
      */
@@ -162,11 +162,11 @@ public class TestUsersSuite extends RegressionSuite {
         /////////////////////////////////////////////////////////////
         // CONFIG #1: 1 Local Site/Partition running on JNI backend
         /////////////////////////////////////////////////////////////
-/*        config = new LocalSingleProcessServer(PREFIX+"-1part.jar", 2, BackendTarget.NATIVE_EE_JNI);
+        config = new LocalSingleProcessServer(PREFIX+"-1part.jar", 2, BackendTarget.NATIVE_EE_JNI);
         success = config.compile(project);
         assert(success);
         builder.addServerConfig(config);
-*/
+
         ////////////////////////////////////////////////////////////
         // CONFIG #2: cluster of 2 nodes running 2 site each, one replica
         ////////////////////////////////////////////////////////////

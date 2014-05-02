@@ -3,7 +3,6 @@ import org.voltdb.VoltProcedure;
 
 import edu.brown.benchmark.AbstractProjectBuilder;
 import edu.brown.api.BenchmarkComponent;
-import edu.brown.benchmark.articles.procedures.*;
 import edu.brown.benchmark.users.procedures.GetUsers;
 
 public class UsersProjectBuilder extends AbstractProjectBuilder{

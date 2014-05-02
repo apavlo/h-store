@@ -5,8 +5,6 @@ import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 
-import edu.brown.benchmark.articles.ArticlesConstants;
-
 @ProcInfo(
 	    singlePartition = false
 	)
