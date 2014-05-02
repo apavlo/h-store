@@ -23,13 +23,6 @@ public class VoteFileGenerator {
 
     public static void main(String[] vargs) throws Exception {
 
-//        generateTxtFile("voterdemohstoreanother-o-20000");
-//        generateTxtFile("voterdemohstoreanother-d-20000");
-//        generateTxtFile("voterdemohstoreanother-o-40000");
-//        generateTxtFile("voterdemohstoreanother-d-40000");
-//        generateTxtFile("voterdemohstoreanother-o-100000");
-//        generateTxtFile("voterdemohstoreanother-d-100000");
-        
         for(String argument : vargs){
             System.out.println(argument);
         }  
@@ -56,6 +49,11 @@ public class VoteFileGenerator {
         
         // generate the ordered and disordered votes based on parameters
         switchboard.generateVotes();
+        
+        String filename = "votes-o-" + String.valueOf(shuffle_size) + "-" + switchboard.getTimeLog();
+        generateTxtFile(filename);
+        filename = "votes-d-" + String.valueOf(shuffle_size) + "-" + switchboard.getTimeLog();
+        generateTxtFile(filename);
         
 //        // test we have save the correct thing.
 //        System.out.println("Testing PhoneCallAccessor.getPhoneCallsFromFile method - orderedcall.ser ... \n");
@@ -98,17 +96,17 @@ public class VoteFileGenerator {
         
 //        File file=new File(filename);
 //        FileWriter fw = new FileWriter(file,true);
-        System.out.println(filename);
+        //System.out.println(filename);
         
         filename = name + ".ser";
-        System.out.println(filename);
+        //System.out.println(filename);
         VoteGenerator vg = new VoteGenerator(filename);
         //System.out.println(filename);
         
         PhoneCall current_call = vg.nextVote();
         while(current_call !=null )
         {
-            current_call.debug();
+            //current_call.debug();
             //fw.append(current_call.getString());
             out.write(current_call.getString());
             
@@ -116,7 +114,6 @@ public class VoteFileGenerator {
         }
         
         out.close();
-        
     }
 
     public static int getScaledNumContestants(double scaleFactor) {
