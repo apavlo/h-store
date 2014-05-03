@@ -34,9 +34,10 @@ import org.voltdb.VoltProcedure;
 import edu.brown.benchmark.AbstractProjectBuilder;
 import edu.brown.api.BenchmarkComponent;
 
-import edu.brown.benchmark.bikerstream.procedures.InsertIntoBikeReadingsTableTrigger;
+import edu.brown.benchmark.bikerstream.procedures.InsertIntoBikeReadingsTableWinTrigger;
 import edu.brown.benchmark.bikerstream.procedures.RideBike; 
 import edu.brown.benchmark.bikerstream.procedures.Initialize; 
+import edu.brown.benchmark.bikerstream.procedures.UpdateCount; 
 
 public class BikerStreamProjectBuilder extends AbstractProjectBuilder {
 
@@ -51,7 +52,8 @@ public class BikerStreamProjectBuilder extends AbstractProjectBuilder {
     public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[]{
         RideBike.class, 
         Initialize.class,
-        InsertIntoBikeReadingsTableTrigger.class
+        InsertIntoBikeReadingsTableWinTrigger.class,
+        UpdateCount.class
     };
 	
 	{
@@ -62,8 +64,11 @@ public class BikerStreamProjectBuilder extends AbstractProjectBuilder {
 	
 	// a list of tables used in this benchmark with corresponding partitioning keys
     public static final String PARTITIONING[][] = new String[][] {
-        { "bikereadings", "bike_id" },
+        { "bikereadings_table", "bike_id" },
         { "bikereadings_stream", "bike_id"},
+        // TODO - do windows have partitioning??
+        { "bikereadings_window_rows", "bike_id"},
+        { "count_bikereadings_table", "bike_id"},
     };
 
     public BikerStreamProjectBuilder() {
