@@ -28,49 +28,38 @@
  *  OTHER DEALINGS IN THE SOFTWARE.                                        *
  ***************************************************************************/
 
-package edu.brown.benchmark.voterwintimehstorenocleanupanother;
+package edu.brown.benchmark.microwintimehstorefull;
 
-import java.io.BufferedWriter;
-import java.io.FileWriter;
 import java.io.IOException;
-import java.io.PrintWriter;
-import java.text.SimpleDateFormat;
-import java.util.Calendar;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.log4j.Logger;
 import org.voltdb.VoltTable;
-import org.voltdb.VoltTableRow;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.ProcedureCallback;
 
 import weka.classifiers.meta.Vote;
+
 import edu.brown.api.BenchmarkComponent;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 
-public class VoterWinTimeHStoreNoCleanupAnotherClient extends BenchmarkComponent {
-    private static final Logger LOG = Logger.getLogger(VoterWinTimeHStoreNoCleanupAnotherClient.class);
+public class MicroWinTimeHStoreFullClient extends BenchmarkComponent {
+    private static final Logger LOG = Logger.getLogger(MicroWinTimeHStoreFullClient.class);
     private static final LoggerBoolean debug = new LoggerBoolean();
     private static long lastTime;
     private static int timestamp;
 
     // Phone number generator
-    //PhoneCallGenerator switchboard;
-    edu.brown.stream.VoteGenerator switchboard;
-    
-    private String stat_filename;
-    public static long count = 0l;
-    public static long fixnum = 10000l;
-
+    PhoneCallGenerator switchboard;
 
     // Flags to tell the worker threads to stop or go
     AtomicBoolean warmupComplete = new AtomicBoolean(false);
     AtomicBoolean benchmarkComplete = new AtomicBoolean(false);
 
-    // voterwintimehstorenocleanupanother benchmark state
+    // voterwintimehstore benchmark state
     AtomicLong acceptedVotes = new AtomicLong(0);
     AtomicLong badContestantVotes = new AtomicLong(0);
     AtomicLong badVoteCountVotes = new AtomicLong(0);
@@ -78,22 +67,14 @@ public class VoterWinTimeHStoreNoCleanupAnotherClient extends BenchmarkComponent
 
     final Callback callback = new Callback();
 
-    final StatisticCallback stat_callback =  new StatisticCallback();
-    
     public static void main(String args[]) {
-        BenchmarkComponent.main(VoterWinTimeHStoreNoCleanupAnotherClient.class, args, false);
+        BenchmarkComponent.main(MicroWinTimeHStoreFullClient.class, args, false);
     }
 
-    public VoterWinTimeHStoreNoCleanupAnotherClient(String args[]) {
+    public MicroWinTimeHStoreFullClient(String args[]) {
         super(args);
-        int numContestants = VoterWinTimeHStoreNoCleanupAnotherUtil.getScaledNumContestants(this.getScaleFactor());
-        //this.switchboard = new PhoneCallGenerator(this.getClientId(), numContestants);
-        String timeLog = new SimpleDateFormat("yyyyMMdd_HHmmss").format(Calendar.getInstance().getTime());
-        stat_filename = "voterwintimehstorenocleanupanother-d-" + timeLog + ".txt";
-        
-        String filename = "votes-d-40000.ser";
-        this.switchboard = new edu.brown.stream.VoteGenerator(filename);
-
+        int numContestants = MicroWinTimeHStoreFullUtil.getScaledNumContestants(this.getScaleFactor());
+        this.switchboard = new PhoneCallGenerator(this.getClientId(), numContestants);
         lastTime = System.nanoTime();
         timestamp = 0;
     }
@@ -119,17 +100,13 @@ public class VoterWinTimeHStoreNoCleanupAnotherClient extends BenchmarkComponent
     @Override
     protected boolean runOnce() throws IOException {
         // Get the next phone call
-//    	if(System.nanoTime() - lastTime >= VoterWinTimeHStoreNoCleanupAnotherConstants.TS_DURATION)
-//        {
-//        	lastTime = System.nanoTime();
-//        	timestamp++;
-//        }
+    	if(System.nanoTime() - lastTime >= MicroWinTimeHStoreFullConstants.TS_DURATION)
+        {
+        	lastTime = System.nanoTime();
+        	timestamp++;
+        }
     	
-        //PhoneCallGenerator.PhoneCall call = switchboard.receive();
-    	edu.brown.stream.PhoneCallGenerator.PhoneCall call = switchboard.nextVote();
-    	
-    	if(call==null)
-    	    return true;
+        PhoneCallGenerator.PhoneCall call = switchboard.receive();
 
         Client client = this.getClientHandle();
         boolean response = client.callProcedure(callback,
@@ -137,41 +114,11 @@ public class VoterWinTimeHStoreNoCleanupAnotherClient extends BenchmarkComponent
                                                 call.voteId,
                                                 call.phoneNumber,
                                                 call.contestantNumber,
-                                                VoterWinTimeHStoreNoCleanupAnotherConstants.MAX_VOTES,
-                                                call.timestamp
-                                                //timestamp
-                                                );
-        
-        GetStatisticInfo();
-        
+                                                MicroWinTimeHStoreFullConstants.MAX_VOTES,
+                                                timestamp);
         return response;
     }
 
-    private void GetStatisticInfo()
-    {
-        try
-        {
-            VoterWinTimeHStoreNoCleanupAnotherClient.count++;
-            //System.out.println("GetStatisticInfo() 0 - " + String.valueOf(VoterWinTimeHStoreNoCleanupAnotherClient.count));
-            if( VoterWinTimeHStoreNoCleanupAnotherClient.count == VoterWinTimeHStoreNoCleanupAnotherClient.fixnum )
-            {
-                //System.out.println("GetStatisticInfo() 1 - " + String.valueOf(VoterWinTimeHStoreNoCleanupAnotherClient.fixnum));
-                //System.out.println("call GetStatisticInfo ...");
-                
-                Client client = this.getClientHandle();
-                client.callProcedure(stat_callback, "Results");
-
-                VoterWinTimeHStoreNoCleanupAnotherClient.fixnum += 10000l;
-                //System.out.println("GetStatisticInfo() 2- " + String.valueOf(VoterWinTimeHStoreNoCleanupAnotherClient.fixnum));
-                
-            }
-        }
-        catch(Exception e)
-        {
-            System.out.println(e.getMessage());
-        }
-    }
-    
     @Override
     public String[] getTransactionDisplayNames() {
         // Return an array of transaction names
@@ -194,13 +141,13 @@ public class VoterWinTimeHStoreNoCleanupAnotherClient extends BenchmarkComponent
                 VoltTable results[] = clientResponse.getResults();
                 assert(results.length == 1);
                 long status = results[0].asScalarLong();
-                if (status == VoterWinTimeHStoreNoCleanupAnotherConstants.VOTE_SUCCESSFUL) {
+                if (status == MicroWinTimeHStoreFullConstants.VOTE_SUCCESSFUL) {
                     acceptedVotes.incrementAndGet();
                 }
-                else if (status == VoterWinTimeHStoreNoCleanupAnotherConstants.ERR_INVALID_CONTESTANT) {
+                else if (status == MicroWinTimeHStoreFullConstants.ERR_INVALID_CONTESTANT) {
                     badContestantVotes.incrementAndGet();
                 }
-                else if (status == VoterWinTimeHStoreNoCleanupAnotherConstants.ERR_VOTER_OVER_VOTE_LIMIT) {
+                else if (status == MicroWinTimeHStoreFullConstants.ERR_VOTER_OVER_VOTE_LIMIT) {
                     badVoteCountVotes.incrementAndGet();
                 }
             }
@@ -214,46 +161,4 @@ public class VoterWinTimeHStoreNoCleanupAnotherClient extends BenchmarkComponent
             }
         }
     } // END CLASS
-    
-    private class StatisticCallback implements ProcedureCallback {
-        @Override
-        public void clientCallback(ClientResponse clientResponse)
-        {
-            if (clientResponse.getStatus() == Status.OK) {
-                VoltTable vt = clientResponse.getResults()[0];
-                
-                int row_len = vt.getRowCount();
-                
-                String line =  String.valueOf(VoterWinTimeHStoreNoCleanupAnotherClient.fixnum - 10000l) + ": ";
-                for(int i=0;i<row_len; i++)
-                {
-                    VoltTableRow row = vt.fetchRow(i);
-                    String contestant_name = row.getString(0);
-                    long total_votes = row.getLong(2);
-                    
-                    String content = contestant_name + "-" + String.valueOf(total_votes);
-                    
-                    line += content + " ";
-                }
-                
-                //System.out.println(line);
-                
-                try {
-                    WriteToFile(line);
-                } catch (IOException e) {
-                    // TODO Auto-generated catch block
-                    e.printStackTrace();
-                }
-                
-            }            
-        }
-        
-        private void WriteToFile(String content) throws IOException
-        {
-            //System.out.println(stat_filename + " : " + content );
-            PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(stat_filename, true)));
-            out.println(content);
-            out.close();
-        }
-    }
 }

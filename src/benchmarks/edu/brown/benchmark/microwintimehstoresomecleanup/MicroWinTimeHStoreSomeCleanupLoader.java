@@ -4,7 +4,8 @@
  *  Massachusetts Institute of Technology                                  *
  *  Yale University                                                        *
  *                                                                         *
- *  Coded By:  Justin A. DeBrabant (http://www.cs.brown.edu/~debrabant/)   *								   
+ *  Original By: VoltDB Inc.											   *
+ *  Ported By:  Justin A. DeBrabant (http://www.cs.brown.edu/~debrabant/)  *								   
  *                                                                         *
  *                                                                         *
  *  Permission is hereby granted, free of charge, to any person obtaining  *
@@ -27,49 +28,39 @@
  *  OTHER DEALINGS IN THE SOFTWARE.                                        *
  ***************************************************************************/
 
-package edu.brown.benchmark.voterdemosstorepetrigonly;
+package edu.brown.benchmark.microwintimehstoresomecleanup;
 
-import org.voltdb.VoltProcedure;
+import org.apache.log4j.Logger;
 
-import edu.brown.benchmark.AbstractProjectBuilder;
-import edu.brown.api.BenchmarkComponent;
+import edu.brown.api.Loader;
 
-import edu.brown.benchmark.voterdemosstorepetrigonly.procedures.Vote; 
-import edu.brown.benchmark.voterdemosstorepetrigonly.procedures.Initialize;
-import edu.brown.benchmark.voterdemosstorepetrigonly.procedures.GenerateLeaderboard; 
+public class MicroWinTimeHStoreSomeCleanupLoader extends Loader {
 
-public class VoterDemoSStorePETrigOnlyProjectBuilder extends AbstractProjectBuilder {
+    private static final Logger LOG = Logger.getLogger(MicroWinTimeHStoreSomeCleanupLoader.class);
+    private static final boolean d = LOG.isDebugEnabled();
 
-    // REQUIRED: Retrieved via reflection by BenchmarkController
-    public static final Class<? extends BenchmarkComponent> m_clientClass = VoterDemoSStorePETrigOnlyClient.class;
+    public static void main(String args[]) throws Exception {
+        if (d) LOG.debug("MAIN: " + MicroWinTimeHStoreSomeCleanupLoader.class.getName());
+        Loader.main(MicroWinTimeHStoreSomeCleanupLoader.class, args, true);
+    }
 
-    // REQUIRED: Retrieved via reflection by BenchmarkController
-    public static final Class<? extends BenchmarkComponent> m_loaderClass = VoterDemoSStorePETrigOnlyLoader.class;
+    public MicroWinTimeHStoreSomeCleanupLoader(String[] args) {
+        super(args);
+        if (d) LOG.debug("CONSTRUCTOR: " + MicroWinTimeHStoreSomeCleanupLoader.class.getName());
+    }
 
-	// a list of procedures implemented in this benchmark
-    @SuppressWarnings("unchecked")
-    public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
-        Vote.class, Initialize.class, GenerateLeaderboard.class};
-	
-	{
-		//addTransactionFrequency(Vote.class, 100);
-	}
-	
-	// a list of tables used in this benchmark with corresponding partitioning keys
-    public static final String PARTITIONING[][] = new String[][] {
-        { "votes", "phone_number" },
-        { "voteCount", "row_id" },
-        { "totalVoteCount", "row_id" },
-        { "totalLeaderboardCount", "row_id" },
-        { "win_timestamp", "row_id" },
-        { "stage_timestamp", "row_id" }
-    };
+    @Override
+    public void load() {
+        int numContestants = MicroWinTimeHStoreSomeCleanupUtil.getScaledNumContestants(this.getScaleFactor());
+        if (d) 
+            LOG.debug("Starting MicroWinTimeHStoreSomeCleanupLoader [numContestants=" + numContestants + "]");
 
-    public VoterDemoSStorePETrigOnlyProjectBuilder() {
-        super("voterdemosstorepetrigonly", VoterDemoSStorePETrigOnlyProjectBuilder.class, PROCEDURES, PARTITIONING);
+        try {
+            this.getClientHandle().callProcedure("Initialize",
+                                                 numContestants,
+                                                 MicroWinTimeHStoreSomeCleanupConstants.CONTESTANT_NAMES_CSV);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 }
-
-
-
-

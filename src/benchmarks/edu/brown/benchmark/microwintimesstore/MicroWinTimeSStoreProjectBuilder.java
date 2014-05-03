@@ -27,29 +27,29 @@
  *  OTHER DEALINGS IN THE SOFTWARE.                                        *
  ***************************************************************************/
 
-package edu.brown.benchmark.voterdemosstorepetrigonly;
+package edu.brown.benchmark.microwintimesstore;
 
 import org.voltdb.VoltProcedure;
 
 import edu.brown.benchmark.AbstractProjectBuilder;
 import edu.brown.api.BenchmarkComponent;
 
-import edu.brown.benchmark.voterdemosstorepetrigonly.procedures.Vote; 
-import edu.brown.benchmark.voterdemosstorepetrigonly.procedures.Initialize;
-import edu.brown.benchmark.voterdemosstorepetrigonly.procedures.GenerateLeaderboard; 
+import edu.brown.benchmark.microwintimesstore.procedures.Vote; 
+import edu.brown.benchmark.microwintimesstore.procedures.Initialize; 
+import edu.brown.benchmark.microwintimesstore.procedures.LeaderboardTrigger; 
 
-public class VoterDemoSStorePETrigOnlyProjectBuilder extends AbstractProjectBuilder {
-
-    // REQUIRED: Retrieved via reflection by BenchmarkController
-    public static final Class<? extends BenchmarkComponent> m_clientClass = VoterDemoSStorePETrigOnlyClient.class;
+public class MicroWinTimeSStoreProjectBuilder extends AbstractProjectBuilder {
 
     // REQUIRED: Retrieved via reflection by BenchmarkController
-    public static final Class<? extends BenchmarkComponent> m_loaderClass = VoterDemoSStorePETrigOnlyLoader.class;
+    public static final Class<? extends BenchmarkComponent> m_clientClass = MicroWinTimeSStoreClient.class;
+
+    // REQUIRED: Retrieved via reflection by BenchmarkController
+    public static final Class<? extends BenchmarkComponent> m_loaderClass = MicroWinTimeSStoreLoader.class;
 
 	// a list of procedures implemented in this benchmark
     @SuppressWarnings("unchecked")
     public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
-        Vote.class, Initialize.class, GenerateLeaderboard.class};
+        Vote.class, Initialize.class, LeaderboardTrigger.class};
 	
 	{
 		//addTransactionFrequency(Vote.class, 100);
@@ -57,16 +57,12 @@ public class VoterDemoSStorePETrigOnlyProjectBuilder extends AbstractProjectBuil
 	
 	// a list of tables used in this benchmark with corresponding partitioning keys
     public static final String PARTITIONING[][] = new String[][] {
-        { "votes", "phone_number" },
-        { "voteCount", "row_id" },
-        { "totalVoteCount", "row_id" },
-        { "totalLeaderboardCount", "row_id" },
-        { "win_timestamp", "row_id" },
-        { "stage_timestamp", "row_id" }
+        { "w_rows", "phone_number" },
+        { "leaderboard", "contestant_number"},
     };
 
-    public VoterDemoSStorePETrigOnlyProjectBuilder() {
-        super("voterdemosstorepetrigonly", VoterDemoSStorePETrigOnlyProjectBuilder.class, PROCEDURES, PARTITIONING);
+    public MicroWinTimeSStoreProjectBuilder() {
+        super("microwintimesstore", MicroWinTimeSStoreProjectBuilder.class, PROCEDURES, PARTITIONING);
     }
 }
 

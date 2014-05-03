@@ -65,7 +65,7 @@ public class VoterDemoHStoreNoCleanupAnotherClient extends BenchmarkComponent {
     
     private String stat_filename;
     public static long count = 0l;
-    public static long fixnum = 1000l;
+    public static long fixnum = 10000l;
     
     // Flags to tell the worker threads to stop or go
     AtomicBoolean warmupComplete = new AtomicBoolean(false);
@@ -90,9 +90,9 @@ public class VoterDemoHStoreNoCleanupAnotherClient extends BenchmarkComponent {
         int numContestants = VoterDemoHStoreNoCleanupAnotherUtil.getScaledNumContestants(this.getScaleFactor());
         //this.switchboard = new PhoneCallGenerator(this.getClientId(), numContestants);
         String timeLog = new SimpleDateFormat("yyyyMMdd_HHmmss").format(Calendar.getInstance().getTime());
-        stat_filename = "voterdemohstorenocleanupanother-d-" + timeLog + ".txt";
+        stat_filename = "voterdemohstorenocleanupanother-o-" + timeLog + ".txt";
         
-        String filename = "voterdemohstoreanother-d-100000.ser";
+        String filename = "votes-o-40000.ser";
         this.switchboard = new edu.brown.stream.VoteGenerator(filename);
         //System.out.println( "filename: " + filename );
         //System.out.println( "Size: " + switchboard.size() );
@@ -123,11 +123,11 @@ public class VoterDemoHStoreNoCleanupAnotherClient extends BenchmarkComponent {
     @Override
     protected boolean runOnce() throws IOException {
         // Get the next phone call
-    	if(System.nanoTime() - lastTime >= VoterDemoHStoreNoCleanupAnotherConstants.TS_DURATION)
-        {
-        	lastTime = System.nanoTime();
-        	timestamp++;
-        }
+//    	if(System.nanoTime() - lastTime >= VoterDemoHStoreNoCleanupAnotherConstants.TS_DURATION)
+//        {
+//        	lastTime = System.nanoTime();
+//        	timestamp++;
+//        }
     	try {
 	    	Client client = this.getClientHandle();
 	    	
@@ -135,6 +135,9 @@ public class VoterDemoHStoreNoCleanupAnotherClient extends BenchmarkComponent {
 	    	    edu.brown.stream.PhoneCallGenerator.PhoneCall call = switchboard.nextVote();
 	    	    //call.debug();
 		        //Callback callback = new Callback(0);
+	    	    
+	    	    if(call==null)
+	    	        return true;
 		
 		        ClientResponse response;
 					response = client.callProcedure(       "Vote",
@@ -142,7 +145,9 @@ public class VoterDemoHStoreNoCleanupAnotherClient extends BenchmarkComponent {
 					                                        call.phoneNumber,
 					                                        call.contestantNumber,
 					                                        VoterDemoHStoreNoCleanupAnotherConstants.MAX_VOTES,
-					                                        timestamp);
+					                                        call.timestamp
+					                                        //timestamp
+					                                        );
 				
 				incrementTransactionCounter(response, 0);
 		        VoltTable results[] = response.getResults();
@@ -178,7 +183,7 @@ public class VoterDemoHStoreNoCleanupAnotherClient extends BenchmarkComponent {
                 Client client = this.getClientHandle();
                 client.callProcedure(stat_callback, "Results");
 
-                VoterDemoHStoreNoCleanupAnotherClient.fixnum += 1000l;
+                VoterDemoHStoreNoCleanupAnotherClient.fixnum += 10000l;
                 //System.out.println("GetStatisticInfo() 2- " + String.valueOf(VoterDemoHStoreAnotherClient.fixnum));
                 
             }
@@ -260,7 +265,7 @@ public class VoterDemoHStoreNoCleanupAnotherClient extends BenchmarkComponent {
                 
                 int row_len = vt.getRowCount();
                 
-                String line =  String.valueOf(VoterDemoHStoreNoCleanupAnotherClient.fixnum - 1000l) + ": ";
+                String line =  String.valueOf(VoterDemoHStoreNoCleanupAnotherClient.fixnum - 10000l) + ": ";
                 for(int i=0;i<row_len; i++)
                 {
                     VoltTableRow row = vt.fetchRow(i);
