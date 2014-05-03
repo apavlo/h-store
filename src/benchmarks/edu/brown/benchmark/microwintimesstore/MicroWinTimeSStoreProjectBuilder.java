@@ -36,6 +36,7 @@ import edu.brown.api.BenchmarkComponent;
 
 import edu.brown.benchmark.microwintimesstore.procedures.Vote; 
 import edu.brown.benchmark.microwintimesstore.procedures.Initialize; 
+import edu.brown.benchmark.microwintimesstore.procedures.LeaderboardTrigger; 
 
 public class MicroWinTimeSStoreProjectBuilder extends AbstractProjectBuilder {
 
@@ -48,7 +49,7 @@ public class MicroWinTimeSStoreProjectBuilder extends AbstractProjectBuilder {
 	// a list of procedures implemented in this benchmark
     @SuppressWarnings("unchecked")
     public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
-        Vote.class, Initialize.class};
+        Vote.class, Initialize.class, LeaderboardTrigger.class};
 	
 	{
 		//addTransactionFrequency(Vote.class, 100);
@@ -56,11 +57,8 @@ public class MicroWinTimeSStoreProjectBuilder extends AbstractProjectBuilder {
 	
 	// a list of tables used in this benchmark with corresponding partitioning keys
     public static final String PARTITIONING[][] = new String[][] {
-        { "w_staging", "phone_number" },
         { "w_rows", "phone_number" },
         { "leaderboard", "contestant_number"},
-        { "min_window", "row_id"},
-        { "min_staging", "row_id"}
     };
 
     public MicroWinTimeSStoreProjectBuilder() {

@@ -9,20 +9,6 @@ CREATE TABLE contestants
   )
 );
 
-CREATE TABLE w_staging
-(
-  vote_id            bigint     NOT NULL,
-  phone_number       bigint     NOT NULL
-, state              varchar(2) NOT NULL -- REFERENCES area_code_state (state)
-, contestant_number  integer    NOT NULL REFERENCES contestants (contestant_number)
-, ts                 integer  NOT NULL
-, CONSTRAINT PK_stage PRIMARY KEY
-  (
-    vote_id
-  )
--- PARTITION BY ( phone_number )
-);
-
 CREATE TABLE w_rows
 (
   vote_id            bigint     NOT NULL,
@@ -34,7 +20,6 @@ CREATE TABLE w_rows
   (
     vote_id
   )
--- PARTITION BY ( phone_number )
 );
 
 CREATE INDEX idx_w_rows ON w_rows(ts);

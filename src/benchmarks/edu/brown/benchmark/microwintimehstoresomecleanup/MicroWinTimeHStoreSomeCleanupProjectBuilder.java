@@ -56,7 +56,6 @@ public class MicroWinTimeHStoreSomeCleanupProjectBuilder extends AbstractProject
 	
 	// a list of tables used in this benchmark with corresponding partitioning keys
     public static final String PARTITIONING[][] = new String[][] {
-        { "w_staging", "phone_number" },
         { "w_rows", "phone_number" },
         { "leaderboard", "contestant_number"},
         { "min_window", "row_id"},

@@ -9,35 +9,20 @@ CREATE TABLE contestants
   )
 );
 
-CREATE TABLE w_staging
+CREATE STREAM S1
 (
   vote_id            bigint     NOT NULL,
   phone_number       bigint     NOT NULL
 , state              varchar(2) NOT NULL -- REFERENCES area_code_state (state)
 , contestant_number  integer    NOT NULL REFERENCES contestants (contestant_number)
-, ts                 integer  NOT NULL
-, CONSTRAINT PK_stage PRIMARY KEY
-  (
-    vote_id
-  )
--- PARTITION BY ( phone_number )
-);
-
-CREATE TABLE w_rows
-(
-  vote_id            bigint     NOT NULL,
-  phone_number       bigint     NOT NULL
-, state              varchar(2) NOT NULL -- REFERENCES area_code_state (state)
-, contestant_number  integer    NOT NULL REFERENCES contestants (contestant_number)
-, ts                 integer  NOT NULL
+, time                 integer  NOT NULL
 , CONSTRAINT PK_win PRIMARY KEY
   (
     vote_id
   )
--- PARTITION BY ( phone_number )
 );
 
-CREATE INDEX idx_w_rows ON w_rows(ts);
+CREATE WINDOW w_rows ON S1 RANGE 30 SLIDE 2;
 
 CREATE TABLE leaderboard
 (
@@ -50,26 +35,5 @@ CREATE TABLE leaderboard
 
 );
 
-CREATE TABLE min_window
-(
-   row_id             integer   NOT NULL,
-   ts		     integer   NOT NULL
-
-, CONSTRAINT PK_windowcount PRIMARY KEY
-  (
-    row_id
-  )
-);
-
-CREATE TABLE min_staging
-(
-   row_id             integer   NOT NULL,
-   ts		     integer   NOT NULL
-
-, CONSTRAINT PK_stagingcount PRIMARY KEY
-  (
-    row_id
-  )
-);
 
 

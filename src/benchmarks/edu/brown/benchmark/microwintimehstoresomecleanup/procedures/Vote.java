@@ -23,17 +23,20 @@
 
 //
 // Accepts a vote, enforcing business logic: make sure the vote is for a valid
-// contestant and that the microwintimehstoresomecleanup (phone number of the caller) is not above the
+// contestant and that the microwintimehstorecleanup (phone number of the caller) is not above the
 // number of allowed votes.
 //
 
 package edu.brown.benchmark.microwintimehstoresomecleanup.procedures;
+
+import java.util.Random;
 
 import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
 import org.voltdb.StmtInfo;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
+import org.voltdb.VoltTableRow;
 import org.voltdb.types.TimestampType;
 
 import edu.brown.benchmark.microwintimehstoresomecleanup.MicroWinTimeHStoreSomeCleanupConstants;
@@ -43,10 +46,11 @@ import edu.brown.benchmark.microwintimehstoresomecleanup.MicroWinTimeHStoreSomeC
     singlePartition = true
 )
 public class Vote extends VoltProcedure {
+	private final Random rand = new Random();
 	   
     // Put the vote into the staging window
-    public final SQLStmt insertVoteStagingStmt = new SQLStmt(
-		"INSERT INTO w_staging (vote_id, phone_number, state, contestant_number, ts) VALUES (?, ?, ?, ?, ?);"
+    public final SQLStmt insertVoteWindowStmt = new SQLStmt(
+		"INSERT INTO w_rows (vote_id, phone_number, state, contestant_number, ts) VALUES (?, ?, ?, ?, ?);"
     );
     
  // Find the cutoff vote
@@ -71,11 +75,6 @@ public class Vote extends VoltProcedure {
     	"DELETE FROM w_rows WHERE ts < ?;"	
     );
     
-    // Put the staging votes into the window
-    public final SQLStmt insertVoteWindowStmt = new SQLStmt(
-		"INSERT INTO w_rows (vote_id, phone_number, state, contestant_number, ts) SELECT * FROM w_staging;"
-    );
-    
  // Pull aggregate from window
     public final SQLStmt deleteLeaderBoardStmt = new SQLStmt(
 		"DELETE FROM leaderboard;"
@@ -90,34 +89,52 @@ public class Vote extends VoltProcedure {
     	"SELECT contestant_number, numvotes FROM leaderboard ORDER BY numvotes DESC;"
     );
     
- // Clear the staging window
-    public final SQLStmt deleteStagingStmt = new SQLStmt(
-		"DELETE FROM w_staging;"
+ // Pull aggregate from window
+    public final SQLStmt getWindowAggregateStmt = new SQLStmt(
+		"SELECT contestant_number, count(*) FROM w_rows WHERE ts >= ? GROUP BY contestant_number;"
+    );
+    
+ // Pull aggregate from window
+    public final SQLStmt insertLeaderBoardStmt = new SQLStmt(
+		"INSERT INTO leaderboard (contestant_number, numvotes) VALUES (?,?);"
     );
 
     public long run(long voteId, long phoneNumber, int contestantNumber, long maxVotesPerPhoneNumber, int timestamp) {
 		
-        voltQueueSQL(checkMinWindowTimestamp);
-        voltQueueSQL(checkMinStagingTimestamp);
+    	voltQueueSQL(checkMinStagingTimestamp);
+        //voltQueueSQL(checkMinWindowTimestamp);
         VoltTable validation[] = voltExecuteSQL();
         
         int winsize = (int)MicroWinTimeHStoreSomeCleanupConstants.WINDOW_SIZE;
     	int slidesize = (int)MicroWinTimeHStoreSomeCleanupConstants.SLIDE_SIZE;
     	
-    	int curminwindow = (int)(validation[0].fetchRow(0).getLong(0));
-    	int curminstaging = (int)(validation[1].fetchRow(0).getLong(0));
+    	int curminstaging = (int)(validation[0].fetchRow(0).getLong(0));
+    	//int curminwindow = (int)(validation[1].fetchRow(0).getLong(0));
+    	int curminwindow = 0;
         
         if(timestamp - curminstaging >= slidesize)
         {
-        	voltQueueSQL(removeExpiredWinVotes, timestamp - winsize);
-        	voltQueueSQL(insertVoteWindowStmt);
+        	curminwindow = timestamp - winsize;
+        	
+        	if(rand.nextInt(winsize/slidesize) == 0)
+    		{
+        		voltQueueSQL(removeExpiredWinVotes, curminwindow);
+        		voltExecuteSQL();
+    		}
+        	voltQueueSQL(getWindowAggregateStmt, curminwindow);
         	voltQueueSQL(deleteLeaderBoardStmt);
-    		voltQueueSQL(updateLeaderBoardStmt);
+        	
+        	validation = voltExecuteSQL();
+        	for(int i = 0; i < validation[0].getRowCount(); i++)
+        	{
+        		VoltTableRow row = validation[0].fetchRow(i);
+        		voltQueueSQL(insertLeaderBoardStmt, row.getLong(0), row.getLong(1));
+        	}
+
     		voltQueueSQL(updateMinWindowTS, timestamp - winsize);
     		voltQueueSQL(updateMinStagingTS, timestamp);
-    		voltQueueSQL(deleteStagingStmt);
         }
-        voltQueueSQL(insertVoteStagingStmt, voteId, phoneNumber, "XX", contestantNumber, timestamp);
+        voltQueueSQL(insertVoteWindowStmt, voteId, phoneNumber, "XX", contestantNumber, timestamp);
         voltQueueSQL(selectLeaderBoardStmt);
         voltExecuteSQL(true);
 		
