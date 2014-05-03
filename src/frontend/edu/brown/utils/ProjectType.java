@@ -89,6 +89,7 @@ public enum ProjectType {
     MICROWINHSTORENOCLEANUP("MicroWinHStoreNoCleanup", "edu.brown.benchmark.microwinhstorenocleanup"),
     MICROWINHSTORESOMECLEANUP("MicroWinHStoreSomeCleanup", "edu.brown.benchmark.microwinhstoresomecleanup"),
     MICROWINSSTORE("MicroWinSStore", "edu.brown.benchmark.microwinsstore"),
+    MICROWINTIMEHSTOREFULL("MicroWinTimeHStoreFull", "edu.brown.benchmark.microwintimehstorefull"),
     VOTERWINHSTORE("VoterWinHStore", "edu.brown.benchmark.voterwinhstore"),
     VOTERWINHSTORENOCLEANUP("VoterWinHStoreNoCleanup", "edu.brown.benchmark.voterwinhstorenocleanup"),
     VOTERWINSSTORE("VoterWinSStore", "edu.brown.benchmark.voterwinsstore"),
