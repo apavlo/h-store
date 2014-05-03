@@ -23,11 +23,11 @@
 
 //
 // Accepts a vote, enforcing business logic: make sure the vote is for a valid
-// contestant and that the microwintimehstorefull (phone number of the caller) is not above the
+// contestant and that the microwintimehstoresomecleanup (phone number of the caller) is not above the
 // number of allowed votes.
 //
 
-package edu.brown.benchmark.microwintimehstorefull.procedures;
+package edu.brown.benchmark.microwintimehstoresomecleanup.procedures;
 
 import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
@@ -36,7 +36,7 @@ import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.types.TimestampType;
 
-import edu.brown.benchmark.microwintimehstorefull.MicroWinTimeHStoreFullConstants;
+import edu.brown.benchmark.microwintimehstoresomecleanup.MicroWinTimeHStoreSomeCleanupConstants;
 
 @ProcInfo (
 	partitionInfo = "w_rows.phone_number:1",
@@ -97,16 +97,16 @@ public class Vote extends VoltProcedure {
 
     public long run(long voteId, long phoneNumber, int contestantNumber, long maxVotesPerPhoneNumber, int timestamp) {
 		
+        voltQueueSQL(checkMinWindowTimestamp);
         voltQueueSQL(checkMinStagingTimestamp);
-        //voltQueueSQL(checkMinWindowTimestamp);
         VoltTable validation[] = voltExecuteSQL();
         
-        int winsize = (int)MicroWinTimeHStoreFullConstants.WINDOW_SIZE;
-    	int slidesize = (int)MicroWinTimeHStoreFullConstants.SLIDE_SIZE;
+        int winsize = (int)MicroWinTimeHStoreSomeCleanupConstants.WINDOW_SIZE;
+    	int slidesize = (int)MicroWinTimeHStoreSomeCleanupConstants.SLIDE_SIZE;
     	
-    	int curminstaging = (int)(validation[0].fetchRow(0).getLong(0));
-    	//int curminwindow = (int)(validation[1].fetchRow(0).getLong(0));
-    	
+    	int curminwindow = (int)(validation[0].fetchRow(0).getLong(0));
+    	int curminstaging = (int)(validation[1].fetchRow(0).getLong(0));
+        
         if(timestamp - curminstaging >= slidesize)
         {
         	voltQueueSQL(removeExpiredWinVotes, timestamp - winsize);
@@ -122,6 +122,6 @@ public class Vote extends VoltProcedure {
         voltExecuteSQL(true);
 		
         // Set the return value to 0: successful vote
-        return MicroWinTimeHStoreFullConstants.VOTE_SUCCESSFUL;
+        return MicroWinTimeHStoreSomeCleanupConstants.VOTE_SUCCESSFUL;
     }
 }
