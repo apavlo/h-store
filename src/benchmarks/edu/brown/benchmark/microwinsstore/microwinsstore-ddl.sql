@@ -18,7 +18,7 @@ CREATE STREAM S1
 , created            timestamp  NOT NULL
 );
 
-CREATE WINDOW w_rows ON S1 ROWS 10000 SLIDE 100;
+CREATE WINDOW w_rows ON S1 ROWS 10000 SLIDE 1;
 
 CREATE TABLE leaderboard
 (
