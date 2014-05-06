@@ -95,7 +95,7 @@ function onexit() {
 
 # ---------------------------------------------------------------------
 
-ENABLE_ANTICACHE=true
+ENABLE_ANTICACHE=false
 
 SITE_HOST="10.212.84.152"
 
@@ -139,6 +139,7 @@ BASE_ARGS=( \
     #"-Dsite.cpu_partition_blacklist=0,2,4,6,8,10,12,14,16,18" \
     #"-Dsite.cpu_utility_blacklist=0,2,4,6,8,10,12,14,16,18" \
     "-Dsite.network_incoming_limit_txns=10000" \
+
     # ENABLE EITHER ONE OF THESE - NOT BOTH
     # COMMAND LOG 
     "-Dsite.commandlog_enable=false" \
@@ -146,6 +147,7 @@ BASE_ARGS=( \
     # ARIES
     "-Dsite.aries=true" \
     "-Dsite.aries_dir=/mnt/pmfs/aries" \
+
     "-Dsite.txn_incoming_delay=5" \
     "-Dsite.exec_postprocessing_threads=false" \
     "-Dsite.anticache_eviction_distribution=even" \
@@ -161,9 +163,7 @@ BASE_ARGS=( \
     "-Dclient.warmup=10000" \
     "-Dclient.duration=10000" \
     "-Dclient.interval=10000" \
-    #"-Dclient.warmup=60000" \
-    #"-Dclient.duration=60000" \
-    #"-Dclient.interval=20000" \
+
     "-Dclient.shared_connection=false" \
     "-Dclient.blocking=false" \
     "-Dclient.blocking_concurrent=100" \

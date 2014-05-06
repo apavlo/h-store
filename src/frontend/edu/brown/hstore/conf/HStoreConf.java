@@ -651,7 +651,7 @@ public final class HStoreConf {
             experimental=true
         )
         public String anticache_dir;
-        
+
         @ConfigProperty(
             description="The size (in bytes) for the anti-cache's blocks on disk.",
             defaultLong=262144, // 256kb

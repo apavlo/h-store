@@ -74,7 +74,7 @@ public class TestTPCCLogicalRecovery extends RegressionSuite {
     // TPCC
     private static final String PREFIX = "tpcc";
     private static int NUM_TRANSACTIONS = 500;
-    private static final String projectJAR = "logical_" + PREFIX + ".jar";    
+    private static final String projectJAR = "logical_" + PREFIX + ".jar";
 
     public TestTPCCLogicalRecovery(String name) {
         super(name);
@@ -84,6 +84,7 @@ public class TestTPCCLogicalRecovery extends RegressionSuite {
     public void setUp() {
         deleteTestFiles();
         super.setUp();
+
         DefaultSnapshotDataTarget.m_simulateFullDiskWritingChunk = false;
         DefaultSnapshotDataTarget.m_simulateFullDiskWritingHeader = false;
         org.voltdb.sysprocs.SnapshotRegistry.clear();
@@ -413,7 +414,7 @@ public class TestTPCCLogicalRecovery extends RegressionSuite {
         // COMMAND LOG
         builder.setGlobalConfParameter("site.commandlog_enable", true);
         builder.setGlobalConfParameter("site.commandlog_timeout", 1000);     
-        builder.setGlobalConfParameter("site.commandlog_dir", "/mnt/pmfs/cmdlog");     
+        builder.setGlobalConfParameter("site.commandlog_dir", "./obj/cmdlog");     
 
         builder.setGlobalConfParameter("site.anticache_enable", false);     
 
