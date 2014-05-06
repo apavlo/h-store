@@ -199,12 +199,18 @@ inline void outputLogHeader_(const char *file, int line, const char *func, int l
 }
 
 inline double computeTimeStamp() {
-	struct timespec spec;
+	double ret = 0;
+	ret = (double)time(NULL);
 
+	return ret;
+
+	/*
+	struct timespec spec;
 	clock_gettime(CLOCK_REALTIME, &spec);
 	double seconds = static_cast<double>(spec.tv_sec);
 	double nanoseconds = static_cast<double>(spec.tv_nsec);
 	return (seconds +  1.e-9*(nanoseconds));
+	*/
 }
 
 
