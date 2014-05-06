@@ -193,9 +193,9 @@ public long run() {
         long voteCount = validation[4].fetchRow(0).getLong(0);
         long lowestContestant = validation[5].fetchRow(0).getLong(0);
         
-        if(maxStageTimestamp - minWinTimestamp >= VoterDemoHStoreConstants.WIN_SIZE + VoterDemoHStoreConstants.STAGE_SIZE)
+        if(maxStageTimestamp - minWinTimestamp >= VoterDemoHStoreConstants.WINDOW_SIZE + VoterDemoHStoreConstants.SLIDE_SIZE)
         {
-        	voltQueueSQL(slideWindow1, maxStageTimestamp - VoterDemoHStoreConstants.WIN_SIZE);
+        	voltQueueSQL(slideWindow1, maxStageTimestamp - VoterDemoHStoreConstants.WINDOW_SIZE);
         	voltQueueSQL(slideWindow2);
         	voltQueueSQL(slideWindow3, maxStageTimestamp);
         	voltQueueSQL(clearStaging, maxStageTimestamp);

@@ -128,9 +128,9 @@ public long run() {
         long voteCount = validation[3].fetchRow(0).getLong(0);
         long lowestContestant = validation[4].fetchRow(0).getLong(0);
         
-        if(maxStageTimestamp - minWinTimestamp >= VoterDemoHStoreNoCleanupConstants.WIN_SIZE + VoterDemoHStoreNoCleanupConstants.STAGE_SIZE)
+        if(maxStageTimestamp - minWinTimestamp >= VoterDemoHStoreNoCleanupConstants.WINDOW_SIZE + VoterDemoHStoreNoCleanupConstants.SLIDE_SIZE)
         {
-        	minWinTimestamp = maxStageTimestamp - VoterDemoHStoreNoCleanupConstants.WIN_SIZE;
+        	minWinTimestamp = maxStageTimestamp - VoterDemoHStoreNoCleanupConstants.WINDOW_SIZE;
         	voltQueueSQL(selectVoteWindowStmt, minWinTimestamp, maxStageTimestamp);
         	voltQueueSQL(updateMinTSStmt, minWinTimestamp);
         	voltExecuteSQL();
@@ -144,7 +144,7 @@ public long run() {
         	voltQueueSQL(deleteContestant, contestant_number);
             //voltQueueSQL(getLowestContestant);
             voltQueueSQL(resetCount);
-            voltQueueSQL(selectVoteWindowStmt, minWinTimestamp, minWinTimestamp + VoterDemoHStoreNoCleanupConstants.WIN_SIZE);
+            voltQueueSQL(selectVoteWindowStmt, minWinTimestamp, minWinTimestamp + VoterDemoHStoreNoCleanupConstants.WINDOW_SIZE);
             voltQueueSQL(getTopLeaderboard);
             voltQueueSQL(getBottomLeaderboard);
             voltExecuteSQL(true);
