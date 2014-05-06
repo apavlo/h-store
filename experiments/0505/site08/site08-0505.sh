@@ -1,5 +1,5 @@
 #!/bin/sh
-ant clean-java build-java
+ant clean-all build-all
 ant hstore-prepare -Dproject=microwintimehstorefull -Dhosts="localhost:0:0"
 ant hstore-prepare -Dproject=microwintimehstorecleanup -Dhosts="localhost:0:0"
 ant hstore-prepare -Dproject=microwintimehstoresomecleanup -Dhosts="localhost:0:0"
