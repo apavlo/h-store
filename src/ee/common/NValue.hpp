@@ -159,7 +159,7 @@ class NValue {
        provided. This function will perform memory allocations for
        Object types as necessary using the provided data pool or the
        heap. This is used to deserialize tables. */
-    static void deserializeFrom(
+    static int64_t deserializeFrom(
         SerializeInput &input, const ValueType type, char *storage,
         bool isInlined, const int32_t maxLength, Pool *dataPool);
 
@@ -1879,28 +1879,29 @@ inline void NValue::serializeToTupleStorage(void *storage, const bool isInlined,
  * Object types as necessary using the provided data pool or the
  * heap. This is used to deserialize tables.
  */
-inline void NValue::deserializeFrom(SerializeInput &input, const ValueType type,
+inline int64_t NValue::deserializeFrom(SerializeInput &input, const ValueType type,
                              char *storage, bool isInlined, const int32_t maxLength, Pool *dataPool) {
     switch (type) {
       case VALUE_TYPE_BIGINT:
       case VALUE_TYPE_TIMESTAMP:
         *reinterpret_cast<int64_t*>(storage) = input.readLong();
-        break;
+        return sizeof(int64_t);
       case VALUE_TYPE_TINYINT:
         *reinterpret_cast<int8_t*>(storage) = input.readByte();
-        break;
+        return sizeof(int8_t);
       case VALUE_TYPE_SMALLINT:
         *reinterpret_cast<int16_t*>(storage) = input.readShort();
-        break;
+        return sizeof(int16_t);
       case VALUE_TYPE_INTEGER:
         *reinterpret_cast<int32_t*>(storage) = input.readInt();
-        break;
+        return sizeof(int32_t);
       case VALUE_TYPE_DOUBLE:
         *reinterpret_cast<double* >(storage) = input.readDouble();
-        break;
+        return sizeof(double);
       case VALUE_TYPE_VARCHAR: {
+    	  int64_t bytesRead = 0;
           const int32_t length = input.readInt();
-                    
+          bytesRead+= sizeof(int32_t);
           if (length > maxLength) {
               char msg[1024];
               snprintf(msg, 1024, "Object exceeds specified size. Size is %d and max is %d", length, maxLength);
@@ -1915,14 +1916,14 @@ inline void NValue::deserializeFrom(SerializeInput &input, const ValueType type,
               
               setObjectLengthToLocation(length, storage);
               if (length == OBJECTLENGTH_NULL) {
-                  break;
+                  return 0;
               }
               const char *data = reinterpret_cast<const char*>(input.getRawPointer(length));
               ::memcpy( storage + lengthLength, data, length);
           } else {
               if (length == OBJECTLENGTH_NULL) {
                   *reinterpret_cast<void**>(storage) = NULL;
-                  return;
+                  return 0;
               }
               const char *data = reinterpret_cast<const char*>(input.getRawPointer(length));
               const size_t minlength = lengthLength + length;
@@ -1936,14 +1937,15 @@ inline void NValue::deserializeFrom(SerializeInput &input, const ValueType type,
               ::memcpy(copy + lengthLength, data, length);
               *reinterpret_cast<char**>(storage) = copy;
           }
-          break;
+          bytesRead+=length;
+          return bytesRead;
       }
       case VALUE_TYPE_DECIMAL: {
           int64_t *longStorage = reinterpret_cast<int64_t*>(storage);
           //Reverse order for Java BigDecimal BigEndian
           longStorage[1] = input.readLong();
           longStorage[0] = input.readLong();
-          break;
+          return 2*sizeof(long);
       }
       default:
           char message[128];

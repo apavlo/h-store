@@ -525,6 +525,7 @@ bool AntiCacheEvictionManager::evictBlockToDisk(PersistentTable *table, const lo
         block.initialize(block_size, tableNames,
                 block_id,
                 num_tuples_evicted);
+        int initSize = block.getSerializedSize();
 
         VOLT_DEBUG("Starting evictable tuple iterator for %s", name().c_str());
         while (evict_itr.hasNext() && (block.getSerializedSize() + MAX_EVICTED_TUPLE_SIZE < block_size)) {
@@ -580,7 +581,7 @@ bool AntiCacheEvictionManager::evictBlockToDisk(PersistentTable *table, const lo
         std::vector<int> numTuples;
         numTuples.push_back(num_tuples_evicted);
         block.writeHeader(numTuples);
-
+        int64_t bytesWritten = block.getSerializedSize() - initSize;
         #ifdef VOLT_INFO_ENABLED
         VOLT_DEBUG("Evicted %d tuples / %d bytes.", num_tuples_evicted, block.getSerializedSize());
         VOLT_DEBUG("Eviction Time: %.2f sec", timer.elapsed());
@@ -602,11 +603,11 @@ bool AntiCacheEvictionManager::evictBlockToDisk(PersistentTable *table, const lo
             // Update Stats
             m_tuplesEvicted += num_tuples_evicted;
             m_blocksEvicted += 1;
-            m_bytesEvicted += block.getSerializedSize();
+            m_bytesEvicted += bytesWritten;
 
             m_tuplesWritten += num_tuples_evicted;
             m_blocksWritten += 1;
-            m_bytesWritten += block.getSerializedSize();
+            m_bytesWritten += bytesWritten;
 
             table->setTuplesEvicted(m_tuplesEvicted);
             table->setBlocksEvicted(m_blocksEvicted);
@@ -711,10 +712,9 @@ bool AntiCacheEvictionManager::evictBlockToDiskInBatch(PersistentTable *table, P
 
         #ifdef VOLT_INFO_ENABLED
         boost::timer timer;
-//        int64_t origEvictedTableSize = m_evictedTable->activeTupleCount();
         #endif
 
-        //size_t current_tuple_start_position;
+
 
         int32_t num_tuples_evicted = 0;
         std::vector<std::string> tableNames;
@@ -724,6 +724,7 @@ bool AntiCacheEvictionManager::evictBlockToDiskInBatch(PersistentTable *table, P
         block.initialize(block_size, tableNames,
                 block_id,
                 num_tuples_evicted);
+        int initSize = block.getSerializedSize();
 
         VOLT_DEBUG("Starting evictable tuple iterator for %s", name().c_str());
         int64_t childBytes = 0;
@@ -742,7 +743,6 @@ bool AntiCacheEvictionManager::evictBlockToDiskInBatch(PersistentTable *table, P
                 tuple_length = tuple.tupleLength();
             }
 
-            //current_tuple_start_position = out.position();
 
             // remove the tuple from the eviction chain
             removeTuple(table, &tuple);
@@ -790,7 +790,6 @@ bool AntiCacheEvictionManager::evictBlockToDiskInBatch(PersistentTable *table, P
                 setNValue(0, ValueFactory::getBigIntValue(pkeyValue));
             VOLT_INFO("after search key set value !!!! %lld",(long long)(ValuePeeker::peekBigInt(ValueFactory::getBigIntValue(pkeyValue))));
             bool found = foreignKeyIndex->moveToKey(&searchkey);
-//            int count = 0;
             VOLT_INFO("found child tuples!!!! %d", found);
             parentTuples++;
 
@@ -812,7 +811,7 @@ bool AntiCacheEvictionManager::evictBlockToDiskInBatch(PersistentTable *table, P
                        name().c_str(), block_id, num_tuples_evicted);
 
         } // WHILE
-        parentBytes = block.getSerializedSize();
+        parentBytes = block.getSerializedSize() - initSize;
         // iterate through the child tuples now
         ////////////////BEGIN CHILD TUPLE ADDING TO BLOCK/////////////////////
         for (std::vector<TableTuple>::iterator it = childTuplesToBeEvicted.begin() ; it != childTuplesToBeEvicted.end(); ++it){
@@ -852,7 +851,7 @@ bool AntiCacheEvictionManager::evictBlockToDiskInBatch(PersistentTable *table, P
 
 
         }
-        childBytes = block.getSerializedSize() - parentBytes;
+        childBytes = block.getSerializedSize() - parentBytes - initSize;
         ////////////////END CHILD TUPLE ADDING TO BLOCK/////////////////////
 
         VOLT_DEBUG("Finished evictable tuple iterator for %s [tuplesEvicted=%d]",
@@ -889,11 +888,11 @@ bool AntiCacheEvictionManager::evictBlockToDiskInBatch(PersistentTable *table, P
             // Update Stats
             m_tuplesEvicted += num_tuples_evicted - childTuples;
             m_blocksEvicted += 1;
-            m_bytesEvicted += block.getSerializedSize() - childBytes;
+            m_bytesEvicted += parentBytes;
 
             m_tuplesWritten += num_tuples_evicted - childTuples;
             m_blocksWritten += 1;
-            m_bytesWritten += block.getSerializedSize() - childBytes;
+            m_bytesWritten += parentBytes;
 
             table->setTuplesEvicted(m_tuplesEvicted);
             table->setBlocksEvicted(m_blocksEvicted);
@@ -1024,14 +1023,6 @@ bool AntiCacheEvictionManager::readEvictedBlock(PersistentTable *table, int16_t 
         table->insertTupleOffset(tuple_offset);
 
 	
-        // Update eviction stats
-        table->m_bytesEvicted -= value.getSize();
-        table->m_bytesRead += value.getSize();
-
-        // update block eviction stats
-        table->m_blocksEvicted -= 1;
-        table->m_blocksRead += 1;
-	
         table->insertUnevictedBlockID(std::pair<int16_t,int16_t>(block_id, 0));
     }
     catch(UnknownBlockAccessException e)
@@ -1053,7 +1044,7 @@ bool AntiCacheEvictionManager::mergeUnevictedTuples(PersistentTable *table)
 {
     int num_blocks = static_cast<int> (table->getUnevictedBlocks().size());
     int32_t num_tuples_in_block = -1;
-    int tuplesRead = 0;
+
 
     if(num_blocks == 0)
         return false;
@@ -1074,7 +1065,7 @@ bool AntiCacheEvictionManager::mergeUnevictedTuples(PersistentTable *table)
     #ifdef VOLT_INFO_ENABLED
     VOLT_INFO("Merging %d blocks for table %s.", num_blocks, table->name().c_str());
     #endif
-    int m_blocksEvicted = table->getBlocksEvicted();
+
     for (int i = 0; i < num_blocks; i++)
     {
         // XXX: have to put block size, which we don't know, so just put something large, like 10MB
@@ -1098,6 +1089,8 @@ bool AntiCacheEvictionManager::mergeUnevictedTuples(PersistentTable *table)
             VOLT_INFO("Merging %d tuples.", num_tuples_in_block);
 
             // Now read the actual tuples
+            int64_t bytes_unevicted = 0;
+            int tuplesRead = 0;
             for (int j = 0; j < num_tuples_in_block; j++)
             {
                 // if we're using the tuple-merge strategy, only merge in a single tuple
@@ -1114,7 +1107,7 @@ bool AntiCacheEvictionManager::mergeUnevictedTuples(PersistentTable *table)
 
                 // deserialize tuple from unevicted block
                 VOLT_INFO("Before deserialize.%d", tableInBlock->m_tupleCount);
-                m_tmpTarget1.deserializeWithHeaderFrom(in);
+                bytes_unevicted += m_tmpTarget1.deserializeWithHeaderFrom(in);
                 m_tmpTarget1.setEvictedFalse();
                 m_tmpTarget1.setDeletedFalse();
 
@@ -1128,54 +1121,42 @@ bool AntiCacheEvictionManager::mergeUnevictedTuples(PersistentTable *table)
                 // update the indexes to point to this newly unevicted tuple
                 tableInBlock->setEntryToNewAddressForAllIndexes(&m_tmpTarget1, m_tmpTarget1.address());
 
-    			//deleteFromAllIndexes(&m_tmpTarget1);
-    			//insertTuple(m_tmpTarget1);
-
     			m_tmpTarget1.setEvictedFalse();
-
-    			//VOLT_INFO("Merged Tuple: %s", m_tmpTarget1.debug(name()).c_str());
-    			//VOLT_INFO("tuple size: %d, non-inlined memory size: %d", m_tmpTarget1.tupleLength(), m_tmpTarget1.getNonInlinedMemorySize());
 
                 // re-insert the tuple back into the eviction chain
                 if(j == merge_tuple_offset)  // put it at the back of the chain
                     updateTuple(tableInBlock, &m_tmpTarget1, true);
                 else
                     updateUnevictedTuple(tableInBlock, &m_tmpTarget1);
+
             }
+            if(tableInBlock->mergeStrategy())
+                tuplesRead += num_tuples_in_block;
+            else
+                tuplesRead++;
+            int m_tuplesEvicted = tableInBlock->getTuplesEvicted();
+            m_tuplesEvicted -= tuplesRead;
+            tableInBlock->setTuplesEvicted(m_tuplesEvicted);
+            int m_tuplesRead = tableInBlock->getTuplesRead();
+            m_tuplesRead += tuplesRead;
+            tableInBlock->setTuplesRead(m_tuplesRead);
+            tableInBlock->m_bytesEvicted-=bytes_unevicted;
+            VOLT_INFO("Bytes unevicted%ld", long(bytes_unevicted));
+            tableInBlock->m_bytesRead+=bytes_unevicted;
+            tableInBlock->m_blocksEvicted -= 1;
+            tableInBlock->m_blocksRead += 1;
+
             count++;
 
         }
 
 
 
-        // Update eviction stats
-        //table->m_bytesEvicted -= value.getSize();
-        //table->m_bytesRead += value.getSize();
-
-        // update block eviction stats
-        //table->m_blocksEvicted -= 1;
-        //table->m_blocksRead += 1;
-
-        if(table->mergeStrategy())
-            tuplesRead += num_tuples_in_block;
-        else
-            tuplesRead++;
-
         delete [] table->getUnevictedBlocks()[i];
     }
 
-    table->setBlocksEvicted(m_blocksEvicted);
-    // udpate tuple eviction stats
-    int m_tuplesEvicted = table->getTuplesEvicted();
-    m_tuplesEvicted -= tuplesRead;
-    table->setTuplesEvicted(m_tuplesEvicted);
-    int m_tuplesRead = table->getTuplesRead();
-    m_tuplesRead += tuplesRead;
-    table->setTuplesRead(m_tuplesRead);
-
     table->getUnevictedBlocks().clear();
     table->getMergeTupleOffset().clear();
-    //m_unevictedBlockIDs.clear();  // if we uncomment this the benchmark won't end
 
     #ifdef VOLT_INFO_ENABLED
     VOLT_INFO("Active Tuple Count: %d -- %d", (int)active_tuple_count, (int)table->activeTupleCount());

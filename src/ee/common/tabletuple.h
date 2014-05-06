@@ -366,7 +366,7 @@ public:
                           int colOffset, uint8_t *nullArray);
     
     void serializeWithHeaderTo(voltdb::SerializeOutput &output);
-    void deserializeWithHeaderFrom(voltdb::SerializeInput &tupleIn);
+    int64_t deserializeWithHeaderFrom(voltdb::SerializeInput &tupleIn);
 
     void freeObjectColumns();
     size_t hashCode(size_t seed) const;
@@ -654,14 +654,15 @@ inline void TableTuple::deserializeFrom(voltdb::SerializeInput &tupleIn, Pool *d
     }
 }
 
-inline void TableTuple::deserializeWithHeaderFrom(voltdb::SerializeInput &tupleIn) {
+inline int64_t TableTuple::deserializeWithHeaderFrom(voltdb::SerializeInput &tupleIn) {
     
-    size_t total_bytes_deserialized = 0;
+	int64_t total_bytes_deserialized = 0;
     
     assert(m_schema);
     assert(m_data);
     
-    tupleIn.readInt();  // read in the tuple size, discard 
+    tupleIn.readInt();  // read in the tuple size, discard
+    total_bytes_deserialized+=sizeof(int);
         
     memcpy(m_data, tupleIn.getRawPointer(TUPLE_HEADER_SIZE), TUPLE_HEADER_SIZE);    
     total_bytes_deserialized += TUPLE_HEADER_SIZE;
@@ -683,9 +684,9 @@ inline void TableTuple::deserializeWithHeaderFrom(voltdb::SerializeInput &tupleI
         const bool isInlined = m_schema->columnIsInlined(j);
         char *dataPtr = getDataPtr(j);
         const int32_t columnLength = m_schema->columnLength(j);
-        NValue::deserializeFrom(tupleIn, type, dataPtr, isInlined, columnLength, NULL);
+        total_bytes_deserialized+= NValue::deserializeFrom(tupleIn, type, dataPtr, isInlined, columnLength, NULL);
     }
-    
+    return total_bytes_deserialized;
 //    for (int j = 0; j < m_schema->columnCount(); ++j) {
 //        ValueType type = m_schema->columnType(j);
 //        
