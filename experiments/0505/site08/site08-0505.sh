@@ -24,6 +24,7 @@ python ./tools/runexperiments.py --tmin 1 --tmax 1 --tstep 1 --rmin 1000 --rmax 
 python ./tools/runexperiments.py --tmin 1 --tmax 1 --tstep 1 --rmin 1000 --rmax 15000 --rstep 1000 --stop --warmup 40000 -p voterdemohstore -o "experiments/0505/site08/voterdemohstore-1c-10w2s1000t-0505.txt"
 python ./tools/runexperiments.py --tmin 1 --tmax 1 --tstep 1 --rmin 1000 --rmax 15000 --rstep 1000 --stop --warmup 40000 -p voterdemohstorenocleanup -o "experiments/0505/site08/voterdemohstorenocleanup-1c-10w2s1000t-0505.txt"
 python ./tools/runexperiments.py --tmin 1 --tmax 1 --tstep 1 --rmin 1000 --rmax 15000 --rstep 1000 --stop --warmup 40000 -p voterdemosstore -o "experiments/0505/site08/voterdemosstore-1c-10w2s1000t-0505.txt"
+python ./tools/runexperiments.py --tmin 1 --tmax 1 --tstep 1 --rmin 1000 --rmax 15000 --rstep 1000 --stop --warmup 40000 -p voterdemosstorepetrigonly -o "experiments/0505/site08/voterdemosstorepetrigonly-1c-10w2s1000t-0505.txt"
 python ./tools/runexperiments.py --tmin 1 --tmax 1 --tstep 1 --rmin 1000 --rmax 15000 --rstep 1000 --stop --warmup 10000 -p voterwinhstore -o "experiments/0505/site08/voterwinhstore-1c-10w10s-0505.txt"
 python ./tools/runexperiments.py --tmin 1 --tmax 1 --tstep 1 --rmin 1000 --rmax 15000 --rstep 1000 --stop --warmup 10000 -p voterwinsstore -o "experiments/0505/site08/voterwinhstore-1c-10w10s-0505.txt"
 python ./tools/runexperiments.py --tmin 1 --tmax 1 --tstep 1 --rmin 1000 --rmax 15000 --rstep 1000 --stop --warmup 40000 -p voterwintimehstore -o "experiments/0505/site08/voterwintimehstore-1c-10w2s1000t-0505.txt"
@@ -31,3 +32,4 @@ python ./tools/runexperiments.py --tmin 1 --tmax 1 --tstep 1 --rmin 1000 --rmax 
 python ./tools/runexperiments.py --tmin 10 --tmax 10 --tstep 1 --rmin 100 --rmax 1500 --rstep 100 --stop --warmup 40000 -p voterdemohstore -o "experiments/0505/site08/voterdemohstore-10c-10w2s1000t-0505.txt"
 python ./tools/runexperiments.py --tmin 10 --tmax 10 --tstep 1 --rmin 100 --rmax 1500 --rstep 100 --stop --warmup 40000 -p voterdemohstorenocleanup -o "experiments/0505/site08/voterdemohstorenocleanup-10c-10w2s1000t-0505.txt"
 python ./tools/runexperiments.py --tmin 10 --tmax 10 --tstep 1 --rmin 100 --rmax 1500 --rstep 100 --stop --warmup 40000 -p voterdemosstore -o "experiments/0505/site08/voterdemosstore-10c-10w2s1000t-0505.txt"
+python ./tools/runexperiments.py --tmin 1 --tmax 1 --tstep 1 --rmin 1000 --rmax 15000 --rstep 1000 --stop --warmup 40000 -p voterdemosstorepetrigonly -o "experiments/0505/site08/voterdemosstorepetrigonly-10c-10w2s1000t-0505.txt"
