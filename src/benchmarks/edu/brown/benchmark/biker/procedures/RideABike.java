@@ -28,6 +28,7 @@
 
 package edu.brown.benchmark.biker.procedures;
 
+import org.apache.log4j.Logger;
 import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
@@ -41,10 +42,16 @@ import edu.brown.utils.MathUtil;
 
 public class RideABike extends VoltProcedure {
 
-    public long initialDock;   // Keep track of the initial dock from where the
-                               // bike originates
-    public long finalDock;     // Save the final dock
-    public long bikeID = 0; // Keep track of the bike ID
+    private static final Logger LOG = Logger.getLogger(RideABike.class);
+
+    public static long STALL_TIME = 10; // Amount of time to wait for stalls()
+    public long initialDock;      // Keep track of the initial dock from where the
+                                  // bike originates
+    public long finalDock;        // Save the final dock
+    public long bikeID = 0;       // Keep track of the bike ID
+
+    final boolean debug = true; //LOG.isDebugEnabled();
+
 
     // Make sure the dock has a bike given a dock_id
     public final SQLStmt getAllAvailibleBikes = new SQLStmt(
@@ -59,7 +66,7 @@ public class RideABike extends VoltProcedure {
     // Make a reservation for a bike, to be picked up in a few minutes
     // requires dock_id and a timestamp
     public final SQLStmt makeBikeReservation = new SQLStmt(
-        "INSERT INTO reservations VALUES ( ? , 1 , ?);"
+        "INSERT INTO reservations VALUES (?,1,?);"
     );
 
     // Make a Reservation for a dock, for the thread that already has a
@@ -68,9 +75,13 @@ public class RideABike extends VoltProcedure {
         "INSERT INTO reservations VALUES (?,0,?);"
     );
 
+    public final SQLStmt removeReservation = new SQLStmt(
+        "DELETE FROM reservations WHERE dock_id = ?"
+    );
+
     // Check for reservations on the bike given a dock_id
     public final SQLStmt getReservation = new SQLStmt(
-        "SELECT * from reservations WHERE dock_id = ?;"
+        "SELECT count(*) from reservations WHERE dock_id = ?;"
     );
 
     // Remove a bike from a given dock id
@@ -89,22 +100,24 @@ public class RideABike extends VoltProcedure {
         "UPDATE docks set bike_id = ? WHERE dock_id = ?;"
     );
 
+
     // Spend some sime spinning around town
     public long stall() {
-        ThreadUtil.sleep(100);
+        ThreadUtil.sleep(STALL_TIME);
         return 0;
     }
 
-
-    // Reserve the dock_id if there is a bike present
-    // and No prior reservation exists
-    public long run() {
+    public long reserveBike(){
 
         // Store My results
         VoltTable result[];
 
+        // Added to quell unlucky dock reservers
+        int attempts = 0;
+
         // We need to first find a bike that is docked without a reservation,
         // and put in a reservation for the bike.
+
         do {
 
             // First get a list of all availible bikes.
@@ -113,7 +126,11 @@ public class RideABike extends VoltProcedure {
 
             // Make sure there are bikes availible
             int numOfBikes = result[0].getRowCount();
-            if (numOfBikes < 1)
+            if (numOfBikes < 1){
+                return BikerConstants.NO_BIKES_AVAILIBLE;
+            }
+
+            if (attempts++ > 5)
                 return BikerConstants.NO_BIKES_AVAILIBLE;
 
             // Generate an index for one of the bikes in the returned
@@ -136,31 +153,35 @@ public class RideABike extends VoltProcedure {
             voltQueueSQL(makeBikeReservation, initialDock, ts);
             result = voltExecuteSQL();
 
-            // If the reservation failed (someone beat us) then we need to release
-            // our bikeID, and try to reserve another one.
-            if (result[0].asScalarLong() != 0)
-                bikeID = 0;
+        } while (result[0].getRowCount() != 1);
 
         // Do we still have a hole of that bikeID? then we got the reservation.
         // BOOYEAH, lets quit reserving bikes and go pick it up.
-        } while (bikeID != 0);
+        return BikerConstants.BIKE_RESERVED;
+    }
 
-        // At this point we should have a bike reserved
 
-        // Ironically, I'll drive out to the station, which means of course I'll be
-        stall(); //stalled in traffic
+    public long checkoutBike(){
 
         // I arrive at the station
         // So lets checkout that bike.
         voltQueueSQL(checkoutBike, initialDock);
-        result = voltExecuteSQL();
-        if (result[0].asScalarLong() != 0)
+        voltQueueSQL(removeReservation, initialDock);
+        VoltTable result[] = voltExecuteSQL();
+        if (result[0].getRowCount() != 1)
             return BikerConstants.CHECKOUT_ERROR;
+        return BikerConstants.CHECKOUT_SUCCESS;
 
-        stall(); // Burn some time riding around town. Checkout the view.
+    }
 
-       // Now it's time to pick and empty dock and reserve it
-       do {
+
+    public long reserveDock(){
+
+        // Store My results
+        VoltTable result[];
+
+        // Now it's time to pick and empty dock and reserve it
+        do {
             // First get a list of all availible docks.
             voltQueueSQL(getAllAvailibleDocks);
             result = voltExecuteSQL();
@@ -186,15 +207,36 @@ public class RideABike extends VoltProcedure {
             voltQueueSQL(makeDockReservation, initialDock, ts);
             result = voltExecuteSQL();
 
-       // In case of Races, if some other thread gets the reservation first,
-       // we'll go for another bike
-       } while (result[0].asScalarLong() != 0);
+            // In case of Races, if some other thread gets the reservation first,
+            // we'll go for another bike
+        } while (result[0].getRowCount() != 1);
+        return BikerConstants.DOCK_RESERVED;
+    }
 
+
+    public long checkinBike(){
         // Now it's time to dock the bike
         voltQueueSQL(checkinBike, bikeID, finalDock);
-        result = voltExecuteSQL();
-        if (result[0].asScalarLong() != 0)
+        voltQueueSQL(removeReservation, finalDock);
+        VoltTable result[] = voltExecuteSQL(true);
+        if (result[0].asScalarLong() != 1)
             return BikerConstants.CHECKIN_ERROR;
+        return BikerConstants.CHECKIN_SUCCESS;
+    }
+
+
+    // Reserve the dock_id if there is a bike present
+    // and No prior reservation exists
+    public long run() {
+
+        if (reserveBike() == BikerConstants.NO_BIKES_AVAILIBLE)
+            throw new VoltAbortException("Could not get a bike reservation fast enough");
+
+        checkoutBike();
+
+        reserveDock();
+
+        checkinBike();
 
         return BikerConstants.RIDE_SUCCESS;
 
