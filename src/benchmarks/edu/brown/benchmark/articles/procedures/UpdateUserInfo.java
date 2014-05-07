@@ -12,7 +12,6 @@ public class UpdateUserInfo extends VoltProcedure{
     public final SQLStmt UpdateUser = new SQLStmt("UPDATE USERS SET u_lastname = ? WHERE U_ID = ?");
     
     public VoltTable[] run(String lastname, long u_id) {
-    	System.out.println("Running procedure update user info "+u_id);
         voltQueueSQL(UpdateUser, lastname, u_id);
         return (voltExecuteSQL(true));
     }   

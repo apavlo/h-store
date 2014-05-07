@@ -1,6 +1,8 @@
 package edu.brown.catalog;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 
 import org.voltdb.catalog.Column;
 import org.voltdb.catalog.Database;
@@ -49,14 +51,14 @@ public class TestCatalogUtil2 extends BaseTestCase {
     	
         Table catalog_tbl = this.getTable(ArticlesConstants.TABLENAME_ARTICLES);
         Database db = this.getDatabase();
-        Table expected[] = { this.getTable(ArticlesConstants.TABLENAME_COMMENTS) };
+        String expected[] = { ArticlesConstants.TABLENAME_COMMENTS };
 
-    	Collection<Table> tables = CatalogUtil.getChildTables(db, catalog_tbl);
+    	String[] tables = CatalogUtil.getChildTables(db, catalog_tbl);
     	
         assertNotNull(tables);
-        assertEquals(tables.toString(), expected.length, tables.size());
-        for (Table t : expected) {
-            assert (tables.contains(t)) : "Missing " + t.fullName();
+        assertEquals(tables.toString(), expected.length, tables.length);
+        for (int i = 0 ; i < tables.length; i++) {
+        	assert(tables[i].equals(expected[i])): "Missing " + expected[i];
         } // FOR
 
     }

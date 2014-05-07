@@ -327,6 +327,11 @@ voltdb::TableTuple PersistentTable::getTempTarget1()
 {
 	return m_tmpTarget1;
 }
+void PersistentTable::clearUnevictedBlocks()
+{
+	m_unevictedBlocks.clear();
+}
+
 #endif
 
 
@@ -813,7 +818,7 @@ void PersistentTable::updateFromAllIndexes(TableTuple &targetTuple, const TableT
     
 void PersistentTable::setEntryToNewAddressForAllIndexes(const TableTuple *tuple, const void* address) {
     for (int i = m_indexCount - 1; i >= 0; --i) {
-        VOLT_DEBUG("Updating tuple address in index %s.%s [%s]",
+        VOLT_INFO("Updating tuple address in index %s.%s [%s]",
                    name().c_str(), m_indexes[i]->getName().c_str(), m_indexes[i]->getTypeName().c_str());
         
         if (!m_indexes[i]->setEntryToNewAddress(tuple, address)) {

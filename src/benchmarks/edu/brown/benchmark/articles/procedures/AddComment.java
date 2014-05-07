@@ -23,7 +23,6 @@ public class AddComment extends VoltProcedure{
     public final SQLStmt UpdateArticle = new SQLStmt("UPDATE ARTICLES SET A_NUM_COMMENTS=? WHERE A_ID=?");
 
     public VoltTable[] run(long a_id, long u_id, String c_text) {
-    	System.out.println("Running procedure Add comment "+a_id);
     	
         voltQueueSQL(GetNumComments, a_id);
         VoltTable[] results = voltExecuteSQL();

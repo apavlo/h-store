@@ -64,6 +64,14 @@ public class BenchmarkCompiler {
                                                          tableName, m_projectBuilder.getProjectName())); 
             } // FOR
         }
+        if (m_config.batchEvictable != null) {
+            for (String tableName : m_config.batchEvictable) {
+                if (tableName.isEmpty()) continue;
+                m_projectBuilder.markTableBatchEvictable(tableName);
+                LOG.info(String.format("Marking table %s as batch evictable in %s",
+                                                         tableName, m_projectBuilder.getProjectName())); 
+            } // FOR
+        }
         
         boolean success = m_projectBuilder.compile(m_jarFileName.getAbsolutePath(),
                                                    m_config.sitesPerHost,

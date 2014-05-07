@@ -207,8 +207,10 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         evictableTables = new String[catalogContext.getEvictableTables().size()];
         int i = 0;
         for (Table table : catalogContext.getEvictableTables()) {
-            evictableTables[i] = table.getName();
-            i++;
+        	if(!table.getBatchevicted()){
+                evictableTables[i] = table.getName();
+                i++;        		
+        	}
         }
 
         String policy = hstore_conf.site.anticache_eviction_distribution;
@@ -452,7 +454,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
             int evictBlocks[] = new int[pdist.size()];
             int i = 0;
             CatalogContext catalogContext = hstore_site.getCatalogContext();
-            Collection<Table> children = null;
+            String children[] = new String[pdist.size()];
             for (String table : pdist.keySet()) {
                 tableNames[i] = table;
                 Table catalogTable = catalogContext.getTableByName(table);

@@ -682,7 +682,7 @@ bool AntiCacheEvictionManager::evictBlockToDiskInBatch(PersistentTable *table, P
 	TableIndex * pkeyIndex = table->primaryKeyIndex();
 	int columnIndex = pkeyIndex->getColumnIndices().front();
 	TableIndex * foreignKeyIndex = childTable->allIndexes().at(1); // Fix get the foreign key index
-	int foreignKeyIndexColumn = foreignKeyIndex->getColumnIndices().front();
+	//int foreignKeyIndexColumn = foreignKeyIndex->getColumnIndices().front();
     int child_tuplesEvicted = childTable->getTuplesEvicted();
     int child_blocksEvicted = childTable->getBlocksEvicted();
     int64_t child_bytesEvicted = childTable->getBytesEvicted();
@@ -732,8 +732,8 @@ bool AntiCacheEvictionManager::evictBlockToDiskInBatch(PersistentTable *table, P
         int64_t parentBytes = 0;
         int32_t parentTuples = 0;
         std::vector<TableTuple> childTuplesToBeEvicted;
-
-        while (evict_itr.hasNext() && (block.getSerializedSize() + MAX_EVICTED_TUPLE_SIZE < block_size)) {
+	int childTuplesSize = 0;
+        while (evict_itr.hasNext()) {
             if(!evict_itr.next(tuple))
                 break;
 
@@ -743,7 +743,55 @@ bool AntiCacheEvictionManager::evictBlockToDiskInBatch(PersistentTable *table, P
                 tuple_length = tuple.tupleLength();
             }
 
+            // value of the foreign key column
+            int64_t pkeyValue = ValuePeeker::peekBigInt(tuple.getNValue(columnIndex));
+            VOLT_INFO("after peek !!!! %lld", (long long)pkeyValue);
+            vector<ValueType> keyColumnTypes(1, VALUE_TYPE_BIGINT);
+            vector<int32_t>
+            	keyColumnLengths(1, NValue::getTupleStorageSize(VALUE_TYPE_BIGINT));
+            vector<bool> keyColumnAllowNull(1, true);
+            TupleSchema* keySchema =
+                    TupleSchema::createTupleSchema(keyColumnTypes,
+                                                   keyColumnLengths,
+                                                   keyColumnAllowNull,
+                                                   true);
+            TableTuple searchkey(keySchema);
+            VOLT_INFO("after search key init !!!!");
+            searchkey.move(new char[searchkey.tupleLength()]);
+            VOLT_INFO("after search key memory init !!!!");
+            searchkey.
+                setNValue(0, ValueFactory::getBigIntValue(pkeyValue));
+            VOLT_INFO("after search key set value !!!! %lld",(long long)(ValuePeeker::peekBigInt(ValueFactory::getBigIntValue(pkeyValue))));
+            bool found = foreignKeyIndex->moveToKey(&searchkey);
+            VOLT_INFO("found child tuples!!!! %d", found);
 
+            TableTuple childTuple(childTable->m_schema);
+     	    std::vector<TableTuple> buffer;
+            bool nomore = false;
+            if(found){
+                while (!(childTuple = foreignKeyIndex->nextValueAtKey()).isNullTuple())
+                {
+                	childTuplesSize+= MAX_EVICTED_TUPLE_SIZE;
+                    if(block.getSerializedSize() + MAX_EVICTED_TUPLE_SIZE + childTuplesSize >= block_size){
+			VOLT_INFO("Size of block exceeds!!in child %d", block.getSerializedSize() + MAX_EVICTED_TUPLE_SIZE + childTuplesSize);
+                    	nomore = true;
+                    	break;
+                    }
+                	buffer.push_back(childTuple);
+                }
+            }
+            if(nomore){
+            	break;
+            }
+            for (std::vector<TableTuple>::iterator it = buffer.begin() ; it != buffer.end(); ++it){
+            	childTuplesToBeEvicted.push_back(*it);
+            }
+            if(block.getSerializedSize() + MAX_EVICTED_TUPLE_SIZE + childTuplesSize >= block_size){
+		VOLT_INFO("Size of block exceeds!! %d", block.getSerializedSize() + MAX_EVICTED_TUPLE_SIZE + childTuplesSize);
+            	break;
+            }
+            parentTuples++;
+       
             // remove the tuple from the eviction chain
             removeTuple(table, &tuple);
             if (tuple.isEvicted())
@@ -769,39 +817,8 @@ bool AntiCacheEvictionManager::evictBlockToDiskInBatch(PersistentTable *table, P
             table->setEntryToNewAddressForAllIndexes(&tuple, evicted_tuple_address);
 
             block.addTuple(tuple);
-
-            // value of the foreign key column
-            int64_t pkeyValue = ValuePeeker::peekBigInt(tuple.getNValue(columnIndex));
-            VOLT_INFO("after peek !!!! %lld", (long long)pkeyValue);
-            vector<ValueType> keyColumnTypes(1, VALUE_TYPE_BIGINT);
-            vector<int32_t>
-            	keyColumnLengths(1, NValue::getTupleStorageSize(VALUE_TYPE_BIGINT));
-            vector<bool> keyColumnAllowNull(1, true);
-            TupleSchema* keySchema =
-                    TupleSchema::createTupleSchema(keyColumnTypes,
-                                                   keyColumnLengths,
-                                                   keyColumnAllowNull,
-                                                   true);
-            TableTuple searchkey(keySchema);
-            VOLT_INFO("after search key init !!!!");
-            searchkey.move(new char[searchkey.tupleLength()]);
-            VOLT_INFO("after search key memory init !!!!");
-            searchkey.
-                setNValue(0, ValueFactory::getBigIntValue(pkeyValue));
-            VOLT_INFO("after search key set value !!!! %lld",(long long)(ValuePeeker::peekBigInt(ValueFactory::getBigIntValue(pkeyValue))));
-            bool found = foreignKeyIndex->moveToKey(&searchkey);
-            VOLT_INFO("found child tuples!!!! %d", found);
-            parentTuples++;
-
-            TableTuple childTuple(childTable->m_schema);
-            if(found){
-                while (!(childTuple = foreignKeyIndex->nextValueAtKey()).isNullTuple())
-                {
-                    childTuplesToBeEvicted.push_back(childTuple);
-                }
-            }
-
-            // At this point it's safe for us to delete this mofo
+ 
+           // At this point it's safe for us to delete this mofo
             tuple.freeObjectColumns(); // will return memory for uninlined strings to the heap
             table->deleteTupleStorage(tuple);
 
@@ -809,6 +826,9 @@ bool AntiCacheEvictionManager::evictBlockToDiskInBatch(PersistentTable *table, P
             num_tuples_evicted++;
             VOLT_DEBUG("Added new evicted %s tuple to block #%d [tuplesEvicted=%d]",
                        name().c_str(), block_id, num_tuples_evicted);
+	    if(block.getSerializedSize() + childTuplesSize >= block_size){
+		break;
+	    }
 
         } // WHILE
         parentBytes = block.getSerializedSize() - initSize;
@@ -817,7 +837,7 @@ bool AntiCacheEvictionManager::evictBlockToDiskInBatch(PersistentTable *table, P
         for (std::vector<TableTuple>::iterator it = childTuplesToBeEvicted.begin() ; it != childTuplesToBeEvicted.end(); ++it){
             TableTuple childTuple(childTable->m_schema);
             TableTuple child_evicted_tuple = child_evictedTable->tempTuple();
-            VOLT_DEBUG("Setting %s tuple blockId at offset %d", child_evictedTable->name().c_str(), 0);
+            VOLT_INFO("Setting %s tuple blockId at offset %d", child_evictedTable->name().c_str(), 0);
             child_evicted_tuple.setNValue(0, ValueFactory::getSmallIntValue(block_id));   // Set the ID for this block
             child_evicted_tuple.setNValue(1, ValueFactory::getIntegerValue(0));          // set the tuple offset of this block
 
@@ -832,7 +852,7 @@ bool AntiCacheEvictionManager::evictBlockToDiskInBatch(PersistentTable *table, P
             child_evicted_tuple.setNValue(0, ValueFactory::getSmallIntValue(block_id));
             child_evicted_tuple.setNValue(1, ValueFactory::getIntegerValue(num_tuples_evicted));
             child_evicted_tuple.setEvictedTrue();
-            VOLT_DEBUG("EvictedTuple: %s", child_evicted_tuple.debug(child_evictedTable->name()).c_str());
+            VOLT_INFO("EvictedTuple: %s", child_evicted_tuple.debug(child_evictedTable->name()).c_str());
 
             // Then add it to this table's EvictedTable
             const void* evicted_tuple_address = static_cast<EvictedTable*>(child_evictedTable)->insertEvictedTuple(child_evicted_tuple);
@@ -840,11 +860,11 @@ bool AntiCacheEvictionManager::evictBlockToDiskInBatch(PersistentTable *table, P
             // Change all of the indexes to point to our new evicted tuple
             childTable->setEntryToNewAddressForAllIndexes(&childTuple, evicted_tuple_address);
 
+            //VOLT_INFO("tuple foreign key id %d", ValuePeeker::peekAsInteger(childTuple.getNValue(foreignKeyIndexColumn)));
+	    VOLT_INFO("EvictedTuple: %s", childTuple.debug(childTable->name()).c_str());
             block.addTuple(childTuple);
-            VOLT_INFO("tuple foreign key id %d", ValuePeeker::peekAsInteger(childTuple.getNValue(foreignKeyIndexColumn)));
-            cout << "tuple foreign key id" << ValuePeeker::peekAsInteger(childTuple.getNValue(foreignKeyIndexColumn)) << endl;
             //write out to block
-            childTuple.freeObjectColumns();
+            //childTuple.freeObjectColumns();
             childTable->deleteTupleStorage(childTuple);
 
             childTuples++;
@@ -1155,7 +1175,8 @@ bool AntiCacheEvictionManager::mergeUnevictedTuples(PersistentTable *table)
         delete [] table->getUnevictedBlocks()[i];
     }
 
-    table->getUnevictedBlocks().clear();
+table->clearUnevictedBlocks();
+VOLT_INFO("unevicted blocks size %d", static_cast<int>(table->getUnevictedBlocks().size()));
     table->getMergeTupleOffset().clear();
 
     #ifdef VOLT_INFO_ENABLED

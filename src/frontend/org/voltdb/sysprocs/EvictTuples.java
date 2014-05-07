@@ -115,8 +115,12 @@ public class EvictTuples extends VoltSystemProcedure {
             LOG.info("****************"+hstore_conf.site.anticache_batching);
             if(hstore_conf.site.anticache_batching == true){
             	LOG.info("reached here!!!!!");
-            	childTables[i] = catalogContext.database.getTables().getIgnoreCase(childrenTableNames[i]);
-            	vt = ee.antiCacheEvictBlockInBatch(tables[i], childTables[i], blockSizes[i], numBlocks[i]);
+            	if(childrenTableNames.length!=0 && !childrenTableNames[i].isEmpty()){
+                	childTables[i] = catalogContext.database.getTables().getIgnoreCase(childrenTableNames[i]);
+                	vt = ee.antiCacheEvictBlockInBatch(tables[i], childTables[i], blockSizes[i], numBlocks[i]);            		
+            	}else{
+            		vt = ee.antiCacheEvictBlock(tables[i], blockSizes[i], numBlocks[i]);
+            	}
             }else{
             	vt = ee.antiCacheEvictBlock(tables[i], blockSizes[i], numBlocks[i]);	
             }

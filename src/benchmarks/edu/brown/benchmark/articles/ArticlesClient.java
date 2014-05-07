@@ -82,7 +82,8 @@ public class ArticlesClient extends BenchmarkComponent {
 //	        ProcedureCallback callback = null;
 	        switch (target) {
 	            case GET_ARTICLE: {
-	                params = new Object[]{ ((Random) this.readRecord).nextInt() };
+	                long articlesSize = Math.round(ArticlesConstants.ARTICLES_SIZE * this.getScaleFactor());
+			params = new Object[]{ articlesSize - ((Random) this.readRecord).nextInt() };
 //	                callback = new GetCommentsCallback(this.getClientHandle(), params);
 	                break;
 	            }

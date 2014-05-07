@@ -295,6 +295,7 @@ class PersistentTable : public Table {
     void setTuplesRead(int32_t tuplesRead);
     void setBatchEvicted(bool batchEvicted);
     bool isBatchEvicted();
+    void clearUnevictedBlocks();
     #endif
     
     void setEntryToNewAddressForAllIndexes(const TableTuple *tuple, const void* address);

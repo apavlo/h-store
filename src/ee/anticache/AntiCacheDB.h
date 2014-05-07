@@ -106,6 +106,7 @@ public:
     inline void addTuple(TableTuple tuple){
     	// Now copy the raw bytes for this tuple into the serialized buffer
         tuple.serializeWithHeaderTo(out);
+VOLT_INFO("serialized!!!");
     }
 
     inline void writeHeader(std::vector<int> num_tuples_evicted){
