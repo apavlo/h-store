@@ -139,9 +139,6 @@ public long run() {
         //voltQueueSQL(setLowestContestants);
         voltQueueSQL(getLowestContestant);//3
         voltQueueSQL(clearProcOut);
-        voltQueueSQL(getTopLeaderboard);
-        voltQueueSQL(getBottomLeaderboard);
-        voltQueueSQL(getTrendingLeaderboard);
         voltQueueSQL(updateTotalCount);
 
         VoltTable validation[] = voltExecuteSQL();
@@ -154,11 +151,11 @@ public long run() {
         	voltQueueSQL(deleteFromLeaderboard, contestant_number);
         	voltQueueSQL(deleteContestant, contestant_number);
             voltQueueSQL(resetCount);
-            voltQueueSQL(getTrendingLeaderboard);
-            voltQueueSQL(getTopLeaderboard);
-            voltQueueSQL(getBottomLeaderboard);
-            voltExecuteSQL(true);
         }
+        voltQueueSQL(getTrendingLeaderboard);
+        voltQueueSQL(getTopLeaderboard);
+        voltQueueSQL(getBottomLeaderboard);
+        voltExecuteSQL(true);
         
 		
         // Set the return value to 0: successful vote
