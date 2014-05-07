@@ -122,11 +122,11 @@ public class Vote extends VoltProcedure {
         
         voltQueueSQL(insertVoteStmt, voteId, phoneNumber, state, contestantNumber, currentTimestamp);
         //voltQueueSQL(insertVoteWindowStmt, voteId, phoneNumber, state, contestantNumber, currentTimestamp);
-        if(currentTimestamp - minWinTimestamp >= VoterWinTimeHStoreNoCleanupConstants.WIN_SIZE + VoterWinTimeHStoreNoCleanupConstants.STAGE_SIZE)
+        if(currentTimestamp - minWinTimestamp >= VoterWinTimeHStoreNoCleanupConstants.WINDOW_SIZE + VoterWinTimeHStoreNoCleanupConstants.SLIDE_SIZE)
         {
         	//voltQueueSQL(deleteLeaderboardStmt);
-        	voltQueueSQL(selectVoteWindowStmt, currentTimestamp - VoterWinTimeHStoreNoCleanupConstants.WIN_SIZE, currentTimestamp);
-        	voltQueueSQL(updateMinTSStmt, currentTimestamp - VoterWinTimeHStoreNoCleanupConstants.WIN_SIZE);
+        	voltQueueSQL(selectVoteWindowStmt, currentTimestamp - VoterWinTimeHStoreNoCleanupConstants.WINDOW_SIZE, currentTimestamp);
+        	voltQueueSQL(updateMinTSStmt, currentTimestamp - VoterWinTimeHStoreNoCleanupConstants.WINDOW_SIZE);
         }
         
         voltExecuteSQL(true);

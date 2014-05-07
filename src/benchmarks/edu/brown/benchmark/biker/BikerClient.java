@@ -136,7 +136,6 @@ public class BikerClient extends BenchmarkComponent {
 
             }
             else if (clientResponse.getStatus() == Status.ABORT_UNEXPECTED) {
-                clientResponse.getException().printStackTrace();
                 LOG.warn(clientResponse.getStatusString());
             }
             else if (clientResponse.getStatus() == Status.ABORT_REJECT) {

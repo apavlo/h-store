@@ -187,9 +187,9 @@ public long run() {
         long minWinTimestamp = validation[3].fetchRow(0).getLong(0);
         long maxStageTimestamp = validation[2].fetchRow(0).getLong(0);
         
-        if(maxStageTimestamp - minWinTimestamp >= VoterDemoHStoreConstants.WIN_SIZE + VoterDemoHStoreConstants.STAGE_SIZE)
+        if(maxStageTimestamp - minWinTimestamp >= VoterDemoHStoreConstants.WINDOW_SIZE + VoterDemoHStoreConstants.SLIDE_SIZE)
         {
-            voltQueueSQL(slideWindow1, maxStageTimestamp - VoterDemoHStoreConstants.WIN_SIZE);
+            voltQueueSQL(slideWindow1, maxStageTimestamp - VoterDemoHStoreConstants.WINDOW_SIZE);
             voltQueueSQL(slideWindow2);
             voltQueueSQL(slideWindow3, maxStageTimestamp);
             voltQueueSQL(clearStaging, maxStageTimestamp);

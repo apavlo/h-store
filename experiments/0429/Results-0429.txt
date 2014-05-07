@@ -1,0 +1,34 @@
+PE Triggers: demohstorenocleanup vs demosstorepetrigonly
+(only tests the PE triggers, everything else identical)
+S-Store gets about 2X throughput
+
+EE Triggers: hstoreeetrigtest vs sstoreeetrigtest
+(only tests the EE triggers. S-Store version uses a join, but it should be very low cost)
+EE triggers gain very little throughput.  Joins counteract the gain, and actually lead to a net loss.
+
+Tuple Windows: winhstorenocleanup vs winsstore
+(only tests the tuple window difference)
+H-Store always performs better than S-Store in experiments
+H-Store throughput doesn’t change much with changing window and slide size
+S-Store performs comparably for W100S10, but performance drastically degrades as window size increases
+
+Time Windows: wintimehstorenocleanup vs wintimesstorewinonly
+(only tests the time window difference)
+H-Store always performs better than S-Store, usually around 1.75X
+H-Store and S-Store performance doesn’t change drastically with window size, slide size, and ts size
+I believe this is because we are copying every tuple into a separate window table
+
+Voter Demo: demohstorenocleanup vs demosstore
+(full demo test)
+S-Store is still performing substantially better than H-Store (around 8X)
+part of this is the PE triggers (2X)
+I’m not yet sure what the rest of this is…
+
+Overall, I think our windowing implementation (and general approach) is killing us here.  The problem is that our windows require us to keep two copies of the data: one in the real table, one in the window table.  Also, maintaining the pointers may be a little expensive since everything is already in memory.  One way around this would be to maintain the pointer chain IN the actual table itself.  So when we’re making a window on the Votes table, we can maintain the pointer without needing to make a copy of the data.  Obviously we would need to essentially implement views in H-Store.
+
+I’m wondering if “INSERT INTO.. SELECT” is as efficient as we think it is.  I’d like to run some tests on this.
+
+I’d also like to see if EE triggers give us any benefit at all.
+
+NEXT: figure out why VoterDemoSStore is still performing so well
+run tests on windows only, without keeping a full copy of the data

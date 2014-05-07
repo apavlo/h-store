@@ -103,7 +103,7 @@ public class VoterDemoHStoreClient extends BenchmarkComponent {
     @Override
     protected boolean runOnce() throws IOException {
         // Get the next phone call
-    	if(System.nanoTime() - lastTime >= 1000000000)
+    	if(System.nanoTime() - lastTime >= VoterDemoHStoreConstants.TS_DURATION)
         {
         	lastTime = System.nanoTime();
         	timestamp++;
