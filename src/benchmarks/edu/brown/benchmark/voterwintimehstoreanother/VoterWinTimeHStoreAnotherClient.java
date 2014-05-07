@@ -30,7 +30,8 @@
 
 package edu.brown.benchmark.voterwintimehstoreanother;
 
-import java.io.IOException;
+import java.io.*;
+import java.net.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -41,7 +42,6 @@ import org.voltdb.client.ClientResponse;
 import org.voltdb.client.ProcedureCallback;
 
 import weka.classifiers.meta.Vote;
-
 import edu.brown.api.BenchmarkComponent;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
@@ -53,7 +53,8 @@ public class VoterWinTimeHStoreAnotherClient extends BenchmarkComponent {
     private static int timestamp;
 
     // Phone number generator
-    PhoneCallGenerator switchboard;
+    //PhoneCallGenerator switchboard;
+    edu.brown.stream.VoteGenClient switchboard;
 
     // Flags to tell the worker threads to stop or go
     AtomicBoolean warmupComplete = new AtomicBoolean(false);
@@ -71,10 +72,11 @@ public class VoterWinTimeHStoreAnotherClient extends BenchmarkComponent {
         BenchmarkComponent.main(VoterWinTimeHStoreAnotherClient.class, args, false);
     }
 
-    public VoterWinTimeHStoreAnotherClient(String args[]) {
+    public VoterWinTimeHStoreAnotherClient(String args[]) throws UnknownHostException, IOException {
         super(args);
         int numContestants = VoterWinTimeHStoreAnotherUtil.getScaledNumContestants(this.getScaleFactor());
-        this.switchboard = new PhoneCallGenerator(this.getClientId(), numContestants);
+        //this.switchboard = new PhoneCallGenerator(this.getClientId(), numContestants);
+        this.switchboard = new edu.brown.stream.VoteGenClient();
         lastTime = System.nanoTime();
         timestamp = 0;
     }
@@ -106,7 +108,10 @@ public class VoterWinTimeHStoreAnotherClient extends BenchmarkComponent {
         	timestamp++;
         }
     	
-        PhoneCallGenerator.PhoneCall call = switchboard.receive();
+        //PhoneCallGenerator.PhoneCall call = switchboard.receive();
+    	edu.brown.stream.VoteGenClient.CurrentCall call = switchboard.getNextCall();
+        if(call==null)
+            return true;
 
         Client client = this.getClientHandle();
         boolean response = client.callProcedure(callback,
@@ -115,7 +120,7 @@ public class VoterWinTimeHStoreAnotherClient extends BenchmarkComponent {
                                                 call.phoneNumber,
                                                 call.contestantNumber,
                                                 VoterWinTimeHStoreAnotherConstants.MAX_VOTES,
-                                                timestamp);
+                                                call.timestamp);
         return response;
     }
 
@@ -127,7 +132,7 @@ public class VoterWinTimeHStoreAnotherClient extends BenchmarkComponent {
         };
         return (procNames);
     }
-
+    
     private class Callback implements ProcedureCallback {
 
         @Override

@@ -25,7 +25,7 @@
 // Returns the N first winning states for each contestant
 //
 
-package edu.brown.benchmark.voterwintimehstoreanther.procedures;
+package edu.brown.benchmark.voterwintimehstoreanother.procedures;
 
 import java.util.ArrayList;
 import java.util.Arrays;

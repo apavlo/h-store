@@ -7,7 +7,76 @@ import java.util.ArrayList;
 
 import edu.brown.stream.PhoneCallGenerator.PhoneCall;
 
-public class VoteGenServer {
+public class VoteGenServer implements Runnable 
+{
+    
+    private final Socket clientSocket;
+    private edu.brown.stream.VoteGenerator switchboard;
+
+    public VoteGenServer(Socket clientsocket, edu.brown.stream.VoteGenerator switchboard)
+    {
+        this.clientSocket = clientsocket;
+        this.switchboard = switchboard;
+    }
+    
+    private synchronized String getNextVote()
+    {
+        String response;
+        
+        edu.brown.stream.PhoneCallGenerator.PhoneCall call = switchboard.nextVote();
+        
+        if(call != null)    
+            response = call.getContent();
+        else
+            response = "0";
+        
+        return response;
+    }
+    
+    public void run()
+    {
+       try{
+           boolean beContinue = true;
+    
+           BufferedReader inFromClient = new BufferedReader(new InputStreamReader(this.clientSocket.getInputStream()));
+           DataOutputStream outToClient = new DataOutputStream(this.clientSocket.getOutputStream());
+    
+           String request, response;
+    
+           response = "-1";
+    
+           while(beContinue==true)
+           {
+               request = inFromClient.readLine();
+               //System.out.println("Received: " + request);
+               if(request==null)
+                   continue;
+               
+               if(request.equals("n")==true)
+               {
+                   response = getNextVote();
+               }
+               else
+               {
+                   if(request.equals("exit")==true)
+                   {
+                       response = "-1";
+                       beContinue = false;
+                   }
+                   else
+                       response = "-1"; // this is indicate invalid result
+               }
+               
+               System.out.println("Response: " + response);
+               outToClient.writeBytes(response + "\n");
+           }
+       }
+       catch (Exception e)
+       {
+           e.printStackTrace();
+       }
+    }
+    
     
     public static void main(String[] vargs) throws Exception {
 
@@ -27,34 +96,14 @@ public class VoteGenServer {
              return;
          }
 
-         String clientRequest;
-         String voteContent;
          ServerSocket welcomeSocket = new ServerSocket(6789);
 
          while(true)
          {
-            System.out.println("Waiting for connection ... ");
             Socket connectionSocket = welcomeSocket.accept();
-            BufferedReader inFromClient =
-               new BufferedReader(new InputStreamReader(connectionSocket.getInputStream()));
-            DataOutputStream outToClient = new DataOutputStream(connectionSocket.getOutputStream());
-            clientRequest = inFromClient.readLine();
-            System.out.println("Received: " + clientRequest);
-            if(clientRequest.equals("next")==true)
-            {
-                edu.brown.stream.PhoneCallGenerator.PhoneCall call = switchboard.nextVote();
-                               
-                if(call != null)    
-                    voteContent = call.getContent();
-                else
-                    voteContent = "0";
-            }
-            else
-            {
-                voteContent = "-1"; // this is indicate invalid result
-            }
-            outToClient.writeBytes(voteContent + "\n");
+            new Thread(new VoteGenServer(connectionSocket, switchboard)).start();
          }
+
     }
 
 }
