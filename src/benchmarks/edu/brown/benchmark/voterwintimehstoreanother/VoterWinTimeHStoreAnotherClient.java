@@ -41,6 +41,7 @@ import org.voltdb.client.ClientResponse;
 import org.voltdb.client.ProcedureCallback;
 
 import weka.classifiers.meta.Vote;
+
 import edu.brown.api.BenchmarkComponent;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
@@ -52,10 +53,7 @@ public class VoterWinTimeHStoreAnotherClient extends BenchmarkComponent {
     private static int timestamp;
 
     // Phone number generator
-    //PhoneCallGenerator switchboard;
-    
-    // PhoneCall Generator
-    edu.brown.stream.VoteGenerator switchboard;
+    PhoneCallGenerator switchboard;
 
     // Flags to tell the worker threads to stop or go
     AtomicBoolean warmupComplete = new AtomicBoolean(false);
@@ -76,11 +74,7 @@ public class VoterWinTimeHStoreAnotherClient extends BenchmarkComponent {
     public VoterWinTimeHStoreAnotherClient(String args[]) {
         super(args);
         int numContestants = VoterWinTimeHStoreAnotherUtil.getScaledNumContestants(this.getScaleFactor());
-        //this.switchboard = new PhoneCallGenerator(this.getClientId(), numContestants);
-        
-        String filename = "voterdemohstoreanother-o-20000.ser";
-        this.switchboard = new edu.brown.stream.VoteGenerator(filename);
-        
+        this.switchboard = new PhoneCallGenerator(this.getClientId(), numContestants);
         lastTime = System.nanoTime();
         timestamp = 0;
     }
@@ -106,15 +100,13 @@ public class VoterWinTimeHStoreAnotherClient extends BenchmarkComponent {
     @Override
     protected boolean runOnce() throws IOException {
         // Get the next phone call
-    	if(System.nanoTime() - lastTime >= 1000000000)
+    	if(System.nanoTime() - lastTime >= VoterWinTimeHStoreAnotherConstants.TS_DURATION)
         {
         	lastTime = System.nanoTime();
         	timestamp++;
         }
     	
-        //PhoneCallGenerator.PhoneCall call = switchboard.receive();
-        edu.brown.stream.PhoneCallGenerator.PhoneCall call = switchboard.nextVote();
-        //timestamp = (int)call.voteId;
+        PhoneCallGenerator.PhoneCall call = switchboard.receive();
 
         Client client = this.getClientHandle();
         boolean response = client.callProcedure(callback,

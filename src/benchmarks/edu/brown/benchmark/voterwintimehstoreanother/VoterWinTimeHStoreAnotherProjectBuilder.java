@@ -34,7 +34,6 @@ import org.voltdb.VoltProcedure;
 import edu.brown.benchmark.AbstractProjectBuilder;
 import edu.brown.api.BenchmarkComponent;
 
-import edu.brown.benchmark.tm1.TM1Constants;
 import edu.brown.benchmark.voterwintimehstoreanother.procedures.Vote; 
 import edu.brown.benchmark.voterwintimehstoreanother.procedures.Initialize; 
 
@@ -61,8 +60,8 @@ public class VoterWinTimeHStoreAnotherProjectBuilder extends AbstractProjectBuil
     public static final String PARTITIONING[][] = new String[][] {
         { "votes", "phone_number" },
         { "w_staging", "phone_number" },
-        { "w_rows", "phone_number" },
-        { "leaderboard", "contestant_number"}
+        { "w_rows", "phone_number" }//,
+        //{ "leaderboard", "contestant_number"}
     };
 
     public VoterWinTimeHStoreAnotherProjectBuilder() {
