@@ -33,8 +33,10 @@ package edu.brown.benchmark.bikerstream;
 
 public abstract class BikerStreamConstants {
 
-    public static final String TABLENAME_BIKEREADINGS = "bikereadings";
+    public static final String TABLENAME_BIKEREADINGS = "bikereadings_table";
     public static final String BIKEREADINGS_STREAM = "bikereadings_stream";
+    public static final String BIKEREADINGS_WINDOW_ROWS = "bikereadings_window_rows";
+    public static final String TABLENAME_BIKEREADINGS_COUNT= "count_bikereadings_table";
     
 	public static final int MAX_BIKES = 1000; 
 

@@ -90,6 +90,12 @@ public class PhoneCallGenerator {
         {
             return "" + this.voteId + " " + this.phoneNumber + " " + this.contestantNumber + " " + this.timestamp +"\n";
         }
+
+        public String getContent()
+        {
+            return this.voteId + " " + this.phoneNumber + " " + this.contestantNumber + " " + this.timestamp;
+        }
+
     }
     
     public PhoneCallGenerator(int clientId, int contestantCount, long size) {
