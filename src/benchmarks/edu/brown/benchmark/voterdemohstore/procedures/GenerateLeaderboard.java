@@ -177,18 +177,18 @@ public class GenerateLeaderboard extends VoltProcedure {
     
 
 	
-public long run() {
+public long run(int currentTimestamp) {
 	
-		voltQueueSQL(getCurrentTS);
+		//voltQueueSQL(getCurrentTS);
 		voltQueueSQL(checkWindowTimestamp);
         voltQueueSQL(updateCount);
         voltQueueSQL(getCount);
         voltQueueSQL(updateTotalCount);
         VoltTable validation[] = voltExecuteSQL();
         
-        long currentTimestamp = validation[0].fetchRow(0).getLong(0);
-        long minWinTimestamp = validation[1].fetchRow(0).getLong(0);
-        long voteCount = validation[2].fetchRow(0).getLong(0);
+        //long currentTimestamp = validation[0].fetchRow(0).getLong(0);
+        int minWinTimestamp = (int)validation[0].fetchRow(0).getLong(0);
+        int voteCount = (int)validation[1].fetchRow(0).getLong(0);
         
         if(currentTimestamp - minWinTimestamp >= VoterDemoHStoreConstants.WINDOW_SIZE + VoterDemoHStoreConstants.SLIDE_SIZE)
         {
