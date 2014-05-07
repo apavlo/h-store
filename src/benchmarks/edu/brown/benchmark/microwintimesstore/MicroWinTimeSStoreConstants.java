@@ -47,7 +47,7 @@ public abstract class MicroWinTimeSStoreConstants {
     public static final long ERR_INVALID_CONTESTANT = 1;
     public static final long ERR_VOTER_OVER_VOTE_LIMIT = 2;
     
-    public static final long WINDOW_SIZE = 10;
+    public static final long WINDOW_SIZE = 60;
     public static final long SLIDE_SIZE = 2;
     public static final long TS_DURATION = 1000000000;
 }
