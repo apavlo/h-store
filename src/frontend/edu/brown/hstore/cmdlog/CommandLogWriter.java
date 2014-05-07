@@ -74,12 +74,12 @@ public class CommandLogWriter extends ExceptionHandlingRunnable implements Shutd
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
-
+    
     /**
      * The default file extension to use for the command log output
      */
-    public static final String LOG_OUTPUT_EXT = ".cmdlog";
-
+    public static final String LOG_OUTPUT_EXT = ".cmdlog"; 
+    
     /**
      * Special LogEntry that holds additional data that we need in order to send
      * back a ClientResponse
@@ -444,10 +444,10 @@ public class CommandLogWriter extends ExceptionHandlingRunnable implements Shutd
             String message = "Failed to write log headers";
             throw new ServerFaultException(message, e);
         }
-
+    
         return (true);
     }
-
+    
     /**
      * GroupCommits the given buffer set all at once
      * 
@@ -491,7 +491,7 @@ public class CommandLogWriter extends ExceptionHandlingRunnable implements Shutd
             // LOG.debug("No transactions are in the current buffers. Not writing anything to disk");
             return (txnCounter);
         }
-
+        
         // Compress and force out to disk
         ByteBuffer compressed;
         try {
@@ -499,7 +499,7 @@ public class CommandLogWriter extends ExceptionHandlingRunnable implements Shutd
         } catch (IOException e) {
             throw new RuntimeException("Failed to compress WAL buffer");
         }
-
+        
         if (debug.val)
             LOG.debug(String.format("Writing out %d bytes for %d txns [batchCtr=%d]", compressed.limit(), txnCounter, this.commitBatchCounter));
         try {
@@ -510,7 +510,6 @@ public class CommandLogWriter extends ExceptionHandlingRunnable implements Shutd
             String message = "Failed to group commit for buffer";
             throw new ServerFaultException(message, ex);
         }
-
         if (hstore_conf.site.commandlog_profiling && profiler != null)
             ProfileMeasurementUtil.swap(profiler.writingTime, profiler.networkTime);
         try {
@@ -541,12 +540,11 @@ public class CommandLogWriter extends ExceptionHandlingRunnable implements Shutd
         this.commitBatchCounter++;
         return (txnCounter);
     }
-
+    
     /**
      * Write a completed transaction handle out to the WAL file. Returns true if
      * the entry has been successfully written to disk and the HStoreSite needs
      * to send out the ClientResponse
-     * 
      * @param ts
      * @return
      */
@@ -559,25 +557,24 @@ public class CommandLogWriter extends ExceptionHandlingRunnable implements Shutd
         if (this.useGroupCommit) {
             if (trace.val)
                 LOG.trace(ts + " - Attempting to queue txn to write out to command log using group commit");
-
+        
             int basePartition = ts.getBasePartition();
-            assert (this.hstore_site.isLocalPartition(basePartition));
+            assert(this.hstore_site.isLocalPartition(basePartition));
             int offset = this.hstore_site.getLocalPartitionOffset(basePartition);
 
             // get the buffer for the partition of the current transaction
             CircularLogEntryBuffer buffer = this.entries[offset];
-            assert (buffer != null) : "Missing log entry buffer for partition " + basePartition;
+            assert(buffer != null) : "Missing log entry buffer for partition " + basePartition;
             try {
                 // acquire semaphore permit to write a transaction to the log
                 // buffer will wait if buffer is currently being swapped
                 this.writingEntry.acquire();
 
-                // create an entry for this transaction in the buffer for this
-                // partition
+                // create an entry for this transaction in the buffer for this partition
                 // NOTE: this is guaranteed to be thread-safe because there is
                 // only one thread per partition
                 LogEntry entry = buffer.next(ts, cresponse);
-                assert (entry != null);
+                assert(entry != null);
                 if (trace.val)
                     LOG.trace(String.format("New %s %s from %s for partition %d", entry.getClass().getSimpleName(), entry, buffer, basePartition));
 
@@ -585,13 +582,12 @@ public class CommandLogWriter extends ExceptionHandlingRunnable implements Shutd
             } catch (InterruptedException e) {
                 throw new RuntimeException("Unexpected interruption while waiting for WriterThread to finish");
             } finally {
-                if (hstore_conf.site.commandlog_profiling && profiler != null)
-                    profiler.blockedTime.stopIfStarted();
+                if (hstore_conf.site.commandlog_profiling && profiler != null) profiler.blockedTime.stopIfStarted();
             }
 
             if (trace.val)
                 LOG.trace(ts + " - Finished queuing txn to write out to command log");
-
+            
             // We always want to set this to false because our flush thread will
             // be the one that actually sends out the network messages
             sendResponse = false;
@@ -599,7 +595,7 @@ public class CommandLogWriter extends ExceptionHandlingRunnable implements Shutd
         // -------------------------------
         // NO GROUP COMMIT -- FINISH AND RETURN TRUE
         // -------------------------------
-        else {
+        else { 
             try {
                 FastSerializer fs = this.singletonSerializer;
                 assert (fs != null);
@@ -615,7 +611,7 @@ public class CommandLogWriter extends ExceptionHandlingRunnable implements Shutd
                 throw new ServerFaultException(message, e, ts.getTransactionId());
             }
         }
-
+        
         return (sendResponse);
     }
 }

@@ -1191,11 +1191,7 @@ TEST CASES
        <!-- Run the unit tests -->
        <condition property="timeoutLength" value="${timeoutLength}" else='300000'>
            <isset property="timeoutLength"/>
-       </condition>                                            
-       
-       <echo>
-            Sanity Check
-       </echo>
+       </condition>
        
        <run_junit timeout="${timeoutLength}" printsummary="no">
            <formatters>
@@ -1211,7 +1207,7 @@ TEST CASES
             <tests>
                 <fileset dir='${build.test.dir}'>
                     <exclude name="**/*$*.class"/>
-                    <include name='org/voltdb/regressionsuites/TestSaveRestore*.class'/>
+                    <include name='org/voltdb/regressionsuites/Test*.class'/>
                     <exclude name="**/TestCatalogUpdateSuite.class" />
                     <exclude name="**/TestFailureDetectSuite.class" />
                     <exclude name="**/TestSneakyExecutionOrderSuite.class" />
@@ -1219,7 +1215,7 @@ TEST CASES
                     <exclude name="**/TestMapReduceTransactionSuite.class" />
                     <exclude name="**/TestWikipediaSuite.class" />
                     <exclude name="**/TestWikipediaLoader.class" /> 
-                    <exclude name="**/TestAntiCache*.class" /> 
+<!--                     <exclude name="**/TestAntiCache*.class" /> -->
                 </fileset>
             </tests>
         </run_junit>

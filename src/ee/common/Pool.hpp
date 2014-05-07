@@ -17,7 +17,6 @@
 
 #ifndef POOL_HPP_
 #define POOL_HPP_
-
 #include <vector>
 #include <iostream>
 #include <stdint.h>
@@ -28,7 +27,6 @@
 
 #include "common/debuglog.h"
 #include "common/FatalException.hpp"
-
 #include "common/MMAPMemoryManager.h"
 
 namespace voltdb {

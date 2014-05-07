@@ -105,7 +105,8 @@ public class TestSQLFeaturesSuite extends RegressionSuite {
         assertEquals(cr.toString(), Status.OK, cr.getStatus());
         assertEquals(cr.toString(), 1, cr.getResults().length);
         try {
-            assertTrue(cr.toString(), cr.getResults()[0].advanceRow());
+            if(cr.getResults()[0].getRowCount() != 0)
+                assertTrue(cr.toString(), cr.getResults()[0].advanceRow());
         } catch (Throwable ex) {
             System.err.printf("TARGET: %d/%s\n", itemId, itemName);
             cr = RegressionSuiteUtil.sql(client, "SELECT * FROM " + TPCCConstants.TABLENAME_ITEM);

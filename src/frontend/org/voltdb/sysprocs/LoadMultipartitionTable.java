@@ -51,8 +51,8 @@ import edu.brown.statistics.ObjectHistogram;
 @ProcInfo(singlePartition = false)
 public class LoadMultipartitionTable extends VoltSystemProcedure {
     private static final Logger LOG = Logger.getLogger(LoadMultipartitionTable.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(true);
-    private static final LoggerBoolean trace = new LoggerBoolean(true);
+    private static final LoggerBoolean debug = new LoggerBoolean();
+    private static final LoggerBoolean trace = new LoggerBoolean();
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
@@ -80,7 +80,7 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
         VoltTable[] result = new VoltTable[1];
         result[0] = new VoltTable(new VoltTable.ColumnInfo("TxnId", VoltType.BIGINT));
         result[0].addRow(txn_id);
-        
+
         if (fragmentId == SysProcFragmentId.PF_loadDistribute) {
             assert context.getCluster().getName() != null;
             assert context.getDatabase().getName() != null;
@@ -222,8 +222,8 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
             pf.last_task = false;
             pfs.add(pf);
             if (trace.val)
-                sb.append(String.format("\n  Partition #%d: %d tuples \n Data : %s",
-                          partition, partitionedTables[partition].getRowCount(), partitionedTables[partition]));
+                sb.append(String.format("\n  Partition #%d: %d tuples",
+                          partition, partitionedTables[partition].getRowCount()));
         } // FOR
         if (trace.val) LOG.trace(sb.toString());
 
@@ -266,12 +266,12 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
         return (createReplicatedPlan(ts, virtual_tbl, vt));
     }
     
-
+    
     public VoltTable[] run(String tableName, VoltTable table) throws VoltAbortException {
         assert(table != null) : 
             "VoltTable to be loaded into " + tableName + " is null in txn #" + this.getTransactionId();
         
-	if (debug.val)
+        if (debug.val)
             LOG.debug(String.format("Executing multi-partition loader for %s with %d tuples in txn #%d [bytes=%d]",
                       tableName, table.getRowCount(), this.getTransactionId(), table.getUnderlyingBufferSize()));
         
@@ -308,10 +308,6 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
         if (debug.val) LOG.debug("Passing " + pfs.length + " sysproc fragments to executeSysProcPlanFragments()");
         results = executeSysProcPlanFragments(pfs, (int)DEP_aggregate);
         
-	if(debug.val)
-	    LOG.debug("Finished executing " + pfs.length + " sysproc plan fragments."); 
-       
-	/*
         // Check whether this table has a vertical partition
         // If so, then we'll automatically blast out the data that it needs
         MaterializedViewInfo catalog_view = CatalogUtil.getVerticalPartition(catalog_tbl);
@@ -324,8 +320,7 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
                           ts, catalog_tbl.getName(), catalog_view.getDest().getName()));
             executeSysProcPlanFragments(createVerticalPartitionPlan(ts, catalog_view, table), (int)DEP_aggregate);
         }
-	*/
-       
+        
         return (results);
     }
 }
