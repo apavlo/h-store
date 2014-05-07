@@ -1270,8 +1270,8 @@ public class BenchmarkController {
     //                        if (debug.val) 
                                 LOG.info(String.format("ClientStatusThread '%s' asked to finish up", t.getName()));
     //                        System.err.println(StringUtil.join("\n", t.getStackTrace()));
-			    t.interrupt();
-                            t.join(3000);
+                            t.interrupt();
+                            t.join();
                         }
                     } // FOR
                 } catch (InterruptedException e) {

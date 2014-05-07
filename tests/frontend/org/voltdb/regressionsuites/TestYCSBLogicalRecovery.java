@@ -63,7 +63,8 @@ import edu.brown.hstore.cmdlog.LogEntry;
  */
 public class TestYCSBLogicalRecovery extends RegressionSuite {
 
-    private static final String TMPDIR = "./snapshot";
+    private static final String TMPDIR = "./obj/snapshot";
+    private static final String CMDLOGDIR = "./obj/cmdlog";
 
     private static final String TESTNONCE = "testnonce";
     private static final int ALLOWEXPORT = 0;
@@ -84,6 +85,7 @@ public class TestYCSBLogicalRecovery extends RegressionSuite {
     @Override
     public void setUp() {
         deleteTestFiles();
+        deleteCommandLogDir();
         super.setUp();
         DefaultSnapshotDataTarget.m_simulateFullDiskWritingChunk = false;
         DefaultSnapshotDataTarget.m_simulateFullDiskWritingHeader = false;
@@ -94,6 +96,7 @@ public class TestYCSBLogicalRecovery extends RegressionSuite {
     public void tearDown() {
         try {
             deleteTestFiles();
+            deleteCommandLogDir();
             super.tearDown();
         } catch (final Exception e) {
             e.printStackTrace();
@@ -113,6 +116,21 @@ public class TestYCSBLogicalRecovery extends RegressionSuite {
             tmp_file.delete();
         }
 
+    }
+    
+    private static synchronized void deleteCommandLogDir() {
+        try {
+            File cmdlogDir = new File(CMDLOGDIR);
+
+            if (cmdlogDir.exists()) {
+                File[] log_files = cmdlogDir.listFiles();
+                for (File log_file : log_files) {
+                    log_file.delete();
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     private static synchronized void setUpSnapshotDir() {

@@ -302,14 +302,16 @@ public class DependencyTracker {
                 }
             } // FOR
         } // FOR
-
-        // XXX  Disable assert
-        /*assert(batch_size == state.output_order.size()) :
+        
+        // XXX Disable assert - for SnapshotRestore test
+        /*
+        assert(batch_size == state.output_order.size()) :
             String.format("%s - Expected %d output dependencies but we queued up %d " +
                           "[outputOrder=%s / numDependencies=%d]",
                           ts, batch_size, state.output_order.size(),
                           state.output_order, state.dependencies.size());
         */
+        
         // Release any queued responses/results
         if (state.queued_results.isEmpty() == false) {
             if (trace.val)
@@ -657,13 +659,13 @@ public class DependencyTracker {
                 
                 if (trace.val)
                     LOG.trace(String.format("%s - Added new %s %s for PlanFragment %d at partition %d " +
-                            "[depCtr=%d, prefetch=%s]\n%s",
-                            ts, dinfo.getClass().getSimpleName(),
-                            TransactionUtil.debugStmtDep(stmtCounter, output_dep_id),
-                            fragment.getFragmentId(i),
-                            partition,
-                            state.dependency_ctr, prefetch,
-                            dinfo.debug()));
+                              "[depCtr=%d, prefetch=%s]\n%s",
+                              ts, dinfo.getClass().getSimpleName(),
+                              TransactionUtil.debugStmtDep(stmtCounter, output_dep_id),
+                              fragment.getFragmentId(i),
+                              partition,
+                              state.dependency_ctr, prefetch,
+                              dinfo.debug()));
                 
                 // If this query was prefetched, we need to push its results through the 
                 // the tracker so that it can update counters
@@ -734,7 +736,6 @@ public class DependencyTracker {
                         m.put(String.format("Output[%02d]", output_ctr++), dinfo.debug());
                     }
                 } // FOR
-                
                 LOG.trace(String.format("%s - Number of Output Dependencies for StmtCounter #%d: " +
                           "%d out of %d\n%s", 
                           ts, stmtCounter, output_ctr, dep_ctr, StringUtil.formatMaps(m)));
