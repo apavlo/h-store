@@ -105,15 +105,16 @@ public class TestSQLFeaturesSuite extends RegressionSuite {
         assertEquals(cr.toString(), Status.OK, cr.getStatus());
         assertEquals(cr.toString(), 1, cr.getResults().length);
         try {
-            if(cr.getResults()[0].getRowCount() != 0)
+            if(cr.getResults()[0].getRowCount() != 0){
                 assertTrue(cr.toString(), cr.getResults()[0].advanceRow());
+                assertEquals(itemName, cr.getResults()[0].getString(0));
+            }
         } catch (Throwable ex) {
             System.err.printf("TARGET: %d/%s\n", itemId, itemName);
             cr = RegressionSuiteUtil.sql(client, "SELECT * FROM " + TPCCConstants.TABLENAME_ITEM);
             System.err.println(VoltTableUtil.format(cr.getResults()));
             throw new Exception(ex);
-        }
-        assertEquals(itemName, cr.getResults()[0].getString(0));
+        }        
     }
     
     public void testUpdates() throws IOException {
