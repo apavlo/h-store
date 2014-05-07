@@ -49,22 +49,16 @@ import edu.brown.hstore.PartitionExecutor.SystemProcedureExecutionContext;
 public class SnapshotScan extends VoltSystemProcedure {
     private static final Logger LOG = Logger.getLogger(SnapshotScan.class);
 
-    private static final int DEP_snapshotDigestScan = (int)
-        SysProcFragmentId.PF_snapshotDigestScan | HStoreConstants.MULTIPARTITION_DEPENDENCY;
-    private static final int DEP_snapshotDigestScanResults = (int)
-        SysProcFragmentId.PF_snapshotDigestScanResults;
+    private static final int DEP_snapshotDigestScan = (int) SysProcFragmentId.PF_snapshotDigestScan | HStoreConstants.MULTIPARTITION_DEPENDENCY;
+    private static final int DEP_snapshotDigestScanResults = (int) SysProcFragmentId.PF_snapshotDigestScanResults;
 
-    private static final int DEP_snapshotScan = (int)
-        SysProcFragmentId.PF_snapshotScan | HStoreConstants.MULTIPARTITION_DEPENDENCY;
+    private static final int DEP_snapshotScan = (int) SysProcFragmentId.PF_snapshotScan | HStoreConstants.MULTIPARTITION_DEPENDENCY;
 
-    private static final int DEP_snapshotScanResults = (int)
-        SysProcFragmentId.PF_snapshotScanResults;
+    private static final int DEP_snapshotScanResults = (int) SysProcFragmentId.PF_snapshotScanResults;
 
-    private static final int DEP_hostDiskFreeScan = (int)
-        SysProcFragmentId.PF_hostDiskFreeScan | HStoreConstants.MULTIPARTITION_DEPENDENCY;
+    private static final int DEP_hostDiskFreeScan = (int) SysProcFragmentId.PF_hostDiskFreeScan | HStoreConstants.MULTIPARTITION_DEPENDENCY;
 
-    private static final int DEP_hostDiskFreeScanResults = (int)
-        SysProcFragmentId.PF_hostDiskFreeScanResults;
+    private static final int DEP_hostDiskFreeScanResults = (int) SysProcFragmentId.PF_hostDiskFreeScanResults;
 
     @Override
     public void initImpl() {
@@ -79,46 +73,24 @@ public class SnapshotScan extends VoltSystemProcedure {
     private String errorString = null;
 
     @Override
-    public DependencySet
-    executePlanFragment(Long txn_id,
-                        Map<Integer, List<VoltTable>> dependencies,
-                        int fragmentId, 
-                        ParameterSet params,
-                        final SystemProcedureExecutionContext context)
-    {
+    public DependencySet executePlanFragment(Long txn_id, Map<Integer, List<VoltTable>> dependencies, int fragmentId, ParameterSet params, final SystemProcedureExecutionContext context) {
         errorString = null;
         String hostname = ConnectionUtil.getHostnameOrAddress();
-        if (fragmentId == SysProcFragmentId.PF_snapshotScan)
-        {
+        if (fragmentId == SysProcFragmentId.PF_snapshotScan) {
             final VoltTable results = constructFragmentResultsTable();
             // Choose the lowest site ID on this host to do the file scan
             // All other sites should just return empty results tables.
             int host_id = context.getHStoreSite().getHostId();
             Integer lowest_site_id = null; // FIXME
-//                VoltDB.instance().getCatalogContext().siteTracker.
-//                getLowestLiveExecSiteIdForHost(host_id);
-            if (context.getPartitionExecutor().getSiteId() == lowest_site_id)
-            {
-                assert(params.toArray()[0] != null);
-                assert(params.toArray()[0] instanceof String);
-                final String path = (String)params.toArray()[0];
+            // VoltDB.instance().getCatalogContext().siteTracker.
+            // getLowestLiveExecSiteIdForHost(host_id);
+            if (context.getPartitionExecutor().getSiteId() == lowest_site_id) {
+                assert (params.toArray()[0] != null);
+                assert (params.toArray()[0] instanceof String);
+                final String path = (String) params.toArray()[0];
                 List<File> relevantFiles = retrieveRelevantFiles(path);
                 if (relevantFiles == null) {
-                    results.addRow(
-                                   Integer.parseInt(context.getSite().getHost().getTypeName()),
-                                   hostname,
-                                   "",
-                                   "",
-                                   0,
-                                   "",
-                                   "FALSE",
-                                   0,
-                                   "",
-                                   "",
-                                   0,
-                                   "",
-                                   "FAILURE",
-                                   errorString);
+                    results.addRow(Integer.parseInt(context.getSite().getHost().getTypeName().replaceAll("[\\D]", "")), hostname, "", "", 0, "", "FALSE", 0, "", "", 0, "", "FAILURE", errorString);
                 } else {
                     for (final File f : relevantFiles) {
                         if (f.getName().endsWith(".digest")) {
@@ -128,11 +100,7 @@ public class SnapshotScan extends VoltSystemProcedure {
                             try {
                                 FileInputStream savefile_input = new FileInputStream(f);
                                 try {
-                                    TableSaveFile savefile =
-                                        new TableSaveFile(
-                                                          savefile_input.getChannel(),
-                                                          1,
-                                                          null);
+                                    TableSaveFile savefile = new TableSaveFile(savefile_input.getChannel(), 1, null);
                                     String partitions = "";
 
                                     for (int partition : savefile.getPartitionIds()) {
@@ -143,22 +111,9 @@ public class SnapshotScan extends VoltSystemProcedure {
                                         partitions = partitions.substring(1);
                                     }
 
-                                    results.addRow(
-                                                   Integer.parseInt(context.getSite().getHost().getTypeName()),
-                                                   hostname,
-                                                   f.getParent(),
-                                                   f.getName(),
-                                                   savefile.getCreateTime(),
-                                                   savefile.getTableName(),
-                                                   savefile.getCompleted() ? "TRUE" : "FALSE",
-                                                                           f.length(),
-                                                                           savefile.isReplicated() ? "TRUE" : "FALSE",
-                                                                                                   partitions,
-                                                                                                   savefile.getTotalPartitions(),
-                                                                                                   f.canRead() ? "TRUE" : "FALSE",
-                                                                                                               "SUCCESS",
-                                                                                                               ""
-                                    );
+                                    results.addRow(Integer.parseInt(context.getSite().getHost().getTypeName().replaceAll("[\\D]", "")), hostname, f.getParent(), f.getName(), savefile.getCreateTime(),
+                                            savefile.getTableName(), savefile.getCompleted() ? "TRUE" : "FALSE", f.length(), savefile.isReplicated() ? "TRUE" : "FALSE", partitions,
+                                            savefile.getTotalPartitions(), f.canRead() ? "TRUE" : "FALSE", "SUCCESS", "");
                                 } catch (IOException e) {
                                     LOG.warn(e);
                                 } finally {
@@ -168,65 +123,40 @@ public class SnapshotScan extends VoltSystemProcedure {
                                 LOG.warn(e);
                             }
                         } else {
-                            results.addRow(
-                                           Integer.parseInt(context.getSite().getHost().getTypeName()),
-                                           hostname,
-                                           f.getParent(),
-                                           f.getName(),
-                                           f.lastModified(),
-                                           "",
-                                           "FALSE",
-                                           f.length(),
-                                           "FALSE",
-                                           "",
-                                           -1,
-                                           f.canRead() ? "TRUE" : "FALSE",
-                                                       "SUCCESS",
-                                                       ""
-                            );
+                            results.addRow(Integer.parseInt(context.getSite().getHost().getTypeName().replaceAll("[\\D]", "")), hostname, f.getParent(), f.getName(), f.lastModified(), "", "FALSE", f.length(), "FALSE", "",
+                                    -1, f.canRead() ? "TRUE" : "FALSE", "SUCCESS", "");
                         }
                     }
                 }
             }
-            return new DependencySet( DEP_snapshotScan, results);
+            return new DependencySet(DEP_snapshotScan, results);
         } else if (fragmentId == SysProcFragmentId.PF_snapshotScanResults) {
             final VoltTable results = constructFragmentResultsTable();
             LOG.trace("Aggregating Snapshot Scan  results");
             assert (dependencies.size() > 0);
             List<VoltTable> dep = dependencies.get(DEP_snapshotScan);
-            for (VoltTable table : dep)
-            {
-                while (table.advanceRow())
-                {
+            for (VoltTable table : dep) {
+                while (table.advanceRow()) {
                     // this will add the active row of table
                     results.add(table);
                 }
             }
-            return new
-                DependencySet( DEP_snapshotScanResults, results);
-        } else if (fragmentId == SysProcFragmentId.PF_snapshotDigestScan)
-        {
+            return new DependencySet(DEP_snapshotScanResults, results);
+        } else if (fragmentId == SysProcFragmentId.PF_snapshotDigestScan) {
             final VoltTable results = constructDigestResultsTable();
             // Choose the lowest site ID on this host to do the file scan
             // All other sites should just return empty results tables.
             int host_id = context.getHStoreSite().getHostId();
             Integer lowest_site_id = null; // FIXME
-//                VoltDB.instance().getCatalogContext().siteTracker.
-//                getLowestLiveExecSiteIdForHost(host_id);
-            if (context.getPartitionExecutor().getSiteId() == lowest_site_id)
-            {
-                assert(params.toArray()[0] != null);
-                assert(params.toArray()[0] instanceof String);
-                final String path = (String)params.toArray()[0];
+            // VoltDB.instance().getCatalogContext().siteTracker.
+            // getLowestLiveExecSiteIdForHost(host_id);
+            if (context.getPartitionExecutor().getSiteId() == lowest_site_id) {
+                assert (params.toArray()[0] != null);
+                assert (params.toArray()[0] instanceof String);
+                final String path = (String) params.toArray()[0];
                 List<File> relevantFiles = retrieveRelevantFiles(path);
                 if (relevantFiles == null) {
-                    results.addRow(
-                                   Integer.parseInt(context.getSite().getHost().getTypeName()),
-                                   "",
-                                   "",
-                                   "",
-                                   "FAILURE",
-                                   errorString);
+                    results.addRow(Integer.parseInt(context.getSite().getHost().getTypeName().replaceAll("[\\D]", "")), "", "", "", "FAILURE", errorString);
                 } else {
                     for (final File f : relevantFiles) {
                         if (f.getName().endsWith(".vpt")) {
@@ -242,12 +172,7 @@ public class SnapshotScan extends VoltSystemProcedure {
                                         sw.append(',');
                                     }
                                 }
-                                results.addRow(Integer.parseInt(context.getSite().getHost().getTypeName()),
-                                               path,
-                                               f.getName(),
-                                               sw.toString(),
-                                               "SUCCESS",
-                                "");
+                                results.addRow(Integer.parseInt(context.getSite().getHost().getTypeName().replaceAll("[\\D]", "")), path, f.getName(), sw.toString(), "SUCCESS", "");
                             } catch (Exception e) {
                                 LOG.warn(e);
                             }
@@ -255,79 +180,55 @@ public class SnapshotScan extends VoltSystemProcedure {
                     }
                 }
             }
-            return new DependencySet( DEP_snapshotDigestScan, results);
+            return new DependencySet(DEP_snapshotDigestScan, results);
         } else if (fragmentId == SysProcFragmentId.PF_snapshotDigestScanResults) {
             final VoltTable results = constructDigestResultsTable();
             LOG.trace("Aggregating Snapshot Digest Scan  results");
             assert (dependencies.size() > 0);
             List<VoltTable> dep = dependencies.get(DEP_snapshotDigestScan);
-            for (VoltTable table : dep)
-            {
-                while (table.advanceRow())
-                {
+            for (VoltTable table : dep) {
+                while (table.advanceRow()) {
                     // this will add the active row of table
                     results.add(table);
                 }
             }
-            return new
-                DependencySet( DEP_snapshotDigestScanResults, results);
-        } else if (fragmentId == SysProcFragmentId.PF_hostDiskFreeScan)
-        {
+            return new DependencySet(DEP_snapshotDigestScanResults, results);
+        } else if (fragmentId == SysProcFragmentId.PF_hostDiskFreeScan) {
             final VoltTable results = constructDiskFreeResultsTable();
             // Choose the lowest site ID on this host to do the file scan
             // All other sites should just return empty results tables.
             int host_id = context.getHStoreSite().getHostId();
             Integer lowest_site_id = null; // FIXME
-//                VoltDB.instance().getCatalogContext().siteTracker.
-//                getLowestLiveExecSiteIdForHost(host_id);
-            if (context.getPartitionExecutor().getSiteId() == lowest_site_id)
-            {
-                assert(params.toArray()[0] != null);
-                assert(params.toArray()[0] instanceof String);
-                final String path = (String)params.toArray()[0];
+            // VoltDB.instance().getCatalogContext().siteTracker.
+            // getLowestLiveExecSiteIdForHost(host_id);
+            if (context.getPartitionExecutor().getSiteId() == lowest_site_id) {
+                assert (params.toArray()[0] != null);
+                assert (params.toArray()[0] instanceof String);
+                final String path = (String) params.toArray()[0];
                 File dir = new File(path);
 
                 if (dir.isDirectory()) {
                     final long free = dir.getUsableSpace();
                     final long total = dir.getTotalSpace();
                     final long used = total - free;
-                    results.addRow(
-                                   Integer.parseInt(context.getSite().getHost().getTypeName()),
-                                   hostname,
-                                   path,
-                                   total,
-                                   free,
-                                   used,
-                                   "SUCCESS",
-                    "");
+                    results.addRow(Integer.parseInt(context.getSite().getHost().getTypeName().replaceAll("[\\D]", "")), hostname, path, total, free, used, "SUCCESS", "");
                 } else {
-                    results.addRow(
-                                   Integer.parseInt(context.getSite().getHost().getTypeName()),
-                                   hostname,
-                                   path,
-                                   0,
-                                   0,
-                                   0,
-                                   "FAILURE",
-                    "Path is not a directory");
+                    results.addRow(Integer.parseInt(context.getSite().getHost().getTypeName().replaceAll("[\\D]", "")), hostname, path, 0, 0, 0, "FAILURE", "Path is not a directory");
                 }
             }
-            return new DependencySet( DEP_hostDiskFreeScan, results);
+            return new DependencySet(DEP_hostDiskFreeScan, results);
         } else if (fragmentId == SysProcFragmentId.PF_hostDiskFreeScanResults) {
             final VoltTable results = constructDiskFreeResultsTable();
             LOG.trace("Aggregating disk free results");
             assert (dependencies.size() > 0);
             List<VoltTable> dep = dependencies.get(DEP_hostDiskFreeScan);
-            for (VoltTable table : dep)
-            {
-                while (table.advanceRow())
-                {
+            for (VoltTable table : dep) {
+                while (table.advanceRow()) {
                     // this will add the active row of table
                     results.add(table);
                 }
             }
-            return new
-                DependencySet( DEP_hostDiskFreeScanResults, results);
+            return new DependencySet(DEP_hostDiskFreeScanResults, results);
         }
         assert (false);
         return null;
@@ -367,16 +268,9 @@ public class SnapshotScan extends VoltSystemProcedure {
         return new VoltTable(result_columns);
     }
 
-    public static final ColumnInfo clientColumnInfo[] = new ColumnInfo[] {
-            new ColumnInfo("PATH", VoltType.STRING),
-            new ColumnInfo("NONCE", VoltType.STRING),
-            new ColumnInfo("CREATED", VoltType.BIGINT),
-            new ColumnInfo("SIZE", VoltType.BIGINT),
-            new ColumnInfo("TABLES_REQUIRED", VoltType.STRING),
-            new ColumnInfo("TABLES_MISSING", VoltType.STRING),
-            new ColumnInfo("TABLES_INCOMPLETE", VoltType.STRING),
-            new ColumnInfo("COMPLETE", VoltType.STRING)
-    };
+    public static final ColumnInfo clientColumnInfo[] = new ColumnInfo[] { new ColumnInfo("PATH", VoltType.STRING), new ColumnInfo("NONCE", VoltType.STRING),
+            new ColumnInfo("CREATED", VoltType.BIGINT), new ColumnInfo("SIZE", VoltType.BIGINT), new ColumnInfo("TABLES_REQUIRED", VoltType.STRING), new ColumnInfo("TABLES_MISSING", VoltType.STRING),
+            new ColumnInfo("TABLES_INCOMPLETE", VoltType.STRING), new ColumnInfo("COMPLETE", VoltType.STRING) };
 
     private VoltTable constructClientResultsTable() {
         return new VoltTable(clientColumnInfo);
@@ -405,10 +299,10 @@ public class SnapshotScan extends VoltSystemProcedure {
         private long m_size = 0;
 
         private Table(VoltTableRow r) {
-            assert(r.getString("RESULT").equals("SUCCESS"));
-            assert("TRUE".equals(r.getString("READABLE")));
-            assert("TRUE".equals(r.getString("COMPLETED")));
-            m_totalPartitions = (int)r.getLong("TOTAL_PARTITIONS");
+            assert (r.getString("RESULT").equals("SUCCESS"));
+            assert ("TRUE".equals(r.getString("READABLE")));
+            assert ("TRUE".equals(r.getString("COMPLETED")));
+            m_totalPartitions = (int) r.getLong("TOTAL_PARTITIONS");
             m_createTime = r.getLong("CREATED");
             m_name = r.getString("TABLE");
             String partitions[] = r.getString("PARTITIONS").split(",");
@@ -419,11 +313,11 @@ public class SnapshotScan extends VoltSystemProcedure {
         }
 
         private void processRow(VoltTableRow r) {
-            assert(r.getString("RESULT").equals("SUCCESS"));
-            assert(m_totalPartitions == (int)r.getLong("TOTAL_PARTITIONS"));
-            assert(m_createTime == r.getLong("CREATED"));
-            assert("TRUE".equals(r.getString("RESULT")));
-            assert("TRUE".equals(r.getString("COMPLETED")));
+            assert (r.getString("RESULT").equals("SUCCESS"));
+            assert (m_totalPartitions == (int) r.getLong("TOTAL_PARTITIONS"));
+            assert (m_createTime == r.getLong("CREATED"));
+            assert ("TRUE".equals(r.getString("RESULT")));
+            assert ("TRUE".equals(r.getString("COMPLETED")));
             m_size += r.getLong("SIZE");
             String partitions[] = r.getString("PARTITIONS").split(",");
             for (String partition : partitions) {
@@ -444,21 +338,21 @@ public class SnapshotScan extends VoltSystemProcedure {
         private final HashSet<String> m_tableDigest = new HashSet<String>();
 
         private Snapshot(VoltTableRow r) {
-            assert(r.getString("RESULT").equals("SUCCESS"));
-            assert("TRUE".equals(r.getString("READABLE")));
-            assert("TRUE".equals(r.getString("COMPLETED")));
+            assert (r.getString("RESULT").equals("SUCCESS"));
+            assert ("TRUE".equals(r.getString("READABLE")));
+            assert ("TRUE".equals(r.getString("COMPLETED")));
             m_createTime = r.getLong("CREATED");
             Table t = new Table(r);
-            m_tables.put( t.m_name, t);
+            m_tables.put(t.m_name, t);
             m_nonce = r.getString("NAME").substring(0, r.getString("NAME").indexOf('-'));
             m_path = r.getString("PATH");
         }
 
         private void processRow(VoltTableRow r) {
-            assert(r.getString("RESULT").equals("SUCCESS"));
-            assert("TRUE".equals(r.getString("READABLE")));
-            assert("TRUE".equals(r.getString("COMPLETED")));
-            assert(r.getLong("CREATED") == m_createTime);
+            assert (r.getString("RESULT").equals("SUCCESS"));
+            assert ("TRUE".equals(r.getString("READABLE")));
+            assert ("TRUE".equals(r.getString("COMPLETED")));
+            assert (r.getLong("CREATED") == m_createTime);
             Table t = m_tables.get(r.getString("TABLE"));
             if (t == null) {
                 t = new Table(r);
@@ -555,8 +449,8 @@ public class SnapshotScan extends VoltSystemProcedure {
     }
 
     private void hashToSnapshot(VoltTableRow r, HashMap<String, Snapshot> aggregates) {
-        assert(r.getString("RESULT").equals("SUCCESS"));
-        assert("TRUE".equals(r.getString("READABLE")));
+        assert (r.getString("RESULT").equals("SUCCESS"));
+        assert ("TRUE".equals(r.getString("READABLE")));
         final String path = r.getString("PATH");
         final String nonce = r.getString("NAME").substring(0, r.getString("NAME").indexOf('-'));
         final String combined = path + nonce;
@@ -565,7 +459,7 @@ public class SnapshotScan extends VoltSystemProcedure {
             s = new Snapshot(r);
             aggregates.put(combined, s);
         } else {
-            if (r.getLong("CREATED") != s.m_createTime){
+            if (r.getLong("CREATED") != s.m_createTime) {
                 return;
             }
             s.processRow(r);
@@ -573,7 +467,7 @@ public class SnapshotScan extends VoltSystemProcedure {
     }
 
     private void hashDigestToSnapshot(VoltTableRow r, HashMap<String, Snapshot> aggregates) {
-        assert(r.getString("RESULT").equals("SUCCESS"));
+        assert (r.getString("RESULT").equals("SUCCESS"));
         final String path = r.getString("PATH");
         final String nonce = r.getString("NAME").substring(0, r.getString("NAME").indexOf(".digest"));
         final String combined = path + nonce;
@@ -585,8 +479,7 @@ public class SnapshotScan extends VoltSystemProcedure {
         }
     }
 
-    public VoltTable[] run(String path) throws VoltAbortException
-    {
+    public VoltTable[] run(String path) throws VoltAbortException {
         final long startTime = System.currentTimeMillis();
         if (path == null || path.equals("")) {
             ColumnInfo[] result_columns = new ColumnInfo[1];
@@ -602,11 +495,8 @@ public class SnapshotScan extends VoltSystemProcedure {
         VoltTable diskFreeResults = performDiskFreeScanWork(path)[0];
         VoltTable digestScanResults = performSnapshotDigestScanWork(path)[0];
         HashMap<String, Snapshot> aggregates = new HashMap<String, Snapshot>();
-        while (scanResults.advanceRow())
-        {
-            if (scanResults.getString("RESULT").equals("SUCCESS")
-                    && scanResults.getString("READABLE").equals("TRUE") &&
-                    scanResults.getString("COMPLETED").equals("TRUE")) {
+        while (scanResults.advanceRow()) {
+            if (scanResults.getString("RESULT").equals("SUCCESS") && scanResults.getString("READABLE").equals("TRUE") && scanResults.getString("COMPLETED").equals("TRUE")) {
                 hashToSnapshot(scanResults, aggregates);
             }
         }
@@ -622,7 +512,7 @@ public class SnapshotScan extends VoltSystemProcedure {
         }
 
         final long endTime = System.currentTimeMillis();
-        final long duration = endTime -startTime;
+        final long duration = endTime - startTime;
         LOG.info("Finished scanning snapshots. Took " + duration + " milliseconds");
         return new VoltTable[] { clientResults, diskFreeResults, scanResults };
     }
@@ -651,8 +541,8 @@ public class SnapshotScan extends VoltSystemProcedure {
     }
 
     private final List<File> retrieveRelevantFiles(File f, int recursion) {
-        assert(f.isDirectory());
-        assert(f.canRead());
+        assert (f.isDirectory());
+        assert (f.canRead());
 
         ArrayList<File> retvals = new ArrayList<File>();
 
@@ -681,13 +571,12 @@ public class SnapshotScan extends VoltSystemProcedure {
         return retvals;
     }
 
-    private final VoltTable[] performSnapshotScanWork(String path)
-    {
+    private final VoltTable[] performSnapshotScanWork(String path) {
         SynthesizedPlanFragment[] pfs = new SynthesizedPlanFragment[2];
 
         pfs[0] = new SynthesizedPlanFragment();
         pfs[0].fragmentId = SysProcFragmentId.PF_snapshotScan;
-        pfs[0].outputDependencyIds = new int[]{ DEP_snapshotScan };
+        pfs[0].outputDependencyIds = new int[] { DEP_snapshotScan };
         pfs[0].multipartition = true;
         ParameterSet params = new ParameterSet();
         params.setParameters(path);
@@ -695,24 +584,22 @@ public class SnapshotScan extends VoltSystemProcedure {
 
         pfs[1] = new SynthesizedPlanFragment();
         pfs[1].fragmentId = SysProcFragmentId.PF_snapshotScanResults;
-        pfs[1].outputDependencyIds = new int[]{ DEP_snapshotScanResults };
-        pfs[1].inputDependencyIds  = new int[] { DEP_snapshotScan };
+        pfs[1].outputDependencyIds = new int[] { DEP_snapshotScanResults };
+        pfs[1].inputDependencyIds = new int[] { DEP_snapshotScan };
         pfs[1].multipartition = false;
         pfs[1].parameters = new ParameterSet();
-
 
         VoltTable[] results;
         results = executeSysProcPlanFragments(pfs, DEP_snapshotScanResults);
         return results;
     }
 
-    private final VoltTable[] performSnapshotDigestScanWork(String path)
-    {
+    private final VoltTable[] performSnapshotDigestScanWork(String path) {
         SynthesizedPlanFragment[] pfs = new SynthesizedPlanFragment[2];
 
         pfs[0] = new SynthesizedPlanFragment();
         pfs[0].fragmentId = SysProcFragmentId.PF_snapshotDigestScan;
-        pfs[0].outputDependencyIds = new int[]{ DEP_snapshotDigestScan };
+        pfs[0].outputDependencyIds = new int[] { DEP_snapshotDigestScan };
         pfs[0].multipartition = true;
         ParameterSet params = new ParameterSet();
         params.setParameters(path);
@@ -720,24 +607,22 @@ public class SnapshotScan extends VoltSystemProcedure {
 
         pfs[1] = new SynthesizedPlanFragment();
         pfs[1].fragmentId = SysProcFragmentId.PF_snapshotDigestScanResults;
-        pfs[1].outputDependencyIds = new int[]{ DEP_snapshotDigestScanResults };
-        pfs[1].inputDependencyIds  = new int[] { DEP_snapshotDigestScan };
+        pfs[1].outputDependencyIds = new int[] { DEP_snapshotDigestScanResults };
+        pfs[1].inputDependencyIds = new int[] { DEP_snapshotDigestScan };
         pfs[1].multipartition = false;
         pfs[1].parameters = new ParameterSet();
-
 
         VoltTable[] results;
         results = executeSysProcPlanFragments(pfs, DEP_snapshotDigestScanResults);
         return results;
     }
 
-    private final VoltTable[] performDiskFreeScanWork(String path)
-    {
+    private final VoltTable[] performDiskFreeScanWork(String path) {
         SynthesizedPlanFragment[] pfs = new SynthesizedPlanFragment[2];
 
         pfs[0] = new SynthesizedPlanFragment();
         pfs[0].fragmentId = SysProcFragmentId.PF_hostDiskFreeScan;
-        pfs[0].outputDependencyIds = new int[]{ DEP_hostDiskFreeScan };
+        pfs[0].outputDependencyIds = new int[] { DEP_hostDiskFreeScan };
         pfs[0].multipartition = true;
         ParameterSet params = new ParameterSet();
         params.setParameters(path);
@@ -745,11 +630,10 @@ public class SnapshotScan extends VoltSystemProcedure {
 
         pfs[1] = new SynthesizedPlanFragment();
         pfs[1].fragmentId = SysProcFragmentId.PF_hostDiskFreeScanResults;
-        pfs[1].outputDependencyIds = new int[]{ DEP_hostDiskFreeScanResults };
-        pfs[1].inputDependencyIds  = new int[] { DEP_hostDiskFreeScan };
+        pfs[1].outputDependencyIds = new int[] { DEP_hostDiskFreeScanResults };
+        pfs[1].inputDependencyIds = new int[] { DEP_hostDiskFreeScan };
         pfs[1].multipartition = false;
         pfs[1].parameters = new ParameterSet();
-
 
         VoltTable[] results;
         results = executeSysProcPlanFragments(pfs, DEP_hostDiskFreeScanResults);

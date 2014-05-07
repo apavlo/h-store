@@ -62,4 +62,5 @@ src/catgen/out
 .wtpmodules
 .classpath
 .project
+.cproject
 .settings

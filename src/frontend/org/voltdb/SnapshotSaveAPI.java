@@ -23,14 +23,19 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.log4j.Logger;
 import org.voltdb.SnapshotSiteProcessor.SnapshotTableTask;
+import org.voltdb.catalog.CatalogMap;
+import org.voltdb.catalog.Cluster;
 import org.voltdb.catalog.Host;
+import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Table;
+import org.voltdb.catalog.Partition;
 import org.voltdb.sysprocs.SnapshotRegistry;
 import org.voltdb.sysprocs.SnapshotSave;
 import org.voltdb.sysprocs.saverestore.SnapshotUtil;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.PartitionExecutor.SystemProcedureExecutionContext;
+import edu.brown.utils.CollectionUtil;
 
 /**
  * SnapshotSaveAPI extracts reusuable snapshot production code
@@ -59,53 +64,76 @@ public class SnapshotSaveAPI
     public VoltTable startSnapshotting(String file_path, String file_nonce, byte block,
             long startTime, SystemProcedureExecutionContext context, String hostname)
     {
-        LOG.trace("Creating snapshot target and handing to EEs");
+        //LOG.trace("Creating snapshot target and handing to EEs");
         final VoltTable result = SnapshotSave.constructNodeResultsTable();
 
-        // One site wins the race to create the snapshot targets, populating
-        // m_taskListsForSites for the other sites and creating an appropriate
-        // number of snapshot permits
-        if (SnapshotSiteProcessor.m_snapshotCreateSetupPermit.tryAcquire()) {
-            createSetup(file_path, file_nonce, startTime, context, hostname, result);
-        }
-
+        // Each partition does this to accumulate tasks for it
+        createSetup(file_path, file_nonce, startTime, context, hostname, result);
+        
+        //LOG.trace("Stage 0 : at partition : "+context.getPartitionExecutor().getPartitionId());
+        
         // All sites wait for a permit to start their individual snapshot tasks
         VoltTable error = acquireSnapshotPermit(context, hostname, result);
         if (error != null) {
             return error;
         }
 
+        Site site = context.getSite();
+        CatalogMap<Partition> partition_map = site.getPartitions();
+        Integer lowest_partition_id = Integer.MAX_VALUE, p_id;        
+        for (Partition pt : partition_map) {
+            p_id = pt.getId();
+            lowest_partition_id = Math.min(p_id, lowest_partition_id);
+        }        
+        assert (lowest_partition_id != Integer.MAX_VALUE);
+        
+        int partition_id = context.getPartitionExecutor().getPartitionId();
+        LOG.trace("Stage 1 : at partition : "+partition_id);        
+        
         synchronized (SnapshotSiteProcessor.m_taskListsForSites) {
-            final Deque<SnapshotTableTask> m_taskList = SnapshotSiteProcessor.m_taskListsForSites.poll();
+            // Fetch work for this partition
+            int index = partition_id - lowest_partition_id;
+            final Deque<SnapshotTableTask> m_taskList = SnapshotSiteProcessor.m_taskListsForSites.get(index);
+
             if (m_taskList == null) {
+                LOG.trace("tasklist null");
                 return result;
             } else {
                 if (SnapshotSiteProcessor.m_taskListsForSites.isEmpty()) {
-                    assert(SnapshotSiteProcessor.m_snapshotCreateSetupPermit.availablePermits() == 1);
+                    //assert(SnapshotSiteProcessor.m_snapshotCreateSetupPermit.availablePermits() == 1);
                     assert(SnapshotSiteProcessor.m_snapshotPermits.availablePermits() == 0);
                 }
+
+                LOG.trace("ExecutionSitesCurrentlySnapshotting :"+SnapshotSiteProcessor.ExecutionSitesCurrentlySnapshotting.get());
                 assert(SnapshotSiteProcessor.ExecutionSitesCurrentlySnapshotting.get() > 0);
+
                 context.getPartitionExecutor().initiateSnapshots(m_taskList);
             }
         }
 
+        //LOG.trace("Stage 2 : at partition : "+context.getPartitionExecutor().getPartitionId());
+        
         if (block != 0) {
             Collection<Exception> failures = null;
             String status = "SUCCESS";
             String err = "";
             try {
+                
                 failures = context.getPartitionExecutor().completeSnapshotWork();
+                
             } catch (InterruptedException e) {
                 status = "FAILURE";
                 err = e.toString();
-            }
+            }            
             final VoltTable blockingResult = SnapshotSave.constructPartitionResultsTable();
 
             if (failures.isEmpty()) {
                 blockingResult.addRow(
-                        Integer.parseInt(context.getSite().getHost().getTypeName()),
+                        Integer.parseInt(context.getSite().getHost().getTypeName().replaceAll("[\\D]", "")),
                         hostname,
-                        Integer.parseInt(context.getSite().getTypeName()),
+                        context.getHStoreSite().getSiteId(), 
+                        context.getPartitionExecutor().getPartitionId(),                     
+                        "",
                         status,
                         err);
             } else {
@@ -114,14 +142,17 @@ public class SnapshotSaveAPI
                     err = e.toString();
                 }
                 blockingResult.addRow(
-                        Integer.parseInt(context.getSite().getHost().getTypeName()),
+                        Integer.parseInt(context.getSite().getHost().getTypeName().replaceAll("[\\D]", "")),
                         hostname,
-                        Integer.parseInt(context.getSite().getTypeName()),
+                        context.getHStoreSite().getSiteId(), 
+                        context.getPartitionExecutor().getPartitionId(),                     
+                        "",
                         status,
                         err);
             }
             return blockingResult;
         }
+
 
         return result;
     }
@@ -130,9 +161,12 @@ public class SnapshotSaveAPI
     private void createSetup(String file_path, String file_nonce,
             long startTime, SystemProcedureExecutionContext context,
             String hostname, final VoltTable result) {
-        {
-            final int numLocalSites = VoltDB.instance().getLocalSites().values().size();
-
+        {            
+            Site site = context.getSite();
+            int numLocalPartitions  = site.getPartitions().size();
+                        
+            LOG.trace("createSetup at : partition "+context.getPartitionExecutor().getPartitionId());
+            
             /*
              * Used to close targets on failure
              */
@@ -142,30 +176,43 @@ public class SnapshotSaveAPI
                     new ArrayDeque<SnapshotTableTask>();
                 final ArrayList<SnapshotTableTask> replicatedSnapshotTasks =
                     new ArrayList<SnapshotTableTask>();
+                
+                LOG.trace("ExecutionSitesCurrentlySnapshotting initial check : " + SnapshotSiteProcessor.ExecutionSitesCurrentlySnapshotting.get());
                 assert(SnapshotSiteProcessor.ExecutionSitesCurrentlySnapshotting.get() == -1);
 
                 final List<Table> tables = SnapshotUtil.getTablesToSave(context.getDatabase());
 
-                SnapshotUtil.recordSnapshotTableList(
-                        startTime,
-                        file_path,
-                        file_nonce,
-                        tables);
-                final AtomicInteger numTables = new AtomicInteger(tables.size());
+                synchronized (SnapshotSiteProcessor.m_digestWritten) {
+                    if (SnapshotSiteProcessor.m_digestWritten.get() == false) {
+                        SnapshotSiteProcessor.m_digestWritten.set(true);
+                        SnapshotUtil.recordSnapshotTableList(startTime, file_path, file_nonce, tables);
+                        LOG.trace("Digest written at partition " + context.getPartitionExecutor().getPartitionId());
+                    }
+                }
+
+                final AtomicInteger numTables = new AtomicInteger(tables.size());                
+                //LOG.info("NumTables Initial : "+numTables);
+                
                 final SnapshotRegistry.Snapshot snapshotRecord =
                     SnapshotRegistry.startSnapshot(
                             startTime,
                             context.getHStoreSite().getHostId(),
+                            context.getHStoreSite().getSiteId(), 
+                            context.getPartitionExecutor().getPartitionId(),                           
                             file_path,
                             file_nonce,
                             tables.toArray(new Table[0]));
+                
                 for (final Table table : SnapshotUtil.getTablesToSave(context.getDatabase()))
                 {
                     String canSnapshot = "SUCCESS";
                     String err_msg = "";
                     final File saveFilePath =
                         SnapshotUtil.constructFileForTable(table, file_path, file_nonce,
-                                              context.getSite().getHost().getTypeName());
+                                              String.valueOf(context.getHost().getId()),                                 
+                                              String.valueOf(context.getHStoreSite().getSiteId()), 
+                                              String.valueOf(context.getPartitionExecutor().getPartitionId())
+                                              );
                     SnapshotDataTarget sdt = null;
                     try {
                         sdt =
@@ -174,7 +221,7 @@ public class SnapshotSaveAPI
                                     saveFilePath,
                                     table,
                                     context.getSite().getHost(),
-                                    CatalogUtil.getNumberOfPartitions(context.getCluster()),
+                                    numLocalPartitions,
                                     startTime);
                         targets.add(sdt);
                         final SnapshotDataTarget sdtFinal = sdt;
@@ -211,7 +258,7 @@ public class SnapshotSaveAPI
                         final SnapshotTableTask task =
                             new SnapshotTableTask(
                                     table.getRelativeIndex(),
-                                    sdt,
+                                    sdt,                                    
                                     table.getIsreplicated(),
                                     table.getTypeName());
 
@@ -244,8 +291,10 @@ public class SnapshotSaveAPI
                         "RESULTED IN IOException: \n" + sw.toString();
                     }
 
-                    result.addRow(Integer.parseInt(context.getSite().getHost().getTypeName()),
+                    result.addRow(Integer.parseInt(context.getSite().getHost().getTypeName().replaceAll("[\\D]", "")),
                             hostname,
+                            context.getHStoreSite().getSiteId(), 
+                            context.getPartitionExecutor().getPartitionId(),                         
                             table.getTypeName(),
                             canSnapshot,
                             err_msg);
@@ -253,9 +302,14 @@ public class SnapshotSaveAPI
 
                 synchronized (SnapshotSiteProcessor.m_taskListsForSites) {
                     if (!partitionedSnapshotTasks.isEmpty() || !replicatedSnapshotTasks.isEmpty()) {
-                        SnapshotSiteProcessor.ExecutionSitesCurrentlySnapshotting.set(
-                                VoltDB.instance().getLocalSites().values().size());
-                        for (int ii = 0; ii < numLocalSites; ii++) {
+
+                        // Used to sync across all partitions on all sites - set only once                        
+                        if(SnapshotSiteProcessor.ExecutionSitesCurrentlySnapshotting.get() == -1){
+                            SnapshotSiteProcessor.ExecutionSitesCurrentlySnapshotting.set(numLocalPartitions);
+                            LOG.trace("ExecutionSitesCurrentlySnapshotting set :" + SnapshotSiteProcessor.ExecutionSitesCurrentlySnapshotting.get());
+                        }
+
+                        for (int ii = 0; ii < numLocalPartitions; ii++) {
                             SnapshotSiteProcessor.m_taskListsForSites.add(new ArrayDeque<SnapshotTableTask>());
                         }
                     } else {
@@ -265,14 +319,34 @@ public class SnapshotSaveAPI
                     /**
                      * Distribute the writing of replicated tables to exactly one partition.
                      */
-                    for (int ii = 0; ii < numLocalSites && !partitionedSnapshotTasks.isEmpty(); ii++) {
-                        SnapshotSiteProcessor.m_taskListsForSites.get(ii).addAll(partitionedSnapshotTasks);
-                    }
 
-                    int siteIndex = 0;
+                    CatalogMap<Partition> partition_map = site.getPartitions();
+                    Integer lowest_partition_id = Integer.MAX_VALUE, p_id;        
+                    for (Partition pt : partition_map) {
+                        p_id = pt.getId();
+                        lowest_partition_id = Math.min(p_id, lowest_partition_id);
+                    }        
+                    assert (lowest_partition_id != Integer.MAX_VALUE);
+                    
+                    int partition_id = context.getPartitionExecutor().getPartitionId();                                            
+                    int index = partition_id - lowest_partition_id;    
+                    
+                    // Each partition gets a partitioned task
+                    for (SnapshotTableTask t : partitionedSnapshotTasks) {
+                        SnapshotSiteProcessor.m_taskListsForSites.get(index).offer(t);
+                    }               
+
+                    //for (int ii = 0; ii < numLocalSites && !partitionedSnapshotTasks.isEmpty(); ii++) {
+                    //    SnapshotSiteProcessor.m_taskListsForSites.get(ii).addAll(partitionedSnapshotTasks);
+                    //}
+
+                    // Each partition gets a replicated task
+                    //int siteIndex = 0;
                     for (SnapshotTableTask t : replicatedSnapshotTasks) {
-                        SnapshotSiteProcessor.m_taskListsForSites.get(siteIndex++ % numLocalSites).offer(t);
-                    }
+                        //SnapshotSiteProcessor.m_taskListsForSites.get(siteIndex++ % numLocalSites).offer(t);
+                            SnapshotSiteProcessor.m_taskListsForSites.get(index).offer(t);
+                    }	      		
+		                        
                 }
             } catch (Exception ex) {
                 /*
@@ -292,15 +366,18 @@ public class SnapshotSaveAPI
                 ex.printStackTrace(pw);
                 pw.flush();
                 result.addRow(
-                        Integer.parseInt(context.getSite().getHost().getTypeName()),
+                        context.getSite().getHost().getId(),
                         hostname,
+                        context.getHStoreSite().getSiteId(), 
+                        context.getPartitionExecutor().getPartitionId(), 
                         "",
                         "FAILURE",
                         "SNAPSHOT INITIATION OF " + file_path + file_nonce +
                         "RESULTED IN Exception: \n" + sw.toString());
-                LOG.error(ex);
+                LOG.error(result);
             } finally {
-                SnapshotSiteProcessor.m_snapshotPermits.release(numLocalSites);
+                SnapshotSiteProcessor.m_snapshotPermits.release(numLocalPartitions);
+                LOG.trace("Released "+ numLocalPartitions + " snapshot permits at partition "+ context.getPartitionExecutor().getPartitionId());
             }
         }
     }
@@ -310,8 +387,10 @@ public class SnapshotSaveAPI
         try {
             SnapshotSiteProcessor.m_snapshotPermits.acquire();
         } catch (Exception e) {
-            result.addRow(Integer.parseInt(context.getSite().getHost().getTypeName()),
+            result.addRow(Integer.parseInt(context.getSite().getHost().getTypeName().replaceAll("[\\D]", "")),
                     hostname,
+                    context.getHStoreSite().getSiteId(), 
+                    context.getPartitionExecutor().getPartitionId(),                 
                     "",
                     "FAILURE",
                     e.toString());
@@ -322,12 +401,14 @@ public class SnapshotSaveAPI
              * to release the setup permit to ensure that a thread
              * doesn't come late and think it is supposed to do the setup work
              */
+            /*
             synchronized (SnapshotSiteProcessor.m_snapshotPermits) {
                 if (SnapshotSiteProcessor.m_snapshotPermits.availablePermits() == 0 &&
                         SnapshotSiteProcessor.m_snapshotCreateSetupPermit.availablePermits() == 0) {
                     SnapshotSiteProcessor.m_snapshotCreateSetupPermit.release();
                 }
             }
+            */
         }
         return null;
     }
@@ -343,7 +424,7 @@ public class SnapshotSaveAPI
     throws IOException
     {
         return new DefaultSnapshotDataTarget(f,
-                                             Integer.parseInt(h.getTypeName()),
+                                             Integer.parseInt(h.getTypeName().replaceAll("[\\D]", "")),
                                              context.getCluster().getTypeName(),
                                              context.getDatabase().getTypeName(),
                                              table.getTypeName(),

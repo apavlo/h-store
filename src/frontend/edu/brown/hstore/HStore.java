@@ -71,6 +71,7 @@ public abstract class HStore {
     private static HStoreSite singleton;
     private static String buildString;
     private static String versionString;
+    private static boolean m_ariesRecovery;
     
     
     /**

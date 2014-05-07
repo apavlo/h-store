@@ -36,10 +36,21 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
+import org.apache.log4j.Logger;
 import org.jfree.util.Log;
+import org.voltdb.CatalogContext;
+import org.voltdb.VoltTable;
+import org.voltdb.client.Client;
+import org.voltdb.client.ClientResponse;
+import org.voltdb.client.NoConnectionsException;
+import org.voltdb.client.ProcCallException;
 import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.utils.CompressionService;
 import org.voltdb.utils.NotImplementedException;
+
+import edu.brown.hstore.Hstoreservice.Status;
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 
 
 /**
@@ -48,6 +59,12 @@ import org.voltdb.utils.NotImplementedException;
  * @author pavlo
  */
 public class CommandLogReader implements Iterable<LogEntry> {
+    private static final Logger LOG = Logger.getLogger(CommandLogReader.class);
+    private static final LoggerBoolean debug = new LoggerBoolean();
+    private static final LoggerBoolean trace = new LoggerBoolean();
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
     
     final FastDeserializer fd;
     final Map<Integer, String> procedures;
@@ -60,14 +77,21 @@ public class CommandLogReader implements Iterable<LogEntry> {
         File f = new File(path);
         try {
             roChannel = new RandomAccessFile(f, "r").getChannel();
+            LOG.trace("File Size :"+roChannel.size());            
+
+            
             readonlybuffer = roChannel.map(FileChannel.MapMode.READ_ONLY, 0, (int)roChannel.size());
+            LOG.trace("Opened file :"+f.getAbsolutePath());            
+            LOG.trace("Size :"+readonlybuffer.remaining());            
+            
         } catch (IOException ex) {
+            LOG.trace("Failed to open file :"+f.getAbsolutePath());            
             throw new RuntimeException(ex);
         }
         assert(readonlybuffer != null);
         this.fd = new FastDeserializer(readonlybuffer);
-        
-        this.procedures = this.readHeader();
+                
+        this.procedures = this.readHeader();        
     }
     
     @Override
@@ -92,8 +116,7 @@ public class CommandLogReader implements Iterable<LogEntry> {
                 _next = null;
                 
                 //Fill the decompressed buffer if it is empty
-                if (groupCommit && !decompressedFd.buffer().hasRemaining()) {
-                    Log.info("filling the decompressed buffer");
+                if (groupCommit && !decompressedFd.buffer().hasRemaining()) {                    
                     int sizeCompressed = 0;
                     try {
                         sizeCompressed = fd.readInt();
@@ -102,8 +125,10 @@ public class CommandLogReader implements Iterable<LogEntry> {
                         byte[] decompressed = CompressionService.decompressBytes(b);
                         this.decompressedFd.setBuffer(ByteBuffer.wrap(decompressed));
                     } catch (IOException ex) {
+                        //ex.printStackTrace();
                         throw new RuntimeException("Failed to decompress data from the WAL file!", ex);
                     } catch (BufferUnderflowException ex) {
+                        //ex.printStackTrace();
                         this.decompressedFd.setBuffer(ByteBuffer.allocate(0));
                     }
                 }
@@ -115,10 +140,10 @@ public class CommandLogReader implements Iterable<LogEntry> {
                         _next = fd.readObject(LogEntry.class);
                 } catch (IOException ex) {
                     throw new RuntimeException("Failed to deserialize LogEntry!", ex);
-                } catch (BufferUnderflowException ex) {
-                    
+                } catch (BufferUnderflowException ex) {                    
                     _next = null;
                 }
+                
                 return (ret);
             }
 
@@ -148,12 +173,21 @@ public class CommandLogReader implements Iterable<LogEntry> {
         try {
             this.groupCommit = fd.readBoolean();
             int num_procs = fd.readInt();
-            for (int i = 0; i < num_procs; i++)
-                procedures.put(new Integer(fd.readInt()), fd.readString());
+            for (int i = 0; i < num_procs; i++){
+                Integer proc_id = fd.readInt();
+                String proc_name = fd.readString();
+
+                //LOG.trace("Procedure " + proc_id + " Name : "+proc_name );
+                procedures.put(new Integer(proc_id), proc_name);                
+            }
+            
+            LOG.trace("Header read :: num_procs : "+num_procs);
+            
         } catch (IOException ex) {
             throw new RuntimeException("Failed to read WAL log header!", ex);
         }
         
         return (procedures);
     }
+    
 }

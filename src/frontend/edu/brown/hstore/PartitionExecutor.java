@@ -44,9 +44,11 @@ package edu.brown.hstore;
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -61,8 +63,10 @@ import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.log4j.Logger;
+import org.voltdb.AriesLog;
 import org.voltdb.BackendTarget;
 import org.voltdb.CatalogContext;
 import org.voltdb.ClientResponseImpl;
@@ -72,6 +76,7 @@ import org.voltdb.MemoryStats;
 import org.voltdb.ParameterSet;
 import org.voltdb.SQLStmt;
 import org.voltdb.SnapshotSiteProcessor;
+import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.SnapshotSiteProcessor.SnapshotTableTask;
 import org.voltdb.SysProcSelector;
 import org.voltdb.VoltProcedure;
@@ -79,6 +84,7 @@ import org.voltdb.VoltProcedure.VoltAbortException;
 import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.catalog.Catalog;
+import org.voltdb.catalog.CatalogMap;
 import org.voltdb.catalog.Cluster;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Host;
@@ -99,8 +105,10 @@ import org.voltdb.jni.ExecutionEngine;
 import org.voltdb.jni.ExecutionEngineIPC;
 import org.voltdb.jni.ExecutionEngineJNI;
 import org.voltdb.jni.MockExecutionEngine;
+import org.voltdb.logging.VoltLogger;
 import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.messaging.FastSerializer;
+import org.voltdb.sysprocs.SnapshotSave;
 import org.voltdb.types.SpecExecSchedulerPolicyType;
 import org.voltdb.types.SpeculationConflictCheckerType;
 import org.voltdb.types.SpeculationType;
@@ -123,10 +131,13 @@ import edu.brown.hstore.Hstoreservice.TransactionWorkRequest;
 import edu.brown.hstore.Hstoreservice.TransactionWorkResponse;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.Hstoreservice.WorkResult;
+import edu.brown.hstore.callbacks.ClientResponseCallback;
 import edu.brown.hstore.callbacks.LocalFinishCallback;
 import edu.brown.hstore.callbacks.LocalPrepareCallback;
 import edu.brown.hstore.callbacks.PartitionCountingCallback;
 import edu.brown.hstore.callbacks.RemotePrepareCallback;
+import edu.brown.hstore.cmdlog.CommandLogWriter;
+import edu.brown.hstore.cmdlog.LogEntry;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.estimators.Estimate;
 import edu.brown.hstore.estimators.EstimatorState;
@@ -175,6 +186,7 @@ import edu.brown.utils.ClassUtil;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
+import edu.brown.utils.FileUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.PartitionSet;
 import edu.brown.utils.StringBoxUtil;
@@ -384,6 +396,37 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
      * The last undoToken that we committed at this partition
      */
     private long lastCommittedUndoToken = -1l;
+    
+    // ARIES    
+    private boolean m_ariesRecovery;    
+     
+    private final String m_ariesDefaultLogFileName = "aries.log";
+    
+    public long getArieslogBufferLength() {
+        return ee.getArieslogBufferLength();
+    }
+
+    public void getArieslogData(int bufferLength, byte[] arieslogDataArray) {
+        ee.getArieslogData(bufferLength, arieslogDataArray);
+    }
+
+    public long readAriesLogForReplay(long[] size) {
+        return ee.readAriesLogForReplay(size);
+    }
+
+    public void freePointerToReplayLog(long ariesReplayPointer) {
+        ee.freePointerToReplayLog(ariesReplayPointer);
+    }
+
+    public boolean doingAriesRecovery() 
+    {
+        return m_ariesRecovery;
+    }
+    
+    public void ariesRecoveryCompleted() 
+    {
+     //m_ariesRecovery = false;
+    }
     
     // ----------------------------------------------------------------------------
     // SPECULATIVE EXECUTION STATE
@@ -650,7 +693,12 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
     }
 
     private final SystemProcedureContext m_systemProcedureContext = new SystemProcedureContext();
+    private AriesLog m_ariesLog ;
 
+    public SystemProcedureExecutionContext getSystemProcedureExecutionContext(){
+	return m_systemProcedureContext;
+    }	
+    
     // ----------------------------------------------------------------------------
     // INITIALIZATION
     // ----------------------------------------------------------------------------
@@ -676,6 +724,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         this.partitionId = 0;
         this.procedures = null;
         this.tmp_transactionRequestBuilders = null;
+        this.m_ariesLog = null;
     }
 
     /**
@@ -707,7 +756,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         this.p_estimator = p_estimator;
         this.localTxnEstimator = t_estimator;
         this.specExecComparator = new TransactionUndoTokenComparator(this.partitionId);
-        
+                
         // VoltProcedure Queues
         @SuppressWarnings("unchecked")
         Queue<VoltProcedure> voltProcQueues[] = new Queue[catalogContext.procedures.size()+1];
@@ -755,11 +804,22 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                     long blockSize = hstore_conf.site.anticache_block_size;
                     eeTemp.antiCacheInitialize(acFile, blockSize);
                 }
+                              
                 
-                // Initialize MMap Storage
+                // Initialize STORAGE_MMAP
                 if (hstore_conf.site.storage_mmap) {
-                    // TODO: Call the initialization method on eeTemp
+                    File dbFile = getMMAPDir(this);
+                    long mapSize = hstore_conf.site.storage_mmap_file_size;
+                    long syncFrequency = hstore_conf.site.storage_mmap_sync_frequency;
+                    eeTemp.MMAPInitialize(dbFile, mapSize, syncFrequency);
                 }
+                
+                // Initialize ARIES
+                if (hstore_conf.site.aries) {
+                    File dbFile = getARIESDir(this);
+                    File logFile = getARIESFile(this);
+                    eeTemp.ARIESInitialize(dbFile, logFile);
+                }                            
                 
                 // Important: This has to be called *after* we initialize the anti-cache
                 //            and the storage information!
@@ -823,6 +883,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         if (hstore_conf.site.exec_deferrable_queries) {
             tmp_def_txn = new LocalTransaction(hstore_site);
         }
+
+        // ARIES        
+        this.m_ariesLog = this.hstore_site.getAriesLogger();
 
         // -------------------------------
         // BENCHMARK START NOTIFICATIONS
@@ -930,6 +993,57 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         }
     }
     
+    // ARIES
+    public void waitForAriesRecoveryCompletion() {
+        // wait for other threads to complete Aries recovery
+        // ONLY called from main site.
+        while (!m_ariesLog.isRecoveryCompleted()) {
+            /*
+            try {
+                // don't sleep too long, shouldn't bias numbers
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                // TODO Auto-generated catch block
+                //e.printStackTrace();
+            }
+            */
+        }
+    }
+    
+    public void doPartitionRecovery(long txnIdToBeginReplay) {    
+        LOG.warn("ARIES : aries : " + this.hstore_conf.site.aries+ " aries forward only : "+this.hstore_conf.site.aries_forward_only );
+
+        if (this.hstore_conf.site.aries && this.hstore_conf.site.aries_forward_only == false) {
+            long logReadStartTime = System.currentTimeMillis();
+
+            // define an array so that we can pass to native code by reference
+            long size[] = new long[1];
+            long ariesReplayPointer = readAriesLogForReplay(size);
+
+            // LOG.info("ARIES : replay pointer address: " +
+            // ariesReplayPointer);
+            LOG.info("ARIES : partition recovery started at partition : " + this.partitionId + " log size :" + size[0]);
+
+            long logReadEndTime = System.currentTimeMillis();
+            // LOG.info("ARIES : log read in " + (logReadEndTime -
+            // logReadStartTime) + " milliseconds");
+
+            long ariesStartTime = System.currentTimeMillis();
+
+            m_ariesLog.setPointerToReplayLog(ariesReplayPointer, size[0]);
+            m_ariesLog.setTxnIdToBeginReplay(txnIdToBeginReplay);
+
+            waitForAriesRecoveryCompletion();
+
+            freePointerToReplayLog(ariesReplayPointer);
+
+            long ariesEndTime = System.currentTimeMillis();
+            LOG.info("ARIES : partition recovery finished in " + (ariesEndTime - ariesStartTime) + " milliseconds");
+
+            m_ariesLog.init();
+        }
+    }
+        
     // ----------------------------------------------------------------------------
     // MAIN EXECUTION LOOP
     // ----------------------------------------------------------------------------
@@ -950,7 +1064,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                                        this.getClass().getSimpleName(), this.partitionId);
             throw new RuntimeException(msg);
         }
-
+        
         // Initialize all of our VoltProcedures handles
         // This needs to be done here so that the Workload trace handles can be 
         // set up properly
@@ -969,6 +1083,11 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         assert(this.hstore_coordinator != null);
         assert(this.specExecScheduler != null);
         assert(this.queueManager != null);
+        
+        // ARIES :: Starts recovery on partition
+        if(m_ariesLog != null){
+            doPartitionRecovery(Long.MIN_VALUE);
+        }
         
         // *********************************** DEBUG ***********************************
         if (hstore_conf.site.exec_validate_work) {
@@ -1292,7 +1411,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                           ts, work.getClass().getSimpleName(), this.partitionId));
             return;
         }
-        
+                    
         if (debug.val)
             LOG.debug(String.format("Processing %s at partition %d", work, this.partitionId));
         
@@ -1519,17 +1638,22 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         if (elapsed >= 1000) {
             if ((this.lastTickTime != 0) && (this.ee != null)) {
                 this.ee.tick(time, this.lastCommittedTxnId);
-                
-                // do other periodic work
-                if (m_snapshotter != null) m_snapshotter.doSnapshotWork(this.ee);
-                
+                                
                 if ((time - this.lastStatsTime) >= 20000) {
                     this.updateMemoryStats(time);
                 }
             }
             this.lastTickTime = time;
         }
+        
+        // LOGICAL
+        // do other periodic work
+        if (m_snapshotter != null)
+            m_snapshotter.doSnapshotWork(this.ee);
+                
     }
+        
+    
     
     private void updateMemoryStats(long time) {
         if (trace.val)
@@ -1934,6 +2058,82 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         this.depTracker.addPrefetchResult(ts, stmtCounter, fragmentId, partitionId, paramsHash, result);
     }
     
+    /**
+     * Returns the directory where the EE should store the mmap'ed files
+     * for this PartitionExecutor
+     * @return
+     */
+    public static File getMMAPDir(PartitionExecutor executor) {
+        HStoreConf hstore_conf = executor.getHStoreConf();
+        Database catalog_db = CatalogUtil.getDatabase(executor.getPartition());
+
+        // First make sure that our base directory exists
+        String base_dir = FileUtil.realpath(hstore_conf.site.storage_mmap_dir +
+                File.separatorChar +
+                catalog_db.getProject());
+
+        //synchronized (AntiCacheManager.class) {
+        FileUtil.makeDirIfNotExists(base_dir);
+        //} // SYNC
+
+        // Then each partition will have a separate directory inside of the base one
+        String partitionName = HStoreThreadManager.formatPartitionName(executor.getSiteId(),
+                executor.getPartitionId());
+        
+        File dbDirPath = new File(base_dir + File.separatorChar + partitionName);
+        if (hstore_conf.site.storage_mmap_reset) {
+            LOG.warn(String.format("Deleting storage mmap directory '%s'", dbDirPath));
+            FileUtil.deleteDirectory(dbDirPath);
+        }
+        FileUtil.makeDirIfNotExists(dbDirPath);
+
+        return (dbDirPath);
+    }
+    
+    /**
+     * Returns the directory where the EE should store the ARIES log files
+     * for this PartitionExecutor
+     * @return
+     */
+    public static File getARIESDir(PartitionExecutor executor) {
+        HStoreConf hstore_conf = executor.getHStoreConf();
+        Database catalog_db = CatalogUtil.getDatabase(executor.getPartition());
+
+        // First make sure that our base directory exists
+        String base_dir = FileUtil.realpath(hstore_conf.site.aries_dir + File.separatorChar + catalog_db.getProject());
+
+        synchronized (PartitionExecutor.class) {
+            FileUtil.makeDirIfNotExists(base_dir);
+        } // SYNC
+
+        String partitionName = HStoreThreadManager.formatPartitionName(executor.getSiteId(), executor.getPartitionId());
+
+        File dbDirPath = new File(base_dir + File.separatorChar + partitionName);
+
+        if (hstore_conf.site.aries_reset) {
+            LOG.warn(String.format("Deleting aries directory '%s'", dbDirPath));
+            FileUtil.deleteDirectory(dbDirPath);
+        }
+        FileUtil.makeDirIfNotExists(dbDirPath);
+
+        return (dbDirPath);
+    }    
+      
+
+    /**
+     * Returns the file where the EE should store the ARIES log for this
+     * PartitionExecutor
+     * 
+     * @return
+     */
+    public static File getARIESFile(PartitionExecutor executor) {
+
+        File dbDir = getARIESDir(executor);
+        File logFile = new File(dbDir.getAbsolutePath() + File.separatorChar + executor.m_ariesDefaultLogFileName);
+
+        return (logFile);
+    }
+    
     // ---------------------------------------------------------------
     // PartitionExecutor API
     // ---------------------------------------------------------------
@@ -2141,6 +2341,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 FastDeserializer fd = new FastDeserializer(bs.asReadOnlyByteBuffer());
                 try {
                     vt = fd.readObject(VoltTable.class);
+                    if (trace.val)
+                        LOG.trace(String.format("Displaying results from partition %d for %s :: \n %s",
+                                  result.getPartitionId(), ts, vt.toString()));                    
                 } catch (Exception ex) {
                     throw new ServerFaultException("Failed to deserialize VoltTable from partition " + result.getPartitionId() + " for " + ts, ex);
                 }
@@ -3561,9 +3764,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         // Otherwise, we'll rely on the transaction's current estimate to figure it out.
         else {
             if (estimate == null || estimate.isValid() == false) {
-                if (debug.val)
+                if (debug.val && estimate != null)
                     LOG.debug(String.format("%s - Unable to compute new done partitions because there " +
-                    		  "is no valid estimate for the txn",
+                   		  "is no valid estimate for the txn",
                               ts, estimate.getClass().getSimpleName()));
                 return (null);
             }
@@ -4004,10 +4207,11 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                         } // FOR
                         if (needs_profiling) ts.profiler.stopSerialization();
                     }
-                    if (trace.val)
-                        LOG.trace(String.format("%s - Requesting %d %s to be executed on remote partitions " +
-                                  "[doneNotifications=%s]",
-                                  ts, WorkFragment.class.getSimpleName(), num_remote, notify!=null));
+                    
+                    //if (trace.val)
+                    //    LOG.trace(String.format("%s - Requesting %d %s to be executed on remote partitions " +
+                    //              "[doneNotifications=%s]",
+                    //              ts, WorkFragment.class.getSimpleName(), num_remote, notify!=null));
                     this.requestWork(ts, tmp_remoteFragmentBuilders, tmp_serializedParams, notify);
                     if (needs_profiling) ts.profiler.markRemoteQuery();
                 }
@@ -4457,6 +4661,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             LOG.debug(String.format("%s - Successfully %sed transaction at partition %d",
                       ts, (commit ? "committ" : "abort"), this.partitionId));
         this.markTransactionFinished(ts);
+
     }
     
     /**
@@ -4930,8 +5135,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
     }
 
     public Collection<Exception> completeSnapshotWork() throws InterruptedException {
+        LOG.warn("completeSnapshotWork at partition :"+this.getPartitionId());
         return m_snapshotter.completeSnapshotWork(ee);
-    }
+    }    
+    
     
     // ---------------------------------------------------------------
     // SHUTDOWN METHODS

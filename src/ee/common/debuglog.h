@@ -198,6 +198,22 @@ inline void outputLogHeader_(const char *file, int line, const char *func, int l
 //     fprintf(VOLT_LOG_OUTPUT_STREAM, "%s [EE-%03d] (%s:%d) %s - ", time_str, _logPartitionId, file, line, type);
 }
 
+inline double computeTimeStamp() {
+	double ret = 0;
+	ret = (double)time(NULL);
+
+	return ret;
+
+	/*
+	struct timespec spec;
+	clock_gettime(CLOCK_REALTIME, &spec);
+	double seconds = static_cast<double>(spec.tv_sec);
+	double nanoseconds = static_cast<double>(spec.tv_nsec);
+	return (seconds +  1.e-9*(nanoseconds));
+	*/
+}
+
+
 // inline void setPartitionIdForLogging(int id) {
 //     _logPartitionId = id;
 // }

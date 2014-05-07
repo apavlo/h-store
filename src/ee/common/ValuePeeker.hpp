@@ -70,15 +70,16 @@ public:
         return value.getTimestamp();
     }
 
-    static inline void* peekObjectValue(const NValue value) {
-        assert(value.getValueType() == VALUE_TYPE_VARCHAR);
-        return value.getObjectValue();
-    }
+	static inline void* peekObjectValue(const NValue value) {
+		assert(value.getValueType() == VALUE_TYPE_VARCHAR);
+		return value.getObjectValue();
+	}
 
-    static inline int32_t peekObjectLength(const NValue value) {
-        assert(value.getValueType() == VALUE_TYPE_VARCHAR);
-        return value.getObjectLength();
-    }
+	static inline int32_t peekObjectLength(const NValue value) {
+		 assert((value.getValueType() == VALUE_TYPE_VARCHAR) ||
+		               (value.getValueType() == VALUE_TYPE_VARBINARY));
+		return value.getObjectLength();
+	}
 
     static inline ValueType peekValueType(const NValue value) {
         return value.getValueType();

@@ -523,13 +523,13 @@ public class VoltProjectBuilder {
         addProcedures(new ProcedureInfo(new String[0], new String[0], name, sql, partitionInfo));
     }
     
-    public void addProcedure(final Class<? extends VoltProcedure> procedure) {
+    public void addProcedure(final Class<?> procedure) {
         final ArrayList<ProcedureInfo> procArray = new ArrayList<ProcedureInfo>();
         procArray.add(new ProcedureInfo(new String[0], new String[0], procedure));
         addProcedures(procArray);
     }
 
-    public void addProcedures(final Class<? extends VoltProcedure>... procedures) {
+    public void addProcedures(final Class<?>... procedures) {
         if (procedures != null && procedures.length > 0) {
             final ArrayList<ProcedureInfo> procArray = new ArrayList<ProcedureInfo>();
             for (final Class<?> procedure : procedures)
@@ -565,6 +565,11 @@ public class VoltProjectBuilder {
             m_procedures.add(procedure);
         }
     }
+    
+    public void addPartitionInfo(final String tableName, final String partitionColumnName) {
+        assert (m_partitionInfos.containsKey(tableName) == false);
+        m_partitionInfos.put(tableName, partitionColumnName);
+    }            
 
     public void addSupplementalClasses(final Class<?>... supplementals) {
         final ArrayList<Class<?>> suppArray = new ArrayList<Class<?>>();
