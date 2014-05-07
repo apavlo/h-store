@@ -76,7 +76,7 @@ CREATE STREAM proc_one_out
 , time		     integer    NOT NULL
 );
 
-CREATE WINDOW trending_leaderboard ON proc_one_out RANGE 60 SLIDE 2;
+CREATE WINDOW trending_leaderboard ON proc_one_out RANGE 30 SLIDE 2;
 
 CREATE TABLE top_three_last_30_sec
 (
