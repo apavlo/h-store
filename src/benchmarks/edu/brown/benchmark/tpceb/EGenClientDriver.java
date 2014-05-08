@@ -89,11 +89,11 @@ public class EGenClientDriver {
       
         return (this.cleanParams(obj));
     }
-    
-   /* public Object[] getMarketWatchParams() {
+    //commented out
+    public Object[] getMarketWatchParams() {
         Object[] obj = driver_ptr.generateMarketWatchInput().InputParameters().toArray();
         return (this.cleanParams(obj));
-    }*/
+    }
     
     public Object[] getTradeResultParams() {
         return (this.cleanParams(driver_ptr.generateTradeResultInput().InputParameters().toArray()));

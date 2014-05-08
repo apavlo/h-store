@@ -47,7 +47,7 @@ public class ClientDriver {
 
         driverCETxnSettings = new TDriverCETxnSettings();
         
-    //    marketWatchTxnInput = new TMarketWatchTxnInput();
+        marketWatchTxnInput = new TMarketWatchTxnInput(); //commented out
         tradeResultTxnInput = new TTradeResultTxnInput();
         marketFeedTxnInput = new TMarketFeedTxnInput();
         
@@ -308,12 +308,13 @@ public class ClientDriver {
         return (tradeOrderTxnInput);
     }
    /***************************************************************************************/
-    
- /*   public TMarketWatchTxnInput generateMarketWatchInput() {
+   
+   //commented out
+   public TMarketWatchTxnInput generateMarketWatchInput() {
 //      System.out.println("Executing generateMarketWatchInput ... \n");
-        cutomerEmulator.getCETxnInputGenerator().generateMarketWatchInput( marketWatchTxnInput );
+        customerEmulator.getCETxnInputGenerator().generateMarketWatchInput( marketWatchTxnInput );
         return (marketWatchTxnInput);
-    }*/
+    }
     
    public TMarketFeedTxnInput generateMarketFeedInput() {
 //      System.out.println("Executing %s...\n" + "generateBrokerVolumeInput");
