@@ -38,7 +38,7 @@ public class CETxnMixGenerator {
                  driverCETxnSettings.TxnMixGenerator_settings.cur_TradeOrderMixLevel;
                                 
         TradeOrderMixLimit = driverCETxnSettings.TxnMixGenerator_settings.cur_TradeOrderMixLevel;
-        //MarketWatchMixLimit = driverCETxnSettings.TxnMixGenerator_settings.cur_MarketWatchMixLevel + TradeOrderMixLimit;
+       // MarketWatchMixLimit = driverCETxnSettings.TxnMixGenerator_settings.cur_MarketWatchMixLevel + TradeOrderMixLimit;
 //commented out
         if (txnArray != null){
             txnArray = null;
@@ -50,7 +50,7 @@ public class CETxnMixGenerator {
             txnArray[i] = TRADE_ORDER;
         }
         //commented out
-      /*for (; i < MarketWatchMixLimit; ++i){
+   /*   for (; i < MarketWatchMixLimit; ++i){
             txnArray[i] = MARKET_WATCH;
         }*/
         
