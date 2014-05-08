@@ -4,7 +4,7 @@
  *  Massachusetts Institute of Technology                                  *
  *  Yale University                                                        *
  *                                                                         *
- *  Coded By:  Justin A. DeBrabant (http://www.cs.brown.edu/~debrabant/)   *                                   
+ *  Coded By:  Justin A. DeBrabant (http://www.cs.brown.edu/~debrabant/)   *								   
  *                                                                         *
  *                                                                         *
  *  Permission is hereby granted, free of charge, to any person obtaining  *
@@ -33,10 +33,11 @@ import org.voltdb.VoltProcedure;
 
 import edu.brown.benchmark.AbstractProjectBuilder;
 import edu.brown.api.BenchmarkComponent;
-import edu.brown.benchmark.voterdemohstoreanother.procedures.Results;
+
 import edu.brown.benchmark.voterdemohstoreanother.procedures.Vote; 
 import edu.brown.benchmark.voterdemohstoreanother.procedures.Initialize;
 import edu.brown.benchmark.voterdemohstoreanother.procedures.GenerateLeaderboard; 
+import edu.brown.benchmark.voterdemohstoreanother.procedures.Results; 
 
 public class VoterDemoHStoreAnotherProjectBuilder extends AbstractProjectBuilder {
 
@@ -46,24 +47,26 @@ public class VoterDemoHStoreAnotherProjectBuilder extends AbstractProjectBuilder
     // REQUIRED: Retrieved via reflection by BenchmarkController
     public static final Class<? extends BenchmarkComponent> m_loaderClass = VoterDemoHStoreAnotherLoader.class;
 
-    // a list of procedures implemented in this benchmark
+	// a list of procedures implemented in this benchmark
     @SuppressWarnings("unchecked")
     public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
-        Vote.class, Initialize.class, GenerateLeaderboard.class, Results.class };
-    
-    {
-        //addTransactionFrequency(Vote.class, 100);
-    }
-    
-    // a list of tables used in this benchmark with corresponding partitioning keys
+        Vote.class, Initialize.class, GenerateLeaderboard.class, Results.class};
+	
+	{
+		//addTransactionFrequency(Vote.class, 100);
+	}
+	
+	// a list of tables used in this benchmark with corresponding partitioning keys
     public static final String PARTITIONING[][] = new String[][] {
         { "votes", "phone_number" },
         { "w_staging", "phone_number" },
         { "w_trending_leaderboard", "phone_number" },
         { "top_three_last_30_sec", "contestant_number"},
-        { "votes_by_contestant", "contestant_number"},
         { "voteCount", "row_id" },
-        { "proc_one_out", "phone_number" }
+        { "totalVoteCount", "row_id" },
+        { "totalLeaderboardCount", "row_id" },
+        { "proc_one_out", "phone_number" },
+        { "minWindow", "row_id" }
     };
 
     public VoterDemoHStoreAnotherProjectBuilder() {

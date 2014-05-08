@@ -60,6 +60,8 @@ public class VoterDemoSStoreAnotherClient extends BenchmarkComponent {
     // Phone number generator
     //PhoneCallGenerator switchboard;
     edu.brown.stream.VoteGenClient switchboard;
+    
+    public static Object lock = new Object();
 
     private String stat_filename;
     public static AtomicLong count = new AtomicLong(0);
@@ -123,7 +125,7 @@ public class VoterDemoSStoreAnotherClient extends BenchmarkComponent {
     	
     	boolean response = true;
     	
-        synchronized (this) {  
+        synchronized (lock) {  
             //PhoneCallGenerator.PhoneCall call = switchboard.receive();
             edu.brown.stream.VoteGenClient.CurrentCall call = switchboard.getNextCall();
             if(call==null)
@@ -138,8 +140,8 @@ public class VoterDemoSStoreAnotherClient extends BenchmarkComponent {
                                                     call.phoneNumber,
                                                     call.contestantNumber,
                                                     VoterDemoSStoreAnotherConstants.MAX_VOTES,
-                                                    //call.timestamp);
-                                                    timestamp);
+                                                    call.timestamp);
+                                                    //timestamp);
             GetStatisticInfo();
         }
         return response;

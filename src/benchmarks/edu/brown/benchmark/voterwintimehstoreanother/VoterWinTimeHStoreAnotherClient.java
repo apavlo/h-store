@@ -123,7 +123,7 @@ public class VoterWinTimeHStoreAnotherClient extends BenchmarkComponent {
     	boolean response = true;
     	
     	//synchronized (VoterWinTimeHStoreAnotherClient.lock) {
-    	synchronized (this) {  
+    	synchronized (lock) {  
             //PhoneCallGenerator.PhoneCall call = switchboard.receive();
         	edu.brown.stream.VoteGenClient.CurrentCall call = switchboard.getNextCall();
             if(call==null)
@@ -151,7 +151,7 @@ public class VoterWinTimeHStoreAnotherClient extends BenchmarkComponent {
         {
             VoterWinTimeHStoreAnotherClient.count.incrementAndGet();
             boolean beSame = (VoterWinTimeHStoreAnotherClient.count.get()==VoterWinTimeHStoreAnotherClient.fixnum.get());
-            System.out.println(" clientId: " + this.getClientId() + " - fixnum: " + VoterWinTimeHStoreAnotherClient.fixnum.get() + "- count: " + VoterWinTimeHStoreAnotherClient.count.get() + " - " +  beSame);
+            //System.out.println(" clientId: " + this.getClientId() + " - fixnum: " + VoterWinTimeHStoreAnotherClient.fixnum.get() + "- count: " + VoterWinTimeHStoreAnotherClient.count.get() + " - " +  beSame);
             
             if( beSame==true )
             {
