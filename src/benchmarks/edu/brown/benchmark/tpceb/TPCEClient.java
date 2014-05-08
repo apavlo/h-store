@@ -189,7 +189,8 @@ private int num = 1;
         
         return XTRANS[iTxnType];
        }
-        else if(countTotal <= 900){ //commented out
+       // else if(countTotal <= 900){ //commented out
+        else{
             num = 2;
           
                 countTotal++;
