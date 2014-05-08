@@ -196,7 +196,7 @@ private int num = 1;
                return XTRANS[1];
      //           
            }
-        else if(countTotal <= 1200){
+     /*   else if(countTotal <= 1200){
             num = 2;
            // System.out.println("Market Feed");
                 countTotal++;
@@ -209,7 +209,7 @@ private int num = 1;
            // System.out.println("Trade Result");
             countTotal++;
            return XTRANS[2];//1
-       }
+       }*/
     }
     
   
