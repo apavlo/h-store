@@ -25,7 +25,7 @@
 // Returns the results of the votes.
 //
 
-package edu.brown.benchmark.voterwintimehstoreanother.procedures;
+package edu.brown.benchmark.voterdemosstoreanother.procedures;
 
 import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
@@ -45,7 +45,8 @@ public class Results extends VoltProcedure
 												  + "        , contestants AS a"
 												  + "    WHERE a.contestant_number = b.contestant_number"
 												  + " GROUP BY a.contestant_name"
-												  + "        , a.contestant_number;");
+												  + "        , a.contestant_number;" );
+    
     public VoltTable[] run() {
         voltQueueSQL(resultStmt);
         return voltExecuteSQL(true);

@@ -4,7 +4,8 @@
  *  Massachusetts Institute of Technology                                  *
  *  Yale University                                                        *
  *                                                                         *
- *  Coded By:  Justin A. DeBrabant (http://www.cs.brown.edu/~debrabant/)   *								   
+ *  Original By: VoltDB Inc.											   *
+ *  Ported By:  Justin A. DeBrabant (http://www.cs.brown.edu/~debrabant/)  *								   
  *                                                                         *
  *                                                                         *
  *  Permission is hereby granted, free of charge, to any person obtaining  *
@@ -27,49 +28,39 @@
  *  OTHER DEALINGS IN THE SOFTWARE.                                        *
  ***************************************************************************/
 
-package edu.brown.benchmark.voterwintimehstoreanother;
+package edu.brown.benchmark.voterdemosstoreanother;
 
-import org.voltdb.VoltProcedure;
+import org.apache.log4j.Logger;
 
-import edu.brown.benchmark.AbstractProjectBuilder;
-import edu.brown.api.BenchmarkComponent;
+import edu.brown.api.Loader;
 
-import edu.brown.benchmark.voterwintimehstoreanother.procedures.Vote; 
-import edu.brown.benchmark.voterwintimehstoreanother.procedures.Initialize; 
-import edu.brown.benchmark.voterwintimehstoreanother.procedures.Results; 
+public class VoterDemoSStoreAnotherLoader extends Loader {
 
-public class VoterWinTimeHStoreAnotherProjectBuilder extends AbstractProjectBuilder {
+    private static final Logger LOG = Logger.getLogger(VoterDemoSStoreAnotherLoader.class);
+    private static final boolean d = LOG.isDebugEnabled();
 
-    // REQUIRED: Retrieved via reflection by BenchmarkController
-    public static final Class<? extends BenchmarkComponent> m_clientClass = VoterWinTimeHStoreAnotherClient.class;
+    public static void main(String args[]) throws Exception {
+        if (d) LOG.debug("MAIN: " + VoterDemoSStoreAnotherLoader.class.getName());
+        Loader.main(VoterDemoSStoreAnotherLoader.class, args, true);
+    }
 
-    // REQUIRED: Retrieved via reflection by BenchmarkController
-    public static final Class<? extends BenchmarkComponent> m_loaderClass = VoterWinTimeHStoreAnotherLoader.class;
+    public VoterDemoSStoreAnotherLoader(String[] args) {
+        super(args);
+        if (d) LOG.debug("CONSTRUCTOR: " + VoterDemoSStoreAnotherLoader.class.getName());
+    }
 
-	// a list of procedures implemented in this benchmark
-    @SuppressWarnings("unchecked")
-    public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
-        Vote.class, Initialize.class, Results.class};
-	
-	{
-		//addTransactionFrequency(Vote.class, 100);
-		//addReplicatedSecondaryIndex("w_staging", "TIME");
-		//addReplicatedSecondaryIndex("w_rows", "TIME");
-	}
-	
-	// a list of tables used in this benchmark with corresponding partitioning keys
-    public static final String PARTITIONING[][] = new String[][] {
-        { "votes", "phone_number" },
-        { "w_staging", "phone_number" },
-        { "w_rows", "phone_number" }//,
-        //{ "leaderboard", "contestant_number"}
-    };
+    @Override
+    public void load() {
+        int numContestants = VoterDemoSStoreAnotherUtil.getScaledNumContestants(this.getScaleFactor());
+        if (d) 
+            LOG.debug("Starting VoterDemoSStoreAnotherLoader [numContestants=" + numContestants + "]");
 
-    public VoterWinTimeHStoreAnotherProjectBuilder() {
-        super("voterwintimehstoreanother", VoterWinTimeHStoreAnotherProjectBuilder.class, PROCEDURES, PARTITIONING);
+        try {
+            this.getClientHandle().callProcedure("Initialize",
+                                                 numContestants,
+                                                 VoterDemoSStoreAnotherConstants.CONTESTANT_NAMES_CSV);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 }
-
-
-
-

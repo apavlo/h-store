@@ -121,6 +121,7 @@ public enum ProjectType {
     VOTERDEMOHSTORENOCLEANUPANOTHER("VoterDemoHStoreNoCleanupAnother", "edu.brown.benchmark.voterdemohstorenocleanupanother"),
     VOTERDEMOHSTOREANOTHER("VoterDemoHStoreAnother", "edu.brown.benchmark.voterdemohstoreanother"),
     VOTERDEMOSSTORE("VoterDemoSStore", "edu.brown.benchmark.voterdemosstore"),
+    VOTERDEMOSSTOREANOTHER("VoterDemoSStoreAnother", "edu.brown.benchmark.voterdemosstoreanother"),
     VOTERDEMOSSTOREPETRIGONLY("VoterDemoSStorePETrigOnly", "edu.brown.benchmark.voterdemosstorepetrigonly"),
 ;
 
