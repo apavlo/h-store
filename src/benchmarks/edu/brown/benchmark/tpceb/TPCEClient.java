@@ -117,7 +117,7 @@ public class TPCEClient extends BenchmarkComponent {
     private static enum Transaction {
 
          TRADE_ORDER("Trade Order", "TradeOrder", TPCEConstants.FREQUENCY_TRADE_ORDER),
-         MARKET_WATCH("Market Watch", "MarketWatch", TPCEConstants.FREQUENCY_MARKET_WATCH),
+       //  MARKET_WATCH("Market Watch", "MarketWatch", TPCEConstants.FREQUENCY_MARKET_WATCH),
          TRADE_RESULT("Trade Result", "TradeResult", TPCEConstants.FREQUENCY_TRADE_RESULT),
          MARKET_FEED("Market Feed", "MarketFeed", TPCEConstants.FREQUENCY_MARKET_FEED);
         
@@ -357,8 +357,8 @@ int countRow =0;
         System.out.println(xact);
         switch (xact) {
             
-        case MARKET_WATCH: //commented out
-            return (this.egen_clientDriver.getMarketWatchParams());
+       // case MARKET_WATCH: //commented out
+       //     return (this.egen_clientDriver.getMarketWatchParams());
         case TRADE_ORDER:
             return (this.egen_clientDriver.getTradeOrderParams());
         case TRADE_RESULT:
