@@ -106,6 +106,17 @@ CREATE TABLE totalLeaderboardCount
   )
 );
 
+CREATE TABLE minWindow
+(
+  row_id	     integer    NOT NULL,
+  minTS		     integer    NOT NULL
+
+, CONSTRAINT PK_minWin PRIMARY KEY
+  (
+    row_id
+  )
+);
+
 -- rollup of votes by phone number, used to reject excessive voting
 CREATE VIEW v_votes_by_phone_number
 (

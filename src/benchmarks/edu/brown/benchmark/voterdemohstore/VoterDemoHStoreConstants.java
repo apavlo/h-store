@@ -29,6 +29,8 @@
 
 package edu.brown.benchmark.voterdemohstore;
 
+import edu.brown.benchmark.microwintimesstore.MicroWinTimeSStoreConstants;
+
 public abstract class VoterDemoHStoreConstants {
 
     public static final String TABLENAME_CONTESTANTS     = "contestants";
@@ -48,6 +50,7 @@ public abstract class VoterDemoHStoreConstants {
     public static final long ERR_INVALID_CONTESTANT = 1;
     public static final long ERR_VOTER_OVER_VOTE_LIMIT = 2;
     
-    public static final long WIN_SIZE = 30;
-    public static final long STAGE_SIZE = 2;
+    public static final long WINDOW_SIZE = MicroWinTimeSStoreConstants.WINDOW_SIZE;
+    public static final long SLIDE_SIZE = MicroWinTimeSStoreConstants.SLIDE_SIZE;
+    public static final long TS_DURATION = MicroWinTimeSStoreConstants.TS_DURATION;
 }

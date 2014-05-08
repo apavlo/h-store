@@ -42,7 +42,7 @@ public class VoteGenerator {
             return true;
     }
     
-    public PhoneCall nextVote()
+    public synchronized PhoneCall nextVote()
     {
         if(hasMoreVotes()==false)
             return null;

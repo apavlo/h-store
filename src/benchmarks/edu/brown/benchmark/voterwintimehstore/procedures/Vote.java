@@ -148,7 +148,7 @@ public class Vote extends VoltProcedure {
         
         
         
-        if(maxStageTimestamp - minWinTimestamp >= VoterWinTimeHStoreConstants.WIN_SIZE + VoterWinTimeHStoreConstants.STAGE_SIZE)
+        if(maxStageTimestamp - minWinTimestamp >= VoterWinTimeHStoreConstants.WINDOW_SIZE + VoterWinTimeHStoreConstants.SLIDE_SIZE)
         {
         	//Check the window size and cutoff vote can be done one of two ways:
         	//1) Two statements: one gets window size, one gets all rows to be deleted
@@ -157,7 +157,7 @@ public class Vote extends VoltProcedure {
         	//voltQueueSQL(selectFullWindowStmt);
 
         	//validation = voltExecuteSQL();
-        	voltQueueSQL(deleteCutoffVoteStmt, maxStageTimestamp - VoterWinTimeHStoreConstants.WIN_SIZE);
+        	voltQueueSQL(deleteCutoffVoteStmt, maxStageTimestamp - VoterWinTimeHStoreConstants.WINDOW_SIZE);
         	voltQueueSQL(insertVoteWindowStmt);
         	//voltQueueSQL(deleteMostRecentVote, maxStageTimestamp);
     		//voltQueueSQL(deleteLeaderBoardStmt);

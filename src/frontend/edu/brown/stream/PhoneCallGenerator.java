@@ -1,5 +1,7 @@
 package edu.brown.stream;
 
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Random;
@@ -16,6 +18,10 @@ public class PhoneCallGenerator {
     private ArrayList<PhoneCall> disordered_votes;
     private long size;
     
+    private int globalTimestamp;
+    private String timeLog;
+    
+
     // Initialize some common constants and variables
     private static final String[] AREA_CODE_STRS = ("907,205,256,334,251,870,501,479" +
                                                     ",480,602,623,928,520,341,764,628,831,925,909,562,661,510,650,949,760" +
@@ -53,38 +59,50 @@ public class PhoneCallGenerator {
         public long voteId;
         public int contestantNumber;
         public long phoneNumber;
+        public int timestamp;
         
-        protected PhoneCall(long voteId, int contestantNumber, long phoneNumber) {
+        protected PhoneCall(long voteId, int contestantNumber, long phoneNumber, int timestamp) {
             this.voteId = voteId;
             this.contestantNumber = contestantNumber;
             this.phoneNumber = phoneNumber;
+            this.timestamp = timestamp;
         }
         
         private void writeObject(ObjectOutputStream s) throws IOException {
             s.writeLong(this.voteId);
             s.writeInt(this.contestantNumber);
             s.writeLong(this.phoneNumber);
+            s.writeInt(this.timestamp);
         }
 
         private void readObject(ObjectInputStream s) throws IOException, ClassNotFoundException {
             this.voteId = s.readLong();
             this.contestantNumber = s.readInt();
             this.phoneNumber = s.readLong();
-
+            this.timestamp = s.readInt();
         }
         
         public void debug() {
-            System.out.println("call : " + this.voteId + "-" + this.phoneNumber + "-" + this.contestantNumber);
+            System.out.println("call : " + this.voteId + "-" + this.phoneNumber + "-" + this.contestantNumber + "-" + this.timestamp);
         }
         
         public String getString()
         {
-            return "" + this.voteId + " " + this.phoneNumber + " " + this.contestantNumber +"\n";
+            return "" + this.voteId + " " + this.phoneNumber + " " + this.contestantNumber + " " + this.timestamp +"\n";
         }
+
+        public String getContent()
+        {
+            return this.voteId + " " + this.phoneNumber + " " + this.contestantNumber + " " + this.timestamp;
+        }
+
     }
     
     public PhoneCallGenerator(int clientId, int contestantCount, long size) {
+        
+        this.timeLog = new SimpleDateFormat("yyyyMMdd_HHmmss").format(Calendar.getInstance().getTime());
 
+        this.globalTimestamp = 0;
         this.size = size;
         this.ordered_votes = new ArrayList<PhoneCall>();
         this.disordered_votes = new ArrayList<PhoneCall>();
@@ -99,6 +117,16 @@ public class PhoneCallGenerator {
                 votingMap[i] = (int) (Math.abs(Math.sin(i)* contestantCount) % contestantCount) + 1;
             }
         }
+    }
+    
+    
+    private boolean getNextTimestamp()
+    {
+        int range = rand.nextInt(1000)+1;
+        if(rand.nextInt(range)==0)
+            return true;
+        else 
+            return false;
     }
     
     /**
@@ -130,8 +158,11 @@ public class PhoneCallGenerator {
         
         // This needs to be globally unique
         
+        if(getNextTimestamp()==true)
+            globalTimestamp++;
+        
         // Return the generated phone number
-        return new PhoneCall(this.nextVoteId++, contestantNumber, phoneNumber);
+        return new PhoneCall(this.nextVoteId++, contestantNumber, phoneNumber, globalTimestamp);
     }
 
     public void generateOrderedVotes() throws FileNotFoundException, IOException {
@@ -145,7 +176,7 @@ public class PhoneCallGenerator {
         }
         
         // generate the file related - (orderedcall.ser)
-        String filename = "orderedcall.ser";
+        String filename = "votes-o-" + String.valueOf(this.size) + "-" + timeLog +".ser";
         PhoneCallAccessor.savePhoneCallsToFile(this.ordered_votes, filename);
     }
     
@@ -172,7 +203,7 @@ public class PhoneCallGenerator {
         //System.out.println("disorderedcall size: " + disordered_votes.size());
         
         // generate the file related - (disorderedcall.ser)
-        String filename = "disorderedcall.ser";
+        String filename = "votes-d-" + String.valueOf(this.size) + "-" + timeLog +".ser";
         PhoneCallAccessor.savePhoneCallsToFile(this.disordered_votes, filename);
     }
 
@@ -184,6 +215,10 @@ public class PhoneCallGenerator {
         
     }
     
+    public String getTimeLog()
+    {
+        return this.timeLog;
+    }
     
 
 }

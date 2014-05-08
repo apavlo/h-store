@@ -50,6 +50,8 @@ public class Initialize extends VoltProcedure
     
     public final SQLStmt insertTotalVoteCountStmt = new SQLStmt("INSERT INTO totalVoteCount (row_id, cnt) VALUES (1, 0);");
     
+    public final SQLStmt insertMinWindowStmt = new SQLStmt("INSERT INTO minWindow (row_id, minTS) VALUES (1, 0);");
+    
     public final SQLStmt insertTotalLeaderboardCountStmt = new SQLStmt("INSERT INTO totalLeaderboardCount (row_id, cnt) VALUES (1, 0);");
     
     
@@ -105,6 +107,7 @@ public class Initialize extends VoltProcedure
         voltQueueSQL(insertVoteCountStmt);
         voltQueueSQL(insertTotalVoteCountStmt);
         voltQueueSQL(insertTotalLeaderboardCountStmt);
+        voltQueueSQL(insertMinWindowStmt);
         long existingContestantCount = voltExecuteSQL()[0].asScalarLong();
 		
         // if the data is initialized, return the contestant count

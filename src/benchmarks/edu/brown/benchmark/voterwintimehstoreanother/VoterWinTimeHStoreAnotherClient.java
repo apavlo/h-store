@@ -30,12 +30,14 @@
 
 package edu.brown.benchmark.voterwintimehstoreanother;
 
-import java.io.IOException;
+import java.io.*;
+import java.net.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.log4j.Logger;
 import org.voltdb.VoltTable;
+import org.voltdb.VoltTableRow;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.ProcedureCallback;
@@ -50,13 +52,18 @@ public class VoterWinTimeHStoreAnotherClient extends BenchmarkComponent {
     private static final LoggerBoolean debug = new LoggerBoolean();
     private static long lastTime;
     private static int timestamp;
+    
 
     // Phone number generator
     //PhoneCallGenerator switchboard;
-    
-    // PhoneCall Generator
-    edu.brown.stream.VoteGenerator switchboard;
+    edu.brown.stream.VoteGenClient switchboard;
 
+    private String stat_filename;
+    public static AtomicLong count = new AtomicLong(0);
+    public static AtomicLong fixnum = new AtomicLong(10000l);
+    
+    public static Object lock = new Object();
+    
     // Flags to tell the worker threads to stop or go
     AtomicBoolean warmupComplete = new AtomicBoolean(false);
     AtomicBoolean benchmarkComplete = new AtomicBoolean(false);
@@ -68,21 +75,22 @@ public class VoterWinTimeHStoreAnotherClient extends BenchmarkComponent {
     AtomicLong failedVotes = new AtomicLong(0);
 
     final Callback callback = new Callback();
+    final StatisticCallback stat_callback =  new StatisticCallback();
 
     public static void main(String args[]) {
         BenchmarkComponent.main(VoterWinTimeHStoreAnotherClient.class, args, false);
     }
 
-    public VoterWinTimeHStoreAnotherClient(String args[]) {
+    public VoterWinTimeHStoreAnotherClient(String args[]) throws UnknownHostException, IOException {
         super(args);
         int numContestants = VoterWinTimeHStoreAnotherUtil.getScaledNumContestants(this.getScaleFactor());
         //this.switchboard = new PhoneCallGenerator(this.getClientId(), numContestants);
-        
-        String filename = "voterdemohstoreanother-o-20000.ser";
-        this.switchboard = new edu.brown.stream.VoteGenerator(filename);
-        
+        this.switchboard = new edu.brown.stream.VoteGenClient();
         lastTime = System.nanoTime();
         timestamp = 0;
+        
+        //
+        stat_filename = "voterwintimehstoreanother" + ".txt";
     }
 
     @Override
@@ -106,25 +114,62 @@ public class VoterWinTimeHStoreAnotherClient extends BenchmarkComponent {
     @Override
     protected boolean runOnce() throws IOException {
         // Get the next phone call
-    	if(System.nanoTime() - lastTime >= 1000000000)
+    	if(System.nanoTime() - lastTime >= VoterWinTimeHStoreAnotherConstants.TS_DURATION)
         {
         	lastTime = System.nanoTime();
         	timestamp++;
         }
     	
-        //PhoneCallGenerator.PhoneCall call = switchboard.receive();
-        edu.brown.stream.PhoneCallGenerator.PhoneCall call = switchboard.nextVote();
-        //timestamp = (int)call.voteId;
-
-        Client client = this.getClientHandle();
-        boolean response = client.callProcedure(callback,
-                                                "Vote",
-                                                call.voteId,
-                                                call.phoneNumber,
-                                                call.contestantNumber,
-                                                VoterWinTimeHStoreAnotherConstants.MAX_VOTES,
-                                                timestamp);
+    	boolean response = true;
+    	
+    	//synchronized (VoterWinTimeHStoreAnotherClient.lock) {
+    	synchronized (lock) {  
+            //PhoneCallGenerator.PhoneCall call = switchboard.receive();
+        	edu.brown.stream.VoteGenClient.CurrentCall call = switchboard.getNextCall();
+            if(call==null)
+                return true;
+    
+            System.out.println(" clientId: " + this.getClientId() + " - " + call.getString());
+            
+            Client client = this.getClientHandle();
+            response = client.callProcedure(callback,
+                                                    "Vote",
+                                                    call.voteId,
+                                                    call.phoneNumber,
+                                                    call.contestantNumber,
+                                                    VoterWinTimeHStoreAnotherConstants.MAX_VOTES,
+                                                    call.timestamp);
+            
+            GetStatisticInfo();
+    	}
         return response;
+    }
+    
+    private synchronized void GetStatisticInfo()
+    {
+        try
+        {
+            VoterWinTimeHStoreAnotherClient.count.incrementAndGet();
+            boolean beSame = (VoterWinTimeHStoreAnotherClient.count.get()==VoterWinTimeHStoreAnotherClient.fixnum.get());
+            //System.out.println(" clientId: " + this.getClientId() + " - fixnum: " + VoterWinTimeHStoreAnotherClient.fixnum.get() + "- count: " + VoterWinTimeHStoreAnotherClient.count.get() + " - " +  beSame);
+            
+            if( beSame==true )
+            {
+                //System.out.println("GetStatisticInfo() 1- " + String.valueOf(VoterDemoHStoreAnotherClient.fixnum));
+                //System.out.println("call GetStatisticInfo ...");
+                
+                Client client = this.getClientHandle();
+                client.callProcedure(stat_callback, "Results");
+
+                VoterWinTimeHStoreAnotherClient.fixnum.addAndGet(10000l);
+                //System.out.println("GetStatisticInfo() 2- " + String.valueOf(VoterDemoHStoreAnotherClient.fixnum));
+                
+            }
+        }
+        catch(Exception e)
+        {
+            System.out.println(e.getMessage());
+        }
     }
 
     @Override
@@ -135,7 +180,7 @@ public class VoterWinTimeHStoreAnotherClient extends BenchmarkComponent {
         };
         return (procNames);
     }
-
+    
     private class Callback implements ProcedureCallback {
 
         @Override
@@ -169,4 +214,47 @@ public class VoterWinTimeHStoreAnotherClient extends BenchmarkComponent {
             }
         }
     } // END CLASS
+    
+    private class StatisticCallback implements ProcedureCallback {
+        @Override
+        public void clientCallback(ClientResponse clientResponse)
+        {
+            if (clientResponse.getStatus() == Status.OK) {
+                VoltTable vt = clientResponse.getResults()[0];
+                
+                int row_len = vt.getRowCount();
+                
+                long fixnum = VoterWinTimeHStoreAnotherClient.fixnum.get();
+                String line =  String.valueOf(fixnum - 10000l) + ": ";
+                for(int i=0;i<row_len; i++)
+                {
+                    VoltTableRow row = vt.fetchRow(i);
+                    String contestant_name = row.getString(0);
+                    long total_votes = row.getLong(2);
+                    
+                    String content = contestant_name + "-" + String.valueOf(total_votes);
+                    
+                    line += content + " ";
+                }
+                
+                //System.out.println(line);
+                
+                try {
+                    WriteToFile(line);
+                } catch (IOException e) {
+                    // TODO Auto-generated catch block
+                    e.printStackTrace();
+                }
+                
+            }            
+        }
+        
+        private synchronized void WriteToFile(String content) throws IOException
+        {
+            //System.out.println(stat_filename + " : " + content );
+            PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(stat_filename, true)));
+            out.println(content);
+            out.close();
+        }
+    }
 }

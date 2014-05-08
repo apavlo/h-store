@@ -75,7 +75,7 @@ public class Vote extends VoltProcedure {
     );
     
     public final SQLStmt updateMaxStagingStmt = new SQLStmt(
-		"UPDATE timestamps SET ts = ? WHERE row_id = 2;"
+		"UPDATE stage_timestamp SET ts = ? WHERE row_id = 1;"
     );
     
     // Records a vote

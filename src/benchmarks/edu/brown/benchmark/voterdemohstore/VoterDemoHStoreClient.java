@@ -103,7 +103,7 @@ public class VoterDemoHStoreClient extends BenchmarkComponent {
     @Override
     protected boolean runOnce() throws IOException {
         // Get the next phone call
-    	if(System.nanoTime() - lastTime >= 1000000000)
+    	if(System.nanoTime() - lastTime >= VoterDemoHStoreConstants.TS_DURATION)
         {
         	lastTime = System.nanoTime();
         	timestamp++;
@@ -113,6 +113,8 @@ public class VoterDemoHStoreClient extends BenchmarkComponent {
 	    	
 		        PhoneCallGenerator.PhoneCall call = switchboard.receive();
 		        //Callback callback = new Callback(0);
+		        
+		        int curTimestamp = timestamp;
 		
 		        ClientResponse response;
 					response = client.callProcedure(       "Vote",
@@ -120,14 +122,14 @@ public class VoterDemoHStoreClient extends BenchmarkComponent {
 					                                        call.phoneNumber,
 					                                        call.contestantNumber,
 					                                        VoterDemoHStoreConstants.MAX_VOTES,
-					                                        timestamp);
+					                                        curTimestamp);
 				
 				incrementTransactionCounter(response, 0);
 		        VoltTable results[] = response.getResults();
 		        
 		        if(results.length > 0 && results[0].asScalarLong() == VoterDemoHStoreConstants.VOTE_SUCCESSFUL)
 		        {
-		        	response = client.callProcedure("GenerateLeaderboard");
+		        	response = client.callProcedure("GenerateLeaderboard", curTimestamp);
 		    		incrementTransactionCounter(response, 1);
 		        }
 		        return true;

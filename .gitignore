@@ -7,6 +7,7 @@ files/
 traces/
 *.jar
 *.jar-ORIG
+*.swp
 *.log
 *.dot
 *.pdf

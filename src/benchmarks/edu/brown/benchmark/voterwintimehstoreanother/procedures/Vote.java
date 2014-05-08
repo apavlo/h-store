@@ -49,7 +49,7 @@ public class Vote extends VoltProcedure {
 	   "SELECT contestant_number FROM contestants WHERE contestant_number = ?;"
     );
 	
-    // Checks if the voterwintimehstoreanother has exceeded their allowed number of votes
+    // Checks if the voterwintimehstore has exceeded their allowed number of votes
     public final SQLStmt checkVoterWinTimeHStoreAnotherStmt = new SQLStmt(
 		"SELECT num_votes FROM v_votes_by_phone_number WHERE phone_number = ?;"
     );
@@ -61,37 +61,37 @@ public class Vote extends VoltProcedure {
 	
     // Records a vote
     public final SQLStmt insertVoteStmt = new SQLStmt(
-		"INSERT INTO votes (vote_id, phone_number, state, contestant_number, time) VALUES (?, ?, ?, ?, ?);"
+		"INSERT INTO votes (vote_id, phone_number, state, contestant_number, ts) VALUES (?, ?, ?, ?, ?);"
     );
     
     // Put the vote into the staging window
     public final SQLStmt insertVoteStagingStmt = new SQLStmt(
-		"INSERT INTO w_staging (vote_id, phone_number, state, contestant_number, time) VALUES (?, ?, ?, ?, ?);"
+		"INSERT INTO w_staging (vote_id, phone_number, state, contestant_number, ts) VALUES (?, ?, ?, ?, ?);"
     );
     
  // Find the cutoff vote
     public final SQLStmt checkStagingTimestamp = new SQLStmt(
-    	"SELECT MAX(time) FROM w_staging;"	
+    	"SELECT MAX(ts) FROM w_staging;"	
     );
     
     public final SQLStmt checkWindowTimestamp = new SQLStmt(
-    	"SELECT MIN(time) FROM w_rows;"	
+    	"SELECT MIN(ts) FROM w_rows;"	
     );
-
+    
  // Find the cutoff vote
     public final SQLStmt deleteCutoffVoteStmt = new SQLStmt(
-		"DELETE FROM w_rows WHERE time < ?;"
+		"DELETE FROM w_rows WHERE ts < ?;"
     );
     
     // Put the staging votes into the window
     public final SQLStmt insertVoteWindowStmt = new SQLStmt(
-		"INSERT INTO w_rows (vote_id, phone_number, state, contestant_number, time) SELECT * FROM w_staging;"
+		"INSERT INTO w_rows (vote_id, phone_number, state, contestant_number, ts) SELECT * FROM w_staging;"
     );
     
     public final SQLStmt deleteMostRecentVote = new SQLStmt(
-		"DELETE FROM w_rows WHERE time = ?;"
+		"DELETE FROM w_rows WHERE ts = ?;"
     );
-    
+    /**
  // Pull aggregate from window
     public final SQLStmt deleteLeaderBoardStmt = new SQLStmt(
 		"DELETE FROM leaderboard;"
@@ -101,10 +101,10 @@ public class Vote extends VoltProcedure {
     public final SQLStmt updateLeaderBoardStmt = new SQLStmt(
 		"INSERT INTO leaderboard (contestant_number, numvotes) SELECT contestant_number, count(*) FROM w_rows GROUP BY contestant_number;"
     );
-    
+    */
  // Clear the staging window
     public final SQLStmt deleteStagingStmt = new SQLStmt(
-		"DELETE FROM w_staging WHERE time < ?;"
+		"DELETE FROM w_staging;"
     );
     
  // Put the vote into the staging window
@@ -118,6 +118,8 @@ public class Vote extends VoltProcedure {
         voltQueueSQL(checkContestantStmt, contestantNumber);
         voltQueueSQL(checkVoterWinTimeHStoreAnotherStmt, phoneNumber);
         voltQueueSQL(checkStateStmt, (short)(phoneNumber / 10000000l));
+        //voltQueueSQL(checkStagingTimestamp);
+        voltQueueSQL(checkWindowTimestamp);
         VoltTable validation[] = voltExecuteSQL();
 		
         if (validation[0].getRowCount() == 0) {
@@ -135,19 +137,18 @@ public class Vote extends VoltProcedure {
         // but are tracked as legitimate instead of invalid, as old clients would mostly get
         // it wrong and see all their transactions rejected).
         final String state = (validation[2].getRowCount() > 0) ? validation[2].fetchRow(0).getString(0) : "XX";
-		 		
+		 
+        //long maxStageTimestamp = validation[3].fetchRow(0).getLong(0);
+        long maxStageTimestamp = currentTimestamp;
+        long minWinTimestamp = (validation[3].getRowCount() > 0) ? validation[3].fetchRow(0).getLong(0) : 0 ;
         // Post the vote
         //TimestampType timestamp = new TimestampType();
-        voltQueueSQL(insertVoteStmt, voteId, phoneNumber, state, contestantNumber, currentTimestamp);
-        voltQueueSQL(insertVoteStagingStmt, voteId, phoneNumber, state, contestantNumber, currentTimestamp);
-        voltQueueSQL(checkStagingTimestamp);
-        voltQueueSQL(checkWindowTimestamp);
-        validation = voltExecuteSQL();
         
-        long minWinTimestamp = validation[3].fetchRow(0).getLong(0);
-        long maxStageTimestamp = validation[2].fetchRow(0).getLong(0);
+        //validation = voltExecuteSQL();
         
-        if(maxStageTimestamp - minWinTimestamp >= VoterWinTimeHStoreAnotherConstants.WIN_SIZE + VoterWinTimeHStoreAnotherConstants.STAGE_SIZE)
+        
+        
+        if(maxStageTimestamp - minWinTimestamp >= VoterWinTimeHStoreAnotherConstants.WINDOW_SIZE + VoterWinTimeHStoreAnotherConstants.SLIDE_SIZE)
         {
         	//Check the window size and cutoff vote can be done one of two ways:
         	//1) Two statements: one gets window size, one gets all rows to be deleted
@@ -156,14 +157,17 @@ public class Vote extends VoltProcedure {
         	//voltQueueSQL(selectFullWindowStmt);
 
         	//validation = voltExecuteSQL();
-        	voltQueueSQL(deleteCutoffVoteStmt, maxStageTimestamp - VoterWinTimeHStoreAnotherConstants.WIN_SIZE);
+        	voltQueueSQL(deleteCutoffVoteStmt, maxStageTimestamp - VoterWinTimeHStoreAnotherConstants.WINDOW_SIZE);
         	voltQueueSQL(insertVoteWindowStmt);
-        	voltQueueSQL(deleteMostRecentVote, maxStageTimestamp);
-    		voltQueueSQL(deleteLeaderBoardStmt);
-    		voltQueueSQL(updateLeaderBoardStmt);
-    		voltQueueSQL(deleteStagingStmt, maxStageTimestamp);
-    		voltExecuteSQL(true);
+        	//voltQueueSQL(deleteMostRecentVote, maxStageTimestamp);
+    		//voltQueueSQL(deleteLeaderBoardStmt);
+    		//voltQueueSQL(updateLeaderBoardStmt);
+    		voltQueueSQL(deleteStagingStmt);
+    		//voltExecuteSQL(true);
         }
+        voltQueueSQL(insertVoteStmt, voteId, phoneNumber, state, contestantNumber, currentTimestamp);
+        voltQueueSQL(insertVoteStagingStmt, voteId, phoneNumber, state, contestantNumber, currentTimestamp);
+        voltExecuteSQL(true);
         
         // Set the return value to 0: successful vote
         return VoterWinTimeHStoreAnotherConstants.VOTE_SUCCESSFUL;

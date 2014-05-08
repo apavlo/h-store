@@ -37,6 +37,7 @@ import edu.brown.api.BenchmarkComponent;
 import edu.brown.benchmark.voterdemohstoreanother.procedures.Vote; 
 import edu.brown.benchmark.voterdemohstoreanother.procedures.Initialize;
 import edu.brown.benchmark.voterdemohstoreanother.procedures.GenerateLeaderboard; 
+import edu.brown.benchmark.voterdemohstoreanother.procedures.Results; 
 
 public class VoterDemoHStoreAnotherProjectBuilder extends AbstractProjectBuilder {
 
@@ -49,7 +50,7 @@ public class VoterDemoHStoreAnotherProjectBuilder extends AbstractProjectBuilder
 	// a list of procedures implemented in this benchmark
     @SuppressWarnings("unchecked")
     public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
-        Vote.class, Initialize.class, GenerateLeaderboard.class};
+        Vote.class, Initialize.class, GenerateLeaderboard.class, Results.class};
 	
 	{
 		//addTransactionFrequency(Vote.class, 100);
@@ -61,9 +62,11 @@ public class VoterDemoHStoreAnotherProjectBuilder extends AbstractProjectBuilder
         { "w_staging", "phone_number" },
         { "w_trending_leaderboard", "phone_number" },
         { "top_three_last_30_sec", "contestant_number"},
-        { "votes_by_contestant", "contestant_number"},
         { "voteCount", "row_id" },
-        { "proc_one_out", "phone_number" }
+        { "totalVoteCount", "row_id" },
+        { "totalLeaderboardCount", "row_id" },
+        { "proc_one_out", "phone_number" },
+        { "minWindow", "row_id" }
     };
 
     public VoterDemoHStoreAnotherProjectBuilder() {
