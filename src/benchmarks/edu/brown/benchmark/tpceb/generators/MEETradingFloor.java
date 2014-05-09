@@ -92,45 +92,31 @@ public class MEETradingFloor {
        
         if(( eTradeType == TradeType.eLimitBuy && tradeReq.price_quote < CurrentPrice )||( eTradeType == TradeType.eLimitSell && tradeReq.price_quote > CurrentPrice )){
             txnInput.trade_price = tradeReq.price_quote;
-           // System.out.println("IN IF");
         }
         else{
             txnInput.trade_price = CurrentPrice;
-           // System.out.println("IN ELSE");
         }
-       // System.out.println("TRADEIDHERE"+  txnInput.trade_id);
-        //System.out.println("TRADEPRICEHERE"+  txnInput.trade_price);
         if(!inputs.contains(txnInput.trade_id)){
-            System.out.println("TRADEIDHERE"+  txnInput.trade_id);
-            System.out.println("ADDINGIDOK");
             sut.TradeResult(  txnInput );
             inputs.add(txnInput.trade_id);
         }
-       //System.out.println("INPUTS!:");
-       //for(int i = 0; i < inputs.size(); i++){
-       //    System.out.println("ID " + inputs.get(i));
-       //}
-       // System.out.println("Got to here");
-    
+   
         TickerEntry.symbol = new String( tradeReq.symbol);
         TickerEntry.trade_qty = tradeReq.trade_qty;
-        //System.out.println("Got to here2");
-    
+     
         TickerEntry.price_quote = CurrentPrice;
-       // System.out.println("Got to here3");
     
         tickerTape.AddEntry(TickerEntry);
-       // System.out.println("Got to here4");
     }
     
     private MEESUTInterface                                        sut;
     private MEEPriceBoard                                          priceBoard;
     private MEETickerTape                                          tickerTape;
 
-    private Date                                                      baseTime;
-    private Date                                                      currentTime;
+    private Date                                                   baseTime;
+    private Date                                                   currentTime;
 
-    private TimerWheel                                               orderTimers;
+    private TimerWheel                                             orderTimers;
     private EGenRandom                                             rnd;
     private  double                                                orderProcessingDelayMean;
     private static final int                                       maxOrderProcessingDelay = 5;
