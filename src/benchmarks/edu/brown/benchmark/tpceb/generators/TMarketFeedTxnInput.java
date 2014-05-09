@@ -39,19 +39,7 @@ public class TMarketFeedTxnInput {
         para.add( type_limit_sell);
         para.add( type_stop_loss);
  
-        System.out.println("MARKETFEED");
-        for(int i = 0; i < price_quotes.length; i++){
-            System.out.println("Price Quotes:" +price_quotes[i]);
-        }
-        for(int i = 0; i < symbols.length; i++){
-            System.out.println("Symbols" + symbols[i]);
-        }
-        System.out.println("Status Submitted" + status_submitted);
-        
-        System.out.println("Trade QTYs" +trade_qtys);
-        System.out.println("TLB" + type_limit_buy);
-        System.out.println("TLS" + type_limit_sell);
-        System.out.println("TSL"+ type_stop_loss);
+       
         return para;
     }
   

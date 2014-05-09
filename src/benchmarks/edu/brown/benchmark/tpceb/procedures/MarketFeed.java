@@ -102,24 +102,11 @@ public class MarketFeed extends VoltProcedure {
     public VoltTable[] run(double[] price_quotes, String status_submitted, String[] symbols, long[] trade_qtys, String type_limit_buy, String type_limit_sell, String type_stop_loss)
             throws VoltAbortException {
         System.out.println("in market feed");
-        System.out.println("MARKETFEED");
-        for(int i = 0; i < price_quotes.length; i++){
-            System.out.println("Price Quotes:" +price_quotes[i]);
-        }
-        for(int i = 0; i < symbols.length; i++){
-            System.out.println("Symbols" + symbols[i]);
-        }
-        System.out.println("Status Submitted" + status_submitted);
-        
-        System.out.println("Trade QTYs" +trade_qtys);
-        System.out.println("TLB" + type_limit_buy);
-        System.out.println("TLS" + type_limit_sell);
-        System.out.println("TSL"+ type_stop_loss);
     
         long now_dts = Calendar.getInstance().getTimeInMillis();
-
+      //  Timestamp test = new Timestamp(now_dts);
         List<TradeRequest> tradeRequestBuffer = new ArrayList<TradeRequest>();
-
+       // System.out.println("got date time and made list");
         // let's do the updates first in a batch
         for (int i = 0; i < MAX_FEED_LEN; i++) {
 
@@ -172,18 +159,12 @@ public class MarketFeed extends VoltProcedure {
         System.out.println("size of trb"+ tradeRequestBuffer.size());
         for (TradeRequest req: tradeRequestBuffer) {
             Integer newInt = new Integer(req.trade_qty);
-            
+            System.out.println("eAction? " + req.trade_type);
             stm.addRow(req.symbol, req.trade_id, req.price_quote, newInt, req.trade_type);
-            System.out.println("MFOUT");
-            System.out.println(req.symbol);
-            System.out.println(req.trade_id);
-            System.out.println( req.price_quote);
-            System.out.println(newInt);
-            System.out.println( req.trade_type);
+            System.out.println("added row"+ j);
             j++;
         }
         System.out.println("DONE!");
-       
        
             return new VoltTable[] {stm};
        

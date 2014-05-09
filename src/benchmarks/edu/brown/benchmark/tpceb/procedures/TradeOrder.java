@@ -99,18 +99,7 @@ public class TradeOrder extends VoltProcedure {
 
     public VoltTable[] run(double requested_price, long acct_id, long is_lifo, long roll_it_back, long trade_qty, long type_is_margin, 
              String st_pending_id, String st_submitted_id, String symbol, String trade_type_id, long trade_id) throws VoltAbortException {
-        System.out.println("TRADEORDERIN");
-        System.out.println(requested_price);
-        System.out.println(acct_id);
-        System.out.println(is_lifo);
-        System.out.println(roll_it_back);
-        System.out.println(trade_qty);
-        System.out.println(type_is_margin);
-        System.out.println(st_pending_id);
-        System.out.println(st_submitted_id);
-        System.out.println(symbol);
-        System.out.println(trade_type_id);
-        System.out.println(trade_id);
+      
         /*   FRAME 1 AND 2 REMOVED*/
         
        // frame 3: estimating overall financial impact
@@ -249,13 +238,7 @@ public class TradeOrder extends VoltProcedure {
         double tax_amount = 10;
         
         VoltTable ret_values = trade_order_ret_template.clone(128);//128
-        System.out.println("TRADEORDEROUT");
-        System.out.println(requested_price);
-        System.out.println(symbol);
-        System.out.println(trade_id);
-        System.out.println(trade_qty);
-        System.out.println(trade_type_id);
-        System.out.println(eAction);
+
         ret_values.addRow(requested_price, symbol, trade_id, (int) trade_qty, trade_type_id, eAction);
         return new VoltTable[] {ret_values};
         
