@@ -25,7 +25,18 @@ public class TTradeOrderTxnInput {
         para.add(symbol);
         para.add(trade_type_id);
         para.add(trade_id);
-        //para.add(pSendToMarket); //added
+        
+        System.out.println(requested_price);
+        System.out.println(acct_id);
+        System.out.println(is_lifo);
+        System.out.println(roll_it_back);
+        System.out.println(trade_qty);
+        System.out.println(type_is_margin);
+        System.out.println(st_pending_id);
+        System.out.println(st_submitted_id);
+        System.out.println(symbol);
+        System.out.println(trade_type_id);
+        System.out.println(trade_id);
         return para;
     }
     /*Added*/

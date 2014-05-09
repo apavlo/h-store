@@ -183,7 +183,7 @@ public class TradeOrder extends VoltProcedure {
                 for (int i = 0; i < hold_list.getRowCount() && needed_qty != 0; i++) {
                     VoltTableRow hold = hold_list.fetchRow(i);
                     int hold_qty = (int)hold.getLong("H_QTY");
-                  //  double hold_price = hold.getDouble("H_PRICE");
+                
                   double hold_price = 10;  
                     if (hold_qty + needed_qty < 0) {
                         sell_value += needed_qty * hold_price;

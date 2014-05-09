@@ -34,7 +34,7 @@ public class MEETickerTape {
         this.sut = sut;
         this.priceBoard = priceBoard;
         batchIndex = 0;
-        batchDuplicates = 0; //added
+        batchDuplicates = 0; //added in to make like C++ code
         rnd = new EGenRandom( EGenRandom.RNG_SEED_BASE_MEE_TICKER_TAPE);
         enabled = true;
         this.baseTime = baseTime;
@@ -73,19 +73,13 @@ public class MEETickerTape {
     }
 
     public void  AddEntry( TTickerEntry tickerEntry ){
-        //System.out.println("in add entry");
         if( enabled ){
-           // System.out.println("going to add to batch");
             AddToBatch( tickerEntry);
-           // System.out.println("finished add to batch");
             AddArtificialEntries( );
-           // System.out.println("going to add artificial entries");
         }
-        //System.out.println("FINISHED TICKER ENTRY");
     }
 
     public void  PostLimitOrder( TTradeRequest tradeRequest ){
-       // System.out.println("trying to post limit order");
         TradeType            eTradeType;
  
         double      CurrentPrice = -1.0;
@@ -93,19 +87,13 @@ public class MEETickerTape {
 
         
         eTradeType = ConvertTradeTypeIdToEnum(tradeRequest.trade_type_id.toCharArray());
-       // System.out.println("TradeType:"+ eTradeType);
         pNewEntry.price_quote = tradeRequest.price_quote;
-        //System.out.println("tickerentry price quote" + pNewEntry.price_quote);
         
         pNewEntry.symbol = new String(tradeRequest.symbol);
-        //System.out.println("tickerentry symbol" + pNewEntry.symbol);
         
         pNewEntry.trade_qty = LIMIT_TRIGGER_TRADE_QTY;
-        //System.out.println("tickerentry trade_qty" + pNewEntry.trade_qty);
 
         CurrentPrice = priceBoard.getCurrentPrice( tradeRequest.symbol ).getDollars();
-        
-        //System.out.println("Current price" + CurrentPrice);
 
         if((( eTradeType == TradeType.eLimitBuy || eTradeType == TradeType.eStopLoss ) &&
                 CurrentPrice <= tradeRequest.price_quote )
@@ -114,17 +102,12 @@ public class MEETickerTape {
                 CurrentPrice >= tradeRequest.price_quote )){
             pNewEntry.price_quote = CurrentPrice;
             
-            //System.out.println("update1 price" + pNewEntry.price_quote);
-            
             limitOrderTimers.processExpiredTimers();
-           // System.out.println("processed timer");
             inTheMoneyLimitOrderQ.add(pNewEntry);
         
         }
         else{
             pNewEntry.price_quote = tradeRequest.price_quote;
-            
-           // System.out.println("update2 price" + pNewEntry.price_quote);
             
             double TriggerTimeDelay;
             GregorianCalendar currGreTime = new GregorianCalendar();
@@ -137,33 +120,29 @@ public class MEETickerTape {
             GregorianCalendar Now2 = new GregorianCalendar();
             dSecs += (currGreTime.get(Calendar.MILLISECOND) - baseGreTime.get(Calendar.MILLISECOND)) / EGenDate.MsPerSecondDivisor;
              
-            //double fCurrentTime = currGreTime.getTimeInMillis() - baseGreTime.getTimeInMillis();
+            //OLD MODIFIED TO MATCH C++ double fCurrentTime = currGreTime.getTimeInMillis() - baseGreTime.getTimeInMillis();
             double fCurrentTime = dSecs;
-            //TODO the third para, compare to c++
+            
             TriggerTimeDelay = priceBoard.getSubmissionTime(pNewEntry.symbol, fCurrentTime, new EGenMoney(pNewEntry.price_quote), eTradeType) - fCurrentTime;
-            //modified
+
             limitOrderTimers.startTimer( TriggerTimeDelay, this, pNewEntry);
         }
     }
 
     public void  AddLimitTrigger( TTickerEntry tickerEntry ){
-       // System.out.println("in add limit trigger");
         inTheMoneyLimitOrderQ.add( tickerEntry );
     }
 
     public void  AddArtificialEntries(){
-       // System.out.println("trying to add artificial entries");
         long              SecurityIndex;
         TTickerEntry        TickerEntry = new TTickerEntry();
         int                 TotalEntryCount = 0;
         final int    PaddingLimit = (TxnHarnessStructs.max_feed_len / 10) - 1;
-       // System.out.println("this was fine");
         final int    PaddingLimitForAll = PaddingLimit;
         final int    PaddingLimitForTriggers = PaddingLimit;
 
         while ( TotalEntryCount < PaddingLimitForTriggers && !inTheMoneyLimitOrderQ.isEmpty() )
         {
-            //System.out.println("in the money limit order" + inTheMoneyLimitOrderQ.peek());
             TTickerEntry pEntry = inTheMoneyLimitOrderQ.peek();
             AddToBatch( pEntry );
             inTheMoneyLimitOrderQ.poll();
@@ -172,52 +151,33 @@ public class MEETickerTape {
 
         while ( TotalEntryCount < PaddingLimitForAll )
         {
-            //System.out.println("in second loop");
             TickerEntry.trade_qty = ( rnd.rndPercent( 50 )) ? RANDOM_TRADE_QTY_1 : RANDOM_TRADE_QTY_2;
-            //System.out.println("here1");
             
+            //used alternative int64range. original was not correct did not match c++ code.
             SecurityIndex = rnd.int64RangeAlt( 0, priceBoard.getNumOfSecurities() - 1 );
-            //System.out.println("here2");
             TickerEntry.price_quote = (priceBoard.getCurrentPrice( SecurityIndex )).getDollars();
-           // System.out.println("here3");
-           // System.out.println("Symbol:" + TickerEntry.symbol);
+
             priceBoard.getSymbol( SecurityIndex, TickerEntry.symbol, TickerEntry.symbol.length() );
-            //System.out.println("here4");
             AddToBatch( TickerEntry );
             TotalEntryCount++;
         }
     }
 
-  /*  public void  AddToBatch( TTickerEntry tickerEntry ){
-        System.out.println("in add to batch  --> batch index " + batchIndex);
-        txnInput.Entries[batchIndex++] = tickerEntry;
-        System.out.println("Ticker Entry:" + tickerEntry.price_quote + " " + tickerEntry.symbol + " " + tickerEntry.trade_qty);
-        if( TxnHarnessStructs.max_feed_len == batchIndex ){
-            System.out.println("max feed len equals batch index");
-            sut.MarketFeed( txnInput );
-            System.out.println("added to txnInput");
-            batchIndex = 0;
-        }
-    }*/
+ 
     public void  AddToBatch( TTickerEntry tickerEntry ){
-       // System.out.println("in add to batch  --> batch index " + batchIndex);
         for(int i = 0; i < batchIndex; i++){
                if(tickerEntry.symbol.equals(txnInput.Entries[i].symbol)){
                    batchDuplicates++;
                       break;
                }
         }
-       // System.out.println("BI old" + batchIndex);
         txnInput.Entries[batchIndex++] = tickerEntry;
-       // System.out.println(batchIndex);
-        //System.out.println("Ticker Entry:" + tickerEntry.price_quote + " " + tickerEntry.symbol + " " + tickerEntry.trade_qty);
         if( TxnHarnessStructs.max_feed_len == batchIndex ){
             System.out.println("max feed len equals batch index");
-            //txnInput.
+            
             sut.MarketFeed( txnInput );
-            //System.out.println("added to txnInput");
             batchIndex = 0;
-            batchDuplicates = 0; //added
+            batchDuplicates = 0; 
         }
     }
 
@@ -285,4 +245,15 @@ public class MEETickerTape {
     private Date                  baseTime;
     private Date                  currentTime;
 }
-
+/*OLD ADD TO BATCH BEFORE MADE TO MATCH C++*/
+/*  public void  AddToBatch( TTickerEntry tickerEntry ){
+     System.out.println("in add to batch  --> batch index " + batchIndex);
+     txnInput.Entries[batchIndex++] = tickerEntry;
+     System.out.println("Ticker Entry:" + tickerEntry.price_quote + " " + tickerEntry.symbol + " " + tickerEntry.trade_qty);
+     if( TxnHarnessStructs.max_feed_len == batchIndex ){
+         System.out.println("max feed len equals batch index");
+         sut.MarketFeed( txnInput );
+         System.out.println("added to txnInput");
+         batchIndex = 0;
+     }
+ }*/
