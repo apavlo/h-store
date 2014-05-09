@@ -41,10 +41,10 @@ public class TMarketFeedTxnInput {
  
         System.out.println("MARKETFEED");
         for(int i = 0; i < price_quotes.length; i++){
-            System.out.println("Price Quotes:" +price_quotes);
+            System.out.println("Price Quotes:" +price_quotes[i]);
         }
         for(int i = 0; i < symbols.length; i++){
-            System.out.println("Symbols" + symbols);
+            System.out.println("Symbols" + symbols[i]);
         }
         System.out.println("Status Submitted" + status_submitted);
         
