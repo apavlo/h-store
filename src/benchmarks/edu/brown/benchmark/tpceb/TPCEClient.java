@@ -178,7 +178,7 @@ private int num = 1;
         //getNumThreads * 20
         if(countTotal <= 700){ //probably 200
             num = 1;
-            System.out.println("Trade Order number:" + countTotal);
+         //   System.out.println("Trade Order number:" + countTotal);
         int iTxnType = egen_clientDriver.driver_ptr.getCE().getCETxnMixGenerator().generateNextTxnType( );
         egen_clientDriver.driver_ptr.getCE().zeroInputBuffer(iTxnType);
        // egen_clientDriver.driver_ptr.getMEE();
@@ -283,7 +283,7 @@ int countRow =0;
               //  tradeRequest.trade_qty = (int) tradeOrderResult[0].fetchRow(0).getDouble("trade_qty");
                // System.out.println("trade_qty " + tradeOrderResult[0].fetchRow(0).getDouble("trade_qty"));
                // tradeRequest.trade_qty = (int) tradeOrderResult[0].fetchRow(0).get("trade_qty", VoltType.INTEGER);
-                System.out.println("trying to get eAction");
+              //  System.out.println("trying to get eAction");
                 tradeRequest.eActionTemp = (int) tradeOrderResult[0].fetchRow(0).getLong("eAction");
                // System.out.println("eAction val:" + tradeRequest.eActionTemp );
                 //  tradeRequest.eActionTemp = (int) tradeOrderResult[0].fetchRow(0).get("eAction", VoltType.INTEGER);
@@ -291,7 +291,7 @@ int countRow =0;
                 //System.out.println("eActionTemp " + tradeOrderResult[0].fetchRow(0).getDouble("eAction"));
                 
                 tradeRequest.symbol = tradeOrderResult[0].fetchRow(0).getString("symbol");
-                System.out.println("symbol " + tradeOrderResult[0].fetchRow(0).getString("symbol"));
+              //  System.out.println("symbol " + tradeOrderResult[0].fetchRow(0).getString("symbol"));
                 
                 tradeRequest.trade_id = tradeOrderResult[0].fetchRow(0).getLong("trade_id");
                 //System.out.println("trade_id " + tradeOrderResult[0].fetchRow(0).getLong("trade_id"));
@@ -354,7 +354,7 @@ int countRow =0;
      * @return
      */
     private Object[] generateClientArgs(Transaction xact) {
-        System.out.println(xact);
+       // System.out.println(xact);
         switch (xact) {
             
        // case MARKET_WATCH: //commented out
