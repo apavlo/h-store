@@ -326,7 +326,7 @@ private int num = 1;
     private VoltTable[] tradeOrderResult;
 }
 
-
+/*OLD CODE FOR TRADE ORDER ONLY- REFERENCE*/
 /*package edu.brown.benchmark.tpceb;
 
 import java.io.File;

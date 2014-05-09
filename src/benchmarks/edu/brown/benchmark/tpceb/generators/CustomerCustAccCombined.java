@@ -48,6 +48,7 @@ import edu.brown.benchmark.tpceb.util.EGenRandom;
 
 
 public class CustomerCustAccCombined extends TableGenerator {
+    /*REMOVED TAX INFO*/
    /* public enum TaxStatus {
         eNonTaxable,
         eTaxableAndWithhold,
@@ -143,24 +144,6 @@ public class CustomerCustAccCombined extends TableGenerator {
         
         return startingAccId + accsGenerated - 1;
     }
-     /*   if ( getCurrentCId() % TPCEConstants.DEFAULT_LOAD_UNIT == 0) {
-            initNextLoadUnit();
-        }
-        
-        if (accsToGenerate == accsGenerated) {
-            long cid = generateCustomerId();
-            
-            accsGenerated = 0;
-            accsToGenerate = getNumberofAccounts(cid, CustomerSelection.getTier(cid).ordinal() + 1);
-            
-            startingAccId = getStartingAccId(cid);
-        }
-        
-        accsGenerated++;
-        long id = startingAccId + accsGenerated - 1;
-        //System.out.println("THIS IS THE GENERATED ID:" + id);
-        return startingAccId + accsGenerated - 1;
-    }*/
    
     /**
      * Generates a random account ID for the specified customer.
@@ -176,8 +159,6 @@ public class CustomerCustAccCombined extends TableGenerator {
         
         accCount = getNumberofAccounts(custId, tier.ordinal() + 1);
         startAcc = getStartingAccId(custId);
-      //  int random = (int) (Math.random() * accCount);
-        //custAcc = startingAccId + random - 1;
         custAcc = rnd.int64Range(startAcc, startAcc + accCount - 1); // using the external generator here
         
         long[] res = new long[2];
@@ -275,8 +256,6 @@ public class CustomerCustAccCombined extends TableGenerator {
         tuple[0] = cid;
         tuple[1] = accId; // ca_id
         tuple[2] = generateBrokerId(accId); // ca_b_id
-       // System.out.println("Cust ID to be inserted:" + cid);
-        System.out.println("Acc ID to be inserted:" + accId);
         tuple[3] = (short)CustomerSelection.getTier(cid).ordinal() + 1; 
         tuple[4] = generateBalance(); // ca_bal
         
