@@ -21,7 +21,7 @@ public class MEE {
     private MEETradingFloor    tradingFloor;
     private Date           baseTime;
     private Date           currentTime;
-    private static final Lock lock = new ReentrantLock();// =ock();
+    private static final Lock lock = new ReentrantLock(); //added to make like C++
     public TTradeRequest tradeReq;
     
     public static final int  NO_OUTSTANDING_TRADES = MEETradingFloor.NO_OUTSTANDING_TRADES;
@@ -150,6 +150,7 @@ public class MEE {
 
     public int submitTradeRequest( TTradeRequest pTradeRequest ){
         int nextTime;
+        
         //added locks to make like EGen C++
         lock.lock();
 
