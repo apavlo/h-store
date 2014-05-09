@@ -238,7 +238,13 @@ public class TradeOrder extends VoltProcedure {
         double tax_amount = 10;
         
         VoltTable ret_values = trade_order_ret_template.clone(128);//128
-        
+        System.out.println("TRADEORDEROUT");
+        System.out.println(requested_price);
+        System.out.println(symbol);
+        System.out.println(trade_id);
+        System.out.println(trade_qty);
+        System.out.println(trade_type_id);
+        System.out.println(eAction);
         ret_values.addRow(requested_price, symbol, trade_id, (int) trade_qty, trade_type_id, eAction);
         return new VoltTable[] {ret_values};
         

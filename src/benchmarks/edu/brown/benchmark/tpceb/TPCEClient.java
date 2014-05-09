@@ -192,7 +192,7 @@ private int num = 1;
         else{
             num = 2;
             countTotal++;
-            return XTRANS[1];
+            return XTRANS[1]; //Trade Result
        }
     }
     

@@ -40,14 +40,7 @@ public class TTradeOrderTxnInput {
         System.out.println(trade_id);
         return para;
     }
-    /*Added*/
-   // public SendToMarket getSendToMarket(){
-   //     return pSendToMarket;
-   // }
-   // public void setSendToMarket(SendToMarket pSendToMarket){
-   //     this.pSendToMarket = pSendToMarket;
-   // }
-    /*******************/
+
     public double getRequestedPrice(){
         return requested_price;
     }

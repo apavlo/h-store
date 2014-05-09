@@ -102,53 +102,29 @@ public class MarketFeed extends VoltProcedure {
     public VoltTable[] run(double[] price_quotes, String status_submitted, String[] symbols, long[] trade_qtys, String type_limit_buy, String type_limit_sell, String type_stop_loss)
             throws VoltAbortException {
         System.out.println("in market feed");
-        
-      //  Date now_dts = Calendar.getInstance().getTime();
+    
         long now_dts = Calendar.getInstance().getTimeInMillis();
-      //  Timestamp test = new Timestamp(now_dts);
+
         List<TradeRequest> tradeRequestBuffer = new ArrayList<TradeRequest>();
-       // System.out.println("got date time and made list");
+
         // let's do the updates first in a batch
         for (int i = 0; i < MAX_FEED_LEN; i++) {
-           // System.out.println("i: "+ i);
-            
-           //     System.out.println("Symbols"+ symbols[i]+ " "+ symbols[i].length());
-            
-           
-           //  System.out.println("price quote"+ price_quotes[i] );
-            // System.out.println("trade qtys"+ trade_qtys[i] );
-            // System.out.println(now_dts);
-            // System.out.println("Symbols"+ symbols[i]+ " "+ symbols[i].length());
-           voltQueueSQL(updateLastTrade, price_quotes[i], trade_qtys[i], now_dts, symbols[i]);
-           // voltQueueSQL(updateLastTrade, symbols[i]);
-           // System.out.println("queued sql");
-        }
-       // System.out.println("out of for loop");
-       // try{
-        //    System.out.println("in try");
-        voltExecuteSQL();
 
-       // System.out.println("executed the sql for update last trade successfully");
-        
-        // then, see about pending trades
-        for (int i = 0; i < MAX_FEED_LEN; i++) {
+           voltQueueSQL(updateLastTrade, price_quotes[i], trade_qtys[i], now_dts, symbols[i]);
+
+        }
+
+          for (int i = 0; i < MAX_FEED_LEN; i++) {
             voltQueueSQL(getRequestList, symbols[i], type_stop_loss, price_quotes[i],
                     type_limit_sell, price_quotes[i],
                     type_limit_buy, price_quotes[i]);
-         // System.out.println("Symbol"+ symbols[i]);
-        //  System.out.println("PQ"+ price_quotes[i]);
-            /*public final SQLStmt getRequestList = new SQLStmt("select TR_T_ID, TR_BID_PRICE, TR_TT_ID, TR_QTY from TRADE_REQUEST " +
-            "where TR_S_SYMB = ? and ((TR_TT_ID = ? and TR_BID_PRICE >= ?) or " +
-            "(TR_TT_ID = ? and TR_BID_PRICE <= ?) or " +
-            "(TR_TT_ID = ? and TR_BID_PRICE >= ?))");*/
             VoltTable reqs = voltExecuteSQL()[0];
-           // System.out.println("executed the sql for get request list successfully" + reqs.getRowCount());
             
             for (int j = 0; j < reqs.getRowCount() && tradeRequestBuffer.size() < MAX_SEND_LEN; j++) {
                 VoltTableRow req = reqs.fetchRow(j);
                 
                 long trade_id = req.getLong("TR_T_ID");
-              //  System.out.println("did trade id");
+
                 double price_quote = req.getDouble("TR_BID_PRICE");
               //  System.out.println("did trade idprice");
                 String trade_type = req.getString("TR_TT_ID");
@@ -183,12 +159,18 @@ public class MarketFeed extends VoltProcedure {
         System.out.println("size of trb"+ tradeRequestBuffer.size());
         for (TradeRequest req: tradeRequestBuffer) {
             Integer newInt = new Integer(req.trade_qty);
-            System.out.println("eAction? " + req.trade_type);
+            
             stm.addRow(req.symbol, req.trade_id, req.price_quote, newInt, req.trade_type);
-            System.out.println("added row"+ j);
+            System.out.println("MFOUT");
+            System.out.println(req.symbol);
+            System.out.println(req.trade_id);
+            System.out.println( req.price_quote);
+            System.out.println(newInt);
+            System.out.println( req.trade_type);
             j++;
         }
         System.out.println("DONE!");
+       
        
             return new VoltTable[] {stm};
        
