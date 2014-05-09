@@ -243,17 +243,12 @@ public class CETxnInputGenerator {
         int           additionalPerms;
         int           secAcct;
         long          secFlatFileIndex;
-      //  String[]      flTaxId;
+      //  String[]      flTaxId; //removed tax info
         TradeType    eTradeType;
         
         long base = 200000000000000L;
         inputStructure.setTradeID(base+currentTradeID.getAndIncrement());
-       // System.out.println("TradeID " + inputStructure.getTradeID());
         
-        
-        /***********ADDDED**/
-        //inputStructure.setSendToMarket(pSendToMarket);
-        /*******************/
         Object[] customer = new Object[2];
         
         customer = customerSelection.genRandomCustomer();
@@ -401,12 +396,12 @@ public class CETxnInputGenerator {
             inputStructure.setAcctId(randomAccSecurity[0]);
               //  customerID = Long.parseLong(customer[0].toString());
                // tierID = (TierId)customer[1];
-                System.out.println("first account id" + inputStructure.getAcctId());
+              //  System.out.println("first account id" + inputStructure.getAcctId());
               //  inputStructure.setAcctId(account.genRandomAccId(rnd, customerID, tierID, inputStructure.getAcctId(), -1)[0]);
                 
-                System.out.println("custID:" + customerID);
-                System.out.println("TierID:" + tierID);
-                System.out.println("AccountID: " + inputStructure.getAcctId());
+              //  System.out.println("custID:" + customerID);
+               // System.out.println("TierID:" + tierID);
+               // System.out.println("AccountID: " + inputStructure.getAcctId());
                 
                 inputStructure.setCId(0);
            // }

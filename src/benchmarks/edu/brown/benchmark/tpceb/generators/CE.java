@@ -185,7 +185,7 @@ public class CE {
                 System.err.println("CE: Generated illegal transaction");
                 System.exit(1);
         }
-        /*
+        /* FOR MARKET WATCH
          * case CETxnMixGenerator.MARKET_WATCH:
             txnInputGenerator.generateMarketWatchInput( marketWatchTxnInput );
             sut.MarketWatch( marketWatchTxnInput );
@@ -211,11 +211,6 @@ public class CE {
                 marketWatchTxnInput = new TMarketWatchTxnInput();
                 break;*/
         }
-            /* case CETxnMixGenerator.MARKET_WATCH:
-            marketWatchTxnInput = new TMarketWatchTxnInput();
-            break;*/
-           // tradeOrderTxnInput = new TTradeOrderTxnInput();
-       // marketWatchTxnInput = new TMarketWatchTxnInput();
            
     }
 
@@ -245,7 +240,7 @@ public class CE {
 
     private  boolean                     bClearBufferBeforeGeneration;
     
-    /******************ADDED*********/
+    /******************ADDED DONT USE*********/
     private SendToMarket pSendToMarket;
     
     public void setSendToMarket(SendToMarket pSendToMarket){
