@@ -239,7 +239,7 @@ public class TradeOrder extends VoltProcedure {
         
         
         /**********ADDED************/
-        TTradeRequest tradeRequest = new TTradeRequest();
+      /*  TTradeRequest tradeRequest = new TTradeRequest();
         tradeRequest.price_quote =  requested_price;
         tradeRequest.symbol = symbol;
         tradeRequest.trade_id = trade_id;
@@ -250,7 +250,7 @@ public class TradeOrder extends VoltProcedure {
         }
         else{
             tradeRequest.eAction = TPCEConstants.eMEETradeRequestAction.eMEESetLimitOrderTrigger;
-        }
+        }*/
         /*********************/
         VoltTable ret_values = trade_order_ret_template.clone(128);//128
         
