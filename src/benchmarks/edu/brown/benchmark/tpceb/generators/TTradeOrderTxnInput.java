@@ -26,6 +26,7 @@ public class TTradeOrderTxnInput {
         para.add(trade_type_id);
         para.add(trade_id);
         
+        System.out.println("TRADEORDER");
         System.out.println(requested_price);
         System.out.println(acct_id);
         System.out.println(is_lifo);
