@@ -12,21 +12,17 @@ public class TTradeResultTxnInput {
      
      public ArrayList<Object>InputParameters(){
             ArrayList<Object> para = new ArrayList<Object>();
-            System.out.println("TradeIDINPUT"+ trade_id);
-         //   if(trade_price != 0){
-          //  trade_price_float = (float)trade_price;
-          //  }
-           // else{
-           //     trade_price_float = 0;
-            //}
-            //para.add(trade_price_float);
-           
-                para.add(trade_id);
-             
+       
+            para.add(trade_id);
             
             para.add(trade_price);
             st_completed_id = "CMPT";
             para.add(st_completed_id);
+            
+            
+            System.out.println(trade_id);
+            System.out.println(trade_price);
+           
             return para;
         }
 }

@@ -40,12 +40,12 @@ public class TTradeOrderTxnInput {
         return para;
     }
     /*Added*/
-    public SendToMarket getSendToMarket(){
-        return pSendToMarket;
-    }
-    public void setSendToMarket(SendToMarket pSendToMarket){
-        this.pSendToMarket = pSendToMarket;
-    }
+   // public SendToMarket getSendToMarket(){
+   //     return pSendToMarket;
+   // }
+   // public void setSendToMarket(SendToMarket pSendToMarket){
+   //     this.pSendToMarket = pSendToMarket;
+   // }
     /*******************/
     public double getRequestedPrice(){
         return requested_price;
@@ -128,5 +128,5 @@ public class TTradeOrderTxnInput {
     
     
     /***ADDED**/
-    private SendToMarket pSendToMarket;
+   // private SendToMarket pSendToMarket;
 }
