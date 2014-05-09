@@ -237,21 +237,6 @@ public class TradeOrder extends VoltProcedure {
         int eAction = (type_is_market == 1) ? TPCEConstants.eMEEProcessOrder : TPCEConstants.eMEESetLimitOrderTrigger;
         double tax_amount = 10;
         
-        
-        /**********ADDED************/
-      /*  TTradeRequest tradeRequest = new TTradeRequest();
-        tradeRequest.price_quote =  requested_price;
-        tradeRequest.symbol = symbol;
-        tradeRequest.trade_id = trade_id;
-        tradeRequest.trade_qty = (int) trade_qty;
-        tradeRequest.trade_type_id = trade_type_id;
-        if(type_is_market == 1){
-            tradeRequest.eAction = TPCEConstants.eMEETradeRequestAction.eMEEProcessOrder;
-        }
-        else{
-            tradeRequest.eAction = TPCEConstants.eMEETradeRequestAction.eMEESetLimitOrderTrigger;
-        }*/
-        /*********************/
         VoltTable ret_values = trade_order_ret_template.clone(128);//128
         
         ret_values.addRow(requested_price, symbol, trade_id, (int) trade_qty, trade_type_id, eAction);
