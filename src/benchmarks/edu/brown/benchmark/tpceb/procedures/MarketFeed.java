@@ -148,7 +148,7 @@ public class MarketFeed extends VoltProcedure {
                 VoltTableRow req = reqs.fetchRow(j);
                 
                 long trade_id = req.getLong("TR_T_ID");
-              //  System.out.println("did trade id");
+                System.out.println("did trade id" +trade_id);
                 double price_quote = req.getDouble("TR_BID_PRICE");
               //  System.out.println("did trade idprice");
                 String trade_type = req.getString("TR_TT_ID");
