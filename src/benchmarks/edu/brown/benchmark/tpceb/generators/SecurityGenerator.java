@@ -135,7 +135,6 @@ public class SecurityGenerator extends TableGenerator {
         String secName = createName(counter);
         
         tuple[0] = secHandle.createSymbol(counter, 15); // s_symb; CHAR(15)
-        System.out.println("Symbol!" + tuple[0]);
         tuple[1] = secRow[3]; // s_issue
         tuple[2] = secRow[1]; // s_st_id
         tuple[3] = secName; // s_name

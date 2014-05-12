@@ -83,17 +83,15 @@ public class EGenClientDriver {
 
     public Object[] getTradeOrderParams() {
         int   iTradeType = 0; 
-       // SendToMarket pSendToMarket = driver_ptr.getSendToMarket();/**********/
-        //MODIFIED INPUT
         Object[] obj = driver_ptr.generateTradeOrderInput(iTradeType ).InputParameters().toArray();
       
         return (this.cleanParams(obj));
     }
-    
-   /* public Object[] getMarketWatchParams() {
+   
+    public Object[] getMarketWatchParams() {
         Object[] obj = driver_ptr.generateMarketWatchInput().InputParameters().toArray();
         return (this.cleanParams(obj));
-    }*/
+    }
     
     public Object[] getTradeResultParams() {
         return (this.cleanParams(driver_ptr.generateTradeResultInput().InputParameters().toArray()));
@@ -106,6 +104,7 @@ public class EGenClientDriver {
 
 }
 
+/*OLD CODE FOR TRADE ORDER ONLY - REFERENCE*/
 /* package edu.brown.benchmark.tpceb;
 
 import java.io.File;

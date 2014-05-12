@@ -459,14 +459,12 @@ public class TradeResult extends VoltProcedure {
             voltQueueSQL(insertCashTransaction, trade_dts, trade_id, se_amount, type_name +  " " + trade_qty + " shares of " + s_name);
         }
         System.out.println("Successfully did updates/insertions/deletions 2 ");
-       // voltQueueSQL(getCustomerAccountBalance, acct_id);
-       // VoltTable bal = voltExecuteSQL()[0];
-        
-       // assert bal.getRowCount() == 1;
-       // double acct_bal = bal.fetchRow(0).getDouble("CA_BAL");
+
         
         VoltTable ret_values = trade_result_ret_template.clone(64);
         ret_values.addRow(acct_bal); //took out float cast
+        System.out.println("TROUT");
+        System.out.println(acct_bal);
         System.out.println("Successfully did update volt table ");
         return new VoltTable[] {ret_values};
     }

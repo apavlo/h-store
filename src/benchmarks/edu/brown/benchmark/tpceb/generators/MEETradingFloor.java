@@ -27,16 +27,12 @@ public class MEETradingFloor {
         orderProcessingDelayMean = 1.0;
         Method SendTradeResult = null;
             try{
-           //     System.out.println("in try");
                 SendTradeResult = MEETradingFloor.class.getMethod("sendTradeResult", TTradeRequest.class);
             }catch(Exception e){
                 e.printStackTrace();
             }
-           // System.out.println("calling orderTimers");
 
-       // System.out.println("TradeRequest = TTradeRequest.class" + TTradeRequest.class);
         orderTimers = new TimerWheel(TTradeRequest.class, this, SendTradeResult, 5, 1);
-      //  System.out.println("done with trade orders");
      }
         
     
@@ -51,8 +47,9 @@ public class MEETradingFloor {
      }
      
      private double  genProcessingDelay(double mean){
-       // double result = ( -1.0 * Math.log( rnd.rndDouble() )) * mean;
-         double result = ( -1.0 * Math.log(rnd.doubleIncrRange(0.0, 1.0, 0.000000000001)) * mean);
+        //changed result calculation to match egen
+        //OLD: double result = ( -1.0 * Math.log( rnd.rndDouble() )) * mean;
+        double result = ( -1.0 * Math.log(rnd.doubleIncrRange(0.0, 1.0, 0.000000000001)) * mean);
         if( result > maxOrderProcessingDelay ){
             return( maxOrderProcessingDelay );
         }
@@ -62,23 +59,16 @@ public class MEETradingFloor {
     }
     
      public int  submitTradeRequest( TTradeRequest tradeReq ){
-        // System.out.println("trade request");
         switch( tradeReq.eAction ){
         case eMEEProcessOrder:
             {
-                //System.out.println("in eMEEProcessOrder - fails");
-               // sendTradeResult(tradeReq); //added for debugging
                /*added b/c original uses pointers*/
                 TTradeRequest newTradeRequest = new TTradeRequest();
                 newTradeRequest = tradeReq;
                 return( orderTimers.startTimer( genProcessingDelay( orderProcessingDelayMean ), this, newTradeRequest));
             }
         case eMEESetLimitOrderTrigger:
-         //   System.out.println("going into post limit order");
             tickerTape.PostLimitOrder( tradeReq );
-           //System.out.println("out of post limit order");
-           // sendTradeResult(tradeReq); //added for debugging
-
             return( orderTimers.processExpiredTimers() );
         default:
             return( orderTimers.processExpiredTimers() );
@@ -90,7 +80,6 @@ public class MEETradingFloor {
     }
     
     public void  sendTradeResult( TTradeRequest tradeReq ){
-       //System.out.println("trying to send trade result");
         TradeType            eTradeType;
         TTradeResultTxnInput    txnInput = new TTradeResultTxnInput();
         TTickerEntry            TickerEntry = new TTickerEntry();
@@ -100,50 +89,34 @@ public class MEETradingFloor {
         CurrentPrice = priceBoard.getCurrentPrice( tradeReq.symbol ).getDollars();
     
         txnInput.trade_id = tradeReq.trade_id;
-        System.out.println("Trade id:" + txnInput.trade_id);
-       // txnInput.st_completed_id =  "E_COMPLETED";
-    
+       
         if(( eTradeType == TradeType.eLimitBuy && tradeReq.price_quote < CurrentPrice )||( eTradeType == TradeType.eLimitSell && tradeReq.price_quote > CurrentPrice )){
             txnInput.trade_price = tradeReq.price_quote;
-           // System.out.println("IN IF");
         }
         else{
             txnInput.trade_price = CurrentPrice;
-           // System.out.println("IN ELSE");
         }
-       // System.out.println("TRADEIDHERE"+  txnInput.trade_id);
-        //System.out.println("TRADEPRICEHERE"+  txnInput.trade_price);
         if(!inputs.contains(txnInput.trade_id)){
-            System.out.println("TRADEIDHERE"+  txnInput.trade_id);
-            System.out.println("ADDINGIDOK");
             sut.TradeResult(  txnInput );
             inputs.add(txnInput.trade_id);
         }
-       //System.out.println("INPUTS!:");
-       //for(int i = 0; i < inputs.size(); i++){
-       //    System.out.println("ID " + inputs.get(i));
-       //}
-       // System.out.println("Got to here");
-    
+   
         TickerEntry.symbol = new String( tradeReq.symbol);
         TickerEntry.trade_qty = tradeReq.trade_qty;
-        //System.out.println("Got to here2");
-    
+     
         TickerEntry.price_quote = CurrentPrice;
-       // System.out.println("Got to here3");
     
         tickerTape.AddEntry(TickerEntry);
-       // System.out.println("Got to here4");
     }
     
     private MEESUTInterface                                        sut;
     private MEEPriceBoard                                          priceBoard;
     private MEETickerTape                                          tickerTape;
 
-    private Date                                                      baseTime;
-    private Date                                                      currentTime;
+    private Date                                                   baseTime;
+    private Date                                                   currentTime;
 
-    private TimerWheel                                               orderTimers;
+    private TimerWheel                                             orderTimers;
     private EGenRandom                                             rnd;
     private  double                                                orderProcessingDelayMean;
     private static final int                                       maxOrderProcessingDelay = 5;

@@ -130,27 +130,10 @@ public class SecurityHandler {
      *               For example, daily_market table has a restriction of 15 chars. 
      */
     public String createSymbol(long index, int maxLen) {
-        //System.out.println("index " + index);
-        //System.out.println("secRecords " + secRecords);
-        /*below is modified. Original:
-         * int fileInd = (int)(index % secRecords);
-        long part = index / secRecords;
-        System.out.println("got here");
-        String res = secFile.getTupleByIndex(fileInd)[2]; // symbol is a 2nd field
-        
-        if (part > 0) {
-            res += createSuffix(part, maxLen - res.length());
-        }
-        
-        assert(res.length() <= maxLen);
-        
-        return res;
-         * */
         int fileInd;
         long part;
         //debugging if
         if(secRecords == 0){
-           // System.out.println("was 0");
             fileInd = (int)(index % 6850);
             part = index / 6850;
         }
@@ -159,11 +142,8 @@ public class SecurityHandler {
             part = index / secRecords;
         }
         
-        //System.out.println("got here");
         String res = secFile.getTupleByIndex(fileInd)[2]; // symbol is a 2nd field
-        //System.out.println("This was fine" + res);
-       // System.out.println("This was reslength " + res.length());
-        //System.out.println("maxlen" + maxLen);
+       
         if (part > 0) {
             //debugging if
             if(maxLen ==0){
@@ -171,8 +151,7 @@ public class SecurityHandler {
             }
             res += createSuffix(part, maxLen - res.length());
         }
-        //System.out.println(res);        //assert(res.length() <= maxLen);
-        
+            
         return res;
     }
     

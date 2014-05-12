@@ -79,7 +79,7 @@ public class TPCEClient extends BenchmarkComponent {
 
         @Override
         public void clientCallback(ClientResponse clientResponse) {
-            incrementTransactionCounter(clientResponse, t.ordinal());//t.ordinal());
+            incrementTransactionCounter(clientResponse, t.ordinal());
         }
     }
  
@@ -117,7 +117,7 @@ public class TPCEClient extends BenchmarkComponent {
     private static enum Transaction {
 
          TRADE_ORDER("Trade Order", "TradeOrder", TPCEConstants.FREQUENCY_TRADE_ORDER),
-        // MARKET_WATCH("Market Watch", "MarketWatch", TPCEConstants.FREQUENCY_MARKET_WATCH),
+       //  MARKET_WATCH("Market Watch", "MarketWatch", TPCEConstants.FREQUENCY_MARKET_WATCH),
          TRADE_RESULT("Trade Result", "TradeResult", TPCEConstants.FREQUENCY_TRADE_RESULT),
          MARKET_FEED("Market Feed", "MarketFeed", TPCEConstants.FREQUENCY_MARKET_FEED);
         
@@ -176,32 +176,23 @@ public class TPCEClient extends BenchmarkComponent {
 private int num = 1;
     protected Transaction selectTransaction() {
         //getNumThreads * 20
-        if(countTotal <= 500){ //probably 200
+        if(countTotal <= 700){ 
             num = 1;
-            System.out.println("Trade Order number:" + countTotal);
-        int iTxnType = egen_clientDriver.driver_ptr.getCE().getCETxnMixGenerator().generateNextTxnType( );
-        egen_clientDriver.driver_ptr.getCE().zeroInputBuffer(iTxnType);
-       // egen_clientDriver.driver_ptr.getMEE();
-        //egen_clientDriver.driver_ptr.getMEE();
-        //      return Transaction.TRADE_UPDATE;
-        //System.out.println(iTxnType);
-        countTotal++;
+            int iTxnType = egen_clientDriver.driver_ptr.getCE().getCETxnMixGenerator().generateNextTxnType( );
+            egen_clientDriver.driver_ptr.getCE().zeroInputBuffer(iTxnType);
+            countTotal++;
         
-        return XTRANS[iTxnType];
+            return XTRANS[iTxnType];
        }
-        else if(countTotal <= 700){
+        else if(countTotal <= 900){
             num = 2;
-           // System.out.println("Market Feed");
-                countTotal++;
-                return XTRANS[2];
-     //           
+            countTotal++;
+            return XTRANS[2];           
            }
         else{
-          //  return null;
             num = 2;
-           // System.out.println("Trade Result");
             countTotal++;
-           return XTRANS[1];
+            return XTRANS[1]; //Trade Result
        }
     }
     
@@ -218,8 +209,6 @@ private int num = 1;
             final Transaction target = selectTransaction();
 
            // LOG.debug("Executing txn " + target);
-            //TPCECallback temp = new TPCECallback(target);
-        
            while (!this.getClientHandle().callProcedure(new TPCECallback(target), target.callName, this.generateClientArgs(target))) {
                 this.getClientHandle().backpressureBarrier();
             }
@@ -235,14 +224,12 @@ private int num = 1;
             System.exit(1);
         }
     }
-int countRow =0;
+
  //   @Override
     protected boolean runOnce() throws IOException {
         boolean ret = false;
         final Transaction target = selectTransaction();
-      //  boolean retME = false;
         if(num ==1){
-            //System.out.println("num was 1");
         try {
            
             
@@ -250,13 +237,8 @@ int countRow =0;
             tradeRequest = new TTradeRequest();
            // LOG.debug("Executing txn " + target);
            // ret = this.getClientHandle().callProcedure(new TPCECallback(target), target.callName, this.generateClientArgs(target));
-           // ret = this.getClientHandle().callProcedure(new TPCECallback(target), target.callName, this.generateClientArgs(target));
             tradeOrderResult = this.getClientHandle().callProcedure(target.callName, this.generateClientArgs(target)).getResults();
             
-           // System.out.println("countRow:"+ countRow + "  " +tradeOrderResult[countRow]);
-           // System.out.println(tradeOrderResult[0]);
-
-           //System.out.println(tradeOrderResult.length);
             if(tradeOrderResult.length == 0){
                 ret = false;
             }
@@ -270,39 +252,20 @@ int countRow =0;
             else{
             
                 tradeRequest.price_quote = tradeOrderResult[0].fetchRow(0).getDouble("price_quote");
-               // System.out.println("price_quote " + tradeOrderResult[0].fetchRow(0).getDouble("price_quote"));
                 tradeRequest.trade_qty = (int) tradeOrderResult[0].fetchRow(0).getLong("trade_qty");
-              //  tradeRequest.trade_qty = (int) tradeOrderResult[0].fetchRow(0).getDouble("trade_qty");
-               // System.out.println("trade_qty " + tradeOrderResult[0].fetchRow(0).getDouble("trade_qty"));
-               // tradeRequest.trade_qty = (int) tradeOrderResult[0].fetchRow(0).get("trade_qty", VoltType.INTEGER);
-                System.out.println("trying to get eAction");
-                tradeRequest.eActionTemp = (int) tradeOrderResult[0].fetchRow(0).getLong("eAction");
-               // System.out.println("eAction val:" + tradeRequest.eActionTemp );
-                //  tradeRequest.eActionTemp = (int) tradeOrderResult[0].fetchRow(0).get("eAction", VoltType.INTEGER);
-             //   tradeRequest.eActionTemp = (int) tradeOrderResult[0].fetchRow(0).getDouble("eAction");
-                //System.out.println("eActionTemp " + tradeOrderResult[0].fetchRow(0).getDouble("eAction"));
-                
-                tradeRequest.symbol = tradeOrderResult[0].fetchRow(0).getString("symbol");
-                System.out.println("symbol " + tradeOrderResult[0].fetchRow(0).getString("symbol"));
-                
+                tradeRequest.eActionTemp = (int) tradeOrderResult[0].fetchRow(0).getLong("eAction");     
+                tradeRequest.symbol = tradeOrderResult[0].fetchRow(0).getString("symbol");           
                 tradeRequest.trade_id = tradeOrderResult[0].fetchRow(0).getLong("trade_id");
-                //System.out.println("trade_id " + tradeOrderResult[0].fetchRow(0).getLong("trade_id"));
-                
                 tradeRequest.trade_type_id = tradeOrderResult[0].fetchRow(0).getString("trade_type_id");
-                //System.out.println("trade_type_id " + tradeOrderResult[0].fetchRow(0).getString("trade_type_id"));
                 tradeRequest.eAction = null;
+             
                 ret = true;
                 egen_clientDriver.driver_ptr.getMEE().submitTradeRequest(tradeRequest);
-                countRow++;
-               // System.out.println("true");
+               
            }
-          
-            // clientResponse.getResults();
-            //  tradeOrderResult = this.getClientHandle().getResults();// retME = this.getClientHandle().callProcedure(new TPCECallback(target), target.callName, this.generateClientArgs(targetME));
         } 
         catch (ProcCallException ex) {
             System.out.println("intentional rollback");
-           // ex.printStackTrace();
         }
         catch (Exception ex) {
         
@@ -312,23 +275,11 @@ int countRow =0;
         }
         else{
             
-            try {
-             //   System.out.println("Starting MF");
-             //   final Transaction target = selectTransaction();
-             
-                
-                LOG.debug("Executing txn " + target);
+            try {             
+               LOG.debug("Executing txn " + target);
                ret = this.getClientHandle().callProcedure(new TPCECallback(target), target.callName, this.generateClientArgs(target));
-               // tradeOrderResult = this.getClientHandle().callProcedure(target.callName, this.generateClientArgs(target)).getResults();
-              
-              //  System.out.println("Back in TPCE");
-              
-                // clientResponse.getResults();
-                //  tradeOrderResult = this.getClientHandle().getResults();// retME = this.getClientHandle().callProcedure(new TPCECallback(target), target.callName, this.generateClientArgs(targetME));
             } 
             catch (Exception ex) {
-                System.out.println(ex);
-                ex.getMessage();
                 ex.printStackTrace();
                 System.exit(1);
             }  
@@ -346,11 +297,11 @@ int countRow =0;
      * @return
      */
     private Object[] generateClientArgs(Transaction xact) {
-        System.out.println(xact);
+       // System.out.println(xact);
         switch (xact) {
             
-       /* case MARKET_WATCH:
-            return (this.egen_clientDriver.getMarketWatchParams());*/
+       // case MARKET_WATCH: //commented out
+       //     return (this.egen_clientDriver.getMarketWatchParams());
         case TRADE_ORDER:
             return (this.egen_clientDriver.getTradeOrderParams());
         case TRADE_RESULT:
@@ -363,10 +314,6 @@ int countRow =0;
             LOG.error("Unsupported client transaction: " + xact);
         }
         return (null);
-          //  return (this.egen_clientDriver.getTradeOrderParams());
-       // return (this.egen_clientDriver.getMarketWatchParams());
-      /*  case MARKET_WATCH:
-            return (this.egen_clientDriver.getMarketWatchParams());*/
     }
 
     /**
@@ -379,7 +326,7 @@ int countRow =0;
     private VoltTable[] tradeOrderResult;
 }
 
-
+/*OLD CODE FOR TRADE ORDER ONLY- REFERENCE*/
 /*package edu.brown.benchmark.tpceb;
 
 import java.io.File;
