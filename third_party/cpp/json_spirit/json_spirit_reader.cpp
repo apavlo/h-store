@@ -60,7 +60,7 @@ bool Error_position::operator==( const Error_position& lhs ) const
 
 namespace
 {
-    const int_parser < int64_t >  int64_p  = int_parser < int64_t  >();
+    const int_parser < boost::int64_t >  int64_p  = int_parser < boost::int64_t  >();
     const uint_parser< uint64_t > uint64_p = uint_parser< uint64_t >();
 
     template< class Iter_type >
@@ -299,7 +299,7 @@ namespace
             add_to_current( Value_type() );
         }
 
-        void new_int( int64_t i )
+        void new_int( boost::int64_t i )
         {
             add_to_current( i );
         }
@@ -452,7 +452,7 @@ namespace
                 typedef function< void( Char_type )            > Char_action;
                 typedef function< void( Iter_type, Iter_type ) > Str_action;
                 typedef function< void( double )               > Real_action;
-                typedef function< void( int64_t )              > Int_action;
+                typedef function< void( boost::int64_t )              > Int_action;
                 typedef function< void( uint64_t )             > Uint64_action;
 
                 Char_action   begin_obj  ( bind( &Semantic_actions_t::begin_obj,   &self.actions_, _1 ) );
