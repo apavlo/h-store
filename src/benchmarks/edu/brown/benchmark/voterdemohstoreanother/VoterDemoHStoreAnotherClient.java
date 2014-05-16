@@ -126,19 +126,22 @@ public class VoterDemoHStoreAnotherClient extends BenchmarkComponent {
         }
     	try {
 	    	Client client = this.getClientHandle();
+            ClientResponse response;
+            int curTimestamp;
+            edu.brown.stream.VoteGenClient.CurrentCall call;
 	    	
 	    	synchronized (lock) {
 		        //PhoneCallGenerator.PhoneCall call = switchboard.receive();
 		        //Callback callback = new Callback(0);
-	            edu.brown.stream.VoteGenClient.CurrentCall call = switchboard.getNextCall();
+	            call = switchboard.getNextCall();
 	            if(call==null)
 	                return true;
 		        
-		        //int curTimestamp = timestamp;
-	            int curTimestamp = call.timestamp;
+	            curTimestamp = call.timestamp;
+	            
+	            System.out.println(" clientId: " + this.getClientId() + "- call Vote - with voteId: " + call.voteId);
 		
-		        ClientResponse response;
-					response = client.callProcedure(       "Vote",
+				response = client.callProcedure(       "Vote",
 					                                        call.voteId,
 					                                        call.phoneNumber,
 					                                        call.contestantNumber,
@@ -146,24 +149,40 @@ public class VoterDemoHStoreAnotherClient extends BenchmarkComponent {
 					                                        curTimestamp);
 				
 				incrementTransactionCounter(response, 0);
-		        VoltTable results[] = response.getResults();
-		        
-		        if(results.length > 0 && results[0].asScalarLong() == VoterDemoHStoreAnotherConstants.VOTE_SUCCESSFUL)
-		        {
-		        	response = client.callProcedure("GenerateLeaderboard", curTimestamp);
-		    		incrementTransactionCounter(response, 1);
-		        }
-		        
-		        GetStatisticInfo();
-		        
-		        return true;
 	    	}
+	    	
+            VoltTable results[] = response.getResults();
+            
+            // this loop just used to increase interval of two procedure call
+            for(int i=0; i<10; i++)
+            {
+                WriteToFile( " clientId: " + this.getClientId() + " - " + call.voteId +  " - " + String.valueOf(i) );
+            }
+
+            if (results.length > 0 && results[0].asScalarLong() == VoterDemoHStoreAnotherConstants.VOTE_SUCCESSFUL) {
+                System.out.println(" clientId: " + this.getClientId() + "- call GenerateLeaderboard");
+                response = client.callProcedure("GenerateLeaderboard", curTimestamp);
+                incrementTransactionCounter(response, 1);
+            }
+
+            GetStatisticInfo();
+
+            return true;
+	    	
     	} 
 		catch (ProcCallException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 			return false;
 		}
+    }
+    
+    private synchronized void WriteToFile(String content) throws IOException
+    {
+        //System.out.println(stat_filename + " : " + content );
+        PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("data.interval.txt", true)));
+        out.println(content);
+        out.close();
     }
     
     private synchronized void GetStatisticInfo()
