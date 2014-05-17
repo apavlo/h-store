@@ -160,7 +160,6 @@ public:
     /** Copy a string from the buffer. */
     inline std::string readTextString() {
         int32_t stringLength = readInt();
-        VOLT_INFO("string length is %d", stringLength);
         assert(stringLength >= 0);
         return std::string(reinterpret_cast<const char*>(getRawPointer(stringLength)),
                 stringLength);

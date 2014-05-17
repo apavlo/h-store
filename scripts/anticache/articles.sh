@@ -26,13 +26,14 @@ BASE_PROJECT="articles"
 BASE_DIR=`pwd`
 OUTPUT_DIR="~/data/articles/read-heavy/2/80-20"
 
-ANTICACHE_BLOCK_SIZE=1048576
+ANTICACHE_BLOCK_SIZE=500000
 ANTICACHE_THRESHOLD=.5
 
 BASE_ARGS=( \
     # SITE DEBUG
      "-Dsite.status_enable=false" \
-     #"-Dsite.status_interval=10000" \
+     "-Dsite.status_interval=10000" \
+     "-Dsite.txn_restart_limit=35" \
 #    "-Dsite.status_exec_info=true" \
 #    "-Dsite.status_check_for_zombies=true" \
 #    "-Dsite.exec_profiling=true" \
@@ -45,8 +46,8 @@ BASE_ARGS=( \
 
     # Site Params
     "-Dsite.jvm_asserts=false" \
-    #"-Dsite.specexec_enable=false" \
-    #"-Dsite.cpu_affinity_one_partition_per_core=true" \
+    "-Dsite.specexec_enable=false" \
+    "-Dsite.cpu_affinity_one_partition_per_core=true" \
     #"-Dsite.cpu_partition_blacklist=0,2,4,6,8,10,12,14,16,18" \
     #"-Dsite.cpu_utility_blacklist=0,2,4,6,8,10,12,14,16,18" \
     #"-Dsite.network_incoming_limit_txns=50000" \
@@ -69,7 +70,7 @@ BASE_ARGS=( \
     "-Dclient.interval=5000" \
     "-Dclient.shared_connection=false" \
     "-Dclient.blocking=true" \
-    "-Dclient.blocking_concurrent=100" \
+    "-Dclient.blocking_concurrent=1" \
     "-Dclient.throttle_backoff=100" \
     "-Dclient.output_interval=5000" \
 #    "-Dclient.output_anticache_evictions=evictions.csv" \
@@ -77,14 +78,14 @@ BASE_ARGS=( \
 
     # Anti-Caching Experiments
     "-Dsite.anticache_enable=${ENABLE_ANTICACHE}" \
-    "-Dsite.anticache_batching=true" \
+    #"-Dsite.anticache_batching=true" \
 #    "-Dsite.anticache_profiling=true" \
     "-Dsite.anticache_reset=false" \
     "-Dsite.anticache_block_size=${ANTICACHE_BLOCK_SIZE}" \
-    "-Dsite.anticache_check_interval=5000" \
+    "-Dsite.anticache_check_interval=30000" \
     "-Dsite.anticache_threshold_mb=5" \
-    "-Dsite.anticache_blocks_per_eviction=30" \
-    "-Dsite.anticache_max_evicted_blocks=1000" \
+    "-Dsite.anticache_blocks_per_eviction=16" \
+    "-Dsite.anticache_max_evicted_blocks=1600" \
 #    "-Dsite.anticache_evict_size=${ANTICACHE_EVICT_SIZE}" \
     "-Dsite.anticache_threshold=${ANTICACHE_THRESHOLD}" \
     "-Dclient.anticache_enable=false" \
@@ -93,7 +94,7 @@ BASE_ARGS=( \
     "-Dclient.output_csv=results.csv" \
 
     # CLIENT DEBUG
-#    "-Dclient.output_txn_counters=txncounters.csv" \
+    "-Dclient.output_txn_counters=txncounters.csv" \
     "-Dclient.output_clients=false" \
     "-Dclient.profiling=false" \
     "-Dclient.output_response_status=false" \
@@ -140,16 +141,16 @@ done
 wait
 
 ant compile
-    HSTORE_HOSTS="${SITE_HOST}:0:0"
-    NUM_CLIENTS=`expr 1 \* $BASE_CLIENT_THREADS`
-    SITE_MEMORY=`expr $BASE_SITE_MEMORY + \( 1 \* $BASE_SITE_MEMORY_PER_PARTITION \)`
+    HSTORE_HOSTS="${SITE_HOST}:0:0-7"
+    NUM_CLIENTS=`expr 8 \* $BASE_CLIENT_THREADS`
+    SITE_MEMORY=`expr $BASE_SITE_MEMORY + \( 8 \* $BASE_SITE_MEMORY_PER_PARTITION \)`
     
     # BUILD PROJECT JAR
     ant hstore-prepare \
         -Dproject=${BASE_PROJECT} \
         -Dhosts=${HSTORE_HOSTS} \
-	-Dbatchevictable=${BATCHEVICTABLES} \
-        -Devictable=${EVICTABLES}
+	-Devictable=${EVICTABLES}
+	#-Dbatchevictable=${BATCHEVICTABLES} \
     test -f ${BASE_PROJECT}.jar || exit -1
     
     # UPDATE CLIENTS
@@ -179,6 +180,8 @@ ant compile
         -Dsite.memory=${SITE_MEMORY} \
         -Dclient.hosts=${CLIENT_HOSTS_STR} \
         -Dclient.count=${CLIENT_COUNT}
+	#-Dnoloader=true \
+	#-Dnostart=true \
     result=$?
     if [ $result != 0 ]; then
         exit $result

@@ -54,6 +54,7 @@ public class ArticlesClient extends BenchmarkComponent {
 	    }
 		  public static enum Transaction {
 		  GET_ARTICLE("Get Article", ArticlesConstants.FREQUENCY_GET_ARTICLE),
+		  GET_COMMENTS("Get Comments", ArticlesConstants.FREQUENCY_GET_COMMENTS),
 		  ADD_COMMENT("Add Comment", ArticlesConstants.FREQUENCY_ADD_COMMENT),
 		  UPDATE_USER("Update User Info", ArticlesConstants.FREQUENCY_UPDATE_USER_INFO);
 
@@ -82,13 +83,21 @@ public class ArticlesClient extends BenchmarkComponent {
 //	        ProcedureCallback callback = null;
 	        switch (target) {
 	            case GET_ARTICLE: {
-	                long articlesSize = Math.round(ArticlesConstants.ARTICLES_SIZE * this.getScaleFactor());
-			params = new Object[]{ articlesSize - ((Random) this.readRecord).nextInt() };
+	                //long articlesSize = Math.round(ArticlesConstants.ARTICLES_SIZE * this.getScaleFactor());
+			params = new Object[]{ ((Random) this.readRecord).nextInt() };
+//	                callback = new GetCommentsCallback(this.getClientHandle(), params);
+	                break;
+	            }
+	            case GET_COMMENTS: {
+	                //long articlesSize = Math.round(ArticlesConstants.ARTICLES_SIZE * this.getScaleFactor());
+			params = new Object[]{ ((Random) this.readRecord).nextInt() };
 //	                callback = new GetCommentsCallback(this.getClientHandle(), params);
 	                break;
 	            }
 	            case ADD_COMMENT: {
-	                int a_id = this.readRecord.nextInt(); // aid
+	                //long articlesSize = Math.round(ArticlesConstants.ARTICLES_SIZE * this.getScaleFactor());
+			int a_id = this.readRecord.nextInt();
+			//int a_id = this.readRecord.nextInt(); // aid
 	                int u_id = this.userRecord.nextInt();// uid
 	                String text = ArticlesUtil.astring(100, 100);
 	                params = new Object[]{ a_id, u_id, text};

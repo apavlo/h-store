@@ -11,17 +11,15 @@ function onexit() {
 
 # ---------------------------------------------------------------------
 
-ENABLE_ANTICACHE=false
+ENABLE_ANTICACHE=true
 
 SITE_HOST="istc12"
 
 CLIENT_HOSTS=( \
         "istc12" \
-        "istc13" \
-        "istc13" \
 )
 
-BASE_CLIENT_THREADS=2
+BASE_CLIENT_THREADS=1
 BASE_SITE_MEMORY=8192
 BASE_SITE_MEMORY_PER_PARTITION=1024
 BASE_PROJECT="ycsb"
@@ -70,7 +68,7 @@ BASE_ARGS=( \
     "-Dclient.duration=300000" \
     "-Dclient.interval=5000" \
     "-Dclient.shared_connection=false" \
-    "-Dclient.blocking=false" \
+    "-Dclient.blocking=true" \
     "-Dclient.blocking_concurrent=100" \
     "-Dclient.throttle_backoff=100" \
     "-Dclient.output_interval=5000" \
@@ -79,11 +77,12 @@ BASE_ARGS=( \
 
     # Anti-Caching Experiments
     "-Dsite.anticache_enable=${ENABLE_ANTICACHE}" \
+    "-Dsite.anticache_batching=true" \
 #    "-Dsite.anticache_profiling=true" \
     "-Dsite.anticache_reset=false" \
     "-Dsite.anticache_block_size=${ANTICACHE_BLOCK_SIZE}" \
     "-Dsite.anticache_check_interval=5000" \
-    "-Dsite.anticache_threshold_mb=2500" \
+    "-Dsite.anticache_threshold_mb=100" \
     "-Dsite.anticache_blocks_per_eviction=200" \
     "-Dsite.anticache_max_evicted_blocks=325" \
 #    "-Dsite.anticache_evict_size=${ANTICACHE_EVICT_SIZE}" \

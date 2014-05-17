@@ -126,6 +126,11 @@ public class TestAntiCacheBatching extends BaseTestCase {
             childRow[0] = i; // c_id
             childRow[1] = i; // c_a_id
             childTable.addRow(childRow);
+            childRow = VoltTableUtil.getRandomRow(child_tbl); // 1 comment per article
+            childRow[0] = i; // c_id
+            childRow[1] = i; // c_a_id
+            childTable.addRow(childRow);
+
         } // FOR
         this.executor.loadTable(1000l, catalog_tbl, vt, false);
         this.executor.loadTable(1000l, child_tbl, childTable, false);
@@ -228,6 +233,16 @@ public class TestAntiCacheBatching extends BaseTestCase {
         
         // clear out the evicted access history
         profiler.evictedaccess_history.clear();
+        
+        cresponse = this.client.callProcedure(proc.getName(), expected);
+        assertEquals(Status.OK, cresponse.getStatus());
+        
+        results = cresponse.getResults();
+        assertEquals(1, results.length);
+        adv = results[0].advanceRow();
+        assertTrue(adv);
+        System.out.println(results[0]);
+        assertEquals(expected, results[0].getLong(0));
         
         // Now execute a query to get comments
         // there should not be any anticachemanager activity

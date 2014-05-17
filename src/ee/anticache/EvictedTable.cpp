@@ -63,7 +63,6 @@ const void* EvictedTable::insertEvictedTuple(TableTuple &source) {
 
 	assert(m_tmpTarget1.isEvicted()); 
 	
-	VOLT_INFO("Inserted evicted tuple"); 
     
     return m_tmpTarget1.address(); 
 }

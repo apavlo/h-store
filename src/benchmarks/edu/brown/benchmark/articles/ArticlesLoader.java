@@ -73,6 +73,22 @@ public class ArticlesLoader extends Loader{
             long numComments = ArticlesUtil.number(0, this.maxComments);
             row[col++] = numComments; // number of comments
             
+            row[col++] = ArticlesUtil.astring(8, 8); // text
+            row[col++] = ArticlesUtil.astring(8, 8); // text
+            row[col++] = ArticlesUtil.astring(8, 8); // text
+            row[col++] = ArticlesUtil.astring(8, 8); // text
+            row[col++] = ArticlesUtil.astring(8, 8); // text
+            row[col++] = ArticlesUtil.astring(8, 8); // text
+            row[col++] = ArticlesUtil.astring(8, 8); // text
+            row[col++] = ArticlesUtil.astring(8, 8); // text
+            row[col++] = ArticlesUtil.astring(8, 8); // text
+            row[col++] = ArticlesUtil.astring(8, 8); // text
+            row[col++] = ArticlesUtil.astring(8, 8); // text
+            row[col++] = ArticlesUtil.astring(8, 8); // text
+            row[col++] = ArticlesUtil.astring(8, 8); // text
+            row[col++] = ArticlesUtil.astring(8, 8); // text
+            row[col++] = ArticlesUtil.astring(8, 8); // text
+            
             this.articleToCommentMap.put(a_id, numComments);
 //            assert col == table.getColumnCount();
             table.addRow(row);
@@ -154,7 +170,19 @@ public class ArticlesLoader extends Loader{
                 row_spe[0] = a_id*ArticlesConstants.MAX_COMMENTS_PER_ARTICLE+i;
                 row_spe[1] = a_id; // random number from the article id
                 row_spe[2] = ArticlesUtil.number(0, this.usersSize); // random number from user id
-                row_spe[3] = ArticlesUtil.astring(5, 5); // comment
+                row_spe[3] = ArticlesUtil.astring(100, 100); // comment
+                
+                row_spe[4] = ArticlesUtil.astring(8, 8); // comment
+                row_spe[5] = ArticlesUtil.astring(8, 8); // comment
+                row_spe[6] = ArticlesUtil.astring(8, 8); // comment
+                row_spe[7] = ArticlesUtil.astring(8, 8); // comment
+                row_spe[8] = ArticlesUtil.astring(8, 8); // comment
+                row_spe[9] = ArticlesUtil.astring(8, 8); // comment
+                row_spe[10] = ArticlesUtil.astring(8, 8); // comment
+                row_spe[11] = ArticlesUtil.astring(8, 8); // comment
+                row_spe[12] = ArticlesUtil.astring(8, 8); // comment
+                row_spe[13] = ArticlesUtil.astring(8, 8); // comment
+                
                 speTbl.addRow(row_spe);
                 speTotal++;        		
                 if (speTbl.getRowCount() >= ArticlesConstants.BATCH_SIZE) {

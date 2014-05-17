@@ -138,7 +138,9 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
             synchronized(AntiCacheManager.this) {
                 try {
                     // update all the partition sizes
+                	LOG.warn("In mem monitor");
                     for (int partition : hstore_site.getLocalPartitionIds().values()) {
+                    	LOG.warn("Updating partition stats");
                         getPartitionSize(partition);
                     }
                 } catch (Throwable ex) {
@@ -246,6 +248,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         this.statsMessage.getObservable().addObserver(new EventObserver<VoltTable>() {
             @Override
             public void update(EventObservable<VoltTable> o, VoltTable vt) {
+            	LOG.info("updating partition stats in observer");
                 AntiCacheManager.this.updatePartitionStats(vt);
             }
         });
@@ -270,7 +273,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         assert(next.partition == next.ts.getBasePartition()) :
             String.format("The base partition for %s is %d but we want to fetch a block for partition %d: %s",
                     next.ts, next.ts.getBasePartition(), next.partition, next);
-        LOG.debug("Processing " + next);
+        LOG.info("Processing " + next);
 
         // We need to get the EE handle for the partition that this txn
         // needs to have read in some blocks from disk
@@ -701,6 +704,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         // Queue up a utility work operation at the PartitionExecutor so
         // that we can get the total size of the partition
         hstore_site.getPartitionExecutor(partition).queueUtilityWork(this.statsMessage);
+	//LOG.info(String.format("setting partition %d to true", partition));
         pendingStatsUpdates[partition] = true;
     }
 

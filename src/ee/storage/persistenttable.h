@@ -272,7 +272,7 @@ class PersistentTable : public Table {
     AntiCacheDB* getAntiCacheDB();
     std::map<int16_t, int16_t> getUnevictedBlockIDs();
     std::vector<char*> getUnevictedBlocks();
-    std::vector<int32_t> getMergeTupleOffset();
+    int32_t getMergeTupleOffset(int);
     bool mergeStrategy();
     int32_t getTuplesEvicted();
     void setTuplesEvicted(int32_t tuplesEvicted);
@@ -286,7 +286,7 @@ class PersistentTable : public Table {
     void setBlocksWritten(int32_t blocksWritten);
     int64_t getBytesWritten();
     void setBytesWritten(int64_t bytesWritten);
-    voltdb::TableTuple getTempTarget1();
+    voltdb::TableTuple * getTempTarget1();
     void insertUnevictedBlockID(std::pair<int16_t,int16_t>);
     void insertUnevictedBlock(char* unevicted_tuples);
     void insertTupleOffset(int32_t tuple_offset);
@@ -296,6 +296,12 @@ class PersistentTable : public Table {
     void setBatchEvicted(bool batchEvicted);
     bool isBatchEvicted();
     void clearUnevictedBlocks();
+    void clearMergeTupleOffsets();
+    int64_t unevictTuple(ReferenceSerializeInput * in, int j, int merge_tuple_offset);
+void clearUnevictedBlocks(int i);
+    char* getUnevictedBlocks(int i);
+    int unevictedBlocksSize();
+
     #endif
     
     void setEntryToNewAddressForAllIndexes(const TableTuple *tuple, const void* address);

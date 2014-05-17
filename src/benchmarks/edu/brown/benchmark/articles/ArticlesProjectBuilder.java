@@ -16,12 +16,14 @@ public class ArticlesProjectBuilder extends AbstractProjectBuilder{
     @SuppressWarnings("unchecked")
     public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[]) new Class<?>[] {
         GetArticle.class,
+	GetComments.class,
         AddComment.class,
         UpdateUserInfo.class
     };
     {
         // Transaction Frequencies
         addTransactionFrequency(GetArticle.class, ArticlesConstants.FREQUENCY_GET_ARTICLE);
+        addTransactionFrequency(GetComments.class, ArticlesConstants.FREQUENCY_GET_COMMENTS);
     	addTransactionFrequency(AddComment.class, ArticlesConstants.FREQUENCY_ADD_COMMENT);
     	addTransactionFrequency(UpdateUserInfo.class, ArticlesConstants.FREQUENCY_UPDATE_USER_INFO);
         
