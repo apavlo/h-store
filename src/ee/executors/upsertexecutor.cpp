@@ -343,7 +343,8 @@ namespace voltdb {
 					trig_iter != persistTarget->getTriggers()->end(); trig_iter++) {
 						//if statement to make sure the trigger is an insert... breaking
 						//if((*trig_iter)->getType() == (unsigned char)TRIGGER_INSERT)
-						(*trig_iter)->fire(m_engine, outputTable);
+						//(*trig_iter)->fire(m_engine, outputTable);
+						m_engine->fireTrigger(*trig_iter);
 				}
 				VOLT_DEBUG( "End firing triggers of table '%s'", persistTarget->name().c_str());
 				WindowTable* windowTarget = dynamic_cast<WindowTable*>(persistTarget);

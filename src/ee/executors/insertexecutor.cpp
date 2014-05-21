@@ -64,6 +64,11 @@
 #include <time.h>
 #include <cassert>
 
+
+#ifdef ARIES
+#include "logging/Logrecord.h"
+#endif
+
 namespace voltdb {
 
 	bool InsertExecutor::p_init(AbstractPlanNode *abstract_node, const catalog::Database* catalog_db, int* tempTableMemoryInBytes) {
@@ -146,87 +151,139 @@ int64_t another_timespecDiffNanoseconds(const timespec& end, const timespec& sta
 			return false;
 		}
 #endif
-		assert (m_inputTable->activeTupleCount() > 0);
 
-		// count the number of successful inserts
-		int modifiedTuples = 0;
+    assert (m_inputTable->activeTupleCount() > 0);
 
-		Table* outputTable = m_node->getOutputTable();
-		assert(outputTable);
+    // count the number of successful inserts
+    int modifiedTuples = 0;
 
-		bool beProcessed = false;
+    Table* outputTable = m_node->getOutputTable();
+    assert(outputTable);
 
-                // Implement insert multiple values. Added by hawk, 10/2/2014
-                std::vector<Table*> allInputTable = m_node->getInputTables();
-                for (int ii = 0; ii < allInputTable.size(); ++ii) 
-                {
-                     m_inputTable = allInputTable[ii];
-                // ended by hawk
+    bool beProcessed = false;
 
-		//
-		// An insert is quite simple really. We just loop through our m_inputTable
-		// and insert any tuple that we find into our m_targetTable. It doesn't get any easier than that!
-		//
-		assert (m_tuple.sizeInValues() == m_inputTable->columnCount());
-		TableIterator iterator(m_inputTable);
-		while (iterator.next(m_tuple)) {
-			beProcessed = true;
-			VOLT_DEBUG("Inserting tuple '%s' into target table '%s'",
-				m_tuple.debug(m_targetTable->name()).c_str(), m_targetTable->name().c_str());
-			VOLT_TRACE("Target Table %s: %s",
-				m_targetTable->name().c_str(), m_targetTable->schema()->debug().c_str());
+	// Implement insert multiple values. Added by hawk, 10/2/2014
+	std::vector<Table*> allInputTable = m_node->getInputTables();
+	for (int ii = 0; ii < allInputTable.size(); ++ii)
+	{
+		 m_inputTable = allInputTable[ii];
+	// ended by hawk
 
-			// if there is a partition column for the target table
-			if (m_partitionColumn != -1) {
+    //
+    // An insert is quite simple really. We just loop through our m_inputTable
+    // and insert any tuple that we find into our m_targetTable. It doesn't get any easier than that!
+    //
+    assert (m_tuple.sizeInValues() == m_inputTable->columnCount());
+    TableIterator iterator(m_inputTable);
+    while (iterator.next(m_tuple)) {
+    	beProcessed = true;
+        VOLT_DEBUG("Inserting tuple '%s' into target table '%s'",
+                   m_tuple.debug(m_targetTable->name()).c_str(), m_targetTable->name().c_str());
+        VOLT_TRACE("Target Table %s: %s",
+                   m_targetTable->name().c_str(), m_targetTable->schema()->debug().c_str());
 
-				// get the value for the partition column
-				NValue value = m_tuple.getNValue(m_partitionColumn);
-				bool isLocal = m_engine->isLocalSite(value);
 
-				// if it doesn't map to this site
-				if (!isLocal) {
-					if (!m_multiPartition) {
-						VOLT_ERROR("Mispartitioned Tuple in single-partition plan.");
-						return false;
-					}
+#ifdef ARIES
+        if(m_engine->isARIESEnabled()){
 
-					// don't insert
-					continue;
-				}
+        	// add persistency check:
+			PersistentTable* table = dynamic_cast<PersistentTable*>(m_targetTable);
+
+			// only log if we are writing to a persistent table.
+			if (table != NULL) {
+				LogRecord *logrecord = new LogRecord(computeTimeStamp(),
+						LogRecord::T_INSERT,	// this is an insert record
+						LogRecord::T_FORWARD,// the system is running normally
+						-1,// XXX: prevLSN must be fetched from table!
+						m_engine->getExecutorContext()->currentTxnId() ,// txn id
+						m_engine->getSiteId(),// which execution site
+						m_targetTable->name(),// the table affected
+						NULL,// insert, no primary key
+						-1,// inserting, all columns affected
+						NULL,// insert, don't care about modified cols
+						NULL,// no before image
+						&m_tuple// after image
+				);
+
+				size_t logrecordEstLength = logrecord->getEstimatedLength();
+				char *logrecordBuffer = new char[logrecordEstLength];
+
+				FallbackSerializeOutput output;
+				output.initializeWithPosition(logrecordBuffer, logrecordEstLength, 0);
+
+				logrecord->serializeTo(output);
+
+				LogManager* m_logManager = this->m_engine->getLogManager();
+				Logger m_ariesLogger = m_logManager->getAriesLogger();
+				//VOLT_WARN("m_logManager : %p AriesLogger : %p",&m_logManager, &m_ariesLogger);
+				const Logger *logger = m_logManager->getThreadLogger(LOGGERID_MM_ARIES);
+
+				// output.position() indicates the actual number of bytes written out
+				logger->log(LOGLEVEL_INFO, output.data(), output.position());
+
+				delete[] logrecordBuffer;
+				logrecordBuffer = NULL;
+
+				delete logrecord;
+				logrecord = NULL;
 			}
 
-			// try to put the tuple into the target table
-			if (!m_targetTable->insertTuple(m_tuple)) {
-				VOLT_ERROR("Failed to insert tuple from input table '%s' into"
-					" target table '%s'",
-					m_inputTable->name().c_str(),
-					m_targetTable->name().c_str());
-				return false;
-			}
+        }
+#endif
 
-			// try to put the tuple into the output table
-			if (!outputTable->insertTuple(m_tuple)) {
-				VOLT_ERROR("Failed to insert tuple from input table '%s' into"
-					" output table '%s'",
-					m_inputTable->name().c_str(),
-					outputTable->name().c_str());
-				return false;
-			}
+        // if there is a partition column for the target table
+        if (m_partitionColumn != -1) {
 
-			// successfully inserted
-			modifiedTuples++;
+            // get the value for the partition column
+            NValue value = m_tuple.getNValue(m_partitionColumn);
+            bool isLocal = m_engine->isLocalSite(value);
 
+            // if it doesn't map to this site
+            if (!isLocal) {
+                if (!m_multiPartition) {
+                    VOLT_ERROR("Mispartitioned Tuple in single-partition plan.");
+                    return false;
+                }
+                continue;
+            }
+        }
+
+        // for insert multiple values, added by hawk, 10/2/2014
+		// try to put the tuple into the target table
+		if (!m_targetTable->insertTuple(m_tuple)) {
+			VOLT_ERROR("Failed to insert tuple from input table '%s' into"
+				" target table '%s'",
+				m_inputTable->name().c_str(),
+				m_targetTable->name().c_str());
+			return false;
 		}
 
-                // for insert multiple values, added by hawk, 10/2/2014
-                }
-                // ended by hawk
+		// try to put the tuple into the output table
+		if (!outputTable->insertTuple(m_tuple)) {
+			VOLT_ERROR("Failed to insert tuple from input table '%s' into"
+				" output table '%s'",
+				m_inputTable->name().c_str(),
+				outputTable->name().c_str());
+			return false;
+		}
+
+		// successfully inserted
+		modifiedTuples++;
+
+	}
+
+    //for multiple insert values
+	}   // ended by hawk
 
 		// Check if the target table is persistent, and if hasTriggers flag is true
 		// If it is, then iterate through each one and pass in outputTable
+		VOLT_DEBUG("beProcessed = %d", beProcessed);
 		if (beProcessed == true)
 		{
 			PersistentTable* persistTarget = dynamic_cast<PersistentTable*>(m_targetTable);
+			VOLT_DEBUG("persistTarget = %s", persistTarget->name().c_str());
+			VOLT_DEBUG("persistTarget hasTriggers = %d", persistTarget->hasTriggers());
+			VOLT_DEBUG("persistTarget fireTriggers = %d", persistTarget->fireTriggers());
 			if(persistTarget != NULL && persistTarget->hasTriggers() && persistTarget->fireTriggers()) {
                               
                                 // added by hawk, 2013/12/13, for collect data
@@ -250,7 +307,8 @@ int64_t another_timespecDiffNanoseconds(const timespec& end, const timespec& sta
 					trig_iter != persistTarget->getTriggers()->end(); trig_iter++) {
 						//if statement to make sure the trigger is an insert... breaking
 						//if((*trig_iter)->getType() == (unsigned char)TRIGGER_INSERT)
-						(*trig_iter)->fire(m_engine, outputTable);
+						//(*trig_iter)->fire(m_engine, outputTable);
+					m_engine->fireTrigger(*trig_iter);
 				}
 				VOLT_DEBUG( "End firing triggers of table '%s'", persistTarget->name().c_str());
 

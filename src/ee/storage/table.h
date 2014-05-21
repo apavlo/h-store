@@ -56,6 +56,7 @@
 #include "common/TupleSchema.h"
 #include "common/Pool.hpp"
 #include "common/tabletuple.h"
+#include "common/MMAPMemoryManager.h"
 
 namespace voltdb {
 
@@ -355,8 +356,19 @@ public:
     virtual bool equals(const voltdb::Table *other) const;
     virtual voltdb::TableStats* getTableStats();
 
+    /** MMAP Pool **/
+    Pool* getPool(){
+      return (m_pool);
+    }
+
+    /** MMAP Data **/
+    MMAPMemoryManager* getDataManager(){
+      return (m_data_manager);
+    }
+    
 protected:
     Table(int tableAllocationTargetSize);
+    Table(int tableAllocationTargetSize, bool enableMMAP);
     void resetTable();
 
     void nextFreeTuple(TableTuple *tuple);
@@ -447,8 +459,17 @@ protected:
     // should be null for persistent tables
     int* m_tempTableMemoryInBytes;
 
+    /** MMAP Pool Storage **/
+    Pool* m_pool;
+
+    /** MMAP Data Storage **/
+    MMAPMemoryManager* m_data_manager;
+    
   private:
     int32_t m_refcount;
+
+    bool m_enableMMAP;
+
 };
 
 /**

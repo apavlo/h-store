@@ -57,7 +57,7 @@
 #include "catalog/catalogmap.h"
 #include "catalog/statement.h"
 #include "catalog/planfragment.h"
-#include "execution/VoltDBEngine.h"
+//#include "execution/VoltDBEngine.h"
 #include "common/executorcontext.hpp"
 #include "triggers/TriggerStats.h"
 
@@ -89,7 +89,7 @@ class Trigger {
 
     Trigger(const int32_t id, const string &name, const catalog::CatalogMap<catalog::Statement> *stmts, unsigned char type, bool forEach);
 
-    void fire(VoltDBEngine *engine, Table *input);
+    //void fire(VoltDBEngine *engine, Table *input);
 
     bool setType(unsigned char);
     void setForEach(bool);
@@ -99,6 +99,8 @@ class Trigger {
     unsigned char getType();
     bool getForEach();
     Table *getSourceTable();
+
+    vector<const catalog::PlanFragment*>* getFragments();
 
 	int32_t id() const;
 	std::string name() const;

@@ -53,7 +53,7 @@ public class SnapshotRegistry {
 
         private final HashMap< String, Table> tables = new HashMap< String, Table>();
 
-        private Snapshot(long startTime, int hostId, String path, String nonce,
+        private Snapshot(long startTime, int hostId, int siteId, int partitionId, String path, String nonce,
                          org.voltdb.catalog.Table tables[]) {
             timeStarted = startTime;
             this.path = path;
@@ -64,7 +64,10 @@ public class SnapshotRegistry {
                     String filename =
                         SnapshotUtil.constructFilenameForTable(table,
                                                                nonce,
-                                                               Integer.toString(hostId));
+                                                               Integer.toString(hostId),
+                                                               Integer.toString(siteId),
+                                                               Integer.toString(partitionId)
+                                                               );
                     this.tables.put(table.getTypeName(), new Table(table.getTypeName(), filename));
                 }
             }
@@ -137,8 +140,8 @@ public class SnapshotRegistry {
         }
     }
 
-    public static synchronized Snapshot startSnapshot(long startTime, int hostId, String path, String nonce, org.voltdb.catalog.Table tables[]) {
-        final Snapshot s = new Snapshot(startTime, hostId, path, nonce, tables);
+    public static synchronized Snapshot startSnapshot(long startTime, int hostId, int siteId, int partitionId, String path, String nonce, org.voltdb.catalog.Table tables[]) {
+        final Snapshot s = new Snapshot(startTime, hostId, siteId, partitionId, path, nonce, tables);
 
         m_snapshots.add(s);
         if (m_snapshots.size() > m_maxStatusHistory) {

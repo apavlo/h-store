@@ -860,9 +860,14 @@ NATIVE EE STUFF
     <exec dir='.' executable='python' failonerror='true'>
         <arg value="build.py" />
         <arg value="LOG_LEVEL=${site.exec_ee_log_level}" />
-        <arg value="MMAP_STORAGE=${site.storage_mmap}" />
+        <arg value="STORAGE_MMAP=${site.storage_mmap}" />
+        <arg value="STORAGE_MMAP_FILE_SIZE=${site.storage_mmap_file_size}" />
+        <arg value="STORAGE_MMAP_SYNC_FREQUENCY=${site.storage_mmap_sync_frequency}" />
+        <arg value="ARIES=${site.aries}" />
+        <arg value="ANTICACHE_ENABLE=${site.anticache_enable}" />
         <arg value="ANTICACHE_BUILD=${site.anticache_build}" />
         <arg value="ANTICACHE_REVERSIBLE_LRU=${site.anticache_reversible_lru}" />
+	<arg value="ANTICACHE_NVM=${site.anticache_nvm}" />
         <arg value="${build}" />
     </exec>
 </target>
@@ -1202,16 +1207,15 @@ TEST CASES
             </formatters>
             <tests>
                 <fileset dir='${build.test.dir}'>
-                    <include name='org/voltdb/regressionsuites/Test*.class'/>
                     <exclude name="**/*$*.class"/>
+                    <include name='org/voltdb/regressionsuites/Test*.class'/>
                     <exclude name="**/TestCatalogUpdateSuite.class" />
                     <exclude name="**/TestFailureDetectSuite.class" />
                     <exclude name="**/TestSneakyExecutionOrderSuite.class" />
-                    <exclude name="**/TestMaliciousClientSuite.class" />
-                    <exclude name="**/TestSaveRestoreSysprocSuite.class" />
+                    <exclude name="**/TestMaliciousClientSuite.class" /> 
                     <exclude name="**/TestMapReduceTransactionSuite.class" />
                     <exclude name="**/TestWikipediaSuite.class" />
-                    <exclude name="**/TestWikipediaLoader.class" />
+                    <exclude name="**/TestWikipediaLoader.class" /> 
 <!--                     <exclude name="**/TestAntiCache*.class" /> -->
                 </fileset>
             </tests>

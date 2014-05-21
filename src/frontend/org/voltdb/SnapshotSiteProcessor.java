@@ -20,6 +20,7 @@ package org.voltdb;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.log4j.Logger;
@@ -62,7 +63,7 @@ public class SnapshotSiteProcessor {
 
 
     /** Number of snapshot buffers to keep */
-    static final int m_numSnapshotBuffers = 3;
+    static final int m_numSnapshotBuffers = 8;
 
     /**
      * Pick a buffer length that is big enough to store at least one of the largest size tuple supported
@@ -105,7 +106,18 @@ public class SnapshotSiteProcessor {
      * and does any potential snapshot work with that buffer
      */
     private final Runnable m_onPotentialSnapshotWork;
+    
+    /**
+     * finish only after digest written
+     */
+    public static AtomicBoolean m_digestWritten = new AtomicBoolean(false);
 
+    /**
+     * only one partion does createSetup in SnapshotSaveAPI
+     */
+    public static AtomicBoolean m_finishedSetup = new AtomicBoolean(false);
+
+    
     /**
      * A class identifying a table that should be snapshotted as well as the destination
      * for the resulting tuple blocks
@@ -129,7 +141,7 @@ public class SnapshotSiteProcessor {
 
         @Override
         public String toString() {
-            return ("SnapshotTableTask for " + m_name + " replicated " + m_isReplicated);
+            return ("SnapshotTableTask for " + m_name );
         }
     }
 
@@ -165,6 +177,8 @@ public class SnapshotSiteProcessor {
     }
 
     public void initiateSnapshots(ExecutionEngine ee, Deque<SnapshotTableTask> tasks) {
+        LOG.trace("initiateSnapshots at : partition "+ee.getPartitionExecutor().getPartitionId()+ " tasks size ::"+tasks.size());
+        
         m_snapshotTableTasks = new ArrayDeque<SnapshotTableTask>(tasks);
         m_snapshotTargets = new ArrayList<SnapshotDataTarget>();
         for (final SnapshotTableTask task : tasks) {
@@ -174,12 +188,15 @@ public class SnapshotSiteProcessor {
                 m_snapshotTargets.add(task.m_target);
             }
             // FIXME meng
-//            if (!ee.activateTableStream(task.m_tableId, TableStreamType.SNAPSHOT )) {
-//                LOG.error("Attempted to activate copy on write mode for table "
-//                        + task.m_name + " and failed");
-//                LOG.error(task);
-//                VoltDB.crashVoltDB();
-//            }
+           if (!ee.activateTableStream(task.m_tableId, TableStreamType.SNAPSHOT )) {
+               LOG.error("Attempted to activate copy on write mode for table "
+                       + task.m_name + " and failed");
+               LOG.error(task);
+               HStore.crashDB();
+           }
+           else{
+               LOG.trace("Activated COW mode for table "+task.m_name+" at partition "+ee.getPartitionExecutor().getPartitionId());
+           }
         }
     }
 
@@ -194,29 +211,40 @@ public class SnapshotSiteProcessor {
         if (m_snapshotTableTasks == null || m_availableSnapshotBuffers.isEmpty()) {
             return retval;
         }
+        
+        int partition_id = ee.getPartitionExecutor().getPartitionId();
+        LOG.trace("doSnapshotWork at : partition "+ partition_id);
 
         /*
          * There definitely is snapshot work to do. There should be a task
          * here. If there isn't something is wrong because when the last task
          * is polled cleanup and nulling should occur.
          */
-        while (!m_snapshotTableTasks.isEmpty()) {
-            final SnapshotTableTask currentTask = m_snapshotTableTasks.peek();
+        while (!m_snapshotTableTasks.isEmpty()) {        
+            final SnapshotTableTask currentTask = m_snapshotTableTasks.peek();            
             assert(currentTask != null);
+            LOG.trace("SNAPSHOT TASK : "+currentTask+ " on partition :"+ partition_id+ " Target :"+currentTask.m_target);
+
             final int headerSize = currentTask.m_target.getHeaderSize();
             final BBContainer snapshotBuffer = m_availableSnapshotBuffers.poll();
             assert(snapshotBuffer != null);
             snapshotBuffer.b.clear();
             snapshotBuffer.b.position(headerSize);
-            final int serialized = 0; // FIXME (meng)
-//                ee.tableStreamSerializeMore(
-//                    snapshotBuffer,
-//                    currentTask.m_tableId,
-//                    TableStreamType.SNAPSHOT);
+            int serialized = 0; 
+            
+            
+            //FIXME (meng)
+            serialized = ee.tableStreamSerializeMore(
+                   snapshotBuffer,
+                   currentTask.m_tableId,
+                   TableStreamType.SNAPSHOT);
 
             if (serialized < 0) {
                 LOG.error("Failure while serialize data from a table for COW snapshot");
                 HStore.crashDB();
+            }
+            else{
+                LOG.trace("Serialized "+serialized+ " bytes for table "+currentTask.m_name+" at partition "+ partition_id);                
             }
 
             /**
@@ -272,45 +300,35 @@ public class SnapshotSiteProcessor {
             m_snapshotTargets = null;
             m_snapshotTableTasks = null;
             final int result = ExecutionSitesCurrentlySnapshotting.decrementAndGet();
-
+            LOG.trace("ExecutionSitesCurrentlySnapshotting final dec and get :"+SnapshotSiteProcessor.ExecutionSitesCurrentlySnapshotting.get());                
+            
             /**
              * If this is the last one then this EE must close all the SnapshotDataTargets.
              * Done in a separate thread so the EE can go and do other work. It will
              * sync every file descriptor and that may block for a while.
              */
-            if (result == 0) {
 
-                final Thread terminatorThread =
-                    new Thread("Snapshot terminator") {
-                    @Override
-                    public void run() {
+            final Thread terminatorThread = new Thread("Snapshot terminator") {
+                @Override
+                public void run() {                    
+                    for (final SnapshotDataTarget t : snapshotTargets) {
                         try {
-                            for (final SnapshotDataTarget t : snapshotTargets) {
-                                try {
-                                    t.close();
-                                } catch (IOException e) {
-                                    throw new RuntimeException(e);
-                                } catch (InterruptedException e) {
-                                    throw new RuntimeException(e);
-                                }
-                            }
-                        } finally {
-                            /**
-                             * Set it to -1 indicating the system is ready to perform another snapshot.
-                             * Changed to wait until all the previous snapshot work has finished so
-                             * that snapshot initiation doesn't wait on the file system
-                             */
-                            ExecutionSitesCurrentlySnapshotting.decrementAndGet();
+                            t.close();
+                        } catch (IOException e) {
+                            throw new RuntimeException(e);
+                        } catch (InterruptedException e) {
+                            throw new RuntimeException(e);
                         }
                     }
-                };
-
-                if (m_snapshotTargetTerminators != null) {
-                    m_snapshotTargetTerminators.add(terminatorThread);
                 }
+            };
 
-                terminatorThread.start();
+            if (m_snapshotTargetTerminators != null) {
+                m_snapshotTargetTerminators.add(terminatorThread);
             }
+
+            terminatorThread.start();
+           
         }
         return retval;
     }
@@ -322,6 +340,9 @@ public class SnapshotSiteProcessor {
     public HashSet<Exception> completeSnapshotWork(ExecutionEngine ee) throws InterruptedException {
         HashSet<Exception> retval = new HashSet<Exception>();
         m_snapshotTargetTerminators = new ArrayList<Thread>();
+
+        LOG.trace("completeSnapshotWork starts at partition :"+ee.getPartitionExecutor().getPartitionId());
+
         while (m_snapshotTableTasks != null) {
             Future<?> result = doSnapshotWork(ee);
             if (result != null) {
@@ -345,7 +366,21 @@ public class SnapshotSiteProcessor {
             t.join();
         }
         m_snapshotTargetTerminators = null;
-
+        
+        /**
+         * Set it to -1 indicating the system is ready to
+         * perform another snapshot. Changed to wait until all
+         * the previous snapshot work has finished so that
+         * snapshot initiation doesn't wait on the file system
+         */
+        synchronized (SnapshotSiteProcessor.ExecutionSitesCurrentlySnapshotting) {
+            if(ExecutionSitesCurrentlySnapshotting.get() == 0){
+                ExecutionSitesCurrentlySnapshotting.set(-1);
+                LOG.trace("ExecutionSitesCurrentlySnapshotting reset :"+SnapshotSiteProcessor.ExecutionSitesCurrentlySnapshotting.get());
+            }
+        }
+        
+        LOG.trace("completeSnapshotWork ends at partition :"+ee.getPartitionExecutor().getPartitionId());
         return retval;
     }
 }

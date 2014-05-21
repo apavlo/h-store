@@ -42,7 +42,7 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-
+  
 #include <sstream>
 #include "tablefactory.h"
 #include "common/executorcontext.hpp"
@@ -51,6 +51,7 @@
 #include "common/types.h"
 #include "storage/table.h"
 #include "storage/persistenttable.h"
+#include "storage/mmap_persistenttable.h"
 #include "storage/streamedtable.h"
 #include "storage/temptable.h"
 #include "storage/WindowTable.h"
@@ -58,7 +59,6 @@
 #include "streaming/TimeWindow.h"
 #include "triggers/trigger.h"
 #include "indexes/tableindexfactory.h"
-#include "common/Pool.hpp"
 
 #ifdef ANTICACHE
 #include "anticache/EvictedTable.h"
@@ -136,7 +136,17 @@ Table* TableFactory::getPersistentTable(
         TableFactory::initCommon(databaseId, table, name, schema, columnNames, true);
     }
     else {
-        table = new PersistentTable(ctx, exportEnabled);
+        /**
+         *  Choosing whether to use MMAP_PersistentTable
+         */
+
+        if(!ctx->isMMAPEnabled())
+            table = new PersistentTable(ctx, name, exportEnabled);
+        else
+            table = new MMAP_PersistentTable(ctx, name, exportEnabled);
+
+        VOLT_WARN("MMAP Enabled : %d \n", (int)ctx->isMMAPEnabled());
+        
         PersistentTable *pTable = dynamic_cast<PersistentTable*>(table);
         TableFactory::initCommon(databaseId, pTable, name, schema, columnNames, true);
         pTable->m_indexCount = (int)indexes.size();
@@ -200,7 +210,17 @@ Table* TableFactory::getPersistentTable(
         TableFactory::initCommon(databaseId, table, name, schema, columnNames, true);
     }
     else {
-    	table = new PersistentTable(ctx, exportEnabled);
+        /**
+         *  Choosing whether to use MMAP_PersistentTable
+         */
+
+        if(!ctx->isMMAPEnabled())
+            table = new PersistentTable(ctx, name, exportEnabled);
+        else
+            table = new MMAP_PersistentTable(ctx, name, exportEnabled);
+
+        VOLT_DEBUG("MMAP Enabled : %d \n", (int)ctx->isMMAPEnabled());
+
         PersistentTable *pTable = dynamic_cast<PersistentTable*>(table);
         pTable->m_pkeyIndex = TableIndexFactory::getInstance(pkeyIndex);
         TableFactory::initCommon(databaseId, pTable, name, schema, columnNames, true);
@@ -232,26 +252,26 @@ Table* TableFactory::getPersistentTable(
 
 #ifdef ANTICACHE
 Table* TableFactory::getEvictedTable(voltdb::CatalogId databaseId,
-                                    ExecutorContext *ctx,
-                                    const std::string &name,
-                                    TupleSchema* schema,
-                                    const std::string* columnNames) {
+        ExecutorContext *ctx,
+        const std::string &name,
+        TupleSchema* schema,
+        const std::string* columnNames) {
     VOLT_DEBUG("Creating %s", name.c_str());
     Table *table = new EvictedTable(ctx);
     EvictedTable *pTable = dynamic_cast<EvictedTable*>(table);
     pTable->m_indexCount = 0;
-    
+
     VOLT_DEBUG("Initializing %s common stuff", name.c_str());
     TableFactory::initCommon(databaseId, pTable, name, schema, columnNames, true);
-    
+
     VOLT_DEBUG("Hooking %s into table stats", name.c_str());
     table->getTableStats()->configure(name + " stats",
-                                      ctx->m_hostId,
-                                      ctx->m_hostname,
-                                      ctx->m_siteId,
-                                      ctx->m_partitionId,
-                                      databaseId);
-     
+            ctx->m_hostId,
+            ctx->m_hostname,
+            ctx->m_siteId,
+            ctx->m_partitionId,
+            databaseId);
+
     return dynamic_cast<Table*>(table);
 }
 #endif
@@ -655,11 +675,11 @@ Table* TableFactory::getWindowTable(
 
 
 TempTable* TableFactory::getTempTable(
-            const voltdb::CatalogId databaseId,
-            const std::string &name,
-            TupleSchema* schema,
-            const std::string* columnNames,
-            int* tempTableMemoryInBytes) {
+        const voltdb::CatalogId databaseId,
+        const std::string &name,
+        TupleSchema* schema,
+        const std::string* columnNames,
+        int* tempTableMemoryInBytes) {
 
     TempTable* table = new TempTable();
     TableFactory::initCommon(databaseId, table, name, schema, columnNames, true);
@@ -671,10 +691,10 @@ TempTable* TableFactory::getTempTable(
  * Creates a temp table with the same schema as the provided template table
  */
 TempTable* TableFactory::getCopiedTempTable(
-            const voltdb::CatalogId databaseId,
-            const std::string &name,
-            const Table* template_table,
-            int* tempTableMemoryInBytes) {
+        const voltdb::CatalogId databaseId,
+        const std::string &name,
+        const Table* template_table,
+        int* tempTableMemoryInBytes) {
 
     TempTable* table = new TempTable();
     TableFactory::initCommon(databaseId, table, name, template_table->m_schema, template_table->m_columnNames, false);
@@ -683,12 +703,12 @@ TempTable* TableFactory::getCopiedTempTable(
 }
 
 void TableFactory::initCommon(
-            voltdb::CatalogId databaseId,
-            Table *table,
-            const std::string &name,
-            TupleSchema *schema,
-            const std::string *columnNames,
-            const bool ownsTupleSchema) {
+        voltdb::CatalogId databaseId,
+        Table *table,
+        const std::string &name,
+        TupleSchema *schema,
+        const std::string *columnNames,
+        const bool ownsTupleSchema) {
     table->m_databaseId = databaseId;
     table->m_name = name;
     table->initializeWithColumns(schema, columnNames, ownsTupleSchema);
@@ -723,9 +743,13 @@ void TableFactory::initConstraints(PersistentTable* table) {
 }
 
 void TableFactory::configureStats(voltdb::CatalogId databaseId,
-                                  ExecutorContext *ctx,
-                                  std::string name,
-                                  Table *table) {
+        ExecutorContext *ctx,
+        std::string name,
+        Table *table) {
+    std::string hostname = "";
+    if(ctx != NULL)
+    	hostname = ctx->m_hostname;
+
 
 	assert(ctx != NULL);
 	// initialize stats for the table
@@ -772,9 +796,7 @@ void TableFactory::configureStats(voltdb::CatalogId databaseId,
 										  ctx->m_partitionId,
 										  databaseId);
 	}
-
-
-
 }
 
 }
+

@@ -33,32 +33,20 @@ import edu.brown.hstore.PartitionExecutor.SystemProcedureExecutionContext;
 
 @ProcInfo(singlePartition = false)
 public class SnapshotStatus extends VoltSystemProcedure {
-    
+
     @Override
     public void initImpl() {
         // Nothing
     }
-    
+
     @Override
-    public DependencySet
-    executePlanFragment(Long txn_id,
-                        Map<Integer, List<VoltTable>> dependencies,
-                        int fragmentId,
-                        ParameterSet params,
-                        final SystemProcedureExecutionContext context)
-    {
+    public DependencySet executePlanFragment(Long txn_id, Map<Integer, List<VoltTable>> dependencies, int fragmentId, ParameterSet params, final SystemProcedureExecutionContext context) {
         return null;
     }
 
-    public VoltTable[] run() throws VoltAbortException
-    {
+    public VoltTable[] run() throws VoltAbortException {
         ArrayList<Integer> catalogIds = new ArrayList<Integer>();
         catalogIds.add(0);
-        return new VoltTable[] {
-            VoltDB.instance().getStatsAgent().getStats(SysProcSelector.SNAPSHOTSTATUS,
-                                                       catalogIds,
-                                                       false,
-                                                       System.currentTimeMillis())
-        };
+        return new VoltTable[] { VoltDB.instance().getStatsAgent().getStats(SysProcSelector.SNAPSHOTSTATUS, catalogIds, false, System.currentTimeMillis()) };
     }
 }

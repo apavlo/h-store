@@ -179,7 +179,7 @@ public class YCSBClient extends BenchmarkComponent {
     }
     
     @Override
-    protected boolean runOnce() throws IOException {
+    public boolean runOnce() throws IOException {
         // pick random transaction to call, weighted by txnWeights
         final Transaction target = this.txnWeights.nextValue();
         

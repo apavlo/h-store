@@ -111,18 +111,18 @@ int64_t timespecDiffNanoseconds(const timespec& end, const timespec& start) {
     //assert(timespecValid(start));
     return (end.tv_nsec - start.tv_nsec) + (end.tv_sec - start.tv_sec) * (int64_t) 1000000000;
 }
-
+/**
 void Trigger::fire(VoltDBEngine *engine, Table *input) {
-        /*
-	struct timeval start_;
-	struct timeval end_;
-	struct timespec start;
-	struct timespec end;
 
+//	struct timeval start_;
+//	struct timeval end_;
+//	struct timespec start;
+//	struct timespec end;
+//
+//
+//	int error = gettimeofday(&start_, NULL);
+//        assert(error == 0);
 
-	int error = gettimeofday(&start_, NULL);
-        assert(error == 0);
-        */
 
 	// TODO: Loop through all the single-partition plan fragment ids for
 	// the target Statement. Then for each of them, invoke engine->executeQueryNoOutput()
@@ -130,33 +130,28 @@ void Trigger::fire(VoltDBEngine *engine, Table *input) {
 	int64_t txnId = engine->getExecutorContext()->currentTxnId();
 	bool send_tuple_count = false;
 	const NValueArray params;
-	VOLT_DEBUG("FIRE 1");
 	//assert(m_frags != NULL);
 	//assert(m_frags.size() != 0);
-	VOLT_DEBUG("m_frag size %d", int(m_frags->size()));
-	VOLT_DEBUG("FIRE 2");
 	vector<const catalog::PlanFragment *>::const_iterator frag_iter = m_frags->begin();
-	VOLT_DEBUG("FIRE 3");
 
 	for( ;	frag_iter != m_frags->end(); frag_iter++){
-		VOLT_DEBUG("FIRE 4");
 		int64_t planfragmentId = (int64_t)((*frag_iter)->id());
 		engine->executeQueryNoOutput(planfragmentId, params, txnId, send_tuple_count);
-		VOLT_DEBUG("FIRE 5");
 		send_tuple_count = false;
 	}
 
-        /*
-	error = gettimeofday(&end_, NULL);
-        assert(error == 0);
 
-	TIMEVAL_TO_TIMESPEC(&start_, &start);
-	TIMEVAL_TO_TIMESPEC(&end_, &end);
-	m_latency = timespecDiffNanoseconds(end, start);
-
-	VOLT_DEBUG("m_latency: %ld", m_latency);
-        */
+//	error = gettimeofday(&end_, NULL);
+//        assert(error == 0);
+//
+//	TIMEVAL_TO_TIMESPEC(&start_, &start);
+//	TIMEVAL_TO_TIMESPEC(&end_, &end);
+//	m_latency = timespecDiffNanoseconds(end, start);
+//
+//	VOLT_DEBUG("m_latency: %ld", m_latency);
+//
 }
+*/
 
 bool Trigger::setType(unsigned char t) {
 	// TODO: Change to type. Setup in types.h
@@ -190,6 +185,10 @@ bool Trigger::getForEach(){
 
 Table *Trigger::getSourceTable(){
 	return m_sourceTable;
+}
+
+vector<const catalog::PlanFragment*>* Trigger::getFragments() {
+	return m_frags;
 }
 
 }

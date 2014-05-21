@@ -67,6 +67,7 @@
 #include "storage/tableiterator.h"
 #include "storage/tableutil.h"
 #include "streaming/TimeWindow.h"
+#include "execution/VoltDBEngine.h"
 
 using std::string;
 using std::vector;
