@@ -13,22 +13,23 @@ exit $exit_status
 
 ENABLE_ANTICACHE=true
 
-SITE_HOST="istc12"
+SITE_HOST="10.212.84.152"
 
 CLIENT_HOSTS=( \
-"istc12" \
-"istc13" \
-"istc13" \
+#        "client1" \
+#        "client2" \
+        "10.212.84.152" \
+        "10.212.84.152" \
 )
 
-BASE_CLIENT_THREADS=2
+BASE_CLIENT_THREADS=1
 BASE_SITE_MEMORY=8192
 BASE_SITE_MEMORY_PER_PARTITION=1024
 BASE_PROJECT="tpcc"
 BASE_DIR=`pwd`
 OUTPUT_DIR="~/data/ycsb/read-heavy/2/80-20"
 
-ANTICACHE_BLOCK_SIZE=1024000000
+ANTICACHE_BLOCK_SIZE=524288
 #ANTICACHE_EVICT_SIZE=268400000
 ANTICACHE_THRESHOLD=.5
 
@@ -51,7 +52,8 @@ BASE_ARGS=( \
 #"-Dsite.cpu_partition_blacklist=0,2,4,6,8,10,12,14,16,18" \
 #"-Dsite.cpu_utility_blacklist=0,2,4,6,8,10,12,14,16,18" \
 "-Dsite.network_incoming_limit_txns=50000" \
-"-Dsite.commandlog_enable=true" \
+"-Dsite.commandlog_enable=false" \
+#"-Dsite.commandlog_dir=/mnt/pmfs/cmdlog" \
 "-Dsite.txn_incoming_delay=5" \
 "-Dsite.exec_postprocessing_threads=true" \
 "-Dsite.anticache_profiling=false" \
@@ -64,9 +66,9 @@ BASE_ARGS=( \
 # Client Params
 "-Dclient.scalefactor=1" \
 "-Dclient.memory=2048" \
-"-Dclient.txnrate=2000" \
+"-Dclient.txnrate=50000" \
 "-Dclient.warmup=120000" \
-"-Dclient.duration=300000" \
+"-Dclient.duration=120000" \
 "-Dclient.shared_connection=false" \
 "-Dclient.blocking=false" \
 "-Dclient.blocking_concurrent=100" \
@@ -76,8 +78,8 @@ BASE_ARGS=( \
 # Anti-Caching Experiments
 "-Dsite.anticache_enable=${ENABLE_ANTICACHE}" \
 "-Dsite.anticache_block_size=${ANTICACHE_BLOCK_SIZE}"
-"-Dsite.anticache_check_interval=5000" \
-"-Dsite.anticache_threshold_mb=1250" \
+"-Dsite.anticache_check_interval=10000" \
+"-Dsite.anticache_threshold_mb=500" \
 "-Dsite.anticache_blocks_per_eviction=100" \
 "-Dsite.anticache_max_evicted_blocks=500" \
 #"-Dsite.anticache_evict_size=${ANTICACHE_EVICT_SIZE}" \
@@ -100,9 +102,9 @@ BASE_ARGS=( \
 )
 
 EVICTABLE_TABLES=( \
-"orders" \
-"order_line" \
-"history" \
+#"orders" \
+#"order_line" \
+#"history" \
 )
 
 EVICTABLES=""
@@ -132,10 +134,11 @@ done
 wait
 
 ant compile
+for i in 8; do
 
-HSTORE_HOSTS="${SITE_HOST}:0:0-5"
-NUM_CLIENTS=`expr 6 \* $BASE_CLIENT_THREADS`
-SITE_MEMORY=`expr $BASE_SITE_MEMORY + \( 6 \* $BASE_SITE_MEMORY_PER_PARTITION \)`
+HSTORE_HOSTS="${SITE_HOST}:0:0-"`expr $i - 1`
+NUM_CLIENTS=`expr $i \* $BASE_CLIENT_THREADS`
+SITE_MEMORY=`expr $BASE_SITE_MEMORY + \( $i \* $BASE_SITE_MEMORY_PER_PARTITION \)`
 
 # BUILD PROJECT JAR
 ant hstore-prepare \
@@ -175,3 +178,4 @@ result=$?
 if [ $result != 0 ]; then
 exit $result
 fi
+done

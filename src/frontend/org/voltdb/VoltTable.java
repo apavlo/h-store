@@ -200,13 +200,6 @@ public class VoltTable extends VoltTableRow implements FastSerializable {
         m_buffer.position(m_buffer.limit());
         m_readOnly = readOnly;
 
-
-
-        //for (StackTraceElement ste : Thread.currentThread().getStackTrace()) {
-        //    System.err.println(ste);
-        //}
-        //System.err.println("VoltTable row count :"+this.toString());        
-
         assert(verifyTableInvariants());
     }
 

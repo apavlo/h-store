@@ -22,6 +22,7 @@
 
 namespace voltdb {
 
+
 TupleSchema* TupleSchema::createTupleSchema(const std::vector<ValueType> columnTypes,
                                             const std::vector<int32_t> columnSizes,
                                             const std::vector<bool> allowNull,
@@ -140,28 +141,28 @@ TupleSchema::createTupleSchema(const TupleSchema *first,
 
     return schema;
 }
-
+    
 TupleSchema* TupleSchema::createEvictedTupleSchema() {
     std::vector<ValueType> columnTypes(2);
     std::vector<int32_t> columnSizes(2);
     std::vector<bool> allowNull(2);
-
+    
     // create a schema containing a single column for the block_id
-    columnTypes[0] = VALUE_TYPE_SMALLINT;
+    columnTypes[0] = VALUE_TYPE_SMALLINT; 
     columnSizes[0] = static_cast<int32_t>(NValue::getTupleStorageSize(VALUE_TYPE_SMALLINT));
     allowNull[0] = false;
-
+    
     columnTypes[1] = VALUE_TYPE_INTEGER;
     columnSizes[1] = static_cast<int32_t>(NValue::getTupleStorageSize(VALUE_TYPE_INTEGER));
-    allowNull[1] = false;
-
+    allowNull[1] = false; 
+    
     TupleSchema *blockids_schema = TupleSchema::createTupleSchema(columnTypes, columnSizes, allowNull, false);
-
+    
     //TupleSchema *evicted_schema = TupleSchema::createTupleSchema(pkey_schema, blockids_schema);
-
+    
     // Always make sure that we return memory!
     //TupleSchema::freeTupleSchema(blockids_schema);
-
+    
     return (blockids_schema);
 }
 
@@ -169,19 +170,19 @@ TupleSchema* TupleSchema::createTrackerTupleSchema() {
     std::vector<ValueType> columnTypes(2);
     std::vector<int32_t> columnSizes(2);
     std::vector<bool> allowNull(2);
-
+    
     // COLUMN 0: TABLE_NAME
-    columnTypes[0] = VALUE_TYPE_VARCHAR;
-    columnSizes[0] = static_cast<int32_t>(32);
+    columnTypes[0] = VALUE_TYPE_VARCHAR; 
+    columnSizes[0] = static_cast<int32_t>(32); 
     allowNull[0] = false;
-
+    
     // COLUMN 1: TUPLE_ID
     columnTypes[1] = VALUE_TYPE_INTEGER;
     columnSizes[1] = static_cast<int32_t>(NValue::getTupleStorageSize(VALUE_TYPE_INTEGER));
-    allowNull[1] = false;
-
+    allowNull[1] = false; 
+    
     TupleSchema *schema = TupleSchema::createTupleSchema(columnTypes, columnSizes, allowNull, false);
-
+    
     return (schema);
 }
 

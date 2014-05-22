@@ -44,9 +44,11 @@ package edu.brown.hstore;
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -74,6 +76,7 @@ import org.voltdb.MemoryStats;
 import org.voltdb.ParameterSet;
 import org.voltdb.SQLStmt;
 import org.voltdb.SnapshotSiteProcessor;
+import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.SnapshotSiteProcessor.SnapshotTableTask;
 import org.voltdb.SysProcSelector;
 import org.voltdb.VoltProcedure;
@@ -81,6 +84,7 @@ import org.voltdb.VoltProcedure.VoltAbortException;
 import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.catalog.Catalog;
+import org.voltdb.catalog.CatalogMap;
 import org.voltdb.catalog.Cluster;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Host;
@@ -104,6 +108,7 @@ import org.voltdb.jni.MockExecutionEngine;
 import org.voltdb.logging.VoltLogger;
 import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.messaging.FastSerializer;
+import org.voltdb.sysprocs.SnapshotSave;
 import org.voltdb.types.SpecExecSchedulerPolicyType;
 import org.voltdb.types.SpeculationConflictCheckerType;
 import org.voltdb.types.SpeculationType;
@@ -993,30 +998,35 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         // wait for other threads to complete Aries recovery
         // ONLY called from main site.
         while (!m_ariesLog.isRecoveryCompleted()) {
+            /*
             try {
-                // don't sleep too long, shouldn't bias
-                // numbers
-                Thread.sleep(500);
+                // don't sleep too long, shouldn't bias numbers
+                Thread.sleep(1000);
             } catch (InterruptedException e) {
                 // TODO Auto-generated catch block
-                e.printStackTrace();
+                //e.printStackTrace();
             }
+            */
         }
     }
     
-    public void doPartitionRecovery(long txnIdToBeginReplay) {        
-        if (m_ariesLog  != null) {
+    public void doPartitionRecovery(long txnIdToBeginReplay) {    
+        LOG.warn("ARIES : aries : " + this.hstore_conf.site.aries+ " aries forward only : "+this.hstore_conf.site.aries_forward_only );
+
+        if (this.hstore_conf.site.aries && this.hstore_conf.site.aries_forward_only == false) {
             long logReadStartTime = System.currentTimeMillis();
 
             // define an array so that we can pass to native code by reference
             long size[] = new long[1];
             long ariesReplayPointer = readAriesLogForReplay(size);
 
-            //LOG.warn("ARIES : replay pointer address: " + ariesReplayPointer);
-            LOG.warn("ARIES : partition recovery started at partition : "+this.partitionId+ " log size :"+size[0]);
+            // LOG.info("ARIES : replay pointer address: " +
+            // ariesReplayPointer);
+            LOG.info("ARIES : partition recovery started at partition : " + this.partitionId + " log size :" + size[0]);
 
             long logReadEndTime = System.currentTimeMillis();
-            //LOG.warn("ARIES : log read in " + (logReadEndTime - logReadStartTime) + " milliseconds");
+            // LOG.info("ARIES : log read in " + (logReadEndTime -
+            // logReadStartTime) + " milliseconds");
 
             long ariesStartTime = System.currentTimeMillis();
 
@@ -1028,12 +1038,12 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             freePointerToReplayLog(ariesReplayPointer);
 
             long ariesEndTime = System.currentTimeMillis();
-            LOG.warn("ARIES : partition recovery finished in " + (ariesEndTime - ariesStartTime) + " milliseconds");
+            LOG.info("ARIES : partition recovery finished in " + (ariesEndTime - ariesStartTime) + " milliseconds");
 
             m_ariesLog.init();
         }
     }
-    
+        
     // ----------------------------------------------------------------------------
     // MAIN EXECUTION LOOP
     // ----------------------------------------------------------------------------
@@ -1636,12 +1646,14 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             this.lastTickTime = time;
         }
         
-        // CHANGE : TICK
+        // LOGICAL
         // do other periodic work
-        if (m_snapshotter != null) 
-	  m_snapshotter.doSnapshotWork(this.ee);
-
+        if (m_snapshotter != null)
+            m_snapshotter.doSnapshotWork(this.ee);
+                
     }
+        
+    
     
     private void updateMemoryStats(long time) {
         if (trace.val)
@@ -2105,7 +2117,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         FileUtil.makeDirIfNotExists(dbDirPath);
 
         return (dbDirPath);
-    }
+    }    
+      
 
     /**
      * Returns the file where the EE should store the ARIES log for this
@@ -5127,6 +5140,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
     }
 
     public Collection<Exception> completeSnapshotWork() throws InterruptedException {
+        LOG.warn("completeSnapshotWork at partition :"+this.getPartitionId());
         return m_snapshotter.completeSnapshotWork(ee);
     }    
     

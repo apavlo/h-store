@@ -162,7 +162,7 @@ public abstract class HStore {
                 }
             } else if (debug.val) LOG.warn("The ParameterMappings file '" + path + "' does not exist");
         }
-                
+        
         // ----------------------------------------------------------------------------
         // PartitionExecutor Initialization
         // ----------------------------------------------------------------------------
@@ -211,10 +211,8 @@ public abstract class HStore {
             singleton.addPartitionExecutor(local_partition, executor);
             first = false;
         } // FOR
-                
-        TheHashinator.initialize(catalogContext.catalog);
         
-        LOG.warn("HStore initialization complete");
+        TheHashinator.initialize(catalogContext.catalog);
         
         return (singleton);
     }

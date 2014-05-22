@@ -22,6 +22,7 @@
 #include "logging/LogProxy.h"
 
 #include <iostream>
+#include <cstdio>
 #include <fstream>
 
 namespace voltdb {
@@ -52,8 +53,9 @@ private:
 	void logLocally(const char *data, size_t size);
 	void logToEngineBuffer(const char *data, size_t size);
 
-	std::string logfileName;
-	std::ofstream logfile;
+	std::string logFileName;
+	FILE* logFile;
+	int logFileFD; // fd equivalent for fsync
 
 	bool jniLogging;
 	VoltDBEngine* engine;

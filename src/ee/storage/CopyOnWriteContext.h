@@ -20,8 +20,8 @@
 #include <vector>
 #include <utility>
 #include "common/TupleSerializer.h"
-#include "common/Pool.hpp"
 #include "storage/table.h"
+#include "common/Pool.hpp"
 #include "common/tabletuple.h"
 #include "boost/scoped_ptr.hpp"
 

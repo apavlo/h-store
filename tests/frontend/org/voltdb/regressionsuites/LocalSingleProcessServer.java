@@ -47,7 +47,7 @@ public class LocalSingleProcessServer extends VoltServerConfig {
     private static final Logger LOG = Logger.getLogger(LocalSingleProcessServer.class);
 
     public final File m_jarFileName;
-    public int m_partitionCount;
+    public final int m_partitionCount;
     public final BackendTarget m_target;
 
     CatalogContext catalogContext = null;

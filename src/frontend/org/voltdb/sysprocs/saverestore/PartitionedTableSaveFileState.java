@@ -96,7 +96,7 @@ public class PartitionedTableSaveFileState extends TableSaveFileState {
     @Override
     public SynthesizedPlanFragment[] generateRestorePlan(Table catalogTable) {
         SynthesizedPlanFragment[] restore_plan = null;
-        LOG.info("Partitioned :: Total partitions for Table: " + getTableName() + ": " + getTotalPartitions());
+        LOG.trace("Partitioned :: Total partitions for Table: " + getTableName() + ": " + getTotalPartitions());
         if (!catalogTable.getIsreplicated()) {
             restore_plan = generatePartitionedToPartitionedPlan();
         } else {
@@ -119,7 +119,7 @@ public class PartitionedTableSaveFileState extends TableSaveFileState {
     }
 
     private SynthesizedPlanFragment[] generatePartitionedToPartitionedPlan() {
-        LOG.info("Partition set: " + m_partitionsSeen);
+        LOG.trace("Partition set: " + m_partitionsSeen);
         ArrayList<SynthesizedPlanFragment> restorePlan = new ArrayList<SynthesizedPlanFragment>();
         HashSet<Integer> coveredPartitions = new HashSet<Integer>();
         Iterator<Integer> hosts = m_partitionsAtHost.keySet().iterator();
@@ -188,7 +188,7 @@ public class PartitionedTableSaveFileState extends TableSaveFileState {
     }
 
     private SynthesizedPlanFragment constructDistributePartitionedTableFragment(int distributorPartitionId, int uncoveredPartitionsAtHost[], int originalHostsArray[]) {
-        LOG.info("constructDistributePartitionedTableFragment : to partition : " + distributorPartitionId);
+        LOG.trace("constructDistributePartitionedTableFragment : to partition : " + distributorPartitionId);
 
         int result_dependency_id = getNextDependencyId();
         SynthesizedPlanFragment plan_fragment = new SynthesizedPlanFragment();

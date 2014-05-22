@@ -28,7 +28,6 @@ StringRef::create(size_t size, Pool* dataPool)
     StringRef* retval;
     if (dataPool != NULL)
     {
-    	VOLT_WARN("using dataPool");
         retval =
             new(dataPool->allocate(sizeof(StringRef))) StringRef(size, dataPool);
     }

@@ -26,6 +26,7 @@
 #include "harness.h"
 
 #include "common/executorcontext.hpp"
+#include "common/Pool.hpp"
 #include "common/UndoQuantum.h"
 #include "common/Topend.h"
 #include "common/FatalException.hpp"

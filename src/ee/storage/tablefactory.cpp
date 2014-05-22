@@ -289,10 +289,9 @@ void TableFactory::configureStats(voltdb::CatalogId databaseId,
         ExecutorContext *ctx,
         std::string name,
         Table *table) {
-
-	std::string hostname = "";
-	if(ctx != NULL)
-		hostname = ctx->m_hostname;
+    std::string hostname = "";
+    if(ctx != NULL)
+    	hostname = ctx->m_hostname;
 
     // initialize stats for the table
     table->getTableStats()->configure(name + " stats",

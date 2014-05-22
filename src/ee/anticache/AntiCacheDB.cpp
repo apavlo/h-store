@@ -133,18 +133,25 @@ void AntiCacheDB::initializeBerkeleyDB() {
   void AntiCacheDB::initializeNVM() {
     
     char nvm_file_name[150];
-    char partition_str[5]; 
+    char partition_str[50];
 
     m_totalBlocks = 0; 
+
+    #ifdef ANTICACHE_DRAM
+        VOLT_INFO("Allocating anti-cache in DRAM."); 
+        m_NVMBlocks = new char[aligned_file_size];
+	return; 
+    #endif
 
     // use executor context to figure out which partition we are at
     int partition_id = (int)m_executorContext->getPartitionId(); 
     sprintf(partition_str, "%d", partition_id); 
 
+    strcpy(nvm_file_name, m_dbDir.c_str()); 
     // there will be one NVM anti-cache file per partition, saved in /mnt/pmfs/anticache-XX
-    strcpy(nvm_file_name, "/mnt/pmfs/anticache-");
-    //strcpy(nvm_file_name, "anticache-");
-    strcat(nvm_file_name, partition_str); 
+    strcat(nvm_file_name, "/anticache-");
+    strcat(nvm_file_name, partition_str);
+    VOLT_INFO("Creating nvm file: %s", nvm_file_name); 
     nvm_file = fopen(nvm_file_name, "w"); 
 
     if(nvm_file == NULL)
@@ -182,11 +189,7 @@ void AntiCacheDB::initializeBerkeleyDB() {
     //off_t aligned_file_size = (((NVM_FILE_SIZE) + MMAP_PAGE_SIZE - 1) / MMAP_PAGE_SIZE * MMAP_PAGE_SIZE);  
     off_t aligned_file_size = NVM_FILE_SIZE; 
 
-    #ifdef ANTICACHE_DRAM
-        m_NVMBlocks = new char[aligned_file_size]; 
-    #else
-        m_NVMBlocks =  (char*)mmap(NULL, aligned_file_size, PROT_READ | PROT_WRITE, MAP_SHARED, nvm_fd, 0);
-    #endif
+    m_NVMBlocks =  (char*)mmap(NULL, aligned_file_size, PROT_READ | PROT_WRITE, MAP_SHARED, nvm_fd, 0);
  
     if(m_NVMBlocks == MAP_FAILED)
     {

@@ -43,6 +43,7 @@ public:
     };
 };
 
+/*
 TEST_F(AntiCacheDBTest, NextBlockId) {
     ChTempDir tempdir;
     AntiCacheDB anticache(NULL, ".", BLOCK_SIZE);
@@ -75,7 +76,7 @@ TEST_F(AntiCacheDBTest, WriteBlock) {
     } catch (...) {
         ASSERT_TRUE(false);
     }
-}
+}*/
 
 TEST_F(AntiCacheDBTest, ReadBlock) {
     // This will create a tempdir that will automatically be cleaned up
