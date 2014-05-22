@@ -382,7 +382,6 @@ CTX.TESTS['storage'] = """
  table_test
  tabletuple_export_test
  TupleStreamWrapper_test
- #window_test
 """
 
 CTX.TESTS['streaming'] = """
