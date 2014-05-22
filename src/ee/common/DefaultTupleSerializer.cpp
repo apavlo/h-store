@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB Inc.
+ * Copyright (C) 2008-2011 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,6 +36,8 @@ int DefaultTupleSerializer::getMaxSerializedTupleSize(const TupleSchema *schema)
         if (!schema->columnIsInlined(ii)) {
             size -= sizeof(void*);
             size += 4 + schema->columnLength(ii);
+        } else if ((schema->columnType(ii) == VALUE_TYPE_VARCHAR) || (schema->columnType(ii) == VALUE_TYPE_VARBINARY)) {
+            size += 3;//Serialization always uses a 4-byte length prefix
         }
     }
     return static_cast<int>(size);

@@ -29,6 +29,7 @@ import org.voltdb.VoltType;
 import org.voltdb.catalog.Table;
 import org.voltdb.exceptions.EEException;
 import org.voltdb.export.ExportProtoMessage;
+import org.voltdb.utils.NotImplementedException;
 import org.voltdb.utils.DBBPool.BBContainer;
 
 public class MockExecutionEngine extends ExecutionEngine {
@@ -226,10 +227,51 @@ public class MockExecutionEngine extends ExecutionEngine {
         return (null);
     }
 
+
 	@Override
 	public VoltTable antiCacheEvictBlockInBatch(Table catalog_tbl,
 			Table childTable, long block_size, int num_blocks) {
 		// TODO Auto-generated method stub
 		return null;
 	}
+
+    
+    @Override
+    public void MMAPInitialize(File dbDir, long mapSize, long syncFrequency) throws EEException {
+     // TODO Auto-generated method stub        
+    }
+    
+    @Override
+    public void ARIESInitialize(File dbDir, File logFile) throws EEException {
+     // TODO Auto-generated method stub        
+    }
+
+    @Override
+    public long getArieslogBufferLength() { 
+    // XXX: do nothing, we only implement this for JNI now.
+        return 0;
+    }
+
+    @Override
+    public void getArieslogData(int bufferLength, byte[] arieslogDataArray) { 
+    // XXX: do nothing, we only implement this for JNI now.
+    }
+
+    @Override
+    public void doAriesRecoveryPhase(long replayPointer, long replayLogSize, long replayTxnId) { 
+    // TODO Auto-generated method stub
+    }
+
+    @Override
+    public void freePointerToReplayLog(long ariesReplayPointer) {
+        // TODO Auto-generated method stub
+    }
+
+    @Override
+    public long readAriesLogForReplay(long[] size) {
+        // TODO Auto-generated method stub
+        return 0;
+    }
+    
+
 }

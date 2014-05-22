@@ -347,14 +347,17 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
      */
     public boolean queue(LocalTransaction ts, int partition, Table catalog_tbl, short block_ids[], int tuple_offsets[]) {
 
-        //        if (hstore_conf.site.anticache_profiling) {
-        assert(ts.getPendingError() != null) :
-            String.format("Missing original %s for %s", EvictedTupleAccessException.class.getSimpleName(), ts);
-        assert(ts.getPendingError() instanceof EvictedTupleAccessException) :
-            String.format("Unexpected error for %s: %s", ts, ts.getPendingError().getClass().getSimpleName());
-        this.profilers[partition].restarted_txns++;
-        this.profilers[partition].addEvictedAccess(ts, (EvictedTupleAccessException)ts.getPendingError());
-        //        }
+        if (hstore_conf.site.anticache_profiling) {
+            assert(ts.getPendingError() != null) :
+                String.format("Missing original %s for %s", EvictedTupleAccessException.class.getSimpleName(), ts);
+            assert(ts.getPendingError() instanceof EvictedTupleAccessException) :
+                String.format("Unexpected error for %s: %s", ts, ts.getPendingError().getClass().getSimpleName());
+            this.profilers[partition].restarted_txns++;
+            this.profilers[partition].addEvictedAccess(ts, (EvictedTupleAccessException)ts.getPendingError());
+
+	    LOG.debug("Restarting transaction " + String.format("%s",ts) + ", " + ts.getRestartCounter() + " total restarts."); 
+	    LOG.debug("Total Restarted Txns: " + this.profilers[partition].restarted_txns); 
+        }
 
         QueueEntry e = new QueueEntry(ts, partition, catalog_tbl, block_ids, tuple_offsets);
 

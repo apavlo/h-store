@@ -344,6 +344,7 @@ protected:
     
     // stats
     IndexStats m_stats;
+
 };
 
 }

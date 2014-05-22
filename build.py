@@ -79,7 +79,7 @@ CTX.OUTPUT_PREFIX += "/"
 # these are the base compile options that get added to every compile step
 # this does not include header/lib search paths or specific flags for
 #  specific targets
-CTX.CPPFLAGS = """-Wall -Wextra -Werror -Woverloaded-virtual -Wconversion
+CTX.CPPFLAGS = """ -Wextra -Woverloaded-virtual -Wconversion
             -Wpointer-arith -Wcast-qual -Wcast-align -Wwrite-strings
             -Winit-self -Wno-sign-compare -Wno-unused-parameter
             -pthread
@@ -198,9 +198,11 @@ CTX.INPUT['common'] = """
  types.cpp
  UndoLog.cpp
  NValue.cpp
+ MMAPMemoryManager.cpp
  RecoveryProtoMessage.cpp
  RecoveryProtoMessageBuilder.cpp
  DefaultTupleSerializer.cpp
+ StringRef.cpp
 """
 
 CTX.INPUT['execution'] = """
@@ -273,6 +275,7 @@ CTX.INPUT['storage'] = """
  CopyOnWriteIterator.cpp
  ConstraintFailureException.cpp
  MaterializedViewMetadata.cpp
+ mmap_persistenttable.cpp
  persistenttable.cpp
  PersistentTableStats.cpp
  PersistentTableUndoDeleteAction.cpp
@@ -299,8 +302,10 @@ CTX.INPUT['stats'] = """
 CTX.INPUT['logging'] = """
  JNILogProxy.cpp
  LogManager.cpp
+ AriesLogProxy.cpp
+ Logrecord.cpp
 """
-
+ 
 # specify the third party input
 
 CTX.THIRD_PARTY_INPUT['json_spirit'] = """
@@ -353,6 +358,7 @@ CTX.TESTS['storage'] = """
  CopyOnWriteTest
  constraint_test
  filter_test
+ mmap_persistent_table_test
  persistent_table_log_test
  serialize_test
  StreamedTable_test
@@ -366,11 +372,18 @@ CTX.TESTS['storage'] = """
 # CTX.TESTS['expressions'] = """expserialize_test expression_test"""
 
 ###############################################################################
-# MMAP STORAGE
+# STORAGE MMAP
 ###############################################################################
 
-if CTX.MMAP_STORAGE:
-    CTX.CPPFLAGS += " -DMMAP_STORAGE"
+if CTX.STORAGE_MMAP:
+    CTX.CPPFLAGS += " -DSTORAGE_MMAP"
+
+###############################################################################
+# ARIES
+###############################################################################
+
+if CTX.ARIES:
+    CTX.CPPFLAGS += " -DARIES"
 
 ###############################################################################
 # ANTI-CACHING
@@ -379,8 +392,14 @@ if CTX.MMAP_STORAGE:
 if CTX.ANTICACHE_BUILD:
     CTX.CPPFLAGS += " -DANTICACHE"
 
+    if CTX.ANTICACHE_NVM:
+        CTX.CPPFLAGS += " -DANTICACHE_NVM"
+
     if CTX.ANTICACHE_REVERSIBLE_LRU:
         CTX.CPPFLAGS += " -DANTICACHE_REVERSIBLE_LRU"
+        
+    if CTX.ANTICACHE_DRAM:
+        CTX.CPPFLAGS += " -DANTICACHE_DRAM"
 
     # Bring in berkeleydb library
     CTX.SYSTEM_DIRS.append(os.path.join(CTX.OUTPUT_PREFIX, 'berkeleydb'))

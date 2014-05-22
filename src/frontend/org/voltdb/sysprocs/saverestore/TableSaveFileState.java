@@ -23,7 +23,16 @@ import java.util.Set;
 
 import org.voltdb.VoltTableRow;
 import org.voltdb.VoltSystemProcedure.SynthesizedPlanFragment;
+import org.voltdb.catalog.Host;
+import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Table;
+
+import org.voltdb.catalog.Host;
+import org.voltdb.catalog.Site;
+import org.voltdb.catalog.Table;
+
+import edu.brown.hstore.PartitionExecutor.SystemProcedureExecutionContext;
+
 
 public abstract class TableSaveFileState
 {
@@ -82,6 +91,15 @@ public abstract class TableSaveFileState
         return m_rootDependencyId;
     }
 
+    public void setSystemProcedureExecutionContext(SystemProcedureExecutionContext context){
+        m_context = context;
+    }
+    
+    public SystemProcedureExecutionContext getSystemProcedureExecutionContext(){
+        return m_context;
+    }
+    
+    private SystemProcedureExecutionContext m_context;
     private final String m_tableName;
     private final Set<Integer> m_planDependencyIds;
     final int m_allowExport;

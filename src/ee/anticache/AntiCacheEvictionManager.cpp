@@ -163,7 +163,7 @@ bool AntiCacheEvictionManager::updateUnevictedTuple(PersistentTable* table, Tabl
 }
     
 bool AntiCacheEvictionManager::updateTuple(PersistentTable* table, TableTuple* tuple, bool is_insert) {
-    int SAMPLE_RATE = 100; // aLRU sampling rate
+    int SAMPLE_RATE = 1000; // aLRU sampling rate
     
     if(table->getEvictedTable() == NULL || table->isBatchEvicted())  // no need to maintain chain for non-evictable tables or batch evicted tables
         return true; 
@@ -182,7 +182,7 @@ bool AntiCacheEvictionManager::updateTuple(PersistentTable* table, TableTuple* t
         
         assert(table->getNumTuplesInEvictionChain() > 0);
 #ifdef ANTICACHE_REVERSIBLE_LRU
-        removeTupleDoubleLinkedList(table, update_tuple_id);
+        removeTupleDoubleLinkedList(table, tuple, update_tuple_id);
 #else
         removeTupleSingleLinkedList(table, update_tuple_id); 
 #endif
@@ -246,14 +246,14 @@ bool AntiCacheEvictionManager::removeTuple(PersistentTable* table, TableTuple* t
     
     // the removeTuple() method called is dependent on whether it is a single or double linked list
 #ifdef ANTICACHE_REVERSIBLE_LRU
-    return removeTupleDoubleLinkedList(table, current_tuple_id);
+    return removeTupleDoubleLinkedList(table, tuple, current_tuple_id);
 #else
     return removeTupleSingleLinkedList(table, current_tuple_id);
 #endif
 }
     
 // for the double linked list we start from the tail of the chain and iterate backwards
-bool AntiCacheEvictionManager::removeTupleDoubleLinkedList(PersistentTable* table, uint32_t removal_id) {
+bool AntiCacheEvictionManager::removeTupleDoubleLinkedList(PersistentTable* table, TableTuple* tuple_to_remove, uint32_t removal_id) {
     
     bool tuple_found = false;
     
@@ -320,7 +320,29 @@ bool AntiCacheEvictionManager::removeTupleDoubleLinkedList(PersistentTable* tabl
         }
         tuple_found = true;
     }
+
     
+    if(!tuple_found)
+    {
+        previous_tuple_id = tuple_to_remove->getPreviousTupleInChain(); 
+        next_tuple_id = tuple_to_remove->getNextTupleInChain(); 
+
+        //VOLT_INFO("previous: %d, removal: %d, next: %d", previous_tuple_id, removal_id, next_tuple_id); 
+        //next_tuple_id = tuple.getPreviousTupleInChain();
+            
+        // point previous tuple in chain to next tuple
+        tuple.move(table->dataPtrForTuple(previous_tuple_id));
+        tuple.setNextTupleInChain(next_tuple_id);
+            
+        // point next tuple in chain to previous tuple
+        tuple.move(table->dataPtrForTuple(next_tuple_id));
+        tuple.setPreviousTupleInChain(previous_tuple_id);
+            
+        tuple_found = true;
+    }
+    
+    
+    /*
     int iterations = 0;
     while(!tuple_found && iterations < table->getNumTuplesInEvictionChain()) {
                 
@@ -350,6 +372,10 @@ bool AntiCacheEvictionManager::removeTupleDoubleLinkedList(PersistentTable* tabl
         
         iterations++;
     }
+    */
+
+    //printLRUChain(table, 100, true); 
+    //VOLT_INFO("Found tuple in %d iterations.", iterations); 
     
     if (tuple_found) {
         tuples_in_chain = table->getNumTuplesInEvictionChain(); 
@@ -399,6 +425,7 @@ bool AntiCacheEvictionManager::removeTupleSingleLinkedList(PersistentTable* tabl
         }
         tuple_found = true; 
     }
+
 
     int iterations = 0; 
     while(!tuple_found && iterations < table->getNumTuplesInEvictionChain()) {        
@@ -1039,7 +1066,7 @@ bool AntiCacheEvictionManager::readEvictedBlock(PersistentTable *table, int16_t 
 
     try
     {
-        AntiCacheBlock value = antiCacheDB->readBlock(block_id);
+        AntiCacheBlock value = antiCacheDB->readBlock(table->name(), block_id);
 
         // allocate the memory for this block
         VOLT_INFO("block size is %ld - table Name %s", value.getSize(), table->name().c_str());

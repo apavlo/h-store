@@ -421,8 +421,8 @@ public class LocalTransaction extends AbstractTransaction {
      */
     public void initFirstRound(long undoToken, int batchSize) {
         if (debug.val)
-            LOG.debug(String.format("%s - Initializing ROUND #%d on partition %d [undoToken=%d]", 
-                      this, this.round_ctr[this.base_partition], this.base_partition, undoToken));
+            LOG.debug(String.format("%s - Initializing ROUND #%d on partition %d [undoToken=%d] batch_size %d", 
+                      this, this.round_ctr[this.base_partition], this.base_partition, undoToken, batchSize));
         
         this.batch_size = batchSize;
         if (this.depTracker != null) {

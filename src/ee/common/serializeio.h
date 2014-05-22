@@ -186,6 +186,10 @@ public:
         current_ -= bytes;
     }
 
+    size_t numBytesNotYetRead() {
+    	return (end_ - current_);
+    }
+
 private:
     template <typename T>
     T readPrimitive() {
@@ -508,7 +512,57 @@ private:
     ByteArray bytes_;
 };
 
+/*
+* A serialize output class that falls back to allocating a 50 meg buffer
+* if the regular allocation runs out of space. The topend is notified when this occurs.
+*/
+class FallbackSerializeOutput : public ReferenceSerializeOutput {
+public:
+    FallbackSerializeOutput() :
+        ReferenceSerializeOutput(), fallbackBuffer_(NULL) {
+    }
 
+    /** Set the buffer to buffer with capacity and sets the position. */
+    void initializeWithPosition(void* buffer, size_t capacity, size_t position) {
+        if (fallbackBuffer_ != NULL) {
+            char *temp = fallbackBuffer_;
+            fallbackBuffer_ = NULL;
+            delete []temp;
+        }
+        setPosition(position);
+        initialize(buffer, capacity);
+    }
+
+    // Destructor frees the fallback buffer if it is allocated
+    virtual ~FallbackSerializeOutput() {
+        delete []fallbackBuffer_;
+    }
+
+    /** Expand once to a fallback size, and if that doesn't work abort */
+    virtual void expand(size_t minimum_desired){
+    	  /*
+    	* Leave some space for message headers and such, almost 50 megabytes
+    	*/
+    	    size_t maxAllocationSize = ((1024 * 1024 *50) - (1024 * 32));
+    	    if (fallbackBuffer_ != NULL || minimum_desired > maxAllocationSize) {
+    	        if (fallbackBuffer_ != NULL) {
+    	            char *temp = fallbackBuffer_;
+    	            fallbackBuffer_ = NULL;
+    	            delete []temp;
+    	        }
+    	        throw SQLException(SQLException::volt_output_buffer_overflow,
+    	            "Output from SQL stmt overflowed output/network buffer of 50mb (-32k for message headers). "
+    	            "Try a \"limit\" clause or a stronger predicate.");
+    	    }
+    	    fallbackBuffer_ = new char[maxAllocationSize];
+    	    ::memcpy(fallbackBuffer_, data(), position_);
+    	    setPosition(position_);
+    	    initialize(fallbackBuffer_, maxAllocationSize);
+    	    //XXX ExecutorContext::getExecutorContext()->getTopend()->fallbackToEEAllocatedBuffer(fallbackBuffer_, maxAllocationSize);
+    }
+private:
+    char *fallbackBuffer_;
+};
 
 
 

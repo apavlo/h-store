@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB Inc.
+ * Copyright (C) 2008-2011 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -54,6 +54,19 @@ public:
 
     static inline NValue getNullStringValue() {
         return NValue::getNullStringValue();
+    }
+
+    static inline NValue getBinaryValue(std::string value) {
+        // uses hex encoding
+        return NValue::getBinaryValue(value);
+    }
+
+    static inline NValue getBinaryValue(unsigned char* value, int32_t len) {
+        return NValue::getBinaryValue(value, len);
+    }
+
+    static inline NValue getNullBinaryValue() {
+        return NValue::getNullBinaryValue();
     }
 
     /** Returns valuetype = VALUE_TYPE_NULL. Careful with this! */
