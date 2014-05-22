@@ -79,6 +79,7 @@ public class LogEntry implements FastSerializable, Poolable {
     }
 
     public LogEntry init(AbstractTransaction ts, Boolean type) {
+        this.batchId = ts.getBatchId();
         this.txnId = ts.getTransactionId();
         this.procId = ts.getProcedure().getId();
         this.procParams = ts.getProcedureParameters();
