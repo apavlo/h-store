@@ -267,18 +267,18 @@ bool IndexScanExecutor::p_init(AbstractPlanNode *abstractNode,
     // We'll throw an error if the index is missing
     //
     m_index = m_targetTable->index(m_node->getTargetIndexName());
-    m_searchKey = TableTuple(m_index->getKeySchema());
-    m_searchKeyBackingStore = new char[m_index->getKeySchema()->tupleLength()];
-    m_searchKey.moveNoHeader(m_searchKeyBackingStore);
-    if (m_index == NULL)
-    {
+    if (m_index == NULL) {
         VOLT_ERROR("Failed to retreive index '%s' from table '%s' for PlanNode"
                    " '%s'", m_node->getTargetIndexName().c_str(),
                    m_targetTable->name().c_str(), m_node->debug().c_str());
-        delete [] m_searchKeyBackingStore;
+        // delete [] m_searchKeyBackingStore;
         delete [] m_projectionExpressions;
         return false;
     }
+    m_searchKey = TableTuple(m_index->getKeySchema());
+    m_searchKeyBackingStore = new char[m_index->getKeySchema()->tupleLength()];
+    m_searchKey.moveNoHeader(m_searchKeyBackingStore);
+    
     m_tuple = TableTuple(m_targetTable->schema());
 
     if (m_node->getEndExpression() != NULL)
