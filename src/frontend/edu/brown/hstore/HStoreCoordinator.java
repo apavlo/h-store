@@ -22,6 +22,7 @@ import org.voltdb.catalog.Host;
 import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
+import org.voltdb.catalog.Table;
 import org.voltdb.exceptions.SerializableException;
 import org.voltdb.exceptions.ServerFaultException;
 import org.voltdb.messaging.FastSerializer;
@@ -65,7 +66,11 @@ import edu.brown.hstore.Hstoreservice.TransactionReduceRequest;
 import edu.brown.hstore.Hstoreservice.TransactionReduceResponse;
 import edu.brown.hstore.Hstoreservice.TransactionWorkRequest;
 import edu.brown.hstore.Hstoreservice.TransactionWorkResponse;
+import edu.brown.hstore.Hstoreservice.UnevictDataRequest;
+import edu.brown.hstore.Hstoreservice.UnevictDataRequest.Builder;
+import edu.brown.hstore.Hstoreservice.UnevictDataResponse;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
+import edu.brown.hstore.callbacks.LocalInitQueueCallback;
 import edu.brown.hstore.callbacks.ShutdownPrepareCallback;
 import edu.brown.hstore.callbacks.LocalFinishCallback;
 import edu.brown.hstore.callbacks.TransactionPrefetchCallback;
@@ -246,6 +251,35 @@ public class HStoreCoordinator implements Shutdownable {
     };
 
     // ----------------------------------------------------------------------------
+    // UNEVICT CALLBACK
+    // ----------------------------------------------------------------------------
+    
+    private RpcCallback<UnevictDataResponse> unevictCallback = new RpcCallback<UnevictDataResponse>() {
+        @Override
+        public void run(UnevictDataResponse response) {
+            if (response.getStatus() == Status.OK) {
+                if (trace.val)
+                    LOG.trace(String.format("%s %s -> %s [%s]",
+                              response.getClass().getSimpleName(),
+                              HStoreThreadManager.formatSiteName(response.getSenderSite()),
+                              HStoreThreadManager.formatSiteName(local_site_id),
+                              response.getStatus()));
+                long oldTxnId = response.getTransactionId();
+                int partition = response.getPartitionId();
+
+
+                LocalTransaction ts = hstore_site.getTransaction(oldTxnId);
+                
+                assert(response.getSenderSite() != local_site_id);
+                hstore_site.getTransactionInitializer().resetTransactionId(ts, ts.getBasePartition());
+            	LOG.info(String.format("transaction %d is being restarted", ts.getTransactionId()));
+            	LocalInitQueueCallback initCallback = (LocalInitQueueCallback)ts.getInitCallback();
+                hstore_site.getCoordinator().transactionInit(ts, initCallback);
+            }
+        }
+    };
+
+    // ----------------------------------------------------------------------------
     // INITIALIZATION
     // ----------------------------------------------------------------------------
 
@@ -261,7 +295,7 @@ public class HStoreCoordinator implements Shutdownable {
         this.local_site_id = this.catalog_site.getId();
         this.num_sites = this.hstore_site.getCatalogContext().numberOfSites;
         this.channels = new HStoreService[this.num_sites];
-        
+
         if (debug.val)
             LOG.debug(String.format("Local Partitions for Site #%d: %s",
                       hstore_site.getSiteId(), hstore_site.getLocalPartitionIds()));
@@ -472,6 +506,9 @@ public class HStoreCoordinator implements Shutdownable {
         return (this.transactionFinish_handler);
     }
     
+    public void setUnevictCallback(RpcCallback<UnevictDataResponse> callback){
+    	this.unevictCallback = callback;
+    }
     /**
      * Initialize all the network connections to remote
      *  
@@ -745,11 +782,8 @@ public class HStoreCoordinator implements Shutdownable {
         
         @Override
         public void heartbeat(RpcController controller, HeartbeatRequest request, RpcCallback<HeartbeatResponse> done) {
-            if (debug.val)
-                LOG.debug(String.format("Received %s from HStoreSite %s",
-                          request.getClass().getSimpleName(),
-                          HStoreThreadManager.formatSiteName(request.getSenderSite())));
-            HeartbeatResponse.Builder builder = HeartbeatResponse.newBuilder()
+            LOG.info(String.format("heartbeat from %d at %d^^^^^^^^^^", request.getSenderSite(), local_site_id));
+        	HeartbeatResponse.Builder builder = HeartbeatResponse.newBuilder()
                                                     .setSenderSite(local_site_id)
                                                     .setStatus(Status.OK);
             done.run(builder.build());            
@@ -795,6 +829,34 @@ public class HStoreCoordinator implements Shutdownable {
                                                   .build();
             done.run(response);
         }
+
+		@Override
+		public void unevictData(RpcController controller,
+				UnevictDataRequest request,
+				RpcCallback<UnevictDataResponse> done) {
+			LOG.info(String.format("Received %s from HStoreSite %s at HStoreSite %s",
+                    request.getClass().getSimpleName(),
+                    HStoreThreadManager.formatSiteName(request.getSenderSite()),
+                    HStoreThreadManager.formatSiteName(local_site_id)));
+			
+			AbstractTransaction ts = hstore_site.getTransaction(request.getTransactionId());
+			System.out.println(hstore_site.getInflightTxns().size());
+			System.out.println(request.getTransactionId());
+			assert(ts!=null);
+			ts.setUnevictCallback(done);
+			
+			
+			ts.setNewTransactionId(request.getNewTransactionId());
+			int partition = request.getPartitionId();
+			Table catalog_tbl = hstore_site.getCatalogContext().getTableById(request.getTableId());
+			short[] block_ids = new short[request.getBlockIdsList().size()];
+			for(int i = 0; i < request.getBlockIdsList().size(); i++) block_ids[i] = (short) request.getBlockIds(i);
+
+			int [] tuple_offsets = new int[request.getTupleOffsetsList().size()];
+			for(int i = 0; i < request.getTupleOffsetsList().size(); i++) tuple_offsets[i] = request.getTupleOffsets(i);
+
+			hstore_site.getAntiCacheManager().queue(ts, partition, catalog_tbl, block_ids, tuple_offsets);
+		}
 
     } // END CLASS
     
@@ -1273,6 +1335,48 @@ public class HStoreCoordinator implements Shutdownable {
                 // Silently ignore these errors...
             }
         } // FOR
+    }
+
+    // ----------------------------------------------------------------------------
+    // UNEVICT DATA
+    // ----------------------------------------------------------------------------
+    
+    /**
+     * Send a message to a remote site to unevict data
+     * @param tuple_offsets 
+     * @param block_ids 
+     * @param catalog_tbl 
+     * @param partition_id 
+     * @param txn 
+     * @return 
+     */
+    public void sendUnevictDataMessage(int remote_site_id, LocalTransaction txn, int partition_id, Table catalog_tbl, short[] block_ids, int[] tuple_offsets) {
+    	 Builder builder = UnevictDataRequest.newBuilder()
+                                    .setSenderSite(this.local_site_id)
+                                    .setTransactionId(txn.getOldTransactionId())
+                                    .setNewTransactionId(txn.getTransactionId())
+                                    .setPartitionId(partition_id)
+                                    .setTableId(catalog_tbl.getRelativeIndex());
+                          
+    	 for (int i = 0; i< block_ids.length; i++){
+		builder = builder.addBlockIds(block_ids[i]);
+    	 }
+    	 for (int i=0; i< tuple_offsets.length; i++){
+		builder = builder.addTupleOffsets(tuple_offsets[i]);
+    	 }
+    	 UnevictDataRequest request = builder.build();            
+            try {
+				this.channels[remote_site_id].unevictData(new ProtoRpcController(), request, this.unevictCallback);
+				LOG.info(String.format("Sent unevict message request to remote hstore site %d from base site %d", remote_site_id, this.hstore_site.getSiteId()));
+                if (trace.val)
+                    LOG.trace(String.format("Sent %s to %s",
+                              request.getClass().getSimpleName(),
+                              HStoreThreadManager.formatSiteName(remote_site_id)));
+            } catch (RuntimeException ex) {
+                // Silently ignore these errors...
+            	ex.printStackTrace();
+            }
+
     }
     
     // ----------------------------------------------------------------------------

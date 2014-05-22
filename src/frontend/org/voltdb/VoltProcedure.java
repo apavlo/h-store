@@ -586,7 +586,6 @@ public abstract class VoltProcedure implements Poolable {
                     // have the logic down below for handling various errors from the EE
                     try {
                         Table catalog_tbl = txnState.getAntiCacheMergeTable();
-System.out.println("merging for table"+catalog_tbl.fullName());
                         this.executor.getExecutionEngine().antiCacheMergeBlocks(catalog_tbl);
                     } finally {
                         if (hstore_conf.site.anticache_profiling) {

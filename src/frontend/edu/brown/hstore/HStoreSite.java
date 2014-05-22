@@ -2209,6 +2209,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             }
             // We will want to delete this transaction after we reject it if it is a single-partition txn
             // Otherwise we will let the normal distributed transaction process clean things up
+            LOG.info("the reject happened here!!!");
             this.transactionReject(ts, status);
             if (singlePartitioned) this.queueDeleteTransaction(ts.getTransactionId(), status);
         }        
@@ -2463,6 +2464,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @return Returns the final status of this transaction
      */
     public Status transactionRestart(LocalTransaction orig_ts, Status status) {
+	//LOG.info(String.format("transaction %d was requested for a restarted", orig_ts.getTransactionId()));
         assert(orig_ts != null) : "Null LocalTransaction handle [status=" + status + "]";
         assert(orig_ts.isInitialized()) : "Uninitialized transaction??";
         if (debug.val)
@@ -2489,6 +2491,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                                            orig_ts, orig_ts.getRestartCounter());
                 throw new RuntimeException(msg);
             } else {
+            	LOG.info("the reject happened coz of too many restarts");
                 this.transactionReject(orig_ts, Status.ABORT_REJECT);
                 return (Status.ABORT_REJECT);
             }
@@ -2697,7 +2700,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             
             EvictedTupleAccessException error = (EvictedTupleAccessException)orig_error;
             short block_ids[] = error.getBlockIds();
-            int tuple_offsets[] = error.getTupleOffsets(); 
+            int tuple_offsets[] = error.getTupleOffsets();
+
                         
             Table evicted_table = error.getTable(this.catalogContext.database);
             new_ts.setPendingError(error, false);
@@ -2705,7 +2709,15 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             //if (debug.val)
             LOG.info(String.format("Added aborted txn to %s queue. Unevicting %d blocks from %s (%d).",
                           AntiCacheManager.class.getSimpleName(), block_ids.length, evicted_table.getName(), evicted_table.getRelativeIndex()));
-            this.anticacheManager.queue(new_ts, base_partition, evicted_table, block_ids, tuple_offsets);
+            //LOG.info(String.format("Added aborted txn to %s queue.",
+            //        AntiCacheManager.class.getSimpleName()));
+            
+            if(orig_ts.getBasePartition()!=error.getPartitionId() && !this.isLocalPartition(error.getPartitionId())){
+            	new_ts.setOldTransactionId(orig_ts.getTransactionId());
+            }
+            this.anticacheManager.queue(new_ts, error.getPartitionId(), evicted_table, block_ids, tuple_offsets);
+            
+            
         }
             
         // -------------------------------

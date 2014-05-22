@@ -468,7 +468,7 @@ public class TransactionInitializer {
      * @param base_partition
      * @return
      */
-    protected Long resetTransactionId(LocalTransaction ts, int base_partition) {
+    protected Long resetTransactionId(AbstractTransaction ts, int base_partition) {
         Long oldTxnId = ts.getTransactionId();
         assert(oldTxnId != null);
         AbstractTransaction removed = this.inflight_txns.remove(oldTxnId);
@@ -489,13 +489,13 @@ public class TransactionInitializer {
      * @param base_partition
      * @return
      */
-    protected Long registerTransaction(LocalTransaction ts, int base_partition) {
+    protected Long registerTransaction(AbstractTransaction ts, int base_partition) {
         TransactionIdManager idManager = this.txnIdManagers[base_partition]; 
         Long txn_id = idManager.getNextUniqueTransactionId();
         
         // For some odd reason we sometimes get duplicate transaction ids from the VoltDB id generator
         // So we'll just double check to make sure that it's unique, and if not, we'll just ask for a new one
-        LocalTransaction dupe = (LocalTransaction)this.inflight_txns.put(txn_id, ts);
+        AbstractTransaction dupe = this.inflight_txns.put(txn_id, ts);
         if (dupe != null) {
             // HACK!
             this.inflight_txns.put(txn_id, dupe);
@@ -513,6 +513,25 @@ public class TransactionInitializer {
         }
         
         return (txn_id);
+    }
+    
+    /**
+     * Register a new LocalTransaction handle with this HStoreSite with a new id
+     * @param ts
+     * @param oldTxnId
+     * @param newTxnId
+     * @return
+     */
+    protected void registerTransactionRestartWithId(AbstractTransaction ts, Long oldTxnId, Long newTxnId) {
+    	AbstractTransaction removed = this.inflight_txns.remove(oldTxnId);
+        assert(ts == removed);
+        ts.setTransactionId(newTxnId);
+        
+        this.inflight_txns.put(newTxnId, ts);   
+        
+        if (debug.val)
+            LOG.debug(String.format("Changed txnId from %d to %d: %s", oldTxnId, newTxnId, ts));
+             
     }
 
     /**

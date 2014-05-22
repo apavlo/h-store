@@ -2324,6 +2324,12 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 if (debug.val)
                     LOG.error(String.format("%s - Got error from partition %d in %s",
                               ts, result.getPartitionId(), result.getClass().getSimpleName()), error);
+                LOG.info(String.format("%s - Got error from partition %d in %s at partition %d",
+                        ts, result.getPartitionId(), result.getClass().getSimpleName(), this.partitionId), error);
+                if (error instanceof EvictedTupleAccessException){
+                	EvictedTupleAccessException evta = (EvictedTupleAccessException) error;
+                    LOG.info(String.format("Evicted tuple access exception error has partition id set as %d", evta.getPartitionId()));                	
+                }
                 ts.setPendingError(error, true);
             }
             return;
@@ -2762,6 +2768,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         } finally {
             if (error != null) {
                 // error.printStackTrace();
+            	if(error instanceof EvictedTupleAccessException){
+            		EvictedTupleAccessException ex = (EvictedTupleAccessException) error;
+            	}
+            	
                 LOG.warn(String.format("%s - Unexpected %s on partition %d",
                          ts, error.getClass().getSimpleName(), this.partitionId),
                          error); // (debug.val ? error : null));

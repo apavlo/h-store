@@ -245,6 +245,7 @@ final class ClientImpl implements Client {
             throw new java.io.InterruptedIOException("Interrupted while waiting for response");
         }
         if (cb.getResponse().getStatus() != Status.OK) {
+        	LOG.info("the response failed!!!");
             throw new ProcCallException(cb.getResponse(), cb.getResponse().getStatusString(), cb.getResponse().getException());
         }
         // cb.result() throws ProcCallException if procedure failed

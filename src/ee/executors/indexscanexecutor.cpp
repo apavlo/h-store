@@ -753,7 +753,8 @@ bool IndexScanExecutor::p_execute(const NValueArray &params, ReadWriteTracker *t
 
         VOLT_INFO("Throwing EvictedTupleAccessException for table %s (%d)", m_catalogTable->name().c_str(), m_catalogTable->relativeIndex());
         
-        throw EvictedTupleAccessException(m_catalogTable->relativeIndex(), num_block_ids, block_ids, tuple_ids);
+        int32_t partition_id = m_targetTable->m_executorContext->getPartitionId();
+        throw EvictedTupleAccessException(m_catalogTable->relativeIndex(), num_block_ids, block_ids, tuple_ids, partition_id);
     }
 #endif
     
