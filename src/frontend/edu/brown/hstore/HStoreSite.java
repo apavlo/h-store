@@ -1584,7 +1584,14 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         return (this.shutdown_observable);
     }
     
-
+    // added by hawkwang, 2014/5/23
+    // used to turn on and turn off fronttrigger mechanism
+    private Object setConfig(String key, Object value)
+    {
+        Object orginal_value = HStoreConf.singleton().get(key);
+        HStoreConf.singleton().set(key, value);
+        return orginal_value;
+    }
     
     /**
      * Launch all of the threads needed by this HStoreSite. This is a blocking call
@@ -1597,6 +1604,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         this.init();
         
+        // added by hawkwang, 2014/5/23
+        // used to turn off fronttrigger mechanism
+        String name = "global.sstore";
+        Object value = false;
+        Object origin_value = setConfig(name, value);
+        // ended by hawk
+        
         // ARIES
         if (this.hstore_conf.site.aries && this.hstore_conf.site.aries_forward_only == false) {
             doPhysicalRecovery();
@@ -1607,6 +1621,18 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (this.hstore_conf.site.snapshot){
             doLogicalRecovery();
         }
+        
+        // added by hawkwang, 2014/5/23
+        // used to turn back to origin setting for fronttrigger mechanism
+        setConfig(name, origin_value);
+        
+        // check if there is any stream item existing to fire frontend trigger
+        boolean isstore = (boolean)origin_value;
+        if(isstore == true)
+        {
+        // TBD
+        }
+        // ended by hawk
         
         try {
             this.clientInterface.startAcceptingConnections();

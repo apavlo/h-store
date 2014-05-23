@@ -3320,28 +3320,34 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             // added by hawk, 2013/11/1
             // fire the fragmentIds related procedures
             // step one - get all the related procedures
-            if(hasFrontEndTrigger==true){
-                String key = Arrays.toString(fragmentIds);
-                //System.out.println("hawk - checking frontend trigger with fragments 0:" + key);
-                key = key.replace("[", "");
-                key = key.replace("]", "");
-                key = key.replace(", ", "-");
-                String delimiter = "-";
-                String[] keys = key.split(delimiter);
-                for(int ik=0; ik< keys.length; ik++)
+            boolean is_sstore = this.hstore_conf.global.sstore;
+            System.out.println( "PartitionExecutor : executePlanFragments with isstore - " + String.valueOf( is_sstore ) );
+            if(is_sstore == true )
+            {
+                if(hasFrontEndTrigger==true)
                 {
-                    key = "[" + keys[ik] +"]";
-                    //System.out.println("hawk - checking frontend trigger with fragments 1:" + key);
-                    if(m_triggerProcedures.containsKey(key)==true)
+                    String key = Arrays.toString(fragmentIds);
+                    //System.out.println("hawk - checking frontend trigger with fragments 0:" + key);
+                    key = key.replace("[", "");
+                    key = key.replace("]", "");
+                    key = key.replace(", ", "-");
+                    String delimiter = "-";
+                    String[] keys = key.split(delimiter);
+                    for(int ik=0; ik< keys.length; ik++)
                     {
-                        for(Procedure procedure : m_triggerProcedures.get(key))
+                        key = "[" + keys[ik] +"]";
+                        //System.out.println("hawk - checking frontend trigger with fragments 1:" + key);
+                        if(m_triggerProcedures.containsKey(key)==true)
                         {
-                            // step two - iterate to fire them
-                            // first way - direct execute such procedure in HStoreSite (Server side)
-                            if(procedure.getBedefault() == true)  // FIXME modified by hawk, 2014-3-7
-                                this.hstore_site.invocationTriggerProcedureProcess(ts.getBatchId(), ts.getClientHandle(), /*ts.getInitiateTime()*/ EstTime.currentTimeMillis(), procedure);
-                            else // second way - send it back to client to run it (Client side)
-                                ;//ts.addFollowingProcedure(procedure);
+                            for(Procedure procedure : m_triggerProcedures.get(key))
+                            {
+                                // step two - iterate to fire them
+                                // first way - direct execute such procedure in HStoreSite (Server side)
+                                if(procedure.getBedefault() == true)  // FIXME modified by hawk, 2014-3-7
+                                    this.hstore_site.invocationTriggerProcedureProcess(ts.getBatchId(), ts.getClientHandle(), /*ts.getInitiateTime()*/ EstTime.currentTimeMillis(), procedure);
+                                else // second way - send it back to client to run it (Client side)
+                                    ;//ts.addFollowingProcedure(procedure);
+                            }
                         }
                     }
                 }
