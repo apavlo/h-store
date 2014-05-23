@@ -242,8 +242,8 @@ public class LocalCluster extends VoltServerConfig {
         assert(this.catalogContext != null);
         
         // tmpCatalog = CatalogUtil.loadCatalogFromJar(m_jarFileName);
-        System.err.println(CatalogInfo.getInfo(this.catalogContext));
-        System.err.flush();
+        System.out.println(CatalogInfo.getInfo(this.catalogContext));
+        System.out.flush();
         
         return m_compiled;
     }
@@ -363,7 +363,7 @@ public class LocalCluster extends VoltServerConfig {
         // spin until all the pipes see the magic "Server completed.." string.
         boolean allReady;
         do {
-            if (logtime) System.out.println("********** pre witness: " + (System.currentTimeMillis() - startTime) + " ms");
+            //if (logtime) System.out.println("********** pre witness: " + (System.currentTimeMillis() - startTime) + " ms");
             allReady = true;
             for (PipeToFile pipeToFile : m_pipes) {
                 if (pipeToFile.m_witnessedReady.get() != true) {
@@ -381,11 +381,11 @@ public class LocalCluster extends VoltServerConfig {
                 }
             }
         } while (allReady == false);
-        if (logtime) System.out.println("********** post witness: " + (System.currentTimeMillis() - startTime) + " ms");
+        //if (logtime) System.out.println("********** post witness: " + (System.currentTimeMillis() - startTime) + " ms");
 
         // Finally, make sure the local server thread is running and wait if it is not.
         m_localServer.waitForInitialization();
-        if (logtime) System.out.println("********** DONE: " + (System.currentTimeMillis() - startTime) + " ms");
+        //if (logtime) System.out.println("********** DONE: " + (System.currentTimeMillis() - startTime) + " ms");
         m_running = true;
     }
 

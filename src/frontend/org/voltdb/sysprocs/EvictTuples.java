@@ -1,5 +1,6 @@
 package org.voltdb.sysprocs;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
@@ -61,9 +62,10 @@ public class EvictTuples extends VoltSystemProcedure {
         throw new IllegalAccessError("Invalid invocation of " + this.getClass() + ".executePlanFragment()");
     }
     
-    public VoltTable[] run(int partition, String tableNames[], long blockSizes[], int numBlocks[]) {
+    public VoltTable[] run(int partition, String tableNames[], String childrenTableNames[], long blockSizes[], int numBlocks[]) {
         ExecutionEngine ee = executor.getExecutionEngine();
-        assert(tableNames.length == blockSizes.length);
+       assert(tableNames.length == blockSizes.length);
+	//LOG.info("reached evict tuples"); 
         
         // PROFILER
         AntiCacheManagerProfiler profiler = null;
@@ -79,22 +81,28 @@ public class EvictTuples extends VoltSystemProcedure {
             throw new VoltAbortException("No tables to evict were given");
         }
         Table tables[] = new Table[tableNames.length];
+        Table childTables[] = new Table[tableNames.length];
         for (int i = 0; i < tableNames.length; i++) {
+	//	LOG.info("reached tables for loop"); 
             tables[i] = catalogContext.database.getTables().getIgnoreCase(tableNames[i]);
             if (tables[i] == null) {
                 String msg = String.format("Unknown table '%s'", tableNames[i]);
-                throw new VoltAbortException(msg);
+          //      LOG.info("abort due to null table");
+		throw new VoltAbortException(msg);
             }
             else if (tables[i].getEvictable() == false) {
                 String msg = String.format("Trying to evict tuples from table '%s' but it is not marked as evictable", tables[i].getName());
+            //    LOG.info("abort due to non evictanle table");
                 throw new VoltAbortException(msg);
             }
             else if (blockSizes[i] <= 0) {
                 String msg = String.format("Invalid block eviction size '%d' for table '%s'", blockSizes[i], tables[i].getName());
+            //    LOG.info("abort due to blocksize < 0");
                 throw new VoltAbortException(msg);
             }
             else if(numBlocks[i] <= 0) {
                 String msg = String.format("Invalid number of blocks to evict '%d' for table '%s'", numBlocks[i], tables[i].getName());
+            //    LOG.info("abort due to num blocks < 0");
                 throw new VoltAbortException(msg);
             }
         } // FOR
@@ -106,11 +114,24 @@ public class EvictTuples extends VoltSystemProcedure {
         long totalBlocksEvicted = 0;
         long totalBytesEvicted = 0;
         for (int i = 0; i < tableNames.length; i++) {
+	    //LOG.info("reached batching loop"); 
             if (debug.val)
                 LOG.debug(String.format("Evicting %d blocks of blockSize %d",
                           numBlocks[i], blockSizes[i]));
+            VoltTable vt = null;
+            LOG.info("****************"+hstore_conf.site.anticache_batching);
+            if(hstore_conf.site.anticache_batching == true){
+            	LOG.info("reached here!!!!!");
+            	if(childrenTableNames.length!=0 && !childrenTableNames[i].isEmpty()){
+                	childTables[i] = catalogContext.database.getTables().getIgnoreCase(childrenTableNames[i]);
+                	vt = ee.antiCacheEvictBlockInBatch(tables[i], childTables[i], blockSizes[i], numBlocks[i]);            		
+            	}else{
+            		vt = ee.antiCacheEvictBlock(tables[i], blockSizes[i], numBlocks[i]);
+            	}
+            }else{
+            	vt = ee.antiCacheEvictBlock(tables[i], blockSizes[i], numBlocks[i]);	
+            }
             
-            VoltTable vt = ee.antiCacheEvictBlock(tables[i], blockSizes[i], numBlocks[i]);
             boolean adv = vt.advanceRow();
             
             if(!adv) {

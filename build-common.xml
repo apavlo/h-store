@@ -155,6 +155,7 @@
 <arg value="site.anticache_max_evicted_blocks=${site.anticache_max_evicted_blocks}" />
 <arg value="site.anticache_blocks_per_eviction=${site.anticache_blocks_per_eviction}" />
 <arg value="site.anticache_eviction_distribution=${site.anticache_eviction_distribution}" />
+<arg value="site.anticache_batching=${site.anticache_batching}" />
 <arg value="site.storage_mmap=${site.storage_mmap}" />
 <arg value="site.storage_mmap_dir=${site.storage_mmap_dir}" />
 <arg value="site.storage_mmap_file_size=${site.storage_mmap_file_size}" />

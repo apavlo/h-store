@@ -712,6 +712,13 @@ public final class HStoreConf {
         )
         public String anticache_eviction_distribution;
         
+        @ConfigProperty(
+        	    description="Turn on batching for anticaching",
+        	    defaultBoolean=false,
+        	    experimental=false
+        )
+        public boolean anticache_batching;
+        
         // ----------------------------------------------------------------------------
         // Storage MMAP Options
         // ----------------------------------------------------------------------------

@@ -30,6 +30,7 @@
 #include "storage/TupleIterator.h"
 #include "anticache/EvictionIterator.h"
 #include "common/tabletuple.h"
+#include "execution/VoltDBEngine.h"
 
 namespace voltdb {
 
@@ -40,7 +41,7 @@ class EvictionIterator;
 class AntiCacheEvictionManager {
         
 public: 
-    AntiCacheEvictionManager();
+    AntiCacheEvictionManager(const VoltDBEngine *engine);
     ~AntiCacheEvictionManager();
     
     bool updateTuple(PersistentTable* table, TableTuple* tuple, bool is_insert);
@@ -48,13 +49,18 @@ public:
     bool removeTuple(PersistentTable* table, TableTuple* tuple); 
 
     Table* evictBlock(PersistentTable *table, long blockSize, int numBlocks);
+    bool evictBlockToDisk(PersistentTable *table, const long block_size, int num_blocks);
+    bool evictBlockToDiskInBatch(PersistentTable *table, PersistentTable *childTable, const long block_size, int num_blocks);
+    Table* evictBlockInBatch(PersistentTable *table, PersistentTable *childTable, long blockSize, int numBlocks);
     Table* readBlocks(PersistentTable *table, int numBlocks, int16_t blockIds[], int32_t tuple_offsets[]);
-    
+    bool mergeUnevictedTuples(PersistentTable *table);
+    bool readEvictedBlock(PersistentTable *table, int16_t block_id, int32_t tuple_offset);
     //int numTuplesInEvictionList(); 
     
 protected:
     void initEvictResultTable();
     Table *m_evictResultTable;
+    const VoltDBEngine *m_engine;
     
     // TODO void initReadResultTable();
     Table *m_readResultTable;

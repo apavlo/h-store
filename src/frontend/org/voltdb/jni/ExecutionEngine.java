@@ -814,6 +814,15 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
     public abstract VoltTable antiCacheEvictBlock(Table catalog_tbl, long block_size, int num_blocks);
     
     /**
+     * Forcibly tell the EE that it needs to evict a certain number of bytes
+     * for a table in batch. 
+     * @param catalog_tbl
+     * @param childTable 
+     * @param block_size The number of bytes to evict from the target table
+     */
+    public abstract VoltTable antiCacheEvictBlockInBatch(Table catalog_tbl, Table childTable, long block_size, int num_blocks);
+    
+    /**
      * Instruct the EE to merge in the unevicted blocks into the table's regular data.
      * This is a blocking call and should only be executed when there is no other transaction
      * running at this partition.
@@ -850,7 +859,16 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
      * @return
      */
     protected native int nativeAntiCacheEvictBlock(long pointer, int tableId, long blockSize, int num_blocks);
-    
+
+    /**
+     * 
+     * @param pointer
+     * @param tableId
+     * @param blockSize
+     * @return
+     */
+    protected native int nativeAntiCacheEvictBlockInBatch(long pointer, int tableId, int childTableId, long blockSize, int num_blocks);
+
     /**
      * 
      * @param pointer
@@ -900,5 +918,5 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
 
     protected native void nativeFreePointerToReplayLog(long pointer, long ariesReplayPointer);
 
-    
+   
 }

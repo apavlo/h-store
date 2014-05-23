@@ -39,17 +39,51 @@ using namespace std;
 
 namespace voltdb {
 
-  AntiCacheBlock::AntiCacheBlock(int16_t blockId, char* block, long size) :
-        m_blockId(blockId),
-        m_block(block),
-        m_size(size) 
-{
-}
+  AntiCacheBlock::AntiCacheBlock(int16_t blockId, Dbt value) {
+	m_buf = (char *) value.get_data();
+
+	int16_t id = *((int16_t *)m_buf);
+	long bufLen_ = sizeof(int16_t);
+	std::string tableName = m_buf + bufLen_;
+	bufLen_ += tableName.size()+1;
+	long size = *((long *)(m_buf+bufLen_));
+	bufLen_+=sizeof(long);
+	char * data = m_buf + bufLen_;
+	bufLen_ += size;
+//	for(int i=0;i<size;i++){
+//	   VOLT_INFO("%x", data[i]);
+//	}
+
+	payload p;
+	p.blockId = id;
+	p.tableName = tableName;
+	p.data = data;
+	p.size = size;
+	m_size = size;
+	m_payload = p;
+	VOLT_INFO("size of anticache block data %ld in read", m_payload.size);
+	VOLT_INFO("size of anticache block data %ld in read", m_size);
+	VOLT_INFO("data in anticache block data %s in read", m_payload.data);
+	m_block = m_payload.data;
+	VOLT_INFO("data from getBlock %s", getData());
+	m_blockId = blockId;
+  }
+
+  AntiCacheBlock::AntiCacheBlock(int16_t blockId, char* block, long size) {
+  	  m_block = block;
+  	  m_blockId = blockId;
+  	  m_size = size;
+    }
 
 AntiCacheBlock::~AntiCacheBlock() {
     // we asked BDB to allocate memory for data dynamically, so we must delete
-    if(m_blockId > 0)
-        delete [] m_block; 
+    if(m_blockId > 0 && m_buf != NULL){
+    	delete m_buf;
+    }
+}
+
+BerkeleyDBBlock::~BerkeleyDBBlock() {
+	delete [] serialized_data;
 }
     
 AntiCacheDB::AntiCacheDB(ExecutorContext *ctx, std::string db_dir, long blockSize) :
@@ -222,26 +256,51 @@ void AntiCacheDB::writeBlockBerkeleyDB(const std::string tableName,
                              const int tupleCount,
                              const char* data,
                              const long size) {
-                                 
-    Dbt key; 
+
+
+    Dbt key;
     key.set_data(&blockId);
-    key.set_size(sizeof(int16_t));
+    key.set_size(sizeof(blockId));
+
+
+    char * databuf_ = new char [size+tableName.size() + 1+sizeof(blockId)+sizeof(size)];
+	memset(databuf_, 0, size+tableName.size() + 1+sizeof(blockId)+sizeof(size));
+	// Now pack the data into a single contiguous memory location
+	// for storage.
+	long bufLen_ = 0;
+	long dataLen = 0;
+	dataLen = sizeof(blockId);
+	memcpy(databuf_, &blockId, dataLen);
+	bufLen_ += dataLen;
+	dataLen = tableName.size() + 1;
+	memcpy(databuf_ + bufLen_, tableName.c_str(), dataLen);
+	bufLen_ += dataLen;
+	dataLen = sizeof(size);
+	memcpy(databuf_ + bufLen_, &size, dataLen);
+	bufLen_ += dataLen;
+	dataLen = size;
+	memcpy(databuf_ + bufLen_, data, dataLen);
+	bufLen_ += dataLen;
 
     Dbt value;
-    value.set_data(const_cast<char*>(data));
-    value.set_size(static_cast<int32_t>(size)); 
+	value.set_data(databuf_);
+	value.set_size(static_cast<int32_t>(bufLen_));
+
 
     VOLT_INFO("Writing out a block #%d to anti-cache database [tuples=%d / size=%ld]",
                blockId, tupleCount, size);
     // TODO: Error checking
     m_db->put(NULL, &key, &value, 0);
+
+    delete [] databuf_;
 }
 
-AntiCacheBlock AntiCacheDB::readBlockBerkeleyDB(std::string tableName, int16_t blockId) {
+AntiCacheBlock AntiCacheDB::readBlockBerkeleyDB(int16_t blockId) {
     
+
     Dbt key;
     key.set_data(&blockId);
-    key.set_size(sizeof(int16_t));
+    key.set_size(sizeof(blockId));
 
     Dbt value;
     value.set_flags(DB_DBT_MALLOC);
@@ -249,10 +308,11 @@ AntiCacheBlock AntiCacheDB::readBlockBerkeleyDB(std::string tableName, int16_t b
     VOLT_DEBUG("Reading evicted block with id %d", blockId);
     
     int ret_value = m_db->get(NULL, &key, &value, 0);
+
     if (ret_value != 0) 
     {
-        VOLT_ERROR("Invalid anti-cache blockId '%d' for table '%s'", blockId, tableName.c_str());
-        throw UnknownBlockAccessException(tableName, blockId);
+        VOLT_ERROR("Invalid anti-cache blockId '%d'", blockId);
+        throw UnknownBlockAccessException(blockId);
     }
     else 
     {
@@ -260,7 +320,7 @@ AntiCacheBlock AntiCacheDB::readBlockBerkeleyDB(std::string tableName, int16_t b
         assert(value.get_data() != NULL);
     }
     
-    AntiCacheBlock block(blockId, static_cast<char*>(value.get_data()), value.get_size());
+    AntiCacheBlock block(blockId, value);
     return (block);
 }
 
@@ -328,7 +388,7 @@ AntiCacheBlock AntiCacheDB::readBlock(std::string tableName, int16_t blockId) {
     #ifdef ANTICACHE_NVM
         return readBlockNVM(tableName, blockId);
     #else
-        return readBlockBerkeleyDB(tableName, blockId); 
+        return readBlockBerkeleyDB(blockId);
     #endif
 }
     

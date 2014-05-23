@@ -215,7 +215,7 @@ public class CatalogContext {
                 if (tbl.getIsreplicated()) {
                     this.replicatedTables.add(tbl);
                 }
-                if (tbl.getEvictable()) {
+                if (tbl.getEvictable() && !tbl.getBatchevicted()) {
                     this.evictableTables.add(tbl);
                 }
             }

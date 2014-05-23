@@ -834,7 +834,28 @@ public class VoltCompiler {
                 catalog_tbl.setEvictable(true);
             } // FOR
         }
-        
+
+        if (database.getBatchevictables() != null) {
+            for (Evictable e : database.getBatchevictables().getEvictable()) {
+                String tableName = e.getTable();
+                Table catalog_tbl = db.getTables().getIgnoreCase(tableName);
+                if (catalog_tbl == null) {
+                    throw new VoltCompilerException("Invalid evictable table name '" + tableName + "'");
+                }
+//                Index pkey = null;
+//                try {
+//                    pkey = CatalogUtil.getPrimaryKeyIndex(catalog_tbl);
+//                } catch (Exception ex) {
+//                    // Ignore
+//                }
+//                if (pkey == null) {
+//                    throw new VoltCompilerException("Unable to mark table '" + catalog_tbl.getName() + "' as " +
+//                    		                        "evictable because it does not have a primary key");
+//                }
+                catalog_tbl.setBatchevicted(true);
+            } // FOR
+        }
+
         // add vertical partitions
         if (database.getVerticalpartitions() != null) {
             for (Verticalpartition vp : database.getVerticalpartitions().getVerticalpartition()) {

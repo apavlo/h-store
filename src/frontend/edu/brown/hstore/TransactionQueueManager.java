@@ -200,7 +200,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
             hstore_site.getThreadManager().registerProcessingThread();
             
             if (debug.val)
-                LOG.debug(String.format("Starting %s thread", this.getClass().getSimpleName()));
+                LOG.info(String.format("Starting %s thread", this.getClass().getSimpleName()));
             AbstractTransaction nextTxn = null;
             while (stop == false) {
                 try {
@@ -373,7 +373,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
             if (localTxn.profiler != null) localTxn.profiler.startInitQueue();
         }
         this.initQueue.add(ts);
-    }
+ }
     
     /**
      * Add a new transaction to this queue manager.

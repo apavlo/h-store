@@ -30,6 +30,7 @@ import org.voltdb.types.SpeculationType;
 
 import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.Hstoreservice.Status;
+import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.utils.StringUtil;
 

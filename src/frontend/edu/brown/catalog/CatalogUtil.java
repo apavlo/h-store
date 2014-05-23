@@ -1258,6 +1258,24 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
         } // FOR
         return (found);
     }
+    
+    public static String[] getChildTables(Database catalog_db, Table catalog_tbl){
+        List<String> found= new ArrayList<String>(); 
+        CatalogMap<Column> columns = catalog_tbl.getColumns();
+        for (Table t : catalog_db.getTables()){
+        	if(t!=catalog_tbl){
+        		for(Column c: getForeignKeyDependents(t)){
+        			Column parentColumn = CatalogUtil.getForeignKeyParent(c);
+        			if(columns.containsKey(parentColumn.getName())){
+        				found.add(t.getName());
+        				break;
+        			}
+        		}
+        	}
+        }
+        String [] tableNames = new String[found.size()];
+        return found.toArray(tableNames);    	
+    }
 
     /**
      * Return the real Column objects for the ColumnRefs

@@ -1783,6 +1783,8 @@ public class BenchmarkController {
 
         // Evictable Tables
         String evictable[] = null;
+        // Batch Evictable Tables        
+        String[] batchEvictable = null;
         
         boolean dumpDatabase = false;
         String dumpDatabaseDir = null;
@@ -1798,8 +1800,10 @@ public class BenchmarkController {
         
         
         for (String arg : vargs) {
+            System.out.println(arg);
             String[] parts = arg.split("=",2);
-            for (int i = 0; i < parts.length; i++)
+            System.out.println(parts[0]);
+	    for (int i = 0; i < parts.length; i++)
                 parts[1] = parts[1].trim();
             
             if (parts.length == 1) {
@@ -1958,9 +1962,17 @@ public class BenchmarkController {
              * List of evictable tables
              */
             else if (parts[0].equalsIgnoreCase("EVICTABLE")) {
-                if (debug.val) LOG.debug("EVICTABLE: " + parts[1]);
+                LOG.info("EVICTABLE: " + parts[1]);
                 evictable = parts[1].split(",");
             }
+            /*
+             * List of batch evictable tables
+             */
+            else if (parts[0].equalsIgnoreCase("BATCHEVICTABLE")) {
+                LOG.info("BATCHEVICTABLE: " + parts[1]);
+                batchEvictable = parts[1].split(",");
+            }
+                        
             /*
              * List of deferrable queries
              * Format: <ProcedureName>.<StatementName>
@@ -2094,7 +2106,8 @@ public class BenchmarkController {
                 clientNames[i] = clientHosts.get(i);
         }
 
-        // create a config object, mostly for the results uploader at this point
+        
+		// create a config object, mostly for the results uploader at this point
         BenchmarkConfig config = new BenchmarkConfig(
                 hstore_conf,
                 hstore_conf_path,
@@ -2145,6 +2158,7 @@ public class BenchmarkController {
                 markov_recomputeAfterEnd,
                 markov_recomputeAfterWarmup,
                 evictable,
+                batchEvictable,
                 deferrable,
                 dumpDatabase,
                 dumpDatabaseDir

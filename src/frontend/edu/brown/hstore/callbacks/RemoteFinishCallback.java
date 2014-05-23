@@ -8,7 +8,7 @@ import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.PartitionSet;
-
+import org.voltdb.exceptions.EvictedTupleAccessException;
 /**
  * Special callback that keeps track as to whether we have finished up
  * with everything that we need for a given transaction at a HStoreSite.
@@ -50,8 +50,8 @@ public class RemoteFinishCallback extends PartitionCountingCallback<AbstractTran
 
     @Override
     protected void unblockCallback() {
-        this.hstore_site.queueDeleteTransaction(this.ts.getTransactionId(), this.ts.getStatus());
-    }
+   //     this.hstore_site.queueDeleteTransaction(this.ts.getTransactionId(), this.ts.getStatus());
+}
     
     @Override
     protected void abortCallback(int partition, Status status) {

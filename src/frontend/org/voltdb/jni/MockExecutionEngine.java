@@ -226,6 +226,15 @@ public class MockExecutionEngine extends ExecutionEngine {
         // TODO Auto-generated method stub
         return (null);
     }
+
+
+	@Override
+	public VoltTable antiCacheEvictBlockInBatch(Table catalog_tbl,
+			Table childTable, long block_size, int num_blocks) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
     
     @Override
     public void MMAPInitialize(File dbDir, long mapSize, long syncFrequency) throws EEException {
@@ -264,4 +273,5 @@ public class MockExecutionEngine extends ExecutionEngine {
         return 0;
     }
     
+
 }

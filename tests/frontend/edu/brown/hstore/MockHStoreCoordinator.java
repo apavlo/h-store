@@ -16,6 +16,7 @@ import edu.brown.hstore.Hstoreservice.ShutdownPrepareRequest;
 import edu.brown.hstore.Hstoreservice.ShutdownPrepareResponse;
 import edu.brown.hstore.Hstoreservice.ShutdownRequest;
 import edu.brown.hstore.Hstoreservice.ShutdownResponse;
+import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.TimeSyncRequest;
 import edu.brown.hstore.Hstoreservice.TimeSyncResponse;
 import edu.brown.hstore.Hstoreservice.TransactionDebugRequest;
@@ -36,6 +37,8 @@ import edu.brown.hstore.Hstoreservice.TransactionReduceRequest;
 import edu.brown.hstore.Hstoreservice.TransactionReduceResponse;
 import edu.brown.hstore.Hstoreservice.TransactionWorkRequest;
 import edu.brown.hstore.Hstoreservice.TransactionWorkResponse;
+import edu.brown.hstore.Hstoreservice.UnevictDataRequest;
+import edu.brown.hstore.Hstoreservice.UnevictDataResponse;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.EventObservable;
@@ -207,6 +210,30 @@ public class MockHStoreCoordinator extends HStoreCoordinator {
             // TODO Auto-generated method stub
             
         }
+
+		@Override
+		public void unevictData(RpcController controller,
+				UnevictDataRequest request,
+				RpcCallback<UnevictDataResponse> done) {
+			LOG.info(String.format("Received %s from HStoreSite %s at HStoreSite %s",
+                    request.getClass().getSimpleName(),
+                    HStoreThreadManager.formatSiteName(request.getSenderSite()),
+                    HStoreThreadManager.formatSiteName(hstore_site.getSiteId())));
+
+            if (debug.val)
+                LOG.debug(String.format("Received %s from HStoreSite %s",
+                          request.getClass().getSimpleName(),
+                          HStoreThreadManager.formatSiteName(request.getSenderSite())));
+            Long oldTxnId = request.getTransactionId();
+            UnevictDataResponse.Builder builder = UnevictDataResponse.newBuilder()
+                                                    .setSenderSite(hstore_site.getSiteId())
+                                                    .setTransactionId(oldTxnId)
+                                                    .setPartitionId(1) // some id
+                                                    .setStatus(Status.OK);
+            done.run(builder.build());   
+
+			
+		}
     }
 
 }

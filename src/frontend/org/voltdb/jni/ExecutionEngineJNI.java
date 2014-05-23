@@ -777,6 +777,7 @@ public class ExecutionEngineJNI extends ExecutionEngine {
         
         // TODO: Switch to LOG.debug
         LOG.info("Initializing anti-cache feature at partition " + this.executor.getPartitionId());
+        LOG.info("****************");
         LOG.info(String.format("Partition #%d AntiCache Directory: %s",
                  this.executor.getPartitionId(), dbDir.getAbsolutePath()));
         final int errorCode = nativeAntiCacheInitialize(this.pointer, dbDir.getAbsolutePath(), blockSize);
@@ -819,6 +820,33 @@ public class ExecutionEngineJNI extends ExecutionEngine {
             throw new EEException(ERRORCODE_WRONG_SERIALIZED_BYTES);
         }
     }
+
+    @Override
+	public VoltTable antiCacheEvictBlockInBatch(Table catalog_tbl,
+			Table childTable, long block_size, int num_blocks) {
+        if (m_anticache == false) {
+            String msg = "Trying to invoke anti-caching operation but feature is not enabled";
+            throw new VoltProcedure.VoltAbortException(msg);
+        }
+        deserializer.clear();
+        
+        final int numResults = nativeAntiCacheEvictBlockInBatch(this.pointer, catalog_tbl.getRelativeIndex(), childTable.getRelativeIndex(), block_size, num_blocks);
+        if (numResults == -1) {
+            throwExceptionForError(ERRORCODE_ERROR);
+        }
+        try {
+            deserializer.readInt();//Ignore the length of the result tables
+            final VoltTable results[] = new VoltTable[numResults];
+            for (int ii = 0; ii < numResults; ii++) {
+                final VoltTable resultTable = PrivateVoltTableFactory.createUninitializedVoltTable();
+                results[ii] = (VoltTable)deserializer.readObject(resultTable, this);
+            }
+            return results[0];
+        } catch (final IOException ex) {
+            LOG.error("Failed to deserialze result table for antiCacheEvictBlock" + ex);
+            throw new EEException(ERRORCODE_WRONG_SERIALIZED_BYTES);
+        }
+	}
     
     @Override
     public void antiCacheMergeBlocks(Table catalog_tbl) {
@@ -826,6 +854,7 @@ public class ExecutionEngineJNI extends ExecutionEngine {
         final int errorCode = nativeAntiCacheMergeBlocks(this.pointer, catalog_tbl.getRelativeIndex());
         checkErrorCode(errorCode);
     }
+
     
     /*
      * MMAP STORAGE
@@ -893,5 +922,5 @@ public class ExecutionEngineJNI extends ExecutionEngine {
     public long readAriesLogForReplay(long[] size) {
         return nativeReadAriesLogForReplay(pointer, size);
     }
-    
+
 }

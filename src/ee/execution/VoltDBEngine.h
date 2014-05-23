@@ -69,8 +69,8 @@
 #include "logging/LogProxy.h"
 #include "logging/StdoutLogProxy.h"
 #include "stats/StatsAgent.h"
-#include "storage/persistenttable.h"
-#include "storage/mmap_persistenttable.h"
+//#include "storage/persistenttable.h"
+//#include "storage/mmap_persistenttable.h"
 
 #ifdef ANTICACHE
 #include "anticache/EvictedTupleAccessException.h"
@@ -206,7 +206,7 @@ class __attribute__((visibility("default"))) VoltDBEngine {
                        int64_t txnId, int64_t lastCommittedTxnId);
 
         // ARIES
-        bool loadTable(PersistentTable *table,
+        bool loadTable(Table *table,
                                ReferenceSerializeInput &serializeIn,
                                int64_t txnId, int64_t lastCommittedTxnId,
                                bool isExecutionNormal);
@@ -296,11 +296,14 @@ class __attribute__((visibility("default"))) VoltDBEngine {
         // ANTI-CACHE FUNCTIONS
         // -------------------------------------------------
         void antiCacheInitialize(std::string dbDir, long blockSize) const;
+
 #ifdef ANTICACHE
 	int antiCacheReadBlocks(int32_t tableId, int numBlocks, int16_t blockIds[], int32_t tupleOffsets[]);
 	int antiCacheEvictBlock(int32_t tableId, long blockSize, int numBlocks);
+	int antiCacheEvictBlockInBatch(int32_t tableId, int32_t childTableId, long blockSize, int numBlocks);
 	int antiCacheMergeBlocks(int32_t tableId);
 #endif
+
         
         // -------------------------------------------------
         // STORAGE MMAP

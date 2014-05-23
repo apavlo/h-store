@@ -461,6 +461,27 @@ message HeartbeatResponse {
 }
 
 // -----------------------------------
+// NODE UNEVICTDATA MESSAGES
+// -----------------------------------
+
+message UnevictDataRequest {
+    required int32 sender_site = 1;
+    required int64 transaction_id = 2;
+    required int32 partition_id = 3;
+    required int32 table_id = 4;
+    repeated int32 block_ids = 5 [packed=true];
+    repeated int32 tuple_offsets = 6 [packed=true];
+    required int64 new_transaction_id = 7;
+}
+
+message UnevictDataResponse {
+    required int32 sender_site = 1;
+    required Status status = 2;
+    required int64 transaction_id = 3;
+    required int32 partition_id = 4;
+}
+
+// -----------------------------------
 // TIME SYNC MESSAGE
 // -----------------------------------
 
@@ -502,5 +523,6 @@ service HStoreService {
     rpc ShutdownPrepare(ShutdownPrepareRequest) returns (ShutdownPrepareResponse);
     rpc Shutdown(ShutdownRequest) returns (ShutdownResponse);
     rpc Heartbeat(HeartbeatRequest) returns (HeartbeatResponse);
+    rpc UnevictData(UnevictDataRequest) returns (UnevictDataResponse);
     rpc TimeSync(TimeSyncRequest) returns (TimeSyncResponse);
 }

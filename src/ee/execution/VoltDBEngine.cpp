@@ -708,7 +708,7 @@ bool VoltDBEngine::loadTable(bool allowExport, int32_t tableId,
 	return loadTable(table, serializeIn, txnId, lastCommittedTxnId, true);
 }
 
-bool VoltDBEngine::loadTable(PersistentTable *table,
+bool VoltDBEngine::loadTable(Table *table,
 		ReferenceSerializeInput &serializeIn, int64_t txnId,
 		int64_t lastCommittedTxnId, bool isExecutionNormal) {
 
@@ -1938,7 +1938,7 @@ int VoltDBEngine::trackingTupleSet(int64_t txnId, bool writes) {
 void VoltDBEngine::antiCacheInitialize(std::string dbDir, long blockSize) const {
 	VOLT_INFO("Enabling Anti-Cache at Partition %d: dir=%s / blockSize=%ld",
 			m_partitionId, dbDir.c_str(), blockSize);
-	m_executorContext->enableAntiCache(dbDir, blockSize);
+	m_executorContext->enableAntiCache(this, dbDir, blockSize);
 }
 
 int VoltDBEngine::antiCacheReadBlocks(int32_t tableId, int numBlocks, int16_t blockIds[], int32_t tupleOffsets[]) {
@@ -1954,9 +1954,10 @@ int VoltDBEngine::antiCacheReadBlocks(int32_t tableId, int numBlocks, int16_t bl
 
 	// We can now ask it directly to read in the evicted blocks that they want
 	bool finalResult = true;
+	AntiCacheEvictionManager* eviction_manager = m_executorContext->getAntiCacheEvictionManager();
 	try {
 		for (int i = 0; i < numBlocks; i++) {
-			finalResult = table->readEvictedBlock(blockIds[i], tupleOffsets[i]) && finalResult;
+			finalResult = eviction_manager->readEvictedBlock(table, blockIds[i], tupleOffsets[i]) && finalResult;
 		} // FOR
 
 	} catch (SerializableEEException &e) {
@@ -1999,6 +2000,36 @@ int VoltDBEngine::antiCacheEvictBlock(int32_t tableId, long blockSize, int numBl
 }
 
 /**
+ * Somebody wants us to forcibly evict a certain number of bytes from the given table and its children tables in batch.
+ * @param tableId
+ * @param childTableId
+ * @param blockSize The number of bytes to evict from this table
+ */
+int VoltDBEngine::antiCacheEvictBlockInBatch(int32_t tableId, int32_t childTableId, long blockSize, int numBlocks) {
+    PersistentTable *table = dynamic_cast<PersistentTable*>(this->getTable(tableId));
+    PersistentTable *childTable = dynamic_cast<PersistentTable*>(this->getTable(childTableId));
+    if (table == NULL) {
+        throwFatalException("Invalid table id %d", tableId);
+    }
+    if (childTable == NULL) {
+        throwFatalException("Invalid table id %d", childTableId);
+    }
+
+    VOLT_DEBUG("Attempting to evict a block of %ld bytes from table '%s'",
+               blockSize, table->name().c_str());
+    size_t lengthPosition = m_resultOutput.reserveBytes(sizeof(int32_t));
+    Table *resultTable = m_executorContext->getAntiCacheEvictionManager()->evictBlockInBatch(table, childTable, blockSize, numBlocks);
+    if (resultTable != NULL) {
+        resultTable->serializeTo(m_resultOutput);
+        m_resultOutput.writeIntAt(lengthPosition,
+                                  static_cast<int32_t>(m_resultOutput.size() - sizeof(int32_t)));
+        return 1;
+    } else {
+        return 0;
+    }
+}
+
+/**
  * Merge the recently all of the unevicted data for the given tableId
  * Note: This should only be called when no other txn is running
  * @param tableId
@@ -2013,7 +2044,7 @@ int VoltDBEngine::antiCacheMergeBlocks(int32_t tableId) {
 	VOLT_DEBUG("Merging unevicted blocks for table %d", tableId);
 	// Merge all the newly unevicted blocks back into our regular table data
 	try {
-		table->mergeUnevictedTuples();
+		m_executorContext->getAntiCacheEvictionManager()->mergeUnevictedTuples(table);
 	} catch (SerializableEEException &e) {
 		VOLT_INFO("Failed to merge blocks for table %d", tableId);
 

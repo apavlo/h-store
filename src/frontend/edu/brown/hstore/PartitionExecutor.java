@@ -2324,6 +2324,12 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 if (debug.val)
                     LOG.error(String.format("%s - Got error from partition %d in %s",
                               ts, result.getPartitionId(), result.getClass().getSimpleName()), error);
+                LOG.info(String.format("%s - Got error from partition %d in %s at partition %d",
+                        ts, result.getPartitionId(), result.getClass().getSimpleName(), this.partitionId), error);
+                if (error instanceof EvictedTupleAccessException){
+                	EvictedTupleAccessException evta = (EvictedTupleAccessException) error;
+                    LOG.info(String.format("Evicted tuple access exception error has partition id set as %d", evta.getPartitionId()));                	
+                }
                 ts.setPendingError(error, true);
             }
             return;
@@ -2739,16 +2745,20 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             status = Status.ABORT_EVICTEDACCESS;
             error = ex;
         } catch (ConstraintFailureException ex) {
+        	LOG.info("Found the abort!!!"+ex);
             status = Status.ABORT_UNEXPECTED;
             error = ex;
         } catch (SQLException ex) {
+        	LOG.info("Found the abort!!!"+ex);
             status = Status.ABORT_UNEXPECTED;
             error = ex;
         } catch (EEException ex) {
             // this.crash(ex);
+        	LOG.info("Found the abort!!!"+ex);
             status = Status.ABORT_UNEXPECTED;
             error = ex;
         } catch (Throwable ex) {
+        	LOG.info("Found the abort!!!"+ex);
             status = Status.ABORT_UNEXPECTED;
             if (ex instanceof SerializableException) {
                 error = (SerializableException)ex;
@@ -2758,6 +2768,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         } finally {
             if (error != null) {
                 // error.printStackTrace();
+            	if(error instanceof EvictedTupleAccessException){
+            		EvictedTupleAccessException ex = (EvictedTupleAccessException) error;
+            	}
+            	
                 LOG.warn(String.format("%s - Unexpected %s on partition %d",
                          ts, error.getClass().getSimpleName(), this.partitionId),
                          error); // (debug.val ? error : null));
@@ -2769,6 +2783,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                                            fragment.getFragmentIdList(), this.partitionId, ts);
                 Exception ex = new Exception(msg);
                 if (debug.val) LOG.warn(ex);
+                LOG.info("Found the abort!!!"+ex);
                 status = Status.ABORT_UNEXPECTED;
                 error = new SerializableException(ex);
             }
