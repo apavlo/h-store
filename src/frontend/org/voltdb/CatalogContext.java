@@ -111,6 +111,8 @@ public class CatalogContext {
     private final Collection<Table> mapReduceTables = new ArrayList<Table>();
     private final Collection<Table> replicatedTables = new ArrayList<Table>();
     private final Collection<Table> evictableTables = new ArrayList<Table>();
+    private final Collection<Table> streamTables = new ArrayList<Table>(); // added by hawk, 2014/5/27
+    private final Collection<Table> windowTables = new ArrayList<Table>(); // added by hawk, 2014/5/27
     
     // ------------------------------------------------------------
     // PLANFRAGMENTS
@@ -218,6 +220,14 @@ public class CatalogContext {
                 if (tbl.getEvictable()) {
                     this.evictableTables.add(tbl);
                 }
+                // added by hawk, 2014/5/27
+                if (tbl.getIsstream()) {
+                    this.streamTables.add(tbl);
+                }
+                if (tbl.getIswindow()) {
+                    this.windowTables.add(tbl);
+                }
+                // ended by hawk
             }
         } // FOR
         this.numberOfTables = database.getTables().size();
@@ -425,6 +435,19 @@ public class CatalogContext {
     public Collection<Table> getEvictableTables() {
         return (evictableTables);
     }
+
+    /**
+     * Return all of the stream tables for the database, added by hawk, 2014/5/27
+     */
+    public Collection<Table> getStreamTables() {
+        return (streamTables);
+    }
+
+    public Collection<Table> getWindowTables() {
+        return (windowTables);
+    }
+    
+    //ended by hawk
 
     // ------------------------------------------------------------
     // PROCEDURES

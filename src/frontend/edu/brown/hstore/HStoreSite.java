@@ -27,6 +27,7 @@ package edu.brown.hstore;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.StringWriter;
 import java.nio.ByteBuffer;
 import java.sql.Timestamp;
 import java.util.ArrayList;
@@ -70,6 +71,10 @@ import org.voltdb.catalog.ProcedureRef;
 import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.Table;
+import org.voltdb.client.Client;
+import org.voltdb.client.ClientFactory;
+import org.voltdb.client.ClientResponse;
+import org.voltdb.client.SyncCallback;
 import org.voltdb.compiler.AdHocPlannedStmt;
 import org.voltdb.compiler.AsyncCompilerResult;
 import org.voltdb.compiler.AsyncCompilerWorkThread;
@@ -86,6 +91,7 @@ import org.voltdb.network.Connection;
 import org.voltdb.network.VoltNetwork;
 import org.voltdb.plannodes.AbstractPlanNode;
 import org.voltdb.plannodes.InsertPlanNode;
+import org.voltdb.sysprocs.AdHoc;
 import org.voltdb.sysprocs.SnapshotSave;
 import org.voltdb.types.QueryType;
 import org.voltdb.utils.DBBPool;
@@ -93,6 +99,7 @@ import org.voltdb.utils.EstTime;
 import org.voltdb.utils.EstTimeUpdater;
 import org.voltdb.utils.Pair;
 import org.voltdb.utils.SystemStatsCollector;
+import org.voltdb.utils.VoltTableUtil;
 
 import com.google.protobuf.RpcCallback;
 
@@ -1605,7 +1612,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         this.init();
         
         // added by hawkwang, 2014/5/23
-        // used to turn off fronttrigger mechanism
+        // Step one: Turn off frontend trigger mechanism
         String name = "global.sstore";
         Object value = false;
         Object origin_value = setConfig(name, value);
@@ -1623,16 +1630,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }
         
         // added by hawkwang, 2014/5/23
-        // used to turn back to origin setting for fronttrigger mechanism
+        // Step two: Turn back to origin setting for frontend trigger mechanism
         setConfig(name, origin_value);
+        //ended by hawk
         
-        // check if there is any stream item existing to fire frontend trigger
-        boolean isstore = (boolean)origin_value;
-        if(isstore == true)
-        {
-        // TBD
-        }
-        // ended by hawk
         
         try {
             this.clientInterface.startAcceptingConnections();
@@ -1647,6 +1648,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         this.ready = true;
         this.ready_observable.notifyObservers(this);
 
+        // added by hawk, 2014/5/27
+        // Step three: Re-execute frontend triggers
+        doFrontendTriggerRecovery();
+        // ended by hawk
+        
         // IMPORTANT: This message must always be printed in order for the BenchmarkController
         //            to know that we're ready! That's why we have to use System.out instead of LOG
         String msg = String.format("%s : Site=%s / Address=%s:%d / Partitions=%s",
@@ -1677,6 +1683,93 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             }
         }
     }
+    
+    // added by hawkwang, 2014/5/27
+    private boolean hasTuple(String streamName)
+    {
+        boolean result = false;
+        
+        try{
+            
+            Client client = ClientFactory.createClient(128, null, false, null);
+            String hostname;
+            int port;
+            hostname = catalog_site.getHost().getIpaddr();
+            port = catalog_site.getProc_port();
+
+            client.createConnection(null, hostname, port, "user", "password");
+            String query = "select * from " + streamName;
+            ClientResponse cresponse = client.callProcedure("@AdHoc", query);
+                
+            if (cresponse != null) {
+                if (cresponse.getStatus() == Status.OK) {
+                    System.out.println(this.formatResult(cresponse));  
+                    VoltTable results[] = cresponse.getResults();
+                    if(results[0].getRowCount() != 0)
+                        result = true;
+                } else {
+                    System.out.printf("Server Response: %s / %s\n",
+                                      cresponse.getStatus(),
+                                      cresponse.getStatusString());
+                }
+            }
+            
+            client.close();
+        }
+        catch (Exception ex) {
+            ex.printStackTrace();
+        }
+        
+        return result;
+    }
+    
+    private String formatResult(ClientResponse cr) {
+        
+        final VoltTable results[] = cr.getResults();
+        final int num_results = results.length;
+        System.out.println("num of results: " + String.valueOf(num_results));
+        StringBuilder sb = new StringBuilder();
+        sb.append(VoltTableUtil.format(results));
+        
+        VoltTable vt = results[0];
+        int num_rows = vt.getRowCount();
+        System.out.println("num of rows: " + String.valueOf(num_rows));
+        
+        return (sb.toString());
+    }
+    
+    // In order to recovery (re-execute) needed frontend trigger, we need to 
+    // 1. get all non-empty stream tables which has frontend trigger
+    // 2. put all of above tables into one collection (L1)
+    // 3. sort tables sequence based on latest tuple timestamp inside, 
+    //    which will generate collection (L2) for tables with increasing timestamp
+    // 4. for each table in L2, get related frontend triggers, and fire them
+    private void doFrontendTriggerRecovery() {
+        //FIXME, should I care about the sequence of streams ?
+        
+        // for streams
+        for (Table catalog_tbl : this.catalogContext.getStreamTables()) {
+            CatalogMap<ProcedureRef> procedures = catalog_tbl.getTriggerprocedures();
+            
+            if( (procedures==null) || (procedures.isEmpty()==true))
+                continue;
+            
+            // should I check if the stream is empty or not? yes
+            String streamName = catalog_tbl.fullName();
+            boolean hasTuple = hasTuple(streamName);
+            if (hasTuple == false){
+                // FIXME, should I care about the sequence of procedures 
+                for(ProcedureRef procedureRef : procedures)
+                {
+                    Procedure procedure = procedureRef.getProcedure();
+                    // FIXME, I need batchId and clienthandle 
+                    //this.invocationTriggerProcedureProcess(ts.getBatchId(), ts.getClientHandle(), EstTime.currentTimeMillis(), procedure);
+                    this.invocationTriggerProcedureProcess(-1, 0, EstTime.currentTimeMillis(), procedure);
+                }
+            }
+        }
+    }
+    // ended by hawk
     
     /**
      * Returns true if this HStoreSite is fully initialized and running
