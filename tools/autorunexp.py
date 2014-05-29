@@ -116,18 +116,21 @@ parser.add_argument('-o','--output', help='output file', default=defaultoutput)
 parser.add_argument('--stop', help='indicate if the threshold will be used to stop expeiments', action='store_true')
 parser.add_argument('--blocking', help='indicate if system will blocking', action='store_true')
 parser.add_argument('--log', help='indicate if system will run log', action='store_true')
-parser.add_argument('--tmin', help='min - thread per host', type=int, default=1)
-parser.add_argument('--tmax', help='max - thread per host', type=int, default=1)
-parser.add_argument('--tstep', help='starting step size - thread per host', type=int, default=5)
+parser.add_argument('--threads', help='threads per host', type=int, default=1)
+parser.add_argument('--txnthreshold', help='percentage difference between txnrate and throughput', type=float, default='0.95')
+#parser.add_argument('--tmax', help='max - thread per host', type=int, default=1)
+#parser.add_argument('--tstep', help='starting step size - thread per host', type=int, default=5)
 parser.add_argument('--rmin', help='min - txnrate', type=int, default=1000)
 parser.add_argument('--rmax', help='max - txnrate', type=int, default=1000)
 parser.add_argument('--rstep', help='initial step size - txnrate', type=int, default=100)
 parser.add_argument('--finalrstep', help='final step size- txnrate', type=int, default=0)
-parser.add_argument('--lmin', help='min - log timeout', type=int, default=10)
-parser.add_argument('--lmax', help='max - log timeout', type=int, default=10)
-parser.add_argument('--lstep', help='step - log timeout', type=int, default=10)
+parser.add_argument('--logtimeout', help='log timeout', type=int, default=10)
+#parser.add_argument('--lmax', help='max - log timeout', type=int, default=10)
+#parser.add_argument('--lstep', help='step - log timeout', type=int, default=10)
 parser.add_argument('--warmup', help='warmup - time in ms', type=int, default=10000)
 parser.add_argument('--numruns', help='number of experiment runs', type=int, default=3)
+parser.add_argument('--expout', help='file that contains the final experiment results', default='expout.txt')
+parser.add_argument('--winconfig', help='description of the window configuration', default='')
 
 args = parser.parse_args()
 
@@ -135,35 +138,61 @@ projectname = args.project
 resultfile  = args.output
 stopflag    = args.stop
 blockingflag= args.blocking
-tmin	    = args.tmin
-tmax	    = args.tmax
-tstep       = args.tstep
+threads	    = args.threads
+txn_threshold = args.txnthreshold
+#tmax	    = args.tmax
+#tstep       = args.tstep
 rmin	    = args.rmin
 rmax	    = args.rmax
 rstep       = args.rstep
 frstep      = args.finalrstep
-lmin	    = args.lmin
-lmax	    = args.lmax
-lstep       = args.lstep
+logtimeout  = args.logtimeout
+#lmax	    = args.lmax
+#lstep       = args.lstep
 llog        = args.log
 warmup      = args.warmup
 numruns     = args.numruns
+expout      = args.expout
+winconfig   = args.winconfig
+
 if blockingflag==True:
     strblocking = "true"
 else:
     strblocking = "false"
 #end if
 
-print projectname, resultfile, stopflag, blockingflag, llog, tmin, tmax, tstep, rmin, rmax, rstep, lmin, lmax, lstep
+if llog==True:
+    strlogging = "true"
+else:
+    strlogging = "false"
+#end if
+
+print projectname, resultfile, stopflag, blockingflag, llog, threads, rmin, rmax, rstep, logtimeout
 
 #exit(0)
 
 file = open(resultfile, "w")
 
+fieldsarray = ["THROUGHPUT(txn/s)","AVGLATENCY(ms)","TotalTXN", "Distributed","SpecExec","THMIN","THMAX","THSTDDEV","LAMIN","LAMAX","LASTDDEV"];
+
 #print fields
-fields = "client.threads_per_host " + "client.txnrate " + "site.commandlog_timeout " + "THROUGHPUT(txn/s) " + "AVGLATENCY(ms) " + "TotalTXN "
-fields += "Distributed " + "SpecExec " + "THMIN " + "THMAX " + "THSTDDEV " + "LAMIN " + "LAMAX " + "LASTDDEV"
+fields = "client.theads_per_host client.txnrate site.commandlog_timeout";
+for i in range(0,len(fieldsarray)):
+	fields += " " + fieldsarray[i];
+
+
+#fields = "client.threads_per_host " + "client.txnrate " + "site.commandlog_timeout " + "THROUGHPUT(txn/s) " + "AVGLATENCY(ms) " + "TotalTXN "
+#fields += "Distributed " + "SpecExec " + "THMIN " + "THMAX " + "THSTDDEV " + "LAMIN " + "LAMAX " + "LASTDDEV"
 file.write(fields + "\n")
+
+idx_throughput = 0;
+idx_avglatency = 1;
+idx_thmin = 5;
+idx_thmax = 6;
+idx_txnrate = 11;
+
+max_values = [];
+
 
 #  make command line to execute benchmark with the indicated configuration
 
@@ -172,129 +201,100 @@ stdev_threshold = 0.03
 
 resultlist =  list()
 
-client_threads_per_host = tmin;
+client_threads_per_host = threads;
 for rn in range(0, numruns):
-	while client_threads_per_host <= tmax:
-		client_txnrate = rmin
-		while client_txnrate <= rmax:
-			site_commandlog_timeout	= lmin
-			client_warmup = warmup
-			if llog==False:
-				print "no logging mechanism executed in system..."
-				str_antcmd 			= "ant hstore-benchmark"
-				str_project 			= " -Dproject=" + projectname
-				str_client_output_results_json  = " -Dclient.output_results_json=" + "true"
-				str_client_blocking    	        = " -Dclient.blocking=" + strblocking
-				str_client_threads_per_host 	= " -Dclient.threads_per_host=" + "{0:d}".format(client_threads_per_host)
-				str_client_txnrate		= " -Dclient.txnrate=" + "{0:d}".format(client_txnrate)
-				str_client_warmup       = " -Dclient.warmup=" + "{0:d}".format(client_warmup)
-				str_site_commandlog_timeout = " -Dsite.commandlog_timeout=" + "{0:d}".format(site_commandlog_timeout)
-				str_site_commandlog_enable = " -Dsite.commandlog_enable=false"
-			
-				basic = "{0:d}".format(client_threads_per_host) + " " + "{0:d}".format(client_txnrate) + " " +  "{0:d}".format(site_commandlog_timeout)
-			
-				runcmd = str_antcmd + str_project + str_client_blocking + str_client_output_results_json + str_client_threads_per_host + str_client_txnrate + str_client_warmup + str_site_commandlog_enable
-			
-				print "running benchmark with following configuration:"
-				print runcmd
-		
-				# run the benchmark by calling the runcmd with os
-				f = os.popen( runcmd )
-			
-				# get the benchmark running result, and print it on screen
-				result = f.read()
-				#print "This benchmark result is :", result
-			        singlereport = generateReport(result)
-				basic += getReportFromList(singlereport)
-				file.write(basic+"\n")
-		
-				resultlist.append(singlereport)
-			
-				site_commandlog_timeout += lstep
-		
-				if stopflag == False:
-	                                client_txnrate += rstep
-					continue
-				##endif
-				
-				#determien if we should stop experiment, because the stdev/average is so little
-				if len(resultlist) >= number_need_to_determine:
-					latestresult = resultlist[len(resultlist)-number_need_to_determine::1]
-		        	        throughputarray = array('f')
-					latencyarray = array('f')	
-					for item in latestresult:
-						#print item
-						throughputarray.append(float(item[0]))
-						latencyarray.append(float(item[1]))
-					##endfor
-					thmeanvalue, thstdvalue = getMeanAndStd(throughputarray)
-					lameanvalue, lastdvalue = getMeanAndStd(latencyarray)
-					if (thstdvalue/thmeanvalue) < stdev_threshold and (lastdvalue/lameanvalue) < stdev_threshold :
-						break
-					##endif
-				##endif
-				client_txnrate += rstep
-				continue
-			##endif	
-			print "we will deal with logging timeout situation"
-			while site_commandlog_timeout <= lmax:
-				str_antcmd 			= "ant hstore-benchmark"
-				str_project 			= " -Dproject=" + projectname
-				str_client_output_results_json  = " -Dclient.output_results_json=" + "true"
-				str_client_blocking    	        = " -Dclient.blocking=" + strblocking
-				str_client_threads_per_host 	= " -Dclient.threads_per_host=" + "{0:d}".format(client_threads_per_host)
-				str_client_txnrate		= " -Dclient.txnrate=" + "{0:d}".format(client_txnrate)
-				str_site_commandlog_timeout = " -Dsite.commandlog_timeout=" + "{0:d}".format(site_commandlog_timeout)
-				str_site_commandlog_enable = " -Dsite.commandlog_enable=true"
-			
-				basic = "{0:d}".format(client_threads_per_host) + " " + "{0:d}".format(client_txnrate) + " " +  "{0:d}".format(site_commandlog_timeout)
-			
-				runcmd = str_antcmd + str_project + str_client_blocking + str_client_output_results_json + str_client_threads_per_host + str_client_txnrate + str_site_commandlog_enable + str_site_commandlog_timeout
-			
-				print "running benchmark with following configuration:"
-				print runcmd
-		
-				# run the benchmark by calling the runcmd with os
-				f = os.popen( runcmd )
-			
-				# get the benchmark running result, and print it on screen
-				result = f.read()
-				#print "This benchmark result is :", result
-			        singlereport = generateReport(result)
-				basic += getReportFromList(singlereport)
-				file.write(basic+"\n")
-		
-				resultlist.append(singlereport)
-			
-				site_commandlog_timeout += lstep
-		
-				if stopflag == False:
-					continue
-				##endif
-				
-				#determien if we should stop experiment, because the stdev/average is so little
-				if len(resultlist) >= number_need_to_determine:
-					latestresult = resultlist[len(resultlist)-number_need_to_determine::1]
-		        	        throughputarray = array('f')
-					latencyarray = array('f')	
-					for item in latestresult:
-						#print item
-						throughputarray.append(float(item[0]))
-						latencyarray.append(float(item[1]))
-					##endfor
-					thmeanvalue, thstdvalue = getMeanAndStd(throughputarray)
-					lameanvalue, lastdvalue = getMeanAndStd(latencyarray)
-					if (thstdvalue/thmeanvalue) < stdev_threshold and (lastdvalue/lameanvalue) < stdev_threshold :
-						break
-					##endif
-				##endif
-			##endwhile
+	client_txnrate = rmin
+	cur_values = []
+	while client_txnrate <= rmax:
+		site_commandlog_timeout	= logtimeout
+		client_warmup = warmup
+	
+		print "no logging mechanism executed in system..."
+		str_antcmd 			= "ant hstore-benchmark"
+		str_project 			= " -Dproject=" + projectname
+		str_client_output_results_json  = " -Dclient.output_results_json=" + "true"
+		str_client_blocking    	        = " -Dclient.blocking=" + strblocking
+		str_client_threads_per_host 	= " -Dclient.threads_per_host=" + "{0:d}".format(client_threads_per_host)
+		str_client_txnrate		= " -Dclient.txnrate=" + "{0:d}".format(client_txnrate)
+		str_client_warmup       = " -Dclient.warmup=" + "{0:d}".format(client_warmup)
+		str_site_commandlog_timeout = " -Dsite.commandlog_timeout=" + "{0:d}".format(site_commandlog_timeout)
+		str_site_commandlog_enable = " -Dsite.commandlog_enable=" + strlogging
+	
+		basic = "{0:d}".format(client_threads_per_host) + " " + "{0:d}".format(client_txnrate) + " " +  "{0:d}".format(site_commandlog_timeout)
+	
+		runcmd = str_antcmd + str_project + str_client_blocking + str_client_output_results_json + str_client_threads_per_host + str_client_txnrate + str_client_warmup + str_site_commandlog_enable
+	
+		print "running benchmark with following configuration:"
+		print runcmd
 
+		# run the benchmark by calling the runcmd with os
+		f = os.popen( runcmd )
+	
+		# get the benchmark running result, and print it on screen
+		result = f.read()
+		#print "This benchmark result is :", result
+	        singlereport = generateReport(result)
+		basic += getReportFromList(singlereport)
+		file.write(basic+"\n")
+
+		resultlist.append(singlereport)
+		
+		if singlereport[idx_throughput] <= client_txnrate * txn_threshold:
+			if rstep != frstep:
+				client_txnrate -= rstep
+				rstep = frstep
+			else
+				break
+		else:
+			singlereport.append(client_txnrate)
+			cur_values = singlereport
 			client_txnrate += rstep
-		##endwhile
-
-		client_threads_per_host += tstep;	
 	##endwhile
+	max_values.append(cur_values)
+##endfor
 
 file.close()
+
+#append to the final experimental results file
+expfile = open(expout, "a")
+proj = projectname + ": " + winconfig
+config = "threads: " + "{0:d}".format(client_threads_per_host) + ", logging: " +  strlogging + ", log timeout: " + "{0:d}".format(site_commandlog_timeout)
+config += "\nblocking: " + strblocking + ", warmup: " + "{0:d}".format(client_warmup) + ", threshold: " + "{0:.2f}".format(txn_threshold)
+expfile.write(proj + "\n");
+expfile.write(config + "\n");
+
+avg_values = []
+max_throughput = 0;
+max_txnrate = 0;
+min_throughput = 999999999;
+min_txnrate = 0;
+for i in range(0, len(max_values) - 1):
+	for j in range(0, max_values[i]):
+		if i == 0:
+			avg_values.append(0);
+		if j == idx_throughput:
+			if max_values[i][j] > max_throughput:
+				max_throughput = max_values[i][j]
+				max_txnrate = max_values[i][idx_txnrate]
+			if max_values[i][j] < min_thoroughput:
+				min_throughput = max_values[i][j]
+				min_txnrate = max_values[i][idx_txnrate]
+		avg_values[j] += max_values[i][j]
+
+expfile.write("THROUGHPUT(txn/sec)(min): " + "{0:d}".format(min_throughput) + " (" + "{0:d}".format(min_txnrate) + " submitted)\n");
+expfile.write("THROUGHPUT(txn/sec)(max): " + "{0:d}".format(max_throughput) + " (" + "{0:d}".format(max_txnrate) + " submitted)\n");
+for i in range(0, len(avg_values) - 1):
+	expfile.write(fieldsarray[i] + "(avg): " + "{0:d}".format(avg_values[i]/numruns) + "\n");
+expfile.write("\n");
+expfile.close()
+
+
+
+
+
+
+
+
+
+
 ##end script
