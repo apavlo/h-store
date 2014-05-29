@@ -60,9 +60,11 @@ bool Error_position::operator==( const Error_position& lhs ) const
 
 namespace
 {
-    const int_parser < int64_t >  int64_p  = int_parser < int64_t  >();
+  
+    const int_parser < boost::int64_t >  int64_p  = int_parser < boost::int64_t  >();
     const uint_parser< uint64_t > uint64_p = uint_parser< uint64_t >();
 
+    
     template< class Iter_type >
     bool is_eq( Iter_type first, Iter_type last, const char* c_str )
     {
@@ -299,7 +301,7 @@ namespace
             add_to_current( Value_type() );
         }
 
-        void new_int( int64_t i )
+        void new_int( boost::int64_t i )
         {
             add_to_current( i );
         }
@@ -409,32 +411,32 @@ namespace
 
         static void throw_not_value( Iter_type begin, Iter_type end )
         {
-    	    throw_error( begin, "not a value" );
+            throw_error( begin, "not a value" );
         }
 
         static void throw_not_array( Iter_type begin, Iter_type end )
         {
-    	    throw_error( begin, "not an array" );
+            throw_error( begin, "not an array" );
         }
 
         static void throw_not_object( Iter_type begin, Iter_type end )
         {
-    	    throw_error( begin, "not an object" );
+            throw_error( begin, "not an object" );
         }
 
         static void throw_not_pair( Iter_type begin, Iter_type end )
         {
-    	    throw_error( begin, "not a pair" );
+            throw_error( begin, "not a pair" );
         }
 
         static void throw_not_colon( Iter_type begin, Iter_type end )
         {
-    	    throw_error( begin, "no colon in pair" );
+            throw_error( begin, "no colon in pair" );
         }
 
         static void throw_not_string( Iter_type begin, Iter_type end )
         {
-    	    throw_error( begin, "not a string" );
+            throw_error( begin, "not a string" );
         }
 
         template< typename ScannerT >
@@ -452,7 +454,7 @@ namespace
                 typedef function< void( Char_type )            > Char_action;
                 typedef function< void( Iter_type, Iter_type ) > Str_action;
                 typedef function< void( double )               > Real_action;
-                typedef function< void( int64_t )              > Int_action;
+                typedef function< void( ::int64_t )              > Int_action;
                 typedef function< void( uint64_t )             > Uint64_action;
 
                 Char_action   begin_obj  ( bind( &Semantic_actions_t::begin_obj,   &self.actions_, _1 ) );
