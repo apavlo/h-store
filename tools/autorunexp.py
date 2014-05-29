@@ -121,7 +121,7 @@ parser.add_argument('--txnthreshold', help='percentage difference between txnrat
 #parser.add_argument('--tmax', help='max - thread per host', type=int, default=1)
 #parser.add_argument('--tstep', help='starting step size - thread per host', type=int, default=5)
 parser.add_argument('--rmin', help='min - txnrate', type=int, default=1000)
-parser.add_argument('--rmax', help='max - txnrate', type=int, default=1000)
+parser.add_argument('--rmax', help='max - txnrate', type=int, default=100000)
 parser.add_argument('--rstep', help='initial step size - txnrate', type=int, default=100)
 parser.add_argument('--finalrstep', help='final step size- txnrate', type=int, default=0)
 parser.add_argument('--logtimeout', help='log timeout', type=int, default=10)
@@ -129,7 +129,7 @@ parser.add_argument('--logtimeout', help='log timeout', type=int, default=10)
 #parser.add_argument('--lstep', help='step - log timeout', type=int, default=10)
 parser.add_argument('--warmup', help='warmup - time in ms', type=int, default=10000)
 parser.add_argument('--numruns', help='number of experiment runs', type=int, default=3)
-parser.add_argument('--expout', help='file that contains the final experiment results', default='expout.txt')
+parser.add_argument('-e', '--expout', help='file that contains the final experiment results', default='expout.txt')
 parser.add_argument('--winconfig', help='description of the window configuration', default='')
 
 args = parser.parse_args()
@@ -203,6 +203,7 @@ resultlist =  list()
 
 client_threads_per_host = threads;
 for rn in range(0, numruns):
+	print "RUN NUMBER: " + "{0:d}".format(rn + 1)
 	client_txnrate = rmin
 	cur_values = []
 	while client_txnrate <= rmax:
@@ -243,7 +244,7 @@ for rn in range(0, numruns):
 			if rstep != frstep:
 				client_txnrate -= rstep
 				rstep = frstep
-			else
+			else:
 				break
 		else:
 			singlereport.append(client_txnrate)
