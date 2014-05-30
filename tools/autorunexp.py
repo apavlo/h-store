@@ -282,7 +282,7 @@ file.close()
 
 #append to the final experimental results file
 expfile = open(expout, "a")
-proj = projectname + " - " + winconfig
+proj = projectname + " - " + winconfig + " (" + "{0:.2f}".format(txn_threshold) + " threshold)"
 config = "threads: " + "{0:d}".format(client_threads_per_host) + ", logging: " +  strlogging + ", log timeout: " + "{0:d}".format(site_commandlog_timeout)
 config += "\nblocking: " + strblocking + ", warmup: " + "{0:d}".format(client_warmup) + ", threshold: " + "{0:.2f}".format(txn_threshold)
 expfile.write(proj + "\n");
@@ -294,6 +294,8 @@ max_throughput = 0;
 max_txnrate = 0;
 min_throughput = 999999999;
 min_txnrate = 0;
+all_throughputs = []
+all_txnrates = []
 #print "max_values length: " + "{0:d}".format(len(max_values))
 for i in range(0, len(max_values)):
 	#print "max_values[i] length: " + "{0:d}".format(len(max_values[i]))
@@ -307,12 +309,23 @@ for i in range(0, len(max_values)):
 			if max_values[i][j] < min_throughput:
 				min_throughput = max_values[i][j]
 				min_txnrate = max_values[i][idx_txnrate]
+			all_throughputs.append(max_values[i][j])
+			all_txnrates.append(max_values[i][idx_txnrate])
 		avg_values[j] += max_values[i][j]
 
-expfile.write("THROUGHPUT(txn/sec)(min): " + "{0:.2f}".format(min_throughput) + " (" + "{0:.2f}".format(min_txnrate) + " submitted)\n");
-expfile.write("THROUGHPUT(txn/sec)(max): " + "{0:.2f}".format(max_throughput) + " (" + "{0:.2f}".format(max_txnrate) + " submitted)\n");
+expfile.write("THROUGHPUT STATS\n")
+for i in range(0, len(all_throughputs)):
+	expfile.write("   " + "{0:d}".format(i+1) + ": " + "{0:.2f}".format(all_throughputs[i]) + "\n");
+
+expfile.write("   MIN: " + "{0:.2f}".format(min_throughput) + " (" + "{0:.2f}".format(min_txnrate) + " submitted)\n");
+expfile.write("   MAX: " + "{0:.2f}".format(max_throughput) + " (" + "{0:.2f}".format(max_txnrate) + " submitted)\n");
+expfile.write("   AVG: " + "{0:.2f}".format(avg_values[idx_throughput]/numruns) + "\n")
+expfile.write("   ---   \n")
 for i in range(0, len(avg_values) - 1):
+	if(i == idx_throughput):
+		continue
 	expfile.write(fieldsarray[i] + "(avg): " + "{0:.2f}".format(avg_values[i]/numruns) + "\n");
+
 expfile.write("\n");
 expfile.close()
 
