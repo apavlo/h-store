@@ -1,0 +1,198 @@
+/* This file is part of VoltDB.
+ * Copyright (C) 2008-2012 VoltDB Inc.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining
+ * a copy of this software and associated documentation files (the
+ * "Software"), to deal in the Software without restriction, including
+ * without limitation the rights to use, copy, modify, merge, publish,
+ * distribute, sublicense, and/or sell copies of the Software, and to
+ * permit persons to whom the Software is furnished to do so, subject to
+ * the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ * IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR
+ * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+ * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+//
+// Rides a bike - basically inserts events theoretically
+// from a gps on a bike into the bikerreadings_stream
+//
+
+package edu.brown.benchmark.bikerstream.procedures;
+
+import org.apache.log4j.Logger;
+import org.voltdb.ProcInfo;
+import org.voltdb.SQLStmt;
+import org.voltdb.VoltProcedure;
+import org.voltdb.VoltTable;
+import org.voltdb.VoltType;
+import org.voltdb.types.TimestampType;
+
+import edu.brown.benchmark.bikerstream.BikerStreamConstants;
+
+@ProcInfo (
+    // TODO - don't know what to do about partitioning
+    //partitionInfo = "votes.phone_number:1",
+    singlePartition = true
+)
+
+public class ReturnBike extends VoltProcedure {
+
+    /*
+     * Logging Information
+     */
+    private static final Logger LOG = Logger.getLogger(RentBike.class);
+
+    /*
+     * Is debugging on or not?
+     */
+    final boolean debug = LOG.isDebugEnabled();
+
+    /*
+     * The ID of the Bike that we checkout
+     */
+    public long bikeId = -1;
+
+    /*
+     * The initial dock from which we will take our bike
+     */
+    public long initialDock = -1;
+
+    /*
+     * Get a list of all docks that are empty
+     */
+    public final SQLStmt getAllAvailibleDocks = new SQLStmt(
+            "SELECT * FROM docks WHERE bike_id < 0;" //Hack for 'NOT NULL'
+            );
+
+    /*
+     *  Make a reservation for a bike, to be picked up in a few minutes,
+     *  requires dock_id and a time stamp
+     */
+    public final SQLStmt makeDockReservation = new SQLStmt(
+            "INSERT INTO reservations VALUES (?,0,?);"
+            );
+
+    /*
+     *  Check for reservations for a given dock
+     */
+    public final SQLStmt getReservation = new SQLStmt(
+            "SELECT count(*) from reservations WHERE dock_id = ?;"
+            );
+
+    /*
+     *  Check a bike back into a dock
+     */
+    public final SQLStmt checkinBike = new SQLStmt(
+            "UPDATE docks set bike_id = ? WHERE dock_id = ?;"
+            );
+
+    /*
+     * Remove the reservation for a dock once we park a bike in it
+     * (or it expires)
+     */
+    public final SQLStmt removeReservation = new SQLStmt(
+            "DELETE FROM reservations WHERE dock_id = ?"
+            );
+
+    public void reserveDock(){
+
+        VoltTable result[];
+
+        /*
+         * Added to quell an unlucky dock reserver
+         * TODO: Just make the procedure so perfect that this becomes unnecessary
+         */
+        int attempts = 0;
+
+
+        /**
+         * Decide how you wanna select a dock.
+         *
+         * Here is where we can select a dock and identify how much discount we
+         * can get if we park there.
+         */
+
+
+
+        // ----------------------------- COPY PASTA -------------------------------
+        /*
+         * Find a dock
+         * and put in a reservation for the bike.
+         */
+        do {
+
+            // First get a list of all available bikes.
+            voltQueueSQL(getAllAvailibleBikes);
+            result = voltExecuteSQL();
+
+            // Make sure there are bikes available
+            int numOfBikes = result[0].getRowCount();
+            if (numOfBikes > 0){
+
+                // Generate an index for one of the bikes in the returned
+                // table.
+                int idx = (int) (Math.random() * (float) numOfBikes);
+
+                // Using our random index, we'll go retrieve a dock_id and just
+                // stick it into an initial dock variable.
+                initialDock = result[0].fetchRow(idx).getLong(0);
+
+                // We should also keep track of the bike_id, so that we can return
+                // it correctly later.
+                bikeId = result[0].fetchRow(idx).getLong(1);
+
+                // get the current time, this way we can expire reservations over
+                //  900000 milliseconds (15 Minutes)
+                TimestampType ts = new TimestampType();
+
+                // Reserve the bike/dock
+                voltQueueSQL(makeBikeReservation, initialDock, ts);
+                result = voltExecuteSQL();
+                if (result[0].getRowCount() != 1) {
+                    bikeId = -1;
+                    initialDock = -1;
+                }
+            }
+        } while (bikeId != -1);
+    }
+
+
+    /*
+     * Arrive at the station. So lets checkout that bike.
+     */
+    public void checkinBike(){
+
+        voltQueueSQL(checkoutBike, initialDock);
+        voltQueueSQL(removeReservation, initialDock);
+        VoltTable result[] = voltExecuteSQL();
+
+        /*
+         * If for whatever reason, we fail to get the bike, then
+         * make sure to remember that.
+         */
+        if (result[0].getRowCount() != 1 || result[1].getRowCount() != 1)
+            bikeId = -1;
+    }
+
+    public long run() {
+
+        do {
+            reserveBike();
+            checkoutBike();
+        } while ( bikeId == -1 );
+
+        return bikeId;
+
+    }
+
+} // End Class
+

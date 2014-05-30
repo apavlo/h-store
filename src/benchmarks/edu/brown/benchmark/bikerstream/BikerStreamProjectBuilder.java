@@ -4,7 +4,7 @@
  *  Massachusetts Institute of Technology                                  *
  *  Yale University                                                        *
  *                                                                         *
- *  Coded By:  Justin A. DeBrabant (http://www.cs.brown.edu/~debrabant/)   *								   
+ *  Coded By:  Justin A. DeBrabant (http://www.cs.brown.edu/~debrabant/)   *
  *                                                                         *
  *                                                                         *
  *  Permission is hereby granted, free of charge, to any person obtaining  *
@@ -35,9 +35,14 @@ import edu.brown.benchmark.AbstractProjectBuilder;
 import edu.brown.api.BenchmarkComponent;
 
 import edu.brown.benchmark.bikerstream.procedures.InsertIntoBikeReadingsTableWinTrigger;
-import edu.brown.benchmark.bikerstream.procedures.RideBike; 
-import edu.brown.benchmark.bikerstream.procedures.Initialize; 
-import edu.brown.benchmark.bikerstream.procedures.UpdateCount; 
+import edu.brown.benchmark.bikerstream.procedures.Initialize;
+import edu.brown.benchmark.bikerstream.procedures.SignUp;
+import edu.brown.benchmark.bikerstream.procedures.ReserveBike;
+import edu.brown.benchmark.bikerstream.procedures.CheckoutBike;
+import edu.brown.benchmark.bikerstream.procedures.RideBike;
+import edu.brown.benchmark.bikerstream.procedures.ReserveDock;
+import edu.brown.benchmark.bikerstream.procedures.CheckinBike;
+import edu.brown.benchmark.bikerstream.procedures.UpdateCount;
 
 public class BikerStreamProjectBuilder extends AbstractProjectBuilder {
 
@@ -47,22 +52,27 @@ public class BikerStreamProjectBuilder extends AbstractProjectBuilder {
     // REQUIRED: Retrieved via reflection by BenchmarkController
     public static final Class<? extends BenchmarkComponent> m_loaderClass = BikerStreamLoader.class;
 
-	// a list of procedures implemented in this benchmark
+    // a list of procedures implemented in this benchmark
     @SuppressWarnings("unchecked")
     public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[]{
-        RideBike.class, 
         Initialize.class,
+        SignUp.class,
+        ReserveBike.class,
+        CheckoutBike.class,
+        RideBike.class,
+        ReserveDock.class,
+        CheckinBike.class,
         InsertIntoBikeReadingsTableWinTrigger.class,
         UpdateCount.class
     };
-	
-	{
+
+    {
     // nothing to do here - code saved as
     // placeholder/reminder
-		//addTransactionFrequency(Vote.class, 100);
-	}
-	
-	// a list of tables used in this benchmark with corresponding partitioning keys
+        //addTransactionFrequency(Vote.class, 100);
+    }
+
+    // a list of tables used in this benchmark with corresponding partitioning keys
     public static final String PARTITIONING[][] = new String[][] {
         { "bikereadings_table", "bike_id" },
         { "bikereadings_stream", "bike_id"},

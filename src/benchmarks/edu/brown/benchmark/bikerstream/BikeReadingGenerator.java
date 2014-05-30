@@ -4,8 +4,8 @@
  *  Massachusetts Institute of Technology                                  *
  *  Yale University                                                        *
  *                                                                         *
- *  Original By: VoltDB Inc.											   *
- *  Ported By:  Justin A. DeBrabant (http://www.cs.brown.edu/~debrabant/)  *								   								   
+ *  Original By: VoltDB Inc.                                               *
+ *  Ported By:  Justin A. DeBrabant (http://www.cs.brown.edu/~debrabant/)  *
  *                                                                         *
  *                                                                         *
  *  Permission is hereby granted, free of charge, to any person obtaining  *
@@ -31,39 +31,45 @@
 package edu.brown.benchmark.bikerstream;
 
 import java.util.Random;
+import edu.brown.utils.MathUtil;
 
-/* Class to generate readings from bikes. Idea is that
-   this class generates readings like might be generated
-   from a bike GPS unit.
 
-   I used the clientId as the bikeid (so each client would 
-   have its own bikeid) and the lat/lon are completely made
-   up - probably in antartica or something.
+  /**
+   * Class to generate readings from bikes. Idea is that
+   * this class generates readings like might be generated
+   * from a bike GPS unit.
+
+   * I used the clientId as the bikeid (so each client would
+   * have its own bikeid) and the lat/lon are completely made
+   * up - probably in antartica or something.
    */
 public class BikeReadingGenerator {
-	
+
     private int bikeId;
     private final Random rand = new Random();
-    private long lat;	
+    private long lat;
     private long lon;
 
-	public static class Reading {
-	    public final int bikeId;
+    private double minD = -3.0;
+    private double maxD = 3.0;
+
+    public static class Reading {
+        public final int bikeId;
         public final long lat;
         public final long lon;
-		
+
         protected Reading(int bikeId, long lat, long lon) {
             this.bikeId= bikeId;
             this.lat= lat;
             this.lon= lon;
         }
     }
-	
-	public BikeReadingGenerator(int clientId) {
+
+    public BikeReadingGenerator(int clientId) {
       // try using clientid as the bikeid
       // requirement (for now) is different clients need to
       // use different bikeids
-	    this.bikeId = clientId;
+        this.bikeId = clientId;
 
       // start lat/lon at some position related to the
       // bikeId, then increment
@@ -71,9 +77,11 @@ public class BikeReadingGenerator {
       this.lat = bikeId*1000;
       this.lon = bikeId*1000;
     }
-	
-	/**
+
+
+    /**
      * Receives/generates a simulated voting call
+     *
      * @return Call details (calling number and contestant to whom the vote is given)
      */
     public Reading pedal()
@@ -82,13 +90,16 @@ public class BikeReadingGenerator {
         // (including invalid votes to demonstrate transaction validationg in the database)
         // TODO will want to add randomness for this same
         // reason for bikerstream
-		
+
         //  introduce an invalid contestant every 100 call or so to simulate fraud
         //  and invalid entries (something the transaction validates against)
         //if (rand.nextInt(100) == 0) {
         //    contestantNumber = 999;
         //}
-		
+
+        //lat = (long) ((Math.random() * ((maxD - minD) + 1)) + minD);
+        //lon = (long) ((Math.random() * ((maxD - minD) + 1)) + minD);
+
         return new Reading(bikeId, lat++, lon++);
     }
 

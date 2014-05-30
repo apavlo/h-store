@@ -37,10 +37,83 @@ public abstract class BikerStreamConstants {
     public static final String BIKEREADINGS_STREAM = "bikereadings_stream";
     public static final String BIKEREADINGS_WINDOW_ROWS = "bikereadings_window_rows";
     public static final String TABLENAME_BIKEREADINGS_COUNT= "count_bikereadings_table";
-    
-	public static final int MAX_BIKES = 1000; 
 
     // potential return codes
-    public static final long BIKEREADING_SUCCESSFUL = 0;
+    public static final long BIKEREADING_SUCCESSFUL  = 0;
     public static final long ERR_INVALID_BIKEREADING = 1;
+
+    // ===========================================================================
+    // INITIALIZATION PARAMETERS
+
+
+    public static final int NUM_ZONES = 20;
+    public static final int NUM_STATIONS_PER_ZONE = 6;
+    public static final int NUM_DOCKS_PER_STATION = 30;
+    public static final int NUM_BIKES_PER_STATION= 25;
+
+
+    // ===========================================================================
+    // SIGNUP
+
+    // Return Values
+    public static final long INSERT_RIDER_FAILED  = 4;
+    public static final long INSERT_CARD_FAILED   = 5;
+    public static final long INSERT_RIDER_SUCCESS = 6;
+
+    // Firstnames for the signup process.
+    public static final String[] FIRSTNAMES = new String[] {
+        "Adam", "Albert", "Derrick", "Erik", "John", "Jerry",
+        "Marry", "Tim", "Jane", "Jenny", "Harry", "Loyd",
+        "Gary", "Mark", "Sherry", "Kristin", "Beth", "Tom",
+        "Paul", "Jay", "Andrea", "Jack", "Eryn", "Nesime",
+        "Ben", "Bebe", "Ann", "Alex", "Carolyn", "Krieger",
+        "Ellie" };
+
+    // Lastnames for the sign up process
+    public static final String[] LASTNAMES = new String[] {
+        "Smith", "Phelps", "Sutherland", "Sampson", "Tufte",
+        "Maes", "Kiss", "Mulvaney", "Logan", "Sarreal", "Cruise",
+        "Archer", "Clark", "Casey", "Mack", "Garmin", "Sabath" };
+
+    // ===========================================================================
+    // BIKE RESERVATIONS
+
+    // Maximum number of times to try and reserve a bike
+    public static final int MAX_RESERVE_ATTEMPTS = 5;
+
+    // Return Values
+    public static final long BIKE_RESERVED     = 0;
+    public static final long BIKE_NOT_RESERVED = 1;
+
+    // ===========================================================================
+    // BIKE CHECKOUT
+
+    public static final int MAX_CHECKOUT_ATTEMPTS = 5;
+
+    public static final long BIKE_CHECKEDOUT      = 0;
+    public static final long BIKE_NOT_CHECKEDOUT  = 1;
+    public static final long NO_AVAILIBLE_BIKES   = 2;
+
+
+    // ===========================================================================
+    // DOCK RESERVATIONS
+
+    // Maximum number of times to try and reserve a bike
+    public static final int MAX_DOCK_RESERVE_ATTEMPTS = 5;
+
+    // Return Values
+    public static final long DOCK_RESERVED     = 0;
+    public static final long DOCK_NOT_RESERVED = 1;
+
+    // ===========================================================================
+    // BIKE CHECKIN
+
+    public static final int MAX_CHECKIN_ATTEMPTS  = 5;
+
+    public static final long BIKE_CHECKEDIN       = 0;
+    public static final long BIKE_NOT_CHECKEDIN   = 1;
+    public static final long NO_AVAILIBLE_DOCKS   = 2;
+
+
+
 }

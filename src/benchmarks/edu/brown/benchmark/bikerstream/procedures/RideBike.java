@@ -39,22 +39,23 @@ import edu.brown.benchmark.bikerstream.BikerStreamConstants;
 @ProcInfo (
     // TODO - don't know what to do about partitioninng
     //partitionInfo = "votes.phone_number:1",
-    //singlePartition = true
+    singlePartition = true
 )
 public class RideBike extends VoltProcedure {
-	
+
     // Enters a bike ride gps event 
     public final SQLStmt insertBikeReadingStmt = new SQLStmt(
-		"INSERT INTO bikereadings_stream (bike_id, reading_time, reading_lat, reading_lon) VALUES (?, ?, ?, ?);"
+        "INSERT INTO bikereadings_stream (bike_id, reading_time, reading_lat, reading_lon) " +
+        "VALUES (?, ?, ?, ?);"
     );
-	
+
     public long run(int bikeId, long reading_lat, long reading_lon) {
-		
-        // Post the ride event 
+
+        // Post the ride event
         TimestampType timestamp = new TimestampType();
         voltQueueSQL(insertBikeReadingStmt, bikeId, timestamp, reading_lat, reading_lon);
         voltExecuteSQL(true);
-		
+
         // Set the return value to 0: successful vote
         return BikerStreamConstants.BIKEREADING_SUCCESSFUL;
     }

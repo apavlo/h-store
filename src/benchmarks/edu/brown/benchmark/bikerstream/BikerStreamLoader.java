@@ -4,8 +4,8 @@
  *  Massachusetts Institute of Technology                                  *
  *  Yale University                                                        *
  *                                                                         *
- *  Original By: VoltDB Inc.											   *
- *  Ported By:  Justin A. DeBrabant (http://www.cs.brown.edu/~debrabant/)  *								   
+ *  Original By: VoltDB Inc.                                               *
+ *  Ported By:  Justin A. DeBrabant (http://www.cs.brown.edu/~debrabant/)  *
  *                                                                         *
  *                                                                         *
  *  Permission is hereby granted, free of charge, to any person obtaining  *
@@ -53,7 +53,7 @@ public class BikerStreamLoader extends Loader {
 
     @Override
     public void load() {
-        if (d) 
+        if (d)
             LOG.debug("Starting BikerStream");
 
         try {
