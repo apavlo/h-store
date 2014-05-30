@@ -49,6 +49,9 @@ public abstract class VoterWinHStoreConstants {
     public static final long ERR_INVALID_CONTESTANT = 1;
     public static final long ERR_VOTER_OVER_VOTE_LIMIT = 2;
     
-    public static final long WINDOW_SIZE = MicroWinSStoreConstants.WINDOW_SIZE;
-    public static final long SLIDE_SIZE = MicroWinSStoreConstants.SLIDE_SIZE;
+    //public static final long WINDOW_SIZE = MicroWinSStoreConstants.WINDOW_SIZE;
+    //public static final long SLIDE_SIZE = MicroWinSStoreConstants.SLIDE_SIZE;
+    
+    public static final long WINDOW_SIZE = 1000;
+    public static final long SLIDE_SIZE = 1;
 }

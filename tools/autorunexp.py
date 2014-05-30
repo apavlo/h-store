@@ -95,6 +95,13 @@ def getReportFromList(list):
 	return report
 ##enddef
 
+def getNumReportFromList(list):
+	report = []
+	for i in range(0,len(list)):
+		report.append(float(list[i]))
+	return report
+##enddef
+
 # get mean, std for array
 def getMeanAndStd(a):
 	n = len(a)
@@ -131,6 +138,7 @@ parser.add_argument('--warmup', help='warmup - time in ms', type=int, default=10
 parser.add_argument('--numruns', help='number of experiment runs', type=int, default=3)
 parser.add_argument('-e', '--expout', help='file that contains the final experiment results', default='expout.txt')
 parser.add_argument('--winconfig', help='description of the window configuration', default='')
+parser.add_argument('--debug', help='debug mode, only runs once', action='store_true')
 
 args = parser.parse_args()
 
@@ -154,6 +162,7 @@ warmup      = args.warmup
 numruns     = args.numruns
 expout      = args.expout
 winconfig   = args.winconfig
+debug       = args.debug
 
 if blockingflag==True:
     strblocking = "true"
@@ -207,6 +216,10 @@ for rn in range(0, numruns):
 	client_txnrate = rmin
 	cur_values = []
 	while client_txnrate <= rmax:
+		if client_txnrate <= 0:
+			client_txnrate += rstep
+			continue
+
 		site_commandlog_timeout	= logtimeout
 		client_warmup = warmup
 	
@@ -234,23 +247,34 @@ for rn in range(0, numruns):
 		# get the benchmark running result, and print it on screen
 		result = f.read()
 		#print "This benchmark result is :", result
-	        singlereport = generateReport(result)
+		singlereport = generateReport(result)
+		numreport = getNumReportFromList(singlereport)
+
 		basic += getReportFromList(singlereport)
 		file.write(basic+"\n")
 
 		resultlist.append(singlereport)
 		
-		if singlereport[idx_throughput] <= client_txnrate * txn_threshold:
+		print "client_txnrate * txn_threshold: " + "{0:.2f}".format(client_txnrate * txn_threshold)
+		print "throughput: " + "{0:.2f}".format(numreport[idx_throughput])
+
+		if debug:
+			numreport.append(float(client_txnrate))
+			cur_values = numreport
+			break
+
+		if numreport[idx_throughput] <= client_txnrate * txn_threshold:
 			if rstep != frstep:
 				client_txnrate -= rstep
 				rstep = frstep
 			else:
 				break
 		else:
-			singlereport.append(client_txnrate)
-			cur_values = singlereport
+			numreport.append(float(client_txnrate))
+			cur_values = numreport
 			client_txnrate += rstep
 	##endwhile
+	#print "cur_values length: " + "{0:d}".format(len(cur_values))
 	max_values.append(cur_values)
 ##endfor
 
@@ -258,10 +282,11 @@ file.close()
 
 #append to the final experimental results file
 expfile = open(expout, "a")
-proj = projectname + ": " + winconfig
+proj = projectname + " - " + winconfig
 config = "threads: " + "{0:d}".format(client_threads_per_host) + ", logging: " +  strlogging + ", log timeout: " + "{0:d}".format(site_commandlog_timeout)
 config += "\nblocking: " + strblocking + ", warmup: " + "{0:d}".format(client_warmup) + ", threshold: " + "{0:.2f}".format(txn_threshold)
 expfile.write(proj + "\n");
+expfile.write("--------------------------------------------------\n");
 expfile.write(config + "\n");
 
 avg_values = []
@@ -269,23 +294,25 @@ max_throughput = 0;
 max_txnrate = 0;
 min_throughput = 999999999;
 min_txnrate = 0;
-for i in range(0, len(max_values) - 1):
-	for j in range(0, max_values[i]):
+#print "max_values length: " + "{0:d}".format(len(max_values))
+for i in range(0, len(max_values)):
+	#print "max_values[i] length: " + "{0:d}".format(len(max_values[i]))
+	for j in range(0, len(max_values[i])):
 		if i == 0:
-			avg_values.append(0);
+			avg_values.append(0.0);
 		if j == idx_throughput:
 			if max_values[i][j] > max_throughput:
 				max_throughput = max_values[i][j]
 				max_txnrate = max_values[i][idx_txnrate]
-			if max_values[i][j] < min_thoroughput:
+			if max_values[i][j] < min_throughput:
 				min_throughput = max_values[i][j]
 				min_txnrate = max_values[i][idx_txnrate]
 		avg_values[j] += max_values[i][j]
 
-expfile.write("THROUGHPUT(txn/sec)(min): " + "{0:d}".format(min_throughput) + " (" + "{0:d}".format(min_txnrate) + " submitted)\n");
-expfile.write("THROUGHPUT(txn/sec)(max): " + "{0:d}".format(max_throughput) + " (" + "{0:d}".format(max_txnrate) + " submitted)\n");
+expfile.write("THROUGHPUT(txn/sec)(min): " + "{0:.2f}".format(min_throughput) + " (" + "{0:.2f}".format(min_txnrate) + " submitted)\n");
+expfile.write("THROUGHPUT(txn/sec)(max): " + "{0:.2f}".format(max_throughput) + " (" + "{0:.2f}".format(max_txnrate) + " submitted)\n");
 for i in range(0, len(avg_values) - 1):
-	expfile.write(fieldsarray[i] + "(avg): " + "{0:d}".format(avg_values[i]/numruns) + "\n");
+	expfile.write(fieldsarray[i] + "(avg): " + "{0:.2f}".format(avg_values[i]/numruns) + "\n");
 expfile.write("\n");
 expfile.close()
 
