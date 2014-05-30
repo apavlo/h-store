@@ -283,8 +283,8 @@ file.close()
 #append to the final experimental results file
 expfile = open(expout, "a")
 proj = projectname + " - " + winconfig + " (" + "{0:.2f}".format(txn_threshold) + " threshold)"
-config = "threads: " + "{0:d}".format(client_threads_per_host) + ", logging: " +  strlogging + ", log timeout: " + "{0:d}".format(site_commandlog_timeout)
-config += "\nblocking: " + strblocking + ", warmup: " + "{0:d}".format(client_warmup) + ", threshold: " + "{0:.2f}".format(txn_threshold)
+config = "threads: " + "{0:d}".format(client_threads_per_host) + "  |  logging: " +  strlogging + "  |  log timeout: " + "{0:d}".format(site_commandlog_timeout)
+config += "\nblocking: " + strblocking + "  |  warmup: " + "{0:d}".format(client_warmup) + "  |  threshold: " + "{0:.2f}".format(txn_threshold)
 expfile.write(proj + "\n");
 expfile.write("--------------------------------------------------\n");
 expfile.write(config + "\n");
