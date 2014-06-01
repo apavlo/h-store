@@ -350,6 +350,7 @@ CTX.TESTS['expressions'] = """
 
 CTX.TESTS['indexes'] = """
  index_key_test
+ index_multikey_test
  index_scripted_test
  index_test
 """
