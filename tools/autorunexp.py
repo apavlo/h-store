@@ -153,6 +153,7 @@ txn_threshold = args.txnthreshold
 rmin	    = args.rmin
 rmax	    = args.rmax
 rstep       = args.rstep
+orstep      = rstep
 frstep      = args.finalrstep
 logtimeout  = args.logtimeout
 #lmax	    = args.lmax
@@ -215,8 +216,9 @@ for rn in range(0, numruns):
 	print "RUN NUMBER: " + "{0:d}".format(rn + 1)
 	client_txnrate = rmin
 	cur_values = []
+	rstep = orstep
 	while client_txnrate <= rmax:
-		if client_txnrate <= 0:
+		if client_txnrate < 1:
 			client_txnrate += rstep
 			continue
 
@@ -268,6 +270,9 @@ for rn in range(0, numruns):
 				client_txnrate -= rstep
 				rstep = frstep
 			else:
+				if not cur_values:
+					numreport.append(float(client_txnrate))
+					cur_values = numreport
 				break
 		else:
 			numreport.append(float(client_txnrate))
