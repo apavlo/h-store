@@ -1,5 +1,5 @@
 #!/bin/sh
-ant clean-java build-java
+ant clean-all build-all
 ant hstore-prepare -Dproject=voterwintimehstore -Dhosts="localhost:0:0"
 ant hstore-prepare -Dproject=voterwintimesstore -Dhosts="localhost:0:0"
 ant hstore-prepare -Dproject=voterwinhstore -Dhosts="localhost:0:0"
