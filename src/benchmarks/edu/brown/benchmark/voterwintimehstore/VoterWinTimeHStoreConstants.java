@@ -54,6 +54,6 @@ public abstract class VoterWinTimeHStoreConstants {
 //    public static final long TS_DURATION = MicroWinTimeSStoreConstants.TS_DURATION;
     
     public static final long WINDOW_SIZE = 60;
-    public static final long SLIDE_SIZE = 1;
+    public static final long SLIDE_SIZE = 5;
     public static final long TS_DURATION = 1000000000;
 }
