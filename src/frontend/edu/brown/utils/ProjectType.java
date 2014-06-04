@@ -117,12 +117,15 @@ public enum ProjectType {
     WORDCOUNTSSTOREGETRESULTS("WordCountSStoreGetResults", "edu.brown.benchmark.wordcountsstoregetresults"),
     WORDCOUNTSSTOREWITHBATCH("WordCountSStoreWithBatch", "edu.brown.benchmark.wordcountsstorewithbatch"),
     VOTERDEMOHSTORE("VoterDemoHStore", "edu.brown.benchmark.voterdemohstore"),
+    VOTERDEMOHSTOREWINSP1("VoterDemoHStoreWinSP1", "edu.brown.benchmark.voterdemohstorewinsp1"),
     VOTERDEMOHSTORENOCLEANUP("VoterDemoHStoreNoCleanup", "edu.brown.benchmark.voterdemohstorenocleanup"),
     VOTERDEMOHSTORENOCLEANUPANOTHER("VoterDemoHStoreNoCleanupAnother", "edu.brown.benchmark.voterdemohstorenocleanupanother"),
     VOTERDEMOHSTOREANOTHER("VoterDemoHStoreAnother", "edu.brown.benchmark.voterdemohstoreanother"),
     VOTERDEMOSSTORE("VoterDemoSStore", "edu.brown.benchmark.voterdemosstore"),
+    VOTERDEMOSSTOREWINSP1("VoterDemoSStoreWinSP1", "edu.brown.benchmark.voterdemosstorewinsp1"),
     VOTERDEMOSSTOREANOTHER("VoterDemoSStoreAnother", "edu.brown.benchmark.voterdemosstoreanother"),
     VOTERDEMOSSTOREPETRIGONLY("VoterDemoSStorePETrigOnly", "edu.brown.benchmark.voterdemosstorepetrigonly"),
+    VOTERDEMOSSTOREPETRIGONLYWINSP1("VoterDemoSStorePETrigOnlyWinSP1", "edu.brown.benchmark.voterdemosstorepetrigonlywinsp1"),
 ;
 
 
