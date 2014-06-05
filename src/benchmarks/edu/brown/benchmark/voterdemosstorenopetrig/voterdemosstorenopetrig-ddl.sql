@@ -22,14 +22,14 @@ CREATE TABLE area_code_state
 );
 
 -- votes table holds every valid vote.
---   voterdemosstorepetrigonlywinsp1s are not allowed to submit more than <x> votes, x is passed to client application
+--   voterdemosstorenopetrigs are not allowed to submit more than <x> votes, x is passed to client application
 CREATE TABLE votes
 (
   vote_id            bigint     NOT NULL,
   phone_number       bigint     NOT NULL
 , state              varchar(2) NOT NULL -- REFERENCES area_code_state (state)
 , contestant_number  integer    NOT NULL REFERENCES contestants (contestant_number)
-, ts		     integer    NOT NULL
+, time		     integer    NOT NULL
 , CONSTRAINT PK_votes PRIMARY KEY
   (
     vote_id
@@ -41,7 +41,6 @@ CREATE TABLE voteCount
 (
   row_id	     integer    NOT NULL,
   cnt		     integer    NOT NULL
-
 , CONSTRAINT PK_voteCount PRIMARY KEY
   (
     row_id
@@ -52,7 +51,6 @@ CREATE TABLE totalVoteCount
 (
   row_id	     integer    NOT NULL,
   cnt		     integer    NOT NULL
-
 , CONSTRAINT PK_totalVoteCount PRIMARY KEY
   (
     row_id
@@ -63,32 +61,31 @@ CREATE TABLE totalLeaderboardCount
 (
   row_id	     integer    NOT NULL,
   cnt		     integer    NOT NULL
-
 , CONSTRAINT PK_totalLeaderboardCount PRIMARY KEY
   (
     row_id
   )
 );
 
-CREATE TABLE win_timestamp
+CREATE STREAM proc_one_out
 (
-   row_id            integer   NOT NULL,
-   ts	     integer   NOT NULL
-
-, CONSTRAINT PK_win_timestamp PRIMARY KEY
-  (
-    row_id
-  )
+  vote_id            bigint     NOT NULL,
+  phone_number       bigint     NOT NULL
+, state              varchar(2) NOT NULL
+, contestant_number  integer    NOT NULL
+, time		     integer    NOT NULL
 );
 
-CREATE TABLE stage_timestamp
-(
-   row_id            integer   NOT NULL,
-   ts	     integer   NOT NULL
+CREATE WINDOW trending_leaderboard ON proc_one_out RANGE 30 SLIDE 1;
 
-, CONSTRAINT PK_stage_timestamp PRIMARY KEY
+CREATE TABLE top_three_last_30_sec
+(
+  --phone_number       bigint    NOT NULL,
+  contestant_number  integer   NOT NULL
+, num_votes          integer
+, CONSTRAINT PK_topThree PRIMARY KEY
   (
-    row_id
+    contestant_number
   )
 );
 
@@ -105,22 +102,6 @@ AS
  GROUP BY phone_number
 ;
 
--- rollup of votes by contestant and state for the heat map and results
-CREATE VIEW v_votes_by_contestant_number_state
-(
-  contestant_number
-, state
-, num_votes
-)
-AS
-   SELECT contestant_number
-        , state
-        , COUNT(*)
-     FROM votes
- GROUP BY contestant_number
-        , state
-;
-
 CREATE VIEW v_votes_by_contestant
 (
   contestant_number
@@ -128,18 +109,8 @@ CREATE VIEW v_votes_by_contestant
 )
 AS
    SELECT contestant_number
-        , COUNT(*)
+	, COUNT(*)
      FROM votes
  GROUP BY contestant_number
 ;
 
-CREATE STREAM proc_one_out
-(
-  vote_id            bigint     NOT NULL,
-  phone_number       bigint     NOT NULL
-, state              varchar(2) NOT NULL
-, contestant_number  integer    NOT NULL
-, time		     integer    NOT NULL
-);
-
-CREATE INDEX idx_ts_votes ON VOTES (ts);

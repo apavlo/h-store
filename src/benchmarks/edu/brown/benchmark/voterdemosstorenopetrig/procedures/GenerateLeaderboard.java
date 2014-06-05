@@ -23,11 +23,11 @@
 
 //
 // Accepts a vote, enforcing business logic: make sure the vote is for a valid
-// contestant and that the voterdemosstorewinsp1 (phone number of the caller) is not above the
+// contestant and that the voterdemosstorenopetrig (phone number of the caller) is not above the
 // number of allowed votes.
 //
 
-package edu.brown.benchmark.voterdemosstorewinsp1.procedures;
+package edu.brown.benchmark.voterdemosstorenopetrig.procedures;
 
 import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
@@ -36,7 +36,7 @@ import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.types.TimestampType;
 
-import edu.brown.benchmark.voterdemosstorewinsp1.VoterDemoSStoreWinSP1Constants;
+import edu.brown.benchmark.voterdemosstorenopetrig.VoterDemoSStoreNoPETrigConstants;
 
 @ProcInfo (
 	//partitionInfo = "contestants.contestant_number:1",
@@ -44,16 +44,11 @@ import edu.brown.benchmark.voterdemosstorewinsp1.VoterDemoSStoreWinSP1Constants;
 )
 public class GenerateLeaderboard extends VoltProcedure {
 	
-	
-	protected void toSetTriggerTableName()
-	{
-		addTriggerTable("proc_one_out");
-	}
-    
-    public final SQLStmt clearProcOut = new SQLStmt(
-    	"DELETE FROM proc_one_out;"	
+    // Put vote into leaderboard
+    public final SQLStmt trendingLeaderboardStmt = new SQLStmt(
+	   "INSERT INTO trending_leaderboard (vote_id, phone_number, state, contestant_number, time) SELECT * FROM proc_one_out;"
     );
-    
+   
     /**
     public final SQLStmt updateCountingWin = new SQLStmt(
     	"INSERT INTO counting_win (vote_id) SELECT vote_id FROM proc_one_out;"	
@@ -63,10 +58,20 @@ public class GenerateLeaderboard extends VoltProcedure {
     @StmtInfo(
             upsertable=true
         )
+    public final SQLStmt updateCount = new SQLStmt(
+    	"INSERT INTO voteCount (row_id, cnt) SELECT row_id, cnt + 1 FROM voteCount WHERE row_id = 1;"
+    );
+    
+    @StmtInfo(
+            upsertable=true
+        )
     public final SQLStmt updateTotalCount = new SQLStmt(
     	"INSERT INTO totalLeaderboardCount (row_id, cnt) SELECT row_id, cnt + 1 FROM totalLeaderboardCount WHERE row_id = 1;"
     );
     
+    public final SQLStmt getCount = new SQLStmt(
+    	"SELECT cnt FROM voteCount;"
+    );
     /**
     //hack to avoid views
     public final SQLStmt clearLowestContestant = new SQLStmt(
@@ -115,20 +120,27 @@ public class GenerateLeaderboard extends VoltProcedure {
 
 	
 public long run() {
-
-        voltQueueSQL(getLowestContestant);//0
-        voltQueueSQL(clearProcOut);
+		
+        // Queue up leaderboard stmts
+		voltQueueSQL(trendingLeaderboardStmt);
+        voltQueueSQL(updateCount);
+        voltQueueSQL(getCount);
+        //voltQueueSQL(clearLowestContestant);
+        //voltQueueSQL(setLowestContestants);
+        voltQueueSQL(getLowestContestant);//3
         voltQueueSQL(updateTotalCount);
 
         VoltTable validation[] = voltExecuteSQL();
-		        
-    	long contestant_number = validation[0].fetchRow(0).getLong(0);
-    	
-    	voltQueueSQL(deleteVotes, contestant_number);
-    	voltQueueSQL(deleteFromLeaderboard, contestant_number);
-    	voltQueueSQL(deleteContestant, contestant_number);
-        voltQueueSQL(resetCount);
-
+		
+        // check the number of rows
+        if ((validation[2].fetchRow(0).getLong(0)) >= VoterDemoSStoreNoPETrigConstants.VOTE_THRESHOLD) {
+        	long contestant_number = validation[3].fetchRow(0).getLong(0);
+        	
+        	voltQueueSQL(deleteVotes, contestant_number);
+        	voltQueueSQL(deleteFromLeaderboard, contestant_number);
+        	voltQueueSQL(deleteContestant, contestant_number);
+            voltQueueSQL(resetCount);
+        }
         voltQueueSQL(getTrendingLeaderboard);
         voltQueueSQL(getTopLeaderboard);
         voltQueueSQL(getBottomLeaderboard);
@@ -136,6 +148,6 @@ public long run() {
         
 		
         // Set the return value to 0: successful vote
-        return VoterDemoSStoreWinSP1Constants.VOTE_SUCCESSFUL;
+        return VoterDemoSStoreNoPETrigConstants.VOTE_SUCCESSFUL;
     }
 }

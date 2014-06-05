@@ -51,7 +51,7 @@ public abstract class VoterDemoHStoreWinSP1Constants {
     public static final long ERR_VOTER_OVER_VOTE_LIMIT = 2;
     public static final long VOTE_SUCCESSFUL_TRIG_SP2 = 3;
     
-    public static final long WINDOW_SIZE = MicroWinTimeSStoreConstants.WINDOW_SIZE;
-    public static final long SLIDE_SIZE = MicroWinTimeSStoreConstants.SLIDE_SIZE;
-    public static final long TS_DURATION = MicroWinTimeSStoreConstants.TS_DURATION;
+    public static final long WINDOW_SIZE = 30;
+    public static final long SLIDE_SIZE = 1;
+    public static final long TS_DURATION = 1000000000;
 }

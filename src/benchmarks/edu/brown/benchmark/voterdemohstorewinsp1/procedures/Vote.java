@@ -201,12 +201,11 @@ public long run(long voteId, long phoneNumber, int contestantNumber, long maxVot
         // Post the vote
         //TimestampType timestamp = new TimestampType();
         voltQueueSQL(insertVoteStmt, voteId, phoneNumber, state, contestantNumber, currentTimestamp);
-        //voltQueueSQL(getCurrentTS);
       	voltQueueSQL(checkWindowTimestamp);
         voltQueueSQL(updateCount);
         voltQueueSQL(getCount);
         voltQueueSQL(trendingLeaderboardStmt);
-        voltExecuteSQL();
+        validation = voltExecuteSQL();
         
         //long currentTimestamp = validation[0].fetchRow(0).getLong(0);
         int minWinTimestamp = (int)validation[1].fetchRow(0).getLong(0);

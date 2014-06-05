@@ -127,10 +127,10 @@ public class VoterDemoHStoreWinSP1Client extends BenchmarkComponent {
 				incrementTransactionCounter(response, 0);
 		        VoltTable results[] = response.getResults();
 		        
-		        if(results.length > 0 && results[0].asScalarLong() == VoterDemoHStoreWinSP1Constants.VOTE_SUCCESSFUL)
+		        if(results.length > 0 && results[0].asScalarLong() == VoterDemoHStoreWinSP1Constants.VOTE_SUCCESSFUL_TRIG_SP2)
 		        {
 		        	response = client.callProcedure("GenerateLeaderboard", curTimestamp);
-		    		incrementTransactionCounter(response, 1);
+		    		//incrementTransactionCounter(response, 1);
 		        }
 		        return true;
 
@@ -182,7 +182,7 @@ public class VoterDemoHStoreWinSP1Client extends BenchmarkComponent {
 	                assert(results.length == 1);
 	                long status = results[0].asScalarLong();
 	                prevStatus = status;
-	                if (status == VoterDemoHStoreWinSP1Constants.VOTE_SUCCESSFUL) {
+	                if (status == VoterDemoHStoreWinSP1Constants.VOTE_SUCCESSFUL || status == VoterDemoHStoreWinSP1Constants.VOTE_SUCCESSFUL_TRIG_SP2) {
 	                    acceptedVotes.incrementAndGet();
 	                }
 	                else if (status == VoterDemoHStoreWinSP1Constants.ERR_INVALID_CONTESTANT) {

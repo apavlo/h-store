@@ -4,8 +4,7 @@
  *  Massachusetts Institute of Technology                                  *
  *  Yale University                                                        *
  *                                                                         *
- *  Original By: VoltDB Inc.											   *
- *  Ported By:  Justin A. DeBrabant (http://www.cs.brown.edu/~debrabant/)  *								   
+ *  Coded By:  Justin A. DeBrabant (http://www.cs.brown.edu/~debrabant/)   *								   
  *                                                                         *
  *                                                                         *
  *  Permission is hereby granted, free of charge, to any person obtaining  *
@@ -28,39 +27,53 @@
  *  OTHER DEALINGS IN THE SOFTWARE.                                        *
  ***************************************************************************/
 
-package edu.brown.benchmark.voterdemosstorepetrigonlywinsp1;
+package edu.brown.benchmark.voterdemosstorenopetrig;
 
-import org.apache.log4j.Logger;
+import org.voltdb.VoltProcedure;
 
-import edu.brown.api.Loader;
+import edu.brown.benchmark.AbstractProjectBuilder;
+import edu.brown.api.BenchmarkComponent;
 
-public class VoterDemoSStorePETrigOnlyWinSP1Loader extends Loader {
+import edu.brown.benchmark.voterdemosstorenopetrig.procedures.*;  
 
-    private static final Logger LOG = Logger.getLogger(VoterDemoSStorePETrigOnlyWinSP1Loader.class);
-    private static final boolean d = LOG.isDebugEnabled();
+public class VoterDemoSStoreNoPETrigProjectBuilder extends AbstractProjectBuilder {
 
-    public static void main(String args[]) throws Exception {
-        if (d) LOG.debug("MAIN: " + VoterDemoSStorePETrigOnlyWinSP1Loader.class.getName());
-        Loader.main(VoterDemoSStorePETrigOnlyWinSP1Loader.class, args, true);
-    }
+    // REQUIRED: Retrieved via reflection by BenchmarkController
+    public static final Class<? extends BenchmarkComponent> m_clientClass = VoterDemoSStoreNoPETrigClient.class;
 
-    public VoterDemoSStorePETrigOnlyWinSP1Loader(String[] args) {
-        super(args);
-        if (d) LOG.debug("CONSTRUCTOR: " + VoterDemoSStorePETrigOnlyWinSP1Loader.class.getName());
-    }
+    // REQUIRED: Retrieved via reflection by BenchmarkController
+    public static final Class<? extends BenchmarkComponent> m_loaderClass = VoterDemoSStoreNoPETrigLoader.class;
 
-    @Override
-    public void load() {
-        int numContestants = VoterDemoSStorePETrigOnlyWinSP1Util.getScaledNumContestants(this.getScaleFactor());
-        if (d) 
-            LOG.debug("Starting VoterDemoSStorePETrigOnlyWinSP1Loader [numContestants=" + numContestants + "]");
+	// a list of procedures implemented in this benchmark
+    @SuppressWarnings("unchecked")
+    public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
+        Vote.class, 
+        Initialize.class,
+        GenerateLeaderboard.class,
+        //ProcOneTrigger.class,
+        LeaderboardTrigger.class
+        };
+	
+	{
+		//addTransactionFrequency(Vote.class, 100);
+	}
+	
+	// a list of tables used in this benchmark with corresponding partitioning keys
+    public static final String PARTITIONING[][] = new String[][] {
+        { "votes", "phone_number" },
+        { "contestants", "contestant_number" },
+        { "trending_leaderboard", "phone_number" },
+        { "top_three_last_30_sec", "contestant_number" },
+        { "voteCount", "row_id"},
+        { "totalVoteCount", "row_id"},
+        { "totalLeaderboardCount", "row_id"}
+    };
 
-        try {
-            this.getClientHandle().callProcedure("Initialize",
-                                                 numContestants,
-                                                 VoterDemoSStorePETrigOnlyWinSP1Constants.CONTESTANT_NAMES_CSV);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+    public VoterDemoSStoreNoPETrigProjectBuilder() {
+        super("voterdemosstorenopetrig", VoterDemoSStoreNoPETrigProjectBuilder.class, PROCEDURES, PARTITIONING);
     }
 }
+
+
+
+

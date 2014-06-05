@@ -28,7 +28,7 @@
  *  OTHER DEALINGS IN THE SOFTWARE.                                        *
  ***************************************************************************/
 
-package edu.brown.benchmark.voterdemosstorewinsp1;
+package edu.brown.benchmark.voterdemosstorenopetrig;
 
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -38,17 +38,20 @@ import org.apache.log4j.Logger;
 import org.voltdb.VoltTable;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
+import org.voltdb.client.ProcCallException;
 import org.voltdb.client.ProcedureCallback;
 
 import weka.classifiers.meta.Vote;
 
 import edu.brown.api.BenchmarkComponent;
+import edu.brown.benchmark.voterdemohstore.PhoneCallGenerator;
+import edu.brown.benchmark.voterdemohstore.VoterDemoHStoreConstants;
 import edu.brown.benchmark.voterdemohstore.procedures.GenerateLeaderboard;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 
-public class VoterDemoSStoreWinSP1Client extends BenchmarkComponent {
-    private static final Logger LOG = Logger.getLogger(VoterDemoSStoreWinSP1Client.class);
+public class VoterDemoSStoreNoPETrigClient extends BenchmarkComponent {
+    private static final Logger LOG = Logger.getLogger(VoterDemoSStoreNoPETrigClient.class);
     private static final LoggerBoolean debug = new LoggerBoolean();
     private static long lastTime;
     private static int timestamp;
@@ -60,7 +63,7 @@ public class VoterDemoSStoreWinSP1Client extends BenchmarkComponent {
     AtomicBoolean warmupComplete = new AtomicBoolean(false);
     AtomicBoolean benchmarkComplete = new AtomicBoolean(false);
 
-    // voterdemosstorewinsp1 benchmark state
+    // voterdemosstorenopetrig benchmark state
     AtomicLong acceptedVotes = new AtomicLong(0);
     AtomicLong badContestantVotes = new AtomicLong(0);
     AtomicLong badVoteCountVotes = new AtomicLong(0);
@@ -69,12 +72,12 @@ public class VoterDemoSStoreWinSP1Client extends BenchmarkComponent {
     final Callback callback = new Callback();
 
     public static void main(String args[]) {
-        BenchmarkComponent.main(VoterDemoSStoreWinSP1Client.class, args, false);
+        BenchmarkComponent.main(VoterDemoSStoreNoPETrigClient.class, args, false);
     }
 
-    public VoterDemoSStoreWinSP1Client(String args[]) {
+    public VoterDemoSStoreNoPETrigClient(String args[]) {
         super(args);
-        int numContestants = VoterDemoSStoreWinSP1Util.getScaledNumContestants(this.getScaleFactor());
+        int numContestants = VoterDemoSStoreNoPETrigUtil.getScaledNumContestants(this.getScaleFactor());
         this.switchboard = new PhoneCallGenerator(this.getClientId(), numContestants);
         lastTime = System.nanoTime();
         timestamp = 0;
@@ -101,23 +104,43 @@ public class VoterDemoSStoreWinSP1Client extends BenchmarkComponent {
     @Override
     protected boolean runOnce() throws IOException {
         // Get the next phone call
-    	if(System.nanoTime() - lastTime >= VoterDemoSStoreWinSP1Constants.TS_DURATION)
+    	if(System.nanoTime() - lastTime >= VoterDemoSStoreNoPETrigConstants.TS_DURATION)
         {
         	lastTime = System.nanoTime();
         	timestamp++;
         }
-    	
-        PhoneCallGenerator.PhoneCall call = switchboard.receive();
+    	try {
+	    	Client client = this.getClientHandle();
+	    	
+		        PhoneCallGenerator.PhoneCall call = switchboard.receive();
+		        //Callback callback = new Callback(0);
+		        
+		        int curTimestamp = timestamp;
+		
+		        ClientResponse response;
+					response = client.callProcedure(       "Vote",
+					                                        call.voteId,
+					                                        call.phoneNumber,
+					                                        call.contestantNumber,
+					                                        VoterDemoSStoreNoPETrigConstants.MAX_VOTES,
+					                                        curTimestamp);
+				
+				incrementTransactionCounter(response, 0);
+		        VoltTable results[] = response.getResults();
+		        
+		        if(results.length > 0 && results[0].asScalarLong() == VoterDemoSStoreNoPETrigConstants.VOTE_SUCCESSFUL)
+		        {
+		        	response = client.callProcedure("GenerateLeaderboard");
+		    		//incrementTransactionCounter(response, 1);
+		        }
+		        return true;
 
-        Client client = this.getClientHandle();
-        boolean response = client.callProcedure(callback,
-                                                "Vote",
-                                                call.voteId,
-                                                call.phoneNumber,
-                                                call.contestantNumber,
-                                                VoterDemoSStoreWinSP1Constants.MAX_VOTES,
-                                                timestamp);
-        return response;
+    	} 
+		catch (ProcCallException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			return false;
+		}
     }
 
     @Override
@@ -136,21 +159,21 @@ public class VoterDemoSStoreWinSP1Client extends BenchmarkComponent {
         public void clientCallback(ClientResponse clientResponse) {
             // Increment the BenchmarkComponent's internal counter on the
             // number of transactions that have been completed
-            incrementTransactionCounter(clientResponse, 0);
+            //incrementTransactionCounter(clientResponse, 0);
             
             // Keep track of state (optional)
             if (clientResponse.getStatus() == Status.OK) {
                 VoltTable results[] = clientResponse.getResults();
                 assert(results.length == 1);
                 long status = results[0].asScalarLong();
-                if (status == VoterDemoSStoreWinSP1Constants.VOTE_SUCCESSFUL) {
+                if (status == VoterDemoSStoreNoPETrigConstants.VOTE_SUCCESSFUL) {
                     acceptedVotes.incrementAndGet();
                     //incrementTransactionCounter(clientResponse, 1);
                 }
-                else if (status == VoterDemoSStoreWinSP1Constants.ERR_INVALID_CONTESTANT) {
+                else if (status == VoterDemoSStoreNoPETrigConstants.ERR_INVALID_CONTESTANT) {
                     badContestantVotes.incrementAndGet();
                 }
-                else if (status == VoterDemoSStoreWinSP1Constants.ERR_VOTER_OVER_VOTE_LIMIT) {
+                else if (status == VoterDemoSStoreNoPETrigConstants.ERR_VOTER_OVER_VOTE_LIMIT) {
                     badVoteCountVotes.incrementAndGet();
                 }
             }

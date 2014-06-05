@@ -28,7 +28,7 @@
  *  OTHER DEALINGS IN THE SOFTWARE.                                        *
  ***************************************************************************/
 
-package edu.brown.benchmark.voterdemosstorepetrigonlywinsp1;
+package edu.brown.benchmark.voterdemosstorenopetrigwinsp1;
 
 import java.util.Random;
 

@@ -22,7 +22,7 @@ CREATE TABLE area_code_state
 );
 
 -- votes table holds every valid vote.
---   voterdemosstorewinsp1s are not allowed to submit more than <x> votes, x is passed to client application
+--   voterdemosstorenopetrigwinsp1s are not allowed to submit more than <x> votes, x is passed to client application
 CREATE TABLE votes
 (
   vote_id            bigint     NOT NULL,

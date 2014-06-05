@@ -281,6 +281,8 @@ for rn in range(0, numruns):
 	##endwhile
 	#print "cur_values length: " + "{0:d}".format(len(cur_values))
 	max_values.append(cur_values)
+	if debug:
+		break
 ##endfor
 
 file.close()

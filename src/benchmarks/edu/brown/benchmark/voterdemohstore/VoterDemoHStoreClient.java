@@ -130,7 +130,7 @@ public class VoterDemoHStoreClient extends BenchmarkComponent {
 		        if(results.length > 0 && results[0].asScalarLong() == VoterDemoHStoreConstants.VOTE_SUCCESSFUL)
 		        {
 		        	response = client.callProcedure("GenerateLeaderboard", curTimestamp);
-		    		incrementTransactionCounter(response, 1);
+		    		//incrementTransactionCounter(response, 1);
 		        }
 		        return true;
 

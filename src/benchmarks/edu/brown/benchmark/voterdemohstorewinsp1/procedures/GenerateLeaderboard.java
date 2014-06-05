@@ -103,10 +103,9 @@ public long run(int currentTimestamp) {
 	
 		
         voltQueueSQL(updateTotalCount);
-        
     	voltQueueSQL(getLowestContestant);
     	VoltTable validation[] = voltExecuteSQL();
-    	long contestant_number = validation[0].fetchRow(0).getLong(0);
+    	long contestant_number = validation[1].fetchRow(0).getLong(0);
     	
     	voltQueueSQL(deleteVotes, contestant_number);
     	voltQueueSQL(deleteFromWindow, contestant_number);

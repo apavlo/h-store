@@ -145,7 +145,7 @@ public class VoterDemoSStoreClient extends BenchmarkComponent {
                 long status = results[0].asScalarLong();
                 if (status == VoterDemoSStoreConstants.VOTE_SUCCESSFUL) {
                     acceptedVotes.incrementAndGet();
-                    incrementTransactionCounter(clientResponse, 1);
+                    //incrementTransactionCounter(clientResponse, 1);
                 }
                 else if (status == VoterDemoSStoreConstants.ERR_INVALID_CONTESTANT) {
                     badContestantVotes.incrementAndGet();

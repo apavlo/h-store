@@ -23,11 +23,11 @@
 
 //
 // Accepts a vote, enforcing business logic: make sure the vote is for a valid
-// contestant and that the voterdemosstorewinsp1 (phone number of the caller) is not above the
+// contestant and that the voterdemosstorenopetrigwinsp1 (phone number of the caller) is not above the
 // number of allowed votes.
 //
 
-package edu.brown.benchmark.voterdemosstorewinsp1.procedures;
+package edu.brown.benchmark.voterdemosstorenopetrigwinsp1.procedures;
 
 import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
@@ -36,7 +36,7 @@ import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.types.TimestampType;
 
-import edu.brown.benchmark.voterdemosstorewinsp1.VoterDemoSStoreWinSP1Constants;
+import edu.brown.benchmark.voterdemosstorenopetrigwinsp1.VoterDemoSStoreNoPETrigWinSP1Constants;
 
 @ProcInfo (
 	//partitionInfo = "contestants.contestant_number:1",
@@ -44,15 +44,6 @@ import edu.brown.benchmark.voterdemosstorewinsp1.VoterDemoSStoreWinSP1Constants;
 )
 public class GenerateLeaderboard extends VoltProcedure {
 	
-	
-	protected void toSetTriggerTableName()
-	{
-		addTriggerTable("proc_one_out");
-	}
-    
-    public final SQLStmt clearProcOut = new SQLStmt(
-    	"DELETE FROM proc_one_out;"	
-    );
     
     /**
     public final SQLStmt updateCountingWin = new SQLStmt(
@@ -117,7 +108,6 @@ public class GenerateLeaderboard extends VoltProcedure {
 public long run() {
 
         voltQueueSQL(getLowestContestant);//0
-        voltQueueSQL(clearProcOut);
         voltQueueSQL(updateTotalCount);
 
         VoltTable validation[] = voltExecuteSQL();
@@ -136,6 +126,6 @@ public long run() {
         
 		
         // Set the return value to 0: successful vote
-        return VoterDemoSStoreWinSP1Constants.VOTE_SUCCESSFUL;
+        return VoterDemoSStoreNoPETrigWinSP1Constants.VOTE_SUCCESSFUL;
     }
 }

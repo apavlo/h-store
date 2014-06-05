@@ -23,11 +23,11 @@
 
 //
 // Accepts a vote, enforcing business logic: make sure the vote is for a valid
-// contestant and that the voterdemosstorewinsp1 (phone number of the caller) is not above the
+// contestant and that the voterdemosstorenopetrig (phone number of the caller) is not above the
 // number of allowed votes.
 //
 
-package edu.brown.benchmark.voterdemosstorewinsp1.procedures;
+package edu.brown.benchmark.voterdemosstorenopetrig.procedures;
 
 import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
@@ -37,7 +37,7 @@ import org.voltdb.VoltTable;
 import org.voltdb.types.TimestampType;
 
 import edu.brown.benchmark.voter.VoterConstants;
-import edu.brown.benchmark.voterdemosstorewinsp1.VoterDemoSStoreWinSP1Constants;
+import edu.brown.benchmark.voterdemosstorenopetrig.VoterDemoSStoreNoPETrigConstants;
 import edu.brown.benchmark.voterwintimesstore.VoterWinTimeSStoreConstants;
 
 @ProcInfo (
@@ -73,42 +73,6 @@ public class Vote extends VoltProcedure {
 		"INSERT INTO votes (vote_id, phone_number, state, contestant_number, time) VALUES (?, ?, ?, ?, ?);"
     );
     
-    // Records a vote
-    public final SQLStmt insertProcEndStmt = new SQLStmt(
-		"INSERT INTO proc_one_out (vote_id, phone_number, state, contestant_number, time) VALUES (?, ?, ?, ?, ?);"
-    );
-    
-    // Put vote into leaderboard
-    public final SQLStmt trendingLeaderboardStmt = new SQLStmt(
-	   "INSERT INTO trending_leaderboard (vote_id, phone_number, state, contestant_number, time) VALUES (?, ?, ?, ?, ?);"
-    );
-    
-    @StmtInfo(
-            upsertable=true
-        )
-    public final SQLStmt updateCount = new SQLStmt(
-    	"INSERT INTO voteCount (row_id, cnt) SELECT row_id, cnt + 1 FROM voteCount WHERE row_id = 1;"
-    );
-    
-    public final SQLStmt getCount = new SQLStmt(
-    	"SELECT cnt FROM voteCount;"
-    );
-    
-    public final SQLStmt resetCount = new SQLStmt(
-    	"UPDATE voteCount SET cnt = 0;"	
-    );
-    
-    public final SQLStmt getTopLeaderboard = new SQLStmt(
-    	"SELECT contestant_number, num_votes FROM v_votes_by_contestant ORDER BY num_votes DESC LIMIT 3;"	
-    );
-    
-    public final SQLStmt getBottomLeaderboard = new SQLStmt(
-    	"SELECT contestant_number, num_votes FROM v_votes_by_contestant ORDER BY num_votes ASC LIMIT 3;"	
-    );
-    
-    public final SQLStmt getTrendingLeaderboard = new SQLStmt(
-    	"SELECT contestant_number, num_votes FROM top_three_last_30_sec ORDER BY num_votes DESC LIMIT 3;"	
-    );
 	
 public long run(long voteId, long phoneNumber, int contestantNumber, long maxVotesPerPhoneNumber, int currentTimestamp) {
 		
@@ -139,26 +103,9 @@ public long run(long voteId, long phoneNumber, int contestantNumber, long maxVot
         // Post the vote
         //TimestampType timestamp = new TimestampType();
         voltQueueSQL(insertVoteStmt, voteId, phoneNumber, state, contestantNumber, currentTimestamp);
-        // Queue up leaderboard stmts
- 		voltQueueSQL(trendingLeaderboardStmt, voteId, phoneNumber, state, contestantNumber, currentTimestamp);
-        voltQueueSQL(updateCount);
-        voltQueueSQL(getCount);
-        
-        voltQueueSQL(getTrendingLeaderboard);
-        voltQueueSQL(getTopLeaderboard);
-        voltQueueSQL(getBottomLeaderboard);
-        validation = voltExecuteSQL();
-        
-        int voteCount = (int)validation[3].fetchRow(0).getLong(0);
-        
-        if(voteCount >= VoterDemoSStoreWinSP1Constants.VOTE_THRESHOLD)
-        {
-        	voltQueueSQL(insertProcEndStmt, voteId, phoneNumber, state, contestantNumber, currentTimestamp);
-        	voltExecuteSQL(true);
-        	//return VoterDemoSStoreWinSP1Constants.VOTE_SUCCESSFUL_TRIG_SP2;
-        }
+        voltExecuteSQL(true);
 		
         // Set the return value to 0: successful vote
-        return VoterDemoSStoreWinSP1Constants.VOTE_SUCCESSFUL;
+        return VoterDemoSStoreNoPETrigConstants.VOTE_SUCCESSFUL;
     }
 }

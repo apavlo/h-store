@@ -27,19 +27,17 @@
  *  OTHER DEALINGS IN THE SOFTWARE.                                        *
  ***************************************************************************/
 
-package edu.brown.benchmark.voterdemosstorepetrigonlywinsp1;
+package edu.brown.benchmark.voterdemosstorenopetrig;
 
-import edu.brown.benchmark.microwintimesstore.MicroWinTimeSStoreConstants;
-
-public abstract class VoterDemoSStorePETrigOnlyWinSP1Constants {
+public abstract class VoterDemoSStoreNoPETrigConstants {
 
     public static final String TABLENAME_CONTESTANTS     = "contestants";
     public static final String TABLENAME_AREA_CODE_STATE = "area_code_state";
     public static final String TABLENAME_VOTES           = "votes";
     
-    public static final int VOTE_THRESHOLD = 50000;
 	public static final int MAX_VOTES = 10; 
-	public static final int NUM_CONTESTANTS = 12; 
+	public static final int NUM_CONTESTANTS = 12;
+	public static final int VOTE_THRESHOLD = 50000;
 
 	// Initialize some common constants and variables
     public static final String CONTESTANT_NAMES_CSV = "Edwina Burnam,Tabatha Gehling,Kelly Clauss,Jessie Alloway," +
@@ -50,7 +48,5 @@ public abstract class VoterDemoSStorePETrigOnlyWinSP1Constants {
     public static final long ERR_INVALID_CONTESTANT = 1;
     public static final long ERR_VOTER_OVER_VOTE_LIMIT = 2;
     
-    public static final long WINDOW_SIZE = MicroWinTimeSStoreConstants.WINDOW_SIZE;
-    public static final long SLIDE_SIZE = MicroWinTimeSStoreConstants.SLIDE_SIZE;
-    public static final long TS_DURATION = MicroWinTimeSStoreConstants.TS_DURATION;
+    public static final long TS_DURATION = 1000000000;
 }

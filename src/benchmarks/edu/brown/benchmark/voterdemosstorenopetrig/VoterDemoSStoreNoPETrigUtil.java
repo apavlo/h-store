@@ -25,13 +25,13 @@
  *  OTHER DEALINGS IN THE SOFTWARE.                                        *
  ***************************************************************************/
 
-package edu.brown.benchmark.voterdemosstorepetrigonlywinsp1;
+package edu.brown.benchmark.voterdemosstorenopetrig;
 
 import java.util.Random;
 
 import edu.brown.rand.RandomDistribution.Zipf;
 
-public abstract class VoterDemoSStorePETrigOnlyWinSP1Util {
+public abstract class VoterDemoSStoreNoPETrigUtil {
 
     public static final Random rand = new Random();
     public static Zipf zipf = null;
@@ -43,9 +43,9 @@ public abstract class VoterDemoSStorePETrigOnlyWinSP1Util {
      */
     public static int getScaledNumContestants(double scaleFactor) {
         int min_contestants = 1;
-        int max_contestants = VoterDemoSStorePETrigOnlyWinSP1Constants.CONTESTANT_NAMES_CSV.split(",").length;
+        int max_contestants = VoterDemoSStoreNoPETrigConstants.CONTESTANT_NAMES_CSV.split(",").length;
         
-        int num_contestants = (int)Math.round(VoterDemoSStorePETrigOnlyWinSP1Constants.NUM_CONTESTANTS * scaleFactor);
+        int num_contestants = (int)Math.round(VoterDemoSStoreNoPETrigConstants.NUM_CONTESTANTS * scaleFactor);
         if (num_contestants < min_contestants) num_contestants = min_contestants;
         if (num_contestants > max_contestants) num_contestants = max_contestants;
         
