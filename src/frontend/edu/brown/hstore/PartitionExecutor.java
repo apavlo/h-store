@@ -3344,7 +3344,12 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                                 // step two - iterate to fire them
                                 // first way - direct execute such procedure in HStoreSite (Server side)
                                 if(procedure.getBedefault() == true)  // FIXME modified by hawk, 2014-3-7
+                                {
+//                                    LOG.info("PE sleeping...");
+//                                    Thread.sleep(2000);
+//                                    LOG.info("PE awaking...");
                                     this.hstore_site.invocationTriggerProcedureProcess(ts.getBatchId(), ts.getClientHandle(), /*ts.getInitiateTime()*/ EstTime.currentTimeMillis(), procedure);
+                                }
                                 else // second way - send it back to client to run it (Client side)
                                     ;//ts.addFollowingProcedure(procedure);
                             }

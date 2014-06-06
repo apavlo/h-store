@@ -1612,6 +1612,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         // added by hawkwang, 2014/5/23
         // Step one: Turn off frontend trigger mechanism
+        LOG.info("Turn off frontend trigger mechanism ... ");
         String name = "global.sstore";
         Object value = false;
         Object origin_value = setConfig(name, value);
@@ -1631,6 +1632,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // added by hawkwang, 2014/5/23
         // Step two: Turn back to origin setting for frontend trigger mechanism
         setConfig(name, origin_value);
+        LOG.info("Turn frontend trigger mechanism setting back ... ");
         //ended by hawk
         
         
@@ -1760,13 +1762,14 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             String streamName = catalog_tbl.fullName();
             LOG.info( "Checking if there is tuples in stream - " + streamName );
             boolean hasTuple = hasTuple(streamName);
-            if (hasTuple == false){
+            if (hasTuple == true){
                 // FIXME, should I care about the sequence of procedures 
                 for(ProcedureRef procedureRef : procedures)
                 {
                     Procedure procedure = procedureRef.getProcedure();
                     // FIXME, I need batchId and clienthandle 
                     //this.invocationTriggerProcedureProcess(ts.getBatchId(), ts.getClientHandle(), EstTime.currentTimeMillis(), procedure);
+                    LOG.info( "Recovery: re-execute frontend trigger - " + procedure.getName() );
                     this.invocationTriggerProcedureProcess(-1, 0, EstTime.currentTimeMillis(), procedure);
                 }
             }
