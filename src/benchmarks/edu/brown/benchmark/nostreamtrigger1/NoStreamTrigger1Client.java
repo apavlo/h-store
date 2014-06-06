@@ -51,7 +51,7 @@ public class NoStreamTrigger1Client extends BenchmarkComponent {
     protected boolean runOnce() throws IOException {
         Client client = this.getClientHandle();
         boolean response = client.callProcedure(callback,
-                                                "SimpleCall");
+                                                "SimpleCall", 100);
         return response;
     }
 

@@ -9,12 +9,12 @@ import org.voltdb.types.TimestampType;
 @ProcInfo(singlePartition = true)
 public class SimpleCall extends VoltProcedure {
 
-    public final SQLStmt insertS1 = new SQLStmt("INSERT INTO S1 (value) VALUES (0);");
+    public final SQLStmt insertS1 = new SQLStmt("INSERT INTO S1 (value) VALUES (?);");
 
 
-    public long run() {
+    public long run(long number) {
 
-        voltQueueSQL(insertS1);
+        voltQueueSQL(insertS1, number);
         voltExecuteSQL();
 
         return 0;

@@ -29,6 +29,7 @@ public class NoStreamTrigger1ProjectBuilder extends AbstractProjectBuilder {
 	
 	// a list of tables used in this benchmark with corresponding partitioning keys
     public static final String PARTITIONING[][] = new String[][] {
+        { "votes_by_phone_number", "phone_number" }
     };
 
     public NoStreamTrigger1ProjectBuilder() {

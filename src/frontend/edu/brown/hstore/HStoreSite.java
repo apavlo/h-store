@@ -1206,15 +1206,14 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }, 0, 6, TimeUnit.MINUTES);
         
         // Take Snapshots
-        /* Disable for now
-        if (this.hstore_conf.site.snapshot) {
-                this.threadManager.schedulePeriodicWork(
-                        this.snapshotter,
-                        hstore_conf.site.snapshot_interval,
-                        hstore_conf.site.snapshot_interval,
-                        TimeUnit.MILLISECONDS);
-        }
-        */
+        // Disable for now
+//        if (this.hstore_conf.site.snapshot) {
+//                this.threadManager.schedulePeriodicWork(
+//                        this.snapshotter,
+//                        hstore_conf.site.snapshot_interval,
+//                        hstore_conf.site.snapshot_interval,
+//                        TimeUnit.MILLISECONDS);
+//        }
         
     }
         
@@ -1703,7 +1702,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 
             if (cresponse != null) {
                 if (cresponse.getStatus() == Status.OK) {
-                    System.out.println(this.formatResult(cresponse));  
+                    LOG.info(streamName + " - " + this.formatResult(cresponse));  
                     VoltTable results[] = cresponse.getResults();
                     if(results[0].getRowCount() != 0)
                         result = true;
@@ -1727,13 +1726,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         final VoltTable results[] = cr.getResults();
         final int num_results = results.length;
-        System.out.println("num of results: " + String.valueOf(num_results));
+        //System.out.println("num of results: " + String.valueOf(num_results));
         StringBuilder sb = new StringBuilder();
         sb.append(VoltTableUtil.format(results));
         
         VoltTable vt = results[0];
         int num_rows = vt.getRowCount();
-        System.out.println("num of rows: " + String.valueOf(num_rows));
+        //System.out.println("num of rows: " + String.valueOf(num_rows));
         
         return (sb.toString());
     }
@@ -1749,6 +1748,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         // for streams
         for (Table catalog_tbl : this.catalogContext.getStreamTables()) {
+            
+            LOG.info("Dealing with stream - " + catalog_tbl.fullName());
+            
             CatalogMap<ProcedureRef> procedures = catalog_tbl.getTriggerprocedures();
             
             if( (procedures==null) || (procedures.isEmpty()==true))
@@ -1756,6 +1758,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             
             // should I check if the stream is empty or not? yes
             String streamName = catalog_tbl.fullName();
+            LOG.info( "Checking if there is tuples in stream - " + streamName );
             boolean hasTuple = hasTuple(streamName);
             if (hasTuple == false){
                 // FIXME, should I care about the sequence of procedures 
@@ -1838,6 +1841,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         LOG.warn("Logical : recovery at site with min id :" + this.site_id);
                 
         //XXX Load snapshot using @SnapshotRestore
+        
         //XXX Load command log and redo all entires
      
         LOG.warn("Logical : recovery completed on site with min id :" + this.site_id);
