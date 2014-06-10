@@ -49,7 +49,7 @@ public class RideBike extends VoltProcedure {
         "VALUES (?, ?, ?, ?);"
     );
 
-    public long run(int bikeId, long reading_lat, long reading_lon) {
+    public long run(int bikeId, double reading_lat, double reading_lon) {
 
         // Post the ride event
         TimestampType timestamp = new TimestampType();

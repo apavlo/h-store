@@ -126,11 +126,11 @@ CREATE TABLE bikereadings_table
 , reading_time timestamp NOT NULL
 , reading_lat bigint     NOT NULL
 , reading_lon bigint     NOT NULL
----, CONSTRAINT PK_t_bikereadingsPRIMARY KEY
----  (
----    bike_id
----  , reading_time --- not sure this syntax is correct ...
----  )
+-- CONSTRAINT PK_t_bikereadings PRIMARY KEY
+-- (
+--   bike_id
+-- , reading_time --- not sure this syntax is correct ...
+-- )
 );
 
 -- Count readings by bike.
@@ -151,8 +151,8 @@ CREATE STREAM bikereadings_stream
 (
   bike_id integer     NOT NULL
 , reading_time timestamp NOT NULL
-, reading_lat bigint NOT NULL
-, reading_lon bigint NOT NULL
+, reading_lat FLOAT NOT NULL
+, reading_lon FLOAT NOT NULL
 );
 
 --- Window over the bikereadings_stream.

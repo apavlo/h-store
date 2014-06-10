@@ -32,6 +32,9 @@ package edu.brown.benchmark.bikerstream;
 
 import java.util.Random;
 import edu.brown.utils.MathUtil;
+import java.util.LinkedList;
+import java.util.Scanner;
+import java.io.File;
 
 
   /**
@@ -45,38 +48,75 @@ import edu.brown.utils.MathUtil;
    */
 public class BikeReadingGenerator {
 
-    private int bikeId;
-    private final Random rand = new Random();
-    private long lat;
-    private long lon;
+    private LinkedList<Reading> ll = new LinkedList();
 
-    private double minD = -3.0;
-    private double maxD = 3.0;
+    public BikeReadingGenerator(int id) throws Exception {
+        makePoints(Integer.toString(id));
+    }
 
-    public static class Reading {
-        public final int bikeId;
-        public final long lat;
-        public final long lon;
+    public BikeReadingGenerator(String filename) throws Exception {
+        makePoints(filename);
+    }
 
-        protected Reading(int bikeId, long lat, long lon) {
-            this.bikeId= bikeId;
-            this.lat= lat;
-            this.lon= lon;
+    public class Reading {
+        public double lat;
+        public double lon;
+
+        public Reading(double lat, double lon) {
+            this.lat = lat;
+            this.lon = lon;
         }
     }
 
-    public BikeReadingGenerator(int clientId) {
-      // try using clientid as the bikeid
-      // requirement (for now) is different clients need to
-      // use different bikeids
-        this.bikeId = clientId;
+    /*
+     * Read a File containing the GPS events for a ride and store
+     * them in an internall Linked List. Function has no return.
+     * Only used for it's side-effects used to accumulate the gps events.
+     */
+    public void makePoints(String filename) throws Exception {
 
-      // start lat/lon at some position related to the
-      // bikeId, then increment
-      // totally invalid - but can work for debugging
-      this.lat = bikeId*1000;
-      this.lon = bikeId*1000;
+        File    f = new File(filename);
+        Scanner s = new Scanner(f);
+
+        try {
+
+            double lat_t;
+            double lon_t;
+            double alt_t;
+
+            while (s.hasNext()){
+
+                lat_t = s.nextDouble();
+                lon_t = s.nextDouble();
+                alt_t = s.nextDouble();
+
+                ll.add(new Reading(lat_t, lon_t));
+            }
+        }
+        catch (Exception e) {
+            System.out.println("File Not Found" + e);
+        }
+        finally {
+           s.close();
+        }
     }
+
+    public Reading getPoint() {
+        if(hasPoints()) {
+            Reading ret = ll.pop();
+            return ret;
+        }
+
+        return null;
+    }
+
+    public boolean hasPoints() {
+        int lsize = ll.size();
+        if (lsize > 0)
+            return true;
+        return false;
+    }
+
 
 
     /**
@@ -86,21 +126,7 @@ public class BikeReadingGenerator {
      */
     public Reading pedal()
     {
-        // For the purpose of a benchmark, issue random voting activity
-        // (including invalid votes to demonstrate transaction validationg in the database)
-        // TODO will want to add randomness for this same
-        // reason for bikerstream
-
-        //  introduce an invalid contestant every 100 call or so to simulate fraud
-        //  and invalid entries (something the transaction validates against)
-        //if (rand.nextInt(100) == 0) {
-        //    contestantNumber = 999;
-        //}
-
-        //lat = (long) ((Math.random() * ((maxD - minD) + 1)) + minD);
-        //lon = (long) ((Math.random() * ((maxD - minD) + 1)) + minD);
-
-        return new Reading(bikeId, lat++, lon++);
+        return getPoint();
     }
 
 }

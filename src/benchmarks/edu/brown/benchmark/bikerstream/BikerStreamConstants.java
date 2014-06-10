@@ -44,6 +44,10 @@ public abstract class BikerStreamConstants {
 
     // ===========================================================================
     // INITIALIZATION PARAMETERS
+    //
+    // These guys are for generating a random map and filling it in with random sets
+    // of zones, stations and docks.
+    //
 
 
     public static final int NUM_ZONES = 20;
@@ -54,6 +58,7 @@ public abstract class BikerStreamConstants {
 
     // ===========================================================================
     // SIGNUP
+    //
 
     // Return Values
     public static final long INSERT_RIDER_FAILED  = 4;
@@ -77,6 +82,7 @@ public abstract class BikerStreamConstants {
 
     // ===========================================================================
     // BIKE RESERVATIONS
+    //
 
     // Maximum number of times to try and reserve a bike
     public static final int MAX_RESERVE_ATTEMPTS = 5;
@@ -87,6 +93,7 @@ public abstract class BikerStreamConstants {
 
     // ===========================================================================
     // BIKE CHECKOUT
+    //
 
     public static final int MAX_CHECKOUT_ATTEMPTS = 5;
 
@@ -94,9 +101,16 @@ public abstract class BikerStreamConstants {
     public static final long BIKE_NOT_CHECKEDOUT  = 1;
     public static final long NO_AVAILIBLE_BIKES   = 2;
 
+    // ===========================================================================
+    // BIKE RIDE
+    //
+
+    public static final long MILI_BETWEEN_GPS_EVENTS = 5;
+    public static final String DEFAULT_GPS_FILE = "src/benchmarks/edu/brown/benchmark/bikerstream/BS.kml";
 
     // ===========================================================================
     // DOCK RESERVATIONS
+    //
 
     // Maximum number of times to try and reserve a bike
     public static final int MAX_DOCK_RESERVE_ATTEMPTS = 5;
@@ -107,6 +121,7 @@ public abstract class BikerStreamConstants {
 
     // ===========================================================================
     // BIKE CHECKIN
+    //
 
     public static final int MAX_CHECKIN_ATTEMPTS  = 5;
 

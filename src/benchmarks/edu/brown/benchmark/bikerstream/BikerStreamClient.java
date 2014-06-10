@@ -46,6 +46,7 @@ import org.voltdb.client.ProcedureCallback;
 import edu.brown.api.BenchmarkComponent;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.benchmark.bikerstream.BikerStreamConstants;
 
 /* Biker stream client. Very simple - just calls
  * getBikeReading - a few hacks and TODOS where I didn't
@@ -57,8 +58,6 @@ public class BikerStreamClient extends BenchmarkComponent {
     private static final Logger LOG = Logger.getLogger(BikerStreamClient.class);
     private static final LoggerBoolean debug = new LoggerBoolean();
 
-    // Bike reading generator
-    BikeReadingGenerator bikes;
 
     // Flags to tell the worker threads to stop or go
     AtomicBoolean warmupComplete    = new AtomicBoolean(false);
@@ -82,7 +81,7 @@ public class BikerStreamClient extends BenchmarkComponent {
     public BikerStreamClient(String args[]) {
         super(args);
         //int numContestants = VoterWinSStoreUtil.getScaledNumContestants(this.getScaleFactor());
-        this.bikes= new BikeReadingGenerator(this.getClientId());
+        // this.bikes= new BikeReadingGenerator(this.getClientId());
     }
 
     @Override
@@ -108,32 +107,38 @@ public class BikerStreamClient extends BenchmarkComponent {
         // gnerate a client class struct for the current thread
         Client client = this.getClientHandle();
 
-        // Create a random rider_id
-        int id = (int) (Math.random() * 100000000);
+        // Bike reading generator
+        try {
+            BikeReadingGenerator gps = new BikeReadingGenerator(BikerStreamConstants.DEFAULT_GPS_FILE);
+            BikeReadingGenerator.Reading read;
 
-        boolean response = client.callProcedure(new SignUpCallback(),"SignUp",id);
+            // Create a random rider_id
+            int id = (int) (Math.random() * 100000000);
 
-        if ((id % 10) != 0)
-                response = client.callProcedure(new ReserveBikeCallback(),"ReserveBike",id);
+            client.callProcedure(new SignUpCallback(),"SignUp",id);
+            if ((id % 10) != 0) client.callProcedure(new ReserveBikeCallback(),"ReserveBike",id);
+            client.callProcedure(new CheckoutCallback(),"CheckoutBike",id);
 
-                response = client.callProcedure(new CheckoutCallback(),"CheckoutBike",id);
+            while (gps.hasPoints()) {
 
-        if ((id % 20) != 0)
-                response = client.callProcedure(new ReserveDockCallback(),"ReserveDock",id);
+                read = gps.getPoint();
+                client.callProcedure(new RideCallback(),
+                                     "RideBike",
+                                     id,
+                                     read.lat,
+                                     read.lon);
+                Thread.sleep(BikerStreamConstants.MILI_BETWEEN_GPS_EVENTS);
+            }
 
-                response = client.callProcedure(new CheckinCallback(),"CheckinBike",id);
+            if ((id % 20) != 0) client.callProcedure(new ReserveDockCallback(),"ReserveDock",id);
+            client.callProcedure(new CheckinCallback(),"CheckinBike",id);
 
-        // Get a bike reading
-        //BikeReadingGenerator.Reading reading = bikes.pedal();
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
 
-
-        // Generate a list of points
-        // boolean response = client.callProcedure(nwe RideCallback(),
-        //                                         "RideBike",
-        //                                         reading.bikeId,
-        //                                         reading.lat,
-        //                                         reading.lon);
-        return response;
+        return true;
     }
 
     @Override
