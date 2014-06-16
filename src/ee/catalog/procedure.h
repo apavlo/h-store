@@ -69,6 +69,7 @@ protected:
     CatalogMap<Statement> m_statements;
     CatalogMap<ProcParameter> m_parameters;
     CatalogMap<ConflictSet> m_conflicts;
+    int32_t m_partitionNum;
 
     virtual void update();
 
@@ -127,6 +128,8 @@ public:
     const CatalogMap<ProcParameter> & parameters() const;
     /** GETTER: The conflict sets that this stored procedure has with other procedures */
     const CatalogMap<ConflictSet> & conflicts() const;
+    /** GETTER: The specified partition number */
+    int32_t partitionNum() const;
 };
 
 } // namespace catalog

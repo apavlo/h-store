@@ -110,6 +110,7 @@ public enum ProjectType {
     SIMPLENOOP("SimpleNoOp", "edu.brown.benchmark.simplenoop"),
     SIMPLESTATEMENT("SimpleStatement", "edu.brown.benchmark.simplestatement"),
     SIMPLEDISTRIBUTION("SimpleDistribution", "edu.brown.benchmark.simpledistribution"),
+    SSTORE4MOVEOP("SStore4MoveOp", "edu.brown.benchmark.sstore4moveop"),
     TEST("Test", null),
     WORDCOUNT("WordCount", "edu.brown.benchmark.wordcount"),
     WORDCOUNTHSTORE("WordCountHStore", "edu.brown.benchmark.wordcounthstore"),

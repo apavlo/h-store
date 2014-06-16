@@ -243,9 +243,11 @@ public abstract class ProcedureCompiler {
                 // info.mapEmitTable = annotationInfo.mapEmitTable();
                 info.reduceInputQuery = annotationInfo.reduceInputQuery();
                 // info.reduceEmitTable = annotationInfo.reduceEmitTable();
+                info.partitionNum = annotationInfo.partitionNum();
             }
         }
         assert (info != null);
+        procedure.setPartitionnum(info.partitionNum);
 
         VoltProcedure procInstance = null;
         try {

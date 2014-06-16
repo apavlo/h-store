@@ -2249,6 +2249,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
       int base_partition = HStoreConstants.NULL_PARTITION_ID;
       
       ParameterSet procParams = new ParameterSet();
+      int partitionNum = procedure.getPartitionnum();
+      if (partitionNum != 0) {
+    	  procParams.setParameters(procedure.getPartitionnum());
+      }
       
       // -------------------------------
       // BASE PARTITION
