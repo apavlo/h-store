@@ -107,6 +107,7 @@ public class TransactionInitHandler extends AbstractTransactionHandler<Transacti
             ts = this.hstore_site.getTransactionInitializer()
                                  .createRemoteTransaction(request.getBatchId(),
                                                           txn_id,
+                                                          request.getClientHandle(),//added by hawk, 2014/6/16
                                                           //request.getInitiateTime(), // added by hawk, 2013/11/20
                                                           partitions,
                                                           procParams,

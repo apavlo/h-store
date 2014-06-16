@@ -161,7 +161,10 @@ message TransactionInitRequest {
 
     // batch id, added by hawk
     //required int32 batch_id = 10;
-    required int32 batch_id = 9;    
+    required int32 batch_id = 9;
+    
+    // client_handle
+    required int64 client_handle = 10;    
 }
 
 message TransactionInitResponse {
