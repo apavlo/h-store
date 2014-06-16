@@ -391,21 +391,23 @@ public class TransactionInitializer {
      */
     public RemoteTransaction createRemoteTransaction(int batch_id, 
                                                      Long txn_id,
+                                                     Long clienthandle,
                                                      //long initiateTime, // added by hawk, 2013/11/20
                                                      PartitionSet partitions,
                                                      ParameterSet procParams,
                                                      int base_partition,
                                                      int proc_id) {
         RemoteTransaction ts = null;
+        System.out.println(String.format("Site:%d - Procedure Id: %d", this.hstore_site.getSiteId(), proc_id));
         Procedure catalog_proc = this.catalogContext.getProcedureById(proc_id);
         try {
             ts = new RemoteTransaction(this.hstore_site);
             assert(ts.isInitialized() == false);
-            ts.init(batch_id, txn_id, /*initiateTime,*/ base_partition, procParams, catalog_proc, partitions, true);
             if (debug.val)
                 LOG.debug(String.format("Creating new RemoteTransactionState %s from " +
-                		  "remote partition %d [partitions=%s, hashCode=%d]",
+                          "remote partition %d [partitions=%s, hashCode=%d]",
                           ts, base_partition, partitions, ts.hashCode()));
+            ts.init(batch_id, txn_id, clienthandle, /*initiateTime,*/ base_partition, procParams, catalog_proc, partitions, true);
         } catch (Throwable ex) {
             String msg = "Failed to instantiate new remote transaction handle for " + TransactionUtil.formatTxnName(catalog_proc, txn_id);
             throw new RuntimeException(msg, ex);

@@ -362,8 +362,11 @@ public class DDLCompiler {
             }
         }
         
+        // commented by hawk, 2014/6/13
+        /*
         if ((table.getIswindow() == true)||(table.getIsstream()==true))
         	table.setIsreplicated(false);
+        */
         
         /*
          * Validate that the total size

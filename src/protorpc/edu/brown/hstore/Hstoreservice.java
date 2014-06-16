@@ -2388,6 +2388,13 @@ public final class Hstoreservice {
     public boolean hasBatchId() { return hasBatchId; }
     public int getBatchId() { return batchId_; }
     
+    // required int64 client_handle = 10;
+    public static final int CLIENT_HANDLE_FIELD_NUMBER = 10;
+    private boolean hasClientHandle;
+    private long clientHandle_ = 0L;
+    public boolean hasClientHandle() { return hasClientHandle; }
+    public long getClientHandle() { return clientHandle_; }
+    
     private void initFields() {
     }
     public final boolean isInitialized() {
@@ -2395,6 +2402,7 @@ public final class Hstoreservice {
       if (!hasBasePartition) return false;
       if (!hasProcedureId) return false;
       if (!hasBatchId) return false;
+      if (!hasClientHandle) return false;
       for (edu.brown.hstore.Hstoreservice.WorkFragment element : getPrefetchFragmentsList()) {
         if (!element.isInitialized()) return false;
       }
@@ -2434,6 +2442,9 @@ public final class Hstoreservice {
       }
       if (hasBatchId()) {
         output.writeInt32(9, getBatchId());
+      }
+      if (hasClientHandle()) {
+        output.writeInt64(10, getClientHandle());
       }
       getUnknownFields().writeTo(output);
     }
@@ -2494,6 +2505,10 @@ public final class Hstoreservice {
       if (hasBatchId()) {
         size += com.google.protobuf.CodedOutputStream
           .computeInt32Size(9, getBatchId());
+      }
+      if (hasClientHandle()) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeInt64Size(10, getClientHandle());
       }
       size += getUnknownFields().getSerializedSize();
       memoizedSerializedSize = size;
@@ -2701,6 +2716,9 @@ public final class Hstoreservice {
         if (other.hasBatchId()) {
           setBatchId(other.getBatchId());
         }
+        if (other.hasClientHandle()) {
+          setClientHandle(other.getClientHandle());
+        }
         this.mergeUnknownFields(other.getUnknownFields());
         return this;
       }
@@ -2771,6 +2789,10 @@ public final class Hstoreservice {
             }
             case 72: {
               setBatchId(input.readInt32());
+              break;
+            }
+            case 80: {
+              setClientHandle(input.readInt64());
               break;
             }
           }
@@ -3011,6 +3033,24 @@ public final class Hstoreservice {
       public Builder clearBatchId() {
         result.hasBatchId = false;
         result.batchId_ = 0;
+        return this;
+      }
+      
+      // required int64 client_handle = 10;
+      public boolean hasClientHandle() {
+        return result.hasClientHandle();
+      }
+      public long getClientHandle() {
+        return result.getClientHandle();
+      }
+      public Builder setClientHandle(long value) {
+        result.hasClientHandle = true;
+        result.clientHandle_ = value;
+        return this;
+      }
+      public Builder clearClientHandle() {
+        result.hasClientHandle = false;
+        result.clientHandle_ = 0L;
         return this;
       }
       
@@ -16505,138 +16545,138 @@ public final class Hstoreservice {
       "data\030\003 \003(\014\022(\n\006status\030\004 \002(\0162\030.edu.brown.h" +
       "store.Status\022\r\n\005error\030\005 \001(\014\"W\n\rQueryEsti" +
       "mate\022\024\n\010stmt_ids\030\001 \003(\005B\002\020\001\022\031\n\rstmt_count" +
-      "ers\030\002 \003(\005B\002\020\001\022\025\n\rtime_estimate\030\003 \001(\005\"\217\002\n" +
+      "ers\030\002 \003(\005B\002\020\001\022\025\n\rtime_estimate\030\003 \001(\005\"\246\002\n" +
       "\026TransactionInitRequest\022\033\n\023last_transact" +
       "ion_id\030\001 \001(\003\022\026\n\016transaction_id\030\002 \002(\003\022\026\n\016",
       "base_partition\030\003 \002(\005\022\024\n\014procedure_id\030\004 \002" +
       "(\005\022\026\n\npartitions\030\005 \003(\005B\002\020\001\022\023\n\013proc_param" +
       "s\030\006 \001(\014\022:\n\022prefetch_fragments\030\007 \003(\0132\036.ed" +
       "u.brown.hstore.WorkFragment\022\027\n\017prefetch_" +
-      "params\030\010 \003(\014\022\020\n\010batch_id\030\t \002(\005\"\254\001\n\027Trans" +
-      "actionInitResponse\022\026\n\016transaction_id\030\001 \002" +
-      "(\003\022\026\n\npartitions\030\002 \003(\005B\002\020\001\022(\n\006status\030\003 \002" +
-      "(\0162\030.edu.brown.hstore.Status\022\030\n\020reject_p" +
-      "artition\030\004 \001(\005\022\035\n\025reject_transaction_id\030" +
-      "\005 \001(\003\"\245\002\n\026TransactionWorkRequest\022\033\n\023last",
-      "_transaction_id\030\001 \001(\003\022\026\n\016transaction_id\030" +
-      "\002 \002(\003\022\030\n\020source_partition\030\003 \002(\005\0221\n\tfragm" +
-      "ents\030\004 \003(\0132\036.edu.brown.hstore.WorkFragme" +
-      "nt\022\024\n\014procedure_id\030\005 \002(\005\022\016\n\006params\030\006 \003(\014" +
-      "\022\033\n\017attached_dep_id\030\007 \003(\005B\002\020\001\022\025\n\rattache" +
-      "d_data\030\010 \003(\014\022\032\n\016done_partition\030\t \003(\005B\002\020\001" +
-      "\022\023\n\013proc_params\030\n \001(\014\"\212\001\n\027TransactionWor" +
-      "kResponse\022\026\n\016transaction_id\030\001 \002(\003\022-\n\007res" +
-      "ults\030\002 \003(\0132\034.edu.brown.hstore.WorkResult" +
-      "\022(\n\006status\030\003 \002(\0162\030.edu.brown.hstore.Stat",
-      "us\"\215\002\n\031TransactionPrefetchResult\022\033\n\023last" +
-      "_transaction_id\030\001 \001(\003\022\026\n\016transaction_id\030" +
-      "\002 \002(\003\022\030\n\020source_partition\030\003 \002(\005\022,\n\006resul" +
-      "t\030\004 \002(\0132\034.edu.brown.hstore.WorkResult\022(\n" +
-      "\006status\030\005 \002(\0162\030.edu.brown.hstore.Status\022" +
-      "\030\n\014stmt_counter\030\006 \003(\005B\002\020\001\022\027\n\013fragment_id" +
-      "\030\007 \003(\005B\002\020\001\022\026\n\nparam_hash\030\010 \003(\005B\002\020\001\"V\n\"Tr" +
-      "ansactionPrefetchAcknowledgement\022\026\n\016tran" +
-      "saction_id\030\001 \002(\003\022\030\n\020target_partition\030\002 \002" +
-      "(\005\"\241\001\n\025TransactionMapRequest\022\033\n\023last_tra",
-      "nsaction_id\030\001 \001(\003\022\026\n\016transaction_id\030\002 \002(" +
-      "\003\022\025\n\rclient_handle\030\003 \002(\003\022\026\n\016base_partiti" +
-      "on\030\004 \002(\005\022\024\n\014procedure_id\030\005 \002(\005\022\016\n\006params" +
-      "\030\006 \002(\014\"r\n\026TransactionMapResponse\022\026\n\016tran" +
-      "saction_id\030\001 \002(\003\022\026\n\npartitions\030\002 \003(\005B\002\020\001" +
-      "\022(\n\006status\030\003 \002(\0162\030.edu.brown.hstore.Stat" +
-      "us\"2\n\030TransactionReduceRequest\022\026\n\016transa" +
-      "ction_id\030\001 \002(\003\"\234\002\n\031TransactionReduceResp" +
-      "onse\022\026\n\016transaction_id\030\001 \002(\003\022I\n\007results\030" +
-      "\002 \003(\01328.edu.brown.hstore.TransactionRedu",
-      "ceResponse.ReduceResult\022(\n\006status\030\003 \002(\0162" +
-      "\030.edu.brown.hstore.Status\032r\n\014ReduceResul" +
-      "t\022\024\n\014partition_id\030\001 \002(\005\022\014\n\004data\030\002 \002(\014\022(\n" +
-      "\006status\030\003 \002(\0162\030.edu.brown.hstore.Status\022" +
-      "\024\n\005error\030\004 \001(\010:\005false\"K\n\031TransactionPrep" +
-      "areRequest\022\026\n\016transaction_id\030\001 \002(\003\022\026\n\npa" +
-      "rtitions\030\002 \003(\005B\002\020\001\"v\n\032TransactionPrepare" +
-      "Response\022\026\n\016transaction_id\030\001 \002(\003\022\026\n\npart" +
-      "itions\030\002 \003(\005B\002\020\001\022(\n\006status\030\003 \002(\0162\030.edu.b" +
-      "rown.hstore.Status\"t\n\030TransactionFinishR",
-      "equest\022\026\n\016transaction_id\030\001 \002(\003\022\026\n\npartit" +
-      "ions\030\002 \003(\005B\002\020\001\022(\n\006status\030\003 \002(\0162\030.edu.bro" +
-      "wn.hstore.Status\"K\n\031TransactionFinishRes" +
-      "ponse\022\026\n\016transaction_id\030\001 \002(\003\022\026\n\npartiti" +
-      "ons\030\002 \003(\005B\002\020\001\"T\n\032TransactionRedirectRequ" +
-      "est\022\023\n\013sender_site\030\001 \002(\005\022\014\n\004work\030\002 \002(\014\022\023" +
-      "\n\013orig_txn_id\030\003 \001(\003\"B\n\033TransactionRedire" +
-      "ctResponse\022\023\n\013sender_site\030\001 \002(\005\022\016\n\006outpu" +
-      "t\030\002 \002(\014\"F\n\027TransactionDebugRequest\022\023\n\013se" +
-      "nder_site\030\001 \002(\005\022\026\n\016transaction_id\030\002 \002(\003\"",
-      "h\n\030TransactionDebugResponse\022\023\n\013sender_si" +
-      "te\030\001 \002(\005\022(\n\006status\030\002 \002(\0162\030.edu.brown.hst" +
-      "ore.Status\022\r\n\005debug\030\003 \002(\t\"`\n\017SendDataReq" +
-      "uest\022\026\n\016transaction_id\030\001 \002(\003\022\023\n\013sender_s" +
-      "ite\030\002 \002(\005\022\022\n\006dep_id\030\003 \003(\005B\002\020\001\022\014\n\004data\030\004 " +
-      "\003(\014\"\201\001\n\020SendDataResponse\022\026\n\016transaction_" +
-      "id\030\001 \002(\003\022\026\n\npartitions\030\002 \003(\005B\002\020\001\022\023\n\013send" +
-      "er_site\030\003 \002(\005\022(\n\006status\030\004 \002(\0162\030.edu.brow" +
-      "n.hstore.Status\"=\n\021InitializeRequest\022\023\n\013" +
-      "sender_site\030\001 \002(\005\022\023\n\013instance_id\030\002 \002(\003\"S",
-      "\n\022InitializeResponse\022\023\n\013sender_site\030\001 \002(" +
-      "\005\022(\n\006status\030\002 \002(\0162\030.edu.brown.hstore.Sta" +
-      "tus\"<\n\026ShutdownPrepareRequest\022\023\n\013sender_" +
-      "site\030\001 \002(\005\022\r\n\005error\030\002 \001(\014\".\n\027ShutdownPre" +
-      "pareResponse\022\023\n\013sender_site\030\001 \002(\005\";\n\017Shu" +
-      "tdownRequest\022\023\n\013sender_site\030\001 \002(\005\022\023\n\013exi" +
-      "t_status\030\002 \002(\005\"\'\n\020ShutdownResponse\022\023\n\013se" +
-      "nder_site\030\001 \002(\005\"D\n\020HeartbeatRequest\022\023\n\013s" +
-      "ender_site\030\001 \002(\005\022\033\n\023last_transaction_id\030" +
-      "\002 \002(\003\"R\n\021HeartbeatResponse\022\023\n\013sender_sit",
-      "e\030\001 \002(\005\022(\n\006status\030\002 \002(\0162\030.edu.brown.hsto" +
-      "re.Status\"4\n\017TimeSyncRequest\022\023\n\013sender_s" +
-      "ite\030\001 \002(\005\022\014\n\004t0_s\030\002 \002(\003\"Q\n\020TimeSyncRespo" +
-      "nse\022\023\n\013sender_site\030\001 \002(\005\022\014\n\004t0_s\030\002 \002(\003\022\014" +
-      "\n\004t0_r\030\003 \002(\003\022\014\n\004t1_s\030\004 \002(\003*\320\001\n\006Status\022\006\n" +
-      "\002OK\020\000\022\016\n\nABORT_USER\020\001\022\022\n\016ABORT_GRACEFUL\020" +
-      "\002\022\024\n\020ABORT_UNEXPECTED\020\003\022\031\n\025ABORT_CONNECT" +
-      "ION_LOST\020\004\022\024\n\020ABORT_MISPREDICT\020\005\022\021\n\rABOR" +
-      "T_RESTART\020\006\022\020\n\014ABORT_REJECT\020\007\022\027\n\023ABORT_E" +
-      "VICTEDACCESS\020\010\022\025\n\021ABORT_SPECULATIVE\020\t2\372\013",
-      "\n\rHStoreService\022f\n\017TransactionInit\022(.edu" +
-      ".brown.hstore.TransactionInitRequest\032).e" +
-      "du.brown.hstore.TransactionInitResponse\022" +
-      "f\n\017TransactionWork\022(.edu.brown.hstore.Tr" +
-      "ansactionWorkRequest\032).edu.brown.hstore." +
-      "TransactionWorkResponse\022x\n\023TransactionPr" +
-      "efetch\022+.edu.brown.hstore.TransactionPre" +
-      "fetchResult\0324.edu.brown.hstore.Transacti" +
-      "onPrefetchAcknowledgement\022c\n\016Transaction" +
-      "Map\022\'.edu.brown.hstore.TransactionMapReq",
-      "uest\032(.edu.brown.hstore.TransactionMapRe" +
-      "sponse\022l\n\021TransactionReduce\022*.edu.brown." +
-      "hstore.TransactionReduceRequest\032+.edu.br" +
-      "own.hstore.TransactionReduceResponse\022o\n\022" +
-      "TransactionPrepare\022+.edu.brown.hstore.Tr" +
-      "ansactionPrepareRequest\032,.edu.brown.hsto" +
-      "re.TransactionPrepareResponse\022l\n\021Transac" +
-      "tionFinish\022*.edu.brown.hstore.Transactio" +
-      "nFinishRequest\032+.edu.brown.hstore.Transa" +
-      "ctionFinishResponse\022r\n\023TransactionRedire",
-      "ct\022,.edu.brown.hstore.TransactionRedirec" +
-      "tRequest\032-.edu.brown.hstore.TransactionR" +
-      "edirectResponse\022i\n\020TransactionDebug\022).ed" +
-      "u.brown.hstore.TransactionDebugRequest\032*" +
-      ".edu.brown.hstore.TransactionDebugRespon" +
-      "se\022Q\n\010SendData\022!.edu.brown.hstore.SendDa" +
-      "taRequest\032\".edu.brown.hstore.SendDataRes" +
-      "ponse\022W\n\nInitialize\022#.edu.brown.hstore.I" +
-      "nitializeRequest\032$.edu.brown.hstore.Init" +
-      "ializeResponse\022f\n\017ShutdownPrepare\022(.edu.",
-      "brown.hstore.ShutdownPrepareRequest\032).ed" +
-      "u.brown.hstore.ShutdownPrepareResponse\022Q" +
-      "\n\010Shutdown\022!.edu.brown.hstore.ShutdownRe" +
-      "quest\032\".edu.brown.hstore.ShutdownRespons" +
-      "e\022T\n\tHeartbeat\022\".edu.brown.hstore.Heartb" +
-      "eatRequest\032#.edu.brown.hstore.HeartbeatR" +
-      "esponse\022Q\n\010TimeSync\022!.edu.brown.hstore.T" +
-      "imeSyncRequest\032\".edu.brown.hstore.TimeSy" +
-      "ncResponse"
+      "params\030\010 \003(\014\022\020\n\010batch_id\030\t \002(\005\022\025\n\rclient" +
+      "_handle\030\n \002(\003\"\254\001\n\027TransactionInitRespons" +
+      "e\022\026\n\016transaction_id\030\001 \002(\003\022\026\n\npartitions\030" +
+      "\002 \003(\005B\002\020\001\022(\n\006status\030\003 \002(\0162\030.edu.brown.hs" +
+      "tore.Status\022\030\n\020reject_partition\030\004 \001(\005\022\035\n" +
+      "\025reject_transaction_id\030\005 \001(\003\"\245\002\n\026Transac",
+      "tionWorkRequest\022\033\n\023last_transaction_id\030\001" +
+      " \001(\003\022\026\n\016transaction_id\030\002 \002(\003\022\030\n\020source_p" +
+      "artition\030\003 \002(\005\0221\n\tfragments\030\004 \003(\0132\036.edu." +
+      "brown.hstore.WorkFragment\022\024\n\014procedure_i" +
+      "d\030\005 \002(\005\022\016\n\006params\030\006 \003(\014\022\033\n\017attached_dep_" +
+      "id\030\007 \003(\005B\002\020\001\022\025\n\rattached_data\030\010 \003(\014\022\032\n\016d" +
+      "one_partition\030\t \003(\005B\002\020\001\022\023\n\013proc_params\030\n" +
+      " \001(\014\"\212\001\n\027TransactionWorkResponse\022\026\n\016tran" +
+      "saction_id\030\001 \002(\003\022-\n\007results\030\002 \003(\0132\034.edu." +
+      "brown.hstore.WorkResult\022(\n\006status\030\003 \002(\0162",
+      "\030.edu.brown.hstore.Status\"\215\002\n\031Transactio" +
+      "nPrefetchResult\022\033\n\023last_transaction_id\030\001" +
+      " \001(\003\022\026\n\016transaction_id\030\002 \002(\003\022\030\n\020source_p" +
+      "artition\030\003 \002(\005\022,\n\006result\030\004 \002(\0132\034.edu.bro" +
+      "wn.hstore.WorkResult\022(\n\006status\030\005 \002(\0162\030.e" +
+      "du.brown.hstore.Status\022\030\n\014stmt_counter\030\006" +
+      " \003(\005B\002\020\001\022\027\n\013fragment_id\030\007 \003(\005B\002\020\001\022\026\n\npar" +
+      "am_hash\030\010 \003(\005B\002\020\001\"V\n\"TransactionPrefetch" +
+      "Acknowledgement\022\026\n\016transaction_id\030\001 \002(\003\022" +
+      "\030\n\020target_partition\030\002 \002(\005\"\241\001\n\025Transactio",
+      "nMapRequest\022\033\n\023last_transaction_id\030\001 \001(\003" +
+      "\022\026\n\016transaction_id\030\002 \002(\003\022\025\n\rclient_handl" +
+      "e\030\003 \002(\003\022\026\n\016base_partition\030\004 \002(\005\022\024\n\014proce" +
+      "dure_id\030\005 \002(\005\022\016\n\006params\030\006 \002(\014\"r\n\026Transac" +
+      "tionMapResponse\022\026\n\016transaction_id\030\001 \002(\003\022" +
+      "\026\n\npartitions\030\002 \003(\005B\002\020\001\022(\n\006status\030\003 \002(\0162" +
+      "\030.edu.brown.hstore.Status\"2\n\030Transaction" +
+      "ReduceRequest\022\026\n\016transaction_id\030\001 \002(\003\"\234\002" +
+      "\n\031TransactionReduceResponse\022\026\n\016transacti" +
+      "on_id\030\001 \002(\003\022I\n\007results\030\002 \003(\01328.edu.brown",
+      ".hstore.TransactionReduceResponse.Reduce" +
+      "Result\022(\n\006status\030\003 \002(\0162\030.edu.brown.hstor" +
+      "e.Status\032r\n\014ReduceResult\022\024\n\014partition_id" +
+      "\030\001 \002(\005\022\014\n\004data\030\002 \002(\014\022(\n\006status\030\003 \002(\0162\030.e" +
+      "du.brown.hstore.Status\022\024\n\005error\030\004 \001(\010:\005f" +
+      "alse\"K\n\031TransactionPrepareRequest\022\026\n\016tra" +
+      "nsaction_id\030\001 \002(\003\022\026\n\npartitions\030\002 \003(\005B\002\020" +
+      "\001\"v\n\032TransactionPrepareResponse\022\026\n\016trans" +
+      "action_id\030\001 \002(\003\022\026\n\npartitions\030\002 \003(\005B\002\020\001\022" +
+      "(\n\006status\030\003 \002(\0162\030.edu.brown.hstore.Statu",
+      "s\"t\n\030TransactionFinishRequest\022\026\n\016transac" +
+      "tion_id\030\001 \002(\003\022\026\n\npartitions\030\002 \003(\005B\002\020\001\022(\n" +
+      "\006status\030\003 \002(\0162\030.edu.brown.hstore.Status\"" +
+      "K\n\031TransactionFinishResponse\022\026\n\016transact" +
+      "ion_id\030\001 \002(\003\022\026\n\npartitions\030\002 \003(\005B\002\020\001\"T\n\032" +
+      "TransactionRedirectRequest\022\023\n\013sender_sit" +
+      "e\030\001 \002(\005\022\014\n\004work\030\002 \002(\014\022\023\n\013orig_txn_id\030\003 \001" +
+      "(\003\"B\n\033TransactionRedirectResponse\022\023\n\013sen" +
+      "der_site\030\001 \002(\005\022\016\n\006output\030\002 \002(\014\"F\n\027Transa" +
+      "ctionDebugRequest\022\023\n\013sender_site\030\001 \002(\005\022\026",
+      "\n\016transaction_id\030\002 \002(\003\"h\n\030TransactionDeb" +
+      "ugResponse\022\023\n\013sender_site\030\001 \002(\005\022(\n\006statu" +
+      "s\030\002 \002(\0162\030.edu.brown.hstore.Status\022\r\n\005deb" +
+      "ug\030\003 \002(\t\"`\n\017SendDataRequest\022\026\n\016transacti" +
+      "on_id\030\001 \002(\003\022\023\n\013sender_site\030\002 \002(\005\022\022\n\006dep_" +
+      "id\030\003 \003(\005B\002\020\001\022\014\n\004data\030\004 \003(\014\"\201\001\n\020SendDataR" +
+      "esponse\022\026\n\016transaction_id\030\001 \002(\003\022\026\n\nparti" +
+      "tions\030\002 \003(\005B\002\020\001\022\023\n\013sender_site\030\003 \002(\005\022(\n\006" +
+      "status\030\004 \002(\0162\030.edu.brown.hstore.Status\"=" +
+      "\n\021InitializeRequest\022\023\n\013sender_site\030\001 \002(\005",
+      "\022\023\n\013instance_id\030\002 \002(\003\"S\n\022InitializeRespo" +
+      "nse\022\023\n\013sender_site\030\001 \002(\005\022(\n\006status\030\002 \002(\016" +
+      "2\030.edu.brown.hstore.Status\"<\n\026ShutdownPr" +
+      "epareRequest\022\023\n\013sender_site\030\001 \002(\005\022\r\n\005err" +
+      "or\030\002 \001(\014\".\n\027ShutdownPrepareResponse\022\023\n\013s" +
+      "ender_site\030\001 \002(\005\";\n\017ShutdownRequest\022\023\n\013s" +
+      "ender_site\030\001 \002(\005\022\023\n\013exit_status\030\002 \002(\005\"\'\n" +
+      "\020ShutdownResponse\022\023\n\013sender_site\030\001 \002(\005\"D" +
+      "\n\020HeartbeatRequest\022\023\n\013sender_site\030\001 \002(\005\022" +
+      "\033\n\023last_transaction_id\030\002 \002(\003\"R\n\021Heartbea",
+      "tResponse\022\023\n\013sender_site\030\001 \002(\005\022(\n\006status" +
+      "\030\002 \002(\0162\030.edu.brown.hstore.Status\"4\n\017Time" +
+      "SyncRequest\022\023\n\013sender_site\030\001 \002(\005\022\014\n\004t0_s" +
+      "\030\002 \002(\003\"Q\n\020TimeSyncResponse\022\023\n\013sender_sit" +
+      "e\030\001 \002(\005\022\014\n\004t0_s\030\002 \002(\003\022\014\n\004t0_r\030\003 \002(\003\022\014\n\004t" +
+      "1_s\030\004 \002(\003*\320\001\n\006Status\022\006\n\002OK\020\000\022\016\n\nABORT_US" +
+      "ER\020\001\022\022\n\016ABORT_GRACEFUL\020\002\022\024\n\020ABORT_UNEXPE" +
+      "CTED\020\003\022\031\n\025ABORT_CONNECTION_LOST\020\004\022\024\n\020ABO" +
+      "RT_MISPREDICT\020\005\022\021\n\rABORT_RESTART\020\006\022\020\n\014AB" +
+      "ORT_REJECT\020\007\022\027\n\023ABORT_EVICTEDACCESS\020\010\022\025\n",
+      "\021ABORT_SPECULATIVE\020\t2\372\013\n\rHStoreService\022f" +
+      "\n\017TransactionInit\022(.edu.brown.hstore.Tra" +
+      "nsactionInitRequest\032).edu.brown.hstore.T" +
+      "ransactionInitResponse\022f\n\017TransactionWor" +
+      "k\022(.edu.brown.hstore.TransactionWorkRequ" +
+      "est\032).edu.brown.hstore.TransactionWorkRe" +
+      "sponse\022x\n\023TransactionPrefetch\022+.edu.brow" +
+      "n.hstore.TransactionPrefetchResult\0324.edu" +
+      ".brown.hstore.TransactionPrefetchAcknowl" +
+      "edgement\022c\n\016TransactionMap\022\'.edu.brown.h",
+      "store.TransactionMapRequest\032(.edu.brown." +
+      "hstore.TransactionMapResponse\022l\n\021Transac" +
+      "tionReduce\022*.edu.brown.hstore.Transactio" +
+      "nReduceRequest\032+.edu.brown.hstore.Transa" +
+      "ctionReduceResponse\022o\n\022TransactionPrepar" +
+      "e\022+.edu.brown.hstore.TransactionPrepareR" +
+      "equest\032,.edu.brown.hstore.TransactionPre" +
+      "pareResponse\022l\n\021TransactionFinish\022*.edu." +
+      "brown.hstore.TransactionFinishRequest\032+." +
+      "edu.brown.hstore.TransactionFinishRespon",
+      "se\022r\n\023TransactionRedirect\022,.edu.brown.hs" +
+      "tore.TransactionRedirectRequest\032-.edu.br" +
+      "own.hstore.TransactionRedirectResponse\022i" +
+      "\n\020TransactionDebug\022).edu.brown.hstore.Tr" +
+      "ansactionDebugRequest\032*.edu.brown.hstore" +
+      ".TransactionDebugResponse\022Q\n\010SendData\022!." +
+      "edu.brown.hstore.SendDataRequest\032\".edu.b" +
+      "rown.hstore.SendDataResponse\022W\n\nInitiali" +
+      "ze\022#.edu.brown.hstore.InitializeRequest\032" +
+      "$.edu.brown.hstore.InitializeResponse\022f\n",
+      "\017ShutdownPrepare\022(.edu.brown.hstore.Shut" +
+      "downPrepareRequest\032).edu.brown.hstore.Sh" +
+      "utdownPrepareResponse\022Q\n\010Shutdown\022!.edu." +
+      "brown.hstore.ShutdownRequest\032\".edu.brown" +
+      ".hstore.ShutdownResponse\022T\n\tHeartbeat\022\"." +
+      "edu.brown.hstore.HeartbeatRequest\032#.edu." +
+      "brown.hstore.HeartbeatResponse\022Q\n\010TimeSy" +
+      "nc\022!.edu.brown.hstore.TimeSyncRequest\032\"." +
+      "edu.brown.hstore.TimeSyncResponse"
     };
     com.google.protobuf.Descriptors.FileDescriptor.InternalDescriptorAssigner assigner =
       new com.google.protobuf.Descriptors.FileDescriptor.InternalDescriptorAssigner() {
@@ -16672,7 +16712,7 @@ public final class Hstoreservice {
           internal_static_edu_brown_hstore_TransactionInitRequest_fieldAccessorTable = new
             com.google.protobuf.GeneratedMessage.FieldAccessorTable(
               internal_static_edu_brown_hstore_TransactionInitRequest_descriptor,
-              new java.lang.String[] { "LastTransactionId", "TransactionId", "BasePartition", "ProcedureId", "Partitions", "ProcParams", "PrefetchFragments", "PrefetchParams", "BatchId", },
+              new java.lang.String[] { "LastTransactionId", "TransactionId", "BasePartition", "ProcedureId", "Partitions", "ProcParams", "PrefetchFragments", "PrefetchParams", "BatchId", "ClientHandle", },
               edu.brown.hstore.Hstoreservice.TransactionInitRequest.class,
               edu.brown.hstore.Hstoreservice.TransactionInitRequest.Builder.class);
           internal_static_edu_brown_hstore_TransactionInitResponse_descriptor =

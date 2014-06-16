@@ -107,6 +107,7 @@ public class RemoteTransaction extends AbstractTransaction {
      */
     public RemoteTransaction init(int batchid,
                                   long txnId,
+                                  long clienthandle,
 //                                  long initiateTime, // added by hawk, 2013/11/20
                                   int base_partition,
                                   ParameterSet parameters,
@@ -117,9 +118,9 @@ public class RemoteTransaction extends AbstractTransaction {
 //        long localInitiateTime = EstTime.currentTimeMillis(); // added by hawk, 2013/11/20
         super.init(batchid, 
                    txnId,              // TxnId
+                   clienthandle,
 //                   initiateTime,
 //                   localInitiateTime,
-                   -1,                 // ClientHandle
                    base_partition,     // BasePartition
                    parameters,         // Procedure Parameters
                    catalog_proc,       // Procedure

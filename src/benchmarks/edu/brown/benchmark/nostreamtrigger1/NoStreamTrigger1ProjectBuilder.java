@@ -6,6 +6,7 @@ import edu.brown.benchmark.AbstractProjectBuilder;
 import edu.brown.api.BenchmarkComponent;
 
 import edu.brown.benchmark.nostreamtrigger1.procedures.SimpleCall; 
+import edu.brown.benchmark.nostreamtrigger1.procedures.SimpleCallT; 
 import edu.brown.benchmark.nostreamtrigger1.procedures.AnotherCall1; 
 
 public class NoStreamTrigger1ProjectBuilder extends AbstractProjectBuilder {
@@ -20,6 +21,7 @@ public class NoStreamTrigger1ProjectBuilder extends AbstractProjectBuilder {
     @SuppressWarnings("unchecked")
     public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
 		AnotherCall1.class,
+        SimpleCallT.class,
         SimpleCall.class
     };
 	

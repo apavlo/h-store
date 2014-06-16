@@ -1651,7 +1651,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
 
         // added by hawk, 2014/5/27
         // Step three: Re-execute frontend triggers
-        doFrontendTriggerRecovery();
+        //doFrontendTriggerRecovery();
         // ended by hawk
         
         // IMPORTANT: This message must always be printed in order for the BenchmarkController
@@ -2198,6 +2198,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (this.isLocalPartition(base_partition) == false) {
             // If the base_partition isn't local, then we need to ship it off to
             // the right HStoreSite
+            System.out.println(String.format("redirect %s to other site", catalog_proc.getName()));
             this.transactionRedirect(catalog_proc, buffer, base_partition, clientCallback);
             return;
         }
@@ -2243,9 +2244,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
 
       final long client_handle = clientHandle;
       
-
-      TriggerResponseCallback clientCallback = new TriggerResponseCallback(); 
-      
       int base_partition = HStoreConstants.NULL_PARTITION_ID;
       
       ParameterSet procParams = new ParameterSet();
@@ -2282,13 +2280,20 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
       } catch (IOException e) {
         e.printStackTrace();
       }
-      
+
+//      int messageSize = buffer.capacity();
+//      RpcCallback<ClientResponseImpl> callback = new ClientResponseCallback(this.clientInterface, c, messageSize);
+//      this.clientInterface.increaseBackpressure(messageSize);
+      TriggerResponseCallback clientCallback = new TriggerResponseCallback(); 
+
       // -------------------------------
       // REDIRECT TXN TO PROPER BASE PARTITION
       // -------------------------------
       if (this.isLocalPartition(base_partition) == false) {
           // If the base_partition isn't local, then we need to ship it off to
           // the right HStoreSite
+          System.out.println(String.format("redirect %s to other site", procedure.getName()));
+
           this.transactionRedirect(procedure, buffer, base_partition, clientCallback);
           return;
       }
