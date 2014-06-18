@@ -46,15 +46,15 @@ public class SP1 extends VoltProcedure {
 	
     // Put vote into leaderboard
     public final SQLStmt procInStmt = new SQLStmt(
-	   "INSERT INTO s1 VALUES (?);"
+	   "INSERT INTO s1 VALUES (?, ?);"
 //    	"INSERT INTO t1 VALUES (?);"
     );
     
 	
-public long run(long voteId) {
+public long run(long voteId, int partId) {
 		
         // Queue up leaderboard stmts
-		voltQueueSQL(procInStmt, voteId);
+		voltQueueSQL(procInStmt, voteId, partId);
 
         VoltTable validation[] = voltExecuteSQL();
 		

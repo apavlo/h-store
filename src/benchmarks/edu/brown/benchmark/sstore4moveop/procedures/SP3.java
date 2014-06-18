@@ -58,7 +58,7 @@ public class SP3 extends VoltProcedure {
     
     // Put vote into leaderboard
 	public final SQLStmt pullFromS2 = new SQLStmt(
-		"SELECT * FROM s2;"
+		"SELECT vote_id FROM s2 WHERE part_id=0;"
 	);
 	
     public final SQLStmt inT2Stmt = new SQLStmt(

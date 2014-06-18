@@ -50,8 +50,8 @@ public class SStore4MoveOpProjectBuilder extends AbstractProjectBuilder {
 //        Vote.class, 
 //        Initialize.class,
         SP1.class
-//        ,SP2.class
-//        ,SP3.class
+        ,SP2.class
+        ,SP3.class
         //ProcOneTrigger.class,
 //        LeaderboardTrigger.class
         };
@@ -65,6 +65,8 @@ public class SStore4MoveOpProjectBuilder extends AbstractProjectBuilder {
         { "votes", "phone_number" },
         { "contestants", "contestant_number" },
         { "area_code_state", "area_code"},
+        { "s1", "part_id"},
+        { "s2", "part_id"},
         { "T1", "vote_id"},
         { "T2", "part_id"}
     };

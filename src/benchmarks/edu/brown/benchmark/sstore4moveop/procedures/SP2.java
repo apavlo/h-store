@@ -51,21 +51,37 @@ public class SP2 extends VoltProcedure {
 	}
 	
     public final SQLStmt procInStmt = new SQLStmt(
-	   "INSERT INTO s2 (vote_id) SELECT * FROM s1;"
+	   "INSERT INTO s2 (vote_id, part_id) SELECT * FROM s1 WHERE part_id=0;"
     );
     
-//    public final SQLStmt clearProcOut = new SQLStmt(
-//    	"DELETE FROM s1;"
-//    );
+    public final SQLStmt pullFromS1Stmt = new SQLStmt(
+    	"SELECT vote_id, part_id FROM s1 WHERE part_id=0;"
+    );
+    
+    public final SQLStmt inS2Stmt = new SQLStmt(
+    	"INSERT INTO s2 (vote_id, part_id) VALUES (?, ?);"
+    );
+    
+    public final SQLStmt clearProcOut = new SQLStmt(
+    	"DELETE FROM s1;"
+    );
         
 	
 public long run() {
 		
-		voltQueueSQL(procInStmt);
+//		voltQueueSQL(procInStmt);
 //        voltQueueSQL(clearProcOut);
 
         VoltTable validation[] = voltExecuteSQL();
 		
+		voltQueueSQL(pullFromS1Stmt);
+		VoltTable s1Data[] = voltExecuteSQL();
+		Long vote_id = s1Data[0].fetchRow(0).getLong(0);
+		int part_id = (int) s1Data[0].fetchRow(0).getLong(1);
+		
+		voltQueueSQL(inS2Stmt, vote_id, part_id);
+		voltQueueSQL(clearProcOut);
+        VoltTable s2Data[] = voltExecuteSQL();
         // Set the return value to 0: successful vote
         return SStore4MoveOpConstants.VOTE_SUCCESSFUL;
     }

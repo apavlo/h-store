@@ -40,6 +40,8 @@ CREATE TABLE votes
 CREATE STREAM s1
 (
   vote_id            bigint     NOT NULL
+  , part_id          bigint     NOT NULL
+-- PARTITIONED BY (part_id)
 );
 
 --CREATE WINDOW trending_leaderboard ON proc_one_out RANGE 30 SLIDE 2;
@@ -47,6 +49,8 @@ CREATE STREAM s1
 CREATE STREAM s2
 (
   vote_id            bigint     NOT NULL
+  , part_id          bigint     NOT NULL
+-- PARTITIONED BY (part_id)
 );
 
 CREATE TABLE T1
