@@ -72,6 +72,7 @@ public enum ProjectType {
     NOSTREAMTRIGGER20("NoStreamTrigger20","edu.brown.benchmark.nostreamtrigger20"),
     NOSTREAMTRIGGER30("NoStreamTrigger30","edu.brown.benchmark.nostreamtrigger30"),
     NOSTREAMTRIGGER40("NoStreamTrigger40","edu.brown.benchmark.nostreamtrigger40"),
+    RECOVERY("Recovery","edu.brown.benchmark.recovery"),
     NOSTREAMTRIGGER1("NoStreamTrigger1","edu.brown.benchmark.nostreamtrigger1"),
     NOSTREAMTRIGGER2("NoStreamTrigger2","edu.brown.benchmark.nostreamtrigger2"),
     NOSTREAMTRIGGER3("NoStreamTrigger3","edu.brown.benchmark.nostreamtrigger3"),
