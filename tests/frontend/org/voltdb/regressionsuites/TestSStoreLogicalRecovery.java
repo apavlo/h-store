@@ -235,6 +235,8 @@ public class TestSStoreLogicalRecovery extends RegressionSuite {
         // check S1 and S2 before taking snapshot
         boolean s1_hasTuple = hasTuple("S1");
         boolean s2_hasTuple = hasTuple("S2");
+        boolean w1_hasTuple = hasTuple("W1");
+        boolean t2_hasTuple = hasTuple("T2");
         // Take Snapshot
         results = null;
         results = saveTables(client);
@@ -268,7 +270,9 @@ public class TestSStoreLogicalRecovery extends RegressionSuite {
         // check S1 and S2
         s1_hasTuple = hasTuple("S1");
         s2_hasTuple = hasTuple("S2");
-
+        w1_hasTuple = hasTuple("W1");
+        t2_hasTuple = hasTuple("T2");
+        
         // Statistics         
         results = client.callProcedure("@Statistics", "table", 0).getResults();
         System.out.println(results[0]);
@@ -318,6 +322,8 @@ public class TestSStoreLogicalRecovery extends RegressionSuite {
         // check S1 and S2
         s1_hasTuple = hasTuple("S1");
         s2_hasTuple = hasTuple("S2");
+        w1_hasTuple = hasTuple("W1");
+        t2_hasTuple = hasTuple("T2");
         
         // STEP TWO: FRONTEND TRIGGER re-execution
         doFrontendTriggerRecovery();
@@ -325,6 +331,8 @@ public class TestSStoreLogicalRecovery extends RegressionSuite {
         // check S1 and S2
         s1_hasTuple = hasTuple("S1");
         s2_hasTuple = hasTuple("S2");
+        w1_hasTuple = hasTuple("W1");
+        t2_hasTuple = hasTuple("T2");
 
         // STEP THREE: CMD LOG re-execution
         //File logDir = new File("/mnt/pmfs" + File.separator + "cmdlog");                               
@@ -344,6 +352,8 @@ public class TestSStoreLogicalRecovery extends RegressionSuite {
         // check S1 and S2
         s1_hasTuple = hasTuple("S1");
         s2_hasTuple = hasTuple("S2");
+        w1_hasTuple = hasTuple("W1");
+        t2_hasTuple = hasTuple("T2");
 
         calendar = Calendar.getInstance();                    
         t2 = calendar.getTimeInMillis();

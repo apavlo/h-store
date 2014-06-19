@@ -22,7 +22,7 @@ public class RecoveryProjectBuilder extends AbstractProjectBuilder {
     @SuppressWarnings("unchecked")
     public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
 		AnotherCall1.class,
-		//CountingTrigger.class,
+		CountingTrigger.class,
         SimpleCallT.class,
         SimpleCall.class
     };

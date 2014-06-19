@@ -16,10 +16,10 @@ public class SimpleCall extends VoltProcedure {
     public long run(long number) {
 
         voltQueueSQL(insertS1, number);
-        voltExecuteSQL();
-        
-        //voltQueueSQL(insertW1, number);
         //voltExecuteSQL();
+        
+        voltQueueSQL(insertW1, number);
+        voltExecuteSQL();
 
         return 0;
     }
