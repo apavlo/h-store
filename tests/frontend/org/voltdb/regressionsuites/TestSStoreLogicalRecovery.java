@@ -454,7 +454,8 @@ public class TestSStoreLogicalRecovery extends RegressionSuite {
 
         File[] logFiles = logDir.listFiles(cleaner);
         File latestFile = null, prevFile = null;        
-        long maxTimeStamp = Long.MIN_VALUE;
+        //long maxTimeStamp = Long.MIN_VALUE;
+        String maxTimeStamp = "0";
         
         for (File logFile : logFiles) {
             String name = logFile.getName();
@@ -466,11 +467,16 @@ public class TestSStoreLogicalRecovery extends RegressionSuite {
             if(tokens.length <= 1)
                 continue;
             
-            long fileTimestamp = Long.parseLong(tokens[1]) ;
-            if(fileTimestamp > maxTimeStamp){
+            //long fileTimestamp = Long.parseLong(tokens[1]) ;
+            String fileTimestamp = (tokens[1]) ;
+            if(fileTimestamp.compareTo(maxTimeStamp) > 0){
                 maxTimeStamp = fileTimestamp;
                 prevFile = latestFile;
                 latestFile = logFile;         
+            }
+            else
+            {
+                prevFile = logFile;
             }
         }       
 
