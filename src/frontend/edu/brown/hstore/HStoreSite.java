@@ -1651,7 +1651,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
 
         // added by hawk, 2014/5/27
         // Step three: Re-execute frontend triggers
-        //doFrontendTriggerRecovery();
+        if (this.hstore_conf.site.snapshot){
+            doFrontendTriggerRecovery();
+        }
         // ended by hawk
         
         // IMPORTANT: This message must always be printed in order for the BenchmarkController
