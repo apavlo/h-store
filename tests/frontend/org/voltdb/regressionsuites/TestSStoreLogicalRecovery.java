@@ -287,6 +287,14 @@ public class TestSStoreLogicalRecovery extends RegressionSuite {
         m_config.shutDown();
         m_config.startUp();
         client = getClient();
+        
+        // used for testing to check if the SnapshotRestore destroy window behavior
+        client.callProcedure("SimpleCall", 1000);
+        s1_hasTuple = hasTuple("S1");
+        s2_hasTuple = hasTuple("S2");
+        w1_hasTuple = hasTuple("W1");
+        t2_hasTuple = hasTuple("T2");
+        // end of testing
 
         Calendar calendar;
         long t1,t2;

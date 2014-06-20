@@ -1612,10 +1612,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         // added by hawkwang, 2014/5/23
         // Step one: Turn off frontend trigger mechanism
-        LOG.info("Turn off frontend trigger mechanism ... ");
-        String name = "global.sstore";
-        Object value = false;
-        Object origin_value = setConfig(name, value);
+        //LOG.info("Turn off frontend trigger mechanism ... ");
+        //String name = "global.sstore";
+        //Object value = false;
+        //Object origin_value = setConfig(name, value);
         // ended by hawk
         
         // ARIES
@@ -1631,8 +1631,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         // added by hawkwang, 2014/5/23
         // Step two: Turn back to origin setting for frontend trigger mechanism
-        setConfig(name, origin_value);
-        LOG.info("Turn frontend trigger mechanism setting back ... ");
+        //setConfig(name, origin_value);
+        //LOG.info("Turn frontend trigger mechanism setting back ... ");
         //ended by hawk
         
         
