@@ -3,6 +3,9 @@ package edu.brown.stream;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.net.*;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -40,19 +43,26 @@ import edu.brown.utils.CollectionUtil;
 
 
 public class MyClient {
-  final int port;
-  Catalog catalog;
-  Client client;
-  InputClientConnection icc;
+    final int port;
+    Catalog catalog;
+    Client client;
+    InputClientConnection icc;
+    ServerSocket serverSocket;
 
-  MyClient() {
-    this.port = 21212;
-    this.catalog = new Catalog();
-    this.icc = this.getClientConnection("localhost");
-    this.client = icc.client;
-  }
+    MyClient() {
+        this.port = 21212;
+        this.catalog = new Catalog();
+        this.icc = this.getClientConnection("localhost");
+        this.client = icc.client;
+        try {
+            this.serverSocket = new ServerSocket(9999);
+        } catch (IOException e) {
+            System.out.println("Error creating socket on port 8675");
+            e.printStackTrace();
+        }
+    }
 
-  private class InputClientConnection {
+     private class InputClientConnection {
         final Client client;
         final String hostname;
         final int port;
@@ -104,30 +114,40 @@ public class MyClient {
         return new InputClientConnection(client, hostname, port);
     }
 
-  public static void main(String [] args) {
-    MyClient myc = new MyClient();
-    try {
-        if (myc.client == null) {
-            System.out.println("Everything is terrible");
+    public static void main(String [] args) {
+        MyClient myc = new MyClient();
+        try {
+            if (myc.client == null) {
+                System.out.println("Everything is terrible");
+            }
+            else {
+                Socket api = myc.serverSocket.accept();
+                String proc = null;
+                while (proc == null) {
+                	BufferedReader apiCall = new BufferedReader(new InputStreamReader(api.getInputStream()));
+                	proc = apiCall.readLine();
+                	System.out.println(proc);
+                }
+                ClientResponse cr = myc.client.callProcedure(proc, 3);
+                VoltTable [] vt = cr.getResults();
+                	
+                //myc.client.callProcedure("SimpleCall");
+                //myc.client.callProcedure("Initialize");
+                //myc.client.callProcedure("SignUp", 3);
+                //myc.client.callProcedure("CheckoutBike", 3);
+                //myc.client.callProcedure("CheckoutBike", 111111);
+            }
+        } catch (NoConnectionsException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        } catch (IOException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        } catch (ProcCallException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
         }
-        else {
-            //myc.client.callProcedure("SimpleCall");
-            //myc.client.callProcedure("Initialize");
-            //myc.client.callProcedure("SignUp", 3);
-            myc.client.callProcedure("CheckoutBike", 3);
-            //myc.client.callProcedure("CheckoutBike", 111111);
-        }
-    } catch (NoConnectionsException e) {
-        // TODO Auto-generated catch block
-        e.printStackTrace();
-    } catch (IOException e) {
-        // TODO Auto-generated catch block
-        e.printStackTrace();
-    } catch (ProcCallException e) {
-        // TODO Auto-generated catch block
-        e.printStackTrace();
+        System.out.print("hello");
     }
-    System.out.print("hello");
-  }
   
 }
