@@ -38,25 +38,8 @@ singlePartition = false
 public class Initialize extends VoltProcedure
 {
 
-    public final SQLStmt insertZone = new SQLStmt(
-        "INSERT INTO zones (zone_id, discount) VALUES (?,?);"
-    );
-
     public final SQLStmt insertStation = new SQLStmt(
-        "INSERT INTO stations (station_id, zone_id, location, lat, lon) VALUES (?,?,?,?,?);"
-    );
-
-    public final SQLStmt insertBike = new SQLStmt(
-        "INSERT INTO bikes (bike_id, zone_id, condition, state, last_dock, last_rider)" +
-        " VALUES (?,?,?,?,?,?);"
-    );
-
-    public final SQLStmt insertDock = new SQLStmt(
-        "INSERT INTO docks (dock_id, station_id, occupied) VALUES (?,?,?);"
-    );
-
-    public final SQLStmt fillDock = new SQLStmt(
-        "UPDATE docks set occupied = 1 WHERE dock_id = ?;"
+        "INSERT INTO stations (station_id, location, lat, lon, num_bikes, num_docks) VALUES (?,?,?,?,?,?);"
     );
 
 //     public final SQLStmt insertRider = new SQLStmt(
@@ -70,53 +53,14 @@ public class Initialize extends VoltProcedure
 
     public long run() {
 
-        assert(BikerStreamConstants.NUM_BIKES_PER_STATION <= BikerStreamConstants.NUM_DOCKS_PER_STATION);
+        int maxBikes    = BikerStreamConstants.NUM_BIKES_PER_STATION;
+        int maxStations = BikerStreamConstants.NUM_STATIONS;
 
-        for (int i=0; i < BikerStreamConstants.NUM_ZONES; ++i){
-
-            int zone_id = i * 100000;
-
-            // Insert the zone
-            voltQueueSQL(insertZone, zone_id, 1.0);
+        for (int i = 0; i < maxStations; ++i){
+            // Insert the Station
+            voltQueueSQL(insertStation, i, "", 0.0, 0.0, 10, 0);
             voltExecuteSQL();
-
-            for (int j=0; j< BikerStreamConstants.NUM_STATIONS_PER_ZONE; ++j){
-
-                int station_id = zone_id + (j*1000);
-
-                // Insert the Station
-                voltQueueSQL(insertStation, station_id, zone_id, "", 0.0, 0.0);
-                voltExecuteSQL();
-
-                // Insert docks and bikes
-                for (int h =0; h < BikerStreamConstants.NUM_DOCKS_PER_STATION; ++h){
-
-                    int dock_id = station_id + (10*h);
-                    int bike_id = station_id + h;
-
-
-                    if (h < BikerStreamConstants.NUM_BIKES_PER_STATION){
-                        voltQueueSQL(insertDock, dock_id, station_id, 1);
-                        voltQueueSQL(insertBike, bike_id, zone_id, "New", "DOCKED", dock_id, -1);
-                    } else {
-                        voltQueueSQL(insertDock, dock_id, station_id, 0);
-                    }
-
-                    voltExecuteSQL();
-
-                } // Docks
-
-            } // Station
-
-        } // Zones
-
-        // // Insert Riders
-        // for (int i=0; i < riderNames.length; ++i){
-        //     voltQueueSQL(insertRider, (i*10)+i , riderNames[i]);
-        //     voltQueueSQL(insertCard, (i*10) +i, "Visa", riderNames[i], String.valueOf(i), "JAN/2016", 123);
-        //     voltExecuteSQL();
-
-        // }
+        }
 
         return 0;
     }
