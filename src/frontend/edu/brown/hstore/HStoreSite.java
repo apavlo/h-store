@@ -192,6 +192,14 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     private final int site_id;
     private final String site_name;
     
+    /** 
+     * Connection passed in
+     */
+    private Connection conn;
+    private ByteBuffer bf;
+    private Procedure p;
+    private RpcCallback<ClientResponseImpl> clientCallback;
+    
     /**
      * This buffer pool is used to serialize ClientResponses to send back
      * to clients.
@@ -2040,6 +2048,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     protected void invocationQueue(ByteBuffer buffer, ClientInputHandler handler, Connection c) {
         int messageSize = buffer.capacity();
         RpcCallback<ClientResponseImpl> callback = new ClientResponseCallback(this.clientInterface, c, messageSize);
+        conn = c;
         this.clientInterface.increaseBackpressure(messageSize);
         
         if (this.preProcessorQueue != null) {
@@ -2094,7 +2103,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
 //                ProfileMeasurement.swap(timestamp, this.profiler.network_idle_time, this.profiler.network_processing_time);
 //            }
 //        }
-        
+    	
         long timestamp = -1;
         if (hstore_conf.global.nanosecond_latencies) {
             timestamp = System.nanoTime();
@@ -2198,7 +2207,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (this.isLocalPartition(base_partition) == false) {
             // If the base_partition isn't local, then we need to ship it off to
             // the right HStoreSite
-            System.out.println(String.format("redirect %s to other site", catalog_proc.getName()));
+        	if (debug.val) 
+            	LOG.trace(String.format("redirect %s to site %s", catalog_proc.getName(), catalogContext.getSiteIdForPartitionId(base_partition)));
             this.transactionRedirect(catalog_proc, buffer, base_partition, clientCallback);
             return;
         }
@@ -2226,7 +2236,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     }
     
     // added by hawk, 2013/11/1
-    public void invocationTriggerProcedureProcess(int batchId, long clientHandle, long initiateTime, Procedure procedure) {
+	public void invocationTriggerProcedureProcess(int batchId, long clientHandle, long initiateTime, Procedure procedure, RpcCallback<ClientResponseImpl>... clientCallbacks) {
         
       // hawk: for micro-benchmark 2, start point
       long startNanoTime = System.nanoTime();
@@ -2276,19 +2286,37 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
       final StoredProcedureInvocation invocation =
               new StoredProcedureInvocation(client_handle, procedure.getName());
       invocation.setBasePartition(base_partition);
+      if (partitionNum != 0) {
+    	  invocation.setParams(partitionNum);
+      }
 
       ByteBuffer buffer = null; // FIXME maybe error here, by hawk, 2014-3-7
       try {
         byte[] invocationbytes = FastSerializer.serialize(invocation);
         buffer = ByteBuffer.wrap(invocationbytes);
+        bf = buffer;
       } catch (IOException e) {
         e.printStackTrace();
       }
 
 //      int messageSize = buffer.capacity();
-//      RpcCallback<ClientResponseImpl> callback = new ClientResponseCallback(this.clientInterface, c, messageSize);
+//      RpcCallback<ClientResponseImpl> clientCallback = new ClientResponseCallback(this.clientInterface, conn, messageSize);
 //      this.clientInterface.increaseBackpressure(messageSize);
-      TriggerResponseCallback clientCallback = new TriggerResponseCallback(); 
+//      TriggerResponseCallback clientCallback = new TriggerResponseCallback();
+      RpcCallback<ClientResponseImpl> clientCallback = new TriggerResponseCallback();
+//      if (clientCallbacks.length > 0) {
+//    	  clientCallback = clientCallbacks[0];
+////          RedirectCallback callback = null;
+////          try {
+////              callback = new RedirectCallback(this);
+////              // callback = (RedirectCallback)objectPools.CALLBACKS_TXN_REDIRECT_REQUEST.borrowObject();
+////              callback.init(clientCallback);
+////          } catch (Exception ex) {
+////              throw new RuntimeException("Failed to get TransactionRedirectCallback", ex);
+////          }
+//    	  this.clientCallback = clientCallback;
+//      }
+
 
       // -------------------------------
       // REDIRECT TXN TO PROPER BASE PARTITION
@@ -2296,10 +2324,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
       if (this.isLocalPartition(base_partition) == false) {
           // If the base_partition isn't local, then we need to ship it off to
           // the right HStoreSite
-          System.out.println(String.format("redirect %s to other site", procedure.getName()));
-
+    	  if (debug.val)
+          	LOG.trace(String.format("redirect %s to site %s", procedure.getName(), catalogContext.getSiteIdForPartitionId(base_partition)));
+          p = procedure;
           this.transactionRedirect(procedure, buffer, base_partition, clientCallback);
-          return;
+         return;
       }
       
       // 2012-12-24 - We always want the network threads to do the initialization
