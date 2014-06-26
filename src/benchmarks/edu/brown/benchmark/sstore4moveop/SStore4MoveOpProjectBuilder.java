@@ -47,13 +47,10 @@ public class SStore4MoveOpProjectBuilder extends AbstractProjectBuilder {
 	// a list of procedures implemented in this benchmark
     @SuppressWarnings("unchecked")
     public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
-//        Vote.class, 
-//        Initialize.class,
         SP1.class
         ,SP2.class
         ,SP3.class
-        //ProcOneTrigger.class,
-//        LeaderboardTrigger.class
+        ,SP4.class
         };
 	
 	{
@@ -67,7 +64,7 @@ public class SStore4MoveOpProjectBuilder extends AbstractProjectBuilder {
         { "area_code_state", "area_code"},
         { "s1", "part_id"},
         { "s2", "part_id"},
-        { "T1", "vote_id"},
+        { "s3", "part_id"},
         { "T2", "part_id"}
     };
 

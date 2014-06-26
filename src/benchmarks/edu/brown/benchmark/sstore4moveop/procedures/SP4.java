@@ -41,7 +41,7 @@ import edu.brown.benchmark.sstore4moveop.SStore4MoveOpConstants;
 @ProcInfo (
 	partitionInfo = "T2.part_id:0",
 	partitionNum = 3,
-    singlePartition = false
+    singlePartition = true
 )
 public class SP4 extends VoltProcedure {
 	
@@ -98,7 +98,8 @@ public long run(int part_id) {
 			voltQueueSQL(inT2Stmt, vote_id, part_id);
 		}
 		
-        voltQueueSQL(clearS2);
+		if (s2Data[0].getRowCount() > 0)
+			voltQueueSQL(clearS2);
 
         VoltTable s2validation[] = voltExecuteSQL();
 		
@@ -120,8 +121,9 @@ public long run(int part_id) {
 			Long vote_id = s3Data[0].fetchRow(i).getLong(0);
 			voltQueueSQL(inT2Stmt, vote_id, part_id);
 		}
-		
-        voltQueueSQL(clearS3);
+
+		if (s3Data[0].getRowCount() > 0)
+			voltQueueSQL(clearS3);
 
         VoltTable s3validation[] = voltExecuteSQL();
 		

@@ -39,7 +39,8 @@ import org.voltdb.types.TimestampType;
 import edu.brown.benchmark.sstore4moveop.SStore4MoveOpConstants;
 
 @ProcInfo (
-	//partitionInfo = "contestants.contestant_number:1",
+	partitionInfo = "s2.part_id:0",
+	partitionNum = 1,
     singlePartition = true
 )
 public class SP2 extends VoltProcedure {
@@ -50,38 +51,39 @@ public class SP2 extends VoltProcedure {
 		addTriggerTable("s1");
 	}
 	
-    public final SQLStmt procInStmt = new SQLStmt(
-	   "INSERT INTO s2 (vote_id, part_id) SELECT * FROM s1 WHERE part_id=0;"
-    );
-    
-    public final SQLStmt pullFromS1Stmt = new SQLStmt(
-    	"SELECT vote_id, part_id FROM s1 WHERE part_id=0;"
-    );
-    
-    public final SQLStmt inS2Stmt = new SQLStmt(
-    	"INSERT INTO s2 (vote_id, part_id) VALUES (?, ?);"
-    );
-    
-    public final SQLStmt clearProcOut = new SQLStmt(
-    	"DELETE FROM s1;"
-    );
-        
+	public final SQLStmt pullFromS2 = new SQLStmt(
+		"SELECT vote_id FROM s1 WHERE part_id = 0;"
+	);
 	
-public long run() {
+    public final SQLStmt inT2Stmt = new SQLStmt(
+	   "INSERT INTO S2 (vote_id, part_id) VALUES (?, ?);"
+    );
+    
+    public final SQLStmt clearS1 = new SQLStmt(
+    	"DELETE FROM s1 WHERE part_id = 0;"
+    );
+        	
+    public long run(int part_id) {
 		
-//		voltQueueSQL(procInStmt);
-//        voltQueueSQL(clearProcOut);
+		voltQueueSQL(pullFromS2);
+		System.out.println("start with SP2");
+		VoltTable s2Data[] = voltExecuteSQL();
+		
+//		Long vote_id = s1Data[0].fetchRow(0).getLong(0);
+//		System.out.println("vote_id: " + vote_id);
+//		System.out.println("part_id: " + part_id);
+//		voltQueueSQL(inT2Stmt, vote_id, part_id);
+//	
+		for (int i=0; i < s2Data[0].getRowCount(); i++) {
+			Long vote_id = s2Data[0].fetchRow(i).getLong(0);
+			voltQueueSQL(inT2Stmt, vote_id, part_id);
+		}
+		
+        voltQueueSQL(clearS1);
 
-        VoltTable validation[] = voltExecuteSQL();
-		
-		voltQueueSQL(pullFromS1Stmt);
-		VoltTable s1Data[] = voltExecuteSQL();
-		Long vote_id = s1Data[0].fetchRow(0).getLong(0);
-		int part_id = (int) s1Data[0].fetchRow(0).getLong(1);
-		
-		voltQueueSQL(inS2Stmt, vote_id, part_id);
-		voltQueueSQL(clearProcOut);
-        VoltTable s2Data[] = voltExecuteSQL();
+        VoltTable s2Delete[] = voltExecuteSQL();
+				
+		System.out.println("done with SP2");
         // Set the return value to 0: successful vote
         return SStore4MoveOpConstants.VOTE_SUCCESSFUL;
     }

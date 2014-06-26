@@ -2306,19 +2306,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
 //      this.clientInterface.increaseBackpressure(messageSize);
 //      TriggerResponseCallback clientCallback = new TriggerResponseCallback();
       RpcCallback<ClientResponseImpl> clientCallback = new TriggerResponseCallback();
-//      if (clientCallbacks.length > 0) {
-//    	  clientCallback = clientCallbacks[0];
-////          RedirectCallback callback = null;
-////          try {
-////              callback = new RedirectCallback(this);
-////              // callback = (RedirectCallback)objectPools.CALLBACKS_TXN_REDIRECT_REQUEST.borrowObject();
-////              callback.init(clientCallback);
-////          } catch (Exception ex) {
-////              throw new RuntimeException("Failed to get TransactionRedirectCallback", ex);
-////          }
-//    	  this.clientCallback = clientCallback;
-//      }
-
 
       // -------------------------------
       // REDIRECT TXN TO PROPER BASE PARTITION

@@ -39,57 +39,51 @@ import org.voltdb.types.TimestampType;
 import edu.brown.benchmark.sstore4moveop.SStore4MoveOpConstants;
 
 @ProcInfo (
-	partitionInfo = "t2.part_id:0",
-	partitionNum = 1,
-    singlePartition = false
+	partitionInfo = "s3.part_id:0",
+	partitionNum = 2,
+    singlePartition = true
 )
 public class SP3 extends VoltProcedure {
 	
 	
 	protected void toSetTriggerTableName()
 	{
-		addTriggerTable("s2");
+		addTriggerTable("s1");
 	}
 	
-    // Put vote into leaderboard
-//    public final SQLStmt trendingLeaderboardStmt = new SQLStmt(
-//	   "INSERT INTO trending_leaderboard (vote_id, phone_number, state, contestant_number, time) SELECT * FROM proc_one_out;"
-//    );
-    
-    // Put vote into leaderboard
-	public final SQLStmt pullFromS2 = new SQLStmt(
-		"SELECT vote_id FROM s2 WHERE part_id=0;"
+	public final SQLStmt pullFromS1 = new SQLStmt(
+		"SELECT vote_id FROM s1 WHERE part_id = 4;"
 	);
 	
-    public final SQLStmt inT2Stmt = new SQLStmt(
-	   "INSERT INTO T2 (vote_id, part_id) VALUES (?, ?);"
+    public final SQLStmt inS3Stmt = new SQLStmt(
+	   "INSERT INTO S3 (vote_id, part_id) VALUES (?, ?);"
     );
     
-    public final SQLStmt clearS2 = new SQLStmt(
-    	"DELETE FROM s2;"
+    public final SQLStmt clearS1 = new SQLStmt(
+    	"DELETE FROM s1 WHERE part_id = 4;"
     );
-        
-	
-public long run(int part_id) {
+        	
+    public long run(int part_id) {
 		
-        // Queue up leaderboard stmts
-//		voltQueueSQL(trendingLeaderboardStmt);
-		voltQueueSQL(pullFromS2);
-		VoltTable s2Data[] = voltExecuteSQL();
-		Long vote_id = s2Data[0].fetchRow(0).getLong(0);
+		voltQueueSQL(pullFromS1);
+		System.out.println("start with SP3");
+		VoltTable s3Data[] = voltExecuteSQL();
 		
-		voltQueueSQL(inT2Stmt, vote_id, part_id);
-        voltQueueSQL(clearS2);
-//        voltQueueSQL(getTrendingLeaderboard);
+//		Long vote_id = s1Data[0].fetchRow(0).getLong(0);
+//		System.out.println("vote_id: " + vote_id);
+//		System.out.println("part_id: " + part_id);
+//		voltQueueSQL(inT2Stmt, vote_id, part_id);
+//	
+		for (int i=0; i < s3Data[0].getRowCount(); i++) {
+			Long vote_id = s3Data[0].fetchRow(i).getLong(0);
+			voltQueueSQL(inS3Stmt, vote_id, part_id);
+		}
+		
+        voltQueueSQL(clearS1);
 
-        VoltTable validation[] = voltExecuteSQL();
-		
-//        // check the number of rows
-//        if ((validation[2].fetchRow(0).getLong(0)) >= 0) {
-//        	long phone_number = validation[2].fetchRow(0).getLong(0);
-//        	long contestant_number = validation[2].fetchRow(0).getLong(1);
-//        }
-		
+        VoltTable s2Delete[] = voltExecuteSQL();
+				
+		System.out.println("done with SP3");
         // Set the return value to 0: successful vote
         return SStore4MoveOpConstants.VOTE_SUCCESSFUL;
     }
