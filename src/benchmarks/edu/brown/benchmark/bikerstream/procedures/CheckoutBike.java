@@ -77,7 +77,7 @@ public class CheckoutBike extends VoltProcedure {
             );
 
 
-    public long run(long rider_id) {
+    public VoltTable [] run(long rider_id) {
 
         // Lets pull up our reservation
         voltQueueSQL(checkReservation, rider_id);
@@ -100,8 +100,8 @@ public class CheckoutBike extends VoltProcedure {
             // Change the dock occupied status
             voltQueueSQL(removeFromDock, dock_id);
 
-            voltExecuteSQL(true);
-            return BikerStreamConstants.BIKE_CHECKEDOUT;
+            return voltExecuteSQL(true);
+            //return BikerStreamConstants.BIKE_CHECKEDOUT;
 
 
         } else if (results[0].getRowCount() == 0) { // No reservation on file (anymore?)
@@ -134,9 +134,11 @@ public class CheckoutBike extends VoltProcedure {
                     // Change the dock occupied status
                     voltQueueSQL(removeFromDock, dock_id);
 
-                    results = voltExecuteSQL(true);
+                    //results = voltExecuteSQL(true);
 
-                    return BikerStreamConstants.BIKE_CHECKEDOUT;
+                    return voltExecuteSQL(true);
+
+                    //return BikerStreamConstants.BIKE_CHECKEDOUT;
                 }
 
             } while (attempts++ < BikerStreamConstants.MAX_CHECKOUT_ATTEMPTS);
@@ -149,7 +151,9 @@ public class CheckoutBike extends VoltProcedure {
                     );
         }
 
-        return BikerStreamConstants.BIKE_NOT_CHECKEDOUT;
+        //return BikerStreamConstants.BIKE_NOT_CHECKEDOUT;
+
+        return null;
     }
 
 } // End Class
