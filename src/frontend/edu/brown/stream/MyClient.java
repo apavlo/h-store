@@ -129,6 +129,7 @@ public class MyClient {
                 	proc = apiCall.readLine();
                 	System.out.println(proc);
                 	String [] api_args = proc.split(" ");
+                    /*
                 	switch (api_args[0]) {
                 	case "Stations":
                 		//call get all stations method
@@ -150,6 +151,7 @@ public class MyClient {
                 	case "nearby":
                 		//call nearby stations method
                 	}
+                    */
                 }
                 //ClientResponse cr = myc.client.callProcedure(proc, 3);
                 //VoltTable [] vt = cr.getResults();
@@ -165,10 +167,10 @@ public class MyClient {
         } catch (IOException e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
-        } catch (ProcCallException e) {
+        } /*catch (ProcCallException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
-		}
+		}*/
         System.out.print("hello");
     }
   
