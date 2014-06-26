@@ -60,7 +60,7 @@ public class CheckoutBike extends VoltProcedure {
                 "INSERT INTO logs (user_id, time, success, action) VALUES (?,?,?,?)"
             );
 
-
+    
 
     public long run(long rider_id, long station_id) throws Exception {
 

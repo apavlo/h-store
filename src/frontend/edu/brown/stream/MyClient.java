@@ -120,6 +120,7 @@ public class MyClient {
             if (myc.client == null) {
                 System.out.println("Everything is terrible");
             }
+            //myc.client.callProcedure("CheckoutBike", 111111);
             else {
                 Socket api = myc.serverSocket.accept();
                 String proc = null;
@@ -127,15 +128,36 @@ public class MyClient {
                 	BufferedReader apiCall = new BufferedReader(new InputStreamReader(api.getInputStream()));
                 	proc = apiCall.readLine();
                 	System.out.println(proc);
+                	String [] api_args = proc.split(" ");
+                	switch (api_args[0]) {
+                	case "Stations":
+                		//call get all stations method
+                	case "checkout":
+                		ClientResponse cr = myc.client.callProcedure("CheckoutBike", 63235);
+                		VoltTable [] vt = cr.getResults();
+                		System.out.println(vt[0].getString(0));
+                		//call checkout method
+                	case "return":
+                		//call return bike method
+                	case "speed":
+                		//call calculate speed method
+                	case "stolen":
+                		//call detect stolen method
+                	case "distance":
+                		//call distance traveled method
+                	case "calories":
+                		//call calories burned method
+                	case "nearby":
+                		//call nearby stations method
+                	}
                 }
-                ClientResponse cr = myc.client.callProcedure(proc, 3);
-                VoltTable [] vt = cr.getResults();
+                //ClientResponse cr = myc.client.callProcedure(proc, 3);
+                //VoltTable [] vt = cr.getResults();
                 	
                 //myc.client.callProcedure("SimpleCall");
                 //myc.client.callProcedure("Initialize");
                 //myc.client.callProcedure("SignUp", 3);
                 //myc.client.callProcedure("CheckoutBike", 3);
-                //myc.client.callProcedure("CheckoutBike", 111111);
             }
         } catch (NoConnectionsException e) {
             // TODO Auto-generated catch block
@@ -144,9 +166,9 @@ public class MyClient {
             // TODO Auto-generated catch block
             e.printStackTrace();
         } catch (ProcCallException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        }
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
         System.out.print("hello");
     }
   
