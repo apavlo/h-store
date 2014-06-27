@@ -38,6 +38,7 @@
 #include "anticache/EvictedTable.h"
 #include "anticache/UnknownBlockAccessException.h"
 #include "anticache/AntiCacheDB.h"
+#include "anticache/BerkeleyAntiCacheDB.h"
 #include <string>
 #include <vector>
 #include <time.h>
