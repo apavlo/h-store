@@ -52,6 +52,7 @@ public class SStore4MoveOpProjectBuilder extends AbstractProjectBuilder {
         ,SP3.class
         ,SP4.class
         ,SP5.class
+        ,SP6.class
         };
 	
 	{
@@ -66,6 +67,7 @@ public class SStore4MoveOpProjectBuilder extends AbstractProjectBuilder {
         { "s1", "part_id"},
         { "s2", "part_id"},
         { "s3", "part_id"},
+        { "s4", "part_id"},
         { "T2", "part_id"}
     };
 

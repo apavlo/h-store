@@ -51,7 +51,7 @@ public class SP1 extends VoltProcedure {
     );
     
 	
-public long run(long voteId, int partId) {
+    public long run(long voteId, int partId) {
 		
         // Queue up leaderboard stmts
 		voltQueueSQL(procInStmt, voteId, partId);

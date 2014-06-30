@@ -39,7 +39,7 @@ import org.voltdb.types.TimestampType;
 import edu.brown.benchmark.sstore4moveop.SStore4MoveOpConstants;
 
 @ProcInfo (
-	partitionInfo = "T2.part_id:0",
+	partitionInfo = "s4.part_id:0",
 	partitionNum = 3,
     singlePartition = true
 )
@@ -56,7 +56,7 @@ public class SP5 extends VoltProcedure {
 	);
 		
     public final SQLStmt inT2Stmt = new SQLStmt(
-	   "INSERT INTO T2 (vote_id, part_id) VALUES (?, ?);"
+	   "INSERT INTO s4 (vote_id, part_id) VALUES (?, ?);"
     );
     
     public final SQLStmt clearS3 = new SQLStmt(
@@ -64,7 +64,7 @@ public class SP5 extends VoltProcedure {
     );
             
 	
-public long run(int part_id) {
+    public long run(int part_id) {
 				
 		System.out.println("start with SP5");
 		voltQueueSQL(pullFromS3);

@@ -60,6 +60,13 @@ CREATE STREAM s3
 -- PARTITIONED BY (part_id)
 );
 
+CREATE STREAM s4
+(
+  vote_id            bigint     NOT NULL
+  , part_id          bigint     NOT NULL
+-- PARTITIONED BY (part_id)
+);
+
 CREATE TABLE T1
 ( vote_id            bigint     NOT NULL
 , CONSTRAINT PK_t1 PRIMARY KEY

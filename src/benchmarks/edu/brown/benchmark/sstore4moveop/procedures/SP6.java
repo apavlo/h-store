@@ -39,56 +39,53 @@ import org.voltdb.types.TimestampType;
 import edu.brown.benchmark.sstore4moveop.SStore4MoveOpConstants;
 
 @ProcInfo (
-	partitionInfo = "s4.part_id:0",
+	partitionInfo = "t2.part_id:0",
 	partitionNum = 3,
     singlePartition = true
 )
-public class SP4 extends VoltProcedure {
+public class SP6 extends VoltProcedure {
 	
 	
 	protected void toSetTriggerTableName()
 	{
-		addTriggerTable("s2");
+		addTriggerTable("s4");
 	}
 	
-    // Put vote into leaderboard
-	public final SQLStmt pullFromS2 = new SQLStmt(
-		"SELECT vote_id FROM s2;"
+	public final SQLStmt pullFromS4 = new SQLStmt(
+		"SELECT vote_id FROM s4;"
 	);
-	
+		
     public final SQLStmt inT2Stmt = new SQLStmt(
-	   "INSERT INTO s4 (vote_id, part_id) VALUES (?, ?);"
+	   "INSERT INTO t2 (vote_id, part_id) VALUES (?, ?);"
     );
     
-    public final SQLStmt clearS2 = new SQLStmt(
-    	"DELETE FROM s2;"
+    public final SQLStmt clearS4 = new SQLStmt(
+        "DELETE FROM s4;"
     );
-        
+            
+	
     public long run(int part_id) {
-		
-		System.out.println("start with SP4");
-		voltQueueSQL(pullFromS2);
-		VoltTable s2Data[] = voltExecuteSQL();
+				
+		System.out.println("start with SP6");
+		voltQueueSQL(pullFromS4);
+		VoltTable s3Data[] = voltExecuteSQL();
 		
 //		Long vote_id = s1Data[0].fetchRow(0).getLong(0);
 //		System.out.println("vote_id: " + vote_id);
 //		System.out.println("part_id: " + part_id);
 //		voltQueueSQL(inT2Stmt, vote_id, part_id);
 //	
-		for (int i=0; i < s2Data[0].getRowCount(); i++) {
-			Long vote_id = s2Data[0].fetchRow(i).getLong(0);
-			System.out.println("vote_id: " + vote_id);
-			System.out.println("part_id: " + part_id);
-		
+		for (int i=0; i < s3Data[0].getRowCount(); i++) {
+			Long vote_id = s3Data[0].fetchRow(i).getLong(0);
 			voltQueueSQL(inT2Stmt, vote_id, part_id);
 		}
-		
-		if (s2Data[0].getRowCount() > 0)
-			voltQueueSQL(clearS2);
 
-        VoltTable s2validation[] = voltExecuteSQL();
+		if (s3Data[0].getRowCount() > 0)
+			voltQueueSQL(clearS4);
+
+        VoltTable s3validation[] = voltExecuteSQL();
 		
-		System.out.println("done with SP4");
+		System.out.println("done with SP6");
         // Set the return value to 0: successful vote
         return SStore4MoveOpConstants.VOTE_SUCCESSFUL;
     }
