@@ -51,6 +51,7 @@ public class SStore4MoveOpProjectBuilder extends AbstractProjectBuilder {
         ,SP2.class
         ,SP3.class
         ,SP4.class
+        ,SP5.class
         };
 	
 	{

@@ -39,25 +39,53 @@ import org.voltdb.types.TimestampType;
 import edu.brown.benchmark.sstore4moveop.SStore4MoveOpConstants;
 
 @ProcInfo (
-	partitionInfo = "t1.vote_id:0",
+	partitionInfo = "T2.part_id:0",
+	partitionNum = 3,
     singlePartition = true
 )
 public class SP5 extends VoltProcedure {
 	
-    public final SQLStmt procInStmt = new SQLStmt(
-    	"INSERT INTO t1 VALUES (?, ?);"
+	
+	protected void toSetTriggerTableName()
+	{
+		addTriggerTable("s3");
+	}
+	
+	public final SQLStmt pullFromS3 = new SQLStmt(
+		"SELECT vote_id FROM s3;"
+	);
+		
+    public final SQLStmt inT2Stmt = new SQLStmt(
+	   "INSERT INTO T2 (vote_id, part_id) VALUES (?, ?);"
     );
     
+    public final SQLStmt clearS3 = new SQLStmt(
+        "DELETE FROM s3;"
+    );
+            
 	
-public long run(long voteId, int partId) {
+public long run(int part_id) {
+				
+		System.out.println("start with SP5");
+		voltQueueSQL(pullFromS3);
+		VoltTable s3Data[] = voltExecuteSQL();
 		
-        // Queue up leaderboard stmts
-		voltQueueSQL(procInStmt, voteId, partId);
+//		Long vote_id = s1Data[0].fetchRow(0).getLong(0);
+//		System.out.println("vote_id: " + vote_id);
+//		System.out.println("part_id: " + part_id);
+//		voltQueueSQL(inT2Stmt, vote_id, part_id);
+//	
+		for (int i=0; i < s3Data[0].getRowCount(); i++) {
+			Long vote_id = s3Data[0].fetchRow(i).getLong(0);
+			voltQueueSQL(inT2Stmt, vote_id, part_id);
+		}
 
-		System.out.println("Start with SP5");
-        VoltTable validation[] = voltExecuteSQL();
-        System.out.println("End with SP5");
+		if (s3Data[0].getRowCount() > 0)
+			voltQueueSQL(clearS3);
+
+        VoltTable s3validation[] = voltExecuteSQL();
 		
+		System.out.println("done with SP5");
         // Set the return value to 0: successful vote
         return SStore4MoveOpConstants.VOTE_SUCCESSFUL;
     }

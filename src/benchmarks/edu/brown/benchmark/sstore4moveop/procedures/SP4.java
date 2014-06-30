@@ -49,23 +49,13 @@ public class SP4 extends VoltProcedure {
 	protected void toSetTriggerTableName()
 	{
 		addTriggerTable("s2");
-		addTriggerTable("s3");
 	}
 	
-    // Put vote into leaderboard
-//    public final SQLStmt trendingLeaderboardStmt = new SQLStmt(
-//	   "INSERT INTO trending_leaderboard (vote_id, phone_number, state, contestant_number, time) SELECT * FROM proc_one_out;"
-//    );
-    
     // Put vote into leaderboard
 	public final SQLStmt pullFromS2 = new SQLStmt(
 		"SELECT vote_id FROM s2;"
 	);
 	
-	public final SQLStmt pullFromS3 = new SQLStmt(
-		"SELECT vote_id FROM s3;"
-	);
-		
     public final SQLStmt inT2Stmt = new SQLStmt(
 	   "INSERT INTO T2 (vote_id, part_id) VALUES (?, ?);"
     );
@@ -74,15 +64,10 @@ public class SP4 extends VoltProcedure {
     	"DELETE FROM s2;"
     );
         
-    public final SQLStmt clearS3 = new SQLStmt(
-        "DELETE FROM s3;"
-    );
-            
-	
-public long run(int part_id) {
+    public long run(int part_id) {
 		
-		voltQueueSQL(pullFromS2);
 		System.out.println("start with SP4");
+		voltQueueSQL(pullFromS2);
 		VoltTable s2Data[] = voltExecuteSQL();
 		
 //		Long vote_id = s1Data[0].fetchRow(0).getLong(0);
@@ -102,30 +87,6 @@ public long run(int part_id) {
 			voltQueueSQL(clearS2);
 
         VoltTable s2validation[] = voltExecuteSQL();
-		
-//        // check the number of rows
-//        if ((validation[2].fetchRow(0).getLong(0)) >= 0) {
-//        	long phone_number = validation[2].fetchRow(0).getLong(0);
-//        	long contestant_number = validation[2].fetchRow(0).getLong(1);
-//        }
-		
-		voltQueueSQL(pullFromS3);
-		VoltTable s3Data[] = voltExecuteSQL();
-		
-//		Long vote_id = s1Data[0].fetchRow(0).getLong(0);
-//		System.out.println("vote_id: " + vote_id);
-//		System.out.println("part_id: " + part_id);
-//		voltQueueSQL(inT2Stmt, vote_id, part_id);
-//	
-		for (int i=0; i < s3Data[0].getRowCount(); i++) {
-			Long vote_id = s3Data[0].fetchRow(i).getLong(0);
-			voltQueueSQL(inT2Stmt, vote_id, part_id);
-		}
-
-		if (s3Data[0].getRowCount() > 0)
-			voltQueueSQL(clearS3);
-
-        VoltTable s3validation[] = voltExecuteSQL();
 		
 		System.out.println("done with SP4");
         // Set the return value to 0: successful vote
