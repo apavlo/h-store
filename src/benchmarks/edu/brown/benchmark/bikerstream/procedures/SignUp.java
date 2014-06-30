@@ -26,6 +26,7 @@
 package edu.brown.benchmark.bikerstream.procedures;
 
 import edu.brown.benchmark.bikerstream.BikerStreamConstants;
+import edu.brown.benchmark.bikerstream.BikeRider;
 import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
@@ -45,7 +46,7 @@ public class SignUp extends VoltProcedure
         "INSERT INTO cards (rider_id, bank, name, num, exp, sec_code) VALUES (?,?,?,?,?,?);"
     );
 
-    public long run(int rider_id) {
+    public long run(long rider_id) {
 
 
         // Get a random number coresponding to the length of the name arrays
@@ -60,7 +61,7 @@ public class SignUp extends VoltProcedure
             voltQueueSQL(insertRider, rider_id, first, last);
             voltExecuteSQL();
         } catch (Exception e) {
-            throw new RuntimeException("Failure to load rider " + rider_id + " into the DB");
+            throw new RuntimeException("Failure to load rider " + rider_id + " into the DB, error:" + e);
         }
 
         try {
@@ -73,7 +74,7 @@ public class SignUp extends VoltProcedure
                          123);                   // Security code
             voltExecuteSQL();
         } catch (Exception e) {
-            return BikerStreamConstants.INSERT_CARD_FAILED;
+            throw new RuntimeException("Failure to load card for rider: " + rider_id + " into the DB, error:" + e);
         }
 
         return BikerStreamConstants.INSERT_RIDER_SUCCESS;

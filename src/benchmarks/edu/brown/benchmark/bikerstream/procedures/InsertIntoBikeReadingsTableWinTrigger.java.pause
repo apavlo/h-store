@@ -12,11 +12,11 @@ public class InsertIntoBikeReadingsTableWinTrigger extends VoltTrigger {
         return "bikereadings_stream";
     }
 
-    // Insert from stream to table 
-    public final SQLStmt insertVoteStmt = new SQLStmt(
+    // Insert from stream to table
+    public final SQLStmt insertPointStmt = new SQLStmt(
         "INSERT INTO bikereadings_table (bike_id, reading_time, reading_lat, reading_lon) SELECT * FROM bikereadings_stream;"
     );
-   
+
     // Insert from stream to window
     public final SQLStmt insertIntoWin = new SQLStmt(
         "INSERT INTO bikereadings_window_rows (bike_id, reading_time, reading_lat, reading_lon) SELECT * FROM bikereadings_stream;"

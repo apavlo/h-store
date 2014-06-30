@@ -1,0 +1,55 @@
+package edu.brown.benchmark.bikerstream.procedures;
+
+import org.voltdb.SQLStmt;
+import org.voltdb.VoltTable;
+import org.voltdb.VoltProcedure;
+import org.voltdb.types.TimestampType;
+import org.voltdb.ProcInfo;
+
+
+@ProcInfo (
+    singlePartition = true
+)
+public class UpdatePosition extends VoltProcedure {
+
+    @Override
+    protected void toSetTriggerTableName()
+    {
+        addTriggerTable("bikereadings_stream");
+    }
+
+
+    /**
+     * Window Trigger event.
+     * For each slide in the window, take a count of all currently held points in the window
+     * for each Bike_ID and store it into table Count_bikereadings_table along with the most
+     * recent timestamp for that bike.
+     */
+
+    public final SQLStmt getStuff = new SQLStmt (
+            "SELECT bike_id, count(*) FROM bikereadings_window_rows group by bike_id"
+        );
+
+    public final SQLStmt countReads = new SQLStmt (
+            "INSERT INTO count_bikereadings_table VALUES (?,?,?)"
+        );
+
+    public long run(){
+
+        voltQueueSQL(getStuff);
+        VoltTable results[] = voltExecuteSQL();
+
+        for (int i = 0; i < results[0].getRowCount(); ++i){
+            long id    = results[0].fetchRow(i).getLong(0);
+            TimestampType time = new TimestampType();
+            long count = results[0].fetchRow(i).getLong(1);
+            voltQueueSQL(countReads, id, time, count);
+        }
+
+        voltExecuteSQL();
+
+        return 0;
+
+    }
+
+}

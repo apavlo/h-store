@@ -46,25 +46,87 @@ import java.io.File;
    * have its own bikeid) and the lat/lon are completely made
    * up - probably in antartica or something.
    */
-public class BikeReadingGenerator {
+public class BikeRider {
 
-    private LinkedList<Reading> ll = new LinkedList();
 
-    public BikeReadingGenerator(int id) throws Exception {
-        makePoints(Integer.toString(id));
+    // Store the ID for this rider, more likely than not to be
+    // a random number.
+    private long rider_id;
+
+    // Maybe we will store a bike_id but this may be unnessesary.
+    private long current_bike;
+
+    // Do we posess a reservation?
+    private long has_reservation;
+
+    // Whis station are we going to start from. This is determined
+    // in the file from which our gpr poinst will come from.
+    private long startingStation;
+
+    // Whis station are we going to end at. This is determined
+    // in the file from which our gpr poinst will come from.
+    private long finalStation;
+
+    // Our list of points gathered from the file.
+    private LinkedList<Reading> path = new LinkedList();
+
+    // Construct an empty rider. use the default file for point/station
+    // information.
+    public BikeRider(long rider_id) throws Exception {
+        this.rider_id        = rider_id;
+        this.current_bike    = -1;
+        this.has_reservation = -1;
+
+        this.startingStation = -1;
+        this.finalStation    = -1;
+
+        makePoints(BikerStreamConstants.DEFAULT_GPS_FILE);
     }
 
-    public BikeReadingGenerator(String filename) throws Exception {
+    // construct a rider, and use a specific file for gps/station information.
+    public BikeRider(long rider_id, String filename) throws Exception {
+        this.rider_id        = rider_id;
+        this.current_bike    = -1;
+        this.has_reservation = -1;
+
+        this.startingStation = -1;
+        this.finalStation    = -1;
+
         makePoints(filename);
     }
 
+    // Rider ID functions
+    // returns the rider's id number
+    public long getRiderId() { return rider_id; }
+
+    // Bike Functions
+    public long getcurrentBikeID() { return current_bike == -1 ? null : current_bike; }
+
+    public void setCurrentBikeID(long b_id) {
+        current_bike = b_id;
+    }
+
+    // Get the starting/final stations
+    public long getStartingStation() { return this.startingStation; }
+    public long getFinalStation() { return this.finalStation; }
+
+
+    // The reading class contatins the struct that denotes a single gps coordinate.
     public class Reading {
         public double lat;
         public double lon;
+        public double alt;
 
         public Reading(double lat, double lon) {
             this.lat = lat;
             this.lon = lon;
+            this.alt = 0;
+        }
+
+        public Reading(double lat, double lon, double alt) {
+            this.lat = lat;
+            this.lon = lon;
+            this.alt = alt;
         }
     }
 
@@ -81,6 +143,12 @@ public class BikeReadingGenerator {
         Scanner s = new Scanner(f);
 
         try {
+            startingStation = s.nextInt();
+            finalStation = s.nextInt();
+
+        } catch (Exception e) {
+        }
+        try {
             double lat_t;
             double lon_t;
             double alt_t;
@@ -89,7 +157,7 @@ public class BikeReadingGenerator {
                 lat_t = s.nextDouble();
                 lon_t = s.nextDouble();
                 alt_t = s.nextDouble();
-                ll.add(new Reading(lat_t, lon_t));
+                path.add(new Reading(lat_t, lon_t));
             }
         }
         catch (Exception e) {
@@ -102,7 +170,7 @@ public class BikeReadingGenerator {
 
     public Reading getPoint() {
         if(hasPoints()) {
-            Reading ret = ll.pop();
+            Reading ret = path.pop();
             return ret;
         }
 
@@ -110,7 +178,7 @@ public class BikeReadingGenerator {
     }
 
     public boolean hasPoints() {
-        int lsize = ll.size();
+        int lsize = path.size();
         if (lsize > 0)
             return true;
         return false;

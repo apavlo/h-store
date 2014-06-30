@@ -50,10 +50,8 @@ public abstract class BikerStreamConstants {
     //
 
 
-    public static final int NUM_ZONES = 20;
-    public static final int NUM_STATIONS_PER_ZONE = 6;
-    public static final int NUM_DOCKS_PER_STATION = 30;
-    public static final int NUM_BIKES_PER_STATION= 25;
+    public static final int NUM_STATIONS = 10;
+    public static final int NUM_BIKES_PER_STATION = 20;
 
 
     // ===========================================================================
@@ -61,9 +59,9 @@ public abstract class BikerStreamConstants {
     //
 
     // Return Values
-    public static final long INSERT_RIDER_FAILED  = 4;
-    public static final long INSERT_CARD_FAILED   = 5;
-    public static final long INSERT_RIDER_SUCCESS = 6;
+    public static final long INSERT_RIDER_SUCCESS = 0;
+    public static final long INSERT_RIDER_FAILED  = 1;
+    public static final long INSERT_CARD_FAILED   = 2;
 
     // Firstnames for the signup process.
     public static final String[] FIRSTNAMES = new String[] {
@@ -106,7 +104,7 @@ public abstract class BikerStreamConstants {
     //
 
     public static final long MILI_BETWEEN_GPS_EVENTS = 5;
-    public static final String DEFAULT_GPS_FILE = "src/benchmarks/edu/brown/benchmark/bikerstream/BS.kml";
+    public static final String DEFAULT_GPS_FILE = "src/benchmarks/edu/brown/benchmark/bikerstream/BS2.kml";
 
     // ===========================================================================
     // DOCK RESERVATIONS

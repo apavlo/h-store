@@ -46,7 +46,9 @@ import org.voltdb.client.ProcedureCallback;
 import edu.brown.api.BenchmarkComponent;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
+
 import edu.brown.benchmark.bikerstream.BikerStreamConstants;
+import edu.brown.benchmark.bikerstream.BikeRider;
 
 /* Biker stream client. Very simple - just calls
  * getBikeReading - a few hacks and TODOS where I didn't
@@ -58,19 +60,9 @@ public class BikerStreamClient extends BenchmarkComponent {
     private static final Logger LOG = Logger.getLogger(BikerStreamClient.class);
     private static final LoggerBoolean debug = new LoggerBoolean();
 
-
-    // Flags to tell the worker threads to stop or go
-    AtomicBoolean warmupComplete    = new AtomicBoolean(false);
-    AtomicBoolean benchmarkComplete = new AtomicBoolean(false);
-
     // Bike Readings
-    AtomicLong countBikerReadings   = new AtomicLong(0);
-    AtomicLong badBikerReadings     = new AtomicLong(0);
-    AtomicLong failedInserts        = new AtomicLong(0);
-
-    // Keep track of reservations
-    AtomicLong failedReservations   = new AtomicLong(0);
-    AtomicLong reservations         = new AtomicLong(0);
+    AtomicLong failure              = new AtomicLong(0);
+    AtomicLong success              = new AtomicLong(0);
 
     final Callback callback         = new Callback();
 
@@ -91,7 +83,7 @@ public class BikerStreamClient extends BenchmarkComponent {
                 try {
                     runOnce();
                 } catch (Exception e) {
-                    failedInserts.incrementAndGet();
+                    failure.incrementAndGet();
                 }
 
             } // WHILE
@@ -107,31 +99,28 @@ public class BikerStreamClient extends BenchmarkComponent {
         // gnerate a client class struct for the current thread
         Client client = this.getClientHandle();
 
+        Callback callback = new Callback();
+
         // Bike reading generator
         try {
-            BikeReadingGenerator gps = new BikeReadingGenerator(BikerStreamConstants.DEFAULT_GPS_FILE);
-            BikeReadingGenerator.Reading read;
 
-            // Create a random rider_id
-            int id = (int) (Math.random() * 100000000);
+            int rider_id = (int) (Math.random() * 100000);
 
-            client.callProcedure(new SignUpCallback(),"SignUp",id);
-            if ((id % 10) != 0) client.callProcedure(new ReserveBikeCallback(),"ReserveBike",id);
-            client.callProcedure(new CheckoutCallback(),"CheckoutBike",id);
+            BikeRider rider = new BikeRider(rider_id);
 
-            while (gps.hasPoints()) {
+            client.callProcedure(callback, "SignUp",  rider.getRiderId());
 
-                read = gps.getPoint();
-                client.callProcedure(new RideCallback(),
-                                     "RideBike",
-                                     id,
-                                     read.lat,
-                                     read.lon);
-                Thread.sleep(BikerStreamConstants.MILI_BETWEEN_GPS_EVENTS);
+            try {
+                client.callProcedure(callback, "CheckoutBike",  rider.getRiderId(), rider.getStartingStation());
+            } catch (Exception e) {
+                failure.incrementAndGet();
             }
 
-            if ((id % 20) != 0) client.callProcedure(new ReserveDockCallback(),"ReserveDock",id);
-            client.callProcedure(new CheckinCallback(),"CheckinBike",id);
+            try {
+                client.callProcedure(callback, "CheckinBike",  rider.getRiderId(), rider.getFinalStation());
+            } catch (Exception e) {
+                failure.incrementAndGet();
+            }
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -146,181 +135,11 @@ public class BikerStreamClient extends BenchmarkComponent {
         // Return an array of transaction names
         String procNames[] = new String[]{
             "SignUp",
-            "ReserveBike",
             "CheckoutBike",
             "RideBike",
-            "ReserveDock",
             "CheckinBike"
         };
         return (procNames);
-    }
-
-    private class SignUpCallback implements ProcedureCallback {
-
-        @Override
-        public void clientCallback(ClientResponse clientResponse) {
-            incrementTransactionCounter(clientResponse, 0);
-            if (clientResponse.getStatus() == Status.OK) {
-                VoltTable results[] = clientResponse.getResults();
-                assert(results.length == 1);
-                long status = results[0].asScalarLong();
-
-                if (status == BikerStreamConstants.BIKE_RESERVED) {
-                    reservations.incrementAndGet();
-                }
-                else if (status == BikerStreamConstants.BIKE_NOT_RESERVED) {
-                    failedReservations.incrementAndGet();
-                }
-            }
-            else if (clientResponse.getStatus() == Status.ABORT_UNEXPECTED) {
-                if (clientResponse.getException() != null) {
-                    clientResponse.getException().printStackTrace();
-                }
-                if (debug.val && clientResponse.getStatusString() != null) {
-                    LOG.warn(clientResponse.getStatusString());
-                }
-            }
-        }
-    }
-
-    private class ReserveBikeCallback implements ProcedureCallback {
-
-        @Override
-        public void clientCallback(ClientResponse clientResponse) {
-            incrementTransactionCounter(clientResponse, 1);
-            if (clientResponse.getStatus() == Status.OK) {
-                VoltTable results[] = clientResponse.getResults();
-                assert(results.length == 1);
-                long status = results[0].asScalarLong();
-
-                if (status == BikerStreamConstants.BIKE_RESERVED) {
-                    reservations.incrementAndGet();
-                }
-                else if (status == BikerStreamConstants.BIKE_NOT_RESERVED) {
-                    failedReservations.incrementAndGet();
-                }
-            }
-            else if (clientResponse.getStatus() == Status.ABORT_UNEXPECTED) {
-                if (clientResponse.getException() != null) {
-                    clientResponse.getException().printStackTrace();
-                }
-                if (debug.val && clientResponse.getStatusString() != null) {
-                    LOG.warn(clientResponse.getStatusString());
-                }
-            }
-        }
-    }
-
-    private class CheckoutCallback implements ProcedureCallback {
-
-        @Override
-        public void clientCallback(ClientResponse clientResponse) {
-            incrementTransactionCounter(clientResponse, 2);
-            if (clientResponse.getStatus() == Status.OK) {
-                VoltTable results[] = clientResponse.getResults();
-                assert(results.length == 1);
-                long status = results[0].asScalarLong();
-
-                if (status == BikerStreamConstants.BIKE_RESERVED) {
-                    reservations.incrementAndGet();
-                }
-                else if (status == BikerStreamConstants.BIKE_NOT_RESERVED) {
-                    failedReservations.incrementAndGet();
-                }
-            }
-            else if (clientResponse.getStatus() == Status.ABORT_UNEXPECTED) {
-                if (clientResponse.getException() != null) {
-                    clientResponse.getException().printStackTrace();
-                }
-                if (debug.val && clientResponse.getStatusString() != null) {
-                    LOG.warn(clientResponse.getStatusString());
-                }
-            }
-        }
-    }
-
-    private class RideCallback implements ProcedureCallback {
-
-        @Override
-        public void clientCallback(ClientResponse clientResponse) {
-            incrementTransactionCounter(clientResponse, 3);
-            if (clientResponse.getStatus() == Status.OK) {
-                VoltTable results[] = clientResponse.getResults();
-                assert(results.length == 1);
-                long status = results[0].asScalarLong();
-
-                if (status == BikerStreamConstants.BIKE_RESERVED) {
-                    reservations.incrementAndGet();
-                }
-                else if (status == BikerStreamConstants.BIKE_NOT_RESERVED) {
-                    failedReservations.incrementAndGet();
-                }
-            }
-            else if (clientResponse.getStatus() == Status.ABORT_UNEXPECTED) {
-                if (clientResponse.getException() != null) {
-                    clientResponse.getException().printStackTrace();
-                }
-                if (debug.val && clientResponse.getStatusString() != null) {
-                    LOG.warn(clientResponse.getStatusString());
-                }
-            }
-        }
-    }
-
-    private class ReserveDockCallback implements ProcedureCallback {
-
-        @Override
-        public void clientCallback(ClientResponse clientResponse) {
-            incrementTransactionCounter(clientResponse, 4);
-            if (clientResponse.getStatus() == Status.OK) {
-                VoltTable results[] = clientResponse.getResults();
-                assert(results.length == 1);
-                long status = results[0].asScalarLong();
-
-                if (status == BikerStreamConstants.BIKE_RESERVED) {
-                    reservations.incrementAndGet();
-                }
-                else if (status == BikerStreamConstants.BIKE_NOT_RESERVED) {
-                    failedReservations.incrementAndGet();
-                }
-            }
-            else if (clientResponse.getStatus() == Status.ABORT_UNEXPECTED) {
-                if (clientResponse.getException() != null) {
-                    clientResponse.getException().printStackTrace();
-                }
-                if (debug.val && clientResponse.getStatusString() != null) {
-                    LOG.warn(clientResponse.getStatusString());
-                }
-            }
-        }
-    }
-
-    private class CheckinCallback implements ProcedureCallback {
-
-        @Override
-        public void clientCallback(ClientResponse clientResponse) {
-            incrementTransactionCounter(clientResponse, 5);
-            if (clientResponse.getStatus() == Status.OK) {
-                VoltTable results[] = clientResponse.getResults();
-                assert(results.length == 1);
-                long status = results[0].asScalarLong();
-
-                if (status == BikerStreamConstants.BIKE_RESERVED) {
-                    reservations.incrementAndGet();
-                }
-                else if (status == BikerStreamConstants.BIKE_NOT_RESERVED) {
-                    failedReservations.incrementAndGet();
-                }
-            }
-            else if (clientResponse.getStatus() == Status.ABORT_UNEXPECTED) {
-                if (clientResponse.getException() != null) {
-                    clientResponse.getException().printStackTrace();
-                }
-                if (debug.val && clientResponse.getStatusString() != null) {
-                    LOG.warn(clientResponse.getStatusString());
-                }
-            }
-        }
     }
 
 
@@ -334,15 +153,21 @@ public class BikerStreamClient extends BenchmarkComponent {
 
             // Keep track of state (optional)
             if (clientResponse.getStatus() == Status.OK) {
+
                 VoltTable results[] = clientResponse.getResults();
+
                 assert(results.length == 1);
+
                 long status = results[0].asScalarLong();
-                if (status == BikerStreamConstants.BIKEREADING_SUCCESSFUL) {
-                    countBikerReadings.incrementAndGet();
+
+                if (status == BikerStreamConstants.INSERT_RIDER_SUCCESS) {
+                    success.incrementAndGet();
                 }
-                else if (status == BikerStreamConstants.ERR_INVALID_BIKEREADING) {
-                    badBikerReadings.incrementAndGet();
+
+                else if (status == BikerStreamConstants.INSERT_RIDER_FAILED) {
+                    failure.incrementAndGet();
                 }
+
                 else {
                     // REALLY SHOULD TOSS AN ERROR HERE
                 }
