@@ -1,10 +1,13 @@
 package edu.brown.stream;
 
 import java.io.File;
+
 import java.io.FileWriter;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.net.*;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -15,10 +18,19 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.regex.Pattern;
 
+//import javax.json.Json;
+//import javax.json.JsonObject;
+//import javax.json.JsonReader;
+//import javax.json.JsonStructure;
+
 import org.apache.log4j.Logger;
+import org.json.JSONException;
+import org.json.JSONObject;
+import org.json.JSONTokener;
 import org.voltdb.SysProcSelector;
 import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
+import org.voltdb.VoltTableRow;
 import org.voltdb.VoltType;
 import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.Database;
@@ -34,6 +46,8 @@ import org.voltdb.sysprocs.Statistics;
 import org.voltdb.types.TimestampType;
 import org.voltdb.utils.VoltTableUtil;
 import org.voltdb.utils.VoltTypeUtil;
+
+import java.nio.charset.*;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.HStoreConstants;
@@ -55,11 +69,24 @@ public class MyClient {
         this.icc = this.getClientConnection("localhost");
         this.client = icc.client;
         try {
-            this.serverSocket = new ServerSocket(9999);
+            this.serverSocket = new ServerSocket(6000);
         } catch (IOException e) {
-            System.out.println("Error creating socket on port 8675");
+            System.out.println("Error creating socket on port 6000");
             e.printStackTrace();
         }
+    }
+    
+    public void parseJSON(String s) {
+    	JSONObject j;
+		try {
+			j = new JSONObject(s);
+			System.out.println("Starting to parse...");
+			System.out.println(j.get("lat"));
+			System.out.println(j.get("long"));
+		} catch (JSONException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
     }
 
      private class InputClientConnection {
@@ -116,6 +143,13 @@ public class MyClient {
 
     public static void main(String [] args) {
         MyClient myc = new MyClient();
+        JSONObject json = new JSONObject();
+        try {
+			json.put("type", "CONNECT");
+		} catch (JSONException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		}
         try {
             if (myc.client == null) {
                 System.out.println("Everything is terrible");
@@ -127,8 +161,16 @@ public class MyClient {
                 while (proc == null) {
                 	BufferedReader apiCall = new BufferedReader(new InputStreamReader(api.getInputStream()));
                 	proc = apiCall.readLine();
-                	System.out.println(proc);
+                	myc.parseJSON(proc);
                 	String [] api_args = proc.split(" ");
+                	ClientResponse cr = myc.client.callProcedure("@AdHoc", "SELECT * FROM bikes");
+                	VoltTable [] vt = cr.getResults();
+                	for (VoltTable vtr: vt) {
+                		System.out.println(vtr.toString());
+                	}
+                	OutputStreamWriter out = new OutputStreamWriter(api.getOutputStream(), "UTF-8");
+                	out.write(json.toString());
+                	out.flush();
                     /*
                 	switch (api_args[0]) {
                 	case "Stations":
@@ -170,7 +212,10 @@ public class MyClient {
         } /*catch (ProcCallException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
-		}*/
+		}*/ catch (ProcCallException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
         System.out.print("hello");
     }
   
