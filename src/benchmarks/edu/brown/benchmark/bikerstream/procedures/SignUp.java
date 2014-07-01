@@ -31,6 +31,8 @@ import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltType;
+import org.voltdb.types.TimestampType;
+
 
 @ProcInfo (
 singlePartition = false
@@ -39,14 +41,11 @@ public class SignUp extends VoltProcedure
 {
 
     public final SQLStmt insertRider = new SQLStmt(
-        "INSERT INTO riders (rider_id, f_name, l_name) VALUES (?,?,?);"
+        "INSERT INTO users (user_id, user_name, credit_card, membership_status, membership_expiration_date) " +
+        "VALUES (?,?,?,?,?)"
     );
 
-    public final SQLStmt insertCard = new SQLStmt(
-        "INSERT INTO cards (rider_id, bank, name, num, exp, sec_code) VALUES (?,?,?,?,?,?);"
-    );
-
-    public long run(long rider_id) {
+    public long run(long user_id) {
 
 
         // Get a random number coresponding to the length of the name arrays
@@ -58,24 +57,12 @@ public class SignUp extends VoltProcedure
         String last  = BikerStreamConstants.LASTNAMES[rand2];
 
         try {
-            voltQueueSQL(insertRider, rider_id, first, last);
+            voltQueueSQL(insertRider, user_id, first + " " + last, "0000000000111112222233333", 1, new TimestampType());
             voltExecuteSQL();
         } catch (Exception e) {
-            throw new RuntimeException("Failure to load rider " + rider_id + " into the DB, error:" + e);
+            throw new RuntimeException("Failure to load rider " + user_id + " into the DB, error:" + e);
         }
 
-        try {
-            voltQueueSQL(insertCard,
-                         rider_id,               // The id of the rider
-                         "BOA",                  // The bank name
-                         first + " " + last,     // Cardholdername
-                         "11112222333344445555", // Carn number
-                         "Nov/2020",             // Expiration date
-                         123);                   // Security code
-            voltExecuteSQL();
-        } catch (Exception e) {
-            throw new RuntimeException("Failure to load card for rider: " + rider_id + " into the DB, error:" + e);
-        }
 
         return BikerStreamConstants.INSERT_RIDER_SUCCESS;
 

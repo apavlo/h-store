@@ -41,7 +41,7 @@ import edu.brown.benchmark.bikerstream.BikerStreamConstants;
 @ProcInfo (
     singlePartition = true
 )
-public class CheckoutBike extends VoltProcedure {
+public class TestProcedure extends VoltProcedure {
 
     // Logging Information
     private static final Logger Log = Logger.getLogger(CheckoutBike.class);
@@ -49,39 +49,13 @@ public class CheckoutBike extends VoltProcedure {
     final boolean debug = Log.isDebugEnabled();
 
     public final SQLStmt getStation = new SQLStmt(
-                "SELECT * FROM stationstatus where station_id = ?"
+                "SELECT * FROM stations"
             );
 
-    public final SQLStmt updateStation = new SQLStmt(
-                "UPDATE stationstatus SET current_bikes = ?, current_docks = ? where station_id = ?"
-            );
-
-    public final SQLStmt log = new SQLStmt(
-                "INSERT INTO logs (user_id, time, success, action) VALUES (?,?,?,?)"
-            );
-
-
-
-    public long run(long rider_id, long station_id) throws Exception {
-
-        voltQueueSQL(getStation, station_id);
-        VoltTable results[] = voltExecuteSQL();
-
-        assert(results[0].getRowCount() == 1);
-
-        long numBikes = results[0].fetchRow(0).getLong("current_bikes");
-        long numDocks = results[0].fetchRow(0).getLong("current_docks");
-
-        if (numBikes > 0){
-            voltQueueSQL(updateStation, --numBikes, ++numDocks, station_id);
-            voltQueueSQL(log, rider_id, new TimestampType(), 1, "successfully got bike from station: " + station_id);
-            voltExecuteSQL();
-            return 1;
-        } else {
-            voltQueueSQL(log, rider_id, new TimestampType(), 0, "could not get bike from station: " + station_id);
-            throw new RuntimeException("There are no bikes availible at station: " + station_id);
-        }
-
+    public long run() {
+        voltQueueSQL(getStation);
+        voltExecuteSQL(true);
+        return 0;
     }
 
 } // End Class

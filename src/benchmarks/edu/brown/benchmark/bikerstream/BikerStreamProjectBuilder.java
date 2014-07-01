@@ -38,8 +38,9 @@ import edu.brown.benchmark.bikerstream.procedures.Initialize;
 import edu.brown.benchmark.bikerstream.procedures.SignUp;
 import edu.brown.benchmark.bikerstream.procedures.CheckoutBike;
 import edu.brown.benchmark.bikerstream.procedures.CheckinBike;
+import edu.brown.benchmark.bikerstream.procedures.RideBike;
+import edu.brown.benchmark.bikerstream.procedures.TestProcedure;
 //import edu.brown.benchmark.bikerstream.procedures.InsertIntoBikeReadingsTableWinTrigger;
-//import edu.brown.benchmark.bikerstream.procedures.RideBike;
 
 public class BikerStreamProjectBuilder extends AbstractProjectBuilder {
 
@@ -56,7 +57,8 @@ public class BikerStreamProjectBuilder extends AbstractProjectBuilder {
         SignUp.class,
         CheckoutBike.class,
         CheckinBike.class,
-//        RideBike.class,
+        RideBike.class,
+        TestProcedure.class
 //        InsertIntoBikeReadingsTableWinTrigger.class,
     };
 
@@ -68,11 +70,8 @@ public class BikerStreamProjectBuilder extends AbstractProjectBuilder {
 
     // a list of tables used in this benchmark with corresponding partitioning keys
     public static final String PARTITIONING[][] = new String[][] {
-        { "bikereadings_table", "bike_id" },
-        { "bikereadings_stream", "bike_id"},
-        // TODO - do windows have partitioning??
-        { "bikereadings_window_rows", "bike_id"},
-        { "count_bikereadings_table", "bike_id"},
+        { "bikestatus", "user_id" },
+        { "bikerstream_window", "user_id"}
     };
 
     public BikerStreamProjectBuilder() {
