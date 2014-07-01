@@ -27,28 +27,33 @@
  *  OTHER DEALINGS IN THE SOFTWARE.                                        *
  ***************************************************************************/
 
-package edu.brown.benchmark.sstore4moveop;
+package edu.brown.benchmark.sstore4allop;
 
 import org.voltdb.VoltProcedure;
 
 import edu.brown.benchmark.AbstractProjectBuilder;
 import edu.brown.api.BenchmarkComponent;
 
-import edu.brown.benchmark.sstore4moveop.procedures.*;  
+import edu.brown.benchmark.sstore4allop.procedures.*;  
 
-public class SStore4MoveOpProjectBuilder extends AbstractProjectBuilder {
-
-    // REQUIRED: Retrieved via reflection by BenchmarkController
-    public static final Class<? extends BenchmarkComponent> m_clientClass = SStore4MoveOpClient.class;
+public class SStore4AllOpProjectBuilder extends AbstractProjectBuilder {
 
     // REQUIRED: Retrieved via reflection by BenchmarkController
-    public static final Class<? extends BenchmarkComponent> m_loaderClass = SStore4MoveOpLoader.class;
+    public static final Class<? extends BenchmarkComponent> m_clientClass = SStore4AllOpClient.class;
+
+    // REQUIRED: Retrieved via reflection by BenchmarkController
+    public static final Class<? extends BenchmarkComponent> m_loaderClass = SStore4AllOpLoader.class;
 
 	// a list of procedures implemented in this benchmark
     @SuppressWarnings("unchecked")
     public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
         SP1.class
+        ,SP11.class
+        ,SP12.class
         ,SP2.class
+        ,SP3.class
+        ,SP4.class
+        ,SP5.class
         };
 	
 	{
@@ -61,11 +66,15 @@ public class SStore4MoveOpProjectBuilder extends AbstractProjectBuilder {
         { "contestants", "contestant_number" },
         { "area_code_state", "area_code"},
         { "s1", "part_id"},
-        { "s2", "part_id"}
+        { "s11", "part_id"},
+        { "s12", "part_id"},
+        { "s2", "part_id"},
+        { "s3", "part_id"},
+        { "s4", "part_id"}
     };
 
-    public SStore4MoveOpProjectBuilder() {
-        super("sstore4moveop", SStore4MoveOpProjectBuilder.class, PROCEDURES, PARTITIONING);
+    public SStore4AllOpProjectBuilder() {
+        super("sstore4allop", SStore4AllOpProjectBuilder.class, PROCEDURES, PARTITIONING);
     }
 }
 

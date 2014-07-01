@@ -4,7 +4,8 @@
  *  Massachusetts Institute of Technology                                  *
  *  Yale University                                                        *
  *                                                                         *
- *  Coded By:  Justin A. DeBrabant (http://www.cs.brown.edu/~debrabant/)   *								   
+ *  Original By: VoltDB Inc.											   *
+ *  Ported By:  Justin A. DeBrabant (http://www.cs.brown.edu/~debrabant/)  *								   
  *                                                                         *
  *                                                                         *
  *  Permission is hereby granted, free of charge, to any person obtaining  *
@@ -27,48 +28,39 @@
  *  OTHER DEALINGS IN THE SOFTWARE.                                        *
  ***************************************************************************/
 
-package edu.brown.benchmark.sstore4moveop;
+package edu.brown.benchmark.sstore4muxop;
 
-import org.voltdb.VoltProcedure;
+import org.apache.log4j.Logger;
 
-import edu.brown.benchmark.AbstractProjectBuilder;
-import edu.brown.api.BenchmarkComponent;
+import edu.brown.api.Loader;
 
-import edu.brown.benchmark.sstore4moveop.procedures.*;  
+public class SStore4MuxOpLoader extends Loader {
 
-public class SStore4MoveOpProjectBuilder extends AbstractProjectBuilder {
+    private static final Logger LOG = Logger.getLogger(SStore4MuxOpLoader.class);
+    private static final boolean d = LOG.isDebugEnabled();
 
-    // REQUIRED: Retrieved via reflection by BenchmarkController
-    public static final Class<? extends BenchmarkComponent> m_clientClass = SStore4MoveOpClient.class;
+    public static void main(String args[]) throws Exception {
+        if (d) LOG.debug("MAIN: " + SStore4MuxOpLoader.class.getName());
+        Loader.main(SStore4MuxOpLoader.class, args, true);
+    }
 
-    // REQUIRED: Retrieved via reflection by BenchmarkController
-    public static final Class<? extends BenchmarkComponent> m_loaderClass = SStore4MoveOpLoader.class;
+    public SStore4MuxOpLoader(String[] args) {
+        super(args);
+        if (d) LOG.debug("CONSTRUCTOR: " + SStore4MuxOpLoader.class.getName());
+    }
 
-	// a list of procedures implemented in this benchmark
-    @SuppressWarnings("unchecked")
-    public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
-        SP1.class
-        ,SP2.class
-        };
-	
-	{
-		//addTransactionFrequency(Vote.class, 100);
-	}
-	
-	// a list of tables used in this benchmark with corresponding partitioning keys
-    public static final String PARTITIONING[][] = new String[][] {
-        { "votes", "phone_number" },
-        { "contestants", "contestant_number" },
-        { "area_code_state", "area_code"},
-        { "s1", "part_id"},
-        { "s2", "part_id"}
-    };
+    @Override
+    public void load() {
+        int numContestants = SStore4MuxOpUtil.getScaledNumContestants(this.getScaleFactor());
+        if (d) 
+            LOG.debug("Starting SStore4MuxOpLoader [numContestants=" + numContestants + "]");
 
-    public SStore4MoveOpProjectBuilder() {
-        super("sstore4moveop", SStore4MoveOpProjectBuilder.class, PROCEDURES, PARTITIONING);
+        try {
+            this.getClientHandle().callProcedure("Initialize",
+                                                 numContestants,
+                                                 SStore4MuxOpConstants.CONTESTANT_NAMES_CSV);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 }
-
-
-
-

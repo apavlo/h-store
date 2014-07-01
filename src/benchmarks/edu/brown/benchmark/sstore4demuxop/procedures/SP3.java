@@ -39,7 +39,7 @@ import org.voltdb.types.TimestampType;
 import edu.brown.benchmark.sstore4demuxop.SStore4DemuxOpConstants;
 
 @ProcInfo (
-	partitionInfo = "s2.part_id:0",
+	partitionInfo = "s3.part_id:0",
 	partitionNum = 2,
     singlePartition = true
 )

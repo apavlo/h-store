@@ -27,7 +27,7 @@
 // number of allowed votes.
 //
 
-package edu.brown.benchmark.sstore4demuxop.procedures;
+package edu.brown.benchmark.sstore4allop.procedures;
 
 import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
@@ -39,11 +39,11 @@ import org.voltdb.types.TimestampType;
 import edu.brown.benchmark.sstore4demuxop.SStore4DemuxOpConstants;
 
 @ProcInfo (
-	partitionInfo = "s12.part_id:0",
+	partitionInfo = "s11.part_id:0",
 	partitionNum = 0,
     singlePartition = true
 )
-public class SP12 extends VoltProcedure {
+public class SP11 extends VoltProcedure {
 	
 	
 	protected void toSetTriggerTableName()
@@ -52,21 +52,21 @@ public class SP12 extends VoltProcedure {
 	}
 	
 	public final SQLStmt pullFromS1 = new SQLStmt(
-		"SELECT vote_id FROM s1 WHERE part_id = 3;"
+		"SELECT vote_id FROM s1 WHERE part_id = 0;"
 	);
 	
     public final SQLStmt inS11Stmt = new SQLStmt(
-	   "INSERT INTO S12 (vote_id, part_id) VALUES (?, ?);"
+	   "INSERT INTO S11 (vote_id, part_id) VALUES (?, ?);"
     );
     
     public final SQLStmt clearS1 = new SQLStmt(
-    	"DELETE FROM s1 WHERE part_id = 3;"
+    	"DELETE FROM s1 WHERE part_id = 0;"
     );
         	
     public long run(int part_id) {
 		
 		voltQueueSQL(pullFromS1);
-		System.out.println("start with SP12");
+		System.out.println("start with SP11");
 		VoltTable s11Data[] = voltExecuteSQL();
 		
 //		Long vote_id = s1Data[0].fetchRow(0).getLong(0);
@@ -83,7 +83,7 @@ public class SP12 extends VoltProcedure {
 
         VoltTable s2Delete[] = voltExecuteSQL();
 				
-		System.out.println("done with SP12");
+		System.out.println("done with SP11");
         // Set the return value to 0: successful vote
         return SStore4DemuxOpConstants.VOTE_SUCCESSFUL;
     }

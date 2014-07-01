@@ -27,7 +27,7 @@
 // number of allowed votes.
 //
 
-package edu.brown.benchmark.sstore4demuxop.procedures;
+package edu.brown.benchmark.sstore4allop.procedures;
 
 import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
@@ -36,7 +36,7 @@ import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.types.TimestampType;
 
-import edu.brown.benchmark.sstore4demuxop.SStore4DemuxOpConstants;
+import edu.brown.benchmark.sstore4allop.SStore4AllOpConstants;
 
 @ProcInfo (
 	partitionInfo = "s12.part_id:0",
@@ -52,7 +52,7 @@ public class SP12 extends VoltProcedure {
 	}
 	
 	public final SQLStmt pullFromS1 = new SQLStmt(
-		"SELECT vote_id FROM s1 WHERE part_id = 3;"
+		"SELECT vote_id FROM s1 WHERE part_id = 4;"
 	);
 	
     public final SQLStmt inS11Stmt = new SQLStmt(
@@ -60,7 +60,7 @@ public class SP12 extends VoltProcedure {
     );
     
     public final SQLStmt clearS1 = new SQLStmt(
-    	"DELETE FROM s1 WHERE part_id = 3;"
+    	"DELETE FROM s1 WHERE part_id = 4;"
     );
         	
     public long run(int part_id) {
@@ -85,6 +85,6 @@ public class SP12 extends VoltProcedure {
 				
 		System.out.println("done with SP12");
         // Set the return value to 0: successful vote
-        return SStore4DemuxOpConstants.VOTE_SUCCESSFUL;
+        return SStore4AllOpConstants.VOTE_SUCCESSFUL;
     }
 }
