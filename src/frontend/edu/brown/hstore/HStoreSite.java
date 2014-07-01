@@ -2238,7 +2238,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     }
     
     // added by hawk, 2013/11/1
-	public void invocationTriggerProcedureProcess(int batchId, long clientHandle, long initiateTime, Procedure procedure, RpcCallback<ClientResponseImpl>... clientCallbacks) {
+	public void invocationTriggerProcedureProcess(int batchId, long clientHandle, long initiateTime, Procedure procedure) {
         
       // hawk: for micro-benchmark 2, start point
       long startNanoTime = System.nanoTime();
@@ -2260,9 +2260,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
       
       ParameterSet procParams = new ParameterSet();
       int partitionNum = procedure.getPartitionnum();
-      if (partitionNum != 0) {
-    	  procParams.setParameters(procedure.getPartitionnum());
-      }
+      procParams.setParameters(procedure.getPartitionnum());
       
       // -------------------------------
       // BASE PARTITION
