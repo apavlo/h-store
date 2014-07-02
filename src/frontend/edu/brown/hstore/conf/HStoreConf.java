@@ -725,7 +725,7 @@ public final class HStoreConf {
                 experimental=true,
                 enumOptions="org.voltdb.types.AntiCacheDBType"
         )
-        public boolean anticache_dbtype;
+        public String anticache_dbtype;
 
         // ----------------------------------------------------------------------------
         // Storage MMAP Options
