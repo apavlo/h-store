@@ -39,6 +39,7 @@
 #include "anticache/UnknownBlockAccessException.h"
 #include "anticache/AntiCacheDB.h"
 #include "anticache/BerkeleyAntiCacheDB.h"
+#include "anticache/NVMAntiCacheDB.h"
 #include <string>
 #include <vector>
 #include <time.h>
