@@ -262,8 +262,7 @@ public:
         return (*(reinterpret_cast<const char*> (m_data)) & DIRTY_MASK) == 0 ? false : true;
     }
 
-    inline bool isEvicted() const
-    {
+    inline bool isEvicted() const {
         return (*(reinterpret_cast<const char*> (m_data)) & EVICTED_MASK) == 0 ? false : true;
     }
 
@@ -281,33 +280,29 @@ public:
         return m_schema->columnType(idx);
     }
     
-    inline uint32_t getNextTupleInChain()
-    {
+#ifdef ANTICACHE
+    inline uint32_t getNextTupleInChain() {
         uint32_t tuple_id = 0;
         memcpy(&tuple_id, m_data+TUPLE_HEADER_SIZE-4, 4);
         
         return tuple_id; 
     }
     
-    inline void setNextTupleInChain(uint32_t next)
-    {
+    inline void setNextTupleInChain(uint32_t next) {
         memcpy(m_data+TUPLE_HEADER_SIZE-4, &next, 4);
 
     }
     
-    inline uint32_t getPreviousTupleInChain()
-    {
+    inline uint32_t getPreviousTupleInChain() {
         uint32_t tuple_id = 0;
         memcpy(&tuple_id, m_data+TUPLE_HEADER_SIZE-8, 4);
-        
         return tuple_id;
     }
     
-    inline void setPreviousTupleInChain(uint32_t prev)
-    {
+    inline void setPreviousTupleInChain(uint32_t prev) {
         memcpy(m_data+TUPLE_HEADER_SIZE-8, &prev, 4);
-        
     }
+#endif
 
     inline uint32_t getTupleID()
     {
@@ -396,7 +391,6 @@ protected:
         // treat the first "value" as a boolean flag
         *(reinterpret_cast<char*> (m_data)) |= static_cast<char>(DELETED_MASK);
     }
-
     inline void setDirtyTrue() {
         // treat the first "value" as a boolean flag
         *(reinterpret_cast<char*> (m_data)) |= static_cast<char>(DIRTY_MASK);
