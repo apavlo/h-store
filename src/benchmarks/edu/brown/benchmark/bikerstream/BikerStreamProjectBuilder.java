@@ -40,6 +40,7 @@ import edu.brown.benchmark.bikerstream.procedures.CheckoutBike;
 import edu.brown.benchmark.bikerstream.procedures.CheckinBike;
 import edu.brown.benchmark.bikerstream.procedures.RideBike;
 import edu.brown.benchmark.bikerstream.procedures.TestProcedure;
+import edu.brown.benchmark.bikerstream.procedures.LogRiderTrip;
 //import edu.brown.benchmark.bikerstream.procedures.InsertIntoBikeReadingsTableWinTrigger;
 
 public class BikerStreamProjectBuilder extends AbstractProjectBuilder {
@@ -58,7 +59,8 @@ public class BikerStreamProjectBuilder extends AbstractProjectBuilder {
         CheckoutBike.class,
         CheckinBike.class,
         RideBike.class,
-        TestProcedure.class
+        TestProcedure.class,
+        LogRiderTrip.class
 //        InsertIntoBikeReadingsTableWinTrigger.class,
     };
 
