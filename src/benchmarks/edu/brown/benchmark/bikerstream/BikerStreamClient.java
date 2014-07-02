@@ -3,8 +3,9 @@
  *  Brown University                                                       *
  *  Massachusetts Institute of Technology                                  *
  *  Yale University                                                        *
+ *  Portland State University                                              *
  *                                                                         *
- *  Original By: VoltDB Inc.											   *
+ *  Original By: VoltDB Inc.                                               *
  *  Ported By:  Justin A. DeBrabant (http://www.cs.brown.edu/~debrabant/)  *
  *                                                                         *
  *                                                                         *
@@ -48,13 +49,6 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
 
 import edu.brown.benchmark.bikerstream.BikerStreamConstants;
 import edu.brown.benchmark.bikerstream.BikeRider.*;
-
-
-/* Biker stream client. Very simple - just calls
- * getBikeReading - a few hacks and TODOS where I didn't
- * understand what needed to be done or didn't understand
- * existing code
- */
 
 public class BikerStreamClient extends BenchmarkComponent {
     private static final Logger LOG = Logger.getLogger(BikerStreamClient.class);
@@ -103,10 +97,16 @@ public class BikerStreamClient extends BenchmarkComponent {
         // Bike reading generator
         try {
 
+            // Generate a random Rider ID
             long rider_id = (int) (Math.random() * 100000);
 
-            BikeRider rider = new BikeRider(rider_id);
+            // Create a new Rider Struct
+            BikeRider rider = new BikeRider(rider_id, "src/benchmarks/edu/brown/benchmark/bikerstream/BSSS");
 
+            long startStation = (long) rider.getStartingStation();
+            long endStation   = (long) rider.getFinalStation();
+
+            // Sign the rider up, by sticking rider information into the DB
             try {
                 client.callProcedure(new SignUpCallback(), "SignUp",  rider.getRiderId());
             } catch (Exception e) {
@@ -114,7 +114,13 @@ public class BikerStreamClient extends BenchmarkComponent {
             }
 
             try {
-                client.callProcedure(new TestCallback(), "TestProcedure");
+                client.callProcedure(new TestCallback(5), "LogRiderTrip", rider_id, startStation, endStation);
+            } catch (Exception e) {
+                return false;
+            }
+
+            try {
+                client.callProcedure(new TestCallback(4), "TestProcedure");
             } catch (Exception e) {
                 return false;
             }
@@ -160,7 +166,8 @@ public class BikerStreamClient extends BenchmarkComponent {
             "CheckoutBike",
             "RideBike",
             "CheckinBike",
-            "TestProcedure"
+            "TestProcedure",
+            "LogRiderTrip"
         };
         return (procNames);
     }
@@ -216,11 +223,18 @@ public class BikerStreamClient extends BenchmarkComponent {
 
     private class TestCallback implements ProcedureCallback {
 
+        private int procNum;
+
+        public TestCallback(int numProc) {
+            procNum = numProc;
+        }
+
         @Override
         public void clientCallback(ClientResponse clientResponse) {
-            incrementTransactionCounter(clientResponse, 4);
+            incrementTransactionCounter(clientResponse, procNum);
 
         }
+
 
     } // END CLASS
 }
