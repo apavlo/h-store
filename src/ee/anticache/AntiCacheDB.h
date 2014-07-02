@@ -30,12 +30,10 @@
 
 #include "common/debuglog.h"
 #include "common/DefaultTupleSerializer.h"
+#include "common/types.h"
 //#include "common/executorcontext.hpp"
 #include <map>
 #include <vector>
-
-#define BERKELEYDB 0
-#define NVM 1
 
 using namespace std;
 
@@ -52,7 +50,7 @@ class AntiCacheBlock {
     friend class AntiCacheDB;
     
     public:
-        AntiCacheBlock(int16_t blockId, Dbt value);
+//        AntiCacheBlock(int16_t blockId, Dbt value);
         AntiCacheBlock();
         ~AntiCacheBlock();
         

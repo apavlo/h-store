@@ -43,13 +43,13 @@ NVMAntiCacheBlock::NVMAntiCacheBlock(int16_t blockId, char* block, long size) {
     m_block = block;
     m_blockId = blockId;
     m_size = size;
-    m_blockType = NVM;
+    m_blockType = ANTICACHEDB_NVM;
 }
 
 NVMAntiCacheDB::NVMAntiCacheDB(ExecutorContext *ctx, std::string db_dir, long blockSize) :
     AntiCacheDB(ctx, db_dir, blockSize) 
 {
-    m_dbType = NVM;
+    m_dbType = ANTICACHEDB_NVM;
     initialize();
 }
 

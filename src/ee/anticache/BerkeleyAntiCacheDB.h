@@ -24,7 +24,7 @@ class BerkeleyAntiCacheBlock: public AntiCacheBlock {
     public:
         ~BerkeleyAntiCacheBlock();  
     private:
-        BerkeleyAntiCacheBlock(int16_t blockId, Dbt value);
+        BerkeleyAntiCacheBlock(int16_t blockId, char* v, long size);
 }; 
 
 // Encapsulates a block that is flushed out to BerkeleyDB

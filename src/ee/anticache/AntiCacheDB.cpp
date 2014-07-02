@@ -39,13 +39,13 @@ using namespace std;
 
 namespace voltdb {
 
-/*  // NVM Block
-  AntiCacheBlock::AntiCacheBlock(int16_t blockId, char* block, long size) {
-      m_block = block;
-      m_blockId = blockId;
-      m_size = size;
-    }
-*/
+
+AntiCacheBlock::AntiCacheBlock(int16_t blockId, char* block, long size) {
+    m_block = block;
+    m_blockId = blockId;
+    m_size = size;
+}
+
     
 AntiCacheDB::AntiCacheDB(ExecutorContext *ctx, std::string db_dir, long blockSize) :
     m_executorContext(ctx),

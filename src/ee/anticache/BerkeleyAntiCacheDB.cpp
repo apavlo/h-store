@@ -17,14 +17,16 @@ using namespace std;
 
 namespace voltdb {
     
-BerkeleyAntiCacheBlock::BerkeleyAntiCacheBlock(int16_t blockId, Dbt value) {
-    m_buf = (char *) value.get_data();
+//BerkeleyAntiCacheBlock::BerkeleyAntiCacheBlock(int16_t blockId, Dbt value) {
+BerkeleyAntiCacheBlock::BerkeleyAntiCacheBlock(int16_t blockId, char* v, long size) {
+    Dbt* value = reinterpret_cast<Dbt*>(v);
+    m_buf = (char *) value->get_data();
         
     int16_t id = *((int16_t *)m_buf);
     long bufLen_ = sizeof(int16_t);
     std::string tableName = m_buf + bufLen_;
     bufLen_ += tableName.size()+1;
-    long size = *((long *)(m_buf+bufLen_));
+    size = *((long *)(m_buf+bufLen_));
     bufLen_+=sizeof(long);
     char * data = m_buf + bufLen_;
     bufLen_ += size;
@@ -48,7 +50,7 @@ BerkeleyAntiCacheBlock::BerkeleyAntiCacheBlock(int16_t blockId, Dbt value) {
     VOLT_INFO("data from getBlock %s", getData());
     m_blockId = blockId;
 
-    m_blockType = BERKELEYDB;
+    m_blockType = ANTICACHEDB_BERKELEY;
 }
     
 BerkeleyAntiCacheBlock::~BerkeleyAntiCacheBlock() {
@@ -65,7 +67,7 @@ BerkeleyDBBlock::~BerkeleyDBBlock() {
 BerkeleyAntiCacheDB::BerkeleyAntiCacheDB(ExecutorContext *ctx, std::string db_dir, long blockSize) :
     AntiCacheDB(ctx,db_dir,blockSize)
 {
-    m_dbType = BERKELEYDB;
+    m_dbType = ANTICACHEDB_BERKELEY;
     initialize();
 }
 
@@ -198,7 +200,7 @@ BerkeleyAntiCacheBlock BerkeleyAntiCacheDB::readBlockBerkeleyDB(int16_t blockId)
         assert(value.get_data() != NULL);
     }
     
-    BerkeleyAntiCacheBlock block(blockId, value);
+    BerkeleyAntiCacheBlock block(blockId, reinterpret_cast<char*>(&value), 0);
     return (block);
 }
 
