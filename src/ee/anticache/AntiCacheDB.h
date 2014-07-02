@@ -52,15 +52,15 @@ class AntiCacheBlock {
     friend class AntiCacheDB;
     
     public:
-		AntiCacheBlock(int16_t blockId, Dbt value);
-		AntiCacheBlock();
+        AntiCacheBlock(int16_t blockId, Dbt value);
+        AntiCacheBlock();
         ~AntiCacheBlock();
-		
-		inline int16_t getBlockType() {
-			return m_blockType;
+        
+        inline int16_t getBlockType() {
+            return m_blockType;
         } 
         inline int16_t getBlockId() const {
-        	return m_blockId;
+            return m_blockId;
         }
 
         inline std::string getTableName() const {
@@ -68,15 +68,15 @@ class AntiCacheBlock {
         }
 
         inline long getSize() const {
-        	return m_size;
+            return m_size;
         }
         inline char* getData() const {
-	    return m_block;
+        return m_block;
         }
 
         struct payload{
-        	int16_t blockId;
-        	std::string tableName;
+            int16_t blockId;
+            std::string tableName;
             char * data;
             long size;
         };
@@ -85,10 +85,10 @@ class AntiCacheBlock {
         AntiCacheBlock(int16_t blockId, char* block, long size);
         int16_t m_blockId;
         payload m_payload;
-		long m_size;
-		char * m_block;
-		char * m_buf;
-		int16_t m_blockType;
+        long m_size;
+        char * m_block;
+        char * m_buf;
+        int16_t m_blockType;
 
 }; // CLASS
 
@@ -98,30 +98,30 @@ class AntiCacheBlock {
 class AntiCacheDB {
         
     public: 
-		// probably want to remove db_dir and add a "db_type" field
+        // probably want to remove db_dir and add a "db_type" field
         AntiCacheDB(ExecutorContext *ctx, std::string db_dir, long blockSize);
         ~AntiCacheDB();
 
-		void initialize();
+        void initialize();
 
-		int inline getDBType() {
-			return m_dbType;
-		}
+        int inline getDBType() {
+            return m_dbType;
+        }
 
-       	/*
-		 * Write a block of serialized tuples out to the anti-cache database
+        /*
+         * Write a block of serialized tuples out to the anti-cache database
          */
-		void writeBlock(const std::string tableName,
+        void writeBlock(const std::string tableName,
                         int16_t blockId,
                         const int tupleCount,
                         const char* data,
                         const long size);
         
-		/**
+        /**
          * Read a block and return its contents
          */
-		AntiCacheBlock readBlock(std::string tableName, int16_t blockId);
-		
+        AntiCacheBlock readBlock(std::string tableName, int16_t blockId);
+        
         /**
          * Flush the buffered blocks to disk.
          */
@@ -137,29 +137,29 @@ class AntiCacheDB {
         
     protected:
         ExecutorContext *m_executorContext;
-        string m_dbDir;		// probably move
+        string m_dbDir;     // probably move
         long m_blockSize;
         int16_t m_nextBlockId;
-		int m_partitionId; 
+        int m_partitionId; 
 
         /**
          *  Maps a block id to a <index, size> pair
          */
-		std::map<int16_t, pair<int, int32_t> > m_blockMap; 
-		
-		
-		int m_totalBlocks; 
+        std::map<int16_t, pair<int, int32_t> > m_blockMap; 
+        
+        
+        int m_totalBlocks; 
         int m_nextFreeBlock; 
 
-		virtual void shutdownDB();		
-		
-		int m_dbType;
+        virtual void shutdownDB();      
+        
+        int m_dbType;
         
         
-		
-		// these may not need to be generic?
-		// char* getBlock(int index);
-		
+        
+        // these may not need to be generic?
+        // char* getBlock(int index);
+        
         
 }; // CLASS
 

@@ -39,11 +39,11 @@ using namespace std;
 
 namespace voltdb {
 
-/*	// NVM Block
+/*  // NVM Block
   AntiCacheBlock::AntiCacheBlock(int16_t blockId, char* block, long size) {
-  	  m_block = block;
-  	  m_blockId = blockId;
-  	  m_size = size;
+      m_block = block;
+      m_blockId = blockId;
+      m_size = size;
     }
 */
     
@@ -72,8 +72,8 @@ void AntiCacheDB::writeBlock(const std::string tableName,
 }
 
 AntiCacheBlock AntiCacheDB::readBlock(std::string tableName, int16_t blockId) {
-	// we shouldn't get here, just temporary to get this to compile
-	return AntiCacheBlock(-1, NULL, 0); 
+    // we shouldn't get here, just temporary to get this to compile
+    return AntiCacheBlock(-1, NULL, 0); 
 
 }
 

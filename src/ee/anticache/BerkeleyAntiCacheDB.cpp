@@ -16,57 +16,57 @@
 using namespace std;
 
 namespace voltdb {
-	
+    
 BerkeleyAntiCacheBlock::BerkeleyAntiCacheBlock(int16_t blockId, Dbt value) {
-	m_buf = (char *) value.get_data();
-		
-	int16_t id = *((int16_t *)m_buf);
-	long bufLen_ = sizeof(int16_t);
-	std::string tableName = m_buf + bufLen_;
-	bufLen_ += tableName.size()+1;
-	long size = *((long *)(m_buf+bufLen_));
-	bufLen_+=sizeof(long);
-	char * data = m_buf + bufLen_;
-	bufLen_ += size;
-//	for(int i=0;i<size;i++){
-//	   VOLT_INFO("%x", data[i]);
-//	}
+    m_buf = (char *) value.get_data();
+        
+    int16_t id = *((int16_t *)m_buf);
+    long bufLen_ = sizeof(int16_t);
+    std::string tableName = m_buf + bufLen_;
+    bufLen_ += tableName.size()+1;
+    long size = *((long *)(m_buf+bufLen_));
+    bufLen_+=sizeof(long);
+    char * data = m_buf + bufLen_;
+    bufLen_ += size;
+//  for(int i=0;i<size;i++){
+//     VOLT_INFO("%x", data[i]);
+//  }
 
-	payload p;
-	p.blockId = id;
-	p.tableName = tableName;
-	p.data = data;
-	p.size = size;
-	m_size = size;
-	m_payload = p;
-	
-	VOLT_INFO("size of anticache block data %ld in read", m_payload.size);
-	VOLT_INFO("size of anticache block data %ld in read", m_size);
-	VOLT_INFO("data in anticache block data %s in read", m_payload.data);
-		
-	m_block = m_payload.data;
-	VOLT_INFO("data from getBlock %s", getData());
-	m_blockId = blockId;
+    payload p;
+    p.blockId = id;
+    p.tableName = tableName;
+    p.data = data;
+    p.size = size;
+    m_size = size;
+    m_payload = p;
+    
+    VOLT_INFO("size of anticache block data %ld in read", m_payload.size);
+    VOLT_INFO("size of anticache block data %ld in read", m_size);
+    VOLT_INFO("data in anticache block data %s in read", m_payload.data);
+        
+    m_block = m_payload.data;
+    VOLT_INFO("data from getBlock %s", getData());
+    m_blockId = blockId;
 
-	m_blockType = BERKELEYDB;
+    m_blockType = BERKELEYDB;
 }
-	
+    
 BerkeleyAntiCacheBlock::~BerkeleyAntiCacheBlock() {
     if(m_blockId > 0 && m_buf != NULL){
-    	delete m_buf;
+        delete m_buf;
     }
 }
 
 BerkeleyDBBlock::~BerkeleyDBBlock() {
-	delete [] serialized_data;
+    delete [] serialized_data;
 }
 
 
 BerkeleyAntiCacheDB::BerkeleyAntiCacheDB(ExecutorContext *ctx, std::string db_dir, long blockSize) :
     AntiCacheDB(ctx,db_dir,blockSize)
 {
-	m_dbType = BERKELEYDB;
-	initialize();
+    m_dbType = BERKELEYDB;
+    initialize();
 }
 
 
@@ -125,7 +125,7 @@ void BerkeleyAntiCacheDB::shutdownDB() {
 }
 
 BerkeleyAntiCacheDB::~BerkeleyAntiCacheDB() {
-	shutdownDB();
+    shutdownDB();
 }
 
 
@@ -142,27 +142,27 @@ void BerkeleyAntiCacheDB::writeBlockBerkeleyDB(const std::string tableName,
 
 
     char * databuf_ = new char [size+tableName.size() + 1+sizeof(blockId)+sizeof(size)];
-	memset(databuf_, 0, size+tableName.size() + 1+sizeof(blockId)+sizeof(size));
-	// Now pack the data into a single contiguous memory location
-	// for storage.
-	long bufLen_ = 0;
-	long dataLen = 0;
-	dataLen = sizeof(blockId);
-	memcpy(databuf_, &blockId, dataLen);
-	bufLen_ += dataLen;
-	dataLen = tableName.size() + 1;
-	memcpy(databuf_ + bufLen_, tableName.c_str(), dataLen);
-	bufLen_ += dataLen;
-	dataLen = sizeof(size);
-	memcpy(databuf_ + bufLen_, &size, dataLen);
-	bufLen_ += dataLen;
-	dataLen = size;
-	memcpy(databuf_ + bufLen_, data, dataLen);
-	bufLen_ += dataLen;
+    memset(databuf_, 0, size+tableName.size() + 1+sizeof(blockId)+sizeof(size));
+    // Now pack the data into a single contiguous memory location
+    // for storage.
+    long bufLen_ = 0;
+    long dataLen = 0;
+    dataLen = sizeof(blockId);
+    memcpy(databuf_, &blockId, dataLen);
+    bufLen_ += dataLen;
+    dataLen = tableName.size() + 1;
+    memcpy(databuf_ + bufLen_, tableName.c_str(), dataLen);
+    bufLen_ += dataLen;
+    dataLen = sizeof(size);
+    memcpy(databuf_ + bufLen_, &size, dataLen);
+    bufLen_ += dataLen;
+    dataLen = size;
+    memcpy(databuf_ + bufLen_, data, dataLen);
+    bufLen_ += dataLen;
 
     Dbt value;
-	value.set_data(databuf_);
-	value.set_size(static_cast<int32_t>(bufLen_));
+    value.set_data(databuf_);
+    value.set_size(static_cast<int32_t>(bufLen_));
 
 
     VOLT_INFO("Writing out a block #%d to anti-cache database [tuples=%d / size=%ld]",
@@ -217,7 +217,7 @@ BerkeleyAntiCacheBlock BerkeleyAntiCacheDB::readBlock(std::string tableName, int
 }
 
 void BerkeleyAntiCacheDB::flushBlocks() {
-	m_db->sync(0);
+    m_db->sync(0);
 }
 
 }

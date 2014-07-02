@@ -526,7 +526,7 @@ bool AntiCacheEvictionManager::evictBlockToDisk(PersistentTable *table, const lo
     #ifdef VOLT_INFO_ENABLED
     int active_tuple_count = (int)table->activeTupleCount();
     #endif
-
+		
     for(int i = 0; i < num_blocks; i++)
     {
 
