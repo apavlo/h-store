@@ -79,14 +79,23 @@ namespace voltdb {
  |  flags (1 byte)  |  "previous" tuple id  (4 bytes)  |  "next" tuple id (4 bytes)  | tuple data  |
  ---------------------------------------------------------------------------------------------------
  
+ (d). Anti-Caching with time stamps
+ ---------------------------------------------------------------
+ |  flags (1 byte)  |  time stamp (4 bytes) | tuple data  |
+ ---------------------------------------------------------------
+
  */
 
 #ifdef ANTICACHE
-    #ifdef ANTICACHE_REVERSIBLE_LRU
-        #define TUPLE_HEADER_SIZE 9
-    #else
-        #define TUPLE_HEADER_SIZE 5
-    #endif
+    #ifdef ANTICACHE_TIMESTAMPS
+    	#define TUPLE_HEADER_SIZE 5
+	#else
+    	#ifdef ANTICACHE_REVERSIBLE_LRU
+        	#define TUPLE_HEADER_SIZE 9
+    	#else
+        	#define TUPLE_HEADER_SIZE 5
+    	#endif
+	#endif
 #else
     #define TUPLE_HEADER_SIZE 1
 #endif
@@ -281,27 +290,48 @@ public:
     }
     
 #ifdef ANTICACHE
-    inline uint32_t getNextTupleInChain() {
-        uint32_t tuple_id = 0;
-        memcpy(&tuple_id, m_data+TUPLE_HEADER_SIZE-4, 4);
-        
-        return tuple_id; 
-    }
+	#ifndef ANTICACHE_TIMESTAMPS
+    	inline uint32_t getNextTupleInChain() {
+        	uint32_t tuple_id = 0;
+	        memcpy(&tuple_id, m_data+TUPLE_HEADER_SIZE-4, 4);
+   	     
+    	    return tuple_id; 
+    	}
     
-    inline void setNextTupleInChain(uint32_t next) {
-        memcpy(m_data+TUPLE_HEADER_SIZE-4, &next, 4);
+	    inline void setNextTupleInChain(uint32_t next) {
+    	    memcpy(m_data+TUPLE_HEADER_SIZE-4, &next, 4);
 
-    }
+    	}
     
-    inline uint32_t getPreviousTupleInChain() {
-        uint32_t tuple_id = 0;
-        memcpy(&tuple_id, m_data+TUPLE_HEADER_SIZE-8, 4);
-        return tuple_id;
-    }
+    	inline uint32_t getPreviousTupleInChain() {
+        	uint32_t tuple_id = 0;
+        	memcpy(&tuple_id, m_data+TUPLE_HEADER_SIZE-8, 4);
+        	return tuple_id;
+    	}
     
-    inline void setPreviousTupleInChain(uint32_t prev) {
-        memcpy(m_data+TUPLE_HEADER_SIZE-8, &prev, 4);
-    }
+    	inline void setPreviousTupleInChain(uint32_t prev) {
+        	memcpy(m_data+TUPLE_HEADER_SIZE-8, &prev, 4);
+    	}
+
+	#else
+    	inline uint32_t getTimeStamp() {
+        	uint32_t tuple_id = 0;
+	        memcpy(&tuple_id, m_data+TUPLE_HEADER_SIZE-4, 4);
+   	     
+    	    return tuple_id; 
+    	}
+    
+	    inline void setTimeStamp() {
+			unsigned int current_time;
+			__asm__ ("rdtsc": "=d" (current_time));
+    	    memcpy(m_data+TUPLE_HEADER_SIZE-4, &current_time, 4);
+    	}
+
+	    inline void setColdTimeStamp() {
+			unsigned int cold_time = 0;
+    	    memcpy(m_data+TUPLE_HEADER_SIZE-4, &cold_time, 4);
+    	}
+	#endif
 #endif
 
     inline uint32_t getTupleID()

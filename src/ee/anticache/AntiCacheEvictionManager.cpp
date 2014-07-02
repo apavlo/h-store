@@ -128,6 +128,7 @@ bool AntiCacheEvictionManager::updateUnevictedTuple(PersistentTable* table, Tabl
     if(table->getEvictedTable() == NULL || table->isBatchEvicted())  // no need to maintain chain for non-evictable tables or batch evicted tables
         return true;
 
+#ifndef ANTICACHE_TIMESTAMPS
     int tuples_in_chain;
     int current_tuple_id = table->getTupleID(tuple->address()); // scan blocks for this tuple
     
@@ -158,17 +159,22 @@ bool AntiCacheEvictionManager::updateUnevictedTuple(PersistentTable* table, Tabl
     tuples_in_chain = table->getNumTuplesInEvictionChain(); 
     ++tuples_in_chain; 
     table->setNumTuplesInEvictionChain(tuples_in_chain); 
+#else
+	tuple->setColdTimeStamp();
+#endif
     
     return true; 
 }
     
 bool AntiCacheEvictionManager::updateTuple(PersistentTable* table, TableTuple* tuple, bool is_insert) {
-    int SAMPLE_RATE = 1000; // aLRU sampling rate
     
     if(table->getEvictedTable() == NULL || table->isBatchEvicted())  // no need to maintain chain for non-evictable tables or batch evicted tables
         return true; 
 
-//VOLT_INFO("updating LRU for %s", table->name().c_str());    
+
+#ifndef ANTICACHE_TIMESTAMPS
+    int SAMPLE_RATE = 1000; // aLRU sampling rate
+
     int tuples_in_chain;
 
     uint32_t newest_tuple_id;
@@ -237,10 +243,14 @@ bool AntiCacheEvictionManager::updateTuple(PersistentTable* table, TableTuple* t
     ++tuples_in_chain; 
 
     table->setNumTuplesInEvictionChain(tuples_in_chain);
+#else
+	tuple->setTimeStamp();
+#endif
         
     return true; 
 }
-    
+
+#ifndef ANTICACHE_TIMESTAMPS
 bool AntiCacheEvictionManager::removeTuple(PersistentTable* table, TableTuple* tuple) {
     int current_tuple_id = table->getTupleID(tuple->address());
     
@@ -470,6 +480,7 @@ bool AntiCacheEvictionManager::removeTupleSingleLinkedList(PersistentTable* tabl
     
     return false; 
 }
+#endif
 
 Table* AntiCacheEvictionManager::evictBlock(PersistentTable *table, long blockSize, int numBlocks) {
     int32_t lastTuplesEvicted = table->getTuplesEvicted();
@@ -571,8 +582,11 @@ bool AntiCacheEvictionManager::evictBlockToDisk(PersistentTable *table, const lo
 
             //current_tuple_start_position = out.position();
 
+			#ifndef ANTICACHE_TIMESTAMPS
             // remove the tuple from the eviction chain
             removeTuple(table, &tuple);
+			#endif
+
             if (tuple.isEvicted())
             {
                 VOLT_INFO("Tuple %d is already evicted. Skipping", table->getTupleID(tuple.address()));
@@ -824,8 +838,11 @@ bool AntiCacheEvictionManager::evictBlockToDiskInBatch(PersistentTable *table, P
             }
             parentTuples++;
        
+			#ifndef ANTICACHE_TIMESTAMPS
             // remove the tuple from the eviction chain
             removeTuple(table, &tuple);
+			#endif
+
             if (tuple.isEvicted()) {
                 // VOLT_INFO("Tuple %d is already evicted. Skipping", table->getTupleID(tuple.address()));
                 continue;
@@ -1135,7 +1152,9 @@ bool AntiCacheEvictionManager::mergeUnevictedTuples(PersistentTable *table)
 
     #ifdef VOLT_INFO_ENABLED
     int active_tuple_count = (int)table->activeTupleCount();
-    int tuples_in_eviction_chain = (int)table->getNumTuplesInEvictionChain();
+	#ifndef ANTICACHE_TIMESTAMPS
+    	int tuples_in_eviction_chain = (int)table->getNumTuplesInEvictionChain();
+	#endif
     #endif
 
     #ifdef VOLT_INFO_ENABLED
@@ -1245,12 +1264,15 @@ table->clearUnevictedBlocks();
 
     #ifdef VOLT_INFO_ENABLED
     VOLT_INFO("Active Tuple Count: %d -- %d", (int)active_tuple_count, (int)table->activeTupleCount());
-    VOLT_INFO("Tuples in Eviction Chain: %d -- %d", (int)tuples_in_eviction_chain, (int)table->getNumTuplesInEvictionChain());
+	#ifndef ANTICACHE_TIMESTAMPS
+    	VOLT_INFO("Tuples in Eviction Chain: %d -- %d", (int)tuples_in_eviction_chain, (int)table->getNumTuplesInEvictionChain());
+	#endif
     #endif
+
 
     return true;
 }
-
+#ifndef ANTICACHE_TIMESTAMPS
 // -----------------------------------------
 // Debugging Unility Methods
 // -----------------------------------------
@@ -1290,6 +1312,7 @@ void AntiCacheEvictionManager::printLRUChain(PersistentTable* table, int max, bo
     
     VOLT_INFO("LRU CHAIN: %s", chain);
 }
+#endif
 
 char* AntiCacheEvictionManager::itoa(uint32_t i)
 {
