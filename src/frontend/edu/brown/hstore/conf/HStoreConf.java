@@ -722,7 +722,7 @@ public final class HStoreConf {
         @ConfigProperty(
                 description="Type of database used for eviction.",
                 defaultString="BERKELEY",
-                experimental=true;
+                experimental=true,
                 enumOptions="org.voltdb.types.AntiCacheDBType"
         )
         public boolean anticache_dbtype;
