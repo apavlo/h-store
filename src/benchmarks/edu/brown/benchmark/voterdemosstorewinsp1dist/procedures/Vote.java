@@ -23,20 +23,22 @@
 
 //
 // Accepts a vote, enforcing business logic: make sure the vote is for a valid
-// contestant and that the voterdemosstore (phone number of the caller) is not above the
+// contestant and that the voterdemosstorewinsp1 (phone number of the caller) is not above the
 // number of allowed votes.
 //
 
-package edu.brown.benchmark.sstore4muxop.procedures;
+package edu.brown.benchmark.voterdemosstorewinsp1dist.procedures;
 
 import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
 import org.voltdb.StmtInfo;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
+import org.voltdb.types.TimestampType;
 
-import edu.brown.benchmark.sstore4muxop.SStore4MuxOpConstants;
 import edu.brown.benchmark.voter.VoterConstants;
+import edu.brown.benchmark.voterdemosstorewinsp1dist.VoterDemoSStoreWinSP1DistConstants;
+import edu.brown.benchmark.voterwintimesstore.VoterWinTimeSStoreConstants;
 
 @ProcInfo (
     partitionInfo = "votes.phone_number:1",
@@ -47,6 +49,10 @@ public class Vote extends VoltProcedure {
 	@StmtInfo(
             upsertable=true
         )
+    public final SQLStmt updateTotalCount = new SQLStmt(
+    	"INSERT INTO totalVoteCount (row_id, cnt) SELECT row_id, cnt + 1 FROM totalVoteCount WHERE row_id = 1;"
+    );
+
     // Checks if the vote is for a valid contestant
     public final SQLStmt checkContestantStmt = new SQLStmt(
 	   "SELECT contestant_number FROM contestants WHERE contestant_number = ?;"
@@ -63,10 +69,46 @@ public class Vote extends VoltProcedure {
     );
 	
     // Records a vote
+    public final SQLStmt insertVoteStmt = new SQLStmt(
+		"INSERT INTO votes (vote_id, phone_number, state, contestant_number, time) VALUES (?, ?, ?, ?, ?);"
+    );
+    
+    // Records a vote
     public final SQLStmt insertProcEndStmt = new SQLStmt(
 		"INSERT INTO proc_one_out (vote_id, phone_number, state, contestant_number, time) VALUES (?, ?, ?, ?, ?);"
     );
     
+    // Put vote into leaderboard
+    public final SQLStmt trendingLeaderboardStmt = new SQLStmt(
+	   "INSERT INTO trending_leaderboard (vote_id, phone_number, state, contestant_number, time) VALUES (?, ?, ?, ?, ?);"
+    );
+    
+    @StmtInfo(
+            upsertable=true
+        )
+    public final SQLStmt updateCount = new SQLStmt(
+    	"INSERT INTO voteCount (row_id, cnt) SELECT row_id, cnt + 1 FROM voteCount WHERE row_id = 1;"
+    );
+    
+    public final SQLStmt getCount = new SQLStmt(
+    	"SELECT cnt FROM voteCount;"
+    );
+    
+    public final SQLStmt resetCount = new SQLStmt(
+    	"UPDATE voteCount SET cnt = 0;"	
+    );
+    
+    public final SQLStmt getTopLeaderboard = new SQLStmt(
+    	"SELECT contestant_number, num_votes FROM v_votes_by_contestant ORDER BY num_votes DESC LIMIT 3;"	
+    );
+    
+    public final SQLStmt getBottomLeaderboard = new SQLStmt(
+    	"SELECT contestant_number, num_votes FROM v_votes_by_contestant ORDER BY num_votes ASC LIMIT 3;"	
+    );
+    
+    public final SQLStmt getTrendingLeaderboard = new SQLStmt(
+    	"SELECT contestant_number, num_votes FROM top_three_last_30_sec ORDER BY num_votes DESC LIMIT 3;"	
+    );
 	
 public long run(long voteId, long phoneNumber, int contestantNumber, long maxVotesPerPhoneNumber, int currentTimestamp) {
 		
@@ -74,6 +116,7 @@ public long run(long voteId, long phoneNumber, int contestantNumber, long maxVot
 		voltQueueSQL(checkContestantStmt, contestantNumber);
         voltQueueSQL(checkVoterStmt, phoneNumber);
         voltQueueSQL(checkStateStmt, (short)(phoneNumber / 10000000l));
+        voltQueueSQL(updateTotalCount);
         VoltTable validation[] = voltExecuteSQL();
 		
         // validate the maximum limit for votes number
@@ -95,10 +138,27 @@ public long run(long voteId, long phoneNumber, int contestantNumber, long maxVot
 		 		
         // Post the vote
         //TimestampType timestamp = new TimestampType();
-        voltQueueSQL(insertProcEndStmt, voteId, phoneNumber, state, contestantNumber, currentTimestamp);
-        voltExecuteSQL(true);
+        voltQueueSQL(insertVoteStmt, voteId, phoneNumber, state, contestantNumber, currentTimestamp);
+        // Queue up leaderboard stmts
+ 		voltQueueSQL(trendingLeaderboardStmt, voteId, phoneNumber, state, contestantNumber, currentTimestamp);
+        voltQueueSQL(updateCount);
+        voltQueueSQL(getCount);
+        
+        voltQueueSQL(getTrendingLeaderboard);
+        voltQueueSQL(getTopLeaderboard);
+        voltQueueSQL(getBottomLeaderboard);
+        validation = voltExecuteSQL();
+        
+        int voteCount = (int)validation[3].fetchRow(0).getLong(0);
+        
+        if(voteCount >= VoterDemoSStoreWinSP1DistConstants.VOTE_THRESHOLD)
+        {
+        	voltQueueSQL(insertProcEndStmt, voteId, phoneNumber, state, contestantNumber, currentTimestamp);
+        	voltExecuteSQL(true);
+        	//return VoterDemoSStoreWinSP1DistConstants.VOTE_SUCCESSFUL_TRIG_SP2;
+        }
 		
         // Set the return value to 0: successful vote
-        return SStore4MuxOpConstants.VOTE_SUCCESSFUL;
+        return VoterDemoSStoreWinSP1DistConstants.VOTE_SUCCESSFUL;
     }
 }
