@@ -52,11 +52,8 @@ class AntiCacheBlock {
     public:
 //        AntiCacheBlock(int16_t blockId, Dbt value);
         AntiCacheBlock();
-        ~AntiCacheBlock();
+//        ~AntiCacheBlock();
         
-        inline int16_t getBlockType() {
-            return m_blockType;
-        } 
         inline int16_t getBlockId() const {
             return m_blockId;
         }
@@ -71,7 +68,9 @@ class AntiCacheBlock {
         inline char* getData() const {
         return m_block;
         }
-
+        inline AntiCacheDBType getBlockType() {
+            return m_blockType; 
+        }
         struct payload{
             int16_t blockId;
             std::string tableName;
@@ -86,7 +85,7 @@ class AntiCacheBlock {
         long m_size;
         char * m_block;
         char * m_buf;
-        int16_t m_blockType;
+        AntiCacheDBType m_blockType;
 
 }; // CLASS
 
@@ -98,11 +97,11 @@ class AntiCacheDB {
     public: 
         // probably want to remove db_dir and add a "db_type" field
         AntiCacheDB(ExecutorContext *ctx, std::string db_dir, long blockSize);
-        ~AntiCacheDB();
+//        ~AntiCacheDB();
 
         virtual void initialize();
 
-        virtual int inline getDBType() {
+        virtual AntiCacheDBType inline getDBType() {
             return m_dbType;
         }
 
@@ -151,7 +150,7 @@ class AntiCacheDB {
 
         virtual void shutdownDB();      
         
-        int m_dbType;
+        AntiCacheDBType m_dbType;
         
         
 }; // CLASS

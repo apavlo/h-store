@@ -1064,17 +1064,18 @@ bool AntiCacheEvictionManager::readEvictedBlock(PersistentTable *table, int16_t 
     }
 
     AntiCacheDB* antiCacheDB = table->getAntiCacheDB();
+    
 
     try
     {
-        AntiCacheBlock value = antiCacheDB->readBlock(table->name(), block_id);
+        AntiCacheBlock value = static_cast<AntiCacheBlock>(antiCacheDB->readBlock(table->name(), block_id));
 
         // allocate the memory for this block
         VOLT_INFO("block size is %ld - table Name %s", value.getSize(), table->name().c_str());
 
-    char* unevicted_tuples = new char[value.getSize()];
+        char* unevicted_tuples = new char[value.getSize()];
         memcpy(unevicted_tuples, value.getData(), value.getSize());
-    VOLT_INFO("*****************block id ************** %d", block_id);
+        VOLT_INFO("*****************block id ************** %d", block_id);
         ReferenceSerializeInput in(unevicted_tuples, 10485760);
 
         // Read in all the meta-data
