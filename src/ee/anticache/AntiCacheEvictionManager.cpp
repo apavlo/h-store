@@ -537,6 +537,10 @@ bool AntiCacheEvictionManager::evictBlockToDisk(PersistentTable *table, const lo
     int active_tuple_count = (int)table->activeTupleCount();
     #endif
 
+    // Iterate through the table and pluck out tuples to put in our block
+    TableTuple tuple(table->m_schema);
+    EvictionIterator evict_itr(table);
+
     for(int i = 0; i < num_blocks; i++)
     {
 
@@ -548,10 +552,6 @@ bool AntiCacheEvictionManager::evictBlockToDisk(PersistentTable *table, const lo
         VOLT_DEBUG("Setting %s tuple blockId at offset %d", m_evictedTable->name().c_str(), 0);
         evicted_tuple.setNValue(0, ValueFactory::getSmallIntValue(block_id));   // Set the ID for this block
         evicted_tuple.setNValue(1, ValueFactory::getIntegerValue(0));          // set the tuple offset of this block
-
-        // Iterate through the table and pluck out tuples to put in our block
-        TableTuple tuple(table->m_schema);
-        EvictionIterator evict_itr(table);
 
         #ifdef VOLT_INFO_ENABLED
         boost::timer timer;
@@ -582,10 +582,10 @@ bool AntiCacheEvictionManager::evictBlockToDisk(PersistentTable *table, const lo
 
             //current_tuple_start_position = out.position();
 
-			#ifndef ANTICACHE_TIMESTAMPS
+            #ifndef ANTICACHE_TIMESTAMPS
             // remove the tuple from the eviction chain
             removeTuple(table, &tuple);
-			#endif
+            #endif
 
             if (tuple.isEvicted())
             {
@@ -737,6 +737,10 @@ bool AntiCacheEvictionManager::evictBlockToDiskInBatch(PersistentTable *table, P
     int child_blocksWritten = childTable->getBlocksWritten();
     int64_t child_bytesWritten = childTable->getBytesWritten();
 
+    // Iterate through the table and pluck out tuples to put in our block
+    TableTuple tuple(table->m_schema);
+    EvictionIterator evict_itr(table);
+
     for(int i = 0; i < num_blocks; i++)
     {
     //    VOLT_INFO("Printing parent's LRU chain");
@@ -751,10 +755,6 @@ bool AntiCacheEvictionManager::evictBlockToDiskInBatch(PersistentTable *table, P
    //     VOLT_DEBUG("Setting %s tuple blockId at offset %d", m_evictedTable->name().c_str(), 0);
         evicted_tuple.setNValue(0, ValueFactory::getSmallIntValue(block_id));   // Set the ID for this block
         evicted_tuple.setNValue(1, ValueFactory::getIntegerValue(0));          // set the tuple offset of this block
-
-        // Iterate through the table and pluck out tuples to put in our block
-        TableTuple tuple(table->m_schema);
-        EvictionIterator evict_itr(table);
 
        // #ifdef VOLT_INFO_ENABLED
       //  boost::timer timer;
