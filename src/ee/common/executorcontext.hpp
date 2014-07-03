@@ -205,12 +205,28 @@ namespace voltdb {
 		 * The input parameter is the directory where our disk-based storage
 		 * will write out evicted blocks of tuples for this partition
 		 */
-        	void enableAntiCache(const VoltDBEngine *engine, std::string &dbDir, long blockSize) {
+        void enableAntiCache(const VoltDBEngine *engine, std::string &dbDir, long blockSize, AntiCacheDBType dbType) {
             		assert(m_antiCacheEnabled == false);
-            		m_antiCacheEnabled = true;
-            		m_antiCacheDB = new AntiCacheDB(this, dbDir, blockSize);
-            		m_antiCacheEvictionManager = new AntiCacheEvictionManager(engine);
-        	}
+            		m_dbType = dbType;
+                    m_antiCacheEnabled = true;
+            		if (dbType == ANTICACHEDB_BERKELEY) {
+                        m_antiCacheDB = new BerkeleyAntiCacheDB(this, dbDir, blockSize);
+                    } else if (dbType == ANTICACHEDB_NVM) {
+                        m_antiCacheDB = new NVMAntiCacheDB(this, dbDir, blockSize);
+                    } else {
+                        // most "elegant" way to break out
+                        VOLT_ERROR("Unknown AntiCacheDBType: %d", (int)dbType);
+                        assert(m_antiCacheEnabled == false);
+                    }  
+                    //m_antiCacheDB = new AntiCacheDB(this, dbDir, blockSize, dbType);
+                    // This is going to have to be changed to check for existing anticache dbs
+                    // or maybe there should just be addAntiCacheDB()
+            		m_antiCacheEvictionManager = new AntiCacheEvictionManager(engine, dbType);
+        }
+
+        AntiCacheDBType getAntiCacheDBType() {
+            return m_dbType;
+        }
 	#endif
 
 		// ------------------------------------------------------------------
@@ -287,7 +303,8 @@ namespace voltdb {
 	#ifdef ANTICACHE
 		AntiCacheDB *m_antiCacheDB;
 		AntiCacheEvictionManager *m_antiCacheEvictionManager;
-	#endif
+	    AntiCacheDBType m_dbType;
+    #endif
 
 	#ifdef STORAGE_MMAP
 		long m_MMAPSize;

@@ -69,12 +69,13 @@ namespace voltdb
  
  */
     
-AntiCacheEvictionManager::AntiCacheEvictionManager(const VoltDBEngine *engine) {
+AntiCacheEvictionManager::AntiCacheEvictionManager(const VoltDBEngine *engine, AntiCacheDBType dbType) {
     
     // Initialize readBlocks table
     m_engine = engine;
     this->initEvictResultTable();
     srand((int)time(NULL));
+    m_dbType = dbType;
 }
 
 AntiCacheEvictionManager::~AntiCacheEvictionManager() {

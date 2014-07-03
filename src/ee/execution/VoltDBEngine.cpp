@@ -1935,10 +1935,10 @@ int VoltDBEngine::trackingTupleSet(int64_t txnId, bool writes) {
 // -------------------------------------------------
 
 #ifdef ANTICACHE
-void VoltDBEngine::antiCacheInitialize(std::string dbDir, long blockSize) const {
+void VoltDBEngine::antiCacheInitialize(std::string dbDir, long blockSize, AntiCacheDBType dbType) const {
 	VOLT_INFO("Enabling Anti-Cache at Partition %d: dir=%s / blockSize=%ld",
 			m_partitionId, dbDir.c_str(), blockSize);
-	m_executorContext->enableAntiCache(this, dbDir, blockSize);
+	m_executorContext->enableAntiCache(this, dbDir, blockSize, dbType);
 }
 
 int VoltDBEngine::antiCacheReadBlocks(int32_t tableId, int numBlocks, int16_t blockIds[], int32_t tupleOffsets[]) {

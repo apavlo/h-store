@@ -31,7 +31,7 @@
 #include "anticache/EvictionIterator.h"
 #include "common/tabletuple.h"
 #include "execution/VoltDBEngine.h"
-
+#include "common/types.h" // AntiCacheDBType
 namespace voltdb {
 
 class Table;
@@ -41,7 +41,7 @@ class EvictionIterator;
 class AntiCacheEvictionManager {
         
 public: 
-    AntiCacheEvictionManager(const VoltDBEngine *engine);
+    AntiCacheEvictionManager(const VoltDBEngine *engine, AntiCacheDBType dbType);
     ~AntiCacheEvictionManager();
     
     bool updateTuple(PersistentTable* table, TableTuple* tuple, bool is_insert);
@@ -70,7 +70,8 @@ protected:
     
     void printLRUChain(PersistentTable* table, int max, bool forward);
     char *itoa(uint32_t i);
-    
+   
+    AntiCacheDBType m_dbType; 
 }; // AntiCacheEvictionManager class
 
 

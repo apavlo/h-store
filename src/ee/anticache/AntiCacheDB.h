@@ -100,16 +100,16 @@ class AntiCacheDB {
         AntiCacheDB(ExecutorContext *ctx, std::string db_dir, long blockSize);
         ~AntiCacheDB();
 
-        void initialize();
+        virtual void initialize();
 
-        int inline getDBType() {
+        virtual int inline getDBType() {
             return m_dbType;
         }
 
         /*
          * Write a block of serialized tuples out to the anti-cache database
          */
-        void writeBlock(const std::string tableName,
+        virtual void writeBlock(const std::string tableName,
                         int16_t blockId,
                         const int tupleCount,
                         const char* data,
@@ -152,11 +152,6 @@ class AntiCacheDB {
         virtual void shutdownDB();      
         
         int m_dbType;
-        
-        
-        
-        // these may not need to be generic?
-        // char* getBlock(int index);
         
         
 }; // CLASS
