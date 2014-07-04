@@ -101,7 +101,7 @@ class AntiCacheDB {
 
         virtual void initialize();
 
-        virtual AntiCacheDBType inline getDBType() {
+        AntiCacheDBType inline getDBType() {
             return m_dbType;
         }
 
