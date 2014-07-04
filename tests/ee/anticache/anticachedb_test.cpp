@@ -80,20 +80,19 @@ TEST_F(AntiCacheDBTest, WriteBlock) {
         ASSERT_TRUE(false);
     }
 }*/
-/*TEST_F(AntiCacheDBTest, AntiCacheDBType) {
+TEST_F(AntiCacheDBTest, AntiCacheDBType) {
     ChTempDir tempdir;
 
     BerkeleyAntiCacheDB berkeleyanticache(NULL, ".", BLOCK_SIZE);
-    NVMAntiCacheDB nvmanticache(NULL, ".", BLOCK_SIZE);
+    //NVMAntiCacheDB nvmanticache(NULL, ".", BLOCK_SIZE);
 
-    AntiCacheDB baseanticache = <dynamic_cast>(anticache);
+    ASSERT_EQ(berkeleyanticache.getDBType(), ANTICACHEDB_BERKELEY);
+    //ASSERT_EQ(nvmanticache.getDBType(), ANTICACHEDB_NVM);
     
-    ASSERT_EQ(anticache.getDBType, ANTICACHEDB_BERKELEY);
-    ASSERT_EQ(baseanticache.getDBType, ANTICACHEDB_BERKELEY);
+    //ASSERT_EQ(baseanticache.getDBType(), ANTICACHEDB_BERKELEY);
 
-    baseanticache = dynamic_cast<AntiCacheDB>(
 }
-*/
+
 
 
 TEST_F(AntiCacheDBTest, ReadBlock) {
@@ -105,7 +104,6 @@ TEST_F(AntiCacheDBTest, ReadBlock) {
     BerkeleyAntiCacheDB anticache(NULL, ".", BLOCK_SIZE);
 
     //AntiCacheDB anticache(NULL, ".", BLOCK_SIZE);
-    //ASSERT_TRUE(anticache->getDBType == AntiCacheDBType::ANTICACHEDB_BERKELEY);
 
     string tableName("FAKE");
     string payload("Test Read");
