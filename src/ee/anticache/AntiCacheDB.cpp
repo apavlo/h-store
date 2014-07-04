@@ -46,7 +46,11 @@ AntiCacheBlock::AntiCacheBlock(int16_t blockId, char* block, long size) {
     m_size = size;
 }
 
-AntiCacheBlock::~AntiCacheBlock() {};
+AntiCacheBlock::~AntiCacheBlock() {}
+
+////////////////////////////////
+// public
+///////////////////////////////
 
 AntiCacheDB::AntiCacheDB(ExecutorContext *ctx, std::string db_dir, long blockSize) :
     m_executorContext(ctx),
@@ -62,8 +66,9 @@ AntiCacheDB::AntiCacheDB(ExecutorContext *ctx, std::string db_dir, long blockSiz
     //#endif
 }
 
-AntiCacheDB::~AntiCacheDB() {};
+AntiCacheDB::~AntiCacheDB() {}
 
+void AntiCacheDB::initialize() {}
 
 void AntiCacheDB::writeBlock(const std::string tableName,
                              int16_t blockId,
@@ -80,5 +85,10 @@ AntiCacheBlock AntiCacheDB::readBlock(std::string tableName, int16_t blockId) {
 
 void AntiCacheDB::flushBlocks() {}    
 
-}
+////////////////////////////
+// protected
+////////////////////////////
 
+void AntiCacheDB::shutdownDB() {}
+
+}
