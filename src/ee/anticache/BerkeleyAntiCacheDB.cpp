@@ -18,7 +18,9 @@ using namespace std;
 namespace voltdb {
     
 //BerkeleyAntiCacheBlock::BerkeleyAntiCacheBlock(int16_t blockId, Dbt value) {
-BerkeleyAntiCacheBlock::BerkeleyAntiCacheBlock(int16_t blockId, char* v, long size) {
+BerkeleyAntiCacheBlock::BerkeleyAntiCacheBlock(int16_t blockId, char* v, long size) :
+    AntiCacheBlock(blockId, v, size)
+{
     Dbt* value = reinterpret_cast<Dbt*>(v);
     m_buf = (char *) value->get_data();
         

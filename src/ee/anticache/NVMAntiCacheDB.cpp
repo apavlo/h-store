@@ -39,7 +39,9 @@ using namespace std;
 
 namespace voltdb {
 
-NVMAntiCacheBlock::NVMAntiCacheBlock(int16_t blockId, char* block, long size) {
+NVMAntiCacheBlock::NVMAntiCacheBlock(int16_t blockId, char* block, long size) :
+    AntiCacheBlock(blockId, block, size)
+{
     m_block = block;
     m_blockId = blockId;
     m_size = size;
@@ -192,6 +194,13 @@ NVMAntiCacheBlock NVMAntiCacheDB::readBlock(std::string tableName, int16_t block
    return (anticache_block);
 }
 
+void NVMAntiCacheDB::flushBlocks() {
+   // do we need some kind of sync?
+}
+
+////////////////////////////////////////
+// private:
+////////////////////////////////////////
 
 char* NVMAntiCacheDB::getNVMBlock(int index) {
     

@@ -51,8 +51,8 @@ class AntiCacheBlock {
     
     public:
 //        AntiCacheBlock(int16_t blockId, Dbt value);
-        AntiCacheBlock();
-//        ~AntiCacheBlock();
+//        AntiCacheBlock(int16_t blockId, char* block, long size);
+        ~AntiCacheBlock();
         
         inline int16_t getBlockId() const {
             return m_blockId;
@@ -97,7 +97,7 @@ class AntiCacheDB {
     public: 
         // probably want to remove db_dir and add a "db_type" field
         AntiCacheDB(ExecutorContext *ctx, std::string db_dir, long blockSize);
-//        ~AntiCacheDB();
+        ~AntiCacheDB();
 
         virtual void initialize();
 
