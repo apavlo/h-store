@@ -47,6 +47,8 @@
 #include "anticache/EvictionIterator.h"
 #include "storage/persistenttable.h"
 
+#define RANDOM_SCALE 4
+
 namespace voltdb {
     
 
@@ -59,28 +61,79 @@ EvictionIterator::EvictionIterator(Table *t)
     is_first = true; 
 }
 
+#ifdef ANTICACHE_TIMESTAMPS
+void EvictionIterator::reserve(int64_t amount) {
+    char* addr;
+    PersistentTable* ptable = static_cast<PersistentTable*>(table);
+    int tuple_size = ptable->m_schema->tupleLength() + TUPLE_HEADER_SIZE;
+    int evict_num = (int)(amount / tuple_size);
+
+    int used_tuple = (int)ptable->usedTupleCount(); // should be more careful here. what's the typical size?
+    if (evict_num > used_tuple)
+        evict_num = used_tuple;
+
+    int pick_num = evict_num * RANDOM_SCALE;
+    // TODO: If pick_num is too big or evict_num is too small, should we use scanning instead?
+
+    int block_num = (int)ptable->m_data.size();
+    int block_size = ptable->m_tuplesPerBlock;
+
+    // TODO: This should be valid in the final version
+    // srand(time(0));
+    TableTuple *tmpTuple = new TableTuple(ptable->m_schema);
+
+    candidates = priority_queue <pair <uint32_t, char*> >();
+
+    for (int i = 0; i < pick_num; i++) {
+        // should we use a faster random generator?
+        addr = ptable->m_data[rand() % block_num];
+        addr += rand() % block_size * tuple_size;
+
+        tmpTuple->move(addr);
+
+        if (!tmpTuple->isActive() || tmpTuple->isEvicted())
+            continue;
+
+        candidates.push(make_pair(tmpTuple->getTimeStamp(), addr));
+        if (candidates.size() > evict_num) candidates.pop();
+    }
+}
+#endif
+
+
 EvictionIterator::~EvictionIterator()
 {
+#ifdef ANTICACHE_TIMESTAMPS
+    while (!candidates.empty())
+        candidates.pop();
+#endif
 }
     
 bool EvictionIterator::hasNext()
 {        
     PersistentTable* ptable = static_cast<PersistentTable*>(table);
     
-    if(current_tuple_id == ptable->getNewestTupleID())
-        return false;
     if(ptable->usedTupleCount() == 0)
         return false; 
+
+#ifndef ANTICACHE_TIMESTAMP
+    if(current_tuple_id == ptable->getNewestTupleID())
+        return false;
     if(ptable->getNumTuplesInEvictionChain() == 0) { // there are no tuples in the chain
         VOLT_DEBUG("There are no tuples in the eviction chain.");
         return false; 
     }
+#else
+    if (candidates.empty())
+        return false;
+#endif
     
     return true; 
 }
 
 bool EvictionIterator::next(TableTuple &tuple)
 {    
+#ifndef ANTICACHE_TIMESTAMPS
     PersistentTable* ptable = static_cast<PersistentTable*>(table);
 
     if(current_tuple_id == ptable->getNewestTupleID()) // we've already returned the last tuple in the chain
@@ -111,6 +164,10 @@ bool EvictionIterator::next(TableTuple &tuple)
     tuple.move(current_tuple->address()); 
     
     VOLT_DEBUG("current_tuple_id = %d", current_tuple_id);
+#else
+    tuple.move(candidates.top().second);
+    candidates.pop();
+#endif
     
     return true; 
 }

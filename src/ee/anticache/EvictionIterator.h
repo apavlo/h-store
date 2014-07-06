@@ -49,6 +49,7 @@
 
 #include "storage/TupleIterator.h"
 #include "storage/table.h"
+#include <queue>
 
 namespace voltdb {
  
@@ -62,6 +63,9 @@ public:
     
     bool hasNext(); 
     bool next(TableTuple &out);
+#ifdef ANTICACHE_TIMESTAMPS
+    void reserve(int64_t amount);
+#endif
     
 private: 
     
@@ -69,9 +73,11 @@ private:
     uint32_t current_tuple_id;
     TableTuple* current_tuple;
     bool is_first; 
+#ifdef ANTICACHE_TIMESTAMPS
+    priority_queue <pair <uint32_t, char*> > candidates;
+#endif
 }; 
 
 }
 
 #endif
-

@@ -722,7 +722,7 @@ public final class HStoreConf {
         @ConfigProperty(
             description="Enable the anti-cache timestamps feature. This requires that the system " +
             		    "is compiled with ${site.anticache_timestamps} set to true.",
-            defaultBoolean=false,
+            defaultBoolean=true,
             experimental=true
         )
         public boolean anticache_timestamps;

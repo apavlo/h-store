@@ -315,8 +315,8 @@ public:
 
 	#else
     	inline uint32_t getTimeStamp() {
-        	uint32_t tuple_id = 0;
-	        memcpy(&tuple_id, m_data+TUPLE_HEADER_SIZE-4, 4);
+        	uint32_t current_time = 0;
+	        memcpy(&current_time, m_data+TUPLE_HEADER_SIZE-4, 4);
    	     
     	    return tuple_id; 
     	}

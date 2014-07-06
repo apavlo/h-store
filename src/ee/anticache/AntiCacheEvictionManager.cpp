@@ -540,6 +540,9 @@ bool AntiCacheEvictionManager::evictBlockToDisk(PersistentTable *table, const lo
     // Iterate through the table and pluck out tuples to put in our block
     TableTuple tuple(table->m_schema);
     EvictionIterator evict_itr(table);
+#ifdef ANTICACHE_TIMESTAMPS
+    evict_itr.reserve((int64_t)block_size * num_blocks);
+#endif
 
     for(int i = 0; i < num_blocks; i++)
     {
