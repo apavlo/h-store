@@ -164,6 +164,7 @@ public:
     
 };
 
+#ifndef ANTICACHE_TIMESTAMPS
 TEST_F(AntiCacheEvictionManagerTest, GetTupleID)
 {
     initTable(true); 
@@ -439,6 +440,113 @@ TEST_F(AntiCacheEvictionManagerTest, UpdateIndexPerformance)
 //     ASSERT_EQ(oldest_tuple_id, m_table->getNewestTupleID()); 
 //   
 // }
+#else
+TEST_F(AntiCacheEvictionManagerTest, GetTupleTimeStamp)
+{
+    initTable(true); 
+    
+    TableTuple tuple = m_table->tempTuple();
+    
+    tuple.setNValue(0, ValueFactory::getIntegerValue(m_tuplesInserted++));
+    tuple.setNValue(1, ValueFactory::getIntegerValue(rand()));
+    m_table->insertTuple(tuple);
+    
+    // get the tuple that was just inserted
+    tuple = m_table->lookupTuple(tuple); 
+    
+    uint32_t time_stamp = m_table->getTimeStamp(tuple.address()); 
+    
+    //ASSERT_NE(tuple_id, -1); 
+    ASSERT_EQ(time_stamp, 0);
+    
+    cleanupTable(); 
+}
+
+TEST_F(AntiCacheEvictionManagerTest, TestEvictionOrder)
+{
+    int num_tuples = 100; 
+
+    initTable(true); 
+      
+    TableTuple tuple = m_table->tempTuple();
+        
+    for(int i = 0; i < num_tuples; i++) // insert 10 tuples
+    {
+        tuple.setNValue(0, ValueFactory::getIntegerValue(m_tuplesInserted++));
+        tuple.setNValue(1, ValueFactory::getIntegerValue(rand()));
+        m_table->insertTuple(tuple);
+    }
+    
+    int num_tuples_deleted = 0; 
+    TableIterator itr(m_table); 
+
+    itr.reserve(20);
+
+    uint32_t oldTimeStamp = INT_MAX;
+
+    while(itr.hasNext()) {
+        itr.next(tuple); 
+        
+        uint32_t newTimeStamp = tuple.getTimeStamp();
+        ASSERT_LE(oldTimeStamp, newTimeStamp);
+        oldTimeStamp = newTimeStamp
+    }
+
+    cleanupTable();
+}
+
+TEST_F(AntiCacheEvictionManagerTest, UpdateIndexPerformance)
+{
+    int num_tuples = 100000;
+    int num_index_updates = 8;
+
+    struct timeval start, end;
+
+    long  seconds, useconds;
+    double mtime; 
+
+    initTable(true); 
+
+    TableTuple tuple = m_table->tempTuple();
+
+    int iterations = 0;
+
+    for(int i = 0; i < num_tuples; i++) // insert tuples
+    {
+        tuple.setNValue(0, ValueFactory::getIntegerValue(m_tuplesInserted++));
+        tuple.setNValue(1, ValueFactory::getIntegerValue(rand()));
+        m_table->insertTuple(tuple);
+    }
+
+    for(int i = 0; i < num_index_updates; i++)
+    {
+        TableIterator itr1(m_table);
+        iterations = 0; 
+        gettimeofday(&start, NULL);
+        while(itr1.hasNext())
+        {
+            itr1.next(tuple);
+            for(int j = 0; j < i+1; j++)
+            {
+                m_table->setEntryToNewAddressForAllIndexes(&tuple, NULL);
+            }
+
+            if(++iterations == 1000)
+                break; 
+        }
+        gettimeofday(&end, NULL);
+
+        seconds  = end.tv_sec  - start.tv_sec;
+        useconds = end.tv_usec - start.tv_usec;
+        mtime = (double)((seconds) * 1000 + useconds/1000);
+
+        VOLT_INFO("total time for 1000 index updates: %f milliseconds", mtime);
+    }
+
+    cleanupTable();
+}
+
+#endif
 
 int main() {
     return TestSuite::globalInstance()->runAll();

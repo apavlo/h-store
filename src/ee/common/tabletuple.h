@@ -315,10 +315,10 @@ public:
 
 	#else
     	inline uint32_t getTimeStamp() {
-        	uint32_t current_time = 0;
-	        memcpy(&current_time, m_data+TUPLE_HEADER_SIZE-4, 4);
+        	uint32_t time_stamp = 0;
+	        memcpy(&time_stamp, m_data+TUPLE_HEADER_SIZE-4, 4);
    	     
-    	    return current_time; 
+    	    return time_stamp; 
     	}
     
 	    inline void setTimeStamp() {
