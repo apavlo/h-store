@@ -744,6 +744,11 @@ bool AntiCacheEvictionManager::evictBlockToDiskInBatch(PersistentTable *table, P
     TableTuple tuple(table->m_schema);
     EvictionIterator evict_itr(table);
 
+#ifdef ANTICACHE_TIMESTAMPS
+    // TODO: what should I do with this?
+    evict_itr.reserve((int64_t)block_size * num_blocks / 2);
+#endif
+
     for(int i = 0; i < num_blocks; i++)
     {
     //    VOLT_INFO("Printing parent's LRU chain");

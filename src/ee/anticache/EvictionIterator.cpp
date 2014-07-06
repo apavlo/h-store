@@ -68,7 +68,7 @@ void EvictionIterator::reserve(int64_t amount) {
     int tuple_size = ptable->m_schema->tupleLength() + TUPLE_HEADER_SIZE;
     int evict_num = (int)(amount / tuple_size);
 
-    int used_tuple = (int)ptable->usedTupleCount(); // should be more careful here. what's the typical size?
+    int used_tuple = (int)ptable->usedTupleCount(); // should be more careful here. what's the typical size? Answer: 256K
     if (evict_num > used_tuple)
         evict_num = used_tuple;
 
