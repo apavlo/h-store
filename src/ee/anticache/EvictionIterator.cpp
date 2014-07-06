@@ -51,7 +51,6 @@
 
 namespace voltdb {
     
-
 EvictionIterator::EvictionIterator(Table *t)
 {
     //ptable = static_cast<PersistentTable*>(table); 
@@ -63,10 +62,12 @@ EvictionIterator::EvictionIterator(Table *t)
 
 #ifdef ANTICACHE_TIMESTAMPS
 void EvictionIterator::reserve(int64_t amount) {
-    char* addr;
+    //printf("amount: %ld\n", amount);
+    char* addr = NULL;
     PersistentTable* ptable = static_cast<PersistentTable*>(table);
     int tuple_size = ptable->m_schema->tupleLength() + TUPLE_HEADER_SIZE;
     int evict_num = (int)(amount / tuple_size);
+    //printf("Count: %lu %lu\n", ptable->usedTupleCount(), ptable->activeTupleCount());
 
     int used_tuple = (int)ptable->usedTupleCount(); // should be more careful here. what's the typical size? Answer: 256K
     if (evict_num > used_tuple)
@@ -82,7 +83,10 @@ void EvictionIterator::reserve(int64_t amount) {
     // srand(time(0));
     TableTuple *tmpTuple = new TableTuple(ptable->m_schema);
 
+
     candidates = priority_queue <pair <uint32_t, char*> >();
+
+    //printf("evict pick num: %d %d\n", evict_num, pick_num);
 
     for (int i = 0; i < pick_num; i++) {
         // should we use a faster random generator?
@@ -91,12 +95,17 @@ void EvictionIterator::reserve(int64_t amount) {
 
         tmpTuple->move(addr);
 
+        //printf("addr: %p\n", addr);
+
         if (!tmpTuple->isActive() || tmpTuple->isEvicted())
             continue;
+
+        //printf("here!!\n");
 
         candidates.push(make_pair(tmpTuple->getTimeStamp(), addr));
         if (candidates.size() > evict_num) candidates.pop();
     }
+    //printf("Size: %lu\n", candidates.size());
 }
 #endif
 
@@ -111,12 +120,15 @@ EvictionIterator::~EvictionIterator()
     
 bool EvictionIterator::hasNext()
 {        
+    //printf("Size: %lu\n", candidates.size());
     PersistentTable* ptable = static_cast<PersistentTable*>(table);
+
+    //printf("Count: %lu %lu\n", ptable->usedTupleCount(), ptable->activeTupleCount());
     
     if(ptable->usedTupleCount() == 0)
         return false; 
 
-#ifndef ANTICACHE_TIMESTAMP
+#ifndef ANTICACHE_TIMESTAMPS
     if(current_tuple_id == ptable->getNewestTupleID())
         return false;
     if(ptable->getNumTuplesInEvictionChain() == 0) { // there are no tuples in the chain

@@ -454,10 +454,9 @@ TEST_F(AntiCacheEvictionManagerTest, GetTupleTimeStamp)
     // get the tuple that was just inserted
     tuple = m_table->lookupTuple(tuple); 
     
-    uint32_t time_stamp = m_table->getTimeStamp(tuple.address()); 
-    
-    //ASSERT_NE(tuple_id, -1); 
-    ASSERT_EQ(time_stamp, 0);
+    uint32_t time_stamp = tuple.getTimeStamp();
+
+    ASSERT_NE(time_stamp, 0);
     
     cleanupTable(); 
 }
@@ -469,6 +468,8 @@ TEST_F(AntiCacheEvictionManagerTest, TestEvictionOrder)
     initTable(true); 
       
     TableTuple tuple = m_table->tempTuple();
+    int tuple_size = m_tableSchema->tupleLength() + TUPLE_HEADER_SIZE;
+
         
     for(int i = 0; i < num_tuples; i++) // insert 10 tuples
     {
@@ -477,10 +478,11 @@ TEST_F(AntiCacheEvictionManagerTest, TestEvictionOrder)
         m_table->insertTuple(tuple);
     }
     
-    int num_tuples_deleted = 0; 
-    TableIterator itr(m_table); 
+    EvictionIterator itr(m_table); 
 
-    itr.reserve(20);
+    itr.reserve(20 * tuple_size);
+
+    ASSERT_TRUE(itr.hasNext());
 
     uint32_t oldTimeStamp = INT_MAX;
 
@@ -488,13 +490,14 @@ TEST_F(AntiCacheEvictionManagerTest, TestEvictionOrder)
         itr.next(tuple); 
         
         uint32_t newTimeStamp = tuple.getTimeStamp();
-        ASSERT_LE(oldTimeStamp, newTimeStamp);
-        oldTimeStamp = newTimeStamp
+        ASSERT_GE(oldTimeStamp, newTimeStamp);
+        oldTimeStamp = newTimeStamp;
     }
 
     cleanupTable();
 }
 
+// still couldn't pass
 TEST_F(AntiCacheEvictionManagerTest, UpdateIndexPerformance)
 {
     int num_tuples = 100000;

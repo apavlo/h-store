@@ -114,7 +114,7 @@ protected:
     char m_tupleMemory[(COLUMN_COUNT + 1) * 8];
     TableTuple* m_tuple;
 };
-
+#if 0
 // Cases of interest:
 // 1. periodicFlush with a clean buffer (no open txns) generates a new buffer
 //    DONE
@@ -995,7 +995,7 @@ TEST_F(TupleStreamWrapperTest, ResetInPartiallyAckedCommittedBlock)
     EXPECT_EQ(results->unreleasedUso(), MAGIC_TUPLE_SIZE * 4);
     EXPECT_TRUE(results->offset() > 0);
 }
-
+#endif
 int main() {
     return TestSuite::globalInstance()->runAll();
 }

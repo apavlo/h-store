@@ -226,7 +226,7 @@ public:
 
     int64_t m_undoToken;
 };
-
+#if 0
 TEST_F(CopyOnWriteTest, CopyOnWriteIterator) {
     initTable(true);
     addRandomUniqueTuples( m_table, 699048);
@@ -535,7 +535,7 @@ TEST_F(CopyOnWriteTest, BigTestUndoEverything) {
         ASSERT_TRUE(originalTuples == COWTuples);
     }
 }
-
+#endif
 int main() {
     return TestSuite::globalInstance()->runAll();
 }

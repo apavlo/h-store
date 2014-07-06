@@ -244,7 +244,8 @@ bool AntiCacheEvictionManager::updateTuple(PersistentTable* table, TableTuple* t
 
     table->setNumTuplesInEvictionChain(tuples_in_chain);
 #else
-	tuple->setTimeStamp();
+    TableTuple update_tuple(tuple->address(), table->m_schema);
+	update_tuple.setTimeStamp();
 #endif
         
     return true; 

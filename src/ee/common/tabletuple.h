@@ -322,13 +322,15 @@ public:
     	}
     
 	    inline void setTimeStamp() {
-			unsigned int current_time;
-			__asm__ ("rdtsc": "=d" (current_time));
+			uint32_t current_time = 0;
+			__asm__ __volatile__ ("rdtsc": "=d" (current_time));
+            current_time = INT_MAX - current_time;
+            //printf("A time stamp: %u\n", current_time);
     	    memcpy(m_data+TUPLE_HEADER_SIZE-4, &current_time, 4);
     	}
 
 	    inline void setColdTimeStamp() {
-			unsigned int cold_time = 0;
+			uint32_t cold_time = INT_MAX;
     	    memcpy(m_data+TUPLE_HEADER_SIZE-4, &cold_time, 4);
     	}
 	#endif
