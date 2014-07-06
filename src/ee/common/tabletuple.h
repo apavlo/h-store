@@ -318,7 +318,7 @@ public:
         	uint32_t current_time = 0;
 	        memcpy(&current_time, m_data+TUPLE_HEADER_SIZE-4, 4);
    	     
-    	    return tuple_id; 
+    	    return current_time; 
     	}
     
 	    inline void setTimeStamp() {
