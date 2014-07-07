@@ -18,12 +18,8 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.regex.Pattern;
 
-//import javax.json.Json;
-//import javax.json.JsonObject;
-//import javax.json.JsonReader;
-//import javax.json.JsonStructure;
-
 import org.apache.log4j.Logger;
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.JSONTokener;
@@ -57,166 +53,241 @@ import edu.brown.utils.CollectionUtil;
 
 
 public class MyClient {
-    final int port;
-    Catalog catalog;
-    Client client;
-    InputClientConnection icc;
-    ServerSocket serverSocket;
+	final int port;
+	Catalog catalog;
+	Client client;
+	InputClientConnection icc;
+	ServerSocket serverSocket;
 
-    MyClient() {
-        this.port = 21212;
-        this.catalog = new Catalog();
-        this.icc = this.getClientConnection("localhost");
-        this.client = icc.client;
-        try {
-            this.serverSocket = new ServerSocket(6000);
-        } catch (IOException e) {
-            System.out.println("Error creating socket on port 6000");
-            e.printStackTrace();
-        }
-    }
-    
-    public void parseJSON(String s) {
-    	JSONObject j;
+	MyClient() {
+		this.port = HStoreConstants.DEFAULT_PORT; //21212
+		this.catalog = new Catalog();
+		this.icc = this.getClientConnection("localhost");
+		this.client = icc.client;
+		try {
+			this.serverSocket = new ServerSocket(6000);
+		} catch (IOException e) {
+			System.out.println("Error creating socket on port 6000");
+			e.printStackTrace();
+		}
+	}
+
+	//Take a json message from the socket and parse it for the procedure
+	//name and arguments.  Make a call to the specified procedure and return
+	//the array of VoltTables.
+	public VoltTable [] callStoredProcedure(String s, MyClient myc) {
+		JSONObject j;
+		VoltTable [] results;
+		System.out.println("Calling stored procedure");
 		try {
 			j = new JSONObject(s);
-			System.out.println("Starting to parse...");
-			System.out.println(j.get("lat"));
-			System.out.println(j.get("long"));
+			String procedureName = j.getString("proc");
+			JSONArray args = j.getJSONArray("args");
+			if (args.length() == 0) {
+				results = myc.client.callProcedure(procedureName).getResults();
+				return results;
+			}
+			if (args.length() == 1) {
+				results = myc.client.callProcedure(procedureName, args.get(0)).getResults();
+				return results;
+			}
+			if (args.length() == 2) {
+				results = myc.client.callProcedure(procedureName, args.get(0), args.get(1)).getResults();
+				return results;
+			}
+			System.out.println(j.get("proc"));
 		} catch (JSONException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
+		} catch (NoConnectionsException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (ProcCallException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		}
-    }
+		return null;
+	}
 
-     private class InputClientConnection {
-        final Client client;
-        final String hostname;
-        final int port;
+	public ArrayList<String> parseResults(VoltTable vt) {
+		System.out.println("Parsing results from S-Store");
+		JSONObject j = new JSONObject();
+		ArrayList<String> s = new ArrayList<String>();
+		final int colCount = vt.getColumnCount();
+		vt.resetRowPosition();
+		if (colCount == 1 && vt.getRowCount() == 1) {
+			s.add(String.valueOf(vt.asScalarLong()));
+			return s;
+		}
+		while (vt.advanceRow()) {
+			for (int col = 0; col < colCount; col++) {
+				switch(vt.getColumnType(col)) {
+				case INTEGER: case BIGINT:
+					try {
+						j.put(vt.getColumnName(col), vt.getLong(col));
+					} catch (JSONException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+					break;
+				case STRING:
+					try {
+						j.put(vt.getColumnName(col), vt.getString(col));
+					} catch (JSONException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+					break;
+				case DECIMAL:
+					try {
+						j.put(vt.getColumnName(col), vt.getDecimalAsBigDecimal(col));
+					} catch (JSONException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+					break;
+				case FLOAT:
+					try {
+						j.put(vt.getColumnName(col), vt.getDouble(col));
+					} catch (JSONException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+					break;
+				}
+			}
+			s.add(j.toString());
+		}
+		return s;
+	}
 
-        public InputClientConnection(Client client, String hostname, int port) {
-            this.client = client;
-            this.hostname = hostname;
-            this.port = port;
-        }
-    } // CLASS
+	//Used to grab information about where S-Store is running and establish a
+	//connection to the db
+	private class InputClientConnection {
+		final Client client;
+		final String hostname;
+		final int port;
 
-    private InputClientConnection getClientConnection(String host) {
-        String hostname = null;
-        int port = -1;
+		public InputClientConnection(Client client, String hostname, int port) {
+			this.client = client;
+			this.hostname = hostname;
+			this.port = port;
+		}
+	} // CLASS
 
-        // Fixed hostname
-        if (host != null) {
-            if (host.contains(":")) {
-                String split[] = host.split("\\:", 2);
-                hostname = split[0];
-                port = Integer.valueOf(split[1]);
-            } else {
-                hostname = host;
-                port = this.port;
-            }
-        }
-        // Connect to random host and using a random port that it's listening on
-        else if (this.catalog != null) {
-            Site catalog_site = CollectionUtil.random(CatalogUtil.getAllSites(this.catalog));
-            hostname = catalog_site.getHost().getIpaddr();
-            port = catalog_site.getProc_port();
-        }
-        assert(hostname != null);
-        assert(port > 0);
+	private InputClientConnection getClientConnection(String host) {
+		String hostname = null;
+		int port = -1;
 
-        /*if (debug.val)
+		// Fixed hostname
+		if (host != null) {
+			if (host.contains(":")) {
+				String split[] = host.split("\\:", 2);
+				hostname = split[0];
+				port = Integer.valueOf(split[1]);
+			} else {
+				hostname = host;
+				port = this.port;
+			}
+		}
+		// Connect to random host and using a random port that it's listening on
+		else if (this.catalog != null) {
+			Site catalog_site = CollectionUtil.random(CatalogUtil.getAllSites(this.catalog));
+			hostname = catalog_site.getHost().getIpaddr();
+			port = catalog_site.getProc_port();
+		}
+		assert(hostname != null);
+		assert(port > 0);
+
+		/*if (debug.val)
             LOG.debug(String.format("Creating new client connection to %s:%d",
                       hostname, port));*/
-        System.out.println(String.format("Creating new client connection to %s:%d",
-                      hostname, port));
-        Client client = ClientFactory.createClient(128, null, false, null);
-        try {
-            client.createConnection(null, hostname, port, "user", "password");
-            System.out.println("BatchRunner: connection is ok ... ");
-        } catch (Exception ex) {
-            String msg = String.format("Failed to connect to HStoreSite at %s:%d", hostname, port);
-            throw new RuntimeException(msg);
-        }
-        return new InputClientConnection(client, hostname, port);
-    }
+		System.out.println(String.format("Creating new client connection to %s:%d",
+				hostname, port));
+		Client client = ClientFactory.createClient(128, null, false, null);
+		try {
+			client.createConnection(null, hostname, port, "user", "password");
+			System.out.println("BatchRunner: connection is ok ... ");
+		} catch (Exception ex) {
+			String msg = String.format("Failed to connect to HStoreSite at %s:%d", hostname, port);
+			throw new RuntimeException(msg);
+		}
+		return new InputClientConnection(client, hostname, port);
+	}
 
-    public static void main(String [] args) {
-        MyClient myc = new MyClient();
-        JSONObject json = new JSONObject();
-        try {
+	public static void main(String [] args) {
+		MyClient myc = new MyClient();
+		JSONObject json = new JSONObject();
+		try {
 			json.put("type", "CONNECT");
 		} catch (JSONException e1) {
 			// TODO Auto-generated catch block
 			e1.printStackTrace();
 		}
-        try {
-            if (myc.client == null) {
-                System.out.println("Everything is terrible");
-            }
-            //myc.client.callProcedure("CheckoutBike", 111111);
-            else {
-                Socket api = myc.serverSocket.accept();
-                String proc = null;
-                while (proc == null) {
-                	BufferedReader apiCall = new BufferedReader(new InputStreamReader(api.getInputStream()));
-                	proc = apiCall.readLine();
-                	myc.parseJSON(proc);
-                	String [] api_args = proc.split(" ");
-                	ClientResponse cr = myc.client.callProcedure("@AdHoc", "SELECT * FROM bikes");
-                	VoltTable [] vt = cr.getResults();
-                	for (VoltTable vtr: vt) {
-                		System.out.println(vtr.toString());
-                	}
-                	OutputStreamWriter out = new OutputStreamWriter(api.getOutputStream(), "UTF-8");
-                	out.write(json.toString());
-                	out.flush();
-                    /*
-                	switch (api_args[0]) {
-                	case "Stations":
-                		//call get all stations method
-                	case "checkout":
-                		ClientResponse cr = myc.client.callProcedure("CheckoutBike", 63235);
-                		VoltTable [] vt = cr.getResults();
-                		System.out.println(vt[0].getString(0));
-                		//call checkout method
-                	case "return":
-                		//call return bike method
-                	case "speed":
-                		//call calculate speed method
-                	case "stolen":
-                		//call detect stolen method
-                	case "distance":
-                		//call distance traveled method
-                	case "calories":
-                		//call calories burned method
-                	case "nearby":
-                		//call nearby stations method
-                	}
-                    */
-                }
-                //ClientResponse cr = myc.client.callProcedure(proc, 3);
-                //VoltTable [] vt = cr.getResults();
-                	
-                //myc.client.callProcedure("SimpleCall");
-                //myc.client.callProcedure("Initialize");
-                //myc.client.callProcedure("SignUp", 3);
-                //myc.client.callProcedure("CheckoutBike", 3);
-            }
-        } catch (NoConnectionsException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        } catch (IOException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        } /*catch (ProcCallException e) {
+		try {
+			if (myc.client == null) {
+				System.out.println("Everything is terrible");
+			}
+			else {
+				while (true) {
+					String proc;
+					String jsonMessage;
+					ArrayList<String> rows = new ArrayList<String>();
+					JSONObject j;
+					JSONArray jsonArray = new JSONArray();
+					Socket api = myc.serverSocket.accept();
+					System.out.println("Connected to " + api.getInetAddress());
+					System.out.println("Starting while loop");
+					BufferedReader apiCall = new BufferedReader(new InputStreamReader(api.getInputStream()));
+					System.out.println("Received input stream");
+					proc = apiCall.readLine();
+					VoltTable [] results = myc.callStoredProcedure(proc, myc);
+					System.out.println(results[0].toString());
+					for (VoltTable vt: results) {
+						if (vt.getColumnCount() == 1 && vt.getRowCount() == 1) {
+							j = new JSONObject();
+							j.put("data", jsonArray);
+							j.put("success", vt.asScalarLong());
+							ArrayList<String>temp = new ArrayList<String>();
+							temp.add(String.valueOf(vt.asScalarLong()));
+							rows = temp;
+						}
+						else {
+							rows = myc.parseResults(vt);
+							int rownum = 1;
+							for (String s: rows) {
+								jsonArray.put(new JSONObject(s));
+								System.out.println("Added a row to the json object");
+								System.out.println(jsonArray.toString());
+							}
+							System.out.println(jsonArray.toString());
+							j = new JSONObject();
+							j.put("data", jsonArray);
+							j.put("success", 1);
+						}
+						jsonMessage = j.toString();
+						OutputStreamWriter out = new OutputStreamWriter(api.getOutputStream(), "UTF-8");
+						out.write(jsonMessage, 0, jsonMessage.length());
+						out.flush();
+						System.out.println("Done sending rows");
+						api.close();
+					}
+				}
+			}
+		} catch (NoConnectionsException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
-		}*/ catch (ProcCallException e) {
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (JSONException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-        System.out.print("hello");
-    }
-  
+		System.out.print("hello");
+	}
+
 }

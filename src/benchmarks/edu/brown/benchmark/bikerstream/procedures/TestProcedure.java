@@ -52,10 +52,10 @@ public class TestProcedure extends VoltProcedure {
                 "SELECT * FROM stations"
             );
 
-    public long run() {
+    public VoltTable [] run() {
         voltQueueSQL(getStation);
-        voltExecuteSQL(true);
-        return 0;
+        return voltExecuteSQL(true);
+        //return 0;
     }
 
 } // End Class
