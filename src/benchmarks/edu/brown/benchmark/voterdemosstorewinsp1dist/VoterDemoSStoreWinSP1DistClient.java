@@ -41,6 +41,7 @@ import org.voltdb.client.ClientResponse;
 import org.voltdb.client.ProcedureCallback;
 
 import weka.classifiers.meta.Vote;
+
 import edu.brown.api.BenchmarkComponent;
 import edu.brown.benchmark.voterdemosstorewinsp1dist.procedures.GenerateLeaderboard;
 import edu.brown.hstore.Hstoreservice.Status;
@@ -59,7 +60,7 @@ public class VoterDemoSStoreWinSP1DistClient extends BenchmarkComponent {
     AtomicBoolean warmupComplete = new AtomicBoolean(false);
     AtomicBoolean benchmarkComplete = new AtomicBoolean(false);
 
-    // voterdemosstorewinsp1dist benchmark state
+    // voterdemosstorewinsp1 benchmark state
     AtomicLong acceptedVotes = new AtomicLong(0);
     AtomicLong badContestantVotes = new AtomicLong(0);
     AtomicLong badVoteCountVotes = new AtomicLong(0);

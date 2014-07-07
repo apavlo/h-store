@@ -62,7 +62,7 @@ public class VoterDemoSStoreWinSP1DistProjectBuilder extends AbstractProjectBuil
     public static final String PARTITIONING[][] = new String[][] {
         { "votes", "phone_number" },
         { "contestants", "contestant_number" },
-        { "trending_leaderboard", "phone_number" },
+        { "trending_leaderboard", "contestant_number" },
         { "top_three_last_30_sec", "contestant_number" },
         { "voteCount", "row_id"},
         { "totalVoteCount", "row_id"},
