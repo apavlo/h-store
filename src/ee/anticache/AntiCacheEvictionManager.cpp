@@ -160,7 +160,7 @@ bool AntiCacheEvictionManager::updateUnevictedTuple(PersistentTable* table, Tabl
     ++tuples_in_chain; 
     table->setNumTuplesInEvictionChain(tuples_in_chain); 
 #else
-	tuple->setColdTimeStamp();
+    tuple->setColdTimeStamp();
 #endif
     
     return true; 
@@ -245,7 +245,7 @@ bool AntiCacheEvictionManager::updateTuple(PersistentTable* table, TableTuple* t
     table->setNumTuplesInEvictionChain(tuples_in_chain);
 #else
     TableTuple update_tuple(tuple->address(), table->m_schema);
-	update_tuple.setTimeStamp();
+    update_tuple.setTimeStamp();
 #endif
         
     return true; 
@@ -847,10 +847,10 @@ bool AntiCacheEvictionManager::evictBlockToDiskInBatch(PersistentTable *table, P
             }
             parentTuples++;
        
-			#ifndef ANTICACHE_TIMESTAMPS
+            #ifndef ANTICACHE_TIMESTAMPS
             // remove the tuple from the eviction chain
             removeTuple(table, &tuple);
-			#endif
+            #endif
 
             if (tuple.isEvicted()) {
                 // VOLT_INFO("Tuple %d is already evicted. Skipping", table->getTupleID(tuple.address()));
@@ -1161,9 +1161,9 @@ bool AntiCacheEvictionManager::mergeUnevictedTuples(PersistentTable *table)
 
     #ifdef VOLT_INFO_ENABLED
     int active_tuple_count = (int)table->activeTupleCount();
-	#ifndef ANTICACHE_TIMESTAMPS
-    	int tuples_in_eviction_chain = (int)table->getNumTuplesInEvictionChain();
-	#endif
+    #ifndef ANTICACHE_TIMESTAMPS
+        int tuples_in_eviction_chain = (int)table->getNumTuplesInEvictionChain();
+    #endif
     #endif
 
     #ifdef VOLT_INFO_ENABLED
@@ -1273,9 +1273,9 @@ table->clearUnevictedBlocks();
 
     #ifdef VOLT_INFO_ENABLED
     VOLT_INFO("Active Tuple Count: %d -- %d", (int)active_tuple_count, (int)table->activeTupleCount());
-	#ifndef ANTICACHE_TIMESTAMPS
-    	VOLT_INFO("Tuples in Eviction Chain: %d -- %d", (int)tuples_in_eviction_chain, (int)table->getNumTuplesInEvictionChain());
-	#endif
+    #ifndef ANTICACHE_TIMESTAMPS
+        VOLT_INFO("Tuples in Eviction Chain: %d -- %d", (int)tuples_in_eviction_chain, (int)table->getNumTuplesInEvictionChain());
+    #endif
     #endif
 
 

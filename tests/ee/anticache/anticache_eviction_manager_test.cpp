@@ -316,8 +316,8 @@ TEST_F(AntiCacheEvictionManagerTest, DeleteMultipleTuples)
                 
                 if(rand() % 2 == 0)  // delete each tuple with probability .5
                 {
-			m_table->deleteTuple(tuple, true); 
-			++num_tuples_deleted; 
+            m_table->deleteTuple(tuple, true); 
+            ++num_tuples_deleted; 
                 }
         }
         
