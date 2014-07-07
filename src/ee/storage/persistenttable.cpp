@@ -181,6 +181,7 @@ PersistentTable::~PersistentTable() {
     if (m_indexes) delete[] m_indexes;
     
     #ifdef ANTICACHE
+    printf("delete from ~PersistentTable(): %p\n", m_evictedTable);
     if (m_evictedTable) delete m_evictedTable;
     #endif
 
