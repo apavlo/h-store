@@ -78,11 +78,11 @@ void EvictionIterator::reserve(int64_t amount) {
 
     int block_num = (int)ptable->m_data.size();
     int block_size = ptable->m_tuplesPerBlock;
+    int location_size;
+    int block_location;
 
     // TODO: This should be valid in the final version
     // srand(time(0));
-    TableTuple *tmpTuple = new TableTuple(ptable->m_schema);
-
 
     candidates = priority_queue <pair <uint32_t, char*> >();
 
@@ -90,19 +90,24 @@ void EvictionIterator::reserve(int64_t amount) {
 
     for (int i = 0; i < pick_num; i++) {
         // should we use a faster random generator?
-        addr = ptable->m_data[rand() % block_num];
-        addr += rand() % block_size * tuple_size;
+        block_location = rand() % block_num;
+        addr = ptable->m_data[block_location];
+        if ((block_location + 1) * block_size > ptable->usedTupleCount())
+            location_size = (int)(ptable->usedTupleCount() - block_location * block_size);
+        else
+            location_size = block_size;
+        addr += (rand() % location_size) * tuple_size;
 
-        tmpTuple->move(addr);
+        current_tuple->move(addr);
 
         //printf("addr: %p\n", addr);
 
-        if (!tmpTuple->isActive() || tmpTuple->isEvicted())
+        if (!current_tuple->isActive() || current_tuple->isEvicted())
             continue;
 
         //printf("here!!\n");
 
-        candidates.push(make_pair(tmpTuple->getTimeStamp(), addr));
+        candidates.push(make_pair(current_tuple->getTimeStamp(), addr));
         if (candidates.size() > evict_num) candidates.pop();
     }
     //printf("Size: %lu\n", candidates.size());
@@ -116,6 +121,7 @@ EvictionIterator::~EvictionIterator()
     while (!candidates.empty())
         candidates.pop();
 #endif
+    delete current_tuple;
 }
     
 bool EvictionIterator::hasNext()
