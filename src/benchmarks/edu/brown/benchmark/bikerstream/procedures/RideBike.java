@@ -55,6 +55,8 @@ public class RideBike extends VoltProcedure {
         "VALUES (?, ?, ?, ?);"
     );
 
+
+
     public long run(long rider_id, double reading_lat, double reading_lon) throws Exception {
 
         try {

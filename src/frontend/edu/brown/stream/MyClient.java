@@ -204,9 +204,6 @@ public class MyClient {
 		assert(hostname != null);
 		assert(port > 0);
 
-		/*if (debug.val)
-            LOG.debug(String.format("Creating new client connection to %s:%d",
-                      hostname, port));*/
 		System.out.println(String.format("Creating new client connection to %s:%d",
 				hostname, port));
 		Client client = ClientFactory.createClient(128, null, false, null);
@@ -230,53 +227,48 @@ public class MyClient {
 			e1.printStackTrace();
 		}
 		try {
-			if (myc.client == null) {
-				System.out.println("Everything is terrible");
-			}
-			else {
-				while (true) {
-					String proc;
-					String jsonMessage;
-					ArrayList<String> rows = new ArrayList<String>();
-					JSONObject j;
-					JSONArray jsonArray = new JSONArray();
-					Socket api = myc.serverSocket.accept();
-					System.out.println("Connected to " + api.getInetAddress());
-					System.out.println("Starting while loop");
-					BufferedReader apiCall = new BufferedReader(new InputStreamReader(api.getInputStream()));
-					System.out.println("Received input stream");
-					proc = apiCall.readLine();
-					VoltTable [] results = myc.callStoredProcedure(proc, myc);
-					System.out.println(results[0].toString());
-					for (VoltTable vt: results) {
-						if (vt.getColumnCount() == 1 && vt.getRowCount() == 1) {
-							j = new JSONObject();
-							j.put("data", jsonArray);
-							j.put("success", vt.asScalarLong());
-							ArrayList<String>temp = new ArrayList<String>();
-							temp.add(String.valueOf(vt.asScalarLong()));
-							rows = temp;
-						}
-						else {
-							rows = myc.parseResults(vt);
-							int rownum = 1;
-							for (String s: rows) {
-								jsonArray.put(new JSONObject(s));
-								System.out.println("Added a row to the json object");
-								System.out.println(jsonArray.toString());
-							}
-							System.out.println(jsonArray.toString());
-							j = new JSONObject();
-							j.put("data", jsonArray);
-							j.put("success", 1);
-						}
-						jsonMessage = j.toString();
-						OutputStreamWriter out = new OutputStreamWriter(api.getOutputStream(), "UTF-8");
-						out.write(jsonMessage, 0, jsonMessage.length());
-						out.flush();
-						System.out.println("Done sending rows");
-						api.close();
+			while (true) {
+				String proc;
+				String jsonMessage;
+				ArrayList<String> rows = new ArrayList<String>();
+				JSONObject j;
+				JSONArray jsonArray = new JSONArray();
+				Socket api = myc.serverSocket.accept();
+				System.out.println("Connected to " + api.getInetAddress());
+				System.out.println("Starting while loop");
+				BufferedReader apiCall = new BufferedReader(new InputStreamReader(api.getInputStream()));
+				System.out.println("Received input stream");
+				proc = apiCall.readLine();
+				VoltTable [] results = myc.callStoredProcedure(proc, myc);
+				System.out.println(results[0].toString());
+				for (VoltTable vt: results) {
+					if (vt.getColumnCount() == 1 && vt.getRowCount() == 1) {
+						j = new JSONObject();
+						j.put("data", jsonArray);
+						j.put("success", vt.asScalarLong());
+						ArrayList<String>temp = new ArrayList<String>();
+						temp.add(String.valueOf(vt.asScalarLong()));
+						rows = temp;
 					}
+					else {
+						rows = myc.parseResults(vt);
+						int rownum = 1;
+						for (String s: rows) {
+							jsonArray.put(new JSONObject(s));
+							System.out.println("Added a row to the json object");
+							System.out.println(jsonArray.toString());
+						}
+						System.out.println(jsonArray.toString());
+						j = new JSONObject();
+						j.put("data", jsonArray);
+						j.put("success", 1);
+					}
+					jsonMessage = j.toString();
+					OutputStreamWriter out = new OutputStreamWriter(api.getOutputStream(), "UTF-8");
+					out.write(jsonMessage, 0, jsonMessage.length());
+					out.flush();
+					System.out.println("Done sending rows");
+					api.close();
 				}
 			}
 		} catch (NoConnectionsException e) {
