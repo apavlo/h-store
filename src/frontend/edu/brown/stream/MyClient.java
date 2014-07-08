@@ -97,6 +97,9 @@ public class MyClient {
 				results = myc.client.callProcedure(procedureName, args.get(0), args.get(1)).getResults();
 				return results;
 			}
+			if (args.length() == 3) {
+				results = myc.client.callProcedure(procedureName, args.get(0), args.get(1), args.get(2)).getResults();
+			}
 			System.out.println(j.get("proc"));
 		} catch (JSONException e) {
 			// TODO Auto-generated catch block
