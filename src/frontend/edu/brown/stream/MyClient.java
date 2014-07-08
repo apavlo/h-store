@@ -219,13 +219,6 @@ public class MyClient {
 
 	public static void main(String [] args) {
 		MyClient myc = new MyClient();
-		JSONObject json = new JSONObject();
-		try {
-			json.put("type", "CONNECT");
-		} catch (JSONException e1) {
-			// TODO Auto-generated catch block
-			e1.printStackTrace();
-		}
 		try {
 			while (true) {
 				String proc;
@@ -252,10 +245,8 @@ public class MyClient {
 					}
 					else {
 						rows = myc.parseResults(vt);
-						int rownum = 1;
 						for (String s: rows) {
 							jsonArray.put(new JSONObject(s));
-							System.out.println("Added a row to the json object");
 							System.out.println(jsonArray.toString());
 						}
 						System.out.println(jsonArray.toString());
@@ -273,15 +264,19 @@ public class MyClient {
 			}
 		} catch (NoConnectionsException e) {
 			// TODO Auto-generated catch block
+			System.out.println("Failure to create client connection");
 			e.printStackTrace();
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
+			System.out.println("Socket connection could not be established");
 			e.printStackTrace();
 		} catch (JSONException e) {
 			// TODO Auto-generated catch block
+			System.out.println("");
 			e.printStackTrace();
+		} finally {
+			
 		}
-		System.out.print("hello");
 	}
 
 }
