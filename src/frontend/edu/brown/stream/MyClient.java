@@ -97,6 +97,9 @@ public class MyClient {
 				results = myc.client.callProcedure(procedureName, args.get(0), args.get(1)).getResults();
 				return results;
 			}
+			if (args.length() == 3) {
+				results = myc.client.callProcedure(procedureName, args.get(0), args.get(1), args.get(2)).getResults();
+			}
 			System.out.println(j.get("proc"));
 		} catch (JSONException e) {
 			if (s == null)
@@ -226,18 +229,32 @@ public class MyClient {
 	public static void main(String [] args) {
 		MyClient myc = new MyClient();
 		try {
+			Socket api = myc.serverSocket.accept();
+			System.out.println("Connected to " + api.getInetAddress());
+			BufferedReader apiCall = new BufferedReader(new InputStreamReader(api.getInputStream()));
 			while (true) {
+				System.out.println("Starting while loop");
+				/*if (api.isClosed()) {
+					System.out.println("Socket was closed");
+					api = myc.serverSocket.accept();
+					System.out.println("Connected to " + api.getInetAddress());
+					apiCall = new BufferedReader(new InputStreamReader(api.getInputStream()));
+				}*/
 				String proc;
 				String jsonMessage;
 				ArrayList<String> rows = new ArrayList<String>();
 				JSONObject j;
 				JSONArray jsonArray = new JSONArray();
-				Socket api = myc.serverSocket.accept();
-				System.out.println("Connected to " + api.getInetAddress());
-				System.out.println("Starting while loop");
-				BufferedReader apiCall = new BufferedReader(new InputStreamReader(api.getInputStream()));
+				//Socket api = myc.serverSocket.accept();
+				//System.out.println("Connected to " + api.getInetAddress());
+				//BufferedReader apiCall = new BufferedReader(new InputStreamReader(api.getInputStream()));
+				while ((proc = apiCall.readLine()) == null) {
+					System.out.println("Received a null string");
+					api = myc.serverSocket.accept();
+					System.out.println("Connected to " + api.getInetAddress());
+					apiCall = new BufferedReader(new InputStreamReader(api.getInputStream()));
+				}
 				System.out.println("Received input stream");
-				proc = apiCall.readLine();
 				VoltTable [] results = myc.callStoredProcedure(proc, myc);
 				System.out.println(results[0].toString());
 				for (VoltTable vt: results) {
@@ -260,12 +277,15 @@ public class MyClient {
 						j.put("data", jsonArray);
 						j.put("success", 1);
 					}
-					jsonMessage = j.toString();
+					jsonMessage = (j.toString() + "\n");
 					OutputStreamWriter out = new OutputStreamWriter(api.getOutputStream(), "UTF-8");
 					out.write(jsonMessage, 0, jsonMessage.length());
 					out.flush();
 					System.out.println("Done sending rows");
-					api.close();
+					/*if (!api.isConnected()) {
+						System.out.println("Closing socket");
+						api.close();
+					}*/
 				}
 			}
 		} catch (NoConnectionsException e) {
