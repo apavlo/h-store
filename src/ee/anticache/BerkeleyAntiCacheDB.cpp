@@ -184,12 +184,11 @@ BerkeleyAntiCacheBlock BerkeleyAntiCacheDB::readBlockBerkeleyDB(int16_t blockId)
     key.set_data(&blockId);
     key.set_size(sizeof(blockId));
 
-    Dbt value;
-    value.set_flags(DB_DBT_MALLOC);
+    m_dbt.set_flags(DB_DBT_MALLOC);
     
     VOLT_DEBUG("Reading evicted block with id %d", blockId);
     
-    int ret_value = m_db->get(NULL, &key, &value, 0);
+    int ret_value = m_db->get(NULL, &key, &m_dbt, 0);
 
     if (ret_value != 0) 
     {
@@ -199,10 +198,10 @@ BerkeleyAntiCacheBlock BerkeleyAntiCacheDB::readBlockBerkeleyDB(int16_t blockId)
     else 
     {
 //        m_db->del(NULL, &key, 0);  // if we have this the benchmark won't end
-        assert(value.get_data() != NULL);
+        assert(m_dbt.get_data() != NULL);
     }
     
-    BerkeleyAntiCacheBlock block(blockId, reinterpret_cast<char*>(&value), 0);
+    BerkeleyAntiCacheBlock block(blockId, reinterpret_cast<char*>(&m_dbt), 0);
     return (block);
 }
 

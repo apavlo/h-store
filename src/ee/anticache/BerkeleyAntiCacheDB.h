@@ -100,6 +100,7 @@ class BerkeleyAntiCacheDB: public AntiCacheDB {
     private:
         //string m_dbDir;
         Db* m_db;
+        Dbt m_dbt;
         DbEnv* m_dbEnv; 
         void shutdownDB();  
         
