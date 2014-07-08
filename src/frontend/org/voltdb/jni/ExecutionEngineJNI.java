@@ -784,7 +784,7 @@ public class ExecutionEngineJNI extends ExecutionEngine {
                  this.executor.getPartitionId(), dbDir.getAbsolutePath()));
         HStoreConf hstore_conf = executor.getHStoreConf();
         AntiCacheDBType dbType = AntiCacheDBType.get(hstore_conf.site.anticache_dbtype);
-        final int errorCode = nativeAntiCacheInitialize(this.pointer, dbDir.getAbsolutePath(), blockSize, dbType);
+        final int errorCode = nativeAntiCacheInitialize(this.pointer, dbDir.getAbsolutePath(), blockSize, dbType.ordinal());
         checkErrorCode(errorCode);
         m_anticache = true;
     }
