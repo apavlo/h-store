@@ -167,7 +167,7 @@ void NVMAntiCacheDB::writeBlock(const std::string tableName,
 }
 
 
-NVMAntiCacheBlock NVMAntiCacheDB::readBlock(std::string tableName, int16_t blockId) {
+AntiCacheBlock NVMAntiCacheDB::readBlock(std::string tableName, int16_t blockId) {
     
    std::map<int16_t, std::pair<int, int32_t> >::iterator itr; 
    itr = m_blockMap.find(blockId); 
@@ -191,7 +191,7 @@ NVMAntiCacheBlock NVMAntiCacheDB::readBlock(std::string tableName, int16_t block
    freeNVMBlock(blockId); 
 
    m_blockMap.erase(itr); 
-   return (anticache_block);
+   return (static_cast<AntiCacheBlock>(anticache_block));
 }
 
 void NVMAntiCacheDB::flushBlocks() {

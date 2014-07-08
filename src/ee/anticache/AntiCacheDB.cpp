@@ -77,11 +77,11 @@ void AntiCacheDB::writeBlock(const std::string tableName,
                              const long size) {
 }
 
-AntiCacheBlock AntiCacheDB::readBlock(std::string tableName, int16_t blockId) {
+/*AntiCacheBlock* AntiCacheDB::readBlock(std::string tableName, int16_t blockId) {
     // we shouldn't get here, just temporary to get this to compile
-    return AntiCacheBlock(-1, NULL, 0); 
+    return new AntiCacheBlock(-1, NULL, 0); 
 
-}
+}*/
 
 void AntiCacheDB::flushBlocks() {}    
 

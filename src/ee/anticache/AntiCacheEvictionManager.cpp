@@ -1064,11 +1064,13 @@ bool AntiCacheEvictionManager::readEvictedBlock(PersistentTable *table, int16_t 
     }
 
     AntiCacheDB* antiCacheDB = table->getAntiCacheDB();
-    
+    //AntiCacheDBType dbType = antiCacheDB->getDBType();
 
     try
     {
-        AntiCacheBlock value = static_cast<AntiCacheBlock>(antiCacheDB->readBlock(table->name(), block_id));
+        
+        AntiCacheBlock value = antiCacheDB->readBlock(table->name(), block_id);
+
 
         // allocate the memory for this block
         VOLT_INFO("block size is %ld - table Name %s", value.getSize(), table->name().c_str());

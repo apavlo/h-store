@@ -63,7 +63,7 @@ class NVMAntiCacheDB: public AntiCacheDB {
                         const long size);
         
         void initialize();
-        NVMAntiCacheBlock readBlock(std::string tableName, int16_t blockId);
+        AntiCacheBlock readBlock(std::string tableName, int16_t blockId);
         
         void flushBlocks();
     private:

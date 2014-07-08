@@ -215,9 +215,9 @@ void BerkeleyAntiCacheDB::writeBlock(const std::string tableName,
         return writeBlockBerkeleyDB(tableName, blockId, tupleCount, data, size);
 }
 
-BerkeleyAntiCacheBlock BerkeleyAntiCacheDB::readBlock(std::string tableName, int16_t blockId) {
+AntiCacheBlock BerkeleyAntiCacheDB::readBlock(std::string tableName, int16_t blockId) {
     
-        return readBlockBerkeleyDB(blockId);
+        return static_cast<AntiCacheBlock>(readBlockBerkeleyDB(blockId));
 }
 
 void BerkeleyAntiCacheDB::flushBlocks() {

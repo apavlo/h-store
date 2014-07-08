@@ -91,7 +91,7 @@ class BerkeleyAntiCacheDB: public AntiCacheDB {
                         const long size);
         
         void initialize();
-        BerkeleyAntiCacheBlock readBlock(std::string tableName, int16_t blockId);
+        AntiCacheBlock readBlock(std::string tableName, int16_t blockId);
 
         // do we need a return flag? Probably success or failure, no?
         
