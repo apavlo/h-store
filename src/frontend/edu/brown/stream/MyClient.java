@@ -99,16 +99,22 @@ public class MyClient {
 			}
 			System.out.println(j.get("proc"));
 		} catch (JSONException e) {
-			// TODO Auto-generated catch block
+			if (s == null)
+				System.out.println("Received null string from client");
+			else {
+				System.out.println("JSON object missing expected fields");
+			}
 			e.printStackTrace();
 		} catch (NoConnectionsException e) {
-			// TODO Auto-generated catch block
+			System.out.println("Connection to S-Store was lost");
 			e.printStackTrace();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
+			if (e.getMessage() != null)
+				System.out.println(e.getMessage());
 			e.printStackTrace();
 		} catch (ProcCallException e) {
-			// TODO Auto-generated catch block
+			if (e.getMessage() != null)
+				System.out.println(e.getMessage());
 			e.printStackTrace();
 		}
 		return null;
@@ -131,7 +137,7 @@ public class MyClient {
 					try {
 						j.put(vt.getColumnName(col), vt.getLong(col));
 					} catch (JSONException e) {
-						// TODO Auto-generated catch block
+						System.out.println("Table column name is null");
 						e.printStackTrace();
 					}
 					break;
@@ -139,7 +145,7 @@ public class MyClient {
 					try {
 						j.put(vt.getColumnName(col), vt.getString(col));
 					} catch (JSONException e) {
-						// TODO Auto-generated catch block
+						System.out.println("Table column name is null");
 						e.printStackTrace();
 					}
 					break;
@@ -147,7 +153,7 @@ public class MyClient {
 					try {
 						j.put(vt.getColumnName(col), vt.getDecimalAsBigDecimal(col));
 					} catch (JSONException e) {
-						// TODO Auto-generated catch block
+						System.out.println("Table column name is null");
 						e.printStackTrace();
 					}
 					break;
@@ -155,7 +161,7 @@ public class MyClient {
 					try {
 						j.put(vt.getColumnName(col), vt.getDouble(col));
 					} catch (JSONException e) {
-						// TODO Auto-generated catch block
+						System.out.println("Table column name is null");
 						e.printStackTrace();
 					}
 					break;
@@ -263,19 +269,17 @@ public class MyClient {
 				}
 			}
 		} catch (NoConnectionsException e) {
-			// TODO Auto-generated catch block
-			System.out.println("Failure to create client connection");
+			System.out.println("Failure to create S-Store client connection");
 			e.printStackTrace();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			System.out.println("Socket connection could not be established");
+			System.out.println("Lost connection to client");
 			e.printStackTrace();
 		} catch (JSONException e) {
-			// TODO Auto-generated catch block
-			System.out.println("");
+			// This exception should never get thrown.
+			// put() throws this in the event of a null string or an incorrect type being passed
+			// as an argument.  The arguments are hard coded, so something catastrophic would have
+			// to occur.
 			e.printStackTrace();
-		} finally {
-			
 		}
 	}
 
