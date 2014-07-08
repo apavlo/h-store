@@ -355,7 +355,7 @@ AntiCacheBlock AntiCacheDB::readBlockNVM(std::string tableName, int16_t blockId)
    }
 
    int blockIndex = itr->second.first; 
-   VOLT_INFO("Reading NVM block: ID = %d, index = %d, size = %ld.", blockId, blockIndex, itr->second.second);
+   VOLT_INFO("Reading NVM block: ID = %d, index = %d, size = %d.", blockId, blockIndex, itr->second.second);
    
    char* block_ptr = getNVMBlock(blockIndex);
    char* block = new char[itr->second.second];

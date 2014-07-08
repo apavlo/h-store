@@ -69,9 +69,9 @@ void EvictionIterator::reserve(int64_t amount) {
     int evict_num = (int)(amount / tuple_size);
     //printf("Count: %lu %lu\n", ptable->usedTupleCount(), ptable->activeTupleCount());
 
-    int used_tuple = (int)ptable->usedTupleCount(); // should be more careful here. what's the typical size? Answer: 256K
-    if (evict_num > used_tuple)
-        evict_num = used_tuple;
+    int active_tuple = (int)ptable->activeTupleCount(); // should be more careful here. what's the typical size? Answer: 256K
+    if (evict_num > active_tuple)
+        evict_num = active_tuple;
 
     int pick_num = evict_num * RANDOM_SCALE;
     // TODO: If pick_num is too big or evict_num is too small, should we use scanning instead?
@@ -86,7 +86,9 @@ void EvictionIterator::reserve(int64_t amount) {
 
     candidates = priority_queue <pair <uint32_t, char*> >();
 
-    //printf("evict pick num: %d %d\n", evict_num, pick_num);
+    VOLT_DEBUG("evict pick num: %d %d\n", evict_num, pick_num);
+    VOLT_DEBUG("active_tuple: %d\n", active_tuple);
+    VOLT_DEBUG("block number: %d\n", block_num);
 
     for (int i = 0; i < pick_num; i++) {
         // should we use a faster random generator?
@@ -100,7 +102,7 @@ void EvictionIterator::reserve(int64_t amount) {
 
         current_tuple->move(addr);
 
-        //printf("addr: %p\n", addr);
+        VOLT_DEBUG("Flip addr: %p\n", addr);
 
         if (!current_tuple->isActive() || current_tuple->isEvicted())
             continue;
@@ -110,7 +112,7 @@ void EvictionIterator::reserve(int64_t amount) {
         candidates.push(make_pair(current_tuple->getTimeStamp(), addr));
         if (candidates.size() > evict_num) candidates.pop();
     }
-    //printf("Size: %lu\n", candidates.size());
+    VOLT_DEBUG("Size of eviction candidates: %lu\n", candidates.size());
 }
 #endif
 

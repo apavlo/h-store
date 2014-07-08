@@ -87,7 +87,7 @@ public:
     
     ~AntiCacheEvictionManagerTest() {
         delete m_engine;
-        //delete m_table;
+        delete m_table;
         voltdb::TupleSchema::freeTupleSchema(m_primaryKeyIndexSchema);
     }
     
@@ -141,7 +141,7 @@ public:
     void cleanupTable()
     {
         printf("delete from cleanupTable(): %p\n", m_table->getEvictedTable());
-        //delete m_table->getEvictedTable();
+        delete m_table->getEvictedTable();
         delete m_table;
     
     }

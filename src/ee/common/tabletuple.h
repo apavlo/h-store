@@ -320,12 +320,17 @@ public:
    	     
     	    return time_stamp; 
     	}
+
+        static uint64_t rdtsc() {
+            uint32_t lo, hi;
+            __asm__ __volatile__ ("rdtsc": "=a" (lo), "=d" (hi));
+            return (((uint64_t)hi << 32) | lo);
+        }
     
         inline void setTimeStamp() {
             uint32_t current_time = 0;
-            __asm__ __volatile__ ("rdtsc": "=d" (current_time));
-            current_time = INT_MAX - current_time;
-            //printf("A time stamp: %u\n", current_time);
+            current_time = INT_MAX - (uint32_t)(rdtsc() >> 32);
+            //uint32_t *time_ptr = &current_time;
             memcpy(m_data+TUPLE_HEADER_SIZE-4, &current_time, 4);
         }
 
