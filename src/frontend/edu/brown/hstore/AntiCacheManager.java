@@ -283,7 +283,9 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
             // if no then we should simply requeue the entry? 
             
         }
-        LOG.debug("Processing " + next);
+        // debug to info
+        LOG.info("Processing " + next);
+        LOG.info("QueueEntry next.toString(): %s", next.toString());
 
         // We need to get the EE handle for the partition that this txn
         // needs to have read in some blocks from disk
