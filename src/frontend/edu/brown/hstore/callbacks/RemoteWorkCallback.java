@@ -77,7 +77,10 @@ public class RemoteWorkCallback extends PartitionCountingCallback<AbstractTransa
             LOG.debug(String.format("%s - Added new %s from partition %d",
                       this.ts, parameter.getClass().getSimpleName(), parameter.getPartitionId()));
         if (parameter.hasError()) {
-            if (debug.val)
+            LOG.info(String.format("%s - Marking %s with an error from partition %d",
+                    this.ts, this.builder.getClass().getSimpleName(), parameter.getPartitionId()));    
+            System.out.println(this.hstore_site.getTransaction(this.builder.getTransactionId())+" "+this.builder.getTransactionId());
+        	if (debug.val)
                 LOG.debug(String.format("%s - Marking %s with an error from partition %d",
                           this.ts, this.builder.getClass().getSimpleName(), parameter.getPartitionId()));    
             this.builder.setStatus(Status.ABORT_UNEXPECTED);

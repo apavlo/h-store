@@ -46,6 +46,14 @@
 #ifndef HSTOREPERSISTENTTABLE_H
 #define HSTOREPERSISTENTTABLE_H
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <errno.h>
 #include <string>
 #include <map>
 #include <vector>
@@ -54,6 +62,7 @@
 #include "common/ids.h"
 #include "common/valuevector.h"
 #include "common/tabletuple.h"
+#include "common/Pool.hpp"
 #include "storage/table.h"
 #include "storage/TupleStreamWrapper.h"
 #include "storage/TableStats.h"
@@ -261,11 +270,7 @@ class PersistentTable : public Table {
     // ------------------------------------------------------------------
     #ifdef ANTICACHE
     void setEvictedTable(voltdb::Table *evictedTable);
-    voltdb::Table* getEvictedTable(); 
-    bool evictBlockToDisk(const long block_size, int num_blocks);
-    bool readEvictedBlock(int16_t block_id, int32_t tuple_offset);
-    bool mergeUnevictedTuples();
-    
+    voltdb::Table* getEvictedTable();
     // needed for LRU chain eviction
     void setNewestTupleID(uint32_t id); 
     void setOldestTupleID(uint32_t id); 
@@ -273,15 +278,45 @@ class PersistentTable : public Table {
     uint32_t getOldestTupleID();
     void setNumTuplesInEvictionChain(int num_tuples);
     int getNumTuplesInEvictionChain(); 
+    AntiCacheDB* getAntiCacheDB();
+    std::map<int16_t, int16_t> getUnevictedBlockIDs();
+    std::vector<char*> getUnevictedBlocks();
+    int32_t getMergeTupleOffset(int);
+    bool mergeStrategy();
+    int32_t getTuplesEvicted();
+    void setTuplesEvicted(int32_t tuplesEvicted);
+    int32_t getBlocksEvicted();
+    void setBlocksEvicted(int32_t blocksEvicted);
+    int64_t getBytesEvicted();
+    void setBytesEvicted(int64_t bytesEvicted);
+    int32_t getTuplesWritten();
+    void setTuplesWritten(int32_t tuplesWritten);
+    int32_t getBlocksWritten();
+    void setBlocksWritten(int32_t blocksWritten);
+    int64_t getBytesWritten();
+    void setBytesWritten(int64_t bytesWritten);
+    voltdb::TableTuple * getTempTarget1();
+    void insertUnevictedBlockID(std::pair<int16_t,int16_t>);
+    void insertUnevictedBlock(char* unevicted_tuples);
+    void insertTupleOffset(int32_t tuple_offset);
+    bool isAlreadyUnEvicted(int16_t blockId);
+    int32_t getTuplesRead();
+    void setTuplesRead(int32_t tuplesRead);
+    void setBatchEvicted(bool batchEvicted);
+    bool isBatchEvicted();
+    void clearUnevictedBlocks();
+    void clearMergeTupleOffsets();
+    int64_t unevictTuple(ReferenceSerializeInput * in, int j, int merge_tuple_offset);
+void clearUnevictedBlocks(int i);
+    char* getUnevictedBlocks(int i);
+    int unevictedBlocksSize();
+
     #endif
     
     void setEntryToNewAddressForAllIndexes(const TableTuple *tuple, const void* address);
 
 protected:
-
-#ifdef MMAP_STORAGE    
-    void allocateNextBlock();
-#endif
+    virtual void allocateNextBlock();
     
     size_t allocatedBlockCount() const {
         return m_data.size();
@@ -302,6 +337,7 @@ protected:
     size_t appendToELBuffer(TableTuple &tuple, int64_t seqNo, TupleStreamWrapper::Type type);
 
     PersistentTable(ExecutorContext *ctx, bool exportEnabled);
+    PersistentTable(ExecutorContext *ctx, const std::string name, bool exportEnabled);
     void onSetColumns();
 
     /*
@@ -344,8 +380,8 @@ protected:
     std::vector<char*> m_unevictedBlocks;
     std::vector<int32_t> m_mergeTupleOffset; 
     
-    std::map<int, int> m_unevictedTuplesPerBlocks;
-    
+    std::map<int, int> m_unevictedTuplesPerBlocks; 
+
     char* m_unevictedTuples; 
     int m_numUnevictedTuples; 
     
@@ -353,14 +389,16 @@ protected:
     uint32_t m_newestTupleID; 
     
     int m_numTuplesInEvictionChain;
-    bool m_blockMerge;
     
+    bool m_blockMerge;
+    bool m_batchEvicted;
+
     #endif
     
     // partition key
     int m_partitionColumn;
     
-    // TODO: Partition id of where this table is stored in
+    // Partition id of where this table is stored in
     int32_t m_partitionId;
 
     // list of materialized views that are sourced from this table
@@ -385,26 +423,31 @@ inline TableTuple& PersistentTable::getTempTupleInlined(TableTuple &source) {
     m_tempTuple.copy(source);
     return m_tempTuple;
 }
-
-#ifdef MMAP_STORAGE
+ 
 inline void PersistentTable::allocateNextBlock() {
-    // TODO: Figure out what the size of the file should be
-    // int bytes = 99999; // FIXME
-    
-    // TODO: Allocate a new file on the NVM filesystem and mmap() it in
-    //       Create a new path in the filesystem based on tablename (this->name) and
-    //       the partitionId of where this table is stored (m_executorContext->getPartitionId)
-    // char *memory = NULL; // FIXME
-
-    // Push the new block into our list of blocks
-    // m_data.push_back(memory);
-
-    // Update the counter of the number of tuples we've allocated
-    // m_allocatedTuples += m_tuplesPerBlock;
-}
+#ifdef MEMCHECK
+    int bytes = m_schema->tupleLength() + TUPLE_HEADER_SIZE;
+#else
+    int bytes = m_tableAllocationTargetSize;
 #endif
-    
-    
+    char *memory = (char*)(new char[bytes]);
+    m_data.push_back(memory);
+#ifdef MEMCHECK_NOFREELIST
+    assert(m_allocatedTuplePointers.insert(memory).second);
+    m_deletedTuplePointers.erase(memory);
+#endif
+    m_allocatedTuples += m_tuplesPerBlock;
+    if (m_tempTableMemoryInBytes) {
+        (*m_tempTableMemoryInBytes) += bytes;
+        if ((*m_tempTableMemoryInBytes) > MAX_TEMP_TABLE_MEMORY) {
+            throw SQLException(SQLException::volt_temp_table_memory_overflow,
+                               "More than 100MB of temp table memory used while"
+                               " executing SQL. Aborting.");
+        }
+    }
+}
+
+
 }
 
 #endif

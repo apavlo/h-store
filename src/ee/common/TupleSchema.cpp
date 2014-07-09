@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB Inc.
+ * Copyright (C) 2008-2011 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -149,7 +149,7 @@ TupleSchema* TupleSchema::createEvictedTupleSchema() {
     
     // create a schema containing a single column for the block_id
     columnTypes[0] = VALUE_TYPE_SMALLINT; 
-    columnSizes[0] = static_cast<int32_t>(NValue::getTupleStorageSize(VALUE_TYPE_SMALLINT)); 
+    columnSizes[0] = static_cast<int32_t>(NValue::getTupleStorageSize(VALUE_TYPE_SMALLINT));
     allowNull[0] = false;
     
     columnTypes[1] = VALUE_TYPE_INTEGER;
@@ -201,7 +201,7 @@ void TupleSchema::setColumnMetaData(uint16_t index, ValueType type, const int32_
     columnInfo->type = static_cast<char>(type);
     columnInfo->allowNull = (char)(allowNull ? 1 : 0);
     columnInfo->length = length;
-    if (type == VALUE_TYPE_VARCHAR ) {
+    if ((type == VALUE_TYPE_VARCHAR) || (type == VALUE_TYPE_VARBINARY)) {
         if (length < UNINLINEABLE_OBJECT_LENGTH && m_allowInlinedObjects) {
             /*
              * Inline the string if it is less then UNINLINEABLE_OBJECT_LENGTH bytes.
@@ -213,7 +213,7 @@ void TupleSchema::setColumnMetaData(uint16_t index, ValueType type, const int32_
             /*
              * Set the length to the size of a String pointer since it won't be inlined.
              */
-            offset = static_cast<uint32_t>(NValue::getTupleStorageSize(VALUE_TYPE_VARCHAR));
+            offset = static_cast<uint32_t>(NValue::getTupleStorageSize(type));
             columnInfo->inlined = false;
             setUninlinedObjectColumnInfoIndex(uninlinedObjectColumnIndex++, index);
         }
@@ -280,7 +280,7 @@ uint16_t TupleSchema::countUninlineableObjectColumns(
     const uint16_t numColumns = static_cast<uint16_t>(columnTypes.size());
     uint16_t numUninlineableObjects = 0;
     for (int ii = 0; ii < numColumns; ii++) {
-        if (columnTypes[ii] == VALUE_TYPE_VARCHAR) {
+        if ((columnTypes[ii] == VALUE_TYPE_VARCHAR) || ((columnTypes[ii] == VALUE_TYPE_VARBINARY))) {
             if (!allowInlineObjects) {
                 numUninlineableObjects++;
             } else if (columnSizes[ii] >= UNINLINEABLE_OBJECT_LENGTH) {

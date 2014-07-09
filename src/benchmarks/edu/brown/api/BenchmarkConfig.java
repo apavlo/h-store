@@ -103,7 +103,8 @@ public class BenchmarkConfig {
     
     public String evictable[];
     public String deferrable[];
-    
+	public String batchEvictable[];
+	
     public boolean dumpDatabase;
     public String dumpDatabaseDir;
     
@@ -111,6 +112,8 @@ public class BenchmarkConfig {
     public final Map<String, String> siteParameters = new TreeMap<String, String>();
 
     private PropertiesConfiguration config = null;
+
+
     
     /**
      * 
@@ -223,6 +226,7 @@ public class BenchmarkConfig {
             boolean markovRecomputeAfterEnd,
             boolean markovRecomputeAfterWarmup,
             String evictable[],
+            String batchEvictable[],
             String deferrable[],
             boolean dumpDatabase,
             String dumpDatabaseDir
@@ -287,6 +291,7 @@ public class BenchmarkConfig {
         this.markovRecomputeAfterWarmup = markovRecomputeAfterWarmup;
         
         this.evictable = evictable;
+        this.batchEvictable = batchEvictable;
         this.deferrable = deferrable;
         
         this.dumpDatabase = dumpDatabase;

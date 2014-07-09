@@ -95,7 +95,8 @@ TableCatalogDelegate::init(ExecutorContext *executorContext,
         const int32_t size = static_cast<int32_t>(catalog_column->size());
         
         //Strings length is provided, other lengths are derived from type
-        const int32_t length = type == VALUE_TYPE_VARCHAR ? size
+        bool varlength = (type == VALUE_TYPE_VARCHAR);
+        const int32_t length = varlength ? size
             : static_cast<int32_t>(NValue::getTupleStorageSize(type));
         columnLengths[columnIndex] = length;
         columnAllowNull[columnIndex] = catalog_column->nullable();
@@ -311,6 +312,7 @@ TableCatalogDelegate::init(ExecutorContext *executorContext,
         // We'll shove the EvictedTable to the PersistentTable
         // It will be responsible for deleting it in its deconstructor
         dynamic_cast<PersistentTable*>(m_table)->setEvictedTable(evicted_table);
+        dynamic_cast<PersistentTable*>(m_table)->setBatchEvicted(catalogTable.batchEvicted());
     } else {
         VOLT_WARN("Not creating EvictedTable for table '%s'", catalogTable.name().c_str());
     }

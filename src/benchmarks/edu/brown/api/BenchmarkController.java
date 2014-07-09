@@ -717,7 +717,7 @@ public class BenchmarkController {
             allLoaderArgs.add("STATSDATABASEPASS=" + m_config.statsDatabasePass);
             allLoaderArgs.add("STATSDATABASEJDBC=" + m_config.statsDatabaseJDBC);
             allLoaderArgs.add("STATSPOLLINTERVAL=" + m_config.statsPollInterval);
-            LOG.info("Loader Stats Database: " + m_config.statsDatabaseURL);
+            // LOG.info("Loader Stats Database: " + m_config.statsDatabaseURL);
         }
 
         for (Entry<String,String> e : m_config.clientParameters.entrySet()) {
@@ -1785,6 +1785,8 @@ public class BenchmarkController {
 
         // Evictable Tables
         String evictable[] = null;
+        // Batch Evictable Tables        
+        String[] batchEvictable = null;
         
         boolean dumpDatabase = false;
         String dumpDatabaseDir = null;
@@ -1960,9 +1962,17 @@ public class BenchmarkController {
              * List of evictable tables
              */
             else if (parts[0].equalsIgnoreCase("EVICTABLE")) {
-                if (debug.val) LOG.debug("EVICTABLE: " + parts[1]);
+                LOG.info("EVICTABLE: " + parts[1]);
                 evictable = parts[1].split(",");
             }
+            /*
+             * List of batch evictable tables
+             */
+            else if (parts[0].equalsIgnoreCase("BATCHEVICTABLE")) {
+                LOG.info("BATCHEVICTABLE: " + parts[1]);
+                batchEvictable = parts[1].split(",");
+            }
+                        
             /*
              * List of deferrable queries
              * Format: <ProcedureName>.<StatementName>
@@ -2096,7 +2106,8 @@ public class BenchmarkController {
                 clientNames[i] = clientHosts.get(i);
         }
 
-        // create a config object, mostly for the results uploader at this point
+        
+		// create a config object, mostly for the results uploader at this point
         BenchmarkConfig config = new BenchmarkConfig(
                 hstore_conf,
                 hstore_conf_path,
@@ -2147,6 +2158,7 @@ public class BenchmarkController {
                 markov_recomputeAfterEnd,
                 markov_recomputeAfterWarmup,
                 evictable,
+                batchEvictable,
                 deferrable,
                 dumpDatabase,
                 dumpDatabaseDir

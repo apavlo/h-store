@@ -25,7 +25,6 @@
 
 #include <string>
 #include "harness.h"
-
 #include "anticache/AntiCacheDB.h"
 
 using namespace std;
@@ -44,6 +43,7 @@ public:
     };
 };
 
+/*
 TEST_F(AntiCacheDBTest, NextBlockId) {
     ChTempDir tempdir;
     AntiCacheDB anticache(NULL, ".", BLOCK_SIZE);
@@ -76,7 +76,31 @@ TEST_F(AntiCacheDBTest, WriteBlock) {
     } catch (...) {
         ASSERT_TRUE(false);
     }
+}*/
+
+TEST_F(AntiCacheDBTest, ReadBlock) {
+    // This will create a tempdir that will automatically be cleaned up
+    ChTempDir tempdir;
+    AntiCacheDB anticache(NULL, ".", BLOCK_SIZE);
+
+    string tableName("FAKE");
+    string payload("Test Read");
+    uint16_t blockId = anticache.nextBlockId();
+	anticache.writeBlock(tableName,
+						 blockId,
+						 1,
+						 const_cast<char*>(payload.data()),
+						 static_cast<int>(payload.size())+1);
+
+	AntiCacheBlock block = anticache.readBlock(tableName,blockId);
+
+	ASSERT_EQ(block.getTableName(), tableName);
+	ASSERT_EQ(block.getBlockId(), blockId);
+	ASSERT_EQ(0, payload.compare(block.getData()));
+	long expected_size = payload.size()+1;
+	ASSERT_EQ(block.getSize(), expected_size);
 }
+
 int main() {
     return TestSuite::globalInstance()->runAll();
 }

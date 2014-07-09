@@ -34,13 +34,20 @@ std::string UnknownBlockAccessException::ERROR_MSG = std::string("Tried to acces
 
 UnknownBlockAccessException::UnknownBlockAccessException(std::string tableName, uint16_t blockId) :
     SerializableEEException(VOLT_EE_EXCEPTION_TYPE_UNKNOWN_BLOCK, UnknownBlockAccessException::ERROR_MSG),
-        m_tableName(tableName),
+    	m_tableName(tableName),
         m_blockId(blockId) {
     
     // Nothing to see, nothing to do...
 }
 
+UnknownBlockAccessException::UnknownBlockAccessException(uint16_t blockId) :
+    SerializableEEException(VOLT_EE_EXCEPTION_TYPE_UNKNOWN_BLOCK, UnknownBlockAccessException::ERROR_MSG),
+        m_blockId(blockId) {
+}
+
 void UnknownBlockAccessException::p_serialize(ReferenceSerializeOutput *output) {
-    output->writeTextString(m_tableName);
+    if(!m_tableName.empty()){
+	output->writeTextString(m_tableName);
+    }
     output->writeShort(m_blockId);
 }

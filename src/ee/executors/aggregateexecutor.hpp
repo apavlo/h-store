@@ -51,7 +51,6 @@
 #ifndef HSTOREAGGREGATEEXECUTOR_H
 #define HSTOREAGGREGATEEXECUTOR_H
 
-#include "common/Pool.hpp"
 #include "common/ValueFactory.hpp"
 #include "common/common.h"
 #include "common/common.h"

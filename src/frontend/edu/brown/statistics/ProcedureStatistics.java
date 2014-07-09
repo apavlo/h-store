@@ -43,7 +43,7 @@ import edu.brown.workload.*;
  * @author pavlo
  */
 public class ProcedureStatistics extends AbstractStatistics<Procedure> {
-    private static final Logger LOG = Logger.getLogger(Workload.class.getName());
+    private static final Logger LOG = Logger.getLogger(ProcedureStatistics.class);
 
     public enum Members {
         TABLE_TUPLE_COUNTS, TABLE_AVG_TUPLE_SIZES, TABLE_TOTAL_SIZES, TABLE_READONLY, TABLE_QUERYTYPE_COUNTS,
@@ -360,7 +360,11 @@ public class ProcedureStatistics extends AbstractStatistics<Procedure> {
             String table_keys[] = { CatalogKey.createKey(catalog_tbl), CatalogKeyOldVersion.createKey(catalog_tbl) };
             for (String table_key : table_keys) {
                 try {
-                    this.readMap(this.table_querytype_counts.get(table_keys[0]), table_key, QueryType.getNameMap(), Integer.class, tblQueryObject);
+                    this.readMap(this.table_querytype_counts.get(table_keys[0]),
+                                 table_key,
+                                 QueryType.getNameMap(),
+                                 Integer.class,
+                                 tblQueryObject);
                 } catch (JSONException ex) {
                     last_error = ex;
                     continue;
@@ -370,8 +374,11 @@ public class ProcedureStatistics extends AbstractStatistics<Procedure> {
                 break;
             } // FOR
             if (last_error != null) {
-                LOG.error("BUSTED: " + StringUtil.join(",", tblQueryObject.keys()));
-                throw last_error;
+                // 2013-10-21
+                // I decided to switch this to be just a warning instead of 
+                // a fatal warning for Nesime. Deal with it.
+                LOG.warn("BUSTED: " + StringUtil.join(",", tblQueryObject.keys()));
+                // throw last_error;
             }
         } // FOR
 

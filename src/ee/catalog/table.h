@@ -52,6 +52,7 @@ protected:
     bool m_systable;
     bool m_mapreduce;
     bool m_evictable;
+    bool m_batchEvicted;
 
     virtual void update();
 
@@ -84,6 +85,8 @@ public:
     bool mapreduce() const;
     /** GETTER: Can contents of this table be evicted by the anti-cache? */
     bool evictable() const;
+    /** GETTER: Are contents of this table evicted only along with a parent table and not by itself? */
+    bool batchEvicted() const;
 };
 
 } // namespace catalog

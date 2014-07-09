@@ -37,6 +37,7 @@ class UnknownBlockAccessException : public SerializableEEException {
     public:
 
         UnknownBlockAccessException(std::string tableName, uint16_t blockId);
+        UnknownBlockAccessException(uint16_t blockId);
         virtual ~UnknownBlockAccessException() {}
         
         static std::string ERROR_MSG;

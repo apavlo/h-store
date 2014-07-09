@@ -6,6 +6,7 @@ import org.voltdb.BackendTarget;
 import org.voltdb.VoltTable;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
+import org.voltdb.utils.VoltTableUtil;
 
 import edu.brown.benchmark.voter.VoterConstants;
 import edu.brown.benchmark.voter.VoterProjectBuilder;
@@ -121,7 +122,56 @@ public class TestVoterSuite extends RegressionSuite {
             //assertEquals(expected, results[0].asScalarLong());
         } // FOR
     }
-        
+    
+//    /**
+//     * testViews
+//     */
+//    public void testVotesByContestantView() throws Exception {
+//        Client client = this.getClient();
+//        this.initializeDatabase(client);
+//        
+//        int num_contestants = VoterConstants.NUM_CONTESTANTS;
+//        
+//        // Insert the same number of votes for each contestant as their id number
+//        long phoneNumber = TestVoterSuite.phoneNumber;
+//        for (int contestant = 0 ; contestant < num_contestants; contestant++) {
+//            for (int i = 0; i < contestant; i++) {
+//                ClientResponse cresponse = client.callProcedure(Vote.class.getSimpleName(),
+//                                                                voteId++,
+//                                                                phoneNumber++,
+//                                                                contestant,
+//                                                                maxVotesPerPhoneNumber);
+//                assertEquals(Status.OK, cresponse.getStatus());
+//                VoltTable results[] = cresponse.getResults();
+//                assertEquals(1, results.length);
+//                assertEquals(VoterConstants.VOTE_SUCCESSFUL, results[0].asScalarLong());
+//            } // FOR
+//        } // FOR
+//        
+//        
+//        // Now check that the view is correct
+//        String sql = "SELECT * FROM v_votes_by_contestant_number";
+//        ClientResponse cresponse = RegressionSuiteUtil.sql(client, sql);
+//        assertEquals(Status.OK, cresponse.getStatus());
+//        VoltTable results[] = cresponse.getResults();
+//        assertEquals(1, results.length);
+//        System.out.println(VoltTableUtil.format(results[0]));
+//        
+////        sql = "SELECT * FROM votes";
+////        cresponse = RegressionSuiteUtil.sql(client, sql);
+////        assertEquals(Status.OK, cresponse.getStatus());
+////        results = cresponse.getResults();
+////        assertEquals(1, results.length);
+////        System.out.println(VoltTableUtil.format(results[0]));
+//        
+//        while (results[0].advanceRow()) {
+//            int contestant = (int)results[0].getLong(0);
+//            assert(contestant < VoterConstants.NUM_CONTESTANTS) : contestant;
+//            int num_votes = (int)results[0].getLong(1);
+//            
+//            assertEquals(contestant, num_votes);
+//        } // WHILE
+//    }
 
     public static Test suite() {
         // the suite made here will all be using the tests from this class

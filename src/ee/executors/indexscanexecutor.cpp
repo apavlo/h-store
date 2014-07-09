@@ -267,18 +267,18 @@ bool IndexScanExecutor::p_init(AbstractPlanNode *abstractNode,
     // We'll throw an error if the index is missing
     //
     m_index = m_targetTable->index(m_node->getTargetIndexName());
-    m_searchKey = TableTuple(m_index->getKeySchema());
-    m_searchKeyBackingStore = new char[m_index->getKeySchema()->tupleLength()];
-    m_searchKey.moveNoHeader(m_searchKeyBackingStore);
-    if (m_index == NULL)
-    {
+    if (m_index == NULL) {
         VOLT_ERROR("Failed to retreive index '%s' from table '%s' for PlanNode"
                    " '%s'", m_node->getTargetIndexName().c_str(),
                    m_targetTable->name().c_str(), m_node->debug().c_str());
-        delete [] m_searchKeyBackingStore;
+        // delete [] m_searchKeyBackingStore;
         delete [] m_projectionExpressions;
         return false;
     }
+    m_searchKey = TableTuple(m_index->getKeySchema());
+    m_searchKeyBackingStore = new char[m_index->getKeySchema()->tupleLength()];
+    m_searchKey.moveNoHeader(m_searchKeyBackingStore);
+    
     m_tuple = TableTuple(m_targetTable->schema());
 
     if (m_node->getEndExpression() != NULL)
@@ -539,12 +539,13 @@ bool IndexScanExecutor::p_execute(const NValueArray &params, ReadWriteTracker *t
         
         // Read/Write Set Tracking
         if (tracker != NULL) {
-            tracker->markTupleRead(m_targetTable->name(), &m_tuple);
+            tracker->markTupleRead(m_targetTable, &m_tuple);
         }
         
         #ifdef ANTICACHE
         // We are pointing to an entry for an evicted tuple
-        if (m_tuple.isEvicted()) {            
+        if (m_tuple.isEvicted()) {      
+	    VOLT_INFO("Tuple in index scan is evicted %s", m_targetTable->name().c_str());      
             if (m_evicted_tuple == NULL) {
                 VOLT_INFO("Evicted Tuple found in table without EvictedTable!"); 
             } else {
@@ -559,6 +560,8 @@ bool IndexScanExecutor::p_execute(const NValueArray &params, ReadWriteTracker *t
                 evicted_block_ids.push_back(block_id); 
                 evicted_offsets.push_back(tuple_id);
             }
+        }else{
+            VOLT_INFO("yay! tuple is in memory");
         }
         #endif        
         
@@ -736,7 +739,7 @@ bool IndexScanExecutor::p_execute(const NValueArray &params, ReadWriteTracker *t
         for(list<int16_t>::iterator itr = evicted_block_ids.begin(); itr != evicted_block_ids.end(); ++itr, ++i)
         {
             block_ids[i] = *itr; 
-//            VOLT_INFO("Unevicting block %d", *itr); 
+            VOLT_INFO("Unevicting block %d", *itr); 
         }
 
         // copy the tuple offsets into an array
@@ -748,9 +751,10 @@ bool IndexScanExecutor::p_execute(const NValueArray &params, ReadWriteTracker *t
         
         evicted_block_ids.clear(); 
 
-//        VOLT_INFO("Throwing EvictedTupleAccessException for table %s (%d)", m_catalogTable->name().c_str(), m_catalogTable->relativeIndex());
+        VOLT_INFO("Throwing EvictedTupleAccessException for table %s (%d)", m_catalogTable->name().c_str(), m_catalogTable->relativeIndex());
         
-        throw EvictedTupleAccessException(m_catalogTable->relativeIndex(), num_block_ids, block_ids, tuple_ids);
+        int32_t partition_id = m_targetTable->m_executorContext->getPartitionId();
+        throw EvictedTupleAccessException(m_catalogTable->relativeIndex(), num_block_ids, block_ids, tuple_ids, partition_id);
     }
 #endif
     

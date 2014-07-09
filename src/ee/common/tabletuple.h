@@ -48,7 +48,6 @@
 
 #include "common/common.h"
 #include "common/TupleSchema.h"
-#include "common/Pool.hpp"
 #include "common/ValuePeeker.hpp"
 #include "common/FatalException.hpp"
 #include "common/ExportSerializeIo.h"
@@ -191,6 +190,7 @@ public:
                 break;
 
               case VALUE_TYPE_VARCHAR:
+              case VALUE_TYPE_VARBINARY:
                   // 32 bit length preceding value and
                   // actual character data without null string terminator.
                   if (!getNValue(i).isNull())
@@ -219,7 +219,7 @@ public:
             for (int i = 0; i < cols; ++i)
             {
                 // peekObjectLength is unhappy with non-varchar
-                if (getType(i) == VALUE_TYPE_VARCHAR &&
+            	if ((getType(i) == VALUE_TYPE_VARCHAR || (getType(i) == VALUE_TYPE_VARBINARY))  &&
                     !m_schema->columnIsInlined(i))
                 {
                     if (!getNValue(i).isNull())
@@ -262,8 +262,7 @@ public:
         return (*(reinterpret_cast<const char*> (m_data)) & DIRTY_MASK) == 0 ? false : true;
     }
 
-    inline bool isEvicted() const
-    {
+    inline bool isEvicted() const {
         return (*(reinterpret_cast<const char*> (m_data)) & EVICTED_MASK) == 0 ? false : true;
     }
 
@@ -281,42 +280,38 @@ public:
         return m_schema->columnType(idx);
     }
     
-    inline uint32_t getNextTupleInChain()
-    {
+#ifdef ANTICACHE
+    inline uint32_t getNextTupleInChain() {
         uint32_t tuple_id = 0;
         memcpy(&tuple_id, m_data+TUPLE_HEADER_SIZE-4, 4);
         
         return tuple_id; 
     }
     
-    inline void setNextTupleInChain(uint32_t next)
-    {
+    inline void setNextTupleInChain(uint32_t next) {
         memcpy(m_data+TUPLE_HEADER_SIZE-4, &next, 4);
 
     }
     
-    inline uint32_t getPreviousTupleInChain()
-    {
+    inline uint32_t getPreviousTupleInChain() {
         uint32_t tuple_id = 0;
         memcpy(&tuple_id, m_data+TUPLE_HEADER_SIZE-8, 4);
-        
         return tuple_id;
     }
     
-    inline void setPreviousTupleInChain(uint32_t prev)
-    {
+    inline void setPreviousTupleInChain(uint32_t prev) {
         memcpy(m_data+TUPLE_HEADER_SIZE-8, &prev, 4);
-        
     }
+#endif
 
     inline uint32_t getTupleID()
     {
         uint32_t tuple_id; 
         memcpy(&tuple_id, m_data+TUPLE_HEADER_SIZE-4, 4);  
-        
+
         return tuple_id; 
     }
-    
+
     inline void setTupleID(uint32_t tuple_id)
     {
         memcpy(m_data+TUPLE_HEADER_SIZE-4, &tuple_id, 4); 
@@ -349,7 +344,7 @@ public:
     // verify assumptions for copy. do not use at runtime (expensive)
     bool compatibleForCopy(const TableTuple &source);
     void copyForPersistentInsert(const TableTuple &source, Pool *pool = NULL);
-    void copyForPersistentUpdate(const TableTuple &source);
+    void copyForPersistentUpdate(const TableTuple &source, Pool *pool = NULL);
     void copy(const TableTuple &source);
 
     /** this does set NULL in addition to clear string count.*/
@@ -363,24 +358,39 @@ public:
     void deserializeFrom(voltdb::SerializeInput &tupleIn, Pool *stringPool);
     void serializeTo(voltdb::SerializeOutput &output);
     void serializeToExport(voltdb::ExportSerializeOutput &io,
-                          int colOffset, uint8_t *nullArray);
-    
+            int colOffset, uint8_t *nullArray);
+
     void serializeWithHeaderTo(voltdb::SerializeOutput &output);
-    void deserializeWithHeaderFrom(voltdb::SerializeInput &tupleIn);
+    int64_t deserializeWithHeaderFrom(voltdb::SerializeInput &tupleIn);
 
     void freeObjectColumns();
+
+//#ifdef ARIES
+    void freeObjectColumnsOfLogTuple();
+//#endif
+
     size_t hashCode(size_t seed) const;
     size_t hashCode() const;
-protected:
-    inline void setDeletedTrue() {
+    inline void setEvictedTrue()
+    {
+            // treat the first "value" as a boolean flag
+        *(reinterpret_cast<char*> (m_data)) |= static_cast<char>(EVICTED_MASK);
+    }
+    inline void setEvictedFalse()
+    {
         // treat the first "value" as a boolean flag
-        *(reinterpret_cast<char*> (m_data)) |= static_cast<char>(DELETED_MASK);
+        *(reinterpret_cast<char*> (m_data)) &= static_cast<char>(~EVICTED_MASK);
     }
     inline void setDeletedFalse() {
         // treat the first "value" as a boolean flag
         *(reinterpret_cast<char*> (m_data)) &= static_cast<char>(~DELETED_MASK);
     }
 
+protected:
+    inline void setDeletedTrue() {
+        // treat the first "value" as a boolean flag
+        *(reinterpret_cast<char*> (m_data)) |= static_cast<char>(DELETED_MASK);
+    }
     inline void setDirtyTrue() {
         // treat the first "value" as a boolean flag
         *(reinterpret_cast<char*> (m_data)) |= static_cast<char>(DIRTY_MASK);
@@ -390,17 +400,6 @@ protected:
         *(reinterpret_cast<char*> (m_data)) &= static_cast<char>(~DIRTY_MASK);
     }
 
-    inline void setEvictedTrue() 
-    {
-        // treat the first "value" as a boolean flag
-        *(reinterpret_cast<char*> (m_data)) |= static_cast<char>(EVICTED_MASK);
-    }
-
-    inline void setEvictedFalse() 
-    {
-        // treat the first "value" as a boolean flag
-        *(reinterpret_cast<char*> (m_data)) &= static_cast<char>(~EVICTED_MASK);
-    }
 
     /** The types of the columns in the tuple */
     const TupleSchema *m_schema;
@@ -426,16 +425,16 @@ private:
 
 inline TableTuple::TableTuple() :
     m_schema(NULL), m_data(NULL) {
-}
+    }
 
 inline TableTuple::TableTuple(const TableTuple &rhs) :
     m_schema(rhs.m_schema), m_data(rhs.m_data) {
-}
+    }
 
 inline TableTuple::TableTuple(const TupleSchema *schema) :
     m_schema(schema), m_data(NULL) {
-    assert (m_schema);
-}
+        assert (m_schema);
+    }
 
 /** Setup the tuple given the specified data location and schema **/
 inline TableTuple::TableTuple(char *data, const voltdb::TupleSchema *schema) {
@@ -452,7 +451,7 @@ inline TableTuple& TableTuple::operator=(const TableTuple &rhs) {
 }
 
 /** Copy scalars by value and non-scalars (non-inlined strings, decimals) by
-    reference from a slim value in to this tuple. */
+  reference from a slim value in to this tuple. */
 inline void TableTuple::setNValue(const int idx, voltdb::NValue value) {
     assert(m_schema);
     assert(m_data);
@@ -466,8 +465,8 @@ inline void TableTuple::setNValue(const int idx, voltdb::NValue value) {
 
 /* Copy strictly by value from slimvalue into this tuple */
 inline void TableTuple::setNValueAllocateForObjectCopies(const int idx,
-                                                            voltdb::NValue value,
-                                                            Pool *dataPool)
+        voltdb::NValue value,
+        Pool *dataPool)
 {
     assert(m_schema);
     assert(m_data);
@@ -478,7 +477,7 @@ inline void TableTuple::setNValueAllocateForObjectCopies(const int idx,
     char *dataPtr = getDataPtr(idx);
     const int32_t columnLength = m_schema->columnLength(idx);
     value.serializeToTupleStorageAllocateForObjects(dataPtr, isInlined,
-                                                    columnLength, dataPool);
+            columnLength, dataPool);
 }
 
 /*
@@ -519,10 +518,10 @@ inline void TableTuple::copyForPersistentInsert(const voltdb::TableTuple &source
              */
             for (uint16_t ii = 0; ii < uninlineableObjectColumnCount; ii++) {
                 const uint16_t uinlineableObjectColumnIndex =
-                  m_schema->getUninlinedObjectColumnInfoIndex(ii);
+                    m_schema->getUninlinedObjectColumnInfoIndex(ii);
                 setNValueAllocateForObjectCopies(uinlineableObjectColumnIndex,
-                                                    source.getNValue(uinlineableObjectColumnIndex),
-                                                    pool);
+                        source.getNValue(uinlineableObjectColumnIndex),
+                        pool);
             }
             m_data[0] = source.m_data[0];
         } else {
@@ -546,7 +545,7 @@ inline void TableTuple::copyForPersistentInsert(const voltdb::TableTuple &source
  * With a persistent update the copy should only do an allocation for
  * a string if the source and destination pointers are different.
  */
-inline void TableTuple::copyForPersistentUpdate(const TableTuple &source) {
+inline void TableTuple::copyForPersistentUpdate(const TableTuple &source, Pool *pool) {
     assert(m_schema);
     assert(m_schema == source.m_schema);
     const int columnCount = m_schema->columnCount();
@@ -573,17 +572,17 @@ inline void TableTuple::copyForPersistentUpdate(const TableTuple &source) {
                     // Make a copy of the input string. Don't need to
                     // delete the old string because that will be done
                     // by the UndoAction for the update.
-                    setNValueAllocateForObjectCopies(ii, source.getNValue(ii), NULL);
+                    setNValueAllocateForObjectCopies(ii, source.getNValue(ii), pool);
                 }
                 uninlineableObjectColumnIndex++;
                 if (uninlineableObjectColumnIndex < uninlineableObjectColumnCount) {
                     nextUninlineableObjectColumnInfoIndex =
-                      m_schema->getUninlinedObjectColumnInfoIndex(uninlineableObjectColumnIndex);
+                        m_schema->getUninlinedObjectColumnInfoIndex(uninlineableObjectColumnIndex);
                 } else {
                     nextUninlineableObjectColumnInfoIndex = 0;
                 }
             } else {
-                setNValueAllocateForObjectCopies(ii, source.getNValue(ii), NULL);
+                setNValueAllocateForObjectCopies(ii, source.getNValue(ii), pool);
             }
         }
         m_data[0] = source.m_data[0];
@@ -654,18 +653,19 @@ inline void TableTuple::deserializeFrom(voltdb::SerializeInput &tupleIn, Pool *d
     }
 }
 
-inline void TableTuple::deserializeWithHeaderFrom(voltdb::SerializeInput &tupleIn) {
-    
-    size_t total_bytes_deserialized = 0;
-    
+inline int64_t TableTuple::deserializeWithHeaderFrom(voltdb::SerializeInput &tupleIn) {
+
+    int64_t total_bytes_deserialized = 0;
+
     assert(m_schema);
     assert(m_data);
-    
+
     tupleIn.readInt();  // read in the tuple size, discard 
-        
+    total_bytes_deserialized+=sizeof(int);
+
     memcpy(m_data, tupleIn.getRawPointer(TUPLE_HEADER_SIZE), TUPLE_HEADER_SIZE);    
     total_bytes_deserialized += TUPLE_HEADER_SIZE;
-    
+
     for (int j = 0; j < m_schema->columnCount(); ++j) {
         const ValueType type = m_schema->columnType(j);
         /**
@@ -683,9 +683,9 @@ inline void TableTuple::deserializeWithHeaderFrom(voltdb::SerializeInput &tupleI
         const bool isInlined = m_schema->columnIsInlined(j);
         char *dataPtr = getDataPtr(j);
         const int32_t columnLength = m_schema->columnLength(j);
-        NValue::deserializeFrom(tupleIn, type, dataPtr, isInlined, columnLength, NULL);
+        total_bytes_deserialized+= NValue::deserializeFrom(tupleIn, type, dataPtr, isInlined, columnLength, NULL);
     }
-    
+    return total_bytes_deserialized;
 //    for (int j = 0; j < m_schema->columnCount(); ++j) {
 //        ValueType type = m_schema->columnType(j);
 //        
@@ -758,27 +758,27 @@ inline void TableTuple::deserializeWithHeaderFrom(voltdb::SerializeInput &tupleI
 }
 
 inline void TableTuple::serializeWithHeaderTo(voltdb::SerializeOutput &output) {
-    
+
     assert(m_schema);
     assert(m_data); 
-    
+
     size_t start = output.position(); 
     output.writeInt(0);  // reserve first 4 bytes for the total tuple size
-    
+
     output.writeBytes(m_data, TUPLE_HEADER_SIZE);
-    
+
     for (int j = 0; j < m_schema->columnCount(); ++j) {
         //int fieldStart = output.position();
         NValue value = getNValue(j);
         value.serializeTo(output);
     }
-    
+
     int32_t serialized_size = static_cast<int32_t>(output.position() - start - sizeof(int32_t));
-    
+
     // write the length of the tuple
     output.writeIntAt(start, serialized_size);
 }
-    
+
 
 inline void TableTuple::serializeTo(voltdb::SerializeOutput &output) {
     size_t start = output.reserveBytes(4);
@@ -792,13 +792,13 @@ inline void TableTuple::serializeTo(voltdb::SerializeOutput &output) {
     // write the length of the tuple
     output.writeIntAt(start, static_cast<int32_t>(output.position() - start - sizeof(int32_t)));
 }
-    
+
 
 
 inline
-void
+    void
 TableTuple::serializeToExport(ExportSerializeOutput &io,
-                              int colOffset, uint8_t *nullArray)
+        int colOffset, uint8_t *nullArray)
 {
     int columnCount = sizeInValues();
     for (int i = 0; i < columnCount; i++) {
@@ -883,6 +883,18 @@ inline void TableTuple::freeObjectColumns() {
     }
 }
 
+//#ifdef ARIES
+
+inline void TableTuple::freeObjectColumnsOfLogTuple() {
+    const uint16_t unlinlinedColumnCount = m_schema->getUninlinedObjectColumnCount();
+
+    for (int ii = 0; ii < unlinlinedColumnCount; ii++) {
+        getNValue(m_schema->getUninlinedObjectColumnInfoIndex(ii)).freeLogTupleVal();
+    }
+}
+
+//#endif
+
 /**
  * Hasher for use with boost::unordered_map and similar
  */
@@ -899,10 +911,10 @@ struct TableTupleHasher : std::unary_function<TableTuple, std::size_t>
  * Equality operator for use with boost::unrodered_map and similar
  */
 class TableTupleEqualityChecker {
-public:
-    inline bool operator()(const TableTuple lhs, const TableTuple rhs) const {
-        return lhs.equalsNoSchemaCheck(rhs);
-    }
+    public:
+        inline bool operator()(const TableTuple lhs, const TableTuple rhs) const {
+            return lhs.equalsNoSchemaCheck(rhs);
+        }
 };
 
 }

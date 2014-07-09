@@ -92,11 +92,6 @@ public class LocalTransaction extends AbstractTransaction {
     private ClientResponseImpl cresponse;
     
     /**
-     * The number of times that this transaction has been restarted 
-     */
-    private int restart_ctr = 0;
-    
-    /**
      * A special lock for the critical sections of the LocalTransaction
      * This is only to handle messages coming from the HStoreCoordinator or from other
      * PartitionExecutors that are executing on this txn's behalf 
@@ -146,11 +141,6 @@ public class LocalTransaction extends AbstractTransaction {
      */
     private DistributedState dtxnState;
     
-    /**
-     * The table that this txn needs to merge the results for in the EE
-     * before it starts executing
-     */
-    private Table anticache_table = null;
     
     /**
      * Special TransactionProfiler handle
@@ -177,11 +167,7 @@ public class LocalTransaction extends AbstractTransaction {
     // RUN TIME DATA MEMBERS
     // ----------------------------------------------------------------------------
     
-    /**
-     * Whether this txn was speculatively executed
-     */
-    private SpeculationType exec_specExecType = SpeculationType.NULL;
-    
+
     /** 
      * What partitions has this txn touched
      * This needs to be a Histogram so that we can figure out what partitions
@@ -200,6 +186,7 @@ public class LocalTransaction extends AbstractTransaction {
      * each query in this transaction.
      */
     private final Histogram<Statement> exec_stmtCounters = new ObjectHistogram<Statement>();
+	private Long old_transaction_id;
     
     // ----------------------------------------------------------------------------
     // INITIALIZATION
@@ -386,15 +373,6 @@ public class LocalTransaction extends AbstractTransaction {
     }
     public final void resetClientResponse() {
         this.cresponse = null;
-    }
-    
-    
-    /**
-     * <B>Note:</B> This should never be called by anything other than the TransactionInitializer
-     * @param txn_id
-     */
-    public void setTransactionId(Long txn_id) { 
-        this.txn_id = txn_id;
     }
     
     public final ReentrantLock getTransactionLock() {
@@ -674,21 +652,6 @@ public class LocalTransaction extends AbstractTransaction {
         return (this.batch_size);
     }
 
-    /**
-     * Return the number of times that this transaction was restarted
-     * @return
-     */
-    public int getRestartCounter() {
-        return (this.restart_ctr);
-    }
-    
-    /**
-     * Set the number of times that this transaction has been restarted
-     * @param val
-     */
-    public void setRestartCounter(int val) {
-        this.restart_ctr = val;
-    }
     
     public FastIntHistogram getTouchedPartitions() {
         return (this.exec_touchedPartitions);
@@ -801,14 +764,6 @@ public class LocalTransaction extends AbstractTransaction {
         return (this.exec_specExecType != SpeculationType.NULL);
     }
     
-    /**
-     * Returns the speculation type (i.e., stall point) that this txn was executed at.
-     * Will be null if this transaction was not speculatively executed
-     * @return
-     */
-    public SpeculationType getSpeculationType() {
-        return (this.exec_specExecType);
-    }
     
     // ----------------------------------------------------------------------------
     // COMMAND LOGGING
@@ -829,23 +784,6 @@ public class LocalTransaction extends AbstractTransaction {
      */
     public boolean isLogEnabled() {
         return (this.log_enabled);
-    }
-    
-    // ----------------------------------------------------------------------------
-    // ANTI-CACHING
-    // ----------------------------------------------------------------------------
-    
-    public boolean hasAntiCacheMergeTable() {
-        return (this.anticache_table != null);
-    }
-    
-    public Table getAntiCacheMergeTable() {
-        return (this.anticache_table);
-    }
-    
-    public void setAntiCacheMergeTable(Table catalog_tbl) {
-        assert(this.anticache_table == null);
-        this.anticache_table = catalog_tbl;
     }
     
     // ----------------------------------------------------------------------------
@@ -1011,5 +949,13 @@ public class LocalTransaction extends AbstractTransaction {
         
         return (sb.toString());
     }
+
+	public void setOldTransactionId(Long transactionId) {
+		this.old_transaction_id = transactionId;
+	}
+	
+	public Long getOldTransactionId(){
+		return this.old_transaction_id;
+	}
     
 }

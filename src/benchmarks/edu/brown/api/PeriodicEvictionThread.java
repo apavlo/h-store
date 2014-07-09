@@ -62,7 +62,7 @@ public class PeriodicEvictionThread implements Runnable, ProcedureCallback {
             try {
                 this.client.callProcedure(this,
                                           this.procName,
-                                          p, this.tableNames, this.evictionSize);
+                                          p, this.tableNames, null, this.evictionSize);
             } catch (Exception ex) {
                 String msg = "Failed to invoke " + this.procName + " for partition #" + p;
                 throw new RuntimeException(msg, ex);

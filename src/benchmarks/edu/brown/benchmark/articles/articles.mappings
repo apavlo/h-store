@@ -1,0 +1,56 @@
+{"MAPPINGS": [
+ {
+  "STATEMENT": "{'GetArticle':'GetArticle'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'GetArticle.GetArticle':'0'}",
+  "STATEMENT_COLUMN": "{'ARTICLES':'A_ID'}",
+  "PROCEDURE_PARAMETER": "{'GetArticle':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 1,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'AddComment':'AddComment'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'AddComment.AddComment':'0'}",
+  "STATEMENT_COLUMN": "{'COMMENTS':'C_ID'}",
+  "PROCEDURE_PARAMETER": "{'AddComment':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 1,
+  "COEFFICIENT": 1.0
+  },
+  {
+  "STATEMENT": "{'AddComment':'AddComment'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'AddComment.AddComment':'1'}",
+  "STATEMENT_COLUMN": "{'COMMENTS':'C_A_ID'}",
+  "PROCEDURE_PARAMETER": "{'AddComment':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 2,
+  "COEFFICIENT": 1.0
+  },
+  {
+  "STATEMENT": "{'AddComment':'AddComment'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'AddComment.AddComment':'2'}",
+  "STATEMENT_COLUMN": "{'COMMENTS':'C_U_ID'}",
+  "PROCEDURE_PARAMETER": "{'AddComment':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 3,
+  "COEFFICIENT": 1.0
+  },
+ {
+  "STATEMENT": "{'UpdateUserInfo':'UpdateUser'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'UpdateUserInfo.UpdateUser':'0'}",
+  "STATEMENT_COLUMN": "{'USERS':'u_lastname'}",
+  "PROCEDURE_PARAMETER": "{'UpdateUserInfo':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 1,
+  "COEFFICIENT": 1.0
+  },
+  {
+  "STATEMENT": "{'UpdateUserInfo':'UpdateUser'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'UpdateUserInfo.UpdateUser':'1'}",
+  "STATEMENT_COLUMN": "{'USERS':'u_id'}",
+  "PROCEDURE_PARAMETER": "{'UpdateUserInfo':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 2,
+  "COEFFICIENT": 1.0
+ }
+]}

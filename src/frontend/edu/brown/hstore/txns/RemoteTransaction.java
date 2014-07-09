@@ -35,7 +35,12 @@ import org.voltdb.CatalogContext;
 import org.voltdb.ParameterSet;
 import org.voltdb.catalog.Procedure;
 
+import com.google.protobuf.RpcCallback;
+
 import edu.brown.hstore.HStoreSite;
+import edu.brown.hstore.HStoreThreadManager;
+import edu.brown.hstore.Hstoreservice.Status;
+import edu.brown.hstore.Hstoreservice.UnevictDataResponse;
 import edu.brown.hstore.callbacks.RemoteInitQueueCallback;
 import edu.brown.hstore.callbacks.RemotePrepareCallback;
 import edu.brown.hstore.callbacks.RemoteFinishCallback;
@@ -67,6 +72,7 @@ public class RemoteTransaction extends AbstractTransaction {
     private final RemoteWorkCallback work_callback;
     private final List<RemotePrepareCallback> prepare_callbacks = new ArrayList<RemotePrepareCallback>();
     private final RemoteFinishCallback finish_callback;
+    private RpcCallback<UnevictDataResponse> unevict_callback;
     
     // ----------------------------------------------------------------------------
     // PREFETCH
@@ -228,6 +234,14 @@ public class RemoteTransaction extends AbstractTransaction {
         return (this.rpc_transactionPrefetch[partition]);
     }
     
+    public void setUnevictCallback(RpcCallback<UnevictDataResponse> callback){
+    	this.unevict_callback = callback;
+    }
+    
+	public RpcCallback<UnevictDataResponse> getUnevictCallback() {
+		return this.unevict_callback;
+	}
+
     // ----------------------------------------------------------------------------
     // DEBUG STUFF
     // ----------------------------------------------------------------------------

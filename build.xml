@@ -139,10 +139,24 @@
 -->
 
 <!-- Default Project -->
-<!--<condition property="project" value="tpcc">
+<condition property="project" value="auctionmark">
     <not><isset property="project"/></not>
-</condition>-->
+</condition>
 
+<condition property="target.workload" value="${project}-1">
+	<not><isset property="target.workload"/></not>
+</condition>
+
+<condition property="workload" value="${files.workloads.dir}/${target.workload}.trace.gz">
+	<not><isset property="workload"/></not>
+</condition>
+<condition property="stats" value="${benchmark.tablestats}">
+	<not><isset property="stats"/></not>
+</condition>
+<condition property="output" value="${files.stats.dir}/${project}.stats">
+	<not><isset property="output"/></not>
+</condition>
+	
 <!-- Project Jar File -->
 <property name="benchmark.jar" location="${project}.jar" />
 <condition property="jar" value="${benchmark.jar}">
@@ -181,6 +195,11 @@
   <isset property="regressions"/>
 </condition>
 
+<condition property="junitclass" value="TestAntiCacheBatching">
+	<not><isset property="junitclass"/></not>
+</condition>
+
+	
 <!-- Workload Tracer Properties -->
 <condition property="workload.trace.class" value="">
     <not><isset property="workload.trace.class"/></not>
@@ -860,9 +879,14 @@ NATIVE EE STUFF
     <exec dir='.' executable='python' failonerror='true'>
         <arg value="build.py" />
         <arg value="LOG_LEVEL=${site.exec_ee_log_level}" />
-        <arg value="MMAP_STORAGE=${site.storage_mmap}" />
+        <arg value="STORAGE_MMAP=${site.storage_mmap}" />
+        <arg value="STORAGE_MMAP_FILE_SIZE=${site.storage_mmap_file_size}" />
+        <arg value="STORAGE_MMAP_SYNC_FREQUENCY=${site.storage_mmap_sync_frequency}" />
+        <arg value="ARIES=${site.aries}" />
+        <arg value="ANTICACHE_ENABLE=${site.anticache_enable}" />
         <arg value="ANTICACHE_BUILD=${site.anticache_build}" />
         <arg value="ANTICACHE_REVERSIBLE_LRU=${site.anticache_reversible_lru}" />
+	<arg value="ANTICACHE_NVM=${site.anticache_nvm}" />
         <arg value="${build}" />
     </exec>
 </target>
@@ -1201,16 +1225,15 @@ TEST CASES
             </formatters>
             <tests>
                 <fileset dir='${build.test.dir}'>
-                    <include name='org/voltdb/regressionsuites/Test*.class'/>
                     <exclude name="**/*$*.class"/>
+                    <include name='org/voltdb/regressionsuites/Test*.class'/>
                     <exclude name="**/TestCatalogUpdateSuite.class" />
                     <exclude name="**/TestFailureDetectSuite.class" />
                     <exclude name="**/TestSneakyExecutionOrderSuite.class" />
-                    <exclude name="**/TestMaliciousClientSuite.class" />
-                    <exclude name="**/TestSaveRestoreSysprocSuite.class" />
+                    <exclude name="**/TestMaliciousClientSuite.class" /> 
                     <exclude name="**/TestMapReduceTransactionSuite.class" />
                     <exclude name="**/TestWikipediaSuite.class" />
-                    <exclude name="**/TestWikipediaLoader.class" />
+                    <exclude name="**/TestWikipediaLoader.class" /> 
 <!--                     <exclude name="**/TestAntiCache*.class" /> -->
                 </fileset>
             </tests>
@@ -1712,7 +1735,7 @@ TEST CASES
         <arg value="CATALOG=${catalog}" />
         <arg value="DEFERRABLE=${deferrable}" />
         <arg value="EVICTABLE=${evictable}" />
-        
+       <arg value="BATCHEVICTABLE=${batchevictable}" /> 
         <arg value="partitionplan=${partitionplan}" />
         <arg value="partitionplan.nosecondary=${partitionplan.nosecondary}" />
         <arg value="partitionplan.ignore_missing=${partitionplan.ignore_missing}" />
@@ -2064,6 +2087,24 @@ UTILITIES
         <assertions><enable /></assertions>
     </java>
 </target>
+
+	<target name='workload-analyzer'
+	        description="analyze workload">
+	    <java fork="yes" classname="edu.brown.workload.WorkloadAnalyzer" failonerror='true'>
+	        <jvmarg value="-Xmx${global.memory}m" />
+	        <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
+	        <arg value="catalog.jar=${jar}" />
+	        <arg value="workload=${workload}" />
+			<arg value="workload.output=${output}" />
+	        <arg value="workload.xactlimit=${limit}" />
+	        <arg value="workload.xactoffset=${offset}" />
+	        <arg value="workload.procexclude=${exclude}" />
+	        <arg value="workload.procinclude=${include}" />
+	        <arg value="workload.procinclude.multiplier=${multiplier}" />
+	        <classpath refid='project.classpath' />
+	        <assertions><enable /></assertions>
+	    </java>
+	</target>
 
 <!--
 ******************************************************************************

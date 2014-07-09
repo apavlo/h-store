@@ -38,7 +38,7 @@ public enum ProjectType {
     TPCC("TPC-C", "org.voltdb.benchmark.tpcc"),
     TPCE("TPC-E", "edu.brown.benchmark.tpce"),
     TM1("TM1", "edu.brown.benchmark.tm1"),
-    SIMPLE("Simple", null),
+    SIMPLE("Simple", "edu.brown.benchmark.simple"),
     SEATS("SEATS", "edu.brown.benchmark.seats"),
     MARKOV("Markov", "edu.brown.benchmark.markov"),
     BINGO("Bingo", "org.voltdb.benchmark.bingo"),
@@ -50,6 +50,8 @@ public enum ProjectType {
     VOTER("Voter", "edu.brown.benchmark.voter"),
     SMALLBANK("SmallBank", "edu.brown.benchmark.smallbank"),
     EXAMPLE("Example", "edu.brown.benchmark.example"),
+    ARTICLES ("Articles", "edu.brown.benchmark.articles"),
+    USERS ("Users", "edu.brown.benchmark.users"),
     TEST("Test", null),
     ;
 

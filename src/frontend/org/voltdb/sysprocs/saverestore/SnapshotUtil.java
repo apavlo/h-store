@@ -268,7 +268,11 @@ public class SnapshotUtil {
             return;
         }
 
+        //System.out.println("Processing Dir :"+directory);
+        //sleep(1);
         for (File f : directory.listFiles(filter)) {
+	    //System.out.println("Processing File :"+f);
+	    
             if (f.isDirectory()) {
                 if (!f.canRead() || !f.canExecute()) {
                     System.err.println("Warning: Skipping directory " + f.getPath()
@@ -348,6 +352,7 @@ public class SnapshotUtil {
                     }
                 }
             } catch (IOException e) {
+		e.printStackTrace();
                 System.err.println(e.getMessage());
                 System.err.println("Error: Unable to process " + f.getPath());
             } finally {
@@ -597,7 +602,9 @@ public class SnapshotUtil {
      */
     public static final String constructFilenameForTable(Table table,
                                                          String fileNonce,
-                                                         String hostId)
+                                                         String hostId,
+                                                         String siteId,
+                                                         String partitionId)
     {
         StringBuilder filename_builder = new StringBuilder(fileNonce);
         filename_builder.append("-");
@@ -606,6 +613,10 @@ public class SnapshotUtil {
         {
             filename_builder.append("-host_");
             filename_builder.append(hostId);
+            filename_builder.append("-site_");
+            filename_builder.append(siteId);
+            filename_builder.append("-partition_");
+            filename_builder.append(partitionId);
         }
         filename_builder.append(".vpt");//Volt partitioned table
         return filename_builder.toString();
@@ -614,10 +625,12 @@ public class SnapshotUtil {
     public static final File constructFileForTable(Table table,
             String filePath,
             String fileNonce,
-            String hostId)
+            String hostId,
+            String siteId,
+            String partitionId)
     {
         return new File(filePath, SnapshotUtil.constructFilenameForTable(
-            table, fileNonce, hostId));
+            table, fileNonce, hostId, siteId, partitionId));
     }
 
     /**

@@ -71,7 +71,6 @@ public class YCSBLoader extends Loader {
         if (debug.val)
             LOG.debug("CONSTRUCTOR: " + YCSBLoader.class.getName());
         
-        final CatalogContext catalogContext = this.getCatalogContext();
         boolean useFixedSize = false;
         long fixedSize = -1;
         for (String key : m_extraParams.keySet()) {
@@ -98,7 +97,6 @@ public class YCSBLoader extends Loader {
         }
         else {
             this.init_record_count = (int)Math.round(YCSBConstants.NUM_RECORDS * 
-                                                     catalogContext.numberOfPartitions *
                                                      this.getScaleFactor());
         }
         LOG.info("Initializing database with " + init_record_count + " records.");
@@ -144,7 +142,7 @@ public class YCSBLoader extends Loader {
                             table.clearRowData();
                             if (debug.val)
                                 LOG.debug(String.format("[%d] Records Loaded: %6d / %d",
-                                          thread_id, total.get(), YCSBConstants.NUM_RECORDS));
+                                          thread_id, total.get(), init_record_count));
                         }
                     } // FOR
 
@@ -155,7 +153,7 @@ public class YCSBLoader extends Loader {
                         table.clearRowData();
                         if (debug.val)
                             LOG.debug(String.format("[%d] Records Loaded: %6d / %d",
-                                      thread_id, total.get(), YCSBConstants.NUM_RECORDS));
+                                      thread_id, total.get(), init_record_count));
                     }
                 }
             });

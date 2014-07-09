@@ -157,7 +157,7 @@ public class TestAntiCachePerformance extends BaseTestCase {
 
         for (int partition : catalogContext.getAllPartitionIds()) {
 //            System.err.printf("Evicting data at partition %d...\n", partition);
-            Object params[] = { partition, tableNames, evictBytes, numBlocks };
+            Object params[] = { partition, tableNames, null, evictBytes, numBlocks };
             boolean result = this.client.callProcedure(callback, procName, params);
             assertTrue(result);
         } // FOR
@@ -293,17 +293,17 @@ public class TestAntiCachePerformance extends BaseTestCase {
         this.UnevictData();
     }
 
-//    /**
-//     * testWithAntiCache
-//     */
-//    @Test
-//    public void testEvictData2() throws Exception {
-//        this.startSite(true);
-//        this.loadData(50000);
-//        System.err.println("Testing with 2 MB block size: ");
-//        this.evictData(BLOCK_SIZE_2_MB);
-//        this.UnevictData();
-//    }
+    /**
+     * testWithAntiCache
+     */
+    @Test
+    public void testEvictData2() throws Exception {
+        this.startSite(true);
+        this.loadData(50000);
+        System.err.println("Testing with 2 MB block size: ");
+        this.evictData(BLOCK_SIZE_2_MB);
+        this.UnevictData();
+    }
 
 //    /**
 //     * testWithAntiCache

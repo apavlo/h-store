@@ -19,6 +19,7 @@ import org.voltdb.ClientResponseImpl;
 import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
+import org.voltdb.catalog.Column;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Table;
 import org.voltdb.exceptions.EvictedTupleAccessException;
@@ -32,10 +33,15 @@ import org.voltdb.utils.VoltTableUtil;
 import com.google.protobuf.RpcCallback;
 
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.hstore.Hstoreservice.HStoreService;
 import edu.brown.hstore.Hstoreservice.Status;
+import edu.brown.hstore.Hstoreservice.UnevictDataResponse;
+import edu.brown.hstore.callbacks.LocalInitQueueCallback;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.internal.UtilityWorkMessage.TableStatsRequestMessage;
+import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
+import edu.brown.hstore.txns.RemoteTransaction;
 import edu.brown.hstore.util.AbstractProcessingRunnable;
 import edu.brown.interfaces.DebugContext;
 import edu.brown.logging.LoggerUtil;
@@ -74,20 +80,21 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
     // ----------------------------------------------------------------------------
 
     protected class QueueEntry {
-        final LocalTransaction ts;
+        final AbstractTransaction ts;
         final Table catalog_tbl;
         final int partition;
         final short block_ids[];
         final int tuple_offsets[]; 
 
-        public QueueEntry(LocalTransaction ts, int partition, Table catalog_tbl, short block_ids[], int tuple_offsets[]) {
+        public QueueEntry(AbstractTransaction ts, int partition, Table catalog_tbl, short block_ids[], int tuple_offsets[]) {
             this.ts = ts;
             this.partition = partition;
             this.catalog_tbl = catalog_tbl;
             this.block_ids = block_ids;
             this.tuple_offsets = tuple_offsets;
         }
-        @Override
+
+		@Override
         public String toString() {
             return String.format("%s{%s / Table:%s / Partition:%d / BlockIds:%s}",
                     this.getClass().getSimpleName(), this.ts,
@@ -137,7 +144,9 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
             synchronized(AntiCacheManager.this) {
                 try {
                     // update all the partition sizes
+                	LOG.warn("In mem monitor");
                     for (int partition : hstore_site.getLocalPartitionIds().values()) {
+                    	LOG.warn("Updating partition stats");
                         getPartitionSize(partition);
                     }
                 } catch (Throwable ex) {
@@ -202,11 +211,14 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
             LOG.debug("AVAILABLE MEMORY: " + StringUtil.formatSize(this.availableMemory));
 
         CatalogContext catalogContext = hstore_site.getCatalogContext();
+        
         evictableTables = new String[catalogContext.getEvictableTables().size()];
         int i = 0;
         for (Table table : catalogContext.getEvictableTables()) {
-            evictableTables[i] = table.getName();
-            i++;
+        	if(!table.getBatchevicted()){
+                evictableTables[i] = table.getName();
+                i++;        		
+        	}
         }
 
         String policy = hstore_conf.site.anticache_eviction_distribution;
@@ -242,6 +254,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         this.statsMessage.getObservable().addObserver(new EventObserver<VoltTable>() {
             @Override
             public void update(EventObservable<VoltTable> o, VoltTable vt) {
+            	LOG.info("updating partition stats in observer");
                 AntiCacheManager.this.updatePartitionStats(vt);
             }
         });
@@ -263,9 +276,13 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
     protected void processingCallback(QueueEntry next) {
         assert(next.ts.isInitialized()) :
             String.format("Unexpected uninitialized transaction handle: %s", next);
-        assert(next.partition == next.ts.getBasePartition()) :
-            String.format("The base partition for %s is %d but we want to fetch a block for partition %d: %s",
-                    next.ts, next.ts.getBasePartition(), next.partition, next);
+        if(next.partition != next.ts.getBasePartition()) { // distributed txn
+            LOG.info(String.format("The base partition for %s is %d but we want to fetch a block for partition %d: %s",
+                    next.ts, next.ts.getBasePartition(), next.partition, next));
+            // if we are the remote site then we should go ahead and continue processing
+            // if no then we should simply requeue the entry? 
+            
+        }
         LOG.debug("Processing " + next);
 
         // We need to get the EE handle for the partition that this txn
@@ -305,23 +322,44 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
                 this.profilers[next.partition].retrieval_time.stopIfStarted();
         }
 
-        // HACK HACK HACK HACK HACK HACK
-        // We need to get a new txnId for ourselves, since the one that we
-        // were given before is now probably too far in the past
-        this.hstore_site.getTransactionInitializer().resetTransactionId(next.ts, next.partition);
+        LOG.info("anticache block removal done");
+        Long oldTxnId = next.ts.getTransactionId();
         // Now go ahead and requeue our transaction
 
         //        if(merge_needed)
         next.ts.setAntiCacheMergeTable(next.catalog_tbl);
 
+        if (next.ts instanceof LocalTransaction){
+            // HACK HACK HACK HACK HACK HACK
+            // We need to get a new txnId for ourselves, since the one that we
+            // were given before is now probably too far in the past
+        	if(next.partition != next.ts.getBasePartition()){
+        		ee.antiCacheMergeBlocks(next.catalog_tbl);
+        	}
+            Long newTxnId = this.hstore_site.getTransactionInitializer().resetTransactionId(next.ts, next.partition);
 
-        this.hstore_site.transactionInit(next.ts);
+        	LOG.info("restartin on local");
+        	this.hstore_site.transactionInit(next.ts);	
+        }else{
+        	ee.antiCacheMergeBlocks(next.catalog_tbl);
+        	RemoteTransaction ts = (RemoteTransaction) next.ts; 
+        	RpcCallback<UnevictDataResponse> callback = ts.getUnevictCallback();
+        	UnevictDataResponse.Builder builder = UnevictDataResponse.newBuilder()
+        		.setSenderSite(this.hstore_site.getSiteId())
+        		.setTransactionId(ts.getNewTransactionId())
+        		.setPartitionId(next.partition)
+        		.setStatus(Status.OK);
+        	callback.run(builder.build());        	
+        	
+        }
+        
         //        this.hstore_site.transactionReject(next.ts, Status.ABORT_GRACEFUL);
     }
 
     @Override
     protected void removeCallback(QueueEntry next) {
-        this.hstore_site.transactionReject(next.ts, Status.ABORT_GRACEFUL);
+    	LocalTransaction ts = (LocalTransaction) next.ts;
+        this.hstore_site.transactionReject(ts, Status.ABORT_GRACEFUL);
     }
 
     /**
@@ -338,18 +376,39 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
      * @param block_ids
      *            - The list of blockIds that need to be read in for the table
      */
-    public boolean queue(LocalTransaction ts, int partition, Table catalog_tbl, short block_ids[], int tuple_offsets[]) {
+    public boolean queue(AbstractTransaction txn, int partition, Table catalog_tbl, short block_ids[], int tuple_offsets[]) {
+    	LOG.info(String.format("\nBase partition: %d \nPartition that needs to unevict data: %d",
+    			txn.getBasePartition(), partition));
+    	if (txn instanceof LocalTransaction){
+    		LocalTransaction ts = (LocalTransaction)txn;
+	    	if(ts.getBasePartition()!=partition  && !hstore_site.isLocalPartition(partition)){ // different partition generated the exception
+	    		int site_id = hstore_site.getCatalogContext().getSiteIdForPartitionId(partition);
+	    		hstore_site.getCoordinator().sendUnevictDataMessage(site_id, ts, partition, catalog_tbl, block_ids, tuple_offsets);
+	    		return true;
+	    		// should we enqueue the transaction on our side?
+	    		// if yes then we need to prevent the queue item from being picked up 
+	    		// and prevent it from bombing the partition error
+	    		// if no then simply return?
+	    		
+	    		// how to take care of LRU?
+	    		
+	    	}
+	    	
+	    	if (hstore_conf.site.anticache_profiling) {
+		        assert(ts.getPendingError() != null) :
+		            String.format("Missing original %s for %s", EvictedTupleAccessException.class.getSimpleName(), ts);
+		        assert(ts.getPendingError() instanceof EvictedTupleAccessException) :
+		            String.format("Unexpected error for %s: %s", ts, ts.getPendingError().getClass().getSimpleName());
+		        this.profilers[partition].restarted_txns++;
+		        this.profilers[partition].addEvictedAccess(ts, (EvictedTupleAccessException)ts.getPendingError());
+	    		LOG.debug("Restarting transaction " + String.format("%s",ts) + ", " + ts.getRestartCounter() + " total restarts."); 
+	    		LOG.debug("Total Restarted Txns: " + this.profilers[partition].restarted_txns); 
+	    	}
+    	}
 
-        //        if (hstore_conf.site.anticache_profiling) {
-        assert(ts.getPendingError() != null) :
-            String.format("Missing original %s for %s", EvictedTupleAccessException.class.getSimpleName(), ts);
-        assert(ts.getPendingError() instanceof EvictedTupleAccessException) :
-            String.format("Unexpected error for %s: %s", ts, ts.getPendingError().getClass().getSimpleName());
-        this.profilers[partition].restarted_txns++;
-        this.profilers[partition].addEvictedAccess(ts, (EvictedTupleAccessException)ts.getPendingError());
-        //        }
-
-        QueueEntry e = new QueueEntry(ts, partition, catalog_tbl, block_ids, tuple_offsets);
+    	LOG.info(String.format("AntiCacheManager queuing up an item for uneviction at site %d",
+    			hstore_site.getSiteId()));
+        QueueEntry e = new QueueEntry(txn, partition, catalog_tbl, block_ids, tuple_offsets);
 
         // TODO: We should check whether there are any other txns that are also blocked waiting
         // for these blocks. This will ensure that we don't try to read in blocks twice.
@@ -449,13 +508,22 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
             long evictBlockSizes[] = new long[pdist.size()];
             int evictBlocks[] = new int[pdist.size()];
             int i = 0;
+            CatalogContext catalogContext = hstore_site.getCatalogContext();
+            String children[] = new String[pdist.size()];
             for (String table : pdist.keySet()) {
                 tableNames[i] = table;
+                Table catalogTable = catalogContext.getTableByName(table);
+                if(hstore_conf.site.anticache_batching == true){
+                    children = CatalogUtil.getChildTables(catalogContext.database, catalogTable);
+                    System.out.println(children);                	
+                }
                 evictBlockSizes[i] = hstore_conf.site.anticache_block_size;
                 evictBlocks[i] = pdist.get(table); 
                 i++;
             }
-            Object params[] = new Object[] { partition, tableNames, evictBlockSizes, evictBlocks};
+            
+            
+            Object params[] = new Object[] { partition, tableNames, children, evictBlockSizes, evictBlocks};
 
             StoredProcedureInvocation invocation = new StoredProcedureInvocation(1, procName, params);
 
@@ -688,6 +756,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         // Queue up a utility work operation at the PartitionExecutor so
         // that we can get the total size of the partition
         hstore_site.getPartitionExecutor(partition).queueUtilityWork(this.statsMessage);
+	//LOG.info(String.format("setting partition %d to true", partition));
         pendingStatsUpdates[partition] = true;
     }
 
@@ -841,7 +910,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
                 executor.getPartitionId());
         File dbDirPath = new File(base_dir + File.separatorChar + partitionName);
         if (hstore_conf.site.anticache_reset) {
-            LOG.warn(String.format("Deleting anti-cache directory '%s'", dbDirPath));
+            //LOG.warn(String.format("Deleting anti-cache directory '%s'", dbDirPath));
             FileUtil.deleteDirectory(dbDirPath);
         }
         FileUtil.makeDirIfNotExists(dbDirPath);
