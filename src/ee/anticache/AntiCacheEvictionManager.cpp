@@ -561,7 +561,7 @@ bool AntiCacheEvictionManager::evictBlockToDisk(PersistentTable *table, const lo
                 num_tuples_evicted);
         int initSize = block.getSerializedSize();
 
-        VOLT_DEBUG("Starting evictable tuple iterator for %s", name().c_str());
+        //VOLT_DEBUG("Starting evictable tuple iterator for %s", name().c_str());
         while (evict_itr.hasNext() && (block.getSerializedSize() + MAX_EVICTED_TUPLE_SIZE < block_size)) {
             if(!evict_itr.next(tuple))
                 break;
@@ -581,7 +581,7 @@ bool AntiCacheEvictionManager::evictBlockToDisk(PersistentTable *table, const lo
                 VOLT_INFO("Tuple %d is already evicted. Skipping", table->getTupleID(tuple.address()));
                 continue;
             }
-            VOLT_DEBUG("Evicting Tuple: %s", tuple.debug(name()).c_str());
+            //VOLT_DEBUG("Evicting Tuple: %s", tuple.debug(name()).c_str());
             tuple.setEvictedTrue();
 
             // Populate the evicted_tuple with the block id and tuple offset
@@ -606,8 +606,8 @@ VOLT_INFO("block address is %p", evicted_tuple_address);
             table->deleteTupleStorage(tuple);
 
             num_tuples_evicted++;
-            VOLT_DEBUG("Added new evicted %s tuple to block #%d [tuplesEvicted=%d]",
-                       name().c_str(), block_id, num_tuples_evicted);
+            //VOLT_DEBUG("Added new evicted %s tuple to block #%d [tuplesEvicted=%d]",
+            //           name().c_str(), block_id, num_tuples_evicted);
 
         } // WHILE
         VOLT_DEBUG("Finished evictable tuple iterator for %s [tuplesEvicted=%d]",
