@@ -60,6 +60,8 @@ public class MyClient {
 	Client client;
 	InputClientConnection icc;
 	ServerSocket serverSocket;
+	Socket api; //Connection to the Rest API
+	BufferedReader apiCall; //Reads messages from the Rest API
 
 	MyClient() {
 		this.port = HStoreConstants.DEFAULT_PORT; //21212
@@ -77,7 +79,7 @@ public class MyClient {
 	//Take a json message from the socket and parse it for the procedure
 	//name and arguments.  Make a call to the specified procedure and return
 	//the array of VoltTables.
-	public VoltTable [] callStoredProcedure(String s, MyClient myc) {
+	public VoltTable [] callStoredProcedure(String s) throws JSONException {
 		JSONObject j;
 		VoltTable [] results;
 		System.out.println("Calling stored procedure");
@@ -85,22 +87,34 @@ public class MyClient {
 			j = new JSONObject(s);
 			String procedureName = j.getString("proc");
 			JSONArray args = j.getJSONArray("args");
-			if (args.length() == 0) {
-				results = myc.client.callProcedure(procedureName).getResults();
+			ArrayList<Object> args2 = new ArrayList<Object>();
+			for (int i = 0; i < args.length(); i++) {
+				args2.add(args.get(i));
+			}
+			Object [] argumentList = args2.toArray();
+			results = client.callProcedure(procedureName, argumentList).getResults();
+			return results;
+			/*int numOfArgs = args.length();
+			if (numOfArgs > 3) {
+				throw new Exception("Too many arguments");
+			}
+			if (numOfArgs == 0) {
+				results = this.client.callProcedure(procedureName).getResults();
 				return results;
 			}
-			if (args.length() == 1) {
-				results = myc.client.callProcedure(procedureName, args.get(0)).getResults();
+			if (numOfArgs == 1) {
+				results = this.client.callProcedure(procedureName, args.get(0)).getResults();
 				return results;
 			}
-			if (args.length() == 2) {
-				results = myc.client.callProcedure(procedureName, args.get(0), args.get(1)).getResults();
+			if (numOfArgs == 2) {
+				results = this.client.callProcedure(procedureName, args.get(0), args.get(1)).getResults();
 				return results;
 			}
-			if (args.length() == 3) {
-				results = myc.client.callProcedure(procedureName, args.get(0), args.get(1), args.get(2)).getResults();
+			if (numOfArgs == 3) {
+				results = this.client.callProcedure(procedureName, args.get(0), args.get(1), args.get(2)).getResults();
+				return results;
 			}
-			System.out.println(j.get("proc"));
+			System.out.println(j.get("proc"));*/
 		} catch (JSONException e) {
 			if (s == null)
 				System.out.println("Received null string from client");
@@ -116,8 +130,23 @@ public class MyClient {
 				System.out.println(e.getMessage());
 			e.printStackTrace();
 		} catch (ProcCallException e) {
-			if (e.getMessage() != null)
+			if (e.getMessage() != null) {
 				System.out.println(e.getMessage());
+				JSONObject error = new JSONObject();
+				error.put("data", "");
+				error.put("error", e.getMessage().split("\n")[0]);
+				error.put("success", 0);
+				sendJSON(error);
+			}
+			e.printStackTrace();
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			System.out.println(e.getMessage());
+			JSONObject error = new JSONObject();
+			error.put("data", "");
+			error.put("error", e.getMessage());
+			error.put("success", 0);
+			sendJSON(error);
 			e.printStackTrace();
 		}
 		return null;
@@ -174,6 +203,37 @@ public class MyClient {
 		}
 		return s;
 	}
+	
+	public String readString() {
+		String procedureName;
+		try {
+			while ((procedureName = apiCall.readLine()) == null) {
+				System.out.println("Received a null string");
+				System.out.println(api.toString());
+				api = serverSocket.accept(); //Client likely disconnected
+				System.out.println("Connected to " + api.getInetAddress());
+				apiCall = new BufferedReader(new InputStreamReader(api.getInputStream()));
+			}
+			return procedureName;
+		} catch (IOException e) {
+			System.out.println("Unable to read from the Rest client");
+			e.printStackTrace();
+		}
+		return null;
+	}
+	
+	public void sendJSON(JSONObject j) {
+		String jsonMessage = (j.toString() + "\n");
+		System.out.println(jsonMessage);
+		try {
+			OutputStreamWriter out = new OutputStreamWriter(api.getOutputStream(), "UTF-8");
+			out.write(jsonMessage, 0, jsonMessage.length());
+			out.flush();
+		} catch (IOException e) {
+			System.out.println("Unable to write to the Rest client");
+			e.printStackTrace();
+		}
+	}
 
 	//Used to grab information about where S-Store is running and establish a
 	//connection to the db
@@ -225,74 +285,82 @@ public class MyClient {
 		}
 		return new InputClientConnection(client, hostname, port);
 	}
-
+	
 	public static void main(String [] args) {
+		String proc;
+		//String jsonMessage;
+		JSONObject j;
+		VoltTable [] results;
 		MyClient myc = new MyClient();
 		try {
-			Socket api = myc.serverSocket.accept();
-			System.out.println("Connected to " + api.getInetAddress());
-			BufferedReader apiCall = new BufferedReader(new InputStreamReader(api.getInputStream()));
+			myc.api = myc.serverSocket.accept();
+			System.out.println("Connected to " + myc.api.getInetAddress());
+			myc.apiCall = new BufferedReader(new InputStreamReader(myc.api.getInputStream()));
 			while (true) {
-				System.out.println("Starting while loop");
-				/*if (api.isClosed()) {
-					System.out.println("Socket was closed");
-					api = myc.serverSocket.accept();
+				ArrayList<String> rows = new ArrayList<String>();
+				JSONArray jsonArray = new JSONArray();
+				proc = myc.readString();
+				/*String procedureName;
+				while ((procedureName = apiCall.readLine()) == null) {
+					System.out.println("Received a null string");
+					System.out.println(api.toString());
+					api = myc.serverSocket.accept(); //Client likely disconnected
 					System.out.println("Connected to " + api.getInetAddress());
 					apiCall = new BufferedReader(new InputStreamReader(api.getInputStream()));
 				}*/
-				String proc;
-				String jsonMessage;
-				ArrayList<String> rows = new ArrayList<String>();
-				JSONObject j;
-				JSONArray jsonArray = new JSONArray();
-				//Socket api = myc.serverSocket.accept();
-				//System.out.println("Connected to " + api.getInetAddress());
-				//BufferedReader apiCall = new BufferedReader(new InputStreamReader(api.getInputStream()));
-				while ((proc = apiCall.readLine()) == null) {
-					System.out.println("Received a null string");
-					api = myc.serverSocket.accept();
-					System.out.println("Connected to " + api.getInetAddress());
-					apiCall = new BufferedReader(new InputStreamReader(api.getInputStream()));
-				}
+				//proc = procedureName;
 				System.out.println("Received input stream");
-				VoltTable [] results = myc.callStoredProcedure(proc, myc);
+				while ((results = myc.callStoredProcedure(proc)) == null) {
+					/*j = new JSONObject();
+					j.put("data", "");
+					j.put("error", "Invalid procedure call");
+					j.put("success", 0);
+					myc.sendJSON(j);*/
+					proc = myc.readString();
+				}
 				System.out.println(results[0].toString());
+				j = new JSONObject();
 				for (VoltTable vt: results) {
 					if (vt.getColumnCount() == 1 && vt.getRowCount() == 1) {
-						j = new JSONObject();
+						long error = vt.asScalarLong();
+						//j = new JSONObject();
 						j.put("data", jsonArray);
-						j.put("success", vt.asScalarLong());
-						ArrayList<String>temp = new ArrayList<String>();
-						temp.add(String.valueOf(vt.asScalarLong()));
-						rows = temp;
+						if (error == 0)
+							j.put("error", "DB error");
+						else
+							j.put("error", "");
+						j.put("success", error);
+						//ArrayList<String>temp = new ArrayList<String>();
+						rows.add(String.valueOf(vt.asScalarLong()));
+						//rows = temp;
 					}
 					else {
-						rows = myc.parseResults(vt);
+						rows.addAll(myc.parseResults(vt));
 						for (String s: rows) {
 							jsonArray.put(new JSONObject(s));
 							System.out.println(jsonArray.toString());
 						}
 						System.out.println(jsonArray.toString());
-						j = new JSONObject();
+						//j = new JSONObject();
 						j.put("data", jsonArray);
+						j.put("error", "");
 						j.put("success", 1);
 					}
-					jsonMessage = (j.toString() + "\n");
+					System.out.println("Sending json to " + myc.api.toString());
+					myc.sendJSON(j);
+					/*String jsonMessage = (j.toString() + "\n");
+					System.out.println(jsonMessage);
 					OutputStreamWriter out = new OutputStreamWriter(api.getOutputStream(), "UTF-8");
 					out.write(jsonMessage, 0, jsonMessage.length());
-					out.flush();
+					out.flush();*/
 					System.out.println("Done sending rows");
-					/*if (!api.isConnected()) {
-						System.out.println("Closing socket");
-						api.close();
-					}*/
 				}
 			}
 		} catch (NoConnectionsException e) {
 			System.out.println("Failure to create S-Store client connection");
 			e.printStackTrace();
 		} catch (IOException e) {
-			System.out.println("Lost connection to client");
+			System.out.println("Unable to connect to Rest client");
 			e.printStackTrace();
 		} catch (JSONException e) {
 			// This exception should never get thrown.
