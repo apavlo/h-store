@@ -329,7 +329,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
 
         //        if(merge_needed)
         
-        LOG.info("catalog_tbl.getEstimatedTupleCount() = %d", next.catalog_tbl.getEstimatedTupleCount());
+        LOG.info("catalog_tbl.getEstimatedtuplecount() = %d", next.catalog_tbl.getEstimatedtuplecount());
 
         next.ts.setAntiCacheMergeTable(next.catalog_tbl);
 
