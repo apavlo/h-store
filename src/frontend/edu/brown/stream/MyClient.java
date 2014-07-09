@@ -87,34 +87,13 @@ public class MyClient {
 			j = new JSONObject(s);
 			String procedureName = j.getString("proc");
 			JSONArray args = j.getJSONArray("args");
-			ArrayList<Object> args2 = new ArrayList<Object>();
+			ArrayList<Object> conversionList = new ArrayList<Object>();
 			for (int i = 0; i < args.length(); i++) {
-				args2.add(args.get(i));
+				conversionList.add(args.get(i));
 			}
-			Object [] argumentList = args2.toArray();
+			Object [] argumentList = conversionList.toArray();
 			results = client.callProcedure(procedureName, argumentList).getResults();
 			return results;
-			/*int numOfArgs = args.length();
-			if (numOfArgs > 3) {
-				throw new Exception("Too many arguments");
-			}
-			if (numOfArgs == 0) {
-				results = this.client.callProcedure(procedureName).getResults();
-				return results;
-			}
-			if (numOfArgs == 1) {
-				results = this.client.callProcedure(procedureName, args.get(0)).getResults();
-				return results;
-			}
-			if (numOfArgs == 2) {
-				results = this.client.callProcedure(procedureName, args.get(0), args.get(1)).getResults();
-				return results;
-			}
-			if (numOfArgs == 3) {
-				results = this.client.callProcedure(procedureName, args.get(0), args.get(1), args.get(2)).getResults();
-				return results;
-			}
-			System.out.println(j.get("proc"));*/
 		} catch (JSONException e) {
 			if (s == null)
 				System.out.println("Received null string from client");
@@ -130,14 +109,12 @@ public class MyClient {
 				System.out.println(e.getMessage());
 			e.printStackTrace();
 		} catch (ProcCallException e) {
-			if (e.getMessage() != null) {
-				System.out.println(e.getMessage());
-				JSONObject error = new JSONObject();
-				error.put("data", "");
-				error.put("error", e.getMessage().split("\n")[0]);
-				error.put("success", 0);
-				sendJSON(error);
-			}
+			System.out.println(e.getMessage());
+			JSONObject error = new JSONObject();
+			error.put("data", "");
+			error.put("error", e.getMessage().split("\n")[0]);
+			error.put("success", 0);
+			sendJSON(error);
 			e.printStackTrace();
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
@@ -209,7 +186,6 @@ public class MyClient {
 		try {
 			while ((procedureName = apiCall.readLine()) == null) {
 				System.out.println("Received a null string");
-				System.out.println(api.toString());
 				api = serverSocket.accept(); //Client likely disconnected
 				System.out.println("Connected to " + api.getInetAddress());
 				apiCall = new BufferedReader(new InputStreamReader(api.getInputStream()));
@@ -288,7 +264,6 @@ public class MyClient {
 	
 	public static void main(String [] args) {
 		String proc;
-		//String jsonMessage;
 		JSONObject j;
 		VoltTable [] results;
 		MyClient myc = new MyClient();
@@ -300,22 +275,8 @@ public class MyClient {
 				ArrayList<String> rows = new ArrayList<String>();
 				JSONArray jsonArray = new JSONArray();
 				proc = myc.readString();
-				/*String procedureName;
-				while ((procedureName = apiCall.readLine()) == null) {
-					System.out.println("Received a null string");
-					System.out.println(api.toString());
-					api = myc.serverSocket.accept(); //Client likely disconnected
-					System.out.println("Connected to " + api.getInetAddress());
-					apiCall = new BufferedReader(new InputStreamReader(api.getInputStream()));
-				}*/
-				//proc = procedureName;
 				System.out.println("Received input stream");
 				while ((results = myc.callStoredProcedure(proc)) == null) {
-					/*j = new JSONObject();
-					j.put("data", "");
-					j.put("error", "Invalid procedure call");
-					j.put("success", 0);
-					myc.sendJSON(j);*/
 					proc = myc.readString();
 				}
 				System.out.println(results[0].toString());
@@ -323,16 +284,13 @@ public class MyClient {
 				for (VoltTable vt: results) {
 					if (vt.getColumnCount() == 1 && vt.getRowCount() == 1) {
 						long error = vt.asScalarLong();
-						//j = new JSONObject();
 						j.put("data", jsonArray);
-						if (error == 0)
+						if (error == 0) //Currently a false positive
 							j.put("error", "DB error");
 						else
 							j.put("error", "");
 						j.put("success", error);
-						//ArrayList<String>temp = new ArrayList<String>();
 						rows.add(String.valueOf(vt.asScalarLong()));
-						//rows = temp;
 					}
 					else {
 						rows.addAll(myc.parseResults(vt));
@@ -341,18 +299,12 @@ public class MyClient {
 							System.out.println(jsonArray.toString());
 						}
 						System.out.println(jsonArray.toString());
-						//j = new JSONObject();
 						j.put("data", jsonArray);
 						j.put("error", "");
 						j.put("success", 1);
 					}
 					System.out.println("Sending json to " + myc.api.toString());
 					myc.sendJSON(j);
-					/*String jsonMessage = (j.toString() + "\n");
-					System.out.println(jsonMessage);
-					OutputStreamWriter out = new OutputStreamWriter(api.getOutputStream(), "UTF-8");
-					out.write(jsonMessage, 0, jsonMessage.length());
-					out.flush();*/
 					System.out.println("Done sending rows");
 				}
 			}
@@ -370,5 +322,4 @@ public class MyClient {
 			e.printStackTrace();
 		}
 	}
-
 }
