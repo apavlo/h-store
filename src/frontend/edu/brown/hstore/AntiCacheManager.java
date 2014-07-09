@@ -306,12 +306,13 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         if (hstore_conf.site.anticache_profiling) 
             this.profilers[next.partition].retrieval_time.start();
         try {
-            LOG.debug(String.format("Asking EE to read in evicted blocks from table %s on partition %d: %s",
+            // changed from info to debug
+            LOG.info(String.format("Asking EE to read in evicted blocks from table %s on partition %d: %s",
                     next.catalog_tbl.getName(), next.partition, Arrays.toString(next.block_ids)));
 
             ee.antiCacheReadBlocks(next.catalog_tbl, next.block_ids, next.tuple_offsets);
 
-            LOG.debug(String.format("Finished reading blocks from partition %d",
+            LOG.info(String.format("Finished reading blocks from partition %d",
                     next.partition));
         } catch (SerializableException ex) {
             LOG.info("Caught unexpected SerializableException while reading anti-cache block.", ex);
@@ -327,6 +328,9 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         // Now go ahead and requeue our transaction
 
         //        if(merge_needed)
+        
+        LOG.info("catalog_tbl.getEstimatedTupleCount() = %d", next.catalog_tbl.getEstimatedTupleCount());
+
         next.ts.setAntiCacheMergeTable(next.catalog_tbl);
 
         if (next.ts instanceof LocalTransaction){
