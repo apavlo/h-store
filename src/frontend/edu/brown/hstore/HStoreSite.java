@@ -1033,7 +1033,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // Make sure that we always initialize the periodic thread so that
         // we can ensure that it only shows up on the cores that we want it to.
         this.threadManager.initPerioidicThread();
-	LOG.info("init periodic thread");
+        if (debug.val) LOG.debug("init periodic thread");
         
         // Periodic Work Processor
         this.threadManager.schedulePeriodicWork(new ExceptionHandlingRunnable() {
@@ -1046,7 +1046,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 }
             }
         }, 0, hstore_conf.site.exec_periodic_interval, TimeUnit.MILLISECONDS);
-	LOG.info("exec periodic interval");
+        if (debug.val) LOG.debug("exec periodic interval");
         
         // Heartbeats
         this.threadManager.schedulePeriodicWork(new ExceptionHandlingRunnable() {
@@ -1062,7 +1062,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             }
         }, hstore_conf.site.network_heartbeats_interval,
            hstore_conf.site.network_heartbeats_interval, TimeUnit.MILLISECONDS);
-	LOG.info("heartbeat");
+        if (debug.val) LOG.debug("heartbeat");
         
         // HStoreStatus
         if (hstore_conf.site.status_enable) {
@@ -1072,14 +1072,14 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 hstore_conf.site.status_interval,
                 TimeUnit.MILLISECONDS);
         }
-	LOG.info("exec status enable");
+        if (debug.val) LOG.info("exec status enable");
         
         // AntiCache Memory Monitor
-	LOG.info("about to starting memory monitor thread");
+        if (debug.val) LOG.debug("about to starting memory monitor thread");
         if (this.anticacheManager != null) {
-	    LOG.info("acm not null");
+            if (debug.val) LOG.debug("acm not null");
             if (this.anticacheManager.getEvictableTables().isEmpty() == false) {
-	    	LOG.info("get evictables true");
+                if (debug.val) LOG.debug("get evictables true");
                 this.threadManager.schedulePeriodicWork(
                         this.anticacheManager.getMemoryMonitorThread(),
                         hstore_conf.site.anticache_check_interval,
@@ -2464,7 +2464,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @return Returns the final status of this transaction
      */
     public Status transactionRestart(LocalTransaction orig_ts, Status status) {
-	//LOG.info(String.format("transaction %d was requested for a restarted", orig_ts.getTransactionId()));
+    //LOG.info(String.format("transaction %d was requested for a restarted", orig_ts.getTransactionId()));
         assert(orig_ts != null) : "Null LocalTransaction handle [status=" + status + "]";
         assert(orig_ts.isInitialized()) : "Uninitialized transaction??";
         if (debug.val)
@@ -2481,17 +2481,17 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         int restart_limit = (orig_ts.isSysProc() ? hstore_conf.site.txn_restart_limit_sysproc :
                                                    hstore_conf.site.txn_restart_limit);
         if (orig_ts.getRestartCounter() > restart_limit) {
-        	LOG.info("Rejected due to restart limit");
-        	System.out.println(orig_ts);
-		System.out.println(orig_ts.getPendingError());        
-		System.out.println(((EvictedTupleAccessException)orig_ts.getPendingError()).block_ids[0]);
-        	System.out.println(((EvictedTupleAccessException)orig_ts.getPendingError()).tuple_offsets[0]);
+            LOG.info("Rejected due to restart limit");
+            System.out.println(orig_ts);
+        System.out.println(orig_ts.getPendingError());        
+        System.out.println(((EvictedTupleAccessException)orig_ts.getPendingError()).block_ids[0]);
+            System.out.println(((EvictedTupleAccessException)orig_ts.getPendingError()).tuple_offsets[0]);
             if (orig_ts.isSysProc()) {
                 String msg = String.format("%s has been restarted %d times! Rejecting...",
                                            orig_ts, orig_ts.getRestartCounter());
                 throw new RuntimeException(msg);
             } else {
-            	LOG.info("the reject happened coz of too many restarts");
+                LOG.info("the reject happened coz of too many restarts");
                 this.transactionReject(orig_ts, Status.ABORT_REJECT);
                 return (Status.ABORT_REJECT);
             }
@@ -2713,7 +2713,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             //        AntiCacheManager.class.getSimpleName()));
             
             if(orig_ts.getBasePartition()!=error.getPartitionId() && !this.isLocalPartition(error.getPartitionId())){
-            	new_ts.setOldTransactionId(orig_ts.getTransactionId());
+                new_ts.setOldTransactionId(orig_ts.getTransactionId());
             }
             this.anticacheManager.queue(new_ts, error.getPartitionId(), evicted_table, block_ids, tuple_offsets);
             
@@ -3052,9 +3052,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                     }
                     if (hstore_conf.site.txn_counters) {
                         if (status == Status.ABORT_EVICTEDACCESS) {
-			    //if(ts.getRestartCounter()==0){
-                            	TransactionCounter.EVICTEDACCESS.inc(catalog_proc);
-			    //}
+                //if(ts.getRestartCounter()==0){
+                                TransactionCounter.EVICTEDACCESS.inc(catalog_proc);
+                //}
                         }
                         else if (status == Status.ABORT_SPECULATIVE) {
                             TransactionCounter.ABORT_SPECULATIVE.inc(catalog_proc);
