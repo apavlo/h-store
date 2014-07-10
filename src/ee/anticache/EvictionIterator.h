@@ -49,8 +49,7 @@
 
 #include "storage/TupleIterator.h"
 #include "storage/table.h"
-#include <queue>
-#include <vector>
+#include <set>
 
 /*class QueueElement{
 public:
@@ -84,7 +83,7 @@ private:
     TableTuple* current_tuple;
     bool is_first; 
 #ifdef ANTICACHE_TIMESTAMPS
-    priority_queue <pair <uint32_t, char*> > candidates;
+    set <pair <uint32_t, char*> > candidates;
 #endif
 }; 
 

@@ -84,7 +84,7 @@ void EvictionIterator::reserve(int64_t amount) {
     // TODO: This should be valid in the final version
     // srand(time(0));
 
-    candidates = priority_queue <pair <uint32_t, char*> >();
+    candidates.clear();
 
     VOLT_DEBUG("evict pick num: %d %d\n", evict_num, pick_num);
     VOLT_DEBUG("active_tuple: %d\n", active_tuple);
@@ -109,8 +109,8 @@ void EvictionIterator::reserve(int64_t amount) {
 
         //printf("here!!\n");
 
-        candidates.push(make_pair(current_tuple->getTimeStamp(), addr));
-        if (candidates.size() > evict_num) candidates.pop();
+        candidates.insert(make_pair(current_tuple->getTimeStamp(), addr));
+        if (candidates.size() > evict_num) candidates.erase(--candidates.end());
     }
     VOLT_DEBUG("Size of eviction candidates: %lu\n", candidates.size());
 }
@@ -120,8 +120,7 @@ void EvictionIterator::reserve(int64_t amount) {
 EvictionIterator::~EvictionIterator()
 {
 #ifdef ANTICACHE_TIMESTAMPS
-    while (!candidates.empty())
-        candidates.pop();
+    candidates.clear();
 #endif
     delete current_tuple;
 }
@@ -185,8 +184,8 @@ bool EvictionIterator::next(TableTuple &tuple)
     
     VOLT_DEBUG("current_tuple_id = %d", current_tuple_id);
 #else
-    tuple.move(candidates.top().second);
-    candidates.pop();
+    tuple.move(candidates.begin()->second);
+    candidates.erase(candidates.begin());
 #endif
     
     return true; 

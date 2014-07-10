@@ -328,14 +328,13 @@ public:
         }
     
         inline void setTimeStamp() {
-            uint32_t current_time = 0;
-            current_time = INT_MAX - (uint32_t)(rdtsc() >> 32);
+            uint32_t current_time = (uint32_t)(rdtsc() >> 32);
             //uint32_t *time_ptr = &current_time;
             memcpy(m_data+TUPLE_HEADER_SIZE-4, &current_time, 4);
         }
 
         inline void setColdTimeStamp() {
-            uint32_t cold_time = INT_MAX;
+            uint32_t cold_time = 0;
             memcpy(m_data+TUPLE_HEADER_SIZE-4, &cold_time, 4);
         }
 #endif

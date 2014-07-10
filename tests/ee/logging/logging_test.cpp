@@ -70,7 +70,7 @@ class LoggingTest : public Test {
         LoggingTest() : m_logManager(new TestProxy(), NULL) {}
         voltdb::LogManager m_logManager;
 };
-#if 0
+
 TEST_F(LoggingTest, TestManagerSetLevels) {
     /**
      * Try and set the level for every logger to every possible level and make sure they are loggable/not loggable as they should be.
@@ -131,7 +131,7 @@ TEST_F(LoggingTest, TestLoggerUsesProxyLevels) {
         }
     }
 }
-#endif
+
 int main() {
     return TestSuite::globalInstance()->runAll();
 }
