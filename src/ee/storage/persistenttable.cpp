@@ -475,6 +475,7 @@ bool PersistentTable::insertTuple(TableTuple &source) {
     /** Don't use MMAP pool **/
     m_tmpTarget1.copyForPersistentInsert(source, NULL); // tuple in freelist must be already cleared
     m_tmpTarget1.setDeletedFalse();
+    m_tmpTarget1.setEvictedFalse();
 
     /**
      * Inserts never "dirty" a tuple since the tuple is new, but...  The
