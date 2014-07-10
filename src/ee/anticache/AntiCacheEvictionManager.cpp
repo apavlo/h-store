@@ -729,7 +729,7 @@ bool AntiCacheEvictionManager::evictBlockToDiskInBatch(PersistentTable *table, P
     //int active_tuple_count = (int)table->activeTupleCount();
    // #endif
 
-    printf("evictBlockInBatch called!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
+    VOLT_DEBUG("evictBlockInBatch called!!!!!!!!!!!!!!!!!!!!!!!!!\n");
 
     TableIndex * pkeyIndex = table->primaryKeyIndex();
     int columnIndex = pkeyIndex->getColumnIndices().front();
@@ -743,11 +743,11 @@ bool AntiCacheEvictionManager::evictBlockToDiskInBatch(PersistentTable *table, P
     int child_blocksWritten = childTable->getBlocksWritten();
     int64_t child_bytesWritten = childTable->getBytesWritten();
 
-    printf("here!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
+    VOLT_DEBUG("here!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
     // Iterate through the table and pluck out tuples to put in our block
     TableTuple tuple(table->m_schema);
     EvictionIterator evict_itr(table);
-    printf("here2!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
+    VOLT_DEBUG("here2!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
 
 #ifdef ANTICACHE_TIMESTAMPS
     // TODO: what should I do with this?
