@@ -597,7 +597,7 @@ bool AntiCacheEvictionManager::evictBlockToDisk(PersistentTable *table, const lo
 
             // Then add it to this table's EvictedTable
             const void* evicted_tuple_address = static_cast<EvictedTable*>(evictedTable)->insertEvictedTuple(evicted_tuple);
-VOLT_INFO("block address is %p", evicted_tuple_address);
+            VOLT_INFO("block address is %p", evicted_tuple_address);
             // Change all of the indexes to point to our new evicted tuple
             table->setEntryToNewAddressForAllIndexes(&tuple, evicted_tuple_address);
 
@@ -1305,8 +1305,6 @@ void AntiCacheEvictionManager::throwEvictedAccessException(int partition_id) {
     // HACK
     catalog::Table *catalogTable = m_evicted_tables.front();
         
-    fprintf(stderr, "EVICTED ACCESS FROM %s\n", catalogTable->name().c_str());
-    
     // Do we really want to throw this here?
     // FIXME We need to support multiple tables in the exception data
     VOLT_INFO("Throwing EvictedTupleAccessException for table %s (%d)", catalogTable->name().c_str(), catalogTable->relativeIndex());
