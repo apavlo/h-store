@@ -214,41 +214,41 @@ public class TestAntiCacheSuite extends RegressionSuite {
         } // WHILE
     }
     
-//    /**
-//     * testEvictedAccessHistory
-//     */
-//    public void testEvictedAccessHistory() throws Exception {
-//        Client client = this.getClient();
-//        this.initializeDatabase(client);
-//        this.loadVotes(client, 100);
-//        int num_evicts = 5;
-//        for (int i = 0; i < num_evicts; i++) {
-//            this.evictData(client);
-//        } // FOR
-//        
-//        // Now force the system to fetch the block back in
-//        long expected = 1;
-//        String procName = "GetVote";
-//        Object params[] = { expected };
-//        ClientResponse cresponse = client.callProcedure(procName, params);
-//        assertEquals(cresponse.toString(), Status.OK, cresponse.getStatus());
-//        assertEquals(cresponse.toString(), 1, cresponse.getResults().length);
-//        assertEquals(cresponse.toString(), expected, cresponse.getResults()[0].getLong(0));
-//        
-//        // Our stats should now come back with one evicted access
-//        procName = VoltSystemProcedure.procCallName(EvictedAccessHistory.class);
-//        cresponse = client.callProcedure(procName);
-//        assertEquals(cresponse.toString(), Status.OK, cresponse.getStatus());
-//        assertEquals(cresponse.toString(), 1, cresponse.getResults().length);
-//        VoltTable result = cresponse.getResults()[0];
-//        assertEquals(1, result.getRowCount());
-//        System.err.println(VoltTableUtil.format(result));
-//        
-//        while (result.advanceRow()) {
-//            assertEquals(procName, result.getString("PROCEDURE"));
-//        } // WHILE
-//    }
-    
+    /**
+     * testEvictedAccessHistory
+     */
+    public void testEvictedAccessHistory() throws Exception {
+        Client client = this.getClient();
+        this.initializeDatabase(client);
+        this.loadVotes(client, 100);
+        int num_evicts = 5;
+        for (int i = 0; i < num_evicts; i++) {
+            this.evictData(client);
+        } // FOR
+        
+        // Now force the system to fetch the block back in
+        long expected = 1;
+        String procName = "GetVote";
+        Object params[] = { expected };
+        ClientResponse cresponse = client.callProcedure(procName, params);
+        assertEquals(cresponse.toString(), Status.OK, cresponse.getStatus());
+        assertEquals(cresponse.toString(), 1, cresponse.getResults().length);
+        VoltTable result = cresponse.getResults()[0];
+        result.advanceRow();
+        assertEquals(cresponse.toString(), expected, result.getLong(0));
+        
+        // Our stats should now come back with one evicted access
+        cresponse = client.callProcedure(VoltSystemProcedure.procCallName(EvictedAccessHistory.class));
+        assertEquals(cresponse.toString(), Status.OK, cresponse.getStatus());
+        assertEquals(cresponse.toString(), 1, cresponse.getResults().length);
+        result = cresponse.getResults()[0];
+        // assertEquals(1, result.getRowCount());
+        System.err.println(VoltTableUtil.format(result));
+        
+        while (result.advanceRow()) {
+            assertEquals(procName, result.getString("PROCEDURE"));
+        } // WHILE
+    }
 
     public static Test suite() {
         VoltServerConfig config = null;

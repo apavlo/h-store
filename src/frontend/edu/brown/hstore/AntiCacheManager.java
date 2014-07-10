@@ -322,7 +322,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
                 this.profilers[next.partition].retrieval_time.stopIfStarted();
         }
 
-        LOG.info("anticache block removal done");
+        if (debug.val) LOG.debug("anticache block removal done");
         Long oldTxnId = next.ts.getTransactionId();
         // Now go ahead and requeue our transaction
 
@@ -338,7 +338,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         	}
             Long newTxnId = this.hstore_site.getTransactionInitializer().resetTransactionId(next.ts, next.partition);
 
-        	LOG.info("restartin on local");
+            if (debug.val) LOG.debug("restartin on local");
         	this.hstore_site.transactionInit(next.ts);	
         }else{
         	ee.antiCacheMergeBlocks(next.catalog_tbl);
@@ -377,8 +377,9 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
      *            - The list of blockIds that need to be read in for the table
      */
     public boolean queue(AbstractTransaction txn, int partition, Table catalog_tbl, short block_ids[], int tuple_offsets[]) {
-    	LOG.info(String.format("\nBase partition: %d \nPartition that needs to unevict data: %d",
-    			txn.getBasePartition(), partition));
+    	if (debug.val)
+    	    LOG.debug(String.format("\nBase partition: %d \nPartition that needs to unevict data: %d",
+    	              txn.getBasePartition(), partition));
     	if (txn instanceof LocalTransaction){
     		LocalTransaction ts = (LocalTransaction)txn;
 	    	if(ts.getBasePartition()!=partition  && !hstore_site.isLocalPartition(partition)){ // different partition generated the exception
@@ -406,8 +407,9 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
 	    	}
     	}
 
-    	LOG.info(String.format("AntiCacheManager queuing up an item for uneviction at site %d",
-    			hstore_site.getSiteId()));
+    	if (debug.val)
+    	    LOG.debug(String.format("AntiCacheManager queuing up an item for uneviction at site %d",
+    	              hstore_site.getSiteId()));
         QueueEntry e = new QueueEntry(txn, partition, catalog_tbl, block_ids, tuple_offsets);
 
         // TODO: We should check whether there are any other txns that are also blocked waiting

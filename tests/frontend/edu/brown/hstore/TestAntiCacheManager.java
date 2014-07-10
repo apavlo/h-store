@@ -77,7 +77,7 @@ public class TestAntiCacheManager extends BaseTestCase {
         assertTrue(catalog_tbl.getEvictable());
         this.locators = new int[] { catalog_tbl.getRelativeIndex() };
         
-        Site catalog_site = CollectionUtil.first(CatalogUtil.getCluster(catalog).getSites());
+        Site catalog_site = CollectionUtil.first(getCatalogContext().sites);
         this.hstore_conf = HStoreConf.singleton();
         this.hstore_conf.site.status_enable = false;
         this.hstore_conf.site.anticache_enable = true;
@@ -152,7 +152,6 @@ public class TestAntiCacheManager extends BaseTestCase {
     // --------------------------------------------------------------------------------------------
     
     
-    /*
     @Test
     public void testStats() throws Exception {
         boolean adv;
@@ -235,7 +234,6 @@ public class TestAntiCacheManager extends BaseTestCase {
         } // FOR
         
     }
-    */
 
     @Test
     public void testReadEvictedTuples() throws Exception {
