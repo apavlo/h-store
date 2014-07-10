@@ -286,6 +286,7 @@ public class TestAntiCacheSuite extends RegressionSuite {
         VoterProjectBuilder project = new VoterProjectBuilder();
         project.addAllDefaults();
         project.markTableEvictable(VoterConstants.TABLENAME_VOTES);
+        project.markTableEvictable(VoterConstants.TABLENAME_CONTESTANTS);
         project.addStmtProcedure("GetVote",
                                  "SELECT * FROM " + VoterConstants.TABLENAME_VOTES + " WHERE vote_id = ?");
         project.addStmtProcedure("GetAllVotes",
