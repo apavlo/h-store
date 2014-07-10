@@ -235,6 +235,7 @@ public class TestAntiCacheManager extends BaseTestCase {
         } // FOR
         
     }
+    */
 
     @Test
     public void testReadEvictedTuples() throws Exception {
@@ -293,7 +294,6 @@ public class TestAntiCacheManager extends BaseTestCase {
         assertNotNull(profiler);
         assertEquals(1, profiler.evictedaccess_history.size());
     }
-    */
     
     @Test
     public void testEvictTuples() throws Exception {

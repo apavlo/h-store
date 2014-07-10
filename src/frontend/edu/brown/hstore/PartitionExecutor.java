@@ -44,11 +44,9 @@ package edu.brown.hstore;
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -63,7 +61,6 @@ import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.log4j.Logger;
 import org.voltdb.AriesLog;
@@ -76,7 +73,6 @@ import org.voltdb.MemoryStats;
 import org.voltdb.ParameterSet;
 import org.voltdb.SQLStmt;
 import org.voltdb.SnapshotSiteProcessor;
-import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.SnapshotSiteProcessor.SnapshotTableTask;
 import org.voltdb.SysProcSelector;
 import org.voltdb.VoltProcedure;
@@ -84,7 +80,6 @@ import org.voltdb.VoltProcedure.VoltAbortException;
 import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.catalog.Catalog;
-import org.voltdb.catalog.CatalogMap;
 import org.voltdb.catalog.Cluster;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Host;
@@ -105,10 +100,8 @@ import org.voltdb.jni.ExecutionEngine;
 import org.voltdb.jni.ExecutionEngineIPC;
 import org.voltdb.jni.ExecutionEngineJNI;
 import org.voltdb.jni.MockExecutionEngine;
-import org.voltdb.logging.VoltLogger;
 import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.messaging.FastSerializer;
-import org.voltdb.sysprocs.SnapshotSave;
 import org.voltdb.types.SpecExecSchedulerPolicyType;
 import org.voltdb.types.SpeculationConflictCheckerType;
 import org.voltdb.types.SpeculationType;
@@ -131,13 +124,10 @@ import edu.brown.hstore.Hstoreservice.TransactionWorkRequest;
 import edu.brown.hstore.Hstoreservice.TransactionWorkResponse;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.Hstoreservice.WorkResult;
-import edu.brown.hstore.callbacks.ClientResponseCallback;
 import edu.brown.hstore.callbacks.LocalFinishCallback;
 import edu.brown.hstore.callbacks.LocalPrepareCallback;
 import edu.brown.hstore.callbacks.PartitionCountingCallback;
 import edu.brown.hstore.callbacks.RemotePrepareCallback;
-import edu.brown.hstore.cmdlog.CommandLogWriter;
-import edu.brown.hstore.cmdlog.LogEntry;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.estimators.Estimate;
 import edu.brown.hstore.estimators.EstimatorState;
@@ -1014,7 +1004,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         LOG.warn("ARIES : aries : " + this.hstore_conf.site.aries+ " aries forward only : "+this.hstore_conf.site.aries_forward_only );
 
         if (this.hstore_conf.site.aries && this.hstore_conf.site.aries_forward_only == false) {
-            long logReadStartTime = System.currentTimeMillis();
+            // long logReadStartTime = System.currentTimeMillis();
 
             // define an array so that we can pass to native code by reference
             long size[] = new long[1];
@@ -1024,7 +1014,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             // ariesReplayPointer);
             LOG.info("ARIES : partition recovery started at partition : " + this.partitionId + " log size :" + size[0]);
 
-            long logReadEndTime = System.currentTimeMillis();
+            // long logReadEndTime = System.currentTimeMillis();
             // LOG.info("ARIES : log read in " + (logReadEndTime -
             // logReadStartTime) + " milliseconds");
 
@@ -2768,9 +2758,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         } finally {
             if (error != null) {
                 // error.printStackTrace();
-            	if(error instanceof EvictedTupleAccessException){
-            		EvictedTupleAccessException ex = (EvictedTupleAccessException) error;
-            	}
+//            	if (error instanceof EvictedTupleAccessException){
+//            		EvictedTupleAccessException ex = (EvictedTupleAccessException) error;
+//            	}
             	
                 LOG.warn(String.format("%s - Unexpected %s on partition %d",
                          ts, error.getClass().getSimpleName(), this.partitionId),
