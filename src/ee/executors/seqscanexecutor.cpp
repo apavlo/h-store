@@ -209,7 +209,7 @@ bool SeqScanExecutor::p_execute(const NValueArray &params, ReadWriteTracker *tra
         // Anti-Cache Variables
         #ifdef ANTICACHE
         AntiCacheEvictionManager* eviction_manager = executor_context->getAntiCacheEvictionManager();
-        bool hasEvictedTable = (target_table->getEvictedTable() != NULL);
+        bool hasEvictedTable = (eviction_manager != NULL && target_table->getEvictedTable() != NULL);
         #endif
 
         int tuple_ctr = 0;
@@ -224,7 +224,7 @@ bool SeqScanExecutor::p_execute(const NValueArray &params, ReadWriteTracker *tra
             // Anti-Cache Evicted Tuple Tracking
             #ifdef ANTICACHE
             // We are pointing to an entry for an evicted tuple
-            if (tuple.isEvicted()) {
+            if (hasEvictedTable && tuple.isEvicted()) {
                 VOLT_INFO("Tuple in index scan is evicted %s", m_catalogTable->name().c_str());      
 
                 // Tell the EvictionManager's internal tracker that we touched this mofo
@@ -295,7 +295,7 @@ bool SeqScanExecutor::p_execute(const NValueArray &params, ReadWriteTracker *tra
         } // WHILE
         #ifdef ANTICACHE
         // throw exception indicating evicted blocks are needed
-        if (eviction_manager->hasEvictedAccesses()) {
+        if (hasEvictedTable && eviction_manager->hasEvictedAccesses()) {
             int32_t partition_id = executor_context->getPartitionId();
             eviction_manager->throwEvictedAccessException(partition_id);
         }

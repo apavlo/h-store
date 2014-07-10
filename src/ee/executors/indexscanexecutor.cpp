@@ -397,7 +397,6 @@ bool IndexScanExecutor::p_execute(const NValueArray &params, ReadWriteTracker *t
         }
     }
 
-
     //
     // SEARCH KEY
     //
@@ -507,7 +506,7 @@ bool IndexScanExecutor::p_execute(const NValueArray &params, ReadWriteTracker *t
     // Anti-Cache Variables
     #ifdef ANTICACHE
     AntiCacheEvictionManager* eviction_manager = m_targetTable->m_executorContext->getAntiCacheEvictionManager();
-    bool hasEvictedTable = (m_targetTable->getEvictedTable() != NULL);
+    bool hasEvictedTable = (eviction_manager != NULL && m_targetTable->getEvictedTable() != NULL);
     #endif
 
     //
@@ -527,7 +526,7 @@ bool IndexScanExecutor::p_execute(const NValueArray &params, ReadWriteTracker *t
         
         #ifdef ANTICACHE
         // We are pointing to an entry for an evicted tuple
-        if (m_tuple.isEvicted()) {      
+        if (hasEvictedTable && m_tuple.isEvicted()) {
             VOLT_INFO("Tuple in index scan is evicted %s", m_targetTable->name().c_str());      
 
             // Tell the EvictionManager's internal tracker that we touched this mofo
@@ -675,7 +674,7 @@ bool IndexScanExecutor::p_execute(const NValueArray &params, ReadWriteTracker *t
     
     #ifdef ANTICACHE
     // throw exception indicating evicted blocks are needed
-    if (eviction_manager->hasEvictedAccesses()) {
+    if (hasEvictedTable && eviction_manager->hasEvictedAccesses()) {
         int32_t partition_id = executor_context->getPartitionId();
         eviction_manager->throwEvictedAccessException(partition_id);
     }
