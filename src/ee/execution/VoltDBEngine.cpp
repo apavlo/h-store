@@ -2059,8 +2059,10 @@ int VoltDBEngine::antiCacheMergeBlocks(int32_t tableId) {
 
 void VoltDBEngine::antiCacheResetEvictedTupleTracker() {
     // Anti-Cache Evicted Tuple Tracking
-    AntiCacheEvictionManager* eviction_manager = m_executorContext->getAntiCacheEvictionManager();
-    eviction_manager->initEvictedAccessTracker();
+    if (m_executorContext->isAntiCacheEnabled()) {
+        AntiCacheEvictionManager* eviction_manager = m_executorContext->getAntiCacheEvictionManager();
+        eviction_manager->initEvictedAccessTracker();
+    }
 }
 
 #else

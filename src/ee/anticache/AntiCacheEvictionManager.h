@@ -79,11 +79,6 @@ public:
     
 protected:
     void initEvictResultTable();
-    Table *m_evictResultTable;
-    const VoltDBEngine *m_engine;
-    
-    // TODO void initReadResultTable();
-    Table *m_readResultTable;
     
     bool removeTupleSingleLinkedList(PersistentTable* table, uint32_t removal_id);
     bool removeTupleDoubleLinkedList(PersistentTable* table, TableTuple* tuple_to_remove, uint32_t removal_id);
@@ -91,6 +86,10 @@ protected:
     void printLRUChain(PersistentTable* table, int max, bool forward);
     char *itoa(uint32_t i);
     
+    Table *m_evictResultTable;
+    const VoltDBEngine *m_engine;
+    Table *m_readResultTable;
+
     // Used at runtime to track what evicted tuples we touch and throw an exception
     ValuePeeker peeker; 
     TableTuple* m_evicted_tuple; 
@@ -102,7 +101,6 @@ protected:
 }; // AntiCacheEvictionManager class
 
 
-    
 }
 
 #endif

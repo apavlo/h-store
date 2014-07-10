@@ -305,7 +305,6 @@ class __attribute__((visibility("default"))) VoltDBEngine {
         void antiCacheResetEvictedTupleTracker();
         #endif
 
-        
         // -------------------------------------------------
         // STORAGE MMAP
         // -------------------------------------------------
