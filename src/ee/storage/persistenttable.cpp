@@ -181,7 +181,7 @@ PersistentTable::~PersistentTable() {
     if (m_indexes) delete[] m_indexes;
     
     #ifdef ANTICACHE
-    if (m_evictedTable) delete m_evictedTable;
+//     if (m_evictedTable) delete m_evictedTable;
     #endif
 
     // note this class has ownership of the views, even if they

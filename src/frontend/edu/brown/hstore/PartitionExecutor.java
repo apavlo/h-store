@@ -2314,11 +2314,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 if (debug.val)
                     LOG.error(String.format("%s - Got error from partition %d in %s",
                               ts, result.getPartitionId(), result.getClass().getSimpleName()), error);
-                LOG.info(String.format("%s - Got error from partition %d in %s at partition %d",
-                        ts, result.getPartitionId(), result.getClass().getSimpleName(), this.partitionId), error);
                 if (error instanceof EvictedTupleAccessException){
                 	EvictedTupleAccessException evta = (EvictedTupleAccessException) error;
-                    LOG.info(String.format("Evicted tuple access exception error has partition id set as %d", evta.getPartitionId()));                	
+                    LOG.error(String.format("Evicted tuple access exception error has partition id set as %d", evta.getPartitionId()));                	
                 }
                 ts.setPendingError(error, true);
             }

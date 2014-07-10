@@ -27,10 +27,15 @@
 #ifndef ANTICACHEEVICTIONMANAGER_H
 #define ANTICACHEEVICTIONMANAGER_H
 
+#include "catalog/table.h"
 #include "storage/TupleIterator.h"
 #include "anticache/EvictionIterator.h"
 #include "common/tabletuple.h"
 #include "execution/VoltDBEngine.h"
+#include "common/NValue.hpp"
+#include "common/ValuePeeker.hpp"
+
+#include <list>
 
 namespace voltdb {
 
@@ -57,6 +62,21 @@ public:
     bool readEvictedBlock(PersistentTable *table, int16_t block_id, int32_t tuple_offset);
     //int numTuplesInEvictionList(); 
     
+    // -----------------------------------------
+    // Evicted Access Tracking Methods
+    // -----------------------------------------
+    
+    inline void initEvictedAccessTracker() {
+        m_evicted_tables.clear();
+        m_evicted_block_ids.clear();
+        m_evicted_offsets.clear();
+    }
+    inline bool hasEvictedAccesses() const {
+        return (m_evicted_block_ids.empty() == false);
+    }
+    void recordEvictedAccess(catalog::Table* catalogTable, TableTuple *tuple);
+    void throwEvictedAccessException(int partition_id);
+    
 protected:
     void initEvictResultTable();
     Table *m_evictResultTable;
@@ -70,6 +90,14 @@ protected:
     
     void printLRUChain(PersistentTable* table, int max, bool forward);
     char *itoa(uint32_t i);
+    
+    // Used at runtime to track what evicted tuples we touch and throw an exception
+    ValuePeeker peeker; 
+    TableTuple* m_evicted_tuple; 
+    
+    std::list<catalog::Table*> m_evicted_tables;
+    std::list<int16_t> m_evicted_block_ids;
+    std::list<int32_t> m_evicted_offsets;
     
 }; // AntiCacheEvictionManager class
 

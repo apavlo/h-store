@@ -141,7 +141,7 @@ class __attribute__((visibility("default"))) VoltDBEngine {
         }
 
         VoltDBEngine(Topend *topend, LogProxy *logProxy);
-	
+    
         bool initialize(
                 int32_t clusterIndex,
                 int32_t siteId,
@@ -297,12 +297,13 @@ class __attribute__((visibility("default"))) VoltDBEngine {
         // -------------------------------------------------
         void antiCacheInitialize(std::string dbDir, long blockSize) const;
 
-#ifdef ANTICACHE
-	int antiCacheReadBlocks(int32_t tableId, int numBlocks, int16_t blockIds[], int32_t tupleOffsets[]);
-	int antiCacheEvictBlock(int32_t tableId, long blockSize, int numBlocks);
-	int antiCacheEvictBlockInBatch(int32_t tableId, int32_t childTableId, long blockSize, int numBlocks);
-	int antiCacheMergeBlocks(int32_t tableId);
-#endif
+        #ifdef ANTICACHE
+        int antiCacheReadBlocks(int32_t tableId, int numBlocks, int16_t blockIds[], int32_t tupleOffsets[]);
+        int antiCacheEvictBlock(int32_t tableId, long blockSize, int numBlocks);
+        int antiCacheEvictBlockInBatch(int32_t tableId, int32_t childTableId, long blockSize, int numBlocks);
+        int antiCacheMergeBlocks(int32_t tableId);
+        void antiCacheResetEvictedTupleTracker();
+        #endif
 
         
         // -------------------------------------------------
@@ -315,27 +316,27 @@ class __attribute__((visibility("default"))) VoltDBEngine {
         void ARIESInitialize(std::string dbDir, std::string logFile) ;
 
         std::string getARIESDir(){
-        	return m_ARIESDir;
+            return m_ARIESDir;
         }
 
         void setARIESDir(std::string dbDir){
-        	m_ARIESDir = dbDir;
+            m_ARIESDir = dbDir;
         }
 
         std::string getARIESFile() {
-        	return m_ARIESFile;
+            return m_ARIESFile;
         }
 
         void setARIESFile(std::string logFile) {
-        	m_ARIESFile = logFile;
+            m_ARIESFile = logFile;
         }
 
         bool isARIESEnabled() {
-        	return m_ARIESEnabled;
+            return m_ARIESEnabled;
         }
 
         void setARIESEnabled(bool status) {
-        	m_ARIESEnabled = status;
+            m_ARIESEnabled = status;
         }
 
 
@@ -448,7 +449,7 @@ class __attribute__((visibility("default"))) VoltDBEngine {
          */
         void processRecoveryMessage(RecoveryProtoMsg *message);
 
-#ifdef ARIES
+        #ifdef ARIES
         // do aries recovery - startup work.
         void doAriesRecovery(char *logData, size_t length, int64_t replay_txnid);
 
@@ -461,7 +462,7 @@ class __attribute__((visibility("default"))) VoltDBEngine {
         size_t getArieslogBufferLength();
 
         void rewindArieslogBuffer();
-#endif
+        #endif
 
         /**
          * Perform an action on behalf of Export.
@@ -600,7 +601,7 @@ class __attribute__((visibility("default"))) VoltDBEngine {
         std::string m_ARIESDir ;
         std::string m_ARIESFile ;
 
-        bool m_isRecovering;	// are we currently recovering?
+        bool m_isRecovering;    // are we currently recovering?
 
         int64_t m_batchFragmentIdsContainer[MAX_BATCH_COUNT];
         /** PAVLO **/
@@ -666,11 +667,11 @@ inline void VoltDBEngine::resetReusedResultOutputBuffer(const size_t headerSize)
     *reinterpret_cast<int32_t*>(m_exceptionBuffer) = voltdb::VOLT_EE_EXCEPTION_TYPE_NONE;
 
     //#ifdef ARIES
-	// XXX: I don't see function being called anywhere else beside when exceptions are thrown,
-	// not sure if this initialization even ever happens unless a serializeexception is thrown.
-	m_arieslogOutput.initializeWithPosition(m_arieslogBuffer,
-			m_arieslogBufferCapacity, headerSize);
-	//#endif
+    // XXX: I don't see function being called anywhere else beside when exceptions are thrown,
+    // not sure if this initialization even ever happens unless a serializeexception is thrown.
+    m_arieslogOutput.initializeWithPosition(m_arieslogBuffer,
+    m_arieslogBufferCapacity, headerSize);
+    //#endif
 }
 
 void VoltDBEngine::releaseUndoToken(int64_t undoToken){
@@ -691,7 +692,7 @@ void VoltDBEngine::releaseUndoToken(int64_t undoToken){
               VOLT_WARN("Undo Token: %ld", m_currentUndoQuantum->getUndoToken());
 
               if(table != NULL){
-                  //VOLT_WARN("Syncing Table %s",table->name().c_str());	  
+                  //VOLT_WARN("Syncing Table %s",table->name().c_str());      
                   /*Pool* pool = table->getPool();
                   if(pool != NULL)
                       MMAPMemoryManager* m_pool_manager = pool->getPoolManager();

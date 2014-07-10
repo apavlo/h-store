@@ -2691,11 +2691,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             Table evicted_table = error.getTable(this.catalogContext.database);
             new_ts.setPendingError(error, false);
 
-            //if (debug.val)
-            LOG.info(String.format("Added aborted txn to %s queue. Unevicting %d blocks from %s (%d).",
+            if (debug.val)
+                LOG.debug(String.format("Added aborted txn to %s queue. Unevicting %d blocks from %s (%d).",
                           AntiCacheManager.class.getSimpleName(), block_ids.length, evicted_table.getName(), evicted_table.getRelativeIndex()));
-            //LOG.info(String.format("Added aborted txn to %s queue.",
-            //        AntiCacheManager.class.getSimpleName()));
             
             if(orig_ts.getBasePartition()!=error.getPartitionId() && !this.isLocalPartition(error.getPartitionId())){
                 new_ts.setOldTransactionId(orig_ts.getTransactionId());

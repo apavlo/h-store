@@ -90,10 +90,11 @@ namespace voltdb {
 #else
     #define TUPLE_HEADER_SIZE 1
 #endif
-    
+
 #define DELETED_MASK 1
 #define DIRTY_MASK 2
-#define EVICTED_MASK 4
+#define MIGRATED_MASK 4
+#define EVICTED_MASK 8
 
 class TableColumn;
 

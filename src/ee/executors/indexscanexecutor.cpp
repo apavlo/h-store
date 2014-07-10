@@ -67,11 +67,7 @@
 #include "storage/persistenttable.h"
 
 #ifdef ANTICACHE
-#include "anticache/EvictedTupleAccessException.h"
-#include "common/NValue.hpp"
-#include "common/ValuePeeker.hpp"
-#include <set>
-#include <list>
+#include "anticache/AntiCacheEvictionManager.h"
 #endif
 
 using namespace voltdb;
@@ -508,24 +504,11 @@ bool IndexScanExecutor::p_execute(const NValueArray &params, ReadWriteTracker *t
         return false;
     }
     
+    // Anti-Cache Variables
     #ifdef ANTICACHE
-    // anti-cache variables
-    //EvictedTable* m_evictedTable = static_cast<EvictedTable*> (m_targetTable->getEvictedTable()); 
-    list<int16_t> evicted_block_ids;
-    list<int32_t> evicted_offsets;
-    
-    ValuePeeker peeker; 
-    //TableTuple m_evicted_tuple; 
-        
-    TableTuple* m_evicted_tuple = NULL; 
-    
-    if (m_targetTable->getEvictedTable() != NULL)
-        m_evicted_tuple = new TableTuple(m_targetTable->getEvictedTable()->schema()); 
-
-    int16_t block_id;
-    int32_t tuple_id;
-    #endif        
-
+    AntiCacheEvictionManager* eviction_manager = m_targetTable->m_executorContext->getAntiCacheEvictionManager();
+    bool hasEvictedTable = (m_targetTable->getEvictedTable() != NULL);
+    #endif
 
     //
     // We have to different nextValue() methods for different lookup types
@@ -545,23 +528,16 @@ bool IndexScanExecutor::p_execute(const NValueArray &params, ReadWriteTracker *t
         #ifdef ANTICACHE
         // We are pointing to an entry for an evicted tuple
         if (m_tuple.isEvicted()) {      
-	    VOLT_INFO("Tuple in index scan is evicted %s", m_targetTable->name().c_str());      
-            if (m_evicted_tuple == NULL) {
-                VOLT_INFO("Evicted Tuple found in table without EvictedTable!"); 
-            } else {
-                // create an evicted tuple from the current tuple address
-                // NOTE: This is necessary because the original table tuple and the evicted tuple do not have the same schema
-                m_evicted_tuple->move(m_tuple.address()); 
-        
-                // determine the block id and tuple offset in the block using the EvictedTable tuple
-                block_id = peeker.peekSmallInt(m_evicted_tuple->getNValue(0));
-                tuple_id = peeker.peekInteger(m_evicted_tuple->getNValue(1)); 
+            VOLT_INFO("Tuple in index scan is evicted %s", m_targetTable->name().c_str());      
 
-                evicted_block_ids.push_back(block_id); 
-                evicted_offsets.push_back(tuple_id);
-            }
-        }else{
-            VOLT_INFO("yay! tuple is in memory");
+            // Tell the EvictionManager's internal tracker that we touched this mofo
+            eviction_manager->recordEvictedAccess(m_catalogTable, &m_tuple);
+            
+            // Pavlo: 2014-07-09
+            // If the tuple is evicted, then we can't continue with the rest of stuff below us.
+            // There is nothing else we can do with it (i.e., check expressions).
+            // I don't know why this wasn't here in the first place?
+            continue;
         }
         #endif        
         
@@ -569,8 +545,7 @@ bool IndexScanExecutor::p_execute(const NValueArray &params, ReadWriteTracker *t
         // First check whether the end_expression is now false
         //
         if (end_expression != NULL &&
-            end_expression->eval(&m_tuple, NULL).isFalse())
-        {
+            end_expression->eval(&m_tuple, NULL).isFalse()) {
             VOLT_DEBUG("End Expression evaluated to false, stopping scan");
             break;
         }
@@ -578,27 +553,31 @@ bool IndexScanExecutor::p_execute(const NValueArray &params, ReadWriteTracker *t
         // Then apply our post-predicate to do further filtering
         //
         if (post_expression == NULL ||
-            post_expression->eval(&m_tuple, NULL).isTrue())
-        {
+            post_expression->eval(&m_tuple, NULL).isTrue()) {
+
+            #ifdef ANTICACHE
+            if (hasEvictedTable) {
+                // update the tuple in the LRU eviction chain
+                eviction_manager->updateTuple(m_targetTable, &m_tuple, false);
+            }
+            #endif
+            
             //
             // Inline Distinct
             //
-            if (m_distinctNode != NULL)
-            {
+            if (m_distinctNode != NULL) {
                 NValue value = m_tuple.getNValue(m_distinctColumn);
                 // insert returns a pair<iterator, bool_succeeded>.
                 // Don't want to continue if insert failed (value
                 // was already present).
-                if (m_distinctValueSet.insert(value).second == false)
-                {
+                if (m_distinctValueSet.insert(value).second == false) {
                     continue;
                 }
             }
             //
             // Inline Aggregate
             //
-            if (m_aggregateNode != NULL)
-            {
+            if (m_aggregateNode != NULL) {
                 // search for a min or max value.
                 // m_aggregateCompareValue is either "greater-than" or
                 // "less-than".
@@ -607,44 +586,34 @@ bool IndexScanExecutor::p_execute(const NValueArray &params, ReadWriteTracker *t
                     m_tuple.getNValue(m_aggregateColumnIdx).op_lessThan(aggregate_value).isTrue() :
                     m_tuple.getNValue(m_aggregateColumnIdx).op_greaterThan(aggregate_value).isTrue())
                 {
-                    aggregate_value =
-                        m_tuple.getNValue(m_aggregateColumnIdx);
+                    aggregate_value = m_tuple.getNValue(m_aggregateColumnIdx);
                     aggregate_tuple_address = m_tuple.address();
                     aggregate_isset = true;
                 }
-                //
-                // Inline Projection
-                // Project (or replace) values from input tuple
-                //
-            }
-            else if (m_projectionNode != NULL)
-            {
+            //
+            // Inline Projection
+            // Project (or replace) values from input tuple
+            //
+            } else if (m_projectionNode != NULL) {
                 TableTuple &temp_tuple = m_outputTable->tempTuple();
-                if (m_projectionAllTupleArray != NULL)
-                {
+                if (m_projectionAllTupleArray != NULL) {
                     VOLT_DEBUG("sweet, all tuples");
-                    for (int ctr = m_numOfColumns - 1; ctr >= 0; --ctr)
-                    {
+                    for (int ctr = m_numOfColumns - 1; ctr >= 0; --ctr) {
                         temp_tuple.setNValue(ctr,
                                              m_tuple.getNValue(m_projectionAllTupleArray[ctr]));
                     }
-                }
-                else
-                {
-                    for (int ctr = m_numOfColumns - 1; ctr >= 0; --ctr)
-                    {
+                } else {
+                    for (int ctr = m_numOfColumns - 1; ctr >= 0; --ctr) {
                         temp_tuple.setNValue(ctr,
                                              m_projectionExpressions[ctr]->eval(&m_tuple, NULL));
                     }
                 }
                 m_outputTable->insertTupleNonVirtual(temp_tuple);
                 tuples_written++;
-            }
-            else
-                //
-                // Straight Insert
-                //
-            {
+            //
+            // Straight Insert
+            //
+            } else {
                 //
                 // Try to put the tuple into our output table
                 //
@@ -652,111 +621,65 @@ bool IndexScanExecutor::p_execute(const NValueArray &params, ReadWriteTracker *t
                 tuples_written++;
             }
             
-#ifdef ANTICACHE
-            if(m_targetTable->getEvictedTable() != NULL)  
-            {
-                if(!m_tuple.isEvicted())
-                {
-                    // update the tuple in the LRU eviction chain
-                    AntiCacheEvictionManager* eviction_manager = m_targetTable->m_executorContext->getAntiCacheEvictionManager();
-                    eviction_manager->updateTuple(m_targetTable, &m_tuple, false);
-                }
-            }
-#endif
-            
-
             //
             // INLINE LIMIT
             //
-            if (m_limitNode != NULL && tuples_written >= m_limitSize)
-            {
+            if (m_limitNode != NULL && tuples_written >= m_limitSize) {
                 VOLT_DEBUG("Hit limit of %d tuples. Halting scan", tuples_written);
                 break;
             }
         }
-    }
+    } // WHILE
 
     //
     // Inline Aggregate
     //
-    if (m_aggregateNode != NULL && aggregate_isset)
-    {
+    if (m_aggregateNode != NULL && aggregate_isset) {
         m_tuple.move(aggregate_tuple_address);
         //
         // Inline Projection
         //
-        if (m_projectionNode != NULL)
-        {
+        if (m_projectionNode != NULL) {
             TableTuple &temp_tuple = m_outputTable->tempTuple();
-            if (m_projectionAllTupleArray != NULL)
-            {
-                for (int ctr = m_numOfColumns - 1; ctr >= 0; --ctr)
-                {
+            if (m_projectionAllTupleArray != NULL) {
+                for (int ctr = m_numOfColumns - 1; ctr >= 0; --ctr) {
                     temp_tuple.setNValue(ctr,
                                          m_tuple.getNValue(m_projectionAllTupleArray[ctr]));
                 }
-            }
-            else
-            {
-                for (int ctr = m_numOfColumns - 1; ctr >= 0; --ctr)
-                {
+            } else {
+                for (int ctr = m_numOfColumns - 1; ctr >= 0; --ctr) {
                     temp_tuple.setNValue(ctr,
                                          m_projectionExpressions[ctr]->eval(&m_tuple, NULL));
                 }
             }
             m_outputTable->insertTupleNonVirtual(temp_tuple);
-        }
-        else
+            #ifdef ANTICACHE
+            if (hasEvictedTable) {
+                // update the tuple in the LRU eviction chain
+                eviction_manager->updateTuple(m_targetTable, &m_tuple, false);
+            }
+            #endif
         //
         // Straight Insert
         //
-        {
+        } else {
             m_outputTable->insertTupleNonVirtual(m_tuple);
+            #ifdef ANTICACHE
+            if (hasEvictedTable) {
+                // update the tuple in the LRU eviction chain
+                eviction_manager->updateTuple(m_targetTable, &m_tuple, false);
+            }
+            #endif
         }
     }
     
-#ifdef ANTICACHE
-    if (m_evicted_tuple != NULL)
-        delete m_evicted_tuple; 
-
+    #ifdef ANTICACHE
     // throw exception indicating evicted blocks are needed
-    if (evicted_block_ids.size() > 0)
-    {
-        evicted_block_ids.unique();
-        
-        int num_block_ids = static_cast<int>(evicted_block_ids.size()); 
-        
-        assert(num_block_ids > 0); 
-        VOLT_DEBUG("%d evicted blocks to read.", num_block_ids);
-        
-        int16_t* block_ids = new int16_t[num_block_ids];
-        int32_t* tuple_ids = new int32_t[num_block_ids];
-        
-//        VOLT_INFO("%d evicted block ids.", num_block_ids);
-        
-        // copy the block ids into an array 
-        int i = 0; 
-        for(list<int16_t>::iterator itr = evicted_block_ids.begin(); itr != evicted_block_ids.end(); ++itr, ++i)
-        {
-            block_ids[i] = *itr; 
-            VOLT_INFO("Unevicting block %d", *itr); 
-        }
-
-        // copy the tuple offsets into an array
-        i = 0; 
-        for(list<int32_t>::iterator itr = evicted_offsets.begin(); itr != evicted_offsets.end(); ++itr, ++i)
-        {
-            tuple_ids[i] = *itr;
-        }
-        
-        evicted_block_ids.clear(); 
-
-        VOLT_INFO("Throwing EvictedTupleAccessException for table %s (%d)", m_catalogTable->name().c_str(), m_catalogTable->relativeIndex());
-        
-        int32_t partition_id = m_targetTable->m_executorContext->getPartitionId();
-        throw EvictedTupleAccessException(m_catalogTable->relativeIndex(), num_block_ids, block_ids, tuple_ids, partition_id);
+    if (eviction_manager->hasEvictedAccesses()) {
+        int32_t partition_id = executor_context->getPartitionId();
+        eviction_manager->throwEvictedAccessException(partition_id);
     }
-#endif
+    #endif
     
     VOLT_DEBUG ("Index Scanned :\n %s", m_outputTable->debug().c_str());
     return true;

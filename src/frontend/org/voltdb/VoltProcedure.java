@@ -574,7 +574,8 @@ public abstract class VoltProcedure implements Poolable {
             try {
                 // ANTI-CACHE TABLE MERGE
                 if (hstore_conf.site.anticache_enable && txnState.hasAntiCacheMergeTable()) {
-                    LOG.info("Merging blocks for anticache table.");
+                    if (debug.val)
+                        LOG.debug("Merging blocks for anticache table.");
     
                     if (hstore_conf.site.anticache_profiling) {
                         this.hstore_site.getAntiCacheManager()

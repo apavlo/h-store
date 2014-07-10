@@ -101,7 +101,7 @@ bool DeleteExecutor::p_execute(const NValueArray &params, ReadWriteTracker *trac
         // count the truncated tuples as deleted
         m_engine->m_tuplesModified += m_inputTable->activeTupleCount();
 
-#ifdef ARIES
+        #ifdef ARIES
         if(m_engine->isARIESEnabled()){
             // no need of persistency check, m_targetTable is
             // always persistent for deletes
@@ -142,7 +142,7 @@ bool DeleteExecutor::p_execute(const NValueArray &params, ReadWriteTracker *trac
             logrecord = NULL;
 
         }
-#endif
+        #endif
 
         //m_engine->context().incrementTuples(m_targetTable->activeTupleCount());
         // actually delete all the tuples
@@ -171,7 +171,7 @@ bool DeleteExecutor::p_execute(const NValueArray &params, ReadWriteTracker *trac
             tracker->markTupleWritten(m_targetTable, &m_targetTuple);
         }
 
-#ifdef ARIES
+        #ifdef ARIES
         if(m_engine->isARIESEnabled()){
             // no need of persistency check, m_targetTable is
             // always persistent for deletes
@@ -246,7 +246,7 @@ bool DeleteExecutor::p_execute(const NValueArray &params, ReadWriteTracker *trac
             }
 
         }
-#endif
+        #endif
 
         // Delete from target table
         if (!m_targetTable->deleteTuple(m_targetTuple, true)) {

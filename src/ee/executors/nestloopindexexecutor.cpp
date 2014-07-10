@@ -60,6 +60,10 @@
 #include "storage/tableiterator.h"
 #include "storage/tablefactory.h"
 
+#ifdef ANTICACHE
+#include "anticache/AntiCacheEvictionManager.h"
+#endif
+
 using namespace voltdb;
 
 bool NestLoopIndexExecutor::p_init(AbstractPlanNode* abstract_node,
@@ -169,6 +173,7 @@ bool NestLoopIndexExecutor::p_init(AbstractPlanNode* abstract_node,
 
     inner_table = dynamic_cast<PersistentTable*>(inline_node->getTargetTable());
     assert(inner_table);
+    inner_catalogTable = catalog_db->tables().get(inner_table->name());
 
     assert(node->getInputTables().size() == 1);
     outer_table = node->getInputTables()[0];
@@ -246,6 +251,12 @@ bool NestLoopIndexExecutor::p_execute(const NValueArray &params, ReadWriteTracke
         post_expression->substitute(params);
         VOLT_TRACE("Post Expression:\n%s", post_expression->debug(true).c_str());
     }
+    
+    // Anti-Cache Variables
+    #ifdef ANTICACHE
+    AntiCacheEvictionManager* eviction_manager = executor_context->getAntiCacheEvictionManager();
+    bool hasEvictedTable = (inner_table->getEvictedTable() != NULL);
+    #endif
 
     //
     // OUTER TABLE ITERATION
@@ -262,7 +273,7 @@ bool NestLoopIndexExecutor::p_execute(const NValueArray &params, ReadWriteTracke
         VOLT_TRACE("outer_tuple:%s",
                    outer_tuple.debug(outer_table->name()).c_str());
         outer_table->updateTupleAccessCount();
-
+        
         //
         // Now use the outer table tuple to construct the search key
         // against the inner table
@@ -317,14 +328,30 @@ bool NestLoopIndexExecutor::p_execute(const NValueArray &params, ReadWriteTracke
         {
             match = true;
             inner_table->updateTupleAccessCount();
+            
+            // Anti-Cache Evicted Tuple Tracking
+            #ifdef ANTICACHE
+            // We are pointing to an entry for an evicted tuple
+            if (inner_tuple.isEvicted()) {
+                VOLT_INFO("Tuple in NestLoopIndexScan is evicted %s", inner_catalogTable->name().c_str());      
+
+                // Tell the EvictionManager's internal tracker that we touched this mofo
+                eviction_manager->recordEvictedAccess(inner_catalogTable, &inner_tuple);
+                
+                // Pavlo: 2014-07-09
+                // If the tuple is evicted, then we can't continue with the rest of stuff below us.
+                // There is nothing else we can do with it (i.e., check expressions).
+                // I don't know why this wasn't here in the first place?
+                continue;
+            }
+            #endif
 
             VOLT_TRACE("inner_tuple:%s",
                        inner_tuple.debug(inner_table->name()).c_str());
             //
             // Append the inner values to the end of our join tuple
             //
-            for (int col_ctr = 0; col_ctr < num_of_inner_cols; ++col_ctr)
-            {
+            for (int col_ctr = 0; col_ctr < num_of_inner_cols; ++col_ctr) {
                 join_tuple.setNValue(col_ctr + num_of_outer_cols,
                                      inner_tuple.getNValue(col_ctr));
             }
@@ -335,8 +362,7 @@ bool NestLoopIndexExecutor::p_execute(const NValueArray &params, ReadWriteTracke
             // First check whether the end_expression is now false
             //
             if (end_expression != NULL &&
-                end_expression->eval(&join_tuple, NULL).isFalse())
-            {
+                end_expression->eval(&join_tuple, NULL).isFalse()) {
                 VOLT_TRACE("End Expression evaluated to false, stopping scan");
                 break;
             }
@@ -344,16 +370,22 @@ bool NestLoopIndexExecutor::p_execute(const NValueArray &params, ReadWriteTracke
             // Then apply our post-predicate to do further filtering
             //
             if (post_expression == NULL ||
-                post_expression->eval(&join_tuple, NULL).isTrue())
-            {
+                post_expression->eval(&join_tuple, NULL).isTrue()) {
                 //
                 // Try to put the tuple into our output table
                 //
                 VOLT_TRACE("MATCH: %s",
                            join_tuple.debug(output_table->name()).c_str());
                 output_table->insertTupleNonVirtual(join_tuple);
+            
+                #ifdef ANTICACHE
+                if (hasEvictedTable) {
+                    // update the tuple in the LRU eviction chain
+                    eviction_manager->updateTuple(inner_table, &inner_tuple, false);
+                }
+                #endif
             }
-        }
+        } // WHILE
 
         //
         // Left Outer Join
@@ -362,8 +394,7 @@ bool NestLoopIndexExecutor::p_execute(const NValueArray &params, ReadWriteTracke
             //
             // Append NULLs to the end of our join tuple
             //
-            for (int col_ctr = 0; col_ctr < num_of_inner_cols; ++col_ctr)
-            {
+            for (int col_ctr = 0; col_ctr < num_of_inner_cols; ++col_ctr) {
                 const int index = col_ctr + num_of_outer_cols;
                 NValue value = join_tuple.getNValue(index);
                 value.setNull();
@@ -371,7 +402,15 @@ bool NestLoopIndexExecutor::p_execute(const NValueArray &params, ReadWriteTracke
             }
             output_table->insertTupleNonVirtual(join_tuple);
         }
+    } // WHILE
+    
+    #ifdef ANTICACHE
+    // throw exception indicating evicted blocks are needed
+    if (eviction_manager->hasEvictedAccesses()) {
+        int32_t partition_id = executor_context->getPartitionId();
+        eviction_manager->throwEvictedAccessException(partition_id);
     }
+    #endif
 
     VOLT_TRACE ("result table:\n %s", output_table->debug().c_str());
     return (true);

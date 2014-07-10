@@ -49,6 +49,7 @@
 #include "common/common.h"
 #include "common/valuevector.h"
 #include "executors/abstractexecutor.h"
+#include "catalog/table.h"
 
 namespace voltdb
 {
@@ -65,6 +66,8 @@ namespace voltdb
                     const catalog::Database* catalog_db, int* tempTableMemoryInBytes);
         bool p_execute(const NValueArray& params, ReadWriteTracker *tracker);
         bool needsOutputTableClear();
+        
+        catalog::Table* m_catalogTable;
     };
 }
 

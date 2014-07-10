@@ -54,9 +54,14 @@
 #include "plannodes/projectionnode.h"
 #include "plannodes/limitnode.h"
 #include "storage/table.h"
+#include "storage/persistenttable.h"
 #include "storage/temptable.h"
 #include "storage/tablefactory.h"
 #include "storage/tableiterator.h"
+
+#ifdef ANTICACHE
+#include "anticache/AntiCacheEvictionManager.h"
+#endif
 
 using namespace voltdb;
 
@@ -69,6 +74,8 @@ bool SeqScanExecutor::p_init(AbstractPlanNode *abstract_node,
     assert(node);
     assert(node->getTargetTable());
 
+    m_catalogTable = catalog_db->tables().get(node->getTargetTable()->name());
+    
     //
     // NESTED PROJECTION
     //
@@ -130,7 +137,7 @@ bool SeqScanExecutor::p_execute(const NValueArray &params, ReadWriteTracker *tra
     assert(node);
     Table* output_table = node->getOutputTable();
     assert(output_table);
-    Table* target_table = dynamic_cast<Table*>(node->getTargetTable());
+    PersistentTable* target_table = static_cast<PersistentTable*>(node->getTargetTable());
     assert(target_table);
     //cout << "SeqScanExecutor: node id" << node->getPlanNodeId() << endl;
     VOLT_TRACE("Sequential Scanning table :\n %s",
@@ -181,9 +188,7 @@ bool SeqScanExecutor::p_execute(const NValueArray &params, ReadWriteTracker *tra
     // at the TargetTable. Therefore, there is nothing we more we need
     // to do here
     //
-    if (node->getPredicate() != NULL || projection_node != NULL ||
-        limit_node != NULL)
-    {
+    if (node->getPredicate() != NULL || projection_node != NULL || limit_node != NULL) {
         //
         // Just walk through the table using our iterator and apply
         // the predicate to each tuple. For each tuple that satisfies
@@ -194,37 +199,57 @@ bool SeqScanExecutor::p_execute(const NValueArray &params, ReadWriteTracker *tra
         AbstractExpression *predicate = node->getPredicate();
         VOLT_TRACE("SCAN PREDICATE A:\n%s\n", predicate->debug(true).c_str());
 
-        if (predicate)
-        {
+        if (predicate) {
             predicate->substitute(params);
             assert(predicate != NULL);
             VOLT_TRACE("SCAN PREDICATE B:\n%s\n",
                        predicate->debug(true).c_str());
         }
+        
+        // Anti-Cache Variables
+        #ifdef ANTICACHE
+        AntiCacheEvictionManager* eviction_manager = executor_context->getAntiCacheEvictionManager();
+        bool hasEvictedTable = (target_table->getEvictedTable() != NULL);
+        #endif
 
         int tuple_ctr = 0;
-        while (iterator.next(tuple))
-        {
+        while (iterator.next(tuple)) {
+            target_table->updateTupleAccessCount();
+            
             // Read/Write Set Tracking
             if (tracker != NULL) {
                 tracker->markTupleRead(target_table, &tuple);
             }
             
-            target_table->updateTupleAccessCount();
+            // Anti-Cache Evicted Tuple Tracking
+            #ifdef ANTICACHE
+            // We are pointing to an entry for an evicted tuple
+            if (tuple.isEvicted()) {
+                VOLT_INFO("Tuple in index scan is evicted %s", m_catalogTable->name().c_str());      
+
+                // Tell the EvictionManager's internal tracker that we touched this mofo
+                eviction_manager->recordEvictedAccess(m_catalogTable, &tuple);
+                
+                // Pavlo: 2014-07-09
+                // If the tuple is evicted, then we can't continue with the rest of stuff below us.
+                // There is nothing else we can do with it (i.e., check expressions).
+                // I don't know why this wasn't here in the first place?
+                continue;
+            }
+            #endif
+            
             VOLT_TRACE("INPUT TUPLE: %s, %d/%d\n",
                        tuple.debug(target_table->name()).c_str(), tuple_ctr,
                        (int)target_table->activeTupleCount());
             //
             // For each tuple we need to evaluate it against our predicate
             //
-            if (predicate == NULL || predicate->eval(&tuple, NULL).isTrue())
-            {
+            if (predicate == NULL || predicate->eval(&tuple, NULL).isTrue()) {
                 //
                 // Nested Projection
                 // Project (or replace) values from input tuple
                 //
-                if (projection_node != NULL)
-                {
+                if (projection_node != NULL) {
                     TableTuple &temp_tuple = output_table->tempTuple();
                     for (int ctr = 0; ctr < num_of_columns; ctr++)
                     {
@@ -241,9 +266,7 @@ bool SeqScanExecutor::p_execute(const NValueArray &params, ReadWriteTracker *tra
                                    output_table->name().c_str());
                         return false;
                     }
-                }
-                else
-                {
+                } else {
                     //
                     // Insert the tuple into our output table
                     //
@@ -256,12 +279,27 @@ bool SeqScanExecutor::p_execute(const NValueArray &params, ReadWriteTracker *tra
                     }
                 }
                 ++tuple_ctr;
+                
+                #ifdef ANTICACHE
+                if (hasEvictedTable) {
+                    // update the tuple in the LRU eviction chain
+                    eviction_manager->updateTuple(target_table, &tuple, false);
+                }
+                #endif
+                
                 // Check whether we have gone past our limit
                 if (limit >= 0 && tuple_ctr >= limit) {
                     break;
                 }
             }
+        } // WHILE
+        #ifdef ANTICACHE
+        // throw exception indicating evicted blocks are needed
+        if (eviction_manager->hasEvictedAccesses()) {
+            int32_t partition_id = executor_context->getPartitionId();
+            eviction_manager->throwEvictedAccessException(partition_id);
         }
+        #endif
     }
     VOLT_TRACE("\n%s\n", output_table->debug().c_str());
     VOLT_TRACE("Finished Seq scanning");
