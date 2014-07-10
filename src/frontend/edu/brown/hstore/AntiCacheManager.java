@@ -285,7 +285,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         }
         // debug to info
         LOG.info("Processing " + next);
-        LOG.info("QueueEntry next.toString(): %s", next.toString());
+        LOG.info(String.format("QueueEntry next.toString(): %s", next.toString()));
 
         // We need to get the EE handle for the partition that this txn
         // needs to have read in some blocks from disk
