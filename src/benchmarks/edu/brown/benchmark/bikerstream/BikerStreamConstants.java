@@ -119,7 +119,6 @@ public abstract class BikerStreamConstants {
     //
 
     public static final long MILI_BETWEEN_GPS_EVENTS = 100;
-    public static final String DEFAULT_GPS_FILE = "src/benchmarks/edu/brown/benchmark/bikerstream/BS2.kml";
 
     // ===========================================================================
     // DOCK RESERVATIONS

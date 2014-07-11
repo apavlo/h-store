@@ -30,7 +30,6 @@
 
 package edu.brown.benchmark.bikerstream;
 
-import java.awt.*;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -39,11 +38,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 
 import java.util.LinkedList;
-import java.util.Scanner;
-import java.util.InputMismatchException;
-
-import java.io.File;
-
+import java.util.Random;
 
 /**
  * Class to generate readings from bikes. Idea is that
@@ -63,28 +58,23 @@ public class BikeRider {
 
     // Whis station are we going to start from. This is determined
     // in the file from which our gpr poinst will come from.
-    private long startingStation;
+    private int startingStation;
 
     // Whis station are we going to end at. This is determined
     // in the file from which our gpr poinst will come from.
-    private long finalStation;
+    private int finalStation;
 
     // Our list of points gathered from the file.
-    private LinkedList<Reading> initPath = new LinkedList();
-    private LinkedList<Reading> restPath = new LinkedList();
-
-    private LinkedList<Long> altStations = new LinkedList();
-    private LinkedList<LinkedList<Reading>> altPaths = new LinkedList();
+    private LinkedList<Reading> route = new LinkedList();
 
     // Construct an empty rider. use the default file for point/station
     // information.
     public BikeRider(long rider_id) throws Exception {
         this.rider_id = rider_id;
 
-        this.startingStation = -1;
-        this.finalStation = -1;
-
-        makePoints(BikerStreamConstants.DEFAULT_GPS_FILE);
+        System.out.println("Generating Route");
+        genRandStations();
+        System.out.println("RouteGenerated");
     }
 
     public BikeRider(long rider_id, int start_station, int end_station) {
@@ -92,18 +82,34 @@ public class BikeRider {
 
         this.startingStation = start_station;
         this.finalStation = end_station;
+
+        System.out.println("Generating Route");
+        try {
+            this.route = readInPoints(routeName());
+        } catch (IOException e) {
+            System.out.println("ReGenerating Route");
+            genRandStations();
+        }
     }
 
+    private void genRandStations(){
+        Random gen = new Random();
+        int numStations = BikerStreamConstants.STATION_LOCATIONS.length;
 
-    // construct a rider, and use a specific file for gps/station information.
-    public BikeRider(long rider_id, String filename) throws Exception {
-        this.rider_id = rider_id;
+        this.startingStation = gen.nextInt(numStations -1);
+        this.finalStation = this.startingStation;
 
-        this.startingStation = -1;
-        this.finalStation = -1;
-
-        makePoints(filename);
+        while (this.finalStation == this.startingStation) {
+            this.finalStation = gen.nextInt(numStations - 1);
+        }
+        try {
+            this.route = readInPoints(routeName());
+        } catch (IOException e) {
+            System.out.println("ReGenerating Route");
+            genRandStations();
+        }
     }
+
 
     // Rider ID functions
     // returns the rider's id number
@@ -146,120 +152,43 @@ public class BikeRider {
         }
     }
 
-    private Reading[] readInPoints(String filename){
+    private String routeName(){
+        String s = BikerStreamConstants.STATION_LOCATIONS[startingStation+1];
+        String e = BikerStreamConstants.STATION_LOCATIONS[finalStation+1];
+        return (s + "_to_" + e);
+    }
+
+
+    private LinkedList<Reading> readInPoints(String filename) throws IOException {
         LinkedList<Reading> points = new LinkedList<Reading>();
-        Path path = Paths.get(BikerStreamConstants.ROUTES_DIR + filename);
+        Path path = Paths.get(BikerStreamConstants.ROUTES_DIR + "/" + filename);
         BufferedReader reader;
 
         try {
             reader = Files.newBufferedReader(path, StandardCharsets.US_ASCII);
-        } catch (IOException e) {
-            System.out.println(e);
-            return null;
-        }
-
-        try{
             String line = reader.readLine(); //reads in the first line which is the header
+            System.out.println("The line reads: " + line);
             assert (line.equals("tripid,routenum,sequence,lon,lat"));
             line = reader.readLine(); // First line of data
-            while (line != null){
+            while (line != null) {
+                System.out.println("The next line reads: " + line);
                 String[] fields = line.split(",");
-                Reading point = new Reading(fields[2], fields[3]);
+                Reading point = new Reading(fields[3], fields[4]);
                 points.add(point);
+                line = reader.readLine(); // First line of data
             }
-        } catch (IOException e){
-            System.out.println(e);
-            return null;
+        } catch (IOException e) {
+            throw new IOException(e);
         }
-        return points.toArray(new Reading[points.size()]);
-    }
 
-    /*
-     * Read a File containing the GPS events for a ride and store
-     * them in an internal Linked List. Function has no return.
-     * Only used for it's side-effects used to accumulate the gps events.
-     * this assumes that the file is a list of \n delimited points, with
-     * lat, long, and altitude delimited by whitespace.
-     */
-    public void makePoints(String filename) throws Exception {
 
-        int lineCount = 0;
-        String stage = "INITIAL STATIONS";
-        File f = new File(filename);
-        Scanner s = new Scanner(f);
-
-        try {
-            ++lineCount;
-            startingStation = s.nextInt();
-            ++lineCount;
-            finalStation = s.nextInt();
-
-            double lat_t;
-            double lon_t;
-            double alt_t;
-
-            stage = "INIT PATH";
-            while (!(s.hasNext("BREAK"))) {
-                ++lineCount;
-                lat_t = s.nextDouble();
-                lon_t = s.nextDouble();
-                alt_t = s.nextDouble();
-                initPath.add(new Reading(lat_t, lon_t));
-            }
-            stage = "SKIPPING 1";
-            ++lineCount;
-            s.next("BREAK");
-
-            stage = "REST PATH";
-            while (!(s.hasNext("BREAK"))) {
-                lat_t = s.nextDouble();
-                lon_t = s.nextDouble();
-                alt_t = s.nextDouble();
-                restPath.add(new Reading(lat_t, lon_t));
-                ++lineCount;
-            }
-            stage = "SKIPPING 2";
-            ++lineCount;
-            s.next("BREAK");
-
-            while (!(s.hasNext("DONE"))) {
-
-                ++lineCount;
-                stage = "ALT STATION";
-
-                altStations.add((long) s.nextInt());
-                stage = "ALT PATH";
-
-                LinkedList<Reading> altPathGen = new LinkedList<Reading>();
-
-                while (!(s.hasNext("BREAK")) && !(s.hasNext("DONE"))) {
-                    ++lineCount;
-                    lat_t = s.nextDouble();
-                    lon_t = s.nextDouble();
-                    alt_t = s.nextDouble();
-                    altPathGen.add(new Reading(lat_t, lon_t));
-
-                }
-                if (s.hasNext("BREAK"))
-                    s.next("BREAK");
-                altPaths.add(altPathGen);
-            }
-
-        } catch (InputMismatchException e) {
-            String next = s.nextLine();
-            System.out.println("InputMismatch on line: " + lineCount +
-                    " At stage :" + stage + " : " + next + " : " + e);
-        } catch (Exception e) {
-            System.out.println("File Not Found" + e);
-        } finally {
-            s.close();
-        }
+        return points;
     }
 
     public Reading getPoint() {
         if (hasPoints()) {
 
-            Reading ret = initPath.pop();
+            Reading ret = route.pop();
             return ret;
         }
 
@@ -269,7 +198,7 @@ public class BikeRider {
     public Reading getPoint(long index) {
         if (hasPoints()) {
 
-            Reading ret = initPath.pop();
+            Reading ret = route.pop();
             return ret;
         }
 
@@ -277,7 +206,7 @@ public class BikeRider {
     }
 
     public boolean hasPoints() {
-        int lsize = initPath.size();
+        int lsize = route.size();
         if (lsize > 0)
             return true;
         return false;
