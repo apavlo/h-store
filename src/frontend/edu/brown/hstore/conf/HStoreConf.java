@@ -139,6 +139,14 @@ public final class HStoreConf {
             )
         public boolean sstore;
 
+        //added by hawk, 2004/7/11, to indicate if the s-store scheduler is enabled
+        @ConfigProperty(
+                description="Indicate if the s-store scheduler is enabled.",
+                defaultBoolean=false,
+                experimental=false
+            )
+        public boolean sstore_scheduler;
+
     }
     
     // ============================================================================
