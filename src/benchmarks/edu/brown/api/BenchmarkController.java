@@ -715,7 +715,7 @@ public class BenchmarkController {
             allLoaderArgs.add("STATSDATABASEPASS=" + m_config.statsDatabasePass);
             allLoaderArgs.add("STATSDATABASEJDBC=" + m_config.statsDatabaseJDBC);
             allLoaderArgs.add("STATSPOLLINTERVAL=" + m_config.statsPollInterval);
-            LOG.info("Loader Stats Database: " + m_config.statsDatabaseURL);
+            // LOG.info("Loader Stats Database: " + m_config.statsDatabaseURL);
         }
 
         for (Entry<String,String> e : m_config.clientParameters.entrySet()) {
@@ -1800,10 +1800,8 @@ public class BenchmarkController {
         
         
         for (String arg : vargs) {
-            System.out.println(arg);
             String[] parts = arg.split("=",2);
-            System.out.println(parts[0]);
-	    for (int i = 0; i < parts.length; i++)
+            for (int i = 0; i < parts.length; i++)
                 parts[1] = parts[1].trim();
             
             if (parts.length == 1) {
