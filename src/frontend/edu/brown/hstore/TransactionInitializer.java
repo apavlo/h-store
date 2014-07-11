@@ -261,7 +261,7 @@ public class TransactionInitializer {
      * @param clientCallback
      * @return
      */
-    public LocalTransaction createLocalTransaction(int batch_id,
+    public LocalTransaction createLocalTransaction(long batch_id,
                                                    ByteBuffer serializedRequest,
                                                    long initiateTime,
                                                    long client_handle,
@@ -389,7 +389,7 @@ public class TransactionInitializer {
      * @param request
      * @return
      */
-    public RemoteTransaction createRemoteTransaction(int batch_id, 
+    public RemoteTransaction createRemoteTransaction(Long batch_id, 
                                                      Long txn_id,
                                                      Long clienthandle,
                                                      //long initiateTime, // added by hawk, 2013/11/20
@@ -562,7 +562,7 @@ public class TransactionInitializer {
      * @param client_callback
      */
     private void populateProperties(LocalTransaction ts,
-                                    int  batch_id,
+                                    long  batch_id,
                                     Long txn_id,
                                     long initiateTime,
                                     long client_handle,

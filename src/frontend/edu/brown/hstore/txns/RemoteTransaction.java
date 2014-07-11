@@ -105,7 +105,7 @@ public class RemoteTransaction extends AbstractTransaction {
      * @param predict_abortable
      * @return
      */
-    public RemoteTransaction init(int batchid,
+    public RemoteTransaction init(long batchid,
                                   long txnId,
                                   long clienthandle,
 //                                  long initiateTime, // added by hawk, 2013/11/20

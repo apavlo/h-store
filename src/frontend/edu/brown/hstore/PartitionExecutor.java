@@ -1446,7 +1446,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             // deferred this query.
             tmp_def_stmt[0] = def_work.getStmt();
             tmp_def_params[0] = def_work.getParams();
-            tmp_def_txn.init( -1,
+            tmp_def_txn.init( (long)-1,
                        def_work.getTxnId(), 
                        -1, // We don't really need the clientHandle
                        EstTime.currentTimeMillis(),

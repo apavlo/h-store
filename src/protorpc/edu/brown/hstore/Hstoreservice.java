@@ -2381,12 +2381,12 @@ public final class Hstoreservice {
       return prefetchParams_.get(index);
     }
     
-    // required int32 batch_id = 9;
+    // required int64 batch_id = 9;
     public static final int BATCH_ID_FIELD_NUMBER = 9;
     private boolean hasBatchId;
-    private int batchId_ = 0;
+    private long batchId_ = 0L;
     public boolean hasBatchId() { return hasBatchId; }
-    public int getBatchId() { return batchId_; }
+    public long getBatchId() { return batchId_; }
     
     // required int64 client_handle = 10;
     public static final int CLIENT_HANDLE_FIELD_NUMBER = 10;
@@ -2441,7 +2441,7 @@ public final class Hstoreservice {
         output.writeBytes(8, element);
       }
       if (hasBatchId()) {
-        output.writeInt32(9, getBatchId());
+        output.writeInt64(9, getBatchId());
       }
       if (hasClientHandle()) {
         output.writeInt64(10, getClientHandle());
@@ -2504,7 +2504,7 @@ public final class Hstoreservice {
       }
       if (hasBatchId()) {
         size += com.google.protobuf.CodedOutputStream
-          .computeInt32Size(9, getBatchId());
+          .computeInt64Size(9, getBatchId());
       }
       if (hasClientHandle()) {
         size += com.google.protobuf.CodedOutputStream
@@ -2788,7 +2788,7 @@ public final class Hstoreservice {
               break;
             }
             case 72: {
-              setBatchId(input.readInt32());
+              setBatchId(input.readInt64());
               break;
             }
             case 80: {
@@ -3018,21 +3018,21 @@ public final class Hstoreservice {
         return this;
       }
       
-      // required int32 batch_id = 9;
+      // required int64 batch_id = 9;
       public boolean hasBatchId() {
         return result.hasBatchId();
       }
-      public int getBatchId() {
+      public long getBatchId() {
         return result.getBatchId();
       }
-      public Builder setBatchId(int value) {
+      public Builder setBatchId(long value) {
         result.hasBatchId = true;
         result.batchId_ = value;
         return this;
       }
       public Builder clearBatchId() {
         result.hasBatchId = false;
-        result.batchId_ = 0;
+        result.batchId_ = 0L;
         return this;
       }
       
@@ -16552,7 +16552,7 @@ public final class Hstoreservice {
       "(\005\022\026\n\npartitions\030\005 \003(\005B\002\020\001\022\023\n\013proc_param" +
       "s\030\006 \001(\014\022:\n\022prefetch_fragments\030\007 \003(\0132\036.ed" +
       "u.brown.hstore.WorkFragment\022\027\n\017prefetch_" +
-      "params\030\010 \003(\014\022\020\n\010batch_id\030\t \002(\005\022\025\n\rclient" +
+      "params\030\010 \003(\014\022\020\n\010batch_id\030\t \002(\003\022\025\n\rclient" +
       "_handle\030\n \002(\003\"\254\001\n\027TransactionInitRespons" +
       "e\022\026\n\016transaction_id\030\001 \002(\003\022\026\n\npartitions\030" +
       "\002 \003(\005B\002\020\001\022(\n\006status\030\003 \002(\0162\030.edu.brown.hs" +

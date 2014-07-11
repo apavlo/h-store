@@ -10,27 +10,41 @@ import java.util.concurrent.LinkedBlockingDeque;
 
 import javax.swing.text.html.HTMLDocument.Iterator;
 
+import org.apache.log4j.Logger;
+import org.voltdb.catalog.Procedure;
+
 import edu.brown.hstore.txns.AbstractTransaction;
+import edu.brown.hstore.txns.DumbTransaction;
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 
 public class WorkflowScheduler {
+
+    private static final Logger LOG = Logger.getLogger(WorkflowScheduler.class);
+    private static final LoggerBoolean debug = new LoggerBoolean();
+    private static final LoggerBoolean trace = new LoggerBoolean();
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
+
 
     private final HStoreSite hstore_site;
 
     // workflowid - sp name - status (started, ended) - true
     // used to record the executed txn status
-    private Map< Integer, Map<String,Map<String,Boolean>> > m_status ;
+    private Map< Long, Map<String,Map<String,Boolean>> > m_status ;
     
     // 
     private final BlockingDeque<AbstractTransaction> backupQueue;
     
-    private Integer m_currentWorkflowID = -2;
+    private Long m_currentWorkflowID = 0l;
     private String firstSP = null;
     
-    public void debug()
+    private void debug()
     {
         System.out.println("--- Begining debug()... ");
-        for (Map.Entry<Integer, Map<String,Map<String,Boolean>>> entry : m_status.entrySet()) {
-            Integer workflowid = entry.getKey();
+        for (Map.Entry<Long, Map<String,Map<String,Boolean>>> entry : m_status.entrySet()) {
+            Long workflowid = entry.getKey();
             Map<String,Map<String,Boolean>> txnmap = entry.getValue();
             
             for (Map.Entry<String, Map<String,Boolean>> txnEntry : txnmap.entrySet())
@@ -51,24 +65,27 @@ public class WorkflowScheduler {
     }
     
     public WorkflowScheduler(HStoreSite hstore_site) {
+        
+        
         this.hstore_site = hstore_site;
         
-        m_status = new ConcurrentHashMap<Integer, Map<String,Map<String,Boolean>>>();
+        m_status = new ConcurrentHashMap<Long, Map<String,Map<String,Boolean>>>();
         
         this.backupQueue = new LinkedBlockingDeque<AbstractTransaction>(); 
     }
     
-    public boolean isBackupQueueEmpty()
+    private boolean isBackupQueueEmpty()
     {
         return backupQueue.isEmpty();
     }
     
-    public void addBackupQueue(AbstractTransaction txn)
+    private void addBackupQueue(AbstractTransaction txn)
     {
         backupQueue.addFirst(txn);
+        //backupQueue.addLast(txn);
     }
     
-    public void backupQueue(BlockingDeque<AbstractTransaction> initQueue)
+    private void backupQueue(BlockingDeque<AbstractTransaction> initQueue)
     {
         java.util.Iterator<AbstractTransaction> it= backupQueue.iterator();
         while(it.hasNext()==true){
@@ -78,8 +95,28 @@ public class WorkflowScheduler {
 
     }
     
+    private void debugQueue(BlockingDeque<AbstractTransaction> initQueue)
+    {
+        LOG.debug("------------------ debugQueue start ---------------------");
+        java.util.Iterator<AbstractTransaction> it= initQueue.iterator();
+        while(it.hasNext()==true){
+            AbstractTransaction txn =  it.next();
+            if (DumbTransaction.class.isInstance(txn) == true)
+            {
+                LOG.debug("DumbTransaction");
+            }
+            else
+            {
+                Long workflowid = txn.getBatchId();
+                String spname = txn.getProcedure().getName();
+                LOG.debug(spname + "- workflowid-" + workflowid);
+            }
+        }   
+        LOG.debug("------------------ debugQueue end ---------------------");
+    }
+    
 //    1 - create workflow (workflowid)
-    public void createWorkflow(Integer workflowid)
+    private void createWorkflow(Long workflowid)
     {
         Map<String,Map<String,Boolean>> txnStatus = new ConcurrentHashMap<String,Map<String,Boolean>>();
         m_status.put(workflowid, txnStatus);
@@ -88,30 +125,34 @@ public class WorkflowScheduler {
     //public void getWorkflow(integer workflowid)
     
 //    2 - delete workflow (workflowid)
-    public void deleteWorkflow(Integer workflowid)
+    private void deleteWorkflow(Long workflowid)
     {
         m_status.remove(workflowid);
+        firstSP = null;
     }
     
-    public Integer getCurrentWorkflowID()
+    public Long getCurrentWorkflowID()
     {
         return this.m_currentWorkflowID;
     }
     
 //    3 - add sp status (workflowid, spid, status)
-    public void addSPStartStatus(Integer workflowid, String txn)
+    public void addSPStartStatus(Long workflowid, String txn)
     {
         this.addSPStatus(workflowid, txn, "started");
     }
     
-    public void addSPEndStatus(Integer workflowid, String txn)
+    public void addSPEndStatus(Long workflowid, String txn)
     {
-        this.addSPStatus(workflowid, txn, "ended");
+        if(workflowid != -1l)
+            this.addSPStatus(workflowid, txn, "ended");
     }
     
-    private void addSPStatus(Integer workflowid, String txn, String status)
+    private synchronized void addSPStatus(Long workflowid, String txn, String status)
     {
-        System.out.println("addSPStatus - " + workflowid + " - " + txn + " - " + status);
+        if (debug.val)
+            LOG.debug("addSPStatus - " + workflowid + " - " + txn + " - " + status);
+        //System.out.println("addSPStatus - " + workflowid + " - " + txn + " - " + status);
         Map<String,Map<String,Boolean>> txnStatus = m_status.get(workflowid);
         
         if(txnStatus==null)
@@ -133,23 +174,23 @@ public class WorkflowScheduler {
         
     }
 //    4 - isFinished(worflowid)
-    public boolean isWorkflowFinished()
+    private boolean isWorkflowFinished()
     {
-        System.out.println("isWorkflowFinished - firstSP - " + firstSP);
+        //System.out.println("isWorkflowFinished - firstSP - " + firstSP);
         
         if(firstSP==null)
             return true;
         
         boolean result = isSPFinished(firstSP);
 
-        this.debug();
-        System.out.println("isWorkflowFinished - result - " + result);
+        //this.debug();
+        //System.out.println("isWorkflowFinished - result - " + result);
 
         return result;
         
     }
 //    5 - isFinished(worflowid, spid)  [private method]
-    public boolean isSPFinished( String txn )
+    private boolean isSPFinished( String txn )
     {
 //        if(m_currentWorkflowID==-1)
 //            return true;
@@ -169,6 +210,7 @@ public class WorkflowScheduler {
               return true;
 //             or,
 //             (3.2) for each child with child_spid of sp, satisfy
+          //System.out.println("workflow - " + this.m_currentWorkflowID + "SP - " + txn + " has executing frontend triggers...");
           for(int i=0;i<children.size();i++)
           {
               String child_txn = children.get(i);
@@ -243,18 +285,53 @@ public class WorkflowScheduler {
         return false;
     }
 
-    public AbstractTransaction getScheduledNextTxn(AbstractTransaction nextTxn, BlockingDeque<AbstractTransaction> initQueue) {
+    public synchronized AbstractTransaction getScheduledNextTxn(AbstractTransaction nextTxn, BlockingDeque<AbstractTransaction> initQueue) {
+
+        Long currentWkfID = this.getCurrentWorkflowID();
+
+
+        if (DumbTransaction.class.isInstance(nextTxn) == true) {
+//            if (debug.val)
+//                LOG.debug("getScheduledNextTxn - DumbTransaction");
+            if (this.isWorkflowFinished() != true) {
+                initQueue.addLast(nextTxn);
+            }
+            else
+            {
+                if (debug.val)
+                    LOG.debug("dump back queue ... ");
+                this.deleteWorkflow(currentWkfID);
+                if(this.isBackupQueueEmpty()==false)
+                {
+                    //this.addBackupQueue(nextTxn);
+                    this.backupQueue(initQueue);
+                }
+            }
+            return null;
+        }
         
+        // if not dumb transaction, means that we do not need to wait
+        boolean isWkfFinished = this.isWorkflowFinished();
         AbstractTransaction scheduledNextTxn = null;
         
-        Integer workflowid = nextTxn.getBatchId();
+        Long workflowid = nextTxn.getBatchId();
         String spname = nextTxn.getProcedure().getName();
        
-        Integer currentWkfID = this.getCurrentWorkflowID();
-        boolean isWkfFinished = this.isWorkflowFinished();
+        // if the txn is system procedure related
+        if(workflowid==-1l)
+        {
+            //System.out.println(spname + "- direct execute workflowid-" +workflowid);
+            return nextTxn;
+        }
+        
         boolean isSameWkfID = workflowid.equals(currentWkfID);
         
-        System.out.println(spname + "-workflowid-" +workflowid+"-currentworkflowid-" + currentWkfID +"-isWkfFinished:"+isWkfFinished);
+        if (debug.val)
+        {
+            LOG.debug(spname + "-workflowid-" +workflowid+"-currentworkflowid-" + currentWkfID +"-isWkfFinished:"+isWkfFinished);
+            debugQueue(initQueue);
+            debugQueue(this.backupQueue);
+        }
         // if current workflow is finished and we have new workflow id
         // we will delete the finished workflow execution status from records
         // then we should check if the backup queue has txn items there,
@@ -262,10 +339,13 @@ public class WorkflowScheduler {
         // if no, just continue
         if((isWkfFinished==true)/*&&(currentWkfID != workflowid)*/)
         {
-            System.out.println("getScheduledNextTxn - 1");
+            if (debug.val)
+                LOG.debug("getScheduledNextTxn - 1");
             this.deleteWorkflow(currentWkfID);
             if(this.isBackupQueueEmpty()==false)
             {
+                if (debug.val)
+                    LOG.debug("put " + spname + "-workflowid-" +workflowid + " to backupqueue...");
                 this.addBackupQueue(nextTxn);
                 this.backupQueue(initQueue);
                 scheduledNextTxn = null;
@@ -278,23 +358,32 @@ public class WorkflowScheduler {
         // and continue to next txn until get the correct one for current workflow
         if((isWkfFinished==false)&&(isSameWkfID==false))
         {
-            System.out.println("getScheduledNextTxn - 2");
+            if (debug.val)
+                LOG.debug("put " + spname + "-workflowid-" +workflowid + " to backupqueue...");
             this.addBackupQueue(nextTxn);
+            initQueue.addLast(new DumbTransaction(this.hstore_site));
+            //initQueue.addLast(nextTxn);
             scheduledNextTxn = null;
+            //System.out.println("getScheduledNextTxn - 2 - end");
         }
         // if current workflow is not finished and current txn has the same workflow id
         // since this txn beongs to current workflow, 
         // we just need to run it (nothing else need to be done)
         if((isWkfFinished==false)&&(isSameWkfID==true))
         {
-            System.out.println("getScheduledNextTxn - 3");
+            //System.out.println("getScheduledNextTxn - 3");
             scheduledNextTxn = nextTxn;
         }
 
         if(scheduledNextTxn != null)
         {
-            System.out.println("getScheduledNextTxn - 4");
-            this.addSPStartStatus( workflowid, spname );
+            if (debug.val)
+                LOG.debug("getScheduledNextTxn - 4");
+            
+            Procedure proc = scheduledNextTxn.getProcedure();
+            // if it is not a frontend trigger, we record start here
+            if(proc.getBedefault()!=true)
+                this.addSPStartStatus( workflowid, spname );
         }
         
         return scheduledNextTxn;
