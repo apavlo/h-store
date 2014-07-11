@@ -24,6 +24,7 @@
 
 #ifdef ANTICACHE
 #include "anticache/AntiCacheDB.h"
+#include "anticache/BerkeleyAntiCacheDB.h"
 #include "anticache/AntiCacheEvictionManager.h"
 #include "execution/VoltDBEngine.h"
 #endif
@@ -206,7 +207,7 @@ namespace voltdb {
             void enableAntiCache(const VoltDBEngine *engine, std::string &dbDir, long blockSize) {
                     assert(m_antiCacheEnabled == false);
                     m_antiCacheEnabled = true;
-                    m_antiCacheDB = new AntiCacheDB(this, dbDir, blockSize);
+                    m_antiCacheDB = new BerkeleyAntiCacheDB(this, dbDir, blockSize);
                     m_antiCacheEvictionManager = new AntiCacheEvictionManager(engine);
             }
         #endif
