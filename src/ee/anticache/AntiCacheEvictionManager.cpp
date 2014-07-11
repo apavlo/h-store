@@ -38,8 +38,11 @@
 #include "anticache/EvictedTable.h"
 #include "anticache/UnknownBlockAccessException.h"
 #include "anticache/AntiCacheDB.h"
+<<<<<<< HEAD
 #include "anticache/BerkeleyAntiCacheDB.h"
 #include "anticache/NVMAntiCacheDB.h"
+=======
+>>>>>>> parent of 62de730... Made AntiCacheDB a generic class, split BerkeleyDB and NVM to separate subclasses. Did not change tests nor EE.
 #include <string>
 #include <vector>
 #include <time.h>
