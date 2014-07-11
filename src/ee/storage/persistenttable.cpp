@@ -163,11 +163,11 @@ PersistentTable::~PersistentTable() {
     voltdb::TableIterator ti(this);
     voltdb::TableTuple tuple(m_schema);
 
-    while (ti.next(tuple)) {
-        // indexes aren't released as they don't have ownership of strings
-        tuple.freeObjectColumns();
-        tuple.setDeletedTrue();
-    }
+	while (ti.next(tuple)) {
+		// indexes aren't released as they don't have ownership of strings
+		tuple.freeObjectColumns();
+		tuple.setDeletedTrue();
+	}
     
     for (int i = 0; i < m_indexCount; ++i) {
         TableIndex *index = m_indexes[i];
@@ -214,7 +214,7 @@ void PersistentTable::setBatchEvicted(bool batchEvicted) {
 }
 
 bool PersistentTable::isBatchEvicted(){
-    return m_batchEvicted;
+	return m_batchEvicted;
 }
 
 void PersistentTable::setNumTuplesInEvictionChain(int num_tuples)
@@ -249,195 +249,181 @@ uint32_t PersistentTable::getOldestTupleID()
 
 AntiCacheDB* PersistentTable::getAntiCacheDB()
 {
-    return m_executorContext->getAntiCacheDB();
+	return m_executorContext->getAntiCacheDB();
 }
 
 int32_t PersistentTable::getTuplesEvicted()
 {
-    return m_tuplesEvicted;
+	return m_tuplesEvicted;
 }
 
 int32_t PersistentTable::getBlocksEvicted()
 {
-    return m_blocksEvicted;
+	return m_blocksEvicted;
 }
 
 int64_t PersistentTable::getBytesEvicted()
 {
-    return m_bytesEvicted;
+	return m_bytesEvicted;
 }
 
 int32_t PersistentTable::getTuplesWritten()
 {
-    return m_tuplesWritten;
+	return m_tuplesWritten;
 }
 
 int32_t PersistentTable::getBlocksWritten()
 {
-    return m_blocksWritten;
+	return m_blocksWritten;
 }
 
 int64_t PersistentTable::getBytesWritten()
 {
-    return m_bytesWritten;
+	return m_bytesWritten;
 }
 
 void PersistentTable::setTuplesEvicted(int32_t tuplesEvicted)
 {
-    m_tuplesEvicted = tuplesEvicted ;
+	m_tuplesEvicted = tuplesEvicted ;
 }
 
 void PersistentTable::setBlocksEvicted(int32_t blocksEvicted)
 {
-    m_blocksEvicted = blocksEvicted ;
+	m_blocksEvicted = blocksEvicted ;
 }
 
 void PersistentTable::setBytesEvicted(int64_t bytesEvicted)
 {
-    m_bytesEvicted = bytesEvicted ;
+	m_bytesEvicted = bytesEvicted ;
 }
 
 void PersistentTable::setTuplesWritten(int32_t tuplesWritten)
 {
-    m_tuplesWritten = tuplesWritten ;
+	m_tuplesWritten = tuplesWritten ;
 }
 
 void PersistentTable::setBlocksWritten(int32_t blocksWritten)
 {
-    m_blocksWritten = blocksWritten ;
+	m_blocksWritten = blocksWritten ;
 }
 
 void PersistentTable::setBytesWritten(int64_t bytesWritten)
 {
-    m_bytesWritten = bytesWritten;
+	m_bytesWritten = bytesWritten;
 }
 
 std::map<int16_t, int16_t> PersistentTable::getUnevictedBlockIDs()
 {
-    return m_unevictedBlockIDs;
+	return m_unevictedBlockIDs;
 }
 
 bool PersistentTable::isAlreadyUnEvicted(int16_t blockId)
 {
-    return m_unevictedBlockIDs.find(blockId) != m_unevictedBlockIDs.end();
+	return m_unevictedBlockIDs.find(blockId) != m_unevictedBlockIDs.end();
 }
 
 void PersistentTable::insertUnevictedBlockID(std::pair<int16_t,int16_t> pair)
 {
-    VOLT_INFO("pair is %d", pair.first);
-    m_unevictedBlockIDs.insert(pair);
+	VOLT_INFO("pair is %d", pair.first);
+	m_unevictedBlockIDs.insert(pair);
 }
 
 std::vector<char*> PersistentTable::getUnevictedBlocks()
 {
-    return m_unevictedBlocks;
+	return m_unevictedBlocks;
 }
 
 void PersistentTable::insertUnevictedBlock(char* unevicted_tuples)
 {
-    m_unevictedBlocks.push_back(unevicted_tuples);
+	m_unevictedBlocks.push_back(unevicted_tuples);
 }
 
 int32_t PersistentTable::getMergeTupleOffset(int i)
 {
-    return m_mergeTupleOffset[i];
+	return m_mergeTupleOffset[i];
 }
 char* PersistentTable::getUnevictedBlocks(int i)
 {
-    return m_unevictedBlocks[i];
+	return m_unevictedBlocks[i];
 }
 
 int PersistentTable::unevictedBlocksSize(){
-    return static_cast<int> (m_unevictedBlocks.size());
+	return static_cast<int> (m_unevictedBlocks.size());
 }
 
 void PersistentTable::insertTupleOffset(int32_t tuple_offset)
 {
-    m_mergeTupleOffset.push_back(tuple_offset);
+	m_mergeTupleOffset.push_back(tuple_offset);
 }
 
 int32_t PersistentTable::getTuplesRead()
 {
-    return m_tuplesRead;
+	return m_tuplesRead;
 }
 
 void PersistentTable::setTuplesRead(int32_t tuplesRead)
 {
-    m_tuplesRead = tuplesRead ;
+	m_tuplesRead = tuplesRead ;
 }
 
 bool PersistentTable::mergeStrategy()
 {
-    return m_blockMerge;
+	return m_blockMerge;
 }
 
 voltdb::TableTuple * PersistentTable::getTempTarget1()
 {
-    return &m_tmpTarget1;
+	return &m_tmpTarget1;
 }
 void PersistentTable::clearUnevictedBlocks()
 {
-    m_unevictedBlocks.clear();
+	m_unevictedBlocks.clear();
 }
 void PersistentTable::clearUnevictedBlocks(int i)
 {
-    m_unevictedBlocks.erase(m_unevictedBlocks.begin()+i);
+	m_unevictedBlocks.erase(m_unevictedBlocks.begin()+i);
 }
 
 void PersistentTable::clearMergeTupleOffsets()
 {
-    m_mergeTupleOffset.clear();
+	m_mergeTupleOffset.clear();
 }
 int64_t PersistentTable::unevictTuple(ReferenceSerializeInput * in, int j, int merge_tuple_offset){
 TableTuple evicted_tuple = m_evictedTable->tempTuple();
     // get a free tuple and increment the count of tuples current used
-    nextFreeTuple(&m_tmpTarget1);
-    m_tupleCount++;
+	 nextFreeTuple(&m_tmpTarget1);
+	 m_tupleCount++;
 
-    // deserialize tuple from unevicted block
-    int64_t bytesUnevicted = m_tmpTarget1.deserializeWithHeaderFrom(*in);
+	 // deserialize tuple from unevicted block
+	 int64_t bytesUnevicted = m_tmpTarget1.deserializeWithHeaderFrom(*in);
 
 
-    // Note, this goal of the section below is to get a tuple that points to the tuple in the EvictedTable and has the
-    // schema of the evicted tuple. However, the lookup has to be done using the schema of the original (unevicted) version
-    m_tmpTarget2 = lookupTuple(m_tmpTarget1);       // lookup the tuple in the table
-    evicted_tuple.move(m_tmpTarget2.address());
-    static_cast<EvictedTable*>(m_evictedTable)->deleteEvictedTuple(evicted_tuple);             // delete the EvictedTable tuple
+	 // Note, this goal of the section below is to get a tuple that points to the tuple in the EvictedTable and has the
+	 // schema of the evicted tuple. However, the lookup has to be done using the schema of the original (unevicted) version
+	 m_tmpTarget2 = lookupTuple(m_tmpTarget1);       // lookup the tuple in the table
+	 evicted_tuple.move(m_tmpTarget2.address());
+	 static_cast<EvictedTable*>(m_evictedTable)->deleteEvictedTuple(evicted_tuple);             // delete the EvictedTable tuple
 
-    m_tmpTarget1.setEvictedFalse();
-    m_tmpTarget1.setDeletedFalse();
-    // update the indexes to point to this newly unevicted tuple
-    VOLT_INFO("tuple is evicted? %d", m_tmpTarget1.isEvicted());
-    setEntryToNewAddressForAllIndexes(&m_tmpTarget1, m_tmpTarget1.address());
+	 m_tmpTarget1.setEvictedFalse();
+	 m_tmpTarget1.setDeletedFalse();
+	 // update the indexes to point to this newly unevicted tuple
+	VOLT_INFO("tuple is evicted? %d", m_tmpTarget1.isEvicted());
+	 setEntryToNewAddressForAllIndexes(&m_tmpTarget1, m_tmpTarget1.address());
 
-    //deleteFromAllIndexes(&m_tmpTarget1);
-    //insertTuple(m_tmpTarget1);
+	//deleteFromAllIndexes(&m_tmpTarget1);
+	//insertTuple(m_tmpTarget1);
 
-<<<<<<< HEAD
 	m_tmpTarget1.setEvictedFalse();
 	VOLT_INFO("tuple is evicted? %d", m_tmpTarget1.isEvicted());
 	VOLT_INFO("Merged Tuple: %s", m_tmpTarget1.debug(name()).c_str());
 	//VOLT_INFO("tuple size: %d, non-inlined memory size: %d", m_tmpTarget1.tupleLength(), m_tmpTarget1.getNonInlinedMemorySize());
-    AntiCacheEvictionManager* eviction_manager = m_executorContext->getAntiCacheEvictionManager();
+AntiCacheEvictionManager* eviction_manager = m_executorContext->getAntiCacheEvictionManager();
 	 // re-insert the tuple back into the eviction chain
 	 if(j == merge_tuple_offset)  // put it at the back of the chain
 		 eviction_manager->updateTuple(this, &m_tmpTarget1, true);
 	 else
 		 eviction_manager->updateUnevictedTuple(this, &m_tmpTarget1);
 	 return bytesUnevicted;
-=======
-    m_tmpTarget1.setEvictedFalse();
-    VOLT_INFO("tuple is evicted? %d", m_tmpTarget1.isEvicted());
-    VOLT_INFO("Merged Tuple: %s", m_tmpTarget1.debug(name()).c_str());
-    //VOLT_INFO("tuple size: %d, non-inlined memory size: %d", m_tmpTarget1.tupleLength(), m_tmpTarget1.getNonInlinedMemorySize());
-AntiCacheEvictionManager* eviction_manager = m_executorContext->getAntiCacheEvictionManager();
-    // re-insert the tuple back into the eviction chain
-    if(j == merge_tuple_offset)  // put it at the back of the chain
-        eviction_manager->updateTuple(this, &m_tmpTarget1, true);
-    else
-        eviction_manager->updateUnevictedTuple(this, &m_tmpTarget1);
-    return bytesUnevicted;
->>>>>>> upstream/master
 }
 
 #endif
@@ -534,7 +520,7 @@ bool PersistentTable::insertTuple(TableTuple &source) {
       new (pool->allocate(sizeof(voltdb::PersistentTableUndoInsertAction)))
       voltdb::PersistentTableUndoInsertAction(m_tmpTarget1, this, pool, elMark);
     undoQuantum->registerUndoAction(ptuia);
-    VOLT_TRACE("Registered UndoAction for new tuple in table '%s'", name().c_str());
+    VOLT_DEBUG("Registered UndoAction for new tuple in table '%s'", name().c_str());
 
     // handle any materialized views
     for (int i = 0; i < m_views.size(); i++) {
@@ -929,9 +915,9 @@ void PersistentTable::updateFromAllIndexes(TableTuple &targetTuple, const TableT
     
 void PersistentTable::setEntryToNewAddressForAllIndexes(const TableTuple *tuple, const void* address) {
     for (int i = m_indexCount - 1; i >= 0; --i) {
-        VOLT_TRACE("Updating tuple address in index %s.%s [%s]",
+        VOLT_INFO("Updating tuple address in index %s.%s [%s]",
                    name().c_str(), m_indexes[i]->getName().c_str(), m_indexes[i]->getTypeName().c_str());
-        VOLT_TRACE("address is %p", address);
+        VOLT_INFO("address is %p", address);
         if (!m_indexes[i]->setEntryToNewAddress(tuple, address)) {
             VOLT_INFO("ERROR: Failed to update tuple to new address!");
             throwFatalException("Failed to update tuple to new address in index %s.%s [%s]",

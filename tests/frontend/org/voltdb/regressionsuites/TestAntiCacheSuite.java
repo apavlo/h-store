@@ -260,7 +260,6 @@ public class TestAntiCacheSuite extends RegressionSuite {
         builder.setGlobalConfParameter("site.anticache_reset", true);
         builder.setGlobalConfParameter("site.anticache_check_interval", Integer.MAX_VALUE);
         builder.setGlobalConfParameter("site.anticache_batching", false);
-        builder.setGlobalConfParameter("site.anticache_dbtype", "BERKELEY");
 
         // build up a project builder for the TPC-C app
         VoterProjectBuilder project = new VoterProjectBuilder();

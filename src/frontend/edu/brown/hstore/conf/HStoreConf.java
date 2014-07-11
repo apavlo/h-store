@@ -718,15 +718,7 @@ public final class HStoreConf {
         	    experimental=false
         )
         public boolean anticache_batching;
-       
-        @ConfigProperty(
-                description="Type of database used for eviction.",
-                defaultString="BERKELEY",
-                experimental=true,
-                enumOptions="org.voltdb.types.AntiCacheDBType"
-        )
-        public String anticache_dbtype;
-
+        
         // ----------------------------------------------------------------------------
         // Storage MMAP Options
         // ----------------------------------------------------------------------------

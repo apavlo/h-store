@@ -39,20 +39,18 @@ using namespace std;
 
 namespace voltdb {
 
-NVMAntiCacheBlock::NVMAntiCacheBlock(int16_t blockId, char* block, long size) :
-    AntiCacheBlock(blockId, block, size)
-{
-    m_block = block;
-    m_blockId = blockId;
-    m_size = size;
-    m_blockType = ANTICACHEDB_NVM;
+NVMAntiCacheBlock::NVMAntiCacheBlock(int16_t blockId, char* block, long size) {
+	m_block = block;
+	m_blockId = blockId;
+	m_size = size;
+	m_blockType = NVM;
 }
 
 NVMAntiCacheDB::NVMAntiCacheDB(ExecutorContext *ctx, std::string db_dir, long blockSize) :
-    AntiCacheDB(ctx, db_dir, blockSize) 
+	AntiCacheDB(ctx, db_dir, blockSize) 
 {
-    m_dbType = ANTICACHEDB_NVM;
-    initialize();
+	m_dbType = NVM;
+	initialize();
 }
 
 
@@ -66,7 +64,7 @@ void NVMAntiCacheDB::initialize() {
     #ifdef ANTICACHE_DRAM
         VOLT_INFO("Allocating anti-cache in DRAM."); 
         m_NVMBlocks = new char[aligned_file_size];
-    return; 
+	return; 
     #endif
 
     // use executor context to figure out which partition we are at
@@ -137,29 +135,29 @@ void NVMAntiCacheDB::initialize() {
 
 void NVMAntiCacheDB::shutdownDB() 
 {
-    fclose(nvm_file);
+	fclose(nvm_file);
 
-    #ifdef ANTICACHE_DRAM
-        delete [] m_NVMBlocks;
-    #endif
+	#ifdef ANTICACHE_DRAM
+		delete [] m_NVMBlocks;
+	#endif
 }
 
 NVMAntiCacheDB::~NVMAntiCacheDB() {
-    shutdownDB();
+	shutdownDB();
 }
 
 void NVMAntiCacheDB::writeBlock(const std::string tableName,
-                                int16_t blockId,
-                                const int tupleCount,
-                                const char* data,
-                                const long size)  {
+                             	int16_t blockId,
+                             	const int tupleCount,
+			     				const char* data,
+                             	const long size)  {
    
-    //int index = getFreeNVMBlockIndex();
-    //char* block = getNVMBlock(index);
+	//int index = getFreeNVMBlockIndex();
+	//char* block = getNVMBlock(index);
     char* block = getNVMBlock(m_totalBlocks); 
     memcpy(block, data, size);                      
-    //m_NVMBlocks[m_totalBlocks] = new char[size]; 
-    //memcpy(m_NVMBlocks[m_totalBlocks], data, size); 
+	//m_NVMBlocks[m_totalBlocks] = new char[size]; 
+	//memcpy(m_NVMBlocks[m_totalBlocks], data, size); 
 
     VOLT_INFO("Writing NVM Block: ID = %d, index = %d, size = %ld", blockId, m_totalBlocks, size); 
     m_blockMap.insert(std::pair<int16_t, std::pair<int, int32_t> >(blockId, std::pair<int, int32_t>(m_totalBlocks, static_cast<int32_t>(size))));
@@ -167,7 +165,7 @@ void NVMAntiCacheDB::writeBlock(const std::string tableName,
 }
 
 
-AntiCacheBlock NVMAntiCacheDB::readBlock(std::string tableName, int16_t blockId) {
+NVMAntiCacheBlock NVMAntiCacheDB::readBlock(std::string tableName, int16_t blockId) {
     
    std::map<int16_t, std::pair<int, int32_t> >::iterator itr; 
    itr = m_blockMap.find(blockId); 
@@ -180,7 +178,7 @@ AntiCacheBlock NVMAntiCacheDB::readBlock(std::string tableName, int16_t blockId)
    }
 
    int blockIndex = itr->second.first; 
-   VOLT_INFO("Reading NVM block: ID = %d, index = %d, size = %d.", blockId, blockIndex, itr->second.second);
+   VOLT_INFO("Reading NVM block: ID = %d, index = %d, size = %ld.", blockId, blockIndex, itr->second.second);
    
    char* block_ptr = getNVMBlock(blockIndex);
    char* block = new char[itr->second.second];
@@ -191,16 +189,9 @@ AntiCacheBlock NVMAntiCacheDB::readBlock(std::string tableName, int16_t blockId)
    freeNVMBlock(blockId); 
 
    m_blockMap.erase(itr); 
-   return (static_cast<AntiCacheBlock>(anticache_block));
+   return (anticache_block);
 }
 
-void NVMAntiCacheDB::flushBlocks() {
-   // do we need some kind of sync?
-}
-
-////////////////////////////////////////
-// private:
-////////////////////////////////////////
 
 char* NVMAntiCacheDB::getNVMBlock(int index) {
     
@@ -218,7 +209,7 @@ int NVMAntiCacheDB::getFreeNVMBlockIndex()
     if(m_NVMBlockFreeList.size() > 0)
     {
         free_index = m_NVMBlockFreeList.back(); 
-    m_NVMBlockFreeList.pop_back(); 
+	m_NVMBlockFreeList.pop_back(); 
     }
     else 
     {

@@ -345,20 +345,6 @@ enum RecoveryMsgType {
 };
 
 // ------------------------------------------------------------------
-// Anticache Database Types
-// ------------------------------------------------------------------
-enum AntiCacheDBType {
-    /*
-     * BerkeleyDB disk-based store
-     */
-    ANTICACHEDB_BERKELEY = 0,
-    /*
-     * NVM backing store (generic)
-     */
-    ANTICACHEDB_NVM = 1
-};    
-
-// ------------------------------------------------------------------
 // Utility functions.
 // -----------------------------------------------------------------
 std::string getTypeName(ValueType type);

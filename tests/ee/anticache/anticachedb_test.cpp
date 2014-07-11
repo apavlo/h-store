@@ -26,9 +26,6 @@
 #include <string>
 #include "harness.h"
 #include "anticache/AntiCacheDB.h"
-#include "anticache/BerkeleyAntiCacheDB.h"
-#include "anticache/NVMAntiCacheDB.h"
-#include "common/types.h"
 
 using namespace std;
 using namespace voltdb;
@@ -80,30 +77,11 @@ TEST_F(AntiCacheDBTest, WriteBlock) {
         ASSERT_TRUE(false);
     }
 }*/
-TEST_F(AntiCacheDBTest, AntiCacheDBType) {
-    ChTempDir tempdir;
-
-    BerkeleyAntiCacheDB berkeleyanticache(NULL, ".", BLOCK_SIZE);
-    //NVMAntiCacheDB nvmanticache(NULL, ".", BLOCK_SIZE);
-
-    ASSERT_EQ(berkeleyanticache.getDBType(), ANTICACHEDB_BERKELEY);
-    //ASSERT_EQ(nvmanticache.getDBType(), ANTICACHEDB_NVM);
-    
-    //ASSERT_EQ(baseanticache.getDBType(), ANTICACHEDB_BERKELEY);
-
-}
-
-
 
 TEST_F(AntiCacheDBTest, ReadBlock) {
     // This will create a tempdir that will automatically be cleaned up
     ChTempDir tempdir;
-
-    // create a ANTICACHE_BERKELEYDB AntiCacheDB
-
-    BerkeleyAntiCacheDB anticache(NULL, ".", BLOCK_SIZE);
-
-    //AntiCacheDB anticache(NULL, ".", BLOCK_SIZE);
+    AntiCacheDB anticache(NULL, ".", BLOCK_SIZE);
 
     string tableName("FAKE");
     string payload("Test Read");

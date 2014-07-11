@@ -17,7 +17,6 @@ traces/
 *.ods
 *.markov
 *.hprof
-*.swp
 .~lock*
 junitvmwatcher*
 buildstring.txt

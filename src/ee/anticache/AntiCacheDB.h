@@ -30,21 +30,13 @@
 
 #include "common/debuglog.h"
 #include "common/DefaultTupleSerializer.h"
-<<<<<<< HEAD
-#include "common/types.h"
 //#include "common/executorcontext.hpp"
 #include <map>
 #include <vector>
 
-=======
+#define BERKELEYDB 0
+#define NVM 1
 
-#include <map>
-#include <vector>
-
-
-#define ANTICACHE_DB_NAME "anticache.db"
-
->>>>>>> parent of 62de730... Made AntiCacheDB a generic class, split BerkeleyDB and NVM to separate subclasses. Did not change tests nor EE.
 using namespace std;
 
 namespace voltdb {
@@ -60,15 +52,15 @@ class AntiCacheBlock {
     friend class AntiCacheDB;
     
     public:
-<<<<<<< HEAD
-//        AntiCacheBlock(int16_t blockId, Dbt value);
-//        AntiCacheBlock(int16_t blockId, char* block, long size);
-=======
->>>>>>> parent of 62de730... Made AntiCacheDB a generic class, split BerkeleyDB and NVM to separate subclasses. Did not change tests nor EE.
+		AntiCacheBlock(int16_t blockId, Dbt value);
+		AntiCacheBlock();
         ~AntiCacheBlock();
-        
+		
+		inline int16_t getBlockType() {
+			return m_blockType;
+        } 
         inline int16_t getBlockId() const {
-            return m_blockId;
+        	return m_blockId;
         }
 
         inline std::string getTableName() const {
@@ -76,145 +68,64 @@ class AntiCacheBlock {
         }
 
         inline long getSize() const {
-            return m_size;
+        	return m_size;
         }
         inline char* getData() const {
-        return m_block;
+	    return m_block;
         }
-        inline AntiCacheDBType getBlockType() {
-            return m_blockType; 
-        }
+
         struct payload{
-            int16_t blockId;
-            std::string tableName;
+        	int16_t blockId;
+        	std::string tableName;
             char * data;
             long size;
         };
     
-    private:
-        AntiCacheBlock(int16_t blockId, Dbt value);
+    protected:
         AntiCacheBlock(int16_t blockId, char* block, long size);
         int16_t m_blockId;
         payload m_payload;
-<<<<<<< HEAD
-        long m_size;
-        char * m_block;
-        char * m_buf;
-        AntiCacheDBType m_blockType;
-=======
-	long m_size;
-	char * m_block;
-	char * m_buf;
->>>>>>> parent of 62de730... Made AntiCacheDB a generic class, split BerkeleyDB and NVM to separate subclasses. Did not change tests nor EE.
+		long m_size;
+		char * m_block;
+		char * m_buf;
+		int16_t m_blockType;
 
 }; // CLASS
 
-// Encapsulates a block that is flushed out to BerkeleyDB
-// TODO: merge it with AntiCacheBlock
-class BerkeleyDBBlock{
-public:
-	~BerkeleyDBBlock();
-
-    inline void initialize(long blockSize, std::vector<std::string> tableNames, int16_t blockId, int numTuplesEvicted){
-        DefaultTupleSerializer serializer;
-        // buffer used for serializing a single tuple
-        serialized_data = new char[blockSize];
-        out.initializeWithPosition(serialized_data, blockSize, 0);
-        out.writeInt((int)tableNames.size());
-        for (std::vector<std::string>::iterator it = tableNames.begin() ; it != tableNames.end(); ++it){
-			out.writeTextString(*it);
-			// note this offset since we need to write at this again later on
-			offsets.push_back(getSerializedSize());
-			out.writeInt(numTuplesEvicted);// reserve first 4 bytes in buffer for number of tuples in block
-        }
-
-
-    }
-
-    inline void addTuple(TableTuple tuple){
-    	// Now copy the raw bytes for this tuple into the serialized buffer
-        tuple.serializeWithHeaderTo(out);
-    }
-
-    inline void writeHeader(std::vector<int> num_tuples_evicted){
-    	// write out the block header (i.e. number of tuples in block)
-    	int count = 0;
-    	for (std::vector<int>::iterator it = num_tuples_evicted.begin() ; it != num_tuples_evicted.end(); ++it){
-        	out.writeIntAt(offsets.at(count), *it);
-        	count++;
-    	}
-    }
-
-    inline int getSerializedSize(){
-    	return (int)out.size();
-    }
-
-    inline const char* getSerializedData(){
-    	return out.data();
-    }
-private:
-    ReferenceSerializeOutput out;
-    char * serialized_data;
-    std::vector<int> offsets;
-
-};
 /**
  *
  */
 class AntiCacheDB {
         
     public: 
-<<<<<<< HEAD
-        // probably want to remove db_dir and add a "db_type" field
+		// probably want to remove db_dir and add a "db_type" field
         AntiCacheDB(ExecutorContext *ctx, std::string db_dir, long blockSize);
         ~AntiCacheDB();
 
-        virtual void initialize();
+		void initialize();
 
-        AntiCacheDBType inline getDBType() {
-            return m_dbType;
-        }
+		int inline getDBType() {
+			return m_dbType;
+		}
 
-        /*
-         * Write a block of serialized tuples out to the anti-cache database
+       	/*
+		 * Write a block of serialized tuples out to the anti-cache database
          */
-        virtual void writeBlock(const std::string tableName,
-=======
-        AntiCacheDB(ExecutorContext *ctx, std::string db_dir, long blockSize);
-        ~AntiCacheDB();
-
-		void initializeNVM(); 
-		
-		void initializeBerkeleyDB(); 
-
-        /**
-         * Write a block of serialized tuples out to the anti-cache database
-         */
-        void writeBlock(const std::string tableName,
->>>>>>> parent of 62de730... Made AntiCacheDB a generic class, split BerkeleyDB and NVM to separate subclasses. Did not change tests nor EE.
+		void writeBlock(const std::string tableName,
                         int16_t blockId,
                         const int tupleCount,
                         const char* data,
                         const long size);
-<<<<<<< HEAD
         
-        /**
+		/**
          * Read a block and return its contents
          */
-        virtual AntiCacheBlock readBlock(std::string tableName, int16_t blockId) = 0;
-        
-=======
-        /**
-         * Read a block and return its contents
-         */
-        AntiCacheBlock readBlock(std::string tableName, int16_t blockId);
-
-
->>>>>>> parent of 62de730... Made AntiCacheDB a generic class, split BerkeleyDB and NVM to separate subclasses. Did not change tests nor EE.
+		AntiCacheBlock readBlock(std::string tableName, int16_t blockId);
+		
         /**
          * Flush the buffered blocks to disk.
          */
-        void flushBlocks();
+        virtual void flushBlocks();
 
         /**
          * Return the next BlockId to use in the anti-cache database
@@ -224,95 +135,31 @@ class AntiCacheDB {
             return (++m_nextBlockId);
         }
         
-    private:
-        
-        /**
-         * NVM constants
-         */
-        static const off_t NVM_FILE_SIZE = 1073741824/2; 
-        static const int NVM_BLOCK_SIZE = 524288 + 1000; 
-	static const int MMAP_PAGE_SIZE = 2 * 1024 * 1024; 
-        
+    protected:
         ExecutorContext *m_executorContext;
-<<<<<<< HEAD
-        string m_dbDir;     // probably move
-=======
-        string m_dbDir;
->>>>>>> parent of 62de730... Made AntiCacheDB a generic class, split BerkeleyDB and NVM to separate subclasses. Did not change tests nor EE.
+        string m_dbDir;		// probably move
         long m_blockSize;
-        DbEnv* m_dbEnv;
-        Db* m_db; 
         int16_t m_nextBlockId;
-<<<<<<< HEAD
-        int m_partitionId; 
-=======
-	int m_partitionId; 
-
-        FILE* nvm_file;
-        char* m_NVMBlocks; 
-        int nvm_fd; 
->>>>>>> parent of 62de730... Made AntiCacheDB a generic class, split BerkeleyDB and NVM to separate subclasses. Did not change tests nor EE.
+		int m_partitionId; 
 
         /**
          *  Maps a block id to a <index, size> pair
          */
-<<<<<<< HEAD
-        std::map<int16_t, pair<int, int32_t> > m_blockMap; 
-        
-        
-        int m_totalBlocks; 
-        int m_nextFreeBlock; 
-
-        virtual void shutdownDB();      
-        
-        AntiCacheDBType m_dbType;
-        
-=======
 		std::map<int16_t, pair<int, int32_t> > m_blockMap; 
 		
-		/**
-		 *  List of free block indexes before the end of the last allocated block.
-		 */
-        std::vector<int> m_NVMBlockFreeList; 
 		
-	int m_totalBlocks; 
+		int m_totalBlocks; 
         int m_nextFreeBlock; 
-		
-		void shutdownNVM(); 
-		
-		void shutdownBerkeleyDB();
-		
-		void writeBlockNVM(const std::string tableName, 
-				   int16_t blockID, 
-				   const int tupleCount, 
-				   const char* data, 
-				   const long size); 
-				
-		void writeBlockBerkeleyDB(	const std::string tableName, 
-					   int16_t blockID, 
-					   const int tupleCount, 
-					   const char* data, 
-					   const long size);
-		
-        AntiCacheBlock readBlockNVM(std::string tableName, int16_t blockId); 
 
-        AntiCacheBlock readBlockBerkeleyDB(int16_t blockId);
+		virtual void shutdownDB();		
+		
+		int m_dbType;
         
-        /**
-         *   Returns a pointer to the start of the block at the specified index. 
-         */
-        char* getNVMBlock(int index); 
         
-        /**
-         *    Adds the index to the free block list. 
-         */
-        void freeNVMBlock(int index);
-        
-        /**
-         *   Returns the index of a free slot in the NVM block array. 
-         */
-        int getFreeNVMBlockIndex(); 
->>>>>>> parent of 62de730... Made AntiCacheDB a generic class, split BerkeleyDB and NVM to separate subclasses. Did not change tests nor EE.
+		
+		// these may not need to be generic?
+		// char* getBlock(int index);
+		
         
 }; // CLASS
 

@@ -91,7 +91,6 @@ public class TestAntiCacheBatching extends BaseTestCase {
         this.hstore_conf.site.anticache_profiling = true;
         this.hstore_conf.site.anticache_check_interval = Integer.MAX_VALUE;
         this.hstore_conf.site.anticache_dir = this.anticache_dir.getAbsolutePath();
-        this.hstore_conf.site.anticache_dbtype = "BERKELEY";
         
         this.hstore_site = createHStoreSite(catalog_site, hstore_conf);
         this.executor = hstore_site.getPartitionExecutor(0);

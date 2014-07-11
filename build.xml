@@ -1076,7 +1076,7 @@ TEST CASES
                 <exclude name="**/TestMapReduceTransactionSuite.class" />
                 <exclude name="**/TestWikipediaSuite.class" />
                 <exclude name="**/TestWikipediaLoader.class" />
-                <exclude name="**/Test*PhysicalRecovery.class" />
+<!--                 <exclude name="**/TestAntiCache*.class" /> -->
                 
                 <!-- Misc VoltDB stuff -->
                 <exclude name='org/voltdb/TestHSQLBackend*'/>
@@ -1158,7 +1158,7 @@ TEST CASES
                 <exclude name="**/TestMapReduceTransactionSuite.class" />
                 <exclude name="**/TestWikipediaSuite.class" />
                 <exclude name="**/TestWikipediaLoader.class" />
-                <exclude name="**/Test*PhysicalRecovery.class" />
+<!--                 <exclude name="**/TestAntiCache*.class" /> -->
 
                 <!-- Tests that use too much memory -->
                 <exclude name='edu/brown/benchmark/tpce/*'/>
@@ -1234,7 +1234,7 @@ TEST CASES
                     <exclude name="**/TestMapReduceTransactionSuite.class" />
                     <exclude name="**/TestWikipediaSuite.class" />
                     <exclude name="**/TestWikipediaLoader.class" /> 
-                    <exclude name="**/Test*PhysicalRecovery.class" />
+<!--                     <exclude name="**/TestAntiCache*.class" /> -->
                 </fileset>
             </tests>
         </run_junit>

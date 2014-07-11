@@ -39,7 +39,6 @@ import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.utils.DBBPool.BBContainer;
 import org.voltdb.utils.LogKeys;
 import org.voltdb.utils.VoltLoggerFactory;
-import org.voltdb.types.AntiCacheDBType;
 
 import edu.brown.hstore.HStore;
 import edu.brown.hstore.PartitionExecutor;
@@ -794,7 +793,6 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
      * <B>NOTE:</B> This must be invoked before loadCatalog is invoked
      * @param dbDir
      * @param blockSize TODO
-     * @param dbType
      * @throws EEException
      */
     public abstract void antiCacheInitialize(File dbDir, long blockSize) throws EEException;
@@ -840,12 +838,10 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
      * @param pointer
      * @param dbDir
      * @param blockSize TODO
-     * @param dbType
      * @return
      */
-   // protected native int nativeAntiCacheInitialize(long pointer, String dbDir, long blockSize, AntiCacheDBType dbType );
+    protected native int nativeAntiCacheInitialize(long pointer, String dbDir, long blockSize);
     
-    protected native int nativeAntiCacheInitialize(long pointer, String dbDir, long blockSize, int dbType);
      /**
      * 
      * @param pointer

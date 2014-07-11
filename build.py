@@ -413,6 +413,8 @@ if CTX.ANTICACHE_BUILD:
         EvictedTupleAccessException.cpp
         UnknownBlockAccessException.cpp
         AntiCacheDB.cpp
+		BerkeleyAntiCacheDB.cpp
+		NVMAntiCacheDB.cpp
         AntiCacheEvictionManager.cpp
         EvictionIterator.cpp
         EvictedTable.cpp

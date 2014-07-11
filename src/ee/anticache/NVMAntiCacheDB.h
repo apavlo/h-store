@@ -45,52 +45,52 @@ class AntiCacheDB;
 class NVMAntiCacheDB;
 
 class NVMAntiCacheBlock: public AntiCacheBlock {
-    friend class NVMAntiCacheDB;
-//    public:
-//        ~NVMAntiCacheBlock();
-    private:
-        NVMAntiCacheBlock(int16_t blockId, char* block, long size);
+	friend class NVMAntiCacheDB;
+	public:
+		~NVMAntiCacheBlock();
+	private:
+		NVMAntiCacheBlock(int16_t blockId, char* block, long size);
 };
 
 class NVMAntiCacheDB: public AntiCacheDB {
-    public:
-        NVMAntiCacheDB(ExecutorContext *ctx, std::string db_dir, long blockSize);
-        ~NVMAntiCacheDB();
-        void writeBlock(const std::string tableName,
-                        int16_t blockID,
-                        const int tupleCount,
-                        const char* data,
-                        const long size);
-        
-        void initialize();
-        AntiCacheBlock readBlock(std::string tableName, int16_t blockId);
-        
-        void flushBlocks();
-    private:
-        
-        // gotta go 
-        static const off_t NVM_FILE_SIZE = 1073741824/2; 
+	public:
+		NVMAntiCacheDB(ExecutorContext *ctx, std::string db_dir, long blockSize);
+		~NVMAntiCacheDB();
+		void writeBlock(const std::string tableName,
+						int16_t blockID,
+						const int tupleCount,
+						const char* data,
+						const long size);
+		
+		void initialize();
+		NVMAntiCacheBlock readBlock(std::string tableName, int16_t blockId);
+		
+		void flushBlocks();
+	private:
+		
+		// gotta go	
+		static const off_t NVM_FILE_SIZE = 1073741824/2; 
         static const int NVM_BLOCK_SIZE = 524288 + 1000; 
-        static const int MMAP_PAGE_SIZE = 2 * 1024 * 1024; 
+		static const int MMAP_PAGE_SIZE = 2 * 1024 * 1024; 
 
-        FILE* nvm_file;     
-        char* m_NVMBlocks;  
+        FILE* nvm_file;		
+        char* m_NVMBlocks; 	
         int nvm_fd; 
 
-        /**
-         *  List of free block indexes before the end of the last allocated block.
-         */
+		/**
+		 *  List of free block indexes before the end of the last allocated block.
+		 */
         std::vector<int> m_NVMBlockFreeList; 
 
-        void shutdownDB();  
-        
+		void shutdownDB();	
+		
 
         AntiCacheBlock readBlockNVM(std::string tableName, int16_t blockId); 
 
         /**
          *   Returns a pointer to the start of the block at the specified index. 
          */
-        char* getNVMBlock(int index); 
+		char* getNVMBlock(int index); 
         
         /**
          *    Adds the index to the free block list. 
