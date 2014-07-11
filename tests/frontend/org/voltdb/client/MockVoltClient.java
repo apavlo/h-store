@@ -372,4 +372,18 @@ public class MockVoltClient implements Client {
         // TODO Auto-generated method stub
         return false;
     }
+
+    @Override
+    public boolean callStreamProcedure(ProcedureCallback callback, String procName, Long batchId, StoredProcedureInvocationHints hints, Object... parameters) throws IOException,
+            NoConnectionsException {
+        // TODO Auto-generated method stub
+        return false;
+    }
+
+    @Override
+    public boolean callStreamProcedure(ProcedureCallback callback, int expectedSerializedSize, String procName, Long batchId, StoredProcedureInvocationHints hints, Object... parameters)
+            throws IOException, NoConnectionsException {
+        // TODO Auto-generated method stub
+        return false;
+    }
 }
