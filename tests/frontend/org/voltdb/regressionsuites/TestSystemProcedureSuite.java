@@ -61,11 +61,17 @@ public class TestSystemProcedureSuite extends RegressionSuite {
         VoltTable results[] = null;
         results = client.callProcedure("@Statistics", "table", 0).getResults();
         // one aggregate table returned
-        assertTrue(results.length == 1);
-        // with 10 rows per site. Can be two values depending on the test scenario of cluster vs. local.
-        assertTrue(results[0].getRowCount() == 20 || results[0].getRowCount() == 40);
-
-        System.out.println("Test statistics table: " + results[0].toString());
+        assertEquals(1, results.length);
+        
+        int num_tables = getCatalogContext().getDataTables().size();
+        int num_partitions = getCatalogContext().numberOfPartitions;
+        
+        // System.err.println("Row Count: " + results[0].getRowCount());
+        // System.err.println("# of Tables: " + num_tables);
+        // System.err.println("# of Partitions: " + num_partitions);
+        
+        assertEquals(results[0].getRowCount(), num_partitions * num_tables);
+        // System.out.println("Test statistics table: " + results[0].toString());
     }
 
 //    public void testStatistics_Procedure() throws Exception {
@@ -244,7 +250,6 @@ public class TestSystemProcedureSuite extends RegressionSuite {
             fail();
         }
     }
-
 
 
     /**
