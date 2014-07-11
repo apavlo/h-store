@@ -1264,7 +1264,7 @@ void AntiCacheEvictionManager::recordEvictedAccess(catalog::Table* catalogTable,
     // do not have the same schema
     m_evicted_tuple->move(tuple->address()); 
     
-    VOLT_DEBUG(stderr, "Recording evicted tuple access: %s\n", m_evicted_tuple->debug(catalogTable->name()).c_str());
+    VOLT_DEBUG("Recording evicted tuple access: %s\n", m_evicted_tuple->debug(catalogTable->name()).c_str());
     
     // Determine the block id and tuple offset in the block using the EvictedTable tuple
     int16_t block_id = peeker.peekSmallInt(m_evicted_tuple->getNValue(0));
