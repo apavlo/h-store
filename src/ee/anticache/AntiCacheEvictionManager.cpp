@@ -800,10 +800,6 @@ bool AntiCacheEvictionManager::evictBlockToDiskInBatch(PersistentTable *table, P
             if (tuple_length == -1) {
                 tuple_length = tuple.tupleLength();
             }
-            if (tuple.isEvicted()) {
-                VOLT_INFO("Tuple %d is already evicted. Skipping", table->getTupleID(tuple.address()));
-                continue;
-            }
 
             // value of the foreign key column
             int64_t pkeyValue = ValuePeeker::peekBigInt(tuple.getNValue(columnIndex));
@@ -858,6 +854,10 @@ bool AntiCacheEvictionManager::evictBlockToDiskInBatch(PersistentTable *table, P
             // remove the tuple from the eviction chain
             removeTuple(table, &tuple);
 #endif
+            if (tuple.isEvicted()) {
+                VOLT_INFO("Tuple %d is already evicted. Skipping", table->getTupleID(tuple.address()));
+                continue;
+            }
 
             VOLT_INFO("Evicting Tuple: %s", tuple.debug(table->name()).c_str());
             tuple.setEvictedTrue();
