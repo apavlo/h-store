@@ -28,48 +28,39 @@
 
 package edu.brown.benchmark.bikerstream.procedures;
 
+import org.apache.log4j.Logger;
 import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
+import org.voltdb.VoltType;
 import org.voltdb.types.TimestampType;
+import java.util.LinkedList;
 
 import edu.brown.benchmark.bikerstream.BikerStreamConstants;
 
 @ProcInfo (
-    // TODO - don't know what to do about partitioninng
-    //partitionInfo = "votes.phone_number:1",
     singlePartition = true
 )
-public class RideBike extends VoltProcedure {
+public class CheckDiscounts extends VoltProcedure {
 
-    // Enters a bike ride gps event
-    public final SQLStmt insertBikeReadingStmt = new SQLStmt(
-        "INSERT INTO bikeStatus (user_id, latitude, longitude, time) " +
-        "VALUES (?, ?, ?, ?);"
-    );
+    public final SQLStmt getDockDiscount = new SQLStmt(
+            "SELECT current_dock_discount FROM stationStatus WHERE station_id = ?"
+        );
 
-    // Enters a bike ride gps event
-    public final SQLStmt log = new SQLStmt(
-        "INSERT INTO logs (user_id, time, success, action) " +
-        "VALUES (?, ?, ?, ?);"
-    );
+    public long[] run(long[] station_ids) {
 
-    public long run(long rider_id, double reading_lat, double reading_lon) throws Exception {
+        int numStations = station_ids.length;
 
-        try {
-            // Post the ride event
-            TimestampType time = new TimestampType();
-            voltQueueSQL(insertBikeReadingStmt, rider_id, reading_lat, reading_lon, time);
-            voltQueueSQL(log, rider_id, time, 2, "Loaded point (" + reading_lat + "," + reading_lon + ")into DB");
-            voltExecuteSQL(true);
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to load point:" + e);
+        long[] discounts = new long[numStations];
+
+        for (int i = 0; i < numStations; ++i){
+            voltQueueSQL(getDockDiscount, station_ids[i]);
+            discounts[i] = voltExecuteSQL()[0].asScalarLong();
         }
 
-        // return successfull reading
-        return BikerStreamConstants.BIKEREADING_SUCCESSFUL;
+        return discounts;
     }
 
-}
+} // End Class
 

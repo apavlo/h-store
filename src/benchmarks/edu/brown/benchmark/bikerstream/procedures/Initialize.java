@@ -56,11 +56,11 @@ public class Initialize extends VoltProcedure
     public long run() {
 
         int maxBikes    = BikerStreamConstants.NUM_BIKES_PER_STATION;
-        int maxStations = BikerStreamConstants.NUM_STATIONS;
+        int maxStations = BikerStreamConstants.STATION_LOCATIONS.length;
 
         for (int i = 0; i < maxStations; ++i){
             // Insert the Station
-            voltQueueSQL(insertStation, i, "Station-" +i, "ADRESS HERE", i, i);
+            voltQueueSQL(insertStation, i+1, BikerStreamConstants.STATION_LOCATIONS[i], "ADRESS HERE", i, i);
 
             int j;
             for (j = 0; j < 10; ++j) {
