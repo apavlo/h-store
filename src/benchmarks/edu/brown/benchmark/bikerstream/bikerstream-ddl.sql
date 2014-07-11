@@ -41,7 +41,7 @@ CREATE TABLE logs
     user_id  INTEGER   NOT NULL REFERENCES users(user_id)
 ,   time     TIMESTAMP NOT NULL
 ,   success  INTEGER   NOT NULL
-,   action   VARCHAR(64)
+,   action   VARCHAR(128)
 );
 
 

@@ -54,10 +54,9 @@ public class LogRiderTrip extends VoltProcedure {
 
 
 
-    public long run(long rider_id, long s_station, long e_station) throws Exception {
+    public VoltTable[] run(long rider_id, long s_station, long e_station) throws Exception {
         voltQueueSQL(logRide, rider_id, s_station, e_station);
-        voltExecuteSQL(true);
-        return 0;
+        return voltExecuteSQL(true);
     }
 
 } // End Class
