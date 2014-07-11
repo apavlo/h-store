@@ -795,7 +795,9 @@ public class ExecutionEngineJNI extends ExecutionEngine {
             String msg = "Trying to invoke anti-caching operation but feature is not enabled";
             throw new VoltProcedure.VoltAbortException(msg);
         }
+        LOG.info("Entering nativeAntiCacheReadBlocks()");
         final int errorCode = nativeAntiCacheReadBlocks(this.pointer, catalog_tbl.getRelativeIndex(), block_ids, tuple_offsets);
+        LOG.info(String.format("Leaving nativeAntiCacheReadBlocks() with error code: %d", errorCode));
         checkErrorCode(errorCode);
     }
     
@@ -855,7 +857,9 @@ public class ExecutionEngineJNI extends ExecutionEngine {
     @Override
     public void antiCacheMergeBlocks(Table catalog_tbl) {
         assert(m_anticache);
+        LOG.info("calling nativeAntiCacheMergeBlocks()");
         final int errorCode = nativeAntiCacheMergeBlocks(this.pointer, catalog_tbl.getRelativeIndex());
+        LOG.info(String.format("Returned from nativeAntiCacheMergeBlocks() with code %d", errorCode));
         checkErrorCode(errorCode);
     }
 

@@ -1074,7 +1074,16 @@ bool AntiCacheEvictionManager::readEvictedBlock(PersistentTable *table, int16_t 
 
         // allocate the memory for this block
         VOLT_INFO("block size is %ld - table Name %s", value.getSize(), table->name().c_str());
+        VOLT_DEBUG("block type is %d", static_cast<int>(value.getBlockType()));
 
+       // BerkeleyAntiCacheBlock block = static_cast<BerkeleyAntiCacheBlock>(value);
+       /* 
+        if (value.isBerkeleyBlock()) {
+            VOLT_DEBUG("Berkeley method called from AntiCacheBlock");
+        } else { 
+            VOLT_DEBUG("Somehow not called?");
+        }
+        */
         char* unevicted_tuples = new char[value.getSize()];
         memcpy(unevicted_tuples, value.getData(), value.getSize());
         VOLT_INFO("*****************block id ************** %d", block_id);
@@ -1183,7 +1192,7 @@ bool AntiCacheEvictionManager::mergeUnevictedTuples(PersistentTable *table)
                         continue;
                 }
 
-        bytes_unevicted += tableInBlock->unevictTuple(&in, j, merge_tuple_offset);
+                bytes_unevicted += tableInBlock->unevictTuple(&in, j, merge_tuple_offset);
 /*                // get a free tuple and increment the count of tuples current used
                 voltdb::TableTuple * m_tmpTarget1 = tableInBlock->getTempTarget1();
                 tableInBlock->nextFreeTuple(m_tmpTarget1);

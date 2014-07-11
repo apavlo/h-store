@@ -54,6 +54,15 @@ BerkeleyAntiCacheBlock::BerkeleyAntiCacheBlock(int16_t blockId, char* v, long si
 
     m_blockType = ANTICACHEDB_BERKELEY;
 }
+
+bool BerkeleyAntiCacheBlock::isBerkeleyBlock() {
+    if (m_blockType == ANTICACHEDB_BERKELEY) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
     
 BerkeleyAntiCacheBlock::~BerkeleyAntiCacheBlock() {
     if(m_blockId > 0 && m_buf != NULL){

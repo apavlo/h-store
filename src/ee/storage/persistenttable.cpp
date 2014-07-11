@@ -417,7 +417,7 @@ TableTuple evicted_tuple = m_evictedTable->tempTuple();
 	VOLT_INFO("tuple is evicted? %d", m_tmpTarget1.isEvicted());
 	VOLT_INFO("Merged Tuple: %s", m_tmpTarget1.debug(name()).c_str());
 	//VOLT_INFO("tuple size: %d, non-inlined memory size: %d", m_tmpTarget1.tupleLength(), m_tmpTarget1.getNonInlinedMemorySize());
-AntiCacheEvictionManager* eviction_manager = m_executorContext->getAntiCacheEvictionManager();
+    AntiCacheEvictionManager* eviction_manager = m_executorContext->getAntiCacheEvictionManager();
 	 // re-insert the tuple back into the eviction chain
 	 if(j == merge_tuple_offset)  // put it at the back of the chain
 		 eviction_manager->updateTuple(this, &m_tmpTarget1, true);
@@ -520,7 +520,7 @@ bool PersistentTable::insertTuple(TableTuple &source) {
       new (pool->allocate(sizeof(voltdb::PersistentTableUndoInsertAction)))
       voltdb::PersistentTableUndoInsertAction(m_tmpTarget1, this, pool, elMark);
     undoQuantum->registerUndoAction(ptuia);
-    VOLT_DEBUG("Registered UndoAction for new tuple in table '%s'", name().c_str());
+    VOLT_TRACE("Registered UndoAction for new tuple in table '%s'", name().c_str());
 
     // handle any materialized views
     for (int i = 0; i < m_views.size(); i++) {
@@ -915,9 +915,9 @@ void PersistentTable::updateFromAllIndexes(TableTuple &targetTuple, const TableT
     
 void PersistentTable::setEntryToNewAddressForAllIndexes(const TableTuple *tuple, const void* address) {
     for (int i = m_indexCount - 1; i >= 0; --i) {
-        VOLT_INFO("Updating tuple address in index %s.%s [%s]",
+        VOLT_TRACE("Updating tuple address in index %s.%s [%s]",
                    name().c_str(), m_indexes[i]->getName().c_str(), m_indexes[i]->getTypeName().c_str());
-        VOLT_INFO("address is %p", address);
+        VOLT_TRACE("address is %p", address);
         if (!m_indexes[i]->setEntryToNewAddress(tuple, address)) {
             VOLT_INFO("ERROR: Failed to update tuple to new address!");
             throwFatalException("Failed to update tuple to new address in index %s.%s [%s]",

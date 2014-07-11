@@ -23,6 +23,7 @@ class BerkeleyAntiCacheBlock: public AntiCacheBlock {
     friend class BerkeleyAntiCacheDB;
     public:
         ~BerkeleyAntiCacheBlock();  
+        bool isBerkeleyBlock();
     private:
         BerkeleyAntiCacheBlock(int16_t blockId, char* v, long size);
 }; 
@@ -50,6 +51,7 @@ public:
 
     }
 
+
     inline void addTuple(TableTuple tuple){
         // Now copy the raw bytes for this tuple into the serialized buffer
         tuple.serializeWithHeaderTo(out);
@@ -71,6 +73,8 @@ public:
     inline const char* getSerializedData(){
         return out.data();
     }
+    
+
 private:
     ReferenceSerializeOutput out;
     char * serialized_data;
