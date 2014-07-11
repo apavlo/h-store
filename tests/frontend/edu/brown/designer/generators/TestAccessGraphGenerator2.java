@@ -126,10 +126,9 @@ public class TestAccessGraphGenerator2 extends BaseTestCase {
 //        single_agraph.setVerbose(true);
 //        System.err.println("Dumping AccessGraph to " + FileUtil.writeStringToFile("/tmp/single_tpcc.dot", GraphvizExport.export(single_agraph, "tpcc")));
 
-        // Make sure that it has all of our tables except CUSTOMER_NAME
+        // Make sure that it has all of our tables except HISTORY
         for (Table catalog_tbl : catalogContext.getDataTables()) {
-            if (catalog_tbl.getName().equalsIgnoreCase("CUSTOMER_NAME") ||
-                catalog_tbl.getName().equalsIgnoreCase("HISTORY")) continue;
+            if (catalog_tbl.getName().equalsIgnoreCase("HISTORY")) continue;
             DesignerVertex v = single_agraph.getVertex(catalog_tbl);
             assertNotNull(catalog_tbl.getName(), v);
             System.err.println(catalog_tbl + ": " + v);

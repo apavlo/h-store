@@ -39,8 +39,7 @@ public class LoadWarehouseReplicated extends VoltProcedure {
 
     public final SQLStmt checkItemExists = new SQLStmt("SELECT * FROM ITEM LIMIT 1");
 
-    public VoltTable[] run(long w_id, VoltTable items, VoltTable customerNames)
-    throws VoltAbortException {
+    public VoltTable[] run(long w_id, VoltTable items) throws VoltAbortException {
         int allowELT = 0;
         if (items != null) {
             // check if we've already set up this partition
@@ -52,7 +51,6 @@ public class LoadWarehouseReplicated extends VoltProcedure {
             // now we know the partition is not loaded yet
             voltLoadTable("cluster", "database", "ITEM", items, allowELT);
         }
-        voltLoadTable("cluster", "database", "CUSTOMER_NAME", customerNames, allowELT);
         return null;
     }
 
