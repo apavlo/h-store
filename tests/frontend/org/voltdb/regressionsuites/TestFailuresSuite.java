@@ -362,10 +362,9 @@ public class TestFailuresSuite extends RegressionSuite {
 //
 //        try {
 //            client.callProcedure("@AdHoc",
-//                    "select * from WAREHOUSE, DISTRICT, CUSTOMER, CUSTOMER_NAME, HISTORY, STOCK, ORDERS, NEW_ORDER, ORDER_LINE where " +
+//                    "select * from WAREHOUSE, DISTRICT, CUSTOMER, HISTORY, STOCK, ORDERS, NEW_ORDER, ORDER_LINE where " +
 //                    "WAREHOUSE.W_ID = DISTRICT.D_W_ID and " +
 //                    "WAREHOUSE.W_ID = CUSTOMER.C_W_ID and " +
-//                    "WAREHOUSE.W_ID = CUSTOMER_NAME.C_W_ID and " +
 //                    "WAREHOUSE.W_ID = HISTORY.H_W_ID and " +
 //                    "WAREHOUSE.W_ID = STOCK.S_W_ID and " +
 //                    "WAREHOUSE.W_ID = ORDERS.O_W_ID and " +

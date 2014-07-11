@@ -75,10 +75,9 @@ public class TestOutOfProcessPlanning extends TestCase {
         result = m_pt.planSql("select * from warehouse;");
         System.out.println(result);
 
-        result = m_pt.planSql("select * from WAREHOUSE, DISTRICT, CUSTOMER, CUSTOMER_NAME, HISTORY, STOCK, ORDERS, NEW_ORDER, ORDER_LINE where " +
+        result = m_pt.planSql("select * from WAREHOUSE, DISTRICT, CUSTOMER, HISTORY, STOCK, ORDERS, NEW_ORDER, ORDER_LINE where " +
                 "WAREHOUSE.W_ID = DISTRICT.D_W_ID and " +
                 "WAREHOUSE.W_ID = CUSTOMER.C_W_ID and " +
-                "WAREHOUSE.W_ID = CUSTOMER_NAME.C_W_ID and " +
                 "WAREHOUSE.W_ID = HISTORY.H_W_ID and " +
                 "WAREHOUSE.W_ID = STOCK.S_W_ID and " +
                 "WAREHOUSE.W_ID = ORDERS.O_W_ID and " +

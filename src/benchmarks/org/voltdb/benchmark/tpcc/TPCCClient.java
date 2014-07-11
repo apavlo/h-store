@@ -383,10 +383,6 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
                                                        c_id, c_d_id, c_w_id, c_discount, c_credit,
                                                        c_fk);
 
-        // CUSTOMER_NAME table
-        Expression customer_name = Verification.conjunction(ExpressionType.CONJUNCTION_AND,
-                                                            c_id, c_d_id, c_w_id);
-
         // HISTORY table
         Expression h_c_id = Verification.inRange("H_C_ID", 1,
                                                  m_scaleParams.customersPerDistrict);
@@ -533,7 +529,6 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
         addTableConstraint("WAREHOUSE", warehouse);
         addTableConstraint("DISTRICT", district);
         addTableConstraint("CUSTOMER", customer);
-        addTableConstraint("CUSTOMER_NAME", customer_name);
         addTableConstraint("HISTORY", history);
         addTableConstraint("ORDERS", orders);
         addTableConstraint("NEW_ORDER", new_order);

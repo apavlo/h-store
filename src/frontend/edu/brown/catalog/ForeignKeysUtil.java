@@ -44,11 +44,6 @@ public abstract class ForeignKeysUtil {
         TPCC_FOREIGN_KEYS.get("CUSTOMER").put("C_D_ID", "DISTRICT.D_ID");
         TPCC_FOREIGN_KEYS.get("CUSTOMER").put("C_W_ID", "DISTRICT.D_W_ID");
 
-        TPCC_FOREIGN_KEYS.put("CUSTOMER_NAME", new ForeignKeyMapping());
-        TPCC_FOREIGN_KEYS.get("CUSTOMER_NAME").put("C_D_ID", "CUSTOMER.C_D_ID");
-        TPCC_FOREIGN_KEYS.get("CUSTOMER_NAME").put("C_W_ID", "CUSTOMER.C_W_ID");
-        TPCC_FOREIGN_KEYS.get("CUSTOMER_NAME").put("C_ID", "CUSTOMER.C_ID");
-
         TPCC_FOREIGN_KEYS.put("HISTORY", new ForeignKeyMapping());
         TPCC_FOREIGN_KEYS.get("HISTORY").put("H_D_ID", "DISTRICT.D_ID");
         TPCC_FOREIGN_KEYS.get("HISTORY").put("H_W_ID", "DISTRICT.D_W_ID");
