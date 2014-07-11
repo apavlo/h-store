@@ -2232,12 +2232,15 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     public void invocationTriggerProcedureProcess(long batchId, long clientHandle, long initiateTime, Procedure procedure) {
         
         // added by hawk, 2014/4/7
-        Long workflowid = batchId;
-        String spname = procedure.getName();
-        WorkflowScheduler wkfScheduler = this.getWorkflowScheduler();
-        //System.out.println("---------------------------------------------");
-        wkfScheduler.addSPStartStatus( workflowid, spname );
-        //System.out.println("---------------------------------------------");
+        if(this.hstore_conf.global.sstore_scheduler==true)
+        {
+            Long workflowid = batchId;
+            String spname = procedure.getName();
+            WorkflowScheduler wkfScheduler = this.getWorkflowScheduler();
+            //System.out.println("---------------------------------------------");
+            wkfScheduler.addSPStartStatus( workflowid, spname );
+            //System.out.println("---------------------------------------------");
+        }
         // ended by hawk
         
       // hawk: for micro-benchmark 2, start point
@@ -3126,12 +3129,15 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
 
         if (sendResponse) {
             // added by hawk, 2014/4/7
-            Long workflowid = ts.getBatchId();
-            String spname = ts.getProcedure().getName();
-            WorkflowScheduler wkfScheduler = this.getWorkflowScheduler();
-            //System.out.println("---------------------------------------------");
-            wkfScheduler.addSPEndStatus( workflowid, spname );
-            //System.out.println("---------------------------------------------");
+            if(this.hstore_conf.global.sstore_scheduler==true)
+            {
+                Long workflowid = ts.getBatchId();
+                String spname = ts.getProcedure().getName();
+                WorkflowScheduler wkfScheduler = this.getWorkflowScheduler();
+                //System.out.println("---------------------------------------------");
+                wkfScheduler.addSPEndStatus( workflowid, spname );
+                //System.out.println("---------------------------------------------");
+            }
             // ended by hawk
             
             // NO GROUP COMMIT -- SEND OUT AND COMPLETE
