@@ -210,15 +210,19 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
                 try {
                     nextTxn = initQueue.take();
                     // added by hawk, 2014/4/7
-                    if(HStoreConf.singleton().global.sstore_scheduler==true)
-                    {
                         if(nextTxn!=null)
                         {
-                            //System.out.println(String.format("%d - %s",nextTxn.getBatchId(), nextTxn.getProcedure().getName()));
-                            WorkflowScheduler wkfScheduler = hstore_site.getWorkflowScheduler();
-                            nextTxn = wkfScheduler.getScheduledNextTxn(nextTxn, initQueue);
+                            if(HStoreConf.singleton().global.sstore_scheduler==true)
+                            {
+                                //System.out.println(String.format("%d - %s",nextTxn.getBatchId(), nextTxn.getProcedure().getName()));
+                                WorkflowScheduler wkfScheduler = hstore_site.getWorkflowScheduler();
+                                nextTxn = wkfScheduler.getScheduledNextTxn(nextTxn, initQueue);
+                            }
+                            else
+                            {
+                                System.out.println(String.format("%d - %s",nextTxn.getBatchId(), nextTxn.getProcedure().getName()));
+                            }
                         }
-                    }
                     // ended by hawk
                 } catch (InterruptedException ex) {
                     // IGNORE

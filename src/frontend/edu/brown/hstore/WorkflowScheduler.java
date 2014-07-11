@@ -298,8 +298,8 @@ public class WorkflowScheduler {
             }
             else
             {
-                if (debug.val)
-                    LOG.debug("dump back queue ... ");
+//                if (debug.val)
+//                    LOG.debug("dump back queue ... ");
                 this.deleteWorkflow(currentWkfID);
                 if(this.isBackupQueueEmpty()==false)
                 {
@@ -326,12 +326,12 @@ public class WorkflowScheduler {
         
         boolean isSameWkfID = workflowid.equals(currentWkfID);
         
-        if (debug.val)
-        {
-            LOG.debug(spname + "-workflowid-" +workflowid+"-currentworkflowid-" + currentWkfID +"-isWkfFinished:"+isWkfFinished);
-            debugQueue(initQueue);
-            debugQueue(this.backupQueue);
-        }
+//        if (debug.val)
+//        {
+//            LOG.debug(spname + "-workflowid-" +workflowid+"-currentworkflowid-" + currentWkfID +"-isWkfFinished:"+isWkfFinished);
+//            debugQueue(initQueue);
+//            debugQueue(this.backupQueue);
+//        }
         // if current workflow is finished and we have new workflow id
         // we will delete the finished workflow execution status from records
         // then we should check if the backup queue has txn items there,
@@ -339,13 +339,13 @@ public class WorkflowScheduler {
         // if no, just continue
         if((isWkfFinished==true)/*&&(currentWkfID != workflowid)*/)
         {
-            if (debug.val)
-                LOG.debug("getScheduledNextTxn - 1");
+//            if (debug.val)
+//                LOG.debug("getScheduledNextTxn - 1");
             this.deleteWorkflow(currentWkfID);
             if(this.isBackupQueueEmpty()==false)
             {
-                if (debug.val)
-                    LOG.debug("put " + spname + "-workflowid-" +workflowid + " to backupqueue...");
+//                if (debug.val)
+//                    LOG.debug("put " + spname + "-workflowid-" +workflowid + " to backupqueue...");
                 this.addBackupQueue(nextTxn);
                 this.backupQueue(initQueue);
                 scheduledNextTxn = null;
@@ -358,8 +358,8 @@ public class WorkflowScheduler {
         // and continue to next txn until get the correct one for current workflow
         if((isWkfFinished==false)&&(isSameWkfID==false))
         {
-            if (debug.val)
-                LOG.debug("put " + spname + "-workflowid-" +workflowid + " to backupqueue...");
+//            if (debug.val)
+//                LOG.debug("put " + spname + "-workflowid-" +workflowid + " to backupqueue...");
             this.addBackupQueue(nextTxn);
             initQueue.addLast(new DumbTransaction(this.hstore_site));
             //initQueue.addLast(nextTxn);
@@ -377,8 +377,8 @@ public class WorkflowScheduler {
 
         if(scheduledNextTxn != null)
         {
-            if (debug.val)
-                LOG.debug("getScheduledNextTxn - 4");
+//            if (debug.val)
+//                LOG.debug("getScheduledNextTxn - 4");
             
             Procedure proc = scheduledNextTxn.getProcedure();
             // if it is not a frontend trigger, we record start here

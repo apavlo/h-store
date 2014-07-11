@@ -483,6 +483,7 @@ final class ClientImpl implements Client {
                 }
             }
         }
+        
         if (hints != null && hints.basePartition != HStoreConstants.NULL_PARTITION_ID) {
             invocation.setBasePartition(hints.basePartition);
         }
@@ -504,6 +505,7 @@ final class ClientImpl implements Client {
             m_queueTime.appendTime(start, ProfileMeasurement.getTime(), 1);
             return ret;
         }
+        
     }
 
     public void drain() throws NoConnectionsException, InterruptedException {

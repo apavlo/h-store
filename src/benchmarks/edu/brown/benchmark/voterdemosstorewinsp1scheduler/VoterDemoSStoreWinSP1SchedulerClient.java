@@ -98,6 +98,8 @@ public class VoterDemoSStoreWinSP1SchedulerClient extends BenchmarkComponent {
         }
     }
 
+    static AtomicLong batchid = new AtomicLong(0);
+    
     @Override
     protected boolean runOnce() throws IOException {
         // Get the next phone call
@@ -110,8 +112,10 @@ public class VoterDemoSStoreWinSP1SchedulerClient extends BenchmarkComponent {
         PhoneCallGenerator.PhoneCall call = switchboard.receive();
 
         Client client = this.getClientHandle();
-        boolean response = client.callProcedure(callback,
+        boolean response = client.callStreamProcedure(callback,
                                                 "Vote",
+                                                //100l,
+                                                VoterDemoSStoreWinSP1SchedulerClient.batchid.getAndIncrement(),
                                                 call.voteId,
                                                 call.phoneNumber,
                                                 call.contestantNumber,
