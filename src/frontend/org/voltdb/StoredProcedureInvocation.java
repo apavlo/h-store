@@ -54,7 +54,7 @@ public class StoredProcedureInvocation implements FastSerializable {
     protected int base_partition = HStoreConstants.NULL_PARTITION_ID;
     
     /** for S-Store, added by hawk, 2014-3-7 **/
-    protected int batchId = -1;
+    protected long batchId = -1;
     
     /** What partitions this invocation will touch **/
     @Deprecated
@@ -96,7 +96,7 @@ public class StoredProcedureInvocation implements FastSerializable {
         return copy;
     }
 
-    public void setBatchId(int batchId) {
+    public void setBatchId(long batchId) {
         this.batchId = batchId;
     }
 
@@ -137,7 +137,7 @@ public class StoredProcedureInvocation implements FastSerializable {
     public boolean hasBasePartition() {
         return (this.base_partition != HStoreConstants.NULL_PARTITION_ID);
     }
-    public int getBatchId() {
+    public long getBatchId() {
         return (this.batchId);
     }
     public int getBasePartition() {
@@ -213,7 +213,7 @@ public class StoredProcedureInvocation implements FastSerializable {
         this.base_partition = (int)in.readShort();
         this.clientHandle = in.readLong();
         this.procId = in.readShort();
-        this.batchId = (int)in.readShort();             // add by hawk, 2014-3-7
+        this.batchId = (long)in.readLong();             // add by hawk, 2014-3-7
         this.procName = in.readString();
         
         // do not deserialize parameters in ClientInterface context
@@ -229,7 +229,7 @@ public class StoredProcedureInvocation implements FastSerializable {
         out.writeShort(this.base_partition); // (2 bytes)
         out.writeLong(this.clientHandle);    // (8 bytes)
         out.writeShort(this.procId);         // (2 bytes)
-        out.writeShort(this.batchId);        // (2 bytes)   // add by hawk, 2014-3-7
+        out.writeLong(this.batchId);        // (8 bytes)   // add by hawk, 2014-3-7
         out.writeString(this.procName);
         
         if (this.params != null) {
@@ -321,8 +321,8 @@ public class StoredProcedureInvocation implements FastSerializable {
     }
 
     // added by hawk, 2014-3-7
-    public static int getBatchId(ByteBuffer buffer) {
-        return (buffer.getShort(14));
+    public static long getBatchId(ByteBuffer buffer) {
+        return (buffer.getLong(14));
     }
 
     /**
@@ -341,7 +341,7 @@ public class StoredProcedureInvocation implements FastSerializable {
      */
     public static String getProcedureName(FastDeserializer in) {
         //in.buffer().position(14);
-        in.buffer().position(16); // modified by hawk, 2014-3-7
+        in.buffer().position(22); // modified by hawk, 2014-3-7
         try {
             return (in.readString());
         } catch (IOException ex) {
@@ -363,7 +363,7 @@ public class StoredProcedureInvocation implements FastSerializable {
     public static void seekToParameterSet(ByteBuffer buffer) {
         // Skip to the procedure name
         //buffer.position(14);  // modified by hawk, 2014-3-7
-        buffer.position(16);
+        buffer.position(22);
         int procNameLen = buffer.getInt();
         buffer.position(buffer.position() + procNameLen);
     }

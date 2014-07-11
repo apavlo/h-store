@@ -332,7 +332,7 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
 //            m_exception = null;
 //        }
         this.initiateTime = in.readLong();
-        this.batchId = in.readInt();
+        this.batchId = in.readLong();
 
         // ended by hawk
     }
@@ -389,7 +389,7 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
 //        procArr = followingProcedures.toArray(procArr);
 //        out.writeArray(procArr);
         out.writeLong(initiateTime);
-        out.writeInt(batchId);
+        out.writeLong(batchId);
         // ended by hawk
     }
     
@@ -499,7 +499,7 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
     // added by hawk
 //    private List<String> followingProcedures =  new ArrayList<String>();
     private long initiateTime = 0;
-    private int batchId = -1;
+    private long batchId = -1l;
     
 //    public void addFollowingProcedures(List<String> procedures)
 //    {
@@ -521,12 +521,12 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         return initiateTime;
     }
 
-    public void setBatchId(int batchId) {
+    public void setBatchId(long batchId) {
         this.batchId = batchId;
     }
 
     @Override
-    public int getBatchId() {
+    public long getBatchId() {
         return batchId;
     }
 

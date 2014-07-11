@@ -124,6 +124,7 @@ public enum ProjectType {
     VOTERDEMOHSTOREANOTHER("VoterDemoHStoreAnother", "edu.brown.benchmark.voterdemohstoreanother"),
     VOTERDEMOSSTORE("VoterDemoSStore", "edu.brown.benchmark.voterdemosstore"),
     VOTERDEMOSSTOREWINSP1("VoterDemoSStoreWinSP1", "edu.brown.benchmark.voterdemosstorewinsp1"),
+    VOTERDEMOSSTOREWINSP1SCHEDULER("VoterDemoSStoreWinSP1Scheduler", "edu.brown.benchmark.voterdemosstorewinsp1scheduler"),
     VOTERDEMOSSTOREANOTHER("VoterDemoSStoreAnother", "edu.brown.benchmark.voterdemosstoreanother"),
     VOTERDEMOSSTOREPETRIGONLY("VoterDemoSStorePETrigOnly", "edu.brown.benchmark.voterdemosstorepetrigonly"),
     VOTERDEMOSSTORENOPETRIG("VoterDemoSStoreNoPETrig", "edu.brown.benchmark.voterdemosstorenopetrig"),
