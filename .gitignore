@@ -5,6 +5,7 @@ files/
 *.trace
 *.trace.gz
 traces/
+*.swp
 *.jar
 *.jar-ORIG
 *.log
