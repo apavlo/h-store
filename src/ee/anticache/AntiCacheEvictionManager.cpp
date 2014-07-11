@@ -38,6 +38,8 @@
 #include "anticache/EvictedTable.h"
 #include "anticache/UnknownBlockAccessException.h"
 #include "anticache/AntiCacheDB.h"
+#include "anticache/BerkeleyAntiCacheDB.h"
+
 #include <string>
 #include <vector>
 #include <time.h>
@@ -1064,14 +1066,14 @@ bool AntiCacheEvictionManager::readEvictedBlock(PersistentTable *table, int16_t 
 
     try
     {
-        AntiCacheBlock value = antiCacheDB->readBlock(table->name(), block_id);
+        AntiCacheBlock* value = antiCacheDB->readBlock(table->name(), block_id);
 
         // allocate the memory for this block
-        VOLT_INFO("block size is %ld - table Name %s", value.getSize(), table->name().c_str());
+        VOLT_INFO("block size is %ld - table Name %s", value->getSize(), table->name().c_str());
 
-    char* unevicted_tuples = new char[value.getSize()];
-        memcpy(unevicted_tuples, value.getData(), value.getSize());
-    VOLT_INFO("*****************block id ************** %d", block_id);
+        char* unevicted_tuples = new char[value->getSize()];
+        memcpy(unevicted_tuples, value->getData(), value->getSize());
+        VOLT_INFO("*****************block id ************** %d", block_id);
         ReferenceSerializeInput in(unevicted_tuples, 10485760);
 
         // Read in all the meta-data
@@ -1094,6 +1096,7 @@ bool AntiCacheEvictionManager::readEvictedBlock(PersistentTable *table, int16_t 
 
     
         table->insertUnevictedBlockID(std::pair<int16_t,int16_t>(block_id, 0));
+        delete value;
     }
     catch(UnknownBlockAccessException e)
     {
