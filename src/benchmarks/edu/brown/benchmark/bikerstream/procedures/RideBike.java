@@ -43,20 +43,31 @@ import edu.brown.benchmark.bikerstream.BikerStreamConstants;
 )
 public class RideBike extends VoltProcedure {
 
-    // Enters a bike ride gps event 
+    // Enters a bike ride gps event
     public final SQLStmt insertBikeReadingStmt = new SQLStmt(
-        "INSERT INTO bikereadings_stream (bike_id, reading_time, reading_lat, reading_lon) " +
+        "INSERT INTO bikeStatus (user_id, latitude, longitude, time) " +
         "VALUES (?, ?, ?, ?);"
     );
 
-    public long run(int bikeId, double reading_lat, double reading_lon) {
+    // Enters a bike ride gps event
+    public final SQLStmt log = new SQLStmt(
+        "INSERT INTO logs (user_id, time, success, action) " +
+        "VALUES (?, ?, ?, ?);"
+    );
 
-        // Post the ride event
-        TimestampType timestamp = new TimestampType();
-        voltQueueSQL(insertBikeReadingStmt, bikeId, timestamp, reading_lat, reading_lon);
-        voltExecuteSQL(true);
+    public long run(long rider_id, double reading_lat, double reading_lon) throws Exception {
 
-        // Set the return value to 0: successful vote
+        try {
+            // Post the ride event
+            TimestampType time = new TimestampType();
+            voltQueueSQL(insertBikeReadingStmt, rider_id, reading_lat, reading_lon, time);
+            voltQueueSQL(log, rider_id, time, 2, "Loaded point into DB");
+            voltExecuteSQL(true);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to load point: e");
+        }
+
+        // return successfull reading
         return BikerStreamConstants.BIKEREADING_SUCCESSFUL;
     }
 

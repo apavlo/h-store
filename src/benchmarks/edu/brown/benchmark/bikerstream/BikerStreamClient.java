@@ -5,7 +5,7 @@
  *  Yale University                                                        *
  *                                                                         *
  *  Original By: VoltDB Inc.											   *
- *  Ported By:  Justin A. DeBrabant (http://www.cs.brown.edu/~debrabant/)  *								   
+ *  Ported By:  Justin A. DeBrabant (http://www.cs.brown.edu/~debrabant/)  *
  *                                                                         *
  *                                                                         *
  *  Permission is hereby granted, free of charge, to any person obtaining  *
@@ -40,15 +40,15 @@ import org.voltdb.VoltTable;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.ProcedureCallback;
-
-//import weka.classifiers.meta.Vote;
+import org.voltdb.types.TimestampType;
 
 import edu.brown.api.BenchmarkComponent;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 
 import edu.brown.benchmark.bikerstream.BikerStreamConstants;
-import edu.brown.benchmark.bikerstream.BikeRider;
+import edu.brown.benchmark.bikerstream.BikeRider.*;
+
 
 /* Biker stream client. Very simple - just calls
  * getBikeReading - a few hacks and TODOS where I didn't
@@ -61,10 +61,10 @@ public class BikerStreamClient extends BenchmarkComponent {
     private static final LoggerBoolean debug = new LoggerBoolean();
 
     // Bike Readings
+    AtomicLong failedPointInsert    = new AtomicLong(0);
+
     AtomicLong failure              = new AtomicLong(0);
     AtomicLong success              = new AtomicLong(0);
-
-    final Callback callback         = new Callback();
 
     public static void main(String args[]) {
         BenchmarkComponent.main(BikerStreamClient.class, args, false);
@@ -99,25 +99,47 @@ public class BikerStreamClient extends BenchmarkComponent {
         // gnerate a client class struct for the current thread
         Client client = this.getClientHandle();
 
-        Callback callback = new Callback();
 
         // Bike reading generator
         try {
 
-            int rider_id = (int) (Math.random() * 100000);
+            long rider_id = (int) (Math.random() * 100000);
 
             BikeRider rider = new BikeRider(rider_id);
 
-            client.callProcedure(callback, "SignUp",  rider.getRiderId());
+            try {
+                client.callProcedure(new SignUpCallback(), "SignUp",  rider.getRiderId());
+            } catch (Exception e) {
+                return false;
+            }
 
             try {
-                client.callProcedure(callback, "CheckoutBike",  rider.getRiderId(), rider.getStartingStation());
+                client.callProcedure(new TestCallback(), "TestProcedure");
+            } catch (Exception e) {
+                return false;
+            }
+
+            try {
+                client.callProcedure(new CheckoutCallback(), "CheckoutBike",  rider.getRiderId(), rider.getStartingStation());
             } catch (Exception e) {
                 failure.incrementAndGet();
             }
 
+            Reading point;
+            long lastTime = (new TimestampType()).getMSTime();
+            long time_t;
+            while (rider.hasPoints()) {
+
+                point = rider.getPoint();
+                client.callProcedure(new RideCallback(), "RideBike",  rider.getRiderId(), point.lat, point.lon);
+
+                // Sit and spin for specified tome, to ensure spacing of gps points
+                while ((time_t = (new TimestampType()).getMSTime()) - lastTime < BikerStreamConstants.MILI_BETWEEN_GPS_EVENTS) {}
+
+            }
+
             try {
-                client.callProcedure(callback, "CheckinBike",  rider.getRiderId(), rider.getFinalStation());
+                client.callProcedure(new CheckinCallback(), "CheckinBike",  rider.getRiderId(), rider.getFinalStation());
             } catch (Exception e) {
                 failure.incrementAndGet();
             }
@@ -137,13 +159,14 @@ public class BikerStreamClient extends BenchmarkComponent {
             "SignUp",
             "CheckoutBike",
             "RideBike",
-            "CheckinBike"
+            "CheckinBike",
+            "TestProcedure"
         };
         return (procNames);
     }
 
 
-    private class Callback implements ProcedureCallback {
+    private class SignUpCallback implements ProcedureCallback {
 
         @Override
         public void clientCallback(ClientResponse clientResponse) {
@@ -151,35 +174,53 @@ public class BikerStreamClient extends BenchmarkComponent {
             // number of transactions that have been completed
             incrementTransactionCounter(clientResponse, 0);
 
-            // Keep track of state (optional)
-            if (clientResponse.getStatus() == Status.OK) {
-
-                VoltTable results[] = clientResponse.getResults();
-
-                assert(results.length == 1);
-
-                long status = results[0].asScalarLong();
-
-                if (status == BikerStreamConstants.INSERT_RIDER_SUCCESS) {
-                    success.incrementAndGet();
-                }
-
-                else if (status == BikerStreamConstants.INSERT_RIDER_FAILED) {
-                    failure.incrementAndGet();
-                }
-
-                else {
-                    // REALLY SHOULD TOSS AN ERROR HERE
-                }
-            }
-            else if (clientResponse.getStatus() == Status.ABORT_UNEXPECTED) {
-                if (clientResponse.getException() != null) {
-                    clientResponse.getException().printStackTrace();
-                }
-                if (debug.val && clientResponse.getStatusString() != null) {
-                    LOG.warn(clientResponse.getStatusString());
-                }
-            }
         }
+
+    } // END CLASS
+
+    private class CheckoutCallback implements ProcedureCallback {
+
+        @Override
+        public void clientCallback(ClientResponse clientResponse) {
+            // Increment the BenchmarkComponent's internal counter on the
+            // number of transactions that have been completed
+            incrementTransactionCounter(clientResponse, 1);
+
+        }
+
+    } // END CLASS
+
+    private class RideCallback implements ProcedureCallback {
+
+        @Override
+        public void clientCallback(ClientResponse clientResponse) {
+            // Increment the BenchmarkComponent's internal counter on the
+            // number of transactions that have been completed
+            incrementTransactionCounter(clientResponse, 2);
+
+        }
+
+    } // END CLASS
+
+    private class CheckinCallback implements ProcedureCallback {
+
+        @Override
+        public void clientCallback(ClientResponse clientResponse) {
+            // Increment the BenchmarkComponent's internal counter on the
+            // number of transactions that have been completed
+            incrementTransactionCounter(clientResponse, 3);
+
+        }
+
+    } // END CLASS
+
+    private class TestCallback implements ProcedureCallback {
+
+        @Override
+        public void clientCallback(ClientResponse clientResponse) {
+            incrementTransactionCounter(clientResponse, 4);
+
+        }
+
     } // END CLASS
 }

@@ -53,9 +53,11 @@ public class BikeRider {
     // a random number.
     private long rider_id;
 
+    // TODO: Do I need this?
     // Maybe we will store a bike_id but this may be unnessesary.
     private long current_bike;
 
+    // TODO: Do I need this?
     // Do we posess a reservation?
     private long has_reservation;
 
@@ -170,6 +172,7 @@ public class BikeRider {
 
     public Reading getPoint() {
         if(hasPoints()) {
+
             Reading ret = path.pop();
             return ret;
         }
