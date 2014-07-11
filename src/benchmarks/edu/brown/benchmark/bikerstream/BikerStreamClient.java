@@ -86,7 +86,7 @@ public class BikerStreamClient extends BenchmarkComponent {
             long rider_id = (int) (Math.random() * 100000);
 
             // Create a new Rider Struct
-            BikeRider rider = new BikeRider(rider_id, "src/benchmarks/edu/brown/benchmark/bikerstream/BSSS");
+            BikeRider rider = new BikeRider(rider_id);
 
             long startStation = rider.getStartingStation();
             long endStation   = rider.getFinalStation();
