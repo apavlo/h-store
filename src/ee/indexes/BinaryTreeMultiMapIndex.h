@@ -50,6 +50,10 @@
 #include <iostream>
 #include "indexes/tableindex.h"
 #include "common/tabletuple.h"
+#include "indexes/trackerallocator.h"
+
+
+int64_t m_memoryEstimate;
 
 namespace voltdb {
 
@@ -61,9 +65,10 @@ template<typename KeyType, class KeyComparator, class KeyEqualityChecker>
 class BinaryTreeMultiMapIndex : public TableIndex
 {
 
+
     friend class TableIndexFactory;
 
-    typedef std::multimap<KeyType, const void*, KeyComparator> MapType;
+    typedef std::multimap<KeyType, const void*, KeyComparator, TrackerAllocator<pair<const KeyType, const void*>, &m_memoryEstimate> > MapType;
     typedef typename MapType::const_iterator MMCIter;
     typedef typename MapType::iterator MMIter;
     typedef typename MapType::const_reverse_iterator MMCRIter;
@@ -234,7 +239,7 @@ public:
     size_t getSize() const { return m_entries.size(); }
     
     int64_t getMemoryEstimate() const {
-        return 0;
+        return m_memoryEstimate;
         // return m_entries.bytesAllocated();
     }
     
