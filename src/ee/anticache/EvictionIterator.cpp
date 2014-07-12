@@ -82,7 +82,7 @@ void EvictionIterator::reserve(int64_t amount) {
     int block_location;
 
     // TODO: This should be valid in the final version
-    // srand(time(0));
+    srand((unsigned int)time(0));
 
     candidates.clear();
 
@@ -90,27 +90,48 @@ void EvictionIterator::reserve(int64_t amount) {
     VOLT_DEBUG("active_tuple: %d\n", active_tuple);
     VOLT_DEBUG("block number: %d\n", block_num);
 
-    for (int i = 0; i < pick_num; i++) {
-        // should we use a faster random generator?
-        block_location = rand() % block_num;
-        addr = ptable->m_data[block_location];
-        if ((block_location + 1) * block_size > ptable->usedTupleCount())
-            location_size = (int)(ptable->usedTupleCount() - block_location * block_size);
-        else
-            location_size = block_size;
-        addr += (rand() % location_size) * tuple_size;
+    if (evict_num < active_tuple) {
+        for (int i = 0; i < pick_num; i++) {
+            // should we use a faster random generator?
+            block_location = rand() % block_num;
+            addr = ptable->m_data[block_location];
+            if ((block_location + 1) * block_size > ptable->usedTupleCount())
+                location_size = (int)(ptable->usedTupleCount() - block_location * block_size);
+            else
+                location_size = block_size;
+            addr += (rand() % location_size) * tuple_size;
 
-        current_tuple->move(addr);
+            current_tuple->move(addr);
 
-        VOLT_DEBUG("Flip addr: %p\n", addr);
+            VOLT_DEBUG("Flip addr: %p\n", addr);
 
-        if (!current_tuple->isActive() || current_tuple->isEvicted())
-            continue;
+            if (!current_tuple->isActive() || current_tuple->isEvicted())
+                continue;
 
-        //printf("here!!\n");
+            //printf("here!!\n");
 
-        candidates.insert(make_pair(current_tuple->getTimeStamp(), addr));
-        if (candidates.size() > evict_num) candidates.erase(--candidates.end());
+            candidates.insert(make_pair(current_tuple->getTimeStamp(), addr));
+            if (candidates.size() > evict_num) candidates.erase(--candidates.end());
+        }
+    } else {
+        for (int i = 0; i < block_num; ++i) { 
+            addr = ptable->m_data[i];
+            if ((i + 1) * block_size > ptable->usedTupleCount())
+                location_size = (int)(ptable->usedTupleCount() - i * block_size);
+            else
+                location_size = block_size;
+            for (int j = 0; j < location_size; j++) {
+                current_tuple->move(addr);
+
+                if (!current_tuple->isActive() || current_tuple->isEvicted())
+                    continue;
+
+                VOLT_DEBUG("Flip addr: %p\n", addr);
+
+                candidates.insert(make_pair(current_tuple->getTimeStamp(), addr));
+                addr += tuple_size;
+            }
+        }
     }
     VOLT_DEBUG("Size of eviction candidates: %lu\n", candidates.size());
 }
@@ -124,14 +145,14 @@ EvictionIterator::~EvictionIterator()
 #endif
     delete current_tuple;
 }
-    
+
 bool EvictionIterator::hasNext()
 {        
     //printf("Size: %lu\n", candidates.size());
     PersistentTable* ptable = static_cast<PersistentTable*>(table);
 
     //printf("Count: %lu %lu\n", ptable->usedTupleCount(), ptable->activeTupleCount());
-    
+
     if(ptable->usedTupleCount() == 0)
         return false; 
 
@@ -146,7 +167,7 @@ bool EvictionIterator::hasNext()
     if (candidates.empty())
         return false;
 #endif
-    
+
     return true; 
 }
 
@@ -171,7 +192,7 @@ bool EvictionIterator::next(TableTuple &tuple)
             VOLT_DEBUG("There are no tuples in the eviction chain.");
             return false; 
         }
-        
+
         current_tuple_id = ptable->getOldestTupleID(); 
     }
     else  // advance the iterator to the next tuple in the chain
@@ -181,14 +202,14 @@ bool EvictionIterator::next(TableTuple &tuple)
 
     current_tuple->move(ptable->dataPtrForTuple(current_tuple_id)); 
     tuple.move(current_tuple->address()); 
-    
+
     VOLT_DEBUG("current_tuple_id = %d", current_tuple_id);
 #else
     tuple.move(candidates.begin()->second);
     candidates.erase(candidates.begin());
 #endif
-    
+
     return true; 
 }
-    
+
 }

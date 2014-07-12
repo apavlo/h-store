@@ -27,15 +27,15 @@ class TrackerAllocator : public BaseAllocator {
         pointer allocate(size_type size) {
             pointer dataPtr = BaseAllocator::allocate(size);
             *Counter += size * sizeof(size_type);
-            printf("allocate +++++++ %p %lu.\n", dataPtr, size * sizeof(size_type));
-            printf("%s\n", typeid(ValueType).name());
+            //printf("allocate +++++++ %p %lu.\n", dataPtr, size * sizeof(size_type));
+            //printf("%s\n", typeid(ValueType).name());
             return dataPtr;
         }
 
         pointer allocate(size_type size, pointer ptr) {
             pointer dataPtr = BaseAllocator::allocate(size, ptr);
             *Counter += size * sizeof(size_type);
-            printf("allocate +++++++ %p %lu.\n", dataPtr, size * sizeof(size_type));
+            //printf("allocate +++++++ %p %lu.\n", dataPtr, size * sizeof(size_type));
             return dataPtr;
         }
 
@@ -46,8 +46,8 @@ class TrackerAllocator : public BaseAllocator {
 
         void construct(pointer __ptr, const ValueType& __val) {
             new(__ptr) ValueType(__val);
-            printf("construct +++++++ %p %lu.\n", __ptr, sizeof(*__ptr));
-            printf("%s\n", typeid(ValueType).name());
+            //printf("construct +++++++ %p %lu.\n", __ptr, sizeof(*__ptr));
+            //printf("%s\n", typeid(ValueType).name());
             *Counter += sizeof(ValueType);
         }
 
