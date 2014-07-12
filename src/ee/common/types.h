@@ -344,6 +344,20 @@ enum RecoveryMsgType {
     RECOVERY_MSG_TYPE_COMPLETE = 4
 };
 
+// -----------------------------------------------------------------
+// AntiCacheDB Types
+// -----------------------------------------------------------------
+enum AntiCacheDBType {
+    /*
+     * BerkeleyDB
+     */
+    ANTICACHEDB_BERKELEY = 0,
+    /*
+     * NVM file-based store
+     */
+    ANTICACHEDB_NVM = 1
+};
+
 // ------------------------------------------------------------------
 // Utility functions.
 // -----------------------------------------------------------------

@@ -718,6 +718,14 @@ public final class HStoreConf {
         	    experimental=false
         )
         public boolean anticache_batching;
+
+        @ConfigProperty(
+                description="Type of database to which tuples are evicted",
+                defaultString="BERKELEY",
+                experimental=true,
+                enumOptions="org.voltdb.types.AntiCacheDBType"
+        )
+        public String anticache_dbtype;
         
         // ----------------------------------------------------------------------------
         // Storage MMAP Options
