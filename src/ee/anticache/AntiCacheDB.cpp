@@ -54,7 +54,7 @@ AntiCacheBlock::AntiCacheBlock(int16_t blockId) {
   	  m_size = size;
     }
 */
-    
+   
 AntiCacheDB::AntiCacheDB(ExecutorContext *ctx, std::string db_dir, long blockSize) :
     m_executorContext(ctx),
     m_dbDir(db_dir),
@@ -68,7 +68,7 @@ AntiCacheDB::~AntiCacheDB() {
 }
 
 /*
-  void AntiCacheDB::initializeNVM() {
+void AntiCacheDB::initializeNVM() {
     
     char nvm_file_name[150];
     char partition_str[50];
@@ -78,7 +78,7 @@ AntiCacheDB::~AntiCacheDB() {
     #ifdef ANTICACHE_DRAM
         VOLT_INFO("Allocating anti-cache in DRAM."); 
         m_NVMBlocks = new char[aligned_file_size];
-	return; 
+    return; 
     #endif
 
     // use executor context to figure out which partition we are at
@@ -146,10 +146,10 @@ AntiCacheDB::~AntiCacheDB() {
     }
     
 }
+<<<<<<< HEAD
 */
 /*
-void AntiCacheDB::shutdownNVM()
-{   
+void AntiCacheDB::shutdownNVM() { 
   fclose(nvm_file);
 
   #ifdef ANTICACHE_DRAM 
@@ -159,10 +159,10 @@ void AntiCacheDB::shutdownNVM()
 */
 /*
 void AntiCacheDB::writeBlockNVM(const std::string tableName,
-                             int16_t blockId,
-                             const int tupleCount,
-			     const char* data,
-                             const long size)  {
+                            int16_t blockId,
+                            const int tupleCount,
+                            const char* data,
+                            const long size)  {
    
   //int index = getFreeNVMBlockIndex();
   //char* block = getNVMBlock(index);
@@ -181,15 +181,14 @@ AntiCacheBlock AntiCacheDB::readBlockNVM(std::string tableName, int16_t blockId)
    std::map<int16_t, std::pair<int, int32_t> >::iterator itr; 
    itr = m_blockMap.find(blockId); 
   
-   if (itr == m_blockMap.end()) 
-   {
+   if (itr == m_blockMap.end()) {
      VOLT_INFO("Invalid anti-cache blockId '%d' for table '%s'", blockId, tableName.c_str());
      VOLT_ERROR("Invalid anti-cache blockId '%d' for table '%s'", blockId, tableName.c_str());
      throw UnknownBlockAccessException(tableName, blockId);
    }
 
    int blockIndex = itr->second.first; 
-   VOLT_INFO("Reading NVM block: ID = %d, index = %d, size = %ld.", blockId, blockIndex, itr->second.second);
+   VOLT_INFO("Reading NVM block: ID = %d, index = %d, size = %d", blockId, blockIndex, itr->second.second);
    
    char* block_ptr = getNVMBlock(blockIndex);
    char* block = new char[itr->second.second];
@@ -223,14 +222,13 @@ AntiCacheBlock AntiCacheDB::readBlock(std::string tableName, int16_t blockId) {
   return (m_NVMBlocks+(index*NVM_BLOCK_SIZE));  
 }
 
-int AntiCacheDB::getFreeNVMBlockIndex()
-{
+int AntiCacheDB::getFreeNVMBlockIndex() {
   
     int free_index = 0; 
     if(m_NVMBlockFreeList.size() > 0)
     {
         free_index = m_NVMBlockFreeList.back(); 
-	m_NVMBlockFreeList.pop_back(); 
+    m_NVMBlockFreeList.pop_back(); 
     }
     else 
     {
@@ -242,8 +240,7 @@ int AntiCacheDB::getFreeNVMBlockIndex()
     return free_index; 
 }
 
-void AntiCacheDB::freeNVMBlock(int index)
-{
+void AntiCacheDB::freeNVMBlock(int index) {
     m_NVMBlockFreeList.push_back(index); 
     //m_totalBlocks--; 
 }

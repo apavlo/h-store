@@ -49,6 +49,7 @@
 #include <vector>
 #include "common/common.h"
 #include "common/valuevector.h"
+#include "common/executorcontext.hpp"
 #include "storage/table.h"
 #include "storage/temptable.h"
 #include "storage/ReadWriteTracker.h"
@@ -58,6 +59,7 @@
 namespace voltdb {
 
 class VoltDBEngine;
+class ExecutorContext;
 class ReadWriteTracker;
 
 /**
@@ -118,6 +120,7 @@ class AbstractExecutor {
     // execution engine owns the plannode allocation.
     AbstractPlanNode* abstract_node;
     TempTable *tmp_output_table;
+    ExecutorContext *executor_context;
 
     // cache to avoid runtime virtual function call
     bool needs_outputtable_clear_cached;

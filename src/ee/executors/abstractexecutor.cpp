@@ -62,6 +62,8 @@ namespace voltdb {
 
 bool AbstractExecutor::init(VoltDBEngine *engine, const catalog::Database* catalog_db, int* tempTableMemoryInBytes) {
     assert (abstract_node);
+    executor_context = engine->getExecutorContext();
+    
     //
     // Grab the input tables directly from this node's children
     //

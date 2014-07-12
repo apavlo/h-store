@@ -265,14 +265,14 @@ public class HStoreCoordinator implements Shutdownable {
                               HStoreThreadManager.formatSiteName(local_site_id),
                               response.getStatus()));
                 long oldTxnId = response.getTransactionId();
-                int partition = response.getPartitionId();
-
+                // int partition = response.getPartitionId();
 
                 LocalTransaction ts = hstore_site.getTransaction(oldTxnId);
                 
                 assert(response.getSenderSite() != local_site_id);
                 hstore_site.getTransactionInitializer().resetTransactionId(ts, ts.getBasePartition());
-            	LOG.info(String.format("transaction %d is being restarted", ts.getTransactionId()));
+                if (debug.val)
+                    LOG.debug(String.format("transaction %d is being restarted", ts.getTransactionId()));
             	LocalInitQueueCallback initCallback = (LocalInitQueueCallback)ts.getInitCallback();
                 hstore_site.getCoordinator().transactionInit(ts, initCallback);
             }
@@ -581,9 +581,10 @@ public class HStoreCoordinator implements Shutdownable {
         RpcCallback<InitializeResponse> callback = new RpcCallback<InitializeResponse>() {
             @Override
             public void run(InitializeResponse parameter) {
-                if (debug.val) LOG.debug(String.format("Initialization Response: %s / %s",
-                                       HStoreThreadManager.formatSiteName(parameter.getSenderSite()),
-                                       parameter.getStatus()));
+                if (debug.val)
+                    LOG.debug(String.format("Initialization Response: %s / %s",
+                              HStoreThreadManager.formatSiteName(parameter.getSenderSite()),
+                              parameter.getStatus()));
                 latch.countDown();
             }
         };
@@ -684,8 +685,9 @@ public class HStoreCoordinator implements Shutdownable {
             // We need to create a wrapper callback so that we can get the output that
             // HStoreSite wants to send to the client and forward 
             // it back to whomever told us about this txn
-            if (debug.val) LOG.debug(String.format("Received redirected transaction request from HStoreSite %s",
-                             HStoreThreadManager.formatSiteName(request.getSenderSite())));
+            if (debug.val)
+                LOG.debug(String.format("Received redirected transaction request from HStoreSite %s",
+                          HStoreThreadManager.formatSiteName(request.getSenderSite())));
             ByteBuffer serializedRequest = request.getWork().asReadOnlyByteBuffer();
             TransactionRedirectResponseCallback callback = null;
             try {
@@ -722,10 +724,11 @@ public class HStoreCoordinator implements Shutdownable {
         
         @Override
         public void initialize(RpcController controller, InitializeRequest request, RpcCallback<InitializeResponse> done) {
-            if (debug.val) LOG.debug(String.format("Received %s from HStoreSite %s [instanceId=%d]",
-                             request.getClass().getSimpleName(),
-                             HStoreThreadManager.formatSiteName(request.getSenderSite()),
-                             request.getInstanceId()));
+            if (debug.val)
+                LOG.debug(String.format("Received %s from HStoreSite %s [instanceId=%d]",
+                          request.getClass().getSimpleName(),
+                          HStoreThreadManager.formatSiteName(request.getSenderSite()),
+                          request.getInstanceId()));
             
             hstore_site.setInstanceId(request.getInstanceId());
             InitializeResponse response = InitializeResponse.newBuilder()
@@ -766,7 +769,8 @@ public class HStoreCoordinator implements Shutdownable {
         @Override
         public void shutdown(RpcController controller, ShutdownRequest request, RpcCallback<ShutdownResponse> done) {
             String originName = HStoreThreadManager.formatSiteName(request.getSenderSite());
-            if (debug.val) LOG.warn(String.format("Got %s from %s", request.getClass().getSimpleName(), originName));
+            if (debug.val)
+                LOG.warn(String.format("Got %s from %s", request.getClass().getSimpleName(), originName));
             LOG.warn(String.format("Shutting down %s [status=%d]",
                      hstore_site.getSiteName(), request.getExitStatus()));
 
@@ -782,7 +786,9 @@ public class HStoreCoordinator implements Shutdownable {
         
         @Override
         public void heartbeat(RpcController controller, HeartbeatRequest request, RpcCallback<HeartbeatResponse> done) {
-            LOG.info(String.format("heartbeat from %d at %d^^^^^^^^^^", request.getSenderSite(), local_site_id));
+            if (debug.val)
+                LOG.debug(String.format("heartbeat from %d at %d^^^^^^^^^^",
+                          request.getSenderSite(), local_site_id));
         	HeartbeatResponse.Builder builder = HeartbeatResponse.newBuilder()
                                                     .setSenderSite(local_site_id)
                                                     .setStatus(Status.OK);
@@ -1367,11 +1373,13 @@ public class HStoreCoordinator implements Shutdownable {
     	 UnevictDataRequest request = builder.build();            
             try {
 				this.channels[remote_site_id].unevictData(new ProtoRpcController(), request, this.unevictCallback);
-				LOG.info(String.format("Sent unevict message request to remote hstore site %d from base site %d", remote_site_id, this.hstore_site.getSiteId()));
-                if (trace.val)
+                if (trace.val) {
+                    LOG.trace(String.format("Sent unevict message request to remote hstore site %d from base site %d",
+                              remote_site_id, this.hstore_site.getSiteId()));
                     LOG.trace(String.format("Sent %s to %s",
                               request.getClass().getSimpleName(),
                               HStoreThreadManager.formatSiteName(remote_site_id)));
+                }
             } catch (RuntimeException ex) {
                 // Silently ignore these errors...
             	ex.printStackTrace();

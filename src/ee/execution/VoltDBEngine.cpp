@@ -207,18 +207,18 @@ VoltDBEngine::~VoltDBEngine() {
     typedef pair<string, CatalogDelegate*> CDPair;
 
     BOOST_FOREACH (CDPair cdPair, m_catalogDelegates){
-    delete cdPair.second;
-}
+        delete cdPair.second;
+    }
     m_catalogDelegates.clear();
 
     BOOST_FOREACH (TIDPair tidPair, m_snapshottingTables){
-    tidPair.second->decrementRefcount();
-}
+        tidPair.second->decrementRefcount();
+    }
     m_snapshottingTables.clear();
 
     BOOST_FOREACH (TIDPair tidPair, m_exportingTables){
-    tidPair.second->decrementRefcount();
-}
+        tidPair.second->decrementRefcount();
+    }
     m_exportingTables.clear();
 
     delete m_topend;
@@ -331,7 +331,7 @@ int VoltDBEngine::executeQuery(int64_t planfragmentId,
                 m_executorContext->getTrackerManager();
         tracker = trackerMgr->getTracker(txnId);
     }
-
+    
     // PAVLO: If we see a SendPlanNode with the "fake" flag set to true,
     // then we won't really execute it and instead will send back the
     // number of tuples that we modified
@@ -2055,6 +2055,14 @@ int VoltDBEngine::antiCacheMergeBlocks(int32_t tableId) {
     }
 
     return (retval);
+}
+
+void VoltDBEngine::antiCacheResetEvictedTupleTracker() {
+    // Anti-Cache Evicted Tuple Tracking
+    if (m_executorContext->isAntiCacheEnabled()) {
+        AntiCacheEvictionManager* eviction_manager = m_executorContext->getAntiCacheEvictionManager();
+        eviction_manager->initEvictedAccessTracker();
+    }
 }
 
 #else

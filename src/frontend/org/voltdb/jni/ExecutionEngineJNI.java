@@ -245,7 +245,8 @@ public class ExecutionEngineJNI extends ExecutionEngine {
                                               final long undoToken)
       throws EEException
     {
-        if (trace.val) LOG.trace("Executing planfragment:" + planFragmentId + ", params=" + parameterSet.toString());
+        if (trace.val)
+            LOG.trace("Executing planfragment:" + planFragmentId + ", params=" + parameterSet.toString());
         
         if (this.trackingCache != null) {
             this.trackingResetCacheEntry(txnId);
@@ -492,7 +493,9 @@ public class ExecutionEngineJNI extends ExecutionEngine {
         final long undoToken, boolean allowExport) throws EEException
     {
         byte[] serialized_table = table.getTableDataReference().array();
-        if (trace.val) LOG.trace(String.format("Passing table into EE [id=%d, bytes=%s]", tableId, serialized_table.length));
+        if (trace.val)
+            LOG.trace(String.format("Passing table into EE [id=%d, bytes=%s]",
+                      tableId, serialized_table.length));
 
         final int errorCode = nativeLoadTable(this.pointer, tableId, serialized_table,
                                               txnId, lastCommittedTxnId,
@@ -776,10 +779,12 @@ public class ExecutionEngineJNI extends ExecutionEngine {
         assert(m_anticache == false);
         
         // TODO: Switch to LOG.debug
-        LOG.info("Initializing anti-cache feature at partition " + this.executor.getPartitionId());
-        LOG.info("****************");
-        LOG.info(String.format("Partition #%d AntiCache Directory: %s",
-                 this.executor.getPartitionId(), dbDir.getAbsolutePath()));
+        if (debug.val) {
+            LOG.debug("Initializing anti-cache feature at partition " + this.executor.getPartitionId());
+            LOG.debug("****************");
+            LOG.debug(String.format("Partition #%d AntiCache Directory: %s",
+                      this.executor.getPartitionId(), dbDir.getAbsolutePath()));
+        }
         final int errorCode = nativeAntiCacheInitialize(this.pointer, dbDir.getAbsolutePath(), blockSize);
         checkErrorCode(errorCode);
         m_anticache = true;
@@ -877,10 +882,11 @@ public class ExecutionEngineJNI extends ExecutionEngine {
     
     @Override
     public void ARIESInitialize(File dbDir, File logFile) throws EEException {
-        
-        LOG.debug("Initializing ARIES feature at partition " + this.executor.getPartitionId());
-        LOG.debug(String.format("Partition #%d ARIES Directory: %s",
-                 this.executor.getPartitionId(), dbDir.getAbsolutePath()));
+        if (debug.val) {
+            LOG.debug("Initializing ARIES feature at partition " + this.executor.getPartitionId());
+            LOG.debug(String.format("Partition #%d ARIES Directory: %s",
+                      this.executor.getPartitionId(), dbDir.getAbsolutePath()));
+        }
         final int errorCode = nativeARIESInitialize(this.pointer, dbDir.getAbsolutePath(), logFile.getAbsolutePath());
         checkErrorCode(errorCode);
         m_anticache = true;
@@ -888,8 +894,8 @@ public class ExecutionEngineJNI extends ExecutionEngine {
     
     @Override
     public void doAriesRecoveryPhase(long replayPointer, long replayLogSize, long replayTxnId) {
-        LOG.info("do ARIES Recovery at partition " + this.executor.getPartitionId());
-
+        if (debug.val)
+            LOG.debug("do ARIES Recovery at partition " + this.executor.getPartitionId());
         nativeDoAriesRecoveryPhase(pointer, replayPointer, replayLogSize, replayTxnId);
     }
     

@@ -574,7 +574,8 @@ public abstract class VoltProcedure implements Poolable {
             try {
                 // ANTI-CACHE TABLE MERGE
                 if (hstore_conf.site.anticache_enable && txnState.hasAntiCacheMergeTable()) {
-                    LOG.info("Merging blocks for anticache table.");
+                    if (debug.val)
+                        LOG.debug("Merging blocks for anticache table.");
     
                     if (hstore_conf.site.anticache_profiling) {
                         this.hstore_site.getAntiCacheManager()
@@ -764,7 +765,7 @@ public abstract class VoltProcedure implements Poolable {
          *  that isn't serialized during messaging that is the log data for the txn
          */
         if (hstore_conf.site.aries && this.hstore_conf.site.aries_forward_only == false) {
-            if (this.status == status.OK && this.error == null) {
+            if (this.status == Status.OK && this.error == null) {
                 if (bufferLength > 0) {
                     response.setAriesLogData(arieslogData);
                 }

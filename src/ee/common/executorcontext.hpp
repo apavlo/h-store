@@ -68,9 +68,9 @@ namespace voltdb {
         ExecutorContext(CatalogId siteId, CatalogId partitionId,
                 UndoQuantum *undoQuantum, Topend* topend, bool exportEnabled,
                 int64_t epoch, std::string hostname, CatalogId hostId) :
-                m_topEnd(topend), m_undoQuantum(undoQuantum), m_txnId(0), m_siteId(
-                        siteId), m_partitionId(partitionId), m_hostname(hostname), m_hostId(
-                        hostId), m_exportEnabled(exportEnabled), m_epoch(epoch) {
+                m_topEnd(topend), m_undoQuantum(undoQuantum), m_txnId(0),
+                m_siteId(siteId), m_partitionId(partitionId), m_hostname(hostname),
+                m_hostId(hostId), m_exportEnabled(exportEnabled), m_epoch(epoch) {
             m_lastCommittedTxnId = 0;
             m_lastTickTime = 0;
             m_antiCacheEnabled = false;
@@ -183,6 +183,11 @@ namespace voltdb {
         // ------------------------------------------------------------------
 
         #ifdef ANTICACHE
+        
+        inline bool isAntiCacheEnabled() const {
+            return (m_antiCacheEnabled);
+        }
+        
         /**
          * Return the handle to disk-based storage object that we
          * can use to read and write tuples to
@@ -204,12 +209,13 @@ namespace voltdb {
          * The input parameter is the directory where our disk-based storage
          * will write out evicted blocks of tuples for this partition
          */
-            void enableAntiCache(const VoltDBEngine *engine, std::string &dbDir, long blockSize) {
-                    assert(m_antiCacheEnabled == false);
-                    m_antiCacheEnabled = true;
-                    m_antiCacheDB = new BerkeleyAntiCacheDB(this, dbDir, blockSize);
-                    m_antiCacheEvictionManager = new AntiCacheEvictionManager(engine);
-            }
+        void enableAntiCache(const VoltDBEngine *engine, std::string &dbDir, long blockSize) {
+            assert(m_antiCacheEnabled == false);
+            m_antiCacheEnabled = true;
+            // MJG: change this based upon configuration options
+            m_antiCacheDB = new BerkeleyAntiCacheDB(this, dbDir, blockSize);
+            m_antiCacheEvictionManager = new AntiCacheEvictionManager(engine);
+        }
         #endif
 
         // ------------------------------------------------------------------
