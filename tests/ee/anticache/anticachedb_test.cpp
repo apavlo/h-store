@@ -27,6 +27,7 @@
 #include "harness.h"
 #include "anticache/AntiCacheDB.h"
 #include "anticache/BerkeleyAntiCacheDB.h"
+#include "anticache/NVMAntiCacheDB.h"
 
 using namespace std;
 using namespace voltdb;
@@ -79,7 +80,7 @@ TEST_F(AntiCacheDBTest, WriteBlock) {
     }
 }*/
 
-TEST_F(AntiCacheDBTest, ReadBlock) {
+TEST_F(AntiCacheDBTest, BerkeleyReadBlock) {
     // This will create a tempdir that will automatically be cleaned up
     ChTempDir tempdir;
 
@@ -104,7 +105,33 @@ TEST_F(AntiCacheDBTest, ReadBlock) {
     delete block;
     delete anticache;
 }
+/*
+TEST_F(AntiCacheDBTest, NVMReadBlock) {
+    // This will create a tempdir that will automatically be cleaned up
+    ChTempDir tempdir;
 
+    AntiCacheDB* anticache = new NVMAntiCacheDB(NULL, ".", BLOCK_SIZE);
+
+    string tableName("FAKE");
+    string payload("Test Read");
+    uint16_t blockId = anticache->nextBlockId();
+	anticache->writeBlock(tableName,
+						 blockId,
+						 1,
+						 const_cast<char*>(payload.data()),
+						 static_cast<int>(payload.size())+1);
+
+	AntiCacheBlock* block = anticache->readBlock(tableName,blockId);
+
+	ASSERT_EQ(block->getTableName(), tableName);
+	ASSERT_EQ(block->getBlockId(), blockId);
+	ASSERT_EQ(0, payload.compare(block->getData()));
+	long expected_size = payload.size()+1;
+	ASSERT_EQ(block->getSize(), expected_size);
+    delete block;
+    delete anticache;
+}
+*/
 int main() {
     return TestSuite::globalInstance()->runAll();
 }
