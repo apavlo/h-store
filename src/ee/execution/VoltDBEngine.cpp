@@ -63,6 +63,7 @@
 #include "common/TheHashinator.h"
 #include "common/DummyUndoQuantum.hpp"
 #include "common/tabletuple.h"
+#include "common/types.h"
 #include "common/executorcontext.hpp"
 #include "common/FatalException.hpp"
 #include "common/RecoveryProtoMessage.h"
@@ -1934,10 +1935,10 @@ int VoltDBEngine::trackingTupleSet(int64_t txnId, bool writes) {
 // -------------------------------------------------
 
 #ifdef ANTICACHE
-void VoltDBEngine::antiCacheInitialize(std::string dbDir, long blockSize) const {
-    VOLT_INFO("Enabling Anti-Cache at Partition %d: dir=%s / blockSize=%ld",
+void VoltDBEngine::antiCacheInitialize(std::string dbDir, long blockSize, AntiCacheDBType dbType) const {
+    VOLT_INFO("Enabling type %d Anti-Cache at Partition %d: dir=%s / blockSize=%ld", (int)dbType,
             m_partitionId, dbDir.c_str(), blockSize);
-    m_executorContext->enableAntiCache(this, dbDir, blockSize);
+    m_executorContext->enableAntiCache(this, dbDir, blockSize, dbType);
 }
 
 int VoltDBEngine::antiCacheReadBlocks(int32_t tableId, int numBlocks, int16_t blockIds[], int32_t tupleOffsets[]) {

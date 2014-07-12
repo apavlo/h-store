@@ -838,9 +838,10 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
      * @param pointer
      * @param dbDir
      * @param blockSize TODO
+     * @param dbType
      * @return
      */
-    protected native int nativeAntiCacheInitialize(long pointer, String dbDir, long blockSize);
+    protected native int nativeAntiCacheInitialize(long pointer, String dbDir, long blockSize, int dbtype);
     
      /**
      * 

@@ -1450,7 +1450,8 @@ SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeAntiC
         jobject obj,
         jlong engine_ptr,
         jstring dbDir,
-        jlong blockSize) {
+        jlong blockSize,
+        jint dbType) {
     
     VOLT_DEBUG("nativeAntiCacheInitialize() start");
     VoltDBEngine *engine = castToEngine(engine_ptr);
@@ -1463,7 +1464,7 @@ SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeAntiC
         std::string dbDirString(dbDirChars);
         env->ReleaseStringUTFChars(dbDir, dbDirChars);
         
-        engine->antiCacheInitialize(dbDirString, static_cast<int64_t>(blockSize));
+        engine->antiCacheInitialize(dbDirString, static_cast<int64_t>(blockSize), static_cast<AntiCacheDBType>(dbType));
     } catch (FatalException e) {
         topend->crashVoltDB(e);
     }

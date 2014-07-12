@@ -295,7 +295,7 @@ class __attribute__((visibility("default"))) VoltDBEngine {
         // -------------------------------------------------
         // ANTI-CACHE FUNCTIONS
         // -------------------------------------------------
-        void antiCacheInitialize(std::string dbDir, long blockSize) const;
+        void antiCacheInitialize(std::string dbDir, long blockSize, AntiCacheDBType dbType) const;
 
         #ifdef ANTICACHE
         int antiCacheReadBlocks(int32_t tableId, int numBlocks, int16_t blockIds[], int32_t tupleOffsets[]);

@@ -39,10 +39,12 @@ import org.voltdb.export.ExportProtoMessage;
 import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.messaging.FastSerializer;
 import org.voltdb.messaging.FastSerializer.BufferGrowCallback;
+import org.voltdb.types.AntiCacheDBType;
 import org.voltdb.utils.DBBPool.BBContainer;
 
 import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.PartitionExecutor;
+import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 
@@ -777,15 +779,21 @@ public class ExecutionEngineJNI extends ExecutionEngine {
     @Override
     public void antiCacheInitialize(File dbDir, long blockSize) throws EEException {
         assert(m_anticache == false);
-        
+
+        HStoreConf hstore_conf = executor.getHStoreConf();
+        AntiCacheDBType dbtype = AntiCacheDBType.get(hstore_conf.site.anticache_dbtype);
+
+
         // TODO: Switch to LOG.debug
         if (debug.val) {
             LOG.debug("Initializing anti-cache feature at partition " + this.executor.getPartitionId());
             LOG.debug("****************");
             LOG.debug(String.format("Partition #%d AntiCache Directory: %s",
                       this.executor.getPartitionId(), dbDir.getAbsolutePath()));
+            LOG.debug(String.format("AntiCacheDBType: %d", dbtype.ordinal()));
         }
-        final int errorCode = nativeAntiCacheInitialize(this.pointer, dbDir.getAbsolutePath(), blockSize);
+      
+        final int errorCode = nativeAntiCacheInitialize(this.pointer, dbDir.getAbsolutePath(), blockSize, dbtype.ordinal());
         checkErrorCode(errorCode);
         m_anticache = true;
     }
