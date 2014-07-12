@@ -4,6 +4,7 @@
 #include "common/debuglog.h"
 #include "common/FatalException.hpp"
 #include "common/executorcontext.hpp"
+#include "common/types.h"
 #include <fcntl.h>
 #include <unistd.h>
 #include <errno.h>
@@ -45,6 +46,7 @@ BerkeleyAntiCacheBlock::BerkeleyAntiCacheBlock(int16_t blockId, Dbt value) :
     m_block = m_payload.data;
 	    
     VOLT_INFO("data from getBlock %s", getData());
+    m_blockType = ANTICACHEDB_BERKELEY;
 }
 
 BerkeleyAntiCacheBlock::~BerkeleyAntiCacheBlock() {
@@ -60,6 +62,7 @@ BerkeleyDBBlock::~BerkeleyDBBlock() {
 BerkeleyAntiCacheDB::BerkeleyAntiCacheDB(ExecutorContext *ctx, std::string db_dir, long blockSize) :
     AntiCacheDB(ctx, db_dir, blockSize) {
 
+    m_dbType = ANTICACHEDB_BERKELEY;
     initializeDB();
 }
 

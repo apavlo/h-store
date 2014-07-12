@@ -25,6 +25,7 @@
 #ifdef ANTICACHE
 #include "anticache/AntiCacheDB.h"
 #include "anticache/BerkeleyAntiCacheDB.h"
+#include "anticache/NVMAntiCacheDB.h"
 #include "anticache/AntiCacheEvictionManager.h"
 #include "execution/VoltDBEngine.h"
 #endif
@@ -217,8 +218,7 @@ namespace voltdb {
             if (dbType == ANTICACHEDB_BERKELEY) {
                 m_antiCacheDB = new BerkeleyAntiCacheDB(this, dbDir, blockSize);
             } else if (dbType == ANTICACHEDB_NVM) {
-                VOLT_ERROR("AntiCacheDBType %d not implemented! Aborting...", (int)dbType);
-                assert(m_antiCacheEnabled == false);
+                m_antiCacheDB = new NVMAntiCacheDB(this, dbDir, blockSize);
             } else {
                 VOLT_ERROR("Invalid AntiCacheDBType: %d! Aborting...", (int)dbType);
                 assert(m_antiCacheEnabled == false);

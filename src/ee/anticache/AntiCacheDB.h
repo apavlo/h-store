@@ -29,6 +29,7 @@
 #include <db_cxx.h>
 
 #include "common/debuglog.h"
+#include "common/types.h"
 #include "common/DefaultTupleSerializer.h"
 
 #include <map>
@@ -76,20 +77,19 @@ class AntiCacheBlock {
             long size;
         };
 
-        inline int getBlockType() const {
+        inline AntiCacheDBType getBlockType() const {
             return m_blockType;
         }
     
     protected:
         AntiCacheBlock(int16_t blockId);
-        //AntiCacheBlock(int16_t blockId, char* block, long size);
         int16_t m_blockId;
         payload m_payload;
 	    long m_size;
 	    char * m_block;
 	    char * m_buf;
         
-        int m_blockType;
+        AntiCacheDBType m_blockType;
 }; // CLASS
 
 class AntiCacheDB {
@@ -97,10 +97,6 @@ class AntiCacheDB {
     public: 
         AntiCacheDB(ExecutorContext *ctx, std::string db_dir, long blockSize);
         virtual ~AntiCacheDB();
-
-		//void initializeNVM(); 
-		
-		//void initializeBerkeleyDB(); 
 
         /**
          * Write a block of serialized tuples out to the anti-cache database
@@ -128,63 +124,25 @@ class AntiCacheDB {
         inline int16_t nextBlockId() {
             return (++m_nextBlockId);
         }
-        
-    protected:
-        
         /**
-         * NVM constants
+         * Return the AntiCacheDBType of the database
          */
-        /*
-        static const off_t NVM_FILE_SIZE = 1073741824/2; 
-        static const int NVM_BLOCK_SIZE = 524288 + 1000; 
-	    static const int MMAP_PAGE_SIZE = 2 * 1024 * 1024; 
-        */
+        inline AntiCacheDBType getDBType() {
+            return m_dbType;
+        }
+    protected:
         ExecutorContext *m_executorContext;
         string m_dbDir;
+
         long m_blockSize;
         int16_t m_nextBlockId;
 	    int m_partitionId; 
-
-        /*
-        FILE* nvm_file;
-        char* m_NVMBlocks; 
-        int nvm_fd; 
-        */
-        /**
-         *  Maps a block id to a <index, size> pair
-         */
-		std::map<int16_t, pair<int, int32_t> > m_blockMap; 
-		
-		/**
-		 *  List of free block indexes before the end of the last allocated block.
-		 */
-        //std::vector<int> m_NVMBlockFreeList; 
-		
 	    int m_totalBlocks; 
-        int m_nextFreeBlock; 
-		
-		//void shutdownNVM(); 
-		
-		//void shutdownBerkeleyDB();
+
+        AntiCacheDBType m_dbType;
 		
         virtual void shutdownDB() = 0;
 
-
-				
-        /**
-         *   Returns a pointer to the start of the block at the specified index. 
-         */
-        //char* getNVMBlock(int index); 
-        
-        /**
-         *    Adds the index to the free block list. 
-         */
-        //void freeNVMBlock(int index);
-        
-        /**
-         *   Returns the index of a free slot in the NVM block array. 
-         */
-        //int getFreeNVMBlockIndex(); 
         
 }; // CLASS
 

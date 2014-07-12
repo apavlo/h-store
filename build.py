@@ -414,6 +414,7 @@ if CTX.ANTICACHE_BUILD:
         UnknownBlockAccessException.cpp
         AntiCacheDB.cpp
         BerkeleyAntiCacheDB.cpp
+        NVMAntiCacheDB.cpp
         AntiCacheEvictionManager.cpp
         EvictionIterator.cpp
         EvictedTable.cpp
