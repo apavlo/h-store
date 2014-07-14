@@ -47,7 +47,8 @@ public class SStore4AllOpProjectBuilder extends AbstractProjectBuilder {
 	// a list of procedures implemented in this benchmark
     @SuppressWarnings("unchecked")
     public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
-        SP1.class
+    	Initialize.class
+        ,SP1.class
         ,SP11.class
         ,SP12.class
         ,SP2.class

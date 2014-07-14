@@ -27,7 +27,7 @@
 // number of allowed votes.
 //
 
-package edu.brown.benchmark.sstore4moveop.procedures;
+package edu.brown.benchmark.sstore4allop.procedures;
 
 import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
@@ -36,7 +36,7 @@ import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.types.TimestampType;
 
-import edu.brown.benchmark.sstore4moveop.SStore4MoveOpConstants;
+import edu.brown.benchmark.sstore4allop.SStore4AllOpConstants;
 
 @ProcInfo (
 	partitionInfo = "t2.part_id:0",
@@ -87,6 +87,6 @@ public class SP6 extends VoltProcedure {
 		
 		System.out.println("done with SP6");
         // Set the return value to 0: successful vote
-        return SStore4MoveOpConstants.VOTE_SUCCESSFUL;
+        return SStore4AllOpConstants.VOTE_SUCCESSFUL;
     }
 }

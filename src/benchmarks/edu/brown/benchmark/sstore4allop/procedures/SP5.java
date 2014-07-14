@@ -66,7 +66,6 @@ public class SP5 extends VoltProcedure {
         
     public long run(int part_id) {
 		
-		System.out.println("start with SP5");
 		voltQueueSQL(pullFromS3);
 		VoltTable s3Data[] = voltExecuteSQL();
 		
@@ -88,7 +87,6 @@ public class SP5 extends VoltProcedure {
 
         VoltTable s3validation[] = voltExecuteSQL();
 		
-		System.out.println("done with SP4");
         // Set the return value to 0: successful vote
         return SStore4AllOpConstants.VOTE_SUCCESSFUL;
     }

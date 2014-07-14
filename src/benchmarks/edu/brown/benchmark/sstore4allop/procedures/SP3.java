@@ -66,14 +66,20 @@ public class SP3 extends VoltProcedure {
     public long run(int part_id) {
 		
 		voltQueueSQL(pullFromS12);
-		System.out.println("start with SP3");
 		VoltTable s3Data[] = voltExecuteSQL();
 		
 //		Long vote_id = s1Data[0].fetchRow(0).getLong(0);
 //		System.out.println("vote_id: " + vote_id);
 //		System.out.println("part_id: " + part_id);
 //		voltQueueSQL(inT2Stmt, vote_id, part_id);
-//	
+//
+		
+//		try {
+//			Thread.sleep(100);
+//		} catch (InterruptedException ex) {
+//			Thread.currentThread().interrupt();
+//		}
+		
 		for (int i=0; i < s3Data[0].getRowCount(); i++) {
 			Long vote_id = s3Data[0].fetchRow(i).getLong(0);
 			voltQueueSQL(inS2Stmt, vote_id, part_id);
@@ -83,7 +89,6 @@ public class SP3 extends VoltProcedure {
 
         VoltTable s2Delete[] = voltExecuteSQL();
 				
-		System.out.println("done with SP3");
         // Set the return value to 0: successful vote
         return SStore4AllOpConstants.VOTE_SUCCESSFUL;
     }

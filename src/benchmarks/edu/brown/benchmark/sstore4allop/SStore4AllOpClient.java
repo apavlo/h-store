@@ -51,6 +51,7 @@ public class SStore4AllOpClient extends BenchmarkComponent {
     private static final LoggerBoolean debug = new LoggerBoolean();
     private static long lastTime;
     private static int timestamp;
+    static int partId = -1;
 
     // Phone number generator
     PhoneCallGenerator switchboard;
@@ -97,7 +98,6 @@ public class SStore4AllOpClient extends BenchmarkComponent {
         }
     }
 
-    @Override
     protected boolean runOnce() throws IOException {
         // Get the next phone call
     	if(System.nanoTime() - lastTime >= 1000000000)
@@ -109,13 +109,18 @@ public class SStore4AllOpClient extends BenchmarkComponent {
         PhoneCallGenerator.PhoneCall call = switchboard.receive();
 
         Client client = this.getClientHandle();
+//        boolean response = client.callProcedure(callback,
+//                                                "Vote",
+//                                                call.voteId,
+//                                                call.phoneNumber,
+//                                                call.contestantNumber,
+//                                                SStore4AllOpConstants.MAX_VOTES,
+//                                                timestamp);
+    	partId = partId == 0 ? 4 : 0; 
         boolean response = client.callProcedure(callback,
-                                                "Vote",
-                                                call.voteId,
-                                                call.phoneNumber,
-                                                call.contestantNumber,
-                                                SStore4AllOpConstants.MAX_VOTES,
-                                                timestamp);
+                "SP1",
+                call.voteId,
+                partId);
         return response;
     }
 

@@ -115,6 +115,7 @@ public enum ProjectType {
     SSTORE4MOVEOP("SStore4MoveOp", "edu.brown.benchmark.sstore4moveop"),
     SSTORE4DEMUXOP("SStore4DemuxOp", "edu.brown.benchmark.sstore4demuxop"),
     SSTORE4MUXOP("SStore4MuxOp", "edu.brown.benchmark.sstore4muxop"),
+    SSTORE4ALLOPSINGLESITE("SStore4AllOpSingleSite", "edu.brown.benchmark.sstore4allopsinglesite"),
     TEST("Test", null),
     WORDCOUNT("WordCount", "edu.brown.benchmark.wordcount"),
     WORDCOUNTHSTORE("WordCountHStore", "edu.brown.benchmark.wordcounthstore"),

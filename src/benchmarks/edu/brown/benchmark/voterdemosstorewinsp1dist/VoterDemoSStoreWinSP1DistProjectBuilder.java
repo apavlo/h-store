@@ -63,7 +63,8 @@ public class VoterDemoSStoreWinSP1DistProjectBuilder extends AbstractProjectBuil
         { "votes", "phone_number" },
         { "contestants", "contestant_number" },
         { "trending_leaderboard", "contestant_number" },
-        { "top_three_last_30_sec", "contestant_number" },
+        { "proc_one_out", "contestant_number" },
+        { "top_three_last_30_sec", "part_id" },
         { "voteCount", "row_id"},
         { "totalVoteCount", "row_id"},
         { "totalLeaderboardCount", "row_id"}

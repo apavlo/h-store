@@ -36,7 +36,7 @@ import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.types.TimestampType;
 
-import edu.brown.benchmark.sstore4demuxop.SStore4DemuxOpConstants;
+import edu.brown.benchmark.sstore4allop.SStore4AllOpConstants;
 
 @ProcInfo (
 	partitionInfo = "s11.part_id:0",
@@ -66,7 +66,6 @@ public class SP11 extends VoltProcedure {
     public long run(int part_id) {
 		
 		voltQueueSQL(pullFromS1);
-		System.out.println("start with SP11");
 		VoltTable s11Data[] = voltExecuteSQL();
 		
 //		Long vote_id = s1Data[0].fetchRow(0).getLong(0);
@@ -83,8 +82,7 @@ public class SP11 extends VoltProcedure {
 
         VoltTable s2Delete[] = voltExecuteSQL();
 				
-		System.out.println("done with SP11");
         // Set the return value to 0: successful vote
-        return SStore4DemuxOpConstants.VOTE_SUCCESSFUL;
+        return SStore4AllOpConstants.VOTE_SUCCESSFUL;
     }
 }

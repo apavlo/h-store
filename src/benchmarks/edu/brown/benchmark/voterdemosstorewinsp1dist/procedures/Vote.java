@@ -75,12 +75,12 @@ public class Vote extends VoltProcedure {
     
     // Records a vote
     public final SQLStmt insertProcEndStmt = new SQLStmt(
-		"INSERT INTO proc_one_out (vote_id, phone_number, state, contestant_number, time) VALUES (?, ?, ?, ?, ?);"
+		"INSERT INTO proc_one_out (vote_id, phone_number, state, contestant_number, time, part_id) VALUES (?, ?, ?, ?, ?, ?);"
     );
     
     // Put vote into leaderboard
     public final SQLStmt trendingLeaderboardStmt = new SQLStmt(
-	   "INSERT INTO trending_leaderboard (vote_id, phone_number, state, contestant_number, time) VALUES (?, ?, ?, ?, ?);"
+	   "INSERT INTO trending_leaderboard (vote_id, phone_number, state, contestant_number, time, part_id) VALUES (?, ?, ?, ?, ?, ?);"
     );
     
     @StmtInfo(
@@ -140,7 +140,7 @@ public long run(long voteId, long phoneNumber, int contestantNumber, long maxVot
         //TimestampType timestamp = new TimestampType();
         voltQueueSQL(insertVoteStmt, voteId, phoneNumber, state, contestantNumber, currentTimestamp);
         // Queue up leaderboard stmts
- 		voltQueueSQL(trendingLeaderboardStmt, voteId, phoneNumber, state, contestantNumber, currentTimestamp);
+ 		voltQueueSQL(trendingLeaderboardStmt, voteId, phoneNumber, state, contestantNumber, currentTimestamp, 1);
         voltQueueSQL(updateCount);
         voltQueueSQL(getCount);
         
@@ -153,7 +153,7 @@ public long run(long voteId, long phoneNumber, int contestantNumber, long maxVot
         
         if(voteCount >= VoterDemoSStoreWinSP1DistConstants.VOTE_THRESHOLD)
         {
-        	voltQueueSQL(insertProcEndStmt, voteId, phoneNumber, state, contestantNumber, currentTimestamp);
+        	voltQueueSQL(insertProcEndStmt, voteId, phoneNumber, state, contestantNumber, currentTimestamp, 1);
         	voltExecuteSQL(true);
         	//return VoterDemoSStoreWinSP1DistConstants.VOTE_SUCCESSFUL_TRIG_SP2;
         }

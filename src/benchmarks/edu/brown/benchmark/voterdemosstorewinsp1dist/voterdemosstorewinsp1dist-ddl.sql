@@ -74,6 +74,7 @@ CREATE STREAM proc_one_out
 , state              varchar(2) NOT NULL
 , contestant_number  integer    NOT NULL
 , time		     integer    NOT NULL
+, part_id        integer    NOT NULL
 );
 
 CREATE WINDOW trending_leaderboard ON proc_one_out RANGE 30 SLIDE 1;
@@ -83,6 +84,7 @@ CREATE TABLE top_three_last_30_sec
   --phone_number       bigint    NOT NULL,
   contestant_number  integer   NOT NULL
 , num_votes          integer
+, part_id            integer   NOT NULL
 , CONSTRAINT PK_topThree PRIMARY KEY
   (
     contestant_number
