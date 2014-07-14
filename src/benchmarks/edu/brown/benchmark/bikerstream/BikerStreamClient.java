@@ -3,8 +3,9 @@
  *  Brown University                                                       *
  *  Massachusetts Institute of Technology                                  *
  *  Yale University                                                        *
+ *  Portland State University                                              *
  *                                                                         *
- *  Original By: VoltDB Inc.											   *
+ *  Original By: VoltDB Inc.                                               *
  *  Ported By:  Justin A. DeBrabant (http://www.cs.brown.edu/~debrabant/)  *
  *                                                                         *
  *                                                                         *
@@ -31,40 +32,21 @@
 package edu.brown.benchmark.bikerstream;
 
 import java.io.IOException;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
-import java.lang.Object;
 
-import org.apache.log4j.Logger;
-import org.voltdb.VoltTable;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.ProcedureCallback;
 import org.voltdb.types.TimestampType;
 
 import edu.brown.api.BenchmarkComponent;
-import edu.brown.hstore.Hstoreservice.Status;
-import edu.brown.logging.LoggerUtil.LoggerBoolean;
 
-import edu.brown.benchmark.bikerstream.BikerStreamConstants;
 import edu.brown.benchmark.bikerstream.BikeRider.*;
 
-
-/* Biker stream client. Very simple - just calls
- * getBikeReading - a few hacks and TODOS where I didn't
- * understand what needed to be done or didn't understand
- * existing code
- */
-
 public class BikerStreamClient extends BenchmarkComponent {
-    private static final Logger LOG = Logger.getLogger(BikerStreamClient.class);
-    private static final LoggerBoolean debug = new LoggerBoolean();
 
     // Bike Readings
-    AtomicLong failedPointInsert    = new AtomicLong(0);
-
-    AtomicLong failure              = new AtomicLong(0);
-    AtomicLong success              = new AtomicLong(0);
+    AtomicLong failure = new AtomicLong(0);
 
     public static void main(String args[]) {
         BenchmarkComponent.main(BikerStreamClient.class, args, false);
@@ -72,8 +54,6 @@ public class BikerStreamClient extends BenchmarkComponent {
 
     public BikerStreamClient(String args[]) {
         super(args);
-        //int numContestants = VoterWinSStoreUtil.getScaledNumContestants(this.getScaleFactor());
-        // this.bikes= new BikeReadingGenerator(this.getClientId());
     }
 
     @Override
@@ -99,50 +79,39 @@ public class BikerStreamClient extends BenchmarkComponent {
         // gnerate a client class struct for the current thread
         Client client = this.getClientHandle();
 
-
         // Bike reading generator
         try {
 
+            // Generate a random Rider ID
             long rider_id = (int) (Math.random() * 100000);
 
+            // Create a new Rider Struct
             BikeRider rider = new BikeRider(rider_id);
 
-            try {
-                client.callProcedure(new SignUpCallback(), "SignUp",  rider.getRiderId());
-            } catch (Exception e) {
-                return false;
-            }
+            long startStation = rider.getStartingStation();
+            long endStation   = rider.getFinalStation();
 
-            try {
-                client.callProcedure(new TestCallback(), "TestProcedure");
-            } catch (Exception e) {
-                return false;
-            }
-
-            try {
-                client.callProcedure(new CheckoutCallback(), "CheckoutBike",  rider.getRiderId(), rider.getStartingStation());
-            } catch (Exception e) {
-                failure.incrementAndGet();
-            }
+            // Sign the rider up, by sticking rider information into the DB
+            client.callProcedure(new SignUpCallback(), "SignUp",  rider.getRiderId());
+            client.callProcedure(new TestCallback(5), "LogRiderTrip", rider_id, startStation, endStation);
+            client.callProcedure(new TestCallback(4), "TestProcedure");
+            client.callProcedure(new CheckoutCallback(), "CheckoutBike",  rider.getRiderId(), rider.getStartingStation());
 
             Reading point;
-            long lastTime = (new TimestampType()).getMSTime();
             long time_t;
+
             while (rider.hasPoints()) {
 
                 point = rider.getPoint();
                 client.callProcedure(new RideCallback(), "RideBike",  rider.getRiderId(), point.lat, point.lon);
 
-                // Sit and spin for specified tome, to ensure spacing of gps points
-                while ((time_t = (new TimestampType()).getMSTime()) - lastTime < BikerStreamConstants.MILI_BETWEEN_GPS_EVENTS) {}
+                // Sit and spin for specified time, to ensure spacing of gps points
+                long lastTime = (new TimestampType()).getMSTime();
+                while (((time_t = (new TimestampType()).getMSTime()) - lastTime) < BikerStreamConstants.MILI_BETWEEN_GPS_EVENTS) {}
 
             }
 
-            try {
                 client.callProcedure(new CheckinCallback(), "CheckinBike",  rider.getRiderId(), rider.getFinalStation());
-            } catch (Exception e) {
-                failure.incrementAndGet();
-            }
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -160,7 +129,8 @@ public class BikerStreamClient extends BenchmarkComponent {
             "CheckoutBike",
             "RideBike",
             "CheckinBike",
-            "TestProcedure"
+            "TestProcedure",
+            "LogRiderTrip"
         };
         return (procNames);
     }
@@ -216,11 +186,17 @@ public class BikerStreamClient extends BenchmarkComponent {
 
     private class TestCallback implements ProcedureCallback {
 
+        private int procNum;
+
+        public TestCallback(int numProc) {
+            procNum = numProc;
+        }
+
         @Override
         public void clientCallback(ClientResponse clientResponse) {
-            incrementTransactionCounter(clientResponse, 4);
-
+            incrementTransactionCounter(clientResponse, procNum);
         }
+
 
     } // END CLASS
 }

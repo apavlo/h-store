@@ -52,6 +52,20 @@ public abstract class BikerStreamConstants {
     public static final int NUM_STATIONS = 10;
     public static final int NUM_BIKES_PER_STATION = 20;
 
+    public static final String ROUTES_DIR =
+            "src/benchmarks/edu/brown/benchmark/bikerstream/routes";
+
+    public static final String[] STATION_LOCATIONS = new String[] {
+        "OHSU_South_Waterfront",
+        "Waterfront_Park",
+        "Eastbank_Esplanade",
+        "Moda_Center",
+        "Portland_State_University",
+        "Overlook_Park",
+        "Civic_Stadium",
+    };
+
+
     // ===========================================================================
     // SIGNUP
     //
@@ -104,8 +118,7 @@ public abstract class BikerStreamConstants {
     // BIKE RIDE
     //
 
-    public static final long MILI_BETWEEN_GPS_EVENTS = 1000;
-    public static final String DEFAULT_GPS_FILE = "src/benchmarks/edu/brown/benchmark/bikerstream/BS2.kml";
+    public static final long MILI_BETWEEN_GPS_EVENTS = 100;
 
     // ===========================================================================
     // DOCK RESERVATIONS

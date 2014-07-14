@@ -94,7 +94,7 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
     private boolean readonly;
     private boolean allow_early_prepare = true;
     
-    protected int batch_id = -1; // added by hawk, 2014-3-7
+    protected Long batch_id = (long) -1; // added by hawk, 2014-3-7
     protected Long txn_id = null;
     protected Long last_txn_id = null; // FOR DEBUGGING
     protected long client_handle;
@@ -313,7 +313,7 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
      * @param exec_local
      * @return
      */
-    protected final AbstractTransaction init(int batch_id,
+    protected final AbstractTransaction init(Long batch_id,
                                              Long txn_id,
                                              //long initiateTime,
                                              //long localInitiateTime,
@@ -404,7 +404,7 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
         this.readonly = false;
         this.base_partition = HStoreConstants.NULL_PARTITION_ID;
         this.txn_id = null;
-        this.batch_id = -1;
+        this.batch_id = (long) -1;
 
     }
     
@@ -685,7 +685,7 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
         return this.txn_id.compareTo(o.txn_id);
     }
     
-    public final int getBatchId() {
+    public final long getBatchId() {
         return this.batch_id;
     }
     

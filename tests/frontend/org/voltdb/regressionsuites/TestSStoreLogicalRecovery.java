@@ -78,7 +78,7 @@ public class TestSStoreLogicalRecovery extends RegressionSuite {
 
     // Recovery benchmark
     private static final String PREFIX = "recovery";//"tpcc";
-    private static int NUM_TRANSACTIONS = 100;
+    private static int NUM_TRANSACTIONS = 5;
     private static final String projectJAR = "logical_" + PREFIX + ".jar";
 
     public TestSStoreLogicalRecovery(String name) {
@@ -256,7 +256,8 @@ public class TestSStoreLogicalRecovery extends RegressionSuite {
         // Run transactions for record the log
         long k_itr = 0;
         long numTransactions = NUM_TRANSACTIONS;
-        long period = numTransactions / 10;
+        //long period = numTransactions / 10;
+        long period = numTransactions / 5;
         long startpoint = 101;
 
         for (k_itr = 0; k_itr < numTransactions; k_itr++) {
@@ -287,6 +288,16 @@ public class TestSStoreLogicalRecovery extends RegressionSuite {
         m_config.shutDown();
         m_config.startUp();
         client = getClient();
+        
+        // used for testing to check if the SnapshotRestore destroy window behavior
+        client.callProcedure("SimpleCall", 1000);
+        s1_hasTuple = hasTuple("S1");
+        s2_hasTuple = hasTuple("S2");
+        w1_hasTuple = hasTuple("W1");
+        t2_hasTuple = hasTuple("T2");
+        
+        DisplayWindowAttribute("W1");
+        // end of testing
 
         Calendar calendar;
         long t1,t2;
@@ -312,6 +323,8 @@ public class TestSStoreLogicalRecovery extends RegressionSuite {
             ex.printStackTrace();
             fail("SnapshotRestore exception: " + ex.getMessage());
         }        
+
+        DisplayWindowAttribute("W1");
         
         validateSnapshot(true);
         
@@ -361,6 +374,24 @@ public class TestSStoreLogicalRecovery extends RegressionSuite {
         System.err.println("Recovery Latency :" + (t2-t1)+ " ms"); 
         
         // checkYCSBTable(client, NUM_TUPLES);
+    }
+    
+    private void DisplayWindowAttribute(String strWindow)
+    {
+        CatalogContext catalogContext = this.getCatalogContext();
+        Table catalog_tbl = catalogContext.getTableByName(strWindow);
+        
+        boolean isWindow = catalog_tbl.getIswindow();
+        boolean isRows = catalog_tbl.getIsrows();
+        int winSize = catalog_tbl.getSize();
+        int winSlide = catalog_tbl.getSlide();
+        String streamName = catalog_tbl.getStreamname();
+        
+        System.out.println(
+                String.format("window : %B, rows : %B, size : %d, slide : %d, stream : %S", 
+                        isWindow, isRows, winSize, winSlide, streamName)
+                );
+        
     }
     
     // FRONTEND TRIGGER

@@ -41,7 +41,16 @@ CREATE TABLE logs
     user_id  INTEGER   NOT NULL REFERENCES users(user_id)
 ,   time     TIMESTAMP NOT NULL
 ,   success  INTEGER   NOT NULL
-,   action   VARCHAR(64)
+,   action   VARCHAR(128)
+);
+
+
+CREATE TABLE ride
+(
+    user_id  INTEGER NOT NULL REFERENCES users(user_id)
+,   start_station INTEGER NOT NULL REFERENCES stations(station_id)
+,   pos_end_station INTEGER NOT NULL REFERENCES stations(station_id)
+,   def_end_station INTEGER REFERENCES stations(station_id)
 );
 
 -- =============
@@ -60,3 +69,8 @@ CREATE STREAM bikeStatus (
 
 --- Window over the bikereadings_stream.
 CREATE WINDOW bikerstream_window ON bikestatus ROWS 100 SLIDE 10;
+
+CREATE WINDOW lastNTuples ON bikestatus ROWS 100 SLIDE 10;
+
+
+

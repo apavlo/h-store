@@ -769,7 +769,7 @@ public class BatchRunner implements Runnable{
             boolean result = true;
             //result = client.asynCallProcedure(null, catalog_proc.getName(), null, params);
             //ClientResponse response = client.callProcedure(catalog_proc.getName(), params);
-            ClientResponse response = client.callStreamProcedure(catalog_proc.getName(), (int)batch.getID(), params);
+            ClientResponse response = client.callStreamProcedure(catalog_proc.getName(), batch.getID(), params);
             
             if(response.getStatus()!=Status.OK)
                 result = false;

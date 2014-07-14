@@ -61,10 +61,10 @@ public class RideBike extends VoltProcedure {
             // Post the ride event
             TimestampType time = new TimestampType();
             voltQueueSQL(insertBikeReadingStmt, rider_id, reading_lat, reading_lon, time);
-            voltQueueSQL(log, rider_id, time, 2, "Loaded point into DB");
+            voltQueueSQL(log, rider_id, time, 2, "Loaded point (" + reading_lat + "," + reading_lon + ")into DB");
             voltExecuteSQL(true);
         } catch (Exception e) {
-            throw new RuntimeException("Failed to load point: e");
+            throw new RuntimeException("Failed to load point:" + e);
         }
 
         // return successfull reading

@@ -210,8 +210,19 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
                 try {
                     nextTxn = initQueue.take();
                     // added by hawk, 2014/4/7
-//                    WorkflowScheduler wkfScheduler = hstore_site.getWorkflowScheduler();
-//                    nextTxn = wkfScheduler.getScheduledNextTxn(nextTxn, initQueue);
+                        if(nextTxn!=null)
+                        {
+                            if(HStoreConf.singleton().global.sstore_scheduler==true)
+                            {
+                                //System.out.println(String.format("%d - %s",nextTxn.getBatchId(), nextTxn.getProcedure().getName()));
+                                WorkflowScheduler wkfScheduler = hstore_site.getWorkflowScheduler();
+                                nextTxn = wkfScheduler.getScheduledNextTxn(nextTxn, initQueue);
+                            }
+                            else
+                            {
+                                System.out.println(String.format("%d - %s",nextTxn.getBatchId(), nextTxn.getProcedure().getName()));
+                            }
+                        }
                     // ended by hawk
                 } catch (InterruptedException ex) {
                     // IGNORE
@@ -220,6 +231,40 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
             } // WHILE
         };
     }
+    
+    // added by hawk, 2014/7/3
+    // the fake scheduling algorithm to ensure SP(2,1) is executed before Sp(1,2)
+//    String strPrevSPName = "";
+//    String strSP1 = "SP1";
+//    String strSP2 = "SP2";
+    
+//    public AbstractTransaction getScheduledNextTxn(AbstractTransaction nextTxn, BlockingDeque<AbstractTransaction> initQueue)
+//    {
+//        AbstractTransaction scheduledNextTxn = null;
+//        if (nextTxn == null)
+//            return nextTxn;
+//        
+//        String strCurSPName = nextTxn.getProcedure().getName();
+//
+//        // if current SP is strSP1
+//        if(strCurSPName.equals(strSP1)==true)
+//        {
+//            if(strPrevSPName.equals(strSP1)==true) // need to wait until strSP2 come and finished
+//            {
+//                
+//                
+//                
+//                
+//                strPrevSPName = strSP1;
+//                return nextTxn;
+//            }
+//        }
+//        
+//        strPrevSPName = strCurSPName;
+//        return nextTxn;
+//    }
+    
+    // ended by hawk
     
     private class Restarter extends ExceptionHandlingRunnable {
         @Override
