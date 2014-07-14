@@ -49,6 +49,7 @@
 #include "common/common.h"
 #include "common/valuevector.h"
 #include "common/tabletuple.h"
+#include "catalog/table.h"
 #include "expressions/abstractexpression.h"
 #include "executors/abstractexecutor.h"
 
@@ -97,6 +98,7 @@ protected:
     IndexLookupType m_lookupType;
     TempTable* output_table;
     PersistentTable* inner_table;
+    catalog::Table* inner_catalogTable;
     TableIndex *index;
     TableTuple index_values;
     Table* outer_table;

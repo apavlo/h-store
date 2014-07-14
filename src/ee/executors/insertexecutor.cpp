@@ -145,53 +145,53 @@ bool InsertExecutor::p_execute(const NValueArray &params, ReadWriteTracker *trac
                    m_targetTable->name().c_str(), m_targetTable->schema()->debug().c_str());
 
 
-#ifdef ARIES
+        #ifdef ARIES
         if(m_engine->isARIESEnabled()){
 
-        	// add persistency check:
-			PersistentTable* table = dynamic_cast<PersistentTable*>(m_targetTable);
+            // add persistency check:
+            PersistentTable* table = dynamic_cast<PersistentTable*>(m_targetTable);
 
-			// only log if we are writing to a persistent table.
-			if (table != NULL) {
-				LogRecord *logrecord = new LogRecord(computeTimeStamp(),
-						LogRecord::T_INSERT,	// this is an insert record
-						LogRecord::T_FORWARD,// the system is running normally
-						-1,// XXX: prevLSN must be fetched from table!
-						m_engine->getExecutorContext()->currentTxnId() ,// txn id
-						m_engine->getSiteId(),// which execution site
-						m_targetTable->name(),// the table affected
-						NULL,// insert, no primary key
-						-1,// inserting, all columns affected
-						NULL,// insert, don't care about modified cols
-						NULL,// no before image
-						&m_tuple// after image
-				);
+            // only log if we are writing to a persistent table.
+            if (table != NULL) {
+                LogRecord *logrecord = new LogRecord(computeTimeStamp(),
+                        LogRecord::T_INSERT,    // this is an insert record
+                        LogRecord::T_FORWARD,// the system is running normally
+                        -1,// XXX: prevLSN must be fetched from table!
+                        m_engine->getExecutorContext()->currentTxnId() ,// txn id
+                        m_engine->getSiteId(),// which execution site
+                        m_targetTable->name(),// the table affected
+                        NULL,// insert, no primary key
+                        -1,// inserting, all columns affected
+                        NULL,// insert, don't care about modified cols
+                        NULL,// no before image
+                        &m_tuple// after image
+                );
 
-				size_t logrecordEstLength = logrecord->getEstimatedLength();
-				char *logrecordBuffer = new char[logrecordEstLength];
+                size_t logrecordEstLength = logrecord->getEstimatedLength();
+                char *logrecordBuffer = new char[logrecordEstLength];
 
-				FallbackSerializeOutput output;
-				output.initializeWithPosition(logrecordBuffer, logrecordEstLength, 0);
+                FallbackSerializeOutput output;
+                output.initializeWithPosition(logrecordBuffer, logrecordEstLength, 0);
 
-				logrecord->serializeTo(output);
+                logrecord->serializeTo(output);
 
-				LogManager* m_logManager = this->m_engine->getLogManager();
-				Logger m_ariesLogger = m_logManager->getAriesLogger();
-				//VOLT_WARN("m_logManager : %p AriesLogger : %p",&m_logManager, &m_ariesLogger);
-				const Logger *logger = m_logManager->getThreadLogger(LOGGERID_MM_ARIES);
+                LogManager* m_logManager = this->m_engine->getLogManager();
+                Logger m_ariesLogger = m_logManager->getAriesLogger();
+                //VOLT_WARN("m_logManager : %p AriesLogger : %p",&m_logManager, &m_ariesLogger);
+                const Logger *logger = m_logManager->getThreadLogger(LOGGERID_MM_ARIES);
 
-				// output.position() indicates the actual number of bytes written out
-				logger->log(LOGLEVEL_INFO, output.data(), output.position());
+                // output.position() indicates the actual number of bytes written out
+                logger->log(LOGLEVEL_INFO, output.data(), output.position());
 
-				delete[] logrecordBuffer;
-				logrecordBuffer = NULL;
+                delete[] logrecordBuffer;
+                logrecordBuffer = NULL;
 
-				delete logrecord;
-				logrecord = NULL;
-			}
+                delete logrecord;
+                logrecord = NULL;
+            }
 
         }
-#endif
+        #endif
 
         // if there is a partition column for the target table
         if (m_partitionColumn != -1) {

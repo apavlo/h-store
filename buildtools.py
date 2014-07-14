@@ -45,7 +45,7 @@ class BuildContext:
         self.ANTICACHE_REVERSIBLE_LRU = True
         self.ANTICACHE_NVM = False
         self.ANTICACHE_DRAM = False
-        self.ARIES= True
+        self.ARIES= False
         self.ANTICACHE_TIMESTAMPS = True
 
         for arg in [x.strip().upper() for x in args]:

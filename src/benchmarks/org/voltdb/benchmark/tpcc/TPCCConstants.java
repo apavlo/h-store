@@ -61,7 +61,6 @@ public final class TPCCConstants {
     public static final String TABLENAME_DISTRICT = "DISTRICT";
     public static final String TABLENAME_ITEM = "ITEM";
     public static final String TABLENAME_CUSTOMER = "CUSTOMER";
-    public static final String TABLENAME_CUSTOMER_NAME = "CUSTOMER_NAME";
     public static final String TABLENAME_HISTORY = "HISTORY";
     public static final String TABLENAME_STOCK = "STOCK";
     public static final String TABLENAME_ORDERS = "ORDERS";
@@ -211,7 +210,6 @@ public final class TPCCConstants {
     public static final String INSERT_WAREHOUSE = "InsertWarehouse";
     public static final String INSERT_DISTRICT = "InsertDistrict";
     public static final String INSERT_CUSTOMER = "InsertCustomer";
-    public static final String INSERT_CUSTOMER_NAME = "InsertCustomerName";
     public static final String INSERT_ORDERS = "InsertOrders";
     public static final String INSERT_ORDER_LINE = "InsertOrderLine";
     public static final String INSERT_NEW_ORDER = "InsertNewOrder";

@@ -71,8 +71,6 @@ public class TestPlansTPCC extends TestCase {
         assertTrue(node != null);
         node = compile("INSERT INTO CUSTOMER VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);", 21);
         assertTrue(node != null);
-        node = compile("INSERT INTO CUSTOMER_NAME VALUES (?, ?, ?, ?, ?);", 5);
-        assertTrue(node != null);
         node = compile("INSERT INTO HISTORY VALUES (?, ?, ?, ?, ?, ?, ?, ?);", 8);
         assertTrue(node != null);
         node = compile("INSERT INTO STOCK VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);", 17);

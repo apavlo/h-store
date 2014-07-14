@@ -67,14 +67,17 @@ public class EvictedAccessHistory extends VoltSystemProcedure {
                 VoltTable vt = new VoltTable(ACCESS_HISTORY);
                 AntiCacheManagerProfiler profiler = hstore_site.getAntiCacheManager().getDebugContext().getProfiler(this.partitionId);
                 assert(profiler != null);
+                TimestampType timestamp = new TimestampType();
                 for (AccessHistory eah : profiler.evictedaccess_history) {
+                    String procName = catalogContext.getProcedureById(eah.procId).getName();
                     Object row[] = {
-                            new TimestampType(),
+                            timestamp,
                             this.hstore_site.getSiteId(),
                             this.hstore_site.getSiteName(),
                             this.partitionId,
                             eah.txnId,
                             eah.startTimestamp,
+                            procName,
                             eah.numBlocks,
                             eah.numTables,
                             eah.numTuples,

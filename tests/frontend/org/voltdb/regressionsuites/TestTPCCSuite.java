@@ -569,7 +569,6 @@ public class TestTPCCSuite extends RegressionSuite {
                 "Some History").getResults()[0];
         // check for successful insertion.
         assertEquals(1L, customer1.asScalarLong());
-        client.callProcedure("InsertCustomerName", C_ID, D_ID, W_ID, "I", "lastname");
 
         VoltTable customer2 = client.callProcedure("InsertCustomer", C_ID + 1,
                 D_ID, W_ID, "We", "R", "Customer", "Random Department",
@@ -578,7 +577,6 @@ public class TestTPCCSuite extends RegressionSuite {
                 1L, 15L, "Some History").getResults()[0];
         // check for successful insertion.
         assertEquals(1L, customer2.asScalarLong());
-        client.callProcedure("InsertCustomerName", C_ID + 1, D_ID, W_ID, "We", "Customer");
 
         VoltTable customer3 = client.callProcedure("InsertCustomer", C_ID + 2,
                 D2_ID, W2_ID, "Who", "Is", "Customer", "Receiving",
@@ -587,7 +585,6 @@ public class TestTPCCSuite extends RegressionSuite {
                 initialBalance, initialYTD, 2L, 15L, "Some History").getResults()[0];
         // check for successful insertion.
         assertEquals(1L, customer3.asScalarLong());
-        client.callProcedure("InsertCustomerName", C_ID + 2, D2_ID, W2_ID, "Who", "Customer");
 
         VoltTable customer4 = client.callProcedure("InsertCustomer", C_ID + 3,
                 D2_ID, W2_ID, "ICanBe", "", "Customer", "street", "place",
@@ -596,7 +593,6 @@ public class TestTPCCSuite extends RegressionSuite {
                 "Some History").getResults()[0];
         // check for successful insertion.
         assertEquals(1L, customer4.asScalarLong());
-        client.callProcedure("InsertCustomerName", C_ID + 3, D2_ID, W2_ID, "ICanBe", "Customer");
 
         final double paymentAmount = 500.25;
         // long d_id, long w_id, double h_amount, String c_last, long c_w_id,
@@ -828,7 +824,6 @@ public class TestTPCCSuite extends RegressionSuite {
         project.addStmtProcedure("InsertItem", "INSERT INTO ITEM VALUES (?, ?, ?, ?, ?);");
         project.addStmtProcedure("InsertHistory", "INSERT INTO HISTORY VALUES (?, ?, ?, ?, ?, ?, ?, ?);", "HISTORY.H_W_ID: 4");
         project.addStmtProcedure("InsertDistrict", "INSERT INTO DISTRICT VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);", "DISTRICT.D_W_ID: 1");
-        project.addStmtProcedure("InsertCustomerName", "INSERT INTO CUSTOMER_NAME VALUES (?, ?, ?, ?, ?);");
 
         // Remove any MapReduce and OLAP transactions
         project.removeProcedures(Pattern.compile("^MR.*", Pattern.CASE_INSENSITIVE));

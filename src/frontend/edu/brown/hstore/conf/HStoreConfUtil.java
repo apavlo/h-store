@@ -65,6 +65,9 @@ public abstract class HStoreConfUtil {
         PREFIX_LABELS.put("log", "Debug Logging");
         PREFIX_LABELS.put("codespeed", "Codespeed API");
         PREFIX_LABELS.put("output", "Benchmark Output Control");
+        PREFIX_LABELS.put("storage", "Internal Storage");
+        PREFIX_LABELS.put("aries", "ARIES-based Recovery");
+        PREFIX_LABELS.put("snapshot", "Snapshot Checkpoints");
     }
     
     // ----------------------------------------------------------------------------
