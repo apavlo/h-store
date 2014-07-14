@@ -17,8 +17,7 @@ CREATE TABLE StationStatus
     station_id            INTEGER NOT NULL REFERENCES stations(station_id)
 ,   current_bikes         INTEGER NOT NULL
 ,   current_docks         INTEGER NOT NULL
-,   current_bike_discount FLOAT   NOT NULL
-,   current_dock_discount FLOAT   NOT NULL
+,   current_discount      FLOAT   NOT NULL
 );
 
 -- Keep track of riders in the system.
