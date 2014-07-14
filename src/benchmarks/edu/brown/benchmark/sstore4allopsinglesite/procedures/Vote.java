@@ -27,7 +27,7 @@
 // number of allowed votes.
 //
 
-package edu.brown.benchmark.sstore4allop.procedures;
+package edu.brown.benchmark.sstore4allopsinglesite.procedures;
 
 import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
@@ -35,7 +35,7 @@ import org.voltdb.StmtInfo;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 
-import edu.brown.benchmark.sstore4allop.SStore4AllOpConstants;
+import edu.brown.benchmark.sstore4allopsinglesite.SStore4AllOpSingleSiteConstants;
 import edu.brown.benchmark.voter.VoterConstants;
 
 @ProcInfo (
@@ -99,6 +99,6 @@ public long run(long voteId, long phoneNumber, int contestantNumber, long maxVot
         voltExecuteSQL(true);
 		
         // Set the return value to 0: successful vote
-        return SStore4AllOpConstants.VOTE_SUCCESSFUL;
+        return SStore4AllOpSingleSiteConstants.VOTE_SUCCESSFUL;
     }
 }
