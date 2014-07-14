@@ -129,6 +129,11 @@ public enum ProjectType {
     VOTERDEMOSSTOREPETRIGONLY("VoterDemoSStorePETrigOnly", "edu.brown.benchmark.voterdemosstorepetrigonly"),
     VOTERDEMOSSTORENOPETRIG("VoterDemoSStoreNoPETrig", "edu.brown.benchmark.voterdemosstorenopetrig"),
     VOTERDEMOSSTORENOPETRIGWINSP1("VoterDemoSStoreNoPETrigWinSP1", "edu.brown.benchmark.voterdemosstorenopetrigwinsp1"),
+    
+    
+    
+    VOTERWINHSTOREW100S1("VoterWinHStoreW100S1", "edu.brown.benchmark.voterexperiments.winhstore.w100s1"),
+    VOTERWINHSTOREW100S10("VoterWinHStoreW100S10", "edu.brown.benchmark.voterexperiments.winhstore.w100s10"),
 ;
 
 
