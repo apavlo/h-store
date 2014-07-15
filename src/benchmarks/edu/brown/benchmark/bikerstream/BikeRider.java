@@ -63,12 +63,23 @@ public class BikeRider {
     // a random number.
     private long rider_id;
 
-    // list of points that a rider will travel through.
-    // The first entry will be the initial dock, and the final entry
-    // should be the final dock. Entries in between should be decision points,
-    // or docks that the rider will visit along the trip. During these points, the
-    // rider should check for discounts.
+    /**
+     * list of points that a rider will travel through.
+     * The first entry will be the initial dock, and the final entry
+     * should be the final dock. Entries in between should be decision points,
+     * or docks that the rider will visit along the trip. During these points, the
+     * rider should check for discounts.
+      */
     private int[] waypoints;
+
+    /**
+     * CurrentPoint, is an index into the waypoints denoting where the rider is currently
+     * In their journey. It should always point to the point of origin, meaning that it should point
+     * To the initial dock, until the rider has exhasted all GPS points for the current leg. at which
+     * point it will immediately switch to the next point once the next set of points is requested.
+      */
+    private int currentIndex;
+
 
     private static int numStations = BikerStreamConstants.STATION_NAMES.length;
     private static int numChoices  = BikerStreamConstants.DP_NAMES.length;
@@ -85,28 +96,21 @@ public class BikeRider {
     // information.
     public BikeRider(long rider_id) throws IOException {
         this.rider_id = rider_id;
+        this.currentIndex = 0;
 
-
-        System.out.println("Generating Route");
+        System.out.println("Rider: " + rider_id + " -> Generating Route");
         genRandStations();
-        routeGenerator();
-        System.out.println("Route Generated");
+        System.out.println("Rider: " + rider_id + " -> Route Generated");
     }
 
     public BikeRider(long rider_id, int start_station, int end_station, int[] choices) throws IOException {
         this.rider_id = rider_id;
+        this.currentIndex = 0;
 
+        System.out.println("Rider: " + rider_id + " -> Generating Route");
         int[] temp = ArrayUtils.addAll(new int[]{start_station}, choices);
         waypoints  = ArrayUtils.addAll(temp, new int[]{end_station});
-
-        System.out.println("Generating Route");
-        try {
-            routeGenerator();
-        } catch (IOException e) {
-            throw new IOException("Could not Generate the given Route" + e);
-
-        }
-        System.out.println("Route Generated");
+        System.out.println("Rider: " + rider_id + " -> Route Generated");
     }
 
     // Rider ID functions
@@ -126,6 +130,29 @@ public class BikeRider {
 
     public int[] getWaypoints(){
         return this.waypoints;
+    }
+
+    public LinkedList<Reading> deviateDirectly(int station_id) throws IOException {
+       int currentLocation = currentIndex -1;
+        int stationIndex = station_id -1;
+
+       waypoints = new int[] {currentLocation, stationIndex};
+       currentIndex = 1;
+
+       String fileName = routeName (currentLocation, stationIndex);
+       return readInPoints(fileName);
+    }
+
+    public LinkedList<Reading> deviateRandomly() throws IOException {
+        Random gen = new Random();
+        int currentLocation = currentIndex -1;
+        int stationIndex = gen.nextInt(numStations);
+
+        waypoints = new int[] {currentLocation, stationIndex};
+        currentIndex = 1;
+
+        String fileName = routeName (currentLocation, stationIndex);
+        return readInPoints(fileName);
     }
 
 
@@ -166,7 +193,7 @@ public class BikeRider {
 
     private void genRandStations(){
         Random gen = new Random();
-        int numDecisions = gen.nextInt(2);
+        int numDecisions = gen.nextInt(3);
 
         // TODO: VERIFY (numStations || numStations -1)
         int start = gen.nextInt(numStations);
@@ -174,7 +201,9 @@ public class BikeRider {
 
         for (int i = 0; i < numDecisions; ++i){
             // TODO: VERIFY (numChoices || numChoices -1)
-            decisions[i] = gen.nextInt(numChoices) + numStations;
+            int nextStation = gen.nextInt(numChoices) + numStations;
+            while (i != 0 && ((nextStation = gen.nextInt(numChoices) + numStations) == decisions[i-1])){}
+            decisions[i] = nextStation;
         }
 
         int end = start;
@@ -186,37 +215,6 @@ public class BikeRider {
         int[] temp = ArrayUtils.addAll(new int[]{start}, decisions);
         waypoints  = ArrayUtils.addAll(temp, new int[]{end});
 
-        try {
-            this.routeGenerator();
-        } catch (IOException e) {
-            System.out.println("Failed to generate routes");
-            System.out.println("Trying again");
-            genRandStations();
-        }
-    }
-
-    private void routeGenerator() throws IOException {
-        int numWaypoints = waypoints.length -1;
-        assert (numWaypoints > 0);
-
-        for (int i = 0; i < numWaypoints; ++i){
-            addRoute(waypoints[i], waypoints[i+1]);
-        }
-    }
-
-    private void addRoute(int begin, int end) throws IOException {
-        System.out.println("Rider: " + rider_id + " Generating rout from " + begin + "->" + end);
-        String routeN = routeName(begin, end);
-        LinkedList<Reading> points = new LinkedList<Reading>();
-
-        try {
-            points = readInPoints(routeN);
-        } catch (IOException e) {
-            throw new IOException("Failed to generate the route between : " + begin + " and " + end + "\n Error: " + e);
-        }
-        assert(points != null);
-
-        legs.add(points);
     }
 
     private String routeName(int begin, int end){
@@ -228,7 +226,6 @@ public class BikeRider {
         //System.out.println("RouteName: " + ret);
         return ret;
     }
-
 
     private LinkedList<Reading> readInPoints(String filename) throws IOException {
         //System.out.println("Reading in file: " + filename);
@@ -257,12 +254,19 @@ public class BikeRider {
         return points;
     }
 
-    public LinkedList<Reading> getNextRoute() {
-        return legs.poll();
+    public LinkedList<Reading> getNextRoute() throws IOException {
+
+        if (this.hasMorePoints()){
+            String file = routeName(waypoints[currentIndex], waypoints[currentIndex +1]);
+            ++currentIndex;
+            return readInPoints(file);
+        }
+
+        return null;
+
     }
 
-    public boolean hasMorePoints(){
-        return legs.size() > 0;
+    public boolean hasMorePoints() {
+       return currentIndex +1 < waypoints.length;
     }
-
 }
