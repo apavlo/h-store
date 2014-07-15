@@ -1,11 +1,10 @@
 #!/bin/bash
-ant clean-all build-all
+#ant clean-all build-all
 BENCH=("winhstore" "winhstorenocleanup" "winhstorenostate" "winsstore")
 NEWW=("100" "1000" "10000")
 NEWS=("1" "5" "10" "100")
 for d in "${BENCH[@]}"
 do
-cd $d
 for w in "${NEWW[@]}"
 do
 for s in "${NEWS[@]}"
