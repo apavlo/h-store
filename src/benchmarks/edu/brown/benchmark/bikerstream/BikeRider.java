@@ -197,7 +197,6 @@ public class BikeRider {
 
     private void routeGenerator() throws IOException {
         int numWaypoints = waypoints.length -1;
-        System.out.println("Number of waypoints are: " + (numWaypoints+1));
         assert (numWaypoints > 0);
 
         for (int i = 0; i < numWaypoints; ++i){
@@ -206,7 +205,7 @@ public class BikeRider {
     }
 
     private void addRoute(int begin, int end) throws IOException {
-        System.out.println("Generating rout from " + begin + "->" + end);
+        System.out.println("Rider: " + rider_id + " Generating rout from " + begin + "->" + end);
         String routeN = routeName(begin, end);
         LinkedList<Reading> points = new LinkedList<Reading>();
 
@@ -226,21 +225,20 @@ public class BikeRider {
         String s = BikerStreamConstants.ALL_STOPS[begin];
         String e = BikerStreamConstants.ALL_STOPS[end];
         String ret = ( bp + "_" + ep + "_" + s + "_to_" + e);
-        System.out.println("RouteName: " + ret);
+        //System.out.println("RouteName: " + ret);
         return ret;
     }
 
 
     private LinkedList<Reading> readInPoints(String filename) throws IOException {
-        System.out.println("Reading in file: " + filename);
+        //System.out.println("Reading in file: " + filename);
         LinkedList<Reading> points = new LinkedList<Reading>();
         Path path = Paths.get(BikerStreamConstants.ROUTES_DIR + "/" + filename);
         BufferedReader reader;
+        String line = "No line read in";
 
         try {
             reader = Files.newBufferedReader(path, StandardCharsets.US_ASCII);
-            String line = reader.readLine(); //reads in the first line which is the header
-
             line = reader.readLine(); // First line of data
             while (line != null) {
                 String[] fields = line.split(",");
@@ -249,6 +247,8 @@ public class BikeRider {
                 points.add(point);
                 line = reader.readLine(); // First line of data
             }
+        } catch (IndexOutOfBoundsException e){
+            System.out.println("Rider: " + rider_id + " trouble with linee: " + line );
         } catch (IOException e) {
             throw new IOException("Error reading in points: " + e);
         }
@@ -258,7 +258,7 @@ public class BikeRider {
     }
 
     public LinkedList<Reading> getNextRoute() {
-        return legs.remove();
+        return legs.poll();
     }
 
     public boolean hasMorePoints(){

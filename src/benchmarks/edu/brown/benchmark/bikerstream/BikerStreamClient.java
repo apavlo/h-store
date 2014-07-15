@@ -34,6 +34,7 @@ package edu.brown.benchmark.bikerstream;
 import java.io.IOException;
 import java.util.LinkedList;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.NoSuchElementException;
 
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
@@ -95,8 +96,11 @@ public class BikerStreamClient extends BenchmarkComponent {
 
             // Sign the rider up, by sticking rider information into the DB
             client.callProcedure(new SignUpCallback(), "SignUp",  rider.getRiderId());
+
             client.callProcedure(new TestCallback(5), "LogRiderTrip", rider_id, startStation, endStation);
+
             client.callProcedure(new TestCallback(4), "TestProcedure");
+
             client.callProcedure(new CheckoutCallback(), "CheckoutBike",  rider.getRiderId(), rider.getStartingStation());
 
             LinkedList<Reading> route;
@@ -105,7 +109,7 @@ public class BikerStreamClient extends BenchmarkComponent {
 
             while ((route = rider.getNextRoute()) != null) {
 
-                while ((point = route.remove()) != null){
+                while ((point = route.poll()) != null){
                     client.callProcedure(new RideCallback(), "RideBike",  rider.getRiderId(), point.lat, point.lon);
                     long lastTime = (new TimestampType()).getMSTime();
                     while (((time_t = (new TimestampType()).getMSTime()) - lastTime) < BikerStreamConstants.MILI_BETWEEN_GPS_EVENTS) {}
@@ -121,6 +125,9 @@ public class BikerStreamClient extends BenchmarkComponent {
 
             client.callProcedure(new CheckinCallback(), "CheckinBike",  rider.getRiderId(), rider.getFinalStation());
 
+        } catch (NoSuchElementException e) {
+            e.printStackTrace();
+            return false;
         } catch (Exception e) {
             e.printStackTrace();
             return false;
