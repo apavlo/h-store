@@ -55,18 +55,19 @@ public class Initialize extends VoltProcedure
 
     public long run() {
 
-        int maxBikes    = BikerStreamConstants.NUM_BIKES_PER_STATION;
-        int maxStations = BikerStreamConstants.STATION_LOCATIONS.length;
+        int numBikes    = BikerStreamConstants.NUM_BIKES_PER_STATION;
+        int numDocks    = BikerStreamConstants.NUM_DOCKS_PER_STATION;
+        int numStations = BikerStreamConstants.STATION_NAMES.length;
 
-        for (int i = 0; i < maxStations; ++i){
+        for (int i = 0; i < numStations; ++i){
             // Insert the Station
-            voltQueueSQL(insertStation, i+1, BikerStreamConstants.STATION_LOCATIONS[i], "ADRESS HERE", i, i);
+            voltQueueSQL(insertStation, i, BikerStreamConstants.STATION_NAMES[i], "ADRESS HERE", i, i);
 
             int j;
-            for (j = 0; j < 10; ++j) {
+            for (j = 0; j < numBikes; ++j) {
                 voltQueueSQL(insertBike, (i*1000) + j, 0);
             }
-            voltQueueSQL(initialStationStatus, i, j +1, 20 - (j+1), 0.0);
+            voltQueueSQL(initialStationStatus, i, numBikes, numDocks - numBikes, 0.0);
             voltExecuteSQL();
         }
 

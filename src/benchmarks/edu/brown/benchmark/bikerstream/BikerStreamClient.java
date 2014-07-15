@@ -32,6 +32,7 @@
 package edu.brown.benchmark.bikerstream;
 
 import java.io.IOException;
+import java.util.LinkedList;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.voltdb.client.Client;
@@ -86,6 +87,7 @@ public class BikerStreamClient extends BenchmarkComponent {
             long rider_id = (int) (Math.random() * 100000);
 
             // Create a new Rider Struct
+            //BikeRider rider = new BikeRider(rider_id, 1, 2 , new int[]{8,9});
             BikeRider rider = new BikeRider(rider_id);
 
             long startStation = rider.getStartingStation();
@@ -97,21 +99,27 @@ public class BikerStreamClient extends BenchmarkComponent {
             client.callProcedure(new TestCallback(4), "TestProcedure");
             client.callProcedure(new CheckoutCallback(), "CheckoutBike",  rider.getRiderId(), rider.getStartingStation());
 
+            LinkedList<Reading> route;
             Reading point;
             long time_t;
 
-            while (rider.hasPoints()) {
+            while ((route = rider.getNextRoute()) != null) {
 
-                point = rider.getPoint();
-                client.callProcedure(new RideCallback(), "RideBike",  rider.getRiderId(), point.lat, point.lon);
+                while ((point = route.remove()) != null){
+                    client.callProcedure(new RideCallback(), "RideBike",  rider.getRiderId(), point.lat, point.lon);
+                    long lastTime = (new TimestampType()).getMSTime();
+                    while (((time_t = (new TimestampType()).getMSTime()) - lastTime) < BikerStreamConstants.MILI_BETWEEN_GPS_EVENTS) {}
+                }
 
-                // Sit and spin for specified time, to ensure spacing of gps points
-                long lastTime = (new TimestampType()).getMSTime();
-                while (((time_t = (new TimestampType()).getMSTime()) - lastTime) < BikerStreamConstants.MILI_BETWEEN_GPS_EVENTS) {}
+                // Check to see if we have more legs
+                // TODO: check for discounts and alter route accordingly
+                if (rider.hasMorePoints()){
+
+                }
 
             }
 
-                client.callProcedure(new CheckinCallback(), "CheckinBike",  rider.getRiderId(), rider.getFinalStation());
+            client.callProcedure(new CheckinCallback(), "CheckinBike",  rider.getRiderId(), rider.getFinalStation());
 
         } catch (Exception e) {
             e.printStackTrace();

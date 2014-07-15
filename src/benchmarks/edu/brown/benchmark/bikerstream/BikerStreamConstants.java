@@ -31,6 +31,8 @@ package edu.brown.benchmark.bikerstream;
 
 /* a few constants, mainly a placeholder class */
 
+import org.apache.commons.lang.ArrayUtils;
+
 public abstract class BikerStreamConstants {
 
     public static final String TABLENAME_BIKEREADINGS = "bikereadings_table";
@@ -49,13 +51,13 @@ public abstract class BikerStreamConstants {
     // of zones, stations and docks.
     //
 
-    public static final int NUM_STATIONS = 10;
     public static final int NUM_BIKES_PER_STATION = 20;
+    public static final int NUM_DOCKS_PER_STATION = 40;
 
     public static final String ROUTES_DIR =
             "src/benchmarks/edu/brown/benchmark/bikerstream/routes";
 
-    public static final String[] STATION_LOCATIONS = new String[] {
+    public static final String[] STATION_NAMES = new String[] {
         "OHSU_South_Waterfront",
         "Waterfront_Park",
         "Eastbank_Esplanade",
@@ -64,6 +66,15 @@ public abstract class BikerStreamConstants {
         "Overlook_Park",
         "Civic_Stadium",
     };
+
+    public static final String[] DP_NAMES = new String[] {
+        "Decision_Point_1",
+        "Decision_Point_2",
+        "Decision_Point_3",
+        "Decision_Point_4",
+    };
+
+    public static final String[] ALL_STOPS = (String[]) ArrayUtils.addAll(STATION_NAMES, DP_NAMES);
 
 
     // ===========================================================================
