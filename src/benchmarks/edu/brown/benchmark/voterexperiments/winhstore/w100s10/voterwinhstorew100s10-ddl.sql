@@ -44,9 +44,10 @@ CREATE TABLE w_staging
 , state              varchar(2) NOT NULL -- REFERENCES area_code_state (state)
 , contestant_number  integer    NOT NULL REFERENCES contestants (contestant_number)
 , created            timestamp  NOT NULL
+, win_id             bigint     NOT NULL
 , CONSTRAINT PK_stage PRIMARY KEY
   (
-    vote_id
+    win_id
   )
 -- PARTITION BY ( phone_number )
 );
@@ -58,9 +59,10 @@ CREATE TABLE w_rows
 , state              varchar(2) NOT NULL -- REFERENCES area_code_state (state)
 , contestant_number  integer    NOT NULL REFERENCES contestants (contestant_number)
 , created            timestamp  NOT NULL
+, win_id             bigint     NOT NULL
 , CONSTRAINT PK_win PRIMARY KEY
   (
-    vote_id
+    win_id
   )
 -- PARTITION BY ( phone_number )
 );
@@ -69,6 +71,12 @@ CREATE TABLE staging_count
 (
   row_id           int      NOT NULL,
   cnt              int      NOT NULL
+);
+
+CREATE TABLE current_win_id
+(
+  row_id           int      NOT NULL,
+  win_id           bigint      NOT NULL
 );
 
 CREATE TABLE leaderboard
