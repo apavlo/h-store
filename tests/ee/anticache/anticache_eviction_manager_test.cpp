@@ -87,7 +87,7 @@ public:
    
     ~AntiCacheEvictionManagerTest() {
         delete m_engine;
-        delete m_table;
+        //delete m_table;
         voltdb::TupleSchema::freeTupleSchema(m_primaryKeyIndexSchema);
     }
     

@@ -45,6 +45,7 @@
 
 #include <iostream>
 #include "tableindex.h"
+#include "trackerallocator.h"
 
 using namespace voltdb;
 
@@ -67,12 +68,20 @@ TableIndex::TableIndex(const TableIndexScheme &scheme) : m_scheme(scheme), m_sta
     m_keySchema = scheme.keySchema;
     // initialize all the counters to zero
     m_lookups = m_inserts = m_deletes = m_updates = 0;
+
+    // determine this index's ID
+    m_id = indexCounter++;
+    indexMemoryTable[m_id] = 0;
 }
+
 TableIndex::~TableIndex()
 {
     delete[] column_indices_;
     delete[] column_types_;
     voltdb::TupleSchema::freeTupleSchema(m_keySchema);
+
+    // delete the entry in indexMemoryTable
+    indexMemoryTable.erase(m_id);
 }
 
 IndexStats* TableIndex::getIndexStats() {

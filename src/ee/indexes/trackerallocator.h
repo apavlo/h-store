@@ -8,7 +8,13 @@
 #include <iostream>
 using namespace std;
 
-template<class ValueType, int64_t *Counter, class BaseAllocator = std::allocator<ValueType> > 
+extern int currentIndexID;
+extern int indexCounter;
+// This might should be optimized
+extern map <int32_t, int64_t> indexMemoryTable;
+
+
+template<class ValueType, int *currentIndex, class BaseAllocator = std::allocator<ValueType> > 
 class TrackerAllocator : public BaseAllocator {
     public:
         typedef typename BaseAllocator::pointer pointer;
@@ -16,17 +22,17 @@ class TrackerAllocator : public BaseAllocator {
 
         TrackerAllocator() throw() : BaseAllocator() {}
         TrackerAllocator(const TrackerAllocator& allocator) throw() : BaseAllocator(allocator) {}
-        template <class U> TrackerAllocator(const TrackerAllocator<U, Counter>& allocator) throw(): BaseAllocator(allocator) {}
+        template <class U> TrackerAllocator(const TrackerAllocator<U, currentIndex>& allocator) throw(): BaseAllocator(allocator) {}
 
         ~TrackerAllocator() {}
 
         template<class U> struct rebind {
-            typedef TrackerAllocator<U, Counter> other;
+            typedef TrackerAllocator<U, currentIndex> other;
         };
 
         pointer allocate(size_type size) {
             pointer dataPtr = BaseAllocator::allocate(size);
-            *Counter += size * sizeof(size_type);
+            indexMemoryTable[*currentIndex] += size * sizeof(size_type);
             //printf("allocate +++++++ %p %lu.\n", dataPtr, size * sizeof(size_type));
             //printf("%s\n", typeid(ValueType).name());
             return dataPtr;
@@ -34,27 +40,27 @@ class TrackerAllocator : public BaseAllocator {
 
         pointer allocate(size_type size, pointer ptr) {
             pointer dataPtr = BaseAllocator::allocate(size, ptr);
-            *Counter += size * sizeof(size_type);
+            indexMemoryTable[*currentIndex] += size * sizeof(size_type);
             //printf("allocate +++++++ %p %lu.\n", dataPtr, size * sizeof(size_type));
             return dataPtr;
         }
 
         void deallocate(pointer ptr, size_type size) throw() {
             BaseAllocator::deallocate(ptr, size);
-            *Counter -= size * sizeof(size_type);
+            indexMemoryTable[*currentIndex] -= size * sizeof(size_type);
         }
 
         void construct(pointer __ptr, const ValueType& __val) {
             new(__ptr) ValueType(__val);
             //printf("construct +++++++ %p %lu.\n", __ptr, sizeof(*__ptr));
             //printf("%s\n", typeid(ValueType).name());
-            *Counter += sizeof(ValueType);
+            indexMemoryTable[*currentIndex] += sizeof(ValueType);
         }
 
         void destroy(pointer __ptr) {
             //printf("-+-+-+- %08x.\n", __p);
             __ptr->~ValueType();
-            *Counter -= sizeof(ValueType);
+            indexMemoryTable[*currentIndex] -= sizeof(ValueType);
         }
 };
 

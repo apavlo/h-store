@@ -52,7 +52,7 @@ using namespace voltdb;
 using stupidunit::ChTempDir;
 
 /**
- * AntiCacheDB Tests
+ * Tracker Allocator Tests
  */
 class IndexTrackerAllocatorTest: public Test {
 public:
@@ -106,7 +106,7 @@ public:
                                                                          voltdb::BALANCED_TREE_INDEX,
                                                                          m_primaryKeyIndexColumns,
                                                                          m_primaryKeyIndexSchemaTypes,
-                                                                         true, false, m_tableSchema);
+                                                                         false, false, m_tableSchema);
 
 //           voltdb::TableIndexScheme indexScheme = voltdb::TableIndexScheme("primaryKeyIndex",
 //                                                                        voltdb::HASH_TABLE_INDEX,
@@ -141,7 +141,7 @@ public:
     void cleanupTable()
     {
         //printf("delete from cleanupTable(): %p\n", m_table->getEvictedTable());
-        //delete m_table->getEvictedTable();
+        delete m_table->getEvictedTable();
         delete m_table;
     
     }
@@ -165,7 +165,7 @@ public:
     
 };
 
-TEST_F(IndexTrackerAllocatorTest, GetTupleTimeStamp)
+TEST_F(IndexTrackerAllocatorTest, BinaryTreeMultiMapIndexMemoryEstimate)
 {
     initTable(true); 
     
@@ -182,7 +182,9 @@ TEST_F(IndexTrackerAllocatorTest, GetTupleTimeStamp)
 
     ASSERT_NE(time_stamp, 0);
 
-    printf("Index Memory Estimate: %ld\n", m_table->index("iu")->getMemoryEstimate());
+    VOLT_DEBUG("%s memory estimate: %ld\n", m_table->index("primaryKeyIndex")->getTypeName().c_str(), m_table->index("primaryKeyIndex")->getMemoryEstimate());
+
+    ASSERT_NE(m_table->index("primaryKeyIndex")->getMemoryEstimate(), 0);
     
     cleanupTable(); 
 }
