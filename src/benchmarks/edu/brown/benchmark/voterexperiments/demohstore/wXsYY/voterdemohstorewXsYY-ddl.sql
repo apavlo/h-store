@@ -158,7 +158,7 @@ AS
  GROUP BY contestant_number
 ;
 
-CREATE VIEW v_top_three_window
+CREATE VIEW v_top_three_last_30_sec
 (
   contestant_number, num_votes
 )
