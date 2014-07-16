@@ -66,7 +66,7 @@ public class CheckinBike extends VoltProcedure {
         voltQueueSQL(getStation, station_id);
         VoltTable results[] = voltExecuteSQL();
 
-        assert(results[0].getRowCount() == 1);
+        //assert(results[0].getRowCount() == 1);
 
         long numBikes = results[0].fetchRow(0).getLong("current_bikes");
         long numDocks = results[0].fetchRow(0).getLong("current_docks");
@@ -75,11 +75,11 @@ public class CheckinBike extends VoltProcedure {
             voltQueueSQL(updateStation, ++numBikes, --numDocks, station_id);
             voltQueueSQL(log, rider_id, new TimestampType(), 1, "successfully docked bike at station: " + station_id);
             voltExecuteSQL();
-            return 1;
+            return rider_id;
         } else {
             voltQueueSQL(log, rider_id, new TimestampType(), 0, "could not dock bike at station: " + station_id);
             voltExecuteSQL();
-            return 0;
+            return -1;
         }
 
     }

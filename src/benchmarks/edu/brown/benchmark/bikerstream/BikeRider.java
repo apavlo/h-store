@@ -98,19 +98,19 @@ public class BikeRider {
         this.rider_id = rider_id;
         this.currentIndex = 0;
 
-        System.out.println("Rider: " + rider_id + " -> Generating Route");
+        comment("Generating Route");
         genRandStations();
-        System.out.println("Rider: " + rider_id + " -> Route Generated");
+        comment("Route Generated");
     }
 
     public BikeRider(long rider_id, int start_station, int end_station, int[] choices) throws IOException {
         this.rider_id = rider_id;
         this.currentIndex = 0;
 
-        System.out.println("Rider: " + rider_id + " -> Generating Route");
+        comment("Generating Route");
         int[] temp = ArrayUtils.addAll(new int[]{start_station}, choices);
         waypoints  = ArrayUtils.addAll(temp, new int[]{end_station});
-        System.out.println("Rider: " + rider_id + " -> Route Generated");
+        comment("Route Generated");
     }
 
     // Rider ID functions
@@ -132,21 +132,34 @@ public class BikeRider {
         return this.waypoints;
     }
 
-    public LinkedList<Reading> deviateDirectly(int station_id) throws IOException {
-       int currentLocation = currentIndex -1;
-        int stationIndex = station_id -1;
-
-       waypoints = new int[] {currentLocation, stationIndex};
-       currentIndex = 1;
-
-       String fileName = routeName (currentLocation, stationIndex);
-       return readInPoints(fileName);
+    public void comment(String str){
+        System.out.println("Rider: " + rider_id + " -> " + str);
     }
 
     public LinkedList<Reading> deviateRandomly() throws IOException {
         Random gen = new Random();
-        int currentLocation = currentIndex -1;
-        int stationIndex = gen.nextInt(numStations);
+        int currentLocation = waypoints[currentIndex];
+
+        int stationIndex;
+        while ((stationIndex = gen.nextInt(numStations)) == currentLocation) {}
+
+        comment("Deviating route to station: " + stationIndex);
+
+        waypoints = new int[] {currentLocation, stationIndex};
+        currentIndex = 1;
+
+        String fileName = routeName (currentLocation, stationIndex);
+        return readInPoints(fileName);
+    }
+
+    public LinkedList<Reading> deviateDirectly(int stationIndex) throws IOException {
+        Random gen = new Random();
+        int currentLocation = waypoints[currentIndex];
+
+        if (currentLocation == stationIndex)
+            return deviateRandomly();
+
+        comment("Deviating route to station: " + stationIndex);
 
         waypoints = new int[] {currentLocation, stationIndex};
         currentIndex = 1;
@@ -245,7 +258,7 @@ public class BikeRider {
                 line = reader.readLine(); // First line of data
             }
         } catch (IndexOutOfBoundsException e){
-            System.out.println("Rider: " + rider_id + " trouble with linee: " + line );
+            comment("trouble with line: " + line );
         } catch (IOException e) {
             throw new IOException("Error reading in points: " + e);
         }
@@ -257,8 +270,11 @@ public class BikeRider {
     public LinkedList<Reading> getNextRoute() throws IOException {
 
         if (this.hasMorePoints()){
-            String file = routeName(waypoints[currentIndex], waypoints[currentIndex +1]);
+            int thisStation = waypoints[currentIndex];
+            int nextStation = waypoints[currentIndex +1];
+            String file = routeName(thisStation, nextStation);
             ++currentIndex;
+            comment("heading to station " + nextStation);
             return readInPoints(file);
         }
 

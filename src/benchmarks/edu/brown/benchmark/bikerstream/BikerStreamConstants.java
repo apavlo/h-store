@@ -51,8 +51,8 @@ public abstract class BikerStreamConstants {
     // of zones, stations and docks.
     //
 
-    public static final int NUM_BIKES_PER_STATION = 20;
-    public static final int NUM_DOCKS_PER_STATION = 40;
+    public static final int NUM_BIKES_PER_STATION = 19;
+    public static final int NUM_DOCKS_PER_STATION = 20;
 
     public static final String ROUTES_DIR =
             "src/benchmarks/edu/brown/benchmark/bikerstream/routes";
