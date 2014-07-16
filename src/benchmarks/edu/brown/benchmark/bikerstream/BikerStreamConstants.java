@@ -45,6 +45,16 @@ public abstract class BikerStreamConstants {
     public static final long ERR_INVALID_BIKEREADING = 1;
 
     // ===========================================================================
+    // Callback Constants
+
+
+    public static final int SignupCallback = 0;
+    public static final int CheckoutCallback = 1;
+    public static final int RideBikeCallback = 2;
+    public static final int CheckinCallback = 3;
+
+
+    // ===========================================================================
     // INITIALIZATION PARAMETERS
     //
     // These guys are for generating a random map and filling it in with random sets

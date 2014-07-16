@@ -104,52 +104,76 @@ public class BikerStreamClient extends BenchmarkComponent {
             BikeRider rider = new BikeRider(rider_id);
 
             // Sign the rider up, by sticking rider information into the DB
-            client.callProcedure(new SignUpCallback(), "SignUp",  rider.getRiderId());
+            client.callProcedure(new BikerCallback(0,rider_id),
+                    "SignUp",
+                    rider.getRiderId());
 
-            client.callProcedure(new CheckoutCallback(), "CheckoutBike",  rider.getRiderId(), rider.getStartingStation());
+            // Checkout a bike from the Biker's initial station
+            client.callProcedure(new BikerCallback(1, rider_id),
+                    "CheckoutBike",
+                    rider.getRiderId(),
+                    rider.getStartingStation());
 
-            /*
-            long startStation = rider.getStartingStation();
-            long endStation   = rider.getFinalStation();
 
-            client.callProcedure(new TestCallback(5), "LogRiderTrip", rider_id, startStation, endStation);
-            */
-
+            // Get ready for getting the Biker's route data
             LinkedList<Reading> route;
             Reading point;
 
+            // The biker trip is deivided into legs. after each leg the biker will stop to see if any nearby stations
+            // are providing discounts. If so the biker should deviate toward that station. If there are no more legs
+            // available then the rider is considered to be at the final destination and should attempt to checkin the
+            // bike.
             while ((route = rider.getNextRoute()) != null) {
 
+                // As long as there are points in the current leg, put them into the data base at a rate specified by
+                // the MILI_BETWEEN_GPS_EVENTS Constant.
                 while ((point = route.poll()) != null){
-                    client.callProcedure(new RideCallback(), "RideBike",  rider.getRiderId(), point.lat, point.lon);
+                    client.callProcedure(new BikerCallback(2),
+                            "RideBike",
+                            rider.getRiderId(),
+                            point.lat,
+                            point.lon);
                     long lastTime = (new TimestampType()).getMSTime();
                     while (((new TimestampType()).getMSTime()) - lastTime < BikerStreamConstants.MILI_BETWEEN_GPS_EVENTS) {}
                 }
 
-                // Check to see if we have more legs
+                // Check to see if we have more legs. Thios tells us that we aer somewhere in the middle of a trip, and
+                // there may be a station close by offering dicounts to us.
                 // TODO: check for discounts and alter route accordingly
                 if (rider.hasMorePoints()){
                 }
             }
 
-            client.callProcedure(new CheckinCallback(), "CheckinBike", rider.getRiderId(), rider.getFinalStation());
+            // When all legs of the journey are finished. Attempt to park the bike. The callback will handle whether or
+            //not we were successfull.
+            client.callProcedure(new BikerCallback(3, rider_id),
+                    "CheckinBike",
+                    rider.getRiderId(),
+                    rider.getFinalStation());
 
-
+            // The handle will insert our bike id into the hashmap when we are successful.
             while (!(checkedBikeSet.contains(rider_id))){
-                route = rider.deviateDirectly(1);
-                //assert (route != null);
 
+                // Deviate course if we did not appear in the hashmap. We will receive a new route to the next station.
+                route = rider.deviateRandomly();
+
+                // Put those points into the DB
                 while ((point = route.poll()) != null){
-                    client.callProcedure(new RideCallback(), "RideBike",  rider.getRiderId(), point.lat, point.lon);
+                    client.callProcedure(new BikerCallback(2),
+                            "RideBike",
+                            rider.getRiderId(),
+                            point.lat,
+                            point.lon);
                     long lastTime = (new TimestampType()).getMSTime();
                     while (((new TimestampType()).getMSTime()) - lastTime < BikerStreamConstants.MILI_BETWEEN_GPS_EVENTS) {}
                 }
 
-                client.callProcedure(new CheckinCallback(), "CheckinBike", rider.getRiderId(), rider.getFinalStation());
-
+                // Try again to checkin the bike. Loop to check for success
+                client.callProcedure(new BikerCallback(3, rider_id),
+                        "CheckinBike",
+                        rider.getRiderId(),
+                        rider.getFinalStation());
             }
-
-
         } catch (NoSuchElementException e) {
             e.printStackTrace();
             return false;
@@ -176,69 +200,55 @@ public class BikerStreamClient extends BenchmarkComponent {
     }
 
 
-    private class SignUpCallback implements ProcedureCallback {
 
-        @Override
-        public void clientCallback(ClientResponse clientResponse) {
-            incrementTransactionCounter(clientResponse, 0);
+    private class BikerCallback implements ProcedureCallback {
 
+        private long rider_id;
+        private int callback;
+
+        public BikerCallback(int callback_id){
+            this.rider_id = 0;
+            this.callback = callback_id;
         }
 
-    } // END CLASS
-
-    private class CheckoutCallback implements ProcedureCallback {
-
-        @Override
-        public void clientCallback(ClientResponse clientResponse) {
-            incrementTransactionCounter(clientResponse, 1);
-
-            VoltTable results[] = clientResponse.getResults();
-            assert (results.length == 1);
-            long rider_id = results[0].asScalarLong();
-
-            if (rider_id > -1){
-                hasBikeSet.add(rider_id);
-            } else {
-                failedCheckouts.incrementAndGet();
-            }
-
-
+        public BikerCallback(int callback_id, long rider_id){
+            this.rider_id = rider_id;
+            this.callback = callback_id;
         }
 
-    } // END CLASS
-
-    private class RideCallback implements ProcedureCallback {
-
         @Override
-        public void clientCallback(ClientResponse clientResponse) {
-            incrementTransactionCounter(clientResponse, 2);
+        public void clientCallback(ClientResponse cr){
 
+            if (callback == BikerStreamConstants.SignupCallback){
+                incrementTransactionCounter(cr, 0);
+            }//if
+
+            if (callback == BikerStreamConstants.CheckoutCallback){
+                incrementTransactionCounter(cr, 1);
+
+                VoltTable results[] = cr.getResults();
+
+                if (cr.getException() == null)
+                    hasBikeSet.add(rider_id);
+                else
+                    failedCheckouts.incrementAndGet();
+
+            }//if
+
+            if (callback == BikerStreamConstants.RideBikeCallback){
+                incrementTransactionCounter(cr, 2);
+            }//if
+
+            if (callback == BikerStreamConstants.CheckinCallback){
+                incrementTransactionCounter(cr, 3);
+
+                if (cr.getException() == null)
+                    checkedBikeSet.add(rider_id);
+                else
+                    failedCheckouts.incrementAndGet();
+
+            } //if
         }
-
-    } // END CLASS
-
-    private class CheckinCallback implements ProcedureCallback {
-
-        @Override
-        public void clientCallback(ClientResponse clientResponse) {
-            incrementTransactionCounter(clientResponse, 3);
-
-            VoltTable results[] = clientResponse.getResults();
-            if (clientResponse.hasDebug()) {
-                return;
-            }
-
-            //assert (results.length == 1);
-            long rider_id = results[0].asScalarLong();
-
-            if (rider_id > -1){
-                checkedBikeSet.add(rider_id);
-            } else {
-                failedCheckouts.incrementAndGet();
-            }
-
-        }
-
-    } // END CLASS
+    }
 
 }

@@ -80,7 +80,7 @@ public class CheckoutBike extends VoltProcedure {
         } else {
             voltQueueSQL(log, rider_id, new TimestampType(), 0, "could not get bike from station: " + station_id);
             voltExecuteSQL();
-            return -1;
+            throw new RuntimeException("Rider: " + rider_id + " was unable to checkout a bike");
         }
 
     }

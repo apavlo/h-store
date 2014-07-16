@@ -79,7 +79,7 @@ public class CheckinBike extends VoltProcedure {
         } else {
             voltQueueSQL(log, rider_id, new TimestampType(), 0, "could not dock bike at station: " + station_id);
             voltExecuteSQL();
-            return -1;
+            throw new RuntimeException("Rider: " + rider_id + " was unable to checkin a bike");
         }
 
     }
