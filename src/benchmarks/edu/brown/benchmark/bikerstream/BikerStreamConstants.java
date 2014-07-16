@@ -35,14 +35,8 @@ import org.apache.commons.lang.ArrayUtils;
 
 public abstract class BikerStreamConstants {
 
-    public static final String TABLENAME_BIKEREADINGS = "bikereadings_table";
-    public static final String BIKEREADINGS_STREAM = "bikereadings_stream";
-    public static final String BIKEREADINGS_WINDOW_ROWS = "bikereadings_window_rows";
-    public static final String TABLENAME_BIKEREADINGS_COUNT= "count_bikereadings_table";
-
     // potential return codes
     public static final long BIKEREADING_SUCCESSFUL  = 0;
-    public static final long ERR_INVALID_BIKEREADING = 1;
 
     // ===========================================================================
     // Callback Constants
@@ -61,7 +55,7 @@ public abstract class BikerStreamConstants {
     // of zones, stations and docks.
     //
 
-    public static final int NUM_BIKES_PER_STATION = 19;
+    public static final int NUM_BIKES_PER_STATION = 10;
     public static final int NUM_DOCKS_PER_STATION = 20;
 
     public static final String ROUTES_DIR =
@@ -93,8 +87,6 @@ public abstract class BikerStreamConstants {
 
     // Return Values
     public static final long INSERT_RIDER_SUCCESS = 0;
-    public static final long INSERT_RIDER_FAILED  = 1;
-    public static final long INSERT_CARD_FAILED   = 2;
 
     // Firstnames for the signup process.
     public static final String[] FIRSTNAMES = new String[] {
@@ -115,25 +107,10 @@ public abstract class BikerStreamConstants {
         "Harvey", "Kane" };
 
     // ===========================================================================
-    // BIKE RESERVATIONS
-    //
-
-    // Maximum number of times to try and reserve a bike
-    public static final int MAX_RESERVE_ATTEMPTS = 5;
-
-    // Return Values
-    public static final long BIKE_RESERVED     = 0;
-    public static final long BIKE_NOT_RESERVED = 1;
-
-    // ===========================================================================
     // BIKE CHECKOUT
     //
 
-    public static final int MAX_CHECKOUT_ATTEMPTS = 5;
-
-    public static final long BIKE_CHECKEDOUT      = 0;
-    public static final long BIKE_NOT_CHECKEDOUT  = 1;
-    public static final long NO_AVAILIBLE_BIKES   = 2;
+    public static final long CHECKOUT_SUCCESS = 0;
 
     // ===========================================================================
     // BIKE RIDE
@@ -142,24 +119,9 @@ public abstract class BikerStreamConstants {
     public static final long MILI_BETWEEN_GPS_EVENTS = 10;
 
     // ===========================================================================
-    // DOCK RESERVATIONS
-    //
-
-    // Maximum number of times to try and reserve a bike
-    public static final int MAX_DOCK_RESERVE_ATTEMPTS = 5;
-
-    // Return Values
-    public static final long DOCK_RESERVED     = 0;
-    public static final long DOCK_NOT_RESERVED = 1;
-
-    // ===========================================================================
     // BIKE CHECKIN
     //
 
-    public static final int MAX_CHECKIN_ATTEMPTS  = 5;
-
-    public static final long BIKE_CHECKEDIN       = 0;
-    public static final long BIKE_NOT_CHECKEDIN   = 1;
-    public static final long NO_AVAILIBLE_DOCKS   = 2;
-
+    public static final long CHECKIN_SUCCESS = 0;
 }
+

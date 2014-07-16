@@ -75,7 +75,7 @@ public class CheckinBike extends VoltProcedure {
             voltQueueSQL(updateStation, ++numBikes, --numDocks, station_id);
             voltQueueSQL(log, rider_id, new TimestampType(), 1, "successfully docked bike at station: " + station_id);
             voltExecuteSQL();
-            return rider_id;
+            return BikerStreamConstants.CHECKIN_SUCCESS;
         } else {
             voltQueueSQL(log, rider_id, new TimestampType(), 0, "could not dock bike at station: " + station_id);
             voltExecuteSQL();
