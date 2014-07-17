@@ -45,7 +45,11 @@ import edu.brown.benchmark.voterexperiments.demohstore.wXsYY.VoterDemoHStoreCons
 public class GenerateLeaderboard extends VoltProcedure {
 	
 	public final SQLStmt getVoteStmt = new SQLStmt(
-		"SELECT voteId, phone_number, state, contestant_number, created FROM votes WHERE vote_id = ?;"
+		"SELECT vote_id, phone_number, state, contestant_number, created FROM proc_one_out WHERE vote_id = ?;"
+	);
+	
+	public final SQLStmt deleteProcOneOutStmt = new SQLStmt(
+		"DELETE FROM proc_one_out WHERE vote_id = ?;"
 	);
 	
     // Put the vote into the staging window
@@ -69,7 +73,7 @@ public class GenerateLeaderboard extends VoltProcedure {
     );
     
     public final SQLStmt checkNumVotesStmt = new SQLStmt(
-		"SELECT num_votes FROM votes_count WHERE row_id = 1;"
+		"SELECT cnt FROM votes_count WHERE row_id = 1;"
     );
     
     public final SQLStmt updateStagingCount = new SQLStmt(
@@ -77,7 +81,7 @@ public class GenerateLeaderboard extends VoltProcedure {
     );
     
     public final SQLStmt updateNumVotesStmt = new SQLStmt(
-		"UPDATE votes_count SET num_votes = ? WHERE row_id = 1;"
+		"UPDATE votes_count SET cnt = ? WHERE row_id = 1;"
     );
     
     public final SQLStmt clearStagingCountStmt = new SQLStmt(
@@ -105,24 +109,12 @@ public class GenerateLeaderboard extends VoltProcedure {
     
     // Pull aggregate from window
     public final SQLStmt updateLeaderBoardStmt = new SQLStmt(
-		"INSERT INTO leaderboard (contestant_number, numvotes) SELECT contestant_number, count(*) FROM w_rows GROUP BY contestant_number;"
+		"INSERT INTO leaderboard (contestant_number, num_votes) SELECT contestant_number, count(*) FROM w_rows r JOIN contestants c ON c.contestant_number = r.contestant_number GROUP BY contestant_number;"
     );
     
  // Clear the staging window
     public final SQLStmt deleteStagingStmt = new SQLStmt(
 		"DELETE FROM w_staging;"
-    );
-    
-    public final SQLStmt getTopLeaderboard = new SQLStmt(
-    	"SELECT contestant_number, num_votes FROM v_votes_by_contestant ORDER BY num_votes DESC LIMIT 3;"	
-    );
-    
-    public final SQLStmt getBottomLeaderboard = new SQLStmt(
-    	"SELECT contestant_number, num_votes FROM v_votes_by_contestant ORDER BY num_votes ASC LIMIT 3;"	
-    );
-    
-    public final SQLStmt getTrendingLeaderboard = new SQLStmt(
-    	"SELECT contestant_number, num_votes FROM v_top_three_window ORDER BY num_votes DESC LIMIT 3;"	
     );
 	
     public long run(long voteId) {
@@ -131,13 +123,14 @@ public class GenerateLeaderboard extends VoltProcedure {
         voltQueueSQL(checkCurrentVoteStmt);
         voltQueueSQL(getVoteStmt, voteId);
         voltQueueSQL(checkNumVotesStmt);
+        voltQueueSQL(deleteProcOneOutStmt, voteId);
         //voltQueueSQL(checkNumContestants);
         VoltTable validation[] = voltExecuteSQL();
 	
         int stagingCount = (int)(validation[0].fetchRow(0).getLong(0)) + 1;
         long currentWinId = validation[1].fetchRow(0).getLong(0) + 1;
         int numVotes = (int)(validation[3].fetchRow(0).getLong(0)) + 1;
-        int numContestants = (int)(validation[4].fetchRow(0).getLong(0)) + 1; 
+        //int numContestants = (int)(validation[4].fetchRow(0).getLong(0)) + 1; 
         
         if(validation[2].getRowCount() < 1)
         {
@@ -169,22 +162,26 @@ public class GenerateLeaderboard extends VoltProcedure {
 	            voltQueueSQL(deleteCutoffVoteStmt, cutoffId);
 	            
 	        	voltQueueSQL(insertVoteWindowStmt);
-	    		//voltQueueSQL(deleteLeaderBoardStmt);
-	    		//voltQueueSQL(updateLeaderBoardStmt);
+	    		voltQueueSQL(deleteLeaderBoardStmt);
+	    		voltQueueSQL(updateLeaderBoardStmt);
 	    		voltQueueSQL(deleteStagingStmt);
 	    		voltQueueSQL(clearStagingCountStmt);
 	    		//voltExecuteSQL(true);
 	        }
     	}
         voltQueueSQL(updateCurrentVoteStmt, currentWinId);
-        voltQueueSQL(updateNumVotesStmt, numVotes % VoterDemoHStoreConstants.VOTE_THRESHOLD);
+        voltQueueSQL(updateNumVotesStmt, (numVotes % VoterDemoHStoreConstants.VOTE_THRESHOLD));
         
         voltExecuteSQL(true);
 		
         // Set the return value to 0: successful vote
         if(numVotes == VoterDemoHStoreConstants.VOTE_THRESHOLD)
+        {
         	return VoterDemoHStoreConstants.DELETE_CONTESTANT;
+        }
         else
+        {
         	return VoterDemoHStoreConstants.WINDOW_SUCCESSFUL;
+        }
     }
 }

@@ -29,8 +29,6 @@
 
 package edu.brown.benchmark.voterexperiments.demohstore.wXsYY;
 
-import edu.brown.benchmark.microwintimesstore.MicroWinTimeSStoreConstants;
-
 public abstract class VoterDemoHStoreConstants {
 
     public static final String TABLENAME_CONTESTANTS     = "contestants";

@@ -60,13 +60,12 @@ public class VoterDemoHStoreProjectBuilder extends AbstractProjectBuilder {
     public static final String PARTITIONING[][] = new String[][] {
         { "votes", "phone_number" },
         { "w_staging", "phone_number" },
-        { "w_trending_leaderboard", "phone_number" },
-        { "top_three_last_30_sec", "contestant_number"},
-        { "voteCount", "row_id" },
-        { "totalVoteCount", "row_id" },
-        { "totalLeaderboardCount", "row_id" },
-        { "proc_one_out", "phone_number" },
-        { "minWindow", "row_id" }
+        { "w_rows", "phone_number" },
+        { "leaderboard", "contestant_number"},
+        { "votes_count", "row_id" },
+        { "staging_count", "row_id" },
+        { "current_win_id", "row_id" },
+        { "proc_one_out", "phone_number" }
     };
 
     public VoterDemoHStoreProjectBuilder() {

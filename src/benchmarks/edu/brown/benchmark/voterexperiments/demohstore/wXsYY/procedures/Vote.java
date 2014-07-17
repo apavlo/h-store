@@ -49,10 +49,7 @@ public class Vote extends VoltProcedure {
 	@StmtInfo(
             upsertable=true
         )
-    public final SQLStmt updateTotalCount = new SQLStmt(
-    	"INSERT INTO totalVoteCount (row_id, cnt) SELECT row_id, cnt + 1 FROM totalVoteCount WHERE row_id = 1;"
-    );
-
+	
     // Checks if the vote is for a valid contestant
     public final SQLStmt checkContestantStmt = new SQLStmt(
 	   "SELECT contestant_number FROM contestants WHERE contestant_number = ?;"
@@ -70,22 +67,21 @@ public class Vote extends VoltProcedure {
 	
     // Records a vote
     public final SQLStmt insertVoteStmt = new SQLStmt(
-		"INSERT INTO votes (vote_id, phone_number, state, contestant_number, ts) VALUES (?, ?, ?, ?, ?);"
+		"INSERT INTO votes (vote_id, phone_number, state, contestant_number, created) VALUES (?, ?, ?, ?, ?);"
     );
     
     // Records a vote
     public final SQLStmt insertProcEndStmt = new SQLStmt(
-		"INSERT INTO proc_one_out (vote_id, phone_number, state, contestant_number, ts) VALUES (?, ?, ?, ?, ?);"
+		"INSERT INTO proc_one_out (vote_id, phone_number, state, contestant_number, created) VALUES (?, ?, ?, ?, ?);"
     );
     
 	
-public long run(long voteId, long phoneNumber, int contestantNumber, long maxVotesPerPhoneNumber, int currentTimestamp) {
+public long run(long voteId, long phoneNumber, int contestantNumber, long maxVotesPerPhoneNumber) {
 		
         // Queue up validation statements
 		voltQueueSQL(checkContestantStmt, contestantNumber);
         voltQueueSQL(checkVoterStmt, phoneNumber);
         voltQueueSQL(checkStateStmt, (short)(phoneNumber / 10000000l));
-        voltQueueSQL(updateTotalCount);
         VoltTable validation[] = voltExecuteSQL();
 		
         // validate the maximum limit for votes number
@@ -106,9 +102,9 @@ public long run(long voteId, long phoneNumber, int contestantNumber, long maxVot
         final String state = (validation[2].getRowCount() > 0) ? validation[2].fetchRow(0).getString(0) : "XX";
 		 		
         // Post the vote
-        //TimestampType timestamp = new TimestampType();
-        voltQueueSQL(insertVoteStmt, voteId, phoneNumber, state, contestantNumber, currentTimestamp);
-        voltQueueSQL(insertProcEndStmt, voteId, phoneNumber, state, contestantNumber, currentTimestamp);
+        TimestampType timestamp = new TimestampType();
+        voltQueueSQL(insertVoteStmt, voteId, phoneNumber, state, contestantNumber, timestamp);
+        voltQueueSQL(insertProcEndStmt, voteId, phoneNumber, state, contestantNumber, timestamp);
         voltExecuteSQL(true);
 		
         // Set the return value to 0: successful vote

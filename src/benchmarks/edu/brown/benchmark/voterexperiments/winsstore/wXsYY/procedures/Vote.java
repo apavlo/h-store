@@ -35,7 +35,6 @@ import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.types.TimestampType;
 
-import edu.brown.benchmark.voterwinhstorenocleanup.VoterWinHStoreNoCleanupConstants;
 import edu.brown.benchmark.voterexperiments.winsstore.wXsYY.VoterWinSStoreConstants;
 
 @ProcInfo (
@@ -77,7 +76,7 @@ public class Vote extends VoltProcedure {
         VoltTable validation[] = voltExecuteSQL();
 		
         if (validation[0].getRowCount() == 0) {
-            return VoterWinHStoreNoCleanupConstants.ERR_INVALID_CONTESTANT;
+            return VoterWinSStoreConstants.ERR_INVALID_CONTESTANT;
         }
         
         // validate the maximum limit for votes number

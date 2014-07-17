@@ -29,7 +29,7 @@ CREATE TABLE votes
   phone_number       bigint     NOT NULL
 , state              varchar(2) NOT NULL -- REFERENCES area_code_state (state)
 , contestant_number  integer    NOT NULL REFERENCES contestants (contestant_number)
-, ts		     integer    NOT NULL
+, created	     timestamp  NOT NULL
 , CONSTRAINT PK_votes PRIMARY KEY
   (
     vote_id
@@ -43,7 +43,7 @@ CREATE TABLE proc_one_out
   phone_number       bigint     NOT NULL
 , state              varchar(2) NOT NULL -- REFERENCES area_code_state (state)
 , contestant_number  integer    NOT NULL REFERENCES contestants (contestant_number)
-, ts		     integer    NOT NULL
+, created	     timestamp    NOT NULL
 );
 
 CREATE TABLE w_staging
@@ -52,69 +52,57 @@ CREATE TABLE w_staging
   phone_number       bigint     NOT NULL
 , state              varchar(2) NOT NULL -- REFERENCES area_code_state (state)
 , contestant_number  integer    NOT NULL REFERENCES contestants (contestant_number)
-, ts		     integer    NOT NULL
+, created            timestamp  NOT NULL
+, win_id             bigint     NOT NULL
+, CONSTRAINT PK_stage PRIMARY KEY
+  (
+    win_id
+  )
 -- PARTITION BY ( phone_number )
 );
 
-CREATE TABLE w_trending_leaderboard
+CREATE TABLE w_rows
 (
   vote_id            bigint     NOT NULL,
   phone_number       bigint     NOT NULL
 , state              varchar(2) NOT NULL -- REFERENCES area_code_state (state)
 , contestant_number  integer    NOT NULL REFERENCES contestants (contestant_number)
-, ts 		     integer    NOT NULL
+, created            timestamp  NOT NULL
+, win_id             bigint     NOT NULL
+, CONSTRAINT PK_win PRIMARY KEY
+  (
+    win_id
+  )
 -- PARTITION BY ( phone_number )
 );
 
-CREATE TABLE top_three_last_30_sec
+CREATE TABLE leaderboard
 (
   --phone_number       bigint    NOT NULL,
   contestant_number  integer   NOT NULL
 , num_votes          integer
+, CONSTRAINT PK_leaderboard PRIMARY KEY
+  (
+    contestant_number
+  )
 );
 
-CREATE TABLE voteCount
+CREATE TABLE votes_count
 (
   row_id	     integer    NOT NULL,
   cnt		     integer    NOT NULL
-
-, CONSTRAINT PK_voteCount PRIMARY KEY
-  (
-    row_id
-  )
 );
 
-CREATE TABLE totalVoteCount
+CREATE TABLE staging_count
 (
   row_id	     integer    NOT NULL,
   cnt		     integer    NOT NULL
-
-, CONSTRAINT PK_totalVoteCount PRIMARY KEY
-  (
-    row_id
-  )
 );
 
-CREATE TABLE totalLeaderboardCount
+CREATE TABLE current_win_id
 (
   row_id	     integer    NOT NULL,
-  cnt		     integer    NOT NULL
-
-, CONSTRAINT PK_totalLeaderboardCount PRIMARY KEY
-  (
-    row_id
-  )
-);
-
-CREATE TABLE minWindow
-(
-  row_id	     integer    NOT NULL,
-  minTS		     integer    NOT NULL
-
-, CONSTRAINT PK_minWin PRIMARY KEY
-  (
-    row_id
-  )
+  win_id     bigint    NOT NULL
 );
 
 -- rollup of votes by phone number, used to reject excessive voting
@@ -158,16 +146,14 @@ AS
  GROUP BY contestant_number
 ;
 
-CREATE VIEW v_top_three_last_30_sec
-(
-  contestant_number, num_votes
-)
-AS
-   SELECT contestant_number
-        , count(*) 
-   FROM w_trending_leaderboard 
-   GROUP BY contestant_number
-;
+--CREATE VIEW v_top_three_last_30_sec
+--(
+--  contestant_number, num_votes
+--)
+--AS
+--   SELECT contestant_number
+--        , count(*) 
+--   FROM w_rows t
+--   GROUP BY t.contestant_number
+--;
 
-CREATE INDEX idx_w_staging ON W_STAGING (ts);
-CREATE INDEX idx_w_rows ON w_trending_leaderboard (ts);

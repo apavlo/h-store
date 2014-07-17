@@ -45,7 +45,7 @@ import edu.brown.benchmark.voterexperiments.demohstore.wXsYY.VoterDemoHStoreCons
 public class DeleteContestant extends VoltProcedure {
     
     public final SQLStmt findLowestContestant = new SQLStmt(
-		"SELECT * FROM v_votes_by_contestant ORDER BY numvotes DESC LIMIT 1;"
+		"SELECT * FROM v_votes_by_contestant ORDER BY num_votes DESC LIMIT 1;"
     );
     
     public final SQLStmt deleteLowestContestant = new SQLStmt(
@@ -55,13 +55,19 @@ public class DeleteContestant extends VoltProcedure {
     public final SQLStmt deleteLowestVotes = new SQLStmt(
 		"DELETE FROM votes WHERE contestant_number = ?;"
     );
+    
+ // Pull aggregate from window
+    public final SQLStmt deleteLeaderBoardStmt = new SQLStmt(
+		"DELETE FROM leaderboard WHERE contestant_number = ?;"
+    );
+    
 	
-    public long run(long voteId) {
+    public long run() {
 		
         voltQueueSQL(findLowestContestant);
         VoltTable validation[] = voltExecuteSQL();
         
-        if(validation[0].getRowCount() <= 1)
+        if(validation[0].getRowCount() < 1)
         {
         	return VoterDemoHStoreConstants.ERR_NOT_ENOUGH_CONTESTANTS;
         }
@@ -69,6 +75,8 @@ public class DeleteContestant extends VoltProcedure {
         int lowestContestant = (int)(validation[0].fetchRow(0).getLong(0));
         voltQueueSQL(deleteLowestContestant, lowestContestant);
         voltQueueSQL(deleteLowestVotes, lowestContestant);
+        voltQueueSQL(deleteLeaderBoardStmt, lowestContestant);
+        voltExecuteSQL(true);
 		
         // Set the return value to 0: successful vote
         return VoterDemoHStoreConstants.DELETE_SUCCESSFUL;

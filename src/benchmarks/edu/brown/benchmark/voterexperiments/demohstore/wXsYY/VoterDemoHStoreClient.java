@@ -107,9 +107,7 @@ public class VoterDemoHStoreClient extends BenchmarkComponent {
 	    	Client client = this.getClientHandle();
 	    	
 		        PhoneCallGenerator.PhoneCall call = switchboard.receive();
-		        //Callback callback = new Callback(0);
-		        
-		        int curTimestamp = timestamp;
+		        //Callback callback = new Callback(0)
 		
 		        ClientResponse response;
 					response = client.callProcedure(       "Vote",
@@ -123,13 +121,13 @@ public class VoterDemoHStoreClient extends BenchmarkComponent {
 		        
 		        if(results.length > 0 && results[0].asScalarLong() == VoterDemoHStoreConstants.VOTE_SUCCESSFUL)
 		        {
-		        	response = client.callProcedure("GenerateLeaderboard", curTimestamp);
+		        	response = client.callProcedure("GenerateLeaderboard", call.voteId);
 		    		//incrementTransactionCounter(response, 1);
 		        }
 		        
 		        results = response.getResults();
 		        
-		        if(results.length > 0 && results[0].asScalarLong() == VoterDemoHStoreConstants.VOTE_THRESHOLD)
+		        if(results.length > 0 && results[0].asScalarLong() == VoterDemoHStoreConstants.DELETE_CONTESTANT)
 		        {
 		        	response = client.callProcedure("DeleteContestant");
 		        }
@@ -174,7 +172,7 @@ public class VoterDemoHStoreClient extends BenchmarkComponent {
         public void clientCallback(ClientResponse clientResponse) {
             // Increment the BenchmarkComponent's internal counter on the
             // number of transactions that have been completed
-            incrementTransactionCounter(clientResponse, this.idx);
+            //incrementTransactionCounter(clientResponse, this.idx);
             
             if(this.idx == 0)
             {
