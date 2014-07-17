@@ -269,7 +269,6 @@ public class MyClient {
 		MyClient myc = new MyClient();
 		try {
 			myc.client.callProcedure("SignUp", 1001);
-			JSONArray l = new JSONArray();
 			myc.api = myc.serverSocket.accept();
 			System.out.println("Connected to " + myc.api.getInetAddress());
 			myc.apiCall = new BufferedReader(new InputStreamReader(myc.api.getInputStream()));
