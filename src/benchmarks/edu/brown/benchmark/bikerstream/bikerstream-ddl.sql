@@ -71,5 +71,9 @@ CREATE WINDOW bikerstream_window ON bikestatus ROWS 100 SLIDE 10;
 
 CREATE WINDOW lastNTuples ON bikestatus ROWS 100 SLIDE 10;
 
-
+CREATE TABLE discounts
+(
+    user_id INTEGER NOT NULL REFERENCES users(user_id)
+,   station_id INTEGER NOT NULL REFERENCES stations(station_id)
+);
 

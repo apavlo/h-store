@@ -33,10 +33,7 @@ import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
-import org.voltdb.VoltType;
 import org.voltdb.types.TimestampType;
-
-import edu.brown.benchmark.bikerstream.BikerStreamConstants;
 
 @ProcInfo (
     singlePartition = true
@@ -44,24 +41,23 @@ import edu.brown.benchmark.bikerstream.BikerStreamConstants;
 public class GetDiscount extends VoltProcedure {
 
     // Logging Information
-    private static final Logger Log = Logger.getLogger(CheckoutBike.class);
-    // Is debugging on or not?
-    final boolean debug = Log.isDebugEnabled();
+    // private static final Logger Log = Logger.getLogger(GetDiscount.class);
+    // final boolean debug = Log.isDebugEnabled();
 
     public final SQLStmt getStation = new SQLStmt(
-                "SELECT * FROM stations where station_id = ?"
+                "SELECT * FROM stationstatus where station_id = ?"
             );
 
     public final SQLStmt updateStation = new SQLStmt(
-                "UPDATE stations SET num_discs = ? where station_id = ?"
+                "UPDATE stationstatus SET current_discount = ? where station_id = ?"
             );
 
-    public final SQLStmt addDisc = new SQLStmt(
-                "INSERT INTO dicounts (rider_id, station_id, valid) VALUES (?,?,1)"
+    public final SQLStmt addDiscount = new SQLStmt(
+                "INSERT INTO discounts (user_id, station_id) VALUES (?,?)"
             );
 
     public final SQLStmt logSuccess = new SQLStmt(
-                "INSERT INTO logs (rider_id, time, success, action) VALUES (?,?,1,?)"
+                "INSERT INTO logs (user_id, time, success, action) VALUES (?,?,1,?)"
             );
 
 
@@ -69,21 +65,20 @@ public class GetDiscount extends VoltProcedure {
 
         voltQueueSQL(getStation, station_id);
         VoltTable results[] = voltExecuteSQL();
-
         assert(results[0].getRowCount() == 1);
 
-        long numDiscs = results[0].fetchRow(0).getLong("num_discs");
+        long numDiscs = results[0].fetchRow(0).getLong("current_discount");
 
         if (numDiscs > 0) {
 
             voltQueueSQL(updateStation, numDiscs -1, station_id);
-            voltQueueSQL(addDisc, rider_id, station_id);
+            voltQueueSQL(addDiscount, rider_id, station_id);
             voltQueueSQL(logSuccess, rider_id, new TimestampType(), "Got discount for station: " + station_id);
             voltExecuteSQL(true);
             return 0;
 
         } else {
-            throw new RuntimeException("There are no discounts availible at station: " + station_id);
+            throw new RuntimeException("There are no discounts available at station: " + station_id);
         }
 
     }

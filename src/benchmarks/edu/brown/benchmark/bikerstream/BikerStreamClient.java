@@ -193,8 +193,7 @@ public class BikerStreamClient extends BenchmarkComponent {
             "CheckoutBike",
             "RideBike",
             "CheckinBike",
-            "TestProcedure",
-            "LogRiderTrip"
+            "GetDiscount"
         };
         return (procNames);
     }
