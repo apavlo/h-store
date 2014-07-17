@@ -1227,7 +1227,7 @@ bool AntiCacheEvictionManager::mergeUnevictedTuples(PersistentTable *table)
             m_tuplesRead += tuplesRead;
             tableInBlock->setTuplesRead(m_tuplesRead);
             tableInBlock->m_bytesEvicted-=bytes_unevicted;
-            VOLT_INFO("Bytes unevicted%ld", long(bytes_unevicted));
+            VOLT_INFO("Bytes unevicted: %ld", long(bytes_unevicted));
             tableInBlock->m_bytesRead+=bytes_unevicted;
             tableInBlock->m_blocksEvicted -= 1;
             tableInBlock->m_blocksRead += 1;
@@ -1277,29 +1277,30 @@ void AntiCacheEvictionManager::recordEvictedAccess(catalog::Table* catalogTable,
     
 }
 
-void AntiCacheEvictionManager::throwEvictedAccessException(int partition_id) {
+void AntiCacheEvictionManager::throwEvictedAccessException() {
     // Do we really want to remove all the non-unique blockIds here?
-    m_evicted_block_ids.unique();
+    // m_evicted_block_ids.unique();
         
     int num_block_ids = static_cast<int>(m_evicted_block_ids.size()); 
     assert(num_block_ids > 0); 
     
-    VOLT_DEBUG("%d evicted blocks to read.", num_block_ids);
+    VOLT_DEBUG("Txn accessed data from %d evicted blocks", num_block_ids);
         
     int16_t* block_ids = new int16_t[num_block_ids];
     int32_t* tuple_ids = new int32_t[num_block_ids];
         
     // copy the block ids into an array 
-    int i = 0; 
-    for(list<int16_t>::iterator itr = m_evicted_block_ids.begin(); itr != m_evicted_block_ids.end(); ++itr) {
-        block_ids[i++] = *itr; 
+    int num_blocks = 0; 
+    for(vector<int16_t>::iterator itr = m_evicted_block_ids.begin(); itr != m_evicted_block_ids.end(); ++itr) {
         VOLT_INFO("Marking block %d as being needed for uneviction", *itr); 
+        block_ids[num_blocks++] = *itr; 
     }
 
     // copy the tuple offsets into an array
-    i = 0; 
-    for(list<int32_t>::iterator itr = m_evicted_offsets.begin(); itr != m_evicted_offsets.end(); ++itr) {
-        tuple_ids[i++] = *itr;
+    int num_tuples = 0; 
+    for(vector<int32_t>::iterator itr = m_evicted_offsets.begin(); itr != m_evicted_offsets.end(); ++itr) {
+        VOLT_INFO("Marking tuple %d from %s as being needed for uneviction", *itr, m_evicted_tables[num_tuples]->name().c_str()); 
+        tuple_ids[num_tuples++] = *itr;
     }
     
     // HACK
@@ -1307,8 +1308,11 @@ void AntiCacheEvictionManager::throwEvictedAccessException(int partition_id) {
         
     // Do we really want to throw this here?
     // FIXME We need to support multiple tables in the exception data
-    VOLT_INFO("Throwing EvictedTupleAccessException for table %s (%d)", catalogTable->name().c_str(), catalogTable->relativeIndex());
-    throw EvictedTupleAccessException(catalogTable->relativeIndex(), num_block_ids, block_ids, tuple_ids, partition_id);
+    VOLT_INFO("Throwing EvictedTupleAccessException for table %s (%d) "
+              "[num_blocks=%d / num_tuples=%d]",
+              catalogTable->name().c_str(), catalogTable->relativeIndex(),
+              num_blocks, num_tuples);
+    throw EvictedTupleAccessException(catalogTable->relativeIndex(), num_block_ids, block_ids, tuple_ids);
 }
 
 

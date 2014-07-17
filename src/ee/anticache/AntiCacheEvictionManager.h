@@ -35,7 +35,7 @@
 #include "common/NValue.hpp"
 #include "common/ValuePeeker.hpp"
 
-#include <list>
+#include <vector>
 
 namespace voltdb {
 
@@ -75,7 +75,7 @@ public:
         return (m_evicted_block_ids.empty() == false);
     }
     void recordEvictedAccess(catalog::Table* catalogTable, TableTuple *tuple);
-    void throwEvictedAccessException(int partition_id);
+    void throwEvictedAccessException();
     
 protected:
     void initEvictResultTable();
@@ -94,9 +94,9 @@ protected:
     ValuePeeker peeker; 
     TableTuple* m_evicted_tuple; 
     
-    std::list<catalog::Table*> m_evicted_tables;
-    std::list<int16_t> m_evicted_block_ids;
-    std::list<int32_t> m_evicted_offsets;
+    std::vector<catalog::Table*> m_evicted_tables;
+    std::vector<int16_t> m_evicted_block_ids;
+    std::vector<int32_t> m_evicted_offsets;
     
 }; // AntiCacheEvictionManager class
 

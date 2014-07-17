@@ -381,9 +381,10 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
     	if (debug.val)
     	    LOG.debug(String.format("\nBase partition: %d \nPartition that needs to unevict data: %d",
     	              txn.getBasePartition(), partition));
-    	if (txn instanceof LocalTransaction){
+    	if (txn instanceof LocalTransaction) {
     		LocalTransaction ts = (LocalTransaction)txn;
-	    	if(ts.getBasePartition()!=partition  && !hstore_site.isLocalPartition(partition)){ // different partition generated the exception
+    		// Different partition generated the exception
+	    	if (ts.getBasePartition() != partition  && !hstore_site.isLocalPartition(partition)){ 
 	    		int site_id = hstore_site.getCatalogContext().getSiteIdForPartitionId(partition);
 	    		hstore_site.getCoordinator().sendUnevictDataMessage(site_id, ts, partition, catalog_tbl, block_ids, tuple_offsets);
 	    		return true;

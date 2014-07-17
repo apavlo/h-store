@@ -54,6 +54,7 @@ public class TestAntiCacheManagerTPCC extends BaseTestCase {
     
     private PartitionExecutor executor;
     private ExecutionEngine ee;
+    private AntiCacheManagerProfiler profiler;
     private Table catalog_tbl;
     private int locators[];
 
@@ -89,6 +90,8 @@ public class TestAntiCacheManagerTPCC extends BaseTestCase {
         assertNotNull(this.executor);
         this.ee = executor.getExecutionEngine();
         assertNotNull(this.executor);
+        this.profiler = hstore_site.getAntiCacheManager().getDebugContext().getProfiler(0);
+        assertNotNull(profiler);
         
         this.client = createClient();
     }
@@ -145,38 +148,52 @@ public class TestAntiCacheManagerTPCC extends BaseTestCase {
         return (evictResult);
     }
     
+    private void sequentialScanWithLimit(int expected) throws Exception {
+        assert(expected < NUM_TUPLES);
+        this.loadData();
+        
+        // We should have all of our tuples evicted
+        VoltTable evictResult = this.evictData();
+        long evicted = evictResult.getLong("ANTICACHE_TUPLES_EVICTED");
+        assertTrue("No tuples were evicted!\n"+evictResult, evicted > 0);
+        // System.err.println(VoltTableUtil.format(evictResult));
+        
+        // Now execute a query that needs to access data from this block
+        Procedure proc = this.getProcedure("GetRecord"); // Special Single-Stmt Proc
+        ClientResponse cresponse = this.client.callProcedure(proc.getName(), expected);
+        assertEquals(Status.OK, cresponse.getStatus());
+
+        // Make sure that we tracked that we tried to touch evicted data
+        assertEquals(1, this.profiler.evictedaccess_history.size());
+
+        // And then check to make sure that we get the correct number of rows back
+        VoltTable results[] = cresponse.getResults();
+        System.err.println(VoltTableUtil.format(results[0]));
+        assertEquals(1, results.length);
+        assertEquals(expected, results[0].getRowCount());
+    }
+    
+    
     // --------------------------------------------------------------------------------------------
     // TEST CASES
     // --------------------------------------------------------------------------------------------
     
-//    /**
-//     * testReadEvictedTuples
-//     */
-//    @Test
-//    public void testReadEvictedTuples() throws Exception {
-//        this.loadData();
-//        
-//        // We should have all of our tuples evicted
-//        VoltTable evictResult = this.evictData();
-//        long evicted = evictResult.getLong("ANTICACHE_TUPLES_EVICTED");
-//        assertTrue("No tuples were evicted!"+evictResult, evicted > 0);
-//        
-//        // Now execute a query that needs to access data from this block
-//        long expected = 1;
-//        Procedure proc = this.getProcedure("GetRecord"); // Special Single-Stmt Proc
-//        ClientResponse cresponse = this.client.callProcedure(proc.getName(), expected);
-//        assertEquals(Status.OK, cresponse.getStatus());
-//
-//        AntiCacheManagerProfiler profiler = hstore_site.getAntiCacheManager().getDebugContext().getProfiler(0);
-//        assertNotNull(profiler);
-//        assertEquals(1, profiler.evictedaccess_history.size());
-//
-//        VoltTable results[] = cresponse.getResults();
-//        assertEquals(1, results.length);
-//        boolean adv = results[0].advanceRow();
-//        assertTrue(adv);
-//        assertEquals(expected, results[0].getLong(0));
-//    }
+    /**
+     * testSeqScanReadOneEvictedTuple
+     */
+    @Test
+    public void testSeqScanReadOneEvictedTuple() throws Exception {
+        this.sequentialScanWithLimit(1);
+    }
+    
+    /**
+     * testSeqScanReadMultipleEvictedTuples
+     */
+    @Test
+    public void testSeqScanReadMultipleEvictedTuples() throws Exception {
+        this.sequentialScanWithLimit(19); // Pick a screwy number
+    }
+    
 
     /**
      * testEvictTuples
