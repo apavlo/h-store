@@ -104,12 +104,12 @@ public class BikerStreamClient extends BenchmarkComponent {
             BikeRider rider = new BikeRider(rider_id);
 
             // Sign the rider up, by sticking rider information into the DB
-            client.callProcedure(new BikerCallback(0,rider_id),
+            client.callProcedure(new BikerCallback(BikerStreamConstants.SignupCallback,rider_id),
                     "SignUp",
                     rider.getRiderId());
 
             // Checkout a bike from the Biker's initial station
-            client.callProcedure(new BikerCallback(1, rider_id),
+            client.callProcedure(new BikerCallback(BikerStreamConstants.CheckoutCallback, rider_id),
                     "CheckoutBike",
                     rider.getRiderId(),
                     rider.getStartingStation());
@@ -128,7 +128,7 @@ public class BikerStreamClient extends BenchmarkComponent {
                 // As long as there are points in the current leg, put them into the data base at a rate specified by
                 // the MILI_BETWEEN_GPS_EVENTS Constant.
                 while ((point = route.poll()) != null){
-                    client.callProcedure(new BikerCallback(2),
+                    client.callProcedure(new BikerCallback(BikerStreamConstants.RideBikeCallback),
                             "RideBike",
                             rider.getRiderId(),
                             point.lat,
@@ -146,7 +146,7 @@ public class BikerStreamClient extends BenchmarkComponent {
 
             // When all legs of the journey are finished. Attempt to park the bike. The callback will handle whether or
             //not we were successfull.
-            client.callProcedure(new BikerCallback(3, rider_id),
+            client.callProcedure(new BikerCallback(BikerStreamConstants.CheckinCallback, rider_id),
                     "CheckinBike",
                     rider.getRiderId(),
                     rider.getFinalStation());
@@ -159,7 +159,7 @@ public class BikerStreamClient extends BenchmarkComponent {
 
                 // Put those points into the DB
                 while ((point = route.poll()) != null){
-                    client.callProcedure(new BikerCallback(2),
+                    client.callProcedure(new BikerCallback(BikerStreamConstants.RideBikeCallback),
                             "RideBike",
                             rider.getRiderId(),
                             point.lat,
@@ -169,7 +169,7 @@ public class BikerStreamClient extends BenchmarkComponent {
                 }
 
                 // Try again to checkin the bike. Loop to check for success
-                client.callProcedure(new BikerCallback(3, rider_id),
+                client.callProcedure(new BikerCallback(BikerStreamConstants.CheckinCallback, rider_id),
                         "CheckinBike",
                         rider.getRiderId(),
                         rider.getFinalStation());
