@@ -35,23 +35,25 @@ using namespace voltdb;
 
 std::string EvictedTupleAccessException::ERROR_MSG = std::string("Txn tried to access evicted tuples");
 
-EvictedTupleAccessException::EvictedTupleAccessException(int tableId, int numBlockIds, int16_t blockIds[], int32_t tupleIDs[], int partitionId) :
+EvictedTupleAccessException::EvictedTupleAccessException(int tableId, int numBlockIds, int16_t blockIds[], int32_t tupleIDs[]) :
     SerializableEEException(VOLT_EE_EXCEPTION_TYPE_EVICTED_TUPLE, EvictedTupleAccessException::ERROR_MSG),
         m_tableId(tableId),
         m_numBlockIds(numBlockIds),
         m_blockIds(blockIds), 
-		m_tupleKeys(tupleIDs),
-		m_partitionId(partitionId) {
-	
-			VOLT_DEBUG("In EvictedTupleAccessException constructor...setting eviction type to %d.", VOLT_EE_EXCEPTION_TYPE_EVICTED_TUPLE); 
+        m_tupleKeys(tupleIDs),
+        // IMPORTANT: We always set the partitionId to the null id here (-1)
+        // The PartitionExecutor will set this correctly for us up in the Java layer
+        m_partitionId(-1) {
+    
+    VOLT_TRACE("In EvictedTupleAccessException constructor...setting exception type to %d.", VOLT_EE_EXCEPTION_TYPE_EVICTED_TUPLE); 
     
     // Nothing to see, nothing to do...
 }
 
 void EvictedTupleAccessException::p_serialize(ReferenceSerializeOutput *output) {
-	
-	VOLT_DEBUG("In EvictedTupleAccessException p_serialize()."); 
-	
+    
+    VOLT_TRACE("In EvictedTupleAccessException p_serialize()."); 
+    
     output->writeInt(m_tableId);
     output->writeShort(static_cast<short>(m_numBlockIds)); // # of block ids
     for (int ii = 0; ii < m_numBlockIds; ii++) {
