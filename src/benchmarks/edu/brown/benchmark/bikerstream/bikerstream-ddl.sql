@@ -8,8 +8,8 @@ CREATE TABLE stations
     station_id     INTEGER      PRIMARY KEY
 ,   station_name   VARCHAR(64)  NOT NULL
 ,   street_address VARCHAR(128) NOT NULL
-,   latitude       INTEGER      NOT NULL
-,   longitude      INTEGER      NOT NULL
+,   latitude       FLOAT        NOT NULL
+,   longitude      FLOAT        NOT NULL
 );
 
 CREATE TABLE StationStatus
