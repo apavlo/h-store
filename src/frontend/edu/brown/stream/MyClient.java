@@ -280,7 +280,6 @@ public class MyClient {
 				while ((results = myc.callStoredProcedure(proc)) == null) {
 					proc = myc.readString();
 				}
-				//System.out.println(results[0].toString());
 				j = new JSONObject();
 				for (VoltTable vt: results) {
 					if (vt.getColumnCount() == 1 && vt.getRowCount() == 1) {
