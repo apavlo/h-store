@@ -78,6 +78,27 @@ public abstract class BikerStreamConstants {
         "Decision_Point_4",
     };
 
+    public static final double[] STATION_LATS = new double[]{
+            -122.670743465424,
+            -122.673382759094,
+            -122.66716003418,
+            -122.667524814606,
+            -122.681311368942,
+            -122.681010961533,
+            -122.690554261208
+    };
+
+    public static final double[] STATION_LONS = new double[]{
+            45.4992785100733,
+            45.5153465357174,
+            45.5182333316815,
+            45.5309439966742,
+            45.5093168644112,
+            45.5491969282445,
+            45.5220708871078
+    };
+
+
     public static final String[] ALL_STOPS = (String[]) ArrayUtils.addAll(STATION_NAMES, DP_NAMES);
 
 
