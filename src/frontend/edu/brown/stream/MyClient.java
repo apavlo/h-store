@@ -294,12 +294,9 @@ public class MyClient {
 						rows.add(String.valueOf(vt.asScalarLong()));
 					}
 					else {
-						//rows.addAll(myc.parseResults(vt));
 						for (String s: myc.parseResults(vt)) {
 							jsonArray.put(new JSONObject(s));
-							//System.out.println(jsonArray.toString());
 						}
-						//System.out.println(jsonArray.toString());
 						j.put("data", jsonArray);
 						j.put("error", "");
 						j.put("success", 1);
