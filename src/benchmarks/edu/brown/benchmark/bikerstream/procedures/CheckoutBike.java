@@ -56,6 +56,10 @@ public class CheckoutBike extends VoltProcedure {
                 "UPDATE stationstatus SET current_bikes = ?, current_docks = ? where station_id = ?"
             );
 
+    public final SQLStmt updateStationDiscount = new SQLStmt(
+            "UPDATE stationstatus SET current_bikes = ?, current_docks = ?, current_discount = ? where station_id = ?"
+    );
+
     public final SQLStmt log = new SQLStmt(
                 "INSERT INTO logs (user_id, time, success, action) VALUES (?,?,?,?)"
             );
@@ -71,16 +75,26 @@ public class CheckoutBike extends VoltProcedure {
 
         long numBikes = results[0].fetchRow(0).getLong("current_bikes");
         long numDocks = results[0].fetchRow(0).getLong("current_docks");
+        long numDiscounts = results[0].fetchRow(0).getLong("current_discount");
 
         if (numBikes > 0){
-            voltQueueSQL(updateStation, --numBikes, ++numDocks, station_id);
+
+            if (numBikes <= BikerStreamConstants.DISCOUNT_THRESHOLD){
+                voltQueueSQL(updateStationDiscount, --numBikes, ++numDocks, numDiscounts +1, station_id);
+            } else {
+                voltQueueSQL(updateStation, --numBikes, ++numDocks, station_id);
+            }
+
             voltQueueSQL(log, rider_id, new TimestampType(), 1, "successfully got bike from station: " + station_id);
-            voltExecuteSQL();
+            voltExecuteSQL(true);
             return BikerStreamConstants.CHECKOUT_SUCCESS;
+
         } else {
+
             voltQueueSQL(log, rider_id, new TimestampType(), 0, "could not get bike from station: " + station_id);
-            voltExecuteSQL();
+            voltExecuteSQL(true);
             throw new RuntimeException("Rider: " + rider_id + " was unable to checkout a bike");
+
         }
 
     }

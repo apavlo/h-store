@@ -56,6 +56,10 @@ public class CheckinBike extends VoltProcedure {
                 "UPDATE stationstatus SET current_bikes = ?, current_docks = ? where station_id = ?"
             );
 
+    public final SQLStmt updateStationDiscount = new SQLStmt(
+            "UPDATE stationstatus SET current_bikes = ?, current_docks = ?, current_discount = ? where station_id = ?"
+    );
+
     public final SQLStmt log = new SQLStmt(
                 "INSERT INTO logs (user_id, time, success, action) VALUES (?,?,?,?)"
             );
@@ -70,15 +74,23 @@ public class CheckinBike extends VoltProcedure {
 
         long numBikes = results[0].fetchRow(0).getLong("current_bikes");
         long numDocks = results[0].fetchRow(0).getLong("current_docks");
+        long numDiscounts = results[0].fetchRow(0).getLong("current_discount");
 
         if (numDocks > 0){
-            voltQueueSQL(updateStation, ++numBikes, --numDocks, station_id);
+
+            if (numDiscounts > 0){
+                voltQueueSQL(updateStationDiscount, ++numBikes, --numDocks, numDiscounts -1, station_id);
+            } else {
+                voltQueueSQL(updateStation, ++numBikes, --numDocks, station_id);
+            }
+
             voltQueueSQL(log, rider_id, new TimestampType(), 1, "successfully docked bike at station: " + station_id);
-            voltExecuteSQL();
+            voltExecuteSQL(true);
             return BikerStreamConstants.CHECKIN_SUCCESS;
+
         } else {
             voltQueueSQL(log, rider_id, new TimestampType(), 0, "could not dock bike at station: " + station_id);
-            voltExecuteSQL();
+            voltExecuteSQL(true);
             throw new RuntimeException("Rider: " + rider_id + " was unable to checkin a bike");
         }
 
