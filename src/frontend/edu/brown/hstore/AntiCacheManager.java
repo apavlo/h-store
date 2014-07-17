@@ -141,9 +141,11 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
             synchronized(AntiCacheManager.this) {
                 try {
                     // update all the partition sizes
-                	LOG.warn("In mem monitor");
+                	if (debug.val)
+                	    LOG.warn("In mem monitor");
                     for (int partition : hstore_site.getLocalPartitionIds().values()) {
-                    	LOG.warn("Updating partition stats");
+                    	if (debug.val)
+                    	    LOG.warn("Updating partition stats");
                         getPartitionSize(partition);
                     }
                 } catch (Throwable ex) {
@@ -159,7 +161,8 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
             synchronized(AntiCacheManager.this) {
                 try {
                     // check to see if we should start eviction
-                    LOG.warn("Checking and evicting");
+                    if (debug.val)
+                        LOG.warn("Checking and evicting");
                     if (hstore_conf.site.anticache_enable && checkEviction()) {
                         executeEviction();
                     }
