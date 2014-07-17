@@ -48,6 +48,7 @@
 
 #include <cassert>
 #include "boost/shared_ptr.hpp"
+#include "common/debuglog.h"
 #include "common/tabletuple.h"
 #include "table.h"
 #include "storage/TupleIterator.h"
@@ -131,6 +132,8 @@ inline bool TableIterator::continuationPredicate() {
             return (true);
         }
         m_useNested = false;
+        VOLT_DEBUG("Switching from nested iterator (%s) to outer iterator (%s)",
+                   m_nestedIterator->m_table->name().c_str(), m_table->name().c_str());
     }
     
     if (m_scanAllBlocksOrCountFoundTuples) {
@@ -156,6 +159,8 @@ inline bool TableIterator::next(TableTuple &out) {
             return (true);
         }
         m_useNested = false;
+        VOLT_DEBUG("Switching from nested iterator (%s) to outer iterator (%s)",
+                   m_nestedIterator->m_table->name().c_str(), m_table->name().c_str());
     }
     
     while (continuationPredicate()) {
@@ -194,10 +199,7 @@ inline bool TableIterator::next(TableTuple &out) {
 }
 
 inline int TableIterator::getLocation() const {
-    if (m_useNested) {
-        return (m_nestedIterator->getLocation());
-    }
-    return m_location;
+    return (m_useNested ? m_nestedIterator->getLocation() : m_location);
 }
 
 }
