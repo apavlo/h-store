@@ -76,11 +76,11 @@ public class CheckoutBike extends VoltProcedure {
             voltQueueSQL(updateStation, --numBikes, ++numDocks, station_id);
             voltQueueSQL(log, rider_id, new TimestampType(), 1, "successfully got bike from station: " + station_id);
             voltExecuteSQL();
-            return 1;
+            return BikerStreamConstants.CHECKOUT_SUCCESS;
         } else {
             voltQueueSQL(log, rider_id, new TimestampType(), 0, "could not get bike from station: " + station_id);
             voltExecuteSQL();
-            throw new RuntimeException("There are no bikes availible at station: " + station_id);
+            throw new RuntimeException("Rider: " + rider_id + " was unable to checkout a bike");
         }
 
     }
