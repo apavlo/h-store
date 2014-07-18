@@ -48,6 +48,7 @@
 
 #include <cassert>
 #include "boost/shared_ptr.hpp"
+#include "common/debuglog.h"
 #include "common/tabletuple.h"
 #include "table.h"
 #include "storage/TupleIterator.h"
@@ -63,6 +64,12 @@ class TableIterator : public TupleIterator {
 public:
     TableIterator(const Table *parent, bool scanAllBlocks = false);
 
+    /**
+     * This is a special iterator instance that allows you nest iterators together.
+     * We will first iterate over the nested instance and then continue with the parent
+     */
+    TableIterator(const Table *parent, TableIterator *nested, bool scanAllBlocks = false);
+    
     /**
      * Updates the given tuple so that it points to the next tuple in the table.
      * @param out the tuple will point to the retrieved tuple if this method returns true.
@@ -90,23 +97,45 @@ private:
     bool m_scanAllBlocksOrCountFoundTuples;
     const Table *m_table;
     char *m_dataPtr;
+    TableIterator *m_nestedIterator;
+    
     uint32_t m_location;
     uint32_t m_activeTuples;
     uint32_t m_foundTuples;
     uint32_t m_tupleLength;
     uint32_t m_tuplesPerBlock;
     uint32_t m_blockIndex;
+    bool m_useNested;
 };
 
 inline TableIterator::TableIterator(const Table *parent, bool scanAllBlocks)
     : m_scanAllBlocksOrCountFoundTuples(scanAllBlocks),
-      m_table(parent), m_dataPtr(NULL), m_location(0),
+      m_table(parent), m_dataPtr(NULL), m_nestedIterator(NULL), m_location(0),
     m_activeTuples((int) m_table->m_tupleCount),
     m_foundTuples(0), m_tupleLength(parent->m_tupleLength),
-    m_tuplesPerBlock(parent->m_tuplesPerBlock), m_blockIndex(0)
+    m_tuplesPerBlock(parent->m_tuplesPerBlock), m_blockIndex(0), m_useNested(false)
     {}
+    
+
+inline TableIterator::TableIterator(const Table *parent, TableIterator *nested, bool scanAllBlocks)
+    : m_scanAllBlocksOrCountFoundTuples(scanAllBlocks),
+      m_table(parent), m_dataPtr(NULL), m_nestedIterator(nested), m_location(0),
+    m_activeTuples((int) m_table->m_tupleCount),
+    m_foundTuples(0), m_tupleLength(parent->m_tupleLength),
+    m_tuplesPerBlock(parent->m_tuplesPerBlock), m_blockIndex(0), m_useNested(true)
+    {}
+    
 
 inline bool TableIterator::continuationPredicate() {
+    if (m_useNested) {
+        if (m_nestedIterator->continuationPredicate()) {
+            return (true);
+        }
+        m_useNested = false;
+        VOLT_DEBUG("Switching from nested iterator (%s) to outer iterator (%s)",
+                   m_nestedIterator->m_table->name().c_str(), m_table->name().c_str());
+    }
+    
     if (m_scanAllBlocksOrCountFoundTuples) {
         /*
          * Scan until there are no more blocks to scan
@@ -125,6 +154,15 @@ inline bool TableIterator::hasNext() {
 }
 
 inline bool TableIterator::next(TableTuple &out) {
+    if (m_useNested) {
+        if (m_nestedIterator->next(out)) {
+            return (true);
+        }
+        m_useNested = false;
+        VOLT_DEBUG("Switching from nested iterator (%s) to outer iterator (%s)",
+                   m_nestedIterator->m_table->name().c_str(), m_table->name().c_str());
+    }
+    
     while (continuationPredicate()) {
         if (m_location % m_tuplesPerBlock == 0) {
 #ifdef MEMCHECK_NOFREELIST
@@ -161,7 +199,7 @@ inline bool TableIterator::next(TableTuple &out) {
 }
 
 inline int TableIterator::getLocation() const {
-    return m_location;
+    return (m_useNested ? m_nestedIterator->getLocation() : m_location);
 }
 
 }

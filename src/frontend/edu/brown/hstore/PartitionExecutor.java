@@ -3244,6 +3244,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             throw ex;
         } catch (EvictedTupleAccessException ex) {
             if (debug.val) LOG.warn("Caught EvictedTupleAccessException.");
+            ((EvictedTupleAccessException)ex).setPartitionId(this.partitionId);
             error = ex;
             throw ex;
         } catch (SerializableException ex) {

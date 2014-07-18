@@ -2466,17 +2466,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         int restart_limit = (orig_ts.isSysProc() ? hstore_conf.site.txn_restart_limit_sysproc :
                                                    hstore_conf.site.txn_restart_limit);
         if (orig_ts.getRestartCounter() > restart_limit) {
-            LOG.info("Rejected due to restart limit");
-            System.out.println(orig_ts);
-        System.out.println(orig_ts.getPendingError());        
-        System.out.println(((EvictedTupleAccessException)orig_ts.getPendingError()).block_ids[0]);
-            System.out.println(((EvictedTupleAccessException)orig_ts.getPendingError()).tuple_offsets[0]);
+            String msg = String.format("%s has been restarted %d times! Rejecting...",
+                                       orig_ts, orig_ts.getRestartCounter());
+            if (debug.val) LOG.warn(msg);
             if (orig_ts.isSysProc()) {
-                String msg = String.format("%s has been restarted %d times! Rejecting...",
-                                           orig_ts, orig_ts.getRestartCounter());
                 throw new RuntimeException(msg);
             } else {
-                LOG.info("the reject happened coz of too many restarts");
                 this.transactionReject(orig_ts, Status.ABORT_REJECT);
                 return (Status.ABORT_REJECT);
             }
@@ -2687,7 +2682,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             short block_ids[] = error.getBlockIds();
             int tuple_offsets[] = error.getTupleOffsets();
 
-                        
             Table evicted_table = error.getTable(this.catalogContext.database);
             new_ts.setPendingError(error, false);
 
@@ -2695,7 +2689,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 LOG.debug(String.format("Added aborted txn to %s queue. Unevicting %d blocks from %s (%d).",
                           AntiCacheManager.class.getSimpleName(), block_ids.length, evicted_table.getName(), evicted_table.getRelativeIndex()));
             
-            if(orig_ts.getBasePartition()!=error.getPartitionId() && !this.isLocalPartition(error.getPartitionId())){
+            if (orig_ts.getBasePartition() != error.getPartitionId() && !this.isLocalPartition(error.getPartitionId())) {
                 new_ts.setOldTransactionId(orig_ts.getTransactionId());
             }
             this.anticacheManager.queue(new_ts, error.getPartitionId(), evicted_table, block_ids, tuple_offsets);

@@ -72,9 +72,10 @@ bool SeqScanExecutor::p_init(AbstractPlanNode *abstract_node,
 
     SeqScanPlanNode* node = dynamic_cast<SeqScanPlanNode*>(abstract_node);
     assert(node);
-    assert(node->getTargetTable());
+    PersistentTable* target_table = static_cast<PersistentTable*>(node->getTargetTable());
+    assert(target_table);
 
-    m_catalogTable = catalog_db->tables().get(node->getTargetTable()->name());
+    m_catalogTable = catalog_db->tables().get(target_table->name());
     
     //
     // NESTED PROJECTION
@@ -96,16 +97,19 @@ bool SeqScanExecutor::p_init(AbstractPlanNode *abstract_node,
     // FULL TABLE SCHEMA
     //
     } else {
-        //
         // OPTIMIZATION: If there is no predicate for this SeqScan,
         // then we want to just set our OutputTable pointer to be the
         // pointer of our TargetTable. This prevents us from just
         // reading through the entire TargetTable and copying all of
         // the tuples. We are guarenteed that no Executor will ever
         // modify an input table, so this operation is safe
-        //
-        if (!this->needsOutputTableClear()) {
-            node->setOutputTable(node->getTargetTable());
+        bool hasEvictedTable = false;
+        #ifdef ANTICACHE
+        AntiCacheEvictionManager* eviction_manager = executor_context->getAntiCacheEvictionManager();
+        hasEvictedTable = (eviction_manager != NULL && target_table->getEvictedTable() != NULL);
+        #endif
+        if (!this->needsOutputTableClear() && hasEvictedTable == false) {
+            node->setOutputTable(target_table);
         //
         // Otherwise create a new temp table that mirrors the
         // TargetTable so that we can just copy the tuples right into
@@ -115,8 +119,8 @@ bool SeqScanExecutor::p_init(AbstractPlanNode *abstract_node,
         //
         } else {
             node->setOutputTable(TableFactory::getCopiedTempTable(node->databaseId(),
-                    node->getTargetTable()->name(),
-                    node->getTargetTable(),
+                    target_table->name(),
+                    target_table,
                     tempTableMemoryInBytes));
         }
     }
@@ -143,18 +147,16 @@ bool SeqScanExecutor::p_execute(const NValueArray &params, ReadWriteTracker *tra
     VOLT_TRACE("Sequential Scanning table :\n %s",
                target_table->debug().c_str());
     VOLT_DEBUG("Sequential Scanning table : %s which has %d active, %d"
-               " allocated tuples",
+               " allocated tuples, %d evicted tuples",
                target_table->name().c_str(),
                (int)target_table->activeTupleCount(),
-               (int)target_table->allocatedTupleCount());
+               (int)target_table->allocatedTupleCount(),
+               (int)target_table->getTuplesEvicted());
 
-    //
     // OPTIMIZATION: NESTED PROJECTION
-    //
     // Since we have the input params, we need to call substitute to
     // change any nodes in our expression tree to be ready for the
     // projection operations in execute
-    //
     int num_of_columns = (int)output_table->columnCount();
     ProjectionPlanNode* projection_node = dynamic_cast<ProjectionPlanNode*>(node->getInlinePlanNode(PLAN_NODE_TYPE_PROJECTION));
     if (projection_node != NULL) {
@@ -163,11 +165,9 @@ bool SeqScanExecutor::p_execute(const NValueArray &params, ReadWriteTracker *tra
             projection_node->getOutputColumnExpressions()[ctr]->substitute(params);
         }
     }
-
-    //
+    
     // OPTIMIZATION: NESTED LIMIT
     // How nice! We can also cut off our scanning with a nested limit!
-    //
     int limit = -1;
     int offset = -1;
     LimitPlanNode* limit_node = dynamic_cast<LimitPlanNode*>(node->getInlinePlanNode(PLAN_NODE_TYPE_LIMIT));
@@ -179,38 +179,38 @@ bool SeqScanExecutor::p_execute(const NValueArray &params, ReadWriteTracker *tra
             return false;
         }
     }
-
-    //
+    
+    // Anti-Cache Variables
+    // PAVLO 2014-07-17
+    // I am flying on a plane back from Seattle. We also need to check whether
+    // we are looking a table that has evicted tuples. If so, then we cannot
+    // just pass through because then other things will break later on.
+    bool hasEvictedTable = false;
+    #ifdef ANTICACHE
+    AntiCacheEvictionManager* eviction_manager = executor_context->getAntiCacheEvictionManager();
+    hasEvictedTable = (eviction_manager != NULL && target_table->getEvictedTable() != NULL);
+    #endif
+        
     // OPTIMIZATION:
-    //
     // If there is no predicate and no Projection for this SeqScan,
     // then we have already set the node's OutputTable to just point
     // at the TargetTable. Therefore, there is nothing we more we need
     // to do here
-    //
-    if (node->getPredicate() != NULL || projection_node != NULL || limit_node != NULL) {
-        //
+    if (hasEvictedTable || node->getPredicate() != NULL || projection_node != NULL || limit_node != NULL) {
         // Just walk through the table using our iterator and apply
         // the predicate to each tuple. For each tuple that satisfies
         // our expression, we'll insert them into the output table.
-        //
         TableTuple tuple(target_table->schema());
         TableIterator iterator(target_table);
+        
         AbstractExpression *predicate = node->getPredicate();
-        VOLT_TRACE("SCAN PREDICATE A:\n%s\n", predicate->debug(true).c_str());
-
         if (predicate) {
+            VOLT_DEBUG("SCAN PREDICATE A:\n%s\n", predicate->debug(true).c_str());
             predicate->substitute(params);
             assert(predicate != NULL);
-            VOLT_TRACE("SCAN PREDICATE B:\n%s\n",
+            VOLT_DEBUG("SCAN PREDICATE B:\n%s\n",
                        predicate->debug(true).c_str());
         }
-        
-        // Anti-Cache Variables
-        #ifdef ANTICACHE
-        AntiCacheEvictionManager* eviction_manager = executor_context->getAntiCacheEvictionManager();
-        bool hasEvictedTable = (eviction_manager != NULL && target_table->getEvictedTable() != NULL);
-        #endif
 
         int tuple_ctr = 0;
         while (iterator.next(tuple)) {
@@ -221,24 +221,12 @@ bool SeqScanExecutor::p_execute(const NValueArray &params, ReadWriteTracker *tra
                 tracker->markTupleRead(target_table, &tuple);
             }
             
-            // Anti-Cache Evicted Tuple Tracking
+            // No tuple that we find here should *ever* be evicted!!
             #ifdef ANTICACHE
-            // We are pointing to an entry for an evicted tuple
-            if (hasEvictedTable && tuple.isEvicted()) {
-                VOLT_INFO("Tuple in index scan is evicted %s", m_catalogTable->name().c_str());      
-
-                // Tell the EvictionManager's internal tracker that we touched this mofo
-                eviction_manager->recordEvictedAccess(m_catalogTable, &tuple);
-                
-                // Pavlo: 2014-07-09
-                // If the tuple is evicted, then we can't continue with the rest of stuff below us.
-                // There is nothing else we can do with it (i.e., check expressions).
-                // I don't know why this wasn't here in the first place?
-                continue;
-            }
+            assert(tuple.isEvicted() == false);
             #endif
             
-            VOLT_TRACE("INPUT TUPLE: %s, %d/%d\n",
+            VOLT_DEBUG("INPUT TUPLE: %s, %d/%d\n",
                        tuple.debug(target_table->name()).c_str(), tuple_ctr,
                        (int)target_table->activeTupleCount());
             //
@@ -251,15 +239,13 @@ bool SeqScanExecutor::p_execute(const NValueArray &params, ReadWriteTracker *tra
                 //
                 if (projection_node != NULL) {
                     TableTuple &temp_tuple = output_table->tempTuple();
-                    for (int ctr = 0; ctr < num_of_columns; ctr++)
-                    {
+                    for (int ctr = 0; ctr < num_of_columns; ctr++) {
                         NValue value =
                             projection_node->
                           getOutputColumnExpressions()[ctr]->eval(&tuple, NULL);
                         temp_tuple.setNValue(ctr, value);
                     }
-                    if (!output_table->insertTuple(temp_tuple))
-                    {
+                    if (!output_table->insertTuple(temp_tuple)) {
                         VOLT_ERROR("Failed to insert tuple from table '%s' into"
                                    " output table '%s'",
                                    target_table->name().c_str(),
@@ -293,16 +279,45 @@ bool SeqScanExecutor::p_execute(const NValueArray &params, ReadWriteTracker *tra
                 }
             }
         } // WHILE
+        
         #ifdef ANTICACHE
+        // PAVLO 2014-07-17
+        // If we have an EvictedTable for our target table, then we need
+        // to create a second iterator to walk through the evicted tuples.
+        // We cannot use nested TableIterators because the schema for the
+        // we could jump to incorrect offsets. We can skip all of this 
+        // if we've already reached past our limit
+        if (hasEvictedTable && !(limit >= 0 && tuple_ctr >= limit)) {
+            Table *evictedTable = target_table->getEvictedTable();
+            TableTuple evictedTuple(evictedTable->schema());
+            TableIterator evictedIterator(evictedTable);
+            VOLT_DEBUG("Created EvictedTable iterator for %s", evictedTable->name().c_str());
+
+            int num_evicted = 0;
+            while (evictedIterator.next(evictedTuple)) {
+                assert(evictedTuple.isEvicted());
+                // VOLT_INFO("Tuple in seq scan is evicted %s", m_catalogTable->name().c_str());      
+
+                // Tell the EvictionManager's internal tracker that we touched this mofo
+                eviction_manager->recordEvictedAccess(m_catalogTable, &evictedTuple);
+                
+                tuple_ctr++;
+                num_evicted++;
+                if (limit >= 0 && tuple_ctr >= limit) {
+                    break;
+                }
+            } // WHILE
+            VOLT_DEBUG("Found %d evicted tuples from table %s", num_evicted, target_table->name().c_str());
+        }
+        
         // throw exception indicating evicted blocks are needed
         if (hasEvictedTable && eviction_manager->hasEvictedAccesses()) {
-            int32_t partition_id = executor_context->getPartitionId();
-            eviction_manager->throwEvictedAccessException(partition_id);
+            eviction_manager->throwEvictedAccessException();
         }
         #endif
     }
     VOLT_TRACE("\n%s\n", output_table->debug().c_str());
-    VOLT_TRACE("Finished Seq scanning");
+    VOLT_DEBUG("Finished Seq scanning");
 
     return true;
 }

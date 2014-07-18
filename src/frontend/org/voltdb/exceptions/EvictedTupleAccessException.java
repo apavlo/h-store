@@ -6,6 +6,8 @@ import java.nio.ByteBuffer;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Table;
 
+import edu.brown.hstore.HStoreConstants;
+
 /**
  * Special exception that is thrown by the EE when as transaction
  * tries to access one or more tuples that have been evicted.
@@ -18,7 +20,7 @@ public class EvictedTupleAccessException extends SerializableException {
     public final int table_id;
     public final short[] block_ids;
     public final int[] tuple_offsets;
-    public final int partition_id;
+    public int partition_id;
     
     /**
      * 
@@ -66,6 +68,10 @@ public class EvictedTupleAccessException extends SerializableException {
     
     public int getPartitionId(){
     	return this.partition_id;
+    }
+    public void setPartitionId(int partition_id) {
+        assert(this.partition_id == HStoreConstants.NULL_PARTITION_ID);
+        this.partition_id = partition_id;
     }
 
     /**

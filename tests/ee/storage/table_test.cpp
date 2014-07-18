@@ -147,6 +147,20 @@ TEST_F(TableTest, ValueTypes) {
     }
 }
 
+TEST_F(TableTest, NestedIterator) {
+    // Create a nested iterator on the same table.
+    // It should return double the number of tuples.
+    voltdb::TableIterator inner(this->table);
+    voltdb::TableIterator iterator(this->table, &inner);
+    voltdb::TableTuple tuple(table->schema());
+    int found_tuples = 0;
+    while (iterator.next(tuple)) {
+        found_tuples++;
+    }
+    // fprintf(stderr, "FOUND TUPLES: %d\n", found_tuples);
+    EXPECT_EQ(NUM_OF_TUPLES*2, found_tuples);
+}
+
 TEST_F(TableTest, TupleInsert) {
     //
     // All of the values have already been inserted, we just

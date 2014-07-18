@@ -407,8 +407,7 @@ bool NestLoopIndexExecutor::p_execute(const NValueArray &params, ReadWriteTracke
     #ifdef ANTICACHE
     // throw exception indicating evicted blocks are needed
     if (hasEvictedTable && eviction_manager->hasEvictedAccesses()) {
-        int32_t partition_id = executor_context->getPartitionId();
-        eviction_manager->throwEvictedAccessException(partition_id);
+        eviction_manager->throwEvictedAccessException();
     }
     #endif
 
