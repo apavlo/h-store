@@ -268,6 +268,7 @@ public class MyClient {
 		VoltTable [] results;
 		MyClient myc = new MyClient();
 		try {
+			myc.client.callProcedure("SignUp", 1001);
 			myc.api = myc.serverSocket.accept();
 			System.out.println("Connected to " + myc.api.getInetAddress());
 			myc.apiCall = new BufferedReader(new InputStreamReader(myc.api.getInputStream()));
@@ -279,7 +280,6 @@ public class MyClient {
 				while ((results = myc.callStoredProcedure(proc)) == null) {
 					proc = myc.readString();
 				}
-				System.out.println(results[0].toString());
 				j = new JSONObject();
 				for (VoltTable vt: results) {
 					if (vt.getColumnCount() == 1 && vt.getRowCount() == 1) {
@@ -293,12 +293,9 @@ public class MyClient {
 						rows.add(String.valueOf(vt.asScalarLong()));
 					}
 					else {
-						rows.addAll(myc.parseResults(vt));
-						for (String s: rows) {
+						for (String s: myc.parseResults(vt)) {
 							jsonArray.put(new JSONObject(s));
-							System.out.println(jsonArray.toString());
 						}
-						System.out.println(jsonArray.toString());
 						j.put("data", jsonArray);
 						j.put("error", "");
 						j.put("success", 1);
@@ -319,6 +316,9 @@ public class MyClient {
 			// put() throws this in the event of a null string or an incorrect type being passed
 			// as an argument.  The arguments are hard coded, so something catastrophic would have
 			// to occur.
+			e.printStackTrace();
+		} catch (ProcCallException e) {
+			System.out.println("Defined userid is already taken");
 			e.printStackTrace();
 		}
 	}

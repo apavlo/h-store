@@ -41,6 +41,14 @@ import edu.brown.benchmark.bikerstream.procedures.CheckinBike;
 import edu.brown.benchmark.bikerstream.procedures.RideBike;
 import edu.brown.benchmark.bikerstream.procedures.TestProcedure;
 import edu.brown.benchmark.bikerstream.procedures.LogRiderTrip;
+import edu.brown.benchmark.bikerstream.procedures.Bikes;
+import edu.brown.benchmark.bikerstream.procedures.BikeStatus;
+import edu.brown.benchmark.bikerstream.procedures.FindUser;
+import edu.brown.benchmark.bikerstream.procedures.GetBikeStatus;
+import edu.brown.benchmark.bikerstream.procedures.GetStationStatus;
+import edu.brown.benchmark.bikerstream.procedures.Stations;
+import edu.brown.benchmark.bikerstream.procedures.StationStatus;
+import edu.brown.benchmark.bikerstream.procedures.Users;
 //import edu.brown.benchmark.bikerstream.procedures.InsertIntoBikeReadingsTableWinTrigger;
 
 public class BikerStreamProjectBuilder extends AbstractProjectBuilder {
@@ -60,7 +68,15 @@ public class BikerStreamProjectBuilder extends AbstractProjectBuilder {
         CheckinBike.class,
         RideBike.class,
         TestProcedure.class,
-        LogRiderTrip.class
+        LogRiderTrip.class,
+        Bikes.class,
+        BikeStatus.class,
+        FindUser.class,
+        GetBikeStatus.class,
+        GetStationStatus.class,
+        Stations.class,
+        StationStatus.class,
+        Users.class
 //        InsertIntoBikeReadingsTableWinTrigger.class,
     };
 
