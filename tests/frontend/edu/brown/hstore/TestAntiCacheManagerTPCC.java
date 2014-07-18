@@ -166,7 +166,7 @@ public class TestAntiCacheManagerTPCC extends BaseTestCase {
     }
     
     private void simpleScan(String  procName, int expected, boolean useLimit) throws Exception {
-        assert(expected < NUM_TUPLES);
+        assert(expected <= NUM_TUPLES);
         this.loadData();
         
         // We should have all of our tuples evicted
@@ -268,7 +268,7 @@ public class TestAntiCacheManagerTPCC extends BaseTestCase {
      */
     @Test
     public void testSeqScanReadOneEvictedTuple() throws Exception {
-        this.simpleScan(SEQSCAN_PROCEDURE, 1, true);
+        this.simpleScan(SEQSCANLIMIT_PROCEDURE, 1, true);
     }
     
     /**
@@ -276,7 +276,7 @@ public class TestAntiCacheManagerTPCC extends BaseTestCase {
      */
     @Test
     public void testSeqScanReadMultipleEvictedTuples() throws Exception {
-        this.simpleScan(SEQSCAN_PROCEDURE, 19, true); // Pick a screwy number
+        this.simpleScan(SEQSCANLIMIT_PROCEDURE, 19, true); // Pick a screwy number
     }
         
     /**

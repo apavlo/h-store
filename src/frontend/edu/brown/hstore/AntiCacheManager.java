@@ -9,8 +9,10 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import org.apache.log4j.Logger;
@@ -381,6 +383,19 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
     	if (debug.val)
     	    LOG.debug(String.format("\nBase partition: %d \nPartition that needs to unevict data: %d",
     	              txn.getBasePartition(), partition));
+    	
+    	// HACK
+    	Set<Short> allBlockIds = new HashSet<Short>();
+    	for (short block : block_ids) {
+    	    allBlockIds.add(block);
+    	}
+    	block_ids = new short[allBlockIds.size()];
+    	int i = 0;
+    	for (short block : allBlockIds) {
+    	    block_ids[i++] = block;
+    	}
+    	
+    	
     	if (txn instanceof LocalTransaction) {
     		LocalTransaction ts = (LocalTransaction)txn;
     		// Different partition generated the exception

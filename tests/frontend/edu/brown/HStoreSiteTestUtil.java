@@ -38,6 +38,13 @@ public abstract class HStoreSiteTestUtil extends TestCase {
             this.debug = val;
             return (this);
         }
+        @Override
+        public String toString() {
+            String ret = super.toString();
+            ret += " " + this.latch + "\n";
+            ret += this.responses;
+            return (ret);
+        }
     }
     
     public static class WrapperProcedureCallback extends LatchableProcedureCallback {
