@@ -60,12 +60,16 @@ public class Vote extends VoltProcedure {
 	
     // Records a vote
     public final SQLStmt insertVoteStmt = new SQLStmt(
-		"INSERT INTO S1 (vote_id, phone_number, state, contestant_number, created) VALUES (?, ?, ?, ?, ?);"
+		"INSERT INTO votes (vote_id, phone_number, state, contestant_number, created) VALUES (?, ?, ?, ?, ?);"
     );
     
-    public final SQLStmt selectLeaderboardStmt = new SQLStmt(
-		"SELECT * FROM LEADERBOARD ORDER BY CONTESTANT_NUMBER;"
+    public final SQLStmt insertVoteWindowStmt = new SQLStmt(
+		"INSERT INTO W_ROWS (vote_id, phone_number, state, contestant_number, created) VALUES (?, ?, ?, ?, ?);"
     );
+    
+//    public final SQLStmt selectLeaderboardStmt = new SQLStmt(
+//		"SELECT * FROM LEADERBOARD ORDER BY CONTESTANT_NUMBER;"
+//    );
 	
     public long run(long voteId, long phoneNumber, int contestantNumber, long maxVotesPerPhoneNumber) {
 		
@@ -95,7 +99,8 @@ public class Vote extends VoltProcedure {
         // Post the vote
         TimestampType timestamp = new TimestampType();
         voltQueueSQL(insertVoteStmt, voteId, phoneNumber, state, contestantNumber, timestamp);
-        voltQueueSQL(selectLeaderboardStmt);
+        voltQueueSQL(insertVoteWindowStmt, voteId, phoneNumber, state, contestantNumber, timestamp);
+        //voltQueueSQL(selectLeaderboardStmt);
         voltExecuteSQL(true);
 		
         // Set the return value to 0: successful vote

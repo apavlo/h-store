@@ -79,12 +79,6 @@ CREATE TABLE current_win_id
   win_id           bigint      NOT NULL
 );
 
-CREATE TABLE leaderboard
-(
-  contestant_number  integer   NOT NULL
-, numvotes           integer   NOT NULL
-);
-
 -- rollup of votes by phone number, used to reject excessive voting
 CREATE VIEW v_votes_by_phone_number
 (
@@ -113,4 +107,17 @@ AS
  GROUP BY contestant_number
         , state
 ;
+
+--CREATE VIEW v_leaderboard
+--(
+--  contestant_number
+--, num_votes
+--)
+--AS
+--   SELECT contestant_number
+--        , COUNT(*)
+--     FROM w_rows
+-- GROUP BY contestant_number
+--;
+
 

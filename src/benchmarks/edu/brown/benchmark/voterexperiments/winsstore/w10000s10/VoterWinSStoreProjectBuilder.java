@@ -34,9 +34,7 @@ import org.voltdb.VoltProcedure;
 import edu.brown.benchmark.AbstractProjectBuilder;
 import edu.brown.api.BenchmarkComponent;
 
-import edu.brown.benchmark.voterexperiments.winsstore.w10000s10.procedures.ValidateContestantsTrigger;
-import edu.brown.benchmark.voterexperiments.winsstore.w10000s10.procedures.UpdateVotesAndTotalVotesTrigger;
-import edu.brown.benchmark.voterexperiments.winsstore.w10000s10.procedures.UpdateLeaderBoard;
+//import edu.brown.benchmark.voterexperiments.winsstore.w10000s10.procedures.UpdateLeaderBoard;
 import edu.brown.benchmark.voterexperiments.winsstore.w10000s10.procedures.Vote; 
 import edu.brown.benchmark.voterexperiments.winsstore.w10000s10.procedures.Initialize; 
 
@@ -52,10 +50,7 @@ public class VoterWinSStoreProjectBuilder extends AbstractProjectBuilder {
     @SuppressWarnings("unchecked")
     public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[]{
         Vote.class, 
-        Initialize.class,
-        ValidateContestantsTrigger.class,
-        UpdateVotesAndTotalVotesTrigger.class,
-        UpdateLeaderBoard.class
+        Initialize.class
     };
 	
 	{
@@ -65,10 +60,8 @@ public class VoterWinSStoreProjectBuilder extends AbstractProjectBuilder {
 	// a list of tables used in this benchmark with corresponding partitioning keys
     public static final String PARTITIONING[][] = new String[][] {
         { "votes", "phone_number" },
-        { "votes_stream", "phone_number"},
-        { "S1", "phone_number"},
         { "W_ROWS", "phone_number"},
-        { "leaderboard", "phone_number"}
+        //{ "leaderboard", "phone_number"}
     };
 
     public VoterWinSStoreProjectBuilder() {

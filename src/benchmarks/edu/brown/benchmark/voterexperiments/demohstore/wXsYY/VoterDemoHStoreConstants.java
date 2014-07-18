@@ -37,12 +37,14 @@ public abstract class VoterDemoHStoreConstants {
     
     public static final int VOTE_THRESHOLD = 50000;
 	public static final int MAX_VOTES = 1; 
-	public static final int NUM_CONTESTANTS = 12; 
+	public static final int NUM_CONTESTANTS = 25; 
 
 	// Initialize some common constants and variables
-    public static final String CONTESTANT_NAMES_CSV = "Edwina Burnam,Tabatha Gehling,Kelly Clauss,Jessie Alloway," +
-											   "Alana Bregman,Jessie Eichman,Allie Rogalski,Nita Coster," +
-											   "Kurt Walser,Ericka Dieter,Loraine Nygren,Tania Mattioli";
+    public static final String CONTESTANT_NAMES_CSV = "Jann Arden,Micah Barnes,Justin Bieber,Jim Bryson,Michael Buble," +
+    													"Leonard Cohen,Celine Dion,Nelly Furtado,Adam Gontier,Emily Haines," +
+    													"Avril Lavigne,Ashley Leggat,Eileen McGann,Sarah McLachlan,Joni Mitchell," +
+    													"Mae Moore,Alanis Morissette,Emilie Mover,Anne Murray,Sam Roberts," +
+    													"Serena Ryder,Tamara Sandor,Nicholas Scribner,Shania Twain,Neil Young";
     // potential return codes
     public static final long VOTE_SUCCESSFUL = 0;
     public static final long ERR_INVALID_CONTESTANT = 1;

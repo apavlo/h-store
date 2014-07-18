@@ -59,7 +59,7 @@ public class VoterWinHStoreProjectBuilder extends AbstractProjectBuilder {
         { "votes", "phone_number" },
         { "w_staging", "phone_number" },
         { "w_rows", "phone_number" },
-        { "leaderboard", "contestant_number"},
+        //{ "leaderboard", "contestant_number"},
         { "staging_count", "row_id"},
         { "current_win_id", "row_id"}
     };

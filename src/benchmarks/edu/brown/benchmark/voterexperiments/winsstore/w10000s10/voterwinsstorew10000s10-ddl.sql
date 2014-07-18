@@ -37,12 +37,12 @@ CREATE TABLE votes
 -- PARTITION BY ( phone_number )
 );
 
-CREATE TABLE leaderboard
-(
-  contestant_number         integer    NOT NULL
-, numvotes           integer    NOT NULL
-, phone_number       integer    NOT NULL
-);
+--CREATE TABLE leaderboard
+--(
+--  contestant_number         integer    NOT NULL
+--, numvotes           integer    NOT NULL
+--, phone_number       integer    NOT NULL
+--);
 
 CREATE VIEW v_votes_by_phone_number
 (
@@ -71,17 +71,6 @@ AS
         , state
 ;
 
--- streams for processing ---
-CREATE STREAM votes_stream
-(
-  vote_id            bigint     NOT NULL,
-  phone_number       bigint     NOT NULL
-, state              varchar(2) NOT NULL
-, contestant_number  integer    NOT NULL
-, created            timestamp  NOT NULL
-);
-
--- result from step 1: Validate contestants
 CREATE STREAM S1
 (
   vote_id            bigint     NOT NULL,
