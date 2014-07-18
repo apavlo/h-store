@@ -189,11 +189,10 @@ public class BikerStreamClient extends BenchmarkComponent {
     public String[] getTransactionDisplayNames() {
         // Return an array of transaction names
         String procNames[] = new String[]{
-            "SignUp",
-            "CheckoutBike",
-            "RideBike",
-            "CheckinBike",
-            "GetDiscount"
+            "Riders signed up",
+            "Bikes checked out",
+            "Points added to the DB",
+            "Bikes checked in",
         };
         return (procNames);
     }
