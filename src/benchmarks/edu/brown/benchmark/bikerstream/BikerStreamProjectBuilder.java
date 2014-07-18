@@ -48,6 +48,8 @@ public class BikerStreamProjectBuilder extends AbstractProjectBuilder {
     public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[]{
         Initialize.class,
         SignUp.class,
+        SignUpName.class,
+        SignUpRand.class,
         CheckoutBike.class,
         CheckinBike.class,
         RideBike.class,

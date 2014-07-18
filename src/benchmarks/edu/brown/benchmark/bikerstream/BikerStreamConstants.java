@@ -106,6 +106,9 @@ public abstract class BikerStreamConstants {
     // SIGNUP
     //
 
+    // The Highest id that can be given to a rider
+    public static final int MAX_ID = 10000;
+
     // Return Values
     public static final long INSERT_RIDER_SUCCESS = 0;
 
