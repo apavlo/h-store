@@ -38,7 +38,7 @@ import org.voltdb.types.TimestampType;
 @ProcInfo (
     singlePartition = true
 )
-public class GetDiscount extends VoltProcedure {
+public class AcceptDiscount extends VoltProcedure {
 
     // Logging Information
     // private static final Logger Log = Logger.getLogger(GetDiscount.class);
@@ -70,13 +70,11 @@ public class GetDiscount extends VoltProcedure {
         long numDiscs = results[0].fetchRow(0).getLong("current_discount");
 
         if (numDiscs > 0) {
-
             voltQueueSQL(updateStation, numDiscs -1, station_id);
             voltQueueSQL(addDiscount, rider_id, station_id);
             voltQueueSQL(logSuccess, rider_id, new TimestampType(), "Got discount for station: " + station_id);
             voltExecuteSQL(true);
             return 0;
-
         } else {
             throw new RuntimeException("There are no discounts available at station: " + station_id);
         }
