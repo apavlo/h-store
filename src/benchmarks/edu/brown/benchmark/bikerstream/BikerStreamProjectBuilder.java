@@ -36,6 +36,7 @@ import edu.brown.api.BenchmarkComponent;
 
 import edu.brown.benchmark.bikerstream.procedures.Initialize;
 import edu.brown.benchmark.bikerstream.procedures.SignUp;
+import edu.brown.benchmark.bikerstream.procedures.SignUpName;
 import edu.brown.benchmark.bikerstream.procedures.CheckoutBike;
 import edu.brown.benchmark.bikerstream.procedures.CheckinBike;
 import edu.brown.benchmark.bikerstream.procedures.RideBike;
@@ -64,6 +65,7 @@ public class BikerStreamProjectBuilder extends AbstractProjectBuilder {
     public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[]{
         Initialize.class,
         SignUp.class,
+        SignUpName.class,
         CheckoutBike.class,
         CheckinBike.class,
         RideBike.class,
