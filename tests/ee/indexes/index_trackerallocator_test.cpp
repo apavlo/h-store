@@ -106,7 +106,7 @@ public:
                                                                          voltdb::BALANCED_TREE_INDEX,
                                                                          m_primaryKeyIndexColumns,
                                                                          m_primaryKeyIndexSchemaTypes,
-                                                                         false, false, m_tableSchema);
+                                                                         true, false, m_tableSchema);
 
 //           voltdb::TableIndexScheme indexScheme = voltdb::TableIndexScheme("primaryKeyIndex",
 //                                                                        voltdb::HASH_TABLE_INDEX,

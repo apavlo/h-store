@@ -2,5 +2,5 @@
 
 int currentIndexID;
 int indexCounter;
-map <int32_t, int64_t> indexMemoryTable;
+std::map <int32_t, int64_t> indexMemoryTable;
 

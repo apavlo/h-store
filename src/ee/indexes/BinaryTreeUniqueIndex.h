@@ -48,10 +48,12 @@
 
 //#include <map>
 #include "stx/btree_map.h"
+#include "stx/btree.h"
 #include <iostream>
 #include "common/debuglog.h"
 #include "common/tabletuple.h"
 #include "indexes/tableindex.h"
+#include "indexes/trackerallocator.h"
 
 namespace voltdb {
 
@@ -65,7 +67,7 @@ class BinaryTreeUniqueIndex : public TableIndex
     friend class TableIndexFactory;
 
     //typedef std::map<KeyType, const void*, KeyComparator> MapType;
-    typedef stx::btree_map<KeyType, const void*, KeyComparator> MapType;
+    typedef stx::btree_map<KeyType, const void*, KeyComparator, stx::btree_default_map_traits<KeyType, const void*>, hindex::TrackerAllocator<pair<const KeyType, const void*>, &currentIndexID> > MapType;
 
 public:
 
@@ -73,12 +75,14 @@ public:
 
     bool addEntry(const TableTuple* tuple)
     {
+        currentIndexID = m_id;
         m_tmp1.setFromTuple(tuple, column_indices_, m_keySchema);
         return addEntryPrivate(tuple, m_tmp1);
     }
 
     bool deleteEntry(const TableTuple* tuple)
     {
+        currentIndexID = m_id;
         m_tmp1.setFromTuple(tuple, column_indices_, m_keySchema);
         return deleteEntryPrivate(m_tmp1);
     }
@@ -86,6 +90,7 @@ public:
     bool replaceEntry(const TableTuple* oldTupleValue,
                       const TableTuple* newTupleValue)
     {
+        currentIndexID = m_id;
         // this can probably be optimized
         m_tmp1.setFromTuple(oldTupleValue, column_indices_, m_keySchema);
         m_tmp2.setFromTuple(newTupleValue, column_indices_, m_keySchema);
@@ -104,6 +109,7 @@ public:
     }
     
     bool setEntryToNewAddress(const TableTuple *tuple, const void* address) {
+        currentIndexID = m_id;
         // set the key from the tuple 
         m_tmp1.setFromTuple(tuple, column_indices_, m_keySchema);
         ++m_updates; 
@@ -115,6 +121,7 @@ public:
 
     bool checkForIndexChange(const TableTuple* lhs, const TableTuple* rhs)
     {
+        currentIndexID = m_id;
         m_tmp1.setFromTuple(lhs, column_indices_, m_keySchema);
         m_tmp2.setFromTuple(rhs, column_indices_, m_keySchema);
         return !(m_eq(m_tmp1, m_tmp2));
@@ -122,6 +129,7 @@ public:
 
     bool exists(const TableTuple* values)
     {
+        currentIndexID = m_id;
         ++m_lookups;
         m_tmp1.setFromTuple(values, column_indices_, m_keySchema);
         return (m_entries.find(m_tmp1) != m_entries.end());
@@ -129,6 +137,7 @@ public:
 
     bool moveToKey(const TableTuple* searchKey)
     {
+        currentIndexID = m_id;
         ++m_lookups;
         m_begin = true;
         m_tmp1.setFromKey(searchKey);
@@ -143,6 +152,7 @@ public:
 
     bool moveToTuple(const TableTuple* searchTuple)
     {
+        currentIndexID = m_id;
         ++m_lookups;
         m_begin = true;
         m_tmp1.setFromTuple(searchTuple, column_indices_, m_keySchema);
@@ -157,6 +167,7 @@ public:
 
     void moveToKeyOrGreater(const TableTuple* searchKey)
     {
+        currentIndexID = m_id;
         ++m_lookups;
         m_begin = true;
         m_tmp1.setFromKey(searchKey);
@@ -165,6 +176,7 @@ public:
 
     void moveToGreaterThanKey(const TableTuple* searchKey)
     {
+        currentIndexID = m_id;
         ++m_lookups;
         m_begin = true;
         m_tmp1.setFromKey(searchKey);
@@ -173,6 +185,7 @@ public:
 
     void moveToEnd(bool begin)
     {
+        currentIndexID = m_id;
         ++m_lookups;
         m_begin = begin;
         if (begin)
@@ -183,6 +196,7 @@ public:
 
     TableTuple nextValue()
     {
+        currentIndexID = m_id;
         TableTuple retval(m_tupleSchema);
 
         if (m_begin) {
@@ -202,6 +216,7 @@ public:
 
     TableTuple nextValueAtKey()
     {
+        currentIndexID = m_id;
         TableTuple retval = m_match;
         m_match.move(NULL);
         return retval;
@@ -209,6 +224,7 @@ public:
 
     bool advanceToNextKey()
     {
+        currentIndexID = m_id;
         if (m_begin) {
             ++m_keyIter;
             if (m_keyIter == m_entries.end())
@@ -232,13 +248,16 @@ public:
 
     size_t getSize() const { return m_entries.size(); }
     int64_t getMemoryEstimate() const {
-        return 0;
+        VOLT_DEBUG("getMomoryEstimate called! %d %ld\n", m_id, indexMemoryTable[m_id]);
+        currentIndexID  = m_id;
+        return indexMemoryTable[m_id];
         // return m_entries.bytesAllocated();
     }
     
     std::string getTypeName() const { return "BinaryTreeUniqueIndex"; };
     std::string debug() const
     {
+        currentIndexID = m_id;
         std::ostringstream buffer;
         buffer << TableIndex::debug() << std::endl;
 

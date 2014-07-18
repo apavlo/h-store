@@ -1,3 +1,6 @@
+#ifndef TRACKERALLOCATOR_H_
+#define TRACKERALLOCATOR_H_
+
 #include <cstdio>
 #include <typeinfo>
 #include <vector>
@@ -6,17 +9,19 @@
 #include <string>
 #include <cstdlib>
 #include <iostream>
-using namespace std;
 
 extern int currentIndexID;
 extern int indexCounter;
 // This might should be optimized
-extern map <int32_t, int64_t> indexMemoryTable;
+extern std::map <int32_t, int64_t> indexMemoryTable;
 
 
-template<class ValueType, int *currentIndex, class BaseAllocator = std::allocator<ValueType> > 
-class TrackerAllocator : public BaseAllocator {
+namespace hindex {
+
+template<typename ValueType, int *currentIndex> 
+class TrackerAllocator : public std::allocator<ValueType> {
     public:
+        typedef typename std::allocator<ValueType> BaseAllocator;
         typedef typename BaseAllocator::pointer pointer;
         typedef typename BaseAllocator::size_type size_type;
 
@@ -64,6 +69,7 @@ class TrackerAllocator : public BaseAllocator {
         }
 };
 
+} // namespace index
 /*
 int64_t t;
 
@@ -72,3 +78,5 @@ int main() {
     m[1] = 2;
     printf("%ld\n", t);
 }*/
+
+#endif
