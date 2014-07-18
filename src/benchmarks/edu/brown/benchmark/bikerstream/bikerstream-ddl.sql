@@ -71,5 +71,10 @@ CREATE WINDOW bikerstream_window ON bikestatus ROWS 100 SLIDE 10;
 
 CREATE WINDOW lastNTuples ON bikestatus ROWS 100 SLIDE 10;
 
+CREATE TABLE riderPositions (
+    user_id   INTEGER references users(user_id),
+    latitude  FLOAT   NOT NULL,
+    longitude FLOAT   NOT NULL
+    )
 
 
