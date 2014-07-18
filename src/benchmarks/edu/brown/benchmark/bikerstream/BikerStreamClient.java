@@ -90,25 +90,17 @@ public class BikerStreamClient extends BenchmarkComponent {
 
         // Bike reading generator
         try {
-            Random gen = new Random();
 
-            // Generate a random Rider ID
-            // Make sure it hasn't already been used by checking it against the hash map
-
-            long rider_id = 1;
-
-            //while (usedIds.contains(rider_id = (long) gen.nextInt(BikerStreamConstants.MAX_ID))) {}
-            //usedIds.add(rider_id);
-
-
-            // Sign the rider up, by sticking rider information into the DB
-            cr = client.callProcedure("SignUpName", "Erik", "Sutherland");
-
-            BikeRider rider;
-            if (cr.getException() != null)
-                rider = new BikeRider(cr.getResults()[0].asScalarLong());
+            // Signup a random rider and get the rider's id
+            cr = client.callProcedure("SignUpRand");
+            long rider_id;
+            if (cr.getException() == null)
+                rider_id = cr.getResults()[0].asScalarLong();
             else
                 return false;
+
+            // Create the rider using the id returned from the signup procedure
+            BikeRider rider = new BikeRider(rider_id);
 
             // Checkout a bike from the Biker's initial station
             client.callProcedure(new BikerCallback(1, rider_id),
