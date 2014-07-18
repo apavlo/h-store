@@ -61,7 +61,12 @@ public class Initialize extends VoltProcedure
 
         for (int i = 0; i < numStations; ++i){
             // Insert the Station
-            voltQueueSQL(insertStation, i, BikerStreamConstants.STATION_NAMES[i], "ADRESS HERE", i, i);
+            voltQueueSQL(insertStation,
+                    i,
+                    BikerStreamConstants.STATION_NAMES[i],
+                    "ADRESS HERE",
+                    BikerStreamConstants.STATION_LATS[i],
+                    BikerStreamConstants.STATION_LONS[i]);
 
             int j;
             for (j = 0; j < numBikes; ++j) {
