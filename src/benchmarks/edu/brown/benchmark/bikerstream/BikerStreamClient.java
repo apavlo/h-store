@@ -86,27 +86,21 @@ public class BikerStreamClient extends BenchmarkComponent {
 
         // generate a client class for the current thread
         Client client = this.getClientHandle();
+        ClientResponse cr;
 
         // Bike reading generator
         try {
-            Random gen = new Random();
 
-            // Generate a random Rider ID
-            // Make sure it hasn't already been used by checking it against the hash map
+            // Signup a random rider and get the rider's id
+            cr = client.callProcedure("SignUpRand");
+            long rider_id;
+            if (cr.getException() == null)
+                rider_id = cr.getResults()[0].asScalarLong();
+            else
+                return false;
 
-            long rider_id = 1;
-
-            while (usedIds.contains(rider_id = (long) gen.nextInt(1000))) {}
-            usedIds.add(rider_id);
-
-            // Create a new Rider Struct
-            //BikeRider rider = new BikeRider(rider_id, 1, 2 , new int[]{});
+            // Create the rider using the id returned from the signup procedure
             BikeRider rider = new BikeRider(rider_id);
-
-            // Sign the rider up, by sticking rider information into the DB
-            client.callProcedure(new BikerCallback(0,rider_id),
-                    "SignUp",
-                    rider.getRiderId());
 
             // Checkout a bike from the Biker's initial station
             client.callProcedure(new BikerCallback(1, rider_id),
@@ -190,6 +184,7 @@ public class BikerStreamClient extends BenchmarkComponent {
         // Return an array of transaction names
         String procNames[] = new String[]{
             "SignUp",
+            "SignUpName",
             "CheckoutBike",
             "RideBike",
             "CheckinBike",
