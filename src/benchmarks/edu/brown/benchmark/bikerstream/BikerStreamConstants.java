@@ -137,7 +137,7 @@ public abstract class BikerStreamConstants {
     // BIKE RIDE
     //
 
-    public static final long MILI_BETWEEN_GPS_EVENTS = 10;
+    public static final long MILI_BETWEEN_GPS_EVENTS = 1000;
 
     // ===========================================================================
     // BIKE CHECKIN

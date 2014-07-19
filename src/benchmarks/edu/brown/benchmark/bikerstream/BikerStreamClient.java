@@ -58,7 +58,7 @@ public class BikerStreamClient extends BenchmarkComponent {
 
     public static void main(String args[]) {
         BenchmarkComponent.main(BikerStreamClient.class, args, false);
-    };
+    }
 
     public BikerStreamClient(String args[]) {
         super(args);
