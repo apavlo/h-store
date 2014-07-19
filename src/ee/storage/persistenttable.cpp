@@ -407,15 +407,15 @@ TableTuple evicted_tuple = m_evictedTable->tempTuple();
     m_tmpTarget1.setEvictedFalse();
     m_tmpTarget1.setDeletedFalse();
     // update the indexes to point to this newly unevicted tuple
-    VOLT_INFO("tuple is evicted? %d", m_tmpTarget1.isEvicted());
+    VOLT_TRACE("BEFORE: tuple.isEvicted() = %d", m_tmpTarget1.isEvicted());
     setEntryToNewAddressForAllIndexes(&m_tmpTarget1, m_tmpTarget1.address());
 
     //deleteFromAllIndexes(&m_tmpTarget1);
     //insertTuple(m_tmpTarget1);
 
     m_tmpTarget1.setEvictedFalse();
-    VOLT_INFO("tuple is evicted? %d", m_tmpTarget1.isEvicted());
-    VOLT_INFO("Merged Tuple: %s", m_tmpTarget1.debug(name()).c_str());
+    VOLT_TRACE("AFTER: tuple.isEvicted() = %d", m_tmpTarget1.isEvicted());
+    VOLT_DEBUG("Merged Tuple: %s", m_tmpTarget1.debug(name()).c_str());
     //VOLT_INFO("tuple size: %d, non-inlined memory size: %d", m_tmpTarget1.tupleLength(), m_tmpTarget1.getNonInlinedMemorySize());
 AntiCacheEvictionManager* eviction_manager = m_executorContext->getAntiCacheEvictionManager();
     // re-insert the tuple back into the eviction chain
