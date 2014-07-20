@@ -77,3 +77,9 @@ CREATE TABLE discounts
 ,   station_id INTEGER NOT NULL REFERENCES stations(station_id)
 );
 
+CREATE TABLE userLocations (
+    user_id   INTEGER REFERENCES users(user_id),
+    latitude  FLOAT   NOT NULL,
+    longitude FLOAT   NOT NULL
+    );
+
