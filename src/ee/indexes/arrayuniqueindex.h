@@ -58,7 +58,7 @@ class ArrayUniqueIndex : public TableIndex {
 
         size_t getSize() const { return 0; }
         int64_t getMemoryEstimate() const {
-            return 0;
+            return sizeof(void*) * ARRAY_INDEX_INITIAL_SIZE;
         }
         std::string getTypeName() const { return "ArrayIntUniqueIndex"; };
 

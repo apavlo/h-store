@@ -10,13 +10,12 @@
 #include <cstdlib>
 #include <iostream>
 
+
+namespace h_index {
+
 extern int currentIndexID;
 extern int indexCounter;
-// This might should be optimized
-extern std::map <int32_t, int64_t> indexMemoryTable;
-
-
-namespace hindex {
+extern std::vector <int64_t> indexMemoryTable;
 
 template<typename ValueType, int *currentIndex> 
 class TrackerAllocator : public std::allocator<ValueType> {
@@ -37,27 +36,28 @@ class TrackerAllocator : public std::allocator<ValueType> {
 
         pointer allocate(size_type size) {
             pointer dataPtr = BaseAllocator::allocate(size);
-            indexMemoryTable[*currentIndex] += size * sizeof(size_type);
-            //printf("allocate +++++++ %p %lu.\n", dataPtr, size * sizeof(size_type));
+            indexMemoryTable[*currentIndex] += size * sizeof(ValueType);
+            //printf("%d allocate +++++++ %p %lu.\n", *currentIndex, dataPtr, size * sizeof(ValueType));
             //printf("%s\n", typeid(ValueType).name());
             return dataPtr;
         }
 
         pointer allocate(size_type size, pointer ptr) {
             pointer dataPtr = BaseAllocator::allocate(size, ptr);
-            indexMemoryTable[*currentIndex] += size * sizeof(size_type);
-            //printf("allocate +++++++ %p %lu.\n", dataPtr, size * sizeof(size_type));
+            indexMemoryTable[*currentIndex] += size * sizeof(ValueType);
+            //printf("%d allocate +++++++ %p %lu.\n", *currentIndex, dataPtr, size * sizeof(ValueType));
+            //printf("%s\n", typeid(ValueType).name());
             return dataPtr;
         }
 
         void deallocate(pointer ptr, size_type size) throw() {
             BaseAllocator::deallocate(ptr, size);
-            indexMemoryTable[*currentIndex] -= size * sizeof(size_type);
+            indexMemoryTable[*currentIndex] -= size * sizeof(ValueType);
         }
 
         void construct(pointer __ptr, const ValueType& __val) {
             new(__ptr) ValueType(__val);
-            //printf("construct +++++++ %p %lu.\n", __ptr, sizeof(*__ptr));
+            //printf("%d construct +++++++ %p %lu.\n", *currentIndex, __ptr, sizeof(ValueType));
             //printf("%s\n", typeid(ValueType).name());
             indexMemoryTable[*currentIndex] += sizeof(ValueType);
         }
@@ -70,13 +70,5 @@ class TrackerAllocator : public std::allocator<ValueType> {
 };
 
 } // namespace index
-/*
-int64_t t;
-
-int main() {
-    map <int, int, less <int>, TrackerAllocator <pair <int, int>, &t > > m;
-    m[1] = 2;
-    printf("%ld\n", t);
-}*/
 
 #endif

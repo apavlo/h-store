@@ -92,7 +92,7 @@ public:
     }
     
     
-    void initTable(bool allowInlineStrings) {
+    void initTable(bool allowInlineStrings, TableIndexType type, bool unique) {
         m_tableSchema = voltdb::TupleSchema::createTupleSchema(m_tableSchemaTypes,
                                                                m_tableSchemaColumnSizes,
                                                                m_tableSchemaAllowNull,
@@ -103,10 +103,10 @@ public:
                                                                          m_primaryKeyIndexSchemaAllowNull,
                                                                          allowInlineStrings);
         voltdb::TableIndexScheme indexScheme = voltdb::TableIndexScheme("primaryKeyIndex",
-                                                                         voltdb::BALANCED_TREE_INDEX,
+                                                                         type,
                                                                          m_primaryKeyIndexColumns,
                                                                          m_primaryKeyIndexSchemaTypes,
-                                                                         true, false, m_tableSchema);
+                                                                         unique, true, m_tableSchema);
 
 //           voltdb::TableIndexScheme indexScheme = voltdb::TableIndexScheme("primaryKeyIndex",
 //                                                                        voltdb::HASH_TABLE_INDEX,
@@ -165,9 +165,9 @@ public:
     
 };
 
-TEST_F(IndexTrackerAllocatorTest, BinaryTreeMultiMapIndexMemoryEstimate)
+TEST_F(IndexTrackerAllocatorTest, BinaryTreeUniqueMapIndexMemoryEstimate)
 {
-    initTable(true); 
+    initTable(true, voltdb::BALANCED_TREE_INDEX, true); 
     
     TableTuple tuple = m_table->tempTuple();
     
@@ -175,6 +175,17 @@ TEST_F(IndexTrackerAllocatorTest, BinaryTreeMultiMapIndexMemoryEstimate)
     tuple.setNValue(1, ValueFactory::getIntegerValue(rand()));
     m_table->insertTuple(tuple);
     
+    tuple.setNValue(0, ValueFactory::getIntegerValue(m_tuplesInserted++));
+    tuple.setNValue(1, ValueFactory::getIntegerValue(rand()));
+    m_table->insertTuple(tuple);
+        
+    for(int i = 0; i < 1024; i++) // insert 1024 tuples
+    {
+        tuple.setNValue(0, ValueFactory::getIntegerValue(m_tuplesInserted++));
+        tuple.setNValue(1, ValueFactory::getIntegerValue(rand()));
+        m_table->insertTuple(tuple);
+    }
+
     // get the tuple that was just inserted
     tuple = m_table->lookupTuple(tuple); 
     
@@ -182,7 +193,147 @@ TEST_F(IndexTrackerAllocatorTest, BinaryTreeMultiMapIndexMemoryEstimate)
 
     ASSERT_NE(time_stamp, 0);
 
-    VOLT_DEBUG("%s memory estimate: %ld\n", m_table->index("primaryKeyIndex")->getTypeName().c_str(), m_table->index("primaryKeyIndex")->getMemoryEstimate());
+    VOLT_INFO("%s memory estimate: %ld\n", m_table->index("primaryKeyIndex")->getTypeName().c_str(), m_table->index("primaryKeyIndex")->getMemoryEstimate());
+
+    ASSERT_NE(m_table->index("primaryKeyIndex")->getMemoryEstimate(), 0);
+    
+    cleanupTable(); 
+}
+
+TEST_F(IndexTrackerAllocatorTest, BinaryTreeMultiMapIndexMemoryEstimate)
+{
+    initTable(true, voltdb::BALANCED_TREE_INDEX, false); 
+    
+    TableTuple tuple = m_table->tempTuple();
+    
+    tuple.setNValue(0, ValueFactory::getIntegerValue(m_tuplesInserted++));
+    tuple.setNValue(1, ValueFactory::getIntegerValue(rand()));
+    m_table->insertTuple(tuple);
+    
+    tuple.setNValue(0, ValueFactory::getIntegerValue(m_tuplesInserted++));
+    tuple.setNValue(1, ValueFactory::getIntegerValue(rand()));
+    m_table->insertTuple(tuple);
+        
+    for(int i = 0; i < 1024; i++) // insert 1024 tuples
+    {
+        tuple.setNValue(0, ValueFactory::getIntegerValue(m_tuplesInserted++));
+        tuple.setNValue(1, ValueFactory::getIntegerValue(rand()));
+        m_table->insertTuple(tuple);
+    }
+
+    // get the tuple that was just inserted
+    tuple = m_table->lookupTuple(tuple); 
+    
+    uint32_t time_stamp = tuple.getTimeStamp();
+
+    ASSERT_NE(time_stamp, 0);
+
+    VOLT_INFO("%s memory estimate: %ld\n", m_table->index("primaryKeyIndex")->getTypeName().c_str(), m_table->index("primaryKeyIndex")->getMemoryEstimate());
+
+    ASSERT_NE(m_table->index("primaryKeyIndex")->getMemoryEstimate(), 0);
+    
+    cleanupTable(); 
+}
+
+TEST_F(IndexTrackerAllocatorTest, HashTableMultiMapIndexMemoryEstimate)
+{
+    initTable(true, voltdb::HASH_TABLE_INDEX, false); 
+    
+    TableTuple tuple = m_table->tempTuple();
+    
+    tuple.setNValue(0, ValueFactory::getIntegerValue(m_tuplesInserted++));
+    tuple.setNValue(1, ValueFactory::getIntegerValue(rand()));
+    m_table->insertTuple(tuple);
+    
+    tuple.setNValue(0, ValueFactory::getIntegerValue(m_tuplesInserted++));
+    tuple.setNValue(1, ValueFactory::getIntegerValue(rand()));
+    m_table->insertTuple(tuple);
+        
+    for(int i = 0; i < 1024; i++) // insert 1024 tuples
+    {
+        tuple.setNValue(0, ValueFactory::getIntegerValue(m_tuplesInserted++));
+        tuple.setNValue(1, ValueFactory::getIntegerValue(rand()));
+        m_table->insertTuple(tuple);
+    }
+
+    // get the tuple that was just inserted
+    tuple = m_table->lookupTuple(tuple); 
+    
+    uint32_t time_stamp = tuple.getTimeStamp();
+
+    ASSERT_NE(time_stamp, 0);
+
+    VOLT_INFO("%s memory estimate: %ld\n", m_table->index("primaryKeyIndex")->getTypeName().c_str(), m_table->index("primaryKeyIndex")->getMemoryEstimate());
+
+    ASSERT_NE(m_table->index("primaryKeyIndex")->getMemoryEstimate(), 0);
+    
+    cleanupTable(); 
+}
+
+TEST_F(IndexTrackerAllocatorTest, HashTableUniqueMapIndexMemoryEstimate)
+{
+    initTable(true, voltdb::HASH_TABLE_INDEX, true); 
+    
+    TableTuple tuple = m_table->tempTuple();
+    
+    tuple.setNValue(0, ValueFactory::getIntegerValue(m_tuplesInserted++));
+    tuple.setNValue(1, ValueFactory::getIntegerValue(rand()));
+    m_table->insertTuple(tuple);
+    
+    tuple.setNValue(0, ValueFactory::getIntegerValue(m_tuplesInserted++));
+    tuple.setNValue(1, ValueFactory::getIntegerValue(rand()));
+    m_table->insertTuple(tuple);
+        
+    for(int i = 0; i < 1024; i++) // insert 1024 tuples
+    {
+        tuple.setNValue(0, ValueFactory::getIntegerValue(m_tuplesInserted++));
+        tuple.setNValue(1, ValueFactory::getIntegerValue(rand()));
+        m_table->insertTuple(tuple);
+    }
+
+    // get the tuple that was just inserted
+    tuple = m_table->lookupTuple(tuple); 
+    
+    uint32_t time_stamp = tuple.getTimeStamp();
+
+    ASSERT_NE(time_stamp, 0);
+
+    VOLT_INFO("%s memory estimate: %ld\n", m_table->index("primaryKeyIndex")->getTypeName().c_str(), m_table->index("primaryKeyIndex")->getMemoryEstimate());
+
+    ASSERT_NE(m_table->index("primaryKeyIndex")->getMemoryEstimate(), 0);
+    
+    cleanupTable(); 
+}
+
+TEST_F(IndexTrackerAllocatorTest, ArrayUniqueIndexMemoryEstimate)
+{
+    initTable(true, voltdb::ARRAY_INDEX, true); 
+    
+    TableTuple tuple = m_table->tempTuple();
+    
+    tuple.setNValue(0, ValueFactory::getIntegerValue(m_tuplesInserted++));
+    tuple.setNValue(1, ValueFactory::getIntegerValue(rand()));
+    m_table->insertTuple(tuple);
+    
+    tuple.setNValue(0, ValueFactory::getIntegerValue(m_tuplesInserted++));
+    tuple.setNValue(1, ValueFactory::getIntegerValue(rand()));
+    m_table->insertTuple(tuple);
+        
+    for(int i = 0; i < 1024; i++) // insert 1024 tuples
+    {
+        tuple.setNValue(0, ValueFactory::getIntegerValue(m_tuplesInserted++));
+        tuple.setNValue(1, ValueFactory::getIntegerValue(rand()));
+        m_table->insertTuple(tuple);
+    }
+
+    // get the tuple that was just inserted
+    tuple = m_table->lookupTuple(tuple); 
+    
+    uint32_t time_stamp = tuple.getTimeStamp();
+
+    ASSERT_NE(time_stamp, 0);
+
+    VOLT_INFO("%s memory estimate: %ld\n", m_table->index("primaryKeyIndex")->getTypeName().c_str(), m_table->index("primaryKeyIndex")->getMemoryEstimate());
 
     ASSERT_NE(m_table->index("primaryKeyIndex")->getMemoryEstimate(), 0);
     

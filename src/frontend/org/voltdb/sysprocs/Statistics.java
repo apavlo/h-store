@@ -251,6 +251,18 @@ public class Statistics extends VoltSystemProcedure {
                 final boolean interval =
                     ((Byte)params.toArray()[0]).byteValue() == 0 ? false : true;
                 final Long now = (Long)params.toArray()[1];
+
+                // create an array of the table ids for which statistics are required.
+                // pass this to EE owned by the execution site running this plan fragment.
+                CatalogMap<Table> tables = context.getDatabase().getTables();
+                int[] tableGuids = new int[tables.size()];
+                int ii = 0;
+                for (Table table : tables) {
+                    tableGuids[ii++] = table.getRelativeIndex();
+                    System.err.println("TABLE ID: " + table.getRelativeIndex());
+                }
+
+                /* This part is a test version for add every index's m_relativeIndex to ids.
                 // create an array of the tables for which statistics are required.
                 // pass this to EE owned by the execution site running this plan fragment.
                 CatalogMap<Table> tables = context.getDatabase().getTables();
@@ -279,10 +291,16 @@ public class Statistics extends VoltSystemProcedure {
                     //System.err.println("INDEX ID: " + ii);
                     indexIds[ii++] = n; 
                 }
-
                 VoltTable result = executor.getExecutionEngine().getStats(
                             SysProcSelector.INDEX,
                             indexIds, 
+                            interval,
+                            now)[0];
+                }*/
+
+                VoltTable result = executor.getExecutionEngine().getStats(
+                            SysProcSelector.INDEX,
+                            tableGuids,
                             interval,
                             now)[0];
                 return new DependencySet(DEP_indexData, result);

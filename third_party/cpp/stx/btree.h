@@ -44,6 +44,7 @@
 #include <memory>
 #include <cstddef>
 #include <assert.h>
+#include <typeinfo>
 
 // *** Debugging Macros
 

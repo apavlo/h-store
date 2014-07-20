@@ -1,6 +1,9 @@
 #include "indexes/trackerallocator.h"
 
+namespace h_index {
+
 int currentIndexID;
 int indexCounter;
-std::map <int32_t, int64_t> indexMemoryTable;
+std::vector <int64_t> indexMemoryTable;
 
+}

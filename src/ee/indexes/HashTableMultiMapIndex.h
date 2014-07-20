@@ -62,7 +62,7 @@ class HashTableMultiMapIndex : public TableIndex {
 
     friend class TableIndexFactory;
 
-    typedef boost::unordered_multimap<KeyType, const void*, KeyHasher, KeyEqualityChecker> MapType;
+    typedef boost::unordered_multimap<KeyType, const void*, KeyHasher, KeyEqualityChecker, h_index::TrackerAllocator<pair<const KeyType, const void*>, &h_index::currentIndexID> > MapType;
     typedef typename MapType::const_iterator MMCIter;
     typedef typename MapType::iterator MMIter;
 
@@ -71,16 +71,19 @@ public:
     ~HashTableMultiMapIndex() {};
 
     bool addEntry(const TableTuple *tuple) {
+        h_index::currentIndexID = m_id;
         m_tmp1.setFromTuple(tuple, column_indices_, m_keySchema);
         return addEntryPrivate(tuple, m_tmp1);
     }
 
     bool deleteEntry(const TableTuple *tuple) {
+        h_index::currentIndexID = m_id;
         m_tmp1.setFromTuple(tuple, column_indices_, m_keySchema);
         return deleteEntryPrivate(tuple, m_tmp1);
     }
 
     bool replaceEntry(const TableTuple *oldTupleValue, const TableTuple* newTupleValue) {
+        h_index::currentIndexID = m_id;
         // this can probably be optimized
         m_tmp1.setFromTuple(oldTupleValue, column_indices_, m_keySchema);
         m_tmp2.setFromTuple(newTupleValue, column_indices_, m_keySchema);
@@ -99,6 +102,7 @@ public:
     }
     
     bool setEntryToNewAddress(const TableTuple *tuple, const void* address) {
+        h_index::currentIndexID = m_id;
         m_tmp1.setFromTuple(tuple, column_indices_, m_keySchema);
         ++m_updates;
         
@@ -126,28 +130,33 @@ public:
     }
 
     bool checkForIndexChange(const TableTuple *lhs, const TableTuple *rhs) {
+        h_index::currentIndexID = m_id;
         m_tmp1.setFromTuple(lhs, column_indices_, m_keySchema);
         m_tmp2.setFromTuple(rhs, column_indices_, m_keySchema);
         return !(m_eq(m_tmp1, m_tmp2));
     }
 
     bool exists(const TableTuple* values) {
+        h_index::currentIndexID = m_id;
         ++m_lookups;
         m_tmp1.setFromTuple(values, column_indices_, m_keySchema);
         return (m_entries.find(m_tmp1) != m_entries.end());
     }
 
     bool moveToKey(const TableTuple *searchKey) {
+        h_index::currentIndexID = m_id;
         m_tmp1.setFromKey(searchKey);
         return moveToKey(m_tmp1);
     }
 
     bool moveToTuple(const TableTuple *searchTuple) {
+        h_index::currentIndexID = m_id;
         m_tmp1.setFromTuple(searchTuple, column_indices_, m_keySchema);
         return moveToKey(m_tmp1);
     }
 
     TableTuple nextValueAtKey() {
+        h_index::currentIndexID = m_id;
         if (m_match.isNullTuple()) return m_match;
         TableTuple retval = m_match;
         ++(m_keyIter.first);
@@ -159,12 +168,14 @@ public:
     }
 
     virtual void ensureCapacity(uint32_t capacity) {
+        h_index::currentIndexID = m_id;
         m_entries.rehash(capacity * 2);
     }
 
     size_t getSize() const { return m_entries.size(); }
     int64_t getMemoryEstimate() const {
-        return 0;
+        h_index::currentIndexID = m_id;
+        return h_index::indexMemoryTable[m_id];
         // return m_entries.bytesAllocated();
     }
     

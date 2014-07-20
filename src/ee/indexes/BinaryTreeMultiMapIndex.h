@@ -67,7 +67,7 @@ class BinaryTreeMultiMapIndex : public TableIndex
     friend class TableIndexFactory;
 
     //typedef std::multimap<KeyType, const void*, KeyComparator> MapType;
-    typedef std::multimap<KeyType, const void*, KeyComparator, hindex::TrackerAllocator<pair<const KeyType, const void*>, &currentIndexID> > MapType;
+    typedef std::multimap<KeyType, const void*, KeyComparator, h_index::TrackerAllocator<pair<const KeyType, const void*>, &h_index::currentIndexID> > MapType;
     typedef typename MapType::const_iterator MMCIter;
     typedef typename MapType::iterator MMIter;
     typedef typename MapType::const_reverse_iterator MMCRIter;
@@ -79,14 +79,14 @@ public:
 
     bool addEntry(const TableTuple *tuple)
     {
-        currentIndexID = m_id;
+        h_index::currentIndexID = m_id;
         m_tmp1.setFromTuple(tuple, column_indices_, m_keySchema);
         return addEntryPrivate(tuple, m_tmp1);
     }
 
     bool deleteEntry(const TableTuple *tuple)
     {
-        currentIndexID  = m_id;
+        h_index::currentIndexID  = m_id;
         m_tmp1.setFromTuple(tuple, column_indices_, m_keySchema);
         return deleteEntryPrivate(tuple, m_tmp1);
     }
@@ -94,7 +94,7 @@ public:
     bool replaceEntry(const TableTuple *oldTupleValue,
                       const TableTuple* newTupleValue)
     {
-        currentIndexID  = m_id;
+        h_index::currentIndexID  = m_id;
         // this can probably be optimized
         m_tmp1.setFromTuple(oldTupleValue, column_indices_, m_keySchema);
         m_tmp2.setFromTuple(newTupleValue, column_indices_, m_keySchema);
@@ -117,7 +117,7 @@ public:
     }
     
     bool setEntryToNewAddress(const TableTuple *tuple, const void* address) {
-        currentIndexID  = m_id;
+        h_index::currentIndexID  = m_id;
         m_tmp1.setFromTuple(tuple, column_indices_, m_keySchema);
         ++m_updates; 
         
@@ -150,7 +150,7 @@ public:
 
     bool checkForIndexChange(const TableTuple *lhs, const TableTuple *rhs)
     {
-        currentIndexID  = m_id;
+        h_index::currentIndexID  = m_id;
         m_tmp1.setFromTuple(lhs, column_indices_, m_keySchema);
         m_tmp2.setFromTuple(rhs, column_indices_, m_keySchema);
         return !(m_eq(m_tmp1, m_tmp2));
@@ -158,7 +158,7 @@ public:
 
     bool exists(const TableTuple* values)
     {
-        currentIndexID  = m_id;
+        h_index::currentIndexID  = m_id;
         ++m_lookups;
         m_tmp1.setFromTuple(values, column_indices_, m_keySchema);
         //m_keyIter = m_entries.lower_bound(m_tmp1);
@@ -167,21 +167,21 @@ public:
 
     bool moveToKey(const TableTuple *searchKey)
     {
-        currentIndexID  = m_id;
+        h_index::currentIndexID  = m_id;
         m_tmp1.setFromKey(searchKey);
         return moveToKey(m_tmp1);
     }
 
     bool moveToTuple(const TableTuple *searchTuple)
     {
-        currentIndexID  = m_id;
+        h_index::currentIndexID  = m_id;
         m_tmp1.setFromTuple(searchTuple, column_indices_, m_keySchema);
         return moveToKey(m_tmp1);
     }
 
     void moveToKeyOrGreater(const TableTuple *searchKey)
     {
-        currentIndexID  = m_id;
+        h_index::currentIndexID  = m_id;
         ++m_lookups;
         m_begin = true;
         m_tmp1.setFromKey(searchKey);
@@ -190,7 +190,7 @@ public:
 
     void moveToGreaterThanKey(const TableTuple *searchKey)
     {
-        currentIndexID  = m_id;
+        h_index::currentIndexID  = m_id;
         ++m_lookups;
         m_begin = true;
         m_tmp1.setFromKey(searchKey);
@@ -199,7 +199,7 @@ public:
 
     void moveToEnd(bool begin)
     {
-        currentIndexID  = m_id;
+        h_index::currentIndexID  = m_id;
         ++m_lookups;
         m_begin = begin;
         if (begin)
@@ -210,7 +210,7 @@ public:
 
     TableTuple nextValue()
     {
-        currentIndexID  = m_id;
+        h_index::currentIndexID  = m_id;
         TableTuple retval(m_tupleSchema);
 
         if (m_begin) {
@@ -230,7 +230,7 @@ public:
 
     TableTuple nextValueAtKey()
     {
-        currentIndexID  = m_id;
+        h_index::currentIndexID  = m_id;
         if (m_match.isNullTuple()) return m_match;
         TableTuple retval = m_match;
         ++(m_keyIter.first);
@@ -243,7 +243,7 @@ public:
 
     bool advanceToNextKey()
     {
-        currentIndexID  = m_id;
+        h_index::currentIndexID  = m_id;
         if (m_keyIter.second == m_entries.end())
             return false;
         return moveToKey(m_keyIter.second->first);
@@ -252,8 +252,8 @@ public:
     size_t getSize() const { return m_entries.size(); }
     
     int64_t getMemoryEstimate() const {
-        currentIndexID  = m_id;
-        return indexMemoryTable[m_id];
+        h_index::currentIndexID  = m_id;
+        return h_index::indexMemoryTable[m_id];
         // return m_entries.bytesAllocated();
     }
     
