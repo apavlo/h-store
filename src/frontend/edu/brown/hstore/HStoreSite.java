@@ -59,7 +59,6 @@ import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.SysProcSelector;
 import org.voltdb.TransactionIdManager;
 import org.voltdb.VoltSystemProcedure;
-import org.voltdb.VoltTable;
 import org.voltdb.catalog.CatalogMap;
 import org.voltdb.catalog.Host;
 import org.voltdb.catalog.Partition;
@@ -436,6 +435,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     //XXX Must match with AriesLogProxy
     private final String m_ariesDefaultLogFileName = "aries.log";
     
+    @SuppressWarnings("unused")
     private VoltLogger m_recoveryLog = null;    
     
     public AriesLog getAriesLogger() {
@@ -446,12 +446,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         return m_ariesLogFileName;
     }
 
-    // ----------------------------------------------------------------------------
-    // LOGICAL RECOVERY
-    // ----------------------------------------------------------------------------
-    
-    private long lastTickTime = 0;
-    
     // ----------------------------------------------------------------------------
     // CONSTRUCTOR
     // ----------------------------------------------------------------------------
@@ -942,8 +936,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     private void takeSnapshot(){
         // Do this only on site lowest id
         Host catalog_host = this.getHost();
-        Site site = this.getSite();
-
         Integer lowest_site_id = Integer.MAX_VALUE, s_id;
 
         for (Site st : CatalogUtil.getAllSites(catalog_host)) {
@@ -954,9 +946,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         int m_siteId = this.getSiteId();
         
         if (m_siteId == lowest_site_id) {
-            LOG.warn("Taking snapshot at site "+m_siteId);
-
-            VoltTable[] results = null;
+            if (debug.val) LOG.warn("Taking snapshot at site "+m_siteId);
             try {
                 File snapshotDir = this.getSnapshotDir();
                 String path = snapshotDir.getAbsolutePath();
