@@ -2575,5 +2575,24 @@ UTILITIES
     </java>
 </target>
 
+<!--
+******************************************************************************
+* S-STORE DISTRIBUTION
+******************************************************************************
+-->
+<target name='sstore-prepare' description="Prepare files for distributed S-Store">
+	<if>
+		<equals arg1="${distributed}" arg2="true"/>
+		<then>
+			<echo>Displaying value of 'distributed' property</echo>
+			<echo>[distributed] ${distributed}</echo>
+			<antcall target="clean-java"/>
+			<antcall target="build-java"/>
+			<property name="distributed" value="false"/>
+		</then>
+	</if>
+	<antcall target="hstore-prepare"/>
+</target>
+
 <!-- END PROJECT -->
 </project>
