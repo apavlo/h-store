@@ -27,31 +27,31 @@
  *  OTHER DEALINGS IN THE SOFTWARE.                                        *
  ***************************************************************************/
 
-package edu.brown.benchmark.voterexperiments.demosstore.wXsYY;
+package edu.brown.benchmark.voterexperiments.demohstorecorrect;
 
 import org.voltdb.VoltProcedure;
 
 import edu.brown.benchmark.AbstractProjectBuilder;
 import edu.brown.api.BenchmarkComponent;
 
-import edu.brown.benchmark.voterexperiments.demosstore.wXsYY.procedures.Vote; 
-import edu.brown.benchmark.voterexperiments.demosstore.wXsYY.procedures.Initialize;
-import edu.brown.benchmark.voterexperiments.demosstore.wXsYY.procedures.GenerateLeaderboard; 
-import edu.brown.benchmark.voterexperiments.demosstore.wXsYY.procedures.DeleteContestant; 
-import edu.brown.benchmark.voterexperiments.demosstore.wXsYY.procedures.LeaderboardTrigger; 
+import edu.brown.benchmark.voterexperiments.demohstorecorrect.procedures.Vote; 
+import edu.brown.benchmark.voterexperiments.demohstorecorrect.procedures.Initialize;
+import edu.brown.benchmark.voterexperiments.demohstorecorrect.procedures.GenerateLeaderboard; 
+import edu.brown.benchmark.voterexperiments.demohstorecorrect.procedures.DeleteContestant;
+import edu.brown.benchmark.voterexperiments.demohstorecorrect.procedures.Results;
 
-public class VoterDemoSStoreProjectBuilder extends AbstractProjectBuilder {
-
-    // REQUIRED: Retrieved via reflection by BenchmarkController
-    public static final Class<? extends BenchmarkComponent> m_clientClass = VoterDemoSStoreClient.class;
+public class VoterDemoHStoreProjectBuilder extends AbstractProjectBuilder {
 
     // REQUIRED: Retrieved via reflection by BenchmarkController
-    public static final Class<? extends BenchmarkComponent> m_loaderClass = VoterDemoSStoreLoader.class;
+    public static final Class<? extends BenchmarkComponent> m_clientClass = VoterDemoHStoreClient.class;
+
+    // REQUIRED: Retrieved via reflection by BenchmarkController
+    public static final Class<? extends BenchmarkComponent> m_loaderClass = VoterDemoHStoreLoader.class;
 
 	// a list of procedures implemented in this benchmark
     @SuppressWarnings("unchecked")
     public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
-        Vote.class, Initialize.class, GenerateLeaderboard.class, DeleteContestant.class, LeaderboardTrigger.class};
+        Vote.class, Initialize.class, GenerateLeaderboard.class, DeleteContestant.class, Results.class};
 	
 	{
 		//addTransactionFrequency(Vote.class, 100);
@@ -60,14 +60,17 @@ public class VoterDemoSStoreProjectBuilder extends AbstractProjectBuilder {
 	// a list of tables used in this benchmark with corresponding partitioning keys
     public static final String PARTITIONING[][] = new String[][] {
         { "votes", "phone_number" },
+        { "w_staging", "phone_number" },
+        { "w_rows", "phone_number" },
         { "leaderboard", "contestant_number"},
         { "votes_count", "row_id" },
-        { "proc_one_out", "phone_number" },
-        { "proc_two_out", "row_id"}
+        { "staging_count", "row_id" },
+        { "current_win_id", "row_id" },
+        { "proc_one_out", "phone_number" }
     };
 
-    public VoterDemoSStoreProjectBuilder() {
-        super("voterdemosstorewXsYY", VoterDemoSStoreProjectBuilder.class, PROCEDURES, PARTITIONING);
+    public VoterDemoHStoreProjectBuilder() {
+        super("voterdemohstorecorrect", VoterDemoHStoreProjectBuilder.class, PROCEDURES, PARTITIONING);
     }
 }
 

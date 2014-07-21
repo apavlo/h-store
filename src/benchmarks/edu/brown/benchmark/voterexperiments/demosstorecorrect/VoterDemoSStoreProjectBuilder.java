@@ -27,18 +27,19 @@
  *  OTHER DEALINGS IN THE SOFTWARE.                                        *
  ***************************************************************************/
 
-package edu.brown.benchmark.voterexperiments.demosstore.wXsYY;
+package edu.brown.benchmark.voterexperiments.demosstorecorrect;
 
 import org.voltdb.VoltProcedure;
 
 import edu.brown.benchmark.AbstractProjectBuilder;
 import edu.brown.api.BenchmarkComponent;
 
-import edu.brown.benchmark.voterexperiments.demosstore.wXsYY.procedures.Vote; 
-import edu.brown.benchmark.voterexperiments.demosstore.wXsYY.procedures.Initialize;
-import edu.brown.benchmark.voterexperiments.demosstore.wXsYY.procedures.GenerateLeaderboard; 
-import edu.brown.benchmark.voterexperiments.demosstore.wXsYY.procedures.DeleteContestant; 
-import edu.brown.benchmark.voterexperiments.demosstore.wXsYY.procedures.LeaderboardTrigger; 
+import edu.brown.benchmark.voterexperiments.demosstorecorrect.procedures.Vote; 
+import edu.brown.benchmark.voterexperiments.demosstorecorrect.procedures.Initialize;
+import edu.brown.benchmark.voterexperiments.demosstorecorrect.procedures.GenerateLeaderboard; 
+import edu.brown.benchmark.voterexperiments.demosstorecorrect.procedures.DeleteContestant;
+import edu.brown.benchmark.voterexperiments.demosstorecorrect.procedures.Results;
+import edu.brown.benchmark.voterexperiments.demosstorecorrect.procedures.LeaderboardTrigger; 
 
 public class VoterDemoSStoreProjectBuilder extends AbstractProjectBuilder {
 
@@ -51,7 +52,7 @@ public class VoterDemoSStoreProjectBuilder extends AbstractProjectBuilder {
 	// a list of procedures implemented in this benchmark
     @SuppressWarnings("unchecked")
     public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
-        Vote.class, Initialize.class, GenerateLeaderboard.class, DeleteContestant.class, LeaderboardTrigger.class};
+        Vote.class, Initialize.class, GenerateLeaderboard.class, DeleteContestant.class, Results.class, LeaderboardTrigger.class};
 	
 	{
 		//addTransactionFrequency(Vote.class, 100);
@@ -67,7 +68,7 @@ public class VoterDemoSStoreProjectBuilder extends AbstractProjectBuilder {
     };
 
     public VoterDemoSStoreProjectBuilder() {
-        super("voterdemosstorewXsYY", VoterDemoSStoreProjectBuilder.class, PROCEDURES, PARTITIONING);
+        super("voterdemosstorecorrect", VoterDemoSStoreProjectBuilder.class, PROCEDURES, PARTITIONING);
     }
 }
 

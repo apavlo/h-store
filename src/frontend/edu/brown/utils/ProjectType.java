@@ -186,6 +186,9 @@ public enum ProjectType {
     
     VOTERDEMOHSTOREWXSYY("VoterDemoHStoreWXSYY", "edu.brown.benchmark.voterexperiments.demohstore.wXsYY"),
     VOTERDEMOSSTOREWXSYY("VoterDemoSStoreWXSYY", "edu.brown.benchmark.voterexperiments.demosstore.wXsYY"),
+    
+    VOTERDEMOHSTORECORRECT("VoterDemoHStoreCorrect", "edu.brown.benchmark.voterexperiments.demohstorecorrect"),
+    VOTERDEMOSSTORECORRECT("VoterDemoSStoreCorrect", "edu.brown.benchmark.voterexperiments.demosstorecorrect"),
     ;
 
 

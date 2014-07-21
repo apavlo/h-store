@@ -4,7 +4,8 @@
  *  Massachusetts Institute of Technology                                  *
  *  Yale University                                                        *
  *                                                                         *
- *  Coded By:  Justin A. DeBrabant (http://www.cs.brown.edu/~debrabant/)   *								   
+ *  Original By: VoltDB Inc.											   *
+ *  Ported By:  Justin A. DeBrabant (http://www.cs.brown.edu/~debrabant/)  *								   
  *                                                                         *
  *                                                                         *
  *  Permission is hereby granted, free of charge, to any person obtaining  *
@@ -27,50 +28,39 @@
  *  OTHER DEALINGS IN THE SOFTWARE.                                        *
  ***************************************************************************/
 
-package edu.brown.benchmark.voterexperiments.demosstore.wXsYY;
+package edu.brown.benchmark.voterexperiments.demohstorecorrect;
 
-import org.voltdb.VoltProcedure;
+import org.apache.log4j.Logger;
 
-import edu.brown.benchmark.AbstractProjectBuilder;
-import edu.brown.api.BenchmarkComponent;
+import edu.brown.api.Loader;
 
-import edu.brown.benchmark.voterexperiments.demosstore.wXsYY.procedures.Vote; 
-import edu.brown.benchmark.voterexperiments.demosstore.wXsYY.procedures.Initialize;
-import edu.brown.benchmark.voterexperiments.demosstore.wXsYY.procedures.GenerateLeaderboard; 
-import edu.brown.benchmark.voterexperiments.demosstore.wXsYY.procedures.DeleteContestant; 
-import edu.brown.benchmark.voterexperiments.demosstore.wXsYY.procedures.LeaderboardTrigger; 
+public class VoterDemoHStoreLoader extends Loader {
 
-public class VoterDemoSStoreProjectBuilder extends AbstractProjectBuilder {
+    private static final Logger LOG = Logger.getLogger(VoterDemoHStoreLoader.class);
+    private static final boolean d = LOG.isDebugEnabled();
 
-    // REQUIRED: Retrieved via reflection by BenchmarkController
-    public static final Class<? extends BenchmarkComponent> m_clientClass = VoterDemoSStoreClient.class;
+    public static void main(String args[]) throws Exception {
+        if (d) LOG.debug("MAIN: " + VoterDemoHStoreLoader.class.getName());
+        Loader.main(VoterDemoHStoreLoader.class, args, true);
+    }
 
-    // REQUIRED: Retrieved via reflection by BenchmarkController
-    public static final Class<? extends BenchmarkComponent> m_loaderClass = VoterDemoSStoreLoader.class;
+    public VoterDemoHStoreLoader(String[] args) {
+        super(args);
+        if (d) LOG.debug("CONSTRUCTOR: " + VoterDemoHStoreLoader.class.getName());
+    }
 
-	// a list of procedures implemented in this benchmark
-    @SuppressWarnings("unchecked")
-    public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
-        Vote.class, Initialize.class, GenerateLeaderboard.class, DeleteContestant.class, LeaderboardTrigger.class};
-	
-	{
-		//addTransactionFrequency(Vote.class, 100);
-	}
-	
-	// a list of tables used in this benchmark with corresponding partitioning keys
-    public static final String PARTITIONING[][] = new String[][] {
-        { "votes", "phone_number" },
-        { "leaderboard", "contestant_number"},
-        { "votes_count", "row_id" },
-        { "proc_one_out", "phone_number" },
-        { "proc_two_out", "row_id"}
-    };
+    @Override
+    public void load() {
+        int numContestants = VoterDemoHStoreUtil.getScaledNumContestants(this.getScaleFactor());
+        if (d) 
+            LOG.debug("Starting VoterDemoHStoreLoader [numContestants=" + numContestants + "]");
 
-    public VoterDemoSStoreProjectBuilder() {
-        super("voterdemosstorewXsYY", VoterDemoSStoreProjectBuilder.class, PROCEDURES, PARTITIONING);
+        try {
+            this.getClientHandle().callProcedure("Initialize",
+                                                 numContestants,
+                                                 VoterDemoHStoreConstants.CONTESTANT_NAMES_CSV);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 }
-
-
-
-
