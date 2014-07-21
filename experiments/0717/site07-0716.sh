@@ -19,3 +19,7 @@ python ./tools/autorunexp.py -p "voterwinhstore${REP}" -o "experiments/0717/vote
 python ./tools/autorunexp.py -p "voterwinsstore${REP}" -o "experiments/0717/voterwinsstore${REP}-1c-95-0717-site07-log.txt" --txnthreshold 0.95 -e "experiments/0717/site07-0717-log.txt" --winconfig "tuple ${REP} (site07)" --threads 1 --rmin 1000 --rstep 1000 --finalrstep 100 --warmup 10000 --log --numruns 1
 done
 done
+
+
+
+python ./tools/autorunexp.py -p "voterwinhstorew100s10" -o "experiments/0717/voterwinhstore${REP}-1c-95-0717-site07-log.txt" --txnthreshold 0.95 -e "experiments/0717/site07-0717-log.txt" --winconfig "tuple ${REP} (site07)" --threads 1 --rmin 10000 --rstep 1000 --finalrstep 1000 --warmup 10000 --log --scheduler --numruns 1
