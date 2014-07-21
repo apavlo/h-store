@@ -78,7 +78,7 @@ CREATE TABLE discounts
 );
 
 CREATE TABLE userLocations (
-    user_id   INTEGER REFERENCES users(user_id),
+    user_id   INTEGER PRIMARY KEY REFERENCES users(user_id),
     latitude  FLOAT   NOT NULL,
     longitude FLOAT   NOT NULL
     );
