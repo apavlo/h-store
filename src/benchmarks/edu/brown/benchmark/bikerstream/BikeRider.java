@@ -136,7 +136,7 @@ public class BikeRider {
         System.out.println("Rider: " + rider_id + " -> " + str);
     }
 
-    public LinkedList<Reading> deviateRandomly() throws IOException {
+    public void deviateRandomly() throws IOException {
         Random gen = new Random();
         int currentLocation = waypoints[currentIndex];
 
@@ -144,28 +144,22 @@ public class BikeRider {
         while ((stationIndex = gen.nextInt(numStations)) == currentLocation) {}
 
         comment("Deviating route to station: " + stationIndex);
-
         waypoints = new int[] {currentLocation, stationIndex};
-        currentIndex = 1;
-
-        String fileName = routeName (currentLocation, stationIndex);
-        return readInPoints(fileName);
+        currentIndex = 0;
     }
 
-    public LinkedList<Reading> deviateDirectly(int stationIndex) throws IOException {
+    public void deviateDirectly(int stationIndex) throws IOException {
         Random gen = new Random();
         int currentLocation = waypoints[currentIndex];
 
-        if (currentLocation == stationIndex)
-            return deviateRandomly();
+        if (currentLocation == stationIndex) {
+            deviateRandomly();
+            return;
+        }
 
         comment("Deviating route to station: " + stationIndex);
-
         waypoints = new int[] {currentLocation, stationIndex};
-        currentIndex = 1;
-
-        String fileName = routeName (currentLocation, stationIndex);
-        return readInPoints(fileName);
+        currentIndex = 0;
     }
 
 

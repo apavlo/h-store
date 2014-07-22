@@ -73,7 +73,7 @@ public class BikeStatusTrigger extends VoltProcedure {
     );
 
     public long run() {
-        LOG.debug(" >>> Start running " + this.getClass().getSimpleName());
+        //LOG.debug(" >>> Start running " + this.getClass().getSimpleName());
         // Get a handle on the new tuple
         voltQueueSQL(getBikeCoordinate);
         voltQueueSQL(getAllStationsCoordinate);
@@ -119,7 +119,7 @@ public class BikeStatusTrigger extends VoltProcedure {
         voltQueueSQL(removeUsedBikeStatusTuple);
         voltExecuteSQL(true);
 
-        LOG.info(" <<< Finished running " + this.getClass().getSimpleName() + " for rider: " + user_id);
+        //LOG.info(" <<< Finished running " + this.getClass().getSimpleName() + " for rider: " + user_id);
         return 0;
     }
 

@@ -47,25 +47,30 @@ public class CheckinBike extends VoltProcedure {
     private static final Logger Log = Logger.getLogger(CheckinBike.class);
 
     public final SQLStmt getStation = new SQLStmt(
-                "SELECT * FROM stationstatus where station_id = ?"
-            );
+        "SELECT * FROM stationstatus where station_id = ?"
+    );
 
     public final SQLStmt updateStation = new SQLStmt(
-                "UPDATE stationstatus SET current_bikes = ?, current_docks = ? where station_id = ?"
-            );
+        "UPDATE stationstatus SET current_bikes = ?, current_docks = ? where station_id = ?"
+    );
 
     public final SQLStmt updateStationDiscount = new SQLStmt(
-            "UPDATE stationstatus SET current_bikes = ?, current_docks = ?, current_discount = ? where station_id = ?"
+        "UPDATE stationstatus SET current_bikes = ?, current_docks = ?, current_discount = ? where station_id = ?"
     );
 
     public final SQLStmt log = new SQLStmt(
-                "INSERT INTO logs (user_id, time, success, action) VALUES (?,?,?,?)"
-            );
+        "INSERT INTO logs (user_id, time, success, action) VALUES (?,?,?,?)"
+    );
+
+    public final SQLStmt  checkDiscount = new SQLStmt (
+        "SELECT count(*) FROM discounts WHERE user_id = ?"
+    );
 
 
     public long run(long rider_id, long station_id) throws Exception {
 
         voltQueueSQL(getStation, station_id);
+        voltQueueSQL(checkDiscount, rider_id);
         VoltTable results[] = voltExecuteSQL();
 
         //assert(results[0].getRowCount() == 1);
@@ -73,16 +78,17 @@ public class CheckinBike extends VoltProcedure {
         long numBikes = results[0].fetchRow(0).getLong("current_bikes");
         long numDocks = results[0].fetchRow(0).getLong("current_docks");
         long numDiscounts = results[0].fetchRow(0).getLong("current_discount");
+        boolean hasDiscount = results[1].asScalarLong() > 0;
 
         if (numDocks > 0){
 
             Log.info("Checking into station: " + station_id + " by user: " + rider_id);
-            if (numDiscounts > 0){
+            if (numDiscounts > 0 && !(hasDiscount)){
                 voltQueueSQL(updateStationDiscount, ++numBikes, --numDocks, numDiscounts -1, station_id);
-                Log.info("Removing discount from station: " + station_id);
+                Log.info("Rider: " + rider_id + " Checking in and Removing discount from station: " + station_id);
             } else {
                 voltQueueSQL(updateStation, ++numBikes, --numDocks, station_id);
-
+                Log.info("Rider: " + rider_id + " Checking in and *not* Removing discount from station: " + station_id);
             }
 
             voltQueueSQL(log, rider_id, new TimestampType(), 1, "successfully docked bike at station: " + station_id);

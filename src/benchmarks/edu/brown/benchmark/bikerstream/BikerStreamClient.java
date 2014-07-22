@@ -108,7 +108,7 @@ public class BikerStreamClient extends BenchmarkComponent {
             LinkedList<Reading> route;
             Reading point;
 
-            // The biker trip is deivided into legs. after each leg the biker will stop to see if any nearby stations
+            // The biker trip is divided into legs. after each leg the biker will stop to see if any nearby stations
             // are providing discounts. If so the biker should deviate toward that station. If there are no more legs
             // available then the rider is considered to be at the final destination and should attempt to checkin the
             // bike.
@@ -118,7 +118,7 @@ public class BikerStreamClient extends BenchmarkComponent {
                 // the MILI_BETWEEN_GPS_EVENTS Constant.
                 while ((point = route.poll()) != null) {
                     cr = client.callProcedure("RideBike", rider.getRiderId(), point.lat, point.lon);
-                    //incrementTransactionCounter(cr, 1);
+                    incrementTransactionCounter(cr, 1);
                     long lastTime = (new TimestampType()).getMSTime();
                     while (((new TimestampType()).getMSTime()) - lastTime < BikerStreamConstants.MILI_BETWEEN_GPS_EVENTS) {
                     }
@@ -128,24 +128,40 @@ public class BikerStreamClient extends BenchmarkComponent {
                 // there may be a station close by offering discounts to us.
                 // TODO: check for discounts and alter route accordingly
                 if (rider.hasMorePoints()) {
+                    cr = client.callProcedure("GetNearDiscounts", rider_id);
+
+                    if (cr.getException() == null){
+
+                        VoltTable table = cr.getResults()[0];
+                        int numDiscounts = table.getRowCount();
+
+                        // Need to acquire the discount, if fail, try the next one if available
+                        for (int i=0; i < numDiscounts; ++i) {
+                            cr = client.callProcedure("AcceptDiscount", rider_id, table.fetchRow(i).getLong("station_id"));
+                            if (cr.getException() == null){
+                                rider.deviateDirectly((int) cr.getResults()[0].asScalarLong());
+                                break;
+                            }
+                        }
+                    }
                 }
             }
 
             // When all legs of the journey are finished. Attempt to park the bike. The callback will handle whether or
-            //not we were successfull.
+            //not we were successful.
             cr = client.callProcedure("CheckinBike", rider.getRiderId(), rider.getFinalStation());
             incrementTransactionCounter(cr, 3);
             while (cr.getException() != null) {
 
-                route = rider.deviateRandomly();
+                rider.deviateRandomly();
+                route = rider.getNextRoute();
 
                 // Put those points into the DB
                 while ((point = route.poll()) != null) {
                     cr = client.callProcedure("RideBike", rider.getRiderId(), point.lat, point.lon);
                     incrementTransactionCounter(cr, 2);
                     long lastTime = (new TimestampType()).getMSTime();
-                    while (((new TimestampType()).getMSTime()) - lastTime < BikerStreamConstants.MILI_BETWEEN_GPS_EVENTS) {
-                    }
+                    while (((new TimestampType()).getMSTime()) - lastTime < BikerStreamConstants.MILI_BETWEEN_GPS_EVENTS) {}
                 }
 
                 // Try again to checkin the bike. Loop to check for success

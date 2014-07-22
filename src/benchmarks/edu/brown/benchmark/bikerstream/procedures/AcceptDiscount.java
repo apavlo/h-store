@@ -75,7 +75,7 @@ public class AcceptDiscount extends VoltProcedure {
             voltQueueSQL(addDiscount, rider_id, station_id);
             voltQueueSQL(logSuccess, rider_id, new TimestampType(), "Got discount for station: " + station_id);
             voltExecuteSQL(true);
-            return 0;
+            return station_id;
         } else {
             throw new RuntimeException("There are no discounts available at station: " + station_id);
         }

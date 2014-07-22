@@ -32,7 +32,6 @@ import org.apache.log4j.Logger;
 import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
-import org.voltdb.VoltTable;
 import org.voltdb.types.TimestampType;
 
 import edu.brown.benchmark.bikerstream.BikerStreamConstants;
@@ -64,15 +63,13 @@ public class RideBike extends VoltProcedure {
             // Post the ride event
             TimestampType time = new TimestampType();
             voltQueueSQL(insertBikeReadingStmt, rider_id, reading_lat, reading_lon, time);
-            voltQueueSQL(log, rider_id, time, 2, "Loaded point (" + reading_lat + "," + reading_lon + ")into DB");
-            Log.info("Loaded point in database for rider: " + rider_id);
             voltExecuteSQL(true);
         } catch (Exception e) {
             Log.info("Failed to Load point in database for rider: " + rider_id);
             throw new RuntimeException("Failed to load point:" + e);
         }
 
-        // return successfull reading
+        // return sucessfull reading
         return BikerStreamConstants.BIKEREADING_SUCCESSFUL;
     }
 

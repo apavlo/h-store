@@ -68,7 +68,7 @@ public class S1Trigger extends VoltProcedure {
     );
 
     public long run() {
-        LOG.debug(" >>> Start running " + this.getClass().getSimpleName());
+        //LOG.debug(" >>> Start running " + this.getClass().getSimpleName());
         // Get a handle on the new tuple
         voltQueueSQL(getUserFromS1);
         VoltTable coordinates[] = voltExecuteSQL();
@@ -93,7 +93,7 @@ public class S1Trigger extends VoltProcedure {
         voltQueueSQL(removeUsedS1Tuple);
         voltExecuteSQL(true);
 
-        LOG.info(" <<< Finished running " + this.getClass().getSimpleName() + " for rider: " + user_id);
+        //LOG.info(" <<< Finished running " + this.getClass().getSimpleName() + " for rider: " + user_id);
         return 0;
     }
 }

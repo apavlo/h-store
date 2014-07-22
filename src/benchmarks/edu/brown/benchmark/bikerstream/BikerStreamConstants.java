@@ -42,12 +42,6 @@ public abstract class BikerStreamConstants {
     // Callback Constants
 
 
-    public static final int SignupCallback = 0;
-    public static final int CheckoutCallback = 1;
-    public static final int RideBikeCallback = 2;
-    public static final int CheckinCallback = 3;
-
-
     // ===========================================================================
     // INITIALIZATION PARAMETERS
     //
@@ -55,7 +49,7 @@ public abstract class BikerStreamConstants {
     // of zones, stations and docks.
     //
 
-    public static final int NUM_BIKES_PER_STATION = 6;
+    public static final int NUM_BIKES_PER_STATION = 2;
     public static final int NUM_DOCKS_PER_STATION = 20;
 
     public static final String ROUTES_DIR =
@@ -144,7 +138,7 @@ public abstract class BikerStreamConstants {
     // BIKE RIDE
     //
 
-    public static final long MILI_BETWEEN_GPS_EVENTS = 1000;
+    public static final long MILI_BETWEEN_GPS_EVENTS = 100;
 
     // ===========================================================================
     // BIKE CHECKIN
