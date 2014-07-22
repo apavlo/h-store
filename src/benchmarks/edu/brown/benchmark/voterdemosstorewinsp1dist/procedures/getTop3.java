@@ -62,7 +62,7 @@ public class getTop3 extends VoltProcedure {
     	"SELECT contestant_number, num_votes FROM top_three_last_30_sec ORDER BY num_votes DESC LIMIT 3;"	
     );
 	
-public long run(long voteId, long phoneNumber, int contestantNumber, long maxVotesPerPhoneNumber, int currentTimestamp) {
+public long run() {
 		
 //        voltQueueSQL(getTrendingLeaderboard);
         voltQueueSQL(getTopLeaderboard);
