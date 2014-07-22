@@ -151,5 +151,11 @@ public abstract class BikerStreamConstants {
     //
 
     public static final long CHECKIN_SUCCESS = 0;
+
+    // ===========================================================================
+    // NEAR BY STATIONS
+    //
+
+    public static final long N_NEAR_BY_STATIONS = 3;
 }
 
