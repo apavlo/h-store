@@ -52,6 +52,18 @@ CREATE TABLE ride
 ,   def_end_station INTEGER REFERENCES stations(station_id)
 );
 
+
+CREATE TABLE nearByStations (
+    user_id     INTEGER NOT NULL REFERENCES users(user_id)
+,   station_id  INTEGER NOT NULL REFERENCES stations(station_id)
+);
+
+
+CREATE TABLE nearByDiscounts (
+    user_id     INTEGER NOT NULL REFERENCES users(user_id)
+,   station_id  INTEGER NOT NULL REFERENCES stations(station_id)
+);
+
 -- =============
 -- STREAM TABLES
 -- =============
@@ -63,6 +75,10 @@ CREATE STREAM bikeStatus (
 ,   time      TIMESTAMP NOT NULL
 );
 
+
+CREATE STREAM s1 (
+    user_id   INTEGER   NOT NULL REFERENCES users(user_id)
+);
 
 -- ------------------------- ^ Locked in tables ^ ------------------------------
 
