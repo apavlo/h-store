@@ -2539,29 +2539,58 @@ UTILITIES
 
 <target name='hstore-invoke'
         description="Execute on transaction on an already running H-Store cluster">
-    <java fork="yes" failonerror="true" classname="edu.brown.hstore.VoltProcedureInvoker">
-        <jvmarg value="-client" />
-        <jvmarg value="-Xms256m" />
-        <jvmarg value="-Xmx${client.memory}m" />
-        <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
-        <arg value="catalog.jar=${benchmark.jar}" />
-        <arg value="${proc}" />
-        <arg value="${params}" />
-        <arg value="${param0}" />
-        <arg value="${param1}" />
-        <arg value="${param2}" />
-        <arg value="${param3}" />
-        <arg value="${param4}" />
-        <arg value="${param5}" />
-        <arg value="${param6}" />
-        <arg value="${param7}" />
-        <arg value="${param8}" />
-        <arg value="${param9}" />
-        <classpath refid='project.classpath' />
-        <assertions><enable/></assertions>
-    </java>
+	<if>
+		<equals arg1="${dataonly}" arg2="true"/>
+		<then>
+		    <java fork="yes" failonerror="true" classname="edu.brown.hstore.VoltProcedureInvoker">
+		        <jvmarg value="-client" />
+		        <jvmarg value="-Xms256m" />
+		        <jvmarg value="-Xmx${client.memory}m" />
+		        <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
+		        <arg value="catalog.jar=${benchmark.jar}" />
+		        <arg value="${proc}" />
+		        <arg value="${params}" />
+		        <arg value="${param0}" />
+		        <arg value="${param1}" />
+		        <arg value="${param2}" />
+		        <arg value="${param3}" />
+		        <arg value="${param4}" />
+		        <arg value="${param5}" />
+		        <arg value="${param6}" />
+		        <arg value="${param7}" />
+		        <arg value="${param8}" />
+		        <arg value="${param9}" />
+		    	<arg value="true" />
+		        <classpath refid='project.classpath' />
+		        <assertions><enable/></assertions>
+		    </java>
+		</then>
+	<else>
+    	<java fork="yes" failonerror="true" classname="edu.brown.hstore.VoltProcedureInvoker">
+        	<jvmarg value="-client" />
+        	<jvmarg value="-Xms256m" />
+        	<jvmarg value="-Xmx${client.memory}m" />
+        	<jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
+        	<arg value="catalog.jar=${benchmark.jar}" />
+        	<arg value="${proc}" />
+        	<arg value="${params}" />
+        	<arg value="${param0}" />
+        	<arg value="${param1}" />
+        	<arg value="${param2}" />
+        	<arg value="${param3}" />
+        	<arg value="${param4}" />
+        	<arg value="${param5}" />
+        	<arg value="${param6}" />
+        	<arg value="${param7}" />
+        	<arg value="${param8}" />
+        	<arg value="${param9}" />
+        	<classpath refid='project.classpath' />
+        	<assertions><enable/></assertions>
+    	</java>
+	</else>
+	</if>
 </target>
-
+	
 <target name='hstore-term'
         description="H-Store Commandline Terminal">
     <java fork="yes" failonerror="true" classname="edu.brown.hstore.HStoreTerminal">

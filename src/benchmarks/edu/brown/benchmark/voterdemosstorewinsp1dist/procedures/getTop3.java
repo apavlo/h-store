@@ -62,7 +62,8 @@ public class getTop3 extends VoltProcedure {
     	"SELECT contestant_number, num_votes FROM top_three_last_30_sec ORDER BY num_votes DESC LIMIT 3;"	
     );
 	
-public long run() {
+//public long run() {
+	public VoltTable[] run() {
 		
 //        voltQueueSQL(getTrendingLeaderboard);
         voltQueueSQL(getTopLeaderboard);
@@ -70,6 +71,7 @@ public long run() {
         VoltTable validation[] = voltExecuteSQL();
         
         // Set the return value to 0: successful vote
-        return VoterDemoSStoreWinSP1DistConstants.VOTE_SUCCESSFUL;
+//        return VoterDemoSStoreWinSP1DistConstants.VOTE_SUCCESSFUL;
+        return validation;
     }
 }
