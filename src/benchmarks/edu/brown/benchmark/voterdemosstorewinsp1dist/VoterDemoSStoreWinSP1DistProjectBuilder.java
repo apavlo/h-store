@@ -51,7 +51,8 @@ public class VoterDemoSStoreWinSP1DistProjectBuilder extends AbstractProjectBuil
         Initialize.class,
         GenerateLeaderboard.class,
         //ProcOneTrigger.class,
-        LeaderboardTrigger.class
+        LeaderboardTrigger.class,
+        getTop3.class
         };
 	
 	{
