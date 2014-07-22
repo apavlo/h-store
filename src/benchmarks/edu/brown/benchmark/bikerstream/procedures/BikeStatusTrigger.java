@@ -33,7 +33,7 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * This VoltProcedure will trigger on INSERT INTO bikeStatus STREAM and performs the following tasks;
+ * This VoltProcedure will trigger on INSERT INTO bikeStatus STREAM and performs the following;
  *   a.  Replaces the TOP N near by stations for a given user in the nearByStations TABLE
  *   b.  Feeds the user_id to s1 STREAM.
  */
@@ -109,7 +109,7 @@ public class BikeStatusTrigger extends VoltProcedure {
         /*
         // For verification purpose
         voltQueueSQL(getNearByStations, user_id);
-        LOG.info("The replaced near by station for user_id " + user_id + ": " + voltExecuteSQL()[0]);
+        LOG.info("Replaced near by station for user_id " + user_id + ": " + voltExecuteSQL()[0]);
         */
 
         // Feed S1 after NearByStations has been updated

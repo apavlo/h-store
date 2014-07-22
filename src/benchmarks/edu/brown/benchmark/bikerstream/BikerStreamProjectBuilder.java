@@ -63,6 +63,7 @@ public class BikerStreamProjectBuilder extends AbstractProjectBuilder {
         Stations.class,
         StationStatus.class,
         Users.class,
+        S1Trigger.class,
         BikeStatusTrigger.class,
         AcceptDiscount.class,
         UpdateRiderLocations.class
