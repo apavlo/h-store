@@ -44,9 +44,7 @@ import edu.brown.benchmark.bikerstream.BikerStreamConstants;
 public class CheckinBike extends VoltProcedure {
 
     // Logging Information
-    private static final Logger Log = Logger.getLogger(CheckoutBike.class);
-    // Is debugging on or not?
-    final boolean debug = Log.isDebugEnabled();
+    private static final Logger Log = Logger.getLogger(CheckinBike.class);
 
     public final SQLStmt getStation = new SQLStmt(
                 "SELECT * FROM stationstatus where station_id = ?"
@@ -78,10 +76,13 @@ public class CheckinBike extends VoltProcedure {
 
         if (numDocks > 0){
 
+            Log.info("Checking into station: " + station_id + " by user: " + rider_id);
             if (numDiscounts > 0){
                 voltQueueSQL(updateStationDiscount, ++numBikes, --numDocks, numDiscounts -1, station_id);
+                Log.info("Removing discount from station: " + station_id);
             } else {
                 voltQueueSQL(updateStation, ++numBikes, --numDocks, station_id);
+
             }
 
             voltQueueSQL(log, rider_id, new TimestampType(), 1, "successfully docked bike at station: " + station_id);
@@ -89,6 +90,7 @@ public class CheckinBike extends VoltProcedure {
             return BikerStreamConstants.CHECKIN_SUCCESS;
 
         } else {
+            Log.info("Could not checkinto station: " + station_id + " by rider: " + rider_id);
             voltQueueSQL(log, rider_id, new TimestampType(), 0, "could not dock bike at station: " + station_id);
             voltExecuteSQL(true);
             throw new RuntimeException("Rider: " + rider_id + " was unable to checkin a bike");

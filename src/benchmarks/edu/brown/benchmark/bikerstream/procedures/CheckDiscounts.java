@@ -44,22 +44,15 @@ import edu.brown.benchmark.bikerstream.BikerStreamConstants;
 )
 public class CheckDiscounts extends VoltProcedure {
 
-    public final SQLStmt getDockDiscount = new SQLStmt(
-            "SELECT current_dock_discount FROM stationStatus WHERE station_id = ?"
+    public final SQLStmt getDiscounts = new SQLStmt(
+            "SELECT current_discount FROM stationStatus WHERE station_id = ? ORDER BY station_id"
         );
 
-    public long[] run(long[] station_ids) {
+    public VoltTable run(long[] station_ids) {
 
-        int numStations = station_ids.length;
+        voltQueueSQL(getDiscounts);
+        return voltExecuteSQL(true)[0];
 
-        long[] discounts = new long[numStations];
-
-        for (int i = 0; i < numStations; ++i){
-            voltQueueSQL(getDockDiscount, station_ids[i]);
-            discounts[i] = voltExecuteSQL()[0].asScalarLong();
-        }
-
-        return discounts;
     }
 
 } // End Class

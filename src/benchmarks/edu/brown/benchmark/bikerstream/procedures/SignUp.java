@@ -26,11 +26,10 @@
 package edu.brown.benchmark.bikerstream.procedures;
 
 import edu.brown.benchmark.bikerstream.BikerStreamConstants;
-import edu.brown.benchmark.bikerstream.BikeRider;
+import org.apache.log4j.Logger;
 import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
-import org.voltdb.VoltType;
 import org.voltdb.types.TimestampType;
 
 
@@ -39,6 +38,7 @@ singlePartition = false
 )
 public class SignUp extends VoltProcedure
 {
+    private static final Logger Log = Logger.getLogger(SignUp.class);
 
     public final SQLStmt insertRider = new SQLStmt(
         "INSERT INTO users (user_id, user_name, credit_card, membership_status, membership_expiration_date) " +
@@ -47,7 +47,6 @@ public class SignUp extends VoltProcedure
 
     public long run(long user_id) {
 
-
         // Get a random number coresponding to the length of the name arrays
         int rand1 = (int) (Math.random() * (float) BikerStreamConstants.FIRSTNAMES.length);
         int rand2 = (int) (Math.random() * (float) BikerStreamConstants.LASTNAMES.length);
@@ -55,14 +54,16 @@ public class SignUp extends VoltProcedure
         // Get a random name
         String first = BikerStreamConstants.FIRSTNAMES[rand1];
         String last  = BikerStreamConstants.LASTNAMES[rand2];
+        String full = first + " " + last;
 
         try {
             voltQueueSQL(insertRider, user_id, first + " " + last, "0000000000111112222233333", 1, new TimestampType());
             voltExecuteSQL();
+            Log.info("Adding User " + full + " with id: " + user_id);
         } catch (Exception e) {
+            Log.info("Failed to Add User " + full + " with id: " + user_id);
             throw new RuntimeException("Failure to load rider " + user_id + " into the DB, error:" + e);
         }
-
 
         return BikerStreamConstants.INSERT_RIDER_SUCCESS;
 

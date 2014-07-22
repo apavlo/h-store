@@ -27,6 +27,7 @@ package edu.brown.benchmark.bikerstream.procedures;
 
 import edu.brown.benchmark.bikerstream.BikerStreamConstants;
 import edu.brown.benchmark.bikerstream.BikeRider;
+import org.apache.log4j.Logger;
 import org.voltdb.*;
 import org.voltdb.types.TimestampType;
 
@@ -38,6 +39,7 @@ singlePartition = false
 )
 public class SignUpRand extends VoltProcedure
 {
+    private static final Logger Log = Logger.getLogger(SignUpName.class);
 
     public final SQLStmt insertRider = new SQLStmt(
         "INSERT INTO users (user_id, user_name, credit_card, membership_status, membership_expiration_date) " +

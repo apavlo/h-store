@@ -26,6 +26,7 @@
 package edu.brown.benchmark.bikerstream.procedures;
 
 import edu.brown.benchmark.bikerstream.BikerStreamConstants;
+import org.apache.log4j.Logger;
 import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
@@ -40,6 +41,7 @@ singlePartition = false
 )
 public class SignUpName extends VoltProcedure
 {
+    private static final Logger Log = Logger.getLogger(SignUpName.class);
 
     public final SQLStmt insertRider = new SQLStmt(
         "INSERT INTO users (user_id, user_name, credit_card, membership_status, membership_expiration_date) " +
@@ -54,6 +56,7 @@ public class SignUpName extends VoltProcedure
 
         Random gen = new Random();
         VoltTable result;
+        String full = first + " " + last;
         long user_id = 0;
 
         try {
@@ -63,18 +66,14 @@ public class SignUpName extends VoltProcedure
                 result = voltExecuteSQL()[0];
             } while (result.asScalarLong() > 0);
 
-            voltQueueSQL(insertRider,
-                    user_id,
-                    first + " " + last,
-                    "0000000000111112222233333",
-                    1,
-                    new TimestampType());
+            voltQueueSQL(insertRider, user_id, full, "0000000000111112222233333", 1, new TimestampType());
             voltExecuteSQL(true);
 
         } catch (Exception e) {
+            Log.info("");
             throw new RuntimeException("Failure to load rider: " +
-                    first + " " +
-                    last + " into the DB, error:" + e);
+                    full +
+                    " into the DB, error:" + e);
         }
 
         return user_id;

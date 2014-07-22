@@ -21,11 +21,6 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-//
-// Rides a bike - basically inserts events theoretically
-// from a gps on a bike into the bikerreadings_stream
-//
-
 package edu.brown.benchmark.bikerstream.procedures;
 
 import org.apache.log4j.Logger;
@@ -33,10 +28,6 @@ import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
-import org.voltdb.VoltType;
-import org.voltdb.types.TimestampType;
-
-import edu.brown.benchmark.bikerstream.BikerStreamConstants;
 
 @ProcInfo (
     singlePartition = true
@@ -45,12 +36,8 @@ public class StationStatus extends VoltProcedure {
 
     // Logging Information
     private static final Logger Log = Logger.getLogger(CheckoutBike.class);
-    // Is debugging on or not?
-    final boolean debug = Log.isDebugEnabled();
 
-    public final SQLStmt getStationStatus = new SQLStmt(
-                "SELECT * FROM StationStatus"
-            );
+    public final SQLStmt getStationStatus = new SQLStmt("SELECT * FROM StationStatus" );
 
     public VoltTable [] run() {
         voltQueueSQL(getStationStatus);

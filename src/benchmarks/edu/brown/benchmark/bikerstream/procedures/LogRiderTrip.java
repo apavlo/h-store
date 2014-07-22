@@ -44,15 +44,11 @@ import edu.brown.benchmark.bikerstream.BikerStreamConstants;
 public class LogRiderTrip extends VoltProcedure {
 
     // Logging Information
-    private static final Logger Log = Logger.getLogger(CheckoutBike.class);
-    // Is debugging on or not?
-    final boolean debug = Log.isDebugEnabled();
+    private static final Logger Log = Logger.getLogger(LogRiderTrip.class);
 
     public final SQLStmt logRide = new SQLStmt(
-                "INSERT INTO ride (user_id, start_station, pos_end_station) VALUES (?,?,?)"
-            );
-
-
+        "INSERT INTO ride (user_id, start_station, pos_end_station) VALUES (?,?,?)"
+    );
 
     public VoltTable[] run(long rider_id, long s_station, long e_station) throws Exception {
         voltQueueSQL(logRide, rider_id, s_station, e_station);

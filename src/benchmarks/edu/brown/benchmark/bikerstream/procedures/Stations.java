@@ -44,9 +44,7 @@ import edu.brown.benchmark.bikerstream.BikerStreamConstants;
 public class Stations extends VoltProcedure {
 
     // Logging Information
-    private static final Logger Log = Logger.getLogger(CheckoutBike.class);
-    // Is debugging on or not?
-    final boolean debug = Log.isDebugEnabled();
+    private static final Logger Log = Logger.getLogger(Stations.class);
 
     public final SQLStmt getStations = new SQLStmt(
                 "SELECT * FROM stations"
