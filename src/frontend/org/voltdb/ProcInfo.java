@@ -39,8 +39,6 @@ public @interface ProcInfo {
      */
     String partitionInfo() default "";
     
-    int partitionNum() default 0;
-    
     /**
      * Explicitly define what ProcParameter to use to route transactions
      */

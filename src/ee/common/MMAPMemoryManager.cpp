@@ -63,8 +63,7 @@
      // Allocate a big chunk which will be split into smaller chunks later
      if(m_persistent == false){
        // Not backed by a file
-       // m_base = mmap(NULL, m_size, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
-       m_base = mmap(NULL, m_size, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANON, -1, 0);
+       m_base = mmap(NULL, m_size, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
 
        if (m_base == MAP_FAILED) {
 	 VOLT_ERROR("MMAP : initialization error : mmap failed");

@@ -35,7 +35,5 @@ public class ProcInfoData {
     
     public String mapInputQuery = "";
     public String reduceInputQuery = "";
-    
-    public int partitionNum = 0;
    
 }

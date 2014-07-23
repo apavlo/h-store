@@ -48,7 +48,6 @@ public class Procedure extends CatalogType {
     CatalogMap<Statement> m_statements;
     CatalogMap<ProcParameter> m_parameters;
     CatalogMap<ConflictSet> m_conflicts;
-    int m_partitionNum;
 
     void setBaseValues(Catalog catalog, CatalogType parent, String path, String name) {
         super.setBaseValues(catalog, parent, path, name);
@@ -82,7 +81,6 @@ public class Procedure extends CatalogType {
         m_childCollections.put("parameters", m_parameters);
         m_conflicts = new CatalogMap<ConflictSet>(catalog, this, path + "/" + "conflicts", ConflictSet.class);
         m_childCollections.put("conflicts", m_conflicts);
-        m_fields.put("partitionNum", m_partitionNum);
     }
 
     public void update() {
@@ -102,7 +100,6 @@ public class Procedure extends CatalogType {
         m_hasjava = (Boolean) m_fields.get("hasjava");
         m_beDefault = (Boolean) m_fields.get("beDefault");
         m_partitionparameter = (Integer) m_fields.get("partitionparameter");
-        m_partitionNum = (Integer) m_fields.get("partitionNum");
     }
 
     /** GETTER: Unique identifier for this Procedure. Allows for faster look-ups */
@@ -241,11 +238,6 @@ public class Procedure extends CatalogType {
         return m_conflicts;
     }
 
-    /** GETTER: The specified partition number */
-    public int getPartitionnum() {
-        return m_partitionNum;
-    }
-
     /** SETTER: Unique identifier for this Procedure. Allows for faster look-ups */
     public void setId(int value) {
         m_id = value; m_fields.put("id", value);
@@ -334,11 +326,6 @@ public class Procedure extends CatalogType {
     /** SETTER: Which parameter identifies the partition column? */
     public void setPartitionparameter(int value) {
         m_partitionparameter = value; m_fields.put("partitionparameter", value);
-    }
-
-    /** SETTER: The specified partition number */
-    public void setPartitionnum(int value) {
-        m_partitionNum = value; m_fields.put("partitionNum", value);
     }
 
 }
