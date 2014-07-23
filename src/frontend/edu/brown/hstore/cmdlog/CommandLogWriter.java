@@ -565,7 +565,7 @@ public class CommandLogWriter extends ExceptionHandlingRunnable implements Shutd
         // added by hawk, 2014/6/20
         // used to determine if this txn is frontend trigger related txn
         Procedure sp = ts.getProcedure();
-        if(sp.getBedefault()==true)
+        if((this.hstore_conf.global.weak_recovery==true) && (sp.getBedefault()==true))
             return false;
         
         // -------------------------------

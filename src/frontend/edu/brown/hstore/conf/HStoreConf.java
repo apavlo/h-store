@@ -131,7 +131,7 @@ public final class HStoreConf {
         )
         public boolean nanosecond_latencies;
         
-        //added by hawk, 2004/3/19, to indicate service is s-store or h-store
+        //added by hawk, 2014/3/19, to indicate service is s-store or h-store
         @ConfigProperty(
                 description="Indicate if the service is running as s-store or h-store instance.",
                 defaultBoolean=false,
@@ -139,13 +139,28 @@ public final class HStoreConf {
             )
         public boolean sstore;
 
-        //added by hawk, 2004/7/11, to indicate if the s-store scheduler is enabled
+        //added by hawk, 2014/7/11, to indicate if the s-store scheduler is enabled
         @ConfigProperty(
                 description="Indicate if the s-store scheduler is enabled.",
                 defaultBoolean=false,
                 experimental=false
             )
         public boolean sstore_scheduler;
+        
+        //added by hawk, 2014/7/23
+        @ConfigProperty(
+                description="Indicate if strong or weak recovery is used.",
+                defaultBoolean=true,
+                experimental=false
+            )
+        public boolean weak_recovery;
+        
+        @ConfigProperty(
+                description="Indicate if frontend trigger mechanism turned on or off.",
+                defaultBoolean=true,
+                experimental=false
+            )
+        public boolean sstore_frontend_trigger;
 
     }
     

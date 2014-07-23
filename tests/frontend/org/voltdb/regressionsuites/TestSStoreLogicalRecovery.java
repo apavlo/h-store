@@ -38,6 +38,7 @@ import junit.framework.Test;
 import org.voltdb.BackendTarget;
 import org.voltdb.CatalogContext;
 import org.voltdb.DefaultSnapshotDataTarget;
+import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.catalog.CatalogMap;
 import org.voltdb.catalog.Procedure;
@@ -49,6 +50,7 @@ import org.voltdb.client.ClientFactory;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.NoConnectionsException;
 import org.voltdb.client.ProcCallException;
+import org.voltdb.sysprocs.SetConfiguration;
 import org.voltdb.utils.EstTime;
 import org.voltdb.utils.SnapshotVerifier;
 import org.voltdb.utils.VoltTableUtil;
@@ -431,6 +433,46 @@ public class TestSStoreLogicalRecovery extends RegressionSuite {
             }
         }
     }
+    
+    private void setFrontendTriggerWorking(Boolean flag)
+    {
+        
+        try{
+            
+            Client client = this.getClient();
+            
+            String procName = VoltSystemProcedure.procCallName(SetConfiguration.class);
+            String confParams[] = {"global.sstore_frontend_trigger"};
+            String confValues[] = {flag.toString()};
+            ClientResponse cresponse = client.callProcedure(procName, confParams, confValues);
+            assert(cresponse.getStatus() == Status.OK) : cresponse.toString();
+                
+            client.close();
+        }
+        catch (Exception ex) {
+            ex.printStackTrace();
+        }
+    }
+    
+    private void setWeakRecovery(Boolean flag)
+    {
+        
+        try{
+            
+            Client client = this.getClient();
+            
+            String procName = VoltSystemProcedure.procCallName(SetConfiguration.class);
+            String confParams[] = {"global.weak_recovery"};
+            String confValues[] = {flag.toString()};
+            ClientResponse cresponse = client.callProcedure(procName, confParams, confValues);
+            assert(cresponse.getStatus() == Status.OK) : cresponse.toString();
+                
+            client.close();
+        }
+        catch (Exception ex) {
+            ex.printStackTrace();
+        }
+    }    
     
     private boolean hasTuple(String streamName)
     {
