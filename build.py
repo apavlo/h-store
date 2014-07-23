@@ -267,7 +267,6 @@ CTX.INPUT['indexes'] = """
  tableindex.cpp
  tableindexfactory.cpp
  IndexStats.cpp
- trackerallocator.cpp
 """
 
 CTX.INPUT['storage'] = """

@@ -165,7 +165,7 @@ public:
     
 };
 
-TEST_F(IndexTrackerAllocatorTest, BinaryTreeUniqueMapIndexMemoryEstimate)
+TEST_F(IndexTrackerAllocatorTest, BinaryTreeUniqueIndexMemoryEstimate)
 {
     initTable(true, voltdb::BALANCED_TREE_INDEX, true); 
     

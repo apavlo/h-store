@@ -345,8 +345,8 @@ protected:
     // stats
     IndexStats m_stats;
 
-    // index ID
-    int m_id;
+    // index memory size
+    int64_t m_memoryEstimate;
 };
 
 }

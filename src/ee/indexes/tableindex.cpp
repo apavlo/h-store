@@ -69,9 +69,8 @@ TableIndex::TableIndex(const TableIndexScheme &scheme) : m_scheme(scheme), m_sta
     // initialize all the counters to zero
     m_lookups = m_inserts = m_deletes = m_updates = 0;
 
-    // determine this index's ID
-    m_id = h_index::indexCounter++;
-    h_index::indexMemoryTable.push_back(0);
+    // initialize memory size to zero
+    m_memoryEstimate = 0;
     //printf("Index created2: %s %d\n", getName().c_str(), m_id);
 }
 

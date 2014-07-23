@@ -61,28 +61,29 @@ template<typename KeyType, class KeyHasher, class KeyEqualityChecker>
 class HashTableUniqueIndex : public TableIndex {
     friend class TableIndexFactory;
 
-    typedef boost::unordered_map<KeyType, const void*, KeyHasher, KeyEqualityChecker, h_index::TrackerAllocator<pair<const KeyType, const void*>, &h_index::currentIndexID> > MapType;
+    typedef h_index::TrackerAllocator<pair<const KeyType, const void*> > AllocatorType;    
+    typedef boost::unordered_map<KeyType, const void*, KeyHasher, KeyEqualityChecker, AllocatorType> MapType;
 
 public:
 
-    ~HashTableUniqueIndex() {};
+    ~HashTableUniqueIndex() {
+        delete m_entries;
+        delete m_allocator;
+    };
 
     bool addEntry(const TableTuple *tuple) {
         //printf("Do they ever add Entry?\n");
-        h_index::currentIndexID = m_id;
         m_tmp1.setFromTuple(tuple, column_indices_, m_keySchema);
         return addEntryPrivate(tuple, m_tmp1);
     }
 
     bool deleteEntry(const TableTuple *tuple) {
-        h_index::currentIndexID = m_id;
         m_tmp1.setFromTuple(tuple, column_indices_, m_keySchema);
         return deleteEntryPrivate(m_tmp1);
     }
 
     bool replaceEntry(const TableTuple *oldTupleValue, const TableTuple* newTupleValue) {
         //printf("Do they ever replace Entry?\n");
-        h_index::currentIndexID = m_id;
         // this can probably be optimized
         m_tmp1.setFromTuple(oldTupleValue, column_indices_, m_keySchema);
         m_tmp2.setFromTuple(newTupleValue, column_indices_, m_keySchema);
@@ -98,36 +99,32 @@ public:
     }
     
     bool setEntryToNewAddress(const TableTuple *tuple, const void* address) {
-        h_index::currentIndexID = m_id;
         // set the key from the tuple 
         m_tmp1.setFromTuple(tuple, column_indices_, m_keySchema);
         ++m_updates;
         
         // erase the entry and add a entry with the same key and a NULL value
         bool deleted = deleteEntryPrivate(m_tmp1);
-//        m_entries.erase(m_tmp1); 
-        std::pair<typename MapType::iterator, bool> retval = m_entries.insert(std::pair<KeyType, const void*>(m_tmp1, address));
+//        m_entries->erase(m_tmp1); 
+        std::pair<typename MapType::iterator, bool> retval = m_entries->insert(std::pair<KeyType, const void*>(m_tmp1, address));
         return (retval.second & deleted);
     }
 
     bool checkForIndexChange(const TableTuple *lhs, const TableTuple *rhs) {
-        h_index::currentIndexID = m_id;
         m_tmp1.setFromTuple(lhs, column_indices_, m_keySchema);
         m_tmp2.setFromTuple(rhs, column_indices_, m_keySchema);
         return !(m_eq(m_tmp1, m_tmp2));
     }
     bool exists(const TableTuple* values) {
-        h_index::currentIndexID = m_id;
         ++m_lookups;
         m_tmp1.setFromTuple(values, column_indices_, m_keySchema);
-        return (m_entries.find(m_tmp1) != m_entries.end());
+        return (m_entries->find(m_tmp1) != m_entries->end());
     }
     bool moveToKey(const TableTuple *searchKey) {
-        h_index::currentIndexID = m_id;
         ++m_lookups;
         m_tmp1.setFromKey(searchKey);
-        m_keyIter = m_entries.find(m_tmp1);
-        if (m_keyIter == m_entries.end()) {
+        m_keyIter = m_entries->find(m_tmp1);
+        if (m_keyIter == m_entries->end()) {
             m_match.move(NULL);
             return false;
         }
@@ -135,11 +132,10 @@ public:
         return m_match.address() != NULL;
     }
     bool moveToTuple(const TableTuple *searchTuple) {
-        h_index::currentIndexID = m_id;
         ++m_lookups;
         m_tmp1.setFromTuple(searchTuple, column_indices_, m_keySchema);
-        m_keyIter = m_entries.find(m_tmp1);
-        if (m_keyIter == m_entries.end()) {
+        m_keyIter = m_entries->find(m_tmp1);
+        if (m_keyIter == m_entries->end()) {
             m_match.move(NULL);
             return false;
         }
@@ -147,58 +143,57 @@ public:
         return m_match.address() != NULL;
     }
     TableTuple nextValueAtKey() {
-        h_index::currentIndexID = m_id;
         TableTuple retval = m_match;
         m_match.move(NULL);
         return retval;
     }
 
     virtual void ensureCapacity(uint32_t capacity) {
-        h_index::currentIndexID = m_id;
-        m_entries.rehash(capacity * 2);
+        m_entries->rehash(capacity * 2);
     }
 
-    size_t getSize() const { return m_entries.size(); }
+    size_t getSize() const { return m_entries->size(); }
     int64_t getMemoryEstimate() const {
-        h_index::currentIndexID = m_id;
-        return h_index::indexMemoryTable[m_id];
-        // return m_entries.bytesAllocated();
+        return m_memoryEstimate;
+        // return m_entries->bytesAllocated();
     }
     std::string getTypeName() const { return "HashTableUniqueIndex"; };
 
     // print out info about lookup usage
     virtual void printReport() {
-        TableIndex::printReport();
-        std::cout << "  Loadfactor: " << m_entries.load_factor() << std::endl;
+        std::cout << "  Loadfactor: " << m_entries->load_factor() << std::endl;
     }
 
 protected:
     HashTableUniqueIndex(const TableIndexScheme &scheme) :
         TableIndex(scheme),
-        m_entries(100, KeyHasher(m_keySchema), KeyEqualityChecker(m_keySchema)),
         m_eq(m_keySchema)
     {
         m_match = TableTuple(m_tupleSchema);
-        m_entries.max_load_factor(.75f);
-        //m_entries.rehash(200000);
+        //m_entries->rehash(200000);
+
+        m_allocator = new AllocatorType(&m_memoryEstimate);
+        m_entries = new MapType(100, KeyHasher(m_keySchema), KeyEqualityChecker(m_keySchema), *m_allocator);
+        m_entries->max_load_factor(.75f);
     }
 
     inline bool addEntryPrivate(const TableTuple *tuple, const KeyType &key) {
         ++m_inserts;
-        std::pair<typename MapType::iterator, bool> retval = m_entries.insert(std::pair<KeyType, const void*>(key, tuple->address()));
+        std::pair<typename MapType::iterator, bool> retval = m_entries->insert(std::pair<KeyType, const void*>(key, tuple->address()));
         return retval.second;
     }
 
     inline bool deleteEntryPrivate(const KeyType &key) {
         ++m_deletes;
-        typename MapType::iterator mapiter = m_entries.find(key);
-        if (mapiter == m_entries.end())
+        typename MapType::iterator mapiter = m_entries->find(key);
+        if (mapiter == m_entries->end())
             return false; //key not exists
-        m_entries.erase(mapiter);
+        m_entries->erase(mapiter);
         return true; //deleted
     }
 
-    MapType m_entries;
+    MapType *m_entries;
+    AllocatorType *m_allocator;
     KeyType m_tmp1;
     KeyType m_tmp2;
 

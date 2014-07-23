@@ -67,23 +67,24 @@ class BinaryTreeUniqueIndex : public TableIndex
     friend class TableIndexFactory;
 
     //typedef std::map<KeyType, const void*, KeyComparator> MapType;
-    typedef stx::btree_map<KeyType, const void*, KeyComparator, stx::btree_default_map_traits<KeyType, const void*>, h_index::TrackerAllocator<pair<const KeyType, const void*>, &h_index::currentIndexID> > MapType;
+    typedef h_index::TrackerAllocator<pair<const KeyType, const void*> > AllocatorType;
+    typedef stx::btree_map<KeyType, const void*, KeyComparator, stx::btree_default_map_traits<KeyType, const void*>, AllocatorType> MapType;
 
 public:
 
-    ~BinaryTreeUniqueIndex() {};
+    ~BinaryTreeUniqueIndex() {
+        delete m_entries;
+        delete m_allocator;
+    };
 
     bool addEntry(const TableTuple* tuple)
     {
-        //printf("Do they ever add Entry?\n");
-        h_index::currentIndexID = m_id;
         m_tmp1.setFromTuple(tuple, column_indices_, m_keySchema);
         return addEntryPrivate(tuple, m_tmp1);
     }
 
     bool deleteEntry(const TableTuple* tuple)
     {
-        h_index::currentIndexID = m_id;
         m_tmp1.setFromTuple(tuple, column_indices_, m_keySchema);
         return deleteEntryPrivate(m_tmp1);
     }
@@ -92,7 +93,6 @@ public:
                       const TableTuple* newTupleValue)
     {
         //printf("Do they ever replace Entry?\n");
-        h_index::currentIndexID = m_id;
         // this can probably be optimized
         m_tmp1.setFromTuple(oldTupleValue, column_indices_, m_keySchema);
         m_tmp2.setFromTuple(newTupleValue, column_indices_, m_keySchema);
@@ -110,20 +110,18 @@ public:
         return (deleted && inserted);
     }
     
-    bool setEntryToNewAddress(const TableTuple *tuple, const void* address) {
-        h_index::currentIndexID = m_id;
-        // set the key from the tuple 
+    bool setEntryToNewAddress(const TableTuple *tuple, const void* address) {        
+        // set the key from the tuple
         m_tmp1.setFromTuple(tuple, column_indices_, m_keySchema);
         ++m_updates; 
         
-        m_entries.erase(m_tmp1); 
-        std::pair<typename MapType::iterator, bool> retval = m_entries.insert(std::pair<KeyType, const void*>(m_tmp1, address));
+        m_entries->erase(m_tmp1); 
+        std::pair<typename MapType::iterator, bool> retval = m_entries->insert(std::pair<KeyType, const void*>(m_tmp1, address));
         return retval.second;
     }
 
     bool checkForIndexChange(const TableTuple* lhs, const TableTuple* rhs)
     {
-        h_index::currentIndexID = m_id;
         m_tmp1.setFromTuple(lhs, column_indices_, m_keySchema);
         m_tmp2.setFromTuple(rhs, column_indices_, m_keySchema);
         return !(m_eq(m_tmp1, m_tmp2));
@@ -131,20 +129,18 @@ public:
 
     bool exists(const TableTuple* values)
     {
-        h_index::currentIndexID = m_id;
         ++m_lookups;
         m_tmp1.setFromTuple(values, column_indices_, m_keySchema);
-        return (m_entries.find(m_tmp1) != m_entries.end());
+        return (m_entries->find(m_tmp1) != m_entries->end());
     }
 
     bool moveToKey(const TableTuple* searchKey)
     {
-        h_index::currentIndexID = m_id;
         ++m_lookups;
         m_begin = true;
         m_tmp1.setFromKey(searchKey);
-        m_keyIter = m_entries.find(m_tmp1);
-        if (m_keyIter == m_entries.end()) {
+        m_keyIter = m_entries->find(m_tmp1);
+        if (m_keyIter == m_entries->end()) {
             m_match.move(NULL);
             return false;
         }
@@ -154,12 +150,11 @@ public:
 
     bool moveToTuple(const TableTuple* searchTuple)
     {
-        h_index::currentIndexID = m_id;
         ++m_lookups;
         m_begin = true;
         m_tmp1.setFromTuple(searchTuple, column_indices_, m_keySchema);
-        m_keyIter = m_entries.find(m_tmp1);
-        if (m_keyIter == m_entries.end()) {
+        m_keyIter = m_entries->find(m_tmp1);
+        if (m_keyIter == m_entries->end()) {
             m_match.move(NULL);
             return false;
         }
@@ -169,45 +164,41 @@ public:
 
     void moveToKeyOrGreater(const TableTuple* searchKey)
     {
-        h_index::currentIndexID = m_id;
         ++m_lookups;
         m_begin = true;
         m_tmp1.setFromKey(searchKey);
-        m_keyIter = m_entries.lower_bound(m_tmp1);
+        m_keyIter = m_entries->lower_bound(m_tmp1);
     }
 
     void moveToGreaterThanKey(const TableTuple* searchKey)
     {
-        h_index::currentIndexID = m_id;
         ++m_lookups;
         m_begin = true;
         m_tmp1.setFromKey(searchKey);
-        m_keyIter = m_entries.upper_bound(m_tmp1);
+        m_keyIter = m_entries->upper_bound(m_tmp1);
     }
 
     void moveToEnd(bool begin)
     {
-        h_index::currentIndexID = m_id;
         ++m_lookups;
         m_begin = begin;
         if (begin)
-            m_keyIter = m_entries.begin();
+            m_keyIter = m_entries->begin();
         else
-            m_keyRIter = m_entries.rbegin();
+            m_keyRIter = m_entries->rbegin();
     }
 
     TableTuple nextValue()
     {
-        h_index::currentIndexID = m_id;
         TableTuple retval(m_tupleSchema);
 
         if (m_begin) {
-            if (m_keyIter == m_entries.end())
+            if (m_keyIter == m_entries->end())
                 return TableTuple();
             retval.move(const_cast<void*>(m_keyIter->second));
             ++m_keyIter;
         } else {
-            if (m_keyRIter == (typename MapType::const_reverse_iterator) m_entries.rend())
+            if (m_keyRIter == (typename MapType::const_reverse_iterator) m_entries->rend())
                 return TableTuple();
             retval.move(const_cast<void*>(m_keyRIter->second));
             ++m_keyRIter;
@@ -218,7 +209,6 @@ public:
 
     TableTuple nextValueAtKey()
     {
-        h_index::currentIndexID = m_id;
         TableTuple retval = m_match;
         m_match.move(NULL);
         return retval;
@@ -226,10 +216,9 @@ public:
 
     bool advanceToNextKey()
     {
-        h_index::currentIndexID = m_id;
         if (m_begin) {
             ++m_keyIter;
-            if (m_keyIter == m_entries.end())
+            if (m_keyIter == m_entries->end())
             {
                 m_match.move(NULL);
                 return false;
@@ -237,7 +226,7 @@ public:
             m_match.move(const_cast<void*>(m_keyIter->second));
         } else {
             ++m_keyRIter;
-            if (m_keyRIter == (typename MapType::const_reverse_iterator) m_entries.rend())
+            if (m_keyRIter == (typename MapType::const_reverse_iterator) m_entries->rend())
             {
                 m_match.move(NULL);
                 return false;
@@ -248,7 +237,7 @@ public:
         return !m_match.isNullTuple();
     }
 
-    size_t getSize() const { return m_entries.size(); }
+    size_t getSize() const { return m_entries->size(); }
     int64_t getMemoryEstimate() const {
         /** Debug code
         printf("getMomoryEstimate called! %d %ld %lu\n", m_id, h_index::indexMemoryTable[m_id], h_index::indexMemoryTable.size());
@@ -256,20 +245,19 @@ public:
             int64_t memory = h_index::indexMemoryTable[i];
             printf("Index Memory: %d %ld\n", i, memory);
         }*/
-        h_index::currentIndexID  = m_id;
-        return h_index::indexMemoryTable[m_id];
-        // return m_entries.bytesAllocated();
+        //h_index::currentIndexID  = m_id;
+        //return h_index::indexMemoryTable[m_id];
+        return m_memoryEstimate;
     }
     
     std::string getTypeName() const { return "BinaryTreeUniqueIndex"; };
     std::string debug() const
     {
-        h_index::currentIndexID = m_id;
         std::ostringstream buffer;
         buffer << TableIndex::debug() << std::endl;
 
-        typename MapType::const_iterator i = m_entries.begin();
-        while (i != m_entries.end()) {
+        typename MapType::const_iterator i = m_entries->begin();
+        while (i != m_entries->end()) {
             TableTuple retval(m_tupleSchema);
             retval.move(const_cast<void*>(i->second));
             buffer << retval.debugNoHeader() << std::endl;
@@ -281,18 +269,19 @@ public:
 protected:
     BinaryTreeUniqueIndex(const TableIndexScheme &scheme) :
         TableIndex(scheme),
-        m_entries(KeyComparator(m_keySchema)),
         m_begin(true),
         m_eq(m_keySchema)
     {
         m_match = TableTuple(m_tupleSchema);
+        m_allocator = new AllocatorType(&m_memoryEstimate);
+        m_entries = new MapType(KeyComparator(m_keySchema), (*m_allocator));
     }
 
     inline bool addEntryPrivate(const TableTuple* tuple, const KeyType &key)
     {
         ++m_inserts;
         std::pair<typename MapType::iterator, bool> retval =
-            m_entries.insert(std::pair<KeyType, const void*>(key,
+            m_entries->insert(std::pair<KeyType, const void*>(key,
                         tuple->address()));
         return retval.second;
     }
@@ -300,7 +289,7 @@ protected:
     inline bool deleteEntryPrivate(const KeyType &key)
     {
         ++m_deletes;
-        return m_entries.erase(key);
+        return m_entries->erase(key);
     }
 
     /*
@@ -308,13 +297,14 @@ protected:
        {        
        ++m_updates; 
 
-       m_entries.erase(key); 
-       std::pair<typename MapType::iterator, bool> retval = m_entries.insert(std::pair<KeyType, const void*>(key, NULL));
+       m_entries->erase(key); 
+       std::pair<typename MapType::iterator, bool> retval = m_entries->insert(std::pair<KeyType, const void*>(key, NULL));
        return retval.second;
        }
      */
 
-    MapType m_entries;
+    MapType *m_entries;
+    AllocatorType *m_allocator;
     KeyType m_tmp1;
     KeyType m_tmp2;
 
