@@ -113,6 +113,7 @@ public enum ProjectType {
     SIMPLEDISTRIBUTION("SimpleDistribution", "edu.brown.benchmark.simpledistribution"),
     SSTORE4ALLOP("SStore4AllOp", "edu.brown.benchmark.sstore4allop"),
     SSTORE4MOVEOP("SStore4MoveOp", "edu.brown.benchmark.sstore4moveop"),
+    SSTORE4MOVEOPAUTOGEN("SStore4MoveOpAutoGen", "edu.brown.benchmark.sstore4moveopautogen"),
     SSTORE4DEMUXOP("SStore4DemuxOp", "edu.brown.benchmark.sstore4demuxop"),
     SSTORE4MUXOP("SStore4MuxOp", "edu.brown.benchmark.sstore4muxop"),
     SSTORE4ALLOPSINGLESITE("SStore4AllOpSingleSite", "edu.brown.benchmark.sstore4allopsinglesite"),
