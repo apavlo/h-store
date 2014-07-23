@@ -134,7 +134,7 @@ public class VoltTableNonBlocking extends VoltTable {
     }
 
     @Override
-    public String toString(boolean includeData, boolean... dataOnlys) {
+    public String toString(boolean includeData) {
         this.block();
         return this.realTable.toString(includeData);
     }

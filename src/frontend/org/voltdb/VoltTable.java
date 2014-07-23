@@ -925,15 +925,9 @@ public class VoltTable extends VoltTableRow implements FastSerializable {
         return this.toString(true);
     }
     
-    public String toString(boolean includeData, boolean... dataOnlys) {
+    public String toString(boolean includeData) {
         assert(verifyTableInvariants());
         StringBuffer buffer = new StringBuffer();
-        
-        boolean dataOnly = false;
-        if (dataOnlys.length > 0) {
-        	dataOnly = dataOnlys[0];
-        }
-        	
 
         // commented out code to print byte by byte content
 //        for (int i = 0; i < m_buffer.limit(); i++) {
@@ -961,25 +955,19 @@ public class VoltTable extends VoltTableRow implements FastSerializable {
         short colCount = m_buffer.getShort(5);
 //        buffer.append(" column count: ").append(colCount).append("\n");
         assert(colCount == m_colCount);
-        if (!dataOnly) {
-        	buffer.append(String.format(" cols[%d] ", colCount));
-        	for (int i = 0; i < colCount; i++)
-        		buffer.append("(").append(getColumnName(i)).append(":").append(getColumnType(i).name()).append("), ");
-        	buffer.append("\n");
+        buffer.append(String.format(" cols[%d] ", colCount));
+        for (int i = 0; i < colCount; i++)
+            buffer.append("(").append(getColumnName(i)).append(":").append(getColumnType(i).name()).append("), ");
+        buffer.append("\n");
 
-        	buffer.append(" row count: ").append(getRowCount()).append("\n");
-        }
+        buffer.append(" row count: ").append(getRowCount()).append("\n");
         if (includeData) {
-        	if (!dataOnly) {
-        		buffer.append(" rows -\n");
-        	}
+            buffer.append(" rows -\n");
     
             VoltTableRow r = cloneRow();
             r.resetRowPosition();
             while (r.advanceRow()) {
-            	if (!dataOnly) {
-            		buffer.append("  ");
-            	}
+                buffer.append("  ");
                 for (int i = 0; i < m_colCount; i++) {
                     switch(getColumnType(i)) {
                     case TINYINT:
