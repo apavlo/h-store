@@ -38,27 +38,43 @@ singlePartition = false
 public class Results extends VoltProcedure
 {
     // Gets the results
-    public final SQLStmt getTotalVotesStmt = new SQLStmt( "   SELECT a.contestant_name   AS contestant_name"
-												  + "        , a.contestant_number AS contestant_number"
+    public final SQLStmt getTopThreeVotesStmt = new SQLStmt( "   SELECT a.contestant_name   AS contestant_name"
 												  + "        , b.num_votes          AS num_votes"
 												  + "     FROM v_votes_by_contestant b"
 												  + "        , contestants AS a"
 												  + "    WHERE a.contestant_number = b.contestant_number"
 												  + " ORDER BY num_votes DESC"
-												  + "        , contestant_number ASC");
+												  + "        , contestant_number ASC"
+												  + " LIMIT 3");
     
-    public final SQLStmt getLeaderboardStmt = new SQLStmt( "   SELECT a.contestant_name   AS contestant_name"
+    public final SQLStmt getBottomThreeVotesStmt = new SQLStmt( "   SELECT a.contestant_name   AS contestant_name"
+												  + "        , b.num_votes          AS num_votes"
+												  + "     FROM v_votes_by_contestant b"
+												  + "        , contestants AS a"
+												  + "    WHERE a.contestant_number = b.contestant_number"
+												  + " ORDER BY num_votes ASC"
+												  + "        , contestant_number ASC"
+												  + " LIMIT 3");
+    
+    public final SQLStmt getTrendingStmt = new SQLStmt( "   SELECT a.contestant_name   AS contestant_name"
     											  + "        , a.contestant_number AS contestant_number"
 												  + "        , b.num_votes          AS num_votes"
 												  + "     FROM leaderboard b"
 												  + "        , contestants AS a"
 												  + "    WHERE a.contestant_number = b.contestant_number"
 												  + " ORDER BY num_votes DESC"
-												  + "        , contestant_number ASC");
+												  + "        , contestant_number ASC"
+												  + " LIMIT 3");
+    
+    public final SQLStmt getVoteCountStmt = new SQLStmt( "SELECT count(*) FROM votes;");
+    public final SQLStmt getTrendingCountStmt = new SQLStmt("SELECT count(*) FROM trending_leaderboard;");
     
     public VoltTable[] run() {
-        voltQueueSQL(getTotalVotesStmt);
-        voltQueueSQL(getLeaderboardStmt);
+        voltQueueSQL(getTopThreeVotesStmt);
+        voltQueueSQL(getBottomThreeVotesStmt);
+        voltQueueSQL(getTrendingStmt);
+        voltQueueSQL(getVoteCountStmt);
+        voltQueueSQL(getTrendingCountStmt);
         return voltExecuteSQL(true);
     }
 }
