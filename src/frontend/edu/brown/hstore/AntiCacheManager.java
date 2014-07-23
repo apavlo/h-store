@@ -28,6 +28,7 @@ import org.voltdb.exceptions.SerializableException;
 import org.voltdb.jni.ExecutionEngine;
 import org.voltdb.messaging.FastSerializer;
 import org.voltdb.sysprocs.EvictTuples;
+import org.voltdb.types.AntiCacheEvictionPolicyType;
 import org.voltdb.utils.Pair;
 import org.voltdb.utils.VoltTableUtil;
 
@@ -117,7 +118,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
     protected boolean pendingStatsUpdates[];
 
     private final AntiCacheManagerProfiler profilers[];
-    private final EvictionDistributionPolicy evictionDistributionPolicy;
+    private final AntiCacheEvictionPolicyType evictionDistributionPolicy;
     
     private final double UNEVICTION_RATIO_EMA_ALPHA = .1;
     private final double UNEVICTION_RATIO_CLUSTER_THRESHOLD = .1;
@@ -223,20 +224,13 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         	}
         }
 
-        String policy = hstore_conf.site.anticache_eviction_distribution;
-        if (policy.equals("proportional")) {
-            evictionDistributionPolicy = EvictionDistributionPolicy.PROPORTIONAL;
-        } else if (policy.equals("even")) {
-            evictionDistributionPolicy = EvictionDistributionPolicy.EVEN;
-        } else if (policy.equals("uneviction_ratio")) {
-            evictionDistributionPolicy = EvictionDistributionPolicy.UNEVICTION_RATIO;
-        } else if (policy.equals("access_rate")) {
-            evictionDistributionPolicy = EvictionDistributionPolicy.ACCESS_RATE;
-        } else {
+        AntiCacheEvictionPolicyType policy = AntiCacheEvictionPolicyType.get(hstore_conf.site.anticache_eviction_distribution);
+        if (policy == null) {
             LOG.warn(String.format("Bad value for site.anticache_eviction_distribution: %s. Using default of 'even'",
                     hstore_conf.site.anticache_eviction_distribution));
-            evictionDistributionPolicy = EvictionDistributionPolicy.EVEN;
+            policy = AntiCacheEvictionPolicyType.EVEN;
         }
+        this.evictionDistributionPolicy = policy;
 
         int num_partitions = hstore_site.getCatalogContext().numberOfPartitions;
 
@@ -256,7 +250,8 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         this.statsMessage.getObservable().addObserver(new EventObserver<VoltTable>() {
             @Override
             public void update(EventObservable<VoltTable> o, VoltTable vt) {
-            	LOG.info("updating partition stats in observer");
+            	if (debug.val)
+            	    LOG.debug("updating partition stats in observer");
                 AntiCacheManager.this.updatePartitionStats(vt);
             }
         });
@@ -560,38 +555,30 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         } 
     }
 
-    private enum EvictionDistributionPolicy {
-        EVEN,
-        PROPORTIONAL,
-        UNEVICTION_RATIO,
-        ACCESS_RATE,
-    }
-
     protected Map<Integer, Map<String, Integer>> getEvictionDistribution(long blocksToEvict) {
         Map<Integer, Map<String, Integer>> distribution = new HashMap<Integer, Map<String, Integer>>();
         for (int partition : hstore_site.getLocalPartitionIds()) {
             distribution.put(partition, new HashMap<String, Integer>());
         }
         switch (evictionDistributionPolicy) {
-        case EVEN:
-            fillEvenEvictionDistribution(distribution, blocksToEvict);
-            break;
-        case PROPORTIONAL:
-            fillProportionalEvictionDistribution(distribution, blocksToEvict);
-            break;
-        case UNEVICTION_RATIO:
-            fillUnevictionRatioEvictionDistribution(distribution, blocksToEvict);
-            break;
-        case ACCESS_RATE:
-            fillAccessRateEvictionDistribution(distribution, blocksToEvict);
-            break;
-        default:
-            assert(false):
-                String.format("Unsupported eviction distribution policy %s\n",
-                        evictionDistributionPolicy);
-            fillEvenEvictionDistribution(distribution, blocksToEvict);
-
-        }
+            case EVEN:
+                fillEvenEvictionDistribution(distribution, blocksToEvict);
+                break;
+            case PROPORTIONAL:
+                fillProportionalEvictionDistribution(distribution, blocksToEvict);
+                break;
+            case UNEVICTION_RATIO:
+                fillUnevictionRatioEvictionDistribution(distribution, blocksToEvict);
+                break;
+            case ACCESS_RATE:
+                fillAccessRateEvictionDistribution(distribution, blocksToEvict);
+                break;
+            default:
+                assert(false):
+                    String.format("Unsupported eviction distribution policy %s\n",
+                            evictionDistributionPolicy);
+                fillEvenEvictionDistribution(distribution, blocksToEvict);
+        } // SWITCH
 
         String msg = "Eviction distribution:\n";
         for (int partition : distribution.keySet()) {
@@ -710,9 +697,10 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
             int partition = chunk.getFirst();
             String table = chunk.getSecond();
             Stats tstats = partitionStats[partition].get(table);
-            LOG.warn(String.format("%d %s Ratio %f Evicted %d Read %d Written %d Accesses %d",
-                    partition, table, metric.getMetric(partition, table),
-                    tstats.blocksEvicted, tstats.blocksFetched, tstats.blocksWritten, tstats.accesses));
+            if (debug.val)
+                LOG.warn(String.format("%d %s Ratio %f Evicted %d Read %d Written %d Accesses %d",
+                         partition, table, metric.getMetric(partition, table),
+                         tstats.blocksEvicted, tstats.blocksFetched, tstats.blocksWritten, tstats.accesses));
         }
 
         
@@ -721,7 +709,8 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
             Iterator<Pair<Integer, String>> iter = allChunks.iterator();
             Pair<Integer, String> firstChunk = iter.next();
             double chunkMetric = metric.getMetric(firstChunk.getFirst(), firstChunk.getSecond());
-            LOG.warn(String.format("Current metric: %f", chunkMetric));
+            if (debug.val)
+                LOG.warn(String.format("Current metric: %f", chunkMetric));
             
             ArrayList<Pair<Integer, String>> chunks = new ArrayList<Pair<Integer, String>>();
             chunks.add(firstChunk);
@@ -742,20 +731,24 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
                 }
             }
             
-            LOG.warn(String.format("Distributing to %d table(s)", chunks.size()));
+            if (debug.val)
+                LOG.warn(String.format("Distributing to %d table(s)", chunks.size()));
             long totalSize = 0;
             for (Pair<Integer, String> chunk : chunks) {
                 totalSize += partitionStats[chunk.getFirst()].get(chunk.getSecond()).sizeKb;
             }
             
             long evictableBlocks = totalSize / (hstore_conf.site.anticache_block_size / 1024);
-            LOG.warn(String.format("Total evictable blocks %d", evictableBlocks));
-            LOG.warn(String.format("Blocks left %d", blocksLeft));
+            if (debug.val) {
+                LOG.warn(String.format("Total evictable blocks %d", evictableBlocks));
+                LOG.warn(String.format("Blocks left %d", blocksLeft));
+            }
             
             long currentBlocksToEvict = Math.min(evictableBlocks, blocksLeft);
             for (Pair<Integer, String> chunk : chunks) {
                 double size = partitionStats[chunk.getFirst()].get(chunk.getSecond()).sizeKb;
-                LOG.warn(String.format("Proportion: %f", size / totalSize));
+                if (debug.val)
+                    LOG.warn(String.format("Proportion: %f", size / totalSize));
                 int blocks = (int) Math.ceil((size / totalSize) * currentBlocksToEvict);
                 distribution.get(chunk.getFirst()).put(chunk.getSecond(), blocks);
             }

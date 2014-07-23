@@ -705,10 +705,10 @@ public final class HStoreConf {
         public int anticache_blocks_per_eviction;
         
         @ConfigProperty(
-                description="Policy specifying how to distribute eviction load over partitions and tables. " +
-                                        "Possible values are 'even', 'proportional', and 'uneviction_ratio' (default)",
-                defaultString="uneviction_ratio",
-                experimental=true
+                description="Policy specifying how to distribute eviction load over partitions and tables.",
+                defaultString="UNEVICTION_RATIO",
+                experimental=true,
+                enumOptions="org.voltdb.types.AntiCacheEvictionPolicyType"
         )
         public String anticache_eviction_distribution;
         
