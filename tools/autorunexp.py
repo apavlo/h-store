@@ -130,6 +130,7 @@ parser.add_argument('--txnthreshold', help='percentage difference between txnrat
 parser.add_argument('--rmin', help='min - txnrate', type=int, default=1000)
 parser.add_argument('--rmax', help='max - txnrate', type=int, default=100000)
 parser.add_argument('--rstep', help='initial step size - txnrate', type=int, default=100)
+parser.add_argument('--finalrmin', help='the absolute lowest txnrate to consider', type=int, default=1)
 parser.add_argument('--finalrstep', help='final step size- txnrate', type=int, default=0)
 parser.add_argument('--logtimeout', help='log timeout', type=int, default=10)
 #parser.add_argument('--lmax', help='max - log timeout', type=int, default=10)
@@ -157,6 +158,7 @@ rmax	    = args.rmax
 rstep       = args.rstep
 orstep      = rstep
 frstep      = args.finalrstep
+frmin       = args.finalrmin
 logtimeout  = args.logtimeout
 #lmax	    = args.lmax
 #lstep       = args.lstep
@@ -232,7 +234,7 @@ for rn in range(0, numruns):
 	cur_values = []
 	rstep = orstep
 	while client_txnrate <= rmax:
-		if client_txnrate < 1:
+		if client_txnrate < frmin:
 			client_txnrate += rstep
 			continue
 
