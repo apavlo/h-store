@@ -63,6 +63,7 @@ Procedure::Procedure(Catalog *catalog, CatalogType *parent, const string &path, 
     m_childCollections["statements"] = &m_statements;
     m_childCollections["parameters"] = &m_parameters;
     m_childCollections["conflicts"] = &m_conflicts;
+    m_fields["partitionNum"] = value;
 }
 
 Procedure::~Procedure() {
@@ -129,6 +130,7 @@ void Procedure::update() {
     m_partitiontable = m_fields["partitiontable"].typeValue;
     m_partitioncolumn = m_fields["partitioncolumn"].typeValue;
     m_partitionparameter = m_fields["partitionparameter"].intValue;
+    m_partitionNum = m_fields["partitionNum"].intValue;
 }
 
 CatalogType * Procedure::addChild(const std::string &collectionName, const std::string &childName) {
@@ -304,5 +306,9 @@ const CatalogMap<ProcParameter> & Procedure::parameters() const {
 
 const CatalogMap<ConflictSet> & Procedure::conflicts() const {
     return m_conflicts;
+}
+
+int32_t Procedure::partitionNum() const {
+    return m_partitionNum;
 }
 

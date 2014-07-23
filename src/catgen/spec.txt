@@ -114,6 +114,7 @@ begin Procedure                 "A stored procedure (transaction) in the system"
     Statement* statements       "The set of SQL statements this procedure may call"
     ProcParameter* parameters   "The set of parameters to this stored procedure"
     ConflictSet* conflicts      "The conflict sets that this stored procedure has with other procedures"
+    int partitionNum			"The specified partition number"
 end
 
 begin ProcedureRef

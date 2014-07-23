@@ -7,6 +7,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.commons.lang.ArrayUtils;
 import org.apache.log4j.Logger;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
@@ -68,6 +69,12 @@ public class VoltProcedureInvoker {
             expectedParams = 1;
         }
         
+        boolean dataOnly = false;
+        if (params.length > 0 && params[params.length-1].toLowerCase().equals("true")) {
+        	dataOnly = true;
+        	params = (String[])ArrayUtils.remove(params, params.length-1);
+        }
+        
         // Procedure Parameters
         if (params.length != expectedParams) {
             Map<String, Object> m = new LinkedHashMap<String, Object>();
@@ -126,8 +133,10 @@ public class VoltProcedureInvoker {
                                                             vt, parameters[i].getClass()));
         } // FOR
         
-        LOG.info(String.format("Invoking %s [params=%s]",
+        if (!dataOnly) {
+        	LOG.info(String.format("Invoking %s [params=%s]",
                                catalog_proc.getName(), Arrays.toString(parameters)));
+        }
         ClientResponse cresponse = client.callProcedure(catalog_proc.getName(), parameters);
         
         return (cresponse);
@@ -144,6 +153,11 @@ public class VoltProcedureInvoker {
             parameters[i] = args.getOptParam(i+1);
         } // FOR
         
+        boolean dataOnly = false;
+        if (parameters.length > 0 && parameters[parameters.length-1].toLowerCase().equals("true")) {
+        	dataOnly = true;
+        }
+        
         Client client = ClientFactory.createClient(128, null, false, null);
         Cluster catalog_clus = args.catalog_db.getParent(); 
         Site catalog_site = CollectionUtil.first(catalog_clus.getSites());
@@ -153,7 +167,9 @@ public class VoltProcedureInvoker {
         Integer port = CollectionUtil.random(CatalogUtil.getExecutionSitePorts(catalog_site));
         assert(port != null);
         client.createConnection(null, catalog_host.getIpaddr(), port, "user", "password");
-        LOG.info(String.format("Connected to H-Store cluster at %s:%d", catalog_host.getIpaddr(), port));
+        if (!dataOnly) {
+        	LOG.info(String.format("Connected to H-Store cluster at %s:%d", catalog_host.getIpaddr(), port));
+        }
         
         ClientResponse cresponse = VoltProcedureInvoker.invoke(args.catalog,
                                                                client,
@@ -168,13 +184,19 @@ public class VoltProcedureInvoker {
         for (int i = 0; i < cresponse.getResults().length; i++) {
             VoltTable vt = cresponse.getResults()[i];
             m.put(String.format("  [%02d]", i), vt);
+            if (dataOnly) {
+//            	LOG.info(vt.toString(true, true));
+            	System.out.println(vt.toString(true, true));
+            }
         } // FOR
         
-        LOG.info(StringUtil.repeat("-", 50));
-        LOG.info(String.format("%s Txn #%d - Status %s\n%s",
-                               procName,
-                               cresponse.getTransactionId(),
-                               cresponse.getStatus(),
-                               cresponse.toString()));
+        if (!dataOnly) {
+        	LOG.info(StringUtil.repeat("-", 50));
+        	LOG.info(String.format("%s Txn #%d - Status %s\n%s",
+                               	procName,
+                               	cresponse.getTransactionId(),
+                               	cresponse.getStatus(),
+                               	cresponse.toString()));
+        }
     }
 }
