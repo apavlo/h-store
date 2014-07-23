@@ -562,6 +562,12 @@ public class CommandLogWriter extends ExceptionHandlingRunnable implements Shutd
     public boolean appendToLog(final LocalTransaction ts, final ClientResponseImpl cresponse) {
         boolean sendResponse = true;
 
+        // added by hawk, 2014/6/20
+        // used to determine if this txn is frontend trigger related txn
+        Procedure sp = ts.getProcedure();
+        if(sp.getBedefault()==true)
+            return false;
+        
         // -------------------------------
         // QUEUE FOR GROUP COMMIT
         // -------------------------------

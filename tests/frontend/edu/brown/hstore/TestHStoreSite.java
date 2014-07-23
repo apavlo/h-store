@@ -513,7 +513,7 @@ public class TestHStoreSite extends BaseTestCase {
         MockClientCallback callback = new MockClientCallback();
         
         LocalTransaction ts = new LocalTransaction(hstore_site);
-        ts.init(-1, 1000l, EstTime.currentTimeMillis(), CLIENT_HANDLE, BASE_PARTITION,
+        ts.init(-1l, 1000l, EstTime.currentTimeMillis(), CLIENT_HANDLE, BASE_PARTITION,
                 predict_touchedPartitions, predict_readOnly, predict_canAbort,
                 catalog_proc, PARAMS, callback);
         

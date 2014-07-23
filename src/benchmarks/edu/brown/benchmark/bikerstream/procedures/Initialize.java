@@ -39,26 +39,34 @@ public class Initialize extends VoltProcedure
 {
 
     public final SQLStmt insertStation = new SQLStmt(
-        "INSERT INTO stations (station_id, location, lat, lon, num_bikes, num_docks) VALUES (?,?,?,?,?,?);"
+        "INSERT INTO stations (station_id, station_name, street_address, latitude, longitude) " +
+        "VALUES (?,?,?,?,?)"
     );
 
-//     public final SQLStmt insertRider = new SQLStmt(
-//         "INSERT INTO riders (rider_id, f_name, l_name) VALUES (?,?);"
-//     );
-// 
-//     public final SQLStmt insertCard = new SQLStmt(
-//         "INSERT INTO cards (rider_id, bank, name, num, exp, sec_code) VALUES (?,?,?,?,?,?);"
-//     );
+    public final SQLStmt insertBike = new SQLStmt(
+        "INSERT INTO bikes (bike_id, current_status) VALUES (?,?)"
+    );
 
+    public final SQLStmt initialStationStatus = new SQLStmt(
+        "INSERT INTO StationStatus (station_id, current_bikes, current_docks, current_bike_discount, current_dock_discount) " +
+        "VALUES (?,?,?,?,?)"
+
+    );
 
     public long run() {
 
         int maxBikes    = BikerStreamConstants.NUM_BIKES_PER_STATION;
-        int maxStations = BikerStreamConstants.NUM_STATIONS;
+        int maxStations = BikerStreamConstants.STATION_LOCATIONS.length;
 
         for (int i = 0; i < maxStations; ++i){
             // Insert the Station
-            voltQueueSQL(insertStation, i, "", 0.0, 0.0, 10, 0);
+            voltQueueSQL(insertStation, i+1, BikerStreamConstants.STATION_LOCATIONS[i], "ADRESS HERE", i, i);
+
+            int j;
+            for (j = 0; j < 10; ++j) {
+                voltQueueSQL(insertBike, (i*1000) + j, 0);
+            }
+            voltQueueSQL(initialStationStatus, i, j +1, 20 - (j+1), 0.0, 0.0);
             voltExecuteSQL();
         }
 

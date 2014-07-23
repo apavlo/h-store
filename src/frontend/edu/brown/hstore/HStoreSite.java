@@ -286,7 +286,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
 //    private StreamStatsCollector m_streamStatsCollector;
     // used to hold workflow topology (frontend trigger) added by hawk, 2014/4/7
     private final Map<String, List<String>> m_workflowTopology = new HashMap<String, List<String>>();
-    //private WorkflowScheduler workflowScheduler;
+    private WorkflowScheduler workflowScheduler;
     // ended by hawk
 
     
@@ -692,8 +692,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         this.initStatSources();
         
         // added by hawk, 2014/4/7
-        //this.initWorkflowTopology();
-        //this.workflowScheduler = new WorkflowScheduler(this);
+        this.initWorkflowTopology();
+        this.workflowScheduler = new WorkflowScheduler(this);
         // ended by hawk
         
         // Profiling
@@ -775,10 +775,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         return m_workflowTopology;
     }
     
-//    public WorkflowScheduler getWorkflowScheduler()
-//    {
-//        return this.workflowScheduler;
-//    }
+    public WorkflowScheduler getWorkflowScheduler()
+    {
+        return this.workflowScheduler;
+    }
 
     // ----------------------------------------------------------------------------
     // INITIALIZATION STUFF
@@ -1620,10 +1620,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         // added by hawkwang, 2014/5/23
         // Step one: Turn off frontend trigger mechanism
-        LOG.info("Turn off frontend trigger mechanism ... ");
-        String name = "global.sstore";
-        Object value = false;
-        Object origin_value = setConfig(name, value);
+        //LOG.info("Turn off frontend trigger mechanism ... ");
+        //String name = "global.sstore";
+        //Object value = false;
+        //Object origin_value = setConfig(name, value);
         // ended by hawk
         
         // ARIES
@@ -1639,8 +1639,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         // added by hawkwang, 2014/5/23
         // Step two: Turn back to origin setting for frontend trigger mechanism
-        setConfig(name, origin_value);
-        LOG.info("Turn frontend trigger mechanism setting back ... ");
+        //setConfig(name, origin_value);
+        //LOG.info("Turn frontend trigger mechanism setting back ... ");
         //ended by hawk
         
         
@@ -2105,7 +2105,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
 //                ProfileMeasurement.swap(timestamp, this.profiler.network_idle_time, this.profiler.network_processing_time);
 //            }
 //        }
-    	
         long timestamp = -1;
         if (hstore_conf.global.nanosecond_latencies) {
             timestamp = System.nanoTime();
@@ -2122,7 +2121,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         final long client_handle = StoredProcedureInvocation.getClientHandle(buffer);
         final int procId = StoredProcedureInvocation.getProcedureId(buffer);
         int base_partition = StoredProcedureInvocation.getBasePartition(buffer);
-        int batchId = StoredProcedureInvocation.getBatchId(buffer); // added by hawk, 2014-3-7
+        long batchId = StoredProcedureInvocation.getBatchId(buffer); // added by hawk, 2014-3-7
         
         if (debug.val)
             LOG.debug(String.format("Raw Request: clientHandle=%d / basePartition=%d / procId=%d / procName=%s",
@@ -2238,13 +2237,25 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     }
     
     // added by hawk, 2013/11/1
-	public void invocationTriggerProcedureProcess(int batchId, long clientHandle, long initiateTime, Procedure procedure) {
+    public void invocationTriggerProcedureProcess(long batchId, long clientHandle, long initiateTime, Procedure procedure) {
+        
+        // added by hawk, 2014/4/7
+        if(this.hstore_conf.global.sstore_scheduler==true)
+        {
+            Long workflowid = batchId;
+            String spname = procedure.getName();
+            WorkflowScheduler wkfScheduler = this.getWorkflowScheduler();
+            //System.out.println("---------------------------------------------");
+            wkfScheduler.addSPStartStatus( workflowid, spname );
+            //System.out.println("---------------------------------------------");
+        }
+        // ended by hawk
         
       // hawk: for micro-benchmark 2, start point
       long startNanoTime = System.nanoTime();
       // end
         
-      //System.out.println("hawk - firing frontend trigger 1:" + procedure.getName());
+      //System.out.println(String.format("hawk - batchId %d - firing frontend trigger %s:", batchId , batchId, procedure.getName()));
 
       long timestamp = -1;
       if (hstore_conf.global.nanosecond_latencies) {
@@ -3134,12 +3145,15 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
 
         if (sendResponse) {
             // added by hawk, 2014/4/7
-//            Integer workflowid = ts.getBatchId();
-//            String spname = ts.getProcedure().getName();
-//            WorkflowScheduler wkfScheduler = this.getWorkflowScheduler();
-//            System.out.println("---------------------------------------------");
-//            wkfScheduler.addSPEndStatus( workflowid, spname );
-//            System.out.println("---------------------------------------------");
+            if(this.hstore_conf.global.sstore_scheduler==true)
+            {
+                Long workflowid = ts.getBatchId();
+                String spname = ts.getProcedure().getName();
+                WorkflowScheduler wkfScheduler = this.getWorkflowScheduler();
+                //System.out.println("---------------------------------------------");
+                wkfScheduler.addSPEndStatus( workflowid, spname );
+                //System.out.println("---------------------------------------------");
+            }
             // ended by hawk
             
             // NO GROUP COMMIT -- SEND OUT AND COMPLETE
@@ -3194,7 +3208,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                               RpcCallback<ClientResponseImpl> clientCallback,
                               long initiateTime,
                               int restartCounter,
-                              int batchId
+                              long batchId
                               ) 
     {
         this.postProcessorQueue.add(new Object[]{
@@ -3218,7 +3232,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                               Status status,
                               String message,
                               RpcCallback<ClientResponseImpl> clientCallback,
-                              int batchId,
+                              long batchId,
                               long initiateTime) {
         ClientResponseImpl cresponse = new ClientResponseImpl(
                                             -1,
@@ -3240,7 +3254,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      */
     public void responseSend(ClientResponseImpl cresponse,
                              RpcCallback<ClientResponseImpl> clientCallback,
-                             int batchId,
+                             long batchId,
                              long initiateTime,
                              int restartCounter) {
         Status status = cresponse.getStatus();

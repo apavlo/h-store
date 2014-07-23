@@ -20,6 +20,7 @@ package org.voltdb.client;
 import java.io.IOException;
 import java.net.UnknownHostException;
 import java.util.Random;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.log4j.Logger;
@@ -266,12 +267,28 @@ final class ClientImpl implements Client {
         return callProcedure(callback, m_expectedOutgoingMessageSize, procName, null, parameters);
     }
     
+    public final boolean callStreamProcedure(ProcedureCallback callback, String procName, Long batchId, Object... parameters)
+    throws IOException, NoConnectionsException {
+        if (m_isShutdown) {
+            return false;
+        }
+        return callStreamProcedure(callback, m_expectedOutgoingMessageSize, procName, batchId, null, parameters);
+    }
+    
     public final boolean callProcedure(ProcedureCallback callback, String procName, StoredProcedureInvocationHints hints, Object... parameters)
     throws IOException, NoConnectionsException {
         if (m_isShutdown) {
             return false;
         }
         return callProcedure(callback, m_expectedOutgoingMessageSize, procName, hints, parameters);
+    }
+    
+    public final boolean callStreamProcedure(ProcedureCallback callback, String procName, Long batchId, StoredProcedureInvocationHints hints, Object... parameters)
+    throws IOException, NoConnectionsException {
+        if (m_isShutdown) {
+            return false;
+        }
+        return callStreamProcedure(callback, m_expectedOutgoingMessageSize, procName, batchId, hints, parameters);
     }
     
     public final boolean asynCallProcedure(ProcedureCallback callback, String procName, StoredProcedureInvocationHints hints, Object... parameters)
@@ -282,11 +299,11 @@ final class ClientImpl implements Client {
         return callProcedure(callback, m_expectedOutgoingMessageSize, procName, hints, parameters);
     }
 
-    public final ClientResponse callStreamProcedure(String procName, Integer batchId, Object... parameters) throws IOException, NoConnectionsException, ProcCallException {
+    public final ClientResponse callStreamProcedure(String procName, Long batchId, Object... parameters) throws IOException, NoConnectionsException, ProcCallException {
         return this.callStreamProcedure(procName, null, batchId, parameters);
     }
     
-    public final ClientResponse callStreamProcedure(String procName, StoredProcedureInvocationHints hints, Integer batchId, Object... parameters) throws IOException, NoConnectionsException,
+    public final ClientResponse callStreamProcedure(String procName, StoredProcedureInvocationHints hints, Long batchId, Object... parameters) throws IOException, NoConnectionsException,
             ProcCallException {
         if (m_isShutdown) {
             throw new NoConnectionsException("Client instance is shutdown");
@@ -332,7 +349,6 @@ final class ClientImpl implements Client {
         return cb.getResponse();
     }
 
-
     
     @Override
     public int calculateInvocationSerializedSize(String procName,
@@ -351,6 +367,8 @@ final class ClientImpl implements Client {
         return size;
     }
 
+    static AtomicLong batchid = new AtomicLong(0);
+    
     @Override
     public final boolean callProcedure(
             ProcedureCallback callback,
@@ -369,7 +387,8 @@ final class ClientImpl implements Client {
         }
         StoredProcedureInvocation invocation =
             new StoredProcedureInvocation(m_handle.getAndIncrement(), procName, parameters);
-
+        invocation.setBatchId(ClientImpl.batchid.getAndIncrement());
+        
         Integer site_id = null;
         if (m_catalog != null) {
             Procedure catalog_proc = m_catalogContext.procedures.getIgnoreCase(procName);
@@ -416,6 +435,77 @@ final class ClientImpl implements Client {
             m_queueTime.appendTime(start, ProfileMeasurement.getTime(), 1);
             return ret;
         }
+    }
+    
+    @Override
+    public final boolean callStreamProcedure(
+            ProcedureCallback callback,
+            int expectedSerializedSize,
+            String procName,
+            Long batchId,
+            StoredProcedureInvocationHints hints,
+            Object... parameters)
+            throws IOException, NoConnectionsException {
+        if (m_isShutdown) {
+            return false;
+        }
+        if (callback == null) {
+            callback = new NullCallback();
+        } else if (callback instanceof ProcedureArgumentCacher) {
+            ((ProcedureArgumentCacher)callback).setArgs(parameters);
+        }
+        StoredProcedureInvocation invocation =
+            new StoredProcedureInvocation(m_handle.getAndIncrement(), procName, parameters);
+        invocation.setBatchId(batchId);
+        
+        Integer site_id = null;
+        if (m_catalog != null) {
+            Procedure catalog_proc = m_catalogContext.procedures.getIgnoreCase(procName);
+            if (catalog_proc != null) {
+                // OPTIMIZATION: If we have the the catalog, then we'll send just 
+                // the procId. This reduces the number of strings that we need to 
+                // allocate on the server side.
+                invocation.setProcedureId(catalog_proc.getId());
+                
+                // OPTIMIZATION: If this isn't a sysproc, then we can tell them
+                // what the base partition for this request will be
+                if ((hints == null || hints.basePartition == HStoreConstants.NULL_PARTITION_ID) &&
+                    catalog_proc.getSystemproc() == false) {
+                    try {
+                        int partition = m_pEstimator.getBasePartition(invocation);
+                        if (partition != HStoreConstants.NULL_PARTITION_ID) {
+                            site_id = m_partitionSiteXref[partition];
+                            invocation.setBasePartition(partition);
+                        }
+                    } catch (Exception ex) {
+                        throw new RuntimeException("Failed to estimate base partition for new invocation of '" + procName + "'", ex);
+                    }
+                }
+            }
+        }
+        
+        if (hints != null && hints.basePartition != HStoreConstants.NULL_PARTITION_ID) {
+            invocation.setBasePartition(hints.basePartition);
+        }
+
+        if (m_blockingQueue) {
+            long start = ProfileMeasurement.getTime();
+            while (!m_distributer.queue(invocation, callback, expectedSerializedSize, true, site_id)) {
+                try {
+                    backpressureBarrier();
+                } catch (InterruptedException e) {
+                    throw new java.io.InterruptedIOException("Interrupted while invoking procedure asynchronously");
+                }
+            }
+            m_queueTime.appendTime(start, ProfileMeasurement.getTime(), 1);
+            return true;
+        } else {
+            long start = ProfileMeasurement.getTime();
+            boolean ret = m_distributer.queue(invocation, callback, expectedSerializedSize, false, site_id);
+            m_queueTime.appendTime(start, ProfileMeasurement.getTime(), 1);
+            return ret;
+        }
+        
     }
 
     public void drain() throws NoConnectionsException, InterruptedException {

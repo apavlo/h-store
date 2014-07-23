@@ -230,7 +230,7 @@ public class LocalTransaction extends AbstractTransaction {
      * @param client_callback
      * @return
      */
-    public LocalTransaction init(int batch_id,
+    public LocalTransaction init(Long batch_id,
                                  Long txn_id,
                                  long initiateTime,
                                  long clientHandle,
@@ -300,7 +300,7 @@ public class LocalTransaction extends AbstractTransaction {
                                      Procedure catalog_proc) {
         
         this.initiateTime = EstTime.currentTimeMillis();
-        super.init(-1,
+        super.init((long)-1,
                    txn_id,                       // TxnId
 //                   EstTime.currentTimeMillis(),  // initializeTime
 //                   localInitiateTime,
