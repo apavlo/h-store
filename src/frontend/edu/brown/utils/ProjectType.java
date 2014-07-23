@@ -131,11 +131,72 @@ public enum ProjectType {
     VOTERDEMOSSTORE("VoterDemoSStore", "edu.brown.benchmark.voterdemosstore"),
     VOTERDEMOSSTOREWINSP1("VoterDemoSStoreWinSP1", "edu.brown.benchmark.voterdemosstorewinsp1"),
     VOTERDEMOSSTOREWINSP1DIST("VoterDemoSStoreWinSP1Dist", "edu.brown.benchmark.voterdemosstorewinsp1dist"),
+    VOTERDEMOSSTOREWINSP1SCHEDULER("VoterDemoSStoreWinSP1Scheduler", "edu.brown.benchmark.voterdemosstorewinsp1scheduler"),
     VOTERDEMOSSTOREANOTHER("VoterDemoSStoreAnother", "edu.brown.benchmark.voterdemosstoreanother"),
     VOTERDEMOSSTOREPETRIGONLY("VoterDemoSStorePETrigOnly", "edu.brown.benchmark.voterdemosstorepetrigonly"),
     VOTERDEMOSSTORENOPETRIG("VoterDemoSStoreNoPETrig", "edu.brown.benchmark.voterdemosstorenopetrig"),
     VOTERDEMOSSTORENOPETRIGWINSP1("VoterDemoSStoreNoPETrigWinSP1", "edu.brown.benchmark.voterdemosstorenopetrigwinsp1"),
-;
+    
+    
+    
+    VOTERWINHSTOREW100S1("VoterWinHStoreW100S1", "edu.brown.benchmark.voterexperiments.winhstore.w100s1"),
+    VOTERWINHSTOREW100S5("VoterWinHStoreW100S5", "edu.brown.benchmark.voterexperiments.winhstore.w100s5"),
+    VOTERWINHSTOREW100S10("VoterWinHStoreW100S10", "edu.brown.benchmark.voterexperiments.winhstore.w100s10"),
+    VOTERWINHSTOREW100S100("VoterWinHStoreW100S100", "edu.brown.benchmark.voterexperiments.winhstore.w100s100"),
+    VOTERWINHSTOREW1000S1("VoterWinHStoreW1000S1", "edu.brown.benchmark.voterexperiments.winhstore.w1000s1"),
+    VOTERWINHSTOREW1000S5("VoterWinHStoreW1000S5", "edu.brown.benchmark.voterexperiments.winhstore.w1000s5"),
+    VOTERWINHSTOREW1000S10("VoterWinHStoreW1000S10", "edu.brown.benchmark.voterexperiments.winhstore.w1000s10"),
+    VOTERWINHSTOREW1000S100("VoterWinHStoreW1000S100", "edu.brown.benchmark.voterexperiments.winhstore.w1000s100"),
+    VOTERWINHSTOREW10000S1("VoterWinHStoreW10000S1", "edu.brown.benchmark.voterexperiments.winhstore.w10000s1"),
+    VOTERWINHSTOREW10000S5("VoterWinHStoreW10000S5", "edu.brown.benchmark.voterexperiments.winhstore.w10000s5"),
+    VOTERWINHSTOREW10000S10("VoterWinHStoreW10000S10", "edu.brown.benchmark.voterexperiments.winhstore.w10000s10"),
+    VOTERWINHSTOREW10000S100("VoterWinHStoreW10000S100", "edu.brown.benchmark.voterexperiments.winhstore.w10000s100"),
+      
+    VOTERWINHSTORENOCLEANUPW100S1("VoterWinHStoreNoCleanupW100S1", "edu.brown.benchmark.voterexperiments.winhstorenocleanup.w100s1"),
+    VOTERWINHSTORENOCLEANUPW100S5("VoterWinHStoreNoCleanupW100S5", "edu.brown.benchmark.voterexperiments.winhstorenocleanup.w100s5"),
+    VOTERWINHSTORENOCLEANUPW100S10("VoterWinHStoreNoCleanupW100S10", "edu.brown.benchmark.voterexperiments.winhstorenocleanup.w100s10"),
+    VOTERWINHSTORENOCLEANUPW100S100("VoterWinHStoreNoCleanupW100S100", "edu.brown.benchmark.voterexperiments.winhstorenocleanup.w100s100"),
+    VOTERWINHSTORENOCLEANUPW1000S1("VoterWinHStoreNoCleanupW1000S1", "edu.brown.benchmark.voterexperiments.winhstorenocleanup.w1000s1"),
+    VOTERWINHSTORENOCLEANUPW1000S5("VoterWinHStoreNoCleanupW1000S5", "edu.brown.benchmark.voterexperiments.winhstorenocleanup.w1000s5"),
+    VOTERWINHSTORENOCLEANUPW1000S10("VoterWinHStoreNoCleanupW1000S10", "edu.brown.benchmark.voterexperiments.winhstorenocleanup.w1000s10"),
+    VOTERWINHSTORENOCLEANUPW1000S100("VoterWinHStoreNoCleanupW1000S100", "edu.brown.benchmark.voterexperiments.winhstorenocleanup.w1000s100"),
+    VOTERWINHSTORENOCLEANUPW10000S1("VoterWinHStoreNoCleanupW10000S1", "edu.brown.benchmark.voterexperiments.winhstorenocleanup.w10000s1"),
+    VOTERWINHSTORENOCLEANUPW10000S5("VoterWinHStoreNoCleanupW10000S5", "edu.brown.benchmark.voterexperiments.winhstorenocleanup.w10000s5"),
+    VOTERWINHSTORENOCLEANUPW10000S10("VoterWinHStoreNoCleanupW10000S10", "edu.brown.benchmark.voterexperiments.winhstorenocleanup.w10000s10"),
+    VOTERWINHSTORENOCLEANUPW10000S100("VoterWinHStoreNoCleanupW10000S100", "edu.brown.benchmark.voterexperiments.winhstorenocleanup.w10000s100"),
+
+    VOTERWINHSTORENOSTATEW100S1("VoterWinHStoreNoStateW100S1", "edu.brown.benchmark.voterexperiments.winhstorenostate.w100s1"),
+    VOTERWINHSTORENOSTATEW100S5("VoterWinHStoreNoStateW100S5", "edu.brown.benchmark.voterexperiments.winhstorenostate.w100s5"),
+    VOTERWINHSTORENOSTATEW100S10("VoterWinHStoreNoStateW100S10", "edu.brown.benchmark.voterexperiments.winhstorenostate.w100s10"),
+    VOTERWINHSTORENOSTATEW100S100("VoterWinHStoreNoStateW100S100", "edu.brown.benchmark.voterexperiments.winhstorenostate.w100s100"),
+    VOTERWINHSTORENOSTATEW1000S1("VoterWinHStoreNoStateW1000S1", "edu.brown.benchmark.voterexperiments.winhstorenostate.w1000s1"),
+    VOTERWINHSTORENOSTATEW1000S5("VoterWinHStoreNoStateW1000S5", "edu.brown.benchmark.voterexperiments.winhstorenostate.w1000s5"),
+    VOTERWINHSTORENOSTATEW1000S10("VoterWinHStoreNoStateW1000S10", "edu.brown.benchmark.voterexperiments.winhstorenostate.w1000s10"),
+    VOTERWINHSTORENOSTATEW1000S100("VoterWinHStoreNoStateW1000S100", "edu.brown.benchmark.voterexperiments.winhstorenostate.w1000s100"),
+    VOTERWINHSTORENOSTATEW10000S1("VoterWinHStoreNoStateW10000S1", "edu.brown.benchmark.voterexperiments.winhstorenostate.w10000s1"),
+    VOTERWINHSTORENOSTATEW10000S5("VoterWinHStoreNoStateW10000S5", "edu.brown.benchmark.voterexperiments.winhstorenostate.w10000s5"),
+    VOTERWINHSTORENOSTATEW10000S10("VoterWinHStoreNoStateW10000S10", "edu.brown.benchmark.voterexperiments.winhstorenostate.w10000s10"),
+    VOTERWINHSTORENOSTATEW10000S100("VoterWinHStoreNoStateW10000S100", "edu.brown.benchmark.voterexperiments.winhstorenostate.w10000s100"),
+    
+    VOTERWINSSTOREW100S1("VoterWinSStoreW100S1", "edu.brown.benchmark.voterexperiments.winsstore.w100s1"),
+    VOTERWINSSTOREW100S5("VoterWinSStoreW100S5", "edu.brown.benchmark.voterexperiments.winsstore.w100s5"),
+    VOTERWINSSTOREW100S10("VoterWinSStoreW100S10", "edu.brown.benchmark.voterexperiments.winsstore.w100s10"),
+    VOTERWINSSTOREW100S100("VoterWinSStoreW100S100", "edu.brown.benchmark.voterexperiments.winsstore.w100s100"),
+    VOTERWINSSTOREW1000S1("VoterWinSStoreW1000S1", "edu.brown.benchmark.voterexperiments.winsstore.w1000s1"),
+    VOTERWINSSTOREW1000S5("VoterWinSStoreW1000S5", "edu.brown.benchmark.voterexperiments.winsstore.w1000s5"),
+    VOTERWINSSTOREW1000S10("VoterWinSStoreW1000S10", "edu.brown.benchmark.voterexperiments.winsstore.w1000s10"),
+    VOTERWINSSTOREW1000S100("VoterWinSStoreW1000S100", "edu.brown.benchmark.voterexperiments.winsstore.w1000s100"),
+    VOTERWINSSTOREW10000S1("VoterWinSStoreW10000S1", "edu.brown.benchmark.voterexperiments.winsstore.w10000s1"),
+    VOTERWINSSTOREW10000S5("VoterWinSStoreW10000S5", "edu.brown.benchmark.voterexperiments.winsstore.w10000s5"),
+    VOTERWINSSTOREW10000S10("VoterWinSStoreW10000S10", "edu.brown.benchmark.voterexperiments.winsstore.w10000s10"),
+    VOTERWINSSTOREW10000S100("VoterWinSStoreW10000S100", "edu.brown.benchmark.voterexperiments.winsstore.w10000s100"),
+    
+    VOTERDEMOHSTOREWXSYY("VoterDemoHStoreWXSYY", "edu.brown.benchmark.voterexperiments.demohstore.wXsYY"),
+    VOTERDEMOSSTOREWXSYY("VoterDemoSStoreWXSYY", "edu.brown.benchmark.voterexperiments.demosstore.wXsYY"),
+    
+    VOTERDEMOHSTORECORRECT("VoterDemoHStoreCorrect", "edu.brown.benchmark.voterexperiments.demohstorecorrect"),
+    VOTERDEMOSSTORECORRECT("VoterDemoSStoreCorrect", "edu.brown.benchmark.voterexperiments.demosstorecorrect"),
+    ;
 
 
     private final String package_name;

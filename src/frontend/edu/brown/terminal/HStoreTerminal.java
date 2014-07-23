@@ -466,7 +466,7 @@ public class HStoreTerminal implements Runnable {
 //        System.out.println("hawk - begin call procedure: " + dateFormat.format(cal.getTime()));
         // ended by hawk
         
-        Integer batchId = Integer.parseInt( strBatchId);
+        Long batchId = Long.parseLong( strBatchId);
         
         ClientResponse cresponse = client.callStreamProcedure(catalog_proc.getName(), batchId, params);
         // added by hawk to test procedure execution performance

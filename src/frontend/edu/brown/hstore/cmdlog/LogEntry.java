@@ -54,7 +54,7 @@ public class LogEntry implements FastSerializable, Poolable {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
     
-    private int  batchId;
+    private Long  batchId;
     private Long txnId;
     private long timestamp;
     private int procId;
@@ -97,7 +97,7 @@ public class LogEntry implements FastSerializable, Poolable {
     public int getProcedureId() {
         return procId;
     }
-    public int getBatchId() {
+    public Long getBatchId() {
         return batchId;
     }
     public ParameterSet getProcedureParams() {
@@ -111,7 +111,7 @@ public class LogEntry implements FastSerializable, Poolable {
         
     @Override
     public void finish() {
-        this.batchId = -1;
+        this.batchId = (long)-1;
         this.txnId = null;
         this.timestamp = -1;
         this.procId = -1;
@@ -120,7 +120,7 @@ public class LogEntry implements FastSerializable, Poolable {
 
     @Override
     public void readExternal(FastDeserializer in) throws IOException {
-        this.batchId = in.readInt();
+        this.batchId = in.readLong();
         this.txnId = Long.valueOf(in.readLong());
         this.timestamp = in.readLong();
         this.procId = in.readInt();
@@ -131,7 +131,7 @@ public class LogEntry implements FastSerializable, Poolable {
     public void writeExternal(FastSerializer out) throws IOException {
         assert(this.isInitialized()) : 
         "Unexpected uninitialized " + this.getClass().getSimpleName();
-        out.writeInt(this.batchId);
+        out.writeLong(this.batchId);
         out.writeLong(this.txnId.longValue());
         out.writeLong(EstTime.currentTimeMillis());
         out.writeInt(this.procId);

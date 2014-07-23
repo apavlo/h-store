@@ -49,19 +49,15 @@ public class CheckinBike extends VoltProcedure {
     final boolean debug = Log.isDebugEnabled();
 
     public final SQLStmt getStation = new SQLStmt(
-                "SELECT * FROM stations where station_id = ?"
+                "SELECT * FROM stationstatus where station_id = ?"
             );
 
     public final SQLStmt updateStation = new SQLStmt(
-                "UPDATE stations SET num_bikes = ?, num_docks = ? where station_id = ?"
+                "UPDATE stationstatus SET current_bikes = ?, current_docks = ? where station_id = ?"
             );
 
-    public final SQLStmt logSuccess = new SQLStmt(
-                "INSERT INTO logs (rider_id, time, success, action) VALUES (?,?,1,?)"
-            );
-
-    public final SQLStmt logFailure = new SQLStmt(
-                "INSERT INTO logs (rider_id, time, success, action) VALUES (?,?,0,?)"
+    public final SQLStmt log = new SQLStmt(
+                "INSERT INTO logs (user_id, time, success, action) VALUES (?,?,?,?)"
             );
 
 
@@ -72,16 +68,17 @@ public class CheckinBike extends VoltProcedure {
 
         assert(results[0].getRowCount() == 1);
 
-        long numBikes = results[0].fetchRow(0).getLong("num_bikes");
-        long numDocks = results[0].fetchRow(0).getLong("num_docks");
+        long numBikes = results[0].fetchRow(0).getLong("current_bikes");
+        long numDocks = results[0].fetchRow(0).getLong("current_docks");
 
         if (numDocks > 0){
             voltQueueSQL(updateStation, ++numBikes, --numDocks, station_id);
-            voltQueueSQL(logSuccess, rider_id, new TimestampType(), "successfully docked bike at station: " + station_id);
+            voltQueueSQL(log, rider_id, new TimestampType(), 1, "successfully docked bike at station: " + station_id);
             voltExecuteSQL();
             return 1;
         } else {
-            voltQueueSQL(logFailure, rider_id, new TimestampType(), "could not dock bike at station: " + station_id);
+            voltQueueSQL(log, rider_id, new TimestampType(), 0, "could not dock bike at station: " + station_id);
+            voltExecuteSQL();
             throw new RuntimeException("There are no docks availible at station: " + station_id);
         }
 

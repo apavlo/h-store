@@ -140,6 +140,7 @@ parser.add_argument('-e', '--expout', help='file that contains the final experim
 parser.add_argument('--winconfig', help='description of the window configuration', default='')
 parser.add_argument('--debug', help='debug mode, only runs once', action='store_true')
 parser.add_argument('--aries', help='turns on Aries logging', action='store_true')
+parser.add_argument('--scheduler', help='turns on S-Store scheduler', action='store_true')
 
 args = parser.parse_args()
 
@@ -166,6 +167,7 @@ expout      = args.expout
 winconfig   = args.winconfig
 debug       = args.debug
 aries       = args.aries
+scheduler   = args.scheduler
 
 if blockingflag==True:
     strblocking = "true"
@@ -183,6 +185,11 @@ if aries==True:
 	straries = "true"
 else:
 	straries = "false"
+
+if scheduler==True:
+	strscheduler = "true"
+else:
+	strscheduler = "false"
 
 print projectname, resultfile, stopflag, blockingflag, llog, threads, rmin, rmax, rstep, logtimeout
 
@@ -243,10 +250,11 @@ for rn in range(0, numruns):
 		str_site_commandlog_timeout = " -Dsite.commandlog_timeout=" + "{0:d}".format(site_commandlog_timeout)
 		str_site_commandlog_enable = " -Dsite.commandlog_enable=" + strlogging
 		str_site_aries = " -Dsite.aries=" + straries
+		str_global_scheduler = " -Dglobal.sstore_scheduler=" + strscheduler
 	
 		basic = "{0:d}".format(client_threads_per_host) + " " + "{0:d}".format(client_txnrate) + " " +  "{0:d}".format(site_commandlog_timeout)
 	
-		runcmd = str_antcmd + str_project + str_client_blocking + str_client_output_results_json + str_client_threads_per_host + str_client_txnrate + str_client_warmup + str_site_commandlog_enable + str_site_aries
+		runcmd = str_antcmd + str_project + str_client_blocking + str_client_output_results_json + str_client_threads_per_host + str_client_txnrate + str_client_warmup + str_site_commandlog_enable + str_site_aries + str_global_scheduler
 	
 		print "running benchmark with following configuration:"
 		print runcmd
@@ -299,7 +307,8 @@ file.close()
 expfile = open(expout, "a")
 proj = projectname + " - " + winconfig + " (" + "{0:.2f}".format(txn_threshold) + " threshold)"
 config = "threads: " + "{0:d}".format(client_threads_per_host) + "  |  logging: " +  strlogging + "  |  log timeout: " + "{0:d}".format(site_commandlog_timeout)
-config += "\nblocking: " + strblocking + "  |  warmup: " + "{0:d}".format(client_warmup) + "  |  threshold: " + "{0:.2f}".format(txn_threshold) + "  |  aries: " + straries
+config += "\nblocking: " + strblocking + "  |  warmup: " + "{0:d}".format(client_warmup) + "  |  threshold: " + "{0:.2f}".format(txn_threshold) 
+config += "\naries: " + straries + "  |  scheduler: " + strscheduler
 expfile.write(proj + "\n");
 expfile.write("--------------------------------------------------\n");
 expfile.write(config + "\n");

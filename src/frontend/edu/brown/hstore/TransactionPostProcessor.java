@@ -41,7 +41,7 @@ public final class TransactionPostProcessor extends AbstractProcessingRunnable<O
         RpcCallback<ClientResponseImpl> clientCallback = (RpcCallback<ClientResponseImpl>)data[1];
         long initiateTime = (Long)data[2];
         int restartCounter = (Integer)data[3];
-        int batchId = (Integer)data[4];
+        long batchId = (Long)data[4];
         
         assert(cresponse != null);
         assert(clientCallback != null);

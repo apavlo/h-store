@@ -49,9 +49,21 @@ public abstract class BikerStreamConstants {
     // of zones, stations and docks.
     //
 
-
     public static final int NUM_STATIONS = 10;
     public static final int NUM_BIKES_PER_STATION = 20;
+
+    public static final String ROUTES_DIR =
+            "src/benchmarks/edu/brown/benchmark/bikerstream/routes";
+
+    public static final String[] STATION_LOCATIONS = new String[] {
+        "OHSU_South_Waterfront",
+        "Waterfront_Park",
+        "Eastbank_Esplanade",
+        "Moda_Center",
+        "Portland_State_University",
+        "Overlook_Park",
+        "Civic_Stadium",
+    };
 
 
     // ===========================================================================
@@ -70,13 +82,16 @@ public abstract class BikerStreamConstants {
         "Gary", "Mark", "Sherry", "Kristin", "Beth", "Tom",
         "Paul", "Jay", "Andrea", "Jack", "Eryn", "Nesime",
         "Ben", "Bebe", "Ann", "Alex", "Carolyn", "Krieger",
-        "Ellie" };
+        "Ellie", "Collen", "Clifford", "Christopher","Johnathan",
+        "Kanye", "David", "Craig", "Morgan", "Sara" };
 
     // Lastnames for the sign up process
     public static final String[] LASTNAMES = new String[] {
         "Smith", "Phelps", "Sutherland", "Sampson", "Tufte",
         "Maes", "Kiss", "Mulvaney", "Logan", "Sarreal", "Cruise",
-        "Archer", "Clark", "Casey", "Mack", "Garmin", "Sabath" };
+        "Archer", "Clark", "Casey", "Mack", "Garmin", "Sabath",
+        "Giossi", "Murphy", "Hong", "West", "Ramage", "Meinschein",
+        "Harvey", "Kane" };
 
     // ===========================================================================
     // BIKE RESERVATIONS
@@ -103,8 +118,7 @@ public abstract class BikerStreamConstants {
     // BIKE RIDE
     //
 
-    public static final long MILI_BETWEEN_GPS_EVENTS = 5;
-    public static final String DEFAULT_GPS_FILE = "src/benchmarks/edu/brown/benchmark/bikerstream/BS2.kml";
+    public static final long MILI_BETWEEN_GPS_EVENTS = 100;
 
     // ===========================================================================
     // DOCK RESERVATIONS
@@ -126,7 +140,5 @@ public abstract class BikerStreamConstants {
     public static final long BIKE_CHECKEDIN       = 0;
     public static final long BIKE_NOT_CHECKEDIN   = 1;
     public static final long NO_AVAILIBLE_DOCKS   = 2;
-
-
 
 }
