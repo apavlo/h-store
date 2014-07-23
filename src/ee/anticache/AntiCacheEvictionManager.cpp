@@ -1292,14 +1292,14 @@ void AntiCacheEvictionManager::throwEvictedAccessException() {
     // copy the block ids into an array 
     int num_blocks = 0; 
     for(vector<int16_t>::iterator itr = m_evicted_block_ids.begin(); itr != m_evicted_block_ids.end(); ++itr) {
-        VOLT_INFO("Marking block %d as being needed for uneviction", *itr); 
+        VOLT_DEBUG("Marking block %d as being needed for uneviction", *itr); 
         block_ids[num_blocks++] = *itr; 
     }
 
     // copy the tuple offsets into an array
     int num_tuples = 0; 
     for(vector<int32_t>::iterator itr = m_evicted_offsets.begin(); itr != m_evicted_offsets.end(); ++itr) {
-        VOLT_INFO("Marking tuple %d from %s as being needed for uneviction", *itr, m_evicted_tables[num_tuples]->name().c_str()); 
+        VOLT_DEBUG("Marking tuple %d from %s as being needed for uneviction", *itr, m_evicted_tables[num_tuples]->name().c_str()); 
         tuple_ids[num_tuples++] = *itr;
     }
     

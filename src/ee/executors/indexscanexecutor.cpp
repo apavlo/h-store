@@ -527,7 +527,8 @@ bool IndexScanExecutor::p_execute(const NValueArray &params, ReadWriteTracker *t
         #ifdef ANTICACHE
         // We are pointing to an entry for an evicted tuple
         if (hasEvictedTable && m_tuple.isEvicted()) {
-            VOLT_INFO("Tuple in index scan is evicted %s", m_targetTable->name().c_str());      
+            VOLT_DEBUG("Tuple in index scan on %s is evicted. Current txn will have to be restarted...",
+                       m_targetTable->name().c_str());      
 
             // Tell the EvictionManager's internal tracker that we touched this mofo
             eviction_manager->recordEvictedAccess(m_catalogTable, &m_tuple);
