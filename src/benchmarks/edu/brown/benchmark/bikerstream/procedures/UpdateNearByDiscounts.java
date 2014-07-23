@@ -32,8 +32,8 @@ import org.voltdb.*;
  * This VoltProcedure will trigger on INSERT INTO s1 STREAM and performs the following;
  *   a.  Replaces the near by stations that offer discount for a given user in the nearByDiscounts TABLE
  */
-public class S1Trigger extends VoltProcedure {
-    private static final Logger LOG = Logger.getLogger(S1Trigger.class);
+public class UpdateNearByDiscounts extends VoltProcedure {
+    private static final Logger LOG = Logger.getLogger(UpdateNearByDiscounts.class);
 
     protected void toSetTriggerTableName() {
         addTriggerTable("s1");
@@ -93,7 +93,7 @@ public class S1Trigger extends VoltProcedure {
         voltQueueSQL(removeUsedS1Tuple);
         voltExecuteSQL(true);
 
-        //LOG.info(" <<< Finished running " + this.getClass().getSimpleName() + " for rider: " + user_id);
+        LOG.info(" <<< Finished running " + this.getClass().getSimpleName() + " for rider: " + user_id);
         return 0;
     }
 }

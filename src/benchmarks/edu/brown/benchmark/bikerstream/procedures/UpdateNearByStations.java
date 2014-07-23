@@ -37,8 +37,8 @@ import java.util.List;
  *   a.  Replaces the TOP N near by stations for a given user in the nearByStations TABLE
  *   b.  Feeds the user_id to s1 STREAM.
  */
-public class BikeStatusTrigger extends VoltProcedure {
-    private static final Logger LOG = Logger.getLogger(BikeStatusTrigger.class);
+public class UpdateNearByStations extends VoltProcedure {
+    private static final Logger LOG = Logger.getLogger(UpdateNearByStations.class);
 
     protected void toSetTriggerTableName() {
         addTriggerTable("bikeStatus");
@@ -119,7 +119,7 @@ public class BikeStatusTrigger extends VoltProcedure {
         voltQueueSQL(removeUsedBikeStatusTuple);
         voltExecuteSQL(true);
 
-        //LOG.info(" <<< Finished running " + this.getClass().getSimpleName() + " for rider: " + user_id);
+        LOG.info(" <<< Finished running " + this.getClass().getSimpleName() + " for rider: " + user_id);
         return 0;
     }
 
