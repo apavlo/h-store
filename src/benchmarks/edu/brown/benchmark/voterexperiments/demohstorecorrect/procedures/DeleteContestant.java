@@ -29,6 +29,14 @@
 
 package edu.brown.benchmark.voterexperiments.demohstorecorrect.procedures;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
+import java.net.InetAddress;
+import java.net.Socket;
+import java.net.UnknownHostException;
+
 import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
 import org.voltdb.StmtInfo;
@@ -73,6 +81,62 @@ public class DeleteContestant extends VoltProcedure {
         }
         
         int lowestContestant = (int)(validation[0].fetchRow(0).getLong(0));
+        
+        try {
+			InetAddress host = InetAddress.getLocalHost();
+			//System.out.println("Host: " + host);
+			//System.out.println("Host Name: " + host.getHostName());
+			String hostname;
+			if(host.getHostName().startsWith(VoterDemoHStoreConstants.HOST_PREFIX))
+			{
+				hostname = VoterDemoHStoreConstants.SERVER_HOST_NAME;
+			}
+			else
+			{
+				hostname = host.getHostName();
+			}
+			Socket socket = new Socket(hostname, VoterDemoHStoreConstants.SERVER_PORT_NUM);
+			BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+			PrintWriter out = new PrintWriter(socket.getOutputStream());
+			//ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream());
+			String response;
+			
+			
+			
+			String mes = "h-store ready";
+			out.print(mes);
+			out.flush();
+			
+			response = in.readLine();
+			if(response.equals("READY"))
+			{
+				System.out.println("CONFIRMED READY");
+			}
+			else
+			{
+				System.out.println("ERROR: NOT READY - " + response);
+			}
+			Thread.sleep(500);
+			out.close();
+			in.close();
+			socket.close();
+			//oos.writeObject("ant hstore-invoke -Dproject=tickertest -Dproc=InsertTickerRow -Dparam0='AAA' -Dparam1=12345 -Dparam2=5");
+			
+			//oos.close();
+		}
+		catch (UnknownHostException e){
+			System.err.println("ERROR 1");
+			e.printStackTrace();
+		}
+		catch (IOException e) {
+			System.err.println("ERROR 2");
+			e.printStackTrace();
+		}
+		catch (InterruptedException e) {
+			System.err.println("ERROR 3");
+			e.printStackTrace(); 
+		}
+        
         voltQueueSQL(deleteLowestContestant, lowestContestant);
         voltQueueSQL(deleteLowestVotes, lowestContestant);
         voltQueueSQL(deleteLeaderBoardStmt, lowestContestant);

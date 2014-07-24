@@ -38,6 +38,10 @@ public abstract class VoterDemoSStoreConstants {
     public static final int VOTE_THRESHOLD = 100;
 	public static final int MAX_VOTES = 1; 
 	public static final int NUM_CONTESTANTS = 25; 
+	
+	public static final String HOST_PREFIX = "istc";
+	public static final String SERVER_HOST_NAME = "istc10.csail.mit.edu";
+	public static final int SERVER_PORT_NUM = 8888;
 
 	// Initialize some common constants and variables
     public static final String CONTESTANT_NAMES_CSV = "Jann Arden,Micah Barnes,Justin Bieber,Jim Bryson,Michael Buble," +

@@ -82,14 +82,6 @@ public class DeleteContestant extends VoltProcedure {
 		"DELETE FROM leaderboard WHERE contestant_number = ?;"
     );
     
-    private synchronized void WriteToFile(String content) throws IOException
-    {
-        //System.out.println(stat_filename + " : " + content );
-        PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("johntest.txt", true)));
-        out.println(content);
-        out.close();
-    }
-    
 	
     public long run() {
 		
@@ -104,18 +96,25 @@ public class DeleteContestant extends VoltProcedure {
         int lowestContestant = (int)(validation[0].fetchRow(0).getLong(0));
         try {
 			InetAddress host = InetAddress.getLocalHost();
-			//System.out.println("Host: " + host);
-			//System.out.println("Host Name: " + host.getHostName());
-			Socket socket = new Socket(host.getHostName(), 8888);
+
+			String hostname;
+			if(host.getHostName().startsWith(VoterDemoSStoreConstants.HOST_PREFIX))
+			{
+				hostname = VoterDemoSStoreConstants.SERVER_HOST_NAME;
+			}
+			else
+			{
+				hostname = host.getHostName();
+			}
+			Socket socket = new Socket(hostname, VoterDemoSStoreConstants.SERVER_PORT_NUM);
 			BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 			PrintWriter out = new PrintWriter(socket.getOutputStream());
-			//ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream());
+
 			String response;
 			
 			String mes = "s-store ready";
 			out.print(mes);
 			out.flush();
-			Thread.sleep(1000);
 			
 			response = in.readLine();
 			if(response.equals("READY"))
@@ -126,6 +125,7 @@ public class DeleteContestant extends VoltProcedure {
 			{
 				System.out.println("ERROR: NOT READY - " + response);
 			}
+			Thread.sleep(500);
 			out.close();
 			in.close();
 			socket.close();
