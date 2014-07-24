@@ -74,9 +74,11 @@ public class RideBike extends VoltProcedure {
         	voltQueueSQL(getBike, rider_id);
         	VoltTable results[] = voltExecuteSQL();
         	if (results[0].getRowCount() < 1)
-        		throw new RuntimeException("Rider: " + rider_id + " does not exist");
+        		return BikerStreamConstants.USER_DOESNT_EXIST;
+        		//throw new RuntimeException("Rider: " + rider_id + " does not exist");
         	if (results[1].getRowCount() < 1)
-        		throw new RuntimeException("Rider: " + rider_id + " does not have a bike checked out");
+        		return BikerStreamConstants.NO_BIKE_CHECKED_OUT;
+        		//throw new RuntimeException("Rider: " + rider_id + " does not have a bike checked out");
             TimestampType time = new TimestampType();
             voltQueueSQL(insertBikeReadingStmt, rider_id, reading_lat, reading_lon, time);
             voltExecuteSQL(true);

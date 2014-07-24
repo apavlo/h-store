@@ -47,6 +47,9 @@ public abstract class BikerStreamConstants {
     public static final long FAILED_SIGNUP = -3;
     public static final long FAILED_POINT_ADD = -4;
     public static final long FAILED_ACCEPT_DISCOUNT = -5;
+    public static final long NO_BIKE_CHECKED_OUT = -6;
+    public static final long USER_ALREADY_HAS_BIKE = -7;
+    public static final long USER_DOESNT_EXIST = -8;
 
 
     // ===========================================================================

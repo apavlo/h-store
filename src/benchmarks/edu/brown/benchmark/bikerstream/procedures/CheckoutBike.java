@@ -105,7 +105,8 @@ public class CheckoutBike extends VoltProcedure {
         voltQueueSQL(getUser, rider_id);
         results = voltExecuteSQL();
         if (results[0].getRowCount() < 1)
-            throw new RuntimeException("Rider: " + rider_id + " does not exist");
+            return BikerStreamConstants.USER_DOESNT_EXIST;
+            //throw new RuntimeException("Rider: " + rider_id + " does not exist");
 
         if (numBikes > 0){
 
@@ -114,7 +115,8 @@ public class CheckoutBike extends VoltProcedure {
             if (results[0].asScalarLong() > 0) {
                 voltQueueSQL(log, rider_id, new TimestampType(), 0, "could not get bike from station: " + station_id);
                 voltExecuteSQL(true);
-                throw new RuntimeException("Rider: " + rider_id + " already has a bike checked out");
+                return BikerStreamConstants.USER_ALREADY_HAS_BIKE;
+                //throw new RuntimeException("Rider: " + rider_id + " already has a bike checked out");
             }
             if (numBikes <= BikerStreamConstants.DISCOUNT_THRESHOLD){
                 voltQueueSQL(updateStationDiscount, --numBikes, ++numDocks, numDiscounts +1, station_id);
@@ -130,7 +132,8 @@ public class CheckoutBike extends VoltProcedure {
             	bike_id = bikes[1].fetchRow(0).getLong(0);
             }
             else {
-            	throw new RuntimeException("No bikes available at the station");
+                return BikerStreamConstants.FAILED_CHECKOUT;
+            	//throw new RuntimeException("No bikes available at the station");
             }
             voltQueueSQL(assignBike, rider_id, bike_id);
             voltQueueSQL(addToLocation, rider_id, latitude, longitude);

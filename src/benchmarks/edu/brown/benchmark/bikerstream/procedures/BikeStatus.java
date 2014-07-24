@@ -54,8 +54,6 @@ public class BikeStatus extends VoltProcedure {
 
     public long run() {
         return 1;
-        //voltQueueSQL(getBikeStatus);
-        //return voltExecuteSQL(true);
     }
 
 } // End Class
