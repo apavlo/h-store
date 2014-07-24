@@ -160,36 +160,25 @@ public class BikeRider {
     }
 
 
-    // The reading class contatins the struct that denotes a single gps coordinate.
+    // The reading class contains the struct that denotes a single gps coordinate.
     public class Reading {
         public double lat;
         public double lon;
-        public double alt;
 
-        public Reading(double lat, double lon) {
+        public Reading(double lon, double lat) {
             this.lat = lat;
             this.lon = lon;
-            this.alt = 0;
         }
 
-        public Reading(String lat, String lon) {
+        public Reading(String lon, String lat) {
             this.lat = Double.parseDouble(lat);
             this.lon = Double.parseDouble(lon);
-            this.alt = 0;
-        }
-
-        public Reading(double lat, double lon, double alt) {
-            this.lat = lat;
-            this.lon = lon;
-            this.alt = alt;
         }
 
         @Override
         public String toString(){
             return "Point(" + this.lat + "," + this.lon + ")";
         }
-
-
     }
 
     // ---------------------------------------------------------------------------------------

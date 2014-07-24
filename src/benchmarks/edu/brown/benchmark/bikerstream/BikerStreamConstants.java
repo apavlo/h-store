@@ -83,7 +83,7 @@ public abstract class BikerStreamConstants {
         "Decision_Point_4",
     };
 
-    public static final double[] STATION_LATS = new double[]{
+    public static final double[] STATION_LONS = new double[]{
             -122.670743465424,
             -122.673382759094,
             -122.66716003418,
@@ -93,7 +93,7 @@ public abstract class BikerStreamConstants {
             -122.690554261208
     };
 
-    public static final double[] STATION_LONS = new double[]{
+    public static final double[] STATION_LATS = new double[]{
             45.4992785100733,
             45.5153465357174,
             45.5182333316815,
