@@ -5100,6 +5100,12 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         if (debug.val)
             LOG.debug(String.format("%s - Adding %s work to blocked queue",
                       work.getTransaction(), work.getClass().getSimpleName()));
+        assert(this.currentDtxn != null) :
+            String.format("Trying to block %s for %s at partition %d but the current dtxn is null",
+                          work, work.getTransaction(), this.partitionId);
+        assert(this.currentDtxn != work.getTransaction()) :
+            String.format("Trying to block %s for %s at partition %d but it is the current dtxn",
+                          work, work.getTransaction(), this.partitionId);
         this.currentBlockedTxns.add(work);
     }
     

@@ -642,7 +642,7 @@ public abstract class VoltProcedure implements Poolable {
             // VoltAbortException
             // -------------------------------
             if (ex_class.equals(VoltAbortException.class)) {
-                if (debug.val) LOG.debug("Caught VoltAbortException for " + this.localTxnState, ex);
+                if (debug.val) LOG.warn("Caught VoltAbortException for " + this.localTxnState, ex);
                 this.status = Status.ABORT_USER;
                 this.status_msg = "USER ABORT: " + ex.getMessage();
                 
@@ -661,14 +661,14 @@ public abstract class VoltProcedure implements Poolable {
             // EvictedTupleAccessException
             // -------------------------------
             } else if (ex_class.equals(EvictedTupleAccessException.class)) {
-                LOG.debug("Caught EvictedTupleAccessException for " + this.localTxnState);
+                if (debug.val) LOG.warn("Caught EvictedTupleAccessException for " + this.localTxnState);
                 this.status = Status.ABORT_EVICTEDACCESS;
 
             // -------------------------------
             // ConstraintFailureException
             // -------------------------------
             } else if (ex_class.equals(ConstraintFailureException.class)) {
-            	LOG.info("Found the abort!!!"+ex_class);
+                if (debug.val) LOG.warn("Caught ConstraintFailureException for " + this.localTxnState);
                 this.status = Status.ABORT_UNEXPECTED;
                 this.status_msg = "CONSTRAINT VIOLATION: " + ex.getMessage();
                 
@@ -676,7 +676,7 @@ public abstract class VoltProcedure implements Poolable {
             // ServerFaultException
             // -------------------------------
             } else if (ex_class.equals(ServerFaultException.class)) {
-            	LOG.info("Found the abort!!!"+ex_class);
+                if (debug.val) LOG.warn("Caught ServerFaultException for " + this.localTxnState);
                 // A server fault means that we definitely did something wrong
                 this.status = Status.ABORT_UNEXPECTED;
                 this.status_msg = "SERVER FAULT: " + ex.getMessage();
@@ -706,7 +706,6 @@ public abstract class VoltProcedure implements Poolable {
                 if (debug.val && executor.isShuttingDown() == false) {
                     LOG.warn(String.format("%s Unexpected Abort: %s", this.localTxnState, msg), ex);
                 }
-                LOG.info("Found the abort!!!"+ex);
                 this.status = Status.ABORT_UNEXPECTED;
                 this.status_msg = "UNEXPECTED ABORT: " + statusMsg;
                 
@@ -719,7 +718,6 @@ public abstract class VoltProcedure implements Poolable {
         } catch (Throwable ex) {
             if (debug.val)
                 LOG.error("Unpexpected error when executing " + this.localTxnState, ex);
-            LOG.info("Found the abort!!!"+ex);
             this.status = Status.ABORT_UNEXPECTED;
             this.status_msg = "UNEXPECTED ERROR IN " + this.localTxnState;
         } finally {
