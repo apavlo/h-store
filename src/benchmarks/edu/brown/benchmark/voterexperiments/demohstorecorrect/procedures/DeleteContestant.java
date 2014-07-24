@@ -86,11 +86,22 @@ public class DeleteContestant extends VoltProcedure {
 			InetAddress host = InetAddress.getLocalHost();
 			//System.out.println("Host: " + host);
 			//System.out.println("Host Name: " + host.getHostName());
-			Socket socket = new Socket(host.getHostName(), VoterDemoHStoreConstants.SERVER_PORT_NUM);
+			String hostname;
+			if(host.getHostName().startsWith(VoterDemoHStoreConstants.HOST_PREFIX))
+			{
+				hostname = VoterDemoHStoreConstants.SERVER_HOST_NAME;
+			}
+			else
+			{
+				hostname = host.getHostName();
+			}
+			Socket socket = new Socket(hostname, VoterDemoHStoreConstants.SERVER_PORT_NUM);
 			BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 			PrintWriter out = new PrintWriter(socket.getOutputStream());
 			//ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream());
 			String response;
+			
+			
 			
 			String mes = "h-store ready";
 			out.print(mes);
