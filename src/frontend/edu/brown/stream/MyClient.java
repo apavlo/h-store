@@ -61,19 +61,35 @@ public class MyClient {
 	InputClientConnection icc;
 	ServerSocket serverSocket;
 	Socket api; //Connection to the Rest API
-	BufferedReader apiCall; //Reads messages from the Rest API
-
+	//BufferedReader apiCall; //Reads messages from the Rest API
+	InputStreamReader apiCall;
+	
 	MyClient() {
 		this.port = HStoreConstants.DEFAULT_PORT; //21212
 		this.catalog = new Catalog();
-		this.icc = this.getClientConnection("localhost");
-		this.client = icc.client;
+		this.reconnect();
 		try {
 			this.serverSocket = new ServerSocket(6000);
 		} catch (IOException e) {
 			System.out.println("Error creating socket on port 6000");
 			e.printStackTrace();
 		}
+	}
+	
+	public void reconnect() {
+		boolean connected = false;
+		while (!connected) {
+			try {
+				this.icc = this.getClientConnection("localhost");
+				connected = true;
+			}
+			catch (RuntimeException e) {
+				//e.printStackTrace();
+				//System.out.println(e.getMessage());
+				connected = false;
+			}
+		}
+		this.client = this.icc.client;
 	}
 
 	//Take a json message from the socket and parse it for the procedure
@@ -104,6 +120,8 @@ public class MyClient {
 		} catch (NoConnectionsException e) {
 			System.out.println("Connection to S-Store was lost");
 			e.printStackTrace();
+			this.reconnect();
+			return this.callStoredProcedure(s);
 		} catch (IOException e) {
 			if (e.getMessage() != null)
 				System.out.println(e.getMessage());
@@ -135,10 +153,10 @@ public class MyClient {
 		ArrayList<String> s = new ArrayList<String>();
 		final int colCount = vt.getColumnCount();
 		vt.resetRowPosition();
-		if (colCount == 1 && vt.getRowCount() == 1) {
+		/*if (colCount == 1 && vt.getRowCount() == 1) {
 			s.add(String.valueOf(vt.asScalarLong()));
 			return s;
-		}
+		}*/
 		while (vt.advanceRow()) {
 			for (int col = 0; col < colCount; col++) {
 				switch(vt.getColumnType(col)) {
@@ -183,12 +201,15 @@ public class MyClient {
 	
 	public String readString() {
 		String procedureName;
+		System.out.println("Reading in a line from " + api.toString());
 		try {
-			while ((procedureName = apiCall.readLine()) == null) {
+			while ((procedureName = findNewLine()) == null) {
 				System.out.println("Received a null string");
+				api.close();
 				api = serverSocket.accept(); //Client likely disconnected
 				System.out.println("Connected to " + api.getInetAddress());
-				apiCall = new BufferedReader(new InputStreamReader(api.getInputStream()));
+				//apiCall = new BufferedReader(new InputStreamReader(api.getInputStream()));
+				apiCall = new InputStreamReader(api.getInputStream(), "UTF-8");
 			}
 			return procedureName;
 		} catch (IOException e) {
@@ -196,6 +217,31 @@ public class MyClient {
 			e.printStackTrace();
 		}
 		return null;
+	}
+	
+	public String findNewLine() {
+		String procedureName = "";
+		int c;
+		System.out.println(apiCall.getEncoding());
+		boolean found = false;
+		try {
+			while (!found) {
+				c = apiCall.read();
+				if ((char) c == '\n') {
+					System.out.println(procedureName);
+					return procedureName += (char) c;
+				}
+				if (c == -1)
+					return null;
+				procedureName += (char) c;
+				System.out.println(procedureName);
+			}
+			return procedureName;
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			return null;
+		}
 	}
 	
 	public void sendJSON(JSONObject j) {
@@ -249,14 +295,20 @@ public class MyClient {
 		assert(hostname != null);
 		assert(port > 0);
 
-		System.out.println(String.format("Creating new client connection to %s:%d",
-				hostname, port));
+		//System.out.println(String.format("Creating new client connection to %s:%d",
+				//hostname, port));
 		Client client = ClientFactory.createClient(128, null, false, null);
 		try {
 			client.createConnection(null, hostname, port, "user", "password");
 			System.out.println("BatchRunner: connection is ok ... ");
 		} catch (Exception ex) {
 			String msg = String.format("Failed to connect to HStoreSite at %s:%d", hostname, port);
+			try {
+				client.close();
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 			throw new RuntimeException(msg);
 		}
 		return new InputClientConnection(client, hostname, port);
@@ -268,10 +320,11 @@ public class MyClient {
 		VoltTable [] results;
 		MyClient myc = new MyClient();
 		try {
-			myc.client.callProcedure("SignUp", 1001);
+			//myc.client.callProcedure("SignUp", 1001);
 			myc.api = myc.serverSocket.accept();
 			System.out.println("Connected to " + myc.api.getInetAddress());
-			myc.apiCall = new BufferedReader(new InputStreamReader(myc.api.getInputStream()));
+			//myc.apiCall = new BufferedReader(new InputStreamReader(myc.api.getInputStream()));
+			myc.apiCall = new InputStreamReader(myc.api.getInputStream(), "UTF-8");
 			while (true) {
 				ArrayList<String> rows = new ArrayList<String>();
 				JSONArray jsonArray = new JSONArray();
@@ -282,14 +335,16 @@ public class MyClient {
 				}
 				j = new JSONObject();
 				for (VoltTable vt: results) {
-					if (vt.getColumnCount() == 1 && vt.getRowCount() == 1) {
+					if (vt.hasColumn("")) {
 						long error = vt.asScalarLong();
 						j.put("data", jsonArray);
-						if (error == 0) //Currently a false positive
+						if (error < 0) {//Currently a false positive
 							j.put("error", "DB error");
+							j.put("success", 0);
+						}
 						else
 							j.put("error", "");
-						j.put("success", error);
+							j.put("success", 1);
 						rows.add(String.valueOf(vt.asScalarLong()));
 					}
 					else {
@@ -301,6 +356,7 @@ public class MyClient {
 						j.put("success", 1);
 					}
 					System.out.println("Sending json to " + myc.api.toString());
+					System.out.println("Called procedure " + proc);
 					myc.sendJSON(j);
 					System.out.println("Done sending rows");
 				}
@@ -317,9 +373,9 @@ public class MyClient {
 			// as an argument.  The arguments are hard coded, so something catastrophic would have
 			// to occur.
 			e.printStackTrace();
-		} catch (ProcCallException e) {
+		}/* catch (ProcCallException e) {
 			System.out.println("Defined userid is already taken");
 			e.printStackTrace();
-		}
+		}*/
 	}
 }

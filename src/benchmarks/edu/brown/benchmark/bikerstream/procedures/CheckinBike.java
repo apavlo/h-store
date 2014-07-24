@@ -47,6 +47,10 @@ public class CheckinBike extends VoltProcedure {
     private static final Logger Log = Logger.getLogger(CheckoutBike.class);
     // Is debugging on or not?
     final boolean debug = Log.isDebugEnabled();
+    
+    public final SQLStmt getUser = new SQLStmt(
+    			"SELECT * FROM users WHERE user_id = ?"
+    		);
 
     public final SQLStmt getStation = new SQLStmt(
                 "SELECT * FROM stationstatus where station_id = ?"
@@ -57,8 +61,20 @@ public class CheckinBike extends VoltProcedure {
             );
 
     public final SQLStmt updateStationDiscount = new SQLStmt(
-            "UPDATE stationstatus SET current_bikes = ?, current_docks = ?, current_discount = ? where station_id = ?"
-    );
+                "UPDATE stationstatus SET current_bikes = ?, current_docks = ?, current_discount = ? where station_id = ?"
+            );
+
+    public final SQLStmt getBike = new SQLStmt(
+                "SELECT bike_id FROM bikes WHERE user_id = ?"
+            );
+
+    public final SQLStmt returnBike = new SQLStmt(
+                "UPDATE bikes SET user_id = 'NULL', station_id = ?, current_status = 1 WHERE bike_id = ?"
+            );
+
+    public final SQLStmt removeFromLocation = new SQLStmt(
+                "DELETE from userLocations WHERE user_id = ?"
+            );
 
     public final SQLStmt log = new SQLStmt(
                 "INSERT INTO logs (user_id, time, success, action) VALUES (?,?,?,?)"
@@ -67,8 +83,13 @@ public class CheckinBike extends VoltProcedure {
 
     public long run(long rider_id, long station_id) throws Exception {
 
+    	voltQueueSQL(getUser, rider_id);
+    	VoltTable results[] = voltExecuteSQL();
+    	if (results[0].getRowCount() < 1)
+    		throw new RuntimeException("Rider: " + rider_id + " does not exist");
+    	
         voltQueueSQL(getStation, station_id);
-        VoltTable results[] = voltExecuteSQL();
+        results = voltExecuteSQL();
 
         //assert(results[0].getRowCount() == 1);
 
@@ -78,11 +99,21 @@ public class CheckinBike extends VoltProcedure {
 
         if (numDocks > 0){
 
-            if (numDiscounts > 0){
-                voltQueueSQL(updateStationDiscount, ++numBikes, --numDocks, numDiscounts -1, station_id);
-            } else {
-                voltQueueSQL(updateStation, ++numBikes, --numDocks, station_id);
+            voltQueueSQL(getBike, rider_id);
+            VoltTable bikes[] = voltExecuteSQL();
+            if (bikes[0].getRowCount() >= 1) {
+                if (numDiscounts > 0){
+                    voltQueueSQL(updateStationDiscount, ++numBikes, --numDocks, numDiscounts -1, station_id);
+                } else {
+                    voltQueueSQL(updateStation, ++numBikes, --numDocks, station_id);
+                }
+                long bike_id = bikes[0].fetchRow(0).getLong(0);
+                voltQueueSQL(returnBike, station_id, bike_id);
+                voltQueueSQL(removeFromLocation, rider_id);
+                voltExecuteSQL();
             }
+            else
+                throw new Exception("Rider " + rider_id + " does not have a bike checked out");
 
             voltQueueSQL(log, rider_id, new TimestampType(), 1, "successfully docked bike at station: " + station_id);
             voltExecuteSQL(true);

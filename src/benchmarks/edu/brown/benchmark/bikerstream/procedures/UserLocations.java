@@ -41,21 +41,20 @@ import edu.brown.benchmark.bikerstream.BikerStreamConstants;
 @ProcInfo (
     singlePartition = true
 )
-public class BikeStatus extends VoltProcedure {
+public class UserLocations extends VoltProcedure {
 
     // Logging Information
-    private static final Logger Log = Logger.getLogger(CheckoutBike.class);
+    private static final Logger Log = Logger.getLogger(UserLocations.class);
     // Is debugging on or not?
     final boolean debug = Log.isDebugEnabled();
 
-    public final SQLStmt getBikeStatus = new SQLStmt(
-                "SELECT * FROM bikeStatus"
+    public final SQLStmt getLocations = new SQLStmt(
+                "SELECT * FROM userLocations"
             );
 
-    public long run() {
-        return 1;
-        //voltQueueSQL(getBikeStatus);
-        //return voltExecuteSQL(true);
+    public VoltTable [] run() {
+        voltQueueSQL(getLocations);
+        return voltExecuteSQL(true);
     }
 
 } // End Class

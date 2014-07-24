@@ -48,6 +48,14 @@ public class RideBike extends VoltProcedure {
         "INSERT INTO bikeStatus (user_id, latitude, longitude, time) " +
         "VALUES (?, ?, ?, ?);"
     );
+    
+    public final SQLStmt getUser = new SQLStmt(
+    	"SELECT * FROM users WHERE user_id = ?"
+    );
+    
+    public final SQLStmt getBike = new SQLStmt(
+    	"SELECT * FROM bikes WHERE user_id = ?"
+    );
 
     // Enters a bike ride gps event
     public final SQLStmt log = new SQLStmt(
@@ -59,6 +67,13 @@ public class RideBike extends VoltProcedure {
 
         try {
             // Post the ride event
+        	voltQueueSQL(getUser, rider_id);
+        	voltQueueSQL(getBike, rider_id);
+        	VoltTable results[] = voltExecuteSQL();
+        	if (results[0].getRowCount() < 1)
+        		throw new RuntimeException("Rider: " + rider_id + " does not exist");
+        	if (results[1].getRowCount() < 1)
+        		throw new RuntimeException("Rider: " + rider_id + " does not have a bike checked out");
             TimestampType time = new TimestampType();
             voltQueueSQL(insertBikeReadingStmt, rider_id, reading_lat, reading_lon, time);
             voltQueueSQL(log, rider_id, time, 2, "Loaded point (" + reading_lat + "," + reading_lon + ")into DB");
