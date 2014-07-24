@@ -53,7 +53,7 @@ public class SignUpName extends VoltProcedure
             "SELECT count(*) FROM users WHERE user_id = ?"
     );
 
-    public VoltTable run(String first, String last) {
+    public long run(String first, String last) {
 
         Random gen = new Random();
         VoltTable result;
@@ -74,9 +74,7 @@ public class SignUpName extends VoltProcedure
             return BikerStreamConstants.FAILED_SIGNUP;
         }
 
-        VoltTable t = new VoltTable(new VoltTable.ColumnInfo("USER_ID", VoltType.BIGINT));
-        t.addRow(user_id);
-        return t;
+        return 1;
 
     }
 

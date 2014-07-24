@@ -33,6 +33,7 @@ conf-*.html
 .DS_Store
 SourceJars
 cmdlog
+go.bash
 
 ## -------------------------------
 ## JNI Compiler Artifacts
