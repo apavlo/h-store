@@ -106,7 +106,7 @@ public class DeleteContestant extends VoltProcedure {
 			InetAddress host = InetAddress.getLocalHost();
 			//System.out.println("Host: " + host);
 			//System.out.println("Host Name: " + host.getHostName());
-			Socket socket = new Socket(host.getHostName(), 8888);
+			Socket socket = new Socket(host.getHostName(), VoterDemoSStoreConstants.SERVER_PORT_NUM);
 			BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 			PrintWriter out = new PrintWriter(socket.getOutputStream());
 			//ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream());
@@ -115,7 +115,6 @@ public class DeleteContestant extends VoltProcedure {
 			String mes = "s-store ready";
 			out.print(mes);
 			out.flush();
-			Thread.sleep(1000);
 			
 			response = in.readLine();
 			if(response.equals("READY"))
@@ -126,6 +125,7 @@ public class DeleteContestant extends VoltProcedure {
 			{
 				System.out.println("ERROR: NOT READY - " + response);
 			}
+			Thread.sleep(500);
 			out.close();
 			in.close();
 			socket.close();
