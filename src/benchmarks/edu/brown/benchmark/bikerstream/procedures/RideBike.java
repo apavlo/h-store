@@ -28,6 +28,7 @@
 
 package edu.brown.benchmark.bikerstream.procedures;
 
+import org.apache.log4j.Logger;
 import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
@@ -42,6 +43,8 @@ import edu.brown.benchmark.bikerstream.BikerStreamConstants;
     singlePartition = true
 )
 public class RideBike extends VoltProcedure {
+
+    private static final Logger Log = Logger.getLogger(RideBike.class);
 
     // Enters a bike ride gps event
     public final SQLStmt insertBikeReadingStmt = new SQLStmt(
@@ -76,13 +79,12 @@ public class RideBike extends VoltProcedure {
         		throw new RuntimeException("Rider: " + rider_id + " does not have a bike checked out");
             TimestampType time = new TimestampType();
             voltQueueSQL(insertBikeReadingStmt, rider_id, reading_lat, reading_lon, time);
-            voltQueueSQL(log, rider_id, time, 2, "Loaded point (" + reading_lat + "," + reading_lon + ")into DB");
             voltExecuteSQL(true);
         } catch (Exception e) {
-            throw new RuntimeException("Failed to load point:" + e);
+            return BikerStreamConstants.FAILED_POINT_ADD;
         }
 
-        // return successfull reading
+        // return sucessfull reading
         return BikerStreamConstants.BIKEREADING_SUCCESSFUL;
     }
 

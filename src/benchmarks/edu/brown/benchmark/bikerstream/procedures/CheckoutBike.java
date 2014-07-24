@@ -45,8 +45,6 @@ public class CheckoutBike extends VoltProcedure {
 
     // Logging Information
     private static final Logger Log = Logger.getLogger(CheckoutBike.class);
-    // Is debugging on or not?
-    final boolean debug = Log.isDebugEnabled();
 
     public final SQLStmt getUser = new SQLStmt(
                 "SELECT * FROM users WHERE user_id = ?"
@@ -120,6 +118,7 @@ public class CheckoutBike extends VoltProcedure {
             }
             if (numBikes <= BikerStreamConstants.DISCOUNT_THRESHOLD){
                 voltQueueSQL(updateStationDiscount, --numBikes, ++numDocks, numDiscounts +1, station_id);
+                Log.info("Discount added to station: " + station_id);
             } else {
                 voltQueueSQL(updateStation, --numBikes, ++numDocks, station_id);
             }
@@ -135,16 +134,16 @@ public class CheckoutBike extends VoltProcedure {
             }
             voltQueueSQL(assignBike, rider_id, bike_id);
             voltQueueSQL(addToLocation, rider_id, latitude, longitude);
+            Log.info("Rider: " + rider_id + " checked out from station: " + station_id);
             voltQueueSQL(log, rider_id, new TimestampType(), 1, "successfully got bike from station: " + station_id);
             voltExecuteSQL(true);
             return BikerStreamConstants.CHECKOUT_SUCCESS;
 
         } else {
-
+            Log.info("Rider: " + rider_id + " DID NOT check out from station: " + station_id);
             voltQueueSQL(log, rider_id, new TimestampType(), 0, "could not get bike from station: " + station_id);
             voltExecuteSQL(true);
-            throw new RuntimeException("Rider: " + rider_id + " was unable to checkout a bike");
-
+            return BikerStreamConstants.FAILED_CHECKOUT;
         }
 
     }

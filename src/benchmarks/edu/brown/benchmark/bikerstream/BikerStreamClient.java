@@ -33,8 +33,10 @@ package edu.brown.benchmark.bikerstream;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicLong;
 
+import org.jfree.util.Log;
 import org.voltdb.VoltTable;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
@@ -49,12 +51,9 @@ public class BikerStreamClient extends BenchmarkComponent {
 
     // Bike Readings
     AtomicLong failure = new AtomicLong(0);
-    AtomicLong failedCheckouts = new AtomicLong(0);
 
-    Set usedIds        = Collections.synchronizedSet(new HashSet<Long>());
-    Set hasBikeSet     = Collections.synchronizedSet(new HashSet<Long>());
-    Set checkedBikeSet = Collections.synchronizedSet(new HashSet<Long>());
-
+    private static Semaphore waiters = new Semaphore(BikerStreamConstants.NUM_WAITERS);
+    private final long timer = (new TimestampType()).getMSTime() + BikerStreamConstants.GAME_TIMER;
 
     public static void main(String args[]) {
         BenchmarkComponent.main(BikerStreamClient.class, args, false);
@@ -87,33 +86,46 @@ public class BikerStreamClient extends BenchmarkComponent {
         // generate a client class for the current thread
         Client client = this.getClientHandle();
         ClientResponse cr;
+        int waiting = BikerStreamConstants.NUM_WAITERS;
+        long result;
 
         // Bike reading generator
         try {
-
             // Signup a random rider and get the rider's id
             cr = client.callProcedure("SignUpRand");
+            result = cr.getResults()[0].asScalarLong();
+            incrementTransactionCounter(cr, 0);
             long rider_id;
-            if (cr.getException() == null)
+            if (result != BikerStreamConstants.FAILED_SIGNUP)
                 rider_id = cr.getResults()[0].asScalarLong();
             else
                 return false;
 
             // Create the rider using the id returned from the signup procedure
-            BikeRider rider = new BikeRider(rider_id);
+            BikeRider rider;
+            boolean isWaiting = waiters.tryAcquire();
+            if (isWaiting && waiting > 0){
+                waiting--;
+                Log.info("Rider: " + rider_id + " is waiting");
+                rider = new BikeRider(rider_id, BikerStreamConstants.GAME_STATION);
+                while ((new TimestampType()).getMSTime() < timer ) {}
+            } else {
+                rider = new BikeRider(rider_id);
+            }
 
             // Checkout a bike from the Biker's initial station
-            client.callProcedure(new BikerCallback(BikerStreamConstants.CheckoutCallback, rider_id),
-                    "CheckoutBike",
-                    rider.getRiderId(),
-                    rider.getStartingStation());
-
+            // If the checkout fails then return, there must not be any bikes available at that station
+            cr = client.callProcedure("CheckoutBike", rider.getRiderId(), rider.getStartingStation());
+            result = cr.getResults()[0].asScalarLong();
+            incrementTransactionCounter(cr, 1);
+            if (result == BikerStreamConstants.FAILED_CHECKOUT)
+                return false;
 
             // Get ready for getting the Biker's route data
             LinkedList<Reading> route;
             Reading point;
 
-            // The biker trip is deivided into legs. after each leg the biker will stop to see if any nearby stations
+            // The biker trip is divided into legs. after each leg the biker will stop to see if any nearby stations
             // are providing discounts. If so the biker should deviate toward that station. If there are no more legs
             // available then the rider is considered to be at the final destination and should attempt to checkin the
             // bike.
@@ -121,52 +133,61 @@ public class BikerStreamClient extends BenchmarkComponent {
 
                 // As long as there are points in the current leg, put them into the data base at a rate specified by
                 // the MILI_BETWEEN_GPS_EVENTS Constant.
-                while ((point = route.poll()) != null){
-                    client.callProcedure(new BikerCallback(BikerStreamConstants.RideBikeCallback),
-                            "RideBike",
-                            rider.getRiderId(),
-                            point.lat,
-                            point.lon);
+                while ((point = route.poll()) != null) {
+                    client.callProcedure("RideBike", rider.getRiderId(), point.lat, point.lon);
+                    incrementTransactionCounter(cr, 2);
                     long lastTime = (new TimestampType()).getMSTime();
-                    while (((new TimestampType()).getMSTime()) - lastTime < BikerStreamConstants.MILI_BETWEEN_GPS_EVENTS) {}
+                    while (((new TimestampType()).getMSTime()) - lastTime < BikerStreamConstants.MILI_BETWEEN_GPS_EVENTS) {
+                    }
                 }
 
-                // Check to see if we have more legs. Thios tells us that we aer somewhere in the middle of a trip, and
-                // there may be a station close by offering dicounts to us.
+                // Check to see if we have more legs. This tells us that we are somewhere in the middle of a trip, and
+                // there may be a station close by offering discounts to us.
                 // TODO: check for discounts and alter route accordingly
-                if (rider.hasMorePoints()){
+                if (rider.hasMorePoints()) {
+                    cr = client.callProcedure("GetNearDiscounts", rider_id);
+
+                    if (cr.getException() == null){
+
+                        VoltTable table = cr.getResults()[0];
+                        int numDiscounts = table.getRowCount();
+
+                        // Need to acquire the discount, if fail, try the next one if available
+                        for (int i=0; i < numDiscounts; ++i) {
+                            cr = client.callProcedure("AcceptDiscount", rider_id, table.fetchRow(i).getLong("station_id"));
+                            result = cr.getResults()[0].asScalarLong();
+                            if (result != BikerStreamConstants.FAILED_ACCEPT_DISCOUNT){
+                                rider.deviateDirectly((int) cr.getResults()[0].asScalarLong());
+                                break;
+                            }
+                        }
+                    }
                 }
             }
 
             // When all legs of the journey are finished. Attempt to park the bike. The callback will handle whether or
-            //not we were successfull.
-            client.callProcedure(new BikerCallback(BikerStreamConstants.CheckinCallback, rider_id),
-                    "CheckinBike",
-                    rider.getRiderId(),
-                    rider.getFinalStation());
+            //not we were successful.
+            cr = client.callProcedure("CheckinBike", rider.getRiderId(), rider.getFinalStation());
+            result = cr.getResults()[0].asScalarLong();
+            incrementTransactionCounter(cr, 3);
+            while (result != BikerStreamConstants.FAILED_CHECKIN) {
 
-            // The handle will insert our bike id into the hashmap when we are successful.
-            while (!(checkedBikeSet.contains(rider_id))){
-
-                // Deviate course if we did not appear in the hashmap. We will receive a new route to the next station.
-                route = rider.deviateRandomly();
+                rider.deviateRandomly();
+                route = rider.getNextRoute();
 
                 // Put those points into the DB
-                while ((point = route.poll()) != null){
-                    client.callProcedure(new BikerCallback(BikerStreamConstants.RideBikeCallback),
-                            "RideBike",
-                            rider.getRiderId(),
-                            point.lat,
-                            point.lon);
+                while ((point = route.poll()) != null) {
+                    client.callProcedure("RideBike", rider.getRiderId(), point.lat, point.lon);
+                    incrementTransactionCounter(cr, 2);
                     long lastTime = (new TimestampType()).getMSTime();
                     while (((new TimestampType()).getMSTime()) - lastTime < BikerStreamConstants.MILI_BETWEEN_GPS_EVENTS) {}
                 }
 
                 // Try again to checkin the bike. Loop to check for success
-                client.callProcedure(new BikerCallback(BikerStreamConstants.CheckinCallback, rider_id),
-                        "CheckinBike",
-                        rider.getRiderId(),
-                        rider.getFinalStation());
+                cr = client.callProcedure("CheckinBike", rider.getRiderId(), rider.getFinalStation());
+                result = cr.getResults()[0].asScalarLong();
+                incrementTransactionCounter(cr, 3);
+
             }
         } catch (NoSuchElementException e) {
             e.printStackTrace();
@@ -183,64 +204,13 @@ public class BikerStreamClient extends BenchmarkComponent {
     public String[] getTransactionDisplayNames() {
         // Return an array of transaction names
         String procNames[] = new String[]{
-            "Riders signed up",
-            "Bikes checked out",
-            "Points added to the DB",
-            "Bikes checked in",
+                "Riders signed up",
+                "Bikes checked out",
+                "Points added to the DB",
+                "Bikes checked in",
         };
         return (procNames);
     }
 
-
-
-    private class BikerCallback implements ProcedureCallback {
-
-        private long rider_id;
-        private int callback;
-
-        public BikerCallback(int callback_id){
-            this.rider_id = 0;
-            this.callback = callback_id;
-        }
-
-        public BikerCallback(int callback_id, long rider_id){
-            this.rider_id = rider_id;
-            this.callback = callback_id;
-        }
-
-        @Override
-        public void clientCallback(ClientResponse cr){
-
-            if (callback == BikerStreamConstants.SignupCallback){
-                incrementTransactionCounter(cr, 0);
-            }//if
-
-            if (callback == BikerStreamConstants.CheckoutCallback){
-                incrementTransactionCounter(cr, 1);
-
-                VoltTable results[] = cr.getResults();
-
-                if (cr.getException() == null)
-                    hasBikeSet.add(rider_id);
-                else
-                    failedCheckouts.incrementAndGet();
-
-            }//if
-
-            if (callback == BikerStreamConstants.RideBikeCallback){
-                incrementTransactionCounter(cr, 2);
-            }//if
-
-            if (callback == BikerStreamConstants.CheckinCallback){
-                incrementTransactionCounter(cr, 3);
-
-                if (cr.getException() == null)
-                    checkedBikeSet.add(rider_id);
-                else
-                    failedCheckouts.incrementAndGet();
-
-            } //if
-        }
-    }
-
 }
+

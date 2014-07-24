@@ -28,7 +28,9 @@
 
 package edu.brown.benchmark.bikerstream.procedures;
 
+import edu.brown.benchmark.bikerstream.BikerStreamConstants;
 import org.apache.log4j.Logger;
+import org.jfree.util.Log;
 import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
@@ -41,8 +43,7 @@ import org.voltdb.types.TimestampType;
 public class AcceptDiscount extends VoltProcedure {
 
     // Logging Information
-    // private static final Logger Log = Logger.getLogger(GetDiscount.class);
-    // final boolean debug = Log.isDebugEnabled();
+    private static final Logger Log = Logger.getLogger(AcceptDiscount.class);
 
     public final SQLStmt getStation = new SQLStmt(
                 "SELECT * FROM stationstatus where station_id = ?"
@@ -70,13 +71,14 @@ public class AcceptDiscount extends VoltProcedure {
         long numDiscs = results[0].fetchRow(0).getLong("current_discount");
 
         if (numDiscs > 0) {
-            voltQueueSQL(updateStation, numDiscs -1, station_id);
+            Log.info("Discount claimed from station: " + station_id + " by rider: " + rider_id);
+            voltQueueSQL(updateStation, numDiscs - 1, station_id);
             voltQueueSQL(addDiscount, rider_id, station_id);
             voltQueueSQL(logSuccess, rider_id, new TimestampType(), "Got discount for station: " + station_id);
             voltExecuteSQL(true);
-            return 0;
+            return station_id;
         } else {
-            throw new RuntimeException("There are no discounts available at station: " + station_id);
+            return BikerStreamConstants.FAILED_ACCEPT_DISCOUNT;
         }
 
     }

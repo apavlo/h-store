@@ -38,14 +38,19 @@ public abstract class BikerStreamConstants {
     // potential return codes
     public static final long BIKEREADING_SUCCESSFUL  = 0;
 
+    public static final int NUM_WAITERS = 5;
+    public static final long GAME_TIMER = 10000;
+    public static final int GAME_STATION = 3;
+
+    public static final long FAILED_CHECKOUT = -1;
+    public static final long FAILED_CHECKIN = -2;
+    public static final long FAILED_SIGNUP = -3;
+    public static final long FAILED_POINT_ADD = -4;
+    public static final long FAILED_ACCEPT_DISCOUNT = -5;
+
+
     // ===========================================================================
     // Callback Constants
-
-
-    public static final int SignupCallback = 0;
-    public static final int CheckoutCallback = 1;
-    public static final int RideBikeCallback = 2;
-    public static final int CheckinCallback = 3;
 
 
     // ===========================================================================
@@ -55,7 +60,7 @@ public abstract class BikerStreamConstants {
     // of zones, stations and docks.
     //
 
-    public static final int NUM_BIKES_PER_STATION = 6;
+    public static final int NUM_BIKES_PER_STATION = 10;
     public static final int NUM_DOCKS_PER_STATION = 20;
 
     public static final String ROUTES_DIR =
@@ -78,7 +83,7 @@ public abstract class BikerStreamConstants {
         "Decision_Point_4",
     };
 
-    public static final double[] STATION_LATS = new double[]{
+    public static final double[] STATION_LONS = new double[]{
             -122.670743465424,
             -122.673382759094,
             -122.66716003418,
@@ -88,7 +93,7 @@ public abstract class BikerStreamConstants {
             -122.690554261208
     };
 
-    public static final double[] STATION_LONS = new double[]{
+    public static final double[] STATION_LATS = new double[]{
             45.4992785100733,
             45.5153465357174,
             45.5182333316815,
@@ -144,12 +149,18 @@ public abstract class BikerStreamConstants {
     // BIKE RIDE
     //
 
-    public static final long MILI_BETWEEN_GPS_EVENTS = 1000;
+    public static final long MILI_BETWEEN_GPS_EVENTS = 100;
 
     // ===========================================================================
     // BIKE CHECKIN
     //
 
     public static final long CHECKIN_SUCCESS = 0;
+
+    // ===========================================================================
+    // NEAR BY STATIONS
+    //
+
+    public static final long N_NEAR_BY_STATIONS = 3;
 }
 

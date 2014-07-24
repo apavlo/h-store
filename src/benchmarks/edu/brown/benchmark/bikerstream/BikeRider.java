@@ -31,6 +31,7 @@
 package edu.brown.benchmark.bikerstream;
 
 import org.apache.commons.lang.ArrayUtils;
+import org.voltdb.types.TimestampType;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -48,16 +49,6 @@ import java.util.Random;
  * from a bike GPS unit.
  */
 public class BikeRider {
-
-    /**
-     * TODO: I think we could really benefit by reading in one file of points at a time.
-     * This will save memory and make it easier to deviate from our current path.
-     *
-     * TODO: Keep track of current location state
-     * In order to deviate from the path, we need to know where we are starting from
-     * therefore we should have some type keep track of which waypoint we have just left from.
-     * When all points have been exhasted, increment the waypoint counter and pull in more points.
-     */
 
     // Store the ID for this rider, more likely than not to be
     // a random number.
@@ -78,8 +69,7 @@ public class BikeRider {
      * To the initial dock, until the rider has exhasted all GPS points for the current leg. at which
      * point it will immediately switch to the next point once the next set of points is requested.
       */
-    private int currentIndex;
-
+    private int currentIndex = 0;
 
     private static int numStations = BikerStreamConstants.STATION_NAMES.length;
     private static int numChoices  = BikerStreamConstants.DP_NAMES.length;
@@ -96,10 +86,17 @@ public class BikeRider {
     // information.
     public BikeRider(long rider_id) throws IOException {
         this.rider_id = rider_id;
-        this.currentIndex = 0;
 
-        comment("Generating Route");
-        genRandStations();
+            comment("Generating Route");
+            genRandStations();
+            comment("Route Generated");
+    }
+
+    public BikeRider(long rider_id, int start) throws IOException {
+        this.rider_id = rider_id;
+
+        comment("Generating Route from station: " + start);
+        genRandStations(start);
         comment("Route Generated");
     }
 
@@ -136,7 +133,7 @@ public class BikeRider {
         System.out.println("Rider: " + rider_id + " -> " + str);
     }
 
-    public LinkedList<Reading> deviateRandomly() throws IOException {
+    public void deviateRandomly() throws IOException {
         Random gen = new Random();
         int currentLocation = waypoints[currentIndex];
 
@@ -144,61 +141,44 @@ public class BikeRider {
         while ((stationIndex = gen.nextInt(numStations)) == currentLocation) {}
 
         comment("Deviating route to station: " + stationIndex);
-
         waypoints = new int[] {currentLocation, stationIndex};
-        currentIndex = 1;
-
-        String fileName = routeName (currentLocation, stationIndex);
-        return readInPoints(fileName);
+        currentIndex = 0;
     }
 
-    public LinkedList<Reading> deviateDirectly(int stationIndex) throws IOException {
+    public void deviateDirectly(int stationIndex) throws IOException {
         Random gen = new Random();
         int currentLocation = waypoints[currentIndex];
 
-        if (currentLocation == stationIndex)
-            return deviateRandomly();
+        if (currentLocation == stationIndex) {
+            deviateRandomly();
+            return;
+        }
 
         comment("Deviating route to station: " + stationIndex);
-
         waypoints = new int[] {currentLocation, stationIndex};
-        currentIndex = 1;
-
-        String fileName = routeName (currentLocation, stationIndex);
-        return readInPoints(fileName);
+        currentIndex = 0;
     }
 
 
-    // The reading class contatins the struct that denotes a single gps coordinate.
+    // The reading class contains the struct that denotes a single gps coordinate.
     public class Reading {
         public double lat;
         public double lon;
-        public double alt;
 
-        public Reading(double lat, double lon) {
+        public Reading(double lon, double lat) {
             this.lat = lat;
             this.lon = lon;
-            this.alt = 0;
         }
 
-        public Reading(String lat, String lon) {
+        public Reading(String lon, String lat) {
             this.lat = Double.parseDouble(lat);
             this.lon = Double.parseDouble(lon);
-            this.alt = 0;
-        }
-
-        public Reading(double lat, double lon, double alt) {
-            this.lat = lat;
-            this.lon = lon;
-            this.alt = alt;
         }
 
         @Override
         public String toString(){
             return "Point(" + this.lat + "," + this.lon + ")";
         }
-
-
     }
 
     // ---------------------------------------------------------------------------------------
@@ -206,10 +186,15 @@ public class BikeRider {
 
     private void genRandStations(){
         Random gen = new Random();
+        int start = gen.nextInt(numStations);
+        genRandStations(start);
+    }
+
+    private void genRandStations(int start){
+        Random gen = new Random();
         int numDecisions = gen.nextInt(3);
 
         // TODO: VERIFY (numStations || numStations -1)
-        int start = gen.nextInt(numStations);
         int[] decisions = new int[numDecisions];
 
         for (int i = 0; i < numDecisions; ++i){

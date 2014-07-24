@@ -44,7 +44,7 @@ import edu.brown.benchmark.bikerstream.BikerStreamConstants;
 public class BikeStatus extends VoltProcedure {
 
     // Logging Information
-    private static final Logger Log = Logger.getLogger(CheckoutBike.class);
+    private static final Logger Log = Logger.getLogger(BikeStatus.class);
     // Is debugging on or not?
     final boolean debug = Log.isDebugEnabled();
 
