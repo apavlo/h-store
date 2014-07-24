@@ -51,7 +51,7 @@ def clientthread(conn):
 			continue
 
 		print "BOTH READY"
-		conn.sendall("READY")
+		conn.sendall("READY\n")
 		time.sleep(2)
 		hready = False
 		sready = False
