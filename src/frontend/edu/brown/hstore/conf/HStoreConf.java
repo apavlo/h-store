@@ -134,7 +134,7 @@ public final class HStoreConf {
         //added by hawk, 2014/3/19, to indicate service is s-store or h-store
         @ConfigProperty(
                 description="Indicate if the service is running as s-store or h-store instance.",
-                defaultBoolean=false,
+                defaultBoolean=true,
                 experimental=false
             )
         public boolean sstore;
@@ -149,7 +149,7 @@ public final class HStoreConf {
         
         //added by hawk, 2014/7/23
         @ConfigProperty(
-                description="Indicate if strong or weak recovery is used.",
+                description="Indicate if weak or strong recovery is used.",
                 defaultBoolean=true,
                 experimental=false
             )
