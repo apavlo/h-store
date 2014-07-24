@@ -36,20 +36,23 @@ def clientthread(conn):
 			hready = True
 			print "H-STORE READY!!!"
 			while not sready:
-				time.sleep(0.1)
+				print "h thread: s ready? ", sready
+				time.sleep(1)
 
 		elif data == "s-store ready":
 			sready = True
 			print "S-STORE READY!!!"
 			while not hready:
-				time.sleep(0.1)
+				print "s thread: h ready? ", hready
+				time.sleep(1)
 			
 		else:
 			print "ERROR: data unknown - ", data
 			continue
 
+		print "BOTH READY"
 		conn.sendall("READY")
-		time.sleep(0.5)
+		time.sleep(2)
 		hready = False
 		sready = False
 
