@@ -57,7 +57,6 @@ public class Results extends VoltProcedure
 												  + " LIMIT 3");
     
     public final SQLStmt getTrendingStmt = new SQLStmt( "   SELECT a.contestant_name   AS contestant_name"
-    											  + "        , a.contestant_number AS contestant_number"
 												  + "        , b.num_votes          AS num_votes"
 												  + "     FROM leaderboard b"
 												  + "        , contestants AS a"
