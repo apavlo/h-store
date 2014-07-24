@@ -1,5 +1,6 @@
 import socket
 import sys
+import time
 from thread import *
 
 hready = False
@@ -34,15 +35,22 @@ def clientthread(conn):
 		if data == "h-store ready":
 			hready = True
 			print "H-STORE READY!!!"
-		if data == "s-store ready":
+			while not sready:
+				time.sleep(0.1)
+
+		elif data == "s-store ready":
 			sready = True
-			print "S-STORE READY!!!"
-			#print "repr(data): ", repr(data)
-		if hready and sready:
-			conn.sendall("READY")
-			#sleep 1 sec
-			hready = False
-			sready = False
+			while not hready:
+				time.sleep(0.1)
+			
+		else:
+			print "ERROR: data unknown - ", data
+			continue
+
+		conn.sendall("READY")
+		time.sleep(0.5)
+		hready = False
+		sready = False
 
 	conn.close()
 

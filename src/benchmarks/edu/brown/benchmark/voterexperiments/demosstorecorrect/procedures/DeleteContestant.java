@@ -29,9 +29,11 @@
 
 package edu.brown.benchmark.voterexperiments.demosstorecorrect.procedures;
 
+import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.InetAddress;
 import java.net.ServerSocket;
@@ -105,16 +107,28 @@ public class DeleteContestant extends VoltProcedure {
 			//System.out.println("Host: " + host);
 			//System.out.println("Host Name: " + host.getHostName());
 			Socket socket = new Socket(host.getHostName(), 8888);
+			BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 			PrintWriter out = new PrintWriter(socket.getOutputStream());
 			//ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream());
+			String response;
 			
-			while(true){
-				String mes = "s-store ready";
-				out.print(mes);
-				out.flush();
-				Thread.sleep(1000);
+			String mes = "s-store ready";
+			out.print(mes);
+			out.flush();
+			Thread.sleep(1000);
+			
+			response = in.readLine();
+			if(response.equals("READY"))
+			{
+				System.out.println("CONFIRMED READY");
 			}
-			
+			else
+			{
+				System.out.println("ERROR: NOT READY - " + response);
+			}
+			out.close();
+			in.close();
+			socket.close();
 			//oos.writeObject("ant hstore-invoke -Dproject=tickertest -Dproc=InsertTickerRow -Dparam0='AAA' -Dparam1=12345 -Dparam2=5");
 			
 			//oos.close();

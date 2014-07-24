@@ -472,6 +472,7 @@ public class BenchmarkController {
             CollectionUtil.addAll(copyto_hosts, m_config.clients);
             Collection<Thread> threads = new ArrayList<Thread>();
             
+            /** JOHN: commenting out to allow multiple H-Store instances on one machine
             // HStoreSite
             // IMPORTANT: Don't try to kill things if we're going to profile... for obvious reasons... duh!
             if (m_config.profileSiteIds.isEmpty() && m_config.noSites == false) {
@@ -498,6 +499,7 @@ public class BenchmarkController {
                 LOG.fatal("Couldn't run remote kill operation.", e);
                 System.exit(-1);
             }
+            */ //JOHN: END COMMENTED CODE 
             
             // START THE SERVERS
             if (m_config.noSites == false) {
