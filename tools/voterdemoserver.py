@@ -40,6 +40,7 @@ def clientthread(conn):
 
 		elif data == "s-store ready":
 			sready = True
+			print "S-STORE READY!!!"
 			while not hready:
 				time.sleep(0.1)
 			
