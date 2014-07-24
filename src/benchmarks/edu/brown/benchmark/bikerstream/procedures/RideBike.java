@@ -65,8 +65,7 @@ public class RideBike extends VoltProcedure {
             voltQueueSQL(insertBikeReadingStmt, rider_id, reading_lat, reading_lon, time);
             voltExecuteSQL(true);
         } catch (Exception e) {
-            Log.info("Failed to Load point in database for rider: " + rider_id);
-            throw new RuntimeException("Failed to load point:" + e);
+            return BikerStreamConstants.FAILED_POINT_ADD;
         }
 
         // return sucessfull reading

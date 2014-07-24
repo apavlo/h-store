@@ -72,7 +72,7 @@ public class SignUpRand extends VoltProcedure
             voltQueueSQL(insertRider, user_id, first + " " + last, "0000000000111112222233333", 1, new TimestampType());
             voltExecuteSQL();
         } catch (Exception e) {
-            throw new RuntimeException("Failure to load random rider " + user_id + " into the DB, error");
+            return BikerStreamConstants.FAILED_SIGNUP;
         }
 
         return user_id;

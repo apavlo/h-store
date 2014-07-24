@@ -70,10 +70,7 @@ public class SignUpName extends VoltProcedure
             voltExecuteSQL(true);
 
         } catch (Exception e) {
-            Log.info("");
-            throw new RuntimeException("Failure to load rider: " +
-                    full +
-                    " into the DB, error:" + e);
+            return BikerStreamConstants.FAILED_SIGNUP;
         }
 
         return user_id;

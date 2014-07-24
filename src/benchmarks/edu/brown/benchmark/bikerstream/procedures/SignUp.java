@@ -61,8 +61,7 @@ public class SignUp extends VoltProcedure
             voltExecuteSQL();
             Log.info("Adding User " + full + " with id: " + user_id);
         } catch (Exception e) {
-            Log.info("Failed to Add User " + full + " with id: " + user_id);
-            throw new RuntimeException("Failure to load rider " + user_id + " into the DB, error:" + e);
+            return BikerStreamConstants.FAILED_SIGNUP;
         }
 
         return BikerStreamConstants.INSERT_RIDER_SUCCESS;

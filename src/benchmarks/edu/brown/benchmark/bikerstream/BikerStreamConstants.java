@@ -43,6 +43,11 @@ public abstract class BikerStreamConstants {
     public static final int GAME_STATION = 3;
 
     public static final long FAILED_CHECKOUT = -1;
+    public static final long FAILED_CHECKIN = -2;
+    public static final long FAILED_SIGNUP = -3;
+    public static final long FAILED_POINT_ADD = -4;
+    public static final long FAILED_ACCEPT_DISCOUNT = -5;
+
 
     // ===========================================================================
     // Callback Constants

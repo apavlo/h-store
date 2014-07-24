@@ -87,14 +87,16 @@ public class BikerStreamClient extends BenchmarkComponent {
         Client client = this.getClientHandle();
         ClientResponse cr;
         int waiting = BikerStreamConstants.NUM_WAITERS;
+        long result;
 
         // Bike reading generator
         try {
             // Signup a random rider and get the rider's id
             cr = client.callProcedure("SignUpRand");
+            result = cr.getResults()[0].asScalarLong();
             incrementTransactionCounter(cr, 0);
             long rider_id;
-            if (cr.getException() == null)
+            if (result != BikerStreamConstants.FAILED_SIGNUP)
                 rider_id = cr.getResults()[0].asScalarLong();
             else
                 return false;
@@ -114,7 +116,7 @@ public class BikerStreamClient extends BenchmarkComponent {
             // Checkout a bike from the Biker's initial station
             // If the checkout fails then return, there must not be any bikes available at that station
             cr = client.callProcedure("CheckoutBike", rider.getRiderId(), rider.getStartingStation());
-            long result = cr.getResults()[0].asScalarLong();
+            result = cr.getResults()[0].asScalarLong();
             incrementTransactionCounter(cr, 1);
             if (result == BikerStreamConstants.FAILED_CHECKOUT)
                 return false;
@@ -132,7 +134,7 @@ public class BikerStreamClient extends BenchmarkComponent {
                 // As long as there are points in the current leg, put them into the data base at a rate specified by
                 // the MILI_BETWEEN_GPS_EVENTS Constant.
                 while ((point = route.poll()) != null) {
-                    cr = client.callProcedure("RideBike", rider.getRiderId(), point.lat, point.lon);
+                    client.callProcedure("RideBike", rider.getRiderId(), point.lat, point.lon);
                     incrementTransactionCounter(cr, 2);
                     long lastTime = (new TimestampType()).getMSTime();
                     while (((new TimestampType()).getMSTime()) - lastTime < BikerStreamConstants.MILI_BETWEEN_GPS_EVENTS) {
@@ -153,7 +155,8 @@ public class BikerStreamClient extends BenchmarkComponent {
                         // Need to acquire the discount, if fail, try the next one if available
                         for (int i=0; i < numDiscounts; ++i) {
                             cr = client.callProcedure("AcceptDiscount", rider_id, table.fetchRow(i).getLong("station_id"));
-                            if (cr.getException() == null){
+                            result = cr.getResults()[0].asScalarLong();
+                            if (result != BikerStreamConstants.FAILED_ACCEPT_DISCOUNT){
                                 rider.deviateDirectly((int) cr.getResults()[0].asScalarLong());
                                 break;
                             }
@@ -165,15 +168,16 @@ public class BikerStreamClient extends BenchmarkComponent {
             // When all legs of the journey are finished. Attempt to park the bike. The callback will handle whether or
             //not we were successful.
             cr = client.callProcedure("CheckinBike", rider.getRiderId(), rider.getFinalStation());
+            result = cr.getResults()[0].asScalarLong();
             incrementTransactionCounter(cr, 3);
-            while (cr.getException() != null) {
+            while (result != BikerStreamConstants.FAILED_CHECKIN) {
 
                 rider.deviateRandomly();
                 route = rider.getNextRoute();
 
                 // Put those points into the DB
                 while ((point = route.poll()) != null) {
-                    cr = client.callProcedure("RideBike", rider.getRiderId(), point.lat, point.lon);
+                    client.callProcedure("RideBike", rider.getRiderId(), point.lat, point.lon);
                     incrementTransactionCounter(cr, 2);
                     long lastTime = (new TimestampType()).getMSTime();
                     while (((new TimestampType()).getMSTime()) - lastTime < BikerStreamConstants.MILI_BETWEEN_GPS_EVENTS) {}
@@ -181,6 +185,7 @@ public class BikerStreamClient extends BenchmarkComponent {
 
                 // Try again to checkin the bike. Loop to check for success
                 cr = client.callProcedure("CheckinBike", rider.getRiderId(), rider.getFinalStation());
+                result = cr.getResults()[0].asScalarLong();
                 incrementTransactionCounter(cr, 3);
 
             }

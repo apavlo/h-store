@@ -28,6 +28,7 @@
 
 package edu.brown.benchmark.bikerstream.procedures;
 
+import edu.brown.benchmark.bikerstream.BikerStreamConstants;
 import org.apache.log4j.Logger;
 import org.jfree.util.Log;
 import org.voltdb.ProcInfo;
@@ -77,7 +78,7 @@ public class AcceptDiscount extends VoltProcedure {
             voltExecuteSQL(true);
             return station_id;
         } else {
-            throw new RuntimeException("There are no discounts available at station: " + station_id);
+            return BikerStreamConstants.FAILED_ACCEPT_DISCOUNT;
         }
 
     }
