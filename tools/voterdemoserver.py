@@ -30,7 +30,7 @@ def clientthread(conn):
 	print "data: ", data
 	if not data:
 		print "NO DATA"
-		continue
+		return
 	if data == "h-store ready":
 		hready = True
 		print "H-STORE READY!!!"
