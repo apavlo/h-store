@@ -64,6 +64,8 @@ def bothConnected(conn, conn2):
 		print "READY"
 		conn.sendall("READY\n")
 		conn2.sendall("READY\n")
+	else:
+		print "ERROR: Unexpected message."
 	
 	conn.close()
 	conn2.close()
