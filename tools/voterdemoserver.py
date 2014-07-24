@@ -47,7 +47,7 @@ def clientthread(conn):
 		
 	else:
 		print "ERROR: data unknown - ", data
-		continue
+		return
 
 	print "BOTH READY"
 	conn.sendall("READY\n")
