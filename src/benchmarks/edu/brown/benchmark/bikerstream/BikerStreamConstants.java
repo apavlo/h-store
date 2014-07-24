@@ -38,6 +38,12 @@ public abstract class BikerStreamConstants {
     // potential return codes
     public static final long BIKEREADING_SUCCESSFUL  = 0;
 
+    public static final int NUM_WAITERS = 5;
+    public static final long GAME_TIMER = 10000;
+    public static final int GAME_STATION = 3;
+
+    public static final long FAILED_CHECKOUT = -1;
+
     // ===========================================================================
     // Callback Constants
 
@@ -49,7 +55,7 @@ public abstract class BikerStreamConstants {
     // of zones, stations and docks.
     //
 
-    public static final int NUM_BIKES_PER_STATION = 2;
+    public static final int NUM_BIKES_PER_STATION = 10;
     public static final int NUM_DOCKS_PER_STATION = 20;
 
     public static final String ROUTES_DIR =

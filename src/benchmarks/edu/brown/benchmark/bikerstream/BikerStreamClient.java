@@ -33,8 +33,10 @@ package edu.brown.benchmark.bikerstream;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicLong;
 
+import org.jfree.util.Log;
 import org.voltdb.VoltTable;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
@@ -49,6 +51,9 @@ public class BikerStreamClient extends BenchmarkComponent {
 
     // Bike Readings
     AtomicLong failure = new AtomicLong(0);
+
+    private static Semaphore waiters = new Semaphore(BikerStreamConstants.NUM_WAITERS);
+    private final long timer = (new TimestampType()).getMSTime() + BikerStreamConstants.GAME_TIMER;
 
     public static void main(String args[]) {
         BenchmarkComponent.main(BikerStreamClient.class, args, false);
@@ -81,10 +86,10 @@ public class BikerStreamClient extends BenchmarkComponent {
         // generate a client class for the current thread
         Client client = this.getClientHandle();
         ClientResponse cr;
+        int waiting = BikerStreamConstants.NUM_WAITERS;
 
         // Bike reading generator
         try {
-
             // Signup a random rider and get the rider's id
             cr = client.callProcedure("SignUpRand");
             incrementTransactionCounter(cr, 0);
@@ -95,13 +100,23 @@ public class BikerStreamClient extends BenchmarkComponent {
                 return false;
 
             // Create the rider using the id returned from the signup procedure
-            BikeRider rider = new BikeRider(rider_id);
+            BikeRider rider;
+            boolean isWaiting = waiters.tryAcquire();
+            if (isWaiting && waiting > 0){
+                waiting--;
+                Log.info("Rider: " + rider_id + " is waiting");
+                rider = new BikeRider(rider_id, BikerStreamConstants.GAME_STATION);
+                while ((new TimestampType()).getMSTime() < timer ) {}
+            } else {
+                rider = new BikeRider(rider_id);
+            }
 
             // Checkout a bike from the Biker's initial station
             // If the checkout fails then return, there must not be any bikes available at that station
             cr = client.callProcedure("CheckoutBike", rider.getRiderId(), rider.getStartingStation());
+            long result = cr.getResults()[0].asScalarLong();
             incrementTransactionCounter(cr, 1);
-            if (cr.getException() != null)
+            if (result == BikerStreamConstants.FAILED_CHECKOUT)
                 return false;
 
             // Get ready for getting the Biker's route data
@@ -118,7 +133,7 @@ public class BikerStreamClient extends BenchmarkComponent {
                 // the MILI_BETWEEN_GPS_EVENTS Constant.
                 while ((point = route.poll()) != null) {
                     cr = client.callProcedure("RideBike", rider.getRiderId(), point.lat, point.lon);
-                    incrementTransactionCounter(cr, 1);
+                    incrementTransactionCounter(cr, 2);
                     long lastTime = (new TimestampType()).getMSTime();
                     while (((new TimestampType()).getMSTime()) - lastTime < BikerStreamConstants.MILI_BETWEEN_GPS_EVENTS) {
                     }
