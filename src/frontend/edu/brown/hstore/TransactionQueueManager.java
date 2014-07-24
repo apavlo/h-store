@@ -220,7 +220,7 @@ public class TransactionQueueManager extends ExceptionHandlingRunnable implement
                             }
                             else
                             {
-                                System.out.println(String.format("%d - %s",nextTxn.getBatchId(), nextTxn.getProcedure().getName()));
+                                //System.out.println(String.format("%d - %s",nextTxn.getBatchId(), nextTxn.getProcedure().getName()));
                             }
                         }
                     // ended by hawk

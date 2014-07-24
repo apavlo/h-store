@@ -27,7 +27,7 @@
 	<classpathentry kind="lib" path="third_party/java/jars/jung-api-2.0.jar" sourcepath="SourceJars/jung-source/jung-api-2.0-sources.jar"/>
 	<classpathentry kind="lib" path="third_party/java/jars/jung-graph-impl-2.0.jar" sourcepath="SourceJars/jung-source/jung-graph-impl-2.0-sources.jar"/>
 	<classpathentry kind="lib" path="third_party/java/jars/jung-visualization-2.0.jar" sourcepath="SourceJars/jung-source/jung-visualization-2.0-sources.jar"/>
-	<classpathentry kind="lib" path="third_party/java/jars/junit-4.4.jar"/>
+	<classpathentry kind="lib" path="third_party/java/jars/junit-4.4.jar" sourcepath="/home/hawkwang/.m2/repository/junit/junit/4.4/junit-4.4-sources.jar"/>
 	<classpathentry kind="lib" path="third_party/java/jars/log4j-1.2.15.jar" sourcepath="SourceJars/log4j-1.2.15-sources.jar"/>
 	<classpathentry kind="lib" path="third_party/java/jars/opencsv-2.3.jar"/>
 	<classpathentry kind="lib" path="third_party/java/jars/pmd-4.2.5.jar"/>
