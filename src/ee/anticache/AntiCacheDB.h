@@ -67,7 +67,7 @@ class AntiCacheBlock {
         	return m_size;
         }
         inline char* getData() const {
-	    return m_block;
+	        return m_block;
         }
 
         struct payload{
@@ -82,13 +82,14 @@ class AntiCacheBlock {
         }
     
     protected:
+        // Why is this private/protected?
         AntiCacheBlock(int16_t blockId);
         int16_t m_blockId;
         payload m_payload;
 	    long m_size;
 	    char * m_block;
 	    char * m_buf;
-        
+        // probably should be changed to a final/const
         AntiCacheDBType m_blockType;
 }; // CLASS
 
@@ -141,6 +142,9 @@ class AntiCacheDB {
 
         AntiCacheDBType m_dbType;
 		
+        /*
+         * DB specific method of shutting down the database on destructor call
+         */
         virtual void shutdownDB() = 0;
 
         
