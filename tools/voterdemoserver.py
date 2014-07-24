@@ -24,37 +24,36 @@ s.listen(10)
 print 'Socket now listening'
 
 def clientthread(conn):
-	while True:
-		data = conn.recv(1024)
-		global hready
-		global sready
-		print "data: ", data
-		if not data:
-			print "NO DATA"
-			continue
-		if data == "h-store ready":
-			hready = True
-			print "H-STORE READY!!!"
-			while not sready:
-				print "h thread: s ready? ", sready
-				time.sleep(1)
+	data = conn.recv(1024)
+	global hready
+	global sready
+	print "data: ", data
+	if not data:
+		print "NO DATA"
+		continue
+	if data == "h-store ready":
+		hready = True
+		print "H-STORE READY!!!"
+		while not sready:
+			print "h thread: s ready? ", sready
+			time.sleep(1)
 
-		elif data == "s-store ready":
-			sready = True
-			print "S-STORE READY!!!"
-			while not hready:
-				print "s thread: h ready? ", hready
-				time.sleep(1)
-			
-		else:
-			print "ERROR: data unknown - ", data
-			continue
+	elif data == "s-store ready":
+		sready = True
+		print "S-STORE READY!!!"
+		while not hready:
+			print "s thread: h ready? ", hready
+			time.sleep(1)
+		
+	else:
+		print "ERROR: data unknown - ", data
+		continue
 
-		print "BOTH READY"
-		conn.sendall("READY\n")
-		time.sleep(2)
-		hready = False
-		sready = False
+	print "BOTH READY"
+	conn.sendall("READY\n")
+	time.sleep(2)
+	hready = False
+	sready = False
 
 	conn.close()
 
