@@ -29,6 +29,16 @@
 
 package edu.brown.benchmark.voterexperiments.demosstorecorrect.procedures;
 
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.net.InetAddress;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.net.UnknownHostException;
+import java.io.ObjectOutputStream;
+
 import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
 import org.voltdb.StmtInfo;
@@ -70,6 +80,14 @@ public class DeleteContestant extends VoltProcedure {
 		"DELETE FROM leaderboard WHERE contestant_number = ?;"
     );
     
+    private synchronized void WriteToFile(String content) throws IOException
+    {
+        //System.out.println(stat_filename + " : " + content );
+        PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("johntest.txt", true)));
+        out.println(content);
+        out.close();
+    }
+    
 	
     public long run() {
 		
@@ -82,6 +100,37 @@ public class DeleteContestant extends VoltProcedure {
         }
         
         int lowestContestant = (int)(validation[0].fetchRow(0).getLong(0));
+        try {
+			InetAddress host = InetAddress.getLocalHost();
+			//System.out.println("Host: " + host);
+			//System.out.println("Host Name: " + host.getHostName());
+			Socket socket = new Socket(host.getHostName(), 8888);
+			PrintWriter out = new PrintWriter(socket.getOutputStream());
+			//ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream());
+			
+			while(true){
+				String mes = "s-store ready";
+				out.print(mes);
+				out.flush();
+				Thread.sleep(1000);
+			}
+			
+			//oos.writeObject("ant hstore-invoke -Dproject=tickertest -Dproc=InsertTickerRow -Dparam0='AAA' -Dparam1=12345 -Dparam2=5");
+			
+			//oos.close();
+		}
+		catch (UnknownHostException e){
+			System.err.println("ERROR 1");
+			e.printStackTrace();
+		}
+		catch (IOException e) {
+			System.err.println("ERROR 2");
+			e.printStackTrace();
+		}
+		catch (InterruptedException e) {
+			System.err.println("ERROR 3");
+			e.printStackTrace(); 
+		}
         voltQueueSQL(deleteLowestContestant, lowestContestant);
         voltQueueSQL(deleteLowestVotes, lowestContestant);
         voltQueueSQL(deleteLeaderBoardStmt, lowestContestant);
