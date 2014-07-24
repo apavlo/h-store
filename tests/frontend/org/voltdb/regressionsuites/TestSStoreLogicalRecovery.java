@@ -215,17 +215,28 @@ public class TestSStoreLogicalRecovery extends RegressionSuite {
         loader.load();
     }
     
+    boolean weak_recovery = true;
     
     public void testRecovery() throws IOException, InterruptedException, ProcCallException {
 
-        System.out.println("Starting testRecovery - Logical Recovery");                
+        System.out.println("Starting testRecovery - Logical Recovery"); 
+        
+        // set weak recovery true or false
+        weak_recovery = false; // weak_recovery is false means that we will use strong recovery
 
         deleteTestFiles();
         setUpSnapshotDir();
 
         VoltTable results[] = null;
         Client client = this.getClient();
-        CatalogContext cc = this.getCatalogContext();       
+        CatalogContext cc = this.getCatalogContext();    
+
+        setFrontendTriggerWorking(true);
+
+        if(weak_recovery == true)
+            setWeakRecovery(true);
+        else
+            setWeakRecovery(false);
         
         // Load database
         try {
@@ -252,7 +263,6 @@ public class TestSStoreLogicalRecovery extends RegressionSuite {
 
         MOCK_ARGS[MOCK_ARGS.length - 1] = HStoreConstants.BENCHMARK_PARAM_PREFIX;
 
-        //TPCCClient tpccClient = new TPCCClient(MOCK_ARGS);
         RecoveryClient recoveryClient = new RecoveryClient(MOCK_ARGS);
 
         // Run transactions for record the log
@@ -288,17 +298,19 @@ public class TestSStoreLogicalRecovery extends RegressionSuite {
                 
         // Kill and restart all the execution sites.
         m_config.shutDown();
+        
+        // now, we enter the recovery phrase
         m_config.startUp();
         client = getClient();
         
         // used for testing to check if the SnapshotRestore destroy window behavior
-        client.callProcedure("SimpleCall", 1000);
-        s1_hasTuple = hasTuple("S1");
-        s2_hasTuple = hasTuple("S2");
-        w1_hasTuple = hasTuple("W1");
-        t2_hasTuple = hasTuple("T2");
-        
-        DisplayWindowAttribute("W1");
+//        client.callProcedure("SimpleCall", 1000);
+//        s1_hasTuple = hasTuple("S1");
+//        s2_hasTuple = hasTuple("S2");
+//        w1_hasTuple = hasTuple("W1");
+//        t2_hasTuple = hasTuple("T2");
+//        
+//        DisplayWindowAttribute("W1");
         // end of testing
 
         Calendar calendar;
@@ -306,6 +318,21 @@ public class TestSStoreLogicalRecovery extends RegressionSuite {
 
         calendar = Calendar.getInstance();                    
         t1 = calendar.getTimeInMillis();
+        
+        
+        
+
+        if(weak_recovery == true)
+        {
+            setWeakRecovery(true);
+            setFrontendTriggerWorking(true);
+        }
+        else // for the strong recovery, we will turn off the frontend trigger mechanism
+        {
+            setWeakRecovery(false);
+            setFrontendTriggerWorking(false);
+        }
+        
         
         // modified by hawk, 2014/6/17
         // for S-Store, we should re-execute the related frontend trigger, 
@@ -326,7 +353,7 @@ public class TestSStoreLogicalRecovery extends RegressionSuite {
             fail("SnapshotRestore exception: " + ex.getMessage());
         }        
 
-        DisplayWindowAttribute("W1");
+        //DisplayWindowAttribute("W1");
         
         validateSnapshot(true);
         
@@ -341,7 +368,9 @@ public class TestSStoreLogicalRecovery extends RegressionSuite {
         t2_hasTuple = hasTuple("T2");
         
         // STEP TWO: FRONTEND TRIGGER re-execution
-        doFrontendTriggerRecovery();
+        // if we use weak recovery mechanism, we should make frontend trigger recovery with some existing tuples in streams
+        if(weak_recovery == true)
+            doFrontendTriggerRecovery();
                 
         // check S1 and S2
         s1_hasTuple = hasTuple("S1");
@@ -370,6 +399,12 @@ public class TestSStoreLogicalRecovery extends RegressionSuite {
         w1_hasTuple = hasTuple("W1");
         t2_hasTuple = hasTuple("T2");
 
+        // for strong recovery, we should turn the frontend trigger mechanism on back
+        if(weak_recovery == false)
+        {
+            setFrontendTriggerWorking(true);
+        }
+        
         calendar = Calendar.getInstance();                    
         t2 = calendar.getTimeInMillis();
 
@@ -626,7 +661,7 @@ public class TestSStoreLogicalRecovery extends RegressionSuite {
             Procedure catalog_proc = cc.procedures.getIgnoreCase(procName);
 
             // here we will see that only normal volt procedures will be re-executed.
-            if((catalog_proc.getReadonly() == false) && (catalog_proc.getBedefault() == false))
+            if((catalog_proc.getReadonly() == false) && ((this.weak_recovery==false) || (catalog_proc.getBedefault() == false)))
             {
                 // System.out.println("Invoking procedure ::" + procName);
 

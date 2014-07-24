@@ -21,12 +21,12 @@ public class RecoveryLoader extends Loader {
 
     @Override
     public void load() {
-//        try {
-//            for (int i=0; i<=5; i++)
-//                this.getClientHandle().callProcedure("SimpleCall", i);
-//        } catch (Exception e) {
-//            throw new RuntimeException(e);
-//        }
+        try {
+            for (int i=0; i<=5; i++)
+                this.getClientHandle().callProcedure("SimpleCall", i);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 }
 

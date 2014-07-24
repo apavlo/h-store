@@ -18,7 +18,7 @@ public class SimpleCall extends VoltProcedure {
         voltQueueSQL(insertS1, number);
         //voltExecuteSQL();
         
-        voltQueueSQL(insertW1, number);
+//        voltQueueSQL(insertW1, number);
         voltExecuteSQL();
 
         return 0;
