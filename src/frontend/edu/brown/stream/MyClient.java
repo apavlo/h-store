@@ -47,6 +47,7 @@ import org.voltdb.utils.VoltTypeUtil;
 
 import java.nio.charset.*;
 
+import edu.brown.benchmark.bikerstream.BikerStreamConstants;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.Hstoreservice.Status;
@@ -63,6 +64,14 @@ public class MyClient {
 	Socket api; //Connection to the Rest API
 	//BufferedReader apiCall; //Reads messages from the Rest API
 	InputStreamReader apiCall;
+	public static final long FAILED_CHECKOUT = -1;
+    public static final long FAILED_CHECKIN = -2;
+    public static final long FAILED_SIGNUP = -3;
+    public static final long FAILED_POINT_ADD = -4;
+    public static final long FAILED_ACCEPT_DISCOUNT = -5;
+    public static final long NO_BIKE_CHECKED_OUT = -6;
+    public static final long USER_ALREADY_HAS_BIKE = -7;
+    public static final long USER_DOESNT_EXIST = -8;
 	
 	MyClient() {
 		this.port = HStoreConstants.DEFAULT_PORT; //21212
@@ -256,6 +265,30 @@ public class MyClient {
 			e.printStackTrace();
 		}
 	}
+	
+	public String errorMessage(long err, JSONObject proc) {
+		try {
+			if (err == FAILED_CHECKOUT)
+				return "Rider: " + proc.getJSONArray("args").getInt(0) + " was unable to checkout a bike";
+			if (err == FAILED_CHECKIN)
+				return "Rider: " + proc.getJSONArray("args").getInt(0) + " was unable to checkin a bike";
+			if (err == FAILED_SIGNUP)
+				return "Unable to sign up rider";
+			if (err == FAILED_POINT_ADD)
+				return "Unable to add point";
+			if (err == FAILED_ACCEPT_DISCOUNT)
+				return "Unable to accept the discount";
+			if (err == NO_BIKE_CHECKED_OUT)
+				return "Rider: " + proc.getJSONArray("args").getInt(0) + " does not have a bike checked out";
+			if (err == USER_ALREADY_HAS_BIKE)
+				return "Rider: " + proc.getJSONArray("args").getInt(0) + " already has a bike checked out";
+			if (err == USER_DOESNT_EXIST)
+				return "Rider: " + proc.getJSONArray("args").getInt(0) + " does not exist";
+		} catch (JSONException e) {
+			e.printStackTrace();
+		}
+		return "FATAL ERROR";
+	}
 
 	//Used to grab information about where S-Store is running and establish a
 	//connection to the db
@@ -338,8 +371,9 @@ public class MyClient {
 					if (vt.hasColumn("")) {
 						long error = vt.asScalarLong();
 						j.put("data", jsonArray);
-						if (error < 0) {//Currently a false positive
-							j.put("error", "DB error");
+						if (error < 0) {
+							JSONObject calledProc = new JSONObject(proc);
+							j.put("error", myc.errorMessage(error, calledProc));
 							j.put("success", 0);
 						}
 						else
