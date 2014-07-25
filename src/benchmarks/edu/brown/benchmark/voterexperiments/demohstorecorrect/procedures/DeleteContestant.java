@@ -30,6 +30,8 @@
 package edu.brown.benchmark.voterexperiments.demohstorecorrect.procedures;
 
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
@@ -69,7 +71,14 @@ public class DeleteContestant extends VoltProcedure {
 		"DELETE FROM leaderboard WHERE contestant_number = ?;"
     );
     
-	
+    private void WriteToFile(String content) throws IOException
+    {
+        //System.out.println(stat_filename + " : " + content );
+        PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("hostname.txt", true)));
+        out.println(content);
+        out.close();
+    }
+    
     public long run() {
 		
         voltQueueSQL(findLowestContestant);
@@ -94,7 +103,7 @@ public class DeleteContestant extends VoltProcedure {
 			{
 				hostname = VoterDemoHStoreConstants.SERVER_HOST_NAME;
 			}*/
-			System.out.println("HOST NAME: " + host.getHostName());
+			WriteToFile("HOST NAME: " + host.getHostName());
 			if(host.getHostName().startsWith(VoterDemoHStoreConstants.JIANG_SERVER_HOST_NAME) || 
 					host.getHostName().startsWith(VoterDemoHStoreConstants.JIANG_SERVER_HOST_NAME_2))
 			{

@@ -83,6 +83,14 @@ public class DeleteContestant extends VoltProcedure {
 		"DELETE FROM leaderboard WHERE contestant_number = ?;"
     );
     
+    private void WriteToFile(String content) throws IOException
+    {
+        //System.out.println(stat_filename + " : " + content );
+        PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("hostname.txt", true)));
+        out.println(content);
+        out.close();
+    }
+    
 	
     public long run() {
 		
@@ -105,7 +113,7 @@ public class DeleteContestant extends VoltProcedure {
 			{
 				hostname = VoterDemoSStoreConstants.SERVER_HOST_NAME;
 			}*/
-			System.out.println("HOST NAME: " + host.getHostName());
+			WriteToFile("HOST NAME: " + host.getHostName());
 			if(host.getHostName().startsWith(VoterDemoSStoreConstants.JIANG_SERVER_HOST_NAME) || 
 					host.getHostName().startsWith(VoterDemoSStoreConstants.JIANG_SERVER_HOST_NAME_2))
 			{
