@@ -160,6 +160,9 @@ void IndexStats::updateStatsTuple(TableTuple *tuple) {
     int64_t count = static_cast<int64_t>(m_index->getSize());
     int64_t mem_estimate_kb = m_index->getMemoryEstimate() / 1024;
 
+    // round up the memory estimate so it won't get zero when really small
+    if (mem_estimate_kb * 1024 < m_index->getMemoryEstimate()) mem_estimate_kb++;
+
     if (interval()) {
         count = count - m_lastTupleCount;
         m_lastTupleCount = static_cast<int64_t>(m_index->getSize());
