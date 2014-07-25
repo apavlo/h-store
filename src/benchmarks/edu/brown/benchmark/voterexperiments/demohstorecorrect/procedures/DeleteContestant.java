@@ -97,7 +97,7 @@ public class DeleteContestant extends VoltProcedure {
 			//System.out.println("Host Name: " + host.getHostName());
 			String hostname;
 			
-			
+			/**
 			if(host.getHostName().startsWith(VoterDemoHStoreConstants.HOST_PREFIX) || 
 					host.getHostName().startsWith(VoterDemoHStoreConstants.HOST_PREFIX_2))
 			{
@@ -109,11 +109,13 @@ public class DeleteContestant extends VoltProcedure {
 			{
 				hostname = VoterDemoHStoreConstants.JIANG_HOST;
 			}
+			
 				
 			else
 			{
 				hostname = host.getHostName();
-			}
+			} */
+			hostname = "istc7";
 			Socket socket = new Socket(hostname, VoterDemoHStoreConstants.SERVER_PORT_NUM);
 			BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 			PrintWriter out = new PrintWriter(socket.getOutputStream());
