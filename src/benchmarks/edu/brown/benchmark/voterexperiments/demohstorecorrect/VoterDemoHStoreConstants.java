@@ -41,6 +41,10 @@ public abstract class VoterDemoHStoreConstants {
 	
 	public static final String HOST_PREFIX = "istc";
 	public static final String SERVER_HOST_NAME = "istc10.csail.mit.edu";
+	public static final String JIANG_SERVER_HOST_NAME = "istc-nt.csail.mit.edu";
+	public static final String JIANG_SERVER_HOST_NAME_2 = "istc3.csail.mit.edu";
+	public static final String JIANG_HOST = "istc-nt.csail.mit.edu";
+	
 	public static final int SERVER_PORT_NUM = 8888;
 
 	// Initialize some common constants and variables
