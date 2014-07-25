@@ -62,7 +62,6 @@ public class MyClient {
 	InputClientConnection icc;
 	ServerSocket serverSocket;
 	Socket api; //Connection to the Rest API
-	//BufferedReader apiCall; //Reads messages from the Rest API
 	InputStreamReader apiCall;
 	public static final long FAILED_CHECKOUT = -1;
     public static final long FAILED_CHECKIN = -2;
@@ -93,8 +92,6 @@ public class MyClient {
 				connected = true;
 			}
 			catch (RuntimeException e) {
-				//e.printStackTrace();
-				//System.out.println(e.getMessage());
 				connected = false;
 			}
 		}
@@ -105,11 +102,9 @@ public class MyClient {
 	//name and arguments.  Make a call to the specified procedure and return
 	//the array of VoltTables.
 	public VoltTable [] callStoredProcedure(JSONObject proc) throws JSONException {
-		//JSONObject j;
 		VoltTable [] results;
 		System.out.println("Calling stored procedure");
 		try {
-			//j = new JSONObject(s);
 			String procedureName = proc.getString("proc");
 			JSONArray args = proc.getJSONArray("args");
 			ArrayList<Object> conversionList = new ArrayList<Object>();
@@ -158,10 +153,6 @@ public class MyClient {
 		ArrayList<String> s = new ArrayList<String>();
 		final int colCount = vt.getColumnCount();
 		vt.resetRowPosition();
-		/*if (colCount == 1 && vt.getRowCount() == 1) {
-			s.add(String.valueOf(vt.asScalarLong()));
-			return s;
-		}*/
 		while (vt.advanceRow()) {
 			for (int col = 0; col < colCount; col++) {
 				switch(vt.getColumnType(col)) {
@@ -213,7 +204,6 @@ public class MyClient {
 				api.close();
 				api = serverSocket.accept(); //Client likely disconnected
 				System.out.println("Connected to " + api.getInetAddress());
-				//apiCall = new BufferedReader(new InputStreamReader(api.getInputStream()));
 				apiCall = new InputStreamReader(api.getInputStream(), "UTF-8");
 			}
 			return procedureName;
@@ -349,10 +339,8 @@ public class MyClient {
 		VoltTable [] results;
 		MyClient myc = new MyClient();
 		try {
-			//myc.client.callProcedure("SignUp", 1001);
 			myc.api = myc.serverSocket.accept();
 			System.out.println("Connected to " + myc.api.getInetAddress());
-			//myc.apiCall = new BufferedReader(new InputStreamReader(myc.api.getInputStream()));
 			myc.apiCall = new InputStreamReader(myc.api.getInputStream(), "UTF-8");
 			while (true) {
 				ArrayList<String> rows = new ArrayList<String>();
@@ -367,9 +355,7 @@ public class MyClient {
 				for (VoltTable vt: results) {
 					if (vt.hasColumn("")) {
 						long error = vt.asScalarLong();
-						//j.put("data", jsonArray);
 						if (error < 0) {
-							//JSONObject calledProc = new JSONObject(proc);
 							j.put("error", myc.errorMessage(error, calledProc));
 							j.put("success", 0);
 						} else if (error > 0){
@@ -408,9 +394,6 @@ public class MyClient {
 			// as an argument.  The arguments are hard coded, so something catastrophic would have
 			// to occur.
 			e.printStackTrace();
-		}/* catch (ProcCallException e) {
-			System.out.println("Defined userid is already taken");
-			e.printStackTrace();
-		}*/
+		}
 	}
 }
