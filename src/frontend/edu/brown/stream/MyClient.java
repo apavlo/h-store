@@ -104,14 +104,14 @@ public class MyClient {
 	//Take a json message from the socket and parse it for the procedure
 	//name and arguments.  Make a call to the specified procedure and return
 	//the array of VoltTables.
-	public VoltTable [] callStoredProcedure(String s) throws JSONException {
-		JSONObject j;
+	public VoltTable [] callStoredProcedure(JSONObject proc) throws JSONException {
+		//JSONObject j;
 		VoltTable [] results;
 		System.out.println("Calling stored procedure");
 		try {
-			j = new JSONObject(s);
-			String procedureName = j.getString("proc");
-			JSONArray args = j.getJSONArray("args");
+			//j = new JSONObject(s);
+			String procedureName = proc.getString("proc");
+			JSONArray args = proc.getJSONArray("args");
 			ArrayList<Object> conversionList = new ArrayList<Object>();
 			for (int i = 0; i < args.length(); i++) {
 				conversionList.add(args.get(i));
@@ -120,17 +120,13 @@ public class MyClient {
 			results = client.callProcedure(procedureName, argumentList).getResults();
 			return results;
 		} catch (JSONException e) {
-			if (s == null)
-				System.out.println("Received null string from client");
-			else {
-				System.out.println("JSON object missing expected fields");
-			}
+			System.out.println("JSON object missing expected fields");
 			e.printStackTrace();
 		} catch (NoConnectionsException e) {
 			System.out.println("Connection to S-Store was lost");
 			e.printStackTrace();
 			this.reconnect();
-			return this.callStoredProcedure(s);
+			return this.callStoredProcedure(proc);
 		} catch (IOException e) {
 			if (e.getMessage() != null)
 				System.out.println(e.getMessage());
@@ -362,26 +358,31 @@ public class MyClient {
 				ArrayList<String> rows = new ArrayList<String>();
 				JSONArray jsonArray = new JSONArray();
 				proc = myc.readString();
+				JSONObject calledProc = new JSONObject(proc);
 				System.out.println("Received input stream");
-				while ((results = myc.callStoredProcedure(proc)) == null) {
+				while ((results = myc.callStoredProcedure(calledProc)) == null) {
 					proc = myc.readString();
 				}
 				j = new JSONObject();
 				for (VoltTable vt: results) {
 					if (vt.hasColumn("")) {
 						long error = vt.asScalarLong();
-						j.put("data", jsonArray);
+						//j.put("data", jsonArray);
 						if (error < 0) {
-							JSONObject calledProc = new JSONObject(proc);
+							//JSONObject calledProc = new JSONObject(proc);
 							j.put("error", myc.errorMessage(error, calledProc));
 							j.put("success", 0);
-						}
-						else
+						} else if (error > 0){
 							j.put("error", "");
 							j.put("success", 1);
+							jsonArray.put(error);
+						} else {
+							j.put("error", "");
+							j.put("success", 1);
+						}
+						j.put("data", jsonArray);
 						rows.add(String.valueOf(vt.asScalarLong()));
-					}
-					else {
+					} else {
 						for (String s: myc.parseResults(vt)) {
 							jsonArray.put(new JSONObject(s));
 						}

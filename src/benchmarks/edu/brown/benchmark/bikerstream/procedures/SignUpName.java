@@ -74,7 +74,7 @@ public class SignUpName extends VoltProcedure
             return BikerStreamConstants.FAILED_SIGNUP;
         }
 
-        return 1;
+        return user_id;
 
     }
 
