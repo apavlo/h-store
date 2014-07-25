@@ -44,7 +44,7 @@ public abstract class VoterDemoHStoreConstants {
 	public static final String SERVER_HOST_NAME = "istc10.csail.mit.edu";
 	public static final String JIANG_SERVER_HOST_NAME = "istc-nt";
 	public static final String JIANG_SERVER_HOST_NAME_2 = "istc10";
-	public static final String JIANG_HOST = "istc-nt.csail.mit.edu";
+	public static final String JIANG_HOST = "istc-nt";
 	
 	public static final int SERVER_PORT_NUM = 9000;
 
