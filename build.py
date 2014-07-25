@@ -349,7 +349,7 @@ CTX.TESTS['expressions'] = """
 """
 
 CTX.TESTS['indexes'] = """
- index_trackerallocator_test
+ index_allocatortracker_test
  index_key_test
  index_multikey_test
  index_scripted_test

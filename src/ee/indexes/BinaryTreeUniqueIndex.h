@@ -53,7 +53,6 @@
 #include "common/debuglog.h"
 #include "common/tabletuple.h"
 #include "indexes/tableindex.h"
-#include "indexes/trackerallocator.h"
 
 namespace voltdb {
 
@@ -67,7 +66,7 @@ class BinaryTreeUniqueIndex : public TableIndex
     friend class TableIndexFactory;
 
     //typedef std::map<KeyType, const void*, KeyComparator> MapType;
-    typedef h_index::TrackerAllocator<pair<const KeyType, const void*> > AllocatorType;
+    typedef h_index::AllocatorTracker<pair<const KeyType, const void*> > AllocatorType;
     typedef stx::btree_map<KeyType, const void*, KeyComparator, stx::btree_default_map_traits<KeyType, const void*>, AllocatorType> MapType;
 
 public:

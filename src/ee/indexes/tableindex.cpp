@@ -45,7 +45,6 @@
 
 #include <iostream>
 #include "tableindex.h"
-#include "trackerallocator.h"
 
 using namespace voltdb;
 

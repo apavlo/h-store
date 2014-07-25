@@ -49,7 +49,6 @@
 #include <iostream>
 #include "indexes/tableindex.h"
 #include "boost/unordered_map.hpp"
-#include "indexes/trackerallocator.h"
 
 namespace voltdb {
 
@@ -61,7 +60,7 @@ template<typename KeyType, class KeyHasher, class KeyEqualityChecker>
 class HashTableUniqueIndex : public TableIndex {
     friend class TableIndexFactory;
 
-    typedef h_index::TrackerAllocator<pair<const KeyType, const void*> > AllocatorType;    
+    typedef h_index::AllocatorTracker<pair<const KeyType, const void*> > AllocatorType;    
     typedef boost::unordered_map<KeyType, const void*, KeyHasher, KeyEqualityChecker, AllocatorType> MapType;
 
 public:

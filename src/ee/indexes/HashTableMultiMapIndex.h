@@ -62,7 +62,7 @@ class HashTableMultiMapIndex : public TableIndex {
 
     friend class TableIndexFactory;
 
-    typedef h_index::TrackerAllocator<pair<const KeyType, const void*> > AllocatorType;
+    typedef h_index::AllocatorTracker<pair<const KeyType, const void*> > AllocatorType;
     typedef boost::unordered_multimap<KeyType, const void*, KeyHasher, KeyEqualityChecker, AllocatorType> MapType;
     typedef typename MapType::const_iterator MMCIter;
     typedef typename MapType::iterator MMIter;

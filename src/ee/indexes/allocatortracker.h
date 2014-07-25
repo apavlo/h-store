@@ -14,7 +14,7 @@
 namespace h_index {
 
 template<typename ValueType> 
-class TrackerAllocator : public std::allocator<ValueType> {
+class AllocatorTracker : public std::allocator<ValueType> {
     public:
         typedef typename std::allocator<ValueType> BaseAllocator;
         typedef typename BaseAllocator::pointer pointer;
@@ -23,22 +23,22 @@ class TrackerAllocator : public std::allocator<ValueType> {
         int64_t *memory_size;
 
         // This shouldn't be called. We should call the constructor with pointer to the memory_size.
-        TrackerAllocator() throw() : BaseAllocator() {}
+        AllocatorTracker() throw() : BaseAllocator() {}
 
-        TrackerAllocator(int64_t* m_ptr) throw() : BaseAllocator() {
+        AllocatorTracker(int64_t* m_ptr) throw() : BaseAllocator() {
             memory_size = m_ptr;
         }
-        TrackerAllocator(const TrackerAllocator& allocator) throw() : BaseAllocator(allocator) {
+        AllocatorTracker(const AllocatorTracker& allocator) throw() : BaseAllocator(allocator) {
             memory_size = allocator.memory_size;
         }
-        template <class U> TrackerAllocator(const TrackerAllocator<U>& allocator) throw(): BaseAllocator(allocator) {
+        template <class U> AllocatorTracker(const AllocatorTracker<U>& allocator) throw(): BaseAllocator(allocator) {
             memory_size = allocator.memory_size;
         }
 
-        ~TrackerAllocator() {}
+        ~AllocatorTracker() {}
 
         template<class U> struct rebind {
-            typedef TrackerAllocator<U> other;
+            typedef AllocatorTracker<U> other;
         };
 
         pointer allocate(size_type size) {
@@ -76,6 +76,6 @@ class TrackerAllocator : public std::allocator<ValueType> {
         }
 };
 
-} // namespace index
+} // namespace h_index
 
 #endif
