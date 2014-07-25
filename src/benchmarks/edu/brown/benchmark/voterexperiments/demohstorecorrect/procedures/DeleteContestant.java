@@ -88,12 +88,13 @@ public class DeleteContestant extends VoltProcedure {
 			//System.out.println("Host Name: " + host.getHostName());
 			String hostname;
 			
+			/**
 			if(host.getHostName().startsWith(VoterDemoHStoreConstants.HOST_PREFIX) || 
 					host.getHostName().startsWith(VoterDemoHStoreConstants.HOST_PREFIX_2))
 			{
 				hostname = VoterDemoHStoreConstants.SERVER_HOST_NAME;
-			}
-			else if(host.getHostName().startsWith(VoterDemoHStoreConstants.JIANG_SERVER_HOST_NAME) || 
+			}*/
+			if(host.getHostName().startsWith(VoterDemoHStoreConstants.JIANG_SERVER_HOST_NAME) || 
 					host.getHostName().startsWith(VoterDemoHStoreConstants.JIANG_SERVER_HOST_NAME_2))
 			{
 				hostname = VoterDemoHStoreConstants.JIANG_HOST;
