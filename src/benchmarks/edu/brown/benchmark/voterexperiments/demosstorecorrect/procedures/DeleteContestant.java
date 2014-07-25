@@ -48,6 +48,7 @@ import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.types.TimestampType;
 
+import edu.brown.benchmark.voterexperiments.demohstorecorrect.VoterDemoHStoreConstants;
 import edu.brown.benchmark.voterexperiments.demosstorecorrect.VoterDemoSStoreConstants;
 
 @ProcInfo (
@@ -98,9 +99,16 @@ public class DeleteContestant extends VoltProcedure {
 			InetAddress host = InetAddress.getLocalHost();
 
 			String hostname;
-			if(host.getHostName().startsWith(VoterDemoSStoreConstants.HOST_PREFIX))
+			
+			if(host.getHostName().startsWith(VoterDemoSStoreConstants.HOST_PREFIX) || 
+					host.getHostName().startsWith(VoterDemoSStoreConstants.HOST_PREFIX_2))
 			{
 				hostname = VoterDemoSStoreConstants.SERVER_HOST_NAME;
+			}
+			else if(host.getHostName().startsWith(VoterDemoSStoreConstants.JIANG_SERVER_HOST_NAME) || 
+					host.getHostName().startsWith(VoterDemoSStoreConstants.JIANG_SERVER_HOST_NAME_2))
+			{
+				hostname = VoterDemoSStoreConstants.JIANG_HOST;
 			}
 			else
 			{
