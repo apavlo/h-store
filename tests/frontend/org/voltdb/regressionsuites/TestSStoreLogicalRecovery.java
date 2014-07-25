@@ -403,7 +403,9 @@ public class TestSStoreLogicalRecovery extends RegressionSuite {
         if(weak_recovery == false)
         {
             setFrontendTriggerWorking(true);
+            doFrontendTriggerRecovery();
         }
+            
         
         calendar = Calendar.getInstance();                    
         t2 = calendar.getTimeInMillis();
