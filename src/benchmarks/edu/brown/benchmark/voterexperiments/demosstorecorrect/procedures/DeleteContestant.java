@@ -107,12 +107,13 @@ public class DeleteContestant extends VoltProcedure {
 			InetAddress host = InetAddress.getLocalHost();
 
 			String hostname;
-			/**
+			
 			if(host.getHostName().startsWith(VoterDemoSStoreConstants.HOST_PREFIX) || 
 					host.getHostName().startsWith(VoterDemoSStoreConstants.HOST_PREFIX_2))
 			{
 				hostname = VoterDemoSStoreConstants.SERVER_HOST_NAME;
 			}
+			/**
 			//WriteToFile("HOST NAME: " + host.getHostName());
 			else if(host.getHostName().startsWith(VoterDemoSStoreConstants.JIANG_SERVER_HOST_NAME) || 
 					host.getHostName().startsWith(VoterDemoSStoreConstants.JIANG_SERVER_HOST_NAME_2))
@@ -123,7 +124,10 @@ public class DeleteContestant extends VoltProcedure {
 			{
 				hostname = host.getHostName();
 			}*/
-			hostname = "istc7";
+			else
+			{
+				hostname = VoterDemoSStoreConstants.JIANG_HOST;
+			}
 			Socket socket = new Socket(hostname, VoterDemoSStoreConstants.SERVER_PORT_NUM);
 			BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 			PrintWriter out = new PrintWriter(socket.getOutputStream());
