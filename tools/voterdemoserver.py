@@ -7,7 +7,7 @@ hready = False
 sready = False
 
 HOST = ''
-PORT = 8888
+PORT = 9000
 
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 print 'Socket created'
