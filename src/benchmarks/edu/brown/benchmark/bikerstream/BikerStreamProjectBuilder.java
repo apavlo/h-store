@@ -66,6 +66,7 @@ public class BikerStreamProjectBuilder extends AbstractProjectBuilder {
         UpdateNearByDiscounts.class,
         UpdateNearByStations.class,
         AcceptDiscount.class,
+        UserLocations.class,
         GetNearDiscounts.class,
         UpdateRiderLocations.class
 //        InsertIntoBikeReadingsTableWinTrigger.class,

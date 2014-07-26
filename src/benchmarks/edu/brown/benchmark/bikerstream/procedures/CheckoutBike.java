@@ -46,8 +46,20 @@ public class CheckoutBike extends VoltProcedure {
     // Logging Information
     private static final Logger Log = Logger.getLogger(CheckoutBike.class);
 
+    public final SQLStmt getUser = new SQLStmt(
+                "SELECT * FROM users WHERE user_id = ?"
+            );
+
     public final SQLStmt getStation = new SQLStmt(
                 "SELECT * FROM stationstatus where station_id = ?"
+            );
+
+    public final SQLStmt getStationLocation = new SQLStmt(
+                "SELECT latitude, longitude FROM stations WHERE station_id = ?"
+            );
+
+    public final SQLStmt checkUser = new SQLStmt(
+                "SELECT COUNT(*) FROM bikes WHERE user_id = ?"
             );
 
     public final SQLStmt updateStation = new SQLStmt(
@@ -55,8 +67,20 @@ public class CheckoutBike extends VoltProcedure {
             );
 
     public final SQLStmt updateStationDiscount = new SQLStmt(
-            "UPDATE stationstatus SET current_bikes = ?, current_docks = ?, current_discount = ? where station_id = ?"
-    );
+                "UPDATE stationstatus SET current_bikes = ?, current_docks = ?, current_discount = ? where station_id = ?"
+            );
+
+    public final SQLStmt getBike = new SQLStmt(
+                "SELECT bike_id FROM bikes WHERE station_id = ? AND current_status = 1"
+            );
+
+    public final SQLStmt assignBike = new SQLStmt(
+                "UPDATE bikes SET station_id = 'NULL', user_id = ?, current_status = 2 WHERE bike_id = ?"
+            );
+
+    public final SQLStmt addToLocation = new SQLStmt(
+                "INSERT INTO userLocations (user_id, latitude, longitude) VALUES (?,?,?)"
+            );
 
     public final SQLStmt log = new SQLStmt(
                 "INSERT INTO logs (user_id, time, success, action) VALUES (?,?,?,?)"
@@ -74,9 +98,26 @@ public class CheckoutBike extends VoltProcedure {
         long numBikes = results[0].fetchRow(0).getLong("current_bikes");
         long numDocks = results[0].fetchRow(0).getLong("current_docks");
         long numDiscounts = results[0].fetchRow(0).getLong("current_discount");
+        voltQueueSQL(getStationLocation, station_id);
+        results = voltExecuteSQL();
+        double latitude = results[0].fetchRow(0).getDouble("latitude");
+        double longitude = results[0].fetchRow(0).getDouble("longitude");
+        voltQueueSQL(getUser, rider_id);
+        results = voltExecuteSQL();
+        if (results[0].getRowCount() < 1)
+            return BikerStreamConstants.USER_DOESNT_EXIST;
+            //throw new RuntimeException("Rider: " + rider_id + " does not exist");
 
         if (numBikes > 0){
 
+            voltQueueSQL(checkUser, rider_id);
+            results = voltExecuteSQL();
+            if (results[0].asScalarLong() > 0) {
+                voltQueueSQL(log, rider_id, new TimestampType(), 0, "could not get bike from station: " + station_id);
+                voltExecuteSQL(true);
+                return BikerStreamConstants.USER_ALREADY_HAS_BIKE;
+                //throw new RuntimeException("Rider: " + rider_id + " already has a bike checked out");
+            }
             if (numBikes <= BikerStreamConstants.DISCOUNT_THRESHOLD){
                 voltQueueSQL(updateStationDiscount, --numBikes, ++numDocks, numDiscounts +1, station_id);
                 Log.info("Discount added to station: " + station_id);
@@ -84,6 +125,18 @@ public class CheckoutBike extends VoltProcedure {
                 voltQueueSQL(updateStation, --numBikes, ++numDocks, station_id);
             }
 
+            voltQueueSQL(getBike, station_id);
+            VoltTable [] bikes = voltExecuteSQL();
+            long bike_id = 0;
+            if (bikes[1].getRowCount() >= 1) {
+            	bike_id = bikes[1].fetchRow(0).getLong(0);
+            }
+            else {
+                return BikerStreamConstants.FAILED_CHECKOUT;
+            	//throw new RuntimeException("No bikes available at the station");
+            }
+            voltQueueSQL(assignBike, rider_id, bike_id);
+            voltQueueSQL(addToLocation, rider_id, latitude, longitude);
             Log.info("Rider: " + rider_id + " checked out from station: " + station_id);
             voltQueueSQL(log, rider_id, new TimestampType(), 1, "successfully got bike from station: " + station_id);
             voltExecuteSQL(true);

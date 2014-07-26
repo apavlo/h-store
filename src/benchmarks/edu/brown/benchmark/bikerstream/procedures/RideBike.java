@@ -32,6 +32,7 @@ import org.apache.log4j.Logger;
 import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
+import org.voltdb.VoltTable;
 import org.voltdb.types.TimestampType;
 
 import edu.brown.benchmark.bikerstream.BikerStreamConstants;
@@ -50,6 +51,14 @@ public class RideBike extends VoltProcedure {
         "INSERT INTO bikeStatus (user_id, latitude, longitude, time) " +
         "VALUES (?, ?, ?, ?);"
     );
+    
+    public final SQLStmt getUser = new SQLStmt(
+    	"SELECT * FROM users WHERE user_id = ?"
+    );
+    
+    public final SQLStmt getBike = new SQLStmt(
+    	"SELECT * FROM bikes WHERE user_id = ?"
+    );
 
     // Enters a bike ride gps event
     public final SQLStmt log = new SQLStmt(
@@ -61,6 +70,15 @@ public class RideBike extends VoltProcedure {
 
         try {
             // Post the ride event
+        	voltQueueSQL(getUser, rider_id);
+        	voltQueueSQL(getBike, rider_id);
+        	VoltTable results[] = voltExecuteSQL();
+        	if (results[0].getRowCount() < 1)
+        		return BikerStreamConstants.USER_DOESNT_EXIST;
+        		//throw new RuntimeException("Rider: " + rider_id + " does not exist");
+        	if (results[1].getRowCount() < 1)
+        		return BikerStreamConstants.NO_BIKE_CHECKED_OUT;
+        		//throw new RuntimeException("Rider: " + rider_id + " does not have a bike checked out");
             TimestampType time = new TimestampType();
             voltQueueSQL(insertBikeReadingStmt, rider_id, reading_lat, reading_lon, time);
             voltExecuteSQL(true);

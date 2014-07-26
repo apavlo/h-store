@@ -21,11 +21,13 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-/* Initialize - nothing to do */
+//
+// Rides a bike - basically inserts events theoretically
+// from a gps on a bike into the bikerreadings_stream
+//
 
 package edu.brown.benchmark.bikerstream.procedures;
 
-import edu.brown.benchmark.bikerstream.BikerStreamConstants;
 import org.apache.log4j.Logger;
 import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
@@ -34,48 +36,26 @@ import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
 import org.voltdb.types.TimestampType;
 
-import java.util.Random;
-
+import edu.brown.benchmark.bikerstream.BikerStreamConstants;
 
 @ProcInfo (
-singlePartition = false
+    singlePartition = true
 )
-public class SignUpName extends VoltProcedure
-{
-    private static final Logger Log = Logger.getLogger(SignUpName.class);
+public class UserLocations extends VoltProcedure {
 
-    public final SQLStmt insertRider = new SQLStmt(
-        "INSERT INTO users (user_id, user_name, credit_card, membership_status, membership_expiration_date) " +
-        "VALUES (?,?,?,?,?)"
-    );
+    // Logging Information
+    private static final Logger Log = Logger.getLogger(UserLocations.class);
+    // Is debugging on or not?
+    final boolean debug = Log.isDebugEnabled();
 
-    public final SQLStmt checkID = new SQLStmt(
-            "SELECT count(*) FROM users WHERE user_id = ?"
-    );
+    public final SQLStmt getLocations = new SQLStmt(
+                "SELECT * FROM userLocations"
+            );
 
-    public long run(String first, String last) {
-
-        Random gen = new Random();
-        VoltTable result;
-        String full = first + " " + last;
-        long user_id = 0;
-
-        try {
-            do {
-                user_id = (long) gen.nextInt(BikerStreamConstants.MAX_ID);
-                voltQueueSQL(checkID, user_id);
-                result = voltExecuteSQL()[0];
-            } while (result.asScalarLong() > 0);
-
-            voltQueueSQL(insertRider, user_id, full, "0000000000111112222233333", 1, new TimestampType());
-            voltExecuteSQL(true);
-
-        } catch (Exception e) {
-            return BikerStreamConstants.FAILED_SIGNUP;
-        }
-
-        return user_id;
-
+    public VoltTable [] run() {
+        voltQueueSQL(getLocations);
+        return voltExecuteSQL(true);
     }
 
-}
+} // End Class
+

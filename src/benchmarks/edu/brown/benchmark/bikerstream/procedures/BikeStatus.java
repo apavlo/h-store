@@ -52,9 +52,8 @@ public class BikeStatus extends VoltProcedure {
                 "SELECT * FROM bikeStatus"
             );
 
-    public VoltTable [] run() {
-        voltQueueSQL(getBikeStatus);
-        return voltExecuteSQL(true);
+    public long run() {
+        return 1;
     }
 
 } // End Class

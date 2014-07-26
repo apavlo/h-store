@@ -47,7 +47,7 @@ public class GetBikeStatus extends VoltProcedure {
     private static final Logger Log = Logger.getLogger(GetBikeStatus.class);
 
     public final SQLStmt getBikeStatus = new SQLStmt(
-                "SELECT * FROM bikestatus WHERE user_id=?"
+                "SELECT * FROM userLocations WHERE user_id=?"
             );
 
     public VoltTable [] run(int user_id) {
