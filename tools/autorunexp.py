@@ -142,6 +142,9 @@ parser.add_argument('--winconfig', help='description of the window configuration
 parser.add_argument('--debug', help='debug mode, only runs once', action='store_true')
 parser.add_argument('--aries', help='turns on Aries logging', action='store_true')
 parser.add_argument('--scheduler', help='turns on S-Store scheduler', action='store_true')
+parser.add_argument('--hstore', help='turns on S-Store', action='store_true')
+parser.add_argument('--ftrigger_off', help='sets whether frontend triggers are enabled', action='store_true')
+parser.add_argument('--weakrecovery_off', help='sets strong or weak recovery', action='store_true')
 
 args = parser.parse_args()
 
@@ -170,6 +173,9 @@ winconfig   = args.winconfig
 debug       = args.debug
 aries       = args.aries
 scheduler   = args.scheduler
+sstore      = not args.hstore
+ftrigger    = not args.ftrigger_off
+wrecovery   = not args.weakrecovery_off
 
 if blockingflag==True:
     strblocking = "true"
@@ -192,6 +198,21 @@ if scheduler==True:
 	strscheduler = "true"
 else:
 	strscheduler = "false"
+
+if sstore==True:
+	strsstore = "true"
+else:
+	strsstore = "false"
+
+if ftrigger==True:
+	strftrigger = "true"
+else:
+	strftrigger = "false"
+
+if wrecovery==True:
+	strwrecovery = "true"
+else:
+	strwrecovery = "false"
 
 print projectname, resultfile, stopflag, blockingflag, llog, threads, rmin, rmax, rstep, logtimeout
 
@@ -253,10 +274,14 @@ for rn in range(0, numruns):
 		str_site_commandlog_enable = " -Dsite.commandlog_enable=" + strlogging
 		str_site_aries = " -Dsite.aries=" + straries
 		str_global_scheduler = " -Dglobal.sstore_scheduler=" + strscheduler
+		str_global_sstore = " -Dglobal.sstore=" + strsstore
+		str_global_ftrigger = " -Dglobal.sstore_frontend_trigger=" + strftrigger
+		str_global_wrecovery = " -Dglobal.weak_recovery=" + strwrecovery
 	
 		basic = "{0:d}".format(client_threads_per_host) + " " + "{0:d}".format(client_txnrate) + " " +  "{0:d}".format(site_commandlog_timeout)
 	
-		runcmd = str_antcmd + str_project + str_client_blocking + str_client_output_results_json + str_client_threads_per_host + str_client_txnrate + str_client_warmup + str_site_commandlog_enable + str_site_aries + str_global_scheduler
+		runcmd = str_antcmd + str_project + str_client_blocking + str_client_output_results_json + str_client_threads_per_host + str_client_txnrate + str_client_warmup 
+		runcmd += str_site_commandlog_enable + str_site_aries + str_global_scheduler + str_global_sstore + str_global_ftrigger + str_global_wrecovery
 	
 		print "running benchmark with following configuration:"
 		print runcmd
@@ -311,6 +336,7 @@ proj = projectname + " - " + winconfig + " (" + "{0:.2f}".format(txn_threshold) 
 config = "threads: " + "{0:d}".format(client_threads_per_host) + "  |  logging: " +  strlogging + "  |  log timeout: " + "{0:d}".format(site_commandlog_timeout)
 config += "\nblocking: " + strblocking + "  |  warmup: " + "{0:d}".format(client_warmup) + "  |  threshold: " + "{0:.2f}".format(txn_threshold) 
 config += "\naries: " + straries + "  |  scheduler: " + strscheduler
+config += "\nS-Store: " + strsstore + "  |  S-Store frontend trigger: " + strftrigger + "  |  weak recovery: " + strwrecovery 
 expfile.write(proj + "\n");
 expfile.write("--------------------------------------------------\n");
 expfile.write(config + "\n");
