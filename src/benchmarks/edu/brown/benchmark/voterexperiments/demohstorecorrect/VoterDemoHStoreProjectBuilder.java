@@ -34,6 +34,7 @@ import org.voltdb.VoltProcedure;
 import edu.brown.benchmark.AbstractProjectBuilder;
 import edu.brown.api.BenchmarkComponent;
 
+import edu.brown.benchmark.voterexperiments.demohstorecorrect.procedures.CachedResults;
 import edu.brown.benchmark.voterexperiments.demohstorecorrect.procedures.Vote; 
 import edu.brown.benchmark.voterexperiments.demohstorecorrect.procedures.Initialize;
 import edu.brown.benchmark.voterexperiments.demohstorecorrect.procedures.GenerateLeaderboard; 
@@ -51,7 +52,8 @@ public class VoterDemoHStoreProjectBuilder extends AbstractProjectBuilder {
 	// a list of procedures implemented in this benchmark
     @SuppressWarnings("unchecked")
     public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
-        Vote.class, Initialize.class, GenerateLeaderboard.class, DeleteContestant.class, Results.class};
+        Vote.class, Initialize.class, GenerateLeaderboard.class, DeleteContestant.class, Results.class,
+        CachedResults.class};
 	
 	{
 		//addTransactionFrequency(Vote.class, 100);

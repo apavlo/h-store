@@ -35,7 +35,8 @@ public abstract class VoterDemoSStoreConstants {
     public static final String TABLENAME_AREA_CODE_STATE = "area_code_state";
     public static final String TABLENAME_VOTES           = "votes";
     
-    public static final int VOTE_THRESHOLD = 100;
+    public static final int VOTE_THRESHOLD = 1000;
+    public static final int BOARD_REFRESH = 100;
 	public static final int MAX_VOTES = 1; 
 	public static final int NUM_CONTESTANTS = 25; 
 	
@@ -44,7 +45,7 @@ public abstract class VoterDemoSStoreConstants {
 	public static final String SERVER_HOST_NAME = "istc10.csail.mit.edu";
 	public static final String JIANG_SERVER_HOST_NAME = "istc3";
 	public static final String JIANG_SERVER_HOST_NAME_2 = "istc-nt";
-	public static final String JIANG_HOST = "istc-nt";
+	public static final String JIANG_HOST = "istc3";
 	public static final int SERVER_PORT_NUM = 9000;
 
 	// Initialize some common constants and variables

@@ -36,6 +36,7 @@ import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.types.TimestampType;
 
+import edu.brown.benchmark.voterexperiments.demohstorecorrect.VoterDemoHStoreConstants;
 import edu.brown.benchmark.voterexperiments.demosstorecorrect.VoterDemoSStoreConstants;
 
 @ProcInfo (
@@ -69,6 +70,49 @@ public class GenerateLeaderboard extends VoltProcedure {
     public final SQLStmt insertProcTwoOutStmt = new SQLStmt(
     	"INSERT INTO proc_two_out VALUES (?);"	
     );
+    
+	/////////////////////////////
+	//BEGIN DEMO BOARD UPDATES
+	/////////////////////////////
+	public final SQLStmt deleteDemoTopBoard = new SQLStmt(
+	"DELETE FROM demoTopBoard;");
+	
+	public final SQLStmt deleteDemoTrendingBoard = new SQLStmt(
+	"DELETE FROM demoTrendingBoard;");
+	
+	public final SQLStmt deleteDemoVoteCount = new SQLStmt(
+	"DELETE FROM demoVoteCount;");
+	
+	public final SQLStmt deleteDemoWindowCount = new SQLStmt(
+	"DELETE FROM demoWindowCount;");
+	
+	public final SQLStmt updateDemoTopBoard = new SQLStmt(
+	"INSERT INTO demoTopBoard "
+	+ " SELECT a.contestant_name   AS contestant_name"
+	+ "         , a.contestant_number AS contestant_number"
+	+ "        , b.num_votes          AS num_votes"
+	+ "     FROM v_votes_by_contestant b"
+	+ "        , contestants AS a"
+	+ "    WHERE a.contestant_number = b.contestant_number");
+	
+	public final SQLStmt updateDemoTrendingBoard = new SQLStmt( "INSERT INTO demoTrendingBoard "
+	+ "   SELECT a.contestant_name   AS contestant_name"
+	+ "        , a.contestant_number AS contestant_number"
+	+ "        , b.num_votes          AS num_votes"
+	+ "     FROM leaderboard b"
+	+ "        , contestants AS a"
+	+ "    WHERE a.contestant_number = b.contestant_number");
+	
+	public final SQLStmt updateDemoVoteCount = new SQLStmt( "INSERT INTO demoVoteCount "
+	+ "SELECT count(*) FROM votes;");
+	
+	public final SQLStmt updateDemoWindowCount = new SQLStmt( "INSERT INTO demoWindowCount "
+	+ "SELECT count(*) FROM trending_leaderboard;");
+	
+	public final SQLStmt checkDemo = new SQLStmt( "INSERT INTO demoWindowCount VALUES (-1);");
+	/////////////////////////////
+	//END DEMO BOARD UPDATES
+	/////////////////////////////
 	
     public long run() {
 		
@@ -81,6 +125,19 @@ public class GenerateLeaderboard extends VoltProcedure {
         int numVotes = (int)(validation[2].fetchRow(0).getLong(0)) + 1;
         
         voltQueueSQL(updateNumVotesStmt, (numVotes % VoterDemoSStoreConstants.VOTE_THRESHOLD));
+        
+        // Set the return value to 0: successful vote
+        if(((int)numVotes % (int)VoterDemoSStoreConstants.BOARD_REFRESH) == 0)
+        {
+        	voltQueueSQL(deleteDemoTopBoard);
+        	voltQueueSQL(deleteDemoTrendingBoard);
+        	voltQueueSQL(deleteDemoVoteCount);
+        	voltQueueSQL(deleteDemoWindowCount);
+        	voltQueueSQL(updateDemoTopBoard);
+        	voltQueueSQL(updateDemoTrendingBoard);
+        	voltQueueSQL(updateDemoVoteCount);
+        	voltQueueSQL(updateDemoWindowCount);
+        }
         
         // Set the return value to 0: successful vote
         if(numVotes == VoterDemoSStoreConstants.VOTE_THRESHOLD)

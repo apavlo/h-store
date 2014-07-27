@@ -111,4 +111,38 @@ AS
  GROUP BY contestant_number
 ;
 
+CREATE TABLE demoTopBoard
+(
+  --phone_number       bigint    NOT NULL,
+   contestant_name    varchar(50)
+,  contestant_number  integer   NOT NULL
+, num_votes          integer
+, CONSTRAINT PK_topBoard PRIMARY KEY
+  (
+    contestant_number
+  )
+);
+
+CREATE TABLE demoTrendingBoard
+(
+  --phone_number       bigint    NOT NULL,
+  contestant_name    varchar(50)
+, contestant_number  integer   NOT NULL
+, num_votes          integer
+, CONSTRAINT PK_trendingBoard PRIMARY KEY
+  (
+    contestant_number
+  )
+);
+
+CREATE TABLE demoVoteCount
+(
+  cnt		     integer    NOT NULL
+);
+
+CREATE TABLE demoWindowCount
+(	
+  cnt		     integer    NOT NULL
+);
+
 

@@ -116,6 +116,49 @@ public class GenerateLeaderboard extends VoltProcedure {
     public final SQLStmt deleteStagingStmt = new SQLStmt(
 		"DELETE FROM w_staging;"
     );
+    
+	/////////////////////////////
+	//BEGIN DEMO BOARD UPDATES
+	/////////////////////////////
+    public final SQLStmt deleteDemoTopBoard = new SQLStmt(
+        	"DELETE FROM demoTopBoard;");
+    
+    public final SQLStmt deleteDemoTrendingBoard = new SQLStmt(
+        	"DELETE FROM demoTrendingBoard;");
+    
+    public final SQLStmt deleteDemoVoteCount = new SQLStmt(
+        	"DELETE FROM demoVoteCount;");
+    
+    public final SQLStmt deleteDemoWindowCount = new SQLStmt(
+        	"DELETE FROM demoWindowCount;");
+    
+    public final SQLStmt updateDemoTopBoard = new SQLStmt(
+    	"INSERT INTO demoTopBoard "
+    		  + " SELECT a.contestant_name   AS contestant_name"
+    		  + "         , a.contestant_number AS contestant_number"
+			  + "        , b.num_votes          AS num_votes"
+			  + "     FROM v_votes_by_contestant b"
+			  + "        , contestants AS a"
+			  + "    WHERE a.contestant_number = b.contestant_number");
+
+    public final SQLStmt updateDemoTrendingBoard = new SQLStmt( "INSERT INTO demoTrendingBoard "
+    		  + "   SELECT a.contestant_name   AS contestant_name"
+			  + "        , a.contestant_number AS contestant_number"
+			  + "        , b.num_votes          AS num_votes"
+			  + "     FROM leaderboard b"
+			  + "        , contestants AS a"
+			  + "    WHERE a.contestant_number = b.contestant_number");
+
+    public final SQLStmt updateDemoVoteCount = new SQLStmt( "INSERT INTO demoVoteCount "
+    		+ "SELECT count(*) FROM votes;");
+    
+    public final SQLStmt updateDemoWindowCount = new SQLStmt( "INSERT INTO demoWindowCount "
+    		+ "SELECT count(*) FROM w_rows;");
+    
+    public final SQLStmt checkDemo = new SQLStmt( "INSERT INTO demoWindowCount VALUES (-1);");
+	/////////////////////////////
+	//END DEMO BOARD UPDATES
+	/////////////////////////////
 	
     public long run(long voteId) {
 		
@@ -172,9 +215,22 @@ public class GenerateLeaderboard extends VoltProcedure {
         voltQueueSQL(updateCurrentVoteStmt, currentWinId);
         voltQueueSQL(updateNumVotesStmt, (numVotes % VoterDemoHStoreConstants.VOTE_THRESHOLD));
         
-        voltExecuteSQL(true);
+        voltExecuteSQL();
 		
         // Set the return value to 0: successful vote
+        if(((int)numVotes % (int)VoterDemoHStoreConstants.BOARD_REFRESH) == 0)
+        {
+        	voltQueueSQL(deleteDemoTopBoard);
+        	voltQueueSQL(deleteDemoTrendingBoard);
+        	voltQueueSQL(deleteDemoVoteCount);
+        	voltQueueSQL(deleteDemoWindowCount);
+        	voltQueueSQL(updateDemoTopBoard);
+        	voltQueueSQL(updateDemoTrendingBoard);
+        	voltQueueSQL(updateDemoVoteCount);
+        	voltQueueSQL(updateDemoWindowCount);
+        	//voltQueueSQL(checkDemo);
+        	voltExecuteSQL(true);
+        }
         if(numVotes == VoterDemoHStoreConstants.VOTE_THRESHOLD)
         {
         	return VoterDemoHStoreConstants.DELETE_CONTESTANT;

@@ -71,13 +71,55 @@ public class DeleteContestant extends VoltProcedure {
 		"DELETE FROM leaderboard WHERE contestant_number = ?;"
     );
     
+    /////////////////////////////
+    //BEGIN DEMO BOARD UPDATES
+    /////////////////////////////
+    public final SQLStmt deleteDemoTopBoard = new SQLStmt(
+        	"DELETE FROM demoTopBoard;");
+    
+    public final SQLStmt deleteDemoTrendingBoard = new SQLStmt(
+        	"DELETE FROM demoTrendingBoard;");
+    
+    public final SQLStmt deleteDemoVoteCount = new SQLStmt(
+        	"DELETE FROM demoVoteCount;");
+    
+    public final SQLStmt deleteDemoWindowCount = new SQLStmt(
+        	"DELETE FROM demoWindowCount;");
+    
+    public final SQLStmt updateDemoTopBoard = new SQLStmt(
+    	"INSERT INTO demoTopBoard "
+    		  + " SELECT a.contestant_name   AS contestant_name"
+    		  + "         , a.contestant_number AS contestant_number"
+			  + "        , b.num_votes          AS num_votes"
+			  + "     FROM v_votes_by_contestant b"
+			  + "        , contestants AS a"
+			  + "    WHERE a.contestant_number = b.contestant_number");
+
+    public final SQLStmt updateDemoTrendingBoard = new SQLStmt( "INSERT INTO demoTrendingBoard "
+    		  + "   SELECT a.contestant_name   AS contestant_name"
+			  + "        , a.contestant_number AS contestant_number"
+			  + "        , b.num_votes          AS num_votes"
+			  + "     FROM leaderboard b"
+			  + "        , contestants AS a"
+			  + "    WHERE a.contestant_number = b.contestant_number");
+
+    public final SQLStmt updateDemoVoteCount = new SQLStmt( "INSERT INTO demoVoteCount "
+    		+ "SELECT count(*) FROM votes;");
+    
+    public final SQLStmt updateDemoWindowCount = new SQLStmt( "INSERT INTO demoWindowCount "
+    		+ "SELECT count(*) FROM w_rows;");
+    
+	/////////////////////////////
+	//END DEMO BOARD UPDATES
+	/////////////////////////////
+    /**
     private void WriteToFile(String content) throws IOException
     {
         //System.out.println(stat_filename + " : " + content );
         PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("hostname.txt", true)));
         out.println(content);
         out.close();
-    }
+    }*/
     
     public long run() {
 		
@@ -98,29 +140,29 @@ public class DeleteContestant extends VoltProcedure {
 			String hostname;
 			
 			
-//			if(host.getHostName().startsWith(VoterDemoHStoreConstants.HOST_PREFIX) || 
-//					host.getHostName().startsWith(VoterDemoHStoreConstants.HOST_PREFIX_2))
-//			{
-//				hostname = VoterDemoHStoreConstants.SERVER_HOST_NAME;
-//			}
-			/**
+			if(host.getHostName().startsWith(VoterDemoHStoreConstants.HOST_PREFIX) || 
+					host.getHostName().startsWith(VoterDemoHStoreConstants.HOST_PREFIX_2))
+			{
+				hostname = VoterDemoHStoreConstants.SERVER_HOST_NAME;
+			}
+		
 			//WriteToFile("HOST NAME: " + host.getHostName());
-			else if(host.getHostName().startsWith(VoterDemoHStoreConstants.JIANG_SERVER_HOST_NAME) || 
-					host.getHostName().startsWith(VoterDemoHStoreConstants.JIANG_SERVER_HOST_NAME_2))
+			//else if(host.getHostName().startsWith(VoterDemoHStoreConstants.JIANG_SERVER_HOST_NAME) || 
+			//		host.getHostName().startsWith(VoterDemoHStoreConstants.JIANG_SERVER_HOST_NAME_2))
+			//{
+			//	hostname = VoterDemoHStoreConstants.JIANG_HOST;
+			//}
+			
+				
+			//else
+			//{
+			//	hostname = host.getHostName();
+			//} 
+			else
 			{
 				hostname = VoterDemoHStoreConstants.JIANG_HOST;
 			}
-			
-				
-			else
-			{
-				hostname = host.getHostName();
-			} */
-//			else
-//			{
-//				hostname = VoterDemoHStoreConstants.JIANG_HOST;
-//			}
-			hostname = "istc3";
+
 			Socket socket = new Socket(hostname, VoterDemoHStoreConstants.SERVER_PORT_NUM);
 			BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 			PrintWriter out = new PrintWriter(socket.getOutputStream());
@@ -166,6 +208,14 @@ public class DeleteContestant extends VoltProcedure {
         voltQueueSQL(deleteLowestContestant, lowestContestant);
         voltQueueSQL(deleteLowestVotes, lowestContestant);
         voltQueueSQL(deleteLeaderBoardStmt, lowestContestant);
+        voltQueueSQL(deleteDemoTopBoard);
+    	voltQueueSQL(deleteDemoTrendingBoard);
+    	voltQueueSQL(deleteDemoVoteCount);
+    	voltQueueSQL(deleteDemoWindowCount);
+    	voltQueueSQL(updateDemoTopBoard);
+    	voltQueueSQL(updateDemoTrendingBoard);
+    	voltQueueSQL(updateDemoVoteCount);
+    	voltQueueSQL(updateDemoWindowCount);
         voltExecuteSQL(true);
 		
         // Set the return value to 0: successful vote
