@@ -150,7 +150,6 @@
 <arg value="site.anticache_reset=${site.anticache_reset}" />
 <arg value="site.anticache_check_interval=${site.anticache_check_interval}" />
 <arg value="site.anticache_threshold_mb=${site.anticache_threshold_mb}" />
-<arg value="site.anticache_threshold_ratio=${site.anticache_threshold_ratio}" />
 <arg value="site.anticache_max_evicted_blocks=${site.anticache_max_evicted_blocks}" />
 <arg value="site.anticache_blocks_per_eviction=${site.anticache_blocks_per_eviction}" />
 <arg value="site.anticache_eviction_distribution=${site.anticache_eviction_distribution}" />

@@ -323,7 +323,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         }
 
         if (debug.val) LOG.debug("anticache block removal done");
-        Long oldTxnId = next.ts.getTransactionId();
+        // Long oldTxnId = next.ts.getTransactionId();
         // Now go ahead and requeue our transaction
 
         //        if(merge_needed)
@@ -336,7 +336,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         	if(next.partition != next.ts.getBasePartition()){
         		ee.antiCacheMergeBlocks(next.catalog_tbl);
         	}
-            Long newTxnId = this.hstore_site.getTransactionInitializer().resetTransactionId(next.ts, next.partition);
+            this.hstore_site.getTransactionInitializer().resetTransactionId(next.ts, next.partition);
 
             if (debug.val) LOG.debug("restartin on local");
         	this.hstore_site.transactionInit(next.ts);	
@@ -389,7 +389,6 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
     	for (short block : allBlockIds) {
     	    block_ids[i++] = block;
     	}
-    	
     	
     	if (txn instanceof LocalTransaction) {
     		LocalTransaction ts = (LocalTransaction)txn;
@@ -938,10 +937,6 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         public AntiCacheManagerProfiler getProfiler(int partition) {
             return (profilers[partition]);
         }
-        public double getevictionMemoryThreshold() {
-            return (hstore_conf.site.anticache_threshold_ratio);
-        }
-        
         public boolean isEvicting() {
             return (pendingEvictions != 0);
         }
