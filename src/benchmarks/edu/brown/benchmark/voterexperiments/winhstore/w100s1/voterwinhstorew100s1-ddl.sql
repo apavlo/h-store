@@ -22,7 +22,7 @@ CREATE TABLE area_code_state
 );
 
 -- votes table holds every valid vote.
---   voterwinhstorew100s1s are not allowed to submit more than <x> votes, x is passed to client application
+--   voterwinhstores are not allowed to submit more than <x> votes, x is passed to client application
 CREATE TABLE votes
 (
   vote_id            bigint     NOT NULL,
@@ -44,9 +44,10 @@ CREATE TABLE w_staging
 , state              varchar(2) NOT NULL -- REFERENCES area_code_state (state)
 , contestant_number  integer    NOT NULL REFERENCES contestants (contestant_number)
 , created            timestamp  NOT NULL
+, win_id             bigint     NOT NULL
 , CONSTRAINT PK_stage PRIMARY KEY
   (
-    vote_id
+    win_id
   )
 -- PARTITION BY ( phone_number )
 );
@@ -58,18 +59,24 @@ CREATE TABLE w_rows
 , state              varchar(2) NOT NULL -- REFERENCES area_code_state (state)
 , contestant_number  integer    NOT NULL REFERENCES contestants (contestant_number)
 , created            timestamp  NOT NULL
+, win_id             bigint     NOT NULL
 , CONSTRAINT PK_win PRIMARY KEY
   (
-    vote_id
+    win_id
   )
 -- PARTITION BY ( phone_number )
 );
 
-CREATE TABLE leaderboard
+CREATE TABLE staging_count
 (
-  contestant_number  integer   NOT NULL
-, numvotes           integer   NOT NULL
+  row_id           int      NOT NULL,
+  cnt              int      NOT NULL
 );
+
+CREATE TABLE current_win_id
+(
+  row_id           int      NOT NULL,
+  win_id           bigint      NOT NULL
 
 -- rollup of votes by phone number, used to reject excessive voting
 CREATE VIEW v_votes_by_phone_number
@@ -99,4 +106,16 @@ AS
  GROUP BY contestant_number
         , state
 ;
+
+--CREATE VIEW v_leaderboard
+--(
+--  contestant_number
+--, num_votes
+--)
+--AS
+--   SELECT contestant_number
+--        , COUNT(*)
+--     FROM w_rows
+-- GROUP BY contestant_number
+--;
 

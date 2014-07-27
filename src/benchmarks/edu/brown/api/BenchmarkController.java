@@ -498,7 +498,7 @@ public class BenchmarkController {
                 LOG.fatal("Couldn't run remote kill operation.", e);
                 System.exit(-1);
             }
-            
+                    
             // START THE SERVERS
             if (m_config.noSites == false) {
                 this.startSites();

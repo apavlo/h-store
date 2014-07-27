@@ -16,6 +16,8 @@
 <arg value="global.nanosecond_latencies=${global.nanosecond_latencies}" />
 <arg value="global.sstore=${global.sstore}" />
 <arg value="global.sstore_scheduler=${global.sstore_scheduler}" />
+<arg value="global.weak_recovery=${global.weak_recovery}" />
+<arg value="global.sstore_frontend_trigger=${global.sstore_frontend_trigger}" />
 
 <!-- CLIENT -->
 <arg value="client.log_dir=${client.log_dir}" />

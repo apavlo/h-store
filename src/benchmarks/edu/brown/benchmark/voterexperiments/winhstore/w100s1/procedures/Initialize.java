@@ -38,13 +38,17 @@ public class Initialize extends VoltProcedure
 {
     // Check if the database has already been initialized
     public final SQLStmt checkStmt = new SQLStmt("SELECT COUNT(*) FROM contestants;");
-	
+
     // Inserts an area code/state mapping
     public final SQLStmt insertACSStmt = new SQLStmt("INSERT INTO area_code_state VALUES (?,?);");
-	
+
     // Inserts a contestant
     public final SQLStmt insertContestantStmt = new SQLStmt("INSERT INTO contestants (contestant_name, contestant_number) VALUES (?, ?);");
-	
+
+    public final SQLStmt insertStagingCountStmt = new SQLStmt("INSERT INTO staging_count VALUES (1, 0);");
+
+    public final SQLStmt insertCurrentWinStmt = new SQLStmt("INSERT INTO current_win_id VALUES (1, 0);");
+
     // Domain data: matching lists of Area codes and States
     public static final short[] areaCodes = new short[]{
 	907,205,256,334,251,870,501,479,480,602,623,928,520,341,764,628,831,925,
@@ -64,7 +68,7 @@ public class Initialize extends VoltProcedure
 	615,901,731,254,325,713,940,817,430,903,806,737,512,361,210,979,936,409,
 	972,469,214,682,832,281,830,956,432,915,435,801,385,434,804,757,703,571,
 	276,236,540,802,509,360,564,206,425,253,715,920,262,414,608,304,307};
-	
+
     public static final String[] states = new String[] {
 	"AK","AL","AL","AL","AL","AR","AR","AR","AZ","AZ","AZ","AZ","AZ","CA","CA",
 	"CA","CA","CA","CA","CA","CA","CA","CA","CA","CA","CA","CA","CA","CA","CA",
@@ -87,29 +91,31 @@ public class Initialize extends VoltProcedure
 	"TX","TX","TX","TX","TX","TX","TX","TX","TX","TX","UT","UT","UT","VA","VA",
 	"VA","VA","VA","VA","VA","VA","VT","WA","WA","WA","WA","WA","WA","WI","WI",
 	"WI","WI","WI","WV","WY"};
-	
+
     public long run(int maxContestants, String contestants) {
-		
+
         String[] contestantArray = contestants.split(",");
-		
+
         voltQueueSQL(checkStmt);
+        voltQueueSQL(insertStagingCountStmt);
+        voltQueueSQL(insertCurrentWinStmt);
         long existingContestantCount = voltExecuteSQL()[0].asScalarLong();
-		
+
         // if the data is initialized, return the contestant count
         if (existingContestantCount != 0)
             return existingContestantCount;
-		
+
         // initialize the data
         for (int i=0; i < maxContestants; i++) {
             voltQueueSQL(insertContestantStmt, contestantArray[i], i+1);
             voltExecuteSQL();
 		}
-        
+
         for (int i=0; i < areaCodes.length; i++) {
             voltQueueSQL(insertACSStmt, areaCodes[i], states[i]);
             voltExecuteSQL();
 		}
-		
+
         return maxContestants;
     }
 }

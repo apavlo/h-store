@@ -3321,8 +3321,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             // fire the fragmentIds related procedures
             // step one - get all the related procedures
             boolean is_sstore = this.hstore_conf.global.sstore;
+            boolean frontend_trigger_on = this.hstore_conf.global.sstore_frontend_trigger;
             //System.out.println( "PartitionExecutor : executePlanFragments with isstore - " + String.valueOf( is_sstore ) );
-            if(is_sstore == true )
+            if( (is_sstore == true) && (frontend_trigger_on==true) )
             {
                 if(hasFrontEndTrigger==true)
                 {

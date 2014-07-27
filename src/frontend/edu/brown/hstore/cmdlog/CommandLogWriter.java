@@ -62,7 +62,7 @@ import edu.brown.utils.StringUtil;
 
 /**
  * Transaction Command Log Writer
- * 
+ *
  * @author mkirsch
  * @author pavlo
  * @author debrabant
@@ -74,12 +74,12 @@ public class CommandLogWriter extends ExceptionHandlingRunnable implements Shutd
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
-    
+
     /**
      * The default file extension to use for the command log output
      */
-    public static final String LOG_OUTPUT_EXT = ".cmdlog"; 
-    
+    public static final String LOG_OUTPUT_EXT = ".cmdlog";
+
     /**
      * Special LogEntry that holds additional data that we need in order to send
      * back a ClientResponse
@@ -207,7 +207,7 @@ public class CommandLogWriter extends ExceptionHandlingRunnable implements Shutd
 
     /**
      * Constructor
-     * 
+     *
      * @param catalog_db
      * @param path
      */
@@ -374,7 +374,7 @@ public class CommandLogWriter extends ExceptionHandlingRunnable implements Shutd
      * Get the total number of txns that are queued within this object.
      * <B>Note:</B> This is not thread-safe because the writer thread may swap
      * the entries in the middle of the count calculation.
-     * 
+     *
      * @return
      */
     public int getTotalTxnCount() {
@@ -405,9 +405,9 @@ public class CommandLogWriter extends ExceptionHandlingRunnable implements Shutd
         }
         try {
             LOG.trace("Closing stream  :: size :" + this.fstream.size());
-            
+
             this.fstream.close();
-                
+
         } catch (IOException ex) {
             String message = "Failed to close WAL file";
             throw new ServerFaultException(message, ex);
@@ -444,13 +444,13 @@ public class CommandLogWriter extends ExceptionHandlingRunnable implements Shutd
             String message = "Failed to write log headers";
             throw new ServerFaultException(message, e);
         }
-    
+
         return (true);
     }
-    
+
     /**
      * GroupCommits the given buffer set all at once
-     * 
+     *
      * @param eb
      */
     public int groupCommit(CircularLogEntryBuffer[] eb) {
@@ -491,7 +491,7 @@ public class CommandLogWriter extends ExceptionHandlingRunnable implements Shutd
             // LOG.debug("No transactions are in the current buffers. Not writing anything to disk");
             return (txnCounter);
         }
-        
+
         // Compress and force out to disk
         ByteBuffer compressed;
         try {
@@ -499,7 +499,7 @@ public class CommandLogWriter extends ExceptionHandlingRunnable implements Shutd
         } catch (IOException e) {
             throw new RuntimeException("Failed to compress WAL buffer");
         }
-        
+
         if (debug.val)
             LOG.debug(String.format("Writing out %d bytes for %d txns [batchCtr=%d]", compressed.limit(), txnCounter, this.commitBatchCounter));
         try {
@@ -551,7 +551,7 @@ public class CommandLogWriter extends ExceptionHandlingRunnable implements Shutd
         this.commitBatchCounter++;
         return (txnCounter);
     }
-    
+
     /**
      * Write a completed transaction handle out to the WAL file. Returns true if
      * the entry has been successfully written to disk and the HStoreSite needs
@@ -565,16 +565,16 @@ public class CommandLogWriter extends ExceptionHandlingRunnable implements Shutd
         // added by hawk, 2014/6/20
         // used to determine if this txn is frontend trigger related txn
         Procedure sp = ts.getProcedure();
-        if(sp.getBedefault()==true)
+        if((this.hstore_conf.global.weak_recovery==true) && (sp.getBedefault()==true))
             return false;
-        
+
         // -------------------------------
         // QUEUE FOR GROUP COMMIT
         // -------------------------------
         if (this.useGroupCommit) {
             if (trace.val)
                 LOG.trace(ts + " - Attempting to queue txn to write out to command log using group commit");
-        
+
             int basePartition = ts.getBasePartition();
             assert(this.hstore_site.isLocalPartition(basePartition));
             int offset = this.hstore_site.getLocalPartitionOffset(basePartition);
@@ -604,7 +604,7 @@ public class CommandLogWriter extends ExceptionHandlingRunnable implements Shutd
 
             if (trace.val)
                 LOG.trace(ts + " - Finished queuing txn to write out to command log");
-            
+
             // We always want to set this to false because our flush thread will
             // be the one that actually sends out the network messages
             sendResponse = false;
@@ -612,7 +612,7 @@ public class CommandLogWriter extends ExceptionHandlingRunnable implements Shutd
         // -------------------------------
         // NO GROUP COMMIT -- FINISH AND RETURN TRUE
         // -------------------------------
-        else { 
+        else {
             try {
                 FastSerializer fs = this.singletonSerializer;
                 assert (fs != null);
@@ -628,7 +628,7 @@ public class CommandLogWriter extends ExceptionHandlingRunnable implements Shutd
                 throw new ServerFaultException(message, e, ts.getTransactionId());
             }
         }
-        
+
         return (sendResponse);
     }
 }

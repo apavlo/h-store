@@ -38,6 +38,7 @@ import junit.framework.Test;
 import org.voltdb.BackendTarget;
 import org.voltdb.CatalogContext;
 import org.voltdb.DefaultSnapshotDataTarget;
+import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.catalog.CatalogMap;
 import org.voltdb.catalog.Procedure;
@@ -49,6 +50,7 @@ import org.voltdb.client.ClientFactory;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.NoConnectionsException;
 import org.voltdb.client.ProcCallException;
+import org.voltdb.sysprocs.SetConfiguration;
 import org.voltdb.utils.EstTime;
 import org.voltdb.utils.SnapshotVerifier;
 import org.voltdb.utils.VoltTableUtil;
@@ -104,7 +106,7 @@ public class TestSStoreLogicalRecovery extends RegressionSuite {
         } catch (final Exception e) {
             e.printStackTrace();
         }
-    }    
+    }
 
     private void deleteTestFiles() {
         FilenameFilter cleaner = new FilenameFilter() {
@@ -197,7 +199,7 @@ public class TestSStoreLogicalRecovery extends RegressionSuite {
 //            "BENCHMARK.NUM_LOADTHREADS=4",
 //            "BENCHMARK.SCALE_ITEMS="+scaleItems,
         };
-        
+
         RecoveryLoader loader = new RecoveryLoader(args)
         {
             {
@@ -209,29 +211,40 @@ public class TestSStoreLogicalRecovery extends RegressionSuite {
                 return (catalogContext);
             }
         };
-        
+
         loader.load();
     }
-    
-    
+
+    boolean weak_recovery = true;
+
     public void testRecovery() throws IOException, InterruptedException, ProcCallException {
 
-        System.out.println("Starting testRecovery - Logical Recovery");                
+        System.out.println("Starting testRecovery - Logical Recovery");
+
+        // set weak recovery true or false
+        weak_recovery = false; // weak_recovery is false means that we will use strong recovery
 
         deleteTestFiles();
         setUpSnapshotDir();
 
         VoltTable results[] = null;
         Client client = this.getClient();
-        CatalogContext cc = this.getCatalogContext();       
-        
+        CatalogContext cc = this.getCatalogContext();
+
+        setFrontendTriggerWorking(true);
+
+        if(weak_recovery == true)
+            setWeakRecovery(true);
+        else
+            setWeakRecovery(false);
+
         // Load database
         try {
             initializeRecoveryDatabase(cc, client, false);
         } catch (Exception e) {
             e.printStackTrace();
         }
- 
+
         // check S1 and S2 before taking snapshot
         boolean s1_hasTuple = hasTuple("S1");
         boolean s2_hasTuple = hasTuple("S2");
@@ -243,14 +256,13 @@ public class TestSStoreLogicalRecovery extends RegressionSuite {
         long checkpoint_timestamp = EstTime.currentTimeMillis();
 
         validateSnapshot(true);
- 
+
         final String MOCK_ARGS[] = { "HOST=localhost", "NUMCLIENTS=1",
                 // XXX HACK to find catalog jar
                 "CATALOG=" + "./obj/release/testobjects/" + projectJAR, "" };
 
         MOCK_ARGS[MOCK_ARGS.length - 1] = HStoreConstants.BENCHMARK_PARAM_PREFIX;
 
-        //TPCCClient tpccClient = new TPCCClient(MOCK_ARGS);
         RecoveryClient recoveryClient = new RecoveryClient(MOCK_ARGS);
 
         // Run transactions for record the log
@@ -273,8 +285,8 @@ public class TestSStoreLogicalRecovery extends RegressionSuite {
         s2_hasTuple = hasTuple("S2");
         w1_hasTuple = hasTuple("W1");
         t2_hasTuple = hasTuple("T2");
-        
-        // Statistics         
+
+        // Statistics
         results = client.callProcedure("@Statistics", "table", 0).getResults();
         System.out.println(results[0]);
 
@@ -283,30 +295,47 @@ public class TestSStoreLogicalRecovery extends RegressionSuite {
 
         System.out.println("@Statistics before restart :");
         System.out.println(results_tmp[0]);
-                
+
         // Kill and restart all the execution sites.
         m_config.shutDown();
+
+        // now, we enter the recovery phrase
         m_config.startUp();
         client = getClient();
-        
+
         // used for testing to check if the SnapshotRestore destroy window behavior
-        client.callProcedure("SimpleCall", 1000);
-        s1_hasTuple = hasTuple("S1");
-        s2_hasTuple = hasTuple("S2");
-        w1_hasTuple = hasTuple("W1");
-        t2_hasTuple = hasTuple("T2");
-        
-        DisplayWindowAttribute("W1");
+//        client.callProcedure("SimpleCall", 1000);
+//        s1_hasTuple = hasTuple("S1");
+//        s2_hasTuple = hasTuple("S2");
+//        w1_hasTuple = hasTuple("W1");
+//        t2_hasTuple = hasTuple("T2");
+//
+//        DisplayWindowAttribute("W1");
         // end of testing
 
         Calendar calendar;
         long t1,t2;
 
-        calendar = Calendar.getInstance();                    
+        calendar = Calendar.getInstance();
         t1 = calendar.getTimeInMillis();
-        
+
+
+
+
+        if(weak_recovery == true)
+        {
+            setWeakRecovery(true);
+            setFrontendTriggerWorking(true);
+        }
+        else // for the strong recovery, we will turn off the frontend trigger mechanism
+        {
+            setWeakRecovery(false);
+            setFrontendTriggerWorking(false);
+        }
+
+
         // modified by hawk, 2014/6/17
-        // for S-Store, we should re-execute the related frontend trigger, 
+        // for S-Store, we should re-execute the related frontend trigger,
         // if there are some tuple alive in the streams after SNAPSHOT recovery
         // LOGICAL : SNAPSHOT + FRONTEND TRIGGER + CMD LOG
         // STEP ONE: SNAPSHOT recovery
@@ -322,12 +351,12 @@ public class TestSStoreLogicalRecovery extends RegressionSuite {
         } catch (Exception ex) {
             ex.printStackTrace();
             fail("SnapshotRestore exception: " + ex.getMessage());
-        }        
+        }
 
-        DisplayWindowAttribute("W1");
-        
+        //DisplayWindowAttribute("W1");
+
         validateSnapshot(true);
-        
+
         System.out.println("@Statistics after LOGICAL snapshot restore:");
         results = client.callProcedure("@Statistics", "table", 0).getResults();
         System.out.println(results[0]);
@@ -337,10 +366,12 @@ public class TestSStoreLogicalRecovery extends RegressionSuite {
         s2_hasTuple = hasTuple("S2");
         w1_hasTuple = hasTuple("W1");
         t2_hasTuple = hasTuple("T2");
-        
+
         // STEP TWO: FRONTEND TRIGGER re-execution
-        doFrontendTriggerRecovery();
-                
+        // if we use weak recovery mechanism, we should make frontend trigger recovery with some existing tuples in streams
+        if(weak_recovery == true)
+            doFrontendTriggerRecovery();
+
         // check S1 and S2
         s1_hasTuple = hasTuple("S1");
         s2_hasTuple = hasTuple("S2");
@@ -348,82 +379,90 @@ public class TestSStoreLogicalRecovery extends RegressionSuite {
         t2_hasTuple = hasTuple("T2");
 
         // STEP THREE: CMD LOG re-execution
-        //File logDir = new File("/mnt/pmfs" + File.separator + "cmdlog");                               
-        File logDir = new File("./obj" + File.separator + "cmdlog");                               
-        
+        //File logDir = new File("/mnt/pmfs" + File.separator + "cmdlog");
+        File logDir = new File("./obj" + File.separator + "cmdlog");
+
         // Parse WAL logs for all sites
         CatalogMap<Site> sites = cc.sites;
 
         for(Site site : sites){
             String siteName = site.getName().toLowerCase();
-            siteName = "h0" + siteName;            
+            siteName = "h0" + siteName;
             System.err.println("Site Prefix : "+siteName);
-            
-            parseAndApplyCommandLog(logDir, siteName, checkpoint_timestamp);            
+
+            parseAndApplyCommandLog(logDir, siteName, checkpoint_timestamp);
         }
-        
+
         // check S1 and S2
         s1_hasTuple = hasTuple("S1");
         s2_hasTuple = hasTuple("S2");
         w1_hasTuple = hasTuple("W1");
         t2_hasTuple = hasTuple("T2");
 
-        calendar = Calendar.getInstance();                    
+        // for strong recovery, we should turn the frontend trigger mechanism on back
+        if(weak_recovery == false)
+        {
+            setFrontendTriggerWorking(true);
+            doFrontendTriggerRecovery();
+        }
+
+
+        calendar = Calendar.getInstance();
         t2 = calendar.getTimeInMillis();
 
-        System.err.println("Recovery Latency :" + (t2-t1)+ " ms"); 
-        
+        System.err.println("Recovery Latency :" + (t2-t1)+ " ms");
+
         // checkYCSBTable(client, NUM_TUPLES);
     }
-    
+
     private void DisplayWindowAttribute(String strWindow)
     {
         CatalogContext catalogContext = this.getCatalogContext();
         Table catalog_tbl = catalogContext.getTableByName(strWindow);
-        
+
         boolean isWindow = catalog_tbl.getIswindow();
         boolean isRows = catalog_tbl.getIsrows();
         int winSize = catalog_tbl.getSize();
         int winSlide = catalog_tbl.getSlide();
         String streamName = catalog_tbl.getStreamname();
-        
+
         System.out.println(
-                String.format("window : %B, rows : %B, size : %d, slide : %d, stream : %S", 
+                String.format("window : %B, rows : %B, size : %d, slide : %d, stream : %S",
                         isWindow, isRows, winSize, winSlide, streamName)
                 );
-        
+
     }
-    
+
     // FRONTEND TRIGGER
     private void doFrontendTriggerRecovery() throws NoConnectionsException, IOException, ProcCallException {
         //FIXME, should I care about the sequence of streams ?
         CatalogContext catalogContext = this.getCatalogContext();
         Client client = this.getClient();
-        
+
         // for streams
         for (Table catalog_tbl : catalogContext.getStreamTables()) {
-            
+
             System.out.println("Dealing with stream - " + catalog_tbl.fullName());
-            
+
             CatalogMap<ProcedureRef> procedures = catalog_tbl.getTriggerprocedures();
-            
+
             if( (procedures==null) || (procedures.isEmpty()==true))
                 continue;
-            
+
             // should I check if the stream is empty or not? yes
             String streamName = catalog_tbl.fullName();
             System.out.println( "Checking if there is tuples in stream - " + streamName );
             boolean hasTuple = hasTuple(streamName);
             if (hasTuple == true){
-                // FIXME, should I care about the sequence of procedures 
+                // FIXME, should I care about the sequence of procedures
                 for(ProcedureRef procedureRef : procedures)
                 {
                     Procedure procedure = procedureRef.getProcedure();
-                    // FIXME, I need batchId and clienthandle 
+                    // FIXME, I need batchId and clienthandle
                     //this.invocationTriggerProcedureProcess(ts.getBatchId(), ts.getClientHandle(), EstTime.currentTimeMillis(), procedure);
                     System.out.println( "Recovery: re-execute frontend trigger - " + procedure.getName() );
                     //Object[] entryParams = null;
-                    
+
                     //this.invocationTriggerProcedureProcess(-1, 0, EstTime.currentTimeMillis(), procedure);
                     ClientResponse cresponse = client.callProcedure(procedure.getName());
                     assertEquals(cresponse.getStatus(), Status.OK);
@@ -431,19 +470,59 @@ public class TestSStoreLogicalRecovery extends RegressionSuite {
             }
         }
     }
-    
+
+    private void setFrontendTriggerWorking(Boolean flag)
+    {
+
+        try{
+
+            Client client = this.getClient();
+
+            String procName = VoltSystemProcedure.procCallName(SetConfiguration.class);
+            String confParams[] = {"global.sstore_frontend_trigger"};
+            String confValues[] = {flag.toString()};
+            ClientResponse cresponse = client.callProcedure(procName, confParams, confValues);
+            assert(cresponse.getStatus() == Status.OK) : cresponse.toString();
+
+            client.close();
+        }
+        catch (Exception ex) {
+            ex.printStackTrace();
+        }
+    }
+
+    private void setWeakRecovery(Boolean flag)
+    {
+
+        try{
+
+            Client client = this.getClient();
+
+            String procName = VoltSystemProcedure.procCallName(SetConfiguration.class);
+            String confParams[] = {"global.weak_recovery"};
+            String confValues[] = {flag.toString()};
+            ClientResponse cresponse = client.callProcedure(procName, confParams, confValues);
+            assert(cresponse.getStatus() == Status.OK) : cresponse.toString();
+
+            client.close();
+        }
+        catch (Exception ex) {
+            ex.printStackTrace();
+        }
+    }
+
     private boolean hasTuple(String streamName)
     {
         boolean result = false;
-        
+
         try{
-            
+
             Client client = this.getClient();
             //CatalogContext cc = this.getCatalogContext();
 
             String query = "select * from " + streamName;
             ClientResponse cresponse = client.callProcedure("@AdHoc", query);
-                
+
             if (cresponse != null) {
                 if (cresponse.getStatus() == Status.OK) {
                     System.out.println(streamName + " - " + this.formatResult(cresponse));
@@ -456,35 +535,35 @@ public class TestSStoreLogicalRecovery extends RegressionSuite {
                                       cresponse.getStatusString());
                 }
             }
-            
+
             client.close();
         }
         catch (Exception ex) {
             ex.printStackTrace();
         }
-        
+
         return result;
     }
-    
+
     private String formatResult(ClientResponse cr) {
-        
+
         final VoltTable results[] = cr.getResults();
         //final int num_results = results.length;
         //System.out.println("num of results: " + String.valueOf(num_results));
         StringBuilder sb = new StringBuilder();
         sb.append(VoltTableUtil.format(results));
-        
+
         VoltTable vt = results[0];
         //int num_rows = vt.getRowCount();
         //System.out.println("num of rows: " + String.valueOf(num_rows));
-        
+
         return (sb.toString());
     }
-    
-    
-    // COMMAND LOG        
+
+
+    // COMMAND LOG
     File scanForLatestLogFile(File logDir, String prefix){
-        System.err.println("Scanning logDir :" + logDir.getAbsolutePath());           
+        System.err.println("Scanning logDir :" + logDir.getAbsolutePath());
 
         final String logPrefix = prefix;
         FilenameFilter cleaner = new FilenameFilter() {
@@ -494,10 +573,10 @@ public class TestSStoreLogicalRecovery extends RegressionSuite {
         };
 
         File[] logFiles = logDir.listFiles(cleaner);
-        File latestFile = null, prevFile = null;        
+        File latestFile = null, prevFile = null;
         //long maxTimeStamp = Long.MIN_VALUE;
         String maxTimeStamp = "0";
-        
+
         for (File logFile : logFiles) {
             String name = logFile.getName();
             String delims = "_|\\.";
@@ -507,45 +586,45 @@ public class TestSStoreLogicalRecovery extends RegressionSuite {
 
             if(tokens.length <= 1)
                 continue;
-            
+
             //long fileTimestamp = Long.parseLong(tokens[1]) ;
             String fileTimestamp = (tokens[1]) ;
             if(fileTimestamp.compareTo(maxTimeStamp) > 0){
                 maxTimeStamp = fileTimestamp;
                 prevFile = latestFile;
-                latestFile = logFile;         
+                latestFile = logFile;
             }
             else
             {
                 prevFile = logFile;
             }
-        }       
+        }
 
         if(prevFile != null){
-            System.err.println("Using logfile :" + prevFile.getAbsolutePath());           
+            System.err.println("Using logfile :" + prevFile.getAbsolutePath());
         }
 
         if(latestFile != null){
-            System.err.println("Found latest logfile :" + latestFile.getAbsolutePath());           
+            System.err.println("Found latest logfile :" + latestFile.getAbsolutePath());
         }
-        
+
         return prevFile;
     }
-    
+
     void parseAndApplyCommandLog(File logDir, String hostPrefix, long checkpoint_timestamp) throws NoConnectionsException, IOException, ProcCallException {
 
         if(logDir == null){
-            System.err.println("logDir null ");           
+            System.err.println("logDir null ");
             return;
         }
 
         File latestFile = scanForLatestLogFile(logDir, hostPrefix);
-        
+
         if(latestFile == null){
-            System.err.println("Command log not found :" + logDir.getAbsolutePath());           
+            System.err.println("Command log not found :" + logDir.getAbsolutePath());
             return;
         }
-        
+
         System.out.println("parseCommandLog :" + latestFile.getAbsolutePath());
 
         // Now read in the file back in and check to see that we have two
@@ -570,34 +649,34 @@ public class TestSStoreLogicalRecovery extends RegressionSuite {
             LogEntry entry = log_itr.next();
 
             assert(entry != null);
-            
+
             // determine if the entry timestamp is less then checkpoint timestamp, if yes, do not deal with it
             if(entry.getTimestamp() < checkpoint_timestamp)
                 continue;
-            
+
             //System.err.println("REDO :: TXN ID :" + entry.getTransactionId().longValue());
             //System.err.println("REDO :: PROC ID :" + entry.getProcedureId());
 
             Object[] entryParams = entry.getProcedureParams().toArray();
-        
+
             String procName = cc.getProcedureById(entry.getProcedureId()).fullName();
             Procedure catalog_proc = cc.procedures.getIgnoreCase(procName);
 
             // here we will see that only normal volt procedures will be re-executed.
-            if((catalog_proc.getReadonly() == false) && (catalog_proc.getBedefault() == false))
+            if((catalog_proc.getReadonly() == false) && ((this.weak_recovery==false) || (catalog_proc.getBedefault() == false)))
             {
                 // System.out.println("Invoking procedure ::" + procName);
 
                 cresponse = client.callProcedure(procName, entryParams);
                 assertEquals(cresponse.getStatus(), Status.OK);
-                
+
                 ctr++;
-                
+
                 // results = cresponse.getResults();
                 // assertEquals(results.length, 1);
             }
 
-            
+
         }
 
         System.out.println("################################# Real dealed WAL LOG entries :" + ctr);
@@ -613,12 +692,12 @@ public class TestSStoreLogicalRecovery extends RegressionSuite {
 
         // COMMAND LOG
         builder.setGlobalConfParameter("global.sstore", true);
-        
-        builder.setGlobalConfParameter("site.commandlog_enable", true);
-        builder.setGlobalConfParameter("site.commandlog_timeout", 1000);     
-        builder.setGlobalConfParameter("site.commandlog_dir", "./obj/cmdlog");     
 
-        builder.setGlobalConfParameter("site.anticache_enable", false);     
+        builder.setGlobalConfParameter("site.commandlog_enable", true);
+        builder.setGlobalConfParameter("site.commandlog_timeout", 1000);
+        builder.setGlobalConfParameter("site.commandlog_dir", "./obj/cmdlog");
+
+        builder.setGlobalConfParameter("site.anticache_enable", false);
 
         RecoveryProjectBuilder project = new RecoveryProjectBuilder();
 
@@ -628,8 +707,8 @@ public class TestSStoreLogicalRecovery extends RegressionSuite {
         boolean success = false;
 
         setUpSnapshotDir();
-        
-        // CONFIG #1: 2 Local Site with 4 Partitions running on JNI backend        
+
+        // CONFIG #1: 2 Local Site with 4 Partitions running on JNI backend
         /*
         NUM_SITES = 2;
         NUM_PARTITIONS = 2;
@@ -638,16 +717,16 @@ public class TestSStoreLogicalRecovery extends RegressionSuite {
         assert (success);
         builder.addServerConfig(m_config);
         */
-                   
-        
-        // CONFIG #2: 1 Local Site with 1 Partitions running on JNI backend    
+
+
+        // CONFIG #2: 1 Local Site with 1 Partitions running on JNI backend
         NUM_SITES = 1;
         NUM_PARTITIONS = 1;
         m_config = new LocalSingleProcessServer(projectJAR, NUM_PARTITIONS, BackendTarget.NATIVE_EE_JNI);
         success = m_config.compile(project);
         assert (success);
-        builder.addServerConfig(m_config);     
-        
+        builder.addServerConfig(m_config);
+
         return builder;
     }
 }

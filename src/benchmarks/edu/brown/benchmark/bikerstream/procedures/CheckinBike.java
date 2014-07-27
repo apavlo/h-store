@@ -47,7 +47,7 @@ public class CheckinBike extends VoltProcedure {
     private static final Logger Log = Logger.getLogger(CheckinBike.class);
     // Is debugging on or not?
     final boolean debug = Log.isDebugEnabled();
-    
+
     public final SQLStmt getUser = new SQLStmt(
     			"SELECT * FROM users WHERE user_id = ?"
     		);
@@ -92,7 +92,7 @@ public class CheckinBike extends VoltProcedure {
     	if (results[0].getRowCount() < 1)
             return BikerStreamConstants.USER_DOESNT_EXIST;
     		//throw new RuntimeException("Rider: " + rider_id + " does not exist");
-    	
+
         voltQueueSQL(getStation, station_id);
         voltQueueSQL(checkDiscount, rider_id);
         results = voltExecuteSQL();

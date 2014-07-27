@@ -51,11 +51,11 @@ public class RideBike extends VoltProcedure {
         "INSERT INTO bikeStatus (user_id, latitude, longitude, time) " +
         "VALUES (?, ?, ?, ?);"
     );
-    
+
     public final SQLStmt getUser = new SQLStmt(
     	"SELECT * FROM users WHERE user_id = ?"
     );
-    
+
     public final SQLStmt getBike = new SQLStmt(
     	"SELECT * FROM bikes WHERE user_id = ?"
     );
