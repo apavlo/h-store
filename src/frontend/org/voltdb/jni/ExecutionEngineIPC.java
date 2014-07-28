@@ -967,41 +967,41 @@ public class ExecutionEngineIPC extends ExecutionEngine {
         return (null);
     }
     
-    @Override
-    public VoltTable[] executeQueryPlanFragmentsAndGetResults(
-            final long[] planFragmentIds, final int numFragmentIds,
-            final int[] input_depIds,
-            final int[] output_depIds,
-            final ParameterSet[] parameterSets, final int numParameterSets, final long txnId,
-            final long lastCommittedTxnId, final long undoToken) throws EEException {
-        sendPlanFragmentsInvocation(Commands.QueryPlanFragments,
-                planFragmentIds, numFragmentIds,
-                input_depIds,
-                output_depIds,
-                parameterSets,
-                numParameterSets, txnId, lastCommittedTxnId, undoToken);
-        int result = ExecutionEngine.ERRORCODE_ERROR;
-        try {
-            result = m_connection.readStatusByte();
-        } catch (final IOException e) {
-            System.out.println("Exception: " + e.getMessage());
-            throw new RuntimeException(e);
-        }
-        if (result == ExecutionEngine.ERRORCODE_SUCCESS) {
-            final VoltTable resultTables[] = new VoltTable[numFragmentIds];
-            for (int ii = 0; ii < numFragmentIds; ii++) {
-                resultTables[ii] = PrivateVoltTableFactory.createUninitializedVoltTable();
-            }
-            try {
-                m_connection.readResultTables(resultTables);
-            } catch (final IOException e) {
-                throw new EEException(
-                        ExecutionEngine.ERRORCODE_WRONG_SERIALIZED_BYTES);
-            }
-            return resultTables;
-        }
-        return null;
-    }
+//    @Override
+//    public VoltTable[] executeQueryPlanFragmentsAndGetResults(
+//            final long[] planFragmentIds, final int numFragmentIds,
+//            final int[] input_depIds,
+//            final int[] output_depIds,
+//            final ParameterSet[] parameterSets, final int numParameterSets, final long txnId,
+//            final long lastCommittedTxnId, final long undoToken) throws EEException {
+//        sendPlanFragmentsInvocation(Commands.QueryPlanFragments,
+//                planFragmentIds, numFragmentIds,
+//                input_depIds,
+//                output_depIds,
+//                parameterSets,
+//                numParameterSets, txnId, lastCommittedTxnId, undoToken);
+//        int result = ExecutionEngine.ERRORCODE_ERROR;
+//        try {
+//            result = m_connection.readStatusByte();
+//        } catch (final IOException e) {
+//            System.out.println("Exception: " + e.getMessage());
+//            throw new RuntimeException(e);
+//        }
+//        if (result == ExecutionEngine.ERRORCODE_SUCCESS) {
+//            final VoltTable resultTables[] = new VoltTable[numFragmentIds];
+//            for (int ii = 0; ii < numFragmentIds; ii++) {
+//                resultTables[ii] = PrivateVoltTableFactory.createUninitializedVoltTable();
+//            }
+//            try {
+//                m_connection.readResultTables(resultTables);
+//            } catch (final IOException e) {
+//                throw new EEException(
+//                        ExecutionEngine.ERRORCODE_WRONG_SERIALIZED_BYTES);
+//            }
+//            return resultTables;
+//        }
+//        return null;
+//    }
 
     @Override
     public VoltTable serializeTable(final int tableId) throws EEException {

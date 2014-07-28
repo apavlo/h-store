@@ -349,22 +349,22 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
 //            long undoQuantumToken) throws EEException;
     
     /** Run multiple query plan fragments */
-    public VoltTable[] executeQueryPlanFragmentsAndGetResults(long[] planFragmentIds,
-                                                                       int numFragmentIds,
-                                                                       int[] input_depIds,
-                                                                       int[] output_depIds,
-                                                                       ParameterSet[] parameterSets,
-                                                                       int numParameterSets,
-                                                                       long txnId, long lastCommittedTxnId,
-                                                                       long undoQuantumToken) throws EEException {
-        DependencySet dset = this.executeQueryPlanFragmentsAndGetDependencySet(
-                planFragmentIds, numFragmentIds,
-                input_depIds,
-                output_depIds,
-                parameterSets, numParameterSets, txnId, lastCommittedTxnId, undoQuantumToken);
-        assert(dset != null);
-        return (dset.dependencies);
-    }
+//    public VoltTable[] executeQueryPlanFragmentsAndGetResults(long[] planFragmentIds,
+//                                                                       int numFragmentIds,
+//                                                                       int[] input_depIds,
+//                                                                       int[] output_depIds,
+//                                                                       ParameterSet[] parameterSets,
+//                                                                       int numParameterSets,
+//                                                                       long txnId, long lastCommittedTxnId,
+//                                                                       long undoQuantumToken) throws EEException {
+//        DependencySet dset = this.executeQueryPlanFragmentsAndGetDependencySet(
+//                planFragmentIds, numFragmentIds,
+//                input_depIds,
+//                output_depIds,
+//                parameterSets, numParameterSets, txnId, lastCommittedTxnId, undoQuantumToken);
+//        assert(dset != null);
+//        return (dset.dependencies);
+//    }
 
     /** Used for test code only (AFAIK jhugg) */
     abstract public VoltTable serializeTable(int tableId) throws EEException;
