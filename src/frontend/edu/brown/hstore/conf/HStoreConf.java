@@ -639,6 +639,14 @@ public final class HStoreConf {
             experimental=true
         )
         public boolean commandlog_profiling;
+         
+        @ConfigProperty(
+        	description="Specifies the maximum number of commands that will be committed at once.",
+        	defaultInt=-1,
+        	experimental=true
+        )
+        
+        public int commandlog_groupcommit;
         
         // ----------------------------------------------------------------------------
         // AntiCache Options

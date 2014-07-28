@@ -141,9 +141,9 @@ parser.add_argument('-e', '--expout', help='file that contains the final experim
 parser.add_argument('--winconfig', help='description of the window configuration', default='')
 parser.add_argument('--debug', help='debug mode, only runs once', action='store_true')
 parser.add_argument('--aries', help='turns on Aries logging', action='store_true')
-parser.add_argument('--scheduler', help='turns on S-Store scheduler', action='store_true')
-parser.add_argument('--hstore', help='turns on S-Store', action='store_true')
-parser.add_argument('--ftrigger_off', help='sets whether frontend triggers are enabled', action='store_true')
+parser.add_argument('--hscheduler', help='turns off S-Store scheduler', action='store_true')
+parser.add_argument('--hstore', help='turns off S-Store', action='store_true')
+parser.add_argument('--ftrigger_off', help='turns off frontend triggers', action='store_true')
 parser.add_argument('--weakrecovery_off', help='sets strong or weak recovery', action='store_true')
 
 args = parser.parse_args()
@@ -172,7 +172,7 @@ expout      = args.expout
 winconfig   = args.winconfig
 debug       = args.debug
 aries       = args.aries
-scheduler   = args.scheduler
+scheduler   = not args.hscheduler
 sstore      = not args.hstore
 ftrigger    = not args.ftrigger_off
 wrecovery   = not args.weakrecovery_off
