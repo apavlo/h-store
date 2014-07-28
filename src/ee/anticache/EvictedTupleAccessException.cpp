@@ -40,10 +40,7 @@ EvictedTupleAccessException::EvictedTupleAccessException(int tableId, int numBlo
         m_tableId(tableId),
         m_numBlockIds(numBlockIds),
         m_blockIds(blockIds), 
-        m_tupleKeys(tupleIDs),
-        // IMPORTANT: We always set the partitionId to the null id here (-1)
-        // The PartitionExecutor will set this correctly for us up in the Java layer
-        m_partitionId(-1) {
+        m_tupleKeys(tupleIDs) {
     
     VOLT_TRACE("In EvictedTupleAccessException constructor...setting exception type to %d.", VOLT_EE_EXCEPTION_TYPE_EVICTED_TUPLE); 
     
@@ -63,5 +60,4 @@ void EvictedTupleAccessException::p_serialize(ReferenceSerializeOutput *output) 
     for(int ii = 0; ii<m_numBlockIds; ii++) {  // write out the tuple offsets 
         output->writeInt(m_tupleKeys[ii]);
     }
-    output->writeInt(m_partitionId);
 }

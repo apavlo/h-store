@@ -372,14 +372,10 @@ public:
 
     size_t hashCode(size_t seed) const;
     size_t hashCode() const;
-    inline void setEvictedTrue()
-    {
-            // treat the first "value" as a boolean flag
+    inline void setEvictedTrue() {
         *(reinterpret_cast<char*> (m_data)) |= static_cast<char>(EVICTED_MASK);
     }
-    inline void setEvictedFalse()
-    {
-        // treat the first "value" as a boolean flag
+    inline void setEvictedFalse() {
         *(reinterpret_cast<char*> (m_data)) &= static_cast<char>(~EVICTED_MASK);
     }
     inline void setDeletedFalse() {

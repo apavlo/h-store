@@ -57,7 +57,7 @@ public:
     bool evictBlockToDisk(PersistentTable *table, const long block_size, int num_blocks);
     bool evictBlockToDiskInBatch(PersistentTable *table, PersistentTable *childTable, const long block_size, int num_blocks);
     Table* evictBlockInBatch(PersistentTable *table, PersistentTable *childTable, long blockSize, int numBlocks);
-    Table* readBlocks(PersistentTable *table, int numBlocks, int16_t blockIds[], int32_t tuple_offsets[]);
+    // Table* readBlocks(PersistentTable *table, int numBlocks, int16_t blockIds[], int32_t tuple_offsets[]);
     bool mergeUnevictedTuples(PersistentTable *table);
     bool readEvictedBlock(PersistentTable *table, int16_t block_id, int32_t tuple_offset);
     //int numTuplesInEvictionList(); 

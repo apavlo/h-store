@@ -324,7 +324,7 @@ bool PersistentTable::isAlreadyUnEvicted(int16_t blockId)
 
 void PersistentTable::insertUnevictedBlockID(std::pair<int16_t,int16_t> pair)
 {
-    VOLT_INFO("pair is %d", pair.first);
+    VOLT_TRACE("pair is %d", pair.first);
     m_unevictedBlockIDs.insert(pair);
 }
 
