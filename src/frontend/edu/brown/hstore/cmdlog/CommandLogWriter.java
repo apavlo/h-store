@@ -231,11 +231,14 @@ public class CommandLogWriter extends ExceptionHandlingRunnable implements Shutd
 
         // The global number of txns we will commit in a batch
         //JOHN: added commandlog_groupcommit argument
-        if(this.hstore_conf.site.commandlog_groupcommit <= 0)
+        if(this.hstore_conf.site.commandlog_groupcommit < 0)
+        {
+        	LOG.debug("group commit too low");
         	this.group_commit_size = num_entries * num_partitions; //OLD CODE; SAVE THIS
-        else
+        }
+        else {
         	this.group_commit_size = this.hstore_conf.site.commandlog_groupcommit;
-        //END JOHN CODE
+        }//END JOHN CODE
 
         if (debug.val) {
             LOG.debug("group_commit_size: " + this.group_commit_size);
