@@ -150,6 +150,7 @@
 <arg value="site.commandlog_dir=${site.commandlog_dir}" />
 <arg value="site.commandlog_timeout=${site.commandlog_timeout}" />
 <arg value="site.commandlog_profiling=${site.commandlog_profiling}" />
+<arg value="site.commandlog_groupcommit=${site.commandlog_groupcommit}" />
 <arg value="site.anticache_enable=${site.anticache_enable}" />
 <arg value="site.anticache_build=${site.anticache_build}" />
 <arg value="site.anticache_reversible_lru=${site.anticache_reversible_lru}" />
