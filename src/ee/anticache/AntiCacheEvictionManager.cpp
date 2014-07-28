@@ -609,7 +609,7 @@ bool AntiCacheEvictionManager::evictBlockToDisk(PersistentTable *table, const lo
                        table->name().c_str(), block_id, num_tuples_evicted);
 
         } // WHILE
-        VOLT_INFO("Finished evictable tuple iterator for %s [tuplesEvicted=%d]",
+        VOLT_DEBUG("Finished evictable tuple iterator for %s [tuplesEvicted=%d]",
                    table->name().c_str(), num_tuples_evicted);
         
         // Only write out a bock if there are tuples in it

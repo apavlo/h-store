@@ -96,7 +96,8 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
     /** Utility method to verify return code and throw as required */
     final protected void checkErrorCode(final int errorCode) {
         if (errorCode != ERRORCODE_SUCCESS) {
-            if (debug.val) LOG.error(String.format("Unexpected ExecutionEngine error [code=%d]", errorCode));
+            if (debug.val)
+                LOG.error(String.format("Unexpected ExecutionEngine error [code=%d]", errorCode));
             throwExceptionForError(errorCode);
         }
     }

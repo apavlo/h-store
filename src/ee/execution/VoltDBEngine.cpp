@@ -1969,8 +1969,8 @@ int VoltDBEngine::antiCacheReadBlocks(int32_t tableId, int numBlocks, int16_t bl
         } // FOR
 
     } catch (SerializableEEException &e) {
-        VOLT_INFO("antiCacheReadBlocks: Failed to read %d evicted blocks for table '%s'",
-                numBlocks, table->name().c_str());
+        VOLT_ERROR("antiCacheReadBlocks: Failed to read %d evicted blocks for table '%s'\n%s",
+                   numBlocks, table->name().c_str(), e.message().c_str());
         // FIXME: This won't work if we execute are executing this operation the
         //        same time that txns are running
         resetReusedResultOutputBuffer();
