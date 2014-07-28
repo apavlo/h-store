@@ -41,7 +41,7 @@ public class EvictedTupleAccessException extends SerializableException {
         for (int i = 0; i < this.tuple_offsets.length; i++) {
             this.tuple_offsets[i] = buffer.getInt();
         } // FOR
-        this.partition_id = HStoreConstants.NULL_PARTITION_ID;
+        this.partition_id = buffer.getInt();
     }
 
     /**

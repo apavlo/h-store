@@ -49,6 +49,7 @@ class EvictedTupleAccessException : public SerializableEEException {
         const int m_numBlockIds;
         const int16_t *m_blockIds;
         const int32_t *m_tupleKeys;
+        const int m_partitionId;
 };
 }
 
