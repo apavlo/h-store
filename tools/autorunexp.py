@@ -133,6 +133,7 @@ parser.add_argument('--rstep', help='initial step size - txnrate', type=int, def
 parser.add_argument('--finalrmin', help='the absolute lowest txnrate to consider', type=int, default=1)
 parser.add_argument('--finalrstep', help='final step size- txnrate', type=int, default=0)
 parser.add_argument('--logtimeout', help='log timeout', type=int, default=10)
+parser.add_argument('--groupcommit', help='log timeout', type=int, default=-1)
 #parser.add_argument('--lmax', help='max - log timeout', type=int, default=10)
 #parser.add_argument('--lstep', help='step - log timeout', type=int, default=10)
 parser.add_argument('--warmup', help='warmup - time in ms', type=int, default=10000)
@@ -163,6 +164,7 @@ orstep      = rstep
 frstep      = args.finalrstep
 frmin       = args.finalrmin
 logtimeout  = args.logtimeout
+groupcommit = args.groupcommit
 #lmax	    = args.lmax
 #lstep       = args.lstep
 llog        = args.log
@@ -272,6 +274,7 @@ for rn in range(0, numruns):
 		str_client_warmup       = " -Dclient.warmup=" + "{0:d}".format(client_warmup)
 		str_site_commandlog_timeout = " -Dsite.commandlog_timeout=" + "{0:d}".format(site_commandlog_timeout)
 		str_site_commandlog_enable = " -Dsite.commandlog_enable=" + strlogging
+		str_site_commandlog_groupcommit = " -Dsite.commandlog_groupcommit=" + "{0:d}".format(groupcommit)
 		str_site_aries = " -Dsite.aries=" + straries
 		str_global_scheduler = " -Dglobal.sstore_scheduler=" + strscheduler
 		str_global_sstore = " -Dglobal.sstore=" + strsstore
@@ -281,7 +284,7 @@ for rn in range(0, numruns):
 		basic = "{0:d}".format(client_threads_per_host) + " " + "{0:d}".format(client_txnrate) + " " +  "{0:d}".format(site_commandlog_timeout)
 	
 		runcmd = str_antcmd + str_project + str_client_blocking + str_client_output_results_json + str_client_threads_per_host + str_client_txnrate + str_client_warmup 
-		runcmd += str_site_commandlog_enable + str_site_aries + str_global_scheduler + str_global_sstore + str_global_ftrigger + str_global_wrecovery
+		runcmd += str_site_commandlog_enable + str_site_commandlog_groupcommit + str_site_aries + str_global_scheduler + str_global_sstore + str_global_ftrigger + str_global_wrecovery
 	
 		print "running benchmark with following configuration:"
 		print runcmd
@@ -333,9 +336,9 @@ file.close()
 #append to the final experimental results file
 expfile = open(expout, "a")
 proj = projectname + " - " + winconfig + " (" + "{0:.2f}".format(txn_threshold) + " threshold)"
-config = "threads: " + "{0:d}".format(client_threads_per_host) + "  |  logging: " +  strlogging + "  |  log timeout: " + "{0:d}".format(site_commandlog_timeout)
-config += "\nblocking: " + strblocking + "  |  warmup: " + "{0:d}".format(client_warmup) + "  |  threshold: " + "{0:.2f}".format(txn_threshold) 
-config += "\naries: " + straries + "  |  scheduler: " + strscheduler
+config = "threads: " + "{0:d}".format(client_threads_per_host) + "  |  warmup: " + "{0:d}".format(client_warmup) + "  |  threshold: " + "{0:.2f}".format(txn_threshold)
+config += "\nlogging: " +  strlogging + "  |  log timeout: " + "{0:d}".format(site_commandlog_timeout) + "  |  group commit: " + "{0:d}".format(groupcommit)
+config += "\nblocking: " + strblocking +  "  |  aries: " + straries + "  |  scheduler: " + strscheduler
 config += "\nS-Store: " + strsstore + "  |  S-Store frontend trigger: " + strftrigger + "  |  weak recovery: " + strwrecovery 
 expfile.write(proj + "\n");
 expfile.write("--------------------------------------------------\n");
