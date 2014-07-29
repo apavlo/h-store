@@ -57,7 +57,7 @@ import edu.brown.benchmark.voterexperiments.demohstorecorrect.VoterDemoHStoreUti
 public class DeleteContestant extends VoltProcedure {
     
     public final SQLStmt findLowestContestant = new SQLStmt(
-		"SELECT * FROM v_votes_by_contestant ORDER BY num_votes DESC LIMIT 1;"
+		"SELECT * FROM v_votes_by_contestant ORDER BY num_votes ASC LIMIT 1;"
     );
     
     public final SQLStmt deleteLowestContestant = new SQLStmt(
