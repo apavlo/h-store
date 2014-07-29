@@ -43,7 +43,7 @@ public abstract class VoterDemoSStoreConstants {
 	public static final String OUTPUT_FILE = "logs/demosstoreout.txt";
 	public static final String OVERWRITE_FILE = "logs/demosstorecurrent.txt";
 	public static final int DELETE_CODE = -1;
-	public static final boolean SOCKET_CONTROL = false;
+	public static final boolean SOCKET_CONTROL = true;
 	
 	public static final String HOST_PREFIX = "istc8";
 	public static final String HOST_PREFIX_2 = "istc10";
