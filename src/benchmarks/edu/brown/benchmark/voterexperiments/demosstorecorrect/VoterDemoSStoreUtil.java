@@ -27,8 +27,21 @@
 
 package edu.brown.benchmark.voterexperiments.demosstorecorrect;
 
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
+import java.net.InetAddress;
+import java.net.Socket;
+import java.net.UnknownHostException;
+import java.util.ArrayList;
 import java.util.Random;
 
+import org.voltdb.VoltTable;
+
+import edu.brown.benchmark.voterexperiments.demohstorecorrect.VoterDemoHStoreConstants;
 import edu.brown.rand.RandomDistribution.Zipf;
 
 public abstract class VoterDemoSStoreUtil {
@@ -125,6 +138,96 @@ public abstract class VoterDemoSStoreUtil {
         } // FOR
 
         return sub;
+    }
+    
+
+    public static void waitForSignal()
+    {
+    	try {
+			InetAddress host = InetAddress.getLocalHost();
+			//System.out.println("Host: " + host);
+			//System.out.println("Host Name: " + host.getHostName());
+			String hostname;
+			
+			
+			if(host.getHostName().startsWith(VoterDemoSStoreConstants.HOST_PREFIX) || 
+					host.getHostName().startsWith(VoterDemoSStoreConstants.HOST_PREFIX_2))
+			{
+				hostname = VoterDemoSStoreConstants.SERVER_HOST_NAME;
+			}
+			else
+			{
+				hostname = VoterDemoSStoreConstants.JIANG_HOST;
+			}
+
+			Socket socket = new Socket(hostname, VoterDemoSStoreConstants.SERVER_PORT_NUM);
+			BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+			PrintWriter out = new PrintWriter(socket.getOutputStream());
+			//ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream());
+			String response;
+			
+			
+			
+			String mes = "s-store ready";
+			out.print(mes);
+			out.flush();
+			
+			response = in.readLine();
+			if(response.equals("READY"))
+			{
+				System.out.println("CONFIRMED READY");
+			}
+			else
+			{
+				System.out.println("ERROR: NOT READY - " + response);
+			}
+			Thread.sleep(500);
+			out.close();
+			in.close();
+			socket.close();
+			 
+		}
+		catch (UnknownHostException e){
+			System.err.println("UnknownHostException");
+			e.printStackTrace();
+		}
+		catch (IOException e) {
+			System.err.println("IOException");
+			e.printStackTrace();
+		}
+		catch (InterruptedException e) {
+			System.err.println("InterruptedException");
+			e.printStackTrace(); 
+		}
+    }
+    
+    public static void writeToFile(VoltTable[] v, ArrayList<String> tableNames, int numVotes) throws IOException
+    {
+    	PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(VoterDemoSStoreConstants.OUTPUT_FILE, true)));
+    	if(numVotes == VoterDemoSStoreConstants.DELETE_CODE)
+    		out.println("####DELETECANDIDATE####");
+    	else
+    		out.println("####" + numVotes + "####");
+    	
+        for(int i = 0; i < v.length; i++)
+        {
+        	out.println("**" + tableNames.get(i) + "**");
+        	for(int j = 0; j < v[i].getRowCount(); j++)
+        	{
+        		for(int k = 0; k < v[i].getColumnCount(); k++)
+        		{
+        			if(k > 0)
+	        		{
+	        			out.print(",");
+	        		}
+        			
+        			out.print(v[i].fetchRow(j).get(k));
+        		}
+        		out.print("\n");
+        	}
+        	out.println("---------------------------");
+        }
+        out.close();
     }
 
 }

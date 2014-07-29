@@ -39,6 +39,7 @@ import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
 import java.io.ObjectOutputStream;
 
 import org.voltdb.ProcInfo;
@@ -49,7 +50,9 @@ import org.voltdb.VoltTable;
 import org.voltdb.types.TimestampType;
 
 import edu.brown.benchmark.voterexperiments.demohstorecorrect.VoterDemoHStoreConstants;
+import edu.brown.benchmark.voterexperiments.demohstorecorrect.VoterDemoHStoreUtil;
 import edu.brown.benchmark.voterexperiments.demosstorecorrect.VoterDemoSStoreConstants;
+import edu.brown.benchmark.voterexperiments.demosstorecorrect.VoterDemoSStoreUtil;
 
 @ProcInfo (
 	//partitionInfo = "contestants.contestant_number:1",
@@ -82,14 +85,6 @@ public class DeleteContestant extends VoltProcedure {
     public final SQLStmt deleteLeaderBoardStmt = new SQLStmt(
 		"DELETE FROM leaderboard WHERE contestant_number = ?;"
     );
-    
-    private void WriteToFile(String content) throws IOException
-    {
-        //System.out.println(stat_filename + " : " + content );
-        PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("hostname.txt", true)));
-        out.println(content);
-        out.close();
-    }
     
     /////////////////////////////
     //BEGIN DEMO BOARD UPDATES
@@ -132,6 +127,59 @@ public class DeleteContestant extends VoltProcedure {
 	/////////////////////////////
 	//END DEMO BOARD UPDATES
 	/////////////////////////////
+    
+	/////////////////////////////
+	//BEGIN GET RESULTS
+	/////////////////////////////
+	public final SQLStmt getTopThreeVotesStmt = new SQLStmt( "   SELECT a.contestant_name   AS contestant_name"
+		  + "        , b.num_votes          AS num_votes"
+		  + "     FROM v_votes_by_contestant b"
+		  + "        , contestants AS a"
+		  + "    WHERE a.contestant_number = b.contestant_number"
+		  + " ORDER BY num_votes DESC"
+		  + "        , contestant_number ASC"
+		  + " LIMIT 3");
+	
+	public final SQLStmt getBottomThreeVotesStmt = new SQLStmt( "   SELECT a.contestant_name   AS contestant_name"
+		  + "        , b.num_votes          AS num_votes"
+		  + "     FROM v_votes_by_contestant b"
+		  + "        , contestants AS a"
+		  + "    WHERE a.contestant_number = b.contestant_number"
+		  + " ORDER BY num_votes ASC"
+		  + "        , contestant_number ASC"
+		  + " LIMIT 3");
+	
+	public final SQLStmt getTrendingStmt = new SQLStmt( "   SELECT a.contestant_name   AS contestant_name"
+		  + "        , b.num_votes          AS num_votes"
+		  + "     FROM leaderboard b"
+		  + "        , contestants AS a"
+		  + "    WHERE a.contestant_number = b.contestant_number"
+		  + " ORDER BY num_votes DESC"
+		  + "        , contestant_number ASC"
+		  + " LIMIT 3");
+	
+	public final SQLStmt getVoteCountStmt = new SQLStmt( "SELECT cnt FROM votes_count WHERE row_id=1;");
+	public final SQLStmt getTrendingCountStmt = new SQLStmt("SELECT count(*) FROM trending_leaderboard;");
+	/////////////////////////////
+	//END GET RESULTS
+	/////////////////////////////
+	
+	private void printResults() throws IOException
+	{
+		ArrayList<String> tableNames = new ArrayList<String>();
+		voltQueueSQL(getTopThreeVotesStmt);
+		tableNames.add("TopThree");
+		voltQueueSQL(getBottomThreeVotesStmt);
+		tableNames.add("BottomThree");
+		voltQueueSQL(getTrendingStmt);
+		tableNames.add("TrendingThree");
+		voltQueueSQL(getVoteCountStmt);
+		tableNames.add("VoteCount");
+		voltQueueSQL(getTrendingCountStmt);
+		tableNames.add("TrendingCount");
+		VoltTable[] v = voltExecuteSQL();
+		VoterDemoHStoreUtil.writeToFile(v, tableNames, VoterDemoSStoreConstants.DELETE_CODE);
+	}
 	
     public long run() {
 		
@@ -145,74 +193,12 @@ public class DeleteContestant extends VoltProcedure {
         
         int lowestContestant = (int)(validation[0].fetchRow(0).getLong(0));
         
-        try {
-			InetAddress host = InetAddress.getLocalHost();
-
-			String hostname;
-			
-			if(host.getHostName().startsWith(VoterDemoSStoreConstants.HOST_PREFIX) || 
-					host.getHostName().startsWith(VoterDemoSStoreConstants.HOST_PREFIX_2))
-			{
-				hostname = VoterDemoSStoreConstants.SERVER_HOST_NAME;
-			}
-			
-			//WriteToFile("HOST NAME: " + host.getHostName());
-			//else if(host.getHostName().startsWith(VoterDemoSStoreConstants.JIANG_SERVER_HOST_NAME) || 
-			//		host.getHostName().startsWith(VoterDemoSStoreConstants.JIANG_SERVER_HOST_NAME_2))
-			//{
-			//	hostname = VoterDemoSStoreConstants.JIANG_HOST;
-			//}
-			//else
-			//{
-			//	hostname = host.getHostName();
-			//}
-			else
-			{
-				hostname = VoterDemoSStoreConstants.JIANG_HOST;
-			}
-			
-			Socket socket = new Socket(hostname, VoterDemoSStoreConstants.SERVER_PORT_NUM);
-			BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-			PrintWriter out = new PrintWriter(socket.getOutputStream());
-
-			String response;
-			
-			String mes = "s-store ready";
-			out.print(mes);
-			out.flush();
-			
-			response = in.readLine();
-			if(response.equals("READY"))
-			{
-				System.out.println("CONFIRMED READY");
-			}
-			else
-			{
-				System.out.println("ERROR: NOT READY - " + response);
-			}
-			Thread.sleep(500);
-			out.close();
-			in.close();
-			socket.close();
-			//oos.writeObject("ant hstore-invoke -Dproject=tickertest -Dproc=InsertTickerRow -Dparam0='AAA' -Dparam1=12345 -Dparam2=5");
-			
-			//oos.close();
-		}
-		catch (UnknownHostException e){
-			System.err.println("ERROR 1");
-			e.printStackTrace();
-		}
-		catch (IOException e) {
-			System.err.println("ERROR 2");
-			e.printStackTrace();
-		}
-		catch (InterruptedException e) {
-			System.err.println("ERROR 3");
-			e.printStackTrace(); 
-		}
+        //VoterDemoSStoreUtil.waitForSignal();
+        
         voltQueueSQL(deleteLowestContestant, lowestContestant);
         voltQueueSQL(deleteLowestVotes, lowestContestant);
         voltQueueSQL(deleteLeaderBoardStmt, lowestContestant);
+        /**
         voltQueueSQL(deleteDemoTopBoard);
     	voltQueueSQL(deleteDemoTrendingBoard);
     	voltQueueSQL(deleteDemoVoteCount);
@@ -221,7 +207,15 @@ public class DeleteContestant extends VoltProcedure {
     	voltQueueSQL(updateDemoTrendingBoard);
     	voltQueueSQL(updateDemoVoteCount);
     	voltQueueSQL(updateDemoWindowCount);
+    	*/
         voltExecuteSQL(true);
+        
+        try {
+			printResults();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 		
         // Set the return value to 0: successful vote
         return VoterDemoSStoreConstants.DELETE_SUCCESSFUL;

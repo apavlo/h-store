@@ -29,6 +29,9 @@
 
 package edu.brown.benchmark.voterexperiments.demosstorecorrect.procedures;
 
+import java.io.IOException;
+import java.util.ArrayList;
+
 import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
 import org.voltdb.StmtInfo;
@@ -37,7 +40,9 @@ import org.voltdb.VoltTable;
 import org.voltdb.types.TimestampType;
 
 import edu.brown.benchmark.voterexperiments.demohstorecorrect.VoterDemoHStoreConstants;
+import edu.brown.benchmark.voterexperiments.demohstorecorrect.VoterDemoHStoreUtil;
 import edu.brown.benchmark.voterexperiments.demosstorecorrect.VoterDemoSStoreConstants;
+import edu.brown.benchmark.voterexperiments.demosstorecorrect.VoterDemoSStoreUtil;
 
 @ProcInfo (
 	//partitionInfo = "contestants.contestant_number:1",
@@ -114,6 +119,63 @@ public class GenerateLeaderboard extends VoltProcedure {
 	//END DEMO BOARD UPDATES
 	/////////////////////////////
 	
+	/////////////////////////////
+	//BEGIN GET RESULTS
+	/////////////////////////////
+	// Gets the results
+	public final SQLStmt getTopThreeVotesStmt = new SQLStmt( "   SELECT a.contestant_name   AS contestant_name"
+							  + "        , b.num_votes          AS num_votes"
+							  + "     FROM v_votes_by_contestant b"
+							  + "        , contestants AS a"
+							  + "    WHERE a.contestant_number = b.contestant_number"
+							  + " ORDER BY num_votes DESC"
+							  + "        , contestant_number ASC"
+							  + " LIMIT 3");
+	
+	public final SQLStmt getBottomThreeVotesStmt = new SQLStmt( "   SELECT a.contestant_name   AS contestant_name"
+							  + "        , b.num_votes          AS num_votes"
+							  + "     FROM v_votes_by_contestant b"
+							  + "        , contestants AS a"
+							  + "    WHERE a.contestant_number = b.contestant_number"
+							  + " ORDER BY num_votes ASC"
+							  + "        , contestant_number ASC"
+							  + " LIMIT 3");
+	
+	public final SQLStmt getTrendingStmt = new SQLStmt( "   SELECT a.contestant_name   AS contestant_name"
+							  + "        , b.num_votes          AS num_votes"
+							  + "     FROM leaderboard b"
+							  + "        , contestants AS a"
+							  + "    WHERE a.contestant_number = b.contestant_number"
+							  + " ORDER BY num_votes DESC"
+							  + "        , contestant_number ASC"
+							  + " LIMIT 3");
+	
+	public final SQLStmt getVoteCountStmt = new SQLStmt( "SELECT cnt FROM votes_count WHERE row_id=1;");
+	public final SQLStmt getTrendingCountStmt = new SQLStmt("SELECT count(*) FROM trending_leaderboard;");
+	/////////////////////////////
+	//END GET RESULTS
+	/////////////////////////////
+	
+	private void printResults(int numVotes) throws IOException
+    {
+    	//System.out.println(stat_filename + " : " + content );
+        
+        ArrayList<String> tableNames = new ArrayList<String>();
+        voltQueueSQL(getTopThreeVotesStmt);
+        tableNames.add("TopThree");
+        voltQueueSQL(getBottomThreeVotesStmt);
+        tableNames.add("BottomThree");
+        voltQueueSQL(getTrendingStmt);
+        tableNames.add("TrendingThree");
+        voltQueueSQL(getVoteCountStmt);
+        tableNames.add("VoteCount");
+        voltQueueSQL(getTrendingCountStmt);
+        tableNames.add("TrendingCount");
+        VoltTable[] v = voltExecuteSQL();
+        VoterDemoSStoreUtil.writeToFile(v, tableNames, numVotes);
+        
+    }
+	
     public long run() {
 		
         voltQueueSQL(trendingLeaderboardStmt);
@@ -124,11 +186,20 @@ public class GenerateLeaderboard extends VoltProcedure {
 
         int numVotes = (int)(validation[2].fetchRow(0).getLong(0)) + 1;
         
-        voltQueueSQL(updateNumVotesStmt, (numVotes % VoterDemoSStoreConstants.VOTE_THRESHOLD));
+        voltQueueSQL(updateNumVotesStmt, numVotes);
+        voltExecuteSQL();
         
         // Set the return value to 0: successful vote
         if(((int)numVotes % (int)VoterDemoSStoreConstants.BOARD_REFRESH) == 0)
         {
+        	try {
+				printResults(numVotes);
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+        	//VoterDemoSStoreUtil.waitForSignal();
+        	/**
         	voltQueueSQL(deleteDemoTopBoard);
         	voltQueueSQL(deleteDemoTrendingBoard);
         	voltQueueSQL(deleteDemoVoteCount);
@@ -137,14 +208,16 @@ public class GenerateLeaderboard extends VoltProcedure {
         	voltQueueSQL(updateDemoTrendingBoard);
         	voltQueueSQL(updateDemoVoteCount);
         	voltQueueSQL(updateDemoWindowCount);
+        	*/
         }
         
         // Set the return value to 0: successful vote
-        if(numVotes == VoterDemoSStoreConstants.VOTE_THRESHOLD)
+        if(numVotes % VoterDemoSStoreConstants.VOTE_THRESHOLD == 0)
         {
         	voltQueueSQL(insertProcTwoOutStmt, 1);
+        	voltExecuteSQL(true);
         }
-        voltExecuteSQL(true);
+        
         
         return VoterDemoSStoreConstants.WINDOW_SUCCESSFUL;
     }
