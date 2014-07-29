@@ -280,14 +280,14 @@ public class GenerateLeaderboard extends VoltProcedure {
         // Set the return value to 0: successful vote
         if(((int)numVotes % (int)VoterDemoHStoreConstants.BOARD_REFRESH) == 0)
         {
+        	if(VoterDemoHStoreConstants.SOCKET_CONTROL)
+        		VoterDemoHStoreUtil.waitForSignal();
         	try {
 				printResults(numVotes);
 			} catch (IOException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
-        	if(VoterDemoHStoreConstants.SOCKET_CONTROL)
-        		VoterDemoHStoreUtil.waitForSignal();
         	/**
         	voltQueueSQL(deleteDemoTopBoard);
         	voltQueueSQL(deleteDemoTrendingBoard);
