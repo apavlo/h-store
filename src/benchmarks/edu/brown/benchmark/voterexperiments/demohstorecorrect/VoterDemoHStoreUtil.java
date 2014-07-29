@@ -205,6 +205,7 @@ public abstract class VoterDemoHStoreUtil {
     	ArrayList<PrintWriter> out = new ArrayList<PrintWriter>();
     	out.add(new PrintWriter(new BufferedWriter(new FileWriter(VoterDemoHStoreConstants.OUTPUT_FILE, false))));
     	out.add(new PrintWriter(new BufferedWriter(new FileWriter(VoterDemoHStoreConstants.OVERWRITE_FILE, false))));
+    	writeToAllFiles(out,"");
     	closeAllFiles(out);
     }
     
