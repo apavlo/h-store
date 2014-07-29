@@ -463,8 +463,8 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
 
         LOG.info("Current Memory Usage: " + totalDataSize + " / " +
                 hstore_conf.site.anticache_threshold_mb + " MB");
-//        LOG.info("Current Active Memory Usage: " + totalActiveDataSize + " / " +
-//                hstore_conf.site.anticache_threshold_mb + " MB");
+        LOG.info("Current Active Memory Usage: " + totalActiveDataSize + " / " +
+                hstore_conf.site.anticache_threshold_mb + " MB");
         LOG.info("Blocks Currently Evicted: " + totalBlocksEvicted);
         LOG.info("Total Blocks Fetched: " + totalBlocksFetched);
         LOG.info("Total Evictable Kb: " + totalEvictableSizeKb);
