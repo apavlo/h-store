@@ -40,6 +40,9 @@ public abstract class VoterDemoHStoreConstants {
 	public static final int MAX_VOTES = 1; 
 	public static final int NUM_CONTESTANTS = 25; 
 	
+	public static final String OUTPUT_FILE = "logs/demohstoreout.txt";
+	public static final int DELETE_CODE = -1;
+	
 	public static final String HOST_PREFIX = "istc8";
 	public static final String HOST_PREFIX_2 = "istc10";
 	public static final String SERVER_HOST_NAME = "istc10.csail.mit.edu";

@@ -66,7 +66,7 @@ public class Results extends VoltProcedure
 												  + "        , contestant_number ASC"
 												  + " LIMIT 3");
     
-    public final SQLStmt getVoteCountStmt = new SQLStmt( "SELECT count(*) FROM votes;");
+    public final SQLStmt getVoteCountStmt = new SQLStmt( "SELECT cnt FROM votes_count WHERE row_id=1;");
     public final SQLStmt getTrendingCountStmt = new SQLStmt("SELECT count(*) FROM w_rows;");
     
     public VoltTable[] run() {
