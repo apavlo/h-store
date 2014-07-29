@@ -682,14 +682,6 @@ public final class HStoreConf {
         )
         public int anticache_threshold_mb;
         
-        // TODO
-        @ConfigProperty(
-            description="Not yet implemented. Ratio of system memory used at which to start evicting",
-            defaultDouble=0.75,
-            experimental=true
-        )
-        public double anticache_threshold_ratio;
-        
         @ConfigProperty(
                 description="Maximum number of blocks evicted on this site",
                 defaultInt=200000,
@@ -705,10 +697,10 @@ public final class HStoreConf {
         public int anticache_blocks_per_eviction;
         
         @ConfigProperty(
-                description="Policy specifying how to distribute eviction load over partitions and tables. " +
-                                        "Possible values are 'even', 'proportional', and 'uneviction_ratio' (default)",
-                defaultString="uneviction_ratio",
-                experimental=true
+                description="Policy specifying how to distribute eviction load over partitions and tables.",
+                defaultString="UNEVICTION_RATIO",
+                experimental=true,
+                enumOptions="org.voltdb.types.AntiCacheEvictionPolicyType"
         )
         public String anticache_eviction_distribution;
         

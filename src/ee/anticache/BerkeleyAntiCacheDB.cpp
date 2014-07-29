@@ -39,13 +39,11 @@ BerkeleyAntiCacheBlock::BerkeleyAntiCacheBlock(int16_t blockId, Dbt value) :
 	m_size = size;
 	m_payload = p;
 	
-    VOLT_INFO("size of anticache block data %ld in read", m_payload.size);
-	VOLT_INFO("size of anticache block data %ld in read", m_size);
-	VOLT_INFO("data in anticache block data %s in read", m_payload.data);
-	
     m_block = m_payload.data;
 	    
-    VOLT_INFO("data from getBlock %s", getData());
+    VOLT_DEBUG("AntiCacheBlock #%d [size=%ld / payload=%ld]",
+              blockId, m_size, m_payload.size);
+    //VOLT_INFO("data from getBlock %s", getData());
     m_blockType = ANTICACHEDB_BERKELEY;
 }
 

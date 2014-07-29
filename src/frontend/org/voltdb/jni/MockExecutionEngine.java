@@ -74,16 +74,6 @@ public class MockExecutionEngine extends ExecutionEngine {
     }
 
     @Override
-    public VoltTable[] executeQueryPlanFragmentsAndGetResults(final long[] planFragmentIds, final int numFragmentIds,
-            final int[] input_depIds,
-            final int[] output_depIds,
-            final ParameterSet[] parameterSets,
-            final int numParameterSets, final long txnId, final long lastCommittedTxnId, final long undoToken) throws EEException {
-        // TODO Auto-generated method stub
-        return null;
-    }
-
-    @Override
     public VoltTable[] getStats(final SysProcSelector selector, final int[] locators, boolean interval, Long now) {
         // TODO Auto-generated method stub
         return null;

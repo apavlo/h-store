@@ -804,6 +804,9 @@ public class ExecutionEngineJNI extends ExecutionEngine {
             String msg = "Trying to invoke anti-caching operation but feature is not enabled";
             throw new VoltProcedure.VoltAbortException(msg);
         }
+        if (debug.val)
+            LOG.debug(String.format("Reading %d evicted tuples across %d blocks for table %s",
+                                    tuple_offsets.length, block_ids.length, catalog_tbl.getName()));
         final int errorCode = nativeAntiCacheReadBlocks(this.pointer, catalog_tbl.getRelativeIndex(), block_ids, tuple_offsets);
         checkErrorCode(errorCode);
     }
@@ -818,6 +821,7 @@ public class ExecutionEngineJNI extends ExecutionEngine {
         
         final int numResults = nativeAntiCacheEvictBlock(this.pointer, catalog_tbl.getRelativeIndex(), block_size, num_blocks);
         if (numResults == -1) {
+            LOG.error("Unexpected error in antiCacheEvictBlock for table " + catalog_tbl.getName());
             throwExceptionForError(ERRORCODE_ERROR);
         }
         try {
@@ -845,6 +849,7 @@ public class ExecutionEngineJNI extends ExecutionEngine {
         
         final int numResults = nativeAntiCacheEvictBlockInBatch(this.pointer, catalog_tbl.getRelativeIndex(), childTable.getRelativeIndex(), block_size, num_blocks);
         if (numResults == -1) {
+            LOG.error("Unexpected error in antiCacheEvictBlockInBatch for table " + catalog_tbl.getName());
             throwExceptionForError(ERRORCODE_ERROR);
         }
         try {

@@ -121,7 +121,8 @@ Table* TableFactory::getPersistentTable(
         else
             table = new MMAP_PersistentTable(ctx, name, exportEnabled);
 
-        VOLT_WARN("MMAP Enabled: %d\n", (int)ctx->isMMAPEnabled());
+        VOLT_DEBUG("MMAP Enabled: %s",
+                  ((int)ctx->isMMAPEnabled() != 0 ? "true" : "false"));
         
         PersistentTable *pTable = dynamic_cast<PersistentTable*>(table);
         TableFactory::initCommon(databaseId, pTable, name, schema, columnNames, true);

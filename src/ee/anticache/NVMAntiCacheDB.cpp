@@ -47,6 +47,8 @@ NVMAntiCacheBlock::NVMAntiCacheBlock(int16_t blockId, char* block, long size) :
     m_block = block;
     m_size = size;
     m_blockType = ANTICACHEDB_NVM;
+    VOLT_DEBUG("AntiCacheBlock #%d [size=%ld / payload=%ld]",
+              blockId, m_size, m_payload.size);
 }
 
 NVMAntiCacheDB::NVMAntiCacheDB(ExecutorContext *ctx, std::string db_dir, long blockSize) :

@@ -518,7 +518,7 @@ bool AntiCacheEvictionManager::evictBlockToDisk(PersistentTable *table, const lo
         throwFatalException("Trying to evict block from table '%s' before its "\
                             "EvictedTable has been initialized", table->name().c_str());
     }
-    VOLT_DEBUG("Evicting a block of size %ld bytes from table '%s' with %d tuples",
+    VOLT_INFO("Evicting a block of size %ld bytes from table '%s' with %d tuples",
                block_size, table->name().c_str(), (int)table->allocatedTupleCount());
     VOLT_DEBUG("%s Table Schema:\n%s",
               evictedTable->name().c_str(), evictedTable->schema()->debug().c_str());
@@ -528,13 +528,11 @@ bool AntiCacheEvictionManager::evictBlockToDisk(PersistentTable *table, const lo
     int tuple_length = -1;
     bool needs_flush = false;
 
-
     #ifdef VOLT_INFO_ENABLED
     int active_tuple_count = (int)table->activeTupleCount();
     #endif
 
-    for(int i = 0; i < num_blocks; i++)
-    {
+    for (int i = 0; i < num_blocks; i++) {
 
         // get a unique block id from the executorContext
         int16_t block_id = antiCacheDB->nextBlockId();
@@ -580,26 +578,25 @@ bool AntiCacheEvictionManager::evictBlockToDisk(PersistentTable *table, const lo
 
             // remove the tuple from the eviction chain
             removeTuple(table, &tuple);
-            if (tuple.isEvicted())
-            {
-                VOLT_INFO("Tuple %d is already evicted. Skipping", table->getTupleID(tuple.address()));
+            if (tuple.isEvicted()) {
+                VOLT_WARN("Tuple %d from %s is already evicted. Skipping",
+                          table->getTupleID(tuple.address()), table->name().c_str());
                 continue;
             }
             VOLT_DEBUG("Evicting Tuple: %s", tuple.debug(table->name()).c_str());
-            tuple.setEvictedTrue();
 
             // Populate the evicted_tuple with the block id and tuple offset
             // Make sure this tuple is marked as evicted, so that we know it is an evicted
             // tuple as we iterate through the index
-        VOLT_INFO("block id is %d for table %s", block_id, table->name().c_str());
+            VOLT_TRACE("block id is %d for table %s", block_id, table->name().c_str());
             evicted_tuple.setNValue(0, ValueFactory::getSmallIntValue(block_id));
             evicted_tuple.setNValue(1, ValueFactory::getIntegerValue(num_tuples_evicted));
             evicted_tuple.setEvictedTrue();
-            VOLT_DEBUG("EvictedTuple: %s", evicted_tuple.debug(evictedTable->name()).c_str());
+            VOLT_TRACE("EvictedTuple: %s", evicted_tuple.debug(evictedTable->name()).c_str());
 
             // Then add it to this table's EvictedTable
             const void* evicted_tuple_address = static_cast<EvictedTable*>(evictedTable)->insertEvictedTuple(evicted_tuple);
-            VOLT_INFO("block address is %p", evicted_tuple_address);
+            VOLT_TRACE("block address is %p", evicted_tuple_address);
             // Change all of the indexes to point to our new evicted tuple
             table->setEntryToNewAddressForAllIndexes(&tuple, evicted_tuple_address);
 
@@ -616,22 +613,23 @@ bool AntiCacheEvictionManager::evictBlockToDisk(PersistentTable *table, const lo
         } // WHILE
         VOLT_DEBUG("Finished evictable tuple iterator for %s [tuplesEvicted=%d]",
                    table->name().c_str(), num_tuples_evicted);
-
-        std::vector<int> numTuples;
-        numTuples.push_back(num_tuples_evicted);
-        block.writeHeader(numTuples);
-        int64_t bytesWritten = block.getSerializedSize() - initSize;
-        #ifdef VOLT_INFO_ENABLED
-        VOLT_DEBUG("Evicted %d tuples / %d bytes.", num_tuples_evicted, block.getSerializedSize());
-        VOLT_DEBUG("Eviction Time: %.2f sec", timer.elapsed());
-        timer.restart();
-        #endif
-
+        
         // Only write out a bock if there are tuples in it
         if (num_tuples_evicted >= 0) {
-// TODO: make this look like
-//            block.flush();
-//            antiCacheDB->writeBlock(block);
+            std::vector<int> numTuples;
+            numTuples.push_back(num_tuples_evicted);
+            block.writeHeader(numTuples);
+            int64_t bytesWritten = block.getSerializedSize() - initSize;
+            
+            #ifdef VOLT_INFO_ENABLED
+            VOLT_INFO("Evicted %d tuples / %d bytes.", num_tuples_evicted, block.getSerializedSize());
+            VOLT_INFO("Eviction Time: %.2f sec", timer.elapsed());
+            timer.restart();
+            #endif
+            
+            // TODO: make this look like
+            // block.flush();
+            //  antiCacheDB->writeBlock(block);
             antiCacheDB->writeBlock(table->name(),
                                     block_id,
                                     num_tuples_evicted,
@@ -665,6 +663,7 @@ bool AntiCacheEvictionManager::evictBlockToDisk(PersistentTable *table, const lo
             #endif
         } else {
             VOLT_WARN("No tuples were evicted from %s", table->name().c_str());
+            break;
         }
 
     }  // FOR
@@ -1045,24 +1044,28 @@ Table* AntiCacheEvictionManager::evictBlockInBatch(PersistentTable *table, Persi
     return (m_evictResultTable);
 }
 
-Table* AntiCacheEvictionManager::readBlocks(PersistentTable *table, int numBlocks, int16_t blockIds[], int32_t tuple_offsets[]) {
-    
-    VOLT_INFO("Reading %d evicted blocks.", numBlocks);
-
-    for(int i = 0; i < numBlocks; i++)
-        readEvictedBlock(table, blockIds[i], tuple_offsets[i]);
-
-    return (m_readResultTable);
-}
+// Table* AntiCacheEvictionManager::readBlocks(PersistentTable *table, int numBlocks, int16_t blockIds[], int32_t tuple_offsets[]) {
+//     
+//     #ifdef VOLT_INFO_ENABLED
+//     std::ostringstream buffer;
+//     for(int i = 0; i < numBlocks; i++) {
+//         if (i > 0) buffer << ", ";
+//         buffer << blockIds[i];
+//     }
+//     VOLT_INFO("Preparing to read %d evicted blocks: [%s]", numBlocks, buffer.str().c_str());
+//     #endif
+// 
+//     for(int i = 0; i < numBlocks; i++)
+//         readEvictedBlock(table, blockIds[i], tuple_offsets[i]);
+// 
+//     return (m_readResultTable);
+// }
     
 bool AntiCacheEvictionManager::readEvictedBlock(PersistentTable *table, int16_t block_id, int32_t tuple_offset) {
 
     bool already_unevicted = table->isAlreadyUnEvicted(block_id);
-    if(already_unevicted) // this block has already been read
-    {
-        #ifdef VOLT_INFO_ENABLED
-        VOLT_INFO("Block %d has already been read.", block_id);
-        #endif
+    if (already_unevicted) { // this block has already been read
+        VOLT_WARN("Block %d has already been read.", block_id);
         return true;
     }
 
@@ -1072,37 +1075,35 @@ bool AntiCacheEvictionManager::readEvictedBlock(PersistentTable *table, int16_t 
         AntiCacheBlock* value = antiCacheDB->readBlock(table->name(), block_id);
 
         // allocate the memory for this block
-        VOLT_INFO("block size is %ld - table Name %s", value->getSize(), table->name().c_str());
-
-        char* unevicted_tuples = new char[value->getSize()];
-        memcpy(unevicted_tuples, value->getData(), value->getSize());
-        VOLT_INFO("*****************block id ************** %d", block_id);
+       char* unevicted_tuples = new char[value.getSize()];
+        memcpy(unevicted_tuples, value.getData(), value.getSize());
+        VOLT_INFO("***************** READ EVICTED BLOCK %d *****************", block_id);
+        VOLT_INFO("Block Size = %ld / Table = %s", value.getSize(), table->name().c_str());
         ReferenceSerializeInput in(unevicted_tuples, 10485760);
 
-        // Read in all the meta-data
+        // Read in all the block meta-data
         int num_tables = in.readInt();
-        VOLT_INFO("num tables is %d", num_tables);
+        VOLT_DEBUG("num tables is %d", num_tables);
         std::vector<std::string> tableNames;
         std::vector<int> numTuples;
         for(int j = 0; j < num_tables; j++){
             std::string name = in.readTextString();
             tableNames.push_back(name);
-            VOLT_INFO("tableName is %s", name.c_str());
+            VOLT_DEBUG("tableName is %s", name.c_str());
             int tuples = in.readInt();
             numTuples.push_back(tuples);
-            VOLT_INFO("num tuples is %d", tuples);
+            VOLT_DEBUG("num tuples is %d", tuples);
         }
 
         table->insertUnevictedBlock(unevicted_tuples);
-        VOLT_INFO("unevicted blocks size is %d", static_cast<int> (table->unevictedBlocksSize()));
+        VOLT_DEBUG("BLOCK %d - unevicted blocks size is %d",
+                   block_id, static_cast<int>(table->unevictedBlocksSize()));
         table->insertTupleOffset(tuple_offset);
 
     
         table->insertUnevictedBlockID(std::pair<int16_t,int16_t>(block_id, 0));
         delete value;
-    }
-    catch(UnknownBlockAccessException e)
-    {
+    } catch (UnknownBlockAccessException e) {
         throw e;
 
         VOLT_INFO("UnknownBlockAccessException caught.");
@@ -1116,9 +1117,8 @@ bool AntiCacheEvictionManager::readEvictedBlock(PersistentTable *table, int16_t 
 /*
  * Merges the unevicted block into the regular data table
  */
-bool AntiCacheEvictionManager::mergeUnevictedTuples(PersistentTable *table)
-{
-    VOLT_INFO("in merge");
+bool AntiCacheEvictionManager::mergeUnevictedTuples(PersistentTable *table) {
+    VOLT_TRACE("in merge");
     int num_blocks = table->unevictedBlocksSize();
     int32_t num_tuples_in_block = -1;
 
@@ -1126,30 +1126,25 @@ bool AntiCacheEvictionManager::mergeUnevictedTuples(PersistentTable *table)
 //        std::cout << it->first << " => " << it->second << '\n';
 
 
-    if(num_blocks == 0){
-        VOLT_INFO("num blocks was 0!!!!!");
-        return false;
+    if (num_blocks == 0){
+        VOLT_WARN("Trying to merge unevicted blocks for table %s but there aren't any available?",
+                  table->name().c_str());
+        return (false);
     }
 
     int32_t merge_tuple_offset = 0; // this is the offset of tuple that caused this block to be unevicted
 
     DefaultTupleSerializer serializer;
     TableTuple unevictedTuple(table->m_schema);
-
     TableTuple evicted_tuple = table->getEvictedTable()->tempTuple();
-
 
     #ifdef VOLT_INFO_ENABLED
     int active_tuple_count = (int)table->activeTupleCount();
     int tuples_in_eviction_chain = (int)table->getNumTuplesInEvictionChain();
-    #endif
-
-    #ifdef VOLT_INFO_ENABLED
     VOLT_INFO("Merging %d blocks for table %s.", num_blocks, table->name().c_str());
     #endif
 
-    for (int i = 0; i < num_blocks; i++)
-    {
+    for (int i = 0; i < num_blocks; i++) {
         // XXX: have to put block size, which we don't know, so just put something large, like 10MB
         ReferenceSerializeInput in(table->getUnevictedBlocks(i), 10485760);
 
@@ -1245,8 +1240,8 @@ bool AntiCacheEvictionManager::mergeUnevictedTuples(PersistentTable *table)
     //table->clearUnevictedBlocks(i);
     }
 
-VOLT_INFO("unevicted blocks size %d", static_cast<int>(table->unevictedBlocksSize()));
-table->clearUnevictedBlocks();
+    VOLT_DEBUG("unevicted blocks size %d", static_cast<int>(table->unevictedBlocksSize()));
+    table->clearUnevictedBlocks();
     table->clearMergeTupleOffsets();
 
     #ifdef VOLT_INFO_ENABLED
@@ -1262,12 +1257,16 @@ table->clearUnevictedBlocks();
 // -----------------------------------------
 
 void AntiCacheEvictionManager::recordEvictedAccess(catalog::Table* catalogTable, TableTuple *tuple) {
+    // Make sure that this tuple isn't deleted
+    if (tuple->isActive() == false) {
+        throwFatalException("Trying to access evicted tuple from table '%s' that is also marked as deleted",
+                            catalogTable->name().c_str());
+    }
+    
     // Create an evicted tuple from the current tuple address
     // NOTE: This is necessary because the original table tuple and the evicted tuple
     // do not have the same schema
     m_evicted_tuple->move(tuple->address()); 
-    
-    VOLT_DEBUG("Recording evicted tuple access: %s\n", m_evicted_tuple->debug(catalogTable->name()).c_str());
     
     // Determine the block id and tuple offset in the block using the EvictedTable tuple
     int16_t block_id = peeker.peekSmallInt(m_evicted_tuple->getNValue(0));
@@ -1277,7 +1276,10 @@ void AntiCacheEvictionManager::recordEvictedAccess(catalog::Table* catalogTable,
     m_evicted_tables.push_back(catalogTable);
     m_evicted_block_ids.push_back(block_id); 
     m_evicted_offsets.push_back(tuple_id);
-    
+
+    VOLT_DEBUG("Recording evicted tuple access [table=%s / blockId=%d / tupleId=%d]",
+               catalogTable->name().c_str(), block_id, tuple_id);    
+    VOLT_TRACE("Evicted Tuple Acccess: %s", m_evicted_tuple->debug(catalogTable->name()).c_str());
 }
 
 void AntiCacheEvictionManager::throwEvictedAccessException() {
@@ -1295,14 +1297,14 @@ void AntiCacheEvictionManager::throwEvictedAccessException() {
     // copy the block ids into an array 
     int num_blocks = 0; 
     for(vector<int16_t>::iterator itr = m_evicted_block_ids.begin(); itr != m_evicted_block_ids.end(); ++itr) {
-        VOLT_INFO("Marking block %d as being needed for uneviction", *itr); 
+        VOLT_DEBUG("Marking block %d as being needed for uneviction", *itr); 
         block_ids[num_blocks++] = *itr; 
     }
 
     // copy the tuple offsets into an array
     int num_tuples = 0; 
     for(vector<int32_t>::iterator itr = m_evicted_offsets.begin(); itr != m_evicted_offsets.end(); ++itr) {
-        VOLT_INFO("Marking tuple %d from %s as being needed for uneviction", *itr, m_evicted_tables[num_tuples]->name().c_str()); 
+        VOLT_DEBUG("Marking tuple %d from %s as being needed for uneviction", *itr, m_evicted_tables[num_tuples]->name().c_str()); 
         tuple_ids[num_tuples++] = *itr;
     }
     
