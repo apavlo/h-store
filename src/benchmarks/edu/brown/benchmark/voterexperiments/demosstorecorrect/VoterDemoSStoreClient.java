@@ -45,6 +45,7 @@ import weka.classifiers.meta.Vote;
 
 import edu.brown.api.BenchmarkComponent;
 import edu.brown.benchmark.voterdemosstore.procedures.GenerateLeaderboard;
+import edu.brown.benchmark.voterexperiments.demohstorecorrect.VoterDemoHStoreUtil;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 
@@ -85,6 +86,7 @@ public class VoterDemoSStoreClient extends BenchmarkComponent {
     @Override
     public void runLoop() {
         try {
+        	VoterDemoSStoreUtil.clearFiles();
             while (true) {
                 // synchronously call the "Vote" procedure
                 try {

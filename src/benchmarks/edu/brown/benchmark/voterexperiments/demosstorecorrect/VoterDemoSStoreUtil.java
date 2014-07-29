@@ -201,6 +201,14 @@ public abstract class VoterDemoSStoreUtil {
 		}
     }
     
+    public static void clearFiles() throws IOException
+    {
+    	ArrayList<PrintWriter> out = new ArrayList<PrintWriter>();
+    	out.add(new PrintWriter(new BufferedWriter(new FileWriter(VoterDemoSStoreConstants.OUTPUT_FILE, false))));
+    	out.add(new PrintWriter(new BufferedWriter(new FileWriter(VoterDemoSStoreConstants.OVERWRITE_FILE, false))));
+    	closeAllFiles(out);
+    }
+    
     private static void writeToAllFiles(ArrayList<PrintWriter> p, String toWrite)
     {
     	for(int i = 0; i < p.size(); i++)

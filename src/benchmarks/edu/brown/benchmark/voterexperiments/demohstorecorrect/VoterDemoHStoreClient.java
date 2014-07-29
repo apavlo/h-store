@@ -85,6 +85,7 @@ public class VoterDemoHStoreClient extends BenchmarkComponent {
     @Override
     public void runLoop() {
         try {
+        	VoterDemoHStoreUtil.clearFiles();
             while (true) {
                 // synchronously call the "Vote" procedure
                 try {

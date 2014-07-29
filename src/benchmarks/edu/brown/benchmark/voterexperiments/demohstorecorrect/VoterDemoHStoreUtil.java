@@ -41,6 +41,7 @@ import java.util.Random;
 
 import org.voltdb.VoltTable;
 
+import edu.brown.benchmark.voterexperiments.demosstorecorrect.VoterDemoSStoreConstants;
 import edu.brown.rand.RandomDistribution.Zipf;
 
 public abstract class VoterDemoHStoreUtil {
@@ -197,6 +198,14 @@ public abstract class VoterDemoHStoreUtil {
 			System.err.println("InterruptedException");
 			e.printStackTrace(); 
 		}
+    }
+    
+    public static void clearFiles() throws IOException
+    {
+    	ArrayList<PrintWriter> out = new ArrayList<PrintWriter>();
+    	out.add(new PrintWriter(new BufferedWriter(new FileWriter(VoterDemoHStoreConstants.OUTPUT_FILE, false))));
+    	out.add(new PrintWriter(new BufferedWriter(new FileWriter(VoterDemoHStoreConstants.OVERWRITE_FILE, false))));
+    	closeAllFiles(out);
     }
     
     private static void writeToAllFiles(ArrayList<PrintWriter> p, String toWrite)
