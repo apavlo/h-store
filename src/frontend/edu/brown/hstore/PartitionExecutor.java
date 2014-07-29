@@ -109,6 +109,7 @@ import org.voltdb.utils.DBBPool;
 import org.voltdb.utils.DBBPool.BBContainer;
 import org.voltdb.utils.Encoder;
 import org.voltdb.utils.EstTime;
+import org.voltdb.utils.VoltTableUtil;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.RpcCallback;
@@ -1721,20 +1722,19 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         }
 
         // update index stats
-//        final VoltTable[] s2 = ee.getStats(SysProcSelector.INDEX, tableIds, false, time);
-//        if ((s2 != null) && (s2.length > 0)) {
-//            VoltTable stats = s2[0];
-//            assert(stats != null);
-//            LOG.info("INDEX:\n" + VoltTableUtil.format(stats));
-//
-//            // rollup the index memory stats for this site
-////            while (stats.advanceRow()) {
-////                indexMem += stats.getLong(10);
-////            }
-//            stats.resetRowPosition();
-//
-//            // m_indexStats.setStatsTable(stats);
-//        }
+        final VoltTable[] s2 = ee.getStats(SysProcSelector.INDEX, tableIds, false, time);
+        if ((s2 != null) && (s2.length > 0)) {
+            VoltTable stats = s2[0];
+            assert(stats != null);
+            // XXX if (debug.val)
+                LOG.info("INDEX:\n" + VoltTableUtil.format(stats));
+
+            // rollup the index memory stats for this site
+            stats.resetRowPosition();
+            while (stats.advanceRow()) {
+                indexMem += stats.getLong(10);
+            }
+        }
 
         // update the rolled up memory statistics
         MemoryStats memoryStats = hstore_site.getMemoryStatsSource();
