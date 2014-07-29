@@ -109,10 +109,6 @@ public abstract class BikerStreamConstants {
 
     public static final String[] ALL_STOPS = (String[]) ArrayUtils.addAll(STATION_NAMES, DP_NAMES);
 
-
-    public static final String ROUTES_DIR =
-            "src/benchmarks/edu/brown/benchmark/bikerstream/routes";
-
     public static final String[] STATION_LOCATIONS = new String[] {
         "OHSU_South_Waterfront",
         "Waterfront_Park",
