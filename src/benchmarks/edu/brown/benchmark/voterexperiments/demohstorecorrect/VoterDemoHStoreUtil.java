@@ -199,33 +199,53 @@ public abstract class VoterDemoHStoreUtil {
 		}
     }
     
+    private static void writeToAllFiles(ArrayList<PrintWriter> p, String toWrite)
+    {
+    	for(int i = 0; i < p.size(); i++)
+    	{
+    		p.get(i).print(toWrite);
+    	}
+    }
+    
+    private static void closeAllFiles(ArrayList<PrintWriter> p)
+    {
+    	for(int i = 0; i < p.size(); i++)
+    	{
+    		p.get(i).close();
+    	}
+    }
+    
     public static void writeToFile(VoltTable[] v, ArrayList<String> tableNames, int numVotes) throws IOException
     {
-    	PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(VoterDemoHStoreConstants.OUTPUT_FILE, true)));
+    	ArrayList<PrintWriter> out = new ArrayList<PrintWriter>();
+    	out.add(new PrintWriter(new BufferedWriter(new FileWriter(VoterDemoHStoreConstants.OUTPUT_FILE, true))));
+    	out.add(new PrintWriter(new BufferedWriter(new FileWriter(VoterDemoHStoreConstants.OVERWRITE_FILE, false))));
     	if(numVotes == VoterDemoHStoreConstants.DELETE_CODE)
-    		out.println("####DELETECANDIDATE####");
+    	{
+    		writeToAllFiles(out,"####DELETECANDIDATE####\n");
+    	}
     	else
-    		out.println("####" + numVotes + "####");
+    		writeToAllFiles(out,"####" + numVotes + "####\n");
     	
         for(int i = 0; i < v.length; i++)
         {
-        	out.println("**" + tableNames.get(i) + "**");
+        	writeToAllFiles(out,"**" + tableNames.get(i) + "**\n");
         	for(int j = 0; j < v[i].getRowCount(); j++)
         	{
         		for(int k = 0; k < v[i].getColumnCount(); k++)
         		{
         			if(k > 0)
 	        		{
-	        			out.print(",");
+	        			writeToAllFiles(out, ",");
 	        		}
         			
-        			out.print(v[i].fetchRow(j).get(k));
+        			writeToAllFiles(out, (v[i].fetchRow(j).get(k)).toString());
         		}
-        		out.print("\n");
+        		writeToAllFiles(out,"\n");
         	}
-        	out.println("---------------------------");
+        	writeToAllFiles(out,"---------------------------\n");
         }
-        out.close();
+        closeAllFiles(out);
     }
 
 }

@@ -201,33 +201,53 @@ public abstract class VoterDemoSStoreUtil {
 		}
     }
     
+    private static void writeToAllFiles(ArrayList<PrintWriter> p, String toWrite)
+    {
+    	for(int i = 0; i < p.size(); i++)
+    	{
+    		p.get(i).print(toWrite);
+    	}
+    }
+    
+    private static void closeAllFiles(ArrayList<PrintWriter> p)
+    {
+    	for(int i = 0; i < p.size(); i++)
+    	{
+    		p.get(i).close();
+    	}
+    }
+    
     public static void writeToFile(VoltTable[] v, ArrayList<String> tableNames, int numVotes) throws IOException
     {
-    	PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(VoterDemoSStoreConstants.OUTPUT_FILE, true)));
-    	if(numVotes == VoterDemoSStoreConstants.DELETE_CODE)
-    		out.println("####DELETECANDIDATE####");
+    	ArrayList<PrintWriter> out = new ArrayList<PrintWriter>();
+    	out.add(new PrintWriter(new BufferedWriter(new FileWriter(VoterDemoSStoreConstants.OUTPUT_FILE, true))));
+    	out.add(new PrintWriter(new BufferedWriter(new FileWriter(VoterDemoSStoreConstants.OVERWRITE_FILE, false))));
+    	if(numVotes == VoterDemoHStoreConstants.DELETE_CODE)
+    	{
+    		writeToAllFiles(out,"####DELETECANDIDATE####\n");
+    	}
     	else
-    		out.println("####" + numVotes + "####");
+    		writeToAllFiles(out,"####" + numVotes + "####\n");
     	
         for(int i = 0; i < v.length; i++)
         {
-        	out.println("**" + tableNames.get(i) + "**");
+        	writeToAllFiles(out,"**" + tableNames.get(i) + "**\n");
         	for(int j = 0; j < v[i].getRowCount(); j++)
         	{
         		for(int k = 0; k < v[i].getColumnCount(); k++)
         		{
         			if(k > 0)
 	        		{
-	        			out.print(",");
+	        			writeToAllFiles(out, ",");
 	        		}
         			
-        			out.print(v[i].fetchRow(j).get(k));
+        			writeToAllFiles(out, (v[i].fetchRow(j).get(k)).toString());
         		}
-        		out.print("\n");
+        		writeToAllFiles(out,"\n");
         	}
-        	out.println("---------------------------");
+        	writeToAllFiles(out,"---------------------------\n");
         }
-        out.close();
+        closeAllFiles(out);
     }
 
 }

@@ -76,7 +76,7 @@ public class Vote extends VoltProcedure {
     );
     
 	
-public long run(long voteId, long phoneNumber, int contestantNumber, long maxVotesPerPhoneNumber) {
+public long run(long voteId, long phoneNumber, int contestantNumber) {
 		
         // Queue up validation statements
 		voltQueueSQL(checkContestantStmt, contestantNumber);
@@ -90,7 +90,7 @@ public long run(long voteId, long phoneNumber, int contestantNumber, long maxVot
         }
         
         if ((validation[1].getRowCount() == 1) &&
-			(validation[1].fetchRow(0).getLong(0) >= maxVotesPerPhoneNumber)) {
+			(validation[1].fetchRow(0).getLong(0) >= VoterDemoSStoreConstants.MAX_VOTES)) {
             return VoterConstants.ERR_VOTER_OVER_VOTE_LIMIT;
         }
 		

@@ -198,7 +198,8 @@ public class GenerateLeaderboard extends VoltProcedure {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
-        	//VoterDemoSStoreUtil.waitForSignal();
+        	if(VoterDemoSStoreConstants.SOCKET_CONTROL)
+        		VoterDemoSStoreUtil.waitForSignal();
         	/**
         	voltQueueSQL(deleteDemoTopBoard);
         	voltQueueSQL(deleteDemoTrendingBoard);

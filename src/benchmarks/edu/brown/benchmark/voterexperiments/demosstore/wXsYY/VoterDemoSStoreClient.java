@@ -113,8 +113,7 @@ public class VoterDemoSStoreClient extends BenchmarkComponent {
 					response = client.callProcedure(       "Vote",
 					                                        call.voteId,
 					                                        call.phoneNumber,
-					                                        call.contestantNumber,
-					                                        VoterDemoSStoreConstants.MAX_VOTES);
+					                                        call.contestantNumber);
 				
 				incrementTransactionCounter(response, 0);
 		        return true;
@@ -125,6 +124,18 @@ public class VoterDemoSStoreClient extends BenchmarkComponent {
 			e.printStackTrace();
 			return false;
 		}
+    }
+    
+    public boolean runWithTuple(long voteId, long phoneNumber, int contestantNumber ) throws IOException
+    {
+        Client client = this.getClientHandle();
+        Callback callback = new Callback(0);
+        boolean response = client.callProcedure(callback,
+                                                "Vote", 
+                                                voteId,
+                                                phoneNumber,
+                                                contestantNumber);
+        return response;
     }
 
     @Override
