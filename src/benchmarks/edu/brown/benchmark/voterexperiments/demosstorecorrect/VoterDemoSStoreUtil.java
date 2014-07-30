@@ -236,7 +236,7 @@ public abstract class VoterDemoSStoreUtil {
     	ArrayList<PrintWriter> out = new ArrayList<PrintWriter>();
     	out.add(new PrintWriter(new BufferedWriter(new FileWriter(VoterDemoSStoreConstants.OUTPUT_FILE, true))));
     	out.add(new PrintWriter(new BufferedWriter(new FileWriter(VoterDemoSStoreConstants.OVERWRITE_FILE, false))));
-    	if(numVotes == VoterDemoHStoreConstants.DELETE_CODE)
+    	if(numVotes == VoterDemoSStoreConstants.DELETE_CODE)
     	{
     		writeToAllFiles(out,"####DELETECANDIDATE####\n");
     	}

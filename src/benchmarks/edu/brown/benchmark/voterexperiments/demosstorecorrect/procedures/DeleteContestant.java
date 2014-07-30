@@ -49,8 +49,6 @@ import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.types.TimestampType;
 
-import edu.brown.benchmark.voterexperiments.demohstorecorrect.VoterDemoHStoreConstants;
-import edu.brown.benchmark.voterexperiments.demohstorecorrect.VoterDemoHStoreUtil;
 import edu.brown.benchmark.voterexperiments.demosstorecorrect.VoterDemoSStoreConstants;
 import edu.brown.benchmark.voterexperiments.demosstorecorrect.VoterDemoSStoreUtil;
 
@@ -178,7 +176,7 @@ public class DeleteContestant extends VoltProcedure {
 		voltQueueSQL(getTrendingCountStmt);
 		tableNames.add("TrendingCount");
 		VoltTable[] v = voltExecuteSQL();
-		VoterDemoHStoreUtil.writeToFile(v, tableNames, VoterDemoSStoreConstants.DELETE_CODE);
+		VoterDemoSStoreUtil.writeToFile(v, tableNames, VoterDemoSStoreConstants.DELETE_CODE);
 	}
 	
     public long run() {
@@ -210,7 +208,6 @@ public class DeleteContestant extends VoltProcedure {
     	voltQueueSQL(updateDemoWindowCount);
     	*/
         voltExecuteSQL(true);
-        
         try {
 			printResults();
 		} catch (IOException e) {
