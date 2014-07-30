@@ -51,8 +51,6 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
 public class VoterDemoHStoreClient extends BenchmarkComponent {
     private static final Logger LOG = Logger.getLogger(VoterDemoHStoreClient.class);
     private static final LoggerBoolean debug = new LoggerBoolean();
-    private static long lastTime;
-    private static int timestamp;
 
     // Phone number generator
     PhoneCallGenerator switchboard;
@@ -76,9 +74,7 @@ public class VoterDemoHStoreClient extends BenchmarkComponent {
     public VoterDemoHStoreClient(String args[]) {
         super(args);
         int numContestants = VoterDemoHStoreUtil.getScaledNumContestants(this.getScaleFactor());
-        this.switchboard = new PhoneCallGenerator(this.getClientId(), numContestants);
-        lastTime = System.nanoTime();
-        timestamp = 0;
+        this.switchboard = new PhoneCallGenerator(VoterDemoHStoreConstants.VOTE_FILE);
         genLeaderboard = false;
     }
 

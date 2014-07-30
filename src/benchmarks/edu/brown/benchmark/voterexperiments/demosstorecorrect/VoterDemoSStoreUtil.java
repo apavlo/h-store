@@ -155,9 +155,14 @@ public abstract class VoterDemoSStoreUtil {
 			{
 				hostname = VoterDemoSStoreConstants.SERVER_HOST_NAME;
 			}
-			else
+			else if(host.getHostName().startsWith(VoterDemoSStoreConstants.JIANG_SERVER_HOST_NAME) || 
+					host.getHostName().startsWith(VoterDemoSStoreConstants.JIANG_SERVER_HOST_NAME_2))
 			{
 				hostname = VoterDemoSStoreConstants.JIANG_HOST;
+			}
+			else
+			{
+				return;
 			}
 
 			Socket socket = new Socket(hostname, VoterDemoSStoreConstants.SERVER_PORT_NUM);

@@ -12,10 +12,12 @@ import edu.brown.stream.PhoneCallGenerator.PhoneCall;
 public class VoteFileGenerator {
     
     // Initialize some common constants and variables
-    public static final String CONTESTANT_NAMES_CSV = "Edwina Burnam,Tabatha Gehling,Kelly Clauss,Jessie Alloway," +
-                                               "Alana Bregman,Jessie Eichman,Allie Rogalski,Nita Coster," +
-                                               "Kurt Walser,Ericka Dieter,Loraine NygrenTania Mattioli";
-    public static final int NUM_CONTESTANTS = 6; 
+    public static final String CONTESTANT_NAMES_CSV = "Jann Arden,Micah Barnes,Justin Bieber,Jim Bryson,Michael Buble," +
+			"Leonard Cohen,Celine Dion,Nelly Furtado,Adam Gontier,Emily Haines," +
+			"Avril Lavigne,Ashley Leggat,Eileen McGann,Sarah McLachlan,Joni Mitchell," +
+			"Mae Moore,Alanis Morissette,Emilie Mover,Anne Murray,Sam Roberts," +
+			"Serena Ryder,Tamara Sandor,Nicholas Scribner,Shania Twain,Neil Young";
+    public static final int NUM_CONTESTANTS = 25; 
 
     public VoteFileGenerator() {
         // TODO Auto-generated constructor stub

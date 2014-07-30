@@ -30,14 +30,18 @@
 
 package edu.brown.benchmark.voterexperiments.demohstorecorrect;
 
+import java.io.BufferedReader;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.IOException;
+import java.util.LinkedList;
+import java.util.ListIterator;
 import java.util.Random;
 
 public class PhoneCallGenerator {
 	
-    private long nextVoteId;
-	private final int contestantCount;
-    private final Random rand = new Random();
-    private final int[] votingMap = new int[AREA_CODES.length];
+    private LinkedList<PhoneCall> callList;
+    private ListIterator<PhoneCall> callIterator;
 	
 	// Initialize some common constants and variables
     private static final String[] AREA_CODE_STRS = ("907,205,256,334,251,870,501,479" +
@@ -79,52 +83,43 @@ public class PhoneCallGenerator {
         }
     }
 	
-	public PhoneCallGenerator(int clientId, int contestantCount) {
-	    this.nextVoteId = clientId * 10000000l;
-        this.contestantCount = contestantCount;
-		
-        // This is a just a small fudge to make the geographical voting map more interesting for the benchmark!
-        for(int i = 0; i < votingMap.length; i++) {
-            votingMap[i] = 1;
-            if (rand.nextInt(100) >= 30) {
-                votingMap[i] = (int) (Math.abs(Math.sin(i)* contestantCount) % contestantCount) + 1;
-            }
-        }
+	public PhoneCallGenerator(String filename) {
+		callList = new LinkedList<PhoneCall>();
+	    BufferedReader reader;
+		try {
+			reader = new BufferedReader(new FileReader(filename));
+		    String line = null;
+		    
+		    while((line = reader.readLine()) != null)
+		    {
+		    	String[] split = line.split(" ");
+		    	callList.add(new PhoneCall(new Long(split[0]), new Integer(split[2]), new Long(split[1])));
+		    }
+		    reader.close();
+		    callIterator = callList.listIterator();
+		}
+	    catch (FileNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			System.exit(0);
+		} catch (NumberFormatException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			System.exit(0);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			System.exit(0);
+		}
     }
 	
-	/**
-     * Receives/generates a simulated voting call
-     * @return Call details (calling number and contestant to whom the vote is given)
-     */
+    
     public PhoneCall receive()
     {
-        // For the purpose of a benchmark, issue random voting activity
-        // (including invalid votes to demonstrate transaction validationg in the database)
-		
-        // Pick a random area code for the originating phone call
-        int areaCodeIndex = rand.nextInt(AREA_CODES.length);
-        //int areaCodeIndex = 0;
-		
-        // Pick a contestant number
-        int contestantNumber = votingMap[areaCodeIndex];
-        if (rand.nextBoolean()) {
-            contestantNumber = rand.nextInt(contestantCount) + 1;
-        }
-		
-        //  introduce an invalid contestant every 100 call or so to simulate fraud
-        //  and invalid entries (something the transaction validates against)
-        if (rand.nextInt(100) == 0) {
-            contestantNumber = 999;
-        }
-		
-        // Build the phone number
-        long phoneNumber = AREA_CODES[areaCodeIndex] * 10000000L + rand.nextInt(10000000);
-        //long phoneNumber = AREA_CODES[areaCodeIndex] * 10000000L + 9999999;
-		
-        // This needs to be globally unique
-        
+        if(!callIterator.hasNext())
+        	callIterator = callList.listIterator();
         // Return the generated phone number
-        return new PhoneCall(this.nextVoteId++, contestantNumber, phoneNumber);
+        return callIterator.next();
     }
 
 }
