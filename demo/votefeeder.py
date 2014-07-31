@@ -1,20 +1,18 @@
+import Queue
 import socket
 import sys
 import time
-import Queue
-from threading import Semaphore 
+from threading import Semaphore
 from thread import *
 
 hready = False
 sready = False
 
 HOST = ''
-PORT = 9000
 HSTORE_PORT = 9001
 SSTORE_PORT = 9002
 FILE = "votes-random-50000.txt"
 
-s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 h_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 s_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 h_lock = Semaphore(1)
@@ -24,19 +22,28 @@ s_votes = Queue.Queue()
 print 'Socket created'
 
 try:
-	s.bind((HOST,PORT))
 	h_socket.bind((HOST,HSTORE_PORT))
 	s_socket.bind((HOST,SSTORE_PORT))
 except:
-	print 'Bind failed.'
+	print 'Bind failed. Error Code : ' + str(msg[0]) + ' Message ' + msg[1]
 	sys.exit()
 
 print 'Socket bind complete'
 
-s.listen(2)
 h_socket.listen(10)
 s_socket.listen(10)
 print 'Socket now listening'
+
+def clientthread(conn):
+	global lock
+	global votes
+	while True:
+		data = conn.recv(1024)
+		lock.acquire()
+		conn.sendall(votes.get())
+		lock.release()
+	
+	conn.close()
 
 def getvotes(filename):
 	f = open(filename, 'r')
@@ -74,32 +81,12 @@ def sthread():
 		start_new_thread(popvotes, (conn,s_votes,s_lock))
 	s_socket.close()
 
-def bothConnected(conn, conn2):
-	data = conn.recv(1024)
-	data2 = conn2.recv(1024)
-
-	if (data == "h-store ready" and data2 == "s-store ready") or (data2 == "h-store ready" and data == "s-store ready"):
-		print "READY"
-		conn.sendall("READY\n")
-		conn2.sendall("READY\n")
-	else:
-		print "ERROR: Unexpected message."
-	
-	conn.close()
-	conn2.close()
-
 getvotes(FILE)
 start_new_thread(hthread, ())
 start_new_thread(sthread, ())
-while True:
-	conn, addr = s.accept()
-	print 'Connected with ' + addr[0] + ':' + str(addr[1])
-	conn2, addr = s.accept()
-	print 'Connected with ' + addr[0] + ':' + str(addr[1])
-	bothConnected(conn, conn2)
-	#start_new_thread(clientthread, (conn,))
 
-s.close()
+while True:
+	time.sleep(1)
 
 
 
