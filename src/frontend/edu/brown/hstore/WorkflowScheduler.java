@@ -140,12 +140,17 @@ public class WorkflowScheduler {
     public void addSPStartStatus(Long workflowid, String txn)
     {
         this.addSPStatus(workflowid, txn, "started");
+        LOG.debug("WORKFLOW started: " + workflowid + " " + txn);
     }
     
     public void addSPEndStatus(Long workflowid, String txn)
     {
         if(workflowid != -1l)
+        {
             this.addSPStatus(workflowid, txn, "ended");
+            LOG.debug("WORKFLOW ended: " + workflowid + " " + txn);
+        }
+        LOG.debug("WORKFLOW should end, but workflowid was -1: " + workflowid + " " + txn);
     }
     
     private synchronized void addSPStatus(Long workflowid, String txn, String status)
