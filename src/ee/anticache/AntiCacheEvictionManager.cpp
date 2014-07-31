@@ -524,6 +524,9 @@ bool AntiCacheEvictionManager::evictBlockToDisk(PersistentTable *table, const lo
               evictedTable->name().c_str(), evictedTable->schema()->debug().c_str());
 
     // get the AntiCacheDB instance from the executorContext
+    // For now use the single AntiCacheDB from PersistentTable but in the future, this 
+    // method to get the AntiCacheDB will have to choose which AntiCacheDB from to
+    // evict to
     AntiCacheDB* antiCacheDB = table->getAntiCacheDB();
     int tuple_length = -1;
     bool needs_flush = false;
@@ -636,6 +639,12 @@ bool AntiCacheEvictionManager::evictBlockToDisk(PersistentTable *table, const lo
                                     block.getSerializedData(),
                                     block.getSerializedSize());
             needs_flush = true;
+
+            // store pointer to AntiCacheDB associated with this block
+            m_db_lookup_table.insert(std::pair<uint16_t, AntiCacheDB*>(block_id, antiCacheDB));
+            // TODO MJG: Do we have to check that insert is valid? Is it better
+            // check the return value of the insert or check the map for the
+            // block_id already being there? 
 
             // Update Stats
             m_tuplesEvicted += num_tuples_evicted;
@@ -1069,7 +1078,22 @@ bool AntiCacheEvictionManager::readEvictedBlock(PersistentTable *table, int16_t 
         return true;
     }
 
-    AntiCacheDB* antiCacheDB = table->getAntiCacheDB();
+    /*
+     * Finds the AntiCacheDB* instance associated with the needed block_id
+     */
+
+    AntiCacheDB* antiCacheDB;
+
+    std::map<int16_t, AntiCacheDB*>::iterator it = m_db_lookup_table.find(block_id);
+    if (it == m_db_lookup_table.end()) {
+        VOLT_WARN("Block %d not found in db_lookup_table.", it->first);
+        return false;
+    } else {
+        VOLT_DEBUG("Found block %d in db_lookup_table.", it->first);
+        antiCacheDB = it->second;
+    }
+
+    //AntiCacheDB* antiCacheDB = table->getAntiCacheDB();
 
     try {
         AntiCacheBlock* value = antiCacheDB->readBlock(table->name(), block_id);
