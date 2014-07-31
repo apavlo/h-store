@@ -37,6 +37,7 @@ vector<string> TableStats::generateTableStatsColumnNames() {
     columnNames.push_back("TUPLE_ALLOCATED_MEMORY");
     columnNames.push_back("TUPLE_DATA_MEMORY");
     columnNames.push_back("STRING_DATA_MEMORY");
+    columnNames.push_back("INDEX_MEMORY");
     
     #ifdef ANTICACHE
     // ACTIVE
@@ -67,6 +68,7 @@ void TableStats::populateTableStatsSchema(
     types.push_back(VALUE_TYPE_VARCHAR); columnLengths.push_back(4096); allowNull.push_back(false);
     types.push_back(VALUE_TYPE_BIGINT); columnLengths.push_back(NValue::getTupleStorageSize(VALUE_TYPE_BIGINT)); allowNull.push_back(false);
     types.push_back(VALUE_TYPE_BIGINT); columnLengths.push_back(NValue::getTupleStorageSize(VALUE_TYPE_BIGINT)); allowNull.push_back(false);
+    types.push_back(VALUE_TYPE_INTEGER); columnLengths.push_back(NValue::getTupleStorageSize(VALUE_TYPE_INTEGER)); allowNull.push_back(false);
     types.push_back(VALUE_TYPE_INTEGER); columnLengths.push_back(NValue::getTupleStorageSize(VALUE_TYPE_INTEGER)); allowNull.push_back(false);
     types.push_back(VALUE_TYPE_INTEGER); columnLengths.push_back(NValue::getTupleStorageSize(VALUE_TYPE_INTEGER)); allowNull.push_back(false);
     types.push_back(VALUE_TYPE_INTEGER); columnLengths.push_back(NValue::getTupleStorageSize(VALUE_TYPE_INTEGER)); allowNull.push_back(false);
@@ -151,7 +153,7 @@ TableStats::generateEmptyTableStatsTable()
 TableStats::TableStats(Table* table)
     : StatsSource(), m_table(table), m_lastTupleCount(0), m_lastTupleAccessCount(0),
       m_lastAllocatedTupleMemory(0), m_lastOccupiedTupleMemory(0),
-      m_lastStringDataMemory(0)
+      m_lastStringDataMemory(0), m_lastIndexMemory(0)
 {
     #ifdef ANTICACHE
     m_lastTuplesEvicted = 0;
@@ -211,7 +213,16 @@ void TableStats::updateStatsTuple(TableTuple *tuple) {
     int64_t allocated_tuple_mem_kb = m_table->allocatedTupleMemory() / 1024;
     int64_t occupied_tuple_mem_kb = m_table->occupiedTupleMemory() / 1024;
     int64_t string_data_mem_kb = m_table->nonInlinedMemorySize() / 1024;
-    
+
+    int64_t index_mem = 0;
+    int64_t index_mem_kb;
+    std::vector<TableIndex*> indexes = m_table->allIndexes();
+    int32_t indexCount = m_table->indexCount();
+    for (int i = 0; i < indexCount; ++i)
+        index_mem += indexes[i]->getMemoryEstimate();
+
+    index_mem_kb = index_mem / 1024;
+
     #ifdef ANTICACHE
     int32_t tuplesEvicted = m_table->getTuplesEvicted();
     int32_t blocksEvicted = m_table->getBlocksEvicted();
@@ -242,6 +253,9 @@ void TableStats::updateStatsTuple(TableTuple *tuple) {
         string_data_mem_kb =
             string_data_mem_kb - (m_lastStringDataMemory / 1024);
         m_lastStringDataMemory = m_table->nonInlinedMemorySize();
+        index_mem_kb =
+            index_mem_kb - m_lastIndexMemory / 1024;
+        m_lastIndexMemory = index_mem;
         
         #ifdef ANTICACHE
         
@@ -289,6 +303,10 @@ void TableStats::updateStatsTuple(TableTuple *tuple) {
     {
         occupied_tuple_mem_kb = -1;
     }
+    if (index_mem_kb > INT32_MAX)
+    {
+        index_mem_kb = -1;
+    }
 
     tuple->setNValue(
             StatsSource::m_columnName2Index["TUPLE_COUNT"],
@@ -306,6 +324,9 @@ void TableStats::updateStatsTuple(TableTuple *tuple) {
     tuple->setNValue( StatsSource::m_columnName2Index["STRING_DATA_MEMORY"],
                       ValueFactory::
                       getIntegerValue(static_cast<int32_t>(string_data_mem_kb)));
+    tuple->setNValue( StatsSource::m_columnName2Index["INDEX_MEMORY"],
+                      ValueFactory::
+                      getIntegerValue(static_cast<int32_t>(index_mem_kb)));
     
     #ifdef ANTICACHE
     tuple->setNValue( StatsSource::m_columnName2Index["ANTICACHE_TUPLES_EVICTED"],

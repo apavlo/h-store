@@ -1726,7 +1726,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         if ((s2 != null) && (s2.length > 0)) {
             VoltTable stats = s2[0];
             assert(stats != null);
-            // XXX if (debug.val)
+            if (debug.val)
                 LOG.info("INDEX:\n" + VoltTableUtil.format(stats));
 
             // rollup the index memory stats for this site
@@ -1738,7 +1738,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
 
         // update the rolled up memory statistics
         MemoryStats memoryStats = hstore_site.getMemoryStatsSource();
-        memoryStats.eeUpdateMemStats(this.siteId,
+        memoryStats.eeUpdateMemStats(this.partitionId,
                                      tupleCount,
                                      tupleDataMem,
                                      tupleAllocatedMem,

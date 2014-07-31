@@ -479,7 +479,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
          */
         return  totalEvictableSizeKb >= (hstore_conf.site.anticache_block_size / 1024) &&
                 this.pendingEvictions == 0 &&
-                totalActiveDataSize > hstore_conf.site.anticache_threshold_mb &&
+                totalDataSize > hstore_conf.site.anticache_threshold_mb &&
 //                totalEvictedMB < (totalDataSize * hstore_conf.site.anticache_threshold) &&
                 totalBlocksEvicted < hstore_conf.site.anticache_max_evicted_blocks;
     }
@@ -875,15 +875,25 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
             // long oldSizeKb = stats.sizeKb;
             stats.reset();
 
+            //int tupleMem = 0;
+            //int stringMem = 0;
+            //int indexMem = 0;
+
             do {
                 String table = vt.getString("TABLE_NAME");
-                long sizeKb = vt.getLong("TUPLE_DATA_MEMORY") + vt.getLong("STRING_DATA_MEMORY");
+                long sizeKb = vt.getLong("TUPLE_DATA_MEMORY") + vt.getLong("STRING_DATA_MEMORY") + vt.getLong("INDEX_MEMORY");
+                //tupleMem += vt.getLong("TUPLE_DATA_MEMORY");
+                //stringMem += vt.getLong("STRING_DATA_MEMORY");
+                //indexMem += vt.getLong("INDEX_MEMORY");
                 long blocksEvicted = vt.getLong("ANTICACHE_BLOCKS_EVICTED");
                 long blocksFetched = vt.getLong("ANTICACHE_BLOCKS_READ");
                 long blocksWritten = vt.getLong("ANTICACHE_BLOCKS_WRITTEN");
                 long accesses = vt.getLong("TUPLE_ACCESSES");
                 stats.update(table, sizeKb, blocksEvicted, blocksFetched, blocksWritten, accesses);
             } while(vt.advanceRow());
+
+            //LOG.info(String.format("Tuple Mem: %d; String Mem: %d\n", tupleMem, stringMem));
+            //LOG.info(String.format("Index Mem: %d\n", indexMem));
 
 //            LOG.warn(String.format("Partition #%d Size - New:%dkb / Old:%dkb",
 //                    partition, stats.sizeKb, oldSizeKb));

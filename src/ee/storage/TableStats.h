@@ -111,6 +111,7 @@ private:
     int64_t m_lastAllocatedTupleMemory;
     int64_t m_lastOccupiedTupleMemory;
     int64_t m_lastStringDataMemory;
+    int64_t m_lastIndexMemory;
     
     #ifdef ANTICACHE
     // ACTIVE
