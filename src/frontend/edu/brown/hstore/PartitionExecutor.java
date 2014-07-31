@@ -1695,45 +1695,31 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             // rollup the table memory stats for this site
             while (stats.advanceRow()) {
                 int idx = 7;
-                tupleCount += stats.getLong(idx++);
-                tupleAccessCount += stats.getLong(idx++);
-                tupleAllocatedMem += (int) stats.getLong(idx++);
-                tupleDataMem += (int) stats.getLong(idx++);
-                stringMem += (int) stats.getLong(idx++);
+                tupleCount += stats.getLong("TUPLE_COUNT");
+                tupleAccessCount += stats.getLong("TUPLE_ACCESSES");
+                tupleAllocatedMem += (int) stats.getLong("TUPLE_ALLOCATED_MEMORY");
+                tupleDataMem += (int) stats.getLong("TUPLE_DATA_MEMORY");
+                stringMem += (int) stats.getLong("STRING_DATA_MEMORY");
+                indexMem += (int) stats.getLong("INDEX_MEMORY");
                 
                 // ACTIVE
                 if (hstore_conf.site.anticache_enable) {
-                    tuplesEvicted += (long) stats.getLong(idx++);
-                    blocksEvicted += (long) stats.getLong(idx++);
-                    bytesEvicted += (long) stats.getLong(idx++);
+                    tuplesEvicted += (long) stats.getLong("ANTICACHE_TUPLES_EVICTED");
+                    blocksEvicted += (long) stats.getLong("ANTICACHE_BLOCKS_EVICTED");
+                    bytesEvicted += (long) stats.getLong("ANTICACHE_BYTES_EVICTED");
                 
                     // GLOBAL WRITTEN
-                    tuplesWritten += (long) stats.getLong(idx++);
-                    blocksWritten += (long) stats.getLong(idx++);
-                    bytesWritten += (long) stats.getLong(idx++);
+                    tuplesWritten += (long) stats.getLong("ANTICACHE_TUPLES_WRITTEN");
+                    blocksWritten += (long) stats.getLong("ANTICACHE_BLOCKS_WRITTEN");
+                    bytesWritten += (long) stats.getLong("ANTICACHE_BYTES_WRITTEN");
                     
                     // GLOBAL READ
-                    tuplesRead += (long) stats.getLong(idx++);
-                    blocksRead += (long) stats.getLong(idx++);
-                    bytesRead += (long) stats.getLong(idx++);
+                    tuplesRead += (long) stats.getLong("ANTICACHE_TUPLES_READ");
+                    blocksRead += (long) stats.getLong("ANTICACHE_BLOCKS_READ");
+                    bytesRead += (long) stats.getLong("ANTICACHE_BYTES_READ");
                 }
             }
             stats.resetRowPosition();
-        }
-
-        // update index stats
-        final VoltTable[] s2 = ee.getStats(SysProcSelector.INDEX, tableIds, false, time);
-        if ((s2 != null) && (s2.length > 0)) {
-            VoltTable stats = s2[0];
-            assert(stats != null);
-            if (debug.val)
-                LOG.info("INDEX:\n" + VoltTableUtil.format(stats));
-
-            // rollup the index memory stats for this site
-            stats.resetRowPosition();
-            while (stats.advanceRow()) {
-                indexMem += stats.getLong(10);
-            }
         }
 
         // update the rolled up memory statistics
