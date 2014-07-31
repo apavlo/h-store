@@ -53,6 +53,7 @@ public abstract class VoterDemoSStoreConstants {
 	public static final String JIANG_SERVER_HOST_NAME_2 = "istc7";
 	public static final String JIANG_HOST = "istc7";
 	public static final int SERVER_PORT_NUM = 9000;
+	public static final int VOTE_PORT_NUM = 9002;
 
 	// Initialize some common constants and variables
     public static final String CONTESTANT_NAMES_CSV = "Jann Arden,Micah Barnes,Justin Bieber,Jim Bryson,Michael Buble," +

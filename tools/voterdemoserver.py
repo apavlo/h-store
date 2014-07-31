@@ -8,12 +8,23 @@ sready = False
 
 HOST = ''
 PORT = 9000
+HSTORE_PORT = 9001
+SSTORE_PORT = 9002
+FILE = "votes-random-50000.txt"
 
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+h_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+s_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+h_lock = Semaphore(1)
+s_lock = Semaphore(1)
+h_votes = Queue.Queue()
+s_votes = Queue.Queue()
 print 'Socket created'
 
 try:
 	s.bind((HOST,PORT))
+	h_socket.bind((HOST,HSTORE_PORT))
+	s_socket.bind((HOST,SSTORE_PORT))
 except:
 	print 'Bind failed. Error Code : ' + str(msg[0]) + ' Message ' + msg[1]
 	sys.exit()
@@ -21,40 +32,45 @@ except:
 print 'Socket bind complete'
 
 s.listen(2)
+h_socket.listen(10)
+s_socket.listen(10)
 print 'Socket now listening'
 
-def clientthread(conn):
-	data = conn.recv(1024)
-	global hready
-	global sready
-	print "data: ", data
-	if not data:
-		print "NO DATA"
-		return
-	if data == "h-store ready":
-		hready = True
-		print "H-STORE READY!!!"
-		while not sready:
-			#print "h thread: s ready? ", sready
-			time.sleep(0.1)
+def getvotes(filename):
+	f = open(filename, 'r')
+	global h_votes
+	global s_votes
+	for line in f:
+		h_votes.put(line)
+		s_votes.put(line)
+	f.close()
 
-	elif data == "s-store ready":
-		sready = True
-		print "S-STORE READY!!!"
-		while not hready:
-			#print "s thread: h ready? ", hready
-			time.sleep(0.1)
-		
-	else:
-		print "ERROR: data unknown - ", data
-		return
-
-	print "BOTH READY"
-	conn.sendall("READY\n")
-	hready = False
-	sready = False
-
+def popvotes(conn, votes, lock):
+	while True:
+		data = conn.recv(1024)
+		lock.acquire()
+		conn.sendall(votes.get())
+		lock.release()
+	
 	conn.close()
+
+def hthread():
+	global h_votes
+	global h_socket
+	while True:
+		conn, addr = h_socket.accept()
+		print 'H-Store Votes connected with ' + addr[0] + ':' + str(addr[1])
+		start_new_thread(popvotes, (conn,h_votes,h_lock))
+	h_socket.close()
+
+def sthread():
+	global s_votes
+	global s_socket
+	while True:
+		conn, addr = s_socket.accept()
+		print 'S-Store Votes connected with ' + addr[0] + ':' + str(addr[1])
+		start_new_thread(popvotes, (conn,s_votes,s_lock))
+	s_socket.close()
 
 def bothConnected(conn, conn2):
 	data = conn.recv(1024)
@@ -70,7 +86,9 @@ def bothConnected(conn, conn2):
 	conn.close()
 	conn2.close()
 
-
+getvotes(FILE)
+start_new_thread(hthread, ())
+start_new_thread(sthread, ())
 while True:
 	conn, addr = s.accept()
 	print 'Connected with ' + addr[0] + ':' + str(addr[1])

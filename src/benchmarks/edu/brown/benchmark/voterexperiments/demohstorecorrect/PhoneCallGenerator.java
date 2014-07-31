@@ -34,6 +34,11 @@ import java.io.BufferedReader;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
+import java.net.InetAddress;
+import java.net.Socket;
+import java.net.UnknownHostException;
 import java.util.LinkedList;
 import java.util.ListIterator;
 import java.util.Random;
@@ -42,6 +47,9 @@ public class PhoneCallGenerator {
 	
     private LinkedList<PhoneCall> callList;
     private ListIterator<PhoneCall> callIterator;
+    Socket socket;
+    BufferedReader in;
+    PrintWriter out;
 	
 	// Initialize some common constants and variables
     private static final String[] AREA_CODE_STRS = ("907,205,256,334,251,870,501,479" +
@@ -82,7 +90,7 @@ public class PhoneCallGenerator {
             this.phoneNumber = phoneNumber;
         }
     }
-	
+	/**
 	public PhoneCallGenerator(String filename) {
 		callList = new LinkedList<PhoneCall>();
 	    BufferedReader reader;
@@ -112,7 +120,6 @@ public class PhoneCallGenerator {
 			System.exit(0);
 		}
     }
-	
     
     public PhoneCall receive()
     {
@@ -121,5 +128,61 @@ public class PhoneCallGenerator {
         // Return the generated phone number
         return callIterator.next();
     }
+    */
+	
+	public PhoneCallGenerator() {
+		try {
+			InetAddress host = InetAddress.getLocalHost();
+			String hostname;
+			
+			
+			if(host.getHostName().startsWith(VoterDemoHStoreConstants.HOST_PREFIX) || 
+					host.getHostName().startsWith(VoterDemoHStoreConstants.HOST_PREFIX_2))
+			{
+				hostname = VoterDemoHStoreConstants.SERVER_HOST_NAME;
+			}
+			else if(host.getHostName().startsWith(VoterDemoHStoreConstants.JIANG_SERVER_HOST_NAME) || 
+					host.getHostName().startsWith(VoterDemoHStoreConstants.JIANG_SERVER_HOST_NAME_2))
+			{
+				hostname = VoterDemoHStoreConstants.JIANG_HOST;
+			}
+			else
+			{
+				hostname = "localhost";
+			}
+
+			socket = new Socket(hostname, VoterDemoHStoreConstants.VOTE_PORT_NUM);
+			in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+			out = new PrintWriter(socket.getOutputStream());
+			//ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream());
+		}
+		catch (UnknownHostException e){
+			System.err.println("UnknownHostException");
+			e.printStackTrace();
+		}
+		catch (IOException e) {
+			System.err.println("IOException");
+			e.printStackTrace();
+		}
+    }
+	
+	public PhoneCall receive()
+	{
+		try {
+			String[] response;
+			out.print("next vote");
+			out.flush();
+		
+			response = in.readLine().split(" ");
+		
+			return new PhoneCall(new Long(response[0]), new Integer(response[2]), new Long(response[1]));
+		} 
+		catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			System.exit(0);
+			return null;
+		}
+	}
 
 }

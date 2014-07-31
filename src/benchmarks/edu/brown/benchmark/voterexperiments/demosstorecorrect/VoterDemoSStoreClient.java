@@ -78,7 +78,8 @@ public class VoterDemoSStoreClient extends BenchmarkComponent {
     public VoterDemoSStoreClient(String args[]) {
         super(args);
         int numContestants = VoterDemoSStoreUtil.getScaledNumContestants(this.getScaleFactor());
-        this.switchboard = new PhoneCallGenerator(VoterDemoSStoreConstants.VOTE_FILE);
+//        this.switchboard = new PhoneCallGenerator(VoterDemoSStoreConstants.VOTE_FILE);
+        this.switchboard = new PhoneCallGenerator();
         lastTime = System.nanoTime();
         timestamp = 0;
         genLeaderboard = false;
