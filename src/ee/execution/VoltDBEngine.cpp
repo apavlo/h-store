@@ -1951,6 +1951,15 @@ int VoltDBEngine::antiCacheReadBlocks(int32_t tableId, int numBlocks, int16_t bl
         throwFatalException("Invalid table id %d", tableId);
     }
 
+    #ifdef VOLT_INFO_ENABLED
+    std::ostringstream buffer;
+    for(int i = 0; i < numBlocks; i++) {
+        if (i > 0) buffer << ", ";
+        buffer << blockIds[i];
+    }
+    VOLT_INFO("Preparing to read %d evicted blocks: [%s]", numBlocks, buffer.str().c_str());
+    #endif
+    
     // We can now ask it directly to read in the evicted blocks that they want
     bool finalResult = true;
     AntiCacheEvictionManager* eviction_manager = m_executorContext->getAntiCacheEvictionManager();
@@ -1960,8 +1969,8 @@ int VoltDBEngine::antiCacheReadBlocks(int32_t tableId, int numBlocks, int16_t bl
         } // FOR
 
     } catch (SerializableEEException &e) {
-        VOLT_INFO("antiCacheReadBlocks: Failed to read %d evicted blocks for table '%s'",
-                numBlocks, table->name().c_str());
+        VOLT_ERROR("antiCacheReadBlocks: Failed to read %d evicted blocks for table '%s'\n%s",
+                   numBlocks, table->name().c_str(), e.message().c_str());
         // FIXME: This won't work if we execute are executing this operation the
         //        same time that txns are running
         resetReusedResultOutputBuffer();

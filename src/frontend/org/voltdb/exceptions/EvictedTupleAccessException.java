@@ -31,16 +31,16 @@ public class EvictedTupleAccessException extends SerializableException {
         
         this.table_id = buffer.getInt();
         final int num_blocks = buffer.getShort();
-        assert(num_blocks > 0);
+        assert(num_blocks > 0) :
+            "Unexpected non-negative block count '" + num_blocks + "'";
         this.block_ids = new short[num_blocks];
         this.tuple_offsets = new int[num_blocks];
         for (int i = 0; i < this.block_ids.length; i++) {
             this.block_ids[i] = buffer.getShort();
         } // FOR
-        
-        for(int i = 0; i < this.tuple_offsets.length; i++) {
+        for (int i = 0; i < this.tuple_offsets.length; i++) {
             this.tuple_offsets[i] = buffer.getInt();
-        }
+        } // FOR
         this.partition_id = buffer.getInt();
     }
 
@@ -70,7 +70,10 @@ public class EvictedTupleAccessException extends SerializableException {
     	return this.partition_id;
     }
     public void setPartitionId(int partition_id) {
-        assert(this.partition_id == HStoreConstants.NULL_PARTITION_ID);
+        assert(this.partition_id == HStoreConstants.NULL_PARTITION_ID) :
+            String.format("Trying to set %s.partition_id more than once [orig=%d / new=%d]",
+                          EvictedTupleAccessException.class.getName(),
+                          this.partition_id, partition_id);
         this.partition_id = partition_id;
     }
 

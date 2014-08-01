@@ -61,12 +61,11 @@ AntiCacheBlock::AntiCacheBlock(int16_t blockId, Dbt value) {
     p.size = size;
     m_size = size;
     m_payload = p;
-    VOLT_INFO("size of anticache block data %ld in read", m_payload.size);
-    VOLT_INFO("size of anticache block data %ld in read", m_size);
-    VOLT_INFO("data in anticache block data %s in read", m_payload.data);
     m_block = m_payload.data;
-    VOLT_INFO("data from getBlock %s", getData());
     m_blockId = blockId;
+    
+    VOLT_DEBUG("AntiCachBlock #%d [size=%ld / payload=%ld]",
+              blockId, m_size, m_payload.size);
   }
 
 AntiCacheBlock::AntiCacheBlock(int16_t blockId, char* block, long size) {
@@ -154,8 +153,7 @@ void AntiCacheDB::initializeNVM() {
     VOLT_INFO("Creating nvm file: %s", nvm_file_name); 
     nvm_file = fopen(nvm_file_name, "w"); 
 
-    if(nvm_file == NULL)
-    {
+    if(nvm_file == NULL) {
         VOLT_ERROR("Anti-Cache initialization error."); 
         VOLT_ERROR("Failed to open PMFS file %s: %s.", nvm_file_name, strerror(errno));
         throwFatalException("Failed to initialize anti-cache PMFS file in directory %s.", m_dbDir.c_str());

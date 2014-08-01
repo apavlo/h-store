@@ -324,7 +324,7 @@ bool PersistentTable::isAlreadyUnEvicted(int16_t blockId)
 
 void PersistentTable::insertUnevictedBlockID(std::pair<int16_t,int16_t> pair)
 {
-    VOLT_INFO("pair is %d", pair.first);
+    VOLT_TRACE("pair is %d", pair.first);
     m_unevictedBlockIDs.insert(pair);
 }
 
@@ -912,7 +912,7 @@ void PersistentTable::deleteFromAllIndexes(TableTuple *tuple) {
 void PersistentTable::updateFromAllIndexes(TableTuple &targetTuple, const TableTuple &sourceTuple) {
     for (int i = m_indexCount - 1; i >= 0;--i) {
         if (!m_indexes[i]->replaceEntry(&targetTuple, &sourceTuple)) {
-            VOLT_INFO("Failed to update indexes"); 
+            VOLT_ERROR("Failed to update indexes"); 
             throwFatalException("Failed to update tuple in index");
         }
     }
@@ -920,11 +920,11 @@ void PersistentTable::updateFromAllIndexes(TableTuple &targetTuple, const TableT
 
 void PersistentTable::setEntryToNewAddressForAllIndexes(const TableTuple *tuple, const void* address) {
     for (int i = m_indexCount - 1; i >= 0; --i) {
-        VOLT_INFO("Updating tuple address in index %s.%s [%s]",
-                name().c_str(), m_indexes[i]->getName().c_str(), m_indexes[i]->getTypeName().c_str());
-        VOLT_INFO("address is %p", address);
+        VOLT_DEBUG("Updating tuple address in index %s.%s [%s]",
+                   name().c_str(), m_indexes[i]->getName().c_str(), m_indexes[i]->getTypeName().c_str());
+        VOLT_TRACE("address is %p", address);
         if (!m_indexes[i]->setEntryToNewAddress(tuple, address)) {
-            VOLT_INFO("ERROR: Failed to update tuple to new address!");
+            VOLT_ERROR("ERROR: Failed to update tuple to new address!");
             throwFatalException("Failed to update tuple to new address in index %s.%s [%s]",
                     name().c_str(), m_indexes[i]->getName().c_str(),
                     m_indexes[i]->getTypeName().c_str());
@@ -935,9 +935,9 @@ void PersistentTable::setEntryToNewAddressForAllIndexes(const TableTuple *tuple,
 bool PersistentTable::tryInsertOnAllIndexes(TableTuple *tuple) {
     for (int i = m_indexCount - 1; i >= 0; --i) {
         FAIL_IF(!m_indexes[i]->addEntry(tuple)) {
-            VOLT_DEBUG("Failed to insert into index %s.%s [%s]",
-                    name().c_str(), m_indexes[i]->getName().c_str(),
-                    m_indexes[i]->getTypeName().c_str());
+            VOLT_ERROR("Failed to insert into index %s.%s [%s]",
+                       name().c_str(), m_indexes[i]->getName().c_str(),
+                       m_indexes[i]->getTypeName().c_str());
             for (int j = i + 1; j < m_indexCount; ++j) {
                 m_indexes[j]->deleteEntry(tuple);
             }
