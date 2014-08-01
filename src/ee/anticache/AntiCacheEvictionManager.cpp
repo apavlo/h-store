@@ -622,6 +622,7 @@ bool AntiCacheEvictionManager::evictBlockToDisk(PersistentTable *table, const lo
             block.addTuple(tuple);
 
             // At this point it's safe for us to delete this mofo
+            table->reduceStringMemory(tuple.getNonInlinedMemorySize());
             tuple.freeObjectColumns(); // will return memory for uninlined strings to the heap
             table->deleteTupleStorage(tuple);
 

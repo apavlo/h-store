@@ -388,6 +388,7 @@ void PersistentTable::clearMergeTupleOffsets()
 {
     m_mergeTupleOffset.clear();
 }
+
 int64_t PersistentTable::unevictTuple(ReferenceSerializeInput * in, int j, int merge_tuple_offset){
     TableTuple evicted_tuple = m_evictedTable->tempTuple();
     // get a free tuple and increment the count of tuples current used
@@ -977,6 +978,11 @@ bool PersistentTable::checkNulls(TableTuple &tuple) const {
 void PersistentTable::addMaterializedView(MaterializedViewMetadata *view) {
     m_views.push_back(view);
 }
+
+void PersistentTable::reduceStringMemory(size_t tupleStringMemorySize) {
+    m_nonInlinedMemorySize -= tupleStringMemorySize;
+}
+
 
 // ------------------------------------------------------------------
 // UTILITY

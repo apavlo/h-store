@@ -189,10 +189,6 @@ TEST_F(IndexTrackerAllocatorTest, BinaryTreeUniqueIndexMemoryEstimate)
     // get the tuple that was just inserted
     tuple = m_table->lookupTuple(tuple); 
     
-    uint32_t time_stamp = tuple.getTimeStamp();
-
-    ASSERT_NE(time_stamp, 0);
-
     VOLT_INFO("%s memory estimate: %ld\n", m_table->index("primaryKeyIndex")->getTypeName().c_str(), m_table->index("primaryKeyIndex")->getMemoryEstimate());
 
     ASSERT_NE(m_table->index("primaryKeyIndex")->getMemoryEstimate(), 0);
@@ -224,10 +220,6 @@ TEST_F(IndexTrackerAllocatorTest, BinaryTreeMultiMapIndexMemoryEstimate)
     // get the tuple that was just inserted
     tuple = m_table->lookupTuple(tuple); 
     
-    uint32_t time_stamp = tuple.getTimeStamp();
-
-    ASSERT_NE(time_stamp, 0);
-
     VOLT_INFO("%s memory estimate: %ld\n", m_table->index("primaryKeyIndex")->getTypeName().c_str(), m_table->index("primaryKeyIndex")->getMemoryEstimate());
 
     ASSERT_NE(m_table->index("primaryKeyIndex")->getMemoryEstimate(), 0);
@@ -259,10 +251,6 @@ TEST_F(IndexTrackerAllocatorTest, HashTableMultiMapIndexMemoryEstimate)
     // get the tuple that was just inserted
     tuple = m_table->lookupTuple(tuple); 
     
-    uint32_t time_stamp = tuple.getTimeStamp();
-
-    ASSERT_NE(time_stamp, 0);
-
     VOLT_INFO("%s memory estimate: %ld\n", m_table->index("primaryKeyIndex")->getTypeName().c_str(), m_table->index("primaryKeyIndex")->getMemoryEstimate());
 
     ASSERT_NE(m_table->index("primaryKeyIndex")->getMemoryEstimate(), 0);
@@ -294,10 +282,6 @@ TEST_F(IndexTrackerAllocatorTest, HashTableUniqueMapIndexMemoryEstimate)
     // get the tuple that was just inserted
     tuple = m_table->lookupTuple(tuple); 
     
-    uint32_t time_stamp = tuple.getTimeStamp();
-
-    ASSERT_NE(time_stamp, 0);
-
     VOLT_INFO("%s memory estimate: %ld\n", m_table->index("primaryKeyIndex")->getTypeName().c_str(), m_table->index("primaryKeyIndex")->getMemoryEstimate());
 
     ASSERT_NE(m_table->index("primaryKeyIndex")->getMemoryEstimate(), 0);
@@ -329,10 +313,6 @@ TEST_F(IndexTrackerAllocatorTest, ArrayUniqueIndexMemoryEstimate)
     // get the tuple that was just inserted
     tuple = m_table->lookupTuple(tuple); 
     
-    uint32_t time_stamp = tuple.getTimeStamp();
-
-    ASSERT_NE(time_stamp, 0);
-
     VOLT_INFO("%s memory estimate: %ld\n", m_table->index("primaryKeyIndex")->getTypeName().c_str(), m_table->index("primaryKeyIndex")->getMemoryEstimate());
 
     ASSERT_NE(m_table->index("primaryKeyIndex")->getMemoryEstimate(), 0);
