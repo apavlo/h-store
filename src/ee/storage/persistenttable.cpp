@@ -410,6 +410,7 @@ int64_t PersistentTable::unevictTuple(ReferenceSerializeInput * in, int j, int m
     // update the indexes to point to this newly unevicted tuple
     VOLT_TRACE("BEFORE: tuple.isEvicted() = %d", m_tmpTarget1.isEvicted());
     setEntryToNewAddressForAllIndexes(&m_tmpTarget1, m_tmpTarget1.address());
+    updateStringMemory((int)m_tmpTarget1.getNonInlinedMemorySize());
 
     //deleteFromAllIndexes(&m_tmpTarget1);
     //insertTuple(m_tmpTarget1);
@@ -979,8 +980,8 @@ void PersistentTable::addMaterializedView(MaterializedViewMetadata *view) {
     m_views.push_back(view);
 }
 
-void PersistentTable::reduceStringMemory(size_t tupleStringMemorySize) {
-    m_nonInlinedMemorySize -= tupleStringMemorySize;
+void PersistentTable::updateStringMemory(int tupleStringMemorySize) {
+    m_nonInlinedMemorySize += tupleStringMemorySize;
 }
 
 
