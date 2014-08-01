@@ -24,9 +24,14 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
 
+import org.apache.log4j.Logger;
+import org.jfree.util.Log;
 import org.voltdb.messaging.*;
 
 import edu.brown.hstore.HStoreConstants;
+import edu.brown.hstore.TransactionInitializer;
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 
 /**
  * Represents a serializeable bundle of procedure name and parameters. This
@@ -34,6 +39,13 @@ import edu.brown.hstore.HStoreConstants;
  *
  */
 public class StoredProcedureInvocation implements FastSerializable {
+	
+	 private static final Logger LOG = Logger.getLogger(TransactionInitializer.class);
+    private static final LoggerBoolean debug = new LoggerBoolean();
+    private static final LoggerBoolean trace = new LoggerBoolean();
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
 
     protected int procId = -1;
     protected String procName = null;
@@ -75,6 +87,18 @@ public class StoredProcedureInvocation implements FastSerializable {
         this.procName = procName;
         this.params = new ParameterSet();
         this.params.setParameters(parameters);
+        LOG.debug("OLD STOREDPROCEDUREINVOCATION CONSTRUCTOR");
+    }
+    
+    public StoredProcedureInvocation(long handle, int procId, String procName, int batchId, Object... parameters) {
+        super();
+        this.clientHandle = handle;
+        this.procId = procId;
+        this.procName = procName;
+        this.params = new ParameterSet();
+        this.params.setParameters(parameters);
+        this.batchId = batchId;
+        LOG.debug("NEW STOREDPROCEDUREINVOCATION CONSTRUCTOR");
     }
     
     public StoredProcedureInvocation getShallowCopy() {
@@ -97,6 +121,7 @@ public class StoredProcedureInvocation implements FastSerializable {
     }
 
     public void setBatchId(long batchId) {
+    	LOG.debug("set batch id: " + batchId);
         this.batchId = batchId;
     }
 
@@ -209,6 +234,7 @@ public class StoredProcedureInvocation implements FastSerializable {
 
     @Override
     public void readExternal(FastDeserializer in) throws IOException {
+    	LOG.debug("readExternal");
         this.restartCounter = (int)in.readShort();
         this.base_partition = (int)in.readShort();
         this.clientHandle = in.readLong();

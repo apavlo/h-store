@@ -740,7 +740,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                                 for(ProcedureRef procedureRef : procedures)
                                 {
                                     String strChild = procedureRef.getProcedure().getName();
-                                    System.out.println( "workflow pair: " + key + "-" + strChild );
+                                    LOG.debug( "workflow pair: " + key + "-" + strChild );
                                     triggerProcedures.add(strChild);
                                 }
                                 m_workflowTopology.put(key, triggerProcedures);
@@ -1096,7 +1096,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                         // Do nothing!
                     }
                 };
-
+                
                 LocalTransaction ts = this.txnInitializer.createLocalTransaction(
                         -1, //TODO: This is just a hack, needs an actual batchID
                 		null, 
@@ -2418,6 +2418,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // ADHOC
         // -------------------------------
         else if (catalog_proc.getName().equalsIgnoreCase("@AdHoc")) {
+        	LOG.debug("AdHoc Query");
             String msg = null;
             
             // Is this feature disabled?

@@ -116,6 +116,7 @@ public class TransactionInitializer {
     // ----------------------------------------------------------------------------
     
     public TransactionInitializer(HStoreSite hstore_site) {
+    	LOG.debug("TransactionInitializer");
         this.hstore_site = hstore_site;
         this.hstore_conf = hstore_site.getHStoreConf();
         this.local_partitions = hstore_site.getLocalPartitionIds();
@@ -272,8 +273,8 @@ public class TransactionInitializer {
         final int procId = catalog_proc.getId();
         if (debug.val)
             LOG.debug(String.format("Incoming %s transaction request " +
-        	          "[handle=%d, partition=%d]",
-                      catalog_proc.getName(), client_handle, base_partition));
+        	          "[handle=%d, partition=%d, batch_id=%d]",
+                      catalog_proc.getName(), client_handle, base_partition, batch_id));
 
         // -------------------------------
         // TRANSACTION STATE INITIALIZATION
