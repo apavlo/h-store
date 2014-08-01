@@ -642,6 +642,8 @@ bool AntiCacheEvictionManager::evictBlockToDisk(PersistentTable *table, const lo
 
             // store pointer to AntiCacheDB associated with this block
             m_db_lookup_table.insert(std::pair<uint16_t, AntiCacheDB*>(block_id, antiCacheDB));
+            
+
             // TODO MJG: Do we have to check that insert is valid? Is it better
             // check the return value of the insert or check the map for the
             // block_id already being there? 
@@ -948,6 +950,10 @@ bool AntiCacheEvictionManager::evictBlockToDiskInBatch(PersistentTable *table, P
                                     block.getSerializedData(),
                                     block.getSerializedSize());
             needs_flush = true;
+
+
+            // store pointer to AntiCacheDB associated with this block
+            m_db_lookup_table.insert(std::pair<uint16_t, AntiCacheDB*>(block_id, antiCacheDB));
 
             // Update Stats
             m_tuplesEvicted += num_tuples_evicted - childTuples;
