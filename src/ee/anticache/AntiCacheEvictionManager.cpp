@@ -1141,6 +1141,9 @@ bool AntiCacheEvictionManager::readEvictedBlock(PersistentTable *table, int16_t 
         VOLT_INFO("UnknownBlockAccessException caught.");
         return false;
     }
+    
+    // remove block_id from lookup table since block is merged
+    m_db_lookup_table.erase(block_id);
 
 //    VOLT_INFO("blocks read: %d", m_blocksRead);
     return true;
