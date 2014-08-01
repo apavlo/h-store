@@ -1,0 +1,9 @@
+{"MAPPINGS": [
+  {
+    "Stored Procedure" : "SP1",
+	"Trigger" : "SP1Trigger",
+	"Stream" : "{"SP1" : "s1", "SP1Trigger" : "s1prime"}",
+	"Site" : "{"SP1" : 0, "SP1Trigger" : 0}
+  },
+  {
+]}
