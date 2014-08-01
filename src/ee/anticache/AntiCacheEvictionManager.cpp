@@ -1093,6 +1093,8 @@ bool AntiCacheEvictionManager::readEvictedBlock(PersistentTable *table, int16_t 
     std::map<int16_t, AntiCacheDB*>::iterator it = m_db_lookup_table.find(block_id);
     if (it == m_db_lookup_table.end()) {
         VOLT_WARN("Block %d not found in db_lookup_table.", it->first);
+        // TODO MJG: should this be a different kind of Exception to throw?
+        throw UnknownBlockAccessException(block_id);
         return false;
     } else {
         VOLT_DEBUG("Found block %d in db_lookup_table.", it->first);
