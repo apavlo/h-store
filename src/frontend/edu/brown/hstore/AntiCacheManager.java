@@ -161,8 +161,10 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
     private final ExceptionHandlingRunnable evictionExecutor = new ExceptionHandlingRunnable() {
         @Override
         public void runImpl() {
+            //LOG.warn("We ran!!");
             synchronized(AntiCacheManager.this) {
                 try {
+                    //LOG.warn("We got the lock@!@!");
                     // check to see if we should start eviction
                     if (debug.val)
                         LOG.warn("Checking and evicting");
@@ -767,7 +769,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         // Queue up a utility work operation at the PartitionExecutor so
         // that we can get the total size of the partition
         hstore_site.getPartitionExecutor(partition).queueUtilityWork(this.statsMessage);
-	//LOG.info(String.format("setting partition %d to true", partition));
+	    LOG.debug(String.format("setting partition %d to true", partition));
         pendingStatsUpdates[partition] = true;
     }
 
@@ -895,14 +897,18 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
             for (int i = 0; i < pendingStatsUpdates.length; i++) {
                 if(pendingStatsUpdates[i]) {
                     allBack = false;
+                    //for (int j = 0; j < pendingStatsUpdates.length; j++) 
+                      //  LOG.info(String.format("%d:%b", j, pendingStatsUpdates[j]));
                 }
             }
 
+
             // All partitions have reported back, schedule an eviction check
             if (allBack) {
+                //LOG.info("All back!!");
                 hstore_site.getThreadManager().scheduleWork(evictionExecutor);
             }
-        }
+         }
     }
 
     // ----------------------------------------------------------------------------

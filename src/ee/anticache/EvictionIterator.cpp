@@ -86,9 +86,11 @@ void EvictionIterator::reserve(int64_t amount) {
 
     candidates.clear();
 
-    VOLT_DEBUG("evict pick num: %d %d\n", evict_num, pick_num);
-    VOLT_DEBUG("active_tuple: %d\n", active_tuple);
-    VOLT_DEBUG("block number: %d\n", block_num);
+    VOLT_ERROR("evict pick num: %d %d\n", evict_num, pick_num);
+    VOLT_ERROR("active_tuple: %d\n", active_tuple);
+    VOLT_ERROR("block number: %d\n", block_num);
+
+    int activeN = 0, evictedN = 0;
 
     if (evict_num < active_tuple) {
         for (int i = 0; i < pick_num; i++) {
@@ -104,6 +106,9 @@ void EvictionIterator::reserve(int64_t amount) {
             current_tuple->move(addr);
 
             VOLT_DEBUG("Flip addr: %p\n", addr);
+
+            if (current_tuple->isActive()) activeN++;
+            if (current_tuple->isEvicted()) evictedN++;
 
             if (!current_tuple->isActive() || current_tuple->isEvicted())
                 continue;
@@ -123,8 +128,13 @@ void EvictionIterator::reserve(int64_t amount) {
             for (int j = 0; j < location_size; j++) {
                 current_tuple->move(addr);
 
-                if (!current_tuple->isActive() || current_tuple->isEvicted())
+                if (current_tuple->isActive()) activeN++;
+                if (current_tuple->isEvicted()) evictedN++;
+
+                if (!current_tuple->isActive() || current_tuple->isEvicted()) {
+                    addr += tuple_size;
                     continue;
+                }
 
                 VOLT_DEBUG("Flip addr: %p\n", addr);
 
@@ -133,7 +143,7 @@ void EvictionIterator::reserve(int64_t amount) {
             }
         }
     }
-    VOLT_DEBUG("Size of eviction candidates: %lu\n", candidates.size());
+    VOLT_ERROR("Size of eviction candidates: %lu %d %d\n", candidates.size(), activeN, evictedN);
 }
 #endif
 

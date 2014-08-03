@@ -601,6 +601,7 @@ bool AntiCacheEvictionManager::evictBlockToDisk(PersistentTable *table, const lo
                 continue;
             }
             VOLT_DEBUG("Evicting Tuple: %s", tuple.debug(table->name()).c_str());
+            //tuple.setEvictedTrue();
 
             // Populate the evicted_tuple with the block id and tuple offset
             // Make sure this tuple is marked as evicted, so that we know it is an evicted
@@ -1170,11 +1171,9 @@ bool AntiCacheEvictionManager::mergeUnevictedTuples(PersistentTable *table) {
     TableTuple unevictedTuple(table->m_schema);
     TableTuple evicted_tuple = table->getEvictedTable()->tempTuple();
 
-#ifdef VOLT_INFO_ENABLED
     int active_tuple_count = (int)table->activeTupleCount();
 #ifndef ANTICACHE_TIMESTAMPS
-    int tuples_in_eviction_chain = (int)table->getNumTuplesInEvictionChain();
-#endif
+    //int tuples_in_eviction_chain = (int)table->getNumTuplesInEvictionChain();
 #endif
 
 #ifdef VOLT_INFO_ENABLED
@@ -1201,7 +1200,7 @@ bool AntiCacheEvictionManager::mergeUnevictedTuples(PersistentTable *table) {
         for (std::vector<std::string>::iterator it = tableNames.begin() ; it != tableNames.end(); ++it){
             PersistentTable *tableInBlock = dynamic_cast<PersistentTable*>(m_engine->getTable(*it));
             num_tuples_in_block = numTuples.at(count);
-            VOLT_INFO("Merging %d tuples.", num_tuples_in_block);
+            VOLT_ERROR("Merging %d tuples.", num_tuples_in_block);
 
             // Now read the actual tuples
             int64_t bytes_unevicted = 0;
@@ -1281,11 +1280,9 @@ bool AntiCacheEvictionManager::mergeUnevictedTuples(PersistentTable *table) {
     table->clearUnevictedBlocks();
     table->clearMergeTupleOffsets();
 
-#ifdef VOLT_INFO_ENABLED
-    VOLT_INFO("Active Tuple Count: %d -- %d", (int)active_tuple_count, (int)table->activeTupleCount());
+    VOLT_ERROR("Active Tuple Count: %d -- %d", (int)active_tuple_count, (int)table->activeTupleCount());
 #ifndef ANTICACHE_TIMESTAMPS
     VOLT_INFO("Tuples in Eviction Chain: %d -- %d", (int)tuples_in_eviction_chain, (int)table->getNumTuplesInEvictionChain());
-#endif
 #endif
 
 

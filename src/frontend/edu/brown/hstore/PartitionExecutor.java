@@ -1341,6 +1341,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                                                        false,
                                                        EstTime.currentTimeMillis());
                 assert(results.length == 1);
+                //results[0].advanceRow();
+                //LOG.info(String.format("Notified ovserver at partition %d", results[0].getLong("PARTITION_ID")));
                 stats_work.getObservable().notifyObservers(results[0]);
             }
             else {
@@ -2164,7 +2166,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
      */
     public void queueUtilityWork(InternalMessage work) {
         if (debug.val)
-            LOG.debug(String.format("Added utility work %s to partition %d",
+            LOG.warn(String.format("Added utility work %s to partition %d",
                       work.getClass().getSimpleName(), this.partitionId));
         this.work_queue.offer(work);
     }
