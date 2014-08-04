@@ -67,7 +67,12 @@ void EvictionIterator::reserve(int64_t amount) {
     PersistentTable* ptable = static_cast<PersistentTable*>(table);
     int tuple_size = ptable->m_schema->tupleLength() + TUPLE_HEADER_SIZE;
     int active_tuple = (int)ptable->activeTupleCount(); // should be more careful here. what's the typical size? Answer: 256K
-    int evict_num = (int)(amount / (tuple_size + ptable->nonInlinedMemorySize() / active_tuple));
+    int evict_num = 0;
+
+    if (active_tuple)	
+        evict_num = (int)(amount / (tuple_size + ptable->nonInlinedMemorySize() / active_tuple));
+    else 
+        evict_num = (int)(amount / tuple_size);
     //printf("Count: %lu %lu\n", ptable->usedTupleCount(), ptable->activeTupleCount());
 
     if (evict_num > active_tuple)
