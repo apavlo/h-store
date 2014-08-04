@@ -1,15 +1,12 @@
 /***************************************************************************
- *  Copyright (C) 2009 by H-Store Project                                  *
+ *  Copyright (C) 2012 by H-Store Project                                  *
  *  Brown University                                                       *
  *  Massachusetts Institute of Technology                                  *
  *  Yale University                                                        *
  *                                                                         *
- *  Original Version:                                                      *
- *  Zhe Zhang (zhe@cs.brown.edu)                                           *
+ *  Original By: VoltDB Inc.											   *
+ *  Ported By:  Justin A. DeBrabant (http://www.cs.brown.edu/~debrabant/)  *								   
  *                                                                         *
- *  Modifications by:                                                      *
- *  Andy Pavlo (pavlo@cs.brown.edu)                                        *
- *  http://www.cs.brown.edu/~pavlo/                                        *
  *                                                                         *
  *  Permission is hereby granted, free of charge, to any person obtaining  *
  *  a copy of this software and associated documentation files (the        *
@@ -30,242 +27,127 @@
  *  ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR  *
  *  OTHER DEALINGS IN THE SOFTWARE.                                        *
  ***************************************************************************/
+
 package edu.brown.benchmark.microexperiments.ftriggers;
 
 import java.io.IOException;
-import java.util.Random;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.log4j.Logger;
+import org.voltdb.VoltTable;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.ProcedureCallback;
 
-import edu.brown.api.BenchmarkComponent;
-import edu.brown.rand.RandomDistribution.FlatHistogram;
-import edu.brown.statistics.ObjectHistogram;
-import edu.brown.utils.StringUtil;
+import weka.classifiers.meta.Vote;
 
-/**
- * FTriggersClient
- * @author zhe
- * @author pavlo
- */
+import edu.brown.api.BenchmarkComponent;
+import edu.brown.hstore.Hstoreservice.Status;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
+
 public class FTriggersClient extends BenchmarkComponent {
     private static final Logger LOG = Logger.getLogger(FTriggersClient.class);
+    private static final LoggerBoolean debug = new LoggerBoolean();
 
-    /**
-     * Each Transaction element provides an ArgGenerator to create the proper
-     * arguments used to invoke the stored procedure
-     */
-    private static interface ArgGenerator {
-        /**
-         * Generate the proper arguments used to invoke the given stored
-         * procedure
-         * 
-         * @param subscriberSize
-         * @return
-         */
-        public Object[] genArgs(long subscriberSize);
-    }
+    // Phone number generator
+    PhoneCallGenerator switchboard;
 
-    /**
-     * Set of transactions structs with their appropriate parameters
-     */
-    public static enum Transaction {
-        DELETE_CALL_FORWARDING(FTriggersConstants.FREQUENCY_DELETE_CALL_FORWARDING, new ArgGenerator() {
-            public Object[] genArgs(long subscriberSize) {
-                long s_id = FTriggersUtil.getSubscriberId(subscriberSize);
-                return new Object[] { FTriggersUtil.padWithZero(s_id), // s_id
-                        FTriggersUtil.number(1, 4), // sf_type
-                        8 * FTriggersUtil.number(0, 2) // start_time
-                };
-            }
-        }),
-        GET_ACCESS_DATA(FTriggersConstants.FREQUENCY_GET_ACCESS_DATA, new ArgGenerator() {
-            public Object[] genArgs(long subscriberSize) {
-                long s_id = FTriggersUtil.getSubscriberId(subscriberSize);
-                return new Object[] { s_id, // s_id
-                        FTriggersUtil.number(1, 4) // ai_type
-                };
-            }
-        }),
-        GET_NEW_DESTINATION(FTriggersConstants.FREQUENCY_GET_NEW_DESTINATION, new ArgGenerator() {
-            public Object[] genArgs(long subscriberSize) {
-                long s_id = FTriggersUtil.getSubscriberId(subscriberSize);
-                return new Object[] { s_id, // s_id
-                        FTriggersUtil.number(1, 4), // sf_type
-                        8 * FTriggersUtil.number(0, 2), // start_time
-                        FTriggersUtil.number(1, 24) // end_time
-                };
-            }
-        }),
-        GET_SUBSCRIBER_DATA(FTriggersConstants.FREQUENCY_GET_SUBSCRIBER_DATA, new ArgGenerator() {
-            public Object[] genArgs(long subscriberSize) {
-                long s_id = FTriggersUtil.getSubscriberId(subscriberSize);
-                return new Object[] { s_id // s_id
-                };
-            }
-        }),
-        INSERT_CALL_FORWARDING(FTriggersConstants.FREQUENCY_INSERT_CALL_FORWARDING, new ArgGenerator() {
-            public Object[] genArgs(long subscriberSize) {
-                long s_id = FTriggersUtil.getSubscriberId(subscriberSize);
-                return new Object[] {
-                        FTriggersUtil.padWithZero(s_id), // sub_nbr
-                        FTriggersUtil.number(1, 4), // sf_type
-                        8 * FTriggersUtil.number(0, 2), // start_time
-                        FTriggersUtil.number(1, 24), // end_time
-                        FTriggersUtil.padWithZero(s_id) // numberx
-                };
-            }
-        }),
-        UPDATE_LOCATION(FTriggersConstants.FREQUENCY_UPDATE_LOCATION, new ArgGenerator() {
-            public Object[] genArgs(long subscriberSize) {
-                long s_id = FTriggersUtil.getSubscriberId(subscriberSize);
-                return new Object[] { FTriggersUtil.number(0, Integer.MAX_VALUE), // vlr_location
-                        FTriggersUtil.padWithZero(s_id) // sub_nbr
-                };
-            }
-        }),
-        UPDATE_SUBSCRIBER_DATA(FTriggersConstants.FREQUENCY_UPDATE_SUBSCRIBER_DATA, new ArgGenerator() {
-            public Object[] genArgs(long subscriberSize) {
-                long s_id = FTriggersUtil.getSubscriberId(subscriberSize);
-                return new Object[] { s_id, // s_id
-                        FTriggersUtil.number(0, 1), // bit_1
-                        FTriggersUtil.number(0, 255), // data_a
-                        FTriggersUtil.number(1, 4) // sf_type
-                };
-            }
-        }), ; // END LIST OF STORED PROCEDURES
+    // Flags to tell the worker threads to stop or go
+    AtomicBoolean warmupComplete = new AtomicBoolean(false);
+    AtomicBoolean benchmarkComplete = new AtomicBoolean(false);
 
-        /**
-         * Constructor
-         */
-        private Transaction(int weight, ArgGenerator ag) {
-            this.displayName = StringUtil.title(this.name().replace("_", " ").toLowerCase());
-            this.callName = this.displayName.replace(" ", "");
-            this.weight = weight;
-            this.ag = ag;
-        }
-        
-        public Object[] generateParams(long subscriberSize) {
-            return (this.ag.genArgs(subscriberSize));
-        }
+    // voter benchmark state
+    AtomicLong acceptedVotes = new AtomicLong(0);
+    AtomicLong badContestantVotes = new AtomicLong(0);
+    AtomicLong badVoteCountVotes = new AtomicLong(0);
+    AtomicLong failedVotes = new AtomicLong(0);
 
-        public final String displayName;
-        public final String callName;
-        private final int weight;
-        private final ArgGenerator ag;
-    } // TRANSCTION ENUM
+    final Callback callback = new Callback();
 
-    /**
-     * Callback Class
-     */
-    protected class FTriggersCallback implements ProcedureCallback {
-        private final int txn_id;
-
-        public FTriggersCallback(int txn_id) {
-            super();
-            this.txn_id = txn_id;
-        }
-
-        @Override
-        public void clientCallback(ClientResponse clientResponse) {
-            incrementTransactionCounter(clientResponse, this.txn_id);
-            // LOG.info(clientResponse);
-        }
-    } // END CLASS
-
-    /**
-     * Data Members
-     */
-    private final FlatHistogram<Transaction> txnWeights;
-
-    // Callbacks
-    protected final FTriggersCallback callbacks[];
-    
-    private final long subscriberSize;
-
-    /**
-     * Main method
-     * 
-     * @param args
-     */
-    public static void main(String[] args) {
+    public static void main(String args[]) {
         BenchmarkComponent.main(FTriggersClient.class, args, false);
     }
 
-    /**
-     * Constructor
-     * 
-     * @param args
-     */
     public FTriggersClient(String args[]) {
         super(args);
-        
-        this.subscriberSize = Math.round(FTriggersConstants.SUBSCRIBER_SIZE * this.getScaleFactor());
-        
-        // Initialize the sampling table
-        ObjectHistogram<Transaction> txns = new ObjectHistogram<Transaction>(); 
-        for (Transaction t : Transaction.values()) {
-            Integer weight = this.getTransactionWeight(t.callName);
-            if (weight == null) {
-                weight = t.weight;
-            }
-            txns.put(t, weight);
-        } // FOR
-        assert(txns.getSampleCount() == 100) : "Invalid txn percentage total: " + txns.getSampleCount() + "\n" + txns;
-        Random rand = new Random(); // FIXME
-        this.txnWeights = new FlatHistogram<Transaction>(rand, txns);
-        if (LOG.isDebugEnabled())
-            LOG.debug("Transaction Workload Distribution:\n" + txns);
-
-        // Setup callbacks
-        int num_txns = Transaction.values().length;
-        this.callbacks = new FTriggersCallback[num_txns];
-        for (int i = 0; i < num_txns; i++) {
-            this.callbacks[i] = new FTriggersCallback(i);
-        } // FOR
+        int numContestants = FTriggersUtil.getScaledNumContestants(this.getScaleFactor());
+        this.switchboard = new PhoneCallGenerator(this.getClientId(), numContestants);
     }
 
-    /**
-     * Benchmark execution loop
-     */
     @Override
     public void runLoop() {
-        LOG.debug("Starting runLoop()");
-        final Client client = this.getClientHandle();
-
         try {
             while (true) {
-                this.runOnce();
-                client.backpressureBarrier();
+                // synchronously call the "Vote" procedure
+                try {
+                    runOnce();
+                } catch (Exception e) {
+                    failedVotes.incrementAndGet();
+                }
+
             } // WHILE
-        } catch (Exception ex) {
-            ex.printStackTrace();
+        } catch (Exception e) {
+            // Client has no clean mechanism for terminating with the DB.
+            e.printStackTrace();
         }
     }
 
     @Override
     protected boolean runOnce() throws IOException {
-        Transaction target = this.txnWeights.nextValue();
+        // Get the next phone call
+        PhoneCallGenerator.PhoneCall call = switchboard.receive();
 
-        this.startComputeTime(target.displayName);
-        Object params[] = target.ag.genArgs(subscriberSize);
-        this.stopComputeTime(target.displayName);
-
-        boolean ret = this.getClientHandle().callProcedure(this.callbacks[target.ordinal()], target.callName, params);
-        LOG.debug("Executing txn " + target);
-        return (ret);
+        Client client = this.getClientHandle();
+        boolean response = client.callProcedure(callback,
+                                                "Vote",
+                                                call.voteId,
+                                                call.phoneNumber,
+                                                call.contestantNumber,
+                                                FTriggersConstants.MAX_VOTES);
+        return response;
     }
 
     @Override
     public String[] getTransactionDisplayNames() {
-        // wish Java has MAP like in Lisp...
-        String names[] = new String[Transaction.values().length];
-        int ii = 0;
-        for (Transaction transaction : Transaction.values()) {
-            names[ii++] = transaction.displayName;
-        }
-        return names;
+        // Return an array of transaction names
+        String procNames[] = new String[]{
+            Vote.class.getSimpleName()
+        };
+        return (procNames);
     }
+
+    private class Callback implements ProcedureCallback {
+
+        @Override
+        public void clientCallback(ClientResponse clientResponse) {
+            // Increment the BenchmarkComponent's internal counter on the
+            // number of transactions that have been completed
+            incrementTransactionCounter(clientResponse, 0);
+            
+            // Keep track of state (optional)
+            if (clientResponse.getStatus() == Status.OK) {
+                VoltTable results[] = clientResponse.getResults();
+                assert(results.length == 1);
+                long status = results[0].asScalarLong();
+                if (status == FTriggersConstants.VOTE_SUCCESSFUL) {
+                    acceptedVotes.incrementAndGet();
+                }
+                else if (status == FTriggersConstants.ERR_INVALID_CONTESTANT) {
+                    badContestantVotes.incrementAndGet();
+                }
+                else if (status == FTriggersConstants.ERR_VOTER_OVER_VOTE_LIMIT) {
+                    badVoteCountVotes.incrementAndGet();
+                }
+            }
+            else if (clientResponse.getStatus() == Status.ABORT_UNEXPECTED) {
+                if (clientResponse.getException() != null) {
+                    clientResponse.getException().printStackTrace();
+                }
+                if (debug.val && clientResponse.getStatusString() != null) {
+                    LOG.warn(clientResponse.getStatusString());
+                }
+            }
+        }
+    } // END CLASS
 }

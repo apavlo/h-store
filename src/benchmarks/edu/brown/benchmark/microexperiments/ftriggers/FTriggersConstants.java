@@ -1,32 +1,49 @@
+/***************************************************************************
+ *  Copyright (C) 2012 by H-Store Project                                  *
+ *  Brown University                                                       *
+ *  Massachusetts Institute of Technology                                  *
+ *  Yale University                                                        *
+ *                                                                         *
+ *  Original By: VoltDB Inc.											   *
+ *  Ported By:  Justin A. DeBrabant (http://www.cs.brown.edu/~debrabant/)  *                                                                      *
+ *                                                                         *
+ *  Permission is hereby granted, free of charge, to any person obtaining  *
+ *  a copy of this software and associated documentation files (the        *
+ *  "Software"), to deal in the Software without restriction, including    *
+ *  without limitation the rights to use, copy, modify, merge, publish,    *
+ *  distribute, sublicense, and/or sell copies of the Software, and to     *
+ *  permit persons to whom the Software is furnished to do so, subject to  *
+ *  the following conditions:                                              *
+ *                                                                         *
+ *  The above copyright notice and this permission notice shall be         *
+ *  included in all copies or substantial portions of the Software.        *
+ *                                                                         *
+ *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        *
+ *  EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     *
+ *  MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. *
+ *  IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR      *
+ *  OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,  *
+ *  ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR  *
+ *  OTHER DEALINGS IN THE SOFTWARE.                                        *
+ ***************************************************************************/
+
 package edu.brown.benchmark.microexperiments.ftriggers;
 
 public abstract class FTriggersConstants {
 
-    // ----------------------------------------------------------------
-    // STORED PROCEDURE EXECUTION FREQUENCIES (0-100)
-    // ----------------------------------------------------------------
-    public static final int FREQUENCY_DELETE_CALL_FORWARDING = 2; // Multi
-    public static final int FREQUENCY_GET_ACCESS_DATA = 35; // Single
-    public static final int FREQUENCY_GET_NEW_DESTINATION = 10; // Single
-    public static final int FREQUENCY_GET_SUBSCRIBER_DATA = 35; // Single
-    public static final int FREQUENCY_INSERT_CALL_FORWARDING = 2; // Multi
-    public static final int FREQUENCY_UPDATE_LOCATION = 14; // Multi
-    public static final int FREQUENCY_UPDATE_SUBSCRIBER_DATA = 2; // Single
-
-    // ----------------------------------------------------------------
-    // TABLE NAMES
-    // ----------------------------------------------------------------
-    public static final String TABLENAME_SUBSCRIBER = "SUBSCRIBER";
-    public static final String TABLENAME_ACCESS_INFO = "ACCESS_INFO";
-    public static final String TABLENAME_SPECIAL_FACILITY = "SPECIAL_FACILITY";
-    public static final String TABLENAME_CALL_FORWARDING = "CALL_FORWARDING";
-
-    public static final int SUBSCRIBER_SIZE = 100000;
+    public static final String TABLENAME_CONTESTANTS     = "contestants";
+    public static final String TABLENAME_AREA_CODE_STATE = "area_code_state";
+    public static final String TABLENAME_VOTES           = "votes";
     
-    public static final int BATCH_SIZE = 5000;
+	public static final int MAX_VOTES = 1000; 
+	public static final int NUM_CONTESTANTS = 6; 
 
-    public static final String TABLENAMES[] = { TABLENAME_SUBSCRIBER,
-                                                TABLENAME_ACCESS_INFO,
-                                                TABLENAME_SPECIAL_FACILITY,
-                                                TABLENAME_CALL_FORWARDING };
+	// Initialize some common constants and variables
+    public static final String CONTESTANT_NAMES_CSV = "Edwina Burnam,Tabatha Gehling,Kelly Clauss,Jessie Alloway," +
+											   "Alana Bregman,Jessie Eichman,Allie Rogalski,Nita Coster," +
+											   "Kurt Walser,Ericka Dieter,Loraine NygrenTania Mattioli";
+    // potential return codes
+    public static final long VOTE_SUCCESSFUL = 0;
+    public static final long ERR_INVALID_CONTESTANT = 1;
+    public static final long ERR_VOTER_OVER_VOTE_LIMIT = 2;
 }

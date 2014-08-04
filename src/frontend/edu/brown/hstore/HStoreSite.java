@@ -2230,7 +2230,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     
     // added by hawk, 2013/11/1
     public void invocationTriggerProcedureProcess(long batchId, long clientHandle, long initiateTime, Procedure procedure) {
-        
+        LOG.debug("invocationTriggerProcedureProcess batchId = " + batchId);
         // added by hawk, 2014/4/7
         if(this.hstore_conf.global.sstore_scheduler==true)
         {

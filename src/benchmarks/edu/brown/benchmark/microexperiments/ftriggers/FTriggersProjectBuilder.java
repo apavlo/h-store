@@ -1,15 +1,11 @@
 /***************************************************************************
- *  Copyright (C) 2009 by H-Store Project                                  *
+ *  Copyright (C) 2012 by H-Store Project                                  *
  *  Brown University                                                       *
  *  Massachusetts Institute of Technology                                  *
  *  Yale University                                                        *
  *                                                                         *
- *  Original Version:                                                      *
- *  Zhe Zhang (zhe@cs.brown.edu)                                           *
+ *  Coded By:  Justin A. DeBrabant (http://www.cs.brown.edu/~debrabant/)   *								   
  *                                                                         *
- *  Modifications by:                                                      *
- *  Andy Pavlo (pavlo@cs.brown.edu)                                        *
- *  http://www.cs.brown.edu/~pavlo/                                        *
  *                                                                         *
  *  Permission is hereby granted, free of charge, to any person obtaining  *
  *  a copy of this software and associated documentation files (the        *
@@ -30,70 +26,44 @@
  *  ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR  *
  *  OTHER DEALINGS IN THE SOFTWARE.                                        *
  ***************************************************************************/
+
 package edu.brown.benchmark.microexperiments.ftriggers;
 
 import org.voltdb.VoltProcedure;
 
 import edu.brown.benchmark.AbstractProjectBuilder;
 import edu.brown.api.BenchmarkComponent;
-import edu.brown.benchmark.microexperiments.ftriggers.procedures.DeleteCallForwarding;
-import edu.brown.benchmark.microexperiments.ftriggers.procedures.GetAccessData;
-import edu.brown.benchmark.microexperiments.ftriggers.procedures.GetNewDestination;
-import edu.brown.benchmark.microexperiments.ftriggers.procedures.GetSubscriberData;
-import edu.brown.benchmark.microexperiments.ftriggers.procedures.GetTableCounts;
-import edu.brown.benchmark.microexperiments.ftriggers.procedures.InsertCallForwarding;
-import edu.brown.benchmark.microexperiments.ftriggers.procedures.UpdateLocation;
-import edu.brown.benchmark.microexperiments.ftriggers.procedures.UpdateSubscriberData;
+
+import edu.brown.benchmark.voter.procedures.Vote; 
+import edu.brown.benchmark.voter.procedures.Initialize; 
 
 public class FTriggersProjectBuilder extends AbstractProjectBuilder {
 
-    /**
-     * Retrieved via reflection by BenchmarkController
-     */
+    // REQUIRED: Retrieved via reflection by BenchmarkController
     public static final Class<? extends BenchmarkComponent> m_clientClass = FTriggersClient.class;
-    /**
-     * Retrieved via reflection by BenchmarkController
-     */
+
+    // REQUIRED: Retrieved via reflection by BenchmarkController
     public static final Class<? extends BenchmarkComponent> m_loaderClass = FTriggersLoader.class;
 
+	// a list of procedures implemented in this benchmark
     @SuppressWarnings("unchecked")
     public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
-            // Benchmark Specification
-            DeleteCallForwarding.class,
-            GetAccessData.class,
-            GetNewDestination.class,
-            GetSubscriberData.class,
-            InsertCallForwarding.class,
-            UpdateLocation.class,
-            UpdateSubscriberData.class,
-
-            // Testing Procedures
-            // InsertSubscriber.class,
-            GetTableCounts.class,
-    };
-    
-    {
-        // Transaction Frequencies
-        addTransactionFrequency(DeleteCallForwarding.class, FTriggersConstants.FREQUENCY_DELETE_CALL_FORWARDING);
-        addTransactionFrequency(GetAccessData.class, FTriggersConstants.FREQUENCY_GET_ACCESS_DATA);
-        addTransactionFrequency(GetNewDestination.class, FTriggersConstants.FREQUENCY_GET_NEW_DESTINATION);
-        addTransactionFrequency(GetSubscriberData.class, FTriggersConstants.FREQUENCY_GET_SUBSCRIBER_DATA);
-        addTransactionFrequency(InsertCallForwarding.class, FTriggersConstants.FREQUENCY_INSERT_CALL_FORWARDING);
-        addTransactionFrequency(UpdateLocation.class, FTriggersConstants.FREQUENCY_UPDATE_LOCATION);
-        addTransactionFrequency(UpdateSubscriberData.class, FTriggersConstants.FREQUENCY_UPDATE_SUBSCRIBER_DATA);
-
-        // Replicates Secondary Indexes
-        addReplicatedSecondaryIndex(FTriggersConstants.TABLENAME_SUBSCRIBER, "S_ID", "SUB_NBR");
-    }
-
+        Vote.class, Initialize.class};
+	
+	{
+		//addTransactionFrequency(Vote.class, 100);
+	}
+	
+	// a list of tables used in this benchmark with corresponding partitioning keys
     public static final String PARTITIONING[][] = new String[][] {
-        { "SUBSCRIBER", "S_ID" },
-        { "ACCESS_INFO", "S_ID" },
-        { "SPECIAL_FACILITY", "S_ID" },
-        { "CALL_FORWARDING", "S_ID" },
+        { "votes", "phone_number" }
     };
 
     public FTriggersProjectBuilder() {
-        super("microexperiments.ftriggers", FTriggersProjectBuilder.class, PROCEDURES, PARTITIONING);
+        super("voter", FTriggersProjectBuilder.class, PROCEDURES, PARTITIONING);
     }
 }
+
+
+
+
