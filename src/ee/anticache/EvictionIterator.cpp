@@ -85,9 +85,9 @@ void EvictionIterator::reserve(int64_t amount) {
 
     candidates.clear();
 
-    VOLT_ERROR("evict pick num: %d %d\n", evict_num, pick_num);
-    VOLT_ERROR("active_tuple: %d\n", active_tuple);
-    VOLT_ERROR("block number: %d\n", block_num);
+    //VOLT_ERROR("evict pick num: %d %d\n", evict_num, pick_num);
+    //VOLT_ERROR("active_tuple: %d\n", active_tuple);
+    //VOLT_ERROR("block number: %d\n", block_num);
 
     int activeN = 0, evictedN = 0;
 
@@ -142,7 +142,7 @@ void EvictionIterator::reserve(int64_t amount) {
             }
         }
     }
-    VOLT_ERROR("Size of eviction candidates: %lu %d %d\n", candidates.size(), activeN, evictedN);
+    //VOLT_ERROR("Size of eviction candidates: %lu %d %d\n", candidates.size(), activeN, evictedN);
 }
 #endif
 
