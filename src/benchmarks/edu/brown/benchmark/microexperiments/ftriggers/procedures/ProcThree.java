@@ -22,35 +22,50 @@
  */
 
 //
-// Returns the results of the votes.
+// Accepts a vote, enforcing business logic: make sure the vote is for a valid
+// contestant and that the voter (phone number of the caller) is not above the
+// number of allowed votes.
 //
 
-package edu.brown.benchmark.voterexperiments.winhstore.w100s10.procedures;
+package edu.brown.benchmark.microexperiments.ftriggers.procedures;
+
+import java.util.Random;
 
 import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
+import org.voltdb.types.TimestampType;
+
+import edu.brown.benchmark.microexperiments.ftriggers.FTriggersConstants;
 
 @ProcInfo (
-singlePartition = false
+	//partitionInfo = "a_tbl.a_id:1",
+    singlePartition = true
 )
-public class Results extends VoltProcedure
-{
-    // Gets the results
-    public final SQLStmt resultStmt = new SQLStmt( "   SELECT a.contestant_name   AS contestant_name"
-												  + "        , a.contestant_number AS contestant_number"
-												  + "        , SUM(b.num_votes)    AS total_votes"
-												  + "     FROM v_votes_by_contestant_number_state AS b"
-												  + "        , contestants AS a"
-												  + "    WHERE a.contestant_number = b.contestant_number"
-												  + " GROUP BY a.contestant_name"
-												  + "        , a.contestant_number"
-												  + " ORDER BY total_votes DESC"
-												  + "        , contestant_number ASC"
-												  + "        , contestant_name ASC;" );
-    public VoltTable[] run() {
-        voltQueueSQL(resultStmt);
-        return voltExecuteSQL(true);
+public class ProcThree extends VoltProcedure {
+	protected void toSetTriggerTableName()
+	{
+		addTriggerTable("proc_two_out");
+	}
+	
+    public final SQLStmt insertStmt = new SQLStmt(
+	   "INSERT INTO c_tbl SELECT * FROM proc_two_out;"
+    );
+    
+    public final SQLStmt deleteProcTwoOutStmt = new SQLStmt(
+    		"DELETE FROM proc_two_out;"
+    );
+	
+    public long run() {
+		Random rand = new Random();
+		if(rand.nextInt(10) < FTriggersConstants.PERC_OUT_OF_TEN)
+			voltQueueSQL(insertStmt);
+		
+		voltQueueSQL(deleteProcTwoOutStmt);
+        voltExecuteSQL(true);
+				
+        // Set the return value to 0: successful vote
+        return FTriggersConstants.PROC_THREE_SUCCESSFUL;
     }
 }

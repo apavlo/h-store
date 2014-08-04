@@ -31,6 +31,7 @@
 package edu.brown.benchmark.microexperiments.ftriggers;
 
 import java.io.IOException;
+import java.util.Random;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -50,9 +51,6 @@ public class FTriggersClient extends BenchmarkComponent {
     private static final Logger LOG = Logger.getLogger(FTriggersClient.class);
     private static final LoggerBoolean debug = new LoggerBoolean();
 
-    // Phone number generator
-    PhoneCallGenerator switchboard;
-
     // Flags to tell the worker threads to stop or go
     AtomicBoolean warmupComplete = new AtomicBoolean(false);
     AtomicBoolean benchmarkComplete = new AtomicBoolean(false);
@@ -64,6 +62,8 @@ public class FTriggersClient extends BenchmarkComponent {
     AtomicLong failedVotes = new AtomicLong(0);
 
     final Callback callback = new Callback();
+    Random rand = new Random();
+    int nextId = 0;
 
     public static void main(String args[]) {
         BenchmarkComponent.main(FTriggersClient.class, args, false);
@@ -71,8 +71,6 @@ public class FTriggersClient extends BenchmarkComponent {
 
     public FTriggersClient(String args[]) {
         super(args);
-        int numContestants = FTriggersUtil.getScaledNumContestants(this.getScaleFactor());
-        this.switchboard = new PhoneCallGenerator(this.getClientId(), numContestants);
     }
 
     @Override
@@ -95,16 +93,13 @@ public class FTriggersClient extends BenchmarkComponent {
 
     @Override
     protected boolean runOnce() throws IOException {
-        // Get the next phone call
-        PhoneCallGenerator.PhoneCall call = switchboard.receive();
 
         Client client = this.getClientHandle();
+        nextId++;
         boolean response = client.callProcedure(callback,
-                                                "Vote",
-                                                call.voteId,
-                                                call.phoneNumber,
-                                                call.contestantNumber,
-                                                FTriggersConstants.MAX_VOTES);
+                                                "ProcOne",
+                                                nextId,
+                                                rand.nextInt(10));
         return response;
     }
 
@@ -119,35 +114,17 @@ public class FTriggersClient extends BenchmarkComponent {
 
     private class Callback implements ProcedureCallback {
 
+    	
+    	public Callback()
+    	{
+    		super();
+    	}
+    	
         @Override
         public void clientCallback(ClientResponse clientResponse) {
             // Increment the BenchmarkComponent's internal counter on the
             // number of transactions that have been completed
             incrementTransactionCounter(clientResponse, 0);
-            
-            // Keep track of state (optional)
-            if (clientResponse.getStatus() == Status.OK) {
-                VoltTable results[] = clientResponse.getResults();
-                assert(results.length == 1);
-                long status = results[0].asScalarLong();
-                if (status == FTriggersConstants.VOTE_SUCCESSFUL) {
-                    acceptedVotes.incrementAndGet();
-                }
-                else if (status == FTriggersConstants.ERR_INVALID_CONTESTANT) {
-                    badContestantVotes.incrementAndGet();
-                }
-                else if (status == FTriggersConstants.ERR_VOTER_OVER_VOTE_LIMIT) {
-                    badVoteCountVotes.incrementAndGet();
-                }
-            }
-            else if (clientResponse.getStatus() == Status.ABORT_UNEXPECTED) {
-                if (clientResponse.getException() != null) {
-                    clientResponse.getException().printStackTrace();
-                }
-                if (debug.val && clientResponse.getStatusString() != null) {
-                    LOG.warn(clientResponse.getStatusString());
-                }
-            }
         }
     } // END CLASS
 }

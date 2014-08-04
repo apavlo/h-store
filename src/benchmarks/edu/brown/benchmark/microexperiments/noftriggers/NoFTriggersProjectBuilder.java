@@ -4,8 +4,7 @@
  *  Massachusetts Institute of Technology                                  *
  *  Yale University                                                        *
  *                                                                         *
- *  Original By: VoltDB Inc.											   *
- *  Ported By:  Justin A. DeBrabant (http://www.cs.brown.edu/~debrabant/)  *								   
+ *  Coded By:  Justin A. DeBrabant (http://www.cs.brown.edu/~debrabant/)   *								   
  *                                                                         *
  *                                                                         *
  *  Permission is hereby granted, free of charge, to any person obtaining  *
@@ -28,39 +27,46 @@
  *  OTHER DEALINGS IN THE SOFTWARE.                                        *
  ***************************************************************************/
 
-package edu.brown.benchmark.voterexperiments.winhstore.w100s10;
+package edu.brown.benchmark.microexperiments.noftriggers;
 
-import org.apache.log4j.Logger;
+import org.voltdb.VoltProcedure;
 
-import edu.brown.api.Loader;
+import edu.brown.benchmark.AbstractProjectBuilder;
+import edu.brown.api.BenchmarkComponent;
 
-public class VoterWinHStoreLoader extends Loader {
+import edu.brown.benchmark.microexperiments.noftriggers.procedures.*;
 
-    private static final Logger LOG = Logger.getLogger(VoterWinHStoreLoader.class);
-    private static final boolean d = LOG.isDebugEnabled();
+public class NoFTriggersProjectBuilder extends AbstractProjectBuilder {
 
-    public static void main(String args[]) throws Exception {
-        if (d) LOG.debug("MAIN: " + VoterWinHStoreLoader.class.getName());
-        Loader.main(VoterWinHStoreLoader.class, args, true);
-    }
+    // REQUIRED: Retrieved via reflection by BenchmarkController
+    public static final Class<? extends BenchmarkComponent> m_clientClass = NoFTriggersClient.class;
 
-    public VoterWinHStoreLoader(String[] args) {
-        super(args);
-        if (d) LOG.debug("CONSTRUCTOR: " + VoterWinHStoreLoader.class.getName());
-    }
+    // REQUIRED: Retrieved via reflection by BenchmarkController
+    public static final Class<? extends BenchmarkComponent> m_loaderClass = NoFTriggersLoader.class;
 
-    @Override
-    public void load() {
-        int numContestants = VoterWinHStoreUtil.getScaledNumContestants(this.getScaleFactor());
-        if (d) 
-            LOG.debug("Starting VoterWinHStoreLoader [numContestants=" + numContestants + "]");
+	// a list of procedures implemented in this benchmark
+    @SuppressWarnings("unchecked")
+    public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
+        ProcOne.class, ProcTwo.class, ProcThree.class};
+	
+	{
+		//addTransactionFrequency(Vote.class, 100);
+	}
+	
+	// a list of tables used in this benchmark with corresponding partitioning keys
+    public static final String PARTITIONING[][] = new String[][] {
+        { "a_tbl", "a_id" },
+        { "b_tbl", "b_id" },
+        { "c_tbl", "c_id" },
+        { "proc_one_out", "a_id" },
+        { "proc_two_out", "b_id" },
+    };
 
-        try {
-            this.getClientHandle().callProcedure("Initialize",
-                                                 numContestants,
-                                                 VoterWinHStoreConstants.CONTESTANT_NAMES_CSV);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+    public NoFTriggersProjectBuilder() {
+        super("microexpnoftriggers", NoFTriggersProjectBuilder.class, PROCEDURES, PARTITIONING);
     }
 }
+
+
+
+

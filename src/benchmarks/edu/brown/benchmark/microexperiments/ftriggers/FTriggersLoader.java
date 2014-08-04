@@ -51,16 +51,5 @@ public class FTriggersLoader extends Loader {
 
     @Override
     public void load() {
-        int numContestants = FTriggersUtil.getScaledNumContestants(this.getScaleFactor());
-        if (d) 
-            LOG.debug("Starting FTriggersLoader [numContestants=" + numContestants + "]");
-
-        try {
-            this.getClientHandle().callProcedure("Initialize",
-                                                 numContestants,
-                                                 FTriggersConstants.CONTESTANT_NAMES_CSV);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
     }
 }

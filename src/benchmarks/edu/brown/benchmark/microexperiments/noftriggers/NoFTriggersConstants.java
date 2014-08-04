@@ -27,29 +27,16 @@
  *  OTHER DEALINGS IN THE SOFTWARE.                                        *
  ***************************************************************************/
 
-package edu.brown.benchmark.voterexperiments.winhstore.w100s10;
+package edu.brown.benchmark.microexperiments.noftriggers;
 
-public abstract class VoterWinHStoreConstants {
-
-    public static final String TABLENAME_CONTESTANTS     = "contestants";
-    public static final String TABLENAME_AREA_CODE_STATE = "area_code_state";
-    public static final String TABLENAME_VOTES           = "votes";
+public abstract class NoFTriggersConstants {
     
-	public static final int MAX_VOTES = 1000; 
-	public static final int NUM_CONTESTANTS = 6; 
-
-	// Initialize some common constants and variables
-    public static final String CONTESTANT_NAMES_CSV = "Edwina Burnam,Tabatha Gehling,Kelly Clauss,Jessie Alloway," +
-											   "Alana Bregman,Jessie Eichman,Allie Rogalski,Nita Coster," +
-											   "Kurt Walser,Ericka Dieter,Loraine NygrenTania Mattioli";
     // potential return codes
-    public static final long VOTE_SUCCESSFUL = 0;
-    public static final long ERR_INVALID_CONTESTANT = 1;
-    public static final long ERR_VOTER_OVER_VOTE_LIMIT = 2;
+    public static final long PROC_ONE_SUCCESSFUL = 0;
+    public static final long PROC_TWO_SUCCESSFUL = 1;
+    public static final long PROC_THREE_SUCCESSFUL = 2;
+    public static final long STOP_WORKFLOW = -1;
     
-    //public static final long WINDOW_SIZE = MicroWinSStoreConstants.WINDOW_SIZE;
-    //public static final long SLIDE_SIZE = MicroWinSStoreConstants.SLIDE_SIZE;
-    
-    public static final long WINDOW_SIZE = 100;
-    public static final long SLIDE_SIZE = 10;
+    public static final long PROC_TWO_THRESHOLD = 5;
+    public static final long PERC_OUT_OF_TEN = 5;
 }

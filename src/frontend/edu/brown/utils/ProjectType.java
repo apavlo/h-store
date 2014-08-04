@@ -189,6 +189,9 @@ public enum ProjectType {
     
     VOTERDEMOHSTORECORRECT("VoterDemoHStoreCorrect", "edu.brown.benchmark.voterexperiments.demohstorecorrect"),
     VOTERDEMOSSTORECORRECT("VoterDemoSStoreCorrect", "edu.brown.benchmark.voterexperiments.demosstorecorrect"),
+    
+    MICROEXPFTRIGGERS("MicroExpFTriggers", "edu.brown.benchmark.microexperiments.ftriggers"),
+    MICROEXPNOFTRIGGERS("MicroExpNoFTriggers", "edu.brown.benchmark.microexperiments.noftriggers"),
     ;
 
 

@@ -28,9 +28,10 @@
  *  OTHER DEALINGS IN THE SOFTWARE.                                        *
  ***************************************************************************/
 
-package edu.brown.benchmark.voterexperiments.winhstore.w100s10;
+package edu.brown.benchmark.microexperiments.noftriggers;
 
 import java.io.IOException;
+import java.util.Random;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -38,41 +39,40 @@ import org.apache.log4j.Logger;
 import org.voltdb.VoltTable;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
+import org.voltdb.client.ProcCallException;
 import org.voltdb.client.ProcedureCallback;
 
 import weka.classifiers.meta.Vote;
 
 import edu.brown.api.BenchmarkComponent;
+import edu.brown.benchmark.voterexperiments.demohstore.wXsYY.VoterDemoHStoreConstants;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 
-public class VoterWinHStoreClient extends BenchmarkComponent {
-    private static final Logger LOG = Logger.getLogger(VoterWinHStoreClient.class);
+public class NoFTriggersClient extends BenchmarkComponent {
+    private static final Logger LOG = Logger.getLogger(NoFTriggersClient.class);
     private static final LoggerBoolean debug = new LoggerBoolean();
-
-    // Phone number generator
-    PhoneCallGenerator switchboard;
 
     // Flags to tell the worker threads to stop or go
     AtomicBoolean warmupComplete = new AtomicBoolean(false);
     AtomicBoolean benchmarkComplete = new AtomicBoolean(false);
 
-    // voterwinhstore benchmark state
+    // voter benchmark state
     AtomicLong acceptedVotes = new AtomicLong(0);
     AtomicLong badContestantVotes = new AtomicLong(0);
     AtomicLong badVoteCountVotes = new AtomicLong(0);
     AtomicLong failedVotes = new AtomicLong(0);
 
     final Callback callback = new Callback();
+    Random rand = new Random();
+    int nextId = 0;
 
     public static void main(String args[]) {
-        BenchmarkComponent.main(VoterWinHStoreClient.class, args, false);
+        BenchmarkComponent.main(NoFTriggersClient.class, args, false);
     }
 
-    public VoterWinHStoreClient(String args[]) {
+    public NoFTriggersClient(String args[]) {
         super(args);
-        int numContestants = VoterWinHStoreUtil.getScaledNumContestants(this.getScaleFactor());
-        this.switchboard = new PhoneCallGenerator(this.getClientId(), numContestants);
     }
 
     @Override
@@ -95,17 +95,38 @@ public class VoterWinHStoreClient extends BenchmarkComponent {
 
     @Override
     protected boolean runOnce() throws IOException {
-        // Get the next phone call
-        PhoneCallGenerator.PhoneCall call = switchboard.receive();
-
-        Client client = this.getClientHandle();
-        boolean response = client.callProcedure(callback,
-                                                "Vote",
-                                                call.voteId,
-                                                call.phoneNumber,
-                                                call.contestantNumber,
-                                                VoterWinHStoreConstants.MAX_VOTES);
-        return response;
+    	try {
+	        Client client = this.getClientHandle();
+	        nextId++;
+	        ClientResponse response = client.callProcedure("ProcOne",
+	                nextId,
+	                rand.nextInt(10));
+	
+	        incrementTransactionCounter(response, 0);
+	        VoltTable results[] = response.getResults();
+	        
+	        if(results.length > 0 && results[0].asScalarLong() == NoFTriggersConstants.PROC_ONE_SUCCESSFUL)
+	        {
+	        	response = client.callProcedure("ProcTwo");
+	    		//incrementTransactionCounter(response, 1);
+	        }
+	        else
+	        	return true;
+	        
+	        results = response.getResults();
+	        
+	        if(results.length > 0 && results[0].asScalarLong() == NoFTriggersConstants.PROC_TWO_SUCCESSFUL)
+	        {
+	        	response = client.callProcedure("ProcThree");
+	        }
+	        
+	        return true;
+    	} 
+		catch (ProcCallException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			return false;
+		}
     }
 
     @Override
@@ -119,35 +140,17 @@ public class VoterWinHStoreClient extends BenchmarkComponent {
 
     private class Callback implements ProcedureCallback {
 
+    	
+    	public Callback()
+    	{
+    		super();
+    	}
+    	
         @Override
         public void clientCallback(ClientResponse clientResponse) {
             // Increment the BenchmarkComponent's internal counter on the
             // number of transactions that have been completed
             incrementTransactionCounter(clientResponse, 0);
-            
-            // Keep track of state (optional)
-            if (clientResponse.getStatus() == Status.OK) {
-                VoltTable results[] = clientResponse.getResults();
-                assert(results.length == 1);
-                long status = results[0].asScalarLong();
-                if (status == VoterWinHStoreConstants.VOTE_SUCCESSFUL) {
-                    acceptedVotes.incrementAndGet();
-                }
-                else if (status == VoterWinHStoreConstants.ERR_INVALID_CONTESTANT) {
-                    badContestantVotes.incrementAndGet();
-                }
-                else if (status == VoterWinHStoreConstants.ERR_VOTER_OVER_VOTE_LIMIT) {
-                    badVoteCountVotes.incrementAndGet();
-                }
-            }
-            else if (clientResponse.getStatus() == Status.ABORT_UNEXPECTED) {
-                if (clientResponse.getException() != null) {
-                    clientResponse.getException().printStackTrace();
-                }
-                if (debug.val && clientResponse.getStatusString() != null) {
-                    LOG.warn(clientResponse.getStatusString());
-                }
-            }
         }
     } // END CLASS
 }

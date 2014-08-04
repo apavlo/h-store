@@ -34,8 +34,7 @@ import org.voltdb.VoltProcedure;
 import edu.brown.benchmark.AbstractProjectBuilder;
 import edu.brown.api.BenchmarkComponent;
 
-import edu.brown.benchmark.voter.procedures.Vote; 
-import edu.brown.benchmark.voter.procedures.Initialize; 
+import edu.brown.benchmark.microexperiments.ftriggers.procedures.*;
 
 public class FTriggersProjectBuilder extends AbstractProjectBuilder {
 
@@ -48,7 +47,7 @@ public class FTriggersProjectBuilder extends AbstractProjectBuilder {
 	// a list of procedures implemented in this benchmark
     @SuppressWarnings("unchecked")
     public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
-        Vote.class, Initialize.class};
+        ProcOne.class, ProcTwo.class, ProcThree.class};
 	
 	{
 		//addTransactionFrequency(Vote.class, 100);
@@ -56,11 +55,15 @@ public class FTriggersProjectBuilder extends AbstractProjectBuilder {
 	
 	// a list of tables used in this benchmark with corresponding partitioning keys
     public static final String PARTITIONING[][] = new String[][] {
-        { "votes", "phone_number" }
+        { "a_tbl", "a_id" },
+        { "b_tbl", "b_id" },
+        { "c_tbl", "c_id" },
+        { "proc_one_out", "a_id" },
+        { "proc_two_out", "b_id" },
     };
 
     public FTriggersProjectBuilder() {
-        super("voter", FTriggersProjectBuilder.class, PROCEDURES, PARTITIONING);
+        super("microexpftriggers", FTriggersProjectBuilder.class, PROCEDURES, PARTITIONING);
     }
 }
 

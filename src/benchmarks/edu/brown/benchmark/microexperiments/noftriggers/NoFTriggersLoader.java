@@ -4,7 +4,8 @@
  *  Massachusetts Institute of Technology                                  *
  *  Yale University                                                        *
  *                                                                         *
- *  Coded By:  Justin A. DeBrabant (http://www.cs.brown.edu/~debrabant/)   *								   
+ *  Original By: VoltDB Inc.											   *
+ *  Ported By:  Justin A. DeBrabant (http://www.cs.brown.edu/~debrabant/)  *								   
  *                                                                         *
  *                                                                         *
  *  Permission is hereby granted, free of charge, to any person obtaining  *
@@ -27,48 +28,28 @@
  *  OTHER DEALINGS IN THE SOFTWARE.                                        *
  ***************************************************************************/
 
-package edu.brown.benchmark.voterexperiments.winhstore.w100s10;
+package edu.brown.benchmark.microexperiments.noftriggers;
 
-import org.voltdb.VoltProcedure;
+import org.apache.log4j.Logger;
 
-import edu.brown.benchmark.AbstractProjectBuilder;
-import edu.brown.api.BenchmarkComponent;
+import edu.brown.api.Loader;
 
-import edu.brown.benchmark.voterexperiments.winhstore.w100s10.procedures.Vote; 
-import edu.brown.benchmark.voterexperiments.winhstore.w100s10.procedures.Initialize; 
+public class NoFTriggersLoader extends Loader {
 
-public class VoterWinHStoreProjectBuilder extends AbstractProjectBuilder {
+    private static final Logger LOG = Logger.getLogger(NoFTriggersLoader.class);
+    private static final boolean d = LOG.isDebugEnabled();
 
-    // REQUIRED: Retrieved via reflection by BenchmarkController
-    public static final Class<? extends BenchmarkComponent> m_clientClass = VoterWinHStoreClient.class;
+    public static void main(String args[]) throws Exception {
+        if (d) LOG.debug("MAIN: " + NoFTriggersLoader.class.getName());
+        Loader.main(NoFTriggersLoader.class, args, true);
+    }
 
-    // REQUIRED: Retrieved via reflection by BenchmarkController
-    public static final Class<? extends BenchmarkComponent> m_loaderClass = VoterWinHStoreLoader.class;
+    public NoFTriggersLoader(String[] args) {
+        super(args);
+        if (d) LOG.debug("CONSTRUCTOR: " + NoFTriggersLoader.class.getName());
+    }
 
-	// a list of procedures implemented in this benchmark
-    @SuppressWarnings("unchecked")
-    public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
-        Vote.class, Initialize.class};
-	
-	{
-		//addTransactionFrequency(Vote.class, 100);
-	}
-	
-	// a list of tables used in this benchmark with corresponding partitioning keys
-    public static final String PARTITIONING[][] = new String[][] {
-        { "votes", "phone_number" },
-        { "w_staging", "phone_number" },
-        { "w_rows", "phone_number" },
-        { "leaderboard", "contestant_number"},
-        { "staging_count", "row_id"},
-        { "current_win_id", "row_id"}
-    };
-
-    public VoterWinHStoreProjectBuilder() {
-        super("voterwinhstorew100s10", VoterWinHStoreProjectBuilder.class, PROCEDURES, PARTITIONING);
+    @Override
+    public void load() {
     }
 }
-
-
-
-
