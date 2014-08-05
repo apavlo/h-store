@@ -42,6 +42,7 @@ import org.voltdb.client.ProcedureCallback;
 
 import weka.classifiers.meta.Vote;
 import edu.brown.api.BenchmarkComponent;
+import edu.brown.benchmark.simpledistribution.procedures.SP2;
 import edu.brown.benchmark.sstore4moveopautogen.procedures.SP1;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
@@ -109,13 +110,19 @@ public class SStore4MoveOpAutoGenClient extends BenchmarkComponent {
         PhoneCallGenerator.PhoneCall call = switchboard.receive();
 
         Client client = this.getClientHandle();
-        boolean response = client.callProcedure(callback,
-                                                "Vote",
-                                                call.voteId,
-                                                call.phoneNumber,
-                                                call.contestantNumber,
-                                                SStore4MoveOpAutoGenConstants.MAX_VOTES,
-                                                timestamp);
+        long isSP1 = SStore4MoveOpAutoGenUtil.number(0, 1);
+        boolean response;
+        if (isSP1 > 0) {
+        	response = client.callProcedure(callback,
+                    "SP1",
+                    call.voteId,
+                    0);
+        } else {
+        	response = client.callProcedure(callback,
+                    "SP2",
+                    call.voteId,
+                    0);
+        }
         return response;
     }
 
@@ -123,8 +130,8 @@ public class SStore4MoveOpAutoGenClient extends BenchmarkComponent {
     public String[] getTransactionDisplayNames() {
         // Return an array of transaction names
         String procNames[] = new String[]{
-            Vote.class.getSimpleName(),
-            SP1.class.getSimpleName()
+            SP1.class.getSimpleName(),
+            SP2.class.getSimpleName()
         };
         return (procNames);
     }

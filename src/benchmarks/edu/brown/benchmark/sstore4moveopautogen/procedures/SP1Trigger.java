@@ -68,7 +68,7 @@ public class SP1Trigger extends VoltProcedure {
      */
     public final void compute() {
 		try {
-			Thread.sleep(1); // Sleep 1 millisecond
+			Thread.sleep(100); // Sleep 1 millisecond
 		} catch (InterruptedException ex) {
 			Thread.currentThread().interrupt();
 		}
@@ -76,23 +76,18 @@ public class SP1Trigger extends VoltProcedure {
         	
     public long run(int part_id) {
 		voltQueueSQL(pullFromS1, part_id);
-		VoltTable s1Data[] = voltExecuteSQL();
+		VoltTable s1Data[] = voltExecuteSQLForceSinglePartition();
 		
-//		Long vote_id = s1Data[0].fetchRow(0).getLong(0);
-//		System.out.println("vote_id: " + vote_id);
-//		System.out.println("part_id: " + part_id);
-//		voltQueueSQL(inT2Stmt, vote_id, part_id);
-//	
-		compute();
+//		compute();
 		
 		for (int i=0; i < s1Data[0].getRowCount(); i++) {
 			Long vote_id = s1Data[0].fetchRow(i).getLong(0);
 			voltQueueSQL(ins1primeStmt, vote_id, part_id);
 		}
-		voltExecuteSQL();
+		voltExecuteSQLForceSinglePartition();
 		
         voltQueueSQL(clearS1, part_id);
-        VoltTable s1Delete[] = voltExecuteSQL();
+        VoltTable s1Delete[] = voltExecuteSQLForceSinglePartition();
 				
         // Set the return value to 0: successful vote
         return SStore4MoveOpAutoGenConstants.VOTE_SUCCESSFUL;

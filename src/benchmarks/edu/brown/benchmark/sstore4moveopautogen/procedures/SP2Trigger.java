@@ -41,7 +41,7 @@ import edu.brown.benchmark.sstore4moveopautogen.SStore4MoveOpAutoGenConstants;
 @ProcInfo (
 	partitionInfo = "s2.part_id:0",
 	partitionNum = 1,
-    singlePartition = true
+	singlePartition = true
 )
 public class SP2Trigger extends VoltProcedure {
 	
@@ -52,15 +52,15 @@ public class SP2Trigger extends VoltProcedure {
 	}
 	
 	public final SQLStmt pullFromS2 = new SQLStmt(
-		"SELECT vote_id, part_id FROM s2;"
+		"SELECT vote_id, part_id FROM s2 WHERE part_id=0;"
 	);
 	
-    public final SQLStmt ins1primeStmt = new SQLStmt(
+    public final SQLStmt ins2primeStmt = new SQLStmt(
 	   "INSERT INTO s2prime (vote_id, part_id) VALUES (?, ?);"
     );
     
     public final SQLStmt clearS2 = new SQLStmt(
-    	"DELETE FROM s2;"
+    	"DELETE FROM s2 WHERE part_id=0;"
     );
     
     /**
@@ -68,28 +68,23 @@ public class SP2Trigger extends VoltProcedure {
      */
     public final void compute() {
 		try {
-			Thread.sleep(1); // Sleep 1 millisecond
+			Thread.sleep(100); // Sleep 1 millisecond
 		} catch (InterruptedException ex) {
 			Thread.currentThread().interrupt();
 		}
     }
         	
     public long run(int part_id) {
-		
 		voltQueueSQL(pullFromS2);
 		VoltTable s2Data[] = voltExecuteSQL();
 		
-//		Long vote_id = s1Data[0].fetchRow(0).getLong(0);
-//		System.out.println("vote_id: " + vote_id);
-//		System.out.println("part_id: " + part_id);
-//		voltQueueSQL(inT2Stmt, vote_id, part_id);
-//	
-		compute();
+//		compute();
 		
 		for (int i=0; i < s2Data[0].getRowCount(); i++) {
 			Long vote_id = s2Data[0].fetchRow(i).getLong(0);
-			voltQueueSQL(ins1primeStmt, vote_id, part_id);
+			voltQueueSQL(ins2primeStmt, vote_id, part_id);
 		}
+		voltExecuteSQL();
 		
         voltQueueSQL(clearS2);
         VoltTable s2Delete[] = voltExecuteSQL();
