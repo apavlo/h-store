@@ -29,6 +29,8 @@
 
 package edu.brown.benchmark.voterexperiments.demosstore.wXsYY.procedures;
 
+import java.util.Random;
+
 import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
 import org.voltdb.StmtInfo;
@@ -49,6 +51,8 @@ public class Vote extends VoltProcedure {
 	@StmtInfo(
             upsertable=true
         )
+	
+	private Random rand = new Random();
 	
     // Checks if the vote is for a valid contestant
     public final SQLStmt checkContestantStmt = new SQLStmt(
@@ -104,7 +108,8 @@ public long run(long voteId, long phoneNumber, int contestantNumber) {
         // Post the vote
         TimestampType timestamp = new TimestampType();
         voltQueueSQL(insertVoteStmt, voteId, phoneNumber, state, contestantNumber, timestamp);
-        voltQueueSQL(insertProcEndStmt, voteId, phoneNumber, state, contestantNumber, timestamp);
+        if(rand.nextInt(100) < 1)
+        	voltQueueSQL(insertProcEndStmt, voteId, phoneNumber, state, contestantNumber, timestamp);
         voltExecuteSQL(true);
 		
         // Set the return value to 0: successful vote

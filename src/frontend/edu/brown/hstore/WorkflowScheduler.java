@@ -150,7 +150,6 @@ public class WorkflowScheduler {
             this.addSPStatus(workflowid, txn, "ended");
             LOG.debug("WORKFLOW ended: " + workflowid + " " + txn);
         }
-        LOG.debug("WORKFLOW should end, but workflowid was -1: " + workflowid + " " + txn);
     }
     
     private synchronized void addSPStatus(Long workflowid, String txn, String status)

@@ -2105,7 +2105,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             timestamp = System.currentTimeMillis();
             EstTimeUpdater.update(timestamp);
         }
-
+        
         // Extract the stuff we need to figure out whether this guy belongs at our site
         // We don't need to create a StoredProcedureInvocation anymore in order to
         // extract out the data that we need in this request

@@ -1,6 +1,6 @@
 import Queue
 import socket
-import sys
+import sys, argparse
 import time
 from threading import Semaphore
 from thread import *
@@ -55,11 +55,12 @@ def getvotes(filename):
 	f.close()
 
 def popvotes(conn, votes, lock):
+	global waittime
 	while True:
 		data = conn.recv(1024)
 		lock.acquire()
 		conn.sendall(votes.get())
-		time.sleep(0.005)
+		time.sleep(waittime)
 		lock.release()
 	
 	conn.close()
@@ -81,6 +82,13 @@ def sthread():
 		print 'S-Store Votes connected with ' + addr[0] + ':' + str(addr[1])
 		start_new_thread(popvotes, (conn,s_votes,s_lock))
 	s_socket.close()
+
+parser = argparse.ArgumentParser(description='Starts running the vote feeder for h-store and/or s-store.')
+parser.add_argument('-w','--wait', help='wait in between sending next vote (in seconds)', default=0.001)
+
+args = parser.parse_args()
+
+waittime = args.wait
 
 getvotes(FILE)
 start_new_thread(hthread, ())

@@ -53,8 +53,6 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
 public class VoterDemoSStoreClient extends BenchmarkComponent {
     private static final Logger LOG = Logger.getLogger(VoterDemoSStoreClient.class);
     private static final LoggerBoolean debug = new LoggerBoolean();
-    private static long lastTime;
-    private static int timestamp;
 
     // Phone number generator
     PhoneCallGenerator switchboard;
@@ -69,7 +67,8 @@ public class VoterDemoSStoreClient extends BenchmarkComponent {
     AtomicLong badVoteCountVotes = new AtomicLong(0);
     AtomicLong failedVotes = new AtomicLong(0);
     
-    boolean genLeaderboard;
+    final Callback callback = new Callback();
+    static AtomicLong batchid = new AtomicLong(0);
 
     public static void main(String args[]) {
         BenchmarkComponent.main(VoterDemoSStoreClient.class, args, false);
@@ -80,9 +79,6 @@ public class VoterDemoSStoreClient extends BenchmarkComponent {
         int numContestants = VoterDemoSStoreUtil.getScaledNumContestants(this.getScaleFactor());
 //        this.switchboard = new PhoneCallGenerator(VoterDemoSStoreConstants.VOTE_FILE);
         this.switchboard = new PhoneCallGenerator();
-        lastTime = System.nanoTime();
-        timestamp = 0;
-        genLeaderboard = false;
     }
 
     @Override
@@ -107,28 +103,22 @@ public class VoterDemoSStoreClient extends BenchmarkComponent {
     @Override
     protected boolean runOnce() throws IOException {
         // Get the next phone call
-    	try {
-	    	Client client = this.getClientHandle();
-	    	
-		        PhoneCallGenerator.PhoneCall call = switchboard.receive();
-		        //Callback callback = new Callback(0)
-		
-		        ClientResponse response;
-					response = client.callProcedure(       "Vote",
-					                                        call.voteId,
-					                                        call.phoneNumber,
-					                                        call.contestantNumber,
-					                                        VoterDemoSStoreConstants.MAX_VOTES);
-				
-				incrementTransactionCounter(response, 0);
-		        return true;
+    	Client client = this.getClientHandle();
+    	
+        PhoneCallGenerator.PhoneCall call = switchboard.receive();
+        //Callback callback = new Callback(0)
 
-    	} 
-		catch (ProcCallException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-			return false;
-		}
+        boolean response = client.callStreamProcedure(  callback,
+													"Vote",
+													//VoterDemoSStoreClient.batchid.incrementAndGet(),
+													call.voteId,
+			                                        call.voteId,
+			                                        call.phoneNumber,
+			                                        call.contestantNumber,
+			                                        VoterDemoSStoreConstants.MAX_VOTES);
+		
+        return response;
+
     }
 
     @Override
@@ -143,52 +133,39 @@ public class VoterDemoSStoreClient extends BenchmarkComponent {
 
     private class Callback implements ProcedureCallback {
     	
-    	private int idx;
-    	private long prevStatus;
-    	
-    	public Callback(int idx)
+    	public Callback()
     	{
     		super();
-    		this.idx = idx;
-    	}
-    	
-    	public long getStatus()
-    	{
-    		return prevStatus;
     	}
 
         @Override
         public void clientCallback(ClientResponse clientResponse) {
             // Increment the BenchmarkComponent's internal counter on the
             // number of transactions that have been completed
-            //incrementTransactionCounter(clientResponse, this.idx);
             
-            if(this.idx == 0)
-            {
-	            // Keep track of state (optional)
-	            if (clientResponse.getStatus() == Status.OK) {
-	                VoltTable results[] = clientResponse.getResults();
-	                assert(results.length == 1);
-	                long status = results[0].asScalarLong();
-	                prevStatus = status;
-	                if (status == VoterDemoSStoreConstants.VOTE_SUCCESSFUL) {
-	                    acceptedVotes.incrementAndGet();
-	                }
-	                else if (status == VoterDemoSStoreConstants.ERR_INVALID_CONTESTANT) {
-	                    badContestantVotes.incrementAndGet();
-	                }
-	                else if (status == VoterDemoSStoreConstants.ERR_VOTER_OVER_VOTE_LIMIT) {
-	                    badVoteCountVotes.incrementAndGet();
-	                }
-	            }
-	            else if (clientResponse.getStatus() == Status.ABORT_UNEXPECTED) {
-	                if (clientResponse.getException() != null) {
-	                    clientResponse.getException().printStackTrace();
-	                }
-	                if (debug.val && clientResponse.getStatusString() != null) {
-	                    LOG.warn(clientResponse.getStatusString());
-	                }
-	            }
+			incrementTransactionCounter(clientResponse, 0);
+            // Keep track of state (optional)
+            if (clientResponse.getStatus() == Status.OK) {
+                VoltTable results[] = clientResponse.getResults();
+                assert(results.length == 1);
+                long status = results[0].asScalarLong();
+                if (status == VoterDemoSStoreConstants.VOTE_SUCCESSFUL) {
+                    acceptedVotes.incrementAndGet();
+                }
+                else if (status == VoterDemoSStoreConstants.ERR_INVALID_CONTESTANT) {
+                    badContestantVotes.incrementAndGet();
+                }
+                else if (status == VoterDemoSStoreConstants.ERR_VOTER_OVER_VOTE_LIMIT) {
+                    badVoteCountVotes.incrementAndGet();
+                }
+            }
+            else if (clientResponse.getStatus() == Status.ABORT_UNEXPECTED) {
+                if (clientResponse.getException() != null) {
+                    clientResponse.getException().printStackTrace();
+                }
+                if (debug.val && clientResponse.getStatusString() != null) {
+                    LOG.warn(clientResponse.getStatusString());
+                }
             }
         }
     } // END CLASS
