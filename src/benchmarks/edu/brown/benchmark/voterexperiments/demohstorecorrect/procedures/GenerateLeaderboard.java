@@ -195,7 +195,16 @@ public class GenerateLeaderboard extends VoltProcedure {
 												  + "        , contestant_number ASC"
 												  + " LIMIT 3");
     
+    public final SQLStmt getAllVotesStmt = new SQLStmt( "   SELECT a.contestant_name   AS contestant_name"
+			  + "        , b.num_votes          AS num_votes"
+			  + "     FROM v_votes_by_contestant b"
+			  + "        , contestants AS a"
+			  + "    WHERE a.contestant_number = b.contestant_number"
+			  + " ORDER BY num_votes ASC"
+			  + "        , contestant_number ASC");
+    
     public final SQLStmt getVoteCountStmt = new SQLStmt( "SELECT cnt FROM votes_count WHERE row_id=1;");
+    public final SQLStmt getActualVoteCountStmt = new SQLStmt( "SELECT count(*) FROM votes");
     public final SQLStmt getTrendingCountStmt = new SQLStmt("SELECT count(*) FROM w_rows;");
 	/////////////////////////////
 	//END GET RESULTS
@@ -212,8 +221,12 @@ public class GenerateLeaderboard extends VoltProcedure {
         tableNames.add("BottomThree");
         voltQueueSQL(getTrendingStmt);
         tableNames.add("TrendingThree");
+        //voltQueueSQL(getAllVotesStmt);
+        //tableNames.add("Votes");
+        //voltQueueSQL(getActualVoteCountStmt);
+		//tableNames.add("ActualVoteCount");
         voltQueueSQL(getVoteCountStmt);
-        tableNames.add("VoteCount");
+		tableNames.add("VoteCount");
         voltQueueSQL(getTrendingCountStmt);
         tableNames.add("TrendingCount");
         VoltTable[] v = voltExecuteSQL();

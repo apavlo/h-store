@@ -59,6 +59,7 @@ def popvotes(conn, votes, lock):
 		data = conn.recv(1024)
 		lock.acquire()
 		conn.sendall(votes.get())
+		time.sleep(0.005)
 		lock.release()
 	
 	conn.close()
