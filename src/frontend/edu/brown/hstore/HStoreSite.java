@@ -2271,7 +2271,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
       
       ParameterSet procParams = new ParameterSet();
       int partitionNum = procedure.getPartitionnum();
-      procParams.setParameters(procedure.getPartitionnum());
+//      if (partitionNum != 0) {
+    	  procParams.setParameters(procedure.getPartitionnum());
+//      }
       
       // -------------------------------
       // BASE PARTITION
@@ -2297,9 +2299,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
       final StoredProcedureInvocation invocation =
               new StoredProcedureInvocation(client_handle, procedure.getName());
       invocation.setBasePartition(base_partition);
-      if (partitionNum != 0) {
+//      if (partitionNum != 0) {
     	  invocation.setParams(partitionNum);
-      }
+//      }
 
       ByteBuffer buffer = null; // FIXME maybe error here, by hawk, 2014-3-7
       try {
