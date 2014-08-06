@@ -70,6 +70,13 @@ CREATE TABLE votes_count
   cnt		     integer    NOT NULL
 );
 
+CREATE TABLE proc_one_count
+(
+  row_id	     integer    NOT NULL,
+  totalcnt	     integer    NOT NULL,
+  successcnt	     integer    NOT NULL
+);
+
 -- rollup of votes by phone number, used to reject excessive voting
 CREATE VIEW v_votes_by_phone_number
 (

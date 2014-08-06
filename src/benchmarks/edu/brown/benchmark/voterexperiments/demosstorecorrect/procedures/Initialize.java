@@ -47,6 +47,7 @@ public class Initialize extends VoltProcedure
     
     // Inserts a row into the count
     public final SQLStmt insertVoteCountStmt = new SQLStmt("INSERT INTO votes_count (row_id, cnt) VALUES (1, 0);");
+    public final SQLStmt insertProcOneCountStmt = new SQLStmt("INSERT INTO proc_one_count (row_id, totalcnt, successcnt) VALUES (1, 0, 0);");
     
     
 	
@@ -99,6 +100,7 @@ public class Initialize extends VoltProcedure
 		
         voltQueueSQL(checkStmt);
         voltQueueSQL(insertVoteCountStmt);
+        voltQueueSQL(insertProcOneCountStmt);
         long existingContestantCount = voltExecuteSQL()[0].asScalarLong();
 		
         // if the data is initialized, return the contestant count

@@ -75,14 +75,32 @@ public class Vote extends VoltProcedure {
 		"INSERT INTO proc_one_out (vote_id, phone_number, state, contestant_number, created) VALUES (?, ?, ?, ?, ?);"
     );
     
+    public final SQLStmt getNumProcOneStmt = new SQLStmt(
+		"SELECT totalcnt, successcnt FROM proc_one_count WHERE row_id = 1;"
+    );
+    
+    public final SQLStmt updateNumProcOneStmt = new SQLStmt(
+		"UPDATE proc_one_count SET totalcnt = ? WHERE row_id = 1;"
+    );
+    
+    public final SQLStmt updateNumSuccessStmt = new SQLStmt(
+		"UPDATE proc_one_count SET successcnt = ? WHERE row_id = 1;"
+    );
+    
 	
 public long run(long voteId, long phoneNumber, int contestantNumber, long maxVotesPerPhoneNumber) {
 		
+		voltQueueSQL(getNumProcOneStmt);
+		VoltTable validation[] = voltExecuteSQL();
+		
+		long numProcOne = validation[0].fetchRow(0).getLong(0);
+		long numSuccess = validation[0].fetchRow(0).getLong(1);
         // Queue up validation statements
 		voltQueueSQL(checkContestantStmt, contestantNumber);
         voltQueueSQL(checkVoterStmt, phoneNumber);
         voltQueueSQL(checkStateStmt, (short)(phoneNumber / 10000000l));
-        VoltTable validation[] = voltExecuteSQL();
+        voltQueueSQL(updateNumProcOneStmt, numProcOne + 1);
+        validation = voltExecuteSQL();
 		
         // validate the maximum limit for votes number
         if (validation[0].getRowCount() == 0) {
@@ -100,11 +118,14 @@ public long run(long voteId, long phoneNumber, int contestantNumber, long maxVot
         // but are tracked as legitimate instead of invalid, as old clients would mostly get
         // it wrong and see all their transactions rejected).
         final String state = (validation[2].getRowCount() > 0) ? validation[2].fetchRow(0).getString(0) : "XX";
+        
+        
 		 		
         // Post the vote
         TimestampType timestamp = new TimestampType();
         voltQueueSQL(insertVoteStmt, voteId, phoneNumber, state, contestantNumber, timestamp);
         voltQueueSQL(insertProcEndStmt, voteId, phoneNumber, state, contestantNumber, timestamp);
+        voltQueueSQL(updateNumSuccessStmt, numSuccess + 1);
         voltExecuteSQL(true);
 		
         // Set the return value to 0: successful vote

@@ -11,7 +11,7 @@ sready = False
 HOST = ''
 HSTORE_PORT = 9001
 SSTORE_PORT = 9002
-FILE = "votes-random-50000.txt"
+
 
 h_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 s_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -84,12 +84,13 @@ def sthread():
 	s_socket.close()
 
 parser = argparse.ArgumentParser(description='Starts running the vote feeder for h-store and/or s-store.')
-parser.add_argument('-w','--wait', help='wait in between sending next vote (in seconds)', default=0.001)
+parser.add_argument('-w','--wait', help='wait in between sending next vote (in seconds)', type=float, default=0.001)
+parser.add_argument('-f','--file', help='filename to read', default="votes-random-50000.txt")
 
 args = parser.parse_args()
 
 waittime = args.wait
-
+FILE = args.file
 getvotes(FILE)
 start_new_thread(hthread, ())
 start_new_thread(sthread, ())

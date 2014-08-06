@@ -146,6 +146,7 @@ parser.add_argument('--hscheduler', help='turns off S-Store scheduler', action='
 parser.add_argument('--hstore', help='turns off S-Store', action='store_true')
 parser.add_argument('--ftrigger_off', help='turns off frontend triggers', action='store_true')
 parser.add_argument('--weakrecovery_off', help='sets strong or weak recovery', action='store_true')
+parser.add_argument('--perc_compare', help='compare whether system is processing more txns rather than the txnthreshold', action='store_true')
 
 args = parser.parse_args()
 
@@ -178,6 +179,7 @@ scheduler   = not args.hscheduler
 sstore      = not args.hstore
 ftrigger    = not args.ftrigger_off
 wrecovery   = not args.weakrecovery_off
+perc_compare = args.perc_compare
 
 if blockingflag==True:
     strblocking = "true"
@@ -241,7 +243,7 @@ idx_thmax = 6;
 idx_txnrate = 11;
 
 max_values = [];
-
+prev_perc = 0;
 
 #  make command line to execute benchmark with the indicated configuration
 
@@ -311,19 +313,34 @@ for rn in range(0, numruns):
 			cur_values = numreport
 			break
 
-		if numreport[idx_throughput] <= client_txnrate * txn_threshold:
-			if rstep != frstep:
-				client_txnrate -= rstep
-				rstep = frstep
+		if perc_compare:
+			if numreport[idx_throughput] / client_txnrate <= prev_perc:
+				if rstep != frstep:
+					client_txnrate -= rstep
+					rstep = frstep
+					prev_perc = 0.0
+				else:
+					if not cur_values:
+						numreport.append(float(client_txnrate))
+						cur_values = numreport
+					break
 			else:
-				if not cur_values:
-					numreport.append(float(client_txnrate))
-					cur_values = numreport
-				break
+				prev_perc = numreport[idx_throughput] / client_txnrate
+
 		else:
-			numreport.append(float(client_txnrate))
-			cur_values = numreport
-			client_txnrate += rstep
+			if numreport[idx_throughput] <= client_txnrate * txn_threshold:
+				if rstep != frstep:
+					client_txnrate -= rstep
+					rstep = frstep
+				else:
+					if not cur_values:
+						numreport.append(float(client_txnrate))
+						cur_values = numreport
+					break
+			else:
+				numreport.append(float(client_txnrate))
+				cur_values = numreport
+				client_txnrate += rstep
 	##endwhile
 	#print "cur_values length: " + "{0:d}".format(len(cur_values))
 	max_values.append(cur_values)
@@ -351,6 +368,7 @@ min_throughput = 999999999;
 min_txnrate = 0;
 all_throughputs = []
 all_txnrates = []
+
 #print "max_values length: " + "{0:d}".format(len(max_values))
 for i in range(0, len(max_values)):
 	#print "max_values[i] length: " + "{0:d}".format(len(max_values[i]))

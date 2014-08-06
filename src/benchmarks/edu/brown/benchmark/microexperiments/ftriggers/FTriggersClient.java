@@ -60,6 +60,7 @@ public class FTriggersClient extends BenchmarkComponent {
     AtomicLong badContestantVotes = new AtomicLong(0);
     AtomicLong badVoteCountVotes = new AtomicLong(0);
     AtomicLong failedVotes = new AtomicLong(0);
+    static AtomicLong batchid = new AtomicLong(0);
 
     final Callback callback = new Callback();
     Random rand = new Random();
@@ -96,8 +97,9 @@ public class FTriggersClient extends BenchmarkComponent {
 
         Client client = this.getClientHandle();
         nextId++;
-        boolean response = client.callProcedure(callback,
+        boolean response = client.callStreamProcedure(callback,
                                                 "ProcOne",
+                                                batchid.getAndIncrement(),
                                                 nextId,
                                                 rand.nextInt(10));
         return response;

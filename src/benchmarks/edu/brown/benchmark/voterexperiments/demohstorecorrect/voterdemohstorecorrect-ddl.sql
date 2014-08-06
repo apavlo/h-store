@@ -93,6 +93,14 @@ CREATE TABLE votes_count
   cnt		     integer    NOT NULL
 );
 
+CREATE TABLE proc_one_count
+(
+  row_id	     integer    NOT NULL,
+  totalcnt	     integer    NOT NULL,
+  successcnt	     integer    NOT NULL
+);
+
+
 CREATE TABLE staging_count
 (
   row_id	     integer    NOT NULL,
