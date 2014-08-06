@@ -110,16 +110,26 @@ public class SStore4MoveOpAutoGenClient extends BenchmarkComponent {
         PhoneCallGenerator.PhoneCall call = switchboard.receive();
 
         Client client = this.getClientHandle();
-        long isSP1 = SStore4MoveOpAutoGenUtil.number(0, 1);
+        long isSP1 = SStore4MoveOpAutoGenUtil.number(0, 3);
         boolean response;
-        if (isSP1 > 0) {
+        if (isSP1 == 0) {
         	response = client.callProcedure(callback,
                     "SP1",
                     call.voteId,
                     0);
-        } else {
+        } else if (isSP1 == 1) {
         	response = client.callProcedure(callback,
                     "SP2",
+                    call.voteId,
+                    0);
+        } else if (isSP1 == 2) {
+        	response = client.callProcedure(callback,
+                    "SP3",
+                    call.voteId,
+                    0);
+        } else {
+        	response = client.callProcedure(callback,
+                    "SP4",
                     call.voteId,
                     0);
         }

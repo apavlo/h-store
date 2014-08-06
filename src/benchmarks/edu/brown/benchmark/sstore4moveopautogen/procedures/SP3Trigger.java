@@ -39,28 +39,28 @@ import org.voltdb.types.TimestampType;
 import edu.brown.benchmark.sstore4moveopautogen.SStore4MoveOpAutoGenConstants;
 
 @ProcInfo (
-	partitionInfo = "s2.part_id:0",
-	partitionNum = 1,
+	partitionInfo = "s3.part_id:0",
+	partitionNum = 2,
 	singlePartition = true
 )
-public class SP2Trigger extends VoltProcedure {
+public class SP3Trigger extends VoltProcedure {
 	
 	
 	protected void toSetTriggerTableName()
 	{
-		addTriggerTable("s2");
+		addTriggerTable("s3");
 	}
 	
-	public final SQLStmt pullFromS2 = new SQLStmt(
-		"SELECT vote_id, part_id FROM s2 WHERE part_id=0;"
+	public final SQLStmt pullFromS3 = new SQLStmt(
+		"SELECT vote_id, part_id FROM s3 WHERE part_id=0;"
 	);
 	
-    public final SQLStmt ins2primeStmt = new SQLStmt(
-	   "INSERT INTO s2prime (vote_id, part_id) VALUES (?, ?);"
+    public final SQLStmt ins3primeStmt = new SQLStmt(
+	   "INSERT INTO s3prime (vote_id, part_id) VALUES (?, ?);"
     );
     
-    public final SQLStmt clearS2 = new SQLStmt(
-    	"DELETE FROM s2 WHERE part_id=0;"
+    public final SQLStmt clearS3 = new SQLStmt(
+    	"DELETE FROM s3 WHERE part_id=0;"
     );
     
     /**
@@ -75,19 +75,19 @@ public class SP2Trigger extends VoltProcedure {
     }
         	
     public long run(int part_id) {
-		voltQueueSQL(pullFromS2);
-		VoltTable s2Data[] = voltExecuteSQL();
+		voltQueueSQL(pullFromS3);
+		VoltTable s3Data[] = voltExecuteSQL();
 		
 //		compute();
 		
-		for (int i=0; i < s2Data[0].getRowCount(); i++) {
-			Long vote_id = s2Data[0].fetchRow(i).getLong(0);
-			voltQueueSQL(ins2primeStmt, vote_id, part_id);
+		for (int i=0; i < s3Data[0].getRowCount(); i++) {
+			Long vote_id = s3Data[0].fetchRow(i).getLong(0);
+			voltQueueSQL(ins3primeStmt, vote_id, part_id);
 		}
 		voltExecuteSQL();
 		
-        voltQueueSQL(clearS2);
-        VoltTable s2Delete[] = voltExecuteSQL();
+        voltQueueSQL(clearS3);
+        VoltTable s3Delete[] = voltExecuteSQL();
 				
         // Set the return value to 0: successful vote
         return SStore4MoveOpAutoGenConstants.VOTE_SUCCESSFUL;

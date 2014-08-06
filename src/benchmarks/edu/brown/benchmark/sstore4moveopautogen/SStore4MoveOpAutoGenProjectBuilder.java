@@ -51,6 +51,10 @@ public class SStore4MoveOpAutoGenProjectBuilder extends AbstractProjectBuilder {
         ,SP1Trigger.class
         ,SP2.class
         ,SP2Trigger.class
+        ,SP3.class
+        ,SP3Trigger.class
+        ,SP4.class
+        ,SP4Trigger.class
         };
 	
 	{
@@ -65,7 +69,11 @@ public class SStore4MoveOpAutoGenProjectBuilder extends AbstractProjectBuilder {
         { "s1", "part_id" },
         { "s2", "part_id" },
         { "s1prime", "part_id" },
-        { "s2prime", "part_id" }
+        { "s2prime", "part_id" },
+        { "s3", "part_id" },
+        { "s3prime", "part_id" },
+        { "s4", "part_id" },
+        { "s4prime", "part_id" }
     };
 
     public SStore4MoveOpAutoGenProjectBuilder() {

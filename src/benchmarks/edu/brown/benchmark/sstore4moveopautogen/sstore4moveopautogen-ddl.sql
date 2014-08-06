@@ -66,3 +66,31 @@ CREATE STREAM s2prime
   , part_id          bigint     NOT NULL
 -- PARTITIONED BY (part_id)
 );
+
+CREATE STREAM s3
+(
+  vote_id            bigint     NOT NULL
+  , part_id          bigint     NOT NULL
+-- PARTITIONED BY (part_id)
+);
+
+CREATE STREAM s3prime
+(
+  vote_id            bigint     NOT NULL
+  , part_id          bigint     NOT NULL
+-- PARTITIONED BY (part_id)
+);
+
+CREATE STREAM s4
+(
+  vote_id            bigint     NOT NULL
+  , part_id          bigint     NOT NULL
+-- PARTITIONED BY (part_id)
+);
+
+CREATE STREAM s4prime
+(
+  vote_id            bigint     NOT NULL
+  , part_id          bigint     NOT NULL
+-- PARTITIONED BY (part_id)
+);
