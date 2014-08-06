@@ -1085,7 +1085,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             LOG.warn("Enabled Distributed Transaction Validation Checker");
         }
         // *********************************** DEBUG ***********************************
-        
+
         // Things that we will need in the loop below
         InternalMessage nextWork = null;
         AbstractTransaction nextTxn = null;
@@ -1143,8 +1143,20 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                         // to wait to see if anything will show up in our work queue.
                         if (hstore_conf.site.specexec_enable && this.lockQueue.approximateIsEmpty() == false) {
                             nextWork = this.work_queue.poll();
+                            /*if (nextWork != null) {
+                                        System.out.println(String.format("Polled a work %s from partition %d",
+                                                                          nextWork.getClass().getSimpleName(), this.work_queue.size()));
+                            } else {
+                                System.out.println("Null work!");
+                            }*/
                         } else {
                             nextWork = this.work_queue.poll(WORK_QUEUE_POLL_TIME, WORK_QUEUE_POLL_TIMEUNIT);    
+                            /*if (nextWork != null) {
+                                        LOG.info(String.format("Polled a work %s from partition %d",
+                                                                          nextWork.getClass().getSimpleName(), this.work_queue.size()));
+                            } else {
+                                LOG.info("Null work!");
+                            }*/
                         }
                     } catch (InterruptedException ex) {
                         continue;
@@ -1192,6 +1204,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                     if (this.utilityWork()) {
                         nextWork = UTIL_WORK_MSG;
                     }
+                } else {
+                    Thread.sleep(10);
                 }
             } // WHILE
         } catch (final Throwable ex) {
@@ -1331,6 +1345,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         if (work instanceof UtilityWorkMessage) {
             // UPDATE MEMORY STATS
             if (work instanceof UpdateMemoryMessage) {
+                //LOG.info("Update mem stats");
                 this.updateMemoryStats(EstTime.currentTimeMillis());
             }
             // TABLE STATS REQUEST
@@ -1392,6 +1407,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
      * @param work
      */
     private void processInternalTxnMessage(InternalTxnMessage work) {
+        //LOG.info("process a txn msg");
         AbstractTransaction ts = work.getTransaction();
         this.currentTxn = ts;
         this.currentTxnId = ts.getTransactionId();
@@ -2165,10 +2181,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
      * @param work
      */
     public void queueUtilityWork(InternalMessage work) {
+        this.work_queue.add(work);
         if (debug.val)
-            LOG.warn(String.format("Added utility work %s to partition %d",
-                      work.getClass().getSimpleName(), this.partitionId));
-        this.work_queue.offer(work);
+            LOG.warn(String.format("Added utility work %s to partition %d with size %d",
+                      work.getClass().getSimpleName(), this.partitionId, this.work_queue.size()));
     }
 
     

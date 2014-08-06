@@ -9,6 +9,7 @@ import edu.brown.hstore.internal.InternalTxnMessage;
 import edu.brown.hstore.internal.PrepareTxnMessage;
 import edu.brown.hstore.internal.SetDistributedTxnMessage;
 import edu.brown.hstore.internal.WorkFragmentMessage;
+import edu.brown.hstore.internal.UtilityWorkMessage;
 
 public class PartitionMessageQueue extends PriorityBlockingQueue<InternalMessage> {
     
@@ -16,7 +17,7 @@ public class PartitionMessageQueue extends PriorityBlockingQueue<InternalMessage
 //    private List<InternalMessage> swap = null;
     
     public PartitionMessageQueue() {
-        super(1000, WORK_COMPARATOR); // FIXME
+        super(100000, WORK_COMPARATOR); // FIXME
     }
     
 //    @Override
@@ -61,6 +62,11 @@ public class PartitionMessageQueue extends PriorityBlockingQueue<InternalMessage
 
             Class<?> class0 = msg0.getClass();
             Class<?> class1 = msg1.getClass();
+
+            boolean isUtl0 = class0.equals(UtilityWorkMessage.TableStatsRequestMessage.class);
+            boolean isUtl1 = class1.equals(UtilityWorkMessage.TableStatsRequestMessage.class);
+            if (isUtl0 && !isUtl1) return -1;
+            if (!isUtl0 && isUtl1) return 1;
             
             // Always compare Transaction Ids first
             boolean isTxn0 = (msg0 instanceof InternalTxnMessage);

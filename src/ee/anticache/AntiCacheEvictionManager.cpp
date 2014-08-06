@@ -1171,7 +1171,7 @@ bool AntiCacheEvictionManager::mergeUnevictedTuples(PersistentTable *table) {
     TableTuple unevictedTuple(table->m_schema);
     TableTuple evicted_tuple = table->getEvictedTable()->tempTuple();
 
-    int active_tuple_count = (int)table->activeTupleCount();
+    //int active_tuple_count = (int)table->activeTupleCount();
 #ifndef ANTICACHE_TIMESTAMPS
     //int tuples_in_eviction_chain = (int)table->getNumTuplesInEvictionChain();
 #endif
@@ -1200,7 +1200,7 @@ bool AntiCacheEvictionManager::mergeUnevictedTuples(PersistentTable *table) {
         for (std::vector<std::string>::iterator it = tableNames.begin() ; it != tableNames.end(); ++it){
             PersistentTable *tableInBlock = dynamic_cast<PersistentTable*>(m_engine->getTable(*it));
             num_tuples_in_block = numTuples.at(count);
-            VOLT_ERROR("Merging %d tuples.", num_tuples_in_block);
+            //VOLT_ERROR("Merging %d tuples.", num_tuples_in_block);
 
             // Now read the actual tuples
             int64_t bytes_unevicted = 0;
@@ -1280,7 +1280,7 @@ bool AntiCacheEvictionManager::mergeUnevictedTuples(PersistentTable *table) {
     table->clearUnevictedBlocks();
     table->clearMergeTupleOffsets();
 
-    VOLT_ERROR("Active Tuple Count: %d -- %d", (int)active_tuple_count, (int)table->activeTupleCount());
+    //VOLT_ERROR("Active Tuple Count: %d -- %d", (int)active_tuple_count, (int)table->activeTupleCount());
 #ifndef ANTICACHE_TIMESTAMPS
     VOLT_INFO("Tuples in Eviction Chain: %d -- %d", (int)tuples_in_eviction_chain, (int)table->getNumTuplesInEvictionChain());
 #endif
