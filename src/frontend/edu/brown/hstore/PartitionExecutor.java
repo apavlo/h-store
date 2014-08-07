@@ -182,6 +182,7 @@ import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.PartitionSet;
 import edu.brown.utils.StringBoxUtil;
 import edu.brown.utils.StringUtil;
+import edu.brown.utils.ThreadUtil;
 
 /**
  * The main executor of transactional work in the system for a single partition.
@@ -1205,7 +1206,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                         nextWork = UTIL_WORK_MSG;
                     }
                 } else {
-                    Thread.sleep(10);
+                    ThreadUtil.sleep(5);
                 }
             } // WHILE
         } catch (final Throwable ex) {
