@@ -108,8 +108,7 @@ public long run(long voteId, long phoneNumber, int contestantNumber) {
         // Post the vote
         TimestampType timestamp = new TimestampType();
         voltQueueSQL(insertVoteStmt, voteId, phoneNumber, state, contestantNumber, timestamp);
-        if(rand.nextInt(100) < 1)
-        	voltQueueSQL(insertProcEndStmt, voteId, phoneNumber, state, contestantNumber, timestamp);
+       	voltQueueSQL(insertProcEndStmt, voteId, phoneNumber, state, contestantNumber, timestamp);
         voltExecuteSQL(true);
 		
         // Set the return value to 0: successful vote
