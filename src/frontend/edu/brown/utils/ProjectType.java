@@ -192,6 +192,8 @@ public enum ProjectType {
     
     MICROEXPFTRIGGERS("MicroExpFTriggers", "edu.brown.benchmark.microexperiments.ftriggers"),
     MICROEXPNOFTRIGGERS("MicroExpNoFTriggers", "edu.brown.benchmark.microexperiments.noftriggers"),
+    
+    GENERATEDEMO("GenerateDemo", "edu.brown.benchmark.voterexperiments.generatedemo"),
     ;
 
 

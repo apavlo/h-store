@@ -27,8 +27,16 @@
 
 package edu.brown.benchmark.voterexperiments.generatedemo;
 
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.util.ArrayList;
 import java.util.Random;
 
+import org.voltdb.VoltTable;
+
+import edu.brown.benchmark.voterexperiments.demosstorecorrect.VoterDemoSStoreConstants;
 import edu.brown.rand.RandomDistribution.Zipf;
 
 public abstract class VoterWinSStoreUtil {
@@ -125,6 +133,92 @@ public abstract class VoterWinSStoreUtil {
         } // FOR
 
         return sub;
+    }
+    
+    public static void writeVoteToFile(PhoneCallGenerator.PhoneCall toWrite)
+    {
+		try {
+			PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(VoterWinSStoreConstants.OUTPUT_FILE, true)));
+			out.println(toWrite.voteId + " " + toWrite.phoneNumber + " " + toWrite.contestantNumber);
+			out.flush();
+	    	out.close();
+		} 
+    	
+    	catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+    }
+    
+    public static void writeVoteToFile(String toWrite)
+    {
+		try {
+			PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(VoterWinSStoreConstants.OUTPUT_FILE, true)));
+			out.println(toWrite);
+			out.flush();
+	    	out.close();
+		} 
+    	
+    	catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+    }
+    
+    public static void clearFiles() throws IOException
+    {
+    	ArrayList<PrintWriter> out = new ArrayList<PrintWriter>();
+    	out.add(new PrintWriter(new BufferedWriter(new FileWriter(VoterWinSStoreConstants.OUTPUT_FILE, false))));
+    	writeToAllFiles(out,"");
+    	closeAllFiles(out);
+    }
+    
+    private static void writeToAllFiles(ArrayList<PrintWriter> p, String toWrite)
+    {
+    	for(int i = 0; i < p.size(); i++)
+    	{
+    		p.get(i).print(toWrite);
+    	}
+    }
+    
+    private static void closeAllFiles(ArrayList<PrintWriter> p)
+    {
+    	for(int i = 0; i < p.size(); i++)
+    	{
+    		p.get(i).close();
+    	}
+    }
+    
+    public static void writeToFile(VoltTable[] v, ArrayList<String> tableNames, int numVotes) throws IOException
+    {
+    	ArrayList<PrintWriter> out = new ArrayList<PrintWriter>();
+    	out.add(new PrintWriter(new BufferedWriter(new FileWriter(VoterWinSStoreConstants.OUTPUT_FILE, true))));
+    	if(numVotes == VoterDemoSStoreConstants.DELETE_CODE)
+    	{
+    		writeToAllFiles(out,"####DELETECANDIDATE####\n");
+    	}
+    	else
+    		writeToAllFiles(out,"####" + numVotes + "####\n");
+    	
+        for(int i = 0; i < v.length; i++)
+        {
+        	writeToAllFiles(out,"**" + tableNames.get(i) + "**\n");
+        	for(int j = 0; j < v[i].getRowCount(); j++)
+        	{
+        		for(int k = 0; k < v[i].getColumnCount(); k++)
+        		{
+        			if(k > 0)
+	        		{
+	        			writeToAllFiles(out, ",");
+	        		}
+        			
+        			writeToAllFiles(out, (v[i].fetchRow(j).get(k)).toString());
+        		}
+        		writeToAllFiles(out,"\n");
+        	}
+        	writeToAllFiles(out,"---------------------------\n");
+        }
+        closeAllFiles(out);
     }
 
 }

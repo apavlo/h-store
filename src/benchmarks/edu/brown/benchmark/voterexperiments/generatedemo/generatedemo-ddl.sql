@@ -52,7 +52,8 @@ CREATE TABLE leaderboard
 CREATE TABLE votes_count
 (
   row_id	     integer    NOT NULL,
-  cnt		     integer    NOT NULL
+  votes_cnt	     integer    NOT NULL,
+  reset_cnt	     integer    NOT NULL
 );
 
 -- rollup of votes by phone number, used to reject excessive voting

@@ -35,7 +35,7 @@ public abstract class VoterWinSStoreConstants {
     public static final String TABLENAME_AREA_CODE_STATE = "area_code_state";
     public static final String TABLENAME_VOTES           = "votes";
     
-    public static final int VOTE_THRESHOLD = 50000;
+    public static final int VOTE_THRESHOLD = 1000;
 	public static final int MAX_VOTES = 1; 
 	public static final int NUM_CONTESTANTS = 25; 
 
@@ -56,4 +56,11 @@ public abstract class VoterWinSStoreConstants {
     public static final long WINDOW_SUCCESSFUL = 5;
     public static final long ERR_NOT_ENOUGH_CONTESTANTS = 6;
     public static final long DELETE_SUCCESSFUL = 7;
+    
+    public static final int REVOTE_LIKELIHOOD = 75;
+    public static final int VOTES_FOR_DELETED = 5;
+    
+    public static final String OUTPUT_FILE = "demo/demo-votes.txt";
+    public static final int DELETE_CODE = -1;
+    public static final boolean DEBUG = false;
 }

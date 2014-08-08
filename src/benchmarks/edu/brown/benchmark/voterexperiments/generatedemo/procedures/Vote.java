@@ -29,6 +29,9 @@
 
 package edu.brown.benchmark.voterexperiments.generatedemo.procedures;
 
+import java.io.IOException;
+import java.util.ArrayList;
+
 import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
@@ -36,6 +39,7 @@ import org.voltdb.VoltTable;
 import org.voltdb.types.TimestampType;
 
 import edu.brown.benchmark.voterexperiments.generatedemo.VoterWinSStoreConstants;
+import edu.brown.benchmark.voterexperiments.generatedemo.VoterWinSStoreUtil;
 
 @ProcInfo (
     partitionInfo = "votes.phone_number:1",
@@ -63,30 +67,80 @@ public class Vote extends VoltProcedure {
 		"INSERT INTO votes (vote_id, phone_number, state, contestant_number, created) VALUES (?, ?, ?, ?, ?);"
     );
     
-    public final SQLStmt insertVoteWindowStmt = new SQLStmt(
-		"INSERT INTO W_ROWS (vote_id, phone_number, state, contestant_number, created) VALUES (?, ?, ?, ?, ?);"
+    public final SQLStmt checkNumVotesStmt = new SQLStmt(
+		"SELECT votes_cnt, reset_cnt FROM votes_count WHERE row_id = 1;"
+    );
+    
+    public final SQLStmt updateNumVotesStmt = new SQLStmt(
+		"UPDATE votes_count SET votes_cnt = ? WHERE row_id = 1;"
+    );
+    
+    public final SQLStmt updateResetVotesStmt = new SQLStmt(
+		"UPDATE votes_count SET reset_cnt = ? WHERE row_id = 1;"
     );
     
 //    public final SQLStmt selectLeaderboardStmt = new SQLStmt(
 //		"SELECT * FROM LEADERBOARD ORDER BY CONTESTANT_NUMBER;"
 //    );
+    
+    public final SQLStmt findLowestContestant = new SQLStmt(
+		"SELECT * FROM v_votes_by_contestant ORDER BY num_votes ASC, contestant_number DESC LIMIT 1;"
+    );
+    
+    public final SQLStmt findContestant = new SQLStmt(
+		"SELECT contestant_number FROM contestants WHERE contestant_number = ?;"
+    );
+    
+    public final SQLStmt getVotesToDelete = new SQLStmt(
+		"SELECT * FROM votes WHERE contestant_number = ?;"
+    );
+    
+    public final SQLStmt deleteLowestContestant = new SQLStmt(
+		"DELETE FROM contestants WHERE contestant_number = ?;"
+    );
+    
+    public final SQLStmt deleteLowestVotes = new SQLStmt(
+		"DELETE FROM votes WHERE contestant_number = ?;"
+    );
+    
+ // Pull aggregate from window
+    public final SQLStmt deleteLeaderBoardStmt = new SQLStmt(
+		"DELETE FROM leaderboard WHERE contestant_number = ?;"
+    );
+    
+	/////////////////////////////
+	//BEGIN GET RESULTS
+	/////////////////////////////
+	public final SQLStmt getAllVotesStmt = new SQLStmt( "   SELECT a.contestant_name   AS contestant_name"
+	+ "        , b.num_votes          AS num_votes"
+	+ "     FROM v_votes_by_contestant b"
+	+ "        , contestants AS a"
+	+ "    WHERE a.contestant_number = b.contestant_number"
+	+ " ORDER BY num_votes ASC"
+	+ "        , contestant_number DESC");
 	
-    public long run(long voteId, long phoneNumber, int contestantNumber, long maxVotesPerPhoneNumber) {
+	public final SQLStmt getVoteCountStmt = new SQLStmt( "SELECT votes_cnt, reset_cnt FROM votes_count WHERE row_id=1;");
+	/////////////////////////////
+	//END GET RESULTS
+	/////////////////////////////
+	
+    public VoltTable[] run(long voteId, long phoneNumber, int contestantNumber, long maxVotesPerPhoneNumber) {
 		
         // Queue up validation statements
     	voltQueueSQL(checkContestantStmt, contestantNumber);
         voltQueueSQL(checkVoterStmt, phoneNumber);
         voltQueueSQL(checkStateStmt, (short)(phoneNumber / 10000000l));
+        voltQueueSQL(checkNumVotesStmt);
         VoltTable validation[] = voltExecuteSQL();
 		
         if (validation[0].getRowCount() == 0) {
-            return VoterWinSStoreConstants.ERR_INVALID_CONTESTANT;
+            return null;
         }
         
         // validate the maximum limit for votes number
         if ((validation[1].getRowCount() == 1) &&
 			(validation[1].asScalarLong() >= maxVotesPerPhoneNumber)) {
-            return VoterWinSStoreConstants.ERR_VOTER_OVER_VOTE_LIMIT;
+            return null;
         }
 		
         // Some sample client libraries use the legacy random phone generation that mostly
@@ -96,15 +150,52 @@ public class Vote extends VoltProcedure {
         // it wrong and see all their transactions rejected).
         final String state = (validation[2].getRowCount() > 0) ? validation[2].fetchRow(0).getString(0) : "XX";
 		 		
+        int votes_cnt = (int)validation[3].fetchRow(0).getLong("votes_cnt") + 1;
+        int reset_cnt = (int)validation[3].fetchRow(0).getLong("reset_cnt") + 1;
+        
         // Post the vote
         TimestampType timestamp = new TimestampType();
         voltQueueSQL(insertVoteStmt, voteId, phoneNumber, state, contestantNumber, timestamp);
-        voltQueueSQL(insertVoteWindowStmt, voteId, phoneNumber, state, contestantNumber, timestamp);
+        voltQueueSQL(updateNumVotesStmt, votes_cnt);
+        voltQueueSQL(updateResetVotesStmt, (reset_cnt % VoterWinSStoreConstants.VOTE_THRESHOLD));
         //voltQueueSQL(selectLeaderboardStmt);
-        voltExecuteSQL(true);
-		
+        voltExecuteSQL();
+   
         // Set the return value to 0: successful vote
-        return VoterWinSStoreConstants.VOTE_SUCCESSFUL;
+        if(reset_cnt == VoterWinSStoreConstants.VOTE_THRESHOLD)
+        {
+        	voltQueueSQL(findLowestContestant);
+            validation = voltExecuteSQL();
+            
+            if(validation[0].getRowCount() < 1)
+            {
+            	return null;
+            }
+            if(VoterWinSStoreConstants.DEBUG)
+            {
+	            ArrayList<String> tableNames = new ArrayList<String>();
+	            voltQueueSQL(getAllVotesStmt);
+	            tableNames.add("Votes");
+	    		voltQueueSQL(getVoteCountStmt);
+	    		tableNames.add("VoteCount");
+	    		VoltTable[] v = voltExecuteSQL();
+	    		try {
+					VoterWinSStoreUtil.writeToFile(v, tableNames, VoterWinSStoreConstants.DELETE_CODE);
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+            }
+            
+            int lowestContestant = (int)(validation[0].fetchRow(0).getLong(0));
+            voltQueueSQL(getVotesToDelete, lowestContestant);
+            voltQueueSQL(findContestant, lowestContestant);
+            voltQueueSQL(deleteLowestContestant, lowestContestant);
+            voltQueueSQL(deleteLowestVotes, lowestContestant);
+            voltQueueSQL(deleteLeaderBoardStmt, lowestContestant);
+            return voltExecuteSQL();
+        }
+        return null;
     }
 
 }

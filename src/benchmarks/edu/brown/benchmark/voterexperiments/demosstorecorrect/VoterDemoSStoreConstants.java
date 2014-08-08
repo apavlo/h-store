@@ -42,13 +42,13 @@ public abstract class VoterDemoSStoreConstants {
 	
 	public static final String OUTPUT_FILE = "logs/sstoredemoout/demosstoreout.txt";
 	public static final String OVERWRITE_FILE = "logs/demosstorecurrent.txt";
-	public static final String VOTE_FILE = "demo/votes-random-50000.txt";
+	public static final String VOTE_FILE = "demo/demo-votes.txt";
 	public static final int DELETE_CODE = -1;
 	public static final boolean SOCKET_CONTROL = true;
 	
-	public static final String HOST_PREFIX = "istc8";
-	public static final String HOST_PREFIX_2 = "istc10";
-	public static final String SERVER_HOST_NAME = "istc10.csail.mit.edu";
+	public static final String HOST_PREFIX = "istc9";
+	public static final String HOST_PREFIX_2 = "istc7";
+	public static final String SERVER_HOST_NAME = "istc7.csail.mit.edu";
 	public static final String JIANG_SERVER_HOST_NAME = "istc3";
 	public static final String JIANG_SERVER_HOST_NAME_2 = "istc7";
 	public static final String JIANG_HOST = "istc7";

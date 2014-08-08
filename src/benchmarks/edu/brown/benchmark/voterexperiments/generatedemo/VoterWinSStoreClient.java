@@ -39,6 +39,7 @@ import org.apache.log4j.Logger;
 import org.voltdb.VoltTable;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
+import org.voltdb.client.ProcCallException;
 import org.voltdb.client.ProcedureCallback;
 
 import weka.classifiers.meta.Vote;
@@ -96,18 +97,38 @@ public class VoterWinSStoreClient extends BenchmarkComponent {
 
     @Override
     protected boolean runOnce() throws IOException {
-        // Get the next phone call
-	        PhoneCallGenerator.PhoneCall call = switchboard.receive();
-	
-	        Client client = this.getClientHandle();
-	        boolean response = client.callProcedure(callback,
-	                                                "Vote",
-	                                                call.voteId,
-	                                                call.phoneNumber,
-	                                                call.contestantNumber,
-	                                                VoterWinSStoreConstants.MAX_VOTES);
-	        return response;
-    }
+  	        
+	        try {
+	        	Client client = this.getClientHandle();
+				ClientResponse cr = client.callProcedure("FindNextVote");
+				VoltTable v[] = cr.getResults();
+				switchboard.updateInformation(v[0], (int)v[1].fetchRow(0).getLong("votes_cnt"), (int)v[1].fetchRow(0).getLong("reset_cnt"));
+				
+				PhoneCallGenerator.PhoneCall call = switchboard.receive();
+				
+				cr = client.callProcedure(
+                        "Vote",
+                        call.voteId,
+                        call.phoneNumber,
+                        call.contestantNumber,
+                        VoterWinSStoreConstants.MAX_VOTES);
+				v = cr.getResults();
+				
+				if(v != null && v.length > 1)
+					switchboard.releaseVotes(v[0], (int)v[1].fetchRow(0).getLong(0));
+				
+				incrementTransactionCounter(cr, 0);
+				return true;
+				
+			} catch (ProcCallException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+				return false;
+			}
+	}      
+	        
+	        
+	        
 
     @Override
     public String[] getTransactionDisplayNames() {

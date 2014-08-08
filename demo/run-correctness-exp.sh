@@ -1,12 +1,14 @@
 #!/bin/bash
-#ant clean-java build-java
-#ant hstore-prepare -Dproject="voterdemohstorecorrect" -Dhosts="localhost:0:0"
-#ant hstore-prepare -Dproject="voterdemosstorecorrect" -Dhosts="localhost:0:0"
+ant clean-java build-java
+ant hstore-prepare -Dproject="voterdemohstorecorrect" -Dhosts="localhost:0:0"
+ant hstore-prepare -Dproject="voterdemosstorecorrect" -Dhosts="localhost:0:0"
 
 hstoredir="logs/hstoredemoout"
 sstoredir="logs/sstoredemoout"
 tmphfile=$hstoredir"/demohstoreout.txt"
 tmpsfile=$sstoredir"/demosstoreout.txt"
+
+votefile="demo/demo-votes.txt"
 
 echo $tmphfile
 echo $tmpsfile
@@ -19,14 +21,14 @@ for i in $(eval echo {1..$numruns});
 do
 	rm $tmphfile
 	rm $tmpsfile
-	python demo/votefeeder.py -w $waittime -f "demo/votes-random-50000.txt" &
+	python demo/votefeeder.py -w $waittime -f $votefile &
 	ant hstore-benchmark -Dproject="voterdemohstorecorrect" -Dclient.threads_per_host=10 -Dclient.txnrate=$txnrate \
 	-Dglobal.sstore=false -Dglobal.sstore_scheduler=false -Dclient.blocking=false
 	pkill python
 	newhfile=$hstoredir"/tmp_demohstoreout_"$i".txt"
 	echo $newhfile
 	mv $tmphfile $newhfile
-	python demo/votefeeder.py -w $waittime -f "demo/votes-random-50000.txt" &
+	python demo/votefeeder.py -w $waittime -f $votefile &
 	ant hstore-benchmark -Dproject="voterdemosstorecorrect" -Dclient.threads_per_host=10 -Dclient.txnrate=$txnrate \
 	-Dglobal.sstore=true -Dglobal.sstore_scheduler=true -Dclient.blocking=false
 	pkill python
