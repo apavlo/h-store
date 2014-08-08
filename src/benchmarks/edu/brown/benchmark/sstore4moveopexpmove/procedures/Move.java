@@ -27,7 +27,7 @@
 // number of allowed votes.
 //
 
-package edu.brown.benchmark.sstore4moveopexp.procedures;
+package edu.brown.benchmark.sstore4moveopexpmove.procedures;
 
 import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
@@ -36,14 +36,14 @@ import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.types.TimestampType;
 
-import edu.brown.benchmark.sstore4moveopexp.SStore4MoveOpExpConstants;
+import edu.brown.benchmark.sstore4moveopexpmove.SStore4MoveOpExpMoveConstants;
 
 @ProcInfo (
 	partitionInfo = "s1.part_id:0",
 	partitionNum = 1,
 	singlePartition = true
 )
-public class SP2 extends VoltProcedure {
+public class Move extends VoltProcedure {
 	
 	
 	protected void toSetTriggerTableName()
@@ -55,34 +55,21 @@ public class SP2 extends VoltProcedure {
 		"SELECT vote_id, part_id FROM s1 WHERE part_id=0;"
 	);
 	
-    public final SQLStmt ins2Stmt = new SQLStmt(
-	   "INSERT INTO s2 (vote_id, part_id) VALUES (?, ?);"
+    public final SQLStmt ins1primeStmt = new SQLStmt(
+	   "INSERT INTO s1prime (vote_id, part_id) VALUES (?, ?);"
     );
     
     public final SQLStmt clearS1 = new SQLStmt(
     	"DELETE FROM s1 WHERE part_id=0;"
     );
     
-    /**
-     * Simulation of a computation
-     */
-    public final void compute() {
-		try {
-			Thread.sleep(1); // Sleep 1 millisecond
-		} catch (InterruptedException ex) {
-			Thread.currentThread().interrupt();
-		}
-    }
-        	
     public long run(int part_id) {
 		voltQueueSQL(pullFromS1);
 		VoltTable s1Data[] = voltExecuteSQL();
 		
-//		compute();
-		
 		for (int i=0; i < s1Data[0].getRowCount(); i++) {
 			Long vote_id = s1Data[0].fetchRow(i).getLong(0);
-			voltQueueSQL(ins2Stmt, vote_id, part_id);
+			voltQueueSQL(ins1primeStmt, vote_id, part_id);
 		}
 		voltExecuteSQL();
 		
@@ -90,6 +77,6 @@ public class SP2 extends VoltProcedure {
         voltExecuteSQL();
 				
         // Set the return value to 0: successful vote
-        return SStore4MoveOpExpConstants.VOTE_SUCCESSFUL;
+        return SStore4MoveOpExpMoveConstants.VOTE_SUCCESSFUL;
     }
 }

@@ -27,7 +27,7 @@
 // number of allowed votes.
 //
 
-package edu.brown.benchmark.sstore4moveopexp.procedures;
+package edu.brown.benchmark.sstore4moveopexpmove.procedures;
 
 import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
@@ -36,31 +36,31 @@ import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.types.TimestampType;
 
-import edu.brown.benchmark.sstore4moveopexp.SStore4MoveOpExpConstants;
+import edu.brown.benchmark.sstore4moveopexpmove.SStore4MoveOpExpMoveConstants;
 
 @ProcInfo (
-	partitionInfo = "s1.part_id:0",
-	partitionNum = 1,
-	singlePartition = true
+	partitionInfo = "s1input.part_id:0",
+	partitionNum = 0,
+    singlePartition = true
 )
-public class SP2 extends VoltProcedure {
+public class SP1 extends VoltProcedure {
 	
 	
 	protected void toSetTriggerTableName()
 	{
-		addTriggerTable("s1");
+		addTriggerTable("s1input");
 	}
 	
-	public final SQLStmt pullFromS1 = new SQLStmt(
-		"SELECT vote_id, part_id FROM s1 WHERE part_id=0;"
+	public final SQLStmt pullFromS1Input = new SQLStmt(
+		"SELECT vote_id, part_id FROM s1input WHERE part_id=0;"
 	);
 	
-    public final SQLStmt ins2Stmt = new SQLStmt(
-	   "INSERT INTO s2 (vote_id, part_id) VALUES (?, ?);"
+    public final SQLStmt ins1Stmt = new SQLStmt(
+	   "INSERT INTO s1 (vote_id, part_id) VALUES (?, ?);"
     );
     
-    public final SQLStmt clearS1 = new SQLStmt(
-    	"DELETE FROM s1 WHERE part_id=0;"
+    public final SQLStmt clearS1Input = new SQLStmt(
+    	"DELETE FROM s1input WHERE part_id=0;"
     );
     
     /**
@@ -75,21 +75,21 @@ public class SP2 extends VoltProcedure {
     }
         	
     public long run(int part_id) {
-		voltQueueSQL(pullFromS1);
+		voltQueueSQL(pullFromS1Input);
 		VoltTable s1Data[] = voltExecuteSQL();
 		
 //		compute();
 		
 		for (int i=0; i < s1Data[0].getRowCount(); i++) {
 			Long vote_id = s1Data[0].fetchRow(i).getLong(0);
-			voltQueueSQL(ins2Stmt, vote_id, part_id);
+			voltQueueSQL(ins1Stmt, vote_id, part_id);
 		}
 		voltExecuteSQL();
 		
-        voltQueueSQL(clearS1);
+        voltQueueSQL(clearS1Input);
         voltExecuteSQL();
 				
         // Set the return value to 0: successful vote
-        return SStore4MoveOpExpConstants.VOTE_SUCCESSFUL;
+        return SStore4MoveOpExpMoveConstants.VOTE_SUCCESSFUL;
     }
 }

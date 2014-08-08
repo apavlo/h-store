@@ -27,7 +27,7 @@
 // number of allowed votes.
 //
 
-package edu.brown.benchmark.sstore4moveopexp.procedures;
+package edu.brown.benchmark.sstore4moveopexpmove.procedures;
 
 import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
@@ -39,7 +39,7 @@ import org.voltdb.types.TimestampType;
 import edu.brown.benchmark.sstore4moveopexp.SStore4MoveOpExpConstants;
 
 @ProcInfo (
-	partitionInfo = "s1.part_id:0",
+	partitionInfo = "s1prime.part_id:0",
 	partitionNum = 1,
 	singlePartition = true
 )
@@ -48,19 +48,19 @@ public class SP2 extends VoltProcedure {
 	
 	protected void toSetTriggerTableName()
 	{
-		addTriggerTable("s1");
+		addTriggerTable("s1prime");
 	}
 	
-	public final SQLStmt pullFromS1 = new SQLStmt(
-		"SELECT vote_id, part_id FROM s1 WHERE part_id=0;"
+	public final SQLStmt pullFromS1Prime = new SQLStmt(
+		"SELECT vote_id, part_id FROM s1prime WHERE part_id=1;"
 	);
 	
     public final SQLStmt ins2Stmt = new SQLStmt(
 	   "INSERT INTO s2 (vote_id, part_id) VALUES (?, ?);"
     );
     
-    public final SQLStmt clearS1 = new SQLStmt(
-    	"DELETE FROM s1 WHERE part_id=0;"
+    public final SQLStmt clearS1Prime = new SQLStmt(
+    	"DELETE FROM s1prime WHERE part_id=1;"
     );
     
     /**
@@ -75,18 +75,18 @@ public class SP2 extends VoltProcedure {
     }
         	
     public long run(int part_id) {
-		voltQueueSQL(pullFromS1);
-		VoltTable s1Data[] = voltExecuteSQL();
+		voltQueueSQL(pullFromS1Prime);
+		VoltTable s1primeData[] = voltExecuteSQL();
 		
 //		compute();
 		
-		for (int i=0; i < s1Data[0].getRowCount(); i++) {
-			Long vote_id = s1Data[0].fetchRow(i).getLong(0);
+		for (int i=0; i < s1primeData[0].getRowCount(); i++) {
+			Long vote_id = s1primeData[0].fetchRow(i).getLong(0);
 			voltQueueSQL(ins2Stmt, vote_id, part_id);
 		}
 		voltExecuteSQL();
 		
-        voltQueueSQL(clearS1);
+        voltQueueSQL(clearS1Prime);
         voltExecuteSQL();
 				
         // Set the return value to 0: successful vote
