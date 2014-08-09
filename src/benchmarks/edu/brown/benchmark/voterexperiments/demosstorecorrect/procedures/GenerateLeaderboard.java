@@ -170,7 +170,7 @@ public class GenerateLeaderboard extends VoltProcedure {
     	//System.out.println(stat_filename + " : " + content );
         
         ArrayList<String> tableNames = new ArrayList<String>();
-        if(VoterDemoSStoreConstants.DEBUG)
+        if(!VoterDemoSStoreConstants.DEBUG)
         {
 	        voltQueueSQL(getTopThreeVotesStmt);
 	        tableNames.add("TopThree");
