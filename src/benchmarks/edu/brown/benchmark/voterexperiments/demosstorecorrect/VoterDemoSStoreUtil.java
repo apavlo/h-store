@@ -41,7 +41,6 @@ import java.util.Random;
 
 import org.voltdb.VoltTable;
 
-import edu.brown.benchmark.voterexperiments.demohstorecorrect.VoterDemoHStoreConstants;
 import edu.brown.rand.RandomDistribution.Zipf;
 
 public abstract class VoterDemoSStoreUtil {
@@ -149,31 +148,31 @@ public abstract class VoterDemoSStoreUtil {
     {
     	if(connection)
     		return;
-   	try {
-   			connection = true;
-	    	InetAddress host = InetAddress.getLocalHost();
-			//System.out.println("Host: " + host);
-			//System.out.println("Host Name: " + host.getHostName());
-			String hostname;
-			
-			
-			if(host.getHostName().startsWith(VoterDemoSStoreConstants.HOST_PREFIX) || 
-					host.getHostName().startsWith(VoterDemoSStoreConstants.HOST_PREFIX_2) ||
-					host.getHostName().startsWith(VoterDemoSStoreConstants.JIANG_SERVER_HOST_NAME))
-			{
-				hostname = VoterDemoSStoreConstants.SERVER_HOST_NAME;
-			}
-	
-			else
-			{
-				return;
-			}
-	
-			socket = new Socket(hostname, VoterDemoSStoreConstants.SERVER_PORT_NUM);
-			in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-			out = new PrintWriter(socket.getOutputStream());
-   	}
-   	catch (UnknownHostException e){
+	   	try {
+	   			connection = true;
+		    	InetAddress host = InetAddress.getLocalHost();
+				//System.out.println("Host: " + host);
+				//System.out.println("Host Name: " + host.getHostName());
+				String hostname;
+				
+				/**
+				if(host.getHostName().startsWith(VoterDemoSStoreConstants.HOST_PREFIX) || 
+						host.getHostName().startsWith(VoterDemoSStoreConstants.HOST_PREFIX_2) ||
+						host.getHostName().startsWith(VoterDemoSStoreConstants.JIANG_SERVER_HOST_NAME))
+				{*/
+					hostname = VoterDemoSStoreConstants.SERVER_HOST_NAME;
+				/**}
+		
+				else
+				{
+					return;
+				}*/
+		
+				socket = new Socket(hostname, VoterDemoSStoreConstants.SERVER_PORT_NUM);
+				in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+				out = new PrintWriter(socket.getOutputStream());
+	   	}
+	   	catch (UnknownHostException e){
 			System.err.println("UnknownHostException");
 			e.printStackTrace();
 			connection = false;
