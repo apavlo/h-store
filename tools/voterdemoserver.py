@@ -12,7 +12,7 @@ HOST = ''
 PORT = 9000
 HSTORE_PORT = 9001
 SSTORE_PORT = 9002
-FILE = "../demo/votes-random-50000.txt"
+FILE = "../demo/demo-votes.txt"
 
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 h_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
