@@ -182,7 +182,7 @@ public abstract class VoterDemoHStoreUtil {
 			{
 				System.out.println("ERROR: NOT READY - " + response);
 			}
-			Thread.sleep(500);
+			//Thread.sleep(500);
 			out.close();
 			in.close();
 			socket.close();
@@ -195,10 +195,6 @@ public abstract class VoterDemoHStoreUtil {
 		catch (IOException e) {
 			System.err.println("IOException");
 			e.printStackTrace();
-		}
-		catch (InterruptedException e) {
-			System.err.println("InterruptedException");
-			e.printStackTrace(); 
 		}
     }
     
