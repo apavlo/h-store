@@ -239,7 +239,8 @@ public abstract class VoterDemoSStoreUtil {
 			}
 			else
 			{
-				return;
+				hostname = "localhost";
+				//return;
 			}
 
 			Socket socket = new Socket(hostname, VoterDemoSStoreConstants.SERVER_PORT_NUM);
