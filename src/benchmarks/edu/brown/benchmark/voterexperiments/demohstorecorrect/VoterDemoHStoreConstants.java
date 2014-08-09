@@ -74,4 +74,6 @@ public abstract class VoterDemoHStoreConstants {
     
     public static final long WINDOW_SIZE = 100;
     public static final long SLIDE_SIZE = 1;
+    
+    public static final boolean DEBUG = false;
 }
