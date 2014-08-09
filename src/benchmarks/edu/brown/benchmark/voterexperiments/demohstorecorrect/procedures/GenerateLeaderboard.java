@@ -301,7 +301,7 @@ public class GenerateLeaderboard extends VoltProcedure {
         if(((int)numVotes % (int)VoterDemoHStoreConstants.BOARD_REFRESH) == 0)
         {
         	if(VoterDemoHStoreConstants.SOCKET_CONTROL)
-        		VoterDemoHStoreUtil.waitForSignal();
+        		VoterDemoHStoreUtil.waitForSignal2();
         	try {
 				printResults(numVotes);
 			} catch (IOException e) {

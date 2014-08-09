@@ -199,7 +199,7 @@ public class DeleteContestant extends VoltProcedure {
         int lowestContestant = (int)(validation[0].fetchRow(0).getLong(0));
         
         if(VoterDemoHStoreConstants.SOCKET_CONTROL)
-        	VoterDemoHStoreUtil.waitForSignal();
+        	VoterDemoHStoreUtil.waitForSignal2();
         
         voltQueueSQL(deleteLowestContestant, lowestContestant);
         voltQueueSQL(deleteLowestVotes, lowestContestant);
