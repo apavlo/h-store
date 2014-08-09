@@ -40,7 +40,7 @@ public abstract class VoterDemoHStoreConstants {
 	public static final int MAX_VOTES = 1; 
 	public static final int NUM_CONTESTANTS = 25; 
 	
-	public static final String OUTPUT_FILE = "logs/hstoredemoout/demohstoreout.txt";
+	public static final String OUTPUT_FILE = "logs/demohstoreout.txt";
 	public static final String OVERWRITE_FILE = "logs/demohstorecurrent.txt";
 	public static final String VOTE_FILE = "demo/demo-votes.txt";
 	public static final int DELETE_CODE = -1;
