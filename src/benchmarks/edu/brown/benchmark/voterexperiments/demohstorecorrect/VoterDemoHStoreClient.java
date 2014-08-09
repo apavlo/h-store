@@ -78,7 +78,7 @@ public class VoterDemoHStoreClient extends BenchmarkComponent {
         //this.switchboard = new PhoneCallGenerator(VoterDemoHStoreConstants.VOTE_FILE);
         this.switchboard = new PhoneCallGenerator();
         genLeaderboard = false;
-        VoterDemoHStoreUtil.connectToHost();
+        //VoterDemoHStoreUtil.connectToHost();
     }
 
     @Override

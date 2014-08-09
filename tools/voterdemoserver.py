@@ -75,32 +75,29 @@ def sthread():
 	s_socket.close()
 
 def bothConnected(conn, conn2):
-	
-	while True:
-		data = conn.recv(1024)
-		data2 = conn2.recv(1024)
+	data = conn.recv(1024)
+	data2 = conn2.recv(1024)
 
-		if (data == "h-store ready" and data2 == "s-store ready") or (data2 == "h-store ready" and data == "s-store ready"):
-			print "READY"
-			conn.sendall("READY\n")
-			conn2.sendall("READY\n")
-		else:
-			print "ERROR: Unexpected message."
+	if (data == "h-store ready" and data2 == "s-store ready") or (data2 == "h-store ready" and data == "s-store ready"):
+		print "READY"
+		conn.sendall("READY\n")
+		conn2.sendall("READY\n")
+	else:
+		print "ERROR: Unexpected message."
 	
-	
+	conn.close()
+	conn2.close()
 
 getvotes(FILE)
 start_new_thread(hthread, ())
 start_new_thread(sthread, ())
-
-conn, addr = s.accept()
-print 'Connected with ' + addr[0] + ':' + str(addr[1])
-conn2, addr = s.accept()
-print 'Connected with ' + addr[0] + ':' + str(addr[1])
-bothConnected(conn, conn2)
-conn.close()
-conn2.close()
-#start_new_thread(clientthread, (conn,))
+while True:
+	conn, addr = s.accept()
+	print 'Connected with ' + addr[0] + ':' + str(addr[1])
+	conn2, addr = s.accept()
+	print 'Connected with ' + addr[0] + ':' + str(addr[1])
+	bothConnected(conn, conn2)
+	#start_new_thread(clientthread, (conn,))
 
 s.close()
 

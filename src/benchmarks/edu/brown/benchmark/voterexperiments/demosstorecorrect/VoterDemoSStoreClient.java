@@ -79,7 +79,7 @@ public class VoterDemoSStoreClient extends BenchmarkComponent {
         int numContestants = VoterDemoSStoreUtil.getScaledNumContestants(this.getScaleFactor());
 //        this.switchboard = new PhoneCallGenerator(VoterDemoSStoreConstants.VOTE_FILE);
         this.switchboard = new PhoneCallGenerator();
-        VoterDemoSStoreUtil.connectToHost();
+        //VoterDemoSStoreUtil.connectToHost();
     }
 
     @Override
