@@ -146,8 +146,8 @@ public abstract class VoterDemoSStoreUtil {
     
     public static void connectToHost()
     {
-    	if(connection)
-    		return;
+    	//if(connection)
+    	//	return;
 	   	try {
 	   			connection = true;
 		    	InetAddress host = InetAddress.getLocalHost();
@@ -176,11 +176,13 @@ public abstract class VoterDemoSStoreUtil {
 			System.err.println("UnknownHostException");
 			e.printStackTrace();
 			connection = false;
+			System.exit(0);
 		}
 		catch (IOException e) {
 			System.err.println("IOException");
 			e.printStackTrace();
 			connection = false;
+			System.exit(0);
 		}
    }
 	 
