@@ -174,20 +174,26 @@ public class DeleteContestant extends VoltProcedure {
 	private void printResults() throws IOException
 	{
 		ArrayList<String> tableNames = new ArrayList<String>();
-//		voltQueueSQL(getTopThreeVotesStmt);
-//        tableNames.add("TopThree");
-//        voltQueueSQL(getBottomThreeVotesStmt);
-//        tableNames.add("BottomThree");
-//        voltQueueSQL(getTrendingStmt);
-//        tableNames.add("TrendingThree");
-        voltQueueSQL(getAllVotesStmt);
-        tableNames.add("Votes");
-        voltQueueSQL(getActualVoteCountStmt);
-		tableNames.add("ProcOneCounts");
-		voltQueueSQL(getVoteCountStmt);
-		tableNames.add("VoteCount");
-		voltQueueSQL(getTrendingCountStmt);
-		tableNames.add("TrendingCount");
+		if(VoterDemoSStoreConstants.DEBUG)
+		{
+			voltQueueSQL(getTopThreeVotesStmt);
+	        tableNames.add("TopThree");
+	        voltQueueSQL(getBottomThreeVotesStmt);
+	        tableNames.add("BottomThree");
+	        voltQueueSQL(getTrendingStmt);
+	        tableNames.add("TrendingThree");
+	        voltQueueSQL(getVoteCountStmt);
+			tableNames.add("VoteCount");
+			voltQueueSQL(getTrendingCountStmt);
+			tableNames.add("TrendingCount");
+		}
+		else {
+	        voltQueueSQL(getAllVotesStmt);
+	        tableNames.add("Votes");
+	        voltQueueSQL(getActualVoteCountStmt);
+			tableNames.add("ProcOneCounts");
+		}
+		
 		VoltTable[] v = voltExecuteSQL();
 		VoterDemoSStoreUtil.writeToFile(v, tableNames, VoterDemoSStoreConstants.DELETE_CODE);
 	}
