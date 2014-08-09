@@ -146,27 +146,27 @@ public abstract class VoterDemoSStoreUtil {
     
     public static void connectToHost()
     {
-    	//if(connection)
-    	//	return;
+    	if(connection)
+    		return;
+    	connection = true;
 	   	try {
-	   			connection = true;
 		    	InetAddress host = InetAddress.getLocalHost();
 				//System.out.println("Host: " + host);
 				//System.out.println("Host Name: " + host.getHostName());
 				String hostname;
 				
-				/**
+				
 				if(host.getHostName().startsWith(VoterDemoSStoreConstants.HOST_PREFIX) || 
 						host.getHostName().startsWith(VoterDemoSStoreConstants.HOST_PREFIX_2) ||
 						host.getHostName().startsWith(VoterDemoSStoreConstants.JIANG_SERVER_HOST_NAME))
-				{*/
+				{
 					hostname = VoterDemoSStoreConstants.SERVER_HOST_NAME;
-				/**}
+				}
 		
 				else
 				{
 					return;
-				}*/
+				}
 		
 				socket = new Socket(hostname, VoterDemoSStoreConstants.SERVER_PORT_NUM);
 				in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
@@ -176,13 +176,11 @@ public abstract class VoterDemoSStoreUtil {
 			System.err.println("UnknownHostException");
 			e.printStackTrace();
 			connection = false;
-			System.exit(0);
 		}
 		catch (IOException e) {
 			System.err.println("IOException");
 			e.printStackTrace();
 			connection = false;
-			System.exit(0);
 		}
    }
 	 

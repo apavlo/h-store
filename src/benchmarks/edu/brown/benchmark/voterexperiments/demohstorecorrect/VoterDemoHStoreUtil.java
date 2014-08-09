@@ -150,8 +150,8 @@ public abstract class VoterDemoHStoreUtil {
     {
     	if(connection)
     		return;
+    	connection = true;
    	try {
-   			connection = true;
 	    	InetAddress host = InetAddress.getLocalHost();
 			//System.out.println("Host: " + host);
 			//System.out.println("Host Name: " + host.getHostName());
