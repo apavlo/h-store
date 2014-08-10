@@ -314,7 +314,7 @@ for rn in range(0, numruns):
 			break
 
 		if perc_compare:
-			if numreport[idx_throughput] / client_txnrate <= prev_perc:
+			if numreport[idx_throughput] <= client_txnrate * txn_threshold and numreport[idx_throughput] / client_txnrate <= prev_perc:
 				if rstep != frstep:
 					client_txnrate -= rstep
 					rstep = frstep
