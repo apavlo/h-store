@@ -74,4 +74,5 @@ public abstract class VoterDemoSStoreConstants {
     public static final long DELETE_SUCCESSFUL = 7;
     
     public static final boolean DEBUG = false;
+    public static final int WAIT_TIME = 5000;
 }
