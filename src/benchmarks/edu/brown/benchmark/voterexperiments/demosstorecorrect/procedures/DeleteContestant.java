@@ -174,7 +174,7 @@ public class DeleteContestant extends VoltProcedure {
 	private void printResults() throws IOException
 	{
 		ArrayList<String> tableNames = new ArrayList<String>();
-		if(VoterDemoSStoreConstants.DEBUG)
+		if(!VoterDemoSStoreConstants.DEBUG)
 		{
 			voltQueueSQL(getTopThreeVotesStmt);
 	        tableNames.add("TopThree");

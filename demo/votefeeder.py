@@ -85,7 +85,7 @@ def sthread():
 
 parser = argparse.ArgumentParser(description='Starts running the vote feeder for h-store and/or s-store.')
 parser.add_argument('-w','--wait', help='wait in between sending next vote (in seconds)', type=float, default=0.001)
-parser.add_argument('-f','--file', help='filename to read', default="votes-random-50000.txt")
+parser.add_argument('-f','--file', help='filename to read', default="demo-votes.txt")
 
 args = parser.parse_args()
 

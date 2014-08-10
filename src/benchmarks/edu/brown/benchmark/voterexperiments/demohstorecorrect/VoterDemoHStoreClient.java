@@ -45,6 +45,7 @@ import weka.classifiers.meta.Vote;
 
 import edu.brown.api.BenchmarkComponent;
 import edu.brown.benchmark.voterdemohstore.procedures.GenerateLeaderboard;
+import edu.brown.benchmark.voterexperiments.demosstorecorrect.VoterDemoSStoreUtil;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 
@@ -77,6 +78,7 @@ public class VoterDemoHStoreClient extends BenchmarkComponent {
         //this.switchboard = new PhoneCallGenerator(VoterDemoHStoreConstants.VOTE_FILE);
         this.switchboard = new PhoneCallGenerator();
         genLeaderboard = false;
+        //VoterDemoHStoreUtil.connectToHost();
     }
 
     @Override

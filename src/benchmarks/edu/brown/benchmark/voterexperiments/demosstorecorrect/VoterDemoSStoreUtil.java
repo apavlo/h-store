@@ -41,7 +41,6 @@ import java.util.Random;
 
 import org.voltdb.VoltTable;
 
-import edu.brown.benchmark.voterexperiments.demohstorecorrect.VoterDemoHStoreConstants;
 import edu.brown.rand.RandomDistribution.Zipf;
 
 public abstract class VoterDemoSStoreUtil {
@@ -49,6 +48,11 @@ public abstract class VoterDemoSStoreUtil {
     public static final Random rand = new Random();
     public static Zipf zipf = null;
     public static final double zipf_sigma = 1.001d;
+    
+    private static Socket socket;
+	private static BufferedReader in;
+	private static PrintWriter out;
+	private static boolean connection = false;
 
     /**
      * Return the number of contestants to use for the given scale factor
@@ -140,6 +144,83 @@ public abstract class VoterDemoSStoreUtil {
         return sub;
     }
     
+    public static void connectToHost()
+    {
+    	if(connection)
+    		return;
+    	connection = true;
+	   	try {
+		    	InetAddress host = InetAddress.getLocalHost();
+				//System.out.println("Host: " + host);
+				//System.out.println("Host Name: " + host.getHostName());
+				String hostname;
+				
+				
+				if(host.getHostName().startsWith(VoterDemoSStoreConstants.HOST_PREFIX) || 
+						host.getHostName().startsWith(VoterDemoSStoreConstants.HOST_PREFIX_2) ||
+						host.getHostName().startsWith(VoterDemoSStoreConstants.JIANG_SERVER_HOST_NAME))
+				{
+					hostname = VoterDemoSStoreConstants.SERVER_HOST_NAME;
+				}
+		
+				else
+				{
+					return;
+				}
+		
+				socket = new Socket(hostname, VoterDemoSStoreConstants.SERVER_PORT_NUM);
+				in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+				out = new PrintWriter(socket.getOutputStream());
+	   	}
+	   	catch (UnknownHostException e){
+			System.err.println("UnknownHostException");
+			e.printStackTrace();
+			connection = false;
+		}
+		catch (IOException e) {
+			System.err.println("IOException");
+			e.printStackTrace();
+			connection = false;
+		}
+   }
+	 
+	 public static void waitForSignal2()
+   {
+		 if(!connection)
+			 return;
+		 
+		 try {
+			String response;
+			
+			String mes = "s-store ready";
+			out.print(mes);
+			out.flush();
+			
+			response = in.readLine();
+			if(response.equals("READY"))
+			{
+				System.out.println("CONFIRMED READY");
+			}
+			else
+			{
+				System.out.println("ERROR: NOT READY - " + response);
+			}
+			//Thread.sleep(500);
+			//out.close();
+			//in.close();
+			//socket.close();
+			 
+		}
+		catch (UnknownHostException e){
+			System.err.println("UnknownHostException");
+			e.printStackTrace();
+		}
+		catch (IOException e) {
+			System.err.println("IOException");
+			e.printStackTrace();
+		}
+   }
+    
 
     public static void waitForSignal()
     {
@@ -158,7 +239,8 @@ public abstract class VoterDemoSStoreUtil {
 			}
 			else
 			{
-				return;
+				hostname = "localhost";
+				//return;
 			}
 
 			Socket socket = new Socket(hostname, VoterDemoSStoreConstants.SERVER_PORT_NUM);
@@ -182,7 +264,7 @@ public abstract class VoterDemoSStoreUtil {
 			{
 				System.out.println("ERROR: NOT READY - " + response);
 			}
-			Thread.sleep(500);
+			//Thread.sleep(500);
 			out.close();
 			in.close();
 			socket.close();
@@ -195,10 +277,6 @@ public abstract class VoterDemoSStoreUtil {
 		catch (IOException e) {
 			System.err.println("IOException");
 			e.printStackTrace();
-		}
-		catch (InterruptedException e) {
-			System.err.println("InterruptedException");
-			e.printStackTrace(); 
 		}
     }
     
