@@ -192,6 +192,10 @@ public enum ProjectType {
     
     MICROEXPFTRIGGERS("MicroExpFTriggers", "edu.brown.benchmark.microexperiments.ftriggers"),
     MICROEXPNOFTRIGGERS("MicroExpNoFTriggers", "edu.brown.benchmark.microexperiments.noftriggers"),
+    MICROEXPBTRIGGERS("MicroExpBTriggers", "edu.brown.benchmark.microexperiments.btriggers"),
+    MICROEXPNOBTRIGGERS("MicroExpNoBTriggers", "edu.brown.benchmark.microexperiments.nobtriggers"),
+    MICROEXPWINDOWS("MicroExpWindows", "edu.brown.benchmark.microexperiments.windows"),
+    MICROEXPNOWINDOWS("MicroExpNoWindows", "edu.brown.benchmark.microexperiments.nowindows"),
     
     GENERATEDEMO("GenerateDemo", "edu.brown.benchmark.voterexperiments.generatedemo"),
     ;
