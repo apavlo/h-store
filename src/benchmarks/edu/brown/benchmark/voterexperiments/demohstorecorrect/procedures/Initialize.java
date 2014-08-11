@@ -54,6 +54,7 @@ public class Initialize extends VoltProcedure
     
     public final SQLStmt insertProcOneCountStmt = new SQLStmt("INSERT INTO proc_one_count (row_id, totalcnt, successcnt) VALUES (1, 0, 0);");
     
+    public final SQLStmt insertRemovedContestant = new SQLStmt("INSERT INTO removed_contestant (row_id, contestant_name, num_votes) VALUES (1,'',0);");
 	
     // Domain data: matching lists of Area codes and States
     public static final short[] areaCodes = new short[]{
@@ -107,6 +108,7 @@ public class Initialize extends VoltProcedure
         voltQueueSQL(insertTotalVoteCountStmt);
         voltQueueSQL(insertCurWindowStmt);
         voltQueueSQL(insertProcOneCountStmt);
+        voltQueueSQL(insertRemovedContestant);
         long existingContestantCount = voltExecuteSQL()[0].asScalarLong();
 		
         // if the data is initialized, return the contestant count

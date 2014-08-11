@@ -68,7 +68,7 @@ public class DeleteContestant extends VoltProcedure {
 	);
 	
     public final SQLStmt findLowestContestant = new SQLStmt(
-		"SELECT * FROM v_votes_by_contestant ORDER BY num_votes ASC LIMIT 1;"
+		"SELECT vc.contestant_number, vc.num_votes, c.contestant_name FROM v_votes_by_contestant vc JOIN contestants c ON c.contestant_number = vc.contestant_number ORDER BY num_votes ASC LIMIT 1;"
     );
     
     public final SQLStmt deleteLowestContestant = new SQLStmt(
@@ -84,47 +84,9 @@ public class DeleteContestant extends VoltProcedure {
 		"DELETE FROM leaderboard WHERE contestant_number = ?;"
     );
     
-    /////////////////////////////
-    //BEGIN DEMO BOARD UPDATES
-    /////////////////////////////
-    public final SQLStmt deleteDemoTopBoard = new SQLStmt(
-        	"DELETE FROM demoTopBoard;");
-    
-    public final SQLStmt deleteDemoTrendingBoard = new SQLStmt(
-        	"DELETE FROM demoTrendingBoard;");
-    
-    public final SQLStmt deleteDemoVoteCount = new SQLStmt(
-        	"DELETE FROM demoVoteCount;");
-    
-    public final SQLStmt deleteDemoWindowCount = new SQLStmt(
-        	"DELETE FROM demoWindowCount;");
-    
-    public final SQLStmt updateDemoTopBoard = new SQLStmt(
-    	"INSERT INTO demoTopBoard "
-    		  + " SELECT a.contestant_name   AS contestant_name"
-    		  + "         , a.contestant_number AS contestant_number"
-			  + "        , b.num_votes          AS num_votes"
-			  + "     FROM v_votes_by_contestant b"
-			  + "        , contestants AS a"
-			  + "    WHERE a.contestant_number = b.contestant_number");
-
-    public final SQLStmt updateDemoTrendingBoard = new SQLStmt( "INSERT INTO demoTrendingBoard "
-    		  + "   SELECT a.contestant_name   AS contestant_name"
-			  + "        , a.contestant_number AS contestant_number"
-			  + "        , b.num_votes          AS num_votes"
-			  + "     FROM leaderboard b"
-			  + "        , contestants AS a"
-			  + "    WHERE a.contestant_number = b.contestant_number");
-
-    public final SQLStmt updateDemoVoteCount = new SQLStmt( "INSERT INTO demoVoteCount "
-    		+ "SELECT count(*) FROM votes;");
-    
-    public final SQLStmt updateDemoWindowCount = new SQLStmt( "INSERT INTO demoWindowCount "
-    		+ "SELECT count(*) FROM trending_leaderboard;");
-    
-	/////////////////////////////
-	//END DEMO BOARD UPDATES
-	/////////////////////////////
+    public final SQLStmt updateRemovedContestant = new SQLStmt(
+    	"UPDATE removed_contestant SET contestant_name = ?, num_votes = ? WHERE row_id = 1;"	
+    );
     
 	/////////////////////////////
 	//BEGIN GET RESULTS
@@ -167,6 +129,8 @@ public class DeleteContestant extends VoltProcedure {
 	public final SQLStmt getVoteCountStmt = new SQLStmt( "SELECT cnt FROM votes_count WHERE row_id=1;");
 	public final SQLStmt getActualVoteCountStmt = new SQLStmt( "SELECT totalcnt, successcnt FROM proc_one_count WHERE row_id = 1;");
 	public final SQLStmt getTrendingCountStmt = new SQLStmt("SELECT count(*) FROM trending_leaderboard;");
+	public final SQLStmt getRemainingContestants = new SQLStmt("SELECT count(*) FROM contestants;");
+	public final SQLStmt getRemovedContestant = new SQLStmt("SELECT contestant_name, num_votes FROM removed_contestant WHERE row_id = 1;");
 	/////////////////////////////
 	//END GET RESULTS
 	/////////////////////////////
@@ -186,6 +150,10 @@ public class DeleteContestant extends VoltProcedure {
 			tableNames.add("VoteCount");
 			voltQueueSQL(getTrendingCountStmt);
 			tableNames.add("TrendingCount");
+			voltQueueSQL(getRemainingContestants);
+	        tableNames.add("RemainingContestants");
+	        voltQueueSQL(getRemovedContestant);
+	        tableNames.add("RemovedContestant");
 		}
 		else {
 	        voltQueueSQL(getAllVotesStmt);
@@ -209,23 +177,17 @@ public class DeleteContestant extends VoltProcedure {
         }
         
         int lowestContestant = (int)(validation[0].fetchRow(0).getLong(0));
+        String lowestConName = validation[0].fetchRow(0).getString("contestant_name");
+        int lowestConVotes = (int)(validation[0].fetchRow(0).getLong("num_votes"));
         
         if(VoterDemoSStoreConstants.SOCKET_CONTROL)
         	VoterDemoSStoreUtil.waitForSignal();
         
+        voltQueueSQL(updateRemovedContestant, lowestConName, lowestConVotes);
         voltQueueSQL(deleteLowestContestant, lowestContestant);
         voltQueueSQL(deleteLowestVotes, lowestContestant);
         voltQueueSQL(deleteLeaderBoardStmt, lowestContestant);
-        /**
-        voltQueueSQL(deleteDemoTopBoard);
-    	voltQueueSQL(deleteDemoTrendingBoard);
-    	voltQueueSQL(deleteDemoVoteCount);
-    	voltQueueSQL(deleteDemoWindowCount);
-    	voltQueueSQL(updateDemoTopBoard);
-    	voltQueueSQL(updateDemoTrendingBoard);
-    	voltQueueSQL(updateDemoVoteCount);
-    	voltQueueSQL(updateDemoWindowCount);
-    	*/
+        
         voltExecuteSQL(true);
         try {
 			printResults();

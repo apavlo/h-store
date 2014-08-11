@@ -161,6 +161,8 @@ public class GenerateLeaderboard extends VoltProcedure {
 	public final SQLStmt getVoteCountStmt = new SQLStmt( "SELECT cnt FROM votes_count WHERE row_id=1;");
 	public final SQLStmt getActualVoteCountStmt = new SQLStmt( "SELECT totalcnt, successcnt FROM proc_one_count WHERE row_id = 1;");
 	public final SQLStmt getTrendingCountStmt = new SQLStmt("SELECT count(*) FROM trending_leaderboard;");
+	public final SQLStmt getRemainingContestants = new SQLStmt("SELECT count(*) FROM contestants;");
+	public final SQLStmt getRemovedContestant = new SQLStmt("SELECT contestant_name, num_votes FROM removed_contestant WHERE row_id = 1;");
 	/////////////////////////////
 	//END GET RESULTS
 	/////////////////////////////
@@ -182,6 +184,10 @@ public class GenerateLeaderboard extends VoltProcedure {
 			tableNames.add("VoteCount");
 	        voltQueueSQL(getTrendingCountStmt);
 	        tableNames.add("TrendingCount");
+	        voltQueueSQL(getRemainingContestants);
+	        tableNames.add("RemainingContestants");
+	        voltQueueSQL(getRemovedContestant);
+	        tableNames.add("RemovedContestant");
 	        
         }
         else {

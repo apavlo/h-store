@@ -113,6 +113,13 @@ CREATE TABLE current_win_id
   win_id     bigint    NOT NULL
 );
 
+CREATE TABLE removed_contestant
+(
+  row_id	     integer    NOT NULL,
+  contestant_name    varchar(50) NOT NULL,
+  num_votes          integer    NOT NULL
+);
+
 -- rollup of votes by phone number, used to reject excessive voting
 CREATE VIEW v_votes_by_phone_number
 (
