@@ -170,7 +170,8 @@ public abstract class VoterDemoSStoreUtil {
 		
 				else
 				{
-					return;
+					//return;
+					hostname = "localhost";
 				}
 		
 				socket = new Socket(hostname, VoterDemoSStoreConstants.SERVER_PORT_NUM);

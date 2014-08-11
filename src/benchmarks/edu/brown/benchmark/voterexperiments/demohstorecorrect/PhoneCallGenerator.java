@@ -43,6 +43,8 @@ import java.util.LinkedList;
 import java.util.ListIterator;
 import java.util.Random;
 
+import edu.brown.benchmark.voterexperiments.demosstorecorrect.VoterDemoSStoreConstants;
+
 public class PhoneCallGenerator {
 	
     private LinkedList<PhoneCall> callList;
@@ -137,15 +139,16 @@ public class PhoneCallGenerator {
 			
 			
 			if(host.getHostName().startsWith(VoterDemoHStoreConstants.HOST_PREFIX) || 
-					host.getHostName().startsWith(VoterDemoHStoreConstants.HOST_PREFIX_2))
+					host.getHostName().startsWith(VoterDemoHStoreConstants.HOST_PREFIX_2) ||
+					host.getHostName().startsWith(VoterDemoHStoreConstants.JIANG_SERVER_HOST_NAME))
 			{
 				hostname = VoterDemoHStoreConstants.SERVER_HOST_NAME;
 			}
-			else if(host.getHostName().startsWith(VoterDemoHStoreConstants.JIANG_SERVER_HOST_NAME) || 
-					host.getHostName().startsWith(VoterDemoHStoreConstants.JIANG_SERVER_HOST_NAME_2))
-			{
-				hostname = VoterDemoHStoreConstants.JIANG_HOST;
-			}
+			else if (host.getHostName().startsWith(VoterDemoHStoreConstants.ISTC1_CLIENT) || 
+				    host.getHostName().startsWith(VoterDemoHStoreConstants.ISTC1_HOST))
+		    {
+		    	hostname = VoterDemoHStoreConstants.ISTC1_HOST;
+		    }
 			else
 			{
 				hostname = "localhost";

@@ -9,9 +9,9 @@ hready = False
 sready = False
 
 HOST = ''
-PORT = 9000
-HSTORE_PORT = 9001
-SSTORE_PORT = 9002
+PORT = 9510
+HSTORE_PORT = 9511
+SSTORE_PORT = 9512
 FILE = "../demo/demo-votes.txt"
 
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

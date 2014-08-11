@@ -140,15 +140,16 @@ public class PhoneCallGenerator {
 			
 			
 			if(host.getHostName().startsWith(VoterDemoSStoreConstants.HOST_PREFIX) || 
-					host.getHostName().startsWith(VoterDemoSStoreConstants.HOST_PREFIX_2))
+					host.getHostName().startsWith(VoterDemoSStoreConstants.HOST_PREFIX_2) ||
+					host.getHostName().startsWith(VoterDemoSStoreConstants.JIANG_SERVER_HOST_NAME))
 			{
 				hostname = VoterDemoSStoreConstants.SERVER_HOST_NAME;
 			}
-			else if(host.getHostName().startsWith(VoterDemoSStoreConstants.JIANG_SERVER_HOST_NAME) || 
-					host.getHostName().startsWith(VoterDemoSStoreConstants.JIANG_SERVER_HOST_NAME_2))
-			{
-				hostname = VoterDemoSStoreConstants.JIANG_HOST;
-			}
+			else if (host.getHostName().startsWith(VoterDemoSStoreConstants.ISTC1_CLIENT) || 
+				    host.getHostName().startsWith(VoterDemoSStoreConstants.ISTC1_HOST))
+		    {
+		    	hostname = VoterDemoSStoreConstants.ISTC1_HOST;
+		    }
 			else
 			{
 				hostname = "localhost";

@@ -144,7 +144,7 @@ public abstract class VoterDemoHStoreUtil {
 
         return sub;
     }
-    
+    /*
 
     public static void connectToHost()
     {
@@ -227,7 +227,7 @@ public abstract class VoterDemoHStoreUtil {
 			e.printStackTrace();
 		}
    }
-    
+    */
        
     public static void waitForSignal()
     {
@@ -244,15 +244,16 @@ public abstract class VoterDemoHStoreUtil {
 			{
 				hostname = VoterDemoHStoreConstants.SERVER_HOST_NAME;
 			}
-			else if (host.getHostName().startsWith(VoterDemoSStoreConstants.ISTC1_CLIENT) || 
-				    host.getHostName().startsWith(VoterDemoSStoreConstants.ISTC1_HOST))
+			else if (host.getHostName().startsWith(VoterDemoHStoreConstants.ISTC1_CLIENT) || 
+				    host.getHostName().startsWith(VoterDemoHStoreConstants.ISTC1_HOST))
 		    {
-		    	hostname = VoterDemoSStoreConstants.ISTC1_HOST;
+		    	hostname = VoterDemoHStoreConstants.ISTC1_HOST;
 		    }
 
 			else
 			{
-				return;
+				//return;
+				hostname = "localhost";
 			}
 
 			Socket socket = new Socket(hostname, VoterDemoHStoreConstants.SERVER_PORT_NUM);

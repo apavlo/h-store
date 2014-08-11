@@ -9,8 +9,8 @@ hready = False
 sready = False
 
 HOST = ''
-HSTORE_PORT = 9001
-SSTORE_PORT = 9002
+HSTORE_PORT = 9511
+SSTORE_PORT = 9512
 
 
 h_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
