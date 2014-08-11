@@ -52,6 +52,8 @@ public abstract class VoterDemoHStoreConstants {
 	public static final String JIANG_SERVER_HOST_NAME = "istc3";
 	public static final String JIANG_SERVER_HOST_NAME_2 = "istc7";
 	public static final String JIANG_HOST = "istc7";
+	public static final String ISTC1_HOST = "istc1";
+	public static final String ISTC1_CLIENT = "istc2";
 	
 	public static final int SERVER_PORT_NUM = 9000;
 	public static final int VOTE_PORT_NUM = 9001;

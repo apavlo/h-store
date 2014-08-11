@@ -164,6 +164,11 @@ public abstract class VoterDemoHStoreUtil {
 			{
 				hostname = VoterDemoHStoreConstants.SERVER_HOST_NAME;
 			}
+			else if (host.getHostName().startsWith(VoterDemoSStoreConstants.ISTC1_CLIENT) || 
+				    host.getHostName().startsWith(VoterDemoSStoreConstants.ISTC1_HOST))
+		    {
+		    	hostname = VoterDemoSStoreConstants.ISTC1_HOST;
+		    }
 	
 			else
 			{
@@ -239,6 +244,11 @@ public abstract class VoterDemoHStoreUtil {
 			{
 				hostname = VoterDemoHStoreConstants.SERVER_HOST_NAME;
 			}
+			else if (host.getHostName().startsWith(VoterDemoSStoreConstants.ISTC1_CLIENT) || 
+				    host.getHostName().startsWith(VoterDemoSStoreConstants.ISTC1_HOST))
+		    {
+		    	hostname = VoterDemoSStoreConstants.ISTC1_HOST;
+		    }
 
 			else
 			{
