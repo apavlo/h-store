@@ -120,9 +120,7 @@ public class SStore4MoveOpExpClient extends BenchmarkComponent {
     public String[] getTransactionDisplayNames() {
         // Return an array of transaction names
         String procNames[] = new String[]{
-        	SP1Input.class.getSimpleName(),
-            SP1.class.getSimpleName(),
-            SP2.class.getSimpleName()
+        	SP1Input.class.getSimpleName()
         };
         return (procNames);
     }

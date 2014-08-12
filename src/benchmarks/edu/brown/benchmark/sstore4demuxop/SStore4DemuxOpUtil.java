@@ -1,5 +1,4 @@
 /***************************************************************************
- *  Copyright (C) 2012 by H-Store Project                                  *
  *  Brown University                                                       *
  *  Massachusetts Institute of Technology                                  *
  *  Yale University                                                        *

@@ -1,5 +1,4 @@
 /***************************************************************************
- *  Copyright (C) 2012 by H-Store Project                                  *
  *  Brown University                                                       *
  *  Massachusetts Institute of Technology                                  *
  *  Yale University                                                        *
@@ -53,12 +52,12 @@ public class SStore4DemuxOpLoader extends Loader {
     public void load() {
         int numContestants = SStore4DemuxOpUtil.getScaledNumContestants(this.getScaleFactor());
         if (d) 
-            LOG.debug("Starting SStore4MoveOpLoader [numContestants=" + numContestants + "]");
+            LOG.debug("Starting SStore4DemuxOpLoader [numContestants=" + numContestants + "]");
 
         try {
-            this.getClientHandle().callProcedure("Initialize",
-                                                 numContestants,
-                                                 SStore4DemuxOpConstants.CONTESTANT_NAMES_CSV);
+//            this.getClientHandle().callProcedure("Initialize",
+//                                                 numContestants,
+//                                                 SStore4DemuxOpConstants.CONTESTANT_NAMES_CSV);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

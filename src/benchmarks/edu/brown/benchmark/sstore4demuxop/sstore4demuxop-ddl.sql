@@ -37,23 +37,9 @@ CREATE TABLE votes
 -- PARTITION BY ( phone_number )
 );
 
-CREATE STREAM s1
-(
-  vote_id            bigint     NOT NULL
-  , part_id          bigint     NOT NULL
--- PARTITIONED BY (part_id)
-);
-
 --CREATE WINDOW trending_leaderboard ON proc_one_out RANGE 30 SLIDE 2;
 
-CREATE STREAM s11
-(
-  vote_id            bigint     NOT NULL
-  , part_id          bigint     NOT NULL
--- PARTITIONED BY (part_id)
-);
-
-CREATE STREAM s12
+CREATE STREAM s1
 (
   vote_id            bigint     NOT NULL
   , part_id          bigint     NOT NULL
@@ -65,37 +51,4 @@ CREATE STREAM s2
   vote_id            bigint     NOT NULL
   , part_id          bigint     NOT NULL
 -- PARTITIONED BY (part_id)
-);
-
-CREATE STREAM s3
-(
-  vote_id            bigint     NOT NULL
-  , part_id          bigint     NOT NULL
--- PARTITIONED BY (part_id)
-);
-
-CREATE STREAM s4
-(
-  vote_id            bigint     NOT NULL
-  , part_id          bigint     NOT NULL
--- PARTITIONED BY (part_id)
-);
-
-CREATE TABLE T1
-( vote_id            bigint     NOT NULL
-, CONSTRAINT PK_t1 PRIMARY KEY
-  (
-    vote_id
-  )
- -- PARTITION BY ( vote_id )
- );
-
-CREATE TABLE T2
-( vote_id            bigint     NOT NULL,
-  part_id            bigint     NOT	NULL
-, CONSTRAINT PK_t2 PRIMARY KEY
-  (
-    vote_id
-  )
--- PARTITION BY ( part_id )
 );

@@ -46,7 +46,7 @@ public class SP1Input extends VoltProcedure {
 	
     // Put vote into leaderboard
     public final SQLStmt procInStmt = new SQLStmt(
-	   "INSERT INTO s1input VALUES (?, ?);"
+	   "INSERT INTO s1 VALUES (?, ?);"
     );
     
 	

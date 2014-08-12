@@ -48,10 +48,7 @@ public class SStore4DemuxOpExpProjectBuilder extends AbstractProjectBuilder {
     @SuppressWarnings("unchecked")
     public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
         SP1Input.class
-        ,SP1.class
-        ,Demux1.class
-        ,Demux2.class
-        ,Demux3.class
+        ,Demux.class
         ,Move1.class
         ,Move2.class
         ,Move3.class
@@ -69,7 +66,6 @@ public class SStore4DemuxOpExpProjectBuilder extends AbstractProjectBuilder {
         { "votes", "phone_number" },
         { "contestants", "contestant_number" },
         { "area_code_state", "area_code"},
-        { "s1input", "part_id" },
         { "s1", "part_id" },
         { "s11", "part_id" },
         { "s12", "part_id" },

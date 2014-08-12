@@ -36,55 +36,60 @@ import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.types.TimestampType;
 
-import edu.brown.benchmark.sstore4demuxop.SStore4DemuxOpConstants;
+import edu.brown.benchmark.sstore4demuxopexp.SStore4DemuxOpExpConstants;
 
 @ProcInfo (
-	partitionInfo = "s2.part_id:0",
-	partitionNum = 1,
-    singlePartition = true
+	partitionInfo = "s1.part_id:0",
+	partitionNum = 0,
+	singlePartition = true
 )
 public class SP2 extends VoltProcedure {
 	
 	
 	protected void toSetTriggerTableName()
 	{
-		addTriggerTable("s11");
+		addTriggerTable("s1");
 	}
 	
-	public final SQLStmt pullFromS11 = new SQLStmt(
-		"SELECT vote_id FROM s11;"
+	public final SQLStmt pullFromS1 = new SQLStmt(
+		"SELECT vote_id, part_id FROM s1;"
 	);
 	
-    public final SQLStmt inS2Stmt = new SQLStmt(
-	    "INSERT INTO S2 (vote_id, part_id) VALUES (?, ?);"
+    public final SQLStmt ins2Stmt = new SQLStmt(
+	   "INSERT INTO s2 (vote_id, part_id) VALUES (?, ?);"
     );
     
-    public final SQLStmt clearS11 = new SQLStmt(
-    	"DELETE FROM s11;"
+    public final SQLStmt clearS1 = new SQLStmt(
+    	"DELETE FROM s1;"
     );
+    
+    /**
+     * Simulation of a computation
+     */
+    public final void compute() {
+		try {
+			Thread.sleep(1); // Sleep 1 millisecond
+		} catch (InterruptedException ex) {
+			Thread.currentThread().interrupt();
+		}
+    }
         	
     public long run(int part_id) {
+		voltQueueSQL(pullFromS1);
+		VoltTable s1primeData[] = voltExecuteSQL();
 		
-		voltQueueSQL(pullFromS11);
-		System.out.println("start with SP2");
-		VoltTable s2Data[] = voltExecuteSQL();
+//		compute();
 		
-//		Long vote_id = s1Data[0].fetchRow(0).getLong(0);
-//		System.out.println("vote_id: " + vote_id);
-//		System.out.println("part_id: " + part_id);
-//		voltQueueSQL(inT2Stmt, vote_id, part_id);
-//	
-		for (int i=0; i < s2Data[0].getRowCount(); i++) {
-			Long vote_id = s2Data[0].fetchRow(i).getLong(0);
-			voltQueueSQL(inS2Stmt, vote_id, part_id);
+		for (int i=0; i < s1primeData[0].getRowCount(); i++) {
+			Long vote_id = s1primeData[0].fetchRow(i).getLong(0);
+			voltQueueSQL(ins2Stmt, vote_id, part_id);
 		}
+		voltExecuteSQL();
 		
-        voltQueueSQL(clearS11);
-
-        VoltTable s2Delete[] = voltExecuteSQL();
+        voltQueueSQL(clearS1);
+        voltExecuteSQL();
 				
-		System.out.println("done with SP2");
         // Set the return value to 0: successful vote
-        return SStore4DemuxOpConstants.VOTE_SUCCESSFUL;
+        return SStore4DemuxOpExpConstants.VOTE_SUCCESSFUL;
     }
 }

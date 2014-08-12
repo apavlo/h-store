@@ -33,6 +33,7 @@ import org.voltdb.VoltProcedure;
 
 import edu.brown.benchmark.AbstractProjectBuilder;
 import edu.brown.api.BenchmarkComponent;
+
 import edu.brown.benchmark.sstore4demuxop.procedures.*;  
 
 public class SStore4DemuxOpProjectBuilder extends AbstractProjectBuilder {
@@ -46,11 +47,8 @@ public class SStore4DemuxOpProjectBuilder extends AbstractProjectBuilder {
 	// a list of procedures implemented in this benchmark
     @SuppressWarnings("unchecked")
     public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
-        SP1.class
-        ,SP11.class
-        ,SP12.class
+        SP1Input.class
         ,SP2.class
-        ,SP3.class
         };
 	
 	{
@@ -62,11 +60,8 @@ public class SStore4DemuxOpProjectBuilder extends AbstractProjectBuilder {
         { "votes", "phone_number" },
         { "contestants", "contestant_number" },
         { "area_code_state", "area_code"},
-        { "s1", "part_id"},
-        { "s11", "part_id"},
-        { "s12", "part_id"},
-        { "s2", "part_id"},
-        { "s3", "part_id"}
+        { "s1", "part_id" },
+        { "s2", "part_id" }
     };
 
     public SStore4DemuxOpProjectBuilder() {

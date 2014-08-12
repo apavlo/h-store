@@ -42,7 +42,8 @@ import org.voltdb.client.ProcedureCallback;
 
 import weka.classifiers.meta.Vote;
 import edu.brown.api.BenchmarkComponent;
-import edu.brown.benchmark.sstore4demuxop.procedures.SP1;
+import edu.brown.benchmark.sstore4demuxop.procedures.SP1Input;
+import edu.brown.benchmark.sstore4demuxop.procedures.SP2;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 
@@ -110,12 +111,7 @@ public class SStore4DemuxOpClient extends BenchmarkComponent {
 
         Client client = this.getClientHandle();
         boolean response = client.callProcedure(callback,
-                                                "Vote",
-                                                call.voteId,
-                                                call.phoneNumber,
-                                                call.contestantNumber,
-                                                SStore4DemuxOpConstants.MAX_VOTES,
-                                                timestamp);
+                    "SP1Input", call.voteId, 0);
         return response;
     }
 
@@ -123,8 +119,7 @@ public class SStore4DemuxOpClient extends BenchmarkComponent {
     public String[] getTransactionDisplayNames() {
         // Return an array of transaction names
         String procNames[] = new String[]{
-            Vote.class.getSimpleName(),
-            SP1.class.getSimpleName()
+        	SP1Input.class.getSimpleName()
         };
         return (procNames);
     }
