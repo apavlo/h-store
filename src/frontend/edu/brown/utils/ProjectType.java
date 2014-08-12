@@ -117,6 +117,7 @@ public enum ProjectType {
     SSTORE4MOVEOPEXP("SStore4MoveOpExp", "edu.brown.benchmark.sstore4moveopexp"),
     SSTORE4MOVEOPEXPMOVE("SStore4MoveOpExpMove", "edu.brown.benchmark.sstore4moveopexpmove"),
     SSTORE4DEMUXOP("SStore4DemuxOp", "edu.brown.benchmark.sstore4demuxop"),
+    SSTORE4DEMUXOPEXP("SStore4DemuxOpExp", "edu.brown.benchmark.sstore4demuxopexp"),
     SSTORE4DEMUXOPAUTOGEN("SStore4DemuxOpAutoGen", "edu.brown.benchmark.sstore4demuxopautogen"),
     SSTORE4MUXOP("SStore4MuxOp", "edu.brown.benchmark.sstore4muxop"),
     SSTORE4ALLOPSINGLESITE("SStore4AllOpSingleSite", "edu.brown.benchmark.sstore4allopsinglesite"),
