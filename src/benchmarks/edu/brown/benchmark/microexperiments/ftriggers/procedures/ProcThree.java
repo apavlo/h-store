@@ -29,8 +29,6 @@
 
 package edu.brown.benchmark.microexperiments.ftriggers.procedures;
 
-import java.util.Random;
-
 import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
@@ -44,25 +42,28 @@ import edu.brown.benchmark.microexperiments.ftriggers.FTriggersConstants;
     singlePartition = true
 )
 public class ProcThree extends VoltProcedure {
+	
 	protected void toSetTriggerTableName()
 	{
 		addTriggerTable("proc_two_out");
 	}
 	
-    public final SQLStmt insertStmt = new SQLStmt(
-	   "INSERT INTO c_tbl SELECT * FROM proc_two_out;"
+	public final SQLStmt insertATableStmt = new SQLStmt(
+			"INSERT INTO a_tbl (a_id, a_val) SELECT * FROM proc_two_out;"
+	);
+	
+    public final SQLStmt insertProcOutStmt = new SQLStmt(
+    		"INSERT INTO proc_three_out (a_id, a_val) SELECT * FROM proc_two_out;"
     );
     
-    public final SQLStmt deleteProcTwoOutStmt = new SQLStmt(
+    public final SQLStmt deleteProcOutStmt = new SQLStmt(
     		"DELETE FROM proc_two_out;"
     );
 	
     public long run() {
-		Random rand = new Random();
-		if(rand.nextInt(10) < FTriggersConstants.PERC_OUT_OF_TEN)
-			voltQueueSQL(insertStmt);
 		
-		voltQueueSQL(deleteProcTwoOutStmt);
+        voltQueueSQL(insertProcOutStmt);
+        voltQueueSQL(deleteProcOutStmt);
         voltExecuteSQL(true);
 				
         // Set the return value to 0: successful vote

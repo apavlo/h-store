@@ -43,11 +43,6 @@ import edu.brown.benchmark.microexperiments.ftriggers.FTriggersConstants;
 )
 public class ProcOne extends VoltProcedure {
 	
-    // Checks if the vote is for a valid contestant
-    public final SQLStmt insertStmt = new SQLStmt(
-	   "INSERT INTO a_tbl VALUES (?,?);"
-    );
-	
     // Checks if the voter has exceeded their allowed number of votes
     public final SQLStmt insertProcOneOutStmt = new SQLStmt(
 		"INSERT INTO proc_one_out VALUES (?,?);"
@@ -56,7 +51,6 @@ public class ProcOne extends VoltProcedure {
     public long run(int row_id, int row_val) {
 		
         // Queue up validation statements
-        voltQueueSQL(insertStmt, row_id, row_val);
         voltQueueSQL(insertProcOneOutStmt, row_id, row_val);
         voltExecuteSQL(true);
 				

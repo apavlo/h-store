@@ -48,12 +48,12 @@ public class ProcTwo extends VoltProcedure {
 		addTriggerTable("proc_one_out");
 	}
 	
-    public final SQLStmt insertStmt = new SQLStmt(
-	   "INSERT INTO b_tbl (b_id, b_val) SELECT * FROM proc_one_out WHERE a_val >= " + FTriggersConstants.PROC_TWO_THRESHOLD + ";"
-    );
+	public final SQLStmt insertATableStmt = new SQLStmt(
+			"INSERT INTO a_tbl (a_id, a_val) SELECT * FROM proc_one_out;"
+	);
 	
     public final SQLStmt insertProcTwoOutStmt = new SQLStmt(
-    		"INSERT INTO proc_two_out (b_id, b_val) SELECT * FROM proc_one_out WHERE a_val >= " + FTriggersConstants.PROC_TWO_THRESHOLD + ";"
+    		"INSERT INTO proc_two_out (a_id, a_val) SELECT * FROM proc_one_out;"
     );
     
     public final SQLStmt deleteProcOneOutStmt = new SQLStmt(
@@ -62,8 +62,6 @@ public class ProcTwo extends VoltProcedure {
 	
     public long run() {
 		
-        // Queue up validation statements
-        voltQueueSQL(insertStmt);
         voltQueueSQL(insertProcTwoOutStmt);
         voltQueueSQL(deleteProcOneOutStmt);
         voltExecuteSQL(true);

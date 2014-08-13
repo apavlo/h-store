@@ -64,7 +64,6 @@ public class FTriggersClient extends BenchmarkComponent {
 
     final Callback callback = new Callback();
     Random rand = new Random();
-    int nextId = 0;
 
     public static void main(String args[]) {
         BenchmarkComponent.main(FTriggersClient.class, args, false);
@@ -96,11 +95,11 @@ public class FTriggersClient extends BenchmarkComponent {
     protected boolean runOnce() throws IOException {
 
         Client client = this.getClientHandle();
-        nextId++;
+        long id = batchid.getAndIncrement();
         boolean response = client.callStreamProcedure(callback,
                                                 "ProcOne",
-                                                batchid.getAndIncrement(),
-                                                nextId,
+                                                id,
+                                                (int)id,
                                                 rand.nextInt(10));
         return response;
     }
