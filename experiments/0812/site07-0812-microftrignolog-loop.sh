@@ -1,4 +1,4 @@
-#ant clean-all build-all
+ant clean-all build-all
 for i in `seq 1 10`;
 do
 ant hstore-prepare -Dproject="microexpftriggerstrig${i}" -Dhosts="localhost:0:0"
