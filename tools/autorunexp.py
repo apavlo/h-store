@@ -403,13 +403,12 @@ for i in range(0, len(all_throughputs)):
 expfile.write("    MIN: " + "{0:.2f}".format(min_throughput) + " (" + "{0:.2f}".format(min_txnrate) + " submitted)\n");
 expfile.write("    MAX: " + "{0:.2f}".format(max_throughput) + " (" + "{0:.2f}".format(max_txnrate) + " submitted)\n");
 expfile.write("    AVG: " + "{0:.2f}".format(avg_values[idx_throughput]/numruns) + "\n")
-expfile.write("RUNTIME: " + runtimeformatted)
 expfile.write("   ---   \n")
 for i in range(0, len(avg_values) - 1):
 	if(i == idx_throughput):
 		continue
 	expfile.write(fieldsarray[i] + "(avg): " + "{0:.2f}".format(avg_values[i]/numruns) + "\n");
-
+expfile.write("-----RUNTIME: " + runtimeformatted + " -----\n")
 expfile.write("\n");
 expfile.close()
 
