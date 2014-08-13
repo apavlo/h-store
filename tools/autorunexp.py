@@ -2,6 +2,7 @@ import sys, argparse
 import os, datetime
 import re
 import math
+import time
 from array import *
 
 def generateReport(benchmark_result):
@@ -245,6 +246,8 @@ idx_txnrate = 11;
 max_values = [];
 prev_perc = 0;
 
+starttime = time.time()
+
 #  make command line to execute benchmark with the indicated configuration
 
 number_need_to_determine = 5
@@ -314,21 +317,22 @@ for rn in range(0, numruns):
 			break
 
 		if perc_compare:
-			if numreport[idx_throughput] <= client_txnrate * txn_threshold and numreport[idx_throughput] / client_txnrate <= prev_perc:
+			if numreport[idx_throughput] <= client_txnrate * txn_threshold:
 				if rstep != frstep:
 					client_txnrate -= rstep
 					rstep = frstep
 					prev_perc = 0.0
-				else:
+					continue
+				elif numreport[idx_throughput] / client_txnrate <= prev_perc:
 					if not cur_values:
 						numreport.append(float(client_txnrate))
 						cur_values = numreport
 					break
-			else:
-				prev_perc = numreport[idx_throughput] / client_txnrate
-				numreport.append(float(client_txnrate))
-				cur_values = numreport
-				client_txnrate += rstep
+
+			prev_perc = numreport[idx_throughput] / client_txnrate
+			numreport.append(float(client_txnrate))
+			cur_values = numreport
+			client_txnrate += rstep
 
 		else:
 			if numreport[idx_throughput] <= client_txnrate * txn_threshold:
@@ -371,6 +375,9 @@ min_throughput = 999999999;
 min_txnrate = 0;
 all_throughputs = []
 all_txnrates = []
+endtime = time.time()
+runtime = endtime - starttime
+runtimeformatted = str(datetime.timedelta(seconds=runtime))
 
 #print "max_values length: " + "{0:d}".format(len(max_values))
 for i in range(0, len(max_values)):
@@ -393,9 +400,10 @@ expfile.write("THROUGHPUT STATS\n")
 for i in range(0, len(all_throughputs)):
 	expfile.write("   " + "{0:d}".format(i+1) + ": " + "{0:.2f}".format(all_throughputs[i]) + "\n");
 
-expfile.write("   MIN: " + "{0:.2f}".format(min_throughput) + " (" + "{0:.2f}".format(min_txnrate) + " submitted)\n");
-expfile.write("   MAX: " + "{0:.2f}".format(max_throughput) + " (" + "{0:.2f}".format(max_txnrate) + " submitted)\n");
-expfile.write("   AVG: " + "{0:.2f}".format(avg_values[idx_throughput]/numruns) + "\n")
+expfile.write("    MIN: " + "{0:.2f}".format(min_throughput) + " (" + "{0:.2f}".format(min_txnrate) + " submitted)\n");
+expfile.write("    MAX: " + "{0:.2f}".format(max_throughput) + " (" + "{0:.2f}".format(max_txnrate) + " submitted)\n");
+expfile.write("    AVG: " + "{0:.2f}".format(avg_values[idx_throughput]/numruns) + "\n")
+expfile.write("RUNTIME: " + runtimeformatted)
 expfile.write("   ---   \n")
 for i in range(0, len(avg_values) - 1):
 	if(i == idx_throughput):
