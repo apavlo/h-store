@@ -19,7 +19,7 @@ for i in `seq 1 10`;
 do
 python ./tools/autorunexp.py -p "microexpnoftriggerstrig${i}" -o "experiments/0812/microexpnoftriggerstrig${i}-1c-95-0812-site09-perc.txt" \
 --txnthreshold 0.95 -e "experiments/0812/site09-0812-ftriggers-10c.txt" --winconfig "(site09) perc_compare" \
---threads 10 --rmin 1000 --rstep 1000 --finalrstep 100 --warmup 10000 --hstore --hscheduler --numruns 1 --perc_compare --log
+--threads 10 --rmin 100 --rstep 100 --finalrstep 10 --warmup 10000 --hstore --hscheduler --numruns 1 --perc_compare --log
 python ./tools/autorunexp.py -p "microexpftriggerstrig${i}" -o "experiments/0812/microexpftriggerstrig${i}-1c-90-0812-site09-perc.txt" \
 --txnthreshold 0.95 -e "experiments/0812/site09-0812-ftriggers-10c.txt" --winconfig "(site09) perc_compare" \
 --threads 10 --rmin 100 --rstep 100 --finalrstep 10 --warmup 10000 --hscheduler --numruns 1 --perc_compare --log
