@@ -33,4 +33,5 @@ public abstract class BTriggersConstants {
     
     // potential return codes
     public static final long PROC_ONE_SUCCESSFUL = 0;
+    public static final int NUM_TRIGGERS = 9;
 }
