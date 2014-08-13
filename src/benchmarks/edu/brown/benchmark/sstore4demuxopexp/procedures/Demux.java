@@ -77,6 +77,7 @@ public class Demux extends VoltProcedure {
 		
 		for (int i=0; i < s1Data[0].getRowCount(); i++) {
 			Long vote_id = s1Data[0].fetchRow(i).getLong(0);
+//			voltQueueSQL(ins11Stmt, vote_id, part_id);
 			if (vote_id % 3 == 0) {
 				voltQueueSQL(ins11Stmt, vote_id, part_id);
 			} else if (vote_id %3 == 1) {

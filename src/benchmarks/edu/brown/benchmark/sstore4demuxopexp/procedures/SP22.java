@@ -40,7 +40,7 @@ import edu.brown.benchmark.sstore4demuxopexp.SStore4DemuxOpExpConstants;
 
 @ProcInfo (
 	partitionInfo = "s22.part_id:0",
-	partitionNum = 1,
+	partitionNum = 2,
 	singlePartition = true
 )
 public class SP22 extends VoltProcedure {
@@ -52,7 +52,7 @@ public class SP22 extends VoltProcedure {
 	}
 	
 	public final SQLStmt pullFromS1Prime = new SQLStmt(
-		"SELECT vote_id, part_id FROM s22 WHERE part_id=1;"
+		"SELECT vote_id, part_id FROM s22 WHERE part_id=2;"
 	);
 	
     public final SQLStmt ins2Stmt = new SQLStmt(
@@ -60,7 +60,7 @@ public class SP22 extends VoltProcedure {
     );
     
     public final SQLStmt clearS1Prime = new SQLStmt(
-    	"DELETE FROM s22 WHERE part_id=1;"
+    	"DELETE FROM s22 WHERE part_id=2;"
     );
     
     /**
@@ -68,7 +68,7 @@ public class SP22 extends VoltProcedure {
      */
     public final void compute() {
 		try {
-			Thread.sleep(1); // Sleep 1 millisecond
+			Thread.sleep(100); // Sleep 1 millisecond
 		} catch (InterruptedException ex) {
 			Thread.currentThread().interrupt();
 		}
@@ -78,7 +78,7 @@ public class SP22 extends VoltProcedure {
 		voltQueueSQL(pullFromS1Prime);
 		VoltTable s1primeData[] = voltExecuteSQL();
 		
-//		compute();
+		compute();
 		
 		for (int i=0; i < s1primeData[0].getRowCount(); i++) {
 			Long vote_id = s1primeData[0].fetchRow(i).getLong(0);

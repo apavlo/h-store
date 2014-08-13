@@ -40,7 +40,7 @@ import edu.brown.benchmark.sstore4demuxopexp.SStore4DemuxOpExpConstants;
 
 @ProcInfo (
 	partitionInfo = "s13.part_id:0",
-	partitionNum = 1,
+	partitionNum = 3,
 	singlePartition = true
 )
 public class Move3 extends VoltProcedure {

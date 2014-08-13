@@ -37,6 +37,11 @@ CREATE TABLE votes
 -- PARTITION BY ( phone_number )
 );
 
+CREATE TABLE txntotal
+(
+  txn                bigint     NOT NULL
+);
+
 CREATE STREAM s1input
 (
   vote_id            bigint     NOT NULL

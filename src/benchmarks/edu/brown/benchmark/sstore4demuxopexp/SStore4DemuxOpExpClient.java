@@ -43,7 +43,6 @@ import org.voltdb.client.ProcedureCallback;
 import weka.classifiers.meta.Vote;
 import edu.brown.api.BenchmarkComponent;
 import edu.brown.benchmark.sstore4demuxopexp.procedures.SP1Input;
-import edu.brown.benchmark.sstore4demuxopexp.procedures.SP1;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 

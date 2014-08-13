@@ -47,7 +47,8 @@ public class SStore4DemuxOpExpProjectBuilder extends AbstractProjectBuilder {
 	// a list of procedures implemented in this benchmark
     @SuppressWarnings("unchecked")
     public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
-        SP1Input.class
+    	Throughput.class
+        ,SP1Input.class
         ,Demux.class
         ,Move1.class
         ,Move2.class
