@@ -92,9 +92,9 @@ public class Demux extends VoltProcedure {
 		VoltTable s1Data[] = voltExecuteSQLForceSinglePartition();
 		
 		for (int i=0; i < s1Data[0].getRowCount(); i++) {
-			int vote_id = (int)s1Data[0].fetchRow(i).get(0);
+			int vote_id = (int)(s1Data[0].fetchRow(i).getLong(0));
 //			voltQueueSQL(ins11Stmt, vote_id, part_id);
-			switch (vote_id % 7) {
+			switch (vote_id % 3) {
 				case 0:
 					voltQueueSQL(ins11Stmt, vote_id, part_id);
 					break;
