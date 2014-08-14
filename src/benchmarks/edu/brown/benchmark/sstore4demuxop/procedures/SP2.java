@@ -68,7 +68,7 @@ public class SP2 extends VoltProcedure {
      */
     public final void compute() {
 		try {
-			Thread.sleep(1); // Sleep 1 millisecond
+			Thread.sleep(100); // Sleep 1 millisecond
 		} catch (InterruptedException ex) {
 			Thread.currentThread().interrupt();
 		}
@@ -78,7 +78,7 @@ public class SP2 extends VoltProcedure {
 		voltQueueSQL(pullFromS1);
 		VoltTable s1primeData[] = voltExecuteSQL();
 		
-//		compute();
+		compute();
 		
 		for (int i=0; i < s1primeData[0].getRowCount(); i++) {
 			Long vote_id = s1primeData[0].fetchRow(i).getLong(0);
