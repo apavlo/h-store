@@ -68,20 +68,20 @@ public class Demux extends VoltProcedure {
     );
         
     public final SQLStmt ins14Stmt = new SQLStmt(
-            "INSERT INTO s14 (vote_id, part_id) VALUES (?, ?);"
-        );
+        "INSERT INTO s14 (vote_id, part_id) VALUES (?, ?);"
+    );
             
     public final SQLStmt ins15Stmt = new SQLStmt(
-            "INSERT INTO s15 (vote_id, part_id) VALUES (?, ?);"
-        );
+        "INSERT INTO s15 (vote_id, part_id) VALUES (?, ?);"
+    );
             
     public final SQLStmt ins16Stmt = new SQLStmt(
-            "INSERT INTO s16 (vote_id, part_id) VALUES (?, ?);"
-        );
+        "INSERT INTO s16 (vote_id, part_id) VALUES (?, ?);"
+    );
             
     public final SQLStmt ins17Stmt = new SQLStmt(
-            "INSERT INTO s17 (vote_id, part_id) VALUES (?, ?);"
-        );
+        "INSERT INTO s17 (vote_id, part_id) VALUES (?, ?);"
+    );
             
     public final SQLStmt clearS1 = new SQLStmt(
     	"DELETE FROM s1;"

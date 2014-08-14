@@ -68,7 +68,7 @@ public class SP25 extends VoltProcedure {
      */
     public final void compute() {
 		try {
-			Thread.sleep(100); // Sleep 1 millisecond
+			Thread.sleep(1); // Sleep 1 millisecond
 		} catch (InterruptedException ex) {
 			Thread.currentThread().interrupt();
 		}

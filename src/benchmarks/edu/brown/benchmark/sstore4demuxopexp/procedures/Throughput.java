@@ -58,6 +58,22 @@ public class Throughput extends VoltProcedure {
 		"SELECT count(*) FROM S23prime;"
 	);
 	
+	public final SQLStmt pullFromS24 = new SQLStmt(
+			"SELECT count(*) FROM S24prime;"
+		);
+		
+	public final SQLStmt pullFromS25 = new SQLStmt(
+			"SELECT count(*) FROM S25prime;"
+		);
+		
+	public final SQLStmt pullFromS26 = new SQLStmt(
+			"SELECT count(*) FROM S26prime;"
+		);
+		
+	public final SQLStmt pullFromS27 = new SQLStmt(
+			"SELECT count(*) FROM S27prime;"
+		);
+		
 	public final SQLStmt updateTxnTotal = new SQLStmt(
 		"INSERT INTO txntotal VALUES (?);"
 	);
@@ -72,6 +88,10 @@ public class Throughput extends VoltProcedure {
     	pullList.add(pullFromS21);
     	pullList.add(pullFromS22);
     	pullList.add(pullFromS23);
+    	pullList.add(pullFromS24);
+    	pullList.add(pullFromS25);
+    	pullList.add(pullFromS26);
+    	pullList.add(pullFromS27);
     	for (SQLStmt s : pullList) {
     		voltQueueSQL(s);
     		VoltTable sData[] = voltExecuteSQL();
