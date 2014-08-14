@@ -53,9 +53,17 @@ public class SStore4DemuxOpExpProjectBuilder extends AbstractProjectBuilder {
         ,Move1.class
         ,Move2.class
         ,Move3.class
+        ,Move4.class
+        ,Move5.class
+        ,Move6.class
+        ,Move7.class
         ,SP21.class
         ,SP22.class
         ,SP23.class
+        ,SP24.class
+        ,SP25.class
+        ,SP26.class
+        ,SP27.class
         };
 	
 	{
@@ -71,12 +79,24 @@ public class SStore4DemuxOpExpProjectBuilder extends AbstractProjectBuilder {
         { "s11", "part_id" },
         { "s12", "part_id" },
         { "s13", "part_id" },
+        { "s14", "part_id" },
+        { "s15", "part_id" },
+        { "s16", "part_id" },
+        { "s17", "part_id" },
         { "s21", "part_id" },
         { "s22", "part_id" },
         { "s23", "part_id" },
+        { "s24", "part_id" },
+        { "s25", "part_id" },
+        { "s26", "part_id" },
+        { "s27", "part_id" },
         { "s21prime", "part_id" },
         { "s22prime", "part_id" },
         { "s23prime", "part_id" },
+        { "s24prime", "part_id" },
+        { "s25prime", "part_id" },
+        { "s26prime", "part_id" },
+        { "s27prime", "part_id" },
         { "s2", "part_id" }
     };
 

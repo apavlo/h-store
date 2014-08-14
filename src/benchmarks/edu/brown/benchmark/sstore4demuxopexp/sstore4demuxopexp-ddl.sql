@@ -79,6 +79,34 @@ CREATE STREAM s13
 -- PARTITIONED BY (part_id)
 );
 
+CREATE STREAM s14
+(
+  vote_id            bigint     NOT NULL
+  , part_id          bigint     NOT NULL
+-- PARTITIONED BY (part_id)
+);
+
+CREATE STREAM s15
+(
+  vote_id            bigint     NOT NULL
+  , part_id          bigint     NOT NULL
+-- PARTITIONED BY (part_id)
+);
+
+CREATE STREAM s16
+(
+  vote_id            bigint     NOT NULL
+  , part_id          bigint     NOT NULL
+-- PARTITIONED BY (part_id)
+);
+
+CREATE STREAM s17
+(
+  vote_id            bigint     NOT NULL
+  , part_id          bigint     NOT NULL
+-- PARTITIONED BY (part_id)
+);
+
 CREATE STREAM s21
 (
   vote_id            bigint     NOT NULL
@@ -100,6 +128,34 @@ CREATE STREAM s23
 -- PARTITIONED BY (part_id)
 );
 
+CREATE STREAM s24
+(
+  vote_id            bigint     NOT NULL
+  , part_id          bigint     NOT NULL
+-- PARTITIONED BY (part_id)
+);
+
+CREATE STREAM s25
+(
+  vote_id            bigint     NOT NULL
+  , part_id          bigint     NOT NULL
+-- PARTITIONED BY (part_id)
+);
+
+CREATE STREAM s26
+(
+  vote_id            bigint     NOT NULL
+  , part_id          bigint     NOT NULL
+-- PARTITIONED BY (part_id)
+);
+
+CREATE STREAM s27
+(
+  vote_id            bigint     NOT NULL
+  , part_id          bigint     NOT NULL
+-- PARTITIONED BY (part_id)
+);
+
 CREATE STREAM s21prime
 (
   vote_id            bigint     NOT NULL
@@ -115,6 +171,34 @@ CREATE STREAM s22prime
 );
 
 CREATE STREAM s23prime
+(
+  vote_id            bigint     NOT NULL
+  , part_id          bigint     NOT NULL
+-- PARTITIONED BY (part_id)
+);
+
+CREATE STREAM s24prime
+(
+  vote_id            bigint     NOT NULL
+  , part_id          bigint     NOT NULL
+-- PARTITIONED BY (part_id)
+);
+
+CREATE STREAM s25prime
+(
+  vote_id            bigint     NOT NULL
+  , part_id          bigint     NOT NULL
+-- PARTITIONED BY (part_id)
+);
+
+CREATE STREAM s26prime
+(
+  vote_id            bigint     NOT NULL
+  , part_id          bigint     NOT NULL
+-- PARTITIONED BY (part_id)
+);
+
+CREATE STREAM s27prime
 (
   vote_id            bigint     NOT NULL
   , part_id          bigint     NOT NULL

@@ -39,89 +39,42 @@ import org.voltdb.types.TimestampType;
 import edu.brown.benchmark.sstore4demuxopexp.SStore4DemuxOpExpConstants;
 
 @ProcInfo (
-	partitionInfo = "s1.part_id:0",
-	partitionNum = 0,
+	partitionInfo = "s16.part_id:0",
+	partitionNum = 6,
 	singlePartition = true
 )
-public class Demux extends VoltProcedure {
+public class Move6 extends VoltProcedure {
 	
 	
 	protected void toSetTriggerTableName()
 	{
-		addTriggerTable("s1");
+		addTriggerTable("s16");
 	}
 	
 	public final SQLStmt pullFromS1 = new SQLStmt(
-		"SELECT vote_id, part_id FROM s1;"
+		"SELECT vote_id, part_id FROM s16 WHERE part_id=0;"
 	);
 	
-    public final SQLStmt ins11Stmt = new SQLStmt(
-	    "INSERT INTO s11 (vote_id, part_id) VALUES (?, ?);"
+    public final SQLStmt ins1primeStmt = new SQLStmt(
+	   "INSERT INTO s26 (vote_id, part_id) VALUES (?, ?);"
     );
     
-    public final SQLStmt ins12Stmt = new SQLStmt(
-    	"INSERT INTO s12 (vote_id, part_id) VALUES (?, ?);"
-    );
-    
-    public final SQLStmt ins13Stmt = new SQLStmt(
-        "INSERT INTO s13 (vote_id, part_id) VALUES (?, ?);"
-    );
-        
-    public final SQLStmt ins14Stmt = new SQLStmt(
-            "INSERT INTO s14 (vote_id, part_id) VALUES (?, ?);"
-        );
-            
-    public final SQLStmt ins15Stmt = new SQLStmt(
-            "INSERT INTO s15 (vote_id, part_id) VALUES (?, ?);"
-        );
-            
-    public final SQLStmt ins16Stmt = new SQLStmt(
-            "INSERT INTO s16 (vote_id, part_id) VALUES (?, ?);"
-        );
-            
-    public final SQLStmt ins17Stmt = new SQLStmt(
-            "INSERT INTO s17 (vote_id, part_id) VALUES (?, ?);"
-        );
-            
     public final SQLStmt clearS1 = new SQLStmt(
-    	"DELETE FROM s1;"
+    	"DELETE FROM s16 WHERE part_id=0;"
     );
     
     public long run(int part_id) {
 		voltQueueSQL(pullFromS1);
-		VoltTable s1Data[] = voltExecuteSQLForceSinglePartition();
+		VoltTable s1Data[] = voltExecuteSQL();
 		
 		for (int i=0; i < s1Data[0].getRowCount(); i++) {
-			int vote_id = (int)s1Data[0].fetchRow(i).get(0);
-//			voltQueueSQL(ins11Stmt, vote_id, part_id);
-			switch (vote_id % 7) {
-				case 0:
-					voltQueueSQL(ins11Stmt, vote_id, part_id);
-					break;
-				case 1:
-					voltQueueSQL(ins12Stmt, vote_id, part_id);
-					break;
-				case 2:
-					voltQueueSQL(ins13Stmt, vote_id, part_id);
-					break;
-				case 3:
-					voltQueueSQL(ins14Stmt, vote_id, part_id);
-					break;
-				case 4:
-					voltQueueSQL(ins15Stmt, vote_id, part_id);
-					break;
-				case 5:
-					voltQueueSQL(ins16Stmt, vote_id, part_id);
-					break;
-				case 6:
-					voltQueueSQL(ins17Stmt, vote_id, part_id);
-					break;
-			}
+			Long vote_id = s1Data[0].fetchRow(i).getLong(0);
+			voltQueueSQL(ins1primeStmt, vote_id, part_id);
 		}
-		voltExecuteSQLForceSinglePartition();
+		voltExecuteSQL();
 		
         voltQueueSQL(clearS1);
-        voltExecuteSQLForceSinglePartition();
+        voltExecuteSQL();
 				
         // Set the return value to 0: successful vote
         return SStore4DemuxOpExpConstants.VOTE_SUCCESSFUL;
