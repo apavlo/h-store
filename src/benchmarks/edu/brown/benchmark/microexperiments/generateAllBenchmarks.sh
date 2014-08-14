@@ -1,5 +1,5 @@
 #!/bin/bash
-BENCH=("ftriggers" "noftriggers")
+BENCH=("ftriggers" "noftriggers" "btriggers" "nobtriggers")
 OLD="orig"
 NEWN=("1" "2" "3" "4" "5" "6" "7" "8" "9" "10")
 TFILE="/tmp/out.tmp.$$"
@@ -34,8 +34,11 @@ do
    echo "Error: Cannot read $f"
   fi
 done
+
 sed "s/NUM_TRIGGERS = 0/NUM_TRIGGERS = $w/g" "$REP/FTriggersConstants.java" > $TFILE && mv $TFILE "$REP/FTriggersConstants.java"
 sed "s/NUM_TRIGGERS = 0/NUM_TRIGGERS = $w/g" "$REP/NoFTriggersConstants.java" > $TFILE && mv $TFILE "$REP/NoFTriggersConstants.java"
+sed "s/NUM_TRIGGERS = 0/NUM_TRIGGERS = $w/g" "$REP/BTriggersConstants.java" > $TFILE && mv $TFILE "$REP/BTriggersConstants.java"
+sed "s/NUM_TRIGGERS = 0/NUM_TRIGGERS = $w/g" "$REP/NoBTriggersConstants.java" > $TFILE && mv $TFILE "$REP/NoBTriggersConstants.java"
 
 rm "../properties/microexp${d}${REP}.properties"
 cp "../properties/microexp${d}.properties" "../properties/microexp${d}${REP}.properties"
