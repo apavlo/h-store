@@ -4,10 +4,10 @@ BENCH=("10" "100" "1000" "10000" "100000")
 
 for i in "${BENCH[@]}";
 do
-ant hstore-prepare -Dproject="microexpwindows${i}" -Dhosts="localhost:0:0"
-ant hstore-prepare -Dproject="microexpnowindows${i}" -Dhosts="localhost:0:0"
-
 b="w${i}s2"
+
+ant hstore-prepare -Dproject="microexpwindows${b}" -Dhosts="localhost:0:0"
+ant hstore-prepare -Dproject="microexpnowindows${b}" -Dhosts="localhost:0:0"
 
 python ./tools/autorunexp.py -p "microexpnowindows${b}" -o "experiments/0814/microexpnowindows${b}-1c-95-0814-site07-perc.txt" \
 --txnthreshold 0.95 -e "experiments/0814/site07-window-wexp.txt" --winconfig "(site07) perc_compare" \
@@ -21,10 +21,10 @@ SLIDE=("1" "2" "5" "10" "30" "100")
 
 for i in "${SLIDE[@]}";
 do
-ant hstore-prepare -Dproject="microexpwindows${i}" -Dhosts="localhost:0:0"
-ant hstore-prepare -Dproject="microexpnowindows${i}" -Dhosts="localhost:0:0"
-
 b="w100s${i}"
+
+ant hstore-prepare -Dproject="microexpwindows${b}" -Dhosts="localhost:0:0"
+ant hstore-prepare -Dproject="microexpnowindows${b}" -Dhosts="localhost:0:0"
 
 python ./tools/autorunexp.py -p "microexpnowindows${b}" -o "experiments/0814/microexpnowindows${b}-1c-95-0814-site07-perc.txt" \
 --txnthreshold 0.95 -e "experiments/0814/site07-window-wexp.txt" --winconfig "(site07) perc_compare" \
