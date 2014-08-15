@@ -67,6 +67,9 @@ public class VoterDemoHStoreClient extends BenchmarkComponent {
     AtomicLong badVoteCountVotes = new AtomicLong(0);
     AtomicLong failedVotes = new AtomicLong(0);
     
+    private final Callback procOneCallback = new Callback(0);
+    private final Callback otherProcCallback = new Callback(1);
+    
     boolean genLeaderboard;
 
     public static void main(String args[]) {

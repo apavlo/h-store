@@ -318,9 +318,9 @@ for rn in range(0, numruns):
 
 		if perc_compare:
 			if numreport[idx_throughput] <= client_txnrate * txn_threshold:
-				if rstep != frstep:
+				if rstep > frstep:
 					client_txnrate -= rstep
-					rstep = frstep
+					rstep = rstep / 10
 					prev_perc = 0.0
 					continue
 				elif numreport[idx_throughput] / client_txnrate <= prev_perc:
@@ -336,9 +336,9 @@ for rn in range(0, numruns):
 
 		else:
 			if numreport[idx_throughput] <= client_txnrate * txn_threshold:
-				if rstep != frstep:
+				if rstep > frstep:
 					client_txnrate -= rstep
-					rstep = frstep
+					rstep = rstep / 10
 				else:
 					if not cur_values:
 						numreport.append(float(client_txnrate))
