@@ -97,9 +97,9 @@ public class WindowsClient extends BenchmarkComponent {
 
         Client client = this.getClientHandle();
         nextId++;
-        boolean response = client.callStreamProcedure(callback,
+        boolean response = client.callProcedure(callback,
                                                 "ProcOne",
-                                                batchid.getAndIncrement(),
+                                                //batchid.getAndIncrement(),
                                                 nextId,
                                                 rand.nextInt(10));
         return response;

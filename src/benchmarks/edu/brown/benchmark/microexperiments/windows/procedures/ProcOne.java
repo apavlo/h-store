@@ -51,12 +51,17 @@ public class ProcOne extends VoltProcedure {
     public final SQLStmt insertStreamStmt = new SQLStmt(
 	   "INSERT INTO A_STREAM VALUES (?,?);"
     );
+    
+    public final SQLStmt insertTableStmt = new SQLStmt(
+	   "INSERT INTO a_tbl VALUES (?,?);"
+    );
 	
 	
     public long run(int row_id, int row_val) {
 		
         // Queue up validation statements
-        voltQueueSQL(insertStreamStmt, row_id, row_val);
+        voltQueueSQL(insertStmt, row_id, row_val);
+    	//voltQueueSQL(insertTableStmt, row_id, row_val);
         voltExecuteSQL(true);
 				
         // Set the return value to 0: successful vote
