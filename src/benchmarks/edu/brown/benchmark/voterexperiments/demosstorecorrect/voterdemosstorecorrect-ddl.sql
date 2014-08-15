@@ -77,6 +77,12 @@ CREATE TABLE proc_one_count
   successcnt	     integer    NOT NULL
 );
 
+CREATE TABLE votes_next_delete
+(
+  row_id	     integer    NOT NULL,
+  cnt		     integer    NOT NULL
+);
+
 CREATE TABLE removed_contestant
 (
   row_id	     integer    NOT NULL,

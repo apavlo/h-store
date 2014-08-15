@@ -120,9 +120,14 @@ public class DeleteContestant extends VoltProcedure {
 	public final SQLStmt getTrendingCountStmt = new SQLStmt("SELECT count(*) FROM w_rows;");
 	public final SQLStmt getRemainingContestants = new SQLStmt("SELECT count(*) FROM contestants;");
 	public final SQLStmt getRemovedContestant = new SQLStmt("SELECT contestant_name, num_votes FROM removed_contestant WHERE row_id = 1;");
+	public final SQLStmt getVotesTilNextDeleteStmt = new SQLStmt( "SELECT cnt FROM votes_next_delete WHERE row_id=1;");
 	/////////////////////////////
 	//END GET RESULTS
 	/////////////////////////////
+	
+	public final SQLStmt updateVotesTilNextDeleteStmt = new SQLStmt(
+		"UPDATE votes_next_delete SET cnt = ? WHERE row_id = 1;"
+    );
 	
 	private void printResults() throws IOException
 	{
@@ -143,6 +148,8 @@ public class DeleteContestant extends VoltProcedure {
 	        tableNames.add("RemainingContestants");
 	        voltQueueSQL(getRemovedContestant);
 	        tableNames.add("RemovedContestant");
+	        voltQueueSQL(getVotesTilNextDeleteStmt);
+	        tableNames.add("VotesTilNextDelete");
 		}
 		else {
 			voltQueueSQL(getAllVotesStmt);
@@ -176,6 +183,7 @@ public class DeleteContestant extends VoltProcedure {
         voltQueueSQL(deleteLowestContestant, lowestContestant);
         voltQueueSQL(deleteLowestVotes, lowestContestant);
         voltQueueSQL(deleteLeaderBoardStmt, lowestContestant);
+        voltQueueSQL(updateVotesTilNextDeleteStmt, VoterDemoHStoreConstants.VOTE_THRESHOLD);
         /**
         voltQueueSQL(deleteDemoTopBoard);
     	voltQueueSQL(deleteDemoTrendingBoard);

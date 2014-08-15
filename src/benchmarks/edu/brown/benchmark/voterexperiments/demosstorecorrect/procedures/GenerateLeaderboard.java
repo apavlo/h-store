@@ -75,50 +75,7 @@ public class GenerateLeaderboard extends VoltProcedure {
     public final SQLStmt insertProcTwoOutStmt = new SQLStmt(
     	"INSERT INTO proc_two_out VALUES (?);"	
     );
-    
-	/////////////////////////////
-	//BEGIN DEMO BOARD UPDATES
-	/////////////////////////////
-	public final SQLStmt deleteDemoTopBoard = new SQLStmt(
-	"DELETE FROM demoTopBoard;");
-	
-	public final SQLStmt deleteDemoTrendingBoard = new SQLStmt(
-	"DELETE FROM demoTrendingBoard;");
-	
-	public final SQLStmt deleteDemoVoteCount = new SQLStmt(
-	"DELETE FROM demoVoteCount;");
-	
-	public final SQLStmt deleteDemoWindowCount = new SQLStmt(
-	"DELETE FROM demoWindowCount;");
-	
-	public final SQLStmt updateDemoTopBoard = new SQLStmt(
-	"INSERT INTO demoTopBoard "
-	+ " SELECT a.contestant_name   AS contestant_name"
-	+ "         , a.contestant_number AS contestant_number"
-	+ "        , b.num_votes          AS num_votes"
-	+ "     FROM v_votes_by_contestant b"
-	+ "        , contestants AS a"
-	+ "    WHERE a.contestant_number = b.contestant_number");
-	
-	public final SQLStmt updateDemoTrendingBoard = new SQLStmt( "INSERT INTO demoTrendingBoard "
-	+ "   SELECT a.contestant_name   AS contestant_name"
-	+ "        , a.contestant_number AS contestant_number"
-	+ "        , b.num_votes          AS num_votes"
-	+ "     FROM leaderboard b"
-	+ "        , contestants AS a"
-	+ "    WHERE a.contestant_number = b.contestant_number");
-	
-	public final SQLStmt updateDemoVoteCount = new SQLStmt( "INSERT INTO demoVoteCount "
-	+ "SELECT count(*) FROM votes;");
-	
-	public final SQLStmt updateDemoWindowCount = new SQLStmt( "INSERT INTO demoWindowCount "
-	+ "SELECT count(*) FROM trending_leaderboard;");
-	
-	public final SQLStmt checkDemo = new SQLStmt( "INSERT INTO demoWindowCount VALUES (-1);");
-	/////////////////////////////
-	//END DEMO BOARD UPDATES
-	/////////////////////////////
-	
+   
 	/////////////////////////////
 	//BEGIN GET RESULTS
 	/////////////////////////////
@@ -163,9 +120,14 @@ public class GenerateLeaderboard extends VoltProcedure {
 	public final SQLStmt getTrendingCountStmt = new SQLStmt("SELECT count(*) FROM trending_leaderboard;");
 	public final SQLStmt getRemainingContestants = new SQLStmt("SELECT count(*) FROM contestants;");
 	public final SQLStmt getRemovedContestant = new SQLStmt("SELECT contestant_name, num_votes FROM removed_contestant WHERE row_id = 1;");
+	public final SQLStmt getVotesTilNextDeleteStmt = new SQLStmt( "SELECT cnt FROM votes_next_delete WHERE row_id=1;");
 	/////////////////////////////
 	//END GET RESULTS
 	/////////////////////////////
+	
+	public final SQLStmt updateVotesTilNextDeleteStmt = new SQLStmt(
+		"UPDATE votes_next_delete SET cnt = ? WHERE row_id = 1;"
+    );
 	
 	private void printResults(int numVotes) throws IOException
     {
@@ -188,7 +150,8 @@ public class GenerateLeaderboard extends VoltProcedure {
 	        tableNames.add("RemainingContestants");
 	        voltQueueSQL(getRemovedContestant);
 	        tableNames.add("RemovedContestant");
-	        
+	        voltQueueSQL(getVotesTilNextDeleteStmt);
+	        tableNames.add("VotesTilNextDelete");
         }
         else {
 	        voltQueueSQL(getAllVotesStmt);
@@ -212,6 +175,8 @@ public class GenerateLeaderboard extends VoltProcedure {
         int numVotes = (int)(validation[2].fetchRow(0).getLong(0)) + 1;
         
         voltQueueSQL(updateNumVotesStmt, numVotes);
+        int votesSinceLastDelete = ((numVotes - 1) % VoterDemoSStoreConstants.VOTE_THRESHOLD) + 1;
+        voltQueueSQL(updateVotesTilNextDeleteStmt, VoterDemoSStoreConstants.VOTE_THRESHOLD - votesSinceLastDelete);
         voltExecuteSQL();
         
         // Set the return value to 0: successful vote
@@ -225,16 +190,6 @@ public class GenerateLeaderboard extends VoltProcedure {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
-        	/**
-        	voltQueueSQL(deleteDemoTopBoard);
-        	voltQueueSQL(deleteDemoTrendingBoard);
-        	voltQueueSQL(deleteDemoVoteCount);
-        	voltQueueSQL(deleteDemoWindowCount);
-        	voltQueueSQL(updateDemoTopBoard);
-        	voltQueueSQL(updateDemoTrendingBoard);
-        	voltQueueSQL(updateDemoVoteCount);
-        	voltQueueSQL(updateDemoWindowCount);
-        	*/
         }
         
         // Set the return value to 0: successful vote

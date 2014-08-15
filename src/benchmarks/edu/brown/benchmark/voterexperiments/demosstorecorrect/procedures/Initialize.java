@@ -31,6 +31,8 @@ import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
 
+import edu.brown.benchmark.voterexperiments.demosstorecorrect.VoterDemoSStoreConstants;
+
 @ProcInfo (
 singlePartition = false
 )
@@ -49,6 +51,7 @@ public class Initialize extends VoltProcedure
     public final SQLStmt insertVoteCountStmt = new SQLStmt("INSERT INTO votes_count (row_id, cnt) VALUES (1, 0);");
     public final SQLStmt insertProcOneCountStmt = new SQLStmt("INSERT INTO proc_one_count (row_id, totalcnt, successcnt) VALUES (1, 0, 0);");
     public final SQLStmt insertRemovedContestant = new SQLStmt("INSERT INTO removed_contestant (row_id, contestant_name, num_votes) VALUES (1,'',0);");
+    public final SQLStmt insertVotesTilDeleteStmt = new SQLStmt("INSERT INTO votes_next_delete (row_id, cnt) VALUES (1, ?);");
     
 	
     // Domain data: matching lists of Area codes and States
@@ -102,6 +105,7 @@ public class Initialize extends VoltProcedure
         voltQueueSQL(insertVoteCountStmt);
         voltQueueSQL(insertProcOneCountStmt);
         voltQueueSQL(insertRemovedContestant);
+        voltQueueSQL(insertVotesTilDeleteStmt, VoterDemoSStoreConstants.VOTE_THRESHOLD);
         long existingContestantCount = voltExecuteSQL()[0].asScalarLong();
 		
         // if the data is initialized, return the contestant count
