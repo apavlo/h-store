@@ -69,23 +69,45 @@ public class GenerateLeaderboard extends VoltProcedure {
     public final SQLStmt insertProcTwoOutStmt = new SQLStmt(
     	"INSERT INTO proc_two_out VALUES (?);"	
     );
+    
+    //////ADDED. REMOVE THESE
+    
+    public final SQLStmt getVoteId = new SQLStmt(
+    	"SELECT vote_id FROM proc_one_out;"	
+    );
+    
+    public final SQLStmt insertProcAuditStmt = new SQLStmt(
+		"INSERT INTO proc_audit (vote_id, proc, created) VALUES (?, ?, ?);"
+    );
+    
+    ///////END ADDED
 	
     public long run() {
 		
         voltQueueSQL(trendingLeaderboardStmt);
-        voltQueueSQL(deleteProcOneOutStmt);
         voltQueueSQL(checkNumVotesStmt);
+        voltQueueSQL(getVoteId);
+        voltQueueSQL(deleteProcOneOutStmt);
         
         VoltTable validation[] = voltExecuteSQL();
 
-        int numVotes = (int)(validation[2].fetchRow(0).getLong(0)) + 1;
+        int numVotes = (int)(validation[1].fetchRow(0).getLong(0)) + 1;
+        
+        //////REMOVE ME
+        long voteId = 0;
+        if(validation[2].getRowCount() > 0)
+        	voteId = validation[2].fetchRow(0).getLong(0);
+        
+        TimestampType timestamp = new TimestampType();
+        voltQueueSQL(insertProcAuditStmt, voteId, 2, timestamp);
+        /////END REMOVE
         
         voltQueueSQL(updateNumVotesStmt, (numVotes % VoterDemoSStoreConstants.VOTE_THRESHOLD));
         
         // Set the return value to 0: successful vote
         if(numVotes == VoterDemoSStoreConstants.VOTE_THRESHOLD)
         {
-        	voltQueueSQL(insertProcTwoOutStmt, 1);
+        	voltQueueSQL(insertProcTwoOutStmt, (int)voteId);
         }
         voltExecuteSQL(true);
         

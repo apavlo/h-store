@@ -51,6 +51,13 @@ CREATE STREAM proc_two_out
   row_id            int     NOT NULL
 );
 
+CREATE TABLE proc_audit
+(
+  vote_id   bigint NOT NULL
+, proc      int NOT NULL
+, created timestamp NOT NULL
+);
+
 CREATE WINDOW trending_leaderboard ON proc_one_out ROWS 100 SLIDE 10;
 
 CREATE TABLE leaderboard

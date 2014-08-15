@@ -70,10 +70,23 @@ public class DeleteContestant extends VoltProcedure {
 		"DELETE FROM leaderboard WHERE contestant_number = ?;"
     );
     
+	//////ADDED. REMOVE THESE
+	    
+	  public final SQLStmt getVoteId = new SQLStmt(
+	  	"SELECT row_id FROM proc_two_out;"	
+	  );
+	  
+	  public final SQLStmt insertProcAuditStmt = new SQLStmt(
+			"INSERT INTO proc_audit (vote_id, proc, created) VALUES (?, ?, ?);"
+	  );
+	  
+	  ///////END ADDED
 	
     public long run() {
 		
         voltQueueSQL(findLowestContestant);
+        voltQueueSQL(getVoteId); //remove me
+        voltQueueSQL(deleteProcTwoOutStmt); //remove me
         VoltTable validation[] = voltExecuteSQL();
         
         if(validation[0].getRowCount() < 1)
@@ -85,6 +98,15 @@ public class DeleteContestant extends VoltProcedure {
         voltQueueSQL(deleteLowestContestant, lowestContestant);
         voltQueueSQL(deleteLowestVotes, lowestContestant);
         voltQueueSQL(deleteLeaderBoardStmt, lowestContestant);
+        
+        //////REMOVE ME
+        long voteId = 0;
+        if(validation[1].getRowCount() > 0)
+        	voteId = validation[1].fetchRow(0).getLong(0);
+        
+        TimestampType timestamp = new TimestampType();
+        voltQueueSQL(insertProcAuditStmt, voteId, 3, timestamp);
+        /////END REMOVE
         voltExecuteSQL(true);
 		
         // Set the return value to 0: successful vote

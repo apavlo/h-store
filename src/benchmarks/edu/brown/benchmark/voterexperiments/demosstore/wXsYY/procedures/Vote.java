@@ -79,6 +79,11 @@ public class Vote extends VoltProcedure {
 		"INSERT INTO proc_one_out (vote_id, phone_number, state, contestant_number, created) VALUES (?, ?, ?, ?, ?);"
     );
     
+    // Records a vote
+    public final SQLStmt insertProcAuditStmt = new SQLStmt(
+		"INSERT INTO proc_audit (vote_id, proc, created) VALUES (?, ?, ?);"
+    );
+    
 	
 public long run(long voteId, long phoneNumber, int contestantNumber) {
 		
@@ -107,6 +112,7 @@ public long run(long voteId, long phoneNumber, int contestantNumber) {
 		 		
         // Post the vote
         TimestampType timestamp = new TimestampType();
+        voltQueueSQL(insertProcAuditStmt, voteId, 1, timestamp);
         voltQueueSQL(insertVoteStmt, voteId, phoneNumber, state, contestantNumber, timestamp);
        	voltQueueSQL(insertProcEndStmt, voteId, phoneNumber, state, contestantNumber, timestamp);
         voltExecuteSQL(true);

@@ -238,8 +238,31 @@ public enum ProjectType {
     MICROEXPNOBTRIGGERSTRIG9("MicroExpNoBTriggersTrig9", "edu.brown.benchmark.microexperiments.nobtriggers.trig9"),
     MICROEXPNOBTRIGGERSTRIG10("MicroExpNoBTriggersTrig10", "edu.brown.benchmark.microexperiments.nobtriggers.trig10"),
     
-    MICROEXPWINDOWS("MicroExpWindows", "edu.brown.benchmark.microexperiments.windows"),
-    MICROEXPNOWINDOWS("MicroExpNoWindows", "edu.brown.benchmark.microexperiments.nowindows"),
+    MICROEXPWINDOWS("MicroExpWindows", "edu.brown.benchmark.microexperiments.windows.orig"),
+    MICROEXPNOWINDOWS("MicroExpNoWindows", "edu.brown.benchmark.microexperiments.nowindows.orig"),
+    
+    MICROEXPWINDOWSW100S1("MicroExpWindowsW100S1", "edu.brown.benchmark.microexp.windows.w100s1"),
+    MICROEXPWINDOWSW100S5("MicroExpWindowsW100S5", "edu.brown.benchmark.microexp.windows.w100s5"),
+    MICROEXPWINDOWSW100S10("MicroExpWindowsW100S10", "edu.brown.benchmark.microexp.windows.w100s10"),
+    MICROEXPWINDOWSW100S30("MicroExpWindowsW100S30", "edu.brown.benchmark.microexp.windows.w100s30"),
+    MICROEXPWINDOWSW100S100("MicroExpWindowsW100S100", "edu.brown.benchmark.microexp.windows.w100s100"),
+    MICROEXPWINDOWSW10S2("MicroExpWindowsW10S2", "edu.brown.benchmark.microexp.windows.w10s2"),
+    MICROEXPWINDOWSW100S2("MicroExpWindowsW100S2", "edu.brown.benchmark.microexp.windows.w100s2"),
+    MICROEXPWINDOWSW1000S2("MicroExpWindowsW1000S2", "edu.brown.benchmark.microexp.windows.w1000s2"),
+    MICROEXPWINDOWSW10000S2("MicroExpWindowsW10000S2", "edu.brown.benchmark.microexp.windows.w10000s2"),
+    MICROEXPWINDOWSW100000S2("MicroExpWindowsW100000S2", "edu.brown.benchmark.microexp.windows.w100000s2"),
+    
+    MICROEXPNOWINDOWSW100S1("MicroExpNoWindowsW100S1", "edu.brown.benchmark.microexp.nowindows.w100s1"),
+    MICROEXPNOWINDOWSW100S5("MicroExpNoWindowsW100S5", "edu.brown.benchmark.microexp.nowindows.w100s5"),
+    MICROEXPNOWINDOWSW100S10("MicroExpNoWindowsW100S10", "edu.brown.benchmark.microexp.nowindows.w100s10"),
+    MICROEXPNOWINDOWSW100S30("MicroExpNoWindowsW100S30", "edu.brown.benchmark.microexp.nowindows.w100s30"),
+    MICROEXPNOWINDOWSW100S100("MicroExpNoWindowsW100S100", "edu.brown.benchmark.microexp.nowindows.w100s100"),
+    MICROEXPNOWINDOWSW10S2("MicroExpNoWindowsW10S2", "edu.brown.benchmark.microexp.nowindows.w10s2"),
+    MICROEXPNOWINDOWSW100S2("MicroExpNoWindowsW100S2", "edu.brown.benchmark.microexp.nowindows.w100s2"),
+    MICROEXPNOWINDOWSW1000S2("MicroExpNoWindowsW1000S2", "edu.brown.benchmark.microexp.nowindows.w1000s2"),
+    MICROEXPNOWINDOWSW10000S2("MicroExpNoWindowsW10000S2", "edu.brown.benchmark.microexp.nowindows.w10000s2"),
+    MICROEXPNOWINDOWSW100000S2("MicroExpNoWindowsW100000S2", "edu.brown.benchmark.microexp.nowindows.w100000s2"),
+
     
     GENERATEDEMO("GenerateDemo", "edu.brown.benchmark.voterexperiments.generatedemo"),
     ;
