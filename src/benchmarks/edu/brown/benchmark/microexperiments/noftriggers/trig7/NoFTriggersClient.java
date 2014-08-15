@@ -63,6 +63,9 @@ public class NoFTriggersClient extends BenchmarkComponent {
     AtomicLong failedVotes = new AtomicLong(0);
     static AtomicLong batchid = new AtomicLong(0);
     Random rand = new Random();
+    final Callback procOneCallback = new Callback(0);
+    final Callback otherProcCallback = new Callback(1);
+    boolean countTransaction = true;
 
     public static void main(String args[]) {
         BenchmarkComponent.main(NoFTriggersClient.class, args, false);
@@ -95,37 +98,25 @@ public class NoFTriggersClient extends BenchmarkComponent {
 
         Client client = this.getClientHandle();
         long id = batchid.getAndIncrement();
-        boolean resp = true;
-        
-        ClientResponse cr;
-		try {
-			cr = client.callProcedure("ProcOne",(int)id,rand.nextInt(10));
-	        incrementTransactionCounter(cr, 0);
-	        if(NoFTriggersConstants.NUM_TRIGGERS > 1)
-	        	client.callProcedure("ProcTwo");
-	        if(NoFTriggersConstants.NUM_TRIGGERS > 2)
-	        	client.callProcedure("ProcThree");
-	        if(NoFTriggersConstants.NUM_TRIGGERS > 3)
-	        	client.callProcedure("ProcFour");
-	        if(NoFTriggersConstants.NUM_TRIGGERS > 4)
-	        	client.callProcedure("ProcFive");
-	        if(NoFTriggersConstants.NUM_TRIGGERS > 5)
-	        	client.callProcedure("ProcSix");
-	        if(NoFTriggersConstants.NUM_TRIGGERS > 6)
-	        	client.callProcedure("ProcSeven");
-	        if(NoFTriggersConstants.NUM_TRIGGERS > 7)
-	        	client.callProcedure("ProcEight");
-	        if(NoFTriggersConstants.NUM_TRIGGERS > 8)
-	        	client.callProcedure("ProcNine");
-	        if(NoFTriggersConstants.NUM_TRIGGERS > 9)
-	        	client.callProcedure("ProcTen");
-    	}
-        catch (ProcCallException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-			resp = false;
-		}
-        	
+        boolean resp = client.callProcedure(procOneCallback, "ProcOne",(int)id,rand.nextInt(10));
+        if(NoFTriggersConstants.NUM_TRIGGERS > 1)
+        	client.callProcedure(otherProcCallback, "ProcTwo");
+        if(NoFTriggersConstants.NUM_TRIGGERS > 2)
+        	client.callProcedure(otherProcCallback, "ProcThree");
+        if(NoFTriggersConstants.NUM_TRIGGERS > 3)
+        	client.callProcedure(otherProcCallback, "ProcFour");
+        if(NoFTriggersConstants.NUM_TRIGGERS > 4)
+        	client.callProcedure(otherProcCallback, "ProcFive");
+        if(NoFTriggersConstants.NUM_TRIGGERS > 5)
+        	client.callProcedure(otherProcCallback, "ProcSix");
+        if(NoFTriggersConstants.NUM_TRIGGERS > 6)
+        	client.callProcedure(otherProcCallback, "ProcSeven");
+        if(NoFTriggersConstants.NUM_TRIGGERS > 7)
+        	client.callProcedure(otherProcCallback, "ProcEight");
+        if(NoFTriggersConstants.NUM_TRIGGERS > 8)
+        	client.callProcedure(otherProcCallback, "ProcNine");
+        if(NoFTriggersConstants.NUM_TRIGGERS > 9)
+        	client.callProcedure(otherProcCallback, "ProcTen");        	
         	
         return resp;
     }
@@ -138,4 +129,22 @@ public class NoFTriggersClient extends BenchmarkComponent {
         };
         return (procNames);
     }
+    
+    private class Callback implements ProcedureCallback {
+    	private int idx;
+    	
+    	public Callback(int idx)
+    	{
+    		super();
+    		this.idx = idx;
+    	}
+    	
+        @Override
+        public void clientCallback(ClientResponse clientResponse) {
+            // Increment the BenchmarkComponent's internal counter on the
+            // number of transactions that have been completed
+        	if(this.idx == 0)
+        		incrementTransactionCounter(clientResponse, 0);
+        }
+    } // END CLASS
 }
