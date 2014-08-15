@@ -43,11 +43,6 @@ import edu.brown.benchmark.microexperiments.noftriggers.trig8.NoFTriggersConstan
 )
 public class ProcTen extends VoltProcedure {
 	
-	protected void toSetTriggerTableName()
-	{
-		addTriggerTable("proc_nine_out");
-	}
-	
 	public final SQLStmt insertATableStmt = new SQLStmt(
 			"INSERT INTO a_tbl (a_id, a_val) SELECT * FROM proc_nine_out;"
 	);
