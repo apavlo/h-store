@@ -43,10 +43,11 @@ import edu.brown.benchmark.microexperiments.ftriggers.trig1.FTriggersConstants;
 )
 public class ProcSeven extends VoltProcedure {
 	
+	/**
 	protected void toSetTriggerTableName()
 	{
-		addTriggerTable("proc_six_out");
-	}
+		addTriggerTable("proc_four_out");
+	}*/
 	
 	public final SQLStmt insertATableStmt = new SQLStmt(
 			"INSERT INTO a_tbl (a_id, a_val) SELECT * FROM proc_six_out;"

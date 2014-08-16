@@ -48,8 +48,8 @@ public class FTriggersProjectBuilder extends AbstractProjectBuilder {
     @SuppressWarnings("unchecked")
     public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
         ProcOne.class,
-        //ProcTwo.class, ProcThree.class, ProcFour.class, ProcFive.class, ProcSix.class, 
-        //ProcSeven.class, ProcEight.class, ProcNine.class, ProcTen.class
+        ProcTwo.class, ProcThree.class, ProcFour.class, ProcFive.class, ProcSix.class, 
+        ProcSeven.class, ProcEight.class, ProcNine.class, ProcTen.class
         };
 	
 	{

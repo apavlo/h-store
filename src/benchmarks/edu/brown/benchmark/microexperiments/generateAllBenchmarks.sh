@@ -13,8 +13,8 @@ echo $w
 REP="trig${w}"
 rm -rf $REP
 cp -r $OLD $REP
-mv "$REP/microexp${d}-ddl.sql" "$REP/microexp${d}${REP}-ddl.sql"
-mv "$REP/microexp${d}.mappings" "$REP/microexp${d}${REP}.mappings"
+mv "$REP/microexp${d}${OLD}-ddl.sql" "$REP/microexp${d}${REP}-ddl.sql"
+mv "$REP/microexp${d}${OLD}.mappings" "$REP/microexp${d}${REP}.mappings"
 
 DPATH="$REP/*"
 for f in $DPATH
