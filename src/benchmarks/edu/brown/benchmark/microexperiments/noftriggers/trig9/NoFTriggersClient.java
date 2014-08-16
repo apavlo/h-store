@@ -47,6 +47,7 @@ import weka.classifiers.meta.Vote;
 import edu.brown.api.BenchmarkComponent;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.benchmark.microexperiments.noftriggers.trig9.procedures.*;
 
 public class NoFTriggersClient extends BenchmarkComponent {
     private static final Logger LOG = Logger.getLogger(NoFTriggersClient.class);
@@ -98,25 +99,25 @@ public class NoFTriggersClient extends BenchmarkComponent {
 
         Client client = this.getClientHandle();
         long id = batchid.getAndIncrement();
-        boolean resp = client.callProcedure(procOneCallback, "ProcOne",(int)id,rand.nextInt(10));
+        boolean resp = client.callProcedure(new Callback(0), "ProcOne",(int)id,rand.nextInt(10));
         if(NoFTriggersConstants.NUM_TRIGGERS > 1)
-        	client.callProcedure(otherProcCallback, "ProcTwo");
+        	client.callProcedure(new Callback(1), "ProcTwo");
         if(NoFTriggersConstants.NUM_TRIGGERS > 2)
-        	client.callProcedure(otherProcCallback, "ProcThree");
+        	client.callProcedure(new Callback(2), "ProcThree");
         if(NoFTriggersConstants.NUM_TRIGGERS > 3)
-        	client.callProcedure(otherProcCallback, "ProcFour");
+        	client.callProcedure(new Callback(3), "ProcFour");
         if(NoFTriggersConstants.NUM_TRIGGERS > 4)
-        	client.callProcedure(otherProcCallback, "ProcFive");
+        	client.callProcedure(new Callback(4), "ProcFive");
         if(NoFTriggersConstants.NUM_TRIGGERS > 5)
-        	client.callProcedure(otherProcCallback, "ProcSix");
+        	client.callProcedure(new Callback(5), "ProcSix");
         if(NoFTriggersConstants.NUM_TRIGGERS > 6)
-        	client.callProcedure(otherProcCallback, "ProcSeven");
+        	client.callProcedure(new Callback(6), "ProcSeven");
         if(NoFTriggersConstants.NUM_TRIGGERS > 7)
-        	client.callProcedure(otherProcCallback, "ProcEight");
+        	client.callProcedure(new Callback(7), "ProcEight");
         if(NoFTriggersConstants.NUM_TRIGGERS > 8)
-        	client.callProcedure(otherProcCallback, "ProcNine");
+        	client.callProcedure(new Callback(8), "ProcNine");
         if(NoFTriggersConstants.NUM_TRIGGERS > 9)
-        	client.callProcedure(otherProcCallback, "ProcTen");        	
+        	client.callProcedure(new Callback(9), "ProcTen");        	
         	
         return resp;
     }
@@ -125,7 +126,16 @@ public class NoFTriggersClient extends BenchmarkComponent {
     public String[] getTransactionDisplayNames() {
         // Return an array of transaction names
         String procNames[] = new String[]{
-            Vote.class.getSimpleName()
+        		ProcOne.class.getSimpleName(),
+        		ProcTwo.class.getSimpleName(),
+        		ProcThree.class.getSimpleName(),
+        		ProcFour.class.getSimpleName(),
+        		ProcFive.class.getSimpleName(),
+        		ProcSix.class.getSimpleName(),
+        		ProcSeven.class.getSimpleName(),
+        		ProcEight.class.getSimpleName(),
+        		ProcNine.class.getSimpleName(),
+        		ProcTen.class.getSimpleName(),
         };
         return (procNames);
     }
@@ -143,8 +153,8 @@ public class NoFTriggersClient extends BenchmarkComponent {
         public void clientCallback(ClientResponse clientResponse) {
             // Increment the BenchmarkComponent's internal counter on the
             // number of transactions that have been completed
-        	if(this.idx == 0)
-        		incrementTransactionCounter(clientResponse, 0);
+        	//if(this.idx == 0)
+        		incrementTransactionCounter(clientResponse, idx);
         }
     } // END CLASS
 }

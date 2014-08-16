@@ -62,7 +62,8 @@ public class FTriggersClient extends BenchmarkComponent {
     AtomicLong failedVotes = new AtomicLong(0);
     static AtomicLong batchid = new AtomicLong(0);
 
-    final Callback callback = new Callback();
+    final Callback callback = new Callback(0);
+    final Callback otherProcCallback = new Callback(1);
     Random rand = new Random();
 
     public static void main(String args[]) {
@@ -101,6 +102,29 @@ public class FTriggersClient extends BenchmarkComponent {
                                                 id,
                                                 (int)id,
                                                 rand.nextInt(10));
+        if(FTriggersConstants.NUM_TRIGGERS > 1)
+	        response = client.callStreamProcedure(otherProcCallback,
+	                "ProcTwo",
+	                id,
+	                (int)id,
+	                rand.nextInt(10));
+//        if(FTriggersConstants.NUM_TRIGGERS > 2)
+//        	response = client.callProcedure(otherProcCallback, "ProcThree");
+//        if(FTriggersConstants.NUM_TRIGGERS > 3)
+//        	response = client.callProcedure(otherProcCallback, "ProcFour");
+//        if(FTriggersConstants.NUM_TRIGGERS > 4)
+//        	response = client.callProcedure(otherProcCallback, "ProcFive");
+//        if(FTriggersConstants.NUM_TRIGGERS > 5)
+//        	response = client.callProcedure(otherProcCallback, "ProcSix");
+//        if(FTriggersConstants.NUM_TRIGGERS > 6)
+//        	response = client.callProcedure(otherProcCallback, "ProcSeven");
+//        if(FTriggersConstants.NUM_TRIGGERS > 7)
+//        	response = client.callProcedure(otherProcCallback, "ProcEight");
+//        if(FTriggersConstants.NUM_TRIGGERS > 8)
+//        	response = client.callProcedure(otherProcCallback, "ProcNine");
+//        if(FTriggersConstants.NUM_TRIGGERS > 9)
+//        	response = client.callProcedure(otherProcCallback, "ProcTen");
+        
         return response;
     }
 
@@ -115,17 +139,20 @@ public class FTriggersClient extends BenchmarkComponent {
 
     private class Callback implements ProcedureCallback {
 
+    	int idx;
     	
-    	public Callback()
+    	public Callback(int idx)
     	{
     		super();
+    		this.idx = idx;
     	}
     	
         @Override
         public void clientCallback(ClientResponse clientResponse) {
             // Increment the BenchmarkComponent's internal counter on the
             // number of transactions that have been completed
-            incrementTransactionCounter(clientResponse, 0);
+            if(this.idx == 0)
+            	incrementTransactionCounter(clientResponse, this.idx);
         }
     } // END CLASS
 }
