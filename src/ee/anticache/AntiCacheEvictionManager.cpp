@@ -178,7 +178,7 @@ bool AntiCacheEvictionManager::updateTuple(PersistentTable* table, TableTuple* t
 
 
 #ifndef ANTICACHE_TIMESTAMPS
-    int SAMPLE_RATE = 1000; // aLRU sampling rate
+    int SAMPLE_RATE = 100; // aLRU sampling rate
 
     int tuples_in_chain;
 

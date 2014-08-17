@@ -444,12 +444,14 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         long totalBlocksEvicted = 0;
         long totalBlocksFetched = 0;
         long totalEvictableSizeKb = 0;
+	long totalIndexKb = 0;
         for (PartitionStats stats : this.partitionStats) {
-            totalSizeKb += stats.sizeKb;
+            totalSizeKb += stats.sizeKb - stats.indexes;
+            totalIndexKb += stats.indexes;
             totalBlocksEvicted += stats.blocksEvicted;
             totalBlocksFetched += stats.blocksFetched;
             for (Stats tstats : stats.getTableStats()) {
-                totalEvictableSizeKb += tstats.sizeKb;
+                totalEvictableSizeKb += tstats.sizeKb - tstats.indexes;
             }
         }
 
@@ -461,6 +463,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
                 hstore_conf.site.anticache_threshold_mb + " MB");
         LOG.info("Current Active Memory Usage: " + totalActiveDataSize + " / " +
                 hstore_conf.site.anticache_threshold_mb + " MB");
+        LOG.info("Index memory: " + totalIndexKb);
         LOG.info("Blocks Currently Evicted: " + totalBlocksEvicted);
         LOG.info("Total Blocks Fetched: " + totalBlocksFetched);
         LOG.info("Total Evictable Kb: " + totalEvictableSizeKb);
@@ -782,12 +785,13 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         }
 
         public void update(String table, long sizeKb, long blocksEvicted,
-                long blocksFetched, long blocksWritten, long accesses){
+                long blocksFetched, long blocksWritten, long accesses, long indexes){
             this.sizeKb += sizeKb;
             this.blocksEvicted += blocksEvicted;
             this.blocksFetched += blocksFetched;
             this.blocksWritten += blocksWritten;
             this.accesses += accesses;
+            this.indexes += indexes;
             if (this.tables.containsKey(table)) {
                 Stats tableStats = this.tables.get(table);
                 tableStats.sizeKb = sizeKb;
@@ -795,6 +799,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
                 tableStats.blocksFetched = blocksFetched;
                 tableStats.blocksWritten = blocksWritten;
                 tableStats.accesses = accesses;
+                tableStats.indexes = indexes;
             }
         }
         
@@ -843,6 +848,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         public long evictionBlocksWritten = 0;
         public long evictionAccesses = 0;
         public double unevictionRatio = 0;
+        public long indexes = 0;
         
         public void reset() {
             sizeKb = 0;
@@ -850,6 +856,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
             blocksFetched = 0;
             blocksWritten = 0;
             accesses = 0;
+            indexes = 0;
         }
     }
 
@@ -876,6 +883,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
             do {
                 String table = vt.getString("TABLE_NAME");
                 long sizeKb = vt.getLong("TUPLE_DATA_MEMORY") + vt.getLong("STRING_DATA_MEMORY") + vt.getLong("INDEX_MEMORY");
+                long indexes = vt.getLong("INDEX_MEMORY");
                 //tupleMem += vt.getLong("TUPLE_DATA_MEMORY");
                 //stringMem += vt.getLong("STRING_DATA_MEMORY");
                 //indexMem += vt.getLong("INDEX_MEMORY");
@@ -883,7 +891,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
                 long blocksFetched = vt.getLong("ANTICACHE_BLOCKS_READ");
                 long blocksWritten = vt.getLong("ANTICACHE_BLOCKS_WRITTEN");
                 long accesses = vt.getLong("TUPLE_ACCESSES");
-                stats.update(table, sizeKb, blocksEvicted, blocksFetched, blocksWritten, accesses);
+                stats.update(table, sizeKb, blocksEvicted, blocksFetched, blocksWritten, accesses, indexes);
             } while(vt.advanceRow());
 
             //LOG.info(String.format("Tuple Mem: %d; String Mem: %d\n", tupleMem, stringMem));
