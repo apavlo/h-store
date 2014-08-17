@@ -520,6 +520,7 @@ inline int Table::getTupleID(const char* tuple_address)
     int tuple_id = 0; 
     
     int tuple_size = m_schema->tupleLength() + TUPLE_HEADER_SIZE; 
+    //int offset
     
     for(int i = 0; i < m_data.size(); i++)  // iterate through blocks
     {
@@ -532,6 +533,9 @@ inline int Table::getTupleID(const char* tuple_address)
             tuple_id += m_tuplesPerBlock; 
             continue; 
         }
+
+        //offset = ((int)tuple_address - (int)addr) / tuple_size;
+        //if (addr + )
         
         for(int j = 0; j < m_tuplesPerBlock; j++)  // iterate through tuples in a block
         {
